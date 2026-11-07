@@ -48,6 +48,9 @@ pub(crate) struct UserRecord {
     pub server: Option<String>,
     /// The FinTS version as AqBanking keeps it (`300`, `220`, …).
     pub hbci_version: Option<String>,
+    /// The TAN method selected for the login (`selectedTanMethod`), as the
+    /// number `setitanmode` takes (D-617).
+    pub selected_tan_method: Option<u16>,
     /// The TAN methods the bank allows this login (`tanMethodList`, set by
     /// `getitanmodes` or the bank's answer), as numbers.
     pub tan_methods: Vec<u16>,
@@ -118,6 +121,8 @@ pub(crate) fn users(data_dir: &Path) -> io::Result<Vec<UserRecord>> {
             crypt_mode: value(&values, "data/backend", "cryptMode").map(str::to_owned),
             server: value(&values, "data/backend", "server").map(str::to_owned),
             hbci_version: value(&values, "data/backend", "hbciVersion").map(str::to_owned),
+            selected_tan_method: value(&values, "data/backend", "selectedTanMethod")
+                .and_then(|method| method.trim().parse().ok()),
             tan_methods: list(&values, "data/backend", "tanMethodList")
                 .iter()
                 .filter_map(|method| method.trim().parse().ok())
@@ -126,7 +131,23 @@ pub(crate) fn users(data_dir: &Path) -> io::Result<Vec<UserRecord>> {
         });
     }
     records.sort_by_key(|record| record.unique_id);
+    // The same login in two files is one login (M6-B185).
+    records.dedup_by_key(|record| record.unique_id);
     Ok(records)
+}
+
+/// The login name of the login with `unique_id` (`userId` at the top of its
+/// file). It is read only for the screen that changes a login (D-617, a
+/// narrow exception to threat T-19) and is not part of [`UserRecord`], whose
+/// `Debug` could otherwise carry it into a log.
+pub(crate) fn login_name(data_dir: &Path, unique_id: u32) -> io::Result<Option<String>> {
+    for text in read_group(data_dir, "users")? {
+        let values = parse(&text);
+        if value(&values, "", "uniqueId").and_then(|id| id.parse::<u32>().ok()) == Some(unique_id) {
+            return Ok(value(&values, "", "userId").map(str::to_owned));
+        }
+    }
+    Ok(None)
 }
 
 /// The longest method name kept, in characters.

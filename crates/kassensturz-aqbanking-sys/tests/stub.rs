@@ -290,6 +290,17 @@ fn setup_commands_reach_the_backend_with_their_options() {
             .join("00000001.conf")
             .is_file()
     );
+    // Like AqBanking, the stub refuses to delete a user while an account
+    // names it (M6-B185): the accounts go first.
+    assert_eq!(
+        session.control("deluser", &["-u", "1"]),
+        Err(SessionError::Library(2))
+    );
+    for account in session.accounts().expect("accounts") {
+        session
+            .control("delaccount", &["-a", &account.unique_id.to_string()])
+            .expect("delaccount");
+    }
     session.control("deluser", &["-u", "1"]).expect("deluser");
     assert!(
         !data_dir

@@ -63,8 +63,8 @@ use kassensturz_core::{CurrencyCode, Date};
 
 use crate::availability::{Availability, FINTS_REGISTRATION_KEY, Library, Version};
 use crate::backend::{
-    Bank, BankAccount, BankAccountId, BankAccountKind, FintsVersion, Login, LoginConnection,
-    LoginId, LoginSetup, TanMethodChoice,
+    Bank, BankAccount, BankAccountId, BankAccountKind, FintsVersion, Login, LoginChange,
+    LoginConnection, LoginDetails, LoginId, LoginSetup, TanMethodChoice, valid_tan_method,
 };
 use crate::directory::{BankDirectory, BankInfo, Corrected, CustomerId, FintsServer, LoginKind};
 use crate::error::BankError;
@@ -389,6 +389,47 @@ impl AqBankingBank {
         Ok(())
     }
 
+    /// Deletes the login `uid` with its accounts. AqBanking refuses to
+    /// delete a user while an account still names it (`deluser` ends with
+    /// "Could not delete user", error -6), so the accounts go first
+    /// (M6-B185). A login whose accounts can't all be deleted is not
+    /// deleted either, and the error says so.
+    fn delete_login(&self, session: &Session<Handler>, uid: u32) -> Result<(), BankError> {
+        let owners = settings::account_owners(&self.folder).map_err(|_| BankError::Folder)?;
+        let mut accounts: Vec<u32> = owners
+            .into_iter()
+            .filter(|(_, owner)| *owner == uid)
+            .map(|(account, _)| account)
+            .collect();
+        accounts.sort_unstable();
+        let mut first_error = None;
+        for account in accounts {
+            let id = account.to_string();
+            if let Err(error) = self.edit_setting(session, "delaccount", &["-a", id.as_str()]) {
+                first_error.get_or_insert(error);
+            }
+        }
+        let uid_text = uid.to_string();
+        let user = self.edit_setting(session, "deluser", &["-u", uid_text.as_str()]);
+        match (first_error, user) {
+            (_, Ok(())) => Ok(()),
+            (Some(error), Err(_)) | (None, Err(error)) => Err(error),
+        }
+    }
+
+    /// Runs one command that only edits a login's settings (D-617): it
+    /// reaches no bank and asks for no PIN.
+    fn edit_setting(
+        &self,
+        session: &Session<Handler>,
+        command: &str,
+        arguments: &[&str],
+    ) -> Result<(), BankError> {
+        let outcome = Self::call(session, None, || session.control(command, arguments));
+        self.clean_logs();
+        outcome.into_result(true)
+    }
+
     /// Sets AqBanking's `preferCamtDownload` flag on one account, which asks
     /// the bank for CAMT statements (M6-B184). The command only edits the
     /// account's settings, so it needs no PIN and sends nothing; a failure
@@ -416,6 +457,48 @@ impl AqBankingBank {
             .and_then(|users| users.into_iter().find(|user| user.unique_id == uid))
             .map(|user| user.offered_methods())
             .unwrap_or_default()
+    }
+
+    /// The work of [`Bank::refresh_accounts`], without ending the PIN session.
+    fn refresh_accounts_inner(
+        &self,
+        login: &LoginId,
+        pins: &mut PinSession,
+    ) -> Result<Vec<BankAccount>, BankError> {
+        let session = self.session()?;
+        let uid = self.user_id(login)?;
+        let uid_text = uid.to_string();
+        let bank = self
+            .logins()?
+            .into_iter()
+            .find(|candidate| &candidate.id == login)
+            .map(|candidate| candidate.bank)
+            .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
+        self.before_contact(session, &bank)?;
+        let pin = match pins.answer(login)? {
+            PinAnswer::Known(pin) => Some(pin),
+            PinAnswer::Ask => None,
+        };
+        let user = ["-u", uid_text.as_str()];
+        match self.setup_command(session, "getaccounts", &user, pin.clone(), login, pins) {
+            Ok(()) => {}
+            Err(BankError::TanMethodNeeded { .. }) => {
+                return Err(BankError::TanMethodNeeded {
+                    offered: self.offered_methods(uid),
+                });
+            }
+            Err(error) => return Err(error),
+        }
+        let accounts = self.accounts_of(session, uid, login)?;
+        for account in &accounts {
+            if let Ok(id) = account.id.as_str().parse() {
+                self.prefer_camt(session, id, login, pins);
+            }
+        }
+        if accounts.iter().any(|account| account.iban.is_none()) {
+            let _ = self.setup_command(session, "getaccsepa", &user, pin, login, pins);
+        }
+        self.accounts_of(session, uid, login)
     }
 
     /// The accounts of the login with `uid`, as AqBanking lists them.
@@ -620,10 +703,7 @@ impl Bank for AqBankingBank {
         if let Err(error) = self.connect_new(session, &uid_text, pin, setup.tan_method, pins) {
             // Nothing is kept of a login that didn't work, including its
             // PIN (D-057).
-            let _ = Self::call(session, None, || {
-                session.control("deluser", &["-u", &uid_text])
-            });
-            self.clean_logs();
+            let _ = self.delete_login(session, uid);
             // The PIN is gone from memory either way. A place for saved
             // PINs that can't be reached (KeePassXC not running) must not
             // hide what the bank said: its error is the one to show
@@ -636,12 +716,65 @@ impl Bank for AqBankingBank {
         Ok(id)
     }
 
+    fn login_details(&self, login: &LoginId) -> Result<LoginDetails, BankError> {
+        self.session()?;
+        let uid = self.user_id(login)?;
+        let record = settings::users(&self.folder)
+            .map_err(|_| BankError::Folder)?
+            .into_iter()
+            .find(|user| user.unique_id == uid)
+            .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
+        // The login name is read for the Change screen only (D-617).
+        let login_name = settings::login_name(&self.folder, uid)
+            .map_err(|_| BankError::Folder)?
+            .unwrap_or_default();
+        Ok(LoginDetails {
+            login_name,
+            tan_method: record.selected_tan_method,
+            offered: record.offered_methods(),
+        })
+    }
+
+    fn change_login(&mut self, login: &LoginId, change: &LoginChange) -> Result<(), BankError> {
+        let session = self.session()?;
+        let uid = self.user_id(login)?;
+        let uid_text = uid.to_string();
+        // Both commands only edit AqBanking's settings: no bank contact,
+        // no PIN (D-617).
+        if let Some(number) = change.tan_method {
+            if !valid_tan_method(number) {
+                return Err(BankError::SetupFailed { text: None });
+            }
+            let chosen = resolve_method(&self.offered_methods(uid), Some(number), false)?
+                .ok_or(BankError::SetupFailed { text: None })?
+                .to_string();
+            let arguments = ["-u", uid_text.as_str(), "-m", chosen.as_str()];
+            self.edit_setting(session, "setitanmode", &arguments)?;
+        }
+        if let Some(version) = change.fints_version {
+            let number = format!("--hbciversion={}", version.number());
+            let arguments = ["-u", uid_text.as_str(), number.as_str()];
+            self.edit_setting(session, "sethbciversion", &arguments)?;
+        }
+        Ok(())
+    }
+
+    fn refresh_accounts(
+        &mut self,
+        login: &LoginId,
+        pins: &mut PinSession,
+    ) -> Result<Vec<BankAccount>, BankError> {
+        // The PIN kept for this one session ends with it, whatever came
+        // of the call.
+        let result = self.refresh_accounts_inner(login, pins);
+        pins.end_session();
+        result
+    }
+
     fn remove_login(&mut self, login: &LoginId) -> Result<(), BankError> {
         let session = self.session()?;
-        let uid = self.user_id(login)?.to_string();
-        let outcome = Self::call(session, None, || session.control("deluser", &["-u", &uid]));
-        self.clean_logs();
-        outcome.into_result(true)
+        let uid = self.user_id(login)?;
+        self.delete_login(session, uid)
     }
 
     fn accounts(&self, login: &LoginId) -> Result<Vec<BankAccount>, BankError> {

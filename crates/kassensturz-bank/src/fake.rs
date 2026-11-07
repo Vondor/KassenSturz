@@ -17,7 +17,8 @@ use kassensturz_core::{Currency, CurrencyCode, Date};
 
 use crate::availability::{AQBANKING_MINIMUM, Availability, GWENHYWFAR_MINIMUM, Library, Version};
 use crate::backend::{
-    Bank, BankAccount, BankAccountId, BankAccountKind, Login, LoginId, LoginSetup,
+    Bank, BankAccount, BankAccountId, BankAccountKind, Login, LoginChange, LoginDetails, LoginId,
+    LoginSetup, TanMethodChoice, valid_tan_method,
 };
 use crate::dialogs::{BankDialogs, BankQuestion, QuestionLevel, TanRequest};
 use crate::directory::{BankDirectory, BankInfo, CustomerId, FintsServer, LoginKind};
@@ -82,6 +83,8 @@ pub enum SecondFactor {
 #[derive(Clone, Debug)]
 struct FakeLogin {
     login: Login,
+    login_name: String,
+    tan_method: Option<u16>,
 }
 
 /// The app's dialogs, if it gave the fake bank some.
@@ -167,6 +170,8 @@ impl FakeBank {
                     kind: FakeDirectory::PIN_TAN,
                     connection: Default::default(),
                 },
+                login_name: "made-up-login".to_owned(),
+                tan_method: None,
             });
         }
         self
@@ -451,8 +456,67 @@ impl Bank for FakeBank {
                     fints_version: Some(setup.fints_version),
                 },
             },
+            login_name: setup.login_name.clone(),
+            tan_method: setup.tan_method,
         });
         Ok(id)
+    }
+
+    fn login_details(&self, login: &LoginId) -> Result<LoginDetails, BankError> {
+        self.availability.require()?;
+        let fake = self.find(login)?;
+        Ok(LoginDetails {
+            login_name: fake.login_name.clone(),
+            tan_method: fake.tan_method,
+            offered: vec![
+                TanMethodChoice {
+                    number: 6912,
+                    function: 912,
+                    version: 6,
+                    name: "Test TAN list".to_owned(),
+                },
+                TanMethodChoice {
+                    number: 7920,
+                    function: 920,
+                    version: 7,
+                    name: "Test app approval".to_owned(),
+                },
+            ],
+        })
+    }
+
+    fn change_login(&mut self, login: &LoginId, change: &LoginChange) -> Result<(), BankError> {
+        self.availability.require()?;
+        self.find(login)?;
+        if let Some(number) = change.tan_method
+            && !valid_tan_method(number)
+        {
+            return Err(BankError::SetupFailed { text: None });
+        }
+        let fake = self
+            .logins
+            .iter_mut()
+            .find(|fake| &fake.login.id == login)
+            .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
+        if let Some(version) = change.fints_version {
+            fake.login.connection.fints_version = Some(version);
+        }
+        if change.tan_method.is_some() {
+            fake.tan_method = change.tan_method;
+        }
+        Ok(())
+    }
+
+    fn refresh_accounts(
+        &mut self,
+        login: &LoginId,
+        pins: &mut PinSession,
+    ) -> Result<Vec<BankAccount>, BankError> {
+        self.availability.require()?;
+        self.find(login)?;
+        self.connect(login, pins)?;
+        pins.end_session();
+        Ok(Self::accounts_of(login))
     }
 
     fn remove_login(&mut self, login: &LoginId) -> Result<(), BankError> {

@@ -160,6 +160,43 @@ pub fn valid_tan_method(number: u16) -> bool {
     number <= TAN_METHOD_MAX && TAN_METHODS.contains(&(number % 1000))
 }
 
+/// What the user may change on a login that is already set up, without
+/// setting it up again (D-617). `None` leaves a part as it is. Nothing
+/// here reaches the bank: the change only edits the backend's settings.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct LoginChange {
+    /// A new FinTS version.
+    pub fints_version: Option<FintsVersion>,
+    /// A new TAN method, as [`LoginSetup::tan_method`] takes it.
+    pub tan_method: Option<u16>,
+}
+
+/// What the "Change" screen of a login shows besides [`Login`] (D-617):
+/// the login name (the narrow exception to threat T-19 that D-617 makes,
+/// for that screen only), the TAN method in use and the methods the bank
+/// offers. The login name is never logged or put in an error report, and
+/// `Debug` hides it; the method names are the bank's text, shown on screen
+/// only (D-611).
+#[derive(Clone, PartialEq, Eq)]
+pub struct LoginDetails {
+    /// The login name the bank gave; empty if the backend doesn't know it.
+    pub login_name: String,
+    /// The TAN method selected for the login, if one is.
+    pub tan_method: Option<u16>,
+    /// The methods the bank offers the login (D-615); empty if not known.
+    pub offered: Vec<TanMethodChoice>,
+}
+
+impl fmt::Debug for LoginDetails {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("LoginDetails")
+            .field("login_name", &"…")
+            .field("tan_method", &self.tan_method)
+            .field("offered", &self.offered.len())
+            .finish()
+    }
+}
+
 /// What setting up a login needs, as the setup screens gathered it (M4.6)
 /// from the questions of the bank's [`LoginKind`]. The backend keeps it in
 /// its own storage; this crate keeps nothing of it after the call. Its
@@ -277,6 +314,24 @@ pub trait Bank {
         pins: &mut PinSession,
     ) -> Result<LoginId, BankError>;
 
+    /// The login name, the selected TAN method and the offered methods of
+    /// `login`, for the screen that changes it (D-617).
+    fn login_details(&self, login: &LoginId) -> Result<LoginDetails, BankError>;
+
+    /// Changes the FinTS version and/or the TAN method of `login` in place
+    /// (D-617). The accounts, the PIN and everything else stay; the bank is
+    /// not contacted.
+    fn change_login(&mut self, login: &LoginId, change: &LoginChange) -> Result<(), BankError>;
+
+    /// Asks the bank again which accounts `login` reaches, so accounts that
+    /// came later can be linked without a new login (D-617). Needs the PIN
+    /// like [`Bank::fetch`] does. Returns every account of the login.
+    fn refresh_accounts(
+        &mut self,
+        login: &LoginId,
+        pins: &mut PinSession,
+    ) -> Result<Vec<BankAccount>, BankError>;
+
     /// Removes a login and its accounts from the backend. Call
     /// [`remove_login`] instead, which also forgets the PIN (D-057).
     fn remove_login(&mut self, login: &LoginId) -> Result<(), BankError>;
@@ -298,15 +353,19 @@ pub trait Bank {
 }
 
 /// Removes `login` from `bank` and forgets its PIN, remembered or saved
-/// (D-057: a saved PIN goes with its login). The PIN is forgotten even when
-/// the backend fails, so no PIN outlives an attempt to remove its login.
+/// (D-057: a saved PIN goes with its login). The PIN is forgotten once the
+/// login is gone, or was not there to begin with; when the backend fails to
+/// remove it, the login is still there and keeps its PIN, so a saved one is
+/// not lost for a login that still works (M6-B185).
 pub fn remove_login(
     bank: &mut dyn Bank,
     login: &LoginId,
     pins: &mut PinSession,
 ) -> Result<(), BankError> {
     let removed = bank.remove_login(login);
-    pins.forget(login)?;
+    if matches!(removed, Ok(()) | Err(BankError::UnknownLogin(_))) {
+        pins.forget(login)?;
+    }
     removed
 }
 

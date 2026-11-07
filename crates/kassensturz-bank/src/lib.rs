@@ -60,9 +60,9 @@ pub use availability::{
     GWENGUI_QT6_LIBRARY, GWENHYWFAR_LIBRARY, GWENHYWFAR_MINIMUM, Library, Version,
 };
 pub use backend::{
-    Bank, BankAccount, BankAccountId, BankAccountKind, FintsVersion, Login, LoginConnection,
-    LoginId, LoginSetup, TAN_METHOD_MAX, TAN_METHODS, TanMethodChoice, remove_login,
-    valid_tan_method,
+    Bank, BankAccount, BankAccountId, BankAccountKind, FintsVersion, Login, LoginChange,
+    LoginConnection, LoginDetails, LoginId, LoginSetup, TAN_METHOD_MAX, TAN_METHODS,
+    TanMethodChoice, remove_login, valid_tan_method,
 };
 pub use dialogs::{BankDialogs, BankQuestion, QuestionLevel, Tan, TanRequest};
 pub use directory::{

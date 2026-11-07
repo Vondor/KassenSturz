@@ -182,7 +182,8 @@ fn the_book() -> Book {
         let category = categories[name];
         let currency = book.account(category).expect("the category").currency;
         book.add_budget(
-            category,
+            &[category],
+            &[],
             BudgetEvery::Month,
             Date::constant(2026, 1, 1),
             None,
@@ -359,6 +360,7 @@ fn the_starter_overview_reads_and_its_budgets_have_figures_for_last_month() {
         today,
         BudgetGrouping::Period,
         &Filter::default(),
+        None,
     )
     .expect("figures");
     assert_eq!(rows.len(), BUDGETS.len());
@@ -369,7 +371,7 @@ fn the_starter_overview_reads_and_its_budgets_have_figures_for_last_month() {
         assert!(
             shown.spent.minor_units() > 0,
             "{:?} spent nothing",
-            row.path
+            row.paths
         );
         if shown.left.minor_units() < 0 {
             over += 1;

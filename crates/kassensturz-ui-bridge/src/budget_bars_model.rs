@@ -26,6 +26,9 @@ pub struct Request {
     pub period: String,
     /// IDs of categories; empty for every budget.
     pub only: Vec<String>,
+    /// IDs of the budgets the component shows, its *Which budgets*
+    /// (D-642); empty for every budget.
+    pub budgets: Vec<String>,
     /// The filters the dashboard puts on the component (M6c.7, D-350).
     pub scope: Scope,
 }
@@ -65,6 +68,13 @@ pub mod qobject {
         #[cxx_name = "setScope"]
         fn set_scope(self: Pin<&mut BookBudgets>, scope: &QString);
 
+        /// Sets the budgets the next request shows (D-642): the component's
+        /// *Which budgets*, IDs separated by commas (empty for every
+        /// budget). Call it before `show`.
+        #[qinvokable]
+        #[cxx_name = "setBudgets"]
+        fn set_budgets(self: Pin<&mut BookBudgets>, budgets: &QString);
+
         /// Reads the open book again for the last request, e.g. after a
         /// screen changed the book.
         #[qinvokable]
@@ -78,19 +88,17 @@ pub struct BookBudgetsRust {
     view: QVariant,
     request: Option<Request>,
     scope: Scope,
+    budgets: Vec<String>,
 }
 
 impl qobject::BookBudgets {
     fn show(mut self: Pin<&mut Self>, period: &QString, only: &QString) {
         let scope = self.rust().scope.clone();
+        let budgets = self.rust().budgets.clone();
         self.as_mut().rust_mut().request = Some(Request {
             period: period.to_string(),
-            only: only
-                .to_string()
-                .split(',')
-                .filter(|id| !id.is_empty())
-                .map(str::to_owned)
-                .collect(),
+            only: ids(only),
+            budgets,
             scope,
         });
         self.refresh();
@@ -98,6 +106,10 @@ impl qobject::BookBudgets {
 
     fn set_scope(mut self: Pin<&mut Self>, scope: &QString) {
         self.as_mut().rust_mut().scope = Scope::from_text(&scope.to_string());
+    }
+
+    fn set_budgets(mut self: Pin<&mut Self>, budgets: &QString) {
+        self.as_mut().rust_mut().budgets = ids(budgets);
     }
 
     fn refresh(mut self: Pin<&mut Self>) {
@@ -111,6 +123,7 @@ impl qobject::BookBudgets {
                 &locale,
                 &request.period,
                 &request.only,
+                &request.budgets,
                 &request.scope,
             )?;
             let count = budgets::count(book)?;
@@ -122,6 +135,15 @@ impl qobject::BookBudgets {
         self.as_mut().rust_mut().view = view;
         self.as_mut().view_changed();
     }
+}
+
+/// IDs sent by QML separated by commas, without empty ones.
+fn ids(text: &QString) -> Vec<String> {
+    text.to_string()
+        .split(',')
+        .filter(|id| !id.is_empty())
+        .map(str::to_owned)
+        .collect()
 }
 
 fn view_object(result: &Result<(Vec<budgets::Bar>, usize, FilterView), BudgetsError>) -> QVariant {
@@ -171,12 +193,11 @@ mod tests {
 
     fn ask(book: &Book, period: &str, only: &[String]) -> QVariant {
         view_object(
-            &budgets::bars_filtered(book, &TestLocale, period, only, &Scope::default()).and_then(
-                |(bars, filter)| {
+            &budgets::bars_filtered(book, &TestLocale, period, only, &[], &Scope::default())
+                .and_then(|(bars, filter)| {
                     let count = budgets::count(book)?;
                     Ok((bars, count, filter))
-                },
-            ),
+                }),
         )
     }
 
@@ -198,7 +219,8 @@ mod tests {
         assert!(list_of(&none, "bars").is_empty());
         assert_eq!(number_of(&none, "count"), 0);
         book.add_budget(
-            food,
+            &[food],
+            &[],
             BudgetEvery::Month,
             Date::new(2026, 10, 1).expect("a date"),
             None,

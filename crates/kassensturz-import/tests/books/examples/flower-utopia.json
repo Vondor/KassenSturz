@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 8,
+  "version": 9,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -40,7 +40,8 @@
   "budgets": [
     {
       "id": "019a0000-0000-7000-8000-000000000018",
-      "category": "019a0000-0000-7000-8000-00000000000c",
+      "categories": ["019a0000-0000-7000-8000-00000000000c"],
+      "accounts": [],
       "every": "month",
       "first_day": "2024-11-01",
       "last_day": null,
@@ -50,7 +51,8 @@
     },
     {
       "id": "019a0000-0000-7000-8000-000000000019",
-      "category": "019a0000-0000-7000-8000-000000000013",
+      "categories": ["019a0000-0000-7000-8000-000000000013"],
+      "accounts": [],
       "every": "month",
       "first_day": "2024-11-01",
       "last_day": null,
@@ -60,7 +62,8 @@
     },
     {
       "id": "019a0000-0000-7000-8000-00000000001a",
-      "category": "019a0000-0000-7000-8000-000000000015",
+      "categories": ["019a0000-0000-7000-8000-000000000015"],
+      "accounts": [],
       "every": "month",
       "first_day": "2024-11-01",
       "last_day": null,
@@ -70,7 +73,8 @@
     },
     {
       "id": "019a0000-0000-7000-8000-00000000001b",
-      "category": "019a0000-0000-7000-8000-00000000000b",
+      "categories": ["019a0000-0000-7000-8000-00000000000b"],
+      "accounts": [],
       "every": "month",
       "first_day": "2024-11-01",
       "last_day": null,
@@ -80,7 +84,8 @@
     },
     {
       "id": "019a0000-0000-7000-8000-00000000001c",
-      "category": "019a0000-0000-7000-8000-000000000010",
+      "categories": ["019a0000-0000-7000-8000-000000000010"],
+      "accounts": [],
       "every": "month",
       "first_day": "2024-11-01",
       "last_day": null,

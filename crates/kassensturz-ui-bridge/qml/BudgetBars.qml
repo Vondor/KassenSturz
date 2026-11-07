@@ -123,6 +123,17 @@ ColumnLayout {
                     : list.i18nContext.i18nc("@info %1 and %2 are dates", "%1 to %2", entry.modelData.firstDay, entry.modelData.lastDay)
             }
 
+            // A budget may count only some of the user's accounts (D-639).
+            Controls.Label {
+                Layout.fillWidth: true
+                visible: (entry.modelData.accounts ?? "") !== ""
+                font: Kirigami.Theme.smallFont
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                opacity: 0.8
+                text: list.i18nContext.i18nc("@info %1 is a list of account names", "Only money paid from %1", entry.modelData.accounts ?? "")
+            }
+
             Repeater {
                 model: entry.modelData.notes.filter(note => note.word !== "over")
 

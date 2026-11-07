@@ -35,7 +35,7 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 1] = [LAYOUT_24];
+pub(crate) const MIGRATIONS: [&str; 2] = [LAYOUT_24, LAYOUT_25];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
 /// development layouts of the Alpha, merged into layout 24 (D-045, D-135,
@@ -757,6 +757,103 @@ CREATE TABLE changed_budget_amounts (
 ) STRICT;
 ";
 
+/// Layout 25 (US1.10, D-639, D-640): a budget covers one or more spending
+/// categories, and it can count only what was paid from chosen accounts of
+/// the user's.
+///
+/// - `budgets` loses its one `category_id`; its categories are rows of
+///   `budget_categories`, in the order the user chose them (`position`),
+///   each category once per budget. A category that is in a budget still
+///   can't be removed (the foreign key has no cascade).
+/// - `budget_accounts` holds the accounts a budget counts from, each once
+///   per budget; a budget without rows there counts every account. An
+///   account can't be removed at all, so nothing removes these rows but the
+///   budget's own removal.
+/// - Removing a budget removes its rows in both tables in the same change
+///   (ON DELETE CASCADE), so its Undo brings them back.
+///
+/// Every budget of layout 24 gets one row in `budget_categories` with its
+/// category, whose ID is the budget's own ID, so the change history's
+/// copies of a budget, converted the same way, still match the book and
+/// every change made before the update can still be undone (D-066). No
+/// budget gets accounts: as before, it counts every account.
+const LAYOUT_25: &str = "
+CREATE TABLE new_budgets (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    every TEXT NOT NULL CHECK (every IN ('month', 'quarter', 'year', 'range')),
+    first_day TEXT NOT NULL
+        CHECK (first_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    last_day TEXT
+        CHECK (last_day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    CHECK (last_day IS NULL OR last_day >= first_day),
+    CHECK (every <> 'range' OR last_day IS NOT NULL)
+) STRICT;
+INSERT INTO new_budgets (id, every, first_day, last_day)
+    SELECT id, every, first_day, last_day FROM budgets;
+
+CREATE TABLE budget_categories (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    budget_id BLOB NOT NULL REFERENCES budgets (id) ON DELETE CASCADE,
+    category_id BLOB NOT NULL REFERENCES accounts (id),
+    position INTEGER NOT NULL CHECK (position >= 0)
+) STRICT;
+INSERT INTO budget_categories (id, budget_id, category_id, position)
+    SELECT id, id, category_id, 0 FROM budgets;
+
+CREATE TABLE budget_accounts (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    budget_id BLOB NOT NULL REFERENCES budgets (id) ON DELETE CASCADE,
+    account_id BLOB NOT NULL REFERENCES accounts (id),
+    position INTEGER NOT NULL CHECK (position >= 0)
+) STRICT;
+
+DROP INDEX budgets_by_category;
+DROP TABLE budgets;
+ALTER TABLE new_budgets RENAME TO budgets;
+CREATE INDEX budgets_by_first_day ON budgets (first_day);
+CREATE UNIQUE INDEX budget_categories_in_budget ON budget_categories (budget_id, category_id);
+CREATE INDEX budget_categories_by_category ON budget_categories (category_id);
+CREATE UNIQUE INDEX budget_accounts_in_budget ON budget_accounts (budget_id, account_id);
+CREATE INDEX budget_accounts_by_account ON budget_accounts (account_id);
+
+CREATE TABLE new_changed_budgets (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    every TEXT,
+    first_day TEXT,
+    last_day TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+INSERT INTO new_changed_budgets (change_id, side, id, every, first_day, last_day)
+    SELECT change_id, side, id, every, first_day, last_day FROM changed_budgets;
+
+CREATE TABLE changed_budget_categories (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    budget_id BLOB,
+    category_id BLOB,
+    position INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+INSERT INTO changed_budget_categories (change_id, side, id, budget_id, category_id, position)
+    SELECT change_id, side, id, id, category_id, 0 FROM changed_budgets;
+
+CREATE TABLE changed_budget_accounts (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    budget_id BLOB,
+    account_id BLOB,
+    position INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+DROP TABLE changed_budgets;
+ALTER TABLE new_changed_budgets RENAME TO changed_budgets;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -1140,6 +1237,104 @@ mod tests {
         assert!(book.account(unused).is_err());
         book.undo().expect("undone");
         assert!(book.account(unused).is_ok());
+    }
+
+    #[test]
+    fn layout_25_gives_each_budget_of_layout_24_its_category_and_keeps_its_undo() {
+        // A book at layout 24 with a budget on groceries, made by a change
+        // the history recorded, as KassenSturz wrote it before layout 25.
+        let folder = TempFolder::new();
+        let path = folder.join("Household.ksz");
+        let checking = old_book(&path, 24);
+        let conn = Connection::open(&path).expect("book opened");
+        let groceries: [u8; 16] = conn
+            .query_row(
+                "SELECT id FROM accounts WHERE name = 'Groceries'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("category");
+        let (budget, amount, change) = (
+            uuid::Uuid::now_v7().into_bytes(),
+            uuid::Uuid::now_v7().into_bytes(),
+            uuid::Uuid::now_v7().into_bytes(),
+        );
+        conn.execute_batch("BEGIN").expect("begun");
+        conn.execute(
+            "INSERT INTO budgets (id, category_id, every, first_day, last_day)
+             VALUES (?1, ?2, 'month', '2026-10-01', NULL)",
+            params![budget, groceries],
+        )
+        .expect("budget written");
+        conn.execute(
+            "INSERT INTO budget_amounts (id, budget_id, from_day, amount, carry_over)
+             VALUES (?1, ?2, '2026-10-01', 40000, 1)",
+            params![amount, budget],
+        )
+        .expect("amount written");
+        let made_at = kassensturz_core::Timestamp::from_second(
+            kassensturz_core::Timestamp::now().as_second(),
+        )
+        .expect("now");
+        conn.execute(
+            "INSERT INTO changes (id, sequence, action, made_at, undone)
+             VALUES (?1, 1, 'add_budget', ?2, 0)",
+            params![change, made_at.to_string()],
+        )
+        .expect("change written");
+        conn.execute(
+            "INSERT INTO changed_budgets (change_id, side, id, category_id, every, first_day, last_day)
+             VALUES (?1, 'after', ?2, ?3, 'month', '2026-10-01', NULL)",
+            params![change, budget, groceries],
+        )
+        .expect("history written");
+        conn.execute(
+            "INSERT INTO changed_budget_amounts
+                 (change_id, side, id, budget_id, from_day, amount, carry_over)
+             VALUES (?1, 'after', ?2, ?3, '2026-10-01', 40000, 1)",
+            params![change, amount, budget],
+        )
+        .expect("history written");
+        conn.execute_batch("COMMIT").expect("committed");
+        drop(conn);
+
+        let computer = computer(&folder);
+        let mut book = Book::open(&path, &computer).expect("book updated");
+        assert_eq!(pragma(&book.conn, "user_version"), 25);
+        assert_eq!(files_in(&computer.backup_folder).len(), 1);
+        let budgets = book.budgets().expect("budgets");
+        assert_eq!(budgets.len(), 1);
+        let kept = &budgets[0];
+        assert_eq!(kept.id, kassensturz_core::BudgetId::from_bytes(budget));
+        assert_eq!(kept.categories, [AccountId::from_bytes(groceries)]);
+        assert!(kept.accounts.is_empty(), "it still counts every account");
+        assert_eq!(kept.amounts.len(), 1);
+        assert_eq!(kept.amounts[0].amount, Money::from_minor_units(40_000, EUR));
+        assert!(kept.amounts[0].carry_over);
+        // Its one category is a row of its own, with the budget's ID.
+        let row: ([u8; 16], [u8; 16], i64) = book
+            .conn
+            .query_row(
+                "SELECT id, category_id, position FROM budget_categories",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .expect("one row");
+        assert_eq!(row, (budget, groceries, 0));
+
+        // The change made before the update is undone with all of the
+        // budget's rows, and made again.
+        let before = book.history().expect("history");
+        assert_eq!(before[0].action, crate::Action::AddBudget);
+        book.undo().expect("undone");
+        assert!(book.budgets().expect("budgets").is_empty());
+        assert_eq!(count(&book.conn, "budget_categories"), 0);
+        book.redo().expect("made again");
+        assert_eq!(book.budgets().expect("budgets"), budgets);
+        assert_eq!(
+            book.balance(checking).expect("balance"),
+            Money::from_minor_units(-5320, EUR)
+        );
     }
 
     #[test]

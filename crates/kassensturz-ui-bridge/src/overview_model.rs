@@ -305,7 +305,8 @@ mod tests {
         };
         let food = add_category(&mut book, &new, eur).expect("category");
         book.add_budget(
-            food,
+            &[food],
+            &[],
             BudgetEvery::Month,
             Date::new(2026, 10, 1).expect("a date"),
             None,

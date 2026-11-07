@@ -144,6 +144,7 @@ ColumnLayout {
         cardData.setScope(filters);
         formulaData.setScope(filters);
         if (want?.shows === "budget-progress" && period !== "") {
+            budgetData.setBudgets(want.budgets ?? "");
             budgetData.show(period, want.only);
             return;
         }

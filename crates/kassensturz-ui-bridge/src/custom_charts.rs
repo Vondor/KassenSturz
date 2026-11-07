@@ -138,8 +138,14 @@ fn tables(
                     .collect();
                 filter.categories = Some(ids);
             }
-            let budgets =
-                budget_utilization(&source, period, today, BudgetGrouping::Budget, &filter)?;
+            let budgets = budget_utilization(
+                &source,
+                period,
+                today,
+                BudgetGrouping::Budget,
+                &filter,
+                None,
+            )?;
             spec::budget_tables(&budgets)
         }
         _ => return Err(ChartsError::UnknownName("dataset")),

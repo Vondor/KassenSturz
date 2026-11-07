@@ -556,6 +556,7 @@ fn the_default_overview_shows_the_same_figures_as_the_overview_on_the_sample_boo
                     today,
                     BudgetGrouping::Budget,
                     &Filter::default(),
+                    None,
                 )
                 .unwrap();
                 assert!(bars.is_empty());

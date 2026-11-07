@@ -181,6 +181,9 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::BudgetPeriod {
             reason: "not-period-start",
         },
+        StoreError::BudgetChoice {
+            reason: "currencies",
+        },
         StoreError::TooManyBudgets {
             limit: "budgets",
             max: 1_000,

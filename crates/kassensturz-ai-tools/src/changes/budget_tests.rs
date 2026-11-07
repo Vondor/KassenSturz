@@ -143,7 +143,7 @@ fn an_amount_based_on_spending_is_the_average_rounded_up_to_the_step() {
     assert_eq!(new.every, BudgetEvery::Month);
     assert_eq!(new.first_day, Date::constant(2026, 11, 1));
     assert_eq!(new.first_period_end, Date::constant(2026, 11, 30));
-    assert_eq!(new.path, ["Food"]);
+    assert_eq!(new.paths, [["Food"]]);
     assert!(!new.carry_over);
     // The model hears how many changes wait, never the amount (D-052).
     assert!(!proposal.output.value.to_string().contains("120"));
@@ -207,7 +207,7 @@ fn a_prepared_budget_is_made_only_on_confirm_and_one_undo_takes_it_back() {
         .expect("applied");
     let budgets = small.book.budgets().expect("budgets");
     assert_eq!(budgets.len(), 1);
-    assert_eq!(budgets[0].category, small.fun);
+    assert_eq!(budgets[0].categories, [small.fun]);
     assert_eq!(budgets[0].every, BudgetEvery::Quarter);
     assert_eq!(budgets[0].first_day, Date::constant(2026, 10, 1));
     assert_eq!(budgets[0].last_day, None);
@@ -227,7 +227,8 @@ fn an_edit_changes_a_budget_from_the_current_period_on_and_keeps_the_past() {
     let id = small
         .book
         .add_budget(
-            small.food,
+            &[small.food],
+            &[],
             BudgetEvery::Month,
             Date::constant(2026, 6, 1),
             None,
@@ -309,7 +310,8 @@ fn the_stores_own_checks_reach_the_model() {
     small
         .book
         .add_budget(
-            small.groceries,
+            &[small.groceries],
+            &[],
             BudgetEvery::Year,
             Date::constant(2026, 1, 1),
             Some(Date::constant(2026, 12, 31)),
@@ -349,6 +351,8 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
     let small = small();
     let food = small.food.to_string();
     let fun = small.fun.to_string();
+    let salary = small.salary.to_string();
+    let checking = small.checking.to_string();
     let budget = |fields: Value| json!({"new_budgets": [fields]});
     let cases: Vec<(Value, &str)> = vec![
         (json!({"new_budgets": "food"}), "bad-argument new_budgets"),
@@ -483,6 +487,65 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
             ]}),
             "bad-argument category_id",
         ),
+        // Several categories (D-641): one way to name them, as a list of
+        // IDs, each once, in one currency; the accounts are the user's own.
+        (
+            budget(
+                json!({"category_id": food, "category_ids": [fun], "every": "month", "amount": "10"}),
+            ),
+            "bad-argument category_ids",
+        ),
+        (
+            budget(json!({"category_ids": [], "every": "month", "amount": "10"})),
+            "bad-argument category_id",
+        ),
+        (
+            budget(json!({"category_ids": food, "every": "month", "amount": "10"})),
+            "bad-argument category_ids",
+        ),
+        (
+            budget(json!({"category_ids": ["food"], "every": "month", "amount": "10"})),
+            "bad-argument category_ids",
+        ),
+        (
+            budget(json!({"category_ids": [food, food], "every": "month", "amount": "10"})),
+            "store.budget-choice category-twice",
+        ),
+        (
+            budget(json!({"category_ids": [food, salary], "every": "month", "amount": "10"})),
+            "store.budget-not-spending",
+        ),
+        (
+            budget(
+                json!({"category_id": food, "account_ids": [fun], "every": "month", "amount": "10"}),
+            ),
+            "store.budget-choice not-own-account",
+        ),
+        (
+            budget(
+                json!({"category_id": food, "account_ids": [checking, checking], "every": "month", "amount": "10"}),
+            ),
+            "store.budget-choice account-twice",
+        ),
+        (
+            budget(
+                json!({"category_id": food, "account_ids": [BudgetId::generate().to_string()], "every": "month", "amount": "10"}),
+            ),
+            "ai-tools.unknown-account",
+        ),
+        (
+            budget(
+                json!({"category_id": food, "account_ids": "checking", "every": "month", "amount": "10"}),
+            ),
+            "bad-argument account_ids",
+        ),
+        (
+            json!({"new_budgets": [
+                {"category_ids": [food, fun], "every": "month", "amount": "10"},
+                {"category_id": fun, "every": "year", "amount": "10"}
+            ]}),
+            "bad-argument category_id",
+        ),
         (
             json!({"edit_budgets": [{"amount": "10"}]}),
             "bad-argument budget_id",
@@ -589,4 +652,73 @@ fn a_budget_left_out_and_put_back_keeps_the_day_it_was_prepared_on() {
         .back_to_ai(&small.book, slot, Permissions::all())
         .expect("back");
     assert_eq!(back.changes(), proposal.changes.changes());
+}
+
+#[test]
+fn a_budget_over_several_categories_from_one_account_is_prepared_and_made() {
+    let mut small = small();
+    let savings = account("Savings", AccountKind::Asset, None);
+    small.book.add_account(&savings).expect("added");
+    // Fun from savings: not counted for a budget of checking.
+    spend(
+        &mut small.book,
+        savings.id,
+        small.fun,
+        Date::constant(2026, 10, 3),
+        7_000,
+    );
+    spend(
+        &mut small.book,
+        small.checking,
+        small.fun,
+        Date::constant(2026, 10, 4),
+        1_000,
+    );
+    let (food, fun, checking) = (
+        small.food.to_string(),
+        small.fun.to_string(),
+        small.checking.to_string(),
+    );
+    let proposal = propose(
+        &small.book,
+        &json!({"new_budgets": [{"category_ids": [fun, food], "account_ids": [checking],
+            "every": "month", "based_on": "last_period"}]}),
+    )
+    .expect("prepared");
+    let new = new_budget(&proposal.changes).clone();
+    assert_eq!(new.categories, [small.fun, small.food]);
+    assert_eq!(new.paths, [vec!["Fun".to_owned()], vec!["Food".to_owned()]]);
+    assert_eq!(new.accounts, [small.checking]);
+    assert_eq!(new.account_names, ["Checking"]);
+    // October from checking: 50.01 on Food and 10.00 on Fun; the 70.00
+    // from savings are not counted.
+    assert_eq!(new.basis.expect("computed").spent, eur(6_001));
+    // Rounded up to a whole euro, the step when the call names none.
+    assert_eq!(new.amount, eur(6_100));
+    assert!(proposal.changes.summary().contains("from \"Checking\""));
+    proposal
+        .changes
+        .apply(&mut small.book, Confirmed::by_the_user())
+        .expect("applied");
+    let budgets = small.book.budgets().expect("read");
+    assert_eq!(budgets[0].categories, [small.fun, small.food]);
+    assert_eq!(budgets[0].accounts, [small.checking]);
+    // The same category from another account is a budget of its own; from
+    // every account it would count checking twice.
+    let savings_id = savings.id.to_string();
+    assert_eq!(
+        code(propose(
+            &small.book,
+            &json!({"new_budgets": [{"category_id": fun, "account_ids": [savings_id],
+                "every": "month", "amount": "20"}]}),
+        )),
+        "prepared"
+    );
+    assert_eq!(
+        code(propose(
+            &small.book,
+            &json!({"new_budgets": [{"category_id": fun, "every": "month", "amount": "20"}]}),
+        )),
+        "store.budget-overlap"
+    );
 }

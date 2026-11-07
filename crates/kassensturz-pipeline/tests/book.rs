@@ -273,7 +273,8 @@ fn household() -> Book {
     let on = |year, month, day| Date::new(year, month, day).expect("valid date");
     let monthly = book
         .add_budget(
-            groceries,
+            &[groceries],
+            &[],
             BudgetEvery::Month,
             on(2026, 9, 1),
             None,
@@ -291,7 +292,8 @@ fn household() -> Book {
     book.set_budget_last_day(monthly, Some(on(2026, 12, 31)))
         .expect("budget stopped");
     book.add_budget(
-        travel,
+        &[travel],
+        &[],
         BudgetEvery::Range,
         on(2026, 7, 10),
         Some(on(2026, 7, 24)),

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Sets a budget, or changes one (M6c.5, D-357, D-345, D-361). A new budget
-// is for one spending category, repeats every month, quarter or year or runs
-// for some days, and can carry what is left into the next period. A change
+// is for one or more spending categories, may count only what was paid from
+// some of the user's accounts (D-639), repeats every month, quarter or year
+// or runs for some days, and can carry what is left into the next period. A change
 // applies from the start of one of the budget's periods on, so the results
 // of earlier periods never change. The page shows which period comes first,
 // and every mistake gets a plain message.
@@ -29,6 +30,14 @@ Kirigami.ScrollablePage {
     readonly property var categoryChoices: budgets.view.categories ?? []
     // What the user chose.
     readonly property var chosenCategory: adding ? (categoryChoices[categoryBox.currentIndex] ?? null) : null
+    // More categories counted with the first, by ID; only ones in its
+    // currency are offered, since a budget has one currency.
+    property var moreCategories: []
+    readonly property var moreChoices: categoryChoices.filter(category => category.id !== chosenCategory?.id && category.currency === chosenCategory?.currency)
+    readonly property var chosenCategories: chosenCategory === null ? [] : [chosenCategory.id].concat(severalBox.checked ? moreCategories.filter(id => moreChoices.some(category => category.id === id)) : [])
+    // The accounts it counts from, by ID; none for every account.
+    property var chosenAccounts: []
+    readonly property var accountChoices: budgets.view.accounts ?? []
     readonly property string everyWord: adding ? words.everyWords[everyBox.currentIndex] : (existing?.every ?? "month")
     readonly property bool repeats: everyWord !== "range"
     // The periods to start with (new) or to change from (existing).
@@ -78,11 +87,19 @@ Kirigami.ScrollablePage {
         return words.days(choice.firstDay, choice.lastDay);
     }
 
+    // `list` with `id` in it when `on`, without it otherwise.
+    function toggled(list, id, on) {
+        const rest = list.filter(other => other !== id);
+        return on ? rest.concat([id]) : rest;
+    }
+
     function save() {
         let result;
         if (adding) {
             const first = repeats ? (starts[Math.max(0, startBox.currentIndex)]?.day ?? "") : firstDayField.text;
-            result = budgets.addBudget(chosenCategory?.id ?? "", everyWord, amountField.text, repeats && carryBox.checked, first, lastDayField.text);
+            const accounts = someAccountsBox.checked ? chosenAccounts : [];
+            // The categories, then the accounts after a semicolon (D-639).
+            result = budgets.addBudget(chosenCategories.join(",") + ";" + accounts.join(","), everyWord, amountField.text, repeats && carryBox.checked, first, lastDayField.text);
         } else {
             const from = changes[Math.max(0, fromBox.currentIndex)]?.day ?? "";
             result = budgets.changeBudget(budgetId, from, amountField.text, repeats && carryBox.checked);
@@ -120,11 +137,88 @@ Kirigami.ScrollablePage {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
         }
 
+        Controls.CheckBox {
+            id: severalBox
+
+            visible: page.adding && page.moreChoices.length > 0
+            text: page.i18nContext.i18nc("@option:check", "Count more categories with it")
+        }
+
+        ColumnLayout {
+            visible: severalBox.visible && severalBox.checked
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Also count:")
+            spacing: 0
+
+            Repeater {
+                model: page.moreChoices
+
+                delegate: Controls.CheckBox {
+                    required property var modelData
+
+                    text: Plain.plain(modelData.path)
+                    checked: page.moreCategories.includes(modelData.id)
+                    onToggled: {
+                        ActionLog.taken("BudgetPage_pickCategory")
+                        page.moreCategories = page.toggled(page.moreCategories, modelData.id, checked)
+                    }
+                }
+            }
+        }
+
         Controls.Label {
             visible: !page.adding
-            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Category:")
+            Kirigami.FormData.label: (page.existing?.categories ?? []).length > 1
+                ? page.i18nContext.i18nc("@label", "Categories:")
+                : page.i18nContext.i18nc("@label", "Category:")
             text: page.existing?.name ?? ""
             textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+        }
+
+        Controls.CheckBox {
+            id: someAccountsBox
+
+            visible: page.adding && page.accountChoices.length > 1
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Accounts:")
+            text: page.i18nContext.i18nc("@option:check", "Only count money paid from some accounts")
+        }
+
+        ColumnLayout {
+            visible: someAccountsBox.visible && someAccountsBox.checked
+            spacing: 0
+
+            Repeater {
+                model: page.accountChoices
+
+                delegate: Controls.CheckBox {
+                    required property var modelData
+
+                    text: Plain.plain(modelData.name)
+                    checked: page.chosenAccounts.includes(modelData.id)
+                    onToggled: {
+                        ActionLog.taken("BudgetPage_pickAccount")
+                        page.chosenAccounts = page.toggled(page.chosenAccounts, modelData.id, checked)
+                    }
+                }
+            }
+
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                text: page.i18nContext.i18nc("@info", "Nothing ticked: money paid from every account counts.")
+            }
+        }
+
+        Controls.Label {
+            visible: !page.adding && (page.existing?.accounts ?? "") !== ""
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Accounts:")
+            text: page.i18nContext.i18nc("@info %1 is a list of account names", "Only money paid from %1", page.existing?.accounts ?? "")
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 24
         }
 
         Controls.ComboBox {

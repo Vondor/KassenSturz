@@ -240,7 +240,8 @@ fn every_change_can_be_undone_and_redone() {
     // (which takes December's amount with it), then deleted (D-345).
     let budget = book
         .add_budget(
-            groceries,
+            &[groceries],
+            &[],
             BudgetEvery::Month,
             date(2026, 10, 1),
             None,

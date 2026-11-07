@@ -2,13 +2,13 @@
 
 How a KassenSturz household book is stored, so other programs can read it (D-046). This is documentation, not a promise: the layout can change in any version, and writing into a book from outside KassenSturz isn't supported, because it would bypass KassenSturz's checks. The stable way to move data is the complete export (D-029), whose format is described in `docs/EXPORT_FORMAT.md` (D-100). Every change to the layout updates this document.
 
-**Status: layout 24, the starting layout of the first Beta** (M6e.M, D-045, D-536). The 23 development layouts of the Alpha were merged into it: every table a book has is built in one go, table for table what layouts 1 to 23 built together. A book a development build wrote (layouts 1 to 23) isn't opened by the Beta but turned away with `store.development-layout` and left unchanged; its data moves over through the complete export made with that build (`docs/EXPORT_FORMAT.md`), read into a new book. From the first Beta on, every change to the layout is a migration of its own, run after a backup, with a test that updates a book from every earlier layout since layout 24 (see [Migrations](#migrations), AGENTS.md §3.1 rule 8), and this document is updated with each.
+**Status: layout 25** (US1.10, D-640): layout 24, the starting layout of the first Beta (M6e.M, D-045, D-536), with one migration after it. The 23 development layouts of the Alpha were merged into it: every table a book has is built in one go, table for table what layouts 1 to 23 built together. A book a development build wrote (layouts 1 to 23) isn't opened by the Beta but turned away with `store.development-layout` and left unchanged; its data moves over through the complete export made with that build (`docs/EXPORT_FORMAT.md`), read into a new book. From the first Beta on, every change to the layout is a migration of its own, run after a backup, with a test that updates a book from every earlier layout since layout 24 (see [Migrations](#migrations), AGENTS.md §3.1 rule 8), and this document is updated with each.
 
 ## The file
 
 - One SQLite database per book (D-033), with the extension `.ksz` (D-037).
 - `PRAGMA application_id` is `0x4B535A42` (1263753794), the letters `KSZB` for KassenSturz book (D-037, D-080). KassenSturz reads it, and SQLite's header, from the file's first bytes before SQLite opens the file. Only a file with both is opened, so another program's SQLite file is never changed, not even its journal mode.
-- `PRAGMA user_version` holds the layout version: currently `24`. Versions 1 to 23 belong to books from development builds of the Alpha, which KassenSturz turns away (D-045, D-536).
+- `PRAGMA user_version` holds the layout version: currently `25`. Versions 1 to 23 belong to books from development builds of the Alpha, which KassenSturz turns away (D-045, D-536).
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
@@ -150,17 +150,42 @@ The categories the user hid from charts (D-290, D-291), e.g. Rent in a spending 
 
 ### `budgets`
 
-The user's budgets (D-344, D-345): an amount the user plans to spend on one spending category in each of a budget's periods. A budget is a way of looking at the spending and nothing else: it refers to its category by ID and is never written onto a transaction or a category. How a budget counts is the reports' business (D-346, D-347): the category with everything inside it, each category once.
+The user's budgets (D-344, D-345, D-639): an amount the user plans to spend on one or more spending categories in each of a budget's periods, optionally only what was paid from some of the user's accounts. A budget is a way of looking at the spending and nothing else: it refers to its categories and accounts by ID (in [`budget_categories`](#budget_categories) and [`budget_accounts`](#budget_accounts)) and is never written onto a transaction, a category or an account. How a budget counts is the reports' business (D-346, D-347): each of its categories with everything inside it, each category once, and with accounts chosen only the transactions with a part on one of them (D-350). Its amounts are in its categories' currency, which is the same for all of them.
 
 | Column | Type | Meaning |
 |---|---|---|
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
-| `category_id` | BLOB → `accounts.id` | The spending category. The database refuses removing a category that has a budget (no cascade), and KassenSturz says so first (`store.category-in-use`, `budgets`); it checks the kind when it writes (`store.budget-not-spending`) |
 | `every` | TEXT | `month`, `quarter` or `year` (calendar months, quarters or years; it repeats) or `range` (one stretch of days; it does not repeat) |
 | `first_day` | TEXT | ISO 8601, the first day of its first period. For `month`, `quarter` and `year` the first day of one; KassenSturz checks this when it writes |
 | `last_day` | TEXT, may be NULL | ISO 8601, not before `first_day` (a CHECK). NULL: the budget keeps going, never for `range` (a CHECK). For `month`, `quarter` and `year` the last day of one; a `range` touches at most 1,200 calendar months. KassenSturz checks both when it writes |
 
-`budgets_by_category` (`category_id`, `first_day`) finds a category's budgets. KassenSturz checks when it writes that a category's budgets never cover the same day (`store.budget-overlap`, one budget per category at a time) and that a book has at most 1,000 budgets (`store.budget-too-many`); the database checks neither.
+`budgets_by_first_day` (`first_day`) lists them by start. KassenSturz checks when it writes that two budgets never count the same money on the same day: two budgets whose days overlap share no category, or count from accounts none of which they share (no accounts chosen counts every account; `store.budget-overlap`); and that a book has at most 1,000 budgets (`store.budget-too-many`). The database checks neither.
+
+### `budget_categories`
+
+The spending categories a budget counts (D-639), from layout 25. A budget has at least one and at most 100, each once, all in one currency; KassenSturz checks this when it writes (`store.budget-choice`, `store.budget-too-many`), and that each is a category for money spent (`store.budget-not-spending`). The categories of a budget are set when it is made.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7; for a budget made before layout 25, the budget's own ID |
+| `budget_id` | BLOB → `budgets.id` | The budget. Removing the budget removes its rows in the same change, so its undo brings them back (ON DELETE CASCADE) |
+| `category_id` | BLOB → `accounts.id` | The spending category. The database refuses removing a category that a budget counts (no cascade), and KassenSturz says so first (`store.category-in-use`, `budgets`) |
+| `position` | INTEGER, 0 or more | The order the user chose them in, from 0; the first one names the budget's place in lists and its currency |
+
+The unique index `budget_categories_in_budget` (`budget_id`, `category_id`) keeps each category once in a budget; `budget_categories_by_category` (`category_id`) finds a category's budgets.
+
+### `budget_accounts`
+
+The user's own accounts a budget counts from (D-639), from layout 25. No row: it counts every account. At most 100, each once, and only accounts, not categories; KassenSturz checks this when it writes (`store.budget-choice`, `store.budget-too-many`). The accounts of a budget are set when it is made.
+
+| Column | Type | Meaning |
+|---|---|---|
+| `id` | BLOB (16 bytes), primary key | UUIDv7 |
+| `budget_id` | BLOB → `budgets.id` | The budget (ON DELETE CASCADE, as above) |
+| `account_id` | BLOB → `accounts.id` | One of the user's own accounts. Closing the account keeps the row |
+| `position` | INTEGER, 0 or more | The order the user chose them in, from 0 |
+
+The unique index `budget_accounts_in_budget` (`budget_id`, `account_id`) keeps each account once in a budget; `budget_accounts_by_account` (`account_id`) finds an account's budgets.
 
 ### `budget_amounts`
 
@@ -409,7 +434,7 @@ The change history (D-032, D-066): one row per user action, e.g. adding an accou
 
 ### `changed_settings`, `changed_currencies` and the other `changed_` tables
 
-For each table that holds the book's data (`settings`, `currencies`, `institutions`, `accounts`, `payees`, `tags`, `transactions`, `splits`, `split_tags`, `attachments`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`, `bank_links`, `views`, `report_groups`, `report_group_members`, `report_hidden`, `budgets` and `budget_amounts`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
+For each table that holds the book's data (`settings`, `currencies`, `institutions`, `accounts`, `payees`, `tags`, `transactions`, `splits`, `split_tags`, `attachments`, `split_rates`, `split_imports`, `prices`, `rules`, `rule_conditions` and `split_rules`, `bank_links`, `views`, `report_groups`, `report_group_members`, `report_hidden`, `budgets`, `budget_categories`, `budget_accounts` and `budget_amounts`), a table named `changed_` plus its name, e.g. `changed_accounts`, holds copies of the rows each change touched.
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -437,7 +462,7 @@ Every change KassenSturz makes to a book's data is a user action, recorded as on
 
 ## Migrations
 
-Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 24, the starting layout of the first Beta, in which the 23 development layouts of the Alpha were merged (D-536); KassenSturz's own tests prove that it builds, table for table, what those layouts built together, both in a book that started with layout 1 and in one that started with layout 16, the earlier merge of layouts 1 to 15 (D-135). There is no migration after it yet. Each later one gets its own number, runs after a [backup](#backups) of the book (AGENTS.md §3.1 rule 8) and comes with a test that updates a book from every earlier layout since layout 24. The migrations run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A migration that rebuilds `splits`, `split_imports` or `transactions` makes the triggers on them again. A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 23 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
+Every book is built by the same migrations, oldest first: a new book runs all of them on an empty database, and a book with an older layout runs the ones it lacks (D-045). The first migration builds layout 24, the starting layout of the first Beta, in which the 23 development layouts of the Alpha were merged (D-536); KassenSturz's own tests prove that it builds, table for table, what those layouts built together, both in a book that started with layout 1 and in one that started with layout 16, the earlier merge of layouts 1 to 15 (D-135). Layout 25 (US1.10, D-640) lets a budget count several categories and only some accounts: it moves each budget's category into [`budget_categories`](#budget_categories) (the row takes the budget's own ID) and adds an empty [`budget_accounts`](#budget_accounts), the budgets' change history included, so Undo and Redo of a change made before the update still work. Each later one gets its own number, runs after a [backup](#backups) of the book (AGENTS.md §3.1 rule 8) and comes with a test that updates a book from every earlier layout since layout 24. The migrations run in one transaction, which also sets the application ID and `user_version`, so an update either finishes or leaves the book exactly as it was. Foreign keys are off while they run, so a migration can rebuild a table without deleting the rows that refer to it; every reference is checked before the transaction is committed. A migration that rebuilds `splits`, `split_imports` or `transactions` makes the triggers on them again. A book with a newer layout is turned away (`store.unsupported-layout`), and so is a book a development build wrote, with layout 1 to 23 (`store.development-layout`): KassenSturz doesn't update it, since the development migrations are gone; the way over is the complete export made with that build, read into a new book. A migration isn't a change in the [change history](#the-change-history): the backup made before it is the way back.
 
 ## Backups
 

@@ -360,3 +360,35 @@ fn a_saved_file_reads_into_another_book_by_name_and_lists_what_it_lacks() {
         assert!(!text.contains(&id.to_string()), "{id}");
     }
 }
+
+/// The own lists of money in and money out (D-646) are written as names
+/// and read back into the book's IDs, like every other list of IDs.
+#[test]
+fn the_lists_of_money_in_and_money_out_are_written_as_names_and_read_back() {
+    let sample = sample();
+    let text = format!(
+        r#"{{
+  "format": "kassensturz-dashboard", "version": {VERSION}, "kind": "dashboard",
+  "name": "Salary against the checking account",
+  "components": [
+    {{"id": "c1", "type": "chart.bar", "dataset": "income_expense_by_month",
+     "params": {{"income_categories": ["{salary}"], "expenses_accounts": ["{checking}"]}},
+     "frame": {{"col": 0, "row": 0, "cols": 6, "rows": 5}}}}
+  ]
+}}"#,
+        salary = sample.salary,
+        checking = sample.checking,
+    );
+    let document = Document::read(&text).expect("the dashboard reads");
+    let file = write(&sample, &document);
+    for id in [sample.salary.to_string(), sample.checking.to_string()] {
+        assert!(!file.text.contains(&id), "no ID in the file: {}", file.text);
+    }
+    assert_eq!(file.references, 2);
+    let incoming = IncomingDashboardFile::read(&file.text).expect("the reader takes it");
+    let names = BookNames::read(&sample.book).expect("names");
+    let resolved = incoming.resolve(&names).expect("resolved");
+    assert!(resolved.missing.is_empty(), "{:?}", resolved.missing);
+    let read = Document::read(&document.to_json()).expect("reads");
+    assert_eq!(resolved.document, read);
+}

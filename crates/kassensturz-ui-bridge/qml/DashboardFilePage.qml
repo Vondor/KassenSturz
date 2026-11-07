@@ -139,6 +139,9 @@ Kirigami.ScrollablePage {
         }
         const widget = widgetName(entry.widget);
         switch (entry.list) {
+        // The own accounts of money in or money out (D-646).
+        case "income_accounts":
+        case "expenses_accounts":
         case "accounts":
             return i18nContext.i18ncp("@info %2 names a widget", "%2 will show all accounts, because its account is not in this book.", "%2 will show all accounts, because none of its %1 accounts are in this book.", n, widget);
         case "groups":

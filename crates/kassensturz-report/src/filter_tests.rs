@@ -269,6 +269,7 @@ fn asked(accounts: &[String], categories: &[String], takes: Takes) -> Asked {
         accounts: list(accounts),
         categories: list(categories),
         takes,
+        series: Vec::new(),
     }
 }
 
@@ -653,4 +654,145 @@ fn an_own_period_is_marked_and_the_box_period_is_not() {
     assert!(plain.own.is_empty());
     assert_eq!(plain.filtered, [Dimension::Accounts]);
     assert!(plain.notes.is_empty());
+}
+
+/// One chart with money in from one income category against all spending
+/// from one account (US1.16, D-646): the series' own lists come from a real
+/// component, go through `Asked::for_series` and `apply`, and reach the
+/// real dataset. Spending not sorted yet counts, the Transfer to the
+/// savings account doesn't, and spending from another account doesn't.
+#[test]
+fn each_series_counts_with_its_own_filter_from_the_component() {
+    let mut base = sample();
+    // Spending from the savings account, which money out leaves out.
+    base.book
+        .add_transaction(&crate::tests::transaction(
+            date(2026, 10, 5),
+            &[
+                (Some(base.savings), money(-2_000)),
+                (Some(base.rent), money(2_000)),
+            ],
+        ))
+        .unwrap();
+    let source = Source::read(&base.book, autumn()).unwrap();
+    let component = Component::from_value(&json!({
+        "type": "chart.bar", "dataset": "income_expense_by_month",
+        "params": {
+            "income_categories": [text(base.salary)],
+            "expenses_accounts": [text(base.checking)]
+        }
+    }))
+    .unwrap();
+    // Written back only with the lists that have something.
+    let written = component.to_value();
+    assert_eq!(
+        written["params"]["income_categories"],
+        json!([text(base.salary)])
+    );
+    assert!(written["params"].get("income_accounts").is_none());
+    assert_eq!(Component::from_value(&written).unwrap(), component);
+
+    let asked = Asked::new(&component, None, &Filters::default()).unwrap();
+    assert_eq!(asked.series.len(), 2);
+    let income = asked.for_series("income").apply(&source).unwrap();
+    let expenses = asked.for_series("expenses").apply(&source).unwrap();
+    assert_eq!(income.own, [Dimension::Categories]);
+    assert_eq!(expenses.own, [Dimension::Accounts]);
+    let [euros] = income_expense_by_series(&source, autumn(), &income.filter, &expenses.filter)
+        .unwrap()
+        .try_into()
+        .expect("one currency");
+    let by_month: Vec<(i64, i64, i64)> = euros
+        .rows
+        .iter()
+        .map(|row| {
+            (
+                row.income.minor_units(),
+                row.expenses.minor_units(),
+                row.net.minor_units(),
+            )
+        })
+        .collect();
+    // August: rent and groceries; September: rent, groceries, food less the
+    // refund; October: rent and the payment not sorted yet. The money
+    // received but not sorted (7.00) is no salary.
+    assert_eq!(
+        by_month,
+        [
+            (250_000, 85_320, 164_680),
+            (250_000, 83_500, 166_500),
+            (250_000, 81_250, 168_750)
+        ]
+    );
+    assert_eq!(euros.income, money(750_000));
+    assert_eq!(euros.expenses, money(250_070));
+    assert_eq!(euros.net, money(499_930));
+
+    // Without series lists both series follow the component, as before.
+    let plain = Component::from_value(&json!({
+        "type": "chart.bar", "dataset": "income_expense_by_month",
+        "params": {"accounts": [text(base.checking)]}
+    }))
+    .unwrap();
+    let asked = Asked::new(&plain, None, &Filters::default()).unwrap();
+    assert!(asked.series.is_empty());
+    assert_eq!(asked.for_series("income"), asked);
+    let applied = asked.apply(&source).unwrap();
+    assert_eq!(
+        income_expense_by_series(&source, autumn(), &applied.filter, &applied.filter).unwrap(),
+        income_expense_by_month(&source, autumn(), &applied.filter).unwrap()
+    );
+
+    // A series' list replaces the filter bar's for that series only.
+    let bar = Filters {
+        accounts: vec![text(base.savings)],
+        ..Filters::default()
+    };
+    let asked = Asked::new(&component, None, &bar).unwrap();
+    let income = asked.for_series("income").apply(&source).unwrap();
+    let expenses = asked.for_series("expenses").apply(&source).unwrap();
+    assert_eq!(income.filter.accounts, Some(vec![base.savings]));
+    assert_eq!(expenses.filter.accounts, Some(vec![base.checking]));
+}
+
+#[test]
+fn a_series_filter_belongs_to_money_in_and_out_only() {
+    // Another dataset has no such series: a list there is refused, and
+    // changing the dataset drops it.
+    let refused = Component::from_value(&json!({
+        "type": "chart.bar", "dataset": "spending_by_category",
+        "params": {"expenses_accounts": ["a-1"]}
+    }));
+    assert!(matches!(
+        refused,
+        Err(ReportError::DocumentInvalid { reason: "unknown-property", ref path })
+            if path == "params.expenses_accounts"
+    ));
+    let mut component = Component::from_value(&json!({
+        "type": "table.rows", "dataset": "income_expense_by_month",
+        "params": {"expenses_accounts": ["a-1"], "income_categories": ["c-1"]}
+    }))
+    .unwrap();
+    component.use_dataset("spending_by_category").unwrap();
+    assert_eq!(
+        component.get("expenses_accounts"),
+        Some(&Setting::Ids(Vec::new()))
+    );
+    assert!(
+        Asked::new(&component, None, &Filters::default())
+            .unwrap()
+            .series
+            .is_empty()
+    );
+    let written = component.to_value();
+    assert!(written["params"].get("expenses_accounts").is_none());
+    // A series without a list of its own is not listed.
+    let one = Component::from_value(&json!({
+        "type": "chart.line", "dataset": "income_expense_by_month",
+        "params": {"income_accounts": ["a-1"]}
+    }))
+    .unwrap();
+    let asked = Asked::new(&one, None, &Filters::default()).unwrap();
+    assert_eq!(asked.series.len(), 1);
+    assert_eq!(asked.series[0].series, "income");
 }

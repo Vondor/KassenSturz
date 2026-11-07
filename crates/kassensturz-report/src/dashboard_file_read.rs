@@ -47,8 +47,18 @@ const REFERENCE_PREFIX: &str = "ref:";
 /// hostile key can't make the message huge.
 const MAX_SHOWN_CHARS: usize = 64;
 /// The lists of a component's `params` that hold IDs (`Kind::Ids`,
-/// `Kind::Accounts`); `columns` holds them in each column's `members`.
-const ID_LISTS: [&str; 4] = ["groups", "categories", "accounts", "series"];
+/// `Kind::Accounts`); `columns` holds them in each column's `members`. The
+/// own lists of money in and money out (D-646) are among them.
+const ID_LISTS: [&str; 8] = [
+    "groups",
+    "categories",
+    "accounts",
+    "series",
+    "income_categories",
+    "income_accounts",
+    "expenses_categories",
+    "expenses_accounts",
+];
 
 fn invalid(reason: &'static str, path: impl Into<String>) -> ReportError {
     ReportError::DashboardFileInvalid {
@@ -235,7 +245,7 @@ fn each_list(
                     path: format!("dashboard.components.{index}.params.{key}"),
                     key,
                     widget: Some(index),
-                    holds: if key == "accounts" {
+                    holds: if key.ends_with("accounts") {
                         Holds::Accounts
                     } else {
                         Holds::Categories

@@ -78,7 +78,9 @@ pub const CATALOG: &[DatasetInfo] = &[
              balances are not counted, and amounts in different currencies are never added \
              together: there is one result per currency.",
         groupings: &["month"],
-        suits: &["line", "stacked_bar", "kpi", "progress", "table"],
+        // Bars side by side compare money in with money out month by month
+        // (US1.16, D-647).
+        suits: &["line", "bar", "stacked_bar", "kpi", "progress", "table"],
         measures: &["income", "expenses", "net", "savings-rate", FORMULA_MEASURE],
         takes: Takes::ALL,
         for_ai: true,

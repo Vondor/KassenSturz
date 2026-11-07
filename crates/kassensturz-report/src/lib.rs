@@ -93,8 +93,8 @@ pub use document::{
 pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;
 pub use filter::{
-    Applied, Asked, Chosen, Dimension, Filter, FilterNote, Filters, MAX_FILTER_IDS, Origin, Takes,
-    takes,
+    Applied, Asked, Chosen, Dimension, Filter, FilterNote, Filters, MAX_FILTER_IDS, Origin,
+    SERIES_FILTERS, SeriesAsked, SeriesFilter, Takes, is_series_filter, takes,
 };
 pub use formula::{
     Counted, FUNCTIONS, Formula, FormulaResult, FormulaValue, FunctionInfo, KnownName,
@@ -108,6 +108,7 @@ pub use metrics::{
 };
 pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,
+    income_expense_by_series,
 };
 pub use over_time::{
     CATEGORY_OVER_TIME, CategoryOverTime, ChosenSeries, MonthTotals, category_over_time,

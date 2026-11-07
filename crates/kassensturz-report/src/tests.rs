@@ -55,7 +55,7 @@ pub(crate) fn account(
 }
 
 /// A transaction of `parts`; a part without an account has no category yet.
-fn transaction(day: Date, parts: &[(Option<AccountId>, Money)]) -> Transaction {
+pub(crate) fn transaction(day: Date, parts: &[(Option<AccountId>, Money)]) -> Transaction {
     let splits = parts
         .iter()
         .map(|&(account, amount)| match account {

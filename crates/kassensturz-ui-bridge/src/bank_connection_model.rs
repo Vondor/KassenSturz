@@ -816,7 +816,7 @@ fn deliver(mut qobject: Pin<&mut qobject::BankConnection>, event: Event) {
         Event::FetchStarted(account) => qobject.fetch_started(QString::from(account.as_str())),
         Event::FetchDone(result) => {
             qobject.as_mut().set_busy(false);
-            qobject.fetch_finished(fetch_object(&result));
+            qobject.fetch_finished(fetch_object(&result, &app_locale()));
         }
         Event::UpdateAllDone(result) => {
             qobject.as_mut().set_busy(false);
@@ -1082,7 +1082,7 @@ fn bank_account_choices_object(free: &[&ListedBankAccount], suggested: &str) -> 
     ])
 }
 
-fn outcome_object(outcome: &FetchOutcome) -> QVariant {
+fn outcome_object(outcome: &FetchOutcome, locale: &impl Locale) -> QVariant {
     map([
         ("account", text(&outcome.account)),
         ("name", text(&outcome.name)),
@@ -1095,12 +1095,28 @@ fn outcome_object(outcome: &FetchOutcome) -> QVariant {
             "error",
             outcome.error.as_ref().map_or_else(|| map([]), error_object),
         ),
+        (
+            "firstFrom",
+            text(
+                &outcome
+                    .first_from
+                    .map(|day| locale.short_date(day))
+                    .unwrap_or_default(),
+            ),
+        ),
     ])
 }
 
-fn fetch_object(result: &Result<Vec<FetchOutcome>, ErrorText>) -> QVariant {
+fn fetch_object(result: &Result<Vec<FetchOutcome>, ErrorText>, locale: &impl Locale) -> QVariant {
     match result {
-        Ok(outcomes) => map([("outcomes", list(outcomes.iter().map(outcome_object)))]),
+        Ok(outcomes) => map([(
+            "outcomes",
+            list(
+                outcomes
+                    .iter()
+                    .map(|outcome| outcome_object(outcome, locale)),
+            ),
+        )]),
         Err(error) => error_object(error),
     }
 }
@@ -1602,32 +1618,38 @@ mod tests {
 
     #[test]
     fn a_fetchs_result_reads_back_as_qml_reads_it() {
-        let result = fetch_object(&Ok(vec![
-            FetchOutcome {
-                account: "a1".to_owned(),
-                name: "Current account".to_owned(),
-                state: "ready",
-                transactions: 3,
-                error: None,
-            },
-            FetchOutcome {
-                account: "a2".to_owned(),
-                name: "Card".to_owned(),
-                state: "failed",
-                transactions: 0,
-                error: Some(ErrorText {
-                    code: "bank.refused",
-                    params: vec![("text", "made-up message".to_owned())],
-                }),
-            },
-            FetchOutcome {
-                account: "a3".to_owned(),
-                name: "Savings".to_owned(),
-                state: "skipped",
-                transactions: 0,
-                error: None,
-            },
-        ]));
+        let result = fetch_object(
+            &Ok(vec![
+                FetchOutcome {
+                    account: "a1".to_owned(),
+                    name: "Current account".to_owned(),
+                    state: "ready",
+                    transactions: 3,
+                    error: None,
+                    first_from: Some(kassensturz_core::Date::new(2026, 7, 16).expect("a date")),
+                },
+                FetchOutcome {
+                    account: "a2".to_owned(),
+                    name: "Card".to_owned(),
+                    state: "failed",
+                    transactions: 0,
+                    error: Some(ErrorText {
+                        code: "bank.refused",
+                        params: vec![("text", "made-up message".to_owned())],
+                    }),
+                    first_from: None,
+                },
+                FetchOutcome {
+                    account: "a3".to_owned(),
+                    name: "Savings".to_owned(),
+                    state: "skipped",
+                    transactions: 0,
+                    error: None,
+                    first_from: None,
+                },
+            ]),
+            &crate::register::tests::TestLocale,
+        );
         let outcomes = list_of(&result, "outcomes");
         assert_eq!(outcomes.len(), 3);
         let number = |value: &QVariant| {
@@ -1639,6 +1661,10 @@ mod tests {
         assert_eq!(text_of(&outcomes[0], "name"), "Current account");
         assert_eq!(text_of(&outcomes[0], "state"), "ready");
         assert_eq!(number(&outcomes[0]), Some(3));
+        // The day the first fetch asked from, as text; empty when it wasn't
+        // a first fetch.
+        assert_eq!(text_of(&outcomes[0], "firstFrom"), "2026-07-16");
+        assert_eq!(text_of(&outcomes[1], "firstFrom"), "");
         // An error is an object QML can hand to FormError as it is; without
         // one the object is empty, so `error.code` is undefined.
         let error = object(&outcomes[1]).get(&QString::from("error"));
@@ -1649,7 +1675,10 @@ mod tests {
         assert!(object(&none.expect("an object")).is_empty());
         assert_eq!(text_of(&outcomes[2], "state"), "skipped");
 
-        let refused = fetch_object(&Err(ErrorText::plain("bank.not-registered")));
+        let refused = fetch_object(
+            &Err(ErrorText::plain("bank.not-registered")),
+            &crate::register::tests::TestLocale,
+        );
         assert_eq!(text_of(&refused, "code"), "bank.not-registered");
     }
 

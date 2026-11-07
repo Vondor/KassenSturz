@@ -316,6 +316,17 @@ Kirigami.ScrollablePage {
                     text: page.i18nContext.i18nc("@info", "Not fetched, because the one before failed. Try again.")
                 }
 
+                // The first fetch of an account reaches back a limited time
+                // (D-618); older entries come with a file.
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font: Kirigami.Theme.smallFont
+                    visible: row.outcome !== undefined && row.outcome.state === "ready" && (row.outcome.firstFrom ?? "") !== ""
+                    text: Plain.plain(page.i18nContext.i18nc("@info %1 is a date", "This was the first time for this account, so KassenSturz asked your bank for the time since %1. Older transactions your bank can't give this way: import a file from your bank for them.", row.outcome.firstFrom ?? ""))
+                }
+
                 RowLayout {
                     Layout.fillWidth: true
                     visible: row.outcome !== undefined && row.outcome.state === "ready"

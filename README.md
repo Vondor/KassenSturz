@@ -165,8 +165,6 @@ The log `bank-log/bank-log.jsonl` (next to the debug log's folder) holds only th
 
 With `KASSENSTURZ_BANK_LOG=2` (the same ways of starting) the log also holds the bank's own reply texts for those public return codes (D-619), for working out why a bank refuses. Each text is cut down to words: any word with a digit or an `@` and any very long word is replaced by `#`, everything but letters and simple punctuation is dropped, and at most 160 characters are kept. Look through the file first before you send it; use level 1 when in doubt. A login name written only in letters would not be caught.
 
-With `KASSENSTURZ_BANK_LOG=3` the log also holds the *shape* of the statement request and the TAN segment the app sent (D-620), for finding a field a bank says is missing. Every run of letters and digits in those segments is reduced to `A`, `a` and `9`, so an IBAN, a date or a name keeps only its length. For the statement fetch only, AqBanking's own message log is allowed and removed again right after (and at the next start, and by "Delete the log"); no other segment is read. Use it only for your own tries and look through the file before you share it.
-
 ## For AI agents
 
 Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and working rules.

@@ -155,7 +155,7 @@ Kirigami.ScrollablePage {
                 delegate: Controls.CheckBox {
                     required property var modelData
 
-                    text: modelData.path
+                    text: Plain.plain(modelData.path)
                     checked: page.moreCategories.includes(modelData.id)
                     onToggled: {
                         ActionLog.taken("BudgetPage_pickCategory")
@@ -194,7 +194,7 @@ Kirigami.ScrollablePage {
                 delegate: Controls.CheckBox {
                     required property var modelData
 
-                    text: modelData.name
+                    text: Plain.plain(modelData.name)
                     checked: page.chosenAccounts.includes(modelData.id)
                     onToggled: {
                         ActionLog.taken("BudgetPage_pickAccount")

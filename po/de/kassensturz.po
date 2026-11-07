@@ -17885,6 +17885,19 @@ msgctxt ""
 msgid "Purpose: %1"
 msgstr "Verwendungszweck: %1"
 
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:556
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your bank wants you to choose an approval method first. Go back to "
+"Settings, choose \"Change this bank login…\", pick the method and save; "
+"then link the account again."
+msgstr ""
+"Ihre Bank möchte, dass Sie zuerst ein Freigabeverfahren wählen. Gehen Sie "
+"zurück zu den Einstellungen, wählen Sie „Bankzugang ändern…“, "
+"wählen Sie das Verfahren und speichern Sie; verknüpfen Sie das Konto "
+"danach erneut."
+
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:326
 #, kde-format
 msgctxt "@info %1 is a date"

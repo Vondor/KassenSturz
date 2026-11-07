@@ -262,6 +262,8 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.10** · **done** · thread E · needs: — · strong, high · D-639 to D-642 · [format]. #519 points 1 and 2 with #524: a budget covers several categories and optionally only chosen accounts, the same in the AI budget tools; the budget bars tile gets "Which budgets" (default all), because filtering by category equals one budget only while a budget has one category. Why: a shared household account could not be budgeted without moving categories. Built: book layout 25 and export version 9 (D-640); the categories and accounts are set when a budget is made, and editing them is later (D-639)
 
+- **US1.10a** · **later** · waits for: US1.10 tried in US1 Phase 3, then a design that says what happens to past periods. Changing a budget's categories or accounts after it is made (D-639). Why: it would change the results of periods already shown (D-345); until then, stopping the budget and making a new one keeps the past as it was
+
 - **US1.11** · **later** · waits for: US1.10 merged and tried, then its own plain-words design. #519 point 3: a reserve target for an account (an amount or N months of a budget, at the month's lowest point). Why: a new idea for everyday users; US1.10 shows first how much is missing
 
 - **US1.12** · **todo** · thread F · needs: — · strong, high · D-644 to D-651 · [format]. #526 and #532: rolling periods, a salary month anchored to a day of the month (in a short month its last day) and "last N months" with "complete months only", as one shared period setting for charts, tables, formulas and budgets; the event anchor ("since the last booking in a category") stays later. Why: a fixed period goes stale; the base for US1.13, US1.16 and US1.17

@@ -9,7 +9,7 @@
 
 use kassensturz_bank::{
     Bank, BankAccount, BankAccountId, Failure, FakeBank, LoginId, MemoryPinStore, Pin, PinAsker,
-    PinMode, PinSession, fetch_linked, find_bank_account, statement,
+    PinMode, PinPrompt, PinReply, PinSession, fetch_linked, find_bank_account, statement,
 };
 use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date, Money};
 use kassensturz_import::{EntryStatus, Limits, Statement};
@@ -314,7 +314,7 @@ fn broken_data_from_the_bank_imports_nothing() {
 struct NoQuestions;
 
 impl PinAsker for NoQuestions {
-    fn pin(&mut self, _login: &kassensturz_bank::Login, _rejected: bool) -> Option<(Pin, PinMode)> {
+    fn pin(&mut self, _login: &kassensturz_bank::Login, _prompt: PinPrompt) -> PinReply {
         panic!("the PIN was remembered, so nothing should be asked");
     }
 }

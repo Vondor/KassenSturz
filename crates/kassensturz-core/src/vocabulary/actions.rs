@@ -93,6 +93,7 @@ pub const ACTIONS: &[&str] = &[
     "BankDialogs_choose",
     "BankDialogs_fintsProductRegistration",
     "BankDialogs_pin",
+    "BankDialogs_retryPinStore",
     "BankDialogs_sendPin",
     "BankDialogs_sendTan",
     "BankDialogs_tan",

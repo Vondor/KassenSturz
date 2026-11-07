@@ -20,8 +20,8 @@ use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountId, BankAccountKind, BankCode,
     BankDialogs, BankError, BankQuestion, CustomerId, FintsVersion, Iban, KeychainPinStore,
     Library, Login, LoginChange, LoginConnection, LoginId, LoginKind, LoginSetup, MemoryPinStore,
-    Pin, PinMode, PinSession, QuestionLevel, RegistrationKey, Setup, Tan, TanRequest, Version,
-    remove_login, setup_for, statement,
+    Pin, PinAsker, PinMode, PinPrompt, PinReply, PinSession, QuestionLevel, RegistrationKey, Setup,
+    Tan, TanRequest, Version, fetch_linked, remove_login, setup_for, statement,
 };
 use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date};
 use kassensturz_import::{EntryStatus, Limits};
@@ -1417,5 +1417,52 @@ fn a_failed_refresh_still_ends_the_pin_session() {
     stub::set_scenario("unreachable");
     assert!(bank.refresh_accounts(&login, &mut once).is_err());
     assert!(!once.is_remembered(&login));
+    stub::set_scenario("ok");
+}
+
+/// Answers the PIN dialog with the stub's PIN, and counts the questions.
+struct TypesThePin(usize);
+
+impl PinAsker for TypesThePin {
+    fn pin(&mut self, _login: &Login, _prompt: PinPrompt) -> PinReply {
+        self.0 += 1;
+        PinReply::Typed(Pin::new(PIN.to_owned()), PinMode::AskEachTime)
+    }
+}
+
+#[test]
+fn a_securities_account_is_listed_as_such_and_never_fetched() {
+    // M6-B190, D-624: the bank lists a depot, which AqBanking gives the
+    // investment kind. A link to it fails at once, without the bank.
+    let _guard = lock();
+    let mut bank = open("securities");
+    stub::set_scenario("ok-securities");
+    let mut pins = pins_with(PinMode::AskEachTime);
+    let (_, accounts) = connect(&mut bank, &mut pins);
+    assert_eq!(accounts.len(), 3);
+    let depot = &accounts[2];
+    assert_eq!(depot.kind, BankAccountKind::Securities);
+    assert_eq!(depot.number.as_deref(), Some("7000000001"));
+    assert_eq!(depot.iban, None);
+    let login = bank.logins().expect("logins").remove(0);
+    let link = BankLink {
+        account: AccountId::generate(),
+        iban: None,
+        bank_code: Some(login.bank.code().to_owned()),
+        number: depot.number.clone(),
+        last_fetched_on: None,
+    };
+    let before = journal_of(&bank).matches("fetch: account").count();
+    let mut asker = TypesThePin(0);
+    assert_eq!(
+        fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default()),
+        Err(BankError::SecuritiesAccount)
+    );
+    assert_eq!(asker.0, 0, "no PIN asked");
+    assert_eq!(
+        journal_of(&bank).matches("fetch: account").count(),
+        before,
+        "the bank was not asked"
+    );
     stub::set_scenario("ok");
 }

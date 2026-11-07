@@ -127,7 +127,8 @@ mod tests {
         assert!(keychain.0.contains(&key));
         assert_eq!(keychain.0.len(), 1);
         // A new run of the app reads it back.
-        let next_run = PinSession::new(Box::new(KeychainPinStore::new(Box::new(keychain.clone()))));
+        let mut next_run =
+            PinSession::new(Box::new(KeychainPinStore::new(Box::new(keychain.clone()))));
         assert_eq!(
             next_run.answer(&login()),
             Ok(PinAnswer::Known(Pin::new("0000".to_owned())))

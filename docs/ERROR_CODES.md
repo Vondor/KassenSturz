@@ -266,6 +266,7 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 | `bank.unknown-login` | `login` | | This bank login no longer exists in KassenSturz. Set it up again. |
 | `bank.unknown-account` | `account` | | Your bank doesn't list the bank account this account is linked to for this login anymore. Link the account to another bank account, or connect the bank again in Settings. |
 | `bank.no-bank-account` | | | None of your bank logins lists the bank account this account is linked to. Connect the bank again in Settings, or link the account to another bank account. |
+| `bank.securities-account` | | | This account is linked to a securities account (depot) at your bank. KassenSturz can't get securities accounts yet, so nothing was fetched for it. Unlink it on the Get new transactions page if you don't want it tried again. |
 | `bank.pin-needed` | | | Your bank asks for your PIN. Type it to continue. |
 | `bank.pin-rejected` | | | Your bank says the PIN is wrong. KassenSturz has forgotten the PIN it had, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login. |
 | `bank.unreachable` | | | Your bank's server couldn't be reached. Check your internet connection and the bank's address, and try again later. |

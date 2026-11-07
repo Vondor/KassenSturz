@@ -322,8 +322,12 @@ pub enum AccountKind {
     Savings,
     /// A credit card.
     CreditCard,
-    /// A bank account of another kind: investment, cash, money market,
-    /// credit, or "bank".
+    /// A securities account (depot), or a fund account at an investment
+    /// company: AqBanking's "investment" kind (FinTS account types 30 to 39
+    /// and 60 to 69).
+    Investment,
+    /// A bank account of another kind: cash, money market, credit, or
+    /// "bank".
     OtherBank,
     /// Not said, with AqBanking's number.
     Unknown(i32),
@@ -1152,8 +1156,8 @@ fn account_kind(kind: c_int) -> AccountKind {
         AB_AccountType_Checking => AccountKind::Checking,
         AB_AccountType_Savings => AccountKind::Savings,
         AB_AccountType_CreditCard => AccountKind::CreditCard,
+        AB_AccountType_Investment => AccountKind::Investment,
         AB_AccountType_Bank
-        | AB_AccountType_Investment
         | AB_AccountType_Cash
         | AB_AccountType_MoneyMarket
         | AB_AccountType_Credit => AccountKind::OtherBank,

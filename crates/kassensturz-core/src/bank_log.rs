@@ -28,7 +28,8 @@ use jiff::Timestamp;
 use crate::debug_log::{append, default_folder};
 use crate::is_error_code;
 
-/// The environment variable that starts the bank log; only `1` is on.
+/// The environment variable that starts the bank log: `1` is on, `2` is on
+/// with the bank's own reply texts, redacted (D-619); anything else is off.
 pub const ENV: &str = "KASSENSTURZ_BANK_LOG";
 
 /// The log's folder, beside the debug log's.
@@ -126,6 +127,77 @@ steps! {
     UserFilesWithId = "bank.user-files-with-id",
     /// The same: how many of those say they are a PIN/TAN login.
     UserFilesPinTan = "bank.user-files-pin-tan",
+    /// Level 2 only (D-619): the bank's reply text for a FinTS code; the
+    /// count is the code, the text is redacted by [`redact_notice`].
+    BankNotice = "bank.bank-notice",
+}
+
+/// How many characters of a bank's reply text the log keeps.
+pub const NOTICE_MAX_CHARS: usize = 160;
+
+/// The bank's reply text as level 2 of the log may hold it (D-619): the
+/// words only. A word with a digit in it (an account number, an IBAN, a
+/// date, an amount), a word with an `@`, a dot between two letters (a
+/// domain), exactly 8 or 11 capitals (the shape of a BIC) and any word of
+/// 25 characters or more is replaced by `#`; of the rest only letters (also umlauts) and
+/// `.,:;()-/'` stay, other characters become spaces; the text is cut to
+/// [`NOTICE_MAX_CHARS`]. A name the bank puts into its text in words is the
+/// one thing this cannot see, which is why level 2 is for the person's
+/// own tries and the log is looked at before it is shown.
+pub fn redact_notice(text: &str) -> String {
+    let mut words: Vec<String> = Vec::new();
+    for word in text.split_whitespace() {
+        if hides_something(word) {
+            words.push("#".to_owned());
+            continue;
+        }
+        let kept: String = word
+            .chars()
+            .map(|c| {
+                if c.is_alphabetic() || ".,:;()-/'".contains(c) {
+                    c
+                } else {
+                    ' '
+                }
+            })
+            .collect();
+        let kept = kept.trim();
+        if !kept.is_empty() {
+            words.push(kept.to_owned());
+        }
+    }
+    let joined = words.join(" ");
+    joined.chars().take(NOTICE_MAX_CHARS).collect()
+}
+
+/// Whether a word of a bank's text could be an identifier: a digit or an
+/// `@` in it, 25 characters or more, a dot between two letters (a domain or
+/// address), or exactly 8 or 11 capitals (the shape of a BIC).
+fn hides_something(word: &str) -> bool {
+    let chars: Vec<char> = word.chars().collect();
+    if chars.iter().any(|c| c.is_ascii_digit() || *c == '@') || chars.len() >= 25 {
+        return true;
+    }
+    if chars
+        .windows(3)
+        .any(|w| w[1] == '.' && w[0].is_alphabetic() && w[2].is_alphabetic())
+    {
+        return true;
+    }
+    let core: Vec<char> = word.chars().filter(|c| c.is_alphabetic()).collect();
+    matches!(core.len(), 8 | 11) && core.iter().all(|c| c.is_uppercase())
+}
+
+/// One line of level 2 holding a bank reply: the time, the step, the FinTS
+/// code as the count and the redacted text.
+pub fn notice_line(at: Timestamp, code: u16, text: &str) -> String {
+    let text = redact_notice(text);
+    // Letters and the punctuation above only: nothing to escape in JSON.
+    format!(
+        "{{\"at\":\"{}\",\"step\":\"{}\",\"n\":{code},\"text\":\"{text}\"}}\n",
+        at.strftime("%Y-%m-%dT%H:%M:%S%.3fZ"),
+        Step::BankNotice.name()
+    )
 }
 
 /// One line of the log, without the line break. `code` that isn't an error
@@ -177,10 +249,45 @@ pub fn skip_code(reason: &str) -> &'static str {
 /// Whether the bank log runs: the program was started with
 /// `KASSENSTURZ_BANK_LOG=1` and knows where the log goes. Read once.
 pub fn is_on() -> bool {
-    static ON: OnceLock<bool> = OnceLock::new();
-    *ON.get_or_init(|| {
-        std::env::var_os(ENV).is_some_and(|value| value == "1") && folder().is_some()
+    level() > 0
+}
+
+/// Whether level 2 runs (D-619): the bank's reply texts, redacted.
+pub fn is_detailed() -> bool {
+    level() > 1
+}
+
+/// The level the program was started with (`1`, `2`), `0` for off. Read once.
+fn level() -> u8 {
+    static LEVEL: OnceLock<u8> = OnceLock::new();
+    *LEVEL.get_or_init(|| {
+        let level = match std::env::var_os(ENV) {
+            Some(value) if value == "1" => 1,
+            Some(value) if value == "2" => 2,
+            _ => 0,
+        };
+        if level > 0 && folder().is_some() {
+            level
+        } else {
+            0
+        }
     })
+}
+
+/// Notes the bank's reply `text` for the FinTS `code` (level 2 only,
+/// D-619), redacted. Does nothing below level 2.
+pub fn note_notice(code: u16, text: &str) {
+    if !is_detailed() {
+        return;
+    }
+    if let Some(folder) = folder() {
+        let _ = append(
+            &folder,
+            FILES,
+            MAX_FILE_BYTES,
+            &notice_line(Timestamp::now(), code, text),
+        );
+    }
 }
 
 /// The log's folder, where this build knows it.
@@ -268,6 +375,51 @@ mod tests {
             assert!(line(at, Step::FetchSkipped, Some(code), None, None).contains(code));
         }
         assert_eq!(skip_code("anything else"), "bank.unknown-code");
+    }
+
+    #[test]
+    fn a_bank_notice_holds_words_only() {
+        for (text, expected) in [
+            (
+                "Nachrichtenaufbau fehlerhaft",
+                "Nachrichtenaufbau fehlerhaft",
+            ),
+            ("Konto 1234567890 gesperrt", "Konto # gesperrt"),
+            ("IBAN DE89370400440532013000 ungültig", "IBAN # ungültig"),
+            ("Mail a@b.de gesendet", "Mail # gesendet"),
+            (
+                "Betrag 12,50 EUR über Limit 9000",
+                "Betrag # EUR über Limit #",
+            ),
+            ("Segment \"HKTAN\" {fehlt}\n", "Segment HKTAN fehlt"),
+            (
+                "Auftrag abgelehnt (Details: siehe Anlage)",
+                "Auftrag abgelehnt (Details: siehe Anlage)",
+            ),
+            ("Averyveryveryverylongwordthatcouldbeatoken ok", "# ok"),
+            ("Siehe www.beispiel.de und mail.example", "Siehe # und #"),
+            (
+                "BIC COBADEFF oder COBADEFFXXX genannt",
+                "BIC # oder # genannt",
+            ),
+            ("Satz endet. Neuer Satz", "Satz endet. Neuer Satz"),
+            ("HKTAN und SEPA bleiben", "HKTAN und SEPA bleiben"),
+        ] {
+            assert_eq!(redact_notice(text), expected, "{text}");
+        }
+        let long = "wort ".repeat(100);
+        assert_eq!(redact_notice(&long).chars().count(), NOTICE_MAX_CHARS);
+    }
+
+    #[test]
+    fn a_notice_line_has_no_character_that_needs_escaping() {
+        let at: Timestamp = "2026-11-06T16:00:00Z".parse().unwrap();
+        let text = notice_line(at, 9160, "Fehler \"x\" \\ DE89370400440532013000 \u{1F600}");
+        assert_eq!(
+            text,
+            "{\"at\":\"2026-11-06T16:00:00.000Z\",\"step\":\"bank.bank-notice\",\"n\":9160,\"text\":\"Fehler x #\"}\n"
+        );
+        assert_eq!(text.matches('\n').count(), 1);
     }
 
     #[test]

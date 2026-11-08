@@ -230,6 +230,17 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // Deletes a saved view. Removing it rebuilds the list, which destroys the
+    // row whose button called this, so the work after `remove()` runs here
+    // on the page and not in the row (M6-B199).
+    function removeView(id: string) {
+        error.result = page.saved.remove(id);
+        if (page.openId === id) {
+            page.openId = "";
+            page.openName = "";
+        }
+    }
+
     // Opens the wizard on the view that is on the page, at a step.
     function changeStep(index: int) {
         page.wizard = true;
@@ -638,11 +649,7 @@ Kirigami.ScrollablePage {
                         Controls.ToolTip.visible: hovered
                         onClicked: {
                             ActionLog.taken("StatisticsPage_delete")
-                            error.result = page.saved.remove(row.modelData.id);
-                            if (page.openId === row.modelData.id) {
-                                page.openId = "";
-                                page.openName = "";
-                            }
+                            page.removeView(row.modelData.id)
                         }
                     }
                 }

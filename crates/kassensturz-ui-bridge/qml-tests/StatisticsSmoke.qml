@@ -145,7 +145,10 @@ Kirigami.ApplicationWindow {
                 break;
             case 5:
                 window.check(window.shown("KpiCard") === 1, "opening it shows the key figure again");
-                saved.remove("v1");
+                // The row's own Delete button: removing the view destroys the
+                // row, and what the button did after that gave
+                // "ReferenceError: page is not defined" (M6-B199).
+                find(page, "ToolButton", []).filter(button => button.icon.name === "edit-delete" && button.text === "Delete")[0].clicked();
                 break;
             case 6:
                 window.check(page.openId === "", "a deleted view is no longer the one being changed");

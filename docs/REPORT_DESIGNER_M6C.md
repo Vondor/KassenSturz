@@ -181,7 +181,7 @@ The values go through `Component::new` and `Component::set` and the finished doc
 
 A call from a model is untrusted input (T-21, T-46). Checked in this order, before anything is built; the first failure answers:
 
-1. The argument text is at most **4 KiB** (`ai-tools.call-too-big`), valid JSON, an object, nested at most 3 levels.
+1. The argument text is at most **4 KiB** (8 KiB since US1.17, D-650; `ai-tools.call-too-big`), valid JSON, an object, nested at most 3 levels.
 2. **No key twice** in one object, compared after decoding escapes (`ai-tools.repeated-key`), as `Document::read` does (D-278).
 3. **No unknown key** (`ai-tools.unknown-argument`); the model's key is not repeated back to it. `null` for an optional argument counts as left out (small models send it often).
 4. Each value has its type and is in its list (`ai-tools.bad-argument` with the argument's fixed name). The answer to the model lists the allowed values from the schema and never repeats the model's own text.

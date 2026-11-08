@@ -87,6 +87,17 @@ pub enum ToolError {
         /// Why, one of the fixed words in `docs/ERROR_CODES.md`.
         reason: &'static str,
     },
+    /// A formula the AI wrote for a chart can't be used (D-650). The report
+    /// gives the argument, a fixed reason and the character it is at,
+    /// counted from 1, never the model's text or the book's names.
+    BadFormula {
+        /// `formula` or `target`.
+        argument: &'static str,
+        /// Where, in characters from 1, if the mistake is at one place.
+        position: Option<usize>,
+        /// Why, one of the fixed words in `docs/ERROR_CODES.md`.
+        reason: &'static str,
+    },
     /// The error `cause` came from one item of a list of the call, e.g. the
     /// third of `new_rules`. The report is the cause's, plus the list and
     /// the item's place, so the model knows which one to fix (M6-B191,
@@ -239,6 +250,19 @@ impl Report for ToolError {
                 };
                 report.with("reason", ErrorParam::Keyword(reason))
             }
+            Self::BadFormula {
+                argument,
+                position,
+                reason,
+            } => {
+                let report = ErrorReport::new("ai-tools.bad-formula")
+                    .with("argument", ErrorParam::Keyword(argument));
+                let report = match position {
+                    Some(position) => report.with("position", ErrorParam::count(*position)),
+                    None => report,
+                };
+                report.with("reason", ErrorParam::Keyword(reason))
+            }
             Self::InItem { list, item, cause } => ErrorReport::new("ai-tools.in-item")
                 .with("list", ErrorParam::Keyword(list))
                 .with("item", ErrorParam::count(*item))
@@ -318,6 +342,11 @@ mod tests {
             ToolError::BadCondition {
                 condition: None,
                 reason: "none",
+            },
+            ToolError::BadFormula {
+                argument: "formula",
+                position: Some(3),
+                reason: "syntax",
             },
             ToolError::BadCondition {
                 condition: None,

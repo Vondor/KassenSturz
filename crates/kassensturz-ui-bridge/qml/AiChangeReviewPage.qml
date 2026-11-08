@@ -34,6 +34,8 @@ Kirigami.ScrollablePage {
     signal undoClicked()
     signal doneClicked()
 
+    readonly property GridNames gridNames: GridNames {}
+
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
@@ -91,20 +93,10 @@ Kirigami.ScrollablePage {
     }
 
     // The name of a period of a chart.
+    // A period's name: a fixed one, one that moves with today (D-644,
+    // D-645) or a range of days, as the layout names it.
     function periodName(id: string): string {
-        switch (id) {
-        case "this-month":
-            return i18nContext.i18nc("@item:inlistbox a period", "This month");
-        case "last-month":
-            return i18nContext.i18nc("@item:inlistbox a period", "Last month");
-        case "last-12-months":
-            return i18nContext.i18nc("@item:inlistbox a period", "The last 12 months");
-        case "this-year":
-            return i18nContext.i18nc("@item:inlistbox a period", "This year");
-        case "last-year":
-            return i18nContext.i18nc("@item:inlistbox a period", "Last year");
-        }
-        return "";
+        return gridNames.periodName(id);
     }
 
     // A Rule's condition in words.
@@ -1171,6 +1163,9 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         subject: chartProperties.view
                         period: chartCard.modelData.period
+                        // A formula the AI wrote is shown in words first
+                        // (US1.17, D-650).
+                        explainFormula: true
                     }
 
                     Controls.Label {

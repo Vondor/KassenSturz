@@ -38,7 +38,14 @@ ColumnLayout {
     readonly property string kind: change.kind
     readonly property bool editable: change.fields !== undefined && change.fields.length > 0
     readonly property var form: change.form !== undefined && change.form !== "" ? JSON.parse(change.form) : ({})
-    readonly property var periods: ["this-month", "last-month", "last-12-months", "this-year", "last-year"]
+    // The fixed periods, and the change's own when it is another one: a
+    // period that moves with today or a range of days (D-650), so opening
+    // the form never changes it.
+    readonly property var periods: {
+        const fixed = ["this-month", "last-month", "last-12-months", "this-year", "last-year"];
+        const own = form.period ?? "";
+        return own !== "" && !fixed.includes(own) ? fixed.concat([own]) : fixed;
+    }
     // A new category goes inside one of the book's categories of its own
     // kind and currency, or at the top.
     readonly property var parents: choices.filter(choice => choice.id !== "" && choice.income === change.income && choice.currency === change.currency)

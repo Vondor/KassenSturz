@@ -25,24 +25,27 @@
 
 use std::collections::{HashMap, HashSet};
 
-use kassensturz_core::AccountId;
 use kassensturz_core::ai_switch::{Permission, Permissions, Row};
+use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, GroupMember};
 use kassensturz_report::{
-    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CATALOG, ComponentType, DatasetInfo, FORMULA_MEASURE,
-    GROUPS_GROUPING, Kind, PERIODS, range_word,
+    ACCOUNT_BALANCES, AVERAGE_WORDS, BUDGET_UTILIZATION, CATALOG, ComponentType, DatasetInfo,
+    FORMULA_MEASURE, FUNCTIONS, Filter, Formula, FormulaResult, GROUPS_GROUPING, Kind,
+    MAX_FORMULA_CHARS, PERIODS, Period, ReportError, Rolling, Source, Term, range_word,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
 
 use super::{Proposal, ProposeSpec, prepare, views};
 use crate::error::ToolError;
+use crate::text::hides_text;
 
 /// The name a model calls it by.
 pub const PROPOSE_VIEW_NAME: &str = "propose_view";
 
-/// The longest call, in bytes of its JSON text (D-353). A call with every
-/// argument and the most ids is far smaller.
-pub const MAX_VIEW_CALL_BYTES: usize = 4 * 1024;
+/// The longest call, in bytes of its JSON text (D-353, D-650). A call with
+/// every argument, the most ids in every list and two formulas of the
+/// longest length in plain letters fits.
+pub const MAX_VIEW_CALL_BYTES: usize = 8 * 1024;
 
 /// The deepest nesting of a call: the call, a period range or a list of
 /// ids, and nothing inside those.
@@ -70,6 +73,23 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "compare",
     "categories",
     "accounts",
+    "average",
+    "income_categories",
+    "income_accounts",
+    "expenses_categories",
+    "expenses_accounts",
+    "formula",
+    "target",
+];
+
+/// The own lists of money in and money out (D-646): each list's argument,
+/// whether it holds categories (else accounts), and the kind of category
+/// it takes.
+const SERIES_LISTS: [(&str, bool, Option<AccountKind>); 4] = [
+    ("income_categories", true, Some(AccountKind::Income)),
+    ("income_accounts", false, None),
+    ("expenses_categories", true, Some(AccountKind::Expense)),
+    ("expenses_accounts", false, None),
 ];
 
 /// The words of `show_as` and the kind of component each one is; `auto`
@@ -88,12 +108,41 @@ const SHOW_AS: [(&str, Option<ComponentType>); 11] = [
     ("budget_bars", Some(ComponentType::BudgetProgress)),
 ];
 
+/// What a rolling period word looks like (D-644, D-645), for the schema;
+/// [`Rolling::read`] decides which numbers it takes.
+const ROLLING_PATTERN: &str =
+    "^(last-[1-9][0-9]{0,2}(-complete)?-months|(this|last)-salary-month-[1-9][0-9]?)$";
+
+/// How a formula is written, for the schema (D-292, D-295, D-649, D-653),
+/// with the functions of [`FUNCTIONS`].
+fn formula_help() -> String {
+    let functions: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
+    format!(
+        "Only for figure and progress, with data income_expense_by_month: a spreadsheet \
+         formula as in LibreOffice Calc, e.g. =Groceries - Restaurants or =SUM(Rent; Energy), \
+         the figure shown instead of a key figure. Names are categories from list_categories, \
+         written as they are named there, in single quotes when they have blanks ('Eating \
+         out'), a category inside another as 'Home > Rent'; Spending.Pets or Income.Pets picks \
+         the kind when both have the name; Spending.ALL and Income.ALL are all money out and \
+         all money in. A name stands for its money in the chart's period as a positive amount; \
+         @\"last 3 complete months\" after a name takes another period, e.g. \
+         =Groceries@\"last 3 complete months\" / 3 for the average month. Write ; between \
+         arguments and . as the decimal mark. The functions are {}. KassenSturz works the \
+         figure out itself; a refused formula says at which character it is wrong.",
+        functions.join(", ")
+    )
+}
+
 /// The period word that means "the page's own": for a chart saved under
 /// Statistics, the period its dataset starts with.
 const PAGE: &str = "page";
 
 /// The `compare` word for no comparison.
 const NO_COMPARISON: &str = "none";
+
+/// The `average` word for the total, which is what a chart shows when it
+/// has no average.
+const TOTAL: &str = "total";
 
 /// The datasets the AI may name (D-354): the catalog's entries with
 /// `for_ai`, in its order.
@@ -163,6 +212,7 @@ pub fn view_choices(argument: &str) -> Option<Vec<&'static str>> {
         "compare" => std::iter::once(NO_COMPARISON)
             .chain(schema_words("compare").iter().copied())
             .collect(),
+        "average" => AVERAGE_WORDS.to_vec(),
         _ => return None,
     };
     Some(words)
@@ -171,10 +221,19 @@ pub fn view_choices(argument: &str) -> Option<Vec<&'static str>> {
 /// The arguments the user lets a model send: the ids of categories and
 /// accounts only with the reading of them in the grid (D-252), and only
 /// where the schema has the list.
+///
+/// A formula names categories, so it is offered only with the reading of
+/// them too (D-650): a model that may not read them can't learn from a
+/// refused formula which names the book has.
 fn offered(argument: &str, allowed: Permissions) -> bool {
     match argument {
-        "categories" => allowed.reads(Row::Categories) && schema_has_ids("categories"),
-        "accounts" => allowed.reads(Row::Accounts) && schema_has_ids("accounts"),
+        "categories" | "income_categories" | "expenses_categories" => {
+            allowed.reads(Row::Categories) && schema_has_ids(argument)
+        }
+        "accounts" | "income_accounts" | "expenses_accounts" => {
+            allowed.reads(Row::Accounts) && schema_has_ids(argument)
+        }
+        "formula" | "target" => allowed.reads(Row::Categories),
         _ => true,
     }
 }
@@ -248,6 +307,16 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
             "anyOf": [
                 {"type": "string", "enum": view_choices("period").unwrap_or_default()},
                 {
+                    "type": "string",
+                    "pattern": ROLLING_PATTERN,
+                    "description": "A period that moves with today (D-644, D-645): \
+                        last-N-months is this month and the N-1 before it, \
+                        last-N-complete-months the N whole months before this one (N from 1 \
+                        to 120); this-salary-month-D is the month from day D of a month to the \
+                        day before day D of the next (D from 1 to 31, the last day in a shorter \
+                        month), the one today is in, last-salary-month-D the one before it.",
+                },
+                {
                     "type": "object",
                     "properties": {
                         "from": {"type": "string", "format": "date", "description": "First day, YYYY-MM-DD. Leave it out for everything up to the last day."},
@@ -257,8 +326,8 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
                 },
             ],
             "description": "The period shown: page (the data's usual period), a fixed period, \
-                or a range of days. Default: last-12-months, this-month for account_balances \
-                and budget_utilization.",
+                a period that moves with today, or a range of days. Default: last-12-months, \
+                this-month for account_balances and budget_utilization.",
         }),
     );
     properties.insert(
@@ -266,6 +335,15 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         choice(
             "compare",
             "Only for figure and progress: what to compare with. Default none.",
+        ),
+    );
+    properties.insert(
+        "average".into(),
+        choice(
+            "average",
+            "Only for spending_by_category: show each category's total (the default) or its \
+             average per month, quarter or year of the period. KassenSturz divides the exact \
+             total once by the months (quarters, years) of the period up to today.",
         ),
     );
     if offered("categories", allowed) {
@@ -286,6 +364,59 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
             ),
         );
     }
+    for (argument, categories, _) in SERIES_LISTS {
+        if !offered(argument, allowed) {
+            continue;
+        }
+        let (side, what, max, list) = match (argument.starts_with("income"), categories) {
+            (true, true) => (
+                "money in",
+                "income categories",
+                MAX_VIEW_CATEGORIES,
+                "list_categories",
+            ),
+            (true, false) => ("money in", "accounts", MAX_VIEW_ACCOUNTS, "list_accounts"),
+            (false, true) => (
+                "money out",
+                "spending categories",
+                MAX_VIEW_CATEGORIES,
+                "list_categories",
+            ),
+            (false, false) => ("money out", "accounts", MAX_VIEW_ACCOUNTS, "list_accounts"),
+        };
+        properties.insert(
+            argument.into(),
+            ids(
+                max,
+                &format!(
+                    "Only for income_expense_by_month: {side} counts only these {what}, IDs \
+                     from {list}. Leave it out for all."
+                ),
+            ),
+        );
+    }
+    if offered("formula", allowed) {
+        properties.insert(
+            "formula".into(),
+            json!({
+                "type": "string",
+                "minLength": 1,
+                "maxLength": MAX_FORMULA_CHARS,
+                "description": formula_help(),
+            }),
+        );
+        properties.insert(
+            "target".into(),
+            json!({
+                "type": "string",
+                "minLength": 1,
+                "maxLength": MAX_FORMULA_CHARS,
+                "description": "Only for progress with a formula: what a full bar stands for, \
+                    a number or a formula written the same way, of the same kind as the \
+                    formula (an amount for an amount).",
+            }),
+        );
+    }
     let parameters = json!({
         "type": "object",
         "properties": properties,
@@ -299,6 +430,12 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
     );
     if offered("categories", allowed) || offered("accounts", allowed) {
         description.push_str(" and the categories or accounts it is limited to");
+    }
+    if offered("formula", allowed) {
+        description.push_str(
+            "; a key figure or a progress bar of income_expense_by_month can show a formula \
+             instead, which the user sees in plain words before confirming",
+        );
     }
     description.push_str(&format!(
         ", plus a short title. Call it once per chart, at most {MAX_VIEWS_PER_ANSWER} charts in \
@@ -486,8 +623,11 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
     let measure = word("measure")?;
     let group_by = word("group_by")?;
     let compare = word("compare")?.filter(|word| *word != NO_COMPARISON);
+    let average = word("average")?.filter(|word| *word != TOTAL);
     let period = match given("period") {
         None => None,
+        // A period that moves with today (D-644, D-645) is not in the list.
+        Some(Value::String(text)) if Rolling::read(text).is_some() => Some(text.clone()),
         Some(Value::String(_)) => word("period")?
             .filter(|word| *word != PAGE)
             .map(str::to_owned),
@@ -496,8 +636,20 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
     };
     let categories = ids(given("categories"), "categories", MAX_VIEW_CATEGORIES)?;
     let accounts = ids(given("accounts"), "accounts", MAX_VIEW_ACCOUNTS)?;
+    let mut series = Vec::new();
+    for (argument, of_categories, _) in SERIES_LISTS {
+        let max = if of_categories {
+            MAX_VIEW_CATEGORIES
+        } else {
+            MAX_VIEW_ACCOUNTS
+        };
+        series.push(ids(given(argument), argument, max)?);
+    }
+    let formula = text(given("formula"), "formula")?;
+    let target = text(given("target"), "target")?;
     // 5. Ids by the grid and the book.
-    if !categories.is_empty() || !accounts.is_empty() {
+    if !categories.is_empty() || !accounts.is_empty() || series.iter().any(|list| !list.is_empty())
+    {
         let kinds: HashMap<AccountId, _> = book
             .all_accounts()?
             .into_iter()
@@ -521,12 +673,37 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
         if !categories.iter().all(category) {
             return Err(ToolError::UnknownCategory);
         }
-        if !accounts
-            .iter()
-            .all(|id| kinds.get(id).is_some_and(|(kind, _)| kind.is_account()))
-        {
+        let account = |id: &AccountId| kinds.get(id).is_some_and(|(kind, _)| kind.is_account());
+        if !accounts.iter().all(account) {
             return Err(ToolError::UnknownAccount);
         }
+        // A series' own list takes categories of its own kind only: money in
+        // from a spending category would count nothing (D-646).
+        for ((_, _, of_kind), list) in SERIES_LISTS.iter().zip(&series) {
+            let fits = |id: &AccountId| match of_kind {
+                Some(of_kind) => kinds
+                    .get(id)
+                    .is_some_and(|(kind, closed)| kind == of_kind && !closed),
+                None => account(id),
+            };
+            if !list.iter().all(fits) {
+                return Err(if of_kind.is_some() {
+                    ToolError::UnknownCategory
+                } else {
+                    ToolError::UnknownAccount
+                });
+            }
+        }
+    }
+    // A formula's names by the book (D-650), as the formula field checks
+    // them: no figure of the period decides, only the names and the kinds.
+    if let Some(formula) = formula {
+        check_formula(book, formula, None, "formula")?;
+        if let Some(target) = target {
+            check_formula(book, target, Some(formula), "target")?;
+        }
+    } else if target.is_some() {
+        return Err(ToolError::BadArgument { argument: "target" });
     }
     // 6. A dimension the dataset doesn't apply is refused, never kept: a
     // chart of net worth with categories would look limited while every
@@ -556,6 +733,9 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
         ("grouping", group_by),
         ("measure", measure),
         ("compare", compare),
+        ("average", average),
+        ("formula", formula),
+        ("target", target),
     ] {
         if let Some(value) = value {
             item.insert(key.into(), json!(value));
@@ -565,7 +745,10 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
         "period".into(),
         json!(period.unwrap_or_else(|| default_period(data).to_owned())),
     );
-    for (key, list) in [("categories", &categories), ("accounts", &accounts)] {
+    let lists = [("categories", &categories), ("accounts", &accounts)]
+        .into_iter()
+        .chain(SERIES_LISTS.iter().map(|(key, _, _)| *key).zip(&series));
+    for (key, list) in lists {
         if !list.is_empty() {
             let list: Vec<String> = list.iter().map(ToString::to_string).collect();
             item.insert(key.into(), json!(list));
@@ -616,6 +799,114 @@ fn range_period(range: &Map<String, Value>) -> Result<String, ToolError> {
         return Err(ToolError::BadPeriod);
     }
     range_word(from, to).map_err(|_| bad)
+}
+
+/// A formula's text: a string of one line, without hidden characters,
+/// at most [`MAX_FORMULA_CHARS`] characters; `None` when left out.
+fn text<'a>(
+    value: Option<&'a Value>,
+    argument: &'static str,
+) -> Result<Option<&'a str>, ToolError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let bad = ToolError::BadFormula {
+        argument,
+        position: None,
+        reason: "text",
+    };
+    let text = value.as_str().ok_or(ToolError::BadArgument { argument })?;
+    if text.trim().is_empty()
+        || text.chars().count() > MAX_FORMULA_CHARS
+        || text.chars().any(|c| c.is_control() || hides_text(c))
+    {
+        return Err(bad);
+    }
+    Ok(Some(text))
+}
+
+/// Checks a formula the model wrote against `book` (D-650): it is read in
+/// the form the book stores and its names are looked up, the way the
+/// formula field and the card do it. A target is also checked against the
+/// formula it measures. A mistake is answered with a fixed reason and the
+/// character it is at, never with the model's text or the book's names
+/// (D-353); a name of a group is unknown, since the AI knows no groups
+/// (D-306). What depends on the figures (a division by zero, two
+/// currencies, a target of zero) is no mistake of the formula: the preview
+/// shows it to the user.
+fn check_formula(
+    book: &Book,
+    text: &str,
+    measured: Option<&str>,
+    argument: &'static str,
+) -> Result<(), ToolError> {
+    let refused = |error: ReportError| -> Result<(), ToolError> {
+        let (position, reason) = match error {
+            ReportError::FormulaSyntax { position, .. } => (Some(position), "syntax"),
+            ReportError::FormulaUnknownName { position, .. } => (Some(position), "unknown-name"),
+            ReportError::FormulaAmbiguousName { position, by, .. } => (
+                Some(position),
+                if by == "kind" {
+                    "ambiguous-kind"
+                } else {
+                    "ambiguous-path"
+                },
+            ),
+            ReportError::FormulaUnknownFunction { position, .. } => {
+                (Some(position), "unknown-function")
+            }
+            ReportError::FormulaArguments { position, .. } => (Some(position), "arguments"),
+            ReportError::FormulaKinds { position, .. } => (Some(position), "kinds"),
+            ReportError::FormulaTooBig { .. } => (None, "too-big"),
+            ReportError::FormulaTarget { reason: "kinds" } => (None, "target-kinds"),
+            ReportError::FormulaNoValue { .. }
+            | ReportError::FormulaTooLarge { .. }
+            | ReportError::FormulaMixedCurrencies { .. }
+            | ReportError::FormulaTarget { .. } => return Ok(()),
+            ReportError::Store(error) => return Err(ToolError::Store(error)),
+            _ => (None, "invalid"),
+        };
+        Err(ToolError::BadFormula {
+            argument,
+            position,
+            reason,
+        })
+    };
+    // One day with no money is enough: the names are looked up before any
+    // figure is read, and the kinds don't depend on the amounts.
+    let day = Date::constant(2000, 1, 1);
+    let period = Period::new(day, day).map_err(|_| ToolError::BadPeriod)?;
+    let currency = CurrencyCode::new("EUR").map_err(|_| ToolError::BadPeriod)?;
+    let work = |text: &str| -> Result<FormulaResult, ReportError> {
+        let formula = Formula::parse(text)?;
+        let source = Source::read(book, formula.span(period)?)?;
+        formula.evaluate(&source, period, &Filter::default(), currency)
+    };
+    let result = match work(text) {
+        Ok(result) => result,
+        Err(error) => return refused(error),
+    };
+    let group = result
+        .counted
+        .iter()
+        .any(|counted| matches!(counted.of, Term::Member(GroupMember::Group(_))));
+    if group {
+        return Err(ToolError::BadFormula {
+            argument,
+            position: None,
+            reason: "unknown-name",
+        });
+    }
+    if let Some(measured) = measured {
+        let figure = match work(measured) {
+            Ok(figure) => figure,
+            Err(error) => return refused(error),
+        };
+        if let Err(error) = figure.value.fill(result.value) {
+            return refused(error);
+        }
+    }
+    Ok(())
 }
 
 /// A list of ids: strings that are ids, none twice, at most `max`.

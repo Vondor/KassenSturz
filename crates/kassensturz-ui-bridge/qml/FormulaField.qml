@@ -38,6 +38,7 @@ ColumnLayout {
         translationDomain: "kassensturz"
     }
 
+    readonly property FormulaWords words: FormulaWords {}
     readonly property var shown: book.view ?? ({})
     readonly property var result: shown.result
     readonly property var mistake: shown.mistake
@@ -96,30 +97,9 @@ ColumnLayout {
         return entry.name + "(" + entry.arguments.join(writing.separator + " ") + ")";
     }
 
-    // `Spending.ALL` and `Income.ALL` in words.
-    function allName(kind: string): string {
-        return kind === "income"
-            ? i18nContext.i18nc("@info a name in a list of what a formula counts: all money received", "all income")
-            : i18nContext.i18nc("@info a name in a list of what a formula counts: all money spent", "all spending");
-    }
-
-    // The words of "counts Pets (with Vet), Travel".
+    // The words of "counts Pets (with Vet), Travel" (FormulaWords.qml).
     function counts(lines: var): string {
-        const parts = lines.map(line => {
-            let name = line.all ? allName(line.all) : line.name;
-            if (line.inside.length > 0) {
-                const more = line.insideMore > 0
-                    ? i18nContext.i18ncp("@info the end of a list of names", "and %1 more", "and %1 more", line.insideMore) : "";
-                name = i18nContext.i18nc("@info %1 is a category, %2 the names inside it", "%1 (with %2)", name, [line.inside.join(", "), more].filter(part => part !== "").join(" "));
-            }
-            if (!line.ownPeriod) {
-                name = line.month !== ""
-                    ? i18nContext.i18nc("@info %1 is a category, %2 a month", "%1 in %2", name, line.month)
-                    : i18nContext.i18nc("@info %1 is a category, %2 and %3 are dates", "%1 from %2 to %3", name, line.firstDay, line.lastDay);
-            }
-            return name;
-        });
-        return parts.join(", ");
+        return words.counts(lines);
     }
 
     function check() {

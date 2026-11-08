@@ -25,7 +25,7 @@ use kassensturz_core::{ErrorParam, Report, ViewKind};
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::fill_book_from;
 use kassensturz_store::Book;
-use malformed::{Case, GOOD, Ids, MARKER, PREPARED, bad, cases, misspellings, with};
+use malformed::{Case, GOOD, Ids, MARKER, PREPARED, bad, bad_formula, cases, misspellings, with};
 
 /// A day for the calls that need one (budgets, D-394); a chart needs none.
 fn today() -> kassensturz_core::Date {
@@ -53,6 +53,7 @@ fn answer(result: &Result<Proposal, ToolError>) -> String {
         Ok(_) => PREPARED.into(),
         Err(ToolError::BadArgument { argument }) => bad(argument),
         Err(ToolError::NotAllowed { argument }) => format!("not-allowed {argument}"),
+        Err(ToolError::BadFormula { argument, .. }) => bad_formula(argument),
         Err(error) => error.report().code.into(),
     }
 }
@@ -71,6 +72,25 @@ const FIXED: &[&str] = &[
     "compare",
     "categories",
     "accounts",
+    "average",
+    "income_categories",
+    "income_accounts",
+    "expenses_categories",
+    "expenses_accounts",
+    "formula",
+    "target",
+    // The reasons of a refused formula (D-650).
+    "text",
+    "syntax",
+    "unknown-name",
+    "ambiguous-kind",
+    "ambiguous-path",
+    "unknown-function",
+    "arguments",
+    "kinds",
+    "too-big",
+    "target-kinds",
+    "invalid",
 ];
 
 /// A refusal carries fixed names and numbers only, and never the marker.

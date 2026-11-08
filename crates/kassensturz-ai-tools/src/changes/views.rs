@@ -16,8 +16,8 @@ use std::collections::HashSet;
 
 use kassensturz_core::ViewKind;
 use kassensturz_report::{
-    Component, ComponentType, Document, MAX_TEXT_CHARS, PERIODS, ReportError, Setting,
-    read_range_word,
+    Component, ComponentType, Document, FORMULA_MEASURE, MAX_TEXT_CHARS, PERIODS, ReportError,
+    Rolling, Setting, read_range_word,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
@@ -34,7 +34,8 @@ pub(super) const DEFAULT_PERIOD: &str = "last-12-months";
 pub struct NewView {
     /// Its title, which is also its name in the list of saved charts.
     pub title: String,
-    /// The period it shows, one of [`PERIODS`].
+    /// The period it shows: one of [`PERIODS`], a rolling period or a
+    /// range ([`is_view_period`]).
     pub period: String,
     component: Component,
     /// The document that is saved when the user confirms.
@@ -139,10 +140,26 @@ fn choose_ids(
         .map_err(|_| ToolError::BadArgument { argument: key })
 }
 
-/// Whether `period` is one a saved chart can have: a fixed one or a typed
-/// range (D-332).
+/// The settings of a chart the AI prepares besides its kind and dataset,
+/// in the order they are set: words, then lists of ids, then formulas
+/// (D-352, D-650).
+const WORDS: [&str; 4] = ["grouping", "measure", "compare", "average"];
+const ID_LISTS: [&str; 6] = [
+    "categories",
+    "accounts",
+    "income_categories",
+    "income_accounts",
+    "expenses_categories",
+    "expenses_accounts",
+];
+const FORMULAS: [&str; 2] = ["formula", "target"];
+
+/// Whether `period` is one a saved chart can have: a fixed one, one that
+/// moves with today (D-644, D-645) or a typed range (D-332).
 pub(super) fn is_view_period(period: &str) -> bool {
-    PERIODS.contains(&period) || read_range_word(period).is_some()
+    PERIODS.contains(&period)
+        || Rolling::read(period).is_some()
+        || read_range_word(period).is_some()
 }
 
 /// Checks one entry of `new_views` against the book: the item
@@ -162,9 +179,16 @@ pub(super) fn new_view(
             "grouping",
             "measure",
             "compare",
+            "average",
             "period",
             "categories",
             "accounts",
+            "income_categories",
+            "income_accounts",
+            "expenses_categories",
+            "expenses_accounts",
+            "formula",
+            "target",
         ],
         "new_views",
     )?;
@@ -191,21 +215,42 @@ pub(super) fn new_view(
     // The dataset exists, so a refusal means the chart doesn't suit it.
     let mut component = Component::new(kind, dataset)
         .map_err(|_: ReportError| ToolError::BadArgument { argument: "chart" })?;
-    choose(&mut component, "grouping", grouping, "grouping")?;
-    choose(
-        &mut component,
-        "measure",
-        item.string("measure")?,
-        "measure",
-    )?;
-    choose(
-        &mut component,
-        "compare",
-        item.string("compare")?,
-        "compare",
-    )?;
-    choose_ids(&mut component, "categories", item.array("categories")?)?;
-    choose_ids(&mut component, "accounts", item.array("accounts")?)?;
+    let formula = item.string("formula")?;
+    let target = item.string("target")?;
+    if target.is_some() && formula.is_none() {
+        return Err(ToolError::BadArgument { argument: "target" });
+    }
+    // A key figure with a formula shows the formula (D-289): its measure is
+    // `formula`, whether the AI named it or not.
+    let mut measure = item.string("measure")?;
+    if formula.is_some() && kind == ComponentType::KpiCard {
+        match measure {
+            None | Some(FORMULA_MEASURE) => measure = Some(FORMULA_MEASURE),
+            Some(_) => {
+                return Err(ToolError::BadArgument {
+                    argument: "measure",
+                });
+            }
+        }
+    }
+    for key in WORDS {
+        let word = match key {
+            "grouping" => grouping,
+            "measure" => measure,
+            _ => item.string(key)?,
+        };
+        choose(&mut component, key, word, key)?;
+    }
+    for key in ID_LISTS {
+        choose_ids(&mut component, key, item.array(key)?)?;
+    }
+    for (key, text) in FORMULAS.into_iter().zip([formula, target]) {
+        if let Some(text) = text {
+            component
+                .set(key, Setting::Text(text.to_owned()))
+                .map_err(|_| ToolError::BadArgument { argument: key })?;
+        }
+    }
     component
         .set("title", Setting::Text(title.clone()))
         .map_err(|_| ToolError::BadArgument { argument: "title" })?;
@@ -247,9 +292,13 @@ pub(super) fn keep_fitting(item: &mut Map<String, Value>) {
     let Some(component) = kind.and_then(|kind| Component::new(kind, dataset).ok()) else {
         return;
     };
-    for key in ["grouping", "measure", "compare", "categories", "accounts"] {
+    for key in WORDS.into_iter().chain(ID_LISTS).chain(FORMULAS) {
         let fits = match item.get(key) {
             None => true,
+            Some(Value::String(text)) if FORMULAS.contains(&key) => component
+                .clone()
+                .set(key, Setting::Text(text.clone()))
+                .is_ok(),
             Some(Value::String(word)) => component
                 .clone()
                 .set(key, Setting::Word(word.clone()))

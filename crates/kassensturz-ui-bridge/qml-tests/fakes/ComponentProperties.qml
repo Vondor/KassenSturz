@@ -33,14 +33,23 @@ QtObject {
         if (hasColumns) {
             made.columns = columnsJson;
         }
+        // A card or a bar with a formula, as properties.rs gives it.
+        if (formula !== "") {
+            made.fields.push({key: "formula", place: "props", kind: "formula", text: formula, flag: false, word: "", words: []});
+            made.preview.usesFormula = true;
+            made.preview.formula = formula;
+            made.preview.target = "";
+        }
         view = made;
     }
 
     property string type: ""
     property string dataset: ""
 
-    function open(type, dataset) { title = ""; columnsJson = "[]"; build(type, dataset); }
-    function load(json) { const c = JSON.parse(json); title = c.props.title; columnsJson = JSON.stringify(c.params?.columns ?? []); build(c.type, c.dataset); }
+    function open(type, dataset) { title = ""; formula = ""; columnsJson = "[]"; build(type, dataset); }
+    property string formula: ""
+
+    function load(json) { const c = JSON.parse(json); title = c.props.title; formula = c.props.formula ?? ""; columnsJson = JSON.stringify(c.params?.columns ?? []); build(c.type, c.dataset); }
     function setType(type) {
         // As the real object: a type without columns does not keep them.
         if (!(type.startsWith("chart.") || type === "table.rows")) {

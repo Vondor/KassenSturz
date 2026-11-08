@@ -37,6 +37,19 @@ QtObject {
             charts: ["chart.pie", "chart.donut", "chart.bar"],
             component: JSON.stringify({type: view.chart, dataset: "spending_by_category", params: {grouping: "category"}, props: {title: view.title}})
         }, {
+            // A number card with a formula the AI wrote, over a salary
+            // month (US1.17, D-650).
+            kind: "newView",
+            slot: "new_views/1",
+            edited: false,
+            leftOut: false,
+            fields: ["title", "chart", "period"],
+            form: JSON.stringify({title: "Food less travel", chart: "kpi.card", period: "last-salary-month-25", dataset: "income_expense_by_month"}),
+            title: "Food less travel",
+            period: "last-salary-month-25",
+            charts: ["kpi.card", "progress.bar"],
+            component: JSON.stringify({type: "kpi.card", dataset: "income_expense_by_month", params: {measure: "formula"}, props: {title: "Food less travel", formula: "=Pets - Travel"}})
+        }, {
             kind: "newBudget",
             slot: "new_budgets/0",
             edited: false,

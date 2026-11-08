@@ -115,7 +115,7 @@ const ROLLING_PATTERN: &str =
 
 /// How a formula is written, for the schema (D-292, D-295, D-649, D-653),
 /// with the functions of [`FUNCTIONS`].
-fn formula_help() -> String {
+pub(crate) fn formula_help() -> String {
     let functions: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
     format!(
         "Only for figure and progress, with data income_expense_by_month: a spreadsheet \
@@ -124,11 +124,18 @@ fn formula_help() -> String {
          written as they are named there, in single quotes when they have blanks ('Eating \
          out'), a category inside another as 'Home > Rent'; Spending.Pets or Income.Pets picks \
          the kind when both have the name; Spending.ALL and Income.ALL are all money out and \
-         all money in. A name stands for its money in the chart's period as a positive amount; \
-         @\"last 3 complete months\" after a name takes another period, e.g. \
-         =Groceries@\"last 3 complete months\" / 3 for the average month. Write ; between \
-         arguments and . as the decimal mark. The functions are {}. KassenSturz works the \
-         figure out itself; a refused formula says at which character it is wrong.",
+         all money in. A name stands for its money in the chart's period as a positive amount, \
+         counted from the chart's accounts and categories (income_accounts, expenses_accounts, \
+         income_categories and expenses_categories don't apply to it). @ after a name takes \
+         another period, e.g. =Groceries@\"last 3 complete months\" / 3 for the average month. \
+         After @ write, in double quotes, \"this month\", \"last month\", \"this quarter\", \
+         \"last quarter\", \"this year\", \"last year\", \"last N months\" (the chart's month \
+         and the N-1 before it) or \"last N complete months\" (the N whole months before it), \
+         N from 1 to 120, each counted from the chart's period; or, without quotes, a year \
+         2026, a month 2026-09, a day 2026-09-15, or a range of them such as 2026-01..2026-03. \
+         There is no salary month after @. Write ; between arguments and . as the decimal \
+         mark. The functions are {}. KassenSturz works the figure out itself; a refused \
+         formula says at which character it is wrong.",
         functions.join(", ")
     )
 }
@@ -155,6 +162,55 @@ fn shown_kinds() -> impl Iterator<Item = (&'static str, Option<ComponentType>)> 
     SHOW_AS.into_iter().filter(|(_, kind)| {
         kind.is_none_or(|kind| datasets().any(|dataset| dataset.suits.contains(&kind.suit())))
     })
+}
+
+/// The choices that suit one dataset, as the description of `propose_view`
+/// lists them (A5 of the US1 tool review); `auto` suits every dataset.
+#[derive(Debug)]
+pub(crate) struct Fits {
+    pub(crate) show_as: Vec<&'static str>,
+    pub(crate) group_by: Vec<&'static str>,
+    /// The ways of `show_as` that take a `group_by`: a key figure, for one,
+    /// has none.
+    pub(crate) grouped_as: Vec<&'static str>,
+    pub(crate) measure: Vec<&'static str>,
+}
+
+pub(crate) fn fits(dataset: &DatasetInfo) -> Fits {
+    Fits {
+        show_as: SHOW_AS
+            .into_iter()
+            .filter_map(|(word, kind)| {
+                kind.filter(|kind| dataset.suits.contains(&kind.suit()))
+                    .map(|_| word)
+            })
+            .collect(),
+        group_by: dataset
+            .groupings
+            .iter()
+            .copied()
+            .filter(|word| *word != GROUPS_GROUPING)
+            .collect(),
+        grouped_as: SHOW_AS
+            .into_iter()
+            .filter_map(|(word, kind)| {
+                kind.filter(|kind| {
+                    dataset.suits.contains(&kind.suit())
+                        && kind
+                            .properties()
+                            .iter()
+                            .any(|property| property.key == "grouping")
+                })
+                .map(|_| word)
+            })
+            .collect(),
+        measure: dataset
+            .measures
+            .iter()
+            .copied()
+            .filter(|word| *word != FORMULA_MEASURE)
+            .collect(),
+    }
 }
 
 /// The words in `lists`, each once, in the order first seen.
@@ -284,21 +340,24 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         choice(
             "show_as",
             "How it is drawn, or auto to let KassenSturz pick what suits the data. figure is one \
-             key figure, progress a bar towards a figure. Not every way suits every data.",
+             key figure, progress a bar towards a figure. The description of this function lists \
+             the ways each data can be drawn.",
         ),
     );
     properties.insert(
         "measure".into(),
         choice(
             "measure",
-            "Only for figure: which key figure of the data. Default: the data's first.",
+            "Only for figure: which key figure of the data, as the description of this function \
+             lists them per data. Default: the data's first.",
         ),
     );
     properties.insert(
         "group_by".into(),
         choice(
             "group_by",
-            "How the figures are grouped, if the data offers a choice. Default: the data's first.",
+            "How the figures are grouped, as the description of this function lists them per \
+             data. Default: the data's first.",
         ),
     );
     properties.insert(
@@ -325,9 +384,11 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
                     "additionalProperties": false,
                 },
             ],
-            "description": "The period shown: page (the data's usual period), a fixed period, \
-                a period that moves with today, or a range of days. Default: last-12-months, \
-                this-month for account_balances and budget_utilization.",
+            "description": "The period shown: page (the data's usual period, the same as \
+                leaving period out: this-month for account_balances and budget_utilization, \
+                last-12-months for every other data), a fixed period, a period that moves with \
+                today, or a range of days. Data counted per month always splits the period into \
+                calendar months, also a salary month.",
         }),
     );
     properties.insert(
@@ -424,8 +485,8 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         "additionalProperties": false,
     });
     let mut description = String::from(
-        "Prepares one chart for the user to review and save under Statistics, from choices in \
-         the lists only: what it shows (data), how it is drawn (show_as), and optionally a key \
+        "Prepares one chart for the user to review and save under Statistics.\n- Choose only \
+         from the lists: what it shows (data), how it is drawn (show_as), and optionally a key \
          figure, a grouping, a period, a comparison",
     );
     if offered("categories", allowed) || offered("accounts", allowed) {
@@ -438,14 +499,29 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         );
     }
     description.push_str(&format!(
-        ", plus a short title. Call it once per chart, at most {MAX_VIEWS_PER_ANSWER} charts in \
-         one answer. KassenSturz computes every figure itself and shows the user a preview; \
-         nothing is saved until the user confirms it in KassenSturz's window, and the user may \
-         refuse it. A refused call says which argument is wrong and, for a list, which values \
-         it takes. The data are:"
+        ", plus a short title.\n- Call it once per chart, at most {MAX_VIEWS_PER_ANSWER} charts \
+         in one answer.\n- KassenSturz computes every figure itself and shows the user a \
+         preview; nothing is saved until the user confirms it in KassenSturz's window, and the \
+         user may refuse it.\n- A refused call says which argument is wrong and, for a list, \
+         which values it takes.\n\nThe data, each with what it counts, the ways it can be \
+         drawn (show_as), grouped (group_by) and, for figure, measured (measure), and its usual \
+         period:"
     ));
     for dataset in datasets() {
-        description.push_str(&format!(" {}: {}", dataset.id, dataset.description));
+        description.push_str(&format!("\n- {}: {}", dataset.id, dataset.description));
+        let fits = fits(dataset);
+        description.push_str(&format!(" show_as: auto, {}.", fits.show_as.join(", ")));
+        if !fits.group_by.is_empty() && !fits.grouped_as.is_empty() {
+            description.push_str(&format!(
+                " group_by: {} (with show_as {}).",
+                fits.group_by.join(", "),
+                fits.grouped_as.join(", ")
+            ));
+        }
+        if !fits.measure.is_empty() && fits.show_as.contains(&"figure") {
+            description.push_str(&format!(" measure: {}.", fits.measure.join(", ")));
+        }
+        description.push_str(&format!(" Usual period: {}.", default_period(dataset.id)));
     }
     Some(ProposeSpec {
         name: PROPOSE_VIEW_NAME,
@@ -759,7 +835,7 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
 
 /// The period a dataset starts with: today's balances and budgets this
 /// month, everything else the last twelve months (D-352).
-fn default_period(dataset: &str) -> &'static str {
+pub(crate) fn default_period(dataset: &str) -> &'static str {
     if dataset == ACCOUNT_BALANCES || dataset == BUDGET_UTILIZATION {
         "this-month"
     } else {

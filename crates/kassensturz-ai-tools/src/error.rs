@@ -145,6 +145,10 @@ pub enum ToolError {
     /// the store gives a budget made by hand (D-358): the model hears the
     /// store's own code, as the user would.
     BudgetRefused(StoreError),
+    /// The current period's figures of one budget couldn't be counted:
+    /// `list_budgets` shows this in that budget's row and lists the others
+    /// as usual (M6-B198).
+    BudgetFigures(kassensturz_report::ReportError),
 }
 
 impl ToolError {
@@ -283,6 +287,9 @@ impl Report for ToolError {
                 ErrorReport::new("ai-tools.book-unreadable").caused_by(error.report())
             }
             Self::BudgetRefused(error) => error.report(),
+            Self::BudgetFigures(error) => {
+                ErrorReport::new("ai-tools.budget-figures-unreadable").caused_by(error.report())
+            }
         }
     }
 }
@@ -391,6 +398,7 @@ mod tests {
             #[cfg(feature = "debug-log")]
             ToolError::DebugLogOff,
             ToolError::Store(StoreError::AmountOverflow),
+            ToolError::BudgetFigures(kassensturz_report::ReportError::PeriodTooLong),
         ];
         examples.extend(
             crate::changes::SECTIONS

@@ -146,7 +146,8 @@ pub const FUNCTIONS: &[Function] = &[
             again (month, quarter or year, or range for one stretch of days), \
             what it plans for the current period and whether what is left moves into the next \
             one. When the user also lets you read transactions, each budget has \
-            \"current_period\" with what is available, spent and left in it so far. Amounts \
+            \"current_period\" with what is available, spent and left in it so far, or with \
+            \"error\" if that one budget's figures can't be counted now. Amounts \
             are exact decimal text with a dot as the decimal mark.",
         parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
     },

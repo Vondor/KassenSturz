@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, AmountTest, BookTo, Condition, CurrencyCode,
-    Date, MatchMode, Money, RuleNode, Split, TextField, TextOperator, Transaction,
+    Date, MatchMode, Money, Report as _, RuleNode, Split, TextField, TextOperator, Transaction,
 };
 use kassensturz_store::{Book, StoreError};
 use serde_json::{Map, Value, json};
@@ -1017,22 +1017,41 @@ pub(crate) fn list_budgets(
         .into_iter()
         .filter(|budget| budget.last_day.is_none_or(|last| last >= today))
         .collect();
+    let mut failed = HashMap::new();
     let figures = if spending && !budgets.is_empty() {
         let period = Period::new(today, today).map_err(|_| ToolError::BadPeriod)?;
-        let source = kassensturz_report::Source::read_with_budgets(book, period, today)
-            .map_err(read_error)?;
-        budget_utilization(
-            &source,
-            period,
-            today,
-            BudgetGrouping::Budget,
-            &Filter::default(),
-            None,
-        )
-        .map_err(read_error)?
-        .into_iter()
-        .filter_map(|row| row.periods.first().map(|shown| (row.budget, *shown)))
-        .collect()
+        let count = |chosen: Vec<kassensturz_core::Budget>| {
+            let source = kassensturz_report::Source::read_for_budgets(book, chosen, period, today)?;
+            budget_utilization(
+                &source,
+                period,
+                today,
+                BudgetGrouping::Budget,
+                &Filter::default(),
+                None,
+            )
+        };
+        let rows = match count(budgets.clone()) {
+            Ok(rows) => rows,
+            // One budget whose figures can't be counted doesn't hide the
+            // others': each is counted on its own, and the one that fails
+            // says so in its row (M6-B198).
+            Err(_) => {
+                let mut rows = Vec::new();
+                for budget in budgets.iter().take(MAX_BUDGETS) {
+                    match count(vec![budget.clone()]) {
+                        Ok(own) => rows.extend(own),
+                        Err(error) => {
+                            failed.insert(budget.id, ToolError::BudgetFigures(error).report());
+                        }
+                    }
+                }
+                rows
+            }
+        };
+        rows.into_iter()
+            .filter_map(|row| row.periods.first().map(|shown| (row.budget, *shown)))
+            .collect()
     } else {
         HashMap::new()
     };
@@ -1102,6 +1121,14 @@ pub(crate) fn list_budgets(
             current.insert("spent".into(), w.amount(shown.spent)?);
             current.insert("left".into(), w.amount(shown.left)?);
             row.insert("current_period".into(), Value::Object(current));
+        } else if let Some(report) = failed.get(&budget.id) {
+            // Only the codes, never a text the report may hold.
+            let mut error = Map::new();
+            error.insert("error".into(), Value::from(report.code));
+            if let Some(cause) = &report.cause {
+                error.insert("cause".into(), Value::from(cause.code));
+            }
+            row.insert("current_period".into(), Value::Object(error));
         }
         rows.push(Value::Object(row));
     }
@@ -1109,14 +1136,6 @@ pub(crate) fn list_budgets(
     result.insert("budgets".into(), Value::Array(rows));
     left_out(&mut result, w, budgets.len(), MAX_BUDGETS);
     Ok(Value::Object(result))
-}
-
-/// A report error of `list_budgets`: the book's own as it is.
-fn read_error(error: kassensturz_report::ReportError) -> ToolError {
-    match error {
-        kassensturz_report::ReportError::Store(error) => ToolError::Store(error),
-        _ => ToolError::BadPeriod,
-    }
 }
 
 #[cfg(test)]

@@ -81,10 +81,18 @@ impl Book {
     /// Runs `read` in one read transaction, so that everything it reads
     /// comes from the same state of the book, and ends the transaction
     /// right after, so the app can write again (Q-036).
+    ///
+    /// Inside a transaction that is already open, such as the read the MCP
+    /// server wraps around a whole call, `read` runs in that one: SQLite
+    /// can't start a transaction within a transaction, and the outer one
+    /// already gives `read` one state of the book (M6-B198).
     pub fn reading<T, E>(&self, read: impl FnOnce(&Self) -> Result<T, E>) -> Result<T, E>
     where
         E: From<StoreError>,
     {
+        if !self.conn.is_autocommit() {
+            return read(self);
+        }
         self.conn
             .execute_batch("BEGIN DEFERRED")
             .map_err(StoreError::from)?;
@@ -168,6 +176,36 @@ mod tests {
         // No lock file, journal or anything else was left by the reader.
         assert_eq!(files_in(folder.path()), before);
         drop(app);
+    }
+
+    #[test]
+    fn a_read_inside_a_read_runs_in_the_outer_one_and_the_book_can_be_written_after() {
+        // The MCP server reads every call in one read, and a report the
+        // call makes reads again (M6-B198).
+        let folder = TempFolder::new();
+        let path = book_on_disk(&folder);
+        let mut app = Book::open(&path, &computer(&folder)).expect("the app opens it");
+        let checking = app.accounts(false).expect("read")[0].id;
+        let reader = Book::open_to_read(&path).expect("opened to read");
+        let count = reader
+            .reading(|book| {
+                let inner = book.reading(|book| book.accounts(false))?;
+                // Still inside the outer read after the inner one ended.
+                assert!(!book.conn.is_autocommit());
+                Ok::<_, StoreError>(inner.len() + book.accounts(false)?.len())
+            })
+            .expect("read twice");
+        assert_eq!(count, 2);
+        // The outer read ended, so nothing holds the app's write back.
+        assert!(reader.conn.is_autocommit());
+        app.rename_account(checking, "Everyday account")
+            .expect("written");
+        // An error inside the inner read still ends the outer one.
+        let failed = reader.reading(|book| {
+            book.reading(|_| Err::<(), _>(StoreError::from(rusqlite::Error::InvalidQuery)))
+        });
+        assert!(failed.is_err());
+        assert!(reader.conn.is_autocommit());
     }
 
     #[test]

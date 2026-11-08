@@ -63,9 +63,18 @@ fn main() -> ExitCode {
     // Checked once at the start, so a wrong book shows in the AI tool's log
     // right away; every answer opens the book again (D-195).
     if let Err(error) = kassensturz_store::Book::open_to_read(&book) {
+        // A newer KassenSturz updated the book, so this one is out of date
+        // (M6-B194); otherwise the path is wrong or the app updates it.
+        let next = if matches!(
+            error,
+            kassensturz_store::StoreError::UnsupportedLayout { .. }
+        ) {
+            "Update KassenSturz, then restart this AI tool."
+        } else {
+            "Check the path, or open the book in KassenSturz once."
+        };
         eprintln!(
-            "error: the book {} can't be read ({}). Check the path, or open the book in \
-             KassenSturz once.",
+            "error: the book {} can't be read ({}). {next}",
             book.display(),
             error.report().code
         );

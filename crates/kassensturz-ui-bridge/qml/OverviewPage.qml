@@ -123,7 +123,7 @@ Kirigami.ScrollablePage {
         panelModel.load(entry.subject.json);
         loadingPanel = false;
         editedId = id;
-        propertiesSheet.open();
+        propertiesSheetComponent.createObject(page).open();
     }
 
     // Adds a copy of a saved view; it keeps its figures and period, and a
@@ -653,84 +653,17 @@ Kirigami.ScrollablePage {
         ]
     }
 
-    // The properties of the selected component (the panel of M6a.6), with
-    // the figures it shows now. A change is part of the session's undo.
-    //
-    // A Kirigami.Dialog, not an OverlaySheet: the sheet of KF 6.x prints
-    // "binding loop" for its implicitHeight on every opening, whatever it
-    // holds (M6-B10).
-    Kirigami.Dialog {
-        id: propertiesSheet
+    // The Properties dialog, made when it opens (M6-B197).
+    Component {
+        id: propertiesSheetComponent
 
-        title: page.i18nContext.i18nc("@title:window", "Properties")
-        padding: Kirigami.Units.largeSpacing
-        preferredWidth: Kirigami.Units.gridUnit * 32
-        standardButtons: Kirigami.Dialog.Close
-        onClosed: page.editedId = ""
-
-        ColumnLayout {
-            spacing: Kirigami.Units.largeSpacing
-
-            // The same chart in the Statistic Builder's steps (M6-B164);
-            // Finish there brings the change back to this page.
-            Controls.Button {
-                visible: page.builderTypes.includes(panelModel.view?.type ?? "")
-                text: page.i18nContext.i18nc("@action:button opens the Statistic Builder on this chart", "Change step by step in the Statistic Builder")
-                icon.name: "tools-wizard"
-                onClicked: {
-                    ActionLog.taken("OverviewPage_changeInBuilder")
-                    const id = page.editedId;
-                    const component = panelModel.view.json;
-                    const period = panelModel.view.period?.word ?? "";
-                    propertiesSheet.close();
-                    page.statisticBuilderRequested(id, component, period);
-                }
-            }
-
-            // A chart's colors are the palette in Settings, shared by every
-            // chart (M7a.10, D-589); this leads there (M6-B164).
-            Controls.Button {
-                visible: (panelModel.view?.type ?? "").startsWith("chart.")
-                text: page.i18nContext.i18nc("@action:button opens Settings, where the colors of the charts are changed", "Edit palette…")
-                icon.name: "color-management"
-                onClicked: {
-                    ActionLog.taken("OverviewPage_editPalette")
-                    propertiesSheet.close();
-                    ChartPalette.editRequested();
-                }
-            }
-
-            Loader {
-                Layout.fillWidth: true
-                active: propertiesSheet.opened && panelModel.view?.type !== undefined
-                sourceComponent: PropertiesPanel {
-                    model: panelModel
-                    withPeriod: true
-                    period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
-                    choices: page.groupsSource
-                }
-            }
-
-            // The preview area has a fixed height, so the dialog does not
-            // shrink when a choice leaves it with only a short message
-            // (M6-B12); what does not fit scrolls.
-            Controls.ScrollView {
-                Layout.fillWidth: true
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 22
-                // Headings, notices and boxes have no figures to show.
-                visible: ["chart", "table", "card", "progress"].includes(panelModel.view?.preview?.shows)
-                contentWidth: availableWidth
-                clip: true
-
-                Loader {
-                    width: parent.width
-                    active: propertiesSheet.opened && panelModel.view?.preview !== undefined
-                    sourceComponent: ComponentPreview {
-                        subject: panelModel.view
-                        period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
-                    }
-                }
-            }
+        PropertiesSheet {
+            model: panelModel
+            period: grid.periodOf(panelModel.view.period?.word, grid.byId[page.editedId])
+            choices: page.groupsSource
+            builderTypes: page.builderTypes
+            onClosed: page.editedId = ""
+            onBuilderRequested: (component, period) => page.statisticBuilderRequested(page.editedId, component, period)
         }
     }
 

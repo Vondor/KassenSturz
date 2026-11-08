@@ -41,6 +41,11 @@
 #   Connect a bank and the reason banks cannot be used appear, that only
 #   its button starts it, what it says while it runs and the summary.
 #
+# - SheetSmoke.qml opens the Properties dialog of the Overview (M6-B197) on
+#   a stand-in for ComponentProperties and checks that it shows the panel and
+#   the preview, not only its title and Close, fits a low window and opens
+#   again.
+#
 # - SpecSmoke.qml opens the description field of a custom chart (M6e.3) on
 #   stand-ins for ChartDescription and ComponentProperties and checks the
 #   check as you type, that only "Use this description" stores the text, the
@@ -64,7 +69,7 @@ trap 'rm -rf "$work"' EXIT
 # each other and the stand-ins as they see the Rust objects.
 module="$work/imports/io/github/vondor/kassensturz"
 mkdir -p "$module"
-for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel ChartView ChartOverlays ChartTable DataTable \
+for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
     BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard; do
@@ -76,7 +81,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
     echo 'singleton ChartPalette 1.0 ChartPalette.qml'
     echo 'singleton Plain 1.0 Plain.qml'
     echo 'singleton ActionLog 1.0 ActionLog.qml'
-    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel ChartView ChartOverlays \
+    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays \
         ChartTable DataTable AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter FormError SavedViews \
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
@@ -85,7 +90,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -132,3 +137,12 @@ run_smoke SpecSmoke
 echo "custom chart description: ok"
 run_smoke ColorsSmoke
 echo "chart colors in settings: ok"
+run_smoke SheetSmoke
+echo "properties dialog of the overview: ok"
+# Again with the desktop style the app uses, whose controls are sized by
+# the platform (M6-B197).
+(
+    export QT_QUICK_CONTROLS_STYLE=org.kde.desktop
+    run_smoke SheetSmoke
+)
+echo "the same with the desktop style: ok"

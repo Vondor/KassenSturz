@@ -115,6 +115,7 @@ fn main() {
                 "qml/PartRow.qml",
                 "qml/PartsPage.qml",
                 "qml/PropertiesPanel.qml",
+                "qml/PropertiesSheet.qml",
                 "qml/RegisterPage.qml",
                 "qml/RemoveOriginalDialog.qml",
                 "qml/ReplacedCurrency.qml",

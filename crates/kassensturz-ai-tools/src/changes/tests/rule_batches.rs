@@ -235,3 +235,89 @@ fn every_refusal_names_the_item_and_a_condition_names_its_place() {
         Some("ai-tools.bad-argument")
     );
 }
+
+#[test]
+fn a_rule_is_changed_and_moved_in_one_call() {
+    // M6-B196: a model that renames a Rule and puts it first, and sorts a
+    // transaction with it, sends one call, as the description asks.
+    let (
+        Sample {
+            mut book,
+            groceries,
+            unsorted,
+            ..
+        },
+        rules,
+    ) = with_rules();
+    let id = rules[2].id.to_string();
+    let call = json!({
+        "edit_rules": [{"rule_id": id, "name": "Supermarket"}],
+        "move_rules": [{"rule_id": id, "position": 1}],
+        "categorize": [{"transaction_id": unsorted.to_string(), "category_id": groceries.to_string()}],
+    });
+    let proposal = propose(&book, &call).expect("change and move of one Rule");
+    // The review shows both, the change first.
+    assert!(matches!(
+        proposal.changes.changes(),
+        [
+            ProposedChange::EditRule(_),
+            ProposedChange::MoveRule(_),
+            ProposedChange::Categorize(_)
+        ]
+    ));
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(names(&book), ["Supermarket", "Grocer", "Pets"]);
+    book.undo().expect("one undo takes all of it back");
+    assert_eq!(names(&book), ["Grocer", "Pets", "Market"]);
+}
+
+#[test]
+fn what_a_call_deletes_it_cannot_also_change_or_move() {
+    // M6-B196: Rules and categories answer the same, and say why.
+    let (Sample { book, travel, .. }, rules) = with_rules();
+    let rule = rules[0].id.to_string();
+    let category = travel.to_string();
+    for (call, expected) in [
+        (
+            json!({
+                "edit_rules": [{"rule_id": rule, "name": "Supermarket"}],
+                "delete_rules": [{"rule_id": rule}],
+            }),
+            "ai-tools.not-changeable argument=rule_id reason=also-deleted list=delete_rules item=1",
+        ),
+        (
+            json!({
+                "move_rules": [{"rule_id": rule, "position": 2}],
+                "delete_rules": [{"rule_id": rule}],
+            }),
+            "ai-tools.not-changeable argument=rule_id reason=also-deleted list=move_rules item=1",
+        ),
+        (
+            json!({
+                "edit_categories": [{"category_id": category, "name": "Trips"}],
+                "delete_categories": [{"category_id": category}],
+            }),
+            "ai-tools.not-changeable argument=category_id reason=also-deleted list=delete_categories item=1",
+        ),
+        // The same Rule twice in one list is still refused.
+        (
+            json!({"edit_rules": [
+                {"rule_id": rule, "name": "Supermarket"},
+                {"rule_id": rule, "match": "any"},
+            ]}),
+            "ai-tools.bad-argument argument=rule_id list=edit_rules item=2",
+        ),
+        (
+            json!({"move_rules": [
+                {"rule_id": rule, "position": 2},
+                {"rule_id": rule, "position": 3},
+            ]}),
+            "ai-tools.bad-argument argument=rule_id list=move_rules item=2",
+        ),
+    ] {
+        assert_eq!(heard(propose(&book, &call)), expected, "{call}");
+    }
+}

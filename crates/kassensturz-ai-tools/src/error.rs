@@ -339,6 +339,10 @@ mod tests {
                 argument: "category_id",
                 reason: "makes-transfer",
             },
+            ToolError::NotChangeable {
+                argument: "rule_id",
+                reason: "also-deleted",
+            },
             ToolError::BadCondition {
                 condition: None,
                 reason: "none",

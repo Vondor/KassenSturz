@@ -929,8 +929,9 @@ fn a_rule_change_is_refused_when_it_cannot_be_reviewed_or_made_right() {
             "bad-argument rule_id",
         ),
         (
+            // Deleting a Rule the set changes too says why (M6-B196).
             json!({"edit_rules": [{"rule_id": grocer.to_string(), "name": "A"}], "delete_rules": [{"rule_id": grocer.to_string()}]}),
-            "bad-argument rule_id",
+            "ai-tools.not-changeable",
         ),
         (
             json!({"move_rules": [{"rule_id": grocer.to_string(), "position": 1}]}),

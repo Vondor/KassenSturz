@@ -356,3 +356,40 @@ fn the_program_names_the_request_folder_only_with_the_write_tools_on() {
     );
     assert!(place.is_dir());
 }
+
+#[test]
+fn a_chart_with_a_formula_is_checked_against_the_book_through_the_server() {
+    // M6-B198: the formula's figures read the book again inside the
+    // server's read of the call, which failed with ai-tools.book-unreadable.
+    let folder = Folder::new("writes-formula");
+    folder.allow(&["AllowNewViews=true"]);
+    let book = folder.book();
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    let checking = common::CHECKING.to_string();
+    let view = |show_as: &str, formula: &str| {
+        json!({"title": "Food", "data": "income_expense_by_month", "show_as": show_as,
+            "formula": formula, "period": "this-month", "accounts": [checking]})
+    };
+    for (show_as, formula) in [
+        ("figure", "=Spending.ALL"),
+        ("figure", "=Groceries@\"last month\""),
+        ("progress", "=Groceries@\"last 1 complete months\""),
+    ] {
+        let (answer, is_error) = session.call("propose_view", view(show_as, formula));
+        assert!(is_error, "{formula}: {answer}");
+        // Checked and handed on; only the app that would show it is missing.
+        assert_eq!(
+            answer,
+            json!({"error": "mcp-writes.app-not-running"}),
+            "{formula}"
+        );
+    }
+    // A formula the book can't use is refused with its own code and the
+    // place of the mistake.
+    let (answer, is_error) = session.call("propose_view", view("figure", "=Groceries +"));
+    assert!(is_error);
+    assert_eq!(answer["error"], "ai-tools.bad-formula", "{answer}");
+    assert!(answer["position"].is_number(), "{answer}");
+    assert!(session.finish().status.success());
+}

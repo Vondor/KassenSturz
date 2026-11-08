@@ -93,7 +93,7 @@ run_smoke() {
         QML_IMPORT_PATH="$work/imports" QT_QPA_PLATFORM=offscreen \
             timeout 90 qml6 "$1.qml" > run.log 2>&1 || status=$?
         cat run.log
-        if grep -E 'FAIL|TypeError|ReferenceError|is not a type|Binding loop|Cannot assign|Unable to assign|is not installed|Cannot read|overrides a member of the base object' run.log; then
+        if grep -E 'FAIL|TypeError|ReferenceError|is not a type|Binding loop|Cannot assign|Unable to assign|is not installed|Cannot read|overrides a member of the base object|invalid override' run.log; then
             echo "check-panel: $1 printed warnings or failures (above)" >&2
             status=1
         fi

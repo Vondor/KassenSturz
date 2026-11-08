@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The change kinds of step 4 (D-253 to D-256): deleting an empty category,
-//! adding an account, and renaming, closing or reopening one. They are
+//! adding an account, and renaming, closing, reopening or changing the type of one (D-625). They are
 //! checked here, shown before and after like the others, and checked once
 //! more when the user confirms.
 
@@ -41,8 +41,8 @@ pub struct NewAccount {
     pub currency: CurrencyCode,
 }
 
-/// An account renamed, closed or opened again (D-255). Accounts are never
-/// deleted.
+/// An account renamed, closed or opened again (D-255), or given another
+/// type (D-625). Accounts are never deleted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EditAccount {
     /// The account.
@@ -55,6 +55,10 @@ pub struct EditAccount {
     pub was_closed: bool,
     /// Whether it is closed after.
     pub closed: bool,
+    /// Its type before; `None` for an account that has none ("other").
+    pub type_before: Option<AccountType>,
+    /// Its type after, the same when it isn't changed.
+    pub account_type: Option<AccountType>,
     /// Its balance, which closing needs to be zero.
     pub balance: Money,
     /// The account as the user reviewed it: applying fails if it changed
@@ -66,6 +70,17 @@ impl EditAccount {
     /// Whether the account is renamed.
     pub fn renames(&self) -> bool {
         self.before != self.after
+    }
+
+    /// Whether the account gets another type.
+    pub fn changes_type(&self) -> bool {
+        self.type_before != self.account_type
+    }
+
+    /// Whether the new type moves the account between money the user has
+    /// and money the user owes, i.e. to or from a credit card.
+    pub fn changes_kind(&self) -> bool {
+        self.changes_type() && self.account_type.map(AccountType::kind) != Some(self.reviewed.kind)
     }
 }
 
@@ -169,14 +184,18 @@ impl Known {
         })
     }
 
-    /// Renames, closes or reopens an account of the book.
+    /// Renames, closes, reopens or retypes an account of the book.
     pub(super) fn edit_account(
         &mut self,
         book: &Book,
         value: &Value,
         edited: &mut HashSet<AccountId>,
     ) -> Result<EditAccount, ToolError> {
-        let item = Object::read(value, &["account_id", "name", "closed"], "edit_accounts")?;
+        let item = Object::read(
+            value,
+            &["account_id", "name", "closed", "type"],
+            "edit_accounts",
+        )?;
         let id = item.id("account_id")?.ok_or(ToolError::BadArgument {
             argument: "account_id",
         })?;
@@ -201,7 +220,12 @@ impl Known {
         let closed = item
             .boolean("closed")?
             .filter(|closed| *closed != reviewed.closed);
-        if name.is_none() && closed.is_none() {
+        let new_type = item
+            .string("type")?
+            .map(|text| account_type(text).ok_or(ToolError::BadArgument { argument: "type" }))
+            .transpose()?
+            .filter(|new_type| Some(*new_type) != reviewed.account_type);
+        if name.is_none() && closed.is_none() && new_type.is_none() {
             return Err(ToolError::BadArgument {
                 argument: "account_id",
             });
@@ -219,6 +243,8 @@ impl Known {
         let after = Account {
             name: name.clone().unwrap_or_else(|| reviewed.name.clone()),
             closed: closed.unwrap_or(reviewed.closed),
+            account_type: new_type.or(reviewed.account_type),
+            kind: new_type.map_or(reviewed.kind, AccountType::kind),
             ..reviewed.clone()
         };
         let edit = EditAccount {
@@ -227,6 +253,8 @@ impl Known {
             after: after.name.clone(),
             was_closed: reviewed.closed,
             closed: after.closed,
+            type_before: reviewed.account_type,
+            account_type: after.account_type,
             balance,
             reviewed,
         };
@@ -273,7 +301,8 @@ pub(super) fn apply_new_account(
     Ok(())
 }
 
-/// Renames, closes or reopens the account, if it is still as reviewed.
+/// Renames, closes, reopens or retypes the account, if it is still as
+/// reviewed.
 pub(super) fn apply_edit_account(
     book: &mut Book,
     edit: &EditAccount,
@@ -288,6 +317,11 @@ pub(super) fn apply_edit_account(
     }
     if edit.renames() {
         book.rename_account(edit.id, &edit.after)?;
+    }
+    if edit.changes_type()
+        && let Some(account_type) = edit.account_type
+    {
+        book.set_account_type(edit.id, account_type)?;
     }
     if edit.closed != edit.was_closed {
         if edit.closed {

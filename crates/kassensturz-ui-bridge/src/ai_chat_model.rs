@@ -640,12 +640,18 @@ pub(crate) mod engine {
                 after,
                 was_closed,
                 closed,
+                type_before,
+                account_type,
+                kind_changes,
             } => vec![
                 ("kind", text("editAccount")),
                 ("before", text(before)),
                 ("after", text(after)),
                 ("wasClosed", QVariant::from(was_closed)),
                 ("closed", QVariant::from(closed)),
+                ("typeBefore", text(type_before)),
+                ("accountType", text(account_type)),
+                ("kindChanges", QVariant::from(kind_changes)),
             ],
             ChangeView::EditTransaction {
                 date,
@@ -1713,6 +1719,9 @@ mod tests {
                 after: "Old wallet".into(),
                 was_closed: false,
                 closed: true,
+                type_before: "checking".into(),
+                account_type: "cash".into(),
+                kind_changes: false,
             },
             ChangeView::EditTransaction {
                 date: "2026-10-03".into(),
@@ -1898,10 +1907,22 @@ mod tests {
         assert_eq!(text_of(&items[8], "accountType"), "cash");
         assert_eq!(
             own_keys(&items[9]),
-            ["after", "before", "closed", "kind", "wasClosed"]
+            [
+                "accountType",
+                "after",
+                "before",
+                "closed",
+                "kind",
+                "kindChanges",
+                "typeBefore",
+                "wasClosed"
+            ]
         );
         assert!(flag_of(&items[9], "closed"));
         assert!(!flag_of(&items[9], "wasClosed"));
+        assert_eq!(text_of(&items[9], "typeBefore"), "checking");
+        assert_eq!(text_of(&items[9], "accountType"), "cash");
+        assert!(!flag_of(&items[9], "kindChanges"));
         assert_eq!(
             own_keys(&items[10]),
             ["account", "amount", "date", "kind", "lines", "payee"]

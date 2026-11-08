@@ -14,7 +14,9 @@
 //     applyDialog.openFor(ruleId, ruleName);   // "Apply now"
 //     applyDialog.openFor("", "");             // "Apply all"
 //
-// `applied(changed)` follows a run that was confirmed.
+// `sorted(changed)` follows a run that was confirmed. It is not called
+// `applied`: Kirigami.Dialog already has an `applied()` signal, and QML
+// rejects a second signal of that name (M6-B199).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -35,7 +37,7 @@ Kirigami.Dialog {
     readonly property int count: preview.changed === undefined ? 0 : parseInt(preview.changed)
 
     // The user confirmed, and `changed` transactions were sorted.
-    signal applied(int changed)
+    signal sorted(int changed)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -60,7 +62,7 @@ Kirigami.Dialog {
         error.result = result;
         if (result.code === undefined) {
             close();
-            applied(parseInt(result.changed));
+            sorted(parseInt(result.changed));
         } else {
             preview = ({});
         }

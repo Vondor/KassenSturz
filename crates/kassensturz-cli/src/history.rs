@@ -193,6 +193,7 @@ fn action_text(action: Action) -> &'static str {
         Action::AddBudget => "set a budget",
         Action::EditBudget => "changed a budget",
         Action::RemoveBudget => "deleted a budget",
+        Action::ChangeAccountType => "changed the type of an account",
         Action::RunRules => "ran the Rules",
         Action::ImportStatement => "imported a statement",
         Action::CorrectStartingBalance => "corrected a starting balance",

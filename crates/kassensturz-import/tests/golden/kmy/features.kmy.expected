@@ -2,7 +2,7 @@ recognized: yes
 book
   account "A000001": "Checking", asset, type checking, EUR with 2 decimal places, inside -
     number -, notes "The everyday account", at -
-  account "A000002": "Card", liability, type -, EUR with 2 decimal places, inside -
+  account "A000002": "Card", liability, type credit card, EUR with 2 decimal places, inside -
   account "A000003": "Brokerage", asset, type -, EUR with 2 decimal places, inside -
   account "A000005": "Food", expense, type -, EUR with 2 decimal places, inside -
   account "A000006": "Groceries", expense, type -, EUR with 2 decimal places, inside "A000005"

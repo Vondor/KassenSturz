@@ -18742,3 +18742,113 @@ msgctxt ""
 "the user chooses, such as payday, to the day before it in the next month"
 msgid "Every salary month"
 msgstr "Jeden Gehaltsmonat"
+
+#: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:197
+#, kde-format
+msgctxt "@title"
+msgid "Type"
+msgstr "Kontoart"
+
+#: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:205
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This account has no type yet, for example because it came from another "
+"program. It counts as money you have. Choose the type that fits it."
+msgstr ""
+"Dieses Konto hat noch keine Kontoart, zum Beispiel weil es aus einem anderen "
+"Programm kommt. Es zählt zu dem Geld, das Sie haben. Wählen Sie die "
+"passende Kontoart."
+
+#: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:222
+#, kde-format
+msgctxt "@item:inlistbox no account type chosen yet"
+msgid "Choose a type"
+msgstr "Kontoart wählen"
+
+#: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:223
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Type of the account"
+msgstr "Art des Kontos"
+
+#: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:227
+#, kde-format
+msgctxt "@action:button"
+msgid "Change type"
+msgstr "Kontoart ändern"
+
+#: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:244
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Only the type changes. Your transactions and the balance stay as they are."
+msgstr ""
+"Nur die Kontoart ändert sich. Ihre Umsätze und der Kontostand bleiben, wie "
+"sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:246
+#, kde-format
+msgctxt "@info"
+msgid ""
+"As a credit card, its balance counts as what you owe instead of what you "
+"have. Your transactions, the balance and what you are worth stay the same. "
+"You can undo this."
+msgstr ""
+"Als Kreditkarte zählt der Kontostand zu dem, was Sie schulden, statt zu dem, "
+"was Sie haben. Ihre Umsätze, der Kontostand und Ihr Vermögen bleiben gleich. "
+"Sie können das rückgängig machen."
+
+#: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:247
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Its balance then counts as what you have instead of what you owe. Your "
+"transactions, the balance and what you are worth stay the same. You can undo "
+"this."
+msgstr ""
+"Der Kontostand zählt dann zu dem, was Sie haben, statt zu dem, was Sie "
+"schulden. Ihre Umsätze, der Kontostand und Ihr Vermögen bleiben gleich. Sie "
+"können das rückgängig machen."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:584
+#, kde-format
+msgctxt "@item an account without a type"
+msgid "no type"
+msgstr "keine Kontoart"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:584
+#, kde-format
+msgctxt "@info %1 is the old type of an account, %2 the new one"
+msgid ""
+"Its type changes from %1 to %2. Its transactions and balance stay as they "
+"are."
+msgstr ""
+"Die Kontoart ändert sich von %1 zu %2. Umsätze und Kontostand bleiben, wie "
+"sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:587
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Its balance then counts as what you owe instead of what you have; what you "
+"are worth stays the same."
+msgstr ""
+"Der Kontostand zählt dann zu dem, was Sie schulden, statt zu dem, was Sie "
+"haben; Ihr Vermögen bleibt gleich."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:588
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Its balance then counts as what you have instead of what you owe; what you "
+"are worth stays the same."
+msgstr ""
+"Der Kontostand zählt dann zu dem, was Sie haben, statt zu dem, was Sie "
+"schulden; Ihr Vermögen bleibt gleich."
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:40
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Changed the type of an account"
+msgstr "Kontoart eines Kontos geändert"

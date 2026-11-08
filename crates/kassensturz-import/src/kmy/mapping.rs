@@ -36,13 +36,17 @@ const TOP_LEVEL: [(&str, AccountKind); 5] = [
 ];
 
 /// KMyMoney's numbers for the types a book has too, as KMyMoney names
-/// them in the SQLite version of the sample (`accountTypeString`, D-102):
-/// `1` Girokonto, `2` Sparkonto, `3` Bargeld. Other types come in without
-/// one; their kind still comes from the top-level account they sit in.
-const TYPES: [(&str, AccountType); 3] = [
+/// them in the SQLite version of the samples (`accountTypeString`, D-102):
+/// `1` Girokonto, `2` Sparkonto, `3` Bargeld, `4` Credit Card (D-625).
+/// Other types come in without one; their kind still comes from the
+/// top-level account they sit in, and a type that doesn't fit that kind
+/// (a credit card among the assets) is left out too. The user can give
+/// such an account its type afterwards.
+const TYPES: [(&str, AccountType); 4] = [
     ("1", AccountType::Checking),
     ("2", AccountType::Savings),
     ("3", AccountType::Cash),
+    ("4", AccountType::CreditCard),
 ];
 
 /// The book that `records` describe.

@@ -368,7 +368,7 @@ A model asked for something from the book that the read functions can't give (D-
 | `ai-tools.debug-log-off` | | | The AI wanted to read the debug log, but it is off. Nothing to do; turn on the debug log in Settings if you want the AI to look at it. |
 | `ai-tools.issue-book-data` | `field` | `title`, `what_happened`, `expected`, `steps` | The AI's draft of a problem report held something from your book, such as a name, an amount or a day, so KassenSturz didn't show it. Nothing to do; the AI can write it again in general words. |
 | `ai-tools.issue-secret` | `field` | `title`, `what_happened`, `expected`, `steps` | The AI's draft of a problem report held something that looks like a password or a key, so KassenSturz didn't show it. Nothing to do; the AI can write it again without it. |
-| `ai-tools.book-unreadable` | | | The book couldn't be read to answer the AI. The detail says why; see that message. |
+| `ai-tools.book-unreadable` | | | The book couldn't be read to answer the AI. The detail says why; see that message. For your own AI tools, `kassensturz-mcp` adds the detail's `found` and `current` and, for a layout it can't read, a `next_step` keyword its instructions explain (M6-B194). |
 
 ## Applying changes the AI prepared (`kassensturz-ai-tools`)
 

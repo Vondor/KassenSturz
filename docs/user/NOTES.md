@@ -217,6 +217,7 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **Where your data goes:** the answers go to your AI tool, and from there to whatever AI model that tool uses. If that model runs on another computer or a cloud service, your book's figures leave this computer. That is up to the tool you chose; KassenSturz can't see or limit it. A model running on this computer keeps them here.
 - **It opens no network port:** the AI tool and `kassensturz-mcp` talk only through a direct pipe between the two programs, so no other program and no website can reach it.
 - **If it doesn't start,** the AI tool's log shows why: AI is switched off, KassenSturz hasn't opened a book yet, or the book has to be opened in KassenSturz once after an update before it can be read.
+- **After updating KassenSturz,** quit your AI tool and start it again. An AI tool that was already running keeps the old `kassensturz-mcp`, which can't read the book once the new KassenSturz has updated it; its answers then say `store.unsupported-layout` with the next step `update-kassensturz-and-restart-this-ai-tool` (M6-B194).
 - **Pre-release builds** tell the AI tool that the build may have bugs, so the AI can say when a result looks wrong.
 
 ## Letting your own AI tool prepare changes (M5.10)

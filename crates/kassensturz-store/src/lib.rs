@@ -41,6 +41,10 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
+/// The oldest layout this KassenSturz updates a book from, and the layout
+/// it writes: a reader in another program, such as the AI tools, tells
+/// them apart from the book's own layout (M6-B194).
+pub use layout::{FIRST_VERSION as FIRST_LAYOUT, VERSION as LAYOUT};
 pub use lock::Lock;
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};

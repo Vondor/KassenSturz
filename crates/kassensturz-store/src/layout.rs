@@ -41,7 +41,7 @@ pub(crate) const MIGRATIONS: [&str; 3] = [LAYOUT_24, LAYOUT_25, LAYOUT_26];
 /// development layouts of the Alpha, merged into layout 24 (D-045, D-135,
 /// D-536); a book with one of them is a [development
 /// book](StoreError::DevelopmentLayout), which the Beta turns away.
-pub(crate) const FIRST_VERSION: i32 = 24;
+pub const FIRST_VERSION: i32 = 24;
 
 /// The first development layout. Every version from here up to
 /// [`FIRST_VERSION`] belongs to a book a development build wrote.
@@ -49,7 +49,7 @@ pub(crate) const FIRST_DEVELOPMENT_VERSION: i32 = 1;
 
 /// The current layout version, stored in SQLite's `user_version`. The list
 /// of migrations is far too short for the conversion to lose anything.
-pub(crate) const VERSION: i32 = FIRST_VERSION + MIGRATIONS.len() as i32 - 1;
+pub const VERSION: i32 = FIRST_VERSION + MIGRATIONS.len() as i32 - 1;
 
 /// Layout 24, the starting layout of the first Beta (D-045, D-536): the 23
 /// development layouts of the Alpha merged into one, table for table what

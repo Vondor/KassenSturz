@@ -761,11 +761,17 @@ fn search_row(
     row.insert("amount".into(), w.amount(part.account_amount())?);
     row.insert("currency".into(), Value::from(account.currency.as_str()));
     let imported = part.imported.as_ref();
-    if let Some(payee) = transaction
-        .payee_of(part)
-        .or_else(|| imported.and_then(|imported| imported.other_party_name.as_deref()))
-    {
+    let other_party = imported.and_then(|imported| imported.other_party_name.as_deref());
+    let payee = transaction.payee_of(part);
+    if let Some(payee) = payee.or(other_party) {
         row.insert("payee".into(), w.text(payee));
+    }
+    // What the bank named the other party, which Rules test, when the payee
+    // shown says something else (A1 of the US1 tool review).
+    if let (Some(payee), Some(other_party)) = (payee, other_party)
+        && payee.trim() != other_party.trim()
+    {
+        row.insert("other_party_name".into(), w.text(other_party));
     }
     let memo = part.note.as_deref().or(transaction.note());
     if let Some(memo) = memo {
@@ -908,6 +914,12 @@ fn rule_rows(
             conditions.push(condition_row(w, names, condition)?);
         }
         row.insert("conditions".into(), Value::Array(conditions));
+        // Whether the conditions above are all of them, exactly as stored,
+        // so edit_rules may replace them (M6-B200).
+        row.insert(
+            "conditions_complete".into(),
+            Value::Bool(rule.conditions.iter().all(crate::changes::writable)),
+        );
         match rule.actions.book_to {
             Some(BookTo::Category(id)) => {
                 row.insert("category".into(), w.text(&names.name(id)?));

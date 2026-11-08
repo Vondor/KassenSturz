@@ -153,7 +153,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Finds entries in the user's accounts, newest first unless \"sort\" says otherwise, one row per account an entry is in, with the amount as seen from that account (money in positive, money out negative), the payee, memo and bank text, and the category, the other account of a transfer, or \"unsorted\": true. Returns how many matched in all, at most \"limit\" rows and, when rows were cut off, \"rows_left_out\". All filters are optional and combine. With \"unsorted_only\" only entries not sorted into a category yet are found. \"min_amount\" and \"max_amount\" keep entries by their size, money in and out alike. \"sort\" \"largest_out\" lists the most money out first (the biggest expenses), \"largest_in\" the most money in first; rows of different currencies are grouped by currency. For the biggest expenses use \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, so use them instead of sorting rows yourself.",
+            "description": "Finds entries in the user's accounts, newest first unless \"sort\" says otherwise, one row per account an entry is in, with the amount as seen from that account (money in positive, money out negative), the payee, memo and bank text, \"other_party_name\" when the bank named the other party differently from the payee (Rules can test either), and the category, the other account of a transfer, or \"unsorted\": true. Returns how many matched in all, at most \"limit\" rows and, when rows were cut off, \"rows_left_out\". All filters are optional and combine. With \"unsorted_only\" only entries not sorted into a category yet are found. \"min_amount\" and \"max_amount\" keep entries by their size, money in and out alike. \"sort\" \"largest_out\" lists the most money out first (the biggest expenses), \"largest_in\" the most money in first; rows of different currencies are grouped by currency. For the biggest expenses use \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, so use them instead of sorting rows yourself.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {
@@ -200,7 +200,7 @@
                   "type": "string"
                 },
                 "text": {
-                  "description": "Text to find in the payee, memo or bank text, ignoring case. Leave it out to not filter by text.",
+                  "description": "Text to find in the payee, the other party's name, the memo or the bank text, ignoring case. Leave it out to not filter by text.",
                   "maxLength": 100,
                   "type": "string"
                 },
@@ -240,7 +240,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Lists the user's Rules, which sort new transactions into categories: what each one looks for, what it books to, and its sub-Rules.",
+            "description": "Lists the user's Rules, which sort new transactions into categories: what each one looks for, what it books to, and its sub-Rules. \"conditions_complete\": false means some condition can't be shown or written back exactly (an IBAN, an amount, a date, an account, or a text cut short), so propose_changes can rename the Rule or change its category but not replace its conditions.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {},

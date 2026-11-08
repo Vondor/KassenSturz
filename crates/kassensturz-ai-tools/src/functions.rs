@@ -117,7 +117,9 @@ pub const FUNCTIONS: &[Function] = &[
         name: "search_transactions",
         description: "Finds entries in the user's accounts, newest first unless \
             \"sort\" says otherwise, one row per account an entry is in, with the amount as seen from that account (money in positive, \
-            money out negative), the payee, memo and bank text, and the category, the other \
+            money out negative), the payee, memo and bank text, \"other_party_name\" when the \
+            bank named the other party differently from the payee (Rules can test either), and \
+            the category, the other \
             account of a transfer, or \"unsorted\": true. Returns how many matched in all, \
             at most \"limit\" rows and, when rows were cut off, \"rows_left_out\". All filters \
             are optional and combine. With \"unsorted_only\" only entries not sorted into a \
@@ -127,7 +129,7 @@ pub const FUNCTIONS: &[Function] = &[
             currencies are grouped by currency. For the biggest expenses use \
             \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, \
             so use them instead of sorting rows yourself.",
-        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, memo or bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out moves between the user's own accounts and starting balances, i.e. keep only spending and income. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, the other party's name, the memo or the bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out moves between the user's own accounts and starting balances, i.e. keep only spending and income. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
     },
     Function {
         name: "list_categories",
@@ -138,7 +140,11 @@ pub const FUNCTIONS: &[Function] = &[
     Function {
         name: "list_rules",
         description: "Lists the user's Rules, which sort new transactions into categories: \
-            what each one looks for, what it books to, and its sub-Rules.",
+            what each one looks for, what it books to, and its sub-Rules. \
+            \"conditions_complete\": false means some condition can't be shown or written \
+            back exactly (an IBAN, an amount, a date, an account, or a text cut short), so \
+            propose_changes can rename the Rule or change its category but not replace its \
+            conditions.",
         parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
     },
     Function {

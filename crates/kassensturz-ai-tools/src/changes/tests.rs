@@ -3033,4 +3033,5 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
 
 mod rule_batches;
 mod rule_tools;
+mod tool_review;
 mod view_call;

@@ -172,8 +172,8 @@ fn changes(allowed: Permissions) -> String {
         ),
         (
             allowed.allows(Permission::EditAccounts),
-            "rename, close or reopen accounts",
-            "renamed, closed or reopened accounts",
+            "rename, close, reopen or change the type of accounts",
+            "renamed, closed or reopened accounts, or accounts of another type",
         ),
         (
             allowed.allows(Permission::NewBudgets),

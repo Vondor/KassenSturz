@@ -60,7 +60,7 @@ book
   account "A000056": "Refund Oxygen Tax", income, type -, EUR with 2 decimal places, inside "A000054"
   account "A000057": "Refund Shuttle Fares", income, type -, EUR with 2 decimal places, inside "A000054"
   account "A000058": "Shipyard Loan", liability, type -, EUR with 2 decimal places, inside -
-  account "A000059": "Credit Card Olympus", liability, type -, EUR with 2 decimal places, inside "A000058"
+  account "A000059": "Credit Card Olympus", liability, type credit card, EUR with 2 decimal places, inside "A000058"
   account "A000060": "Dome Petty Cash", asset, type checking, EUR with 2 decimal places, inside "A000005"
     number -, notes -, at "I000001"
   account "A000061": "Mars Rainy-Day Savings", asset, type savings, EUR with 2 decimal places, inside "A000005"

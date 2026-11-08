@@ -491,6 +491,16 @@ pub fn rename_account(book: &mut Book, id: &str, name: &str) -> Result<(), Accou
     Ok(book.rename_account(account.id, name.trim())?)
 }
 
+/// Gives an account another type, by the key `AccountTypes.qml` knows it
+/// by (D-625). Its transactions and balance stay as they are; to or from a
+/// credit card, the balance counts as owed instead of had, or the other
+/// way round.
+pub fn set_account_type(book: &mut Book, id: &str, key: &str) -> Result<(), AccountsError> {
+    let account = find(book, id)?;
+    let account_type = type_from_key(key).ok_or(AccountsError::NoSuchEntry)?;
+    Ok(book.set_account_type(account.id, account_type)?)
+}
+
 /// Closes an account. Nothing may be left in it (D-081).
 pub fn close_account(book: &mut Book, id: &str) -> Result<(), AccountsError> {
     let account = find(book, id)?;
@@ -1446,6 +1456,31 @@ mod tests {
             (listed.sections[0].accounts.len(), listed.closed.len()),
             (2, 0)
         );
+    }
+
+    #[test]
+    fn an_account_gets_another_type_and_keeps_its_balance() {
+        let mut book = book();
+        let checking = checking(&mut book, "Savings", "100,00");
+        let before = details(&book, &checking, &TestLocale).expect("details");
+        let id = find(&book, &checking).expect("found").id;
+        let held = book.balance(id).expect("balance");
+
+        set_account_type(&mut book, &checking, "savings").expect("changed");
+        let savings = details(&book, &checking, &TestLocale).expect("details");
+        assert_eq!(savings.card.account_type, "savings");
+        assert_eq!(savings.card.balance, before.card.balance);
+        assert!(!savings.debt);
+
+        // A credit card is owed: the same balance now counts as a debt.
+        set_account_type(&mut book, &checking, "credit-card").expect("changed");
+        let card = details(&book, &checking, &TestLocale).expect("details");
+        assert_eq!(card.card.account_type, "credit-card");
+        assert!(card.debt);
+        assert_eq!(book.balance(id).expect("balance"), held);
+
+        let error = set_account_type(&mut book, &checking, "investment").expect_err("unknown");
+        assert_eq!(code(&book, &error), "input.no-such-entry");
     }
 
     #[test]

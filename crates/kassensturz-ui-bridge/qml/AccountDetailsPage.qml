@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // One account: its balance, what the user said the bank showed and whether
-// the account still holds it (D-117), renaming it, comparing it with the
-// bank, and closing it or opening it again (D-081).
+// the account still holds it (D-117), renaming it, changing its type
+// (D-625), comparing it with the bank, and closing it or opening it again
+// (D-081).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -43,6 +44,20 @@ Kirigami.ScrollablePage {
 
     function reload() {
         account = accounts.details(accountId) ?? ({});
+        typeField.currentIndex = typeIndex();
+    }
+
+    // Where the account's type is in the list; -1 for an account without
+    // one, e.g. from another program.
+    function typeIndex(): int {
+        return types.all.findIndex(type => type.key === (page.account.type ?? ""));
+    }
+
+    function changeType() {
+        error.result = accounts.setAccountType(accountId, types.all[typeField.currentIndex].key);
+        if (error.result.code === undefined) {
+            reload();
+        }
     }
 
     // A correction made on the check page, or an undo, changes what the
@@ -172,6 +187,65 @@ Kirigami.ScrollablePage {
                     page.rename()
                 }
             }
+        }
+
+        // The type (D-625): only what sort of account it is changes, never
+        // its transactions. To or from a credit card, its balance moves
+        // between what the user has and what the user owes.
+        Kirigami.Heading {
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            text: page.i18nContext.i18nc("@title", "Type")
+            level: 2
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: (page.account.type ?? "") === ""
+            text: page.i18nContext.i18nc("@info", "This account has no type yet, for example because it came from another program. It counts as money you have. Choose the type that fits it.")
+            wrapMode: Text.Wrap
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            Controls.ComboBox {
+                id: typeField
+
+                // Picking a type in the list doesn't change it yet: the
+                // button does.
+                readonly property string chosen: currentIndex >= 0 ? types.all[currentIndex].key : ""
+
+                Layout.fillWidth: true
+                model: types.all.map(type => type.name)
+                currentIndex: page.typeIndex()
+                displayText: currentIndex >= 0 ? currentText : page.i18nContext.i18nc("@item:inlistbox no account type chosen yet", "Choose a type")
+                Accessible.name: page.i18nContext.i18nc("@label:listbox", "Type of the account")
+            }
+
+            Controls.Button {
+                text: page.i18nContext.i18nc("@action:button", "Change type")
+                icon.name: "document-edit"
+                enabled: typeField.chosen !== "" && typeField.chosen !== (page.account.type ?? "")
+                onClicked: {
+                    ActionLog.taken("AccountDetailsPage_changeType")
+                    page.changeType()
+                }
+            }
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: typeField.chosen !== "" && typeField.chosen !== (page.account.type ?? "")
+            text: !visible
+                ? ""
+                : (typeField.chosen === "credit-card") === (page.account.debt ?? false)
+                    ? page.i18nContext.i18nc("@info", "Only the type changes. Your transactions and the balance stay as they are.")
+                    : typeField.chosen === "credit-card"
+                        ? page.i18nContext.i18nc("@info", "As a credit card, its balance counts as what you owe instead of what you have. Your transactions, the balance and what you are worth stay the same. You can undo this.")
+                        : page.i18nContext.i18nc("@info", "Its balance then counts as what you have instead of what you owe. Your transactions, the balance and what you are worth stay the same. You can undo this.")
+            wrapMode: Text.Wrap
         }
 
         Kirigami.Heading {

@@ -127,11 +127,14 @@ pub enum Action {
     EditBudget,
     /// Deleted a budget with its past results.
     RemoveBudget,
+    /// Made an account an account of another type, e.g. savings instead
+    /// of checking (D-625).
+    ChangeAccountType,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 43] = [
+    pub const ALL: [Self; 44] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -175,6 +178,7 @@ impl Action {
         Self::AddBudget,
         Self::EditBudget,
         Self::RemoveBudget,
+        Self::ChangeAccountType,
     ];
 }
 
@@ -1468,6 +1472,7 @@ fn action_to_text(action: Action) -> &'static str {
         Action::AddBudget => "add_budget",
         Action::EditBudget => "edit_budget",
         Action::RemoveBudget => "remove_budget",
+        Action::ChangeAccountType => "change_account_type",
     }
 }
 

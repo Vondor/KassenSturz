@@ -36,6 +36,8 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Closed an account");
         case "reopen-account":
             return i18nContext.i18nc("@info a change you made", "Opened an account again");
+        case "change-account-type":
+            return i18nContext.i18nc("@info a change you made", "Changed the type of an account");
         case "add-category":
             return i18nContext.i18nc("@info a change you made", "Added a category");
         case "rename-category":

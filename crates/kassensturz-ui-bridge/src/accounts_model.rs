@@ -81,6 +81,16 @@ pub mod qobject {
         #[cxx_name = "renameAccount"]
         fn rename_account(self: Pin<&mut AccountList>, id: &QString, name: &QString) -> QVariant;
 
+        /// Gives an account another type, by its key in
+        /// `AccountTypes.qml` (D-625). Returns an empty map, or the error.
+        #[qinvokable]
+        #[cxx_name = "setAccountType"]
+        fn set_account_type(
+            self: Pin<&mut AccountList>,
+            id: &QString,
+            account_type: &QString,
+        ) -> QVariant;
+
         /// Closes an account. Returns an empty map, or the error.
         #[qinvokable]
         #[cxx_name = "closeAccount"]
@@ -228,6 +238,12 @@ impl qobject::AccountList {
     fn rename_account(self: Pin<&mut Self>, id: &QString, name: &QString) -> QVariant {
         let (id, name) = (id.to_string(), name.to_string());
         let result = change(|book, _| accounts::rename_account(book, &id, &name));
+        self.finish(result)
+    }
+
+    fn set_account_type(self: Pin<&mut Self>, id: &QString, account_type: &QString) -> QVariant {
+        let (id, key) = (id.to_string(), account_type.to_string());
+        let result = change(|book, _| accounts::set_account_type(book, &id, &key));
         self.finish(result)
     }
 

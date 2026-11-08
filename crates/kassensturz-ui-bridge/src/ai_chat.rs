@@ -418,7 +418,7 @@ pub enum ChangeView {
         /// Its currency code.
         currency: String,
     },
-    /// An account renamed, closed or opened again.
+    /// An account renamed, closed, opened again or given another type.
     EditAccount {
         /// Its name before.
         before: String,
@@ -428,6 +428,13 @@ pub enum ChangeView {
         was_closed: bool,
         /// Whether it is closed after.
         closed: bool,
+        /// Its type before, as `AccountTypes.qml` names it; empty for none.
+        type_before: String,
+        /// Its type after, the same when it isn't changed.
+        account_type: String,
+        /// Whether the new type moves its balance between what the user
+        /// has and what the user owes (D-625).
+        kind_changes: bool,
     },
     /// A transaction with some fields changed (D-257).
     EditTransaction {
@@ -800,6 +807,15 @@ fn view_of(
             after: edit.after.clone(),
             was_closed: edit.was_closed,
             closed: edit.closed,
+            type_before: edit
+                .type_before
+                .map_or("", crate::accounts::type_key)
+                .to_owned(),
+            account_type: edit
+                .account_type
+                .map_or("", crate::accounts::type_key)
+                .to_owned(),
+            kind_changes: edit.changes_kind(),
         },
         ProposedChange::EditTransaction(edit) => ChangeView::EditTransaction {
             date: locale.short_date(edit.date),

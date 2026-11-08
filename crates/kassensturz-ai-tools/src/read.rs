@@ -101,7 +101,7 @@ impl Names {
     }
 }
 
-fn account_type(account_type: AccountType) -> &'static str {
+pub(crate) fn account_type(account_type: AccountType) -> &'static str {
     match account_type {
         AccountType::Checking => "checking",
         AccountType::Savings => "savings",

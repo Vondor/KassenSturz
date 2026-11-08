@@ -18716,3 +18716,15 @@ msgstr "Durchschnitt pro Quartal"
 msgctxt "@item:inlistbox show spending as an average"
 msgid "Average per year"
 msgstr "Durchschnitt pro Jahr"
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml
+#, kde-format
+msgctxt "@info %1 is a formula such as =Groceries - Restaurants"
+msgid "Formula: %1"
+msgstr "Formel: %1"
+
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml
+#, kde-format
+msgctxt "@info %1 is a number or a formula: what a full progress bar stands for"
+msgid "A full bar is: %1"
+msgstr "Ein voller Balken ist: %1"

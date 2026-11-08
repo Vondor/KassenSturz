@@ -26,6 +26,11 @@ ColumnLayout {
     // gives. Undefined where there is no page around it (the properties
     // panel), where only the component's own lists narrow it.
     property var scope: undefined
+    // Whether a formula is also shown in words under its figure: the
+    // formula as the user writes it, what a full bar stands for and what it
+    // counts. The review page of the AI shows them before the user confirms
+    // a formula the AI wrote (US1.17, D-650).
+    property bool explainFormula: false
 
     readonly property var asked: subject?.preview ?? ({})
     readonly property var charts: chartData.view?.charts ?? []
@@ -84,6 +89,15 @@ ColumnLayout {
             ? i18nContext.i18nc("@info %1 is a list of names, %2 how many more there are", "%1 and %2 more", accountNames.join(", "), more)
             : accountNames.join(", ");
         return base !== "" ? i18nContext.i18nc("@title %1 is the title of a card, %2 the accounts it counts", "%1 · %2", base, named) : named;
+    }
+
+    readonly property FormulaWords formulaWords: FormulaWords {}
+
+    // The text of one of the component's fields: a formula comes in the
+    // user's number format (D-295).
+    function fieldText(key: string): string {
+        const found = (subject?.fields ?? []).find(field => field.key === key);
+        return found?.text ?? "";
     }
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -381,6 +395,38 @@ ColumnLayout {
             // Only a percent, or a figure with a target, fills the bar; any
             // other figure is shown alone.
             hasValue: modelData.permille !== undefined
+        }
+    }
+
+    // The formula in words (`explainFormula`). Every word of it comes from
+    // the book and from Rust; nothing is the AI's but the formula itself.
+    ColumnLayout {
+        Layout.fillWidth: true
+        visible: preview.explainFormula && preview.usesFormula && preview.fieldText("formula") !== ""
+        spacing: 0
+
+        Controls.Label {
+            Layout.fillWidth: true
+            text: preview.i18nContext.i18nc("@info %1 is a formula such as =Groceries - Restaurants", "Formula: %1", preview.fieldText("formula"))
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: preview.asked.shows === "progress" && preview.fieldText("target") !== ""
+            text: preview.i18nContext.i18nc("@info %1 is a number or a formula: what a full progress bar stands for", "A full bar is: %1", preview.fieldText("target"))
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: (preview.formulaResult?.counted ?? []).length > 0
+            text: visible ? preview.i18nContext.i18nc("@info %1 is a list of categories and groups", "Counts %1", preview.formulaWords.counts(preview.formulaResult.counted)) : ""
+            font: Kirigami.Theme.smallFont
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
         }
     }
 

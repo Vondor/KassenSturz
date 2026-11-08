@@ -640,3 +640,366 @@ fn the_update_all_button_is_never_the_ais_to_place() {
         assert_eq!(view_code(call(&book, &text)), "bad-argument show_as");
     }
 }
+
+#[test]
+fn the_new_views_of_the_user_sprint_are_the_ais_too() {
+    // US1.17 (D-650): rolling periods, an average and own lists for money in
+    // and money out, each checked like the arguments before.
+    let Sample {
+        mut book,
+        checking,
+        food,
+        salary,
+        ..
+    } = sample();
+    let spec = propose_view_spec(Permissions::all()).expect("offered");
+    let schema: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    let properties = &schema["properties"];
+    assert_eq!(
+        words(&properties["average"]),
+        ["total", "per-month", "per-quarter", "per-year"]
+    );
+    assert_eq!(Some(words(&properties["average"])), view_choices("average"));
+    for key in [
+        "income_categories",
+        "income_accounts",
+        "expenses_categories",
+        "expenses_accounts",
+        "formula",
+        "target",
+    ] {
+        assert!(properties.get(key).is_some(), "{key}");
+    }
+    // Every rolling word the report layer reads fits the schema's pattern,
+    // and is taken as the chart's period.
+    let pattern = properties["period"]["anyOf"][1]["pattern"]
+        .as_str()
+        .expect("a pattern");
+    assert!(pattern.starts_with('^') && pattern.ends_with('$'));
+    for (n, period) in [
+        "last-3-months",
+        "last-120-complete-months",
+        "this-salary-month-25",
+        "last-salary-month-31",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let proposal = call(
+            &book,
+            &json!({"title": format!("Food {n}"), "data": "spending_by_category",
+                "show_as": "donut", "period": period})
+            .to_string(),
+        )
+        .expect("prepared");
+        assert_eq!(chart(&proposal).period, period);
+    }
+    for period in [
+        "last-0-months",
+        "last-121-months",
+        "this-salary-month-32",
+        "last-03-months",
+    ] {
+        let text = json!({"title": "A", "data": "spending_by_category", "show_as": "donut",
+            "period": period})
+        .to_string();
+        assert_eq!(
+            view_code(call(&book, &text)),
+            "bad-argument period",
+            "{period}"
+        );
+    }
+    // An average per month on spending; `total` is what a chart shows anyway.
+    let text = |average: &str, data: &str| {
+        json!({"title": format!("{data} {average}"), "data": data, "show_as": "auto",
+            "average": average})
+        .to_string()
+    };
+    let proposal = call(&book, &text("per-month", "spending_by_category")).expect("prepared");
+    let component: Value = serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+    assert_eq!(component["params"]["average"], "per-month");
+    let proposal = call(&book, &text("total", "spending_by_category")).expect("prepared");
+    let component: Value = serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+    assert!(component["params"].get("average").is_none());
+    assert_eq!(
+        view_code(call(&book, &text("per-week", "spending_by_category"))),
+        "bad-argument average"
+    );
+    // Only spending is shown as an average.
+    assert_eq!(
+        view_code(call(&book, &text("per-month", "income_expense_by_month"))),
+        "bad-argument average"
+    );
+    // Money in from the salary, money out from one account: the chart of
+    // #525 and #530, saved as one made by hand.
+    let proposal = call(
+        &book,
+        &json!({"title": "Salary against spending", "data": "income_expense_by_month",
+            "show_as": "bar", "period": "last-salary-month-25",
+            "income_categories": [salary.to_string()],
+            "expenses_accounts": [checking.to_string()]})
+        .to_string(),
+    )
+    .expect("prepared");
+    let new = chart(&proposal);
+    assert_eq!(new.type_id(), "chart.bar");
+    let component: Value = serde_json::from_str(&new.component_json()).expect("JSON");
+    assert_eq!(
+        component["params"]["income_categories"],
+        json!([salary.to_string()])
+    );
+    assert_eq!(
+        component["params"]["expenses_accounts"],
+        json!([checking.to_string()])
+    );
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let saved = book.views(Some(ViewKind::View)).expect("views");
+    let document = Document::read(&saved[0].document).expect("a valid document");
+    assert!(document.to_json().contains("last-salary-month-25"));
+    assert!(document.to_json().contains(&salary.to_string()));
+    // A series list takes categories of its own kind and accounts only.
+    let series = |key: &str, id: String| {
+        json!({"title": format!("Series {key}"), "data": "income_expense_by_month",
+            "show_as": "bar", key: [id]})
+        .to_string()
+    };
+    for (key, id, code) in [
+        ("income_categories", food, "ai-tools.unknown-category"),
+        ("expenses_categories", salary, "ai-tools.unknown-category"),
+        ("income_accounts", food, "ai-tools.unknown-account"),
+        ("expenses_accounts", salary, "ai-tools.unknown-account"),
+    ] {
+        assert_eq!(
+            view_code(call(&book, &series(key, id.to_string()))),
+            code,
+            "{key}"
+        );
+    }
+    // Another dataset has no series to narrow.
+    let text = json!({"title": "Food by series", "data": "spending_by_category",
+        "show_as": "table", "income_categories": [salary.to_string()]})
+    .to_string();
+    assert_eq!(
+        view_code(call(&book, &text)),
+        "bad-argument income_categories"
+    );
+    // Without the reading of categories and accounts the lists aren't there.
+    let only_charts = Permissions::NONE.with(Permission::NewViews, true);
+    let spec = propose_view_spec(only_charts).expect("offered");
+    let schema: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    for key in [
+        "income_categories",
+        "income_accounts",
+        "expenses_categories",
+        "expenses_accounts",
+        "formula",
+        "target",
+    ] {
+        assert!(schema["properties"].get(key).is_none(), "{key}");
+    }
+    assert_eq!(
+        view_code(propose_view_text(
+            &book,
+            &series("income_categories", salary.to_string()),
+            only_charts
+        )),
+        "ai-tools.unknown-argument"
+    );
+}
+
+/// The code of a refused formula with its reason and place.
+fn formula_code(result: Result<Proposal, ToolError>) -> String {
+    match result.map_err(ToolError::without_item) {
+        Err(ToolError::BadFormula {
+            argument,
+            position,
+            reason,
+        }) => format!("{argument} {reason} {position:?}"),
+        other => view_code(other),
+    }
+}
+
+#[test]
+fn the_ai_writes_a_formula_card_that_the_book_checks_first() {
+    // #530 (D-650): a number card or a progress bar with a formula, an
+    // account filter and a period; the names are the book's, the figure is
+    // worked out by code.
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let card = |title: &str, formula: &str| {
+        json!({"title": title, "data": "income_expense_by_month", "show_as": "figure",
+            "formula": formula, "period": "this-salary-month-25",
+            "accounts": [checking.to_string()]})
+        .to_string()
+    };
+    let proposal = call(&book, &card("Food less travel", "=Food - Travel")).expect("prepared");
+    let new = chart(&proposal);
+    assert_eq!(new.type_id(), "kpi.card");
+    let component: Value = serde_json::from_str(&new.component_json()).expect("JSON");
+    assert_eq!(component["params"]["measure"], "formula");
+    assert_eq!(component["props"]["formula"], "=Food - Travel");
+    assert_eq!(
+        component["params"]["accounts"],
+        json!([checking.to_string()])
+    );
+    // Rolling months on a name, a kind in front, all spending: the words of
+    // US1.13 and US1.14.
+    for (n, formula) in [
+        "=Groceries@\"last 3 complete months\" / 3",
+        "=Spending.Food + Income.Salary",
+        "=ROUND(Spending.ALL / 2; 2)",
+        "='Food > Groceries'",
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        assert_eq!(
+            formula_code(call(&book, &card(&format!("Card {n}"), formula))),
+            "prepared",
+            "{formula}"
+        );
+    }
+    // A mistake is answered with a fixed reason and the character it is at.
+    for (formula, code) in [
+        ("=Food +", "formula syntax Some(8)"),
+        ("=Pets", "formula unknown-name Some(2)"),
+        ("=FOO(Food)", "formula unknown-function Some(2)"),
+        ("=ABS(Food; Travel)", "formula arguments Some(2)"),
+        ("=Food * Food", "formula kinds Some(7)"),
+        ("=Food\u{202e}", "formula text None"),
+        ("  ", "formula text None"),
+    ] {
+        assert_eq!(
+            formula_code(call(&book, &card("Wrong", formula))),
+            code,
+            "{formula}"
+        );
+    }
+    // What depends on the figures is no mistake: the preview shows it.
+    assert_eq!(
+        formula_code(call(&book, &card("Ratio", "=Food / Travel"))),
+        "prepared"
+    );
+    // A key figure with a formula has no other measure.
+    let text = json!({"title": "Net", "data": "income_expense_by_month", "show_as": "figure",
+        "measure": "net", "formula": "=Food"})
+    .to_string();
+    assert_eq!(view_code(call(&book, &text)), "bad-argument measure");
+    // A chart has no formula, and a target needs a formula and a bar.
+    let text = json!({"title": "Bars", "data": "income_expense_by_month", "show_as": "bar",
+        "formula": "=Food"})
+    .to_string();
+    assert_eq!(view_code(call(&book, &text)), "bad-argument formula");
+    let text = json!({"title": "Target", "data": "income_expense_by_month",
+        "show_as": "progress", "target": "400"})
+    .to_string();
+    assert_eq!(view_code(call(&book, &text)), "bad-argument target");
+    let text = json!({"title": "Target card", "data": "income_expense_by_month",
+        "show_as": "figure", "formula": "=Food", "target": "=Groceries"})
+    .to_string();
+    assert_eq!(view_code(call(&book, &text)), "bad-argument target");
+    // A progress bar measures the formula against its target, which must be
+    // of the same kind.
+    let bar = |title: &str, target: &str| {
+        json!({"title": title, "data": "income_expense_by_month", "show_as": "progress",
+            "formula": "=Groceries", "target": target})
+        .to_string()
+    };
+    let proposal = call(&book, &bar("Groceries budget", "=Food")).expect("prepared");
+    let component: Value = serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+    assert_eq!(component["type"], "progress.bar");
+    assert_eq!(component["props"]["target"], "=Food");
+    assert_eq!(
+        formula_code(call(&book, &bar("A plain number", "400"))),
+        "target target-kinds None"
+    );
+    assert_eq!(
+        formula_code(call(&book, &bar("Unknown", "=Pets"))),
+        "target unknown-name Some(2)"
+    );
+    // The user may make the card a bar or a chart on the review page
+    // (D-297): a bar keeps the formula, a chart has none to keep.
+    let proposal = call(&book, &card("Saved card", "=Food - Travel")).expect("prepared");
+    let kind_of = |set: &ChangeSet| -> Value {
+        match set.changes() {
+            [ProposedChange::NewView(new)] => {
+                serde_json::from_str(&new.component_json()).expect("JSON")
+            }
+            other => panic!("one chart, not {other:?}"),
+        }
+    };
+    let edited = proposal
+        .changes
+        .edit(
+            &book,
+            slot("new_views/0"),
+            &json!({"chart": "progress.bar"}),
+            Permissions::all(),
+        )
+        .expect("a bar");
+    let component = kind_of(&edited);
+    assert_eq!(component["props"]["formula"], "=Food - Travel");
+    assert!(component["params"].get("measure").is_none());
+    let back = edited
+        .edit(
+            &book,
+            slot("new_views/0"),
+            &json!({"chart": "kpi.card"}),
+            Permissions::all(),
+        )
+        .expect("a card again");
+    assert_eq!(kind_of(&back)["params"]["measure"], "formula");
+    let edited = proposal
+        .changes
+        .edit(
+            &book,
+            slot("new_views/0"),
+            &json!({"chart": "chart.bar"}),
+            Permissions::all(),
+        )
+        .expect("a chart");
+    let component = kind_of(&edited);
+    assert_eq!(component["type"], "chart.bar");
+    assert!(component["props"].get("formula").is_none());
+    // The saved card is read back by the report layer, formula and all.
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let saved = book.views(Some(ViewKind::View)).expect("views");
+    let document = Document::read(&saved[0].document).expect("a valid document");
+    assert!(document.to_json().contains("=Food - Travel"));
+}
+
+#[test]
+fn a_formula_never_tells_a_model_what_it_may_not_read() {
+    // Formulas name categories, so without the reading of them there is no
+    // formula (D-650), and a group is unknown, as the AI knows no groups
+    // (D-306).
+    let Sample { mut book, food, .. } = sample();
+    let only_charts = Permissions::NONE.with(Permission::NewViews, true);
+    let text = json!({"title": "Food", "data": "income_expense_by_month", "show_as": "figure",
+        "formula": "=Food"})
+    .to_string();
+    assert_eq!(
+        view_code(propose_view_text(&book, &text, only_charts)),
+        "ai-tools.unknown-argument"
+    );
+    book.add_category_group(
+        "Everyday",
+        kassensturz_core::GroupKind::Expense,
+        &[kassensturz_core::GroupMember::Category(food)],
+    )
+    .expect("a group");
+    let text = json!({"title": "Everyday", "data": "income_expense_by_month",
+        "show_as": "figure", "formula": "=Everyday"})
+    .to_string();
+    assert_eq!(
+        formula_code(call(&book, &text)),
+        "formula unknown-name None"
+    );
+}

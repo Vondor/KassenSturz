@@ -93,6 +93,12 @@ pub fn without(key: &str) -> String {
     Value::Object(call).to_string()
 }
 
+/// `bad-formula <argument>`: a formula refused with a fixed reason
+/// (D-650).
+pub fn bad_formula(argument: &str) -> String {
+    format!("bad-formula {argument}")
+}
+
 /// `bad-argument <argument>`.
 pub fn bad(argument: &str) -> String {
     format!("bad-argument {argument}")
@@ -174,7 +180,7 @@ pub fn cases(ids: &Ids) -> Vec<Case> {
         ),
         row(
             "a giant word for data",
-            with(json!({"data": MARKER.repeat(200)})),
+            with(json!({"data": MARKER.repeat(MAX_VIEW_CALL_BYTES / MARKER.len() + 1)})),
             "ai-tools.call-too-big",
         ),
         text_row(
@@ -602,6 +608,83 @@ pub fn cases(ids: &Ids) -> Vec<Case> {
             with(json!({"data": "net_worth_over_time", "accounts": many_accounts})),
             &if_accounts("bad-argument accounts"),
         ),
+        // The new views of US1.17 (D-650): rolling periods, an average,
+        // own lists for money in and out, formulas.
+        row(
+            "a rolling period",
+            with(json!({"period": "last-6-complete-months"})),
+            PREPARED,
+        ),
+        row(
+            "a rolling period of no months",
+            with(json!({"period": "last-0-months"})),
+            &bad("period"),
+        ),
+        row(
+            "a salary month from day 32",
+            with(json!({"period": "this-salary-month-32"})),
+            &bad("period"),
+        ),
+        row(
+            "an average nobody has",
+            spending(json!({"average": "per-week"})),
+            &bad("average"),
+        ),
+        row(
+            "an average of money in and out",
+            with(json!({"average": "per-month"})),
+            &bad("average"),
+        ),
+        row(
+            "a name for money in",
+            with(json!({"income_categories": "Salary"})),
+            &bad("income_categories"),
+        ),
+        row(
+            "an account as a category of money in",
+            with(json!({"income_categories": [account]})),
+            "ai-tools.unknown-category",
+        ),
+        row(
+            "a category as an account of money out",
+            with(json!({"expenses_accounts": [food]})),
+            &if_accounts("ai-tools.unknown-account"),
+        ),
+        row(
+            "an account of money out",
+            with(json!({"expenses_accounts": [account]})),
+            &if_accounts(PREPARED),
+        ),
+        row(
+            "a number for a formula",
+            with(json!({"show_as": "figure", "formula": 42})),
+            &bad("formula"),
+        ),
+        row(
+            "a formula that names the marker",
+            with(json!({"show_as": "figure", "formula": format!("={MARKER}")})),
+            &bad_formula("formula"),
+        ),
+        row(
+            "a formula with hidden characters",
+            with(json!({"show_as": "figure", "formula": "=1\u{202e}+2"})),
+            &bad_formula("formula"),
+        ),
+        row(
+            "a formula too long",
+            with(json!({"show_as": "figure", "formula": format!("={}", "1+".repeat(600))})),
+            &bad_formula("formula"),
+        ),
+        row(
+            "a formula of plain numbers",
+            with(json!({"show_as": "figure", "formula": "=2 * 21"})),
+            PREPARED,
+        ),
+        row(
+            "a target without a formula",
+            with(json!({"show_as": "progress", "target": "400"})),
+            &bad("target"),
+        ),
         // 6. The schema's own checks.
         row(
             "a pie of months",
@@ -659,7 +742,7 @@ pub fn cases(ids: &Ids) -> Vec<Case> {
 pub fn misspellings() -> Vec<Case> {
     let mut rows = Vec::new();
     for argument in [
-        "data", "show_as", "measure", "group_by", "period", "compare",
+        "data", "show_as", "measure", "group_by", "period", "compare", "average",
     ] {
         let words = view_choices(argument).expect("a list");
         for word in &words {

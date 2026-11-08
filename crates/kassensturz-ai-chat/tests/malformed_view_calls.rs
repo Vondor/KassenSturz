@@ -34,6 +34,9 @@ fn expected(case: &Case) -> (String, Option<String>) {
     if case.text.trim().is_empty() {
         return ("ai-tools.bad-argument".into(), Some("title".into()));
     }
+    if let Some(argument) = case.expected.strip_prefix("bad-formula ") {
+        return ("ai-tools.bad-formula".into(), Some(argument.into()));
+    }
     match case.expected.strip_prefix("bad-argument ") {
         Some(argument) => ("ai-tools.bad-argument".into(), Some(argument.into())),
         None => (case.expected.clone(), None),
@@ -104,10 +107,19 @@ fn every_refused_call_is_answered_with_fixed_words_only_and_prepares_nothing() {
                 .keys()
                 .map(String::as_str)
                 .collect();
-            if let Some(key) = keys
-                .iter()
-                .find(|key| !["error", "argument", "allowed", "max_bytes", "hint"].contains(key))
-            {
+            if let Some(key) = keys.iter().find(|key| {
+                ![
+                    "error",
+                    "argument",
+                    "allowed",
+                    "max_bytes",
+                    "hint",
+                    // A refused formula's place and fixed reason (D-650).
+                    "position",
+                    "reason",
+                ]
+                .contains(key)
+            }) {
                 failures.push(format!("{name}: unexpected key {key}"));
             }
         }

@@ -75,11 +75,16 @@ Kirigami.ApplicationWindow {
         interval: 500
         running: true
         onTriggered: {
-            window.check(page.newViews.length === 1, "the page holds the new chart");
+            window.check(page.newViews.length === 2, "the page holds the new chart and the new card");
             const all = window.texts(page, []);
             window.check(all.includes("Where the money goes"), "the title is shown");
             window.check(all.includes("This year"), "the period is shown in words");
-            window.check(window.find(page, "ComponentPreview", []).length === 1, "one preview");
+            window.check(window.find(page, "ComponentPreview", []).length === 2, "one preview each");
+            // A formula the AI wrote is shown in words before it is
+            // confirmed, over a period that moves with today (US1.17, D-650).
+            window.check(all.includes("The salary month before, from day 25"), "a rolling period is named");
+            window.check(all.includes("Formula: =Pets - Travel"), "the formula is shown as written");
+            window.check(all.includes("Counts Pets (with Vet, Cat food and 2 more), Travel in September 2026"), "what it counts, in words");
             window.check(chat.confirmed.length === 0, "nothing is confirmed before the button");
             window.check(page.newBudgets.length === 1, "the page holds the new budget");
             window.check(window.find(page, "AiBudgetChange", []).length === 1, "one budget card");
@@ -89,7 +94,10 @@ Kirigami.ApplicationWindow {
 
             // The user corrects the chart before confirming (D-293).
             const correction = window.find(page, "AiChangeCorrection", []);
-            window.check(correction.length === 2, "one correction row for each change");
+            window.check(correction.length === 3, "one correction row for each change");
+            correction[1].start();
+            window.check(correction[1].fields().period === "last-salary-month-25", "the form keeps a rolling period");
+            correction[1].editing = false;
             correction[0].start();
             window.check(correction[0].editing, "the form opens");
             window.check(correction[0].fields().title === "Where the money goes", "the form starts from the AI's title");
@@ -101,10 +109,10 @@ Kirigami.ApplicationWindow {
             window.check(window.texts(page, []).includes("Changed by you"), "marked as changed by the user");
             window.check(page.correctionResult.code === undefined, "no error left over");
             page.leaveOut("new_views/0");
-            window.check(page.kept.length === 1 && page.leftOut.length === 1, "left out");
+            window.check(page.kept.length === 2 && page.leftOut.length === 1, "left out");
             window.check(window.texts(page, []).includes("Put it back"), "a left-out change can be put back");
             page.backToAi("new_views/0");
-            window.check(page.kept.length === 2 && !page.kept[0].edited && page.kept[0].title === "Where the money goes", "back to the AI's version");
+            window.check(page.kept.length === 3 && !page.kept[0].edited && page.kept[0].title === "Where the money goes", "back to the AI's version");
             page.confirm();
             window.check(chat.confirmed.length === 1 && chat.confirmed[0] === "7", "the button confirms the set");
             window.check(page.done, "the page is done");

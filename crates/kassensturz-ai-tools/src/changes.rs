@@ -77,7 +77,8 @@ pub const PROPOSE_CHANGES: Function = Function {
         Rules are checked in order and the first that matches wins, so a new Rule goes last \
         until you move it with move_rules. A Rule's name is used once among Rules next to each \
         other, ignoring capitals; to replace a Rule by a new one of the same name, delete the \
-        old one in the same call. A Rule can sit inside another (parent_rule_id, or new_parent_rule \
+        old one in the same call. One call can both change and move a Rule, but what it \
+        deletes it can't also change or move. A Rule can sit inside another (parent_rule_id, or new_parent_rule \
         with the key of a Rule earlier in new_rules): a sub-Rule is checked only when its \
         parent matched, and one Rule with a pattern or many conditions is better than a \
         second Rule with a number in its name. Categories and Rules are named by the IDs that \
@@ -358,6 +359,14 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         description.push_str(
             " A Rule's name is used once among Rules next to each other, ignoring capitals; to \
              replace a Rule by a new one of the same name, delete the old one in the same call.",
+        );
+    }
+    if allowed.allows(Permission::EditRules) {
+        description.push_str(" One call can both change and move a Rule.");
+    }
+    if allowed.allows(Permission::DeleteRules) || allowed.allows(Permission::DeleteCategories) {
+        description.push_str(
+            " A Rule or category that a call deletes can't also be changed or moved in it.",
         );
     }
     if allowed.allows(Permission::NewRules) {
@@ -1224,7 +1233,7 @@ fn build(
     // Changing and deleting Rules come before new ones, in the check and
     // when the set is applied: a Rule can be replaced by a new one of the
     // same name in one call (M6-B191, D-626).
-    let mut touched = HashSet::new();
+    let mut touched = RuleTouches::default();
     for (index, item) in edited_rules.iter().enumerate() {
         changes.push(ProposedChange::EditRule(
             known
@@ -1285,11 +1294,20 @@ fn build(
     }
     let mut gone = HashSet::new();
     for (index, item) in deleted_categories.iter().enumerate() {
-        changes.push(ProposedChange::DeleteCategory(
-            known
-                .delete_category(book, item, &mut gone)
-                .map_err(|e| e.at("delete_categories", index))?,
-        ));
+        let change = known
+            .delete_category(book, item, &mut gone)
+            .map_err(|e| e.at("delete_categories", index))?;
+        // A category this set renames or moves isn't deleted by it too,
+        // like a Rule (M6-B196): the review would show a change that never
+        // lasts.
+        if edited.contains(&change.id) {
+            return Err(ToolError::NotChangeable {
+                argument: "category_id",
+                reason: "also-deleted",
+            }
+            .at("delete_categories", index));
+        }
+        changes.push(ProposedChange::DeleteCategory(change));
     }
     for (index, item) in edited_transactions.iter().enumerate() {
         let change = known
@@ -1412,6 +1430,50 @@ struct RuleInfo {
     rule: Rule,
     parent: Option<RuleId>,
     sub_rules: usize,
+}
+
+/// What a change set does to an existing Rule.
+#[derive(Clone, Copy)]
+enum RuleTouch {
+    Edit,
+    Move,
+    Delete,
+}
+
+/// The Rules a change set already changes, moves or deletes (M6-B196). A
+/// Rule may be changed and moved in one set, but each only once, and a Rule
+/// the set deletes can't be changed or moved by it too.
+#[derive(Default)]
+struct RuleTouches {
+    edited: HashSet<RuleId>,
+    moved: HashSet<RuleId>,
+    deleted: HashSet<RuleId>,
+}
+
+impl RuleTouches {
+    fn add(&mut self, id: RuleId, touch: RuleTouch) -> Result<(), ToolError> {
+        let also_deleted = match touch {
+            RuleTouch::Delete => self.edited.contains(&id) || self.moved.contains(&id),
+            RuleTouch::Edit | RuleTouch::Move => self.deleted.contains(&id),
+        };
+        if also_deleted {
+            return Err(ToolError::NotChangeable {
+                argument: "rule_id",
+                reason: "also-deleted",
+            });
+        }
+        let own = match touch {
+            RuleTouch::Edit => &mut self.edited,
+            RuleTouch::Move => &mut self.moved,
+            RuleTouch::Delete => &mut self.deleted,
+        };
+        if !own.insert(id) {
+            return Err(ToolError::BadArgument {
+                argument: "rule_id",
+            });
+        }
+        Ok(())
+    }
 }
 
 /// A Rule's name as the book compares names: trimmed, ignoring capitals.
@@ -1744,7 +1806,8 @@ impl Known {
     fn rule_to_change(
         &self,
         item: &Object<'_>,
-        touched: &mut HashSet<RuleId>,
+        touched: &mut RuleTouches,
+        touch: RuleTouch,
     ) -> Result<&RuleInfo, ToolError> {
         let id = item
             .uuid("rule_id")?
@@ -1753,11 +1816,7 @@ impl Known {
                 argument: "rule_id",
             })?;
         let info = self.rules.get(&id).ok_or(ToolError::UnknownRule)?;
-        if !touched.insert(id) {
-            return Err(ToolError::BadArgument {
-                argument: "rule_id",
-            });
-        }
+        touched.add(id, touch)?;
         Ok(info)
     }
 
@@ -1767,7 +1826,7 @@ impl Known {
     fn edit_rule(
         &mut self,
         value: &Value,
-        touched: &mut HashSet<RuleId>,
+        touched: &mut RuleTouches,
     ) -> Result<EditRule, ToolError> {
         let item = Object::read(
             value,
@@ -1781,7 +1840,7 @@ impl Known {
             ],
             "edit_rules",
         )?;
-        let info = self.rule_to_change(&item, touched)?;
+        let info = self.rule_to_change(&item, touched, RuleTouch::Edit)?;
         let before = info.rule.clone();
         let parent = info.parent;
         let mut rule = before.clone();
@@ -1846,10 +1905,10 @@ impl Known {
     fn delete_rule(
         &mut self,
         value: &Value,
-        touched: &mut HashSet<RuleId>,
+        touched: &mut RuleTouches,
     ) -> Result<DeleteRule, ToolError> {
         let item = Object::read(value, &["rule_id"], "delete_rules")?;
-        let info = self.rule_to_change(&item, touched)?;
+        let info = self.rule_to_change(&item, touched, RuleTouch::Delete)?;
         if info.sub_rules > 0 {
             return Err(ToolError::NotChangeable {
                 argument: "rule_id",
@@ -1875,10 +1934,10 @@ impl Known {
     fn move_rule(
         &mut self,
         value: &Value,
-        touched: &mut HashSet<RuleId>,
+        touched: &mut RuleTouches,
     ) -> Result<MoveRule, ToolError> {
         let item = Object::read(value, &["rule_id", "position"], "move_rules")?;
-        let info = self.rule_to_change(&item, touched)?;
+        let info = self.rule_to_change(&item, touched, RuleTouch::Move)?;
         if info.parent.is_some() {
             return Err(ToolError::NotChangeable {
                 argument: "rule_id",

@@ -9,6 +9,8 @@
 //! D-347); this module only says what a budget is and which days its
 //! periods cover.
 
+use jiff::ToSpan;
+
 use crate::id::define_id;
 use crate::{AccountId, Date, Money};
 
@@ -27,12 +29,39 @@ pub enum BudgetEvery {
     Quarter,
     /// Every calendar year; it repeats.
     Year,
+    /// Every salary month: from a day of the month to the day before that
+    /// day in the next month, in a short month its last day (D-645, D-651);
+    /// it repeats. Day 1 is the calendar month, which is
+    /// [`BudgetEvery::Month`], so `day` is 2 to 31 ([`BudgetEvery::salary_month`]).
+    SalaryMonth {
+        /// The day of the month each period starts on.
+        day: i8,
+    },
     /// One stretch of days, from a first to a last day; it does not repeat,
     /// so it has no next period to carry anything into.
     Range,
 }
 
 impl BudgetEvery {
+    /// A budget that starts each period on `day` of the month: the calendar
+    /// month for day 1, a salary month for 2 to 31, `None` for any other
+    /// number (D-651).
+    pub const fn salary_month(day: i8) -> Option<Self> {
+        match day {
+            1 => Some(Self::Month),
+            2..=31 => Some(Self::SalaryMonth { day }),
+            _ => None,
+        }
+    }
+
+    /// The day of the month each period starts on, for a salary month.
+    pub const fn salary_day(self) -> Option<i8> {
+        match self {
+            Self::SalaryMonth { day } => Some(day),
+            _ => None,
+        }
+    }
+
     /// Whether one period follows another (all but [`BudgetEvery::Range`]).
     pub const fn repeats(self) -> bool {
         !matches!(self, Self::Range)
@@ -49,6 +78,9 @@ impl BudgetEvery {
                 Date::new(day.year(), first_month, 1).ok()
             }
             Self::Year => Some(day.first_of_year()),
+            Self::SalaryMonth { day: salary } => {
+                salary_month_of(day, salary).map(|(first, _)| first)
+            }
             Self::Range => None,
         }
     }
@@ -65,6 +97,7 @@ impl BudgetEvery {
                     .map(Date::last_of_month)
             }
             Self::Year => Some(day.last_of_year()),
+            Self::SalaryMonth { day: salary } => salary_month_of(day, salary).map(|(_, last)| last),
             Self::Range => None,
         }
     }
@@ -72,14 +105,47 @@ impl BudgetEvery {
     /// Whether a period of this kind starts on `day`. Any day can start a
     /// range.
     pub fn is_period_start(self, day: Date) -> bool {
-        self.period_start(day).is_none_or(|start| start == day)
+        // A salary month on a day that is no day of a month has no periods,
+        // so no day starts one.
+        self == Self::Range || self.period_start(day) == Some(day)
     }
 
     /// Whether a period of this kind ends on `day`. Any day can end a
     /// range.
     pub fn is_period_end(self, day: Date) -> bool {
-        self.period_end(day).is_none_or(|end| end == day)
+        self == Self::Range || self.period_end(day) == Some(day)
     }
+}
+
+/// The salary day `day` in the month `month` is in: that day, or the
+/// month's last day when the month is shorter (D-645). `None` for a day
+/// that is no day of a month.
+pub fn salary_day(month: Date, day: i8) -> Option<Date> {
+    if !(1..=31).contains(&day) {
+        return None;
+    }
+    Date::new(month.year(), month.month(), day.min(month.days_in_month())).ok()
+}
+
+/// The salary month that starts in the month `month` is in: from its
+/// salary day to the day before the next month's (D-645).
+pub fn salary_month_starting_in(month: Date, day: i8) -> Option<(Date, Date)> {
+    let first = salary_day(month, day)?;
+    let next = salary_day(month.first_of_month().checked_add(1.month()).ok()?, day)?;
+    Some((first, next.yesterday().ok()?))
+}
+
+/// The salary month that contains `day`, starting on salary day `salary`:
+/// the one that starts in `day`'s month if the salary day has come, else
+/// the one that started in the month before (D-645).
+pub fn salary_month_of(day: Date, salary: i8) -> Option<(Date, Date)> {
+    let this = salary_day(day, salary)?;
+    let month = if day >= this {
+        day.first_of_month()
+    } else {
+        day.first_of_month().checked_sub(1.month()).ok()?
+    };
+    salary_month_starting_in(month, salary)
 }
 
 /// What a budget plans from one of its periods on, until the next
@@ -183,6 +249,59 @@ mod tests {
 
     fn eur(minor_units: i64) -> Money {
         Money::from_minor_units(minor_units, CurrencyCode::new("EUR").expect("valid code"))
+    }
+
+    #[test]
+    fn a_salary_month_runs_from_its_day_and_holds_every_day_once() {
+        let every = BudgetEvery::salary_month(25).expect("a salary month");
+        assert_eq!(every, BudgetEvery::SalaryMonth { day: 25 });
+        assert_eq!(BudgetEvery::salary_month(1), Some(BudgetEvery::Month));
+        assert_eq!(BudgetEvery::salary_month(0), None);
+        assert_eq!(BudgetEvery::salary_month(32), None);
+        assert!(every.repeats());
+        assert_eq!(every.salary_day(), Some(25));
+        assert_eq!(BudgetEvery::Month.salary_day(), None);
+        // Before the salary day, the period began in the month before.
+        assert_eq!(
+            every.period_start(day(2026, 11, 7)),
+            Some(day(2026, 10, 25))
+        );
+        assert_eq!(every.period_end(day(2026, 11, 7)), Some(day(2026, 11, 24)));
+        assert_eq!(
+            every.period_start(day(2026, 11, 25)),
+            Some(day(2026, 11, 25))
+        );
+        // In a short month the last day counts (D-645).
+        let last = BudgetEvery::SalaryMonth { day: 31 };
+        assert_eq!(last.period_start(day(2026, 2, 28)), Some(day(2026, 2, 28)));
+        assert_eq!(last.period_end(day(2026, 2, 28)), Some(day(2026, 3, 30)));
+        assert_eq!(last.period_start(day(2026, 2, 27)), Some(day(2026, 1, 31)));
+        assert!(last.is_period_start(day(2026, 4, 30)));
+        assert!(!last.is_period_start(day(2026, 4, 29)));
+        assert!(last.is_period_end(day(2026, 4, 29)));
+        // A salary day that is no day of a month starts no period.
+        assert!(!BudgetEvery::SalaryMonth { day: 40 }.is_period_start(day(2026, 4, 1)));
+        // Every day of two years is in exactly one period, and each period
+        // follows the one before without a gap.
+        for salary in 2..=31 {
+            let every = BudgetEvery::SalaryMonth { day: salary };
+            let mut today = day(2026, 1, 1);
+            let mut previous_end: Option<Date> = None;
+            while today < day(2028, 1, 1) {
+                let start = every.period_start(today).expect("a start");
+                let end = every.period_end(today).expect("an end");
+                assert!(start <= today && today <= end, "{salary} {today}");
+                if every.is_period_start(today)
+                    && let Some(previous) = previous_end
+                {
+                    assert_eq!(previous.tomorrow().expect("a day"), today, "{salary}");
+                }
+                if every.is_period_end(today) {
+                    previous_end = Some(today);
+                }
+                today = today.tomorrow().expect("a day");
+            }
+        }
     }
 
     #[test]

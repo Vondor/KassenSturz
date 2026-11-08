@@ -810,3 +810,90 @@ fn a_budgets_categories_and_accounts_must_fit() {
     // Nothing was kept of any of them.
     assert!(book.budgets().expect("read").is_empty());
 }
+
+#[test]
+fn a_budget_can_repeat_every_salary_month_and_undo_keeps_its_day() {
+    // D-651: from the 25th to the 24th; the book keeps the day.
+    let Sample {
+        mut book,
+        groceries,
+        ..
+    } = sample();
+    let every = BudgetEvery::SalaryMonth { day: 25 };
+    // It starts on a salary day and ends the day before one.
+    assert_period(
+        book.add_budget(
+            &[groceries],
+            &[],
+            every,
+            date(2026, 9, 1),
+            None,
+            eur(40_000),
+            true,
+        ),
+        "not-period-start",
+    );
+    assert_period(
+        book.add_budget(
+            &[groceries],
+            &[],
+            every,
+            date(2026, 9, 25),
+            Some(date(2026, 10, 31)),
+            eur(40_000),
+            true,
+        ),
+        "not-period-end",
+    );
+    assert_period(
+        book.add_budget(
+            &[groceries],
+            &[],
+            BudgetEvery::SalaryMonth { day: 32 },
+            date(2026, 9, 25),
+            None,
+            eur(40_000),
+            true,
+        ),
+        "not-period-start",
+    );
+    let id = book
+        .add_budget(
+            &[groceries],
+            &[],
+            every,
+            date(2026, 9, 25),
+            Some(date(2026, 12, 24)),
+            eur(40_000),
+            true,
+        )
+        .expect("added");
+    let kept = book.budget(id).expect("kept");
+    assert_eq!(kept.every, every);
+    assert_eq!(
+        kept.period_containing(date(2026, 10, 3)),
+        Some((date(2026, 9, 25), date(2026, 10, 24)))
+    );
+    // A new amount applies from a salary day on.
+    assert_period(
+        book.edit_budget_amount(id, date(2026, 10, 1), eur(45_000), true),
+        "not-period-start",
+    );
+    book.edit_budget_amount(id, date(2026, 10, 25), eur(45_000), true)
+        .expect("edited");
+    assert_eq!(book.budget(id).expect("kept").amounts.len(), 2);
+    // Undo and redo keep the day.
+    book.undo().expect("undone");
+    book.undo().expect("undone");
+    assert!(book.budgets().expect("read").is_empty());
+    book.redo().expect("made again");
+    assert_eq!(book.budget(id).expect("back").every, every);
+    // The stored day is the one the table allows: a month's, 2 to 31.
+    let stored: Option<i64> = book
+        .conn
+        .query_row("SELECT salary_day FROM budgets", [], |row| row.get(0))
+        .expect("one budget");
+    assert_eq!(stored, Some(25));
+    let refused = book.conn.execute("UPDATE budgets SET every = 'year'", []);
+    assert!(refused.is_err(), "a salary day only on a month");
+}

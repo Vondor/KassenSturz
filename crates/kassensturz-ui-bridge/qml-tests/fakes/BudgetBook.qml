@@ -14,12 +14,12 @@ QtObject {
 
     property var view: ({
         budgets: [
-            {id: "b-food", categories: ["c-food"], name: "Food", accounts: "", every: "month", currency: "EUR", amount: "400,00 €", amountInput: "400,00", carryOver: true,
+            {id: "b-food", categories: ["c-food"], name: "Food", accounts: "", every: "month", salaryDay: 0, currency: "EUR", amount: "400,00 €", amountInput: "400,00", carryOver: true,
              state: "running", firstDay: "2026-09-01", lastDay: "", canStop: true,
              changes: [{day: "2026-10-01", firstDay: "2026-10-01", lastDay: "2026-10-31", current: true},
                        {day: "2026-09-01", firstDay: "2026-09-01", lastDay: "2026-09-30", current: false}]},
-            {id: "b-rent", categories: ["c-rent"], name: "Rent", accounts: "Checking", every: "year", currency: "EUR", amount: "9.600,00 €", amountInput: "9600,00", carryOver: false,
-             state: "upcoming", firstDay: "2027-01-01", lastDay: "", canStop: false, changes: []}
+            {id: "b-rent", categories: ["c-rent"], name: "Rent", accounts: "Checking", every: "salary-month", salaryDay: 25, currency: "EUR", amount: "800,00 €", amountInput: "800,00", carryOver: false,
+             state: "upcoming", firstDay: "2027-01-25", lastDay: "", canStop: false, changes: []}
         ],
         categories: [
             {id: "c-food", name: "Food", path: "Food", depth: 0, currency: "EUR"},

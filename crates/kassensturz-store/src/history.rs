@@ -523,6 +523,7 @@ pub(crate) const RECORDED: [Recorded; 25] = [
             ("every", "TEXT"),
             ("first_day", "TEXT"),
             ("last_day", "TEXT"),
+            ("salary_day", "INTEGER"),
         ],
     },
     Recorded {

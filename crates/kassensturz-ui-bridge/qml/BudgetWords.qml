@@ -15,12 +15,14 @@ QtObject {
     }
 
     // The fixed words, in the order the sheet offers them.
-    readonly property var everyWords: ["month", "quarter", "year", "range"]
+    readonly property var everyWords: ["month", "salary-month", "quarter", "year", "range"]
 
     function every(word: string): string {
         switch (word) {
         case "month":
             return i18nContext.i18nc("@item:inlistbox how often a budget repeats", "Every month");
+        case "salary-month":
+            return i18nContext.i18nc("@item:inlistbox how often a budget repeats; a salary month runs from a day the user chooses, such as payday, to the day before it in the next month", "Every salary month");
         case "quarter":
             return i18nContext.i18nc("@item:inlistbox how often a budget repeats", "Every quarter");
         case "year":
@@ -28,6 +30,14 @@ QtObject {
         default:
             return i18nContext.i18nc("@item:inlistbox a budget for one stretch of days", "Once, for some days");
         }
+    }
+
+    // How often a budget repeats, with the day a salary month starts on
+    // (D-651).
+    function everyFrom(word: string, day: int): string {
+        return word === "salary-month" && day > 0
+            ? i18nContext.i18nc("@info how often a budget repeats; %1 is a day of the month, 1 to 31", "Every salary month, from day %1", day)
+            : every(word);
     }
 
     // A stretch of days, e.g. "1 Nov 2026 to 30 Nov 2026".

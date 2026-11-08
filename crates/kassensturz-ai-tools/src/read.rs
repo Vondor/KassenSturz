@@ -1078,6 +1078,9 @@ pub(crate) fn list_budgets(
             "every".into(),
             Value::from(crate::changes::every_word(budget.every)),
         );
+        if let Some(day) = budget.every.salary_day() {
+            row.insert("salary_day".into(), Value::from(day));
+        }
         let day = today.max(budget.first_day);
         if budget.first_day > today {
             row.insert("starts".into(), Value::String(budget.first_day.to_string()));

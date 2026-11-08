@@ -99,7 +99,8 @@ Kirigami.ApplicationWindow {
             const listed = window.texts(page, []);
             window.check(listed.includes("Food"), "the first budget is listed");
             window.check(listed.includes("Rent"), "the second budget is listed");
-            window.check(listed.some(text => text.startsWith("Starts 2027-01-01")), "the budget that has not started says when it does");
+            window.check(listed.some(text => text.startsWith("Starts 2027-01-25")), "the budget that has not started says when it does");
+            window.check(listed.includes("Every salary month, from day 25, 800,00 €"), "a salary month names its day (D-651), got " + listed);
 
             // Stop is offered for the running budget only.
             const buttons = window.all(page, "ToolButton", []).filter(button => button.visible);
@@ -141,6 +142,19 @@ Kirigami.ApplicationWindow {
             box("Checking").toggled();
             adding.save();
             window.check(added()[2] === "addBudget:c-food,c-rent;a-checking:month:250,00:false:2026-10-01:", "adding sends the categories and accounts, got " + added()[2]);
+
+            // A salary month asks for its day and sends it, also for the
+            // periods to start with (D-651).
+            const spins = () => window.all(adding, "SpinBox", []).filter(spin => spin.visible);
+            window.check(spins().length === 0, "the day waits for a salary month");
+            const every = window.all(adding, "ComboBox", []).find(combo => (combo.model ?? []).includes?.("Every salary month"));
+            window.check(every !== undefined, "the sheet offers a salary month");
+            every.currentIndex = 1;
+            window.check(spins().length === 1, "a salary month shows its day, found " + spins().length);
+            spins()[0].value = 25;
+            window.check(fake.calls.includes("startChoices:salary-month-25"), "the periods follow the day, calls: " + fake.calls);
+            adding.save();
+            window.check(added()[3] === "addBudget:c-food,c-rent;a-checking:salary-month-25:250,00:false:2026-10-01:", "adding sends the salary day, got " + added()[3]);
 
             // The sheet to change a budget sends the period it starts from.
             const changing = window.pageStack.push(sheet, {budgetId: "b-food"});

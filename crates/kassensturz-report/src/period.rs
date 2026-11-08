@@ -167,17 +167,17 @@ impl Rolling {
 /// The salary day `day` in the month that starts on `month`: that day, or
 /// the month's last day when the month is shorter (D-645).
 fn salary_day(month: Date, day: i8) -> Result<Date, ReportError> {
-    Date::new(month.year(), month.month(), day.min(month.days_in_month()))
-        .map_err(|_| ReportError::BadPeriod)
+    kassensturz_core::salary_day(month, day).ok_or(ReportError::BadPeriod)
 }
 
 /// The salary month that starts in the month beginning on `month`: from its
 /// salary day to the day before the next month's.
+/// The same days as a budget's salary month (D-651): both come from
+/// `kassensturz_core`.
 fn salary_month(month: Date, day: i8) -> Result<Period, ReportError> {
-    let bad = |_| ReportError::BadPeriod;
-    let first = salary_day(month, day)?;
-    let next = salary_day(month.checked_add(1.month()).map_err(bad)?, day)?;
-    Period::new(first, next.yesterday().map_err(bad)?)
+    let (first, last) =
+        kassensturz_core::salary_month_starting_in(month, day).ok_or(ReportError::BadPeriod)?;
+    Period::new(first, last)
 }
 
 /// Whether `word` names a period a document, a component or the filter bar

@@ -722,3 +722,49 @@ fn a_budget_over_several_categories_from_one_account_is_prepared_and_made() {
         "store.budget-overlap"
     );
 }
+
+#[test]
+fn a_monthly_budget_can_start_on_a_salary_day_and_counts_those_months() {
+    let small = small();
+    let food = small.food.to_string();
+    let proposal = propose(
+        &small.book,
+        &json!({"new_budgets": [{"category_id": food, "every": "month", "salary_day": 2,
+            "based_on": "average_3_periods"}]}),
+    )
+    .expect("prepared");
+    let new = new_budget(&proposal.changes);
+    // On 14 November the month from day 2 runs from 2 November to
+    // 1 December; the three before it hold 40.00 (31 August), 200.00
+    // (15 September) and 50.01 (31 October): 290.01 / 3, rounded up to
+    // 97.00. The 999.99 of 2 November is in the current one (D-651).
+    assert_eq!(new.every, BudgetEvery::SalaryMonth { day: 2 });
+    assert_eq!(new.first_day, Date::constant(2026, 11, 2));
+    assert_eq!(new.first_period_end, Date::constant(2026, 12, 1));
+    let basis = new.basis.expect("computed");
+    assert_eq!(basis.first_day, Date::constant(2026, 8, 2));
+    assert_eq!(basis.last_day, Date::constant(2026, 11, 1));
+    assert_eq!(basis.spent, eur(29_001));
+    assert_eq!(new.amount, eur(9_700));
+
+    // Day 1 is the calendar month; a day outside a month, or a day for
+    // a quarter, is refused by name.
+    let call = |every: &str, day: Value| {
+        json!({"new_budgets": [{"category_id": food, "every": every, "salary_day": day,
+            "amount": "10.00"}]})
+    };
+    let proposal = propose(&small.book, &call("month", json!(1))).expect("prepared");
+    assert_eq!(new_budget(&proposal.changes).every, BudgetEvery::Month);
+    for (every, day) in [
+        ("month", json!(0)),
+        ("month", json!(32)),
+        ("month", json!("25")),
+        ("quarter", json!(25)),
+    ] {
+        assert_eq!(
+            code(propose(&small.book, &call(every, day.clone()))),
+            "bad-argument salary_day",
+            "{every} {day}"
+        );
+    }
+}

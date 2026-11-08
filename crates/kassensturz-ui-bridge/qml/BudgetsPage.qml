@@ -34,7 +34,7 @@ Kirigami.ScrollablePage {
 
     // What the line under a budget's name says.
     function summary(budget: var): string {
-        const plan = page.i18nContext.i18nc("@info %1 is how often a budget repeats, %2 an amount of money", "%1, %2", words.every(budget.every), budget.amount);
+        const plan = page.i18nContext.i18nc("@info %1 is how often a budget repeats, %2 an amount of money", "%1, %2", words.everyFrom(budget.every, budget.salaryDay ?? 0), budget.amount);
         const carry = budget.every !== "range" && budget.carryOver
             ? " · " + page.i18nContext.i18nc("@info", "what is left is carried over")
             : "";

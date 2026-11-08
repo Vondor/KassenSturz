@@ -573,6 +573,22 @@ Kirigami.ScrollablePage {
                             : page.i18nContext.i18nc("@info", "It is opened again.")
                     }
 
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        visible: (modelData.accountType ?? "") !== (modelData.typeBefore ?? "")
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: !visible
+                            ? ""
+                            : page.i18nContext.i18nc("@info %1 is the old type of an account, %2 the new one", "Its type changes from %1 to %2. Its transactions and balance stay as they are.", accountTypes.nameOf(modelData.typeBefore) || page.i18nContext.i18nc("@item an account without a type", "no type"), accountTypes.nameOf(modelData.accountType))
+                            + (modelData.kindChanges
+                                ? " " + (modelData.accountType === "credit-card"
+                                    ? page.i18nContext.i18nc("@info", "Its balance then counts as what you owe instead of what you have; what you are worth stays the same.")
+                                    : page.i18nContext.i18nc("@info", "Its balance then counts as what you have instead of what you owe; what you are worth stays the same."))
+                                : "")
+                    }
+
                     AiChangeCorrection {
                         Layout.fillWidth: true
                         ai: page.ai

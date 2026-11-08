@@ -132,6 +132,7 @@ pub fn action_key(action: Action) -> &'static str {
         Action::AddBudget => "add-budget",
         Action::EditBudget => "edit-budget",
         Action::RemoveBudget => "remove-budget",
+        Action::ChangeAccountType => "change-account-type",
         Action::RunRules => "run-rules",
         Action::ImportStatement => "import-statement",
         Action::CorrectStartingBalance => "correct-starting-balance",

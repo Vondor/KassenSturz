@@ -298,6 +298,10 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.26** · **later** · waits for: an outsider and the published tester kit, before the stage Go; no build. #513: the outside install check, a Beta entry condition
 
+- **M6-B195** · **done** (this pull request) · US1 Phase 3 thread "Let users change an account's type" · strong, medium · D-625 · Q-440 = 1. #558: an account's type can be changed on the account page and through the AI's `edit_accounts` (confirmed in the app); to or from a credit card its balance moves between what the user has and owes, its worth and every entry stay the same. The KMyMoney import maps credit cards; `list_accounts` explains `other`. Layout 27. Why: an imported book can bring wrong or missing types, and later features (cash Rules, credit card statements) rely on them
+
+- **M6-B195 later** · **later** · waits for: a decision on how securities are shown. A type of its own for investment (securities) accounts, which come in from KMyMoney without a type and count as money the user has (D-625). Why: it needs more than a new name in the list, e.g. what a securities balance means without prices
+
 - **US1.27** · **later** · waits for: the maintainer's stage Go after US1 Phase 3, with the [format] items (US1.9, US1.10, US1.12, US1.19) merged and US1.26 passed; then M7a.6 follows. #512: the stage move from Alpha to Beta (D-495 check)
 
 ## How to pick work

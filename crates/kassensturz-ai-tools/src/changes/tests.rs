@@ -1489,6 +1489,85 @@ fn an_account_is_renamed_closed_and_opened_again_but_never_deleted() {
 }
 
 #[test]
+fn an_account_gets_another_type_and_keeps_its_balance() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    // An account another program left without a type ("other").
+    let depot = add(
+        &mut book,
+        Account {
+            account_type: None,
+            ..account("Depot", AccountKind::Asset, EUR)
+        },
+    );
+    let balance = book.balance(checking).expect("balance");
+
+    let proposal = propose(
+        &book,
+        &json!({"edit_accounts": [
+            {"account_id": checking.to_string(), "type": "savings"},
+            {"account_id": depot.to_string(), "type": "credit_card"},
+        ]}),
+    )
+    .expect("prepared");
+    let changes = proposal.changes.changes();
+    let ProposedChange::EditAccount(savings) = &changes[0] else {
+        panic!("an edit");
+    };
+    assert_eq!(
+        (savings.type_before, savings.account_type),
+        (Some(AccountType::Checking), Some(AccountType::Savings))
+    );
+    assert!(!savings.renames() && savings.changes_type() && !savings.changes_kind());
+    let ProposedChange::EditAccount(card) = &changes[1] else {
+        panic!("an edit");
+    };
+    assert!(card.changes_kind());
+    let summary = proposal.changes.summary();
+    assert!(
+        summary.contains("changes type from checking to savings"),
+        "{summary}"
+    );
+    assert!(
+        summary.contains("changes type from other to credit_card (its balance"),
+        "{summary}"
+    );
+
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let stored = book.account(checking).expect("kept");
+    assert_eq!(stored.account_type, Some(AccountType::Savings));
+    assert_eq!(book.balance(checking).expect("balance"), balance);
+    assert_eq!(
+        book.account(depot).expect("kept").kind,
+        AccountKind::Liability
+    );
+    book.undo().expect("one undo takes both back");
+    assert_eq!(
+        book.account(checking).expect("kept").account_type,
+        Some(AccountType::Checking)
+    );
+    assert_eq!(book.account(depot).expect("kept").account_type, None);
+
+    for (call, expected) in [
+        // The type it has already is nothing to change.
+        (
+            json!({"edit_accounts": [{"account_id": checking.to_string(), "type": "checking"}]}),
+            "bad-argument account_id",
+        ),
+        (
+            json!({"edit_accounts": [{"account_id": checking.to_string(), "type": "investment"}]}),
+            "bad-argument type",
+        ),
+    ] {
+        assert_eq!(code(propose(&book, &call)), expected, "{call}");
+    }
+}
+
+#[test]
 fn an_account_changed_since_the_review_is_out_of_date() {
     let Sample {
         mut book, checking, ..

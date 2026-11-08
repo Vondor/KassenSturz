@@ -11,6 +11,7 @@
 /// that every entry is written the same way a log line can carry it. A new
 /// handler gets a new entry; a name is never reused for another action.
 pub const ACTIONS: &[&str] = &[
+    "AccountDetailsPage_changeType",
     "AccountDetailsPage_checkAgainstBank",
     "AccountDetailsPage_checkAgainstBank_2",
     "AccountDetailsPage_closeAccount",

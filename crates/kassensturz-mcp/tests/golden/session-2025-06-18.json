@@ -39,7 +39,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Lists the user's accounts (not categories) with each one's balance at the end of today and ID, and what the balances add up to per currency. Entries dated after today are not in the balance; an account that has some says what they add in \"after_today\". A debt such as a credit card has \"debt\": true and a negative balance for what is owed. Amounts are exact decimal text with a dot as the decimal mark.",
+            "description": "Lists the user's accounts (not categories) with each one's balance at the end of today and ID, and what the balances add up to per currency. Entries dated after today are not in the balance; an account that has some says what they add in \"after_today\". A debt such as a credit card has \"debt\": true and a negative balance for what is owed. Each account has a \"type\": checking, savings, cash, credit_card, or other for an account without a type, e.g. one another program had as an investment or loan account. An account counts as money the user has unless it has \"debt\": true, whatever its type, so an \"other\" account without \"debt\" is part of what the user has and of net worth. Amounts are exact decimal text with a dot as the decimal mark.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {

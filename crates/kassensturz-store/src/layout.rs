@@ -35,7 +35,7 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 3] = [LAYOUT_24, LAYOUT_25, LAYOUT_26];
+pub(crate) const MIGRATIONS: [&str; 4] = [LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
 /// development layouts of the Alpha, merged into layout 24 (D-045, D-135,
@@ -872,6 +872,44 @@ ALTER TABLE budgets ADD COLUMN salary_day INTEGER
 ALTER TABLE changed_budgets ADD COLUMN salary_day INTEGER;
 ";
 
+/// Layout 27 (D-625): an account's type can be changed after it was added,
+/// e.g. a savings account another program called a checking account. The
+/// change history gets the action `change_account_type` for it: `changes`
+/// is rebuilt with that action added to its list, as the development
+/// layouts 8 to 10 did. Its rows stay as they were, and the `changed_`
+/// tables keep referring to it by name, so every change made before the
+/// update can still be undone and made again.
+const LAYOUT_27: &str = "
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes', 'remove_category',
+        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
+        'add_group', 'edit_group', 'move_group', 'remove_group',
+        'set_hidden_categories',
+        'add_budget', 'edit_budget', 'remove_budget',
+        'change_account_type'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -1426,7 +1464,7 @@ mod tests {
 
         let computer = computer(&folder);
         let mut book = Book::open(&path, &computer).expect("book updated");
-        assert_eq!(pragma(&book.conn, "user_version"), 26);
+        assert_eq!(pragma(&book.conn, "user_version"), VERSION);
         assert_eq!(files_in(&computer.backup_folder).len(), 1);
         let budgets = book.budgets().expect("budgets");
         assert_eq!(budgets.len(), 1);
@@ -1442,6 +1480,70 @@ mod tests {
         assert!(book.budgets().expect("budgets").is_empty());
         book.redo().expect("made again");
         assert_eq!(book.budgets().expect("budgets"), budgets);
+    }
+
+    #[test]
+    fn layout_27_keeps_the_history_of_layout_26_and_records_a_type_change() {
+        // A book at layout 26 with an account renamed by a change the
+        // history recorded, as KassenSturz wrote it before layout 27.
+        let folder = TempFolder::new();
+        let path = folder.join("Household.ksz");
+        let checking = old_book(&path, 26);
+        let conn = Connection::open(&path).expect("book opened");
+        let change = uuid::Uuid::now_v7().into_bytes();
+        let made_at = kassensturz_core::Timestamp::from_second(
+            kassensturz_core::Timestamp::now().as_second(),
+        )
+        .expect("now");
+        conn.execute_batch("BEGIN").expect("begun");
+        for (sql, values) in [
+            (
+                "UPDATE accounts SET name = 'Savings' WHERE id = ?1",
+                params![checking.to_bytes()],
+            ),
+            (
+                "INSERT INTO changes (id, sequence, action, made_at, undone, file_name)
+                 VALUES (?1, 1, 'rename_account', ?2, 0, NULL)",
+                params![change, made_at.to_string()],
+            ),
+            (
+                "INSERT INTO changed_accounts (change_id, side, id, name, kind, currency, closed)
+                 VALUES (?1, 'before', ?2, 'Checking account', 'asset', 'EUR', 0),
+                        (?1, 'after', ?2, 'Savings', 'asset', 'EUR', 0)",
+                params![change, checking.to_bytes()],
+            ),
+        ] {
+            conn.execute(sql, values).expect("written");
+        }
+        conn.execute_batch("COMMIT").expect("committed");
+        drop(conn);
+
+        let computer = computer(&folder);
+        let mut book = Book::open(&path, &computer).expect("book updated");
+        assert_eq!(pragma(&book.conn, "user_version"), VERSION);
+        assert_eq!(files_in(&computer.backup_folder).len(), 1);
+        // The change made before the update is undone and made again.
+        book.undo().expect("undone");
+        assert_eq!(
+            book.account(checking).expect("account").name,
+            "Checking account"
+        );
+        book.redo().expect("made again");
+        assert_eq!(book.account(checking).expect("account").name, "Savings");
+        // The new action is recorded, and undone like any other.
+        book.set_account_type(checking, kassensturz_core::AccountType::Savings)
+            .expect("type changed");
+        let action: String = book
+            .conn
+            .query_row(
+                "SELECT action FROM main.changes ORDER BY sequence DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("newest change");
+        assert_eq!(action, "change_account_type");
+        book.undo().expect("undone");
+        assert_eq!(book.account(checking).expect("account").account_type, None);
     }
 
     #[test]

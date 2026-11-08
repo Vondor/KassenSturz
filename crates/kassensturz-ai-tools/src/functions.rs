@@ -76,8 +76,12 @@ pub const FUNCTIONS: &[Function] = &[
             the end of today and ID, and what the balances add up to per currency. Entries \
             dated after today are not in the balance; an account that has some says what they \
             add in \"after_today\". A debt such as a credit card has \"debt\": true and a \
-            negative balance for what is owed. Amounts are exact decimal text with a dot as \
-            the decimal mark.",
+            negative balance for what is owed. Each account has a \"type\": checking, \
+            savings, cash, credit_card, or other for an account without a type, e.g. one \
+            another program had as an investment or loan account. An account counts as money \
+            the user has unless it has \"debt\": true, whatever its type, so an \"other\" \
+            account without \"debt\" is part of what the user has and of net worth. \
+            Amounts are exact decimal text with a dot as the decimal mark.",
         parameters: r#"{"type":"object","properties":{"include_closed":{"type":"boolean","description":"Also list closed accounts. Default false."}},"additionalProperties":false}"#,
     },
     Function {

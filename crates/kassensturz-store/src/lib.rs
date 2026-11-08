@@ -810,6 +810,63 @@ impl Book {
         self.set_closed(id, false)
     }
 
+    /// Makes the account `id` an account of another type, e.g. a savings
+    /// account that came in from another program as a checking account
+    /// (D-625). Only what sort of account it is changes: its transactions,
+    /// amounts and history stay as they are.
+    ///
+    /// A credit card is money the user owes, the other types money the user
+    /// has, so a change to or from a credit card also changes the account's
+    /// kind (see [`AccountType::kind`]). Its balance then counts as what is
+    /// owed instead of what is had, or the other way round; what the user is
+    /// worth stays the same, since both add up the same balances. An account
+    /// grouped with others of its kind (D-132) can't change its kind
+    /// ([`StoreError::ParentKindMismatch`]). Giving an account the type it
+    /// has does nothing; a category can't have one
+    /// ([`StoreError::NotAnAccount`]).
+    pub fn set_account_type(
+        &mut self,
+        id: AccountId,
+        account_type: AccountType,
+    ) -> Result<(), StoreError> {
+        let before = self.account(id)?;
+        if !before.kind.is_account() {
+            return Err(StoreError::NotAnAccount(id));
+        }
+        if before.account_type == Some(account_type) {
+            return Ok(());
+        }
+        let account = Account {
+            kind: account_type.kind(),
+            account_type: Some(account_type),
+            ..before.clone()
+        };
+        self.check_account(&account)?;
+        if account.kind != before.kind
+            && let Some(inside) = self
+                .all_accounts()?
+                .into_iter()
+                .find(|other| other.parent == Some(id))
+        {
+            return Err(StoreError::ParentKindMismatch {
+                parent: id,
+                parent_kind: account.kind,
+                kind: inside.kind,
+            });
+        }
+        self.as_one_action(Action::ChangeAccountType, |book| {
+            book.conn.execute(
+                "UPDATE accounts SET kind = ?2, account_type = ?3 WHERE id = ?1",
+                params![
+                    id.to_bytes(),
+                    kind_to_text(account.kind),
+                    type_to_text(account_type)
+                ],
+            )?;
+            Ok(())
+        })
+    }
+
     fn set_closed(&mut self, id: AccountId, closed: bool) -> Result<(), StoreError> {
         let action = if closed {
             Action::CloseAccount

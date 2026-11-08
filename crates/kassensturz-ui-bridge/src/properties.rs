@@ -80,6 +80,12 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
             // that of a progress bar always; a bar measures it against its
             // target. A figure that is a formula has no comparison (M6b.7).
             let hidden = match property.key {
+                // A chart or table made of columns shows their totals
+                // (D-648): an average is offered for the dataset's own rows.
+                "average" => matches!(
+                    component.get("columns"),
+                    Some(Setting::Columns(columns)) if !columns.is_empty()
+                ),
                 "formula" => component.kind() == ComponentType::KpiCard && !uses,
                 "target" => !has_formula,
                 "compare" => uses,

@@ -270,6 +270,7 @@ fn asked(accounts: &[String], categories: &[String], takes: Takes) -> Asked {
         categories: list(categories),
         takes,
         series: Vec::new(),
+        average: None,
     }
 }
 

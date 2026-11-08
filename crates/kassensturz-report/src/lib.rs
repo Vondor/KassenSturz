@@ -33,6 +33,7 @@
 //! bar, is worked out here too, with the notes it shows ([`Asked`],
 //! [`Document::asked`], D-350, D-351).
 
+mod average;
 mod balances;
 mod budget_utilization;
 mod cash_flow;
@@ -61,6 +62,7 @@ mod spending;
 pub mod templates;
 mod text;
 
+pub use average::{AVERAGE_WORDS, Average, Per};
 pub use balances::{
     ACCOUNT_BALANCES, AccountBalance, AccountBalances, Converted, CurrencyBalances, CurrencyWorth,
     NET_WORTH_OVER_TIME, NetWorthOverTime, Worth, WorthRow, account_balances, net_worth_over_time,

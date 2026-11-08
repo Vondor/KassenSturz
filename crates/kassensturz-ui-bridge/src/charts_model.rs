@@ -321,6 +321,17 @@ fn drawing(value: f64) -> QVariant {
     QVariant::from(&value)
 }
 
+/// The `params.average` word a spending chart's amount column names
+/// (D-648); empty for a chart of totals.
+fn per_word(model: &ChartModel) -> &'static str {
+    match model.table.columns.get(1).copied() {
+        Some("per_month") => "per-month",
+        Some("per_quarter") => "per-quarter",
+        Some("per_year") => "per-year",
+        _ => "",
+    }
+}
+
 fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
     let round = model.kind.is_round();
     let series =
@@ -394,6 +405,9 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("currency", text(&model.currency)),
         ("round", QVariant::from(&round)),
         ("total", text(&model.total)),
+        // What a spending chart's amounts are an average per (D-648), as a
+        // `params.average` word; empty for totals.
+        ("per", text(per_word(model))),
         ("hidden", hidden_object(model.hidden.as_ref())),
         ("slices", slices_object(&model.slices)),
         // The free colors of a custom chart, as `#RRGGBB` text: a color
@@ -659,6 +673,7 @@ mod tests {
                 "hidden",
                 "kind",
                 "overlays",
+                "per",
                 "round",
                 "series",
                 "slices",
@@ -749,6 +764,31 @@ mod tests {
         assert_eq!(
             cells[1].value::<QString>().expect("text").to_string(),
             "1600,00 €"
+        );
+    }
+
+    #[test]
+    fn an_average_reads_back_with_its_word_and_its_column() {
+        // US1.13 (D-648): the word QML picks the total's sentence by, and
+        // the column its table names.
+        let mut asked = request("spending_by_category", "donut");
+        asked.scope.average = "per-month".into();
+        let view = view_of(&asked);
+        let chart = &list_of(&view, "charts")[0];
+        assert_eq!(text_of(chart, "per"), "per-month");
+        let columns: Vec<String> = list_of(&object_of(chart, "table"), "columns")
+            .iter()
+            .map(|column| column.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(columns, ["category", "per_month"]);
+        let plain = view_of(&request("spending_by_category", "donut"));
+        assert_eq!(text_of(&list_of(&plain, "charts")[0], "per"), "");
+        // Only spending is averaged.
+        let mut monthly = request("income_expense_by_month", "bar");
+        monthly.scope.average = "per-month".into();
+        assert_eq!(
+            text_of(&list_of(&view_of(&monthly), "charts")[0], "per"),
+            ""
         );
     }
 

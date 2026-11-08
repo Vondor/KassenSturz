@@ -70,6 +70,9 @@ DataTable {
     columnNames: ({
         "category": i18nContext.i18nc("@title:column a table of a chart", "Category"),
         "total": i18nContext.i18nc("@title:column a table of a chart", "Total"),
+        "per_month": i18nContext.i18nc("@title:column a table of a chart: the average spending per month", "Per month"),
+        "per_quarter": i18nContext.i18nc("@title:column a table of a chart: the average spending per quarter", "Per quarter"),
+        "per_year": i18nContext.i18nc("@title:column a table of a chart: the average spending per year", "Per year"),
         "month": i18nContext.i18nc("@title:column a table of a chart", "Month"),
         "income": i18nContext.i18nc("@title:column a table of a chart", "Money in"),
         "expenses": i18nContext.i18nc("@title:column a table of a chart", "Money out"),

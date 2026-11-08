@@ -563,9 +563,19 @@ const MEASURE: Property = Property {
     kind: Kind::Choice(&[]),
 };
 const MEASURE_KEY: &str = "measure";
+/// `params.average` (US1.13, D-648): spending as its total or as an
+/// average per month, quarter or year. Only `spending_by_category` takes an
+/// average; other datasets offer `total` alone.
+const AVERAGE: Property = Property {
+    key: AVERAGE_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&crate::AVERAGE_WORDS),
+};
+pub(crate) const AVERAGE_KEY: &str = "average";
 
-const CHART: [Property; 14] = [
+const CHART: [Property; 15] = [
     GROUPING,
+    AVERAGE,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
@@ -584,8 +594,9 @@ const KPI_CARD: [Property; 7] = [
     MEASURE, ACCOUNTS, HIDE_NOTE, COMPARE, FORMULA, TITLE, PERIOD,
 ];
 const PROGRESS_BAR: [Property; 6] = [ACCOUNTS, COMPARE, FORMULA, TARGET, TITLE, PERIOD];
-const TABLE: [Property; 12] = [
+const TABLE: [Property; 13] = [
     GROUPING,
+    AVERAGE,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
@@ -631,6 +642,13 @@ impl Property {
         match self.kind {
             Kind::Choice(_) if self.key == MEASURE_KEY && self.place == Place::Params => {
                 dataset.measures
+            }
+            Kind::Choice(words) if self.key == AVERAGE_KEY => {
+                if dataset.id == crate::SPENDING_BY_CATEGORY {
+                    words
+                } else {
+                    &words[..1]
+                }
             }
             Kind::Choice(words) => words,
             Kind::Grouping => dataset.groupings,

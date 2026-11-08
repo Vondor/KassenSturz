@@ -726,7 +726,13 @@ ColumnLayout {
         Layout.fillWidth: true
         // A custom chart has no fixed meaning for a total and gives none.
         visible: !view.showTable && view.chart.total !== ""
-        text: view.chart.kind === "pie" || view.chart.kind === "donut" || view.chart.dataset === "spending_by_category"
+        text: view.chart.per === "per-month"
+            ? i18nContext.i18nc("@label %1 is an amount of money", "Spent per month on average: %1", view.chart.total)
+            : view.chart.per === "per-quarter"
+            ? i18nContext.i18nc("@label %1 is an amount of money", "Spent per quarter on average: %1", view.chart.total)
+            : view.chart.per === "per-year"
+            ? i18nContext.i18nc("@label %1 is an amount of money", "Spent per year on average: %1", view.chart.total)
+            : view.chart.kind === "pie" || view.chart.kind === "donut" || view.chart.dataset === "spending_by_category"
             ? i18nContext.i18nc("@label %1 is an amount of money", "Total spent: %1", view.chart.total)
             : view.chart.dataset === "net_worth_over_time"
             ? i18nContext.i18nc("@label %1 is an amount of money", "What you are worth at the end: %1", view.chart.total)

@@ -18645,3 +18645,74 @@ msgstr "Es gibt noch keine Budgets zum Auswählen. Legen Sie zuerst auf der Seit
 msgctxt "@info"
 msgid "Nothing ticked: every budget is shown."
 msgstr "Nichts angehakt: Alle Budgets werden gezeigt."
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:73
+#, kde-format
+msgctxt "@title:column a table of a chart: the average spending per month"
+msgid "Per month"
+msgstr "Pro Monat"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:74
+#, kde-format
+msgctxt "@title:column a table of a chart: the average spending per quarter"
+msgid "Per quarter"
+msgstr "Pro Quartal"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:75
+#, kde-format
+msgctxt "@title:column a table of a chart: the average spending per year"
+msgid "Per year"
+msgstr "Pro Jahr"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:730
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml:302
+#, kde-format
+msgctxt "@label %1 is an amount of money"
+msgid "Spent per month on average: %1"
+msgstr "Im Durchschnitt pro Monat ausgegeben: %1"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:732
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml:299
+#, kde-format
+msgctxt "@label %1 is an amount of money"
+msgid "Spent per quarter on average: %1"
+msgstr "Im Durchschnitt pro Quartal ausgegeben: %1"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:734
+#: crates/kassensturz-ui-bridge/qml/ComponentPreview.qml:301
+#, kde-format
+msgctxt "@label %1 is an amount of money"
+msgid "Spent per year on average: %1"
+msgstr "Im Durchschnitt pro Jahr ausgegeben: %1"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:174
+#, kde-format
+msgctxt ""
+"@label:listbox whether a chart shows the total spending or an average per "
+"month, quarter or year"
+msgid "Show as"
+msgstr "Anzeigen als"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:224
+#, kde-format
+msgctxt "@item:inlistbox show spending as what it adds up to over the period"
+msgid "Total"
+msgstr "Summe"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:226
+#, kde-format
+msgctxt "@item:inlistbox show spending as an average"
+msgid "Average per month"
+msgstr "Durchschnitt pro Monat"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:228
+#, kde-format
+msgctxt "@item:inlistbox show spending as an average"
+msgid "Average per quarter"
+msgstr "Durchschnitt pro Quartal"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:230
+#, kde-format
+msgctxt "@item:inlistbox show spending as an average"
+msgid "Average per year"
+msgstr "Durchschnitt pro Jahr"

@@ -286,6 +286,21 @@ ColumnLayout {
                 Layout.fillWidth: true
                 chart: tableBox.modelData
             }
+
+            // A table of averages ends with the average of all of it, divided
+            // from the exact total (D-648).
+            Controls.Label {
+                Layout.fillWidth: true
+                visible: (tableBox.modelData.per ?? "") !== ""
+                font.bold: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: tableBox.modelData.per === "per-quarter"
+                    ? preview.i18nContext.i18nc("@label %1 is an amount of money", "Spent per quarter on average: %1", tableBox.modelData.total)
+                    : tableBox.modelData.per === "per-year"
+                    ? preview.i18nContext.i18nc("@label %1 is an amount of money", "Spent per year on average: %1", tableBox.modelData.total)
+                    : preview.i18nContext.i18nc("@label %1 is an amount of money", "Spent per month on average: %1", tableBox.modelData.total)
+            }
         }
     }
 

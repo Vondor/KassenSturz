@@ -219,6 +219,8 @@ pub struct Asked {
     /// The series with a filter of their own (D-646), in the order of
     /// [`SERIES_FILTERS`]; empty when none has one.
     pub series: Vec<SeriesAsked>,
+    /// What spending is averaged per (D-648); `None` for its total.
+    pub average: Option<crate::Per>,
 }
 
 /// A note under a component about its filter (D-350). The component writes
@@ -349,6 +351,10 @@ impl Asked {
             categories: own_ids(component, "categories").or_else(|| bar_ids(&bar.categories)),
             takes,
             series: series_asked(component),
+            average: match component.get(crate::schema::AVERAGE_KEY) {
+                Some(Setting::Word(word)) => crate::Per::read(word),
+                _ => None,
+            },
         })
     }
 
@@ -368,6 +374,7 @@ impl Asked {
                 .or_else(|| self.categories.clone()),
             takes: self.takes,
             series: Vec::new(),
+            average: self.average,
         }
     }
 

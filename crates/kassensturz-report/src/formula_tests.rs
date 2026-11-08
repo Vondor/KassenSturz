@@ -245,6 +245,23 @@ fn syntax_mistakes_say_where_and_what() {
             "=Pets@",
             "report.formula-syntax position=7 reason=bad-period",
         ),
+        // Rolling months: 1 to 120, written without a leading zero (D-649).
+        (
+            "=Pets@\"last 0 months\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"last 03 months\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"last 121 complete months\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"last -3 months\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
         (
             "=Pets@26",
             "report.formula-syntax position=7 reason=bad-period",
@@ -553,6 +570,27 @@ fn names_count_what_the_datasets_count_on_a_real_book() {
     assert_eq!(
         worked_out(&source, "=Rent@\"this quarter\"", october),
         Ok(eur(80_000))
+    );
+    // Rolling months count back from the figure's month (US1.13, D-649):
+    // an average per month is a total over whole months divided by them.
+    assert_eq!(
+        worked_out(&source, "=Rent@\"last 3 months\"", october),
+        Ok(eur(240_000))
+    );
+    assert_eq!(
+        worked_out(&source, "=Rent@\"Last 2  Complete Months\"", october),
+        Ok(eur(160_000))
+    );
+    assert_eq!(
+        worked_out(&source, "=Rent@\"last 2 complete months\" / 2", october),
+        Ok(eur(80_000))
+    );
+    // "last 12 months" is the period it always was.
+    assert_eq!(
+        Formula::parse("=Rent@\"last 12 months\"")
+            .and_then(|formula| formula.span(october))
+            .ok(),
+        Some(period(date(2025, 11, 1), date(2026, 10, 31)))
     );
     assert_eq!(figure("=Groceries@2026-08"), Ok(eur(5_320)));
     assert_eq!(figure("=Groceries@2026-09-01..2026-09-12"), Ok(eur(2_500)));

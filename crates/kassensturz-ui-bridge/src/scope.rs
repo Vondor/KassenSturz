@@ -43,6 +43,9 @@ pub struct Scope {
     takes: Takes,
     /// The series with a filter of their own (US1.16, D-646).
     series: Vec<SeriesScope>,
+    /// What spending is averaged per (US1.13, D-648): a `params.average`
+    /// word, empty for the total.
+    pub average: String,
 }
 
 /// The own lists of one series of a chart (D-646): empty for a dimension it
@@ -67,6 +70,7 @@ impl Default for Scope {
             categories_own: false,
             takes: Takes::ALL,
             series: Vec::new(),
+            average: String::new(),
         }
     }
 }
@@ -100,6 +104,10 @@ impl Scope {
                     categories: ids(&series.categories),
                 })
                 .collect(),
+            average: asked
+                .average
+                .map(|per| per.word().to_owned())
+                .unwrap_or_default(),
         }
     }
 
@@ -151,6 +159,7 @@ impl Scope {
                     "categories": series.categories,
                 }))
                 .collect::<Vec<_>>(),
+            "average": self.average,
         })
         .to_string()
     }
@@ -204,6 +213,12 @@ impl Scope {
                 categories: flag(&takes, "categories", true),
             },
             series,
+            average: value
+                .get("average")
+                .and_then(Value::as_str)
+                .filter(|word| kassensturz_report::Per::read(word).is_some())
+                .unwrap_or_default()
+                .to_owned(),
         }
     }
 
@@ -231,6 +246,8 @@ impl Scope {
             takes: self.takes,
             // Each series is applied on its own (`for_series`).
             series: Vec::new(),
+            // An average changes no filter.
+            average: None,
         }
         .apply(source)
     }
@@ -576,6 +593,7 @@ mod tests {
                     categories: Vec::new(),
                 },
             ],
+            average: "per-month".into(),
         };
         assert_eq!(Scope::from_text(&scope.to_text()), scope);
     }
@@ -789,6 +807,43 @@ mod tests {
         assert!(!view.nothing);
         let kinds: Vec<&str> = view.notes.iter().map(|note| note.kind).collect();
         assert!(kinds.contains(&"gone"), "{kinds:?}");
+    }
+
+    #[test]
+    fn spending_shown_as_an_average_is_divided_by_the_months_up_to_today() {
+        // A seam test (US1.13, D-648): the component's `average` goes
+        // through the real Asked and the scope text to the chart. This
+        // year up to 19 October 2026 (`TestLocale`) is 292 days: 10 months.
+        let f = fixture();
+        let component = kassensturz_report::Component::from_value(&json!({
+            "type": "chart.donut", "dataset": "spending_by_category",
+            "params": {"average": "per-month"}
+        }))
+        .expect("component");
+        assert_eq!(component.to_value()["params"]["average"], "per-month");
+        let asked = Asked::new(&component, None, &Filters::default()).expect("asks");
+        let scope = Scope::from_text(&Scope::from_asked(&asked).to_text());
+        assert_eq!(scope.average, "per-month");
+        let request = ChartRequest {
+            dataset: "spending_by_category".into(),
+            kind: "donut".into(),
+            period: "this-year".into(),
+            grouping: "each".into(),
+            scope,
+            ..ChartRequest::default()
+        };
+        let set = charts::charts(&f.book, &TestLocale, &request).expect("charts");
+        let model = &set.charts[0].0;
+        assert_eq!(model.total, "85,00 €");
+        assert_eq!(model.table.rows[0], ["Rent", "80,00 €"]);
+        assert_eq!(model.table.columns, ["category", "per_month"]);
+        // The total is the default and is not written.
+        let total = kassensturz_report::Component::from_value(&json!({
+            "type": "chart.donut", "dataset": "spending_by_category",
+            "params": {"average": "total"}
+        }))
+        .expect("component");
+        assert!(total.to_value()["params"].get("average").is_none());
     }
 
     #[test]

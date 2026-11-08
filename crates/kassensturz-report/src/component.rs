@@ -379,6 +379,12 @@ impl Component {
             {
                 continue;
             }
+            // The total is the default and is not written (D-648).
+            if property.key == crate::schema::AVERAGE_KEY
+                && matches!(setting, Setting::Word(word) if word == "total")
+            {
+                continue;
+            }
             match property.place {
                 Place::Params => params.insert(property.key.to_owned(), value),
                 Place::Props => props.insert(property.key.to_owned(), value),

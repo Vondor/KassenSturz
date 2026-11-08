@@ -255,7 +255,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Lists the user's budgets that run now or start later, with their IDs: the spending categories each one is for (each counted with everything inside it), the IDs of the accounts it counts from if it doesn't count every account (names from list_accounts), how often it starts again (month, quarter or year, or range for one stretch of days), what it plans for the current period and whether what is left moves into the next one. When the user also lets you read transactions, each budget has \"current_period\" with what is available, spent and left in it so far. Amounts are exact decimal text with a dot as the decimal mark.",
+            "description": "Lists the user's budgets that run now or start later, with their IDs: the spending categories each one is for (each counted with everything inside it), the IDs of the accounts it counts from if it doesn't count every account (names from list_accounts), how often it starts again (month, quarter or year, or range for one stretch of days), what it plans for the current period and whether what is left moves into the next one. When the user also lets you read transactions, each budget has \"current_period\" with what is available, spent and left in it so far, or with \"error\" if that one budget's figures can't be counted now. Amounts are exact decimal text with a dot as the decimal mark.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {},

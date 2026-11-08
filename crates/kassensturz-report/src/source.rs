@@ -113,12 +113,35 @@ impl Source {
     ) -> Result<Self, ReportError> {
         book.reading(|book| {
             let budgets = book.budgets()?;
-            let covers = crate::budget_utilization::days_needed(&budgets, period, today)?;
-            let source = Self::read_now(book, covers, false)?;
-            Ok(Self {
-                budgets: Some(budgets),
-                ..source
-            })
+            Self::read_now_for(book, budgets, period, today)
+        })
+    }
+
+    /// Reads what [`Source::read_with_budgets`] reads, for these budgets
+    /// of the book instead of all of them: the days read are the ones
+    /// these budgets need. So one budget's figures can be counted on their
+    /// own, and a budget whose days can't be read doesn't hold back the
+    /// others' (M6-B198).
+    pub fn read_for_budgets(
+        book: &Book,
+        budgets: Vec<Budget>,
+        period: Period,
+        today: Date,
+    ) -> Result<Self, ReportError> {
+        book.reading(|book| Self::read_now_for(book, budgets, period, today))
+    }
+
+    fn read_now_for(
+        book: &Book,
+        budgets: Vec<Budget>,
+        period: Period,
+        today: Date,
+    ) -> Result<Self, ReportError> {
+        let covers = crate::budget_utilization::days_needed(&budgets, period, today)?;
+        let source = Self::read_now(book, covers, false)?;
+        Ok(Self {
+            budgets: Some(budgets),
+            ..source
         })
     }
 

@@ -214,3 +214,59 @@ fn list_budgets_reads_what_the_grid_allows_and_its_figures_come_from_the_dataset
     // An argument it doesn't take is refused.
     assert!(call(&book, "list_budgets", &json!({"all": true}), TODAY).is_err());
 }
+
+#[test]
+fn a_budget_whose_figures_cant_be_counted_says_so_in_its_row_and_the_others_are_listed() {
+    // M6-B198: one budget failed the whole list. A budget that carries over
+    // counts from its first day, and from 1900 that is more days than a
+    // report reads.
+    let mut book = five_years();
+    let category = a_spending_category(&book);
+    let eur = book.account(category).expect("there").currency;
+    let other = book
+        .categories()
+        .expect("categories")
+        .into_iter()
+        .filter(|entry| {
+            entry.category.kind == AccountKind::Expense && entry.category.id != category
+        })
+        .find(|entry| entry.path.len() == 1)
+        .expect("another")
+        .category
+        .id;
+    book.add_budget(
+        &[other],
+        &[],
+        BudgetEvery::Month,
+        Date::constant(1900, 1, 1),
+        None,
+        kassensturz_core::Money::from_minor_units(1_000, eur),
+        true,
+    )
+    .expect("by hand");
+    book.add_budget(
+        &[category],
+        &[],
+        BudgetEvery::Month,
+        Date::constant(2026, 1, 1),
+        None,
+        kassensturz_core::Money::from_minor_units(40_000, eur),
+        false,
+    )
+    .expect("by hand");
+
+    // Read the way the MCP server reads a call: inside one read of its own.
+    let listed = book
+        .reading(|book| call(book, "list_budgets", &json!({}), TODAY))
+        .expect("listed")
+        .value;
+    let rows = listed["budgets"].as_array().expect("a list");
+    assert_eq!(rows.len(), 2, "{listed}");
+    assert_eq!(
+        rows[0]["current_period"],
+        json!({"error": "ai-tools.budget-figures-unreadable", "cause": "report.period-too-long"})
+    );
+    assert_eq!(rows[0]["amount"], "10.00", "the rest of its row is there");
+    assert_eq!(rows[1]["current_period"]["from"], "2026-10-01");
+    assert!(rows[1]["current_period"]["spent"].is_string(), "{listed}");
+}

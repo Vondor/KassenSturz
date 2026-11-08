@@ -19,10 +19,10 @@ use std::path::Path;
 
 use kassensturz_core::{
     Account, AccountId, Actions, AmountTest, Attachment, BankLink, BookTo, Budget, BudgetAmount,
-    BudgetId, CategoryGroup, Condition, Currency, CurrencyCode, Date, DatedRate, DatedRateId,
-    ExchangeRate, ForeignAmount, GroupId, GroupMember, ImportedDetails, Institution, InstitutionId,
-    Money, OriginalAmount, Payee, PayeeId, PayeeRecognition, RateSource, Rule, RuleId, RuleNode,
-    Split, SplitId, Tag, TagId, Transaction, TransactionId, ViewId,
+    BudgetEvery, BudgetId, CategoryGroup, Condition, Currency, CurrencyCode, Date, DatedRate,
+    DatedRateId, ExchangeRate, ForeignAmount, GroupId, GroupMember, ImportedDetails, Institution,
+    InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition, RateSource, Rule,
+    RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId, ViewId,
 };
 use serde_json::{Map, Value};
 
@@ -312,7 +312,18 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
             let budget = Object::new(
                 value,
                 &path,
-                if version >= 9 {
+                if version >= 10 {
+                    &[
+                        "id",
+                        "categories",
+                        "accounts",
+                        "every",
+                        "salary_day",
+                        "first_day",
+                        "last_day",
+                        "amounts",
+                    ]
+                } else if version >= 9 {
                     &[
                         "id",
                         "categories",
@@ -369,11 +380,27 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
                     Vec::new(),
                 )
             };
+            // Version 10: a month that starts on another day than the 1st is
+            // a salary month (D-651); only a month has one, 2 to 31.
+            let mut every = budget.keyword("every", &BUDGET_EVERY)?;
+            if version >= 10
+                && let Some((value, path)) = budget.optional("salary_day")
+            {
+                if every != BudgetEvery::Month {
+                    return Err(bad(&path, Expected::Null));
+                }
+                every = value
+                    .as_u64()
+                    .filter(|day| (2..=31).contains(day))
+                    .and_then(|day| i8::try_from(day).ok())
+                    .and_then(BudgetEvery::salary_month)
+                    .ok_or_else(|| bad(&path, Expected::Number))?;
+            }
             budgets.push(Budget {
                 id,
                 categories,
                 accounts,
-                every: budget.keyword("every", &BUDGET_EVERY)?,
+                every,
                 first_day: budget.date("first_day")?,
                 last_day: budget.optional_date("last_day")?,
                 amounts,

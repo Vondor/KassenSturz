@@ -43,22 +43,28 @@ const MAX_RANGE_MONTHS: i64 = 1_200;
 /// `Money` (D-360). Far above any household's budget.
 const MAX_AMOUNT: i64 = i64::MAX / MAX_AMOUNTS as i64;
 
+/// The `every` column of a budget; a salary month is a month whose
+/// `salary_day` is set (layout 26, D-651).
 fn every_to_text(every: BudgetEvery) -> &'static str {
     match every {
-        BudgetEvery::Month => "month",
+        BudgetEvery::Month | BudgetEvery::SalaryMonth { .. } => "month",
         BudgetEvery::Quarter => "quarter",
         BudgetEvery::Year => "year",
         BudgetEvery::Range => "range",
     }
 }
 
-fn every_from_text(text: &str) -> BudgetEvery {
-    // The table's CHECK allows nothing else.
+fn every_from_text(text: &str, salary_day: Option<i64>) -> BudgetEvery {
+    // The table's CHECKs allow nothing else: a salary day only on a month,
+    // and only 2 to 31.
     match text {
         "quarter" => BudgetEvery::Quarter,
         "year" => BudgetEvery::Year,
         "range" => BudgetEvery::Range,
-        _ => BudgetEvery::Month,
+        _ => salary_day
+            .and_then(|day| i8::try_from(day).ok())
+            .and_then(BudgetEvery::salary_month)
+            .unwrap_or(BudgetEvery::Month),
     }
 }
 
@@ -136,9 +142,9 @@ impl Book {
     /// Every budget, in the order they were made (their IDs), each with its
     /// amounts, oldest first.
     pub fn budgets(&self) -> Result<Vec<Budget>, StoreError> {
-        let mut statement = self
-            .conn
-            .prepare_cached("SELECT id, every, first_day, last_day FROM budgets ORDER BY id")?;
+        let mut statement = self.conn.prepare_cached(
+            "SELECT id, every, first_day, last_day, salary_day FROM budgets ORDER BY id",
+        )?;
         let rows = statement
             .query_map([], |row| {
                 Ok((
@@ -146,16 +152,17 @@ impl Book {
                     row.get::<_, String>(1)?,
                     row.get::<_, String>(2)?,
                     row.get::<_, Option<String>>(3)?,
+                    row.get::<_, Option<i64>>(4)?,
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         let mut budgets = Vec::with_capacity(rows.len());
-        for (id, every, first_day, last_day) in rows {
+        for (id, every, first_day, last_day, salary_day) in rows {
             budgets.push(Budget {
                 id: BudgetId::from_bytes(id),
                 categories: Vec::new(),
                 accounts: Vec::new(),
-                every: every_from_text(&every),
+                every: every_from_text(&every, salary_day),
                 first_day: date_from_text(&first_day)?,
                 last_day: last_day.as_deref().map(date_from_text).transpose()?,
                 amounts: Vec::new(),
@@ -254,8 +261,9 @@ impl Book {
     /// user's own accounts, each once (`not-own-account`, `account-twice`).
     /// A budget counts at most 100 categories and 100 accounts
     /// ([`StoreError::TooManyBudgets`]). A month,
-    /// quarter or year budget starts on the first day of one and, if it has
-    /// a last day, ends on the last day of one; a range needs a last day and
+    /// quarter, year or salary-month budget starts on the first day of one
+    /// and, if it has a last day, ends on the last day of one (a salary
+    /// month on a day that is no day of a month has none, D-651); a range needs a last day and
     /// touches at most 1,200 calendar months; the last day is never before
     /// the first ([`StoreError::BudgetPeriod`]: `not-period-start`,
     /// `not-period-end`, `no-last-day`, `too-long`, `ends-before-starts`).
@@ -515,12 +523,14 @@ impl Book {
         }
         self.check_overlap(budget)?;
         self.conn.execute(
-            "INSERT INTO budgets (id, every, first_day, last_day) VALUES (?1, ?2, ?3, ?4)",
+            "INSERT INTO budgets (id, every, first_day, last_day, salary_day)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
                 budget.id.to_bytes(),
                 every_to_text(budget.every),
                 date_to_text(budget.first_day)?,
                 budget.last_day.map(date_to_text).transpose()?,
+                budget.every.salary_day(),
             ],
         )?;
         for (position, category) in budget.categories.iter().enumerate() {
@@ -600,14 +610,15 @@ impl Book {
     /// The budget `id` with its days, categories and accounts, but none of
     /// its amounts.
     fn budget_without_amounts(&self, id: BudgetId) -> Result<Budget, StoreError> {
-        let (every, first_day, last_day) = self.conn.query_row(
-            "SELECT every, first_day, last_day FROM budgets WHERE id = ?1",
+        let (every, first_day, last_day, salary_day) = self.conn.query_row(
+            "SELECT every, first_day, last_day, salary_day FROM budgets WHERE id = ?1",
             [id.to_bytes()],
             |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
                     row.get::<_, Option<String>>(2)?,
+                    row.get::<_, Option<i64>>(3)?,
                 ))
             },
         )?;
@@ -628,7 +639,7 @@ impl Book {
             accounts: ids(
                 "SELECT account_id FROM budget_accounts WHERE budget_id = ?1 ORDER BY position",
             )?,
-            every: every_from_text(&every),
+            every: every_from_text(&every, salary_day),
             first_day: date_from_text(&first_day)?,
             last_day: last_day.as_deref().map(date_from_text).transpose()?,
             amounts: Vec::new(),

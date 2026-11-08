@@ -140,7 +140,8 @@ pub(super) fn accounts_text(names: &[String]) -> String {
 /// The word of `every` in a call.
 pub fn every_word(every: BudgetEvery) -> &'static str {
     match every {
-        BudgetEvery::Month => "month",
+        // A salary month is a month that starts on its `salary_day` (D-651).
+        BudgetEvery::Month | BudgetEvery::SalaryMonth { .. } => "month",
         BudgetEvery::Quarter => "quarter",
         BudgetEvery::Year => "year",
         BudgetEvery::Range => "range",
@@ -149,12 +150,26 @@ pub fn every_word(every: BudgetEvery) -> &'static str {
 
 /// The repeating kind of period a call names. A range is not offered: it
 /// has days of its own that the model would have to pick (D-394).
+/// A month may start on its `salary_day`, 1 being the calendar month
+/// (D-651).
 fn every_of(item: &Object<'_>) -> Result<BudgetEvery, ToolError> {
-    match item.required_string("every")? {
-        "month" => Ok(BudgetEvery::Month),
-        "quarter" => Ok(BudgetEvery::Quarter),
-        "year" => Ok(BudgetEvery::Year),
-        _ => Err(ToolError::BadArgument { argument: "every" }),
+    let every = match item.required_string("every")? {
+        "month" => BudgetEvery::Month,
+        "quarter" => BudgetEvery::Quarter,
+        "year" => BudgetEvery::Year,
+        _ => return Err(ToolError::BadArgument { argument: "every" }),
+    };
+    let bad = ToolError::BadArgument {
+        argument: "salary_day",
+    };
+    match item.get("salary_day") {
+        None => Ok(every),
+        Some(_) if every != BudgetEvery::Month => Err(bad),
+        Some(value) => value
+            .as_u64()
+            .and_then(|day| i8::try_from(day).ok())
+            .and_then(BudgetEvery::salary_month)
+            .ok_or(bad),
     }
 }
 
@@ -463,6 +478,7 @@ pub(super) fn new_budget(
             "category_ids",
             "account_ids",
             "every",
+            "salary_day",
             "amount",
             "based_on",
             "round_to",

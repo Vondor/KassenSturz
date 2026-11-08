@@ -46,8 +46,9 @@ pub mod qobject {
         #[qinvokable]
         fn refresh(self: Pin<&mut BudgetBook>);
 
-        /// The periods a new budget of this kind (`month`, `quarter` or
-        /// `year`) can begin with, newest first. Empty for a range.
+        /// The periods a new budget of this kind (`month`, `salary-month-D`
+        /// from day D (D-651), `quarter` or `year`) can begin with, newest
+        /// first. Empty for a range.
         #[qinvokable]
         #[cxx_name = "startChoices"]
         fn start_choices(self: &BudgetBook, every: &QString) -> QVariant;
@@ -59,6 +60,7 @@ pub mod qobject {
         /// `day`, empty for the current period, or for a range the typed
         /// first day; `last_day` is the typed last day of a range. Returns
         /// an empty map, or the error's `code` and its parameters.
+        /// `every` is a word of `startChoices` or `range`.
         #[qinvokable]
         #[cxx_name = "addBudget"]
         fn add_budget(
@@ -244,6 +246,7 @@ pub fn bar_object(bar: &Bar) -> QVariant {
         ("name", text(&bar.name)),
         ("accounts", text(&bar.accounts)),
         ("every", text(bar.every)),
+        ("salaryDay", QVariant::from(&bar.salary_day)),
         ("currency", text(&bar.currency)),
         ("firstDay", text(&bar.first_day)),
         ("lastDay", text(&bar.last_day)),
@@ -287,6 +290,7 @@ fn row_object(row: &BudgetRow) -> QVariant {
         ("name", text(&row.name)),
         ("accounts", text(&row.accounts)),
         ("every", text(row.every)),
+        ("salaryDay", QVariant::from(&row.salary_day)),
         ("currency", text(&row.currency)),
         ("amount", text(&row.amount)),
         ("amountInput", text(&row.amount_input)),
@@ -350,7 +354,8 @@ mod tests {
 
     /// A book where the real store holds a monthly budget that is carried
     /// over from September, with September and October spending booked by
-    /// real transactions, and a second budget that has not started.
+    /// real transactions, and a second budget that has not started and
+    /// repeats every salary month from day 25 (D-651).
     fn book() -> Book {
         let mut book = Book::create_in_memory().expect("book");
         book.use_currency(EUR).expect("currency used");
@@ -392,8 +397,8 @@ mod tests {
         book.add_budget(
             &[rent],
             &[],
-            BudgetEvery::Year,
-            Date::new(2027, 1, 1).expect("a date"),
+            BudgetEvery::SalaryMonth { day: 25 },
+            Date::new(2027, 1, 25).expect("a date"),
             None,
             Money::from_minor_units(960_000, EUR),
             false,
@@ -453,6 +458,7 @@ mod tests {
                 "id",
                 "lastDay",
                 "name",
+                "salaryDay",
                 "state"
             ]
         );
@@ -461,6 +467,7 @@ mod tests {
         // It counts every account, so no account is named.
         assert_eq!(text_of(&rows[0], "accounts"), "");
         assert_eq!(text_of(&rows[0], "every"), "month");
+        assert_eq!(number_of(&rows[0], "salaryDay"), 0);
         assert_eq!(text_of(&rows[0], "state"), "running");
         assert_eq!(text_of(&rows[0], "amount"), "400,00 €");
         assert_eq!(text_of(&rows[0], "amountInput"), "400,00");
@@ -482,6 +489,8 @@ mod tests {
         assert_eq!(text_of(&rows[1], "state"), "upcoming");
         assert!(!keys(&rows[1]).contains(&"bar".to_owned()));
         assert!(!flag_of(&rows[1], "canStop"));
+        assert_eq!(text_of(&rows[1], "every"), "salary-month");
+        assert_eq!(number_of(&rows[1], "salaryDay"), 25);
         let categories = list_of(&view, "categories");
         assert_eq!(
             keys(&categories[0]),
@@ -516,6 +525,7 @@ mod tests {
                 "permille",
                 "planned",
                 "running",
+                "salaryDay",
                 "spent",
                 "used"
             ]

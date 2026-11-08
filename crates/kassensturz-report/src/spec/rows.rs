@@ -322,10 +322,11 @@ fn currency_cell(currency: CurrencyCode) -> Cell {
 }
 
 /// The word of a budget's period in the field `every`, the same as the
-/// book's and the AI's.
+/// book's and the AI's: a salary month is a month that starts on another
+/// day (D-651), and its rows' days say which.
 const fn every_word(every: BudgetEvery) -> &'static str {
     match every {
-        BudgetEvery::Month => "month",
+        BudgetEvery::Month | BudgetEvery::SalaryMonth { .. } => "month",
         BudgetEvery::Quarter => "quarter",
         BudgetEvery::Year => "year",
         BudgetEvery::Range => "range",

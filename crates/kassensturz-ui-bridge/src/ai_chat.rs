@@ -29,7 +29,9 @@ use kassensturz_ai_tools::{
     ToolError, every_word,
 };
 use kassensturz_core::ai_switch::Permissions;
-use kassensturz_core::{AccountKind, Date, ErrorParam, ErrorReport, MatchMode, Money, Rule};
+use kassensturz_core::{
+    AccountKind, BudgetEvery, Date, ErrorParam, ErrorReport, MatchMode, Money, Rule,
+};
 use kassensturz_platform::Secret;
 use kassensturz_report::ComponentType;
 use kassensturz_store::{Book, StoreError};
@@ -488,8 +490,11 @@ pub enum ChangeView {
         /// The names of the accounts it counts from, separated by commas;
         /// empty for every account.
         accounts: String,
-        /// How often it starts again: `month`, `quarter` or `year`.
+        /// How often it starts again: `month`, `salary-month`, `quarter`
+        /// or `year`.
         every: &'static str,
+        /// The day a `salary-month` starts on, else 0 (D-651).
+        salary_day: i32,
         /// The first and last day of its first period, in the user's
         /// format.
         from: String,
@@ -509,9 +514,11 @@ pub enum ChangeView {
         /// The names of the accounts it counts from, separated by commas;
         /// empty for every account.
         accounts: String,
-        /// How often it starts again: `month`, `quarter`, `year` or
-        /// `range`.
+        /// How often it starts again: `month`, `salary-month`, `quarter`,
+        /// `year` or `range`.
         every: &'static str,
+        /// The day a `salary-month` starts on, else 0 (D-651).
+        salary_day: i32,
         /// The first day of the period the change applies from.
         from: String,
         /// The last day of that period.
@@ -688,6 +695,16 @@ pub fn corrected(
     }
 }
 
+/// How often a budget starts again, in the words of the review: a month
+/// from a salary day is `salary-month`, as on the budget page (D-651).
+fn budget_every(every: BudgetEvery) -> &'static str {
+    if every.salary_day().is_some() {
+        "salary-month"
+    } else {
+        every_word(every)
+    }
+}
+
 /// What the changes of `set` do, without what the user did with them: for
 /// tests that look only at the views.
 #[cfg(test)]
@@ -833,7 +850,8 @@ fn view_of(
         ProposedChange::NewBudget(new) => ChangeView::NewBudget {
             category: paths_text(&new.paths),
             accounts: new.account_names.join(", "),
-            every: every_word(new.every),
+            every: budget_every(new.every),
+            salary_day: new.every.salary_day().map_or(0, i32::from),
             from: locale.short_date(new.first_day),
             to: locale.short_date(new.first_period_end),
             amount: AmountWriter::new(book, new.amount.currency(), locale)?
@@ -851,7 +869,8 @@ fn view_of(
             ChangeView::EditBudget {
                 category: paths_text(&edit.paths),
                 accounts: edit.account_names.join(", "),
-                every: every_word(edit.every),
+                every: budget_every(edit.every),
+                salary_day: edit.every.salary_day().map_or(0, i32::from),
                 from: locale.short_date(edit.from_day),
                 to: locale.short_date(edit.from_period_end),
                 before: writer.text(edit.before.amount).exact,

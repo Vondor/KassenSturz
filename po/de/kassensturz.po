@@ -18728,3 +18728,17 @@ msgstr "Formel: %1"
 msgctxt "@info %1 is a number or a formula: what a full progress bar stands for"
 msgid "A full bar is: %1"
 msgstr "Ein voller Balken ist: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml
+#: crates/kassensturz-ui-bridge/qml/BudgetWords.qml
+#, kde-format
+msgctxt "@info how often a budget repeats; %1 is a day of the month, 1 to 31"
+msgid "Every salary month, from day %1"
+msgstr "Jeden Gehaltsmonat, ab dem %1."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetWords.qml
+msgctxt ""
+"@item:inlistbox how often a budget repeats; a salary month runs from a day "
+"the user chooses, such as payday, to the day before it in the next month"
+msgid "Every salary month"
+msgstr "Jeden Gehaltsmonat"

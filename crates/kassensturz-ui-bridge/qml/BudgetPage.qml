@@ -40,6 +40,8 @@ Kirigami.ScrollablePage {
     readonly property var accountChoices: budgets.view.accounts ?? []
     readonly property string everyWord: adding ? words.everyWords[everyBox.currentIndex] : (existing?.every ?? "month")
     readonly property bool repeats: everyWord !== "range"
+    // What the book is asked for: a salary month with its day (D-651).
+    readonly property string everyKey: everyWord === "salary-month" ? "salary-month-" + salaryDayBox.value : everyWord
     // The periods to start with (new) or to change from (existing).
     property var starts: []
     readonly property var changes: existing?.changes ?? []
@@ -57,12 +59,12 @@ Kirigami.ScrollablePage {
     }
 
     function loadStarts() {
-        starts = adding && repeats ? budgets.startChoices(everyWord) : [];
+        starts = adding && repeats ? budgets.startChoices(everyKey) : [];
         const current = starts.findIndex(choice => choice.current);
         startBox.currentIndex = current >= 0 ? current : 0;
     }
 
-    onEveryWordChanged: loadStarts()
+    onEveryKeyChanged: loadStarts()
 
     Component.onCompleted: {
         if (adding && categoryId !== "") {
@@ -99,7 +101,7 @@ Kirigami.ScrollablePage {
             const first = repeats ? (starts[Math.max(0, startBox.currentIndex)]?.day ?? "") : firstDayField.text;
             const accounts = someAccountsBox.checked ? chosenAccounts : [];
             // The categories, then the accounts after a semicolon (D-639).
-            result = budgets.addBudget(chosenCategories.join(",") + ";" + accounts.join(","), everyWord, amountField.text, repeats && carryBox.checked, first, lastDayField.text);
+            result = budgets.addBudget(chosenCategories.join(",") + ";" + accounts.join(","), everyKey, amountField.text, repeats && carryBox.checked, first, lastDayField.text);
         } else {
             const from = changes[Math.max(0, fromBox.currentIndex)]?.day ?? "";
             result = budgets.changeBudget(budgetId, from, amountField.text, repeats && carryBox.checked);
@@ -233,8 +235,22 @@ Kirigami.ScrollablePage {
         Controls.Label {
             visible: !page.adding
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "How often:")
-            text: words.every(page.everyWord)
+            text: words.everyFrom(page.everyWord, page.existing?.salaryDay ?? 0)
             textFormat: Text.PlainText
+        }
+
+        // A salary month starts on a day the user chooses, such as payday
+        // (D-651).
+        Controls.SpinBox {
+            id: salaryDayBox
+
+            visible: page.adding && page.everyWord === "salary-month"
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label:spinbox the day of the month a salary month starts on", "Starts on day:")
+            from: 1
+            to: 31
+            editable: true
+            value: 1
+            Accessible.name: page.i18nContext.i18nc("@label:spinbox", "The day of the month the salary month starts on")
         }
 
         Controls.ComboBox {

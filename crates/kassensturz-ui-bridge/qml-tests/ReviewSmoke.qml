@@ -89,7 +89,7 @@ Kirigami.ApplicationWindow {
             window.check(page.newBudgets.length === 1, "the page holds the new budget");
             window.check(window.find(page, "AiBudgetChange", []).length === 1, "one budget card");
             window.check(all.includes("Food › Groceries"), "the budget's category is shown");
-            window.check(all.includes("Every month, first period 01.11.2026 to 30.11.2026"), "how often and from when");
+            window.check(all.includes("Every salary month, from day 25, first period 25.10.2026 to 24.11.2026"), "how often, from which day (D-651) and from when, got " + all);
             window.check(all.includes("Average of the last 6 full periods, 01.05.2026 to 31.10.2026: 387,40 € per period (2.324,40 € in all), rounded up to a multiple of 10,00 €."), "how the amount was computed");
 
             // The user corrects the chart before confirming (D-293).

@@ -36,6 +36,10 @@ Kirigami.AbstractCard {
         switch (every) {
         case "month":
             return i18nContext.i18nc("@info how often a budget starts again", "Every month");
+        case "salary-month":
+            // A month from a salary day, the same words as on the budget
+            // page (D-651).
+            return i18nContext.i18nc("@info how often a budget repeats; %1 is a day of the month, 1 to 31", "Every salary month, from day %1", change.salaryDay ?? 1);
         case "quarter":
             return i18nContext.i18nc("@info how often a budget starts again", "Every quarter");
         case "year":

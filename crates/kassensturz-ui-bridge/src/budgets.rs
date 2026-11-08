@@ -74,17 +74,34 @@ impl From<ChartsError> for BudgetsError {
     }
 }
 
-/// A budget's period word, as QML says it (the keys of D-344).
+/// A budget's period word, as QML says it (the keys of D-344); a month
+/// from a salary day is `salary-month` (D-651).
 const fn every_key(every: BudgetEvery) -> &'static str {
     match every {
         BudgetEvery::Month => "month",
+        BudgetEvery::SalaryMonth { .. } => "salary-month",
         BudgetEvery::Quarter => "quarter",
         BudgetEvery::Year => "year",
         BudgetEvery::Range => "range",
     }
 }
 
+/// The day a salary month starts on for QML, 0 for any other period.
+fn salary_day_of(every: BudgetEvery) -> i32 {
+    every.salary_day().map_or(0, i32::from)
+}
+
+/// The period of `key`; `salary-month-D` is a salary month from day D,
+/// where day 1 is the calendar month, the words of the reports' salary
+/// months (D-645, D-651).
 fn every_of(key: &str) -> Result<BudgetEvery, BudgetsError> {
+    if let Some(day) = key.strip_prefix("salary-month-") {
+        return day
+            .parse::<i8>()
+            .ok()
+            .and_then(BudgetEvery::salary_month)
+            .ok_or(BudgetsError::UnknownName("every"));
+    }
     [
         BudgetEvery::Month,
         BudgetEvery::Quarter,
@@ -123,8 +140,10 @@ pub struct Bar {
     /// The names of the accounts it counts from, separated by commas;
     /// empty when it counts every account (D-639).
     pub accounts: String,
-    /// `month`, `quarter`, `year` or `range`.
+    /// `month`, `salary-month`, `quarter`, `year` or `range`.
     pub every: &'static str,
+    /// The day a `salary-month` starts on, else 0 (D-651).
+    pub salary_day: i32,
     /// The category's currency.
     pub currency: String,
     /// The period's first day, as the user writes dates.
@@ -215,6 +234,7 @@ fn bar<L: Locale>(
         name: shown.categories_text(" › "),
         accounts: accounts_text(&shown.accounts, names),
         every: every_key(shown.every),
+        salary_day: salary_day_of(shown.every),
         currency: shown.currency.to_string(),
         first_day: locale.short_date(period.first_day),
         last_day: locale.short_date(period.last_day),
@@ -490,8 +510,10 @@ pub struct BudgetRow {
     /// The names of the accounts it counts from, separated by commas;
     /// empty when it counts every account.
     pub accounts: String,
-    /// `month`, `quarter`, `year` or `range`.
+    /// `month`, `salary-month`, `quarter`, `year` or `range`.
     pub every: &'static str,
+    /// The day a `salary-month` starts on, else 0 (D-651).
+    pub salary_day: i32,
     /// The categories' currency.
     pub currency: String,
     /// What it plans now, or at its last period if it has ended.
@@ -583,6 +605,7 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
                 .join(", "),
             accounts: accounts_text(&budget.accounts, &names),
             every: every_key(budget.every),
+            salary_day: salary_day_of(budget.every),
             currency: category.currency.clone(),
             amount: text.amount(planned.amount),
             amount_input: book
@@ -695,7 +718,8 @@ pub struct NewBudget<'a> {
     /// The IDs of the user's own accounts it counts from, as text; empty for
     /// every account.
     pub accounts: &'a [String],
-    /// `month`, `quarter`, `year` or `range`.
+    /// `month`, `salary-month-D` (from day D, 1 to 31; D-651), `quarter`,
+    /// `year` or `range`.
     pub every: &'a str,
     /// The amount per period, as typed.
     pub amount: &'a str,
@@ -1241,6 +1265,61 @@ mod tests {
             start_choices("weekly", &TestLocale),
             Err(BudgetsError::UnknownName("every"))
         ));
+    }
+
+    #[test]
+    fn a_budget_can_repeat_every_salary_month_from_its_day() {
+        // On 19 October the salary month from day 25 runs from 25 September
+        // to 24 October (D-651).
+        let months = start_choices("salary-month-25", &TestLocale).expect("choices");
+        assert_eq!(months[0].day, "2026-10-25");
+        assert!(!months[0].current);
+        assert_eq!(months[1].day, "2026-09-25");
+        assert!(months[1].current);
+        assert_eq!(months[1].last_day, "2026-10-24");
+        assert_eq!(months[2].day, "2026-08-25");
+        // Day 1 is the calendar month; a day outside a month is refused.
+        assert_eq!(
+            start_choices("salary-month-1", &TestLocale).unwrap()[1].day,
+            "2026-10-01"
+        );
+        for word in [
+            "salary-month-0",
+            "salary-month-32",
+            "salary-month",
+            "salary-month-x",
+        ] {
+            assert!(matches!(
+                start_choices(word, &TestLocale),
+                Err(BudgetsError::UnknownName("every"))
+            ));
+        }
+
+        let mut f = fixture();
+        let food = f.food.clone();
+        f.spend(&food, day(2026, 9, 24), 1_000);
+        f.spend(&food, day(2026, 10, 1), 2_000);
+        let new = NewBudget {
+            categories: &[food],
+            accounts: &[],
+            every: "salary-month-25",
+            amount: "100",
+            carry_over: false,
+            first_day: "",
+            last_day: "",
+        };
+        add_budget(&mut f.book, &new, &TestLocale).expect("added");
+        let row = &view(&f.book, &TestLocale).unwrap().budgets[0];
+        assert_eq!((row.every, row.salary_day), ("salary-month", 25));
+        assert_eq!(row.first_day, "2026-09-25");
+        let bar = row.bar.as_ref().expect("a running bar");
+        assert_eq!((bar.every, bar.salary_day), ("salary-month", 25));
+        assert_eq!(
+            (bar.first_day.as_str(), bar.last_day.as_str()),
+            ("2026-09-25", "2026-10-24")
+        );
+        // 24 September is in the salary month before.
+        assert_eq!(bar.spent, "20,00 €");
     }
 
     #[test]

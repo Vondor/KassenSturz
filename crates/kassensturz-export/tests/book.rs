@@ -512,6 +512,20 @@ fn sample() -> BookData {
                     carry_over: false,
                 }],
             },
+            // A salary month from the 25th to the 24th (D-651).
+            Budget {
+                id: BudgetId::from_bytes(id(0x93)),
+                categories: vec![AccountId::from_bytes(id(food))],
+                accounts: vec![AccountId::from_bytes(id(2))],
+                every: BudgetEvery::SalaryMonth { day: 25 },
+                first_day: date(2026, 9, 25),
+                last_day: Some(date(2026, 12, 24)),
+                amounts: vec![BudgetAmount {
+                    from_day: date(2026, 9, 25),
+                    amount: eur(10_000),
+                    carry_over: true,
+                }],
+            },
         ],
     }
 }
@@ -675,13 +689,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 9", "\"version\": 10")),
-        Err(ExportError::NewerVersion { version: 10 })
+        read_book(&changed("\"version\": 10", "\"version\": 11")),
+        Err(ExportError::NewerVersion { version: 11 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 9",
+                "\"version\": 10",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1535,5 +1549,64 @@ fn a_budgets_categories_and_accounts_are_lists_from_version_9() {
     assert_eq!(
         read_book(version(9, &not_an_id).as_bytes()),
         bad("budgets[0].categories[0]", Expected::Id)
+    );
+}
+
+#[test]
+fn a_monthly_budget_keeps_its_salary_day_from_version_10() {
+    // Version 10 gives a monthly budget the day its periods start on
+    // (D-651); a file of version 9 has none, so its months are calendar
+    // months.
+    let lists = r#""institutions": [], "payees": [], "tags": [], "rates": [], "bank_links": [], "views": [], "groups": [], "hidden_categories": []"#;
+    let version = |number: u64, budgets: &str| {
+        SHORT
+            .replacen("\"version\": 1", &format!("\"version\": {number}"), 1)
+            .replacen(r#""rates": []"#, lists, 1)
+            .replacen(
+                r#""hidden_categories": []"#,
+                &format!(r#""hidden_categories": [], "budgets": [{budgets}]"#),
+                1,
+            )
+    };
+    let food = "019a0000-0000-7000-8000-000000000002";
+    let budget = |every: &str, salary_day: &str| {
+        format!(
+            r#"{{"id": "019a0000-0000-7000-8000-000000000091", "categories": ["{food}"], "accounts": [], "every": "{every}"{salary_day}, "first_day": "2026-09-25", "amounts": [{{"from_day": "2026-09-25", "amount": "400", "currency": "EUR", "carry_over": false}}]}}"#
+        )
+    };
+    let book =
+        read_book(version(10, &budget("month", r#", "salary_day": 25"#)).as_bytes()).expect("read");
+    assert_eq!(book.budgets[0].every, BudgetEvery::SalaryMonth { day: 25 });
+    let book = read_book(version(10, &budget("month", r#", "salary_day": null"#)).as_bytes())
+        .expect("read");
+    assert_eq!(book.budgets[0].every, BudgetEvery::Month);
+    // Left out is none, as for a last day; version 9 doesn't know the key.
+    let book = read_book(version(10, &budget("month", "")).as_bytes()).expect("read");
+    assert_eq!(book.budgets[0].every, BudgetEvery::Month);
+    assert_eq!(
+        read_book(version(9, &budget("month", r#", "salary_day": 25"#)).as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "budgets[0].salary_day".into()
+        })
+    );
+    // Only a month has one, and only a day from 2 to 31.
+    for day in ["1", "32", "0", "-3", "\"25\""] {
+        assert_eq!(
+            read_book(
+                version(10, &budget("month", &format!(r#", "salary_day": {day}"#))).as_bytes()
+            ),
+            Err(ExportError::BadValue {
+                path: "budgets[0].salary_day".into(),
+                expected: Expected::Number
+            }),
+            "{day}"
+        );
+    }
+    assert_eq!(
+        read_book(version(10, &budget("quarter", r#", "salary_day": 25"#)).as_bytes()),
+        Err(ExportError::BadValue {
+            path: "budgets[0].salary_day".into(),
+            expected: Expected::Null
+        })
     );
 }

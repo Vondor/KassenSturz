@@ -1018,14 +1018,18 @@ fn a_setting_that_does_not_suit_the_data_says_what_does() {
         propose_view(&book, &arguments, Permissions::all()).expect_err("refused")
     };
 
+    // Today's balances have no time axis, so no line (D-666).
     let line = refuse(json!({
-        "title": "Cash flow", "data": "cash_flow_by_month", "show_as": "line"
+        "title": "Balances", "data": "account_balances", "show_as": "line"
     }));
     assert_eq!(view_code(Err(line.without_item())), "bad-argument show_as");
     let line = refuse(json!({
-        "title": "Cash flow", "data": "cash_flow_by_month", "show_as": "line"
+        "title": "Balances", "data": "account_balances", "show_as": "line"
     }));
-    assert_eq!(line.allowed_fields(), Some(&["auto", "bar", "table"][..]));
+    assert_eq!(
+        line.allowed_fields(),
+        Some(&["auto", "bar", "figure", "table"][..])
+    );
     assert_eq!(line.use_instead(), None);
 
     let figure = refuse(json!({

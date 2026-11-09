@@ -55,9 +55,11 @@ DataTable {
         }
         return rows.map((row, index) => (chart.unsortedIndex === index)
             ? [i18nContext.i18nc("@label money with no category yet", "Not sorted yet"), ...row.slice(1)]
-            : (chart.round && chart.slices.other === index)
+            // A pie and one bar split into the categories (D-666) both have
+            // "Other" and refunds that are not drawn.
+            : (chart.slices.other === index)
                 ? [i18nContext.i18nc("@label the smaller slices of a pie put together", "Other"), ...row.slice(1)]
-                : (chart.round && chart.slices.undrawn[index] === true)
+                : (chart.slices.undrawn[index] === true)
                     ? [i18nContext.i18nc("@label %1 is a category, whose total is money that came back", "%1 (money that came back, not drawn)", row[0]), ...row.slice(1)]
                     : row);
     }

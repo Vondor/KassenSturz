@@ -565,7 +565,12 @@ mod tests {
             for dataset in kind.datasets() {
                 let component = component(kind, dataset.id);
                 let preview = properties::preview(&component);
-                if preview.chart.is_empty() {
+                if preview.shows == "budget-table" {
+                    // The budgets' table shows the budget bars' figures
+                    // (D-666).
+                    crate::budgets::bars(&book, &locale, "this-year", &[])
+                        .unwrap_or_else(|e| panic!("{} on {}: {e:?}", kind.id(), dataset.id));
+                } else if preview.chart.is_empty() {
                     let request = cards::Request {
                         dataset: dataset.id.into(),
                         period: "this-year".into(),
@@ -757,6 +762,29 @@ mod tests {
         let preview = object_of(&view, "preview");
         assert_eq!(text_of(&preview, "budgets"), "b1,b2");
         assert_eq!(text_of(&preview, "shows"), "budget-progress");
+    }
+
+    /// The budgets as a table (D-666): drawn from the budget bars' figures,
+    /// with nothing to group; any other table still asks for a bar chart.
+    #[test]
+    fn the_budgets_table_asks_for_the_budget_figures_and_offers_no_grouping() {
+        let table = component(
+            ComponentType::TableRows,
+            kassensturz_report::BUDGET_UTILIZATION,
+        );
+        let view = view_object(Some(&table), None, NumberForm::DecimalComma);
+        let preview = object_of(&view, "preview");
+        assert_eq!(text_of(&preview, "shows"), "budget-table");
+        assert_eq!(text_of(&preview, "chart"), "");
+        let fields = keys_of_fields(&table, NumberForm::DecimalComma);
+        assert!(!fields.iter().any(|key| key == "grouping"), "{fields:?}");
+        assert!(fields.iter().any(|key| key == "categories"), "{fields:?}");
+        let other = component(
+            ComponentType::TableRows,
+            kassensturz_report::CATEGORY_OVER_TIME,
+        );
+        let preview = properties::preview(&other);
+        assert_eq!((preview.shows, preview.chart), ("table", "bar"));
     }
 
     fn keys_of_fields(component: &Component, form: NumberForm) -> Vec<String> {

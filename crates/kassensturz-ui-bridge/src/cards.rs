@@ -13,9 +13,10 @@
 
 use kassensturz_core::{CurrencyCode, Money};
 use kassensturz_report::{
-    ACCOUNT_BALANCES, Change, Compare, Filter, INCOME_EXPENSE_BY_MONTH, IncomeExpenseChange,
-    Percent, ReportError, Source, TextFormat, Worth, account_balances, compare_income_expense,
-    comparison_span,
+    ACCOUNT_BALANCES, CASH_FLOW_BY_MONTH, Change, Compare, Filter, INCOME_EXPENSE_BY_MONTH,
+    IncomeExpenseChange, Level, Percent, ReportError, SPENDING_BY_CATEGORY, Source, TextFormat,
+    Worth, account_balances, cash_flow_by_month, compare_income_expense, comparison_span,
+    spending_by_category,
 };
 use kassensturz_store::Book;
 
@@ -27,8 +28,9 @@ use crate::session;
 /// What the user asked for, by the fixed names QML uses.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Request {
-    /// The dataset the cards are made from: `income_expense_by_month` or
-    /// `account_balances`. Empty means the first.
+    /// The dataset the cards are made from: `income_expense_by_month`,
+    /// `account_balances`, `cash_flow_by_month` or `spending_by_category`
+    /// (the last two since D-666). Empty means the first.
     pub dataset: String,
     /// `this-month`, `last-month`, `last-12-months`, `this-year`,
     /// `last-year` or `today`.
@@ -77,7 +79,9 @@ impl Direction {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Card {
     /// `income`, `expenses`, `net` or `savings-rate`; `net_worth`, `assets`
-    /// or `liabilities` for the balances.
+    /// or `liabilities` for the balances; `net_change`, `money_in` or
+    /// `money_out` for the money in and out of the accounts; `total` for
+    /// spending (D-666).
     pub measure: &'static str,
     /// The currency code of the amounts; empty for no currency.
     pub currency: String,
@@ -269,6 +273,98 @@ fn balance_cards<L: Locale>(
     Ok(sets)
 }
 
+/// The figures `measures` of one period and of the one before as cards, one
+/// set per currency either has, in the order of the currency codes; a
+/// currency only one period has counts as zero in the other (D-666).
+fn compared_cards<L: Locale>(
+    now: Vec<(CurrencyCode, Vec<Money>)>,
+    then: Vec<(CurrencyCode, Vec<Money>)>,
+    measures: &[&'static str],
+    text: &AppText<'_, L>,
+) -> Result<Vec<CardSet>, ChartsError> {
+    let mut currencies: Vec<CurrencyCode> = now
+        .iter()
+        .chain(&then)
+        .map(|(currency, _)| *currency)
+        .collect();
+    currencies.sort_unstable();
+    currencies.dedup();
+    let of = |sets: &[(CurrencyCode, Vec<Money>)], currency: CurrencyCode, index: usize| {
+        sets.iter()
+            .find(|(code, _)| *code == currency)
+            .and_then(|(_, figures)| figures.get(index).copied())
+            .unwrap_or(Money::zero(currency))
+    };
+    let mut sets = Vec::with_capacity(currencies.len());
+    for currency in currencies {
+        let code = currency.to_string();
+        let cards = measures
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, measure)| {
+                let change = Change::new(of(&then, currency, index), of(&now, currency, index))?;
+                Ok(amount_card(measure, &change, &code, text))
+            })
+            .collect::<Result<Vec<_>, ReportError>>()?;
+        sets.push(CardSet {
+            cards,
+            currency: code,
+        });
+    }
+    Ok(sets)
+}
+
+/// The money in and out of the chosen accounts over the whole period and
+/// the one `compare` names: the net change, money in and money out (D-666).
+/// `source` must have been read with balances for both periods.
+fn cash_flow_cards<L: Locale>(
+    source: &Source,
+    period: kassensturz_report::Period,
+    compare: Compare,
+    filter: &Filter,
+    text: &AppText<'_, L>,
+) -> Result<Vec<CardSet>, ChartsError> {
+    let figures = |period| -> Result<Vec<(CurrencyCode, Vec<Money>)>, ReportError> {
+        Ok(cash_flow_by_month(source, period, filter)?
+            .iter()
+            .map(|result| {
+                let total = &result.total;
+                (
+                    result.currency,
+                    vec![total.net_change, total.money_in, total.money_out],
+                )
+            })
+            .collect())
+    };
+    let earlier = compare.earlier(period)?;
+    compared_cards(
+        figures(period)?,
+        figures(earlier)?,
+        &["net_change", "money_in", "money_out"],
+        text,
+    )
+}
+
+/// What was spent in the period and in the one `compare` names, hidden
+/// categories and money not sorted yet included (D-666).
+fn spending_cards<L: Locale>(
+    source: &Source,
+    period: kassensturz_report::Period,
+    compare: Compare,
+    filter: &Filter,
+    text: &AppText<'_, L>,
+) -> Result<Vec<CardSet>, ChartsError> {
+    let figures = |period| -> Result<Vec<(CurrencyCode, Vec<Money>)>, ReportError> {
+        Ok(spending_by_category(source, period, filter, Level::Each)?
+            .iter()
+            .map(|result| (result.currency, vec![result.total]))
+            .collect())
+    };
+    let earlier = compare.earlier(period)?;
+    compared_cards(figures(period)?, figures(earlier)?, &["total"], text)
+}
+
 /// The cards of every currency the period or the one before has money in,
 /// in the order of the currency codes. Empty means there was nothing to show.
 #[cfg(test)]
@@ -305,7 +401,7 @@ pub fn cards_filtered(
                 view,
             ))
         }
-        ACCOUNT_BALANCES => {
+        ACCOUNT_BALANCES | CASH_FLOW_BY_MONTH => {
             let source = session::cached_source(book, span, true, || {
                 Source::read_with_balances(book, span)
             })?;
@@ -313,8 +409,21 @@ pub fn cards_filtered(
             if view.nothing {
                 return Ok((Vec::new(), view));
             }
+            let sets = if request.dataset == CASH_FLOW_BY_MONTH {
+                cash_flow_cards(&source, period, compare, &filter, &text)?
+            } else {
+                balance_cards(&source, period, compare, &filter, &text)?
+            };
+            Ok((sets, view))
+        }
+        SPENDING_BY_CATEGORY => {
+            let source = session::cached_source(book, span, false, || Source::read(book, span))?;
+            let (filter, view) = request.scope.resolve(book, &source)?;
+            if view.nothing {
+                return Ok((Vec::new(), view));
+            }
             Ok((
-                balance_cards(&source, period, compare, &filter, &text)?,
+                spending_cards(&source, period, compare, &filter, &text)?,
                 view,
             ))
         }

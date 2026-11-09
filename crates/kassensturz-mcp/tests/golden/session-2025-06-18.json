@@ -89,10 +89,18 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Money in and money out by category for a period, per currency, largest first: income categories with what came in, spending categories with what went out, \"left\" as money in minus money out, and how many transactions moved money between the user's own accounts. Such moves and starting balances count as neither income nor spending. Money not sorted into a category yet has \"unsorted\": true. A row's \"amount\" is what is booked to that category itself, so the rows add up to the totals. A category with subcategories also has \"amount_with_subcategories\": that category and everything below it; for \"how much on Food\" use that figure, never the sum of the rows.",
+            "description": "Money in and money out by category for a period, per currency, largest first: income categories with what came in, spending categories with what went out, \"left\" as money in minus money out, and how many transactions moved money between the user's own accounts. Such moves and starting balances count as neither income nor spending. Money not sorted into a category yet has \"unsorted\": true. A row's \"amount\" is what is booked to that category itself, so the rows add up to the totals. A category with subcategories also has \"amount_with_subcategories\": that category and everything below it; for \"how much on Food\" use that figure, never the sum of the rows. With \"account_ids\" only transactions with a part in one of those accounts count, each as a whole, and \"accounts\" names them.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {
+                "account_ids": {
+                  "description": "Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
                 "from": {
                   "description": "First day, YYYY-MM-DD.",
                   "format": "date",
@@ -119,10 +127,18 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Who the user paid and who paid the user in a period, per currency, largest first: \"paid\" with what went to each payee, \"received\" with what came from each, and how many transactions. Each payee's figure is net, so a refund from a shop lowers what was paid to it. Moves between the user's own accounts and starting balances are left out. Use it for questions such as \"whom did I pay the most\" instead of adding up search results yourself.",
+            "description": "Who the user paid and who paid the user in a period, per currency, largest first: \"paid\" with what went to each payee, \"received\" with what came from each, and how many transactions. Each payee's figure is net, so a refund from a shop lowers what was paid to it. Moves between the user's own accounts and starting balances are left out. Use it for questions such as \"whom did I pay the most\" instead of adding up search results yourself. With \"account_ids\" only what went out of or into those accounts counts, and \"accounts\" names them.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {
+                "account_ids": {
+                  "description": "Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
                 "from": {
                   "description": "First day, YYYY-MM-DD.",
                   "format": "date",

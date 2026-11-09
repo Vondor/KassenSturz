@@ -328,36 +328,30 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
                 name it is saved under. Never put numbers in it as facts.",
         }),
     );
-    properties.insert(
-        "data".into(),
-        choice(
-            "data",
-            "What the chart shows. The description of this function says what each one counts.",
-        ),
-    );
+    properties.insert("data".into(), choice("data", &data_help()));
     properties.insert(
         "show_as".into(),
         choice(
             "show_as",
             "How it is drawn, or auto to let KassenSturz pick what suits the data. figure is one \
-             key figure, progress a bar towards a figure. The description of this function lists \
-             the ways each data can be drawn.",
+             key figure, progress a bar towards a figure. The description of data lists the ways \
+             each data can be drawn.",
         ),
     );
     properties.insert(
         "measure".into(),
         choice(
             "measure",
-            "Only for figure: which key figure of the data, as the description of this function \
-             lists them per data. Default: the data's first.",
+            "Only for figure: which key figure of the data, as the description of data lists \
+             them. Default: the data's first.",
         ),
     );
     properties.insert(
         "group_by".into(),
         choice(
             "group_by",
-            "How the figures are grouped, as the description of this function lists them per \
-             data. Default: the data's first.",
+            "How the figures are grouped, as the description of data lists them. Default: the \
+             data's first.",
         ),
     );
     properties.insert(
@@ -503,10 +497,27 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
          in one answer.\n- KassenSturz computes every figure itself and shows the user a \
          preview; nothing is saved until the user confirms it in KassenSturz's window, and the \
          user may refuse it.\n- A refused call says which argument is wrong and, for a list, \
-         which values it takes.\n\nThe data, each with what it counts, the ways it can be \
-         drawn (show_as), grouped (group_by) and, for figure, measured (measure), and its usual \
-         period:"
+         which values it takes.\n- The description of data says what each data counts and how \
+         it can be drawn, grouped and measured."
     ));
+    Some(ProposeSpec {
+        name: PROPOSE_VIEW_NAME,
+        description,
+        parameters: parameters.to_string(),
+    })
+}
+
+/// The description of `data`: each dataset the AI may choose, with what it
+/// counts, the ways it can be drawn, grouped and measured, and its usual
+/// period. It is the longest part of `propose_view`'s help, so it lives
+/// with the argument it explains rather than in the function's description,
+/// which some AI tools cut short (M6-B201).
+fn data_help() -> String {
+    let mut description = String::from(
+        "What the chart shows. Each data, with what it counts, the ways it can be drawn \
+         (show_as), grouped (group_by) and, for figure, measured (measure), and its usual \
+         period:",
+    );
     for dataset in datasets() {
         description.push_str(&format!("\n- {}: {}", dataset.id, dataset.description));
         let fits = fits(dataset);
@@ -523,11 +534,7 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         }
         description.push_str(&format!(" Usual period: {}.", default_period(dataset.id)));
     }
-    Some(ProposeSpec {
-        name: PROPOSE_VIEW_NAME,
-        description,
-        parameters: parameters.to_string(),
-    })
+    description
 }
 
 /// Checks a call of `propose_view` as the model wrote it, `text`, against

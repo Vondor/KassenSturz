@@ -22,6 +22,16 @@ pub enum ToolError {
         /// The argument's name, from the function's fixed list.
         argument: &'static str,
     },
+    /// An object of a `propose_changes` call, such as an item of
+    /// `new_budgets`, has a key it doesn't take (M6-B201). The model's key
+    /// is never repeated back to it (X-8); the answer names the object and
+    /// lists the keys it does take, all from KassenSturz's own fixed lists.
+    UnknownField {
+        /// The object's name, such as `new_budgets` or `arguments`.
+        argument: &'static str,
+        /// The keys the object takes.
+        allowed: &'static [&'static str],
+    },
     /// A call of `propose_view` is longer than its limit (D-353).
     CallTooBig {
         /// The most bytes a call may have.
@@ -185,6 +195,16 @@ impl ToolError {
         }
     }
 
+    /// The keys the object takes, when the error is an unknown key in it
+    /// (M6-B201). The answer to the model lists them, so it can fix its
+    /// call; they come from KassenSturz's fixed lists, never from the call.
+    pub fn allowed_fields(&self) -> Option<&'static [&'static str]> {
+        match self.kind() {
+            Self::UnknownField { allowed, .. } => Some(allowed),
+            _ => None,
+        }
+    }
+
     /// The error itself, without the place of the item it came from.
     pub fn kind(&self) -> &Self {
         match self {
@@ -223,6 +243,8 @@ impl Report for ToolError {
         match self {
             Self::UnknownFunction => ErrorReport::new("ai-tools.unknown-function"),
             Self::BadArgument { argument } => ErrorReport::new("ai-tools.bad-argument")
+                .with("argument", ErrorParam::Keyword(argument)),
+            Self::UnknownField { argument, .. } => ErrorReport::new("ai-tools.unknown-field")
                 .with("argument", ErrorParam::Keyword(argument)),
             Self::CallTooBig { max_bytes } => ErrorReport::new("ai-tools.call-too-big")
                 .with("max_bytes", ErrorParam::count(*max_bytes)),
@@ -434,6 +456,33 @@ mod tests {
                 ToolError::IssueSecret { field },
             ]
         }));
+        // A key an object of the call doesn't take (M6-B201).
+        examples.extend(
+            [
+                "arguments",
+                "new_categories",
+                "edit_categories",
+                "new_rules",
+                "edit_rules",
+                "move_rules",
+                "delete_rules",
+                "conditions",
+                "categorize",
+                "delete_categories",
+                "new_accounts",
+                "edit_accounts",
+                "edit_transactions",
+                "new_transactions",
+                "delete_transactions",
+                "new_views",
+                "new_budgets",
+                "edit_budgets",
+            ]
+            .map(|argument| ToolError::UnknownField {
+                argument,
+                allowed: &["name"],
+            }),
+        );
         examples.extend(
             ARGUMENTS
                 .iter()

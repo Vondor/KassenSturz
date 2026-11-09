@@ -7,6 +7,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use kassensturz_ai_tools::requests::RequestFolder;
 #[cfg(feature = "debug-log")]
@@ -23,7 +24,7 @@ use rmcp::model::{
     ToolAnnotations,
 };
 use rmcp::service::{RequestContext, ServerInitializeError};
-use rmcp::{ErrorData, RoleServer, ServerHandler, ServiceExt};
+use rmcp::{ErrorData, Peer, RoleServer, ServerHandler, ServiceExt};
 use serde_json::{Map, Value};
 
 use crate::writes::{self, Failure, WAITS, Waits};
@@ -50,6 +51,14 @@ pub(crate) async fn serve(book: PathBuf) -> Result<(), String> {
     };
     #[cfg(feature = "debug-log")]
     server.debug_log.record(Event::McpStarted, None, None);
+    #[cfg(feature = "debug-log")]
+    let debug_log = server.debug_log.clone();
+    let log_readable = move || {
+        #[cfg(feature = "debug-log")]
+        return debug_log.readable_by_ai();
+        #[cfg(not(feature = "debug-log"))]
+        false
+    };
     let running = match server.serve(rmcp::transport::stdio()).await {
         Ok(running) => running,
         // The AI tool closed the connection before it asked anything.
@@ -60,11 +69,53 @@ pub(crate) async fn serve(book: PathBuf) -> Result<(), String> {
             ));
         }
     };
-    running
+    let watcher = tokio::spawn(watch_tool_list(running.peer().clone(), log_readable));
+    let stopped = running
         .waiting()
         .await
         .map(|_| ())
-        .map_err(|error| format!("the server stopped: {error}"))
+        .map_err(|error| format!("the server stopped: {error}"));
+    watcher.abort();
+    stopped
+}
+
+/// How often the server looks whether the tool list changed (M6-B201).
+const TOOL_LIST_CHECK: Duration = Duration::from_secs(2);
+
+/// Tells the AI tool when the tools it would be offered change while it is
+/// connected, with `notifications/tools/list_changed`, so it asks for the
+/// list again (M6-B201). The list follows the AI settings: a switch in the
+/// permission grid, the write tools or the developer mode changes it. It
+/// only notices; the tools themselves are always built afresh for each
+/// `tools/list`. While AI is off it sends nothing, and the next request
+/// stops the server as before (D-013).
+async fn watch_tool_list(peer: Peer<RoleServer>, log_readable: impl Fn() -> bool) {
+    let mut listed = tool_list(log_readable());
+    loop {
+        tokio::time::sleep(TOOL_LIST_CHECK).await;
+        if !ai_switch::enabled() {
+            continue;
+        }
+        let now = tool_list(log_readable());
+        if now != listed {
+            listed = now;
+            if peer.notify_tool_list_changed().await.is_err() {
+                // The AI tool is gone; the server stops with it.
+                return;
+            }
+        }
+    }
+}
+
+/// The tools the AI tool would be offered now, as they are sent, to tell
+/// when they change.
+fn tool_list(log_readable: bool) -> String {
+    serde_json::to_string(&tools(
+        ai_switch::permissions(),
+        write_permissions(),
+        log_readable,
+    ))
+    .unwrap_or_default()
 }
 
 /// The server: which book it reads, and where requests to the app go.
@@ -82,14 +133,17 @@ struct Server {
 
 impl ServerHandler for Server {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(
-                Implementation::new("kassensturz-mcp", VERSION).with_title("KassenSturz"),
-            )
-            .with_instructions(instructions(
-                write_permissions().is_some(),
-                self.log_readable(),
-            ))
+        ServerConfig::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_tool_list_changed()
+                .build(),
+        )
+        .with_server_info(Implementation::new("kassensturz-mcp", VERSION).with_title("KassenSturz"))
+        .with_instructions(instructions(
+            write_permissions().is_some(),
+            self.log_readable(),
+        ))
     }
 
     async fn list_tools(
@@ -128,7 +182,7 @@ impl ServerHandler for Server {
                 ),
                 Err(Failure::Tool(error)) => {
                     let report = error.model_report();
-                    (error_result(&report), Some(report.code))
+                    (error_result(&report, &error), Some(report.code))
                 }
                 // The app's answer is read from a file: its code stays out
                 // of the debug log, which takes only fixed codes.
@@ -326,18 +380,32 @@ fn outcome(
         ),
         Err(error) => {
             let report = error.report();
-            (error_result(&report), Some(report.code))
+            (error_result(&report, &error), Some(report.code))
         }
     }
 }
 
 /// An error's answer: its code, the report's keywords, the code of its
 /// cause with the cause's keywords, and for a book this server can't read
-/// because of its layout, what the user does next (M6-B194).
-fn error_result(report: &ErrorReport) -> CallToolResult {
+/// because of its layout, what the user does next (M6-B194). For a key an
+/// object doesn't take, `allowed` lists the keys it does take (M6-B201);
+/// for a chart setting that doesn't suit the chart, the words that do, in
+/// `use_instead` the argument to use, or in `only_for_show_as` the ways of
+/// drawing that take it (M6-B204). All from KassenSturz's
+/// fixed lists, never the model's own text (X-8).
+fn error_result(report: &ErrorReport, error: &ToolError) -> CallToolResult {
     let mut value = Map::new();
     value.insert("error".into(), Value::from(report.code));
     add_params(&mut value, report);
+    if let Some(allowed) = error.allowed_fields() {
+        value.insert("allowed".into(), Value::from(allowed.to_vec()));
+    }
+    if let Some(argument) = error.use_instead() {
+        value.insert("use_instead".into(), Value::from(argument));
+    }
+    if let Some(ways) = error.only_for_show_as() {
+        value.insert("only_for_show_as".into(), Value::from(ways.to_vec()));
+    }
     if let Some(cause) = &report.cause {
         value.insert("cause".into(), Value::from(cause.code));
         // E.g. the book's layout and the one this server reads, so the AI
@@ -390,15 +458,107 @@ mod tests {
     use super::*;
     use kassensturz_ai_tools::FUNCTIONS;
 
+    /// The longest tool description the server sends.
+    const MAX_DESCRIPTION_CHARS: usize = 4_000;
+
     #[test]
     fn a_refused_item_is_named_by_its_list_and_place() {
-        let report = ToolError::NameTaken.at("new_rules", 1).model_report();
-        let result = serde_json::to_value(error_result(&report)).expect("JSON");
+        let error = ToolError::NameTaken.at("new_rules", 1);
+        let result =
+            serde_json::to_value(error_result(&error.model_report(), &error)).expect("JSON");
         let text = result["content"][0]["text"].as_str().expect("text");
         let answer: Value = serde_json::from_str(text).expect("JSON text");
         assert_eq!(
             answer,
             serde_json::json!({"error": "ai-tools.name-taken", "list": "new_rules", "item": 2})
+        );
+    }
+
+    #[test]
+    fn an_unknown_key_is_answered_with_the_keys_its_object_takes() {
+        let error = ToolError::UnknownField {
+            argument: "new_budgets",
+            allowed: &["category_id", "every"],
+        }
+        .at("new_budgets", 0);
+        let report = error.model_report();
+        let result = serde_json::to_value(error_result(&report, &error)).expect("JSON");
+        let text = result["content"][0]["text"].as_str().expect("text");
+        let answer: Value = serde_json::from_str(text).expect("JSON text");
+        assert_eq!(
+            answer,
+            serde_json::json!({
+                "error": "ai-tools.unknown-field",
+                "argument": "new_budgets",
+                "list": "new_budgets",
+                "item": 1,
+                "allowed": ["category_id", "every"],
+            })
+        );
+    }
+
+    /// Some AI tools cut a long tool description short, as one did with
+    /// `propose_view`'s 5,325 characters (M6-B201). The details live in the
+    /// parameters' descriptions, so every description stays well under that.
+    #[test]
+    fn every_tool_description_is_short_enough_to_arrive_whole() {
+        for tool in tools(Permissions::all(), Some(Permissions::all()), true) {
+            let length = tool
+                .description
+                .as_deref()
+                .unwrap_or_default()
+                .chars()
+                .count();
+            assert!(length <= MAX_DESCRIPTION_CHARS, "{}: {length}", tool.name);
+        }
+    }
+
+    #[test]
+    fn a_chart_setting_that_does_not_suit_says_what_does() {
+        let answer = |error: ToolError| -> Value {
+            let result =
+                serde_json::to_value(error_result(&error.model_report(), &error)).expect("JSON");
+            serde_json::from_str(result["content"][0]["text"].as_str().expect("text"))
+                .expect("JSON text")
+        };
+        assert_eq!(
+            answer(ToolError::NotForChart {
+                argument: "show_as",
+                allowed: vec!["auto", "bar", "table"],
+                use_instead: None,
+                only_for_show_as: Vec::new(),
+            }),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "show_as",
+                "allowed": ["auto", "bar", "table"],
+            })
+        );
+        assert_eq!(
+            answer(ToolError::NotForChart {
+                argument: "categories",
+                allowed: Vec::new(),
+                use_instead: Some("formula"),
+                only_for_show_as: Vec::new(),
+            }),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "categories",
+                "use_instead": "formula",
+            })
+        );
+        assert_eq!(
+            answer(ToolError::NotForChart {
+                argument: "compare",
+                allowed: Vec::new(),
+                use_instead: None,
+                only_for_show_as: vec!["figure", "progress"],
+            }),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "compare",
+                "only_for_show_as": ["figure", "progress"],
+            })
         );
     }
 

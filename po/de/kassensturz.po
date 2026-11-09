@@ -18325,10 +18325,10 @@ msgstr "Buchungen ohne Kategorie"
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
 #, kde-format
 msgctxt ""
-"@option:check hides the grey note under a number card, the card's title "
-"names the accounts instead"
-msgid "Hide the note about the accounts"
-msgstr "Hinweis zu den Konten ausblenden"
+"@option:check hides the grey lines on a tile that say what it is filtered "
+"to"
+msgid "Hide the grey filter notes"
+msgstr "Graue Filterhinweise ausblenden"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
 #, kde-format

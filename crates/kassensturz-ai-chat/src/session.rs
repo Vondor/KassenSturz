@@ -852,6 +852,7 @@ impl ChatSession {
                 } else {
                     error_json(&report, prepares)
                 };
+                let answer = with_allowed(answer, &error);
                 (prompt::data_json(&answer), Some(report.code))
             }
         };
@@ -1159,6 +1160,30 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     Value::Object(out)
 }
 
+/// `answer` with what the model can use instead: the keys an object
+/// takes, when the call gave it one it doesn't take (M6-B201), or the words
+/// that suit the chart, or the argument to use, when a chart setting
+/// doesn't suit it (M6-B204). From KassenSturz's fixed lists, never the
+/// model's own text (X-8). The error's own list replaces the general one of
+/// the argument that [`view_error_json`] gives.
+fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
+    if let Value::Object(object) = &mut answer {
+        if let Some(allowed) = error.allowed_fields() {
+            object.insert("allowed".into(), json!(allowed));
+        }
+        if let Some(argument) = error.use_instead() {
+            object.insert("use_instead".into(), json!(argument));
+        }
+        if let Some(ways) = error.only_for_show_as() {
+            // A general list of the argument's words would mislead: the
+            // chosen way of drawing takes none of them.
+            object.remove("allowed");
+            object.insert("only_for_show_as".into(), json!(ways));
+        }
+    }
+    answer
+}
+
 /// The dataset a refused call of `propose_view` named, when it is one the AI
 /// may name: the catalog's own id, never the model's text (D-402).
 fn understood_dataset(arguments: &str) -> Option<&'static str> {
@@ -1189,6 +1214,23 @@ fn view_error_json(report: &ErrorReport) -> Value {
 mod tests {
     use super::*;
     use kassensturz_ai_tools::FUNCTIONS;
+
+    #[test]
+    fn an_unknown_key_lists_the_keys_its_object_takes() {
+        let error = ToolError::UnknownField {
+            argument: "new_accounts",
+            allowed: &["name", "type", "currency"],
+        }
+        .at("new_accounts", 1);
+        let answer = with_allowed(error_json(&error.model_report(), true), &error);
+        assert_eq!(answer["error"], json!("ai-tools.unknown-field"));
+        assert_eq!(answer["argument"], json!("new_accounts"));
+        assert_eq!(answer["item"], json!(2));
+        assert_eq!(answer["allowed"], json!(["name", "type", "currency"]));
+        // The error's own list replaces a general one.
+        let replaced = with_allowed(json!({"allowed": ["x"]}), &error);
+        assert_eq!(replaced["allowed"], json!(["name", "type", "currency"]));
+    }
 
     #[test]
     fn a_refused_chart_lists_what_its_argument_takes() {

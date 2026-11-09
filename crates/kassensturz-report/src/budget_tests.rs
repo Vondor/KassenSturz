@@ -666,7 +666,10 @@ fn the_dataset_and_its_component_are_offered_since_the_app_draws_them() {
         .iter()
         .map(|property| property.key)
         .collect();
-    assert_eq!(keys, vec!["budgets", "categories", "title", "period"]);
+    assert_eq!(
+        keys,
+        vec!["budgets", "categories", "title", "hide_note", "period"]
+    );
     // Which budgets (D-642): budget IDs as text, empty for every budget.
     let budgets = &kind.properties()[0];
     assert_eq!(budgets.kind, Kind::Budgets);

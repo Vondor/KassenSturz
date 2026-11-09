@@ -206,6 +206,38 @@ pub(crate) fn account_balance(
     }))
 }
 
+/// The days a total counts, both included.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Period {
+    pub(crate) from: Date,
+    pub(crate) to: Date,
+}
+
+/// Whether `transaction` counts for a total limited to `accounts`: it has
+/// a part in one of them (none chosen: every transaction). It counts as a
+/// whole, as the report filters and budgets count it (D-350, D-639,
+/// M6-B206).
+fn in_accounts(transaction: &Transaction, accounts: &[AccountId]) -> bool {
+    accounts.is_empty()
+        || transaction
+            .splits()
+            .iter()
+            .any(|split| split.account.is_some_and(|id| accounts.contains(&id)))
+}
+
+/// The names of `accounts` for a total's `accounts`, in the order given.
+fn account_names(
+    w: &mut Writer<'_>,
+    names: &Names,
+    accounts: &[AccountId],
+) -> Result<Value, ToolError> {
+    let mut list = Vec::with_capacity(accounts.len());
+    for &id in accounts {
+        list.push(w.text(&names.own_account(id)?.name));
+    }
+    Ok(Value::Array(list))
+}
+
 /// What money a part of a transaction counts as in the totals.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Bucket {
@@ -219,8 +251,9 @@ enum Bucket {
 /// hold money, the total with them (M5-B40).
 type Row = (Option<AccountId>, Money, Option<Money>);
 
-/// `category_totals`: money in and money out by category from `from` to
-/// `last`, per currency, counted as the overview counts them (D-021,
+/// `category_totals`: money in and money out by category in `period`, per
+/// currency, only of transactions with a part in `accounts` if any are
+/// chosen (M6-B206), counted as the overview counts them (D-021,
 /// D-089): money moved between the user's own accounts and starting
 /// balances are neither, and each part counts in its transaction's
 /// currency, as the money left or reached the user's accounts.
@@ -228,14 +261,18 @@ pub(crate) fn category_totals(
     book: &Book,
     w: &mut Writer<'_>,
     names: &Names,
-    from: Date,
-    to: Date,
+    period: Period,
+    accounts: &[AccountId],
     limit: usize,
 ) -> Result<Value, ToolError> {
+    let Period { from, to } = period;
     let overflow = |_| StoreError::AmountOverflow;
     let mut sums: HashMap<(CurrencyCode, Bucket), Money> = HashMap::new();
     let mut transfers = 0;
     for transaction in book.transactions_between(from, to)? {
+        if !in_accounts(&transaction, accounts) {
+            continue;
+        }
         let currency = transaction.currency();
         let mut own_accounts = 0;
         for split in transaction.splits() {
@@ -382,6 +419,9 @@ pub(crate) fn category_totals(
     let mut result = Map::new();
     result.insert("from".into(), Value::String(from.to_string()));
     result.insert("to".into(), Value::String(to.to_string()));
+    if !accounts.is_empty() {
+        result.insert("accounts".into(), account_names(w, names, accounts)?);
+    }
     result.insert("currencies".into(), Value::Array(per_currency));
     result.insert("transfers".into(), w.count(transfers));
     Ok(Value::Object(result))
@@ -397,7 +437,8 @@ pub(crate) const DEFAULT_PAYEES: usize = 10;
 type PayeeRow = (Option<String>, Money, usize);
 
 /// `payee_totals`: per currency, who the user paid and who paid the user
-/// from `from` to `to`, net per payee, largest first (Q-414, D-597), so a
+/// in `period`, net per payee, only what went out of or into `accounts` if
+/// any are chosen (M6-B206), largest first (Q-414, D-597), so a
 /// question such as "whom did I pay most" is answered by code, not by the
 /// model's own arithmetic. Counted as `category_totals` counts: money moved
 /// between the user's own accounts and starting balances are left out, and
@@ -407,10 +448,11 @@ pub(crate) fn payee_totals(
     book: &Book,
     w: &mut Writer<'_>,
     names: &Names,
-    from: Date,
-    to: Date,
+    period: Period,
+    accounts: &[AccountId],
     limit: usize,
 ) -> Result<Value, ToolError> {
+    let Period { from, to } = period;
     let overflow = |_| StoreError::AmountOverflow;
     // (currency, payee) -> (money into the user's accounts, net; entries).
     let mut sums: BTreeMap<(String, Option<String>), (Money, usize)> = BTreeMap::new();
@@ -436,6 +478,10 @@ pub(crate) fn payee_totals(
             continue;
         }
         let part = own[0];
+        // The one own account of the entry decides (M6-B206).
+        if !accounts.is_empty() && !part.account.is_some_and(|id| accounts.contains(&id)) {
+            continue;
+        }
         let payee = transaction
             .payee_of(part)
             .or_else(|| {
@@ -493,6 +539,9 @@ pub(crate) fn payee_totals(
     let mut result = Map::new();
     result.insert("from".into(), Value::String(from.to_string()));
     result.insert("to".into(), Value::String(to.to_string()));
+    if !accounts.is_empty() {
+        result.insert("accounts".into(), account_names(w, names, accounts)?);
+    }
     result.insert("currencies".into(), Value::Array(currencies));
     Ok(Value::Object(result))
 }

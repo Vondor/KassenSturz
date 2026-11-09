@@ -146,7 +146,7 @@ fn a_hostile_or_broken_proposal_prepares_nothing() {
     assert!(chat.log().iter().any(|entry| matches!(
         entry,
         LogEntry::Called {
-            error: Some("ai-tools.bad-argument"),
+            error: Some("ai-tools.unknown-field"),
             ..
         }
     )));

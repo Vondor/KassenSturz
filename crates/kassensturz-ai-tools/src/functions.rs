@@ -100,8 +100,10 @@ pub const FUNCTIONS: &[Function] = &[
             \"unsorted\": true. A row's \"amount\" is what is booked to that category itself, so \
             the rows add up to the totals. A category with subcategories also has \
             \"amount_with_subcategories\": that category and everything below it; for \
-            \"how much on Food\" use that figure, never the sum of the rows.",
-        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."}},"required":["from","to"],"additionalProperties":false}"#,
+            \"how much on Food\" use that figure, never the sum of the rows. With \
+            \"account_ids\" only transactions with a part in one of those accounts count, \
+            each as a whole, and \"accounts\" names them.",
+        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {
         name: "payee_totals",
@@ -110,8 +112,9 @@ pub const FUNCTIONS: &[Function] = &[
             came from each, and how many transactions. Each payee's figure is net, so a refund \
             from a shop lowers what was paid to it. Moves between the user's own accounts and \
             starting balances are left out. Use it for questions such as \"whom did I pay the \
-            most\" instead of adding up search results yourself.",
-        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most payees per side and currency. Default 10."}},"required":["from","to"],"additionalProperties":false}"#,
+            most\" instead of adding up search results yourself. With \"account_ids\" only \
+            what went out of or into those accounts counts, and \"accounts\" names them.",
+        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most payees per side and currency. Default 10."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {
         name: "search_transactions",
@@ -184,7 +187,12 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "min_amount",
     "max_amount",
     "skip_transfers",
+    "account_ids",
 ];
+
+/// The most accounts `account_ids` of a total names (M6-B206), as many as
+/// a budget may count from.
+const MAX_ACCOUNT_IDS: usize = 20;
 
 /// The most characters of the text a search looks for.
 const MAX_SEARCH_TEXT: usize = 100;
@@ -263,7 +271,15 @@ fn call_with(
             if to < from {
                 return Err(ToolError::BadPeriod);
             }
-            read::category_totals(book, &mut w, &names, from, to, read::MAX_TOTALS)?
+            let accounts = args.accounts(&names)?;
+            read::category_totals(
+                book,
+                &mut w,
+                &names,
+                read::Period { from, to },
+                &accounts,
+                read::MAX_TOTALS,
+            )?
         }
         "payee_totals" => {
             let names = Names::read(book)?;
@@ -280,7 +296,15 @@ fn call_with(
                 None => read::DEFAULT_PAYEES,
                 Some(_) => args.limit()?.min(read::MAX_PAYEES),
             };
-            read::payee_totals(book, &mut w, &names, from, to, limit)?
+            let accounts = args.accounts(&names)?;
+            read::payee_totals(
+                book,
+                &mut w,
+                &names,
+                read::Period { from, to },
+                &accounts,
+                limit,
+            )?
         }
         "search_transactions" => {
             let names = Names::read(book)?;
@@ -369,8 +393,11 @@ pub fn overview_allowed(
         book,
         &mut w,
         &names,
-        first,
-        today.last_of_month(),
+        read::Period {
+            from: first,
+            to: today.last_of_month(),
+        },
+        &[],
         read::OVERVIEW_TOTALS,
     )?;
     result.insert("this_month".into(), this_month);
@@ -379,8 +406,11 @@ pub fn overview_allowed(
             book,
             &mut w,
             &names,
-            last.first_of_month(),
-            last,
+            read::Period {
+                from: last.first_of_month(),
+                to: last,
+            },
+            &[],
             read::OVERVIEW_TOTALS,
         )?;
         result.insert("last_month".into(), last_month);
@@ -471,6 +501,36 @@ impl<'a> Arguments<'a> {
                     .map_err(|_| ToolError::BadArgument { argument: name })
             })
             .transpose()
+    }
+
+    /// `account_ids`: the user's own accounts a total counts, at most
+    /// [`MAX_ACCOUNT_IDS`], each once; not given or empty is every account
+    /// (M6-B206, D-667). A category or an ID not in the book is
+    /// `ai-tools.unknown-account`, as with `account_id`.
+    fn accounts(&self, names: &Names) -> Result<Vec<AccountId>, ToolError> {
+        let bad = || ToolError::BadArgument {
+            argument: "account_ids",
+        };
+        let Some(value) = self.get("account_ids") else {
+            return Ok(Vec::new());
+        };
+        let values = value.as_array().ok_or_else(bad)?;
+        if values.len() > MAX_ACCOUNT_IDS {
+            return Err(bad());
+        }
+        let mut ids = Vec::with_capacity(values.len());
+        for value in values {
+            let id = value
+                .as_str()
+                .and_then(|text| uuid::Uuid::try_parse(text).ok())
+                .map(|id| AccountId::from_bytes(id.into_bytes()))
+                .ok_or_else(bad)?;
+            names.own_account(id)?;
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+        Ok(ids)
     }
 
     fn search_text(&self) -> Result<Option<String>, ToolError> {

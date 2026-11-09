@@ -257,12 +257,16 @@ impl Session {
         }
     }
 
-    /// Sends a request and returns the program's answer to it.
+    /// Sends a request and returns the program's answer to it. A
+    /// notification the program sends in between, such as that its tool
+    /// list changed (M6-B201), is passed over.
     pub fn request(&mut self, method: &str, params: Value) -> Value {
         let id = self.next_id;
         self.next_id += 1;
         self.send(&json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}));
-        let answer = self.receive().expect("an answer");
+        let answer = std::iter::from_fn(|| self.receive())
+            .find(|message| message.get("id").is_some())
+            .expect("an answer");
         assert_eq!(answer["id"], json!(id), "{answer}");
         answer
     }

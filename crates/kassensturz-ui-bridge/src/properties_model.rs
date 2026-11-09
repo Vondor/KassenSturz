@@ -386,7 +386,8 @@ mod tests {
                 "accounts",
                 "title",
                 "legend",
-                "show_hidden"
+                "show_hidden",
+                "hide_note"
             ]
         );
         for field in &fields {
@@ -477,7 +478,8 @@ mod tests {
                 "accounts",
                 "title",
                 "legend",
-                "show_hidden"
+                "show_hidden",
+                "hide_note"
             ]
         );
         let fields = list_of(&view, "fields");
@@ -607,7 +609,10 @@ mod tests {
             .iter()
             .map(|f| text_of(f, "key"))
             .collect();
-        assert_eq!(order, ["measure", "accounts", "compare", "title"]);
+        assert_eq!(
+            order,
+            ["measure", "accounts", "hide_note", "compare", "title"]
+        );
         let line = component(ComponentType::ChartLine, "income_expense_by_month");
         let order: Vec<String> = list_of(
             &view_object(Some(&line), None, NumberForm::DecimalComma),
@@ -628,7 +633,8 @@ mod tests {
                 "expenses_categories",
                 "expenses_accounts",
                 "title",
-                "legend"
+                "legend",
+                "hide_note"
             ]
         );
         // Spending by category has no money in and out to filter apart.
@@ -766,7 +772,7 @@ mod tests {
         // Not chosen yet: the formula is not offered, the comparison is.
         assert_eq!(
             keys_of_fields(&card, NumberForm::DecimalComma),
-            ["measure", "accounts", "compare", "title"]
+            ["measure", "accounts", "hide_note", "compare", "title"]
         );
         let words: Vec<String> = list_of(
             &view_object(Some(&card), None, NumberForm::DecimalComma),
@@ -789,7 +795,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             keys_of_fields(&card, NumberForm::DecimalComma),
-            ["measure", "accounts", "formula", "title"]
+            ["measure", "accounts", "hide_note", "formula", "title"]
         );
         // The preview asks for the formula, not for a card of the cards.
         let preview = properties::preview(&card);
@@ -830,7 +836,7 @@ mod tests {
         // Without a formula it shows the share you kept.
         assert_eq!(
             keys_of_fields(&bar, NumberForm::DecimalComma),
-            ["accounts", "compare", "formula", "title"]
+            ["accounts", "compare", "formula", "title", "hide_note"]
         );
         let preview = properties::preview(&bar);
         assert!(!preview.uses_formula);
@@ -840,7 +846,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             keys_of_fields(&bar, NumberForm::DecimalComma),
-            ["accounts", "formula", "target", "title"]
+            ["accounts", "formula", "target", "title", "hide_note"]
         );
         let preview = properties::preview(&bar);
         assert!(preview.uses_formula);
@@ -939,7 +945,7 @@ mod tests {
     }
 
     #[test]
-    fn a_tile_with_nothing_to_set_says_so_and_a_card_can_hide_its_note_once_it_counts_accounts() {
+    fn a_tile_with_nothing_to_set_says_so_and_every_tile_with_grey_marks_can_hide_them() {
         // The filter bar, the period header, the tabs and the notes have no
         // settings, no choice of data and no period (US1.8, #522).
         for kind in [
@@ -956,24 +962,27 @@ mod tests {
         let card = component(ComponentType::KpiCard, "income_expense_by_month");
         let view = view_object(Some(&card), None, NumberForm::DecimalComma);
         assert!(flag_of(&view, "hasSettings"));
-        let keys_of = |view: &QVariant| -> Vec<String> {
-            list_of(view, "fields")
+        // The switch for the grey marks is offered on every tile that can
+        // show them, whatever it filters (M6-B202, #581, D-663), and the
+        // marks are shown by default.
+        for tile in [
+            card,
+            component(ComponentType::ChartBar, "spending_by_category"),
+            component(ComponentType::TableRows, "spending_by_category"),
+            component(ComponentType::ProgressBar, "income_expense_by_month"),
+            component(ComponentType::BudgetProgress, "budget_utilization"),
+            component(ComponentType::NetWorth, ""),
+            component(ComponentType::IncomeSources, ""),
+        ] {
+            let view = view_object(Some(&tile), None, NumberForm::DecimalComma);
+            assert!(flag_of(&view, "hasSettings"), "{}", tile.kind().id());
+            let fields = list_of(&view, "fields");
+            let hide = fields
                 .iter()
-                .map(|f| text_of(f, "key"))
-                .collect()
-        };
-        // Nothing to hide while the card counts every account (US1.9, #523).
-        assert!(!keys_of(&view).contains(&"hide_note".to_owned()));
-        let mut card = card;
-        card.set("accounts", Setting::Ids(vec!["a".into()]))
-            .unwrap();
-        let view = view_object(Some(&card), None, NumberForm::DecimalComma);
-        let fields = list_of(&view, "fields");
-        let hide = fields
-            .iter()
-            .find(|f| text_of(f, "key") == "hide_note")
-            .expect("the switch is offered");
-        assert_eq!(text_of(hide, "kind"), "flag");
-        assert!(!flag_of(hide, "flag"), "the note is shown by default");
+                .find(|f| text_of(f, "key") == "hide_note")
+                .unwrap_or_else(|| panic!("{} offers the switch", tile.kind().id()));
+            assert_eq!(text_of(hide, "kind"), "flag");
+            assert!(!flag_of(hide, "flag"), "the marks are shown by default");
+        }
     }
 }

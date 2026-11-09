@@ -147,7 +147,10 @@ fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
 fn code(result: Result<Proposal, ToolError>) -> String {
     match result.map_err(ToolError::without_item) {
         Ok(_) => "prepared".into(),
-        Err(ToolError::BadArgument { argument }) => format!("bad-argument {argument}"),
+        Err(ToolError::BadArgument { argument } | ToolError::NotForChart { argument, .. }) => {
+            format!("bad-argument {argument}")
+        }
+        Err(ToolError::UnknownField { argument, .. }) => format!("unknown-field {argument}"),
         Err(ToolError::BadCondition { condition, reason }) => format!(
             "bad-condition {} {reason}",
             condition.map_or_else(|| "-".to_owned(), |place| place.to_string())
@@ -418,11 +421,11 @@ fn calls_that_are_not_what_the_function_takes_are_refused() {
     let cases = [
         (json!({}), "bad-argument arguments"),
         (json!(null), "bad-argument arguments"),
-        (json!({"delete": []}), "bad-argument arguments"),
+        (json!({"delete": []}), "unknown-field arguments"),
         (json!({"new_categories": {}}), "bad-argument new_categories"),
         (
             json!({"new_categories": [{"key": "a", "name": "A", "sql": "x"}]}),
-            "bad-argument new_categories",
+            "unknown-field new_categories",
         ),
         (
             json!({"new_categories": [{"key": "a", "name": ""}]}),
@@ -1369,7 +1372,7 @@ fn a_new_account_has_a_name_a_type_and_a_currency_and_never_a_number() {
     for (call, expected) in [
         (
             json!({"new_accounts": [{"name": "Wallet", "type": "cash", "number": "DE00"}]}),
-            "bad-argument new_accounts",
+            "unknown-field new_accounts",
         ),
         (
             json!({"new_accounts": [{"name": "Wallet", "type": "bank"}]}),
@@ -1482,7 +1485,7 @@ fn an_account_is_renamed_closed_and_opened_again_but_never_deleted() {
         ),
         (
             json!({"edit_accounts": [{"account_id": wallet.to_string(), "delete": true}]}),
-            "bad-argument edit_accounts",
+            "unknown-field edit_accounts",
         ),
     ] {
         assert_eq!(code(propose(&book, &call)), expected, "{call}");
@@ -1878,7 +1881,7 @@ fn what_is_not_plain_or_not_allowed_is_refused() {
             &book,
             &json!({"transaction_id": id(bought), "category_id": "x"})
         )),
-        "bad-argument edit_transactions"
+        "unknown-field edit_transactions"
     );
     assert_eq!(
         code(edit(
@@ -2521,7 +2524,7 @@ fn a_chart_that_does_not_fit_its_dataset_or_names_a_taken_title_is_refused() {
         (json!({"title": ""}), "bad-argument title"),
         (json!({"title": "two\nlines"}), "bad-argument title"),
         (json!({"title": "x".repeat(201)}), "bad-argument title"),
-        (json!({"unit": "euro"}), "bad-argument new_views"),
+        (json!({"unit": "euro"}), "unknown-field new_views"),
     ] {
         assert_eq!(
             code(propose(&book, &view(extra.clone()))),

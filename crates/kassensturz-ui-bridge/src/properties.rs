@@ -89,12 +89,6 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 "formula" => component.kind() == ComponentType::KpiCard && !uses,
                 "target" => !has_formula,
                 "compare" => uses,
-                // The note names the accounts a card counts itself; with no
-                // accounts chosen there is nothing to hide (US1.9, D-636).
-                "hide_note" => !matches!(
-                    component.get("accounts"),
-                    Some(Setting::Ids(ids)) if !ids.is_empty()
-                ),
                 _ => false,
             };
             if hidden {

@@ -306,6 +306,8 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **M6-B195 later** · **later** · waits for: a decision on how securities are shown. A type of its own for investment (securities) accounts, which come in from KMyMoney without a type and count as money the user has (D-625). Why: it needs more than a new name in the list, e.g. what a securities balance means without prices
 
+- **M6-B202** · **done** (this PR) · US1 Phase 3 thread "Hide grey filter notes on every tile" · standard, medium · D-663 · [format]. #581: every tile with grey filter notes gets the *Hide the grey filter notes* switch in *Properties* (default shown); problem notes stay
+
 - **US1.27** · **later** · waits for: the maintainer's stage Go after US1 Phase 3, with the [format] items (US1.9, US1.10, US1.12, US1.19) merged and US1.26 passed; then M7a.6 follows. #512: the stage move from Alpha to Beta (D-495 check)
 
 ## How to pick work

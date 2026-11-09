@@ -61,7 +61,17 @@ fn it_is_in_the_library_and_never_offered_to_the_ai() {
     assert!(!ComponentType::ALL.contains(&kind));
     assert!(!kind.shows_no_data());
     let keys: Vec<&str> = kind.properties().iter().map(|p| p.key).collect();
-    assert_eq!(keys, ["spec", "partial", "series", "categories", "period"]);
+    assert_eq!(
+        keys,
+        [
+            "spec",
+            "partial",
+            "series",
+            "categories",
+            "hide_note",
+            "period"
+        ]
+    );
     // It can show every dataset a description can name, no more and no less.
     let offered: Vec<&str> = kind.datasets().map(|dataset| dataset.id).collect();
     let named: Vec<&str> = SPEC_DATASETS.iter().map(|dataset| dataset.id()).collect();

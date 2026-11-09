@@ -175,7 +175,7 @@ ColumnLayout {
         case "show_hidden":
             return i18nContext.i18nc("@option:check", "Show hidden categories");
         case "hide_note":
-            return i18nContext.i18nc("@option:check hides the grey note under a number card, the card's title names the accounts instead", "Hide the note about the accounts");
+            return i18nContext.i18nc("@option:check hides the grey lines on a tile that say what it is filtered to", "Hide the grey filter notes");
         case "compare":
             return i18nContext.i18nc("@label:listbox", "Compare with");
         case "measure":

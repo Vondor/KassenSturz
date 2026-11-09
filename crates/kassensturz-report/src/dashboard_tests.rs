@@ -662,7 +662,14 @@ fn the_separator_and_the_two_notices_show_no_data_and_survive_a_save() {
         assert!(!ComponentType::ALL.contains(&kind));
         assert!(kind.shows_no_data());
         assert_eq!(kind.datasets().count(), 0);
-        assert!(kind.properties().is_empty());
+        // What you are worth and where the money came from have only the
+        // switch for their grey marks (M6-B202, D-663); the others nothing.
+        let keys: Vec<&str> = kind.properties().iter().map(|p| p.key).collect();
+        if matches!(kind, ComponentType::NetWorth | ComponentType::IncomeSources) {
+            assert_eq!(keys, ["hide_note"], "{id}");
+        } else {
+            assert!(keys.is_empty(), "{id}");
+        }
         assert!(Component::new(kind, "spending_by_category").is_err());
         let component = Component::new(kind, "").unwrap();
         // Its document has a type and props, and no dataset or params.

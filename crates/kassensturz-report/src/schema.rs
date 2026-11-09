@@ -282,11 +282,10 @@ impl ComponentType {
             | Self::FetchNotice
             | Self::TransfersNote
             | Self::UnsortedNote
-            | Self::NetWorth
-            | Self::IncomeSources
             | Self::PeriodHeader
             | Self::FilterBar
             | Self::DashboardTabs => &[],
+            Self::NetWorth | Self::IncomeSources => &NOTES_ONLY,
             Self::PeriodBox => &PERIOD_BOX,
             Self::BudgetProgress => &BUDGET_PROGRESS,
             Self::BankUpdateAll => &UPDATE_ALL,
@@ -485,9 +484,12 @@ const PARTIAL: Property = Property {
     place: Place::Props,
     kind: Kind::Flag { default: false },
 };
-/// `props.hide_note` (US1.9, #523, D-636): leave out the grey note of a
-/// number card that names the accounts it counts; its title names them
-/// instead. Shown by default.
+/// `props.hide_note` (US1.9, #523, D-636; M6-B202, #581, D-663): leave out
+/// the grey marks under a tile that say what it is filtered to (*Own
+/// filter*, *Filtered to*, *Not filtered by*). Every tile that can show them
+/// has it; they are shown by default. The notes about a problem (a filter
+/// that chooses nothing, one that names something gone) stay, and a title
+/// drawn by the tile names the accounts it counts instead (D-636).
 const HIDE_NOTE: Property = Property {
     key: "hide_note",
     place: Place::Props,
@@ -573,7 +575,7 @@ const AVERAGE: Property = Property {
 };
 pub(crate) const AVERAGE_KEY: &str = "average";
 
-const CHART: [Property; 15] = [
+const CHART: [Property; 16] = [
     GROUPING,
     AVERAGE,
     GROUPS,
@@ -588,13 +590,14 @@ const CHART: [Property; 15] = [
     TITLE,
     LEGEND,
     SHOW_HIDDEN,
+    HIDE_NOTE,
     PERIOD,
 ];
 const KPI_CARD: [Property; 7] = [
     MEASURE, ACCOUNTS, HIDE_NOTE, COMPARE, FORMULA, TITLE, PERIOD,
 ];
-const PROGRESS_BAR: [Property; 6] = [ACCOUNTS, COMPARE, FORMULA, TARGET, TITLE, PERIOD];
-const TABLE: [Property; 13] = [
+const PROGRESS_BAR: [Property; 7] = [ACCOUNTS, COMPARE, FORMULA, TARGET, TITLE, HIDE_NOTE, PERIOD];
+const TABLE: [Property; 14] = [
     GROUPING,
     AVERAGE,
     GROUPS,
@@ -607,6 +610,7 @@ const TABLE: [Property; 13] = [
     COLUMNS,
     TITLE,
     SHOW_HIDDEN,
+    HIDE_NOTE,
     PERIOD,
 ];
 const HEADING: [Property; 1] = [TEXT];
@@ -617,13 +621,17 @@ const PERIOD_BOX: [Property; 2] = [TITLE, BOX_PERIOD];
 /// The budget bars (D-357): which budgets (D-642) and which categories'
 /// budgets (empty: every budget), a title and the period whose last day (or
 /// today, if earlier) the bars are asked for (D-346).
-const BUDGET_PROGRESS: [Property; 4] = [BUDGETS, CATEGORIES, TITLE, PERIOD];
+const BUDGET_PROGRESS: [Property; 5] = [BUDGETS, CATEGORIES, TITLE, HIDE_NOTE, PERIOD];
+/// What you are worth and where the money came from (D-329, D-336): the page
+/// fills them, so the switch for their grey marks is all there is to set
+/// (M6-B202, D-663).
+const NOTES_ONLY: [Property; 1] = [HIDE_NOTE];
 
 /// A custom chart (D-504): its description, whether to draw it without the
 /// parts that are not supported, the series of a chart over time and the
 /// categories of the budgets (Q-353), which count only while the description
 /// names that dataset, and the period.
-const CUSTOM_CHART: [Property; 5] = [SPEC, PARTIAL, SERIES, CATEGORIES, PERIOD];
+const CUSTOM_CHART: [Property; 6] = [SPEC, PARTIAL, SERIES, CATEGORIES, HIDE_NOTE, PERIOD];
 
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }

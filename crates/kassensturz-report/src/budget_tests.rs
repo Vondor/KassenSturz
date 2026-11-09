@@ -946,3 +946,47 @@ fn only_the_named_budgets_are_shown() {
     // A budget no longer in the book is simply not there.
     assert_eq!(shown(Some(&[BudgetId::generate()])), Vec::<BudgetId>::new());
 }
+
+/// A budget the user named is shown by its name, one without by its
+/// categories (D-664); the name never changes what it counts.
+#[test]
+fn a_named_budget_is_labelled_by_its_name() {
+    let mut base = sample();
+    let food = base
+        .book
+        .add_named_budget(
+            Some("Weekly shop"),
+            &[base.food],
+            &[],
+            BudgetEvery::Month,
+            date(2026, 8, 1),
+            None,
+            money(5_000),
+            true,
+        )
+        .unwrap();
+    let results = ask(
+        &base.book,
+        october(),
+        date(2026, 12, 1),
+        BudgetGrouping::Budget,
+        &Filter::default(),
+    );
+    let shown = find(&results, food);
+    assert_eq!(shown.name.as_deref(), Some("Weekly shop"));
+    assert_eq!(shown.label(" › "), "Weekly shop");
+    assert_eq!(shown.categories_text(" › "), "Food");
+    let named_spent = shown.periods[0].spent;
+    base.book.set_budget_name(food, None).unwrap();
+    let results = ask(
+        &base.book,
+        october(),
+        date(2026, 12, 1),
+        BudgetGrouping::Budget,
+        &Filter::default(),
+    );
+    let shown = find(&results, food);
+    assert_eq!(shown.name, None);
+    assert_eq!(shown.label(" › "), "Food");
+    assert_eq!(shown.periods[0].spent, named_spent);
+}

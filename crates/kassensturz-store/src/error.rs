@@ -190,6 +190,15 @@ pub enum StoreError {
         /// What is wrong, as a keyword.
         reason: &'static str,
     },
+    /// A budget's name can't be kept (D-664): `reason` is `too-long` (more
+    /// than `max_chars` characters) or `line-break` (it has a line break or
+    /// another control character, so it would not fit on one line).
+    BudgetName {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+        /// The most characters a name may have.
+        max_chars: usize,
+    },
     /// The book has as many budgets as it keeps, or the budget as many
     /// amounts, categories or accounts (D-345, D-639).
     TooManyBudgets {
@@ -606,6 +615,9 @@ impl Report for StoreError {
             Self::BudgetChoice { reason } => {
                 new("store.budget-choice").with("reason", P::Keyword(reason))
             }
+            Self::BudgetName { reason, max_chars } => new("store.budget-name")
+                .with("reason", P::Keyword(reason))
+                .with("max_chars", P::count(*max_chars)),
             Self::TooManyBudgets { limit, max } => new("store.budget-too-many")
                 .with("limit", P::Keyword(limit))
                 .with("max", P::count(*max)),

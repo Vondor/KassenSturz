@@ -35,6 +35,10 @@ const MAX_AMOUNTS: usize = 1_200;
 const MAX_CATEGORIES: usize = 100;
 /// The most accounts one budget counts from (D-639, T-47).
 const MAX_ACCOUNTS: usize = 100;
+/// The most characters of a budget's name (D-664): enough for "Holiday in
+/// Italy with the children", short enough for a bar's title. The table's
+/// CHECK says the same.
+const MAX_NAME_CHARS: usize = 100;
 /// The most calendar months a range may touch: 100 years, as for a report's
 /// period (`MAX_MONTHS`, D-281).
 const MAX_RANGE_MONTHS: i64 = 1_200;
@@ -66,6 +70,27 @@ fn every_from_text(text: &str, salary_day: Option<i64>) -> BudgetEvery {
             .and_then(BudgetEvery::salary_month)
             .unwrap_or(BudgetEvery::Month),
     }
+}
+
+/// A budget's name as the book keeps it (D-664): without spaces around it,
+/// `None` when nothing is left, so an empty name means "no name". A name
+/// longer than [`MAX_NAME_CHARS`] or with a line break or another control
+/// character is refused ([`StoreError::BudgetName`]), never shortened.
+pub fn checked_budget_name(name: Option<&str>) -> Result<Option<String>, StoreError> {
+    let Some(name) = name.map(str::trim).filter(|name| !name.is_empty()) else {
+        return Ok(None);
+    };
+    let refused = |reason| StoreError::BudgetName {
+        reason,
+        max_chars: MAX_NAME_CHARS,
+    };
+    if name.chars().any(char::is_control) {
+        return Err(refused("line-break"));
+    }
+    if name.chars().count() > MAX_NAME_CHARS {
+        return Err(refused("too-long"));
+    }
+    Ok(Some(name.to_owned()))
 }
 
 /// How many calendar months the days from `first` to `last` touch.
@@ -143,7 +168,7 @@ impl Book {
     /// amounts, oldest first.
     pub fn budgets(&self) -> Result<Vec<Budget>, StoreError> {
         let mut statement = self.conn.prepare_cached(
-            "SELECT id, every, first_day, last_day, salary_day FROM budgets ORDER BY id",
+            "SELECT id, every, first_day, last_day, salary_day, name FROM budgets ORDER BY id",
         )?;
         let rows = statement
             .query_map([], |row| {
@@ -153,13 +178,15 @@ impl Book {
                     row.get::<_, String>(2)?,
                     row.get::<_, Option<String>>(3)?,
                     row.get::<_, Option<i64>>(4)?,
+                    row.get::<_, Option<String>>(5)?,
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         let mut budgets = Vec::with_capacity(rows.len());
-        for (id, every, first_day, last_day, salary_day) in rows {
+        for (id, every, first_day, last_day, salary_day, name) in rows {
             budgets.push(Budget {
                 id: BudgetId::from_bytes(id),
+                name,
                 categories: Vec::new(),
                 accounts: Vec::new(),
                 every: every_from_text(&every, salary_day),
@@ -288,8 +315,32 @@ impl Book {
         amount: Money,
         carry_over: bool,
     ) -> Result<BudgetId, StoreError> {
+        self.add_named_budget(
+            None, categories, accounts, every, first_day, last_day, amount, carry_over,
+        )
+    }
+
+    /// As [`Book::add_budget`], with the name the user gave it, if any
+    /// (D-664): the rules of [`Book::set_budget_name`] apply, and the budget
+    /// and its name are one user action.
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "a budget is made from all of these at once, each checked here"
+    )]
+    pub fn add_named_budget(
+        &mut self,
+        name: Option<&str>,
+        categories: &[AccountId],
+        accounts: &[AccountId],
+        every: BudgetEvery,
+        first_day: Date,
+        last_day: Option<Date>,
+        amount: Money,
+        carry_over: bool,
+    ) -> Result<BudgetId, StoreError> {
         let budget = Budget {
             id: BudgetId::generate(),
+            name: checked_budget_name(name)?,
             categories: categories.to_vec(),
             accounts: accounts.to_vec(),
             every,
@@ -401,6 +452,25 @@ impl Book {
         })
     }
 
+    /// Gives the budget `id` the name `name`, or takes its name away with
+    /// `None` or an empty name, so the screens call it by its categories
+    /// again; the user action [`Action::EditBudget`] (D-664). Spaces around
+    /// the name are left out. A name has at most 100 characters and fits on
+    /// one line ([`StoreError::BudgetName`]: `too-long`, `line-break`).
+    /// Names don't need to differ: a name is a label, the budget is still
+    /// known by its ID. Nothing that stays the same is recorded.
+    pub fn set_budget_name(&mut self, id: BudgetId, name: Option<&str>) -> Result<(), StoreError> {
+        let name = checked_budget_name(name)?;
+        self.budget(id)?;
+        self.as_one_action(Action::EditBudget, |book| {
+            book.conn.execute(
+                "UPDATE budgets SET name = ?2 WHERE id = ?1 AND name IS NOT ?2",
+                params![id.to_bytes(), name],
+            )?;
+            Ok(())
+        })
+    }
+
     /// Deletes the budget `id` with all its amounts and so with its past
     /// results; the user action [`Action::RemoveBudget`]. Its categories,
     /// accounts and
@@ -488,6 +558,7 @@ impl Book {
     /// Checks `budget` and writes it with its amounts, categories and
     /// accounts.
     fn insert_budget(&self, budget: &Budget) -> Result<(), StoreError> {
+        let name = checked_budget_name(budget.name.as_deref())?;
         let currency = self.check_choice(budget)?;
         check_days(budget.every, budget.first_day, budget.last_day)?;
         if budget.amounts.len() > MAX_AMOUNTS {
@@ -523,14 +594,15 @@ impl Book {
         }
         self.check_overlap(budget)?;
         self.conn.execute(
-            "INSERT INTO budgets (id, every, first_day, last_day, salary_day)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO budgets (id, every, first_day, last_day, salary_day, name)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 budget.id.to_bytes(),
                 every_to_text(budget.every),
                 date_to_text(budget.first_day)?,
                 budget.last_day.map(date_to_text).transpose()?,
                 budget.every.salary_day(),
+                name,
             ],
         )?;
         for (position, category) in budget.categories.iter().enumerate() {
@@ -610,8 +682,8 @@ impl Book {
     /// The budget `id` with its days, categories and accounts, but none of
     /// its amounts.
     fn budget_without_amounts(&self, id: BudgetId) -> Result<Budget, StoreError> {
-        let (every, first_day, last_day, salary_day) = self.conn.query_row(
-            "SELECT every, first_day, last_day, salary_day FROM budgets WHERE id = ?1",
+        let (every, first_day, last_day, salary_day, name) = self.conn.query_row(
+            "SELECT every, first_day, last_day, salary_day, name FROM budgets WHERE id = ?1",
             [id.to_bytes()],
             |row| {
                 Ok((
@@ -619,6 +691,7 @@ impl Book {
                     row.get::<_, String>(1)?,
                     row.get::<_, Option<String>>(2)?,
                     row.get::<_, Option<i64>>(3)?,
+                    row.get::<_, Option<String>>(4)?,
                 ))
             },
         )?;
@@ -633,6 +706,7 @@ impl Book {
         };
         Ok(Budget {
             id,
+            name,
             categories: ids(
                 "SELECT category_id FROM budget_categories WHERE budget_id = ?1 ORDER BY position",
             )?,

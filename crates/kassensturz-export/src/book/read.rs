@@ -312,7 +312,19 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
             let budget = Object::new(
                 value,
                 &path,
-                if version >= 10 {
+                if version >= 11 {
+                    &[
+                        "id",
+                        "name",
+                        "categories",
+                        "accounts",
+                        "every",
+                        "salary_day",
+                        "first_day",
+                        "last_day",
+                        "amounts",
+                    ]
+                } else if version >= 10 {
                     &[
                         "id",
                         "categories",
@@ -396,8 +408,16 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
                     .and_then(BudgetEvery::salary_month)
                     .ok_or_else(|| bad(&path, Expected::Number))?;
             }
+            // Version 11: the name the user gave it (D-664), checked by the
+            // book when it is filled, as one the user types.
+            let name = if version >= 11 {
+                budget.optional_text("name")?
+            } else {
+                None
+            };
             budgets.push(Budget {
                 id,
+                name,
                 categories,
                 accounts,
                 every,

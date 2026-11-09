@@ -148,6 +148,9 @@ impl BudgetPeriod {
 pub struct BudgetUtilization {
     /// The budget.
     pub budget: BudgetId,
+    /// The name the user gave it, or `None`: the screens then call it by
+    /// its categories (D-664).
+    pub name: Option<String>,
     /// Its spending categories, in the order the user chose them (D-639).
     pub categories: Vec<AccountId>,
     /// Each category's names from the top-level category down, e.g.
@@ -478,6 +481,7 @@ pub fn budget_utilization(
             .collect();
         results.push(BudgetUtilization {
             budget: budget.id,
+            name: budget.name.clone(),
             categories: budget.categories.clone(),
             paths,
             accounts: budget.accounts.clone(),
@@ -510,6 +514,15 @@ impl BudgetUtilization {
             .map(|path| path.join(separator))
             .collect::<Vec<_>>()
             .join(", ")
+    }
+
+    /// What the screens call the budget: the name the user gave it, or its
+    /// categories as [`BudgetUtilization::categories_text`] writes them
+    /// (D-664).
+    pub fn label(&self, separator: &str) -> String {
+        self.name
+            .clone()
+            .unwrap_or_else(|| self.categories_text(separator))
     }
 
     /// The result as a table of text with the columns `period`, `planned`,

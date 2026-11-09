@@ -39,6 +39,7 @@ use kassensturz_core::{
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
+pub use budgets::checked_budget_name;
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 /// The oldest layout this KassenSturz updates a book from, and the layout

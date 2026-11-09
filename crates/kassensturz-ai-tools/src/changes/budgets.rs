@@ -63,6 +63,8 @@ pub struct AmountBasis {
 /// A budget the AI prepares, as the user reviews it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NewBudget {
+    /// The name it gets, as the book will keep it, or `None` (D-664).
+    pub name: Option<String>,
     /// The spending categories, in the order the call names them.
     pub categories: Vec<AccountId>,
     /// Their paths, e.g. `["Food", "Groceries"]`, in the same order.
@@ -90,6 +92,14 @@ pub struct NewBudget {
 pub struct EditBudget {
     /// The budget.
     pub budget: BudgetId,
+    /// The name it has now, or `None` (D-664).
+    pub name_before: Option<String>,
+    /// Its new name as the book will keep it (`Some(None)` takes the name
+    /// away), or `None` when the name stays as it is (D-664).
+    pub rename: Option<Option<String>>,
+    /// Whether the amount or the carry over changes; `false` for a change
+    /// of the name only, which then leaves every period's amount as it is.
+    pub changes_amount: bool,
     /// Its spending categories.
     pub categories: Vec<AccountId>,
     /// Their paths, in the same order.
@@ -126,6 +136,23 @@ pub(super) fn paths_text(paths: &[Vec<String>]) -> String {
         .map(|path| format!("\"{}\"", path.join(" › ")))
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// ` "Weekly shop"`, a budget's name in quotes after a space, or nothing for
+/// none.
+pub(super) fn name_text(name: Option<&str>) -> String {
+    name.map(|name| format!(" \"{name}\"")).unwrap_or_default()
+}
+
+/// The name of an item (D-664): text, checked as the book checks a name
+/// the user types, so the model hears a refusal at once. `None` when the
+/// item names none; `Some(None)` for an empty one, which means no name.
+fn name_of(item: &Object<'_>) -> Result<Option<Option<String>>, ToolError> {
+    item.string("name")?
+        .map(|name| {
+            kassensturz_store::checked_budget_name(Some(name)).map_err(ToolError::BudgetRefused)
+        })
+        .transpose()
 }
 
 /// ` from "Shared account"`, or nothing for every account.
@@ -335,6 +362,7 @@ fn amount_based_on(
     let currency = counts.currency;
     let probe = Budget {
         id: BudgetId::generate(),
+        name: None,
         categories: counts.categories.to_vec(),
         accounts: counts.accounts.to_vec(),
         every,
@@ -474,6 +502,7 @@ pub(super) fn new_budget(
     let item = Object::read(
         value,
         &[
+            "name",
             "category_id",
             "category_ids",
             "account_ids",
@@ -508,6 +537,7 @@ pub(super) fn new_budget(
             });
         }
     };
+    let name = name_of(&item)?.flatten();
     let accounts = ids_of(&item, "account_ids")?;
     let (currency, paths) = spending_categories(book, &categories)?;
     let account_names = own_accounts(book, &accounts)?;
@@ -517,6 +547,7 @@ pub(super) fn new_budget(
     // one keeps going from the current period on.
     let probe = Budget {
         id: BudgetId::generate(),
+        name: None,
         categories: categories.clone(),
         accounts: accounts.clone(),
         every,
@@ -545,6 +576,7 @@ pub(super) fn new_budget(
     check_amount(amount)?;
     prepared.push(probe);
     Ok(NewBudget {
+        name,
         categories,
         paths,
         accounts,
@@ -569,7 +601,14 @@ pub(super) fn edit_budget(
 ) -> Result<EditBudget, ToolError> {
     let item = Object::read(
         value,
-        &["budget_id", "amount", "based_on", "round_to", "carry_over"],
+        &[
+            "budget_id",
+            "name",
+            "amount",
+            "based_on",
+            "round_to",
+            "carry_over",
+        ],
         "edit_budgets",
     )?;
     let id = item
@@ -609,8 +648,17 @@ pub(super) fn edit_budget(
     };
     let carry_over = item.boolean("carry_over")?;
     let amount = amount_of(book, &item, &counts, budget.every, from_day)?;
-    if amount.is_none() && carry_over.is_none() {
-        return Err(ToolError::BadArgument { argument: "amount" });
+    // A new name alone is a change too; the same name again is none.
+    let rename = name_of(&item)?.filter(|name| *name != budget.name);
+    let changes_amount = amount.is_some() || carry_over.is_some();
+    if !changes_amount && rename.is_none() {
+        return Err(ToolError::BadArgument {
+            argument: if item.get("name").is_some() {
+                "name"
+            } else {
+                "amount"
+            },
+        });
     }
     let (amount, basis) = amount.unwrap_or((before.amount, None));
     check_amount(amount)?;
@@ -623,6 +671,9 @@ pub(super) fn edit_budget(
     edited.push(id);
     Ok(EditBudget {
         budget: id,
+        name_before: budget.name.clone(),
+        rename,
+        changes_amount,
         categories: budget.categories.clone(),
         paths,
         accounts: budget.accounts.clone(),
@@ -640,7 +691,8 @@ pub(super) fn edit_budget(
 
 /// Makes the new budget in `book`, with the store's checks.
 pub(super) fn apply_new_budget(book: &mut Book, new: &NewBudget) -> Result<(), StoreError> {
-    book.add_budget(
+    book.add_named_budget(
+        new.name.as_deref(),
         &new.categories,
         &new.accounts,
         new.every,
@@ -663,7 +715,12 @@ pub(super) fn apply_edit_budget(
         Ok(_) | Err(StoreError::UnknownBudget(_)) => return Err(super::ChangeError::OutOfDate),
         Err(other) => return Err(other.into()),
     }
-    book.edit_budget_amount(edit.budget, edit.from_day, edit.amount, edit.carry_over)?;
+    if edit.changes_amount {
+        book.edit_budget_amount(edit.budget, edit.from_day, edit.amount, edit.carry_over)?;
+    }
+    if let Some(name) = &edit.rename {
+        book.set_budget_name(edit.budget, name.as_deref())?;
+    }
     Ok(())
 }
 

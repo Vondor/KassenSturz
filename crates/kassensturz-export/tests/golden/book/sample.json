@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 10,
+  "version": 11,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -51,6 +51,7 @@
   "budgets": [
     {
       "id": "019a0000-0000-7000-8000-000000000091",
+      "name": null,
       "categories": ["019a0000-0000-7000-8000-000000000004", "019a0000-0000-7000-8000-000000000005"],
       "accounts": ["019a0000-0000-7000-8000-000000000001"],
       "every": "month",
@@ -64,6 +65,7 @@
     },
     {
       "id": "019a0000-0000-7000-8000-000000000092",
+      "name": null,
       "categories": ["019a0000-0000-7000-8000-000000000006"],
       "accounts": [],
       "every": "range",
@@ -76,6 +78,7 @@
     },
     {
       "id": "019a0000-0000-7000-8000-000000000093",
+      "name": "Food \"until payday\"",
       "categories": ["019a0000-0000-7000-8000-000000000004"],
       "accounts": ["019a0000-0000-7000-8000-000000000002"],
       "every": "month",

@@ -169,6 +169,10 @@ pub struct BudgetAmount {
 pub struct Budget {
     /// The budget's ID.
     pub id: BudgetId,
+    /// The name the user gave it, e.g. "Holiday", or `None`: the screens
+    /// then call it by its categories, as before budgets had names (layout
+    /// 28, D-664). Never empty, without spaces around it, on one line.
+    pub name: Option<String>,
     /// The spending categories it is for, at least one, in the order the
     /// user chose them, each counted with everything inside it and every
     /// category once however often it is reached (D-291, D-639). They share
@@ -368,6 +372,7 @@ mod tests {
     fn a_budget_finds_its_period_and_its_amount() {
         let budget = Budget {
             id: BudgetId::generate(),
+            name: None,
             categories: vec![AccountId::generate()],
             accounts: Vec::new(),
             every: BudgetEvery::Month,
@@ -424,6 +429,7 @@ mod tests {
         let (shared, own) = (AccountId::generate(), AccountId::generate());
         let budget = |categories: Vec<AccountId>, accounts: Vec<AccountId>, first, last| Budget {
             id: BudgetId::generate(),
+            name: None,
             categories,
             accounts,
             every: BudgetEvery::Month,

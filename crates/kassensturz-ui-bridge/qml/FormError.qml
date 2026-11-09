@@ -514,6 +514,11 @@ Kirigami.InlineMessage {
             default:
                 return i18nContext.i18nc("@info", "These days don't fit the budget. Choose other days.");
             }
+        case "store.budget-name":
+            if (result.reason === "line-break") {
+                return i18nContext.i18nc("@info", "A budget's name fits on one line. Remove the line break.");
+            }
+            return i18nContext.i18nc("@info %1 is a number", "A budget's name can have at most %1 characters. Choose a shorter name.", result.max_chars);
         case "store.budget-too-many":
             switch (result.limit) {
             case "amounts":

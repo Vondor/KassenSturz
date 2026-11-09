@@ -98,7 +98,7 @@ Kirigami.ApplicationWindow {
         onTriggered: {
             const listed = window.texts(page, []);
             window.check(listed.includes("Food"), "the first budget is listed");
-            window.check(listed.includes("Rent"), "the second budget is listed");
+            window.check(listed.includes("Flat"), "the second budget is listed by its own name");
             window.check(listed.some(text => text.startsWith("Starts 2027-01-25")), "the budget that has not started says when it does");
             window.check(listed.includes("Every salary month, from day 25, 800,00 €"), "a salary month names its day (D-651), got " + listed);
 
@@ -121,13 +121,13 @@ Kirigami.ApplicationWindow {
             window.check(adding.adding, "the sheet adds");
             adding.save();
             const added = () => fake.calls.filter(call => call.startsWith("addBudget:"));
-            window.check(added()[0] === "addBudget:c-food;:month::false:2026-10-01:", "adding sends what was chosen, got " + added()[0]);
+            window.check(added()[0] === "addBudget:c-food;:month::false:2026-10-01::", "adding sends what was chosen, got " + added()[0]);
             window.check(window.texts(adding, []).some(text => text.includes("amount")), "a refused amount says what to do");
             const amount = window.all(adding, "TextField", []).filter(field => field.placeholderText === "What you plan to spend");
             window.check(amount.length === 1, "one amount field, found " + amount.length);
             amount[0].text = "250,00";
             adding.save();
-            window.check(added()[1] === "addBudget:c-food;:month:250,00:false:2026-10-01:", "adding sends the amount, got " + added()[1]);
+            window.check(added()[1] === "addBudget:c-food;:month:250,00:false:2026-10-01::", "adding sends the amount, got " + added()[1]);
 
             // More categories and some accounts are one deliberate tick away
             // (D-639); nothing else is sent before they are ticked.
@@ -141,7 +141,7 @@ Kirigami.ApplicationWindow {
             box("Checking").toggle();
             box("Checking").toggled();
             adding.save();
-            window.check(added()[2] === "addBudget:c-food,c-rent;a-checking:month:250,00:false:2026-10-01:", "adding sends the categories and accounts, got " + added()[2]);
+            window.check(added()[2] === "addBudget:c-food,c-rent;a-checking:month:250,00:false:2026-10-01::", "adding sends the categories and accounts, got " + added()[2]);
 
             // A salary month asks for its day and sends it, also for the
             // periods to start with (D-651).
@@ -154,15 +154,32 @@ Kirigami.ApplicationWindow {
             spins()[0].value = 25;
             window.check(fake.calls.includes("startChoices:salary-month-25"), "the periods follow the day, calls: " + fake.calls);
             adding.save();
-            window.check(added()[3] === "addBudget:c-food,c-rent;a-checking:salary-month-25:250,00:false:2026-10-01:", "adding sends the salary day, got " + added()[3]);
+            window.check(added()[3] === "addBudget:c-food,c-rent;a-checking:salary-month-25:250,00:false:2026-10-01::", "adding sends the salary day, got " + added()[3]);
+
+            // A name of the user's own is sent with it (D-664).
+            const nameField = () => window.all(adding, "TextField", []).find(field => field.placeholderText === "Optional, for example Holiday");
+            window.check(nameField() !== undefined, "the sheet has a name field");
+            nameField().text = "Holiday";
+            adding.save();
+            window.check(added()[4] === "addBudget:c-food,c-rent;a-checking:salary-month-25:250,00:false:2026-10-01::Holiday", "adding sends the name, got " + added()[4]);
 
             // The sheet to change a budget sends the period it starts from.
             const changing = window.pageStack.push(sheet, {budgetId: "b-food"});
             window.check(!changing.adding, "the sheet changes");
             window.check(window.all(changing, "TextField", []).some(field => field.text === "400,00"), "the amount is filled in");
+            // Only a new name: no amount is sent as changed, so amounts
+            // planned for later periods stay (D-664, D-345).
+            const changingName = window.all(changing, "TextField", []).find(field => field.placeholderText === "Optional, for example Holiday");
+            changingName.text = "Weekly shop";
             changing.save();
-            const changed = fake.calls.filter(call => call.startsWith("changeBudget:"));
-            window.check(changed[0] === "changeBudget:b-food:2026-10-01:400,00:true", "changing sends the period, got " + changed[0]);
+            const changed = () => fake.calls.filter(call => call.startsWith("changeBudget:"));
+            window.check(changed()[0] === "changeBudget:b-food:Weekly shop:false:2026-10-01:400,00:true", "a new name alone changes no amount, got " + changed()[0]);
+            window.all(changing, "TextField", []).find(field => field.text === "400,00").text = "380,00";
+            changing.save();
+            window.check(changed()[1] === "changeBudget:b-food:Weekly shop:true:2026-10-01:380,00:true", "changing sends the period, got " + changed()[1]);
+            // A budget with a name shows it, and its categories under it.
+            const listedNames = window.texts(page, []);
+            window.check(listedNames.includes("Flat") && listedNames.some(text => text.includes("Rent")), "a named budget shows its name and categories, got " + listedNames);
 
             // The bars.
             feed.show("this-month", []);

@@ -53,7 +53,9 @@ fn list_budgets_answers_with_the_current_figures_of_every_budget() {
             false,
         )
         .expect("monthly");
-        book.add_budget(
+        // With a name the user gave it (D-664).
+        book.add_named_budget(
+            Some("Eating and home"),
             &[DINING, HOUSEHOLD],
             &[CHECKING],
             BudgetEvery::salary_month(25).expect("a salary day"),
@@ -95,6 +97,9 @@ fn list_budgets_answers_with_the_current_figures_of_every_budget() {
         assert!(budget["current_period"]["spent"].is_string(), "{budget}");
     }
     assert_eq!(budgets[1]["salary_day"], json!(25));
+    // A budget's name comes only when the user gave it one (D-664).
+    assert_eq!(budgets[1]["name"], json!("Eating and home"), "{answer}");
+    assert!(budgets[0].get("name").is_none(), "{answer}");
     assert_eq!(
         budgets[1]["account_ids"],
         json!([CHECKING.to_string()]),

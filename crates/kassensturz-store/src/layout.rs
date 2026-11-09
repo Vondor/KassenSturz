@@ -35,7 +35,7 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 4] = [LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27];
+pub(crate) const MIGRATIONS: [&str; 5] = [LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
 /// development layouts of the Alpha, merged into layout 24 (D-045, D-135,
@@ -910,6 +910,25 @@ DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
 ";
 
+/// Layout 28 (M6-B203, D-664): a budget can have a name the user gives it,
+/// such as "Holiday", which the screens and the AI show instead of its
+/// categories.
+///
+/// - `budgets` gets `name`: the name, 1 to 100 characters, or empty
+///   (`NULL`) for a budget without one, which the screens call by its
+///   categories as before.
+/// - `changed_budgets` gets the same column, so the change history records
+///   a new name and Undo brings the old one back (D-066).
+///
+/// Every budget of layout 27 keeps going without a name, and so does every
+/// copy the history kept: nothing the user sees changes until they name a
+/// budget, and no text in one language is written into the book.
+const LAYOUT_28: &str = "
+ALTER TABLE budgets ADD COLUMN name TEXT
+    CHECK (name IS NULL OR length(name) BETWEEN 1 AND 100);
+ALTER TABLE changed_budgets ADD COLUMN name TEXT;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -1544,6 +1563,125 @@ mod tests {
         assert_eq!(action, "change_account_type");
         book.undo().expect("undone");
         assert_eq!(book.account(checking).expect("account").account_type, None);
+    }
+
+    #[test]
+    fn layout_28_keeps_the_budgets_of_layout_27_without_a_name_and_records_one() {
+        // A book at layout 27 with a monthly budget on groceries, made by a
+        // change the history recorded, as KassenSturz wrote it before
+        // budgets had names (M6-B203, D-664).
+        let folder = TempFolder::new();
+        let path = folder.join("Household.ksz");
+        old_book(&path, 27);
+        let conn = Connection::open(&path).expect("book opened");
+        let groceries: [u8; 16] = conn
+            .query_row(
+                "SELECT id FROM accounts WHERE name = 'Groceries'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("category");
+        let (budget, amount, change) = (
+            uuid::Uuid::now_v7().into_bytes(),
+            uuid::Uuid::now_v7().into_bytes(),
+            uuid::Uuid::now_v7().into_bytes(),
+        );
+        let made_at = kassensturz_core::Timestamp::from_second(
+            kassensturz_core::Timestamp::now().as_second(),
+        )
+        .expect("now");
+        conn.execute_batch("BEGIN").expect("begun");
+        for (sql, values) in [
+            (
+                "INSERT INTO budgets (id, every, first_day, last_day, salary_day)
+                 VALUES (?1, 'month', '2026-10-01', NULL, 25)",
+                params![budget],
+            ),
+            (
+                "INSERT INTO budget_categories (id, budget_id, category_id, position)
+                 VALUES (?1, ?1, ?2, 0)",
+                params![budget, groceries],
+            ),
+            (
+                "INSERT INTO budget_amounts (id, budget_id, from_day, amount, carry_over)
+                 VALUES (?1, ?2, '2026-10-01', 40000, 0)",
+                params![amount, budget],
+            ),
+            (
+                "INSERT INTO changes (id, sequence, action, made_at, undone)
+                 VALUES (?1, 1, 'add_budget', ?2, 0)",
+                params![change, made_at.to_string()],
+            ),
+            (
+                "INSERT INTO changed_budgets
+                     (change_id, side, id, every, first_day, last_day, salary_day)
+                 VALUES (?1, 'after', ?2, 'month', '2026-10-01', NULL, 25)",
+                params![change, budget],
+            ),
+            (
+                "INSERT INTO changed_budget_categories
+                     (change_id, side, id, budget_id, category_id, position)
+                 VALUES (?1, 'after', ?2, ?2, ?3, 0)",
+                params![change, budget, groceries],
+            ),
+            (
+                "INSERT INTO changed_budget_amounts
+                     (change_id, side, id, budget_id, from_day, amount, carry_over)
+                 VALUES (?1, 'after', ?2, ?3, '2026-10-01', 40000, 0)",
+                params![change, amount, budget],
+            ),
+        ] {
+            conn.execute(sql, values).expect("written");
+        }
+        conn.execute_batch("COMMIT").expect("committed");
+        drop(conn);
+
+        let computer = computer(&folder);
+        let mut book = Book::open(&path, &computer).expect("book updated");
+        assert_eq!(pragma(&book.conn, "user_version"), VERSION);
+        // The book was backed up first, as it was: layout 27, no names.
+        let backups = files_in(&computer.backup_folder);
+        assert_eq!(backups.len(), 1);
+        let backup = Connection::open(&backups[0]).expect("backup opened");
+        assert_eq!(pragma(&backup, "user_version"), 27);
+        assert_eq!(count(&backup, "budgets"), 1);
+        drop(backup);
+        // The budget keeps everything it had and has no name.
+        let budgets = book.budgets().expect("budgets");
+        assert_eq!(budgets.len(), 1);
+        let id = budgets[0].id;
+        assert_eq!(budgets[0].name, None);
+        assert_eq!(
+            budgets[0].every,
+            kassensturz_core::BudgetEvery::salary_month(25).expect("a salary month")
+        );
+        assert_eq!(budgets[0].amounts.len(), 1);
+        // The change made before the update is undone and made again.
+        book.undo().expect("undone");
+        assert!(book.budgets().expect("budgets").is_empty());
+        book.redo().expect("made again");
+        assert_eq!(book.budgets().expect("budgets"), budgets);
+        // A name given after the update is recorded, and undone like any
+        // other change of a budget.
+        book.set_budget_name(id, Some("Weekly shop"))
+            .expect("named");
+        assert_eq!(
+            book.budget(id).expect("budget").name.as_deref(),
+            Some("Weekly shop")
+        );
+        assert_eq!(
+            book.change_to_undo()
+                .expect("history")
+                .map(|change| change.action),
+            Some(crate::Action::EditBudget)
+        );
+        book.undo().expect("undone");
+        assert_eq!(book.budget(id).expect("budget").name, None);
+        book.redo().expect("made again");
+        assert_eq!(
+            book.budget(id).expect("budget").name.as_deref(),
+            Some("Weekly shop")
+        );
     }
 
     #[test]

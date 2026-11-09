@@ -300,6 +300,8 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.25** · **later** · waits for: US1.1 and US1.3 merged; the maintainer decides in US1 Phase 3. #511: show bank setup in the first-run wizard (Q-398)
 
+- **M6-B203** · **done** (this PR) · US1 Phase 3 thread "Give budgets a name" · strong, high · D-664 · Q-446 = 2 · [format]. #584: a budget can have a name of its own, shown instead of its categories in the app and the AI tools; layout 28 updates existing books after a backup, budgets without a name look as before
+
 - **US1.26** · **later** · waits for: an outsider and the published tester kit, before the stage Go; no build. #513: the outside install check, a Beta entry condition
 
 - **M6-B195** · **done** (#561) · US1 Phase 3 thread "Let users change an account's type" · strong, medium · D-625 · Q-440 = 1. #558: an account's type can be changed on the account page and through the AI's `edit_accounts` (confirmed in the app); to or from a credit card its balance moves between what the user has and owes, its worth and every entry stay the same. The KMyMoney import maps credit cards; `list_accounts` explains `other`. Layout 27. Why: an imported book can bring wrong or missing types, and later features (cash Rules, credit card statements) rely on them

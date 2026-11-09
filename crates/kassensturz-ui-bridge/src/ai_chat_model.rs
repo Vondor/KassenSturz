@@ -719,6 +719,7 @@ pub(crate) mod engine {
                 ("charts", list(charts.iter().map(|chart| text(chart)))),
             ],
             ChangeView::NewBudget {
+                name,
                 category,
                 accounts,
                 every,
@@ -731,6 +732,7 @@ pub(crate) mod engine {
             } => {
                 let mut fields = vec![
                     ("kind", text("newBudget")),
+                    ("name", text(name)),
                     ("category", text(category)),
                     ("accounts", text(accounts)),
                     ("every", text(every)),
@@ -744,6 +746,10 @@ pub(crate) mod engine {
                 fields
             }
             ChangeView::EditBudget {
+                name,
+                renames,
+                new_name,
+                changes_amount,
                 category,
                 accounts,
                 every,
@@ -758,6 +764,10 @@ pub(crate) mod engine {
             } => {
                 let mut fields = vec![
                     ("kind", text("editBudget")),
+                    ("name", text(name)),
+                    ("renames", QVariant::from(renames)),
+                    ("newName", text(new_name)),
+                    ("changesAmount", QVariant::from(changes_amount)),
                     ("category", text(category)),
                     ("accounts", text(accounts)),
                     ("every", text(every)),
@@ -1763,6 +1773,7 @@ mod tests {
                 charts: vec!["chart.pie", "chart.bar"],
             },
             ChangeView::NewBudget {
+                name: "<b>Weekly</b> shop".into(),
                 category: "Food › <b>Groceries</b>".into(),
                 accounts: "<b>Checking</b>".into(),
                 every: "salary-month",
@@ -1781,6 +1792,10 @@ mod tests {
                 }),
             },
             ChangeView::EditBudget {
+                name: String::new(),
+                renames: true,
+                new_name: "Weekends".into(),
+                changes_amount: true,
                 category: "Fun".into(),
                 accounts: String::new(),
                 every: "quarter",
@@ -1973,6 +1988,7 @@ mod tests {
             "every",
             "from",
             "kind",
+            "name",
             "salaryDay",
             "to",
         ]
@@ -1982,6 +1998,7 @@ mod tests {
         expected.sort_unstable();
         assert_eq!(own_keys(&items[14]), expected);
         assert_eq!(text_of(&items[14], "kind"), "newBudget");
+        assert_eq!(text_of(&items[14], "name"), "<b>Weekly</b> shop");
         assert_eq!(text_of(&items[14], "category"), "Food › <b>Groceries</b>");
         assert_eq!(text_of(&items[14], "accounts"), "<b>Checking</b>");
         assert_eq!(text_of(&items[14], "every"), "salary-month");
@@ -1999,9 +2016,13 @@ mod tests {
             "carriedOver",
             "carryOver",
             "category",
+            "changesAmount",
             "every",
             "from",
             "kind",
+            "name",
+            "newName",
+            "renames",
             "salaryDay",
             "to",
         ]
@@ -2011,6 +2032,10 @@ mod tests {
         expected.sort_unstable();
         assert_eq!(own_keys(&items[15]), expected);
         assert_eq!(text_of(&items[15], "kind"), "editBudget");
+        assert_eq!(text_of(&items[15], "name"), "");
+        assert!(flag_of(&items[15], "renames"));
+        assert_eq!(text_of(&items[15], "newName"), "Weekends");
+        assert!(flag_of(&items[15], "changesAmount"));
         assert_eq!(text_of(&items[15], "before"), "100,00 €");
         assert_eq!(number_of(&items[15], "salaryDay"), 0);
         assert!(!flag_of(&items[15], "carriedOver"));

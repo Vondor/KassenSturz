@@ -471,7 +471,10 @@ mod tests {
             split_days("1.11.2026\n30.11.2026"),
             ("1.11.2026".into(), "30.11.2026".into())
         );
-        assert_eq!(split_days("2026-11-01\n"), ("2026-11-01".into(), String::new()));
+        assert_eq!(
+            split_days("2026-11-01\n"),
+            ("2026-11-01".into(), String::new())
+        );
         assert_eq!(split_days(""), (String::new(), String::new()));
     }
 

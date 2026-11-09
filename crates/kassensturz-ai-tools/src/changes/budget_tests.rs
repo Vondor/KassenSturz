@@ -347,7 +347,7 @@ fn the_stores_own_checks_reach_the_model() {
     );
 }
 
-/// A budget item with a key it doesn't take, such as a name, is refused
+/// A budget item with a key it doesn't take, such as a colour, is refused
 /// with the list, the item and the keys it does take; the model's key is
 /// never repeated back (M6-B201, X-8).
 #[test]
@@ -356,12 +356,12 @@ fn an_unknown_budget_key_lists_the_keys_a_budget_takes() {
     let food = small.food.to_string();
     let call = json!({"new_budgets": [
         {"category_id": food, "every": "month", "amount": "10"},
-        {"category_id": food, "every": "year", "amount": "10", "name": "Groceries cap"}
+        {"category_id": food, "every": "year", "amount": "10", "colour": "Groceries green"}
     ]});
     let error = propose(&small.book, &call).expect_err("refused");
     let allowed = error.allowed_fields().expect("the keys it takes");
     assert!(allowed.contains(&"category_ids") && allowed.contains(&"every"));
-    assert!(!allowed.contains(&"name"));
+    assert!(allowed.contains(&"name") && !allowed.contains(&"colour"));
     let report = error.model_report();
     assert_eq!(report.code, "ai-tools.unknown-field");
     assert_eq!(
@@ -374,7 +374,7 @@ fn an_unknown_budget_key_lists_the_keys_a_budget_takes() {
     );
     let shown = format!("{report:?} {allowed:?}");
     assert!(!shown.contains("Groceries"), "{shown}");
-    assert!(!shown.contains("\"name\""), "{shown}");
+    assert!(!shown.contains("colour"), "{shown}");
 }
 
 #[test]

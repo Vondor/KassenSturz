@@ -316,8 +316,6 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.25** · **later** · waits for: US1.1 and US1.3 merged; the maintainer decides in US1 Phase 3. #511: show bank setup in the first-run wizard (Q-398)
 
-- **M6-B203** · **done** (this PR) · US1 Phase 3 thread "Give budgets a name" · strong, high · D-664 · Q-446 = 2 · [format]. #584: a budget can have a name of its own, shown instead of its categories in the app and the AI tools; layout 28 updates existing books after a backup, budgets without a name look as before
-
 - **US1.26** · **later** · waits for: an outsider and the published tester kit, before the stage Go; no build. #513: the outside install check, a Beta entry condition
 
 - **M6-B195** · **done** (#561) · US1 Phase 3 thread "Let users change an account's type" · strong, medium · D-625 · Q-440 = 1. #558: an account's type can be changed on the account page and through the AI's `edit_accounts` (confirmed in the app); to or from a credit card its balance moves between what the user has and owes, its worth and every entry stay the same. The KMyMoney import maps credit cards; `list_accounts` explains `other`. Layout 27. Why: an imported book can bring wrong or missing types, and later features (cash Rules, credit card statements) rely on them
@@ -326,7 +324,13 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **M6-B202** · **done** (this PR) · US1 Phase 3 thread "Hide grey filter notes on every tile" · standard, medium · D-663 · [format]. #581: every tile with grey filter notes gets the *Hide the grey filter notes* switch in *Properties* (default shown); problem notes stay
 
+- **M6-B203** · **done** (this PR) · US1 Phase 3 thread "Give budgets a name" · strong, high · D-664 · Q-446 = 2 · [format]. #584: a budget can have a name of its own, shown instead of its categories in the app and the AI tools; layout 28 updates existing books after a backup, budgets without a name look as before
+
+- **M6-B205** · **done** (this PR) · US1 Phase 3 thread "Open all reasonable chart types" · strong, high · D-666 · Q-448 = 1. #586: every reasonable pair of data and chart type can be chosen in *Properties* and by the AI: spending as one split bar and a number card, categories over time as bars and a table, account balances and net worth as bars, the money in and out of the accounts as lines, areas, stacked bars and a number card, budgets as a table; pies of months, lines without a time axis and progress bars without a target stay refused. Why: the catalog still held only what M6c built first (D-370)
+
 - **M6-B206** · **done** (this PR) · US1 Phase 3 thread "Add account filter to category and payee totals" · strong, medium · D-667 · Q-450 = R. #589: the AI's `category_totals` and `payee_totals` take an optional `account_ids` (at most 20 of the user's own accounts); a transaction with a part in one of them counts as a whole, as the filters and budgets count it
+
+- **M6-B207** · **done** (this PR) · US1 Phase 3 thread "Flag averages before first booking" · strong, medium · D-668 · Q-451 = R. #590: an average per month, quarter or year that counts months before the first transaction of its accounts and categories keeps its figure and says how many months count as zero, under the chart (hidden by *Hide the grey filter notes*) and in the AI tool's answer (`average_note`)
 
 - **US1.27** · **later** · waits for: the maintainer's stage Go after US1 Phase 3, with the [format] items (US1.9, US1.10, US1.12, US1.19) merged and US1.26 passed; then M7a.6 follows. #512: the stage move from Alpha to Beta (D-495 check)
 

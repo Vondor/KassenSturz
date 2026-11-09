@@ -19,7 +19,8 @@ use crate::datasets::{extent, major_unit, point};
 use crate::ticks::ticks;
 use crate::{ChartError, ChartKind, ChartModel, Series, Slices};
 
-/// What you are worth at the end of each month as a line or a filled line:
+/// What you are worth at the end of each month as a line, a filled line or
+/// bars (D-666):
 /// one series, `net_worth`, with a point for every month. A period inside
 /// one month has a second point, what you were worth when it began, named by
 /// its day (D-407). A table (which
@@ -69,17 +70,22 @@ pub fn net_worth_over_time(
     })
 }
 
-/// The money in and out of the chosen accounts in each month as bars: the
-/// series `money_in` and `money_out`, one point per month. The table (which
-/// asks for the same bar chart) has what the accounts held at the start and
-/// at the end and the starting balances set in the month too. The total is
-/// the net change of the whole period: money in less money out.
+/// The money in and out of the chosen accounts in each month as bars,
+/// stacked bars, lines or filled lines (D-666): the series `money_in` and
+/// `money_out`, one point per month. The table (which asks for a bar chart)
+/// has what the accounts held at the start and at the end and the starting
+/// balances set in the month too. The total is the net change of the whole
+/// period: money in less money out. A round chart is refused: a pie of
+/// months says nothing.
 pub fn cash_flow_by_month(
     data: &CashFlowByMonth,
     kind: ChartKind,
     format: &impl TextFormat,
 ) -> Result<ChartModel, ChartError> {
-    if kind != ChartKind::Bar {
+    if !matches!(
+        kind,
+        ChartKind::Line | ChartKind::Area | ChartKind::Bar | ChartKind::StackedBar
+    ) {
         return Err(ChartError::KindNotSupported(kind));
     }
     let table = data.to_text(format);
@@ -105,7 +111,7 @@ pub fn cash_flow_by_month(
                 .collect(),
         },
     ];
-    let (low, high) = extent(&series, false);
+    let (low, high) = extent(&series, kind == ChartKind::StackedBar);
     let ticks = ticks(low, high, major_unit(data.currency), data.currency, format)?;
     Ok(ChartModel {
         kind,
@@ -144,10 +150,12 @@ pub enum BalancesBy {
     Kind,
 }
 
-/// What each account held at the end of the period's last day, as a table
-/// (the caller asks for a bar chart, whose values it shows; nothing is
-/// drawn). A debt is shown as a positive amount in the `owe` rows, as the
-/// figures of the dataset have it. The total is what you are worth.
+/// What each account held at the end of the period's last day, as bars or
+/// as a table (which asks for the bar chart and shows its values): one bar
+/// for each account, or for what you have, owe and are worth (D-666). A debt
+/// is shown as a positive amount in the `owe` rows, as the figures of the
+/// dataset have it; an overdrawn account is a bar below zero. The total is
+/// what you are worth. Lines are refused, the balances have no time axis.
 pub fn account_balances(
     data: &CurrencyBalances,
     by: BalancesBy,
@@ -212,6 +220,8 @@ pub fn account_balances(
             .map(|(_, _, money)| point(*money, format))
             .collect(),
     }];
+    let (low, high) = extent(&series, false);
+    let ticks = ticks(low, high, major_unit(data.currency), data.currency, format)?;
     Ok(ChartModel {
         kind,
         dataset: ACCOUNT_BALANCES,
@@ -221,7 +231,7 @@ pub fn account_balances(
         categories: entries.into_iter().map(|(name, _, _)| name).collect(),
         unsorted: None,
         series,
-        ticks: Vec::new(),
+        ticks,
         total: format.amount(data.worth.net_worth),
         table,
         slices: Slices::default(),

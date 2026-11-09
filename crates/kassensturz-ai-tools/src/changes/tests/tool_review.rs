@@ -165,7 +165,9 @@ fn a_search_row_names_the_other_party_when_the_payee_says_something_else() {
 
 /// Prepares a chart; the code it gives, "prepared" when it is.
 fn chart_code(book: &Book, arguments: &Value) -> String {
-    match propose_view(book, arguments, Permissions::all()).map_err(ToolError::without_item) {
+    match propose_view(book, arguments, Permissions::all(), today())
+        .map_err(ToolError::without_item)
+    {
         Ok(_) => "prepared".into(),
         Err(error) => error.report().code.into(),
     }

@@ -541,10 +541,58 @@ mod tests {
         assert_eq!(text_of(&cards[2], "value"), "500,00 €");
     }
 
+    /// The money in and out of the accounts and spending as one figure
+    /// each (D-666): September against August.
+    #[test]
+    fn the_money_in_and_out_and_spending_read_back_as_cards() {
+        let book = book(true);
+        let asked = |dataset: &str| Request {
+            dataset: dataset.into(),
+            ..request("last-month")
+        };
+        let view = view_of(&book, &asked("cash_flow_by_month"));
+        assert_eq!(keys(&view), ["empty", "filter", "sets"]);
+        let cards = list_of(&list_of(&view, "sets")[0], "cards");
+        let measures: Vec<String> = cards.iter().map(|card| text_of(card, "measure")).collect();
+        assert_eq!(measures, ["net_change", "money_in", "money_out"]);
+        // The same keys as every other card, so QML reads them alike.
+        assert_eq!(
+            keys(&cards[0]),
+            keys(
+                &list_of(
+                    &list_of(&view_of(&book, &request("last-month")), "sets")[0],
+                    "cards"
+                )[0]
+            )
+        );
+        // 2500,00 in, 853,20 out in September; 2500,00 and 800,00 in August.
+        assert_eq!(text_of(&cards[0], "value"), "1646,80 €");
+        assert_eq!(text_of(&cards[0], "previous"), "1700,00 €");
+        assert_eq!(text_of(&cards[0], "direction"), "down");
+        assert_eq!(text_of(&cards[1], "value"), "2500,00 €");
+        assert_eq!(text_of(&cards[1], "direction"), "same");
+        assert_eq!(text_of(&cards[2], "value"), "853,20 €");
+        assert_eq!(text_of(&cards[2], "change"), "53,20 €");
+
+        let view = view_of(&book, &asked("spending_by_category"));
+        let cards = list_of(&list_of(&view, "sets")[0], "cards");
+        assert_eq!(cards.len(), 1);
+        assert_eq!(text_of(&cards[0], "measure"), "total");
+        assert_eq!(text_of(&cards[0], "value"), "853,20 €");
+        assert_eq!(text_of(&cards[0], "previous"), "800,00 €");
+        assert_eq!(text_of(&cards[0], "direction"), "up");
+        // Nothing in either period: no cards, as for the other datasets.
+        let none = Request {
+            dataset: "spending_by_category".into(),
+            ..request("last-year")
+        };
+        assert!(list_of(&view_of(&book, &none), "sets").is_empty());
+    }
+
     #[test]
     fn a_dataset_the_cards_do_not_know_is_a_bad_request() {
         let bad = Request {
-            dataset: "spending_by_category".into(),
+            dataset: "budget_utilization".into(),
             ..request("last-month")
         };
         assert_eq!(keys(&view_of(&book(true), &bad)), ["error"]);

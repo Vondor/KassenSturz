@@ -6694,6 +6694,74 @@ msgctxt ""
 msgid "Net change in total: %1"
 msgstr "Veränderung insgesamt: %1"
 
+#, kde-format
+msgctxt ""
+"@label %1 is an amount of money: what the user has less what they owe at the "
+"end of the period"
+msgid "What you are worth: %1"
+msgstr "Ihr Vermögen: %1"
+
+#, kde-format
+msgctxt "@title:column a table of budgets: what the budget is for"
+msgid "Budget"
+msgstr "Budget"
+
+#, kde-format
+msgctxt "@title:column a table of budgets: the days of the budget's period"
+msgid "Period"
+msgstr "Zeitraum"
+
+#, kde-format
+msgctxt "@title:column a table of budgets"
+msgid "Planned"
+msgstr "Geplant"
+
+#, kde-format
+msgctxt "@title:column a table of budgets: what came over from the period before"
+msgid "Carried over"
+msgstr "Übernommen"
+
+#, kde-format
+msgctxt "@title:column a table of budgets: planned plus carried over"
+msgid "Available"
+msgstr "Verfügbar"
+
+#, kde-format
+msgctxt "@title:column a table of budgets"
+msgid "Spent"
+msgstr "Ausgegeben"
+
+#, kde-format
+msgctxt "@title:column a table of budgets: available less spent"
+msgid "Left"
+msgstr "Übrig"
+
+#, kde-format
+msgctxt ""
+"@title:column a table of budgets: the share of what is available that was "
+"spent"
+msgid "Used"
+msgstr "Verbraucht"
+
+#, kde-format
+msgctxt ""
+"@title:card a key figure: the money that came into the accounts less the "
+"money that went out"
+msgid "Net change"
+msgstr "Veränderung"
+
+#, kde-format
+msgctxt "@title:card a key figure: everything spent in the period"
+msgid "Total spent"
+msgstr "Insgesamt ausgegeben"
+
+#, kde-format
+msgctxt ""
+"@item:inlistbox a key figure: the money that came into the accounts less the "
+"money that went out"
+msgid "Net change"
+msgstr "Veränderung"
+
 #: crates/kassensturz-ui-bridge/qml/ChartView.qml:729
 #, kde-format
 msgctxt "@label %1 is an amount of money"
@@ -8504,6 +8572,30 @@ msgstr "Nicht nach Konto gefiltert: Hier zählen alle Konten."
 msgctxt "@info"
 msgid "Not filtered by category: this counts whole accounts."
 msgstr "Nicht nach Kategorie gefiltert: Hier zählen ganze Konten."
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:70
+#, kde-format
+msgctxt "@info %1 is how many quarters of an average are before the first transaction, %2 how many it counts"
+msgid "%1 of the %2 quarters this average counts is before the first transaction and counts as zero."
+msgid_plural "%1 of the %2 quarters this average counts are before the first transaction and count as zero."
+msgstr[0] "%1 der %2 Quartale dieses Durchschnitts liegt vor der ersten Buchung und zählt als null."
+msgstr[1] "%1 der %2 Quartale dieses Durchschnitts liegen vor der ersten Buchung und zählen als null."
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:72
+#, kde-format
+msgctxt "@info %1 is how many years of an average are before the first transaction, %2 how many it counts"
+msgid "%1 of the %2 years this average counts is before the first transaction and counts as zero."
+msgid_plural "%1 of the %2 years this average counts are before the first transaction and count as zero."
+msgstr[0] "%1 der %2 Jahre dieses Durchschnitts liegt vor der ersten Buchung und zählt als null."
+msgstr[1] "%1 der %2 Jahre dieses Durchschnitts liegen vor der ersten Buchung und zählen als null."
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:74
+#, kde-format
+msgctxt "@info %1 is how many months of an average are before the first transaction, %2 how many it counts"
+msgid "%1 of the %2 months this average counts is before the first transaction and counts as zero."
+msgid_plural "%1 of the %2 months this average counts are before the first transaction and count as zero."
+msgstr[0] "%1 der %2 Monate dieses Durchschnitts liegt vor der ersten Buchung und zählt als null."
+msgstr[1] "%1 der %2 Monate dieses Durchschnitts liegen vor der ersten Buchung und zählen als null."
 
 #: crates/kassensturz-ui-bridge/qml/FilterNotes.qml:56
 #, kde-format

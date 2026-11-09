@@ -63,7 +63,10 @@ impl NewView {
 /// The kind of component `auto` stands for: money by category reads best as
 /// a pie, budgets as their bars, anything else as bars or, for a figure
 /// over time such as what you are worth, a line (D-352), and a dataset that
-/// suits none of them as a key figure or a table.
+/// suits none of them as a key figure or a table. Since the datasets suit
+/// more kinds (D-666), the financial ones name their own first choice, so
+/// `auto` still picks what it picked before: a line of what you are worth,
+/// bars of the money in and out, today's balances as a key figure.
 pub(super) fn automatic(dataset: &str, grouping: Option<&str>) -> Option<ComponentType> {
     let grouping = grouping.or_else(|| {
         kassensturz_report::dataset(dataset).and_then(|info| info.groupings.first().copied())
@@ -75,6 +78,12 @@ pub(super) fn automatic(dataset: &str, grouping: Option<&str>) -> Option<Compone
         .is_some_and(|info| info.suits.contains(&ComponentType::BudgetProgress.suit()))
     {
         &[ComponentType::BudgetProgress]
+    } else if dataset == kassensturz_report::NET_WORTH_OVER_TIME {
+        &[ComponentType::ChartLine]
+    } else if dataset == kassensturz_report::CASH_FLOW_BY_MONTH {
+        &[ComponentType::ChartBar]
+    } else if dataset == kassensturz_report::ACCOUNT_BALANCES {
+        &[ComponentType::KpiCard]
     } else {
         &[
             ComponentType::ChartStackedBar,

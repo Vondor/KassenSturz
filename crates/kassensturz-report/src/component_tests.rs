@@ -255,6 +255,27 @@ fn changing_the_type_keeps_the_title_and_what_still_fits() {
 }
 
 #[test]
+fn a_new_card_or_stacked_bar_starts_with_money_in_and_out_as_before() {
+    // Spending suits both since D-666; what a new one starts with stays.
+    for kind in [ComponentType::KpiCard, ComponentType::ChartStackedBar] {
+        assert!(kind.datasets().any(|info| info.id == SPENDING_BY_CATEGORY));
+        assert_eq!(
+            kind.first_dataset().map(|info| info.id),
+            Some(INCOME_EXPENSE_BY_MONTH)
+        );
+    }
+    assert_eq!(
+        ComponentType::ChartBar.first_dataset().map(|info| info.id),
+        Some(SPENDING_BY_CATEGORY)
+    );
+    assert!(ComponentType::Heading.first_dataset().is_none());
+    // A heading made into stacked bars takes the same.
+    let mut part = Component::new(ComponentType::Heading, "").unwrap();
+    part.change_kind(ComponentType::ChartStackedBar).unwrap();
+    assert_eq!(part.dataset().id, INCOME_EXPENSE_BY_MONTH);
+}
+
+#[test]
 fn groups_series_and_the_hidden_flag_round_trip_through_a_document() {
     let mut chart = Component::new(ComponentType::ChartLine, "category_over_time").unwrap();
     assert_eq!(chart.get("groups"), Some(&Setting::Ids(Vec::new())));

@@ -781,8 +781,24 @@ mod tests {
             .map(|column| column.value::<QString>().expect("text").to_string())
             .collect();
         assert_eq!(columns, ["category", "per_month"]);
+        // M6-B207 (#590, D-668): the book starts on 3 August, so 9 of the 12
+        // months up to `TestLocale`'s 19 October are before it, and the
+        // filter's notes say so the way FilterNotes.qml reads them.
+        let notes = list_of(&object_of(&view, "filter"), "notes");
+        assert_eq!(notes.len(), 1);
+        assert_eq!(
+            keys(&notes[0]),
+            ["before", "counted", "dimension", "id", "kind"]
+        );
+        assert_eq!(text_of(&notes[0], "kind"), "average-early");
+        assert_eq!(text_of(&notes[0], "dimension"), "period");
+        assert_eq!(text_of(&notes[0], "id"), "per-month");
+        assert_eq!(number_of(&notes[0], "counted"), 12);
+        assert_eq!(number_of(&notes[0], "before"), 9);
         let plain = view_of(&request("spending_by_category", "donut"));
         assert_eq!(text_of(&list_of(&plain, "charts")[0], "per"), "");
+        // A total names nothing.
+        assert!(list_of(&object_of(&plain, "filter"), "notes").is_empty());
         // Only spending is averaged.
         let mut monthly = request("income_expense_by_month", "bar");
         monthly.scope.average = "per-month".into();

@@ -108,6 +108,12 @@ ColumnLayout {
             return i18nContext.i18nc("@label a series of a chart", "Money in");
         case "net_worth":
             return i18nContext.i18nc("@label a series of a chart: what the user has less what they owe", "What you are worth");
+        case "balance":
+            return i18nContext.i18nc("@title:column a table of a chart", "Balance");
+        // The smaller categories of one bar split into its categories, put
+        // together as in a pie (D-666).
+        case "other":
+            return i18nContext.i18nc("@label the smaller slices of a pie put together", "Other");
         }
         return "";
     }
@@ -736,6 +742,8 @@ ColumnLayout {
             ? i18nContext.i18nc("@label %1 is an amount of money", "Total spent: %1", view.chart.total)
             : view.chart.dataset === "net_worth_over_time"
             ? i18nContext.i18nc("@label %1 is an amount of money", "What you are worth at the end: %1", view.chart.total)
+            : view.chart.dataset === "account_balances"
+            ? i18nContext.i18nc("@label %1 is an amount of money: what the user has less what they owe at the end of the period", "What you are worth: %1", view.chart.total)
             : view.chart.dataset === "cash_flow_by_month"
             ? i18nContext.i18nc("@label %1 is an amount of money, the money in less the money out of the accounts", "Net change in total: %1", view.chart.total)
             : i18nContext.i18nc("@label %1 is an amount of money", "Left over in total: %1", view.chart.total)
@@ -746,7 +754,8 @@ ColumnLayout {
     // What "Other" holds, under the chart and under its table.
     Controls.Label {
         Layout.fillWidth: true
-        visible: view.round && view.chart.slices.other >= 0
+        // A pie, or one bar split into the categories (D-666).
+        visible: view.chart.slices.other >= 0
         text: i18nContext.i18nc("@info %1 is the categories in Other with their amounts", "Other holds: %1", view.holdsText())
         textFormat: Text.PlainText
         wrapMode: Text.Wrap

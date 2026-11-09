@@ -89,6 +89,12 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 "formula" => component.kind() == ComponentType::KpiCard && !uses,
                 "target" => !has_formula,
                 "compare" => uses,
+                // The budgets' table lists each budget's current period, as
+                // the budget bars do (D-666): there is nothing to group.
+                "grouping" => {
+                    component.kind() == ComponentType::TableRows
+                        && component.dataset().id == kassensturz_report::BUDGET_UTILIZATION
+                }
                 _ => false,
             };
             if hidden {
@@ -204,7 +210,8 @@ pub fn json(component: &Component) -> String {
 /// names those objects take, so the screen maps nothing itself.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Preview {
-    /// `chart`, `card`, `progress`, `table` or `heading`.
+    /// `chart`, `card`, `progress`, `table`, `budget-progress`,
+    /// `budget-table` (D-666), `heading` and the other text parts.
     pub shows: &'static str,
     /// The `kind` for `BookCharts.show`; empty for a card or a progress bar.
     pub chart: &'static str,
@@ -356,8 +363,14 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::ChartDonut => ("chart", "donut"),
         ComponentType::KpiCard => ("card", ""),
         ComponentType::ProgressBar => ("progress", ""),
-        // A table shows the values of a chart; a bar chart is the one both
-        // datasets can make.
+        // A table shows the values of a chart; a bar chart is the one every
+        // dataset can make. The budgets' table shows the figures of the
+        // budget bars (D-666).
+        ComponentType::TableRows
+            if component.dataset().id == kassensturz_report::BUDGET_UTILIZATION =>
+        {
+            ("budget-table", "")
+        }
         ComponentType::TableRows => ("table", "bar"),
         // Text only: nothing is asked of the book.
         ComponentType::Heading => ("heading", ""),

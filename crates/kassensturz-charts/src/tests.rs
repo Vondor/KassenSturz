@@ -522,7 +522,14 @@ fn chosen_categories_and_groups_are_lines_named_by_the_book() {
     // The table is the dataset's own, one row per month and series.
     assert_eq!(model.table.rows.len(), 4);
     assert_eq!(model.hidden, None);
-    for kind in [ChartKind::Bar, ChartKind::Pie, ChartKind::Donut] {
+    // Bars side by side (and the table, which asks for them) show the same
+    // series and the same table (D-666).
+    let bars = category_over_time(&data, ChartKind::Bar, &Words).expect("bars");
+    assert_eq!(bars.series, model.series);
+    assert_eq!(bars.table, model.table);
+    assert_eq!(bars.ticks, model.ticks);
+    // A pie of months says nothing.
+    for kind in [ChartKind::Pie, ChartKind::Donut] {
         assert!(matches!(
             category_over_time(&data, kind, &Words),
             Err(ChartError::KindNotSupported(_))
@@ -599,6 +606,53 @@ fn a_round_chart_has_at_most_eight_slices_and_the_rest_is_other() {
         assert_eq!(model.table.rows.len(), 9);
         assert_eq!(model.table.rows[8], ["Returned", "-5,00 EUR"]);
         assert_eq!(model.total, "548,00 EUR");
+    }
+}
+
+#[test]
+fn one_bar_split_into_categories_has_the_slices_of_a_pie() {
+    let data = busy_spending();
+    let pie = spending_by_category(&data, ChartKind::Pie, &Words).expect("pie");
+    let bar = spending_by_category(&data, ChartKind::StackedBar, &Words).expect("bar");
+    assert_eq!(bar.kind, ChartKind::StackedBar);
+    // One place on the axis, a series for each slice the pie draws: the
+    // seven largest and Other; the refund is in the table only.
+    assert_eq!(bar.categories, [""]);
+    assert_eq!(bar.unsorted, None);
+    assert_eq!(bar.series.len(), 8);
+    assert!(bar.series.iter().all(|series| series.points.len() == 1));
+    assert_eq!(bar.series[0].key, "series");
+    assert_eq!(bar.series[0].name.as_deref(), Some("Category 0"));
+    assert_eq!(bar.series[7].key, "other");
+    assert_eq!(bar.series[7].name, None);
+    assert_eq!(bar.series[7].points[0].label, "63,00 EUR");
+    let colors: Vec<u16> = bar.series.iter().map(|series| series.color).collect();
+    assert_eq!(colors, [0, 1, 2, 3, 4, 5, 6, 7]);
+    // The same slices, table and total as the pie.
+    assert_eq!(bar.slices, pie.slices);
+    assert_eq!(bar.table, pie.table);
+    assert_eq!(bar.total, pie.total);
+    // The axis reaches over the whole bar: 553 euros drawn.
+    let drawn: i64 = bar
+        .series
+        .iter()
+        .map(|series| series.points[0].minor_units)
+        .sum();
+    assert_eq!(drawn, 55_300);
+    assert!(bar.ticks.last().expect("ticks").minor_units >= drawn);
+    assert_eq!(bar.ticks.first().map(|tick| tick.minor_units), Some(0));
+    // Without "Other", money not sorted yet is a slice named as the screen
+    // writes it.
+    let small = spending(&book());
+    let bar = spending_by_category(&small, ChartKind::StackedBar, &Words).expect("bar");
+    assert_eq!(bar.series.len(), 3);
+    assert_eq!(bar.series[2].name.as_deref(), Some("(unsorted)"));
+    // Lines and areas of categories have no time axis.
+    for kind in [ChartKind::Line, ChartKind::Area] {
+        assert_eq!(
+            spending_by_category(&small, kind, &Words),
+            Err(ChartError::KindNotSupported(kind))
+        );
     }
 }
 
@@ -778,7 +832,19 @@ fn cash_flow_is_bars_of_money_in_and_out_and_a_table_with_start_and_end() {
             row.end.minor_units()
         );
     }
-    for kind in [ChartKind::Line, ChartKind::Pie, ChartKind::StackedBar] {
+    // Lines, filled lines and stacked bars of the same series (D-666); the
+    // stacked bars' axis reaches over money in and out put together.
+    for kind in [ChartKind::Line, ChartKind::Area, ChartKind::StackedBar] {
+        let other = cash_flow_by_month(&data, kind, &Words).expect("chart");
+        assert_eq!(other.kind, kind);
+        assert_eq!(other.series, chart.series);
+        assert_eq!(other.total, chart.total);
+    }
+    let stacked = cash_flow_by_month(&data, ChartKind::StackedBar, &Words).expect("chart");
+    let top = stacked.ticks.last().expect("ticks").minor_units;
+    assert!(top >= 250_000 + 101_554, "{top}");
+    // A pie of months says nothing.
+    for kind in [ChartKind::Pie, ChartKind::Donut] {
         assert_eq!(
             cash_flow_by_month(&data, kind, &Words),
             Err(ChartError::KindNotSupported(kind))
@@ -808,7 +874,13 @@ fn the_balances_are_a_table_by_account_or_by_what_you_have_and_owe() {
         ]
     );
     assert_eq!(by_account.total, "3134,46 EUR");
-    assert!(by_account.ticks.is_empty());
+    // Drawn as bars too (D-666): the axis reaches from zero over the
+    // largest balance.
+    assert_eq!(
+        by_account.ticks.first().map(|tick| tick.minor_units),
+        Some(0)
+    );
+    assert!(by_account.ticks.last().expect("ticks").minor_units >= 318_446);
     let by_kind = account_balances(&data, BalancesBy::Kind, ChartKind::Bar, &Words).expect("chart");
     assert_eq!(by_kind.table.columns, ["figure", "total"]);
     assert_eq!(

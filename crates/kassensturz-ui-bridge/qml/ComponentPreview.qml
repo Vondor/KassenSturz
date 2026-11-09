@@ -70,7 +70,7 @@ ColumnLayout {
     // `quiet`), so it is only made when it has.
     readonly property bool hasFilterNotes: !hideNote && (filterView?.own ?? []).some(word => !(accountsInTitle && word === "accounts"))
         || !hideNote && (filterView?.filtered ?? []).some(word => word !== "period" && !(accountsInTitle && word === "accounts"))
-        || (filterView?.notes ?? []).some(note => !(hideNote && note.kind === "not-applied"))
+        || (filterView?.notes ?? []).some(note => !(hideNote && (note.kind === "not-applied" || note.kind === "average-early")))
     // Every tile can leave out its grey marks (US1.9, #523; M6-B202, #581,
     // D-663). A title it draws then names the accounts it counts.
     readonly property bool hideNote: (subject?.fields ?? []).some(f => f.key === "hide_note" && f.flag)

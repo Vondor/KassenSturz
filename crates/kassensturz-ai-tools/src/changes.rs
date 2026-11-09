@@ -1128,7 +1128,7 @@ pub fn prepare_named(
 ) -> Result<Proposal, ToolError> {
     match name {
         _ if name == PROPOSE_CHANGES.name => propose_on(book, arguments, allowed, today),
-        PROPOSE_VIEW_NAME => propose_view(book, arguments, allowed),
+        PROPOSE_VIEW_NAME => propose_view(book, arguments, allowed, today),
         _ => Err(ToolError::UnknownFunction),
     }
 }

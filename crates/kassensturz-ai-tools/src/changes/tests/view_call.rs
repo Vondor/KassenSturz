@@ -29,7 +29,7 @@ fn view_code(result: Result<Proposal, ToolError>) -> String {
 }
 
 fn call(book: &Book, text: &str) -> Result<Proposal, ToolError> {
-    propose_view_text(book, text, Permissions::all())
+    propose_view_text(book, text, Permissions::all(), today())
 }
 
 /// The one chart a proposal holds.
@@ -158,7 +158,7 @@ fn ids_are_offered_only_where_the_grid_lets_the_model_read_them() {
     })
     .to_string();
     assert_eq!(
-        view_code(propose_view_text(&book, &text, no_categories)),
+        view_code(propose_view_text(&book, &text, no_categories, today())),
         "ai-tools.unknown-argument"
     );
     // The accounts follow the schema: offered once a component has
@@ -178,7 +178,8 @@ fn ids_are_offered_only_where_the_grid_lets_the_model_read_them() {
         view_code(propose_view_text(
             &book,
             r#"{"title":"A","data":"spending_by_category","show_as":"auto"}"#,
-            without
+            without,
+            today()
         )),
         "not-allowed propose_view"
     );
@@ -249,7 +250,7 @@ fn auto_and_the_default_period_suit_the_financial_datasets() {
         if !period.is_null() {
             call["period"] = period;
         }
-        let proposal = propose_view_text(&book, &call.to_string(), Permissions::all())
+        let proposal = propose_view_text(&book, &call.to_string(), Permissions::all(), today())
             .unwrap_or_else(|error| panic!("{data}: {}", error.report().code));
         let new = chart(&proposal);
         (new.type_id(), new.period.clone())
@@ -292,8 +293,13 @@ fn auto_and_the_default_period_suit_the_financial_datasets() {
     let side_by_side = json!({
         "title": "In and out", "data": "income_expense_by_month", "show_as": "bar"
     });
-    let proposal = propose_view_text(&book, &side_by_side.to_string(), Permissions::all())
-        .unwrap_or_else(|error| panic!("bars: {}", error.report().code));
+    let proposal = propose_view_text(
+        &book,
+        &side_by_side.to_string(),
+        Permissions::all(),
+        today(),
+    )
+    .unwrap_or_else(|error| panic!("bars: {}", error.report().code));
     assert_eq!(chart(&proposal).type_id(), "chart.bar");
     // A key figure of the balances takes their own figures.
     let figure = json!({
@@ -606,7 +612,8 @@ fn a_chart_can_count_only_some_accounts_where_its_dataset_takes_them() {
         view_code(propose_view_text(
             &book,
             &text("spending_by_category", vec![checking.to_string()]),
-            only_charts
+            only_charts,
+            today()
         )),
         "ai-tools.unknown-argument"
     );
@@ -807,7 +814,8 @@ fn the_new_views_of_the_user_sprint_are_the_ais_too() {
         view_code(propose_view_text(
             &book,
             &series("income_categories", salary.to_string()),
-            only_charts
+            only_charts,
+            today()
         )),
         "ai-tools.unknown-argument"
     );
@@ -989,7 +997,7 @@ fn a_formula_never_tells_a_model_what_it_may_not_read() {
         "formula": "=Food"})
     .to_string();
     assert_eq!(
-        view_code(propose_view_text(&book, &text, only_charts)),
+        view_code(propose_view_text(&book, &text, only_charts, today())),
         "ai-tools.unknown-argument"
     );
     book.add_category_group(
@@ -1015,7 +1023,7 @@ fn a_formula_never_tells_a_model_what_it_may_not_read() {
 fn a_setting_that_does_not_suit_the_data_says_what_does() {
     let Sample { book, food, .. } = sample();
     let refuse = |arguments: Value| {
-        propose_view(&book, &arguments, Permissions::all()).expect_err("refused")
+        propose_view(&book, &arguments, Permissions::all(), today()).expect_err("refused")
     };
 
     // Today's balances have no time axis, so no line (D-666).
@@ -1066,4 +1074,38 @@ fn a_setting_that_does_not_suit_the_data_says_what_does() {
         "{categories}"
     );
     assert!(categories.contains("formula"), "{categories}");
+}
+
+#[test]
+fn an_average_that_counts_months_before_the_first_transaction_says_so() {
+    // M6-B207 (#590, D-668): the sample book's transactions are all on
+    // 5 October 2026, so an average over the last 12 months counts the
+    // months before as zero. The figure stays; the answer says it.
+    let book = sample().book;
+    let text = |period: &str| {
+        json!({"title": format!("Average {period}"), "data": "spending_by_category",
+            "show_as": "table", "average": "per-month", "period": period})
+        .to_string()
+    };
+    let proposal = call(&book, &text("last-12-months")).expect("prepared");
+    let note = proposal.output.value["average_note"]
+        .as_str()
+        .expect("a note");
+    assert!(
+        note.starts_with(
+            "The average divides by 12 months; 11 of them are before the first transaction"
+        ),
+        "{note}"
+    );
+    // The figures it names pass the number check.
+    assert_eq!(crate::check_numbers(note, &proposal.output.figures), []);
+    // A period that starts with the book has nothing to say, and nor has a
+    // total.
+    let proposal = call(&book, &text("this-month")).expect("prepared");
+    assert!(proposal.output.value.get("average_note").is_none());
+    let total = json!({"title": "Total", "data": "spending_by_category", "show_as": "table",
+        "period": "last-12-months"})
+    .to_string();
+    let proposal = call(&book, &total).expect("prepared");
+    assert!(proposal.output.value.get("average_note").is_none());
 }

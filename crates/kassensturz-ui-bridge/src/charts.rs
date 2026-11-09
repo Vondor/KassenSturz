@@ -22,7 +22,7 @@ use kassensturz_report::{
     ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
     account_balances as balances_dataset, cash_flow_by_month as cash_flow_dataset,
     category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
-    income_expense_by_month as monthly_dataset, income_expense_by_series,
+    counted_early, income_expense_by_month as monthly_dataset, income_expense_by_series,
     net_worth_over_time as net_worth_dataset, shared_categories,
     spending_by_category_shown as spending_dataset,
 };
@@ -30,7 +30,7 @@ use kassensturz_store::Book;
 
 use crate::format::Locale;
 use crate::register::AmountWriter;
-use crate::scope::{FilterView, Scope};
+use crate::scope::{FilterView, NoteView, Scope};
 use crate::session;
 
 /// What the user asked for, by the fixed names QML uses.
@@ -424,6 +424,20 @@ pub fn charts(
         )?),
         _ => None,
     };
+    // An average that counts months before the first transaction says so
+    // under the chart (M6-B207, #590, D-668); the figure stays as it is.
+    if let Some(average) = &average
+        && let Some(early) =
+            counted_early(book, &source, period, &filter, average.per, locale.today())?
+    {
+        filter_view.notes.push(NoteView {
+            kind: "average-early",
+            dimension: "period",
+            id: early.per.word().into(),
+            counted: early.counted,
+            before: early.before,
+        });
+    }
     let models = match request.dataset.as_str() {
         SPENDING_BY_CATEGORY => spending_dataset(&source, period, &filter, level, &shown)?
             .iter()

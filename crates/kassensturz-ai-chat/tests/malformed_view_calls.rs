@@ -103,7 +103,13 @@ fn every_refused_call_is_answered_with_fixed_words_only_and_prepares_nothing() {
             } else {
                 case.text.as_str()
             };
-            let error = propose_view_text(&book, text, Permissions::all()).expect_err("refused");
+            let error = propose_view_text(
+                &book,
+                text,
+                Permissions::all(),
+                kassensturz_core::Date::constant(2026, 10, 31),
+            )
+            .expect_err("refused");
             let general = argument.as_deref().and_then(view_choices);
             let allowed = match (error.only_for_show_as(), error.allowed_fields()) {
                 (Some(_), _) => None,

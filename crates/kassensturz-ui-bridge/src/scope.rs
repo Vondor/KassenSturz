@@ -267,12 +267,20 @@ impl Scope {
 /// A note under a component about its filter, by fixed words.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoteView {
-    /// `not-applied`, `gone` or `chooses-nothing`.
+    /// `not-applied`, `gone`, `chooses-nothing` or `average-early`.
     pub kind: &'static str,
-    /// `period`, `accounts` or `categories`.
+    /// `period`, `accounts` or `categories`; `period` for `average-early`.
     pub dimension: &'static str,
-    /// For `gone`, the ID as the list writes it; else empty.
+    /// For `gone`, the ID as the list writes it; for `average-early`, the
+    /// `params.average` word (`per-month`, `per-quarter`, `per-year`); else
+    /// empty.
     pub id: String,
+    /// For `average-early` (M6-B207, #590, D-668): how many months
+    /// (quarters, years) the average divides by; else zero.
+    pub counted: u32,
+    /// For `average-early`: how many of them lie before the first
+    /// transaction of the accounts and categories it counts; else zero.
+    pub before: u32,
 }
 
 /// The marks and notes a component shows about its filter (D-350).
@@ -362,16 +370,22 @@ impl FilterView {
                         kind: "not-applied",
                         dimension: dimension.word(),
                         id: String::new(),
+                        counted: 0,
+                        before: 0,
                     },
                     FilterNote::Gone { dimension, id } => NoteView {
                         kind: "gone",
                         dimension: dimension.word(),
                         id: id.clone(),
+                        counted: 0,
+                        before: 0,
                     },
                     FilterNote::ChoosesNothing(dimension) => NoteView {
                         kind: "chooses-nothing",
                         dimension: dimension.word(),
                         id: String::new(),
+                        counted: 0,
+                        before: 0,
                     },
                 })
                 .collect(),
@@ -452,6 +466,14 @@ impl FilterView {
                         ("kind", text(note.kind)),
                         ("dimension", text(note.dimension)),
                         ("id", text(&note.id)),
+                        (
+                            "counted",
+                            count(usize::try_from(note.counted).unwrap_or(usize::MAX)),
+                        ),
+                        (
+                            "before",
+                            count(usize::try_from(note.before).unwrap_or(usize::MAX)),
+                        ),
                     ])
                 })),
             ),

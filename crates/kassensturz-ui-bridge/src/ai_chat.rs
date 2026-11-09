@@ -1457,8 +1457,13 @@ mod tests {
             "show_as": "auto",
             "period": "this-year",
         });
-        let proposal =
-            kassensturz_ai_tools::propose_view(&book, &call, Permissions::all()).unwrap();
+        let proposal = kassensturz_ai_tools::propose_view(
+            &book,
+            &call,
+            Permissions::all(),
+            kassensturz_core::Date::new(2026, 11, 9).unwrap(),
+        )
+        .unwrap();
         let views = views_of(&book, &proposal.changes, &TestLocale);
         let [
             ChangeView::NewView {
@@ -1511,8 +1516,13 @@ mod tests {
             ("account_balances", "kpi.card"),
         ] {
             let call = serde_json::json!({"title": data, "data": data, "show_as": "auto"});
-            let proposal =
-                kassensturz_ai_tools::propose_view(&book, &call, Permissions::all()).unwrap();
+            let proposal = kassensturz_ai_tools::propose_view(
+                &book,
+                &call,
+                Permissions::all(),
+                kassensturz_core::Date::new(2026, 11, 9).unwrap(),
+            )
+            .unwrap();
             let views = views_of(&book, &proposal.changes, &TestLocale);
             let [ChangeView::NewView { component, .. }] = views.as_slice() else {
                 panic!("one chart: {views:?}");

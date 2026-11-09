@@ -308,6 +308,8 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **M6-B202** · **done** (this PR) · US1 Phase 3 thread "Hide grey filter notes on every tile" · standard, medium · D-663 · [format]. #581: every tile with grey filter notes gets the *Hide the grey filter notes* switch in *Properties* (default shown); problem notes stay
 
+- **M6-B207** · **done** (this PR) · US1 Phase 3 thread "Flag averages before first booking" · strong, medium · D-668 · Q-451 = R. #590: an average per month, quarter or year that counts months before the first transaction of its accounts and categories keeps its figure and says how many months count as zero, under the chart (hidden by *Hide the grey filter notes*) and in the AI tool's answer (`average_note`)
+
 - **US1.27** · **later** · waits for: the maintainer's stage Go after US1 Phase 3, with the [format] items (US1.9, US1.10, US1.12, US1.19) merged and US1.26 passed; then M7a.6 follows. #512: the stage move from Alpha to Beta (D-495 check)
 
 ## How to pick work

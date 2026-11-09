@@ -8,8 +8,9 @@
 //! total, never added up from rounded rows.
 
 use kassensturz_core::{Date, Money, RoundingMode};
+use kassensturz_store::Book;
 
-use crate::{Period, ReportError};
+use crate::{Filter, Period, ReportError, Source};
 
 /// The words of `params.average`, the default first: the total, or an
 /// average per month, quarter or year.
@@ -135,6 +136,92 @@ impl Average {
     }
 }
 
+/// An average that counts months (quarters, years) before the first
+/// transaction it could count (M6-B207, #590, D-668): those count as zero,
+/// so the average comes out lower than what was spent in the months that
+/// have transactions. The figure stays as it is; the tile and the AI's
+/// answer say so.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CountedEarly {
+    /// What the average is taken per.
+    pub per: Per,
+    /// How many months (quarters, years) the average divides by: its
+    /// [`Average::count`].
+    pub counted: u32,
+    /// How many of them lie before the first transaction; at least one and
+    /// at most `counted`.
+    pub before: u32,
+}
+
+/// Whether an average per `per` over `period` as of `today` counts months
+/// (quarters, years) before the first transaction that `filter` keeps
+/// (M6-B207, #590, D-668), and how many.
+///
+/// The first transaction is the first day with a part of income or
+/// spending that passes `filter` (its accounts and categories), in the
+/// whole book. The months before it are counted the way [`Per::count`]
+/// counts, so a few days are not a month. `source` must have been read
+/// for at least `period`; the book is read again only when the period's
+/// first transaction is late enough to matter, to see whether one comes
+/// before the period. `None` when nothing is counted early, and when the
+/// period has no transaction at all (then nothing is averaged).
+pub fn counted_early(
+    book: &Book,
+    source: &Source,
+    period: Period,
+    filter: &Filter,
+    per: Per,
+    today: Date,
+) -> Result<Option<CountedEarly>, ReportError> {
+    let Some(first) = source
+        .parts(period, filter)?
+        .iter()
+        .map(|part| part.day)
+        .min()
+    else {
+        return Ok(None);
+    };
+    if first <= period.first() {
+        return Ok(None);
+    }
+    let counted = per.count(period, today)?;
+    // The days the average counts end today in a period that is not over.
+    let end = if period.contains(today) {
+        today
+    } else {
+        period.last()
+    };
+    let from_first = if first > end {
+        0
+    } else {
+        per.count(Period::new(first, end)?, end)?
+    };
+    let before = counted.saturating_sub(from_first);
+    if before == 0 {
+        return Ok(None);
+    }
+    // A transaction before the period means the months are real zeros.
+    let earliest = book.booking_date_range()?.map(|(earliest, _)| earliest);
+    if let Some(earliest) = earliest.filter(|earliest| *earliest < period.first()) {
+        let day_before = period
+            .first()
+            .yesterday()
+            .map_err(|_| ReportError::BadPeriod)?;
+        let earlier = Period::new(earliest, day_before)?;
+        if !Source::read(book, earlier)?
+            .parts(earlier, filter)?
+            .is_empty()
+        {
+            return Ok(None);
+        }
+    }
+    Ok(Some(CountedEarly {
+        per,
+        counted,
+        before,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,6 +283,111 @@ mod tests {
         // 0,05 € in three months: half a cent and more rounds away.
         assert_eq!(average(RoundingMode::HalfAwayFromZero).of_minor(5), 2);
         assert_eq!(average(RoundingMode::HalfAwayFromZero).of_minor(-5), -2);
+    }
+
+    /// A synthetic book: a checking account with groceries from 3 August
+    /// 2026, and a savings account (`old`) with one payment on 10 January
+    /// 2025, so the book itself starts long before.
+    fn late_start() -> (
+        Book,
+        kassensturz_core::AccountId,
+        kassensturz_core::AccountId,
+    ) {
+        use crate::tests::{EUR, account, money};
+        use kassensturz_core::{AccountKind, Split, Transaction, TransactionId};
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(EUR).unwrap();
+        let checking = account(&mut book, "Checking", AccountKind::Asset, EUR, None);
+        let old = account(&mut book, "Savings", AccountKind::Asset, EUR, None);
+        let food = account(&mut book, "Groceries", AccountKind::Expense, EUR, None);
+        let mut add = |day: Date, from| {
+            let splits = vec![
+                Split::new(from, money(-4_000)),
+                Split::new(food, money(4_000)),
+            ];
+            let transaction =
+                Transaction::new(TransactionId::generate(), day, None, splits).expect("balanced");
+            book.add_transaction(&transaction).expect("added");
+        };
+        add(day(2025, 1, 10), old);
+        for month in 8..=10 {
+            add(day(2026, month, 3), checking);
+        }
+        (book, checking, old)
+    }
+
+    fn early(
+        book: &Book,
+        shown: Period,
+        filter: &Filter,
+        per: Per,
+        today: Date,
+    ) -> Option<CountedEarly> {
+        let source = Source::read(book, shown).unwrap();
+        counted_early(book, &source, shown, filter, per, today).unwrap()
+    }
+
+    #[test]
+    fn months_before_the_first_transaction_of_the_chosen_accounts_are_named() {
+        let (book, checking, _) = late_start();
+        let checking_only = Filter {
+            accounts: Some(vec![checking]),
+            categories: None,
+        };
+        let year = period(day(2025, 11, 1), day(2026, 10, 31));
+        let today = day(2026, 11, 9);
+        // Twelve months, nine of them (November to July) before 3 August.
+        assert_eq!(
+            early(&book, year, &checking_only, Per::Month, today),
+            Some(CountedEarly {
+                per: Per::Month,
+                counted: 12,
+                before: 9,
+            })
+        );
+        // Per quarter: four, three of them before.
+        assert_eq!(
+            early(&book, year, &checking_only, Per::Quarter, today).map(|e| (e.counted, e.before)),
+            Some((4, 3))
+        );
+        // The whole book has a transaction before the period: its zeros are
+        // real, so nothing is named.
+        assert_eq!(
+            early(&book, year, &Filter::default(), Per::Month, today),
+            None
+        );
+        // A period that starts with the first transaction names nothing,
+        // and a few days late are not a month.
+        let from_august = period(day(2026, 8, 1), day(2026, 10, 31));
+        assert_eq!(
+            early(&book, from_august, &checking_only, Per::Month, today),
+            None
+        );
+        // A period with no transaction averages nothing.
+        let empty = period(day(2025, 3, 1), day(2025, 5, 31));
+        assert_eq!(early(&book, empty, &checking_only, Per::Month, today), None);
+    }
+
+    #[test]
+    fn a_period_not_over_yet_counts_its_early_months_up_to_today() {
+        let (book, checking, _) = late_start();
+        let checking_only = Filter {
+            accounts: Some(vec![checking]),
+            categories: None,
+        };
+        let this_year = period(day(2026, 1, 1), day(2026, 12, 31));
+        // On 9 November: ten months counted, seven (January to July) early.
+        assert_eq!(
+            early(
+                &book,
+                this_year,
+                &checking_only,
+                Per::Month,
+                day(2026, 11, 9)
+            )
+            .map(|e| (e.counted, e.before)),
+            Some((10, 7))
+        );
     }
 
     #[test]

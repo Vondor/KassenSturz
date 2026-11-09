@@ -30,7 +30,8 @@ use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, GroupMember};
 use kassensturz_report::{
     ACCOUNT_BALANCES, AVERAGE_WORDS, BUDGET_UTILIZATION, CATALOG, ComponentType, DatasetInfo,
     FORMULA_MEASURE, FUNCTIONS, Filter, Formula, FormulaResult, GROUPS_GROUPING, Kind,
-    MAX_FORMULA_CHARS, PERIODS, Period, ReportError, Rolling, Source, Term, range_word,
+    MAX_FORMULA_CHARS, PERIODS, Per, Period, ReportError, Rolling, SPENDING_BY_CATEGORY, Source,
+    Term, range_word,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
@@ -404,7 +405,9 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
             "average",
             "Only for spending_by_category: show each category's total (the default) or its \
              average per month, quarter or year of the period. KassenSturz divides the exact \
-             total once by the months (quarters, years) of the period up to today.",
+             total once by the months (quarters, years) of the period up to today. Months \
+             before the first transaction of its accounts and categories count as zero; the \
+             answer then has an average_note saying how many.",
         ),
     );
     if offered("categories", allowed) {
@@ -537,6 +540,7 @@ pub fn propose_view_text(
     book: &Book,
     text: &str,
     allowed: Permissions,
+    today: Date,
 ) -> Result<Proposal, ToolError> {
     if text.len() > MAX_VIEW_CALL_BYTES {
         return Err(ToolError::CallTooBig {
@@ -547,16 +551,21 @@ pub fn propose_view_text(
         argument: "arguments",
     })?;
     guard(text)?;
-    propose_view(book, &value, allowed)
+    propose_view(book, &value, allowed, today)
 }
 
 /// [`propose_view_text`] for a call whose text was read already, as the
 /// MCP server and the request files have it: a key twice was decided by
 /// whoever read the text.
+///
+/// `today` is the day the chart's period and its average are counted on:
+/// the answer names the months an average counts before the first
+/// transaction of its accounts and categories (M6-B207, #590, D-668).
 pub fn propose_view(
     book: &Book,
     arguments: &Value,
     allowed: Permissions,
+    today: Date,
 ) -> Result<Proposal, ToolError> {
     if !allowed.allows(Permission::NewViews) {
         return Err(ToolError::NotAllowed {
@@ -564,6 +573,96 @@ pub fn propose_view(
         });
     }
     let item = check(book, arguments, allowed)?;
+    let mut proposal = prepare_view(book, &item, allowed)?;
+    if let Some(early) = counted_early(book, &item, today)? {
+        let per = match early.per {
+            Per::Month => "months",
+            Per::Quarter => "quarters",
+            Per::Year => "years",
+        };
+        if let Value::Object(value) = &mut proposal.output.value {
+            value.insert(
+                "average_note".into(),
+                json!(format!(
+                    "The average divides by {counted} {per}; {before} of them are before the \
+                     first transaction of the accounts and categories it counts, so they count \
+                     as zero and the average is lower than what is spent in the {per} that have \
+                     transactions. Tell the user so; the chart shows a note about it too.",
+                    counted = early.counted,
+                    before = early.before,
+                )),
+            );
+        }
+        proposal.output.figures.add_count(u64::from(early.counted));
+        proposal.output.figures.add_count(u64::from(early.before));
+    }
+    Ok(proposal)
+}
+
+/// The months (quarters, years) the average of a checked `item` counts
+/// before the first transaction it could count, as the chart counts them on
+/// `today` (D-668). `None` for a chart without an average, and for a period
+/// that can't be read here; the chart then says what it says.
+fn counted_early(
+    book: &Book,
+    item: &Value,
+    today: Date,
+) -> Result<Option<kassensturz_report::CountedEarly>, ToolError> {
+    let word = |key: &str| item.get(key).and_then(Value::as_str);
+    let Some(per) = word("average").and_then(Per::read) else {
+        return Ok(None);
+    };
+    if word("dataset") != Some(SPENDING_BY_CATEGORY) {
+        return Ok(None);
+    }
+    let Some(period) = word("period") else {
+        return Ok(None);
+    };
+    let earliest = || {
+        book.booking_date_range()
+            .ok()
+            .flatten()
+            .map(|(first, _)| first)
+    };
+    let earliest = if period.contains("..") {
+        earliest()
+    } else {
+        None
+    };
+    let Some(Ok(period)) = Period::named(period, today, earliest) else {
+        return Ok(None);
+    };
+    let ids = |key: &str| -> Option<Vec<AccountId>> {
+        let list: Vec<AccountId> = item
+            .get(key)?
+            .as_array()?
+            .iter()
+            .filter_map(|id| uuid::Uuid::try_parse(id.as_str()?).ok())
+            .map(|id| AccountId::from_bytes(id.into_bytes()))
+            .collect();
+        (!list.is_empty()).then_some(list)
+    };
+    let filter = Filter {
+        accounts: ids("accounts"),
+        categories: ids("categories"),
+    };
+    let source = Source::read(book, period).map_err(from_report)?;
+    kassensturz_report::counted_early(book, &source, period, &filter, per, today)
+        .map_err(from_report)
+}
+
+/// A report error while counting a proposed chart's average: the book's
+/// own errors as they are, anything else as a period the book can't count.
+fn from_report(error: ReportError) -> ToolError {
+    match error {
+        ReportError::Store(error) => ToolError::Store(error),
+        _ => ToolError::BadArgument { argument: "period" },
+    }
+}
+
+/// The change set of a checked chart `item`, with the schema's refusals
+/// named by the arguments of `propose_view`.
+fn prepare_view(book: &Book, item: &Value, allowed: Permissions) -> Result<Proposal, ToolError> {
     prepare(book, &json!({ "new_views": [item] }), allowed).map_err(|error| {
         match error.without_item() {
             // The schema's refusals name the argument of this function, not the

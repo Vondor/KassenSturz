@@ -27,11 +27,13 @@ ColumnLayout {
     // #581, D-663): the marks that only say what it is filtered to are left
     // out. The notes about a problem (a filter that chooses nothing, one that
     // names something gone) stay, so a tile is never empty without a reason.
+    // The note that an average counts months before the first transaction
+    // (M6-B207, #590, D-668) is left out too: the figure is right as it is.
     property bool hideMarks: false
 
     readonly property var own: hideMarks ? [] : (filter?.own ?? []).filter(word => !(accountsInTitle && word === "accounts"))
     readonly property var filtered: hideMarks ? [] : (filter?.filtered ?? []).filter(word => word !== "period" && !(accountsInTitle && word === "accounts"))
-    readonly property var list: (filter?.notes ?? []).filter(note => !(hideMarks && note.kind === "not-applied"))
+    readonly property var list: (filter?.notes ?? []).filter(note => !(hideMarks && (note.kind === "not-applied" || note.kind === "average-early")))
     readonly property bool quiet: own.length === 0 && filtered.length === 0 && list.length === 0
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -60,6 +62,17 @@ ColumnLayout {
             return note.dimension === "accounts"
                 ? i18nContext.i18nc("@info", "Not filtered by account: this counts every account.")
                 : i18nContext.i18nc("@info", "Not filtered by category: this counts whole accounts.");
+        }
+        if (note.kind === "average-early") {
+            // %1 of the %2 months (quarters, years) the average divides by
+            // lie before the first transaction it could count.
+            switch (note.id) {
+            case "per-quarter":
+                return i18nContext.i18ncp("@info %1 is how many quarters of an average are before the first transaction, %2 how many it counts", "%1 of the %2 quarters this average counts is before the first transaction and counts as zero.", "%1 of the %2 quarters this average counts are before the first transaction and count as zero.", note.before, note.counted);
+            case "per-year":
+                return i18nContext.i18ncp("@info %1 is how many years of an average are before the first transaction, %2 how many it counts", "%1 of the %2 years this average counts is before the first transaction and counts as zero.", "%1 of the %2 years this average counts are before the first transaction and count as zero.", note.before, note.counted);
+            }
+            return i18nContext.i18ncp("@info %1 is how many months of an average are before the first transaction, %2 how many it counts", "%1 of the %2 months this average counts is before the first transaction and counts as zero.", "%1 of the %2 months this average counts are before the first transaction and count as zero.", note.before, note.counted);
         }
         if (note.kind === "gone") {
             return i18nContext.i18nc("@info", "The filter names something that no longer exists. Take it out of the filter.");

@@ -62,7 +62,7 @@ mod spending;
 pub mod templates;
 mod text;
 
-pub use average::{AVERAGE_WORDS, Average, Per};
+pub use average::{AVERAGE_WORDS, Average, CountedEarly, Per, counted_early};
 pub use balances::{
     ACCOUNT_BALANCES, AccountBalance, AccountBalances, Converted, CurrencyBalances, CurrencyWorth,
     NET_WORTH_OVER_TIME, NetWorthOverTime, Worth, WorthRow, account_balances, net_worth_over_time,

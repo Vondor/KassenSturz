@@ -782,7 +782,7 @@ impl ChatSession {
             if views >= MAX_VIEWS_PER_ANSWER {
                 Err(ToolError::TooManyChanges)
             } else {
-                propose_view_text(book, &call.arguments, self.permissions())
+                propose_view_text(book, &call.arguments, self.permissions(), today)
                     .inspect_err(|_| view_refused = true)
                     .map(|proposal| {
                         self.proposed.push(proposal.changes);

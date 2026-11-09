@@ -99,6 +99,7 @@ fn code(result: Result<Proposal, ToolError>) -> String {
     match result.map_err(ToolError::without_item) {
         Ok(_) => "prepared".into(),
         Err(ToolError::BadArgument { argument }) => format!("bad-argument {argument}"),
+        Err(ToolError::UnknownField { argument, .. }) => format!("unknown-field {argument}"),
         Err(ToolError::NotAllowed { argument }) => format!("not-allowed {argument}"),
         Err(error) => {
             let report = error.report();
@@ -346,6 +347,36 @@ fn the_stores_own_checks_reach_the_model() {
     );
 }
 
+/// A budget item with a key it doesn't take, such as a name, is refused
+/// with the list, the item and the keys it does take; the model's key is
+/// never repeated back (M6-B201, X-8).
+#[test]
+fn an_unknown_budget_key_lists_the_keys_a_budget_takes() {
+    let small = small();
+    let food = small.food.to_string();
+    let call = json!({"new_budgets": [
+        {"category_id": food, "every": "month", "amount": "10"},
+        {"category_id": food, "every": "year", "amount": "10", "name": "Groceries cap"}
+    ]});
+    let error = propose(&small.book, &call).expect_err("refused");
+    let allowed = error.allowed_fields().expect("the keys it takes");
+    assert!(allowed.contains(&"category_ids") && allowed.contains(&"every"));
+    assert!(!allowed.contains(&"name"));
+    let report = error.model_report();
+    assert_eq!(report.code, "ai-tools.unknown-field");
+    assert_eq!(
+        report.param("argument"),
+        Some(&kassensturz_core::ErrorParam::Keyword("new_budgets"))
+    );
+    assert_eq!(
+        report.param("item"),
+        Some(&kassensturz_core::ErrorParam::Number(2))
+    );
+    let shown = format!("{report:?} {allowed:?}");
+    assert!(!shown.contains("Groceries"), "{shown}");
+    assert!(!shown.contains("\"name\""), "{shown}");
+}
+
 #[test]
 fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
     let small = small();
@@ -472,13 +503,13 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
             budget(
                 json!({"category_id": food, "every": "month", "amount": "10", "first_day": "2026-01-01"}),
             ),
-            "bad-argument new_budgets",
+            "unknown-field new_budgets",
         ),
         (
             budget(
                 json!({"category_id": food, "every": "month", "amount": "10", "computed_amount": "10"}),
             ),
-            "bad-argument new_budgets",
+            "unknown-field new_budgets",
         ),
         (
             json!({"new_budgets": [
@@ -556,7 +587,7 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
         ),
         (
             json!({"edit_budgets": [{"budget_id": BudgetId::generate().to_string(), "delete": true}]}),
-            "bad-argument edit_budgets",
+            "unknown-field edit_budgets",
         ),
     ];
     for (call, expected) in &cases {

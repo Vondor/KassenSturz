@@ -69,7 +69,8 @@ fn the_lists_the_model_sees_are_the_catalogs_and_the_schemas() {
         "cash_flow_by_month",
     ] {
         assert!(for_ai.contains(&id), "{id}");
-        assert!(spec.description.contains(id), "{id}");
+        let help = properties["data"]["description"].as_str().expect("text");
+        assert!(help.contains(id), "{id}");
     }
     assert!(!for_ai.contains(&"category_over_time"));
     // Every kind of chart that suits one of them, and auto.

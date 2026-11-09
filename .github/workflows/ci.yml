@@ -18,7 +18,9 @@ concurrency:
 
 # Order of work (D-110): the quick checks (REUSE, DCO, licenses, formatting) run
 # first and take about a minute, so the common mistakes show up before any slow
-# job has started; the slow jobs wait for them and then run side by side. A pull
+# job has started; the slow jobs wait for them and then run side by side.
+# Beside the quick checks, an early-warning job repeats the lints and tests that
+# fail most often in a few minutes on the plain runner (see early-no-ai). A pull
 # request that only changes documentation skips the slow jobs: a job skipped by
 # its own `if` counts as passed for branch protection, so the checks it requires
 # still report (a workflow-level `paths-ignore` would leave them pending forever).
@@ -110,6 +112,37 @@ jobs:
           rustup toolchain install 1.98.1 --profile minimal --component rustfmt
           rustup default 1.98.1
       - run: cargo fmt --all --check
+
+  # Early warning for the checks that fail most often (CI history of 400 pull
+  # request runs, 2026-10-31 to 11-09): the build without AI failed in 14 runs
+  # and the KDE job in 10, but both answer only after 8 to 20 minutes, because
+  # the KDE container, freeing disk and the Qt build come first. This job runs
+  # the same lints and tests without AI on the plain runner, for every crate
+  # except the app crate (kassensturz-ui-bridge, which needs Qt), and starts
+  # at once without waiting for the quick checks, so most of those failures
+  # show up after about 4 minutes. It only repeats checks of the slow jobs and
+  # replaces none of them, so it isn't a required check; it has no Cargo cache
+  # of its own, so it takes nothing from the 10 GB the other caches share.
+  # With AI on, the Windows and macOS jobs already give the same early answer.
+  early-no-ai:
+    name: Early warning, lints and tests without AI (no Qt)
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --component clippy
+          rustup default 1.98.1
+      - name: Lints, build without AI (D-039)
+        run: cargo clippy --workspace --exclude kassensturz-ui-bridge --all-targets --no-default-features --features bundled-sqlite --locked -- -D warnings
+        env:
+          CARGO_INCREMENTAL: "0"
+      - name: Tests, build without AI (D-039)
+        run: cargo test --workspace --exclude kassensturz-ui-bridge --no-default-features --features bundled-sqlite --locked
+        env:
+          CARGO_INCREMENTAL: "0"
 
   # Formatting, lints and tests run in the same KDE Flatpak SDK with the Rust
   # extension that developers use through tools/sdk.sh (D-063).

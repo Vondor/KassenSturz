@@ -284,6 +284,20 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.17b** · **later** (Q-449 = 1) · candidate for US2 · waits for: its own design, together with #562. #587: on a grouped spending chart (bar, stacked bar, table), each category's figure next to a comparison (the average of 3, 6 or 12 full periods, the previous period or the same period last year), e.g. two bars per category, in the app and in `propose_view`; the design also says how months before the first booking of the chosen accounts or categories count. Why: `compare` exists only on number cards and progress bars, and `average` replaces the total; it overlaps #562 (two periods in one bar chart), so both are designed together
 
+- **US1.29** · **later** (Q-452) · US2 backlog cleanup · waits for: US2. #593: the AI read tools' results made easier to use safely: `parent_id` on `category_totals` rows, ids next to category and account names in search and Rule rows, `group_by` for `payee_totals`, argument names on `ai-tools.bad-period`, no memo sent twice inside the bank text, and `offset` for `search_transactions`. Why: no wrong figure, but a model can count twice or mix up categories of the same name (US1 AI interface review)
+
+- **US1.30** · **later** (Q-452) · US2 backlog cleanup · waits for: US2; part (b) also its own design (strong model). #594: a move between own accounts whose side a Rule sorted counts as income or spending, and is never suggested as a Transfer; (a) mark possible transfers in the AI tools and say "joined Transfers" in their descriptions, (b) let Transfer suggestions also consider sides a Rule (never the user, D-031) sorted. Why: income and spending look larger than they are (principle 1)
+
+- **US1.31** · **later** (Q-452) · US2 backlog cleanup · waits for: US2, after a re-test of the description length on the next build. #595: `check_only` for `propose_changes` and `propose_view` (same check, nothing sent to the app), and a shorter `propose_changes` description if clients still cut it. Why: a model can't see a computed amount before the user does
+
+- **US1.32** · **later** (Q-452) · US2 backlog cleanup · waits for: US2, with the security agent's look before the PR. #596: the IBAN mask for the AI checks the length and check digits (ISO 13616) so ISINs, creditor ids and mandate references stay readable. Why: it now hides text the user's AI needs; no real IBAN may reach a model (D-170)
+
+- **US1.33** · **later** (Q-452) · US2 backlog cleanup · waits for: US2 and a small design. #597: optional reason chips when the user refuses an AI change set, passed to the AI as a keyword. Why: "declined" alone doesn't say what to fix
+
+- **US1.34** · **later** (Q-452) · US2 backlog cleanup · waits for: US2; low priority. #598: a name check on ids in change items, or a unique category path in place of an id, so small models miscopy UUIDv7 ids less. Why: a miscopy is refused, so it costs retries, not data
+
+- **US1.35** · **later** (Q-452) · US2 backlog cleanup · waits for: US2, planned together with US1.17a (#578). #599: a read-only AI function that lists the saved charts with their ids. Why: changing or deleting a chart by id needs a way to find it
+
 - **US1.18** · **done** (#541) · thread H · needs: — · standard, high · D-656 to D-658. #538: clicking a register column header sorts by it (ascending, then descending), in Rust by exact values; the balance column shows only in date order and is hidden with a short note otherwise. Why: a balance after each entry is only true in date order
 
 - **US1.19** · **done** (#541) · thread H, after US1.18 · needs: US1.18 · standard, high · D-656 to D-658 (shared with US1.18) · [format]. #537: the user chooses which transaction details show as register columns, per account; default columns unchanged; imported details shown as plain text. Why: details such as the other party's IBAN could not be seen in the register

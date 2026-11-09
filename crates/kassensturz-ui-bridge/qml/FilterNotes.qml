@@ -23,10 +23,15 @@ ColumnLayout {
     // the accounts are left out (US1.9, #523, D-636). Every other mark and
     // every note stays.
     property bool accountsInTitle: false
+    // The tile's *Hide the grey notes* switch (`props.hide_note`, M6-B202,
+    // #581, D-663): the marks that only say what it is filtered to are left
+    // out. The notes about a problem (a filter that chooses nothing, one that
+    // names something gone) stay, so a tile is never empty without a reason.
+    property bool hideMarks: false
 
-    readonly property var own: (filter?.own ?? []).filter(word => !(accountsInTitle && word === "accounts"))
-    readonly property var filtered: (filter?.filtered ?? []).filter(word => word !== "period" && !(accountsInTitle && word === "accounts"))
-    readonly property var list: filter?.notes ?? []
+    readonly property var own: hideMarks ? [] : (filter?.own ?? []).filter(word => !(accountsInTitle && word === "accounts"))
+    readonly property var filtered: hideMarks ? [] : (filter?.filtered ?? []).filter(word => word !== "period" && !(accountsInTitle && word === "accounts"))
+    readonly property var list: (filter?.notes ?? []).filter(note => !(hideMarks && note.kind === "not-applied"))
     readonly property bool quiet: own.length === 0 && filtered.length === 0 && list.length === 0
 
     readonly property KI18nContext i18nContext: KI18nContext {

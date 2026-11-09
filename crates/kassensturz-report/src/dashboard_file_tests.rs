@@ -137,6 +137,7 @@ fn the_file_names_what_the_dashboard_uses_and_holds_no_id() {
           "series": []
         },
         "props": {
+          "hide_note": false,
           "legend": true,
           "period": "page",
           "show_hidden": false,
@@ -175,6 +176,7 @@ fn the_file_names_what_the_dashboard_uses_and_holds_no_id() {
           "groups": []
         },
         "props": {
+          "hide_note": false,
           "period": "page",
           "show_hidden": false,
           "title": ""

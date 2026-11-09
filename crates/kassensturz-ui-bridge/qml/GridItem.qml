@@ -52,6 +52,9 @@ Item {
     // component without settings has no Properties button and Enter does not
     // open an empty dialog.
     readonly property bool hasSettings: present && !unknown && (info.subject?.hasSettings ?? false)
+    // The tile's *Hide the grey notes* switch (M6-B202, #581, D-663), for the
+    // tiles drawn here rather than by ComponentPreview.
+    readonly property bool hideNote: (subject?.fields ?? []).some(f => f.key === "hide_note" && f.flag)
     readonly property bool bare: present && (info.type === "text.separator" || info.type === "notice.fetch_gap" || info.type === "notice.transfers" || info.type === "notice.unsorted" || info.type === "card.net_worth" || isPageWidget)
     readonly property bool showsFrame: !bare || (board.editing && !board.preview)
     // What a period box says: its title and the period it gives its widgets.
@@ -355,6 +358,7 @@ Item {
                 FilterNotes {
                     Layout.fillWidth: true
                     filter: balances.view?.filter
+                    hideMarks: cell.hideNote
                 }
 
                 // One card per currency, side by side as the width allows
@@ -414,7 +418,7 @@ Item {
                 // not narrow it yet: said, never silently (D-350, D-418).
                 Controls.Label {
                     Layout.fillWidth: true
-                    visible: cell.info?.asked?.fromBar ?? false
+                    visible: (cell.info?.asked?.fromBar ?? false) && !cell.hideNote
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     font: Kirigami.Theme.smallFont
@@ -510,6 +514,7 @@ Item {
                 y: bars.implicitHeight
                 width: bars.width
                 filter: feed.view?.filter
+                hideMarks: cell.hideNote
             }
 
             BudgetBars {

@@ -144,6 +144,7 @@ pub const ACTIONS: &[&str] = &[
     "BudgetPage_save_2",
     "BudgetPage_save_3",
     "BudgetPage_save_4",
+    "BudgetPage_save_5",
     "BudgetsPage_addBudget",
     "BudgetsPage_addBudget_2",
     "BudgetsPage_change",

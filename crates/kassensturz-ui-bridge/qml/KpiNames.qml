@@ -15,9 +15,17 @@ QtObject {
     function measure(key: string): string {
         switch (key) {
         case "income":
+        case "money_in":
             return i18nContext.i18nc("@title:card a key figure", "Money in");
         case "expenses":
+        case "money_out":
             return i18nContext.i18nc("@title:card a key figure", "Money out");
+        // The money in and out of the accounts and spending as one figure
+        // (D-666).
+        case "net_change":
+            return i18nContext.i18nc("@title:card a key figure: the money that came into the accounts less the money that went out", "Net change");
+        case "total":
+            return i18nContext.i18nc("@title:card a key figure: everything spent in the period", "Total spent");
         case "net":
             return i18nContext.i18nc("@title:card a key figure", "What is left");
         case "net-worth":

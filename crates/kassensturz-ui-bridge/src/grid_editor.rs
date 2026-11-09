@@ -236,10 +236,10 @@ pub const fn size() -> (u32, u32) {
     (COLUMNS, MAX_ROWS)
 }
 
-/// The dataset a new component of this type starts with: the first one it
-/// can show, none for a heading.
+/// The dataset a new component of this type starts with
+/// ([`ComponentType::first_dataset`]), none for a heading.
 pub fn default_dataset(kind: ComponentType) -> &'static str {
-    kind.datasets().next().map_or("", |dataset| dataset.id)
+    kind.first_dataset().map_or("", |dataset| dataset.id)
 }
 
 /// What the library offers: the type's id and the dataset a new one shows.

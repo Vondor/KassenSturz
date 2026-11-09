@@ -192,15 +192,14 @@ impl Component {
     }
 
     /// Makes this another type of component. It keeps its dataset if the new
-    /// type can show it and otherwise takes the first dataset the new type
-    /// can show. A setting the new type has too, with a value it allows
+    /// type can show it and otherwise takes the dataset a new one of that
+    /// type starts with ([`ComponentType::first_dataset`]). A setting the new type has too, with a value it allows
     /// there, stays (the title, for one); the rest take their defaults.
     pub fn change_kind(&mut self, kind: ComponentType) -> Result<(), ReportError> {
         let dataset = if kind.datasets().any(|d| d.id == self.dataset.id) {
             self.dataset
         } else {
-            kind.datasets()
-                .next()
+            kind.first_dataset()
                 .ok_or_else(|| invalid("dataset-not-suited", "dataset"))?
         };
         let settings = kind

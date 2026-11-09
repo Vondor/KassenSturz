@@ -47,8 +47,10 @@ ColumnLayout {
     readonly property var formulaResult: formulaView.result
     // Headings, notices and boxes show no figures: nothing is asked of the
     // book for them, so there is nothing that can fail (M6-B19).
-    // The budget bars (M6c.5) are drawn by `BudgetBars` from `BookBudgets`.
-    readonly property bool shownAsBudgets: asked.shows === "budget-progress"
+    // The budget bars (M6c.5) are drawn by `BudgetBars` from `BookBudgets`,
+    // and so are the figures of the budgets' table (D-666).
+    readonly property bool shownAsBudgets: asked.shows === "budget-progress" || asked.shows === "budget-table"
+    readonly property var budgetBars: budgetData.view?.bars ?? []
     readonly property bool textOnly: asked.shows !== undefined && !shownAsBudgets && !["chart", "table", "card", "progress"].includes(asked.shows)
     readonly property bool failed: usesFormula || textOnly ? false
         : shownAsBudgets ? budgetData.view?.error !== undefined
@@ -156,7 +158,7 @@ ColumnLayout {
         chartData.setScope(filters);
         cardData.setScope(filters);
         formulaData.setScope(filters);
-        if (want?.shows === "budget-progress" && period !== "") {
+        if ((want?.shows === "budget-progress" || want?.shows === "budget-table") && period !== "") {
             budgetData.setBudgets(want.budgets ?? "");
             budgetData.show(period, want.only);
             return;
@@ -327,15 +329,49 @@ ColumnLayout {
         textFormat: Text.PlainText
     }
 
+    // A table without a budget to list says why with the bars' own words.
     Loader {
         Layout.fillWidth: true
-        active: preview.shownAsBudgets
+        active: preview.asked.shows === "budget-progress" || preview.asked.shows === "budget-table" && preview.budgetBars.length === 0
         visible: active
 
         sourceComponent: BudgetBars {
             shown: budgetData.view?.bars ?? []
             budgetCount: budgetData.view?.count ?? 0
             arranging: true
+        }
+    }
+
+    // The budgets' figures as a table (D-666): each budget's period as the
+    // bars show it, every cell text from Rust (D-065).
+    Loader {
+        Layout.fillWidth: true
+        active: preview.asked.shows === "budget-table" && preview.budgetBars.length > 0
+        visible: active
+
+        sourceComponent: DataTable {
+            title: preview.title
+            columns: ["budget", "period", "planned", "carried_in", "available", "spent", "left", "used"]
+            rows: preview.budgetBars.map(bar => [
+                bar.name,
+                preview.i18nContext.i18nc("@info %1 and %2 are dates", "%1 to %2", bar.firstDay, bar.lastDay),
+                bar.planned,
+                bar.carriedIn,
+                bar.available,
+                bar.spent,
+                bar.left,
+                bar.used
+            ])
+            columnNames: ({
+                "budget": preview.i18nContext.i18nc("@title:column a table of budgets: what the budget is for", "Budget"),
+                "period": preview.i18nContext.i18nc("@title:column a table of budgets: the days of the budget's period", "Period"),
+                "planned": preview.i18nContext.i18nc("@title:column a table of budgets", "Planned"),
+                "carried_in": preview.i18nContext.i18nc("@title:column a table of budgets: what came over from the period before", "Carried over"),
+                "available": preview.i18nContext.i18nc("@title:column a table of budgets: planned plus carried over", "Available"),
+                "spent": preview.i18nContext.i18nc("@title:column a table of budgets", "Spent"),
+                "left": preview.i18nContext.i18nc("@title:column a table of budgets: available less spent", "Left"),
+                "used": preview.i18nContext.i18nc("@title:column a table of budgets: the share of what is available that was spent", "Used")
+            })
         }
     }
 

@@ -683,11 +683,16 @@ fn the_dataset_and_its_component_are_offered_since_the_app_draws_them() {
     );
     let offered: Vec<&str> = kind.datasets().map(|dataset| dataset.id).collect();
     assert_eq!(offered, vec![BUDGET_UTILIZATION]);
-    // No other component takes it: a budget has bars, not a chart yet. The
-    // one exception is a custom chart, whose description can name every
-    // dataset (M6e, Q-353).
+    // Besides the bars only a table takes it: the same figures as rows
+    // (D-666); no chart draws budgets. A custom chart's description can
+    // name every dataset (M6e, Q-353).
+    assert!(
+        ComponentType::TableRows
+            .datasets()
+            .any(|dataset| dataset.id == BUDGET_UTILIZATION)
+    );
     for other in ComponentType::LIBRARY {
-        if other != kind && other != ComponentType::CustomChart {
+        if ![kind, ComponentType::CustomChart, ComponentType::TableRows].contains(&other) {
             assert!(
                 other
                     .datasets()

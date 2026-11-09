@@ -233,9 +233,13 @@ ColumnLayout {
         case "same_last_year":
             return i18nContext.i18nc("@item:inlistbox", "The same days a year earlier");
         case "income":
+        case "money_in":
             return i18nContext.i18nc("@item:inlistbox", "Money in");
         case "expenses":
+        case "money_out":
             return i18nContext.i18nc("@item:inlistbox", "Money out");
+        case "net_change":
+            return i18nContext.i18nc("@item:inlistbox a key figure: the money that came into the accounts less the money that went out", "Net change");
         case "net":
             return i18nContext.i18nc("@item:inlistbox", "What is left");
         case "net_worth":

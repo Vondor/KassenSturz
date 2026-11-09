@@ -111,10 +111,16 @@ pub fn spending_by_category_as(
     format: &impl TextFormat,
     average: Option<&Average>,
 ) -> Result<ChartModel, ChartError> {
-    if !matches!(kind, ChartKind::Bar | ChartKind::Pie | ChartKind::Donut) {
+    if !matches!(
+        kind,
+        ChartKind::Bar | ChartKind::StackedBar | ChartKind::Pie | ChartKind::Donut
+    ) {
         return Err(ChartError::KindNotSupported(kind));
     }
-    let mut shown = if kind.is_round() {
+    // One bar split into the categories is a pie as a bar (D-666): the same
+    // slices, so the same rows are left out and put into "Other".
+    let parts = kind.is_round() || kind == ChartKind::StackedBar;
+    let mut shown = if parts {
         round_rows(data, format, average)?
     } else {
         Shown::plain(data, format, average)
@@ -135,6 +141,9 @@ pub fn spending_by_category_as(
             .map(|row| vec![row.name.clone(), row.label.clone()])
             .collect(),
     };
+    if kind == ChartKind::StackedBar {
+        return one_split_bar(data, shown, table, format, average);
+    }
     let categories = shown.rows.iter().map(|row| row.name.clone()).collect();
     let unsorted = shown.rows.iter().position(|row| row.unsorted);
     let series = vec![Series {
@@ -162,6 +171,58 @@ pub fn spending_by_category_as(
         currency: data.currency.to_string(),
         categories,
         unsorted,
+        series,
+        ticks,
+        total: format.amount(shown_as(data.total, average)),
+        table,
+        slices: shown.slices,
+        hidden: hidden_note(data, format, average),
+        overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
+    })
+}
+
+/// Spending as one bar split into its categories (D-666): a series for each
+/// slice a pie would draw, largest first, each with one point, so the bar is
+/// as tall as the drawn spending. "Other" is the series `other`, which the
+/// screen names; every other slice carries its category's name (or the
+/// words for money not sorted yet). A refund larger than its spending is
+/// in the table only, as it is for a pie. The one place on the axis has no
+/// name.
+fn one_split_bar(
+    data: &SpendingByCategory,
+    shown: Shown,
+    table: TextTable,
+    format: &impl TextFormat,
+    average: Option<&Average>,
+) -> Result<ChartModel, ChartError> {
+    let series: Vec<Series> = shown
+        .rows
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| shown.slices.undrawn.get(*index) != Some(&true))
+        .map(|(index, row)| {
+            let other = shown.slices.other == Some(index);
+            Series {
+                key: if other { "other" } else { "series" },
+                name: (!other).then(|| row.name.clone()),
+                color: ChartModel::color_of(index),
+                points: vec![Point {
+                    minor_units: row.minor_units,
+                    label: row.label.clone(),
+                }],
+            }
+        })
+        .collect();
+    let (low, high) = extent(&series, true);
+    let ticks = ticks(low, high, major_unit(data.currency), data.currency, format)?;
+    Ok(ChartModel {
+        kind: ChartKind::StackedBar,
+        dataset: SPENDING_BY_CATEGORY,
+        currency: data.currency.to_string(),
+        categories: vec![String::new()],
+        unsorted: None,
         series,
         ticks,
         total: format.amount(shown_as(data.total, average)),
@@ -372,8 +433,8 @@ pub fn income_expense_by_month(
     })
 }
 
-/// The chosen categories and groups month by month as a line, area or
-/// stacked-bar chart: one series for each, in the order they were chosen,
+/// The chosen categories and groups month by month as a line, area, bar or
+/// stacked-bar chart (bars and the table since D-666): one series for each, in the order they were chosen,
 /// one point per month. The total is what the series add up to for the whole
 /// period, which for series that share a category is more than was spent
 /// (the book refuses that for stacked bars, D-291).
@@ -384,7 +445,7 @@ pub fn category_over_time(
 ) -> Result<ChartModel, ChartError> {
     if !matches!(
         kind,
-        ChartKind::Line | ChartKind::Area | ChartKind::StackedBar
+        ChartKind::Line | ChartKind::Area | ChartKind::Bar | ChartKind::StackedBar
     ) {
         return Err(ChartError::KindNotSupported(kind));
     }

@@ -119,7 +119,7 @@ QtObject {
         if (dataset === "spending_by_category" && shows === "table") {
             return i18nContext.i18nc("@title", "Your biggest spending");
         }
-        if (shows === "budget-progress") {
+        if (shows === "budget-progress" || shows === "budget-table") {
             return i18nContext.i18nc("@title", "Your budgets");
         }
         if (dataset === "income_expense_by_month" && shows === "chart") {
@@ -133,7 +133,7 @@ QtObject {
         if (dataset === "cash_flow_by_month" && shows !== "card") {
             return i18nContext.i18nc("@title", "Money in and out of your accounts");
         }
-        if (dataset === "account_balances" && shows === "table") {
+        if (dataset === "account_balances" && shows !== "card") {
             return i18nContext.i18nc("@title", "What your accounts hold");
         }
         return "";

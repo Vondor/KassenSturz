@@ -254,6 +254,20 @@ impl ComponentType {
         CATALOG.iter().filter(move |dataset| self.shows(dataset))
     }
 
+    /// The dataset a new component of this type starts with: the first it
+    /// can show, except that a key figure card and stacked bars start with
+    /// money in and out by month, as they did before spending suited them
+    /// too (D-666). `None` for a type without data.
+    pub fn first_dataset(self) -> Option<&'static DatasetInfo> {
+        let preferred = match self {
+            Self::KpiCard | Self::ChartStackedBar => Some(crate::INCOME_EXPENSE_BY_MONTH),
+            _ => None,
+        };
+        preferred
+            .and_then(|id| self.datasets().find(|dataset| dataset.id == id))
+            .or_else(|| self.datasets().next())
+    }
+
     /// Whether this component can show `dataset`: the dataset lists its
     /// [`ComponentType::suit`], or, for a custom chart, a description can name it
     /// (`spec::SPEC_DATASETS`).

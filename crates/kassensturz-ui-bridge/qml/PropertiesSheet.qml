@@ -102,7 +102,7 @@ Kirigami.Dialog {
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit * 22
             // Headings, notices and boxes have no figures to show.
-            visible: ["chart", "table", "card", "progress"].includes(sheet.view?.preview?.shows)
+            visible: ["chart", "table", "card", "progress", "budget-table"].includes(sheet.view?.preview?.shows)
             contentWidth: availableWidth
             clip: true
 

@@ -64,8 +64,10 @@ pub const CATALOG: &[DatasetInfo] = &[
              amounts in different currencies are never added together: there is one result per \
              currency.",
         groupings: &["category", "top_level_category", GROUPS_GROUPING],
-        suits: &["pie", "bar", "table"],
-        measures: &[],
+        // One bar split into the categories, as a pie is (D-666), and the
+        // whole period's spending as one figure.
+        suits: &["pie", "bar", "stacked_bar", "kpi", "table"],
+        measures: &["total"],
         takes: Takes::ALL,
         for_ai: true,
     },
@@ -94,7 +96,8 @@ pub const CATALOG: &[DatasetInfo] = &[
              between your own accounts and starting balances are not counted, and amounts in \
              different currencies are never added together: there is one result per currency.",
         groupings: &["series"],
-        suits: &["line", "stacked_bar"],
+        // Bars side by side and a table of the months too (D-666).
+        suits: &["line", "bar", "stacked_bar", "table"],
         measures: &[],
         takes: Takes::ALL,
         for_ai: false,
@@ -119,7 +122,9 @@ pub const CATALOG: &[DatasetInfo] = &[
              day, in either direction, rounded once; a currency without one is left out of that \
              total and named, never guessed.",
         groupings: &["account", "account_kind"],
-        suits: &["kpi", "table"],
+        // A bar for each account or for what you have, owe and are worth
+        // (D-666). No line: the dataset has no time axis.
+        suits: &["bar", "kpi", "table"],
         measures: &["net_worth", "assets", "liabilities", FORMULA_MEASURE],
         takes: Takes::NO_CATEGORIES,
         for_ai: true,
@@ -137,7 +142,7 @@ pub const CATALOG: &[DatasetInfo] = &[
              before each month's day, in either direction, rounded once; a currency without one \
              is left out of that month's total and named, never guessed.",
         groupings: &["month"],
-        suits: &["line", "table"],
+        suits: &["line", "bar", "table"],
         measures: &["net_worth", "assets", "liabilities"],
         takes: Takes::NO_CATEGORIES,
         for_ai: true,
@@ -155,7 +160,9 @@ pub const CATALOG: &[DatasetInfo] = &[
              are not in it. Amounts in different currencies are never added together: there is \
              one result per currency.",
         groupings: &["month"],
-        suits: &["bar", "table"],
+        // Lines, areas and stacked bars of the months and a figure of the
+        // whole period too (D-666).
+        suits: &["line", "bar", "stacked_bar", "kpi", "table"],
         measures: &["net_change", "money_in", "money_out"],
         takes: Takes::NO_CATEGORIES,
         for_ai: true,
@@ -186,7 +193,8 @@ pub const CATALOG: &[DatasetInfo] = &[
          between your own accounts and starting balances are not counted, and amounts in \
          different currencies are never added together: there is one result per currency.",
         groupings: &["budget", "period"],
-        suits: &["budget"],
+        // The budget bars, or their figures as a table (D-666).
+        suits: &["budget", "table"],
         measures: &[],
         // A budget counts its category's spending from every account (D-350).
         takes: Takes::NO_ACCOUNTS,

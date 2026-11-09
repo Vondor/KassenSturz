@@ -492,6 +492,8 @@ pub enum ChangeView {
     },
     /// A new budget (M6c.11, D-358).
     NewBudget {
+        /// The name it gets; empty for none (D-664).
+        name: String,
         /// Its categories as paths, separated by commas (D-641).
         category: String,
         /// The names of the accounts it counts from, separated by commas;
@@ -514,8 +516,18 @@ pub enum ChangeView {
         /// How the amount was computed; `None` for one the user named.
         basis: Option<BasisView>,
     },
-    /// A budget changed from one period on (M6c.11, D-358).
+    /// A budget changed from one period on (M6c.11, D-358), or given
+    /// another name (D-664).
     EditBudget {
+        /// The name it has now; empty for none (D-664).
+        name: String,
+        /// Whether its name changes.
+        renames: bool,
+        /// Its new name; empty when it is taken away or stays.
+        new_name: String,
+        /// Whether the amount or the carry over changes; `false` for a new
+        /// name only.
+        changes_amount: bool,
         /// Its categories as paths, separated by commas (D-641).
         category: String,
         /// The names of the accounts it counts from, separated by commas;
@@ -864,6 +876,7 @@ fn view_of(
                 .unwrap_or_default(),
         },
         ProposedChange::NewBudget(new) => ChangeView::NewBudget {
+            name: new.name.clone().unwrap_or_default(),
             category: paths_text(&new.paths),
             accounts: new.account_names.join(", "),
             every: budget_every(new.every),
@@ -883,6 +896,10 @@ fn view_of(
         ProposedChange::EditBudget(edit) => {
             let writer = AmountWriter::new(book, edit.amount.currency(), locale)?;
             ChangeView::EditBudget {
+                name: edit.name_before.clone().unwrap_or_default(),
+                renames: edit.rename.is_some(),
+                new_name: edit.rename.clone().flatten().unwrap_or_default(),
+                changes_amount: edit.changes_amount,
                 category: paths_text(&edit.paths),
                 accounts: edit.account_names.join(", "),
                 every: budget_every(edit.every),

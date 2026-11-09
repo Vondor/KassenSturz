@@ -153,6 +153,7 @@ pub const FUNCTIONS: &[Function] = &[
     Function {
         name: "list_budgets",
         description: "Lists the user's budgets that run now or start later, with their IDs: \
+            the name the user gave it, if any (without one the user sees its categories), \
             the spending categories each one is for (each counted with everything inside it), \
             the IDs of the accounts it counts from if it doesn't count every account (names \
             from list_accounts), how often it starts \

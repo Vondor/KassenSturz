@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // One budget the AI prepared, new or changed, as the review page lists it
-// (M6c.11, D-358, D-395): the category, how often it starts again, the
-// first period it applies to, the amount, whether it carries over and, for
-// an amount KassenSturz computed, how it came about. Every text from the
-// model or the book is plain text (T-08).
+// (M6c.11, D-358, D-395): its name, if it has one (D-664), the category, how
+// often it starts again, the first period it applies to, the amount,
+// whether it carries over and, for an amount KassenSturz computed, how it
+// came about. A change of only the name says that no amount changes. Every
+// text from the model or the book is plain text (T-08).
 
 import QtQuick
 import QtQuick.Layouts
@@ -31,6 +32,9 @@ Kirigami.AbstractCard {
     }
 
     readonly property bool isNew: change.kind === "newBudget"
+    // A change of the name only leaves every amount as it was (D-664).
+    readonly property bool changesAmount: isNew || (change.changesAmount ?? true)
+    readonly property string ownName: change.name ?? ""
 
     function everyText(every: string): string {
         switch (every) {
@@ -69,13 +73,34 @@ Kirigami.AbstractCard {
                 elide: Text.ElideRight
                 font.bold: true
                 textFormat: Text.PlainText
-                text: card.change.category
+                text: card.ownName !== "" ? card.ownName : card.change.category
             }
 
             Controls.Label {
+                visible: card.changesAmount
                 textFormat: Text.PlainText
                 text: card.isNew ? card.change.amount : card.i18nContext.i18nc("@info %1 is what a budget plans now, %2 what it plans from then on", "%1 → %2", card.change.before, card.change.amount)
             }
+        }
+
+        // A budget with a name still says which categories it counts.
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: card.ownName !== ""
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: card.i18nContext.i18nc("@info %1 is a list of category names", "For %1", card.change.category)
+        }
+
+        // Its new name, or that it loses its name (D-664).
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: !card.isNew && (card.change.renames ?? false)
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: (card.change.newName ?? "") !== ""
+                ? card.i18nContext.i18nc("@info %1 is the new name of a budget", "New name: %1", card.change.newName)
+                : card.i18nContext.i18nc("@info", "The name is taken away, so the budget is called by its categories again.")
         }
 
         // A budget may count only some of the user's accounts (D-641).
@@ -92,13 +117,16 @@ Kirigami.AbstractCard {
             wrapMode: Text.Wrap
             opacity: 0.8
             textFormat: Text.PlainText
-            text: card.isNew
+            text: !card.changesAmount
+                ? card.i18nContext.i18nc("@info", "Only the name changes. Every amount stays as it was.")
+                : card.isNew
                 ? card.i18nContext.i18nc("@info %1 says how often a budget starts again, %2 and %3 are the days of its first period", "%1, first period %2 to %3", card.everyText(card.change.every), card.change.from, card.change.to)
                 : card.i18nContext.i18nc("@info %1 says how often a budget starts again, %2 and %3 are the days of the period a change applies from", "%1. The change applies from the period %2 to %3 on; earlier periods stay as they were.", card.everyText(card.change.every), card.change.from, card.change.to)
         }
 
         Controls.Label {
             Layout.fillWidth: true
+            visible: card.changesAmount
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             text: card.change.carryOver
@@ -119,7 +147,9 @@ Kirigami.AbstractCard {
             wrapMode: Text.Wrap
             opacity: 0.8
             textFormat: Text.PlainText
-            text: card.change.basisPeriods > 0
+            text: !card.changesAmount
+                ? card.i18nContext.i18nc("@info", "A budget only shows how your spending compares; it changes no booking. Undo takes it back.")
+                : card.change.basisPeriods > 0
                 ? card.i18nContext.i18nc("@info", "KassenSturz worked out this amount from your book, not the AI. A budget only shows how your spending compares; it changes no booking. Undo takes it back.")
                 : card.i18nContext.i18nc("@info", "The AI took this amount from what you wrote. A budget only shows how your spending compares; it changes no booking. Undo takes it back.")
         }

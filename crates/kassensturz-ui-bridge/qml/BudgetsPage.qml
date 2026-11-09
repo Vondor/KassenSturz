@@ -154,6 +154,18 @@ Kirigami.ScrollablePage {
                                 font.bold: true
                             }
 
+                            // A budget with a name of its own still says
+                            // which categories it counts (D-664).
+                            Controls.Label {
+                                Layout.fillWidth: true
+                                visible: (card.modelData.ownName ?? "") !== ""
+                                text: page.i18nContext.i18nc("@info %1 is a list of category names", "For %1", card.modelData.categoryNames ?? "")
+                                textFormat: Text.PlainText
+                                elide: Text.ElideRight
+                                font: Kirigami.Theme.smallFont
+                                opacity: 0.8
+                            }
+
                             Controls.Label {
                                 Layout.fillWidth: true
                                 text: page.summary(card.modelData)

@@ -18944,3 +18944,65 @@ msgstr ""
 msgctxt "@info a change you made"
 msgid "Changed the type of an account"
 msgstr "Kontoart eines Kontos geändert"
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:92
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:162
+#, kde-format
+msgctxt "@info %1 is a list of category names"
+msgid "For %1"
+msgstr "Für %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:102
+#, kde-format
+msgctxt "@info %1 is the new name of a budget"
+msgid "New name: %1"
+msgstr "Neuer Name: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:103
+#, kde-format
+msgctxt "@info"
+msgid "The name is taken away, so the budget is called by its categories again."
+msgstr "Der Name wird entfernt, das Budget heißt dann wieder nach seinen Kategorien."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:121
+#, kde-format
+msgctxt "@info"
+msgid "Only the name changes. Every amount stays as it was."
+msgstr "Nur der Name ändert sich. Alle Beträge bleiben, wie sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:151
+#, kde-format
+msgctxt "@info"
+msgid "A budget only shows how your spending compares; it changes no booking. Undo takes it back."
+msgstr "Ein Budget zeigt nur, wie Ihre Ausgaben im Vergleich stehen; es ändert keine Buchung. „Rückgängig“ nimmt es zurück."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:140
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:144
+#, kde-format
+msgctxt "@label:textbox the name of a budget"
+msgid "Name:"
+msgstr "Name:"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:143
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Optional, for example Holiday"
+msgstr "Optional, zum Beispiel Urlaub"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:156
+#, kde-format
+msgctxt "@info"
+msgid "Without a name, the budget is called by its categories."
+msgstr "Ohne Namen heißt das Budget nach seinen Kategorien."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:519
+#, kde-format
+msgctxt "@info"
+msgid "A budget's name fits on one line. Remove the line break."
+msgstr "Der Name eines Budgets passt in eine Zeile. Entfernen Sie den Zeilenumbruch."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:521
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "A budget's name can have at most %1 characters. Choose a shorter name."
+msgstr "Der Name eines Budgets darf höchstens %1 Zeichen haben. Wählen Sie einen kürzeren Namen."

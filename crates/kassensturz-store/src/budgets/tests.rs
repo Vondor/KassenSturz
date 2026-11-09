@@ -79,6 +79,7 @@ fn a_budget_is_kept_with_its_period_and_amount() {
         .expect("added");
     let expected = Budget {
         id,
+        name: None,
         categories: vec![groceries],
         accounts: Vec::new(),
         every: Month,
@@ -516,6 +517,7 @@ fn a_book_keeps_at_most_1000_budgets_of_at_most_1200_amounts() {
         );
         Budget {
             id: BudgetId::generate(),
+            name: None,
             categories: vec![category],
             accounts: Vec::new(),
             every: Month,
@@ -580,6 +582,7 @@ fn budgets_come_back_with_their_ids_when_a_book_is_filled() {
     let groceries = AccountId::generate();
     let budgets = vec![Budget {
         id: BudgetId::generate(),
+        name: None,
         categories: vec![groceries],
         accounts: Vec::new(),
         every: Quarter,
@@ -896,4 +899,161 @@ fn a_budget_can_repeat_every_salary_month_and_undo_keeps_its_day() {
     assert_eq!(stored, Some(25));
     let refused = book.conn.execute("UPDATE budgets SET every = 'year'", []);
     assert!(refused.is_err(), "a salary day only on a month");
+}
+
+/// A budget can have a name the user gives it (M6-B203, D-664): kept
+/// without spaces around it, taken away by an empty one, refused when it
+/// is too long or doesn't fit on one line, and undone like any change.
+#[test]
+fn a_budget_has_a_name_if_the_user_gives_it_one() {
+    let Sample {
+        mut book,
+        groceries,
+        ..
+    } = sample();
+    let unnamed = monthly(&mut book, groceries);
+    assert_eq!(book.budget(unnamed).expect("read").name, None);
+
+    let trip = account(&mut book, "Summer trip", AccountKind::Expense, EUR);
+    let made = book.history().expect("history").len();
+    let named = book
+        .add_named_budget(
+            Some("  Holiday in Italy  "),
+            &[trip],
+            &[],
+            Range,
+            date(2026, 7, 10),
+            Some(date(2026, 7, 24)),
+            eur(150_000),
+            false,
+        )
+        .expect("added");
+    assert_eq!(last_action(&book), Action::AddBudget);
+    // One change: Undo takes the budget away with its name.
+    assert_eq!(book.history().expect("history").len(), made + 1);
+    assert_eq!(
+        book.budget(named).expect("read").name.as_deref(),
+        Some("Holiday in Italy")
+    );
+
+    book.set_budget_name(unnamed, Some("Weekly shop"))
+        .expect("named");
+    assert_eq!(last_action(&book), Action::EditBudget);
+    assert_eq!(
+        book.budget(unnamed).expect("read").name.as_deref(),
+        Some("Weekly shop")
+    );
+    // The same name again records nothing.
+    let changes = book.history().expect("history").len();
+    book.set_budget_name(unnamed, Some("Weekly shop "))
+        .expect("kept");
+    assert_eq!(book.history().expect("history").len(), changes);
+    // Names may be the same: a name is a label.
+    book.set_budget_name(named, Some("Weekly shop"))
+        .expect("named the same");
+    book.undo().expect("undone");
+    assert_eq!(
+        book.budget(named).expect("read").name.as_deref(),
+        Some("Holiday in Italy")
+    );
+    // An empty name, or only spaces, takes the name away.
+    book.set_budget_name(unnamed, Some("   ")).expect("unnamed");
+    assert_eq!(book.budget(unnamed).expect("read").name, None);
+    book.undo().expect("undone");
+    assert_eq!(
+        book.budget(unnamed).expect("read").name.as_deref(),
+        Some("Weekly shop")
+    );
+    book.set_budget_name(unnamed, None).expect("unnamed");
+    assert_eq!(book.budget(unnamed).expect("read").name, None);
+
+    // At most 100 characters, counted as characters, not bytes.
+    let longest = "ä".repeat(100);
+    book.set_budget_name(unnamed, Some(&longest))
+        .expect("100 characters");
+    let too_long = StoreError::BudgetName {
+        reason: "too-long",
+        max_chars: 100,
+    };
+    assert_refused(
+        book.set_budget_name(unnamed, Some(&"x".repeat(101))),
+        too_long,
+    );
+    for broken in ["Two\nlines", "Tab\there", "Car\rriage"] {
+        assert_refused(
+            book.set_budget_name(unnamed, Some(broken)),
+            StoreError::BudgetName {
+                reason: "line-break",
+                max_chars: 100,
+            },
+        );
+    }
+    assert_eq!(
+        book.budget(unnamed).expect("read").name.as_deref(),
+        Some(longest.as_str())
+    );
+    // A new budget with a name the book refuses is not made at all.
+    let before = book.budgets().expect("read").len();
+    let bills = account(&mut book, "Bills", AccountKind::Expense, EUR);
+    assert_refused(
+        book.add_named_budget(
+            Some("Two\nlines"),
+            &[bills],
+            &[],
+            Month,
+            date(2026, 9, 1),
+            None,
+            eur(1_000),
+            false,
+        ),
+        StoreError::BudgetName {
+            reason: "line-break",
+            max_chars: 100,
+        },
+    );
+    assert_eq!(book.budgets().expect("read").len(), before);
+    let gone = BudgetId::generate();
+    assert_refused(
+        book.set_budget_name(gone, Some("Gone")),
+        StoreError::UnknownBudget(gone),
+    );
+}
+
+/// A book filled from a complete export keeps each budget's name, and
+/// refuses one it would refuse from the user (D-664).
+#[test]
+fn a_restored_budget_keeps_its_name() {
+    let groceries = AccountId::generate();
+    let named = |name: &str| Budget {
+        id: BudgetId::generate(),
+        name: Some(name.to_owned()),
+        categories: vec![groceries],
+        accounts: Vec::new(),
+        every: Month,
+        first_day: date(2026, 9, 1),
+        last_day: None,
+        amounts: vec![row(date(2026, 9, 1), 40_000, false)],
+    };
+    let fill = |budgets: &[Budget]| {
+        let mut book = Book::create_in_memory().expect("book created");
+        let filled = book.fill_new(HistoryRetention::Forever, |book| {
+            book.use_currency(EUR)?;
+            add_with_id(book, groceries, "Groceries")?;
+            book.restore_budgets(budgets)
+        });
+        (book, filled)
+    };
+    let budgets = vec![named("Weekly shop")];
+    let (book, filled) = fill(&budgets);
+    filled.expect("filled");
+    assert_eq!(book.budgets().expect("read"), budgets);
+    let (book, filled) = fill(&[named("Two\nlines")]);
+    assert_refused(
+        filled,
+        StoreError::BudgetName {
+            reason: "line-break",
+            max_chars: 100,
+        },
+    );
+    assert!(book.budgets().expect("read").is_empty());
 }

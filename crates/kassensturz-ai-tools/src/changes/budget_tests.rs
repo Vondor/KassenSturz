@@ -347,7 +347,7 @@ fn the_stores_own_checks_reach_the_model() {
     );
 }
 
-/// A budget item with a key it doesn't take, such as a name, is refused
+/// A budget item with a key it doesn't take, such as a colour, is refused
 /// with the list, the item and the keys it does take; the model's key is
 /// never repeated back (M6-B201, X-8).
 #[test]
@@ -356,12 +356,12 @@ fn an_unknown_budget_key_lists_the_keys_a_budget_takes() {
     let food = small.food.to_string();
     let call = json!({"new_budgets": [
         {"category_id": food, "every": "month", "amount": "10"},
-        {"category_id": food, "every": "year", "amount": "10", "name": "Groceries cap"}
+        {"category_id": food, "every": "year", "amount": "10", "colour": "Groceries green"}
     ]});
     let error = propose(&small.book, &call).expect_err("refused");
     let allowed = error.allowed_fields().expect("the keys it takes");
     assert!(allowed.contains(&"category_ids") && allowed.contains(&"every"));
-    assert!(!allowed.contains(&"name"));
+    assert!(allowed.contains(&"name") && !allowed.contains(&"colour"));
     let report = error.model_report();
     assert_eq!(report.code, "ai-tools.unknown-field");
     assert_eq!(
@@ -374,7 +374,7 @@ fn an_unknown_budget_key_lists_the_keys_a_budget_takes() {
     );
     let shown = format!("{report:?} {allowed:?}");
     assert!(!shown.contains("Groceries"), "{shown}");
-    assert!(!shown.contains("\"name\""), "{shown}");
+    assert!(!shown.contains("colour"), "{shown}");
 }
 
 #[test]
@@ -796,6 +796,118 @@ fn a_monthly_budget_can_start_on_a_salary_day_and_counts_those_months() {
             code(propose(&small.book, &call(every, day.clone()))),
             "bad-argument salary_day",
             "{every} {day}"
+        );
+    }
+}
+
+/// A budget the AI prepares can get a name the user asked for, and an
+/// edit can change only the name, which leaves every amount as it is
+/// (M6-B203, D-664). The book's own checks of a name reach the model.
+#[test]
+fn a_budget_gets_the_name_the_user_asked_for_and_keeps_its_amounts() {
+    let mut small = small();
+    let fun = small.fun.to_string();
+    let proposal = propose(
+        &small.book,
+        &json!({"new_budgets": [{"name": " Weekends ", "category_id": fun,
+            "every": "month", "amount": "40"}]}),
+    )
+    .expect("prepared");
+    let new = new_budget(&proposal.changes);
+    assert_eq!(new.name.as_deref(), Some("Weekends"));
+    assert_eq!(
+        proposal.changes.summary(),
+        "new budget \"Weekends\" for \"Fun\" every month from 2026-11-01"
+    );
+    proposal
+        .changes
+        .apply(&mut small.book, Confirmed::by_the_user())
+        .expect("applied");
+    let made = small.book.budgets().expect("budgets");
+    assert_eq!(made.len(), 1);
+    assert_eq!(made[0].name.as_deref(), Some("Weekends"));
+    let id = made[0].id;
+
+    // A budget made by hand, with an amount planned for a later period.
+    let food = small
+        .book
+        .add_budget(
+            &[small.food],
+            &[],
+            BudgetEvery::Month,
+            Date::constant(2026, 6, 1),
+            None,
+            eur(30_000),
+            false,
+        )
+        .expect("a budget made by hand");
+    small
+        .book
+        .edit_budget_amount(food, Date::constant(2026, 12, 1), eur(35_000), false)
+        .expect("planned for December");
+    let before = small.book.budget(food).expect("there");
+    let proposal = propose(
+        &small.book,
+        &json!({"edit_budgets": [{"budget_id": food.to_string(), "name": "Food at home"}]}),
+    )
+    .expect("prepared");
+    let [ProposedChange::EditBudget(edit)] = proposal.changes.changes() else {
+        panic!("one edit");
+    };
+    assert_eq!(edit.name_before, None);
+    assert_eq!(edit.rename, Some(Some("Food at home".to_owned())));
+    assert!(!edit.changes_amount);
+    assert_eq!(
+        proposal.changes.summary(),
+        "budget for \"Food\" changes its name to \"Food at home\""
+    );
+    proposal
+        .changes
+        .apply(&mut small.book, Confirmed::by_the_user())
+        .expect("applied");
+    let after = small.book.budget(food).expect("there");
+    assert_eq!(after.name.as_deref(), Some("Food at home"));
+    // December's amount is still planned: a new name changes no amount.
+    assert_eq!(after.amounts, before.amounts);
+    small.book.undo().expect("undone");
+    assert_eq!(small.book.budget(food).expect("there").name, None);
+
+    // An empty name takes the name away; the same name again is no change.
+    let proposal = propose(
+        &small.book,
+        &json!({"edit_budgets": [{"budget_id": id.to_string(), "name": ""}]}),
+    )
+    .expect("prepared");
+    let [ProposedChange::EditBudget(edit)] = proposal.changes.changes() else {
+        panic!("one edit");
+    };
+    assert_eq!(edit.rename, Some(None));
+    assert_eq!(
+        proposal.changes.summary(),
+        "budget \"Weekends\" for \"Fun\" changes to have no name"
+    );
+    assert_eq!(
+        code(propose(
+            &small.book,
+            &json!({"edit_budgets": [{"budget_id": id.to_string(), "name": "Weekends"}]}),
+        )),
+        "bad-argument name"
+    );
+    // A name with a line break or of more than 100 characters is refused
+    // with the book's own code, and a name that is not text as a bad name.
+    for (name, expected) in [
+        (json!("Two\nlines"), "store.budget-name line-break"),
+        (json!("x".repeat(101)), "store.budget-name too-long"),
+        (json!(7), "bad-argument name"),
+    ] {
+        assert_eq!(
+            code(propose(
+                &small.book,
+                &json!({"new_budgets": [{"name": name, "category_id": small.groceries.to_string(),
+                    "every": "month", "amount": "10"}]}),
+            )),
+            expected,
+            "{name}"
         );
     }
 }

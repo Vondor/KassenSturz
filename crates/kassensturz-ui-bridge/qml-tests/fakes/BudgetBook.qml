@@ -14,11 +14,11 @@ QtObject {
 
     property var view: ({
         budgets: [
-            {id: "b-food", categories: ["c-food"], name: "Food", accounts: "", every: "month", salaryDay: 0, currency: "EUR", amount: "400,00 €", amountInput: "400,00", carryOver: true,
+            {id: "b-food", categories: ["c-food"], name: "Food", ownName: "", categoryNames: "Food", accounts: "", every: "month", salaryDay: 0, currency: "EUR", amount: "400,00 €", amountInput: "400,00", carryOver: true,
              state: "running", firstDay: "2026-09-01", lastDay: "", canStop: true,
              changes: [{day: "2026-10-01", firstDay: "2026-10-01", lastDay: "2026-10-31", current: true},
                        {day: "2026-09-01", firstDay: "2026-09-01", lastDay: "2026-09-30", current: false}]},
-            {id: "b-rent", categories: ["c-rent"], name: "Rent", accounts: "Checking", every: "salary-month", salaryDay: 25, currency: "EUR", amount: "800,00 €", amountInput: "800,00", carryOver: false,
+            {id: "b-rent", categories: ["c-rent"], name: "Flat", ownName: "Flat", categoryNames: "Rent", accounts: "Checking", every: "salary-month", salaryDay: 25, currency: "EUR", amount: "800,00 €", amountInput: "800,00", carryOver: false,
              state: "upcoming", firstDay: "2027-01-25", lastDay: "", canStop: false, changes: []}
         ],
         categories: [
@@ -37,13 +37,16 @@ QtObject {
                 {day: "2026-10-01", firstDay: "2026-10-01", lastDay: "2026-10-31", current: true}];
     }
 
-    function addBudget(chosen, every, amount, carryOver, firstDay, lastDay) {
-        calls.push("addBudget:" + [chosen, every, amount, carryOver, firstDay, lastDay].join(":"));
+    // `days` is the first day, a line break and the last day; the name the
+    // user typed comes last in the record (D-664).
+    function addBudget(name, chosen, every, amount, carryOver, days) {
+        const [firstDay, lastDay] = days.split("\n");
+        calls.push("addBudget:" + [chosen, every, amount, carryOver, firstDay, lastDay ?? "", name].join(":"));
         return amount === "" ? {code: "store.budget-amount", reason: "not-positive"} : {};
     }
 
-    function changeBudget(id, fromDay, amount, carryOver) {
-        calls.push("changeBudget:" + [id, fromDay, amount, carryOver].join(":"));
+    function changeBudget(id, name, changesAmount, fromDay, amount, carryOver) {
+        calls.push("changeBudget:" + [id, name, changesAmount, fromDay, amount, carryOver].join(":"));
         return {};
     }
 

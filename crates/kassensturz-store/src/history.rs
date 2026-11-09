@@ -123,7 +123,8 @@ pub enum Action {
     SetHiddenCategories,
     /// Made a new budget (D-344).
     AddBudget,
-    /// Changed a budget's amount, its carry over or its last day (D-345).
+    /// Changed a budget's amount, its carry over, its last day (D-345) or
+    /// its name (D-664).
     EditBudget,
     /// Deleted a budget with its past results.
     RemoveBudget,
@@ -528,6 +529,7 @@ pub(crate) const RECORDED: [Recorded; 25] = [
             ("first_day", "TEXT"),
             ("last_day", "TEXT"),
             ("salary_day", "INTEGER"),
+            ("name", "TEXT"),
         ],
     },
     Recorded {

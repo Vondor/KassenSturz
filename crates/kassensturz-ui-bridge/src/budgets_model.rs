@@ -14,7 +14,9 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_store::Book;
 
-use crate::budgets::{self, Bar, BudgetRow, BudgetsError, BudgetsView, NewBudget, PeriodChoice};
+use crate::budgets::{
+    self, Bar, BudgetChange, BudgetRow, BudgetsError, BudgetsView, NewBudget, PeriodChoice,
+};
 use crate::errors::ErrorText;
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
@@ -56,31 +58,40 @@ pub mod qobject {
         /// Makes a budget for what `chosen` names (D-639): the categories'
         /// IDs separated by commas (at least one), then optionally a `;` and
         /// the IDs of the accounts it counts from, separated by commas
-        /// (none for every account). `first_day` is a start from `startChoices` as
-        /// `day`, empty for the current period, or for a range the typed
-        /// first day; `last_day` is the typed last day of a range. Returns
+        /// (none for every account). `days` is the first day, then a line
+        /// break and the last day: the first day is a start from
+        /// `startChoices` as `day`, empty for the current period, or for a
+        /// range the typed first day; the last day is the typed last day of
+        /// a range. (One text for both keeps the call within seven
+        /// arguments now that it takes the name; a typed day has no line
+        /// break.) Returns
         /// an empty map, or the error's `code` and its parameters.
-        /// `every` is a word of `startChoices` or `range`.
+        /// `every` is a word of `startChoices` or `range`. `name` is the
+        /// name the user typed, empty for none (D-664).
         #[qinvokable]
         #[cxx_name = "addBudget"]
         fn add_budget(
             self: Pin<&mut BudgetBook>,
+            name: &QString,
             chosen: &QString,
             every: &QString,
             amount: &QString,
             carry_over: bool,
-            first_day: &QString,
-            last_day: &QString,
+            days: &QString,
         ) -> QVariant;
 
-        /// Plans `amount` for the budget from the period that starts on
-        /// `from_day` (one of its `changes`) on. Returns an empty map, or the
-        /// error.
+        /// Gives the budget the name `name` (empty for none, D-664) and,
+        /// with `changes_amount`, plans `amount` for it from the period that
+        /// starts on `from_day` (one of its `changes`) on, as one change.
+        /// Without `changes_amount` no period's amount is touched. Returns
+        /// an empty map, or the error.
         #[qinvokable]
         #[cxx_name = "changeBudget"]
         fn change_budget(
             self: Pin<&mut BudgetBook>,
             id: &QString,
+            name: &QString,
+            changes_amount: bool,
             from_day: &QString,
             amount: &QString,
             carry_over: bool,
@@ -147,18 +158,20 @@ impl qobject::BudgetBook {
 
     fn add_budget(
         self: Pin<&mut Self>,
+        name: &QString,
         chosen: &QString,
         every: &QString,
         amount: &QString,
         carry_over: bool,
-        first_day: &QString,
-        last_day: &QString,
+        days: &QString,
     ) -> QVariant {
         let (categories, accounts) = split_choice(&chosen.to_string());
         let (every, amount) = (every.to_string(), amount.to_string());
-        let (first_day, last_day) = (first_day.to_string(), last_day.to_string());
+        let (first_day, last_day) = split_days(&days.to_string());
+        let name = name.to_string();
         let result = change(|book, locale| {
             let new = NewBudget {
+                name: &name,
                 categories: &categories,
                 accounts: &accounts,
                 every: &every,
@@ -175,13 +188,23 @@ impl qobject::BudgetBook {
     fn change_budget(
         self: Pin<&mut Self>,
         id: &QString,
+        name: &QString,
+        changes_amount: bool,
         from_day: &QString,
         amount: &QString,
         carry_over: bool,
     ) -> QVariant {
-        let (id, from_day, amount) = (id.to_string(), from_day.to_string(), amount.to_string());
+        let (id, name) = (id.to_string(), name.to_string());
+        let (from_day, amount) = (from_day.to_string(), amount.to_string());
         let result = change(|book, locale| {
-            budgets::change_budget(book, &id, &from_day, &amount, carry_over, locale)
+            let change = BudgetChange {
+                name: &name,
+                changes_amount,
+                from_day: &from_day,
+                amount: &amount,
+                carry_over,
+            };
+            budgets::change_budget(book, &id, &change, locale)
         });
         self.finish(result)
     }
@@ -222,6 +245,13 @@ fn change<T>(
     .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")))
 }
 
+/// The first and last day of `addBudget`'s `days`: the first, then a line
+/// break and the last; without a line break all of it is the first day.
+fn split_days(days: &str) -> (String, String) {
+    let (first, last) = days.split_once('\n').unwrap_or((days, ""));
+    (first.to_owned(), last.to_owned())
+}
+
 /// IDs sent by QML separated by commas, without empty ones.
 fn id_list(ids: &str) -> Vec<String> {
     ids.split(',')
@@ -244,6 +274,8 @@ pub fn bar_object(bar: &Bar) -> QVariant {
         ("budget", text(&bar.budget)),
         ("categories", list(bar.categories.iter().map(|id| text(id)))),
         ("name", text(&bar.name)),
+        ("ownName", text(&bar.own_name)),
+        ("categoryNames", text(&bar.category_names)),
         ("accounts", text(&bar.accounts)),
         ("every", text(bar.every)),
         ("salaryDay", QVariant::from(&bar.salary_day)),
@@ -288,6 +320,8 @@ fn row_object(row: &BudgetRow) -> QVariant {
         ("id", text(&row.id)),
         ("categories", list(row.categories.iter().map(|id| text(id)))),
         ("name", text(&row.name)),
+        ("ownName", text(&row.own_name)),
+        ("categoryNames", text(&row.category_names)),
         ("accounts", text(&row.accounts)),
         ("every", text(row.every)),
         ("salaryDay", QVariant::from(&row.salary_day)),
@@ -354,8 +388,9 @@ mod tests {
 
     /// A book where the real store holds a monthly budget that is carried
     /// over from September, with September and October spending booked by
-    /// real transactions, and a second budget that has not started and
-    /// repeats every salary month from day 25 (D-651).
+    /// real transactions, and a second budget that has not started,
+    /// repeats every salary month from day 25 (D-651) and has the name the
+    /// user gave it (D-664).
     fn book() -> Book {
         let mut book = Book::create_in_memory().expect("book");
         book.use_currency(EUR).expect("currency used");
@@ -394,7 +429,8 @@ mod tests {
             true,
         )
         .expect("budget");
-        book.add_budget(
+        book.add_named_budget(
+            Some("Flat"),
             &[rent],
             &[],
             BudgetEvery::SalaryMonth { day: 25 },
@@ -429,6 +465,19 @@ mod tests {
         assert_eq!(split_choice(""), (Vec::new(), Vec::new()));
     }
 
+    #[test]
+    fn the_sheet_sends_the_first_day_then_the_last() {
+        assert_eq!(
+            split_days("1.11.2026\n30.11.2026"),
+            ("1.11.2026".into(), "30.11.2026".into())
+        );
+        assert_eq!(
+            split_days("2026-11-01\n"),
+            ("2026-11-01".into(), String::new())
+        );
+        assert_eq!(split_days(""), (String::new(), String::new()));
+    }
+
     /// What QML reads from the page's view, built from the real output of
     /// the logic over a real book.
     #[test]
@@ -451,6 +500,7 @@ mod tests {
                 "canStop",
                 "carryOver",
                 "categories",
+                "categoryNames",
                 "changes",
                 "currency",
                 "every",
@@ -458,11 +508,19 @@ mod tests {
                 "id",
                 "lastDay",
                 "name",
+                "ownName",
                 "salaryDay",
                 "state"
             ]
         );
         assert_eq!(text_of(&rows[0], "name"), "Food");
+        // Without a name of its own it is called by its categories; with one
+        // by that name, and its categories stay in their field (D-664).
+        assert_eq!(text_of(&rows[0], "ownName"), "");
+        assert_eq!(text_of(&rows[0], "categoryNames"), "Food");
+        assert_eq!(text_of(&rows[1], "name"), "Flat");
+        assert_eq!(text_of(&rows[1], "ownName"), "Flat");
+        assert_eq!(text_of(&rows[1], "categoryNames"), "Rent");
         assert_eq!(list_of(&rows[0], "categories").len(), 1);
         // It counts every account, so no account is named.
         assert_eq!(text_of(&rows[0], "accounts"), "");
@@ -512,6 +570,7 @@ mod tests {
                 "budget",
                 "carriedIn",
                 "categories",
+                "categoryNames",
                 "countedTo",
                 "currency",
                 "every",
@@ -522,6 +581,7 @@ mod tests {
                 "name",
                 "notes",
                 "over",
+                "ownName",
                 "permille",
                 "planned",
                 "running",
@@ -530,6 +590,9 @@ mod tests {
                 "used"
             ]
         );
+        assert_eq!(text_of(&bar, "name"), "Food");
+        assert_eq!(text_of(&bar, "ownName"), "");
+        assert_eq!(text_of(&bar, "categoryNames"), "Food");
         assert!(flag_of(&bar, "running"));
         assert!(flag_of(&bar, "hasShare"));
         assert!(!flag_of(&bar, "over"));

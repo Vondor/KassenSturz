@@ -324,6 +324,8 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **M6-B202** · **done** (this PR) · US1 Phase 3 thread "Hide grey filter notes on every tile" · standard, medium · D-663 · [format]. #581: every tile with grey filter notes gets the *Hide the grey filter notes* switch in *Properties* (default shown); problem notes stay
 
+- **M6-B203** · **done** (this PR) · US1 Phase 3 thread "Give budgets a name" · strong, high · D-664 · Q-446 = 2 · [format]. #584: a budget can have a name of its own, shown instead of its categories in the app and the AI tools; layout 28 updates existing books after a backup, budgets without a name look as before
+
 - **M6-B205** · **done** (this PR) · US1 Phase 3 thread "Open all reasonable chart types" · strong, high · D-666 · Q-448 = 1. #586: every reasonable pair of data and chart type can be chosen in *Properties* and by the AI: spending as one split bar and a number card, categories over time as bars and a table, account balances and net worth as bars, the money in and out of the accounts as lines, areas, stacked bars and a number card, budgets as a table; pies of months, lines without a time axis and progress bars without a target stay refused. Why: the catalog still held only what M6c built first (D-370)
 
 - **M6-B206** · **done** (this PR) · US1 Phase 3 thread "Add account filter to category and payee totals" · strong, medium · D-667 · Q-450 = R. #589: the AI's `category_totals` and `payee_totals` take an optional `account_ids` (at most 20 of the user's own accounts); a transaction with a part in one of them counts as a whole, as the filters and budgets count it

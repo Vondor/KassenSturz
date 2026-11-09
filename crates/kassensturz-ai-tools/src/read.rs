@@ -1120,6 +1120,11 @@ pub(crate) fn list_budgets(
     for budget in budgets.iter().take(MAX_BUDGETS) {
         let mut row = Map::new();
         row.insert("budget_id".into(), Value::String(budget.id.to_string()));
+        // The name the user gave it, if any (D-664): text of the book, as
+        // the category paths are.
+        if let Some(name) = &budget.name {
+            row.insert("name".into(), w.text(name));
+        }
         // Every category with everything inside it, and the accounts it
         // counts from if it doesn't count them all (D-641): by ID only, as
         // their names come with list_accounts and its own switch.

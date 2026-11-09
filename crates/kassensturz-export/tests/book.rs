@@ -481,6 +481,7 @@ fn sample() -> BookData {
         budgets: vec![
             Budget {
                 id: BudgetId::from_bytes(id(0x91)),
+                name: None,
                 categories: vec![AccountId::from_bytes(id(food)), AccountId::from_bytes(id(bakery))],
                 accounts: vec![AccountId::from_bytes(id(1))],
                 every: BudgetEvery::Month,
@@ -501,6 +502,7 @@ fn sample() -> BookData {
             },
             Budget {
                 id: BudgetId::from_bytes(id(0x92)),
+                name: None,
                 categories: vec![AccountId::from_bytes(id(travel))],
                 accounts: Vec::new(),
                 every: BudgetEvery::Range,
@@ -512,9 +514,11 @@ fn sample() -> BookData {
                     carry_over: false,
                 }],
             },
-            // A salary month from the 25th to the 24th (D-651).
+            // A salary month from the 25th to the 24th (D-651), with a
+            // name the user gave it (D-664).
             Budget {
                 id: BudgetId::from_bytes(id(0x93)),
+                name: Some("Food \"until payday\"".into()),
                 categories: vec![AccountId::from_bytes(id(food))],
                 accounts: vec![AccountId::from_bytes(id(2))],
                 every: BudgetEvery::SalaryMonth { day: 25 },
@@ -689,13 +693,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 10", "\"version\": 11")),
-        Err(ExportError::NewerVersion { version: 11 })
+        read_book(&changed("\"version\": 11", "\"version\": 12")),
+        Err(ExportError::NewerVersion { version: 12 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 10",
+                "\"version\": 11",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1459,6 +1463,7 @@ fn budgets_come_with_version_8() {
         book.budgets,
         vec![Budget {
             id: BudgetId::from_bytes(id(0x91)),
+            name: None,
             categories: vec![AccountId::from_bytes(id(2))],
             accounts: Vec::new(),
             every: BudgetEvery::Month,
@@ -1607,6 +1612,52 @@ fn a_monthly_budget_keeps_its_salary_day_from_version_10() {
         Err(ExportError::BadValue {
             path: "budgets[0].salary_day".into(),
             expected: Expected::Null
+        })
+    );
+}
+
+#[test]
+fn a_budget_keeps_its_name_from_version_11() {
+    // Version 11 gives a budget the name the user gave it (D-664); a file
+    // of version 10 has none, so its budgets are called by their
+    // categories.
+    let lists = r#""institutions": [], "payees": [], "tags": [], "rates": [], "bank_links": [], "views": [], "groups": [], "hidden_categories": []"#;
+    let version = |number: u64, budgets: &str| {
+        SHORT
+            .replacen("\"version\": 1", &format!("\"version\": {number}"), 1)
+            .replacen(r#""rates": []"#, lists, 1)
+            .replacen(
+                r#""hidden_categories": []"#,
+                &format!(r#""hidden_categories": [], "budgets": [{budgets}]"#),
+                1,
+            )
+    };
+    let food = "019a0000-0000-7000-8000-000000000002";
+    let budget = |name: &str| {
+        format!(
+            r#"{{"id": "019a0000-0000-7000-8000-000000000091"{name}, "categories": ["{food}"], "accounts": [], "every": "month", "first_day": "2026-09-01", "amounts": [{{"from_day": "2026-09-01", "amount": "400", "currency": "EUR", "carry_over": false}}]}}"#
+        )
+    };
+    let book =
+        read_book(version(11, &budget(r#", "name": "Weekly shop""#)).as_bytes()).expect("read");
+    assert_eq!(book.budgets[0].name.as_deref(), Some("Weekly shop"));
+    // `null` or left out is no name.
+    for none in [r#", "name": null"#, ""] {
+        let book = read_book(version(11, &budget(none)).as_bytes()).expect("read");
+        assert_eq!(book.budgets[0].name, None, "{none}");
+    }
+    // Version 10 doesn't know the key.
+    assert_eq!(
+        read_book(version(10, &budget(r#", "name": "Weekly shop""#)).as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "budgets[0].name".into()
+        })
+    );
+    assert_eq!(
+        read_book(version(11, &budget(r#", "name": 7"#)).as_bytes()),
+        Err(ExportError::BadValue {
+            path: "budgets[0].name".into(),
+            expected: Expected::Text
         })
     );
 }

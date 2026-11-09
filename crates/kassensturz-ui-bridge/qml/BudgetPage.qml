@@ -6,8 +6,10 @@
 // some of the user's accounts (D-639), repeats every month, quarter or year
 // or runs for some days, and can carry what is left into the next period. A change
 // applies from the start of one of the budget's periods on, so the results
-// of earlier periods never change. The page shows which period comes first,
-// and every mistake gets a plain message.
+// of earlier periods never change. A budget can have a name, such as
+// "Holiday", which the screens show instead of its categories (D-664); a
+// change of only the name touches no amount. The page shows which period
+// comes first, and every mistake gets a plain message.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -46,6 +48,9 @@ Kirigami.ScrollablePage {
     property var starts: []
     readonly property var changes: existing?.changes ?? []
     readonly property string currency: adding ? (chosenCategory?.currency ?? "") : (existing?.currency ?? "")
+    // The period a change applies from when the page opens, to tell whether
+    // the user changed the amount part at all.
+    property int firstFromIndex: 0
 
     // The page is done: a budget was set, or the change was saved.
     signal done()
@@ -73,9 +78,11 @@ Kirigami.ScrollablePage {
         }
         if (!adding) {
             const current = changes.findIndex(choice => choice.current);
-            fromBox.currentIndex = current >= 0 ? current : 0;
+            firstFromIndex = current >= 0 ? current : 0;
+            fromBox.currentIndex = firstFromIndex;
             amountField.text = existing?.amountInput ?? "";
             carryBox.checked = existing?.carryOver ?? false;
+            nameField.text = existing?.ownName ?? "";
         }
         loadStarts();
     }
@@ -101,10 +108,15 @@ Kirigami.ScrollablePage {
             const first = repeats ? (starts[Math.max(0, startBox.currentIndex)]?.day ?? "") : firstDayField.text;
             const accounts = someAccountsBox.checked ? chosenAccounts : [];
             // The categories, then the accounts after a semicolon (D-639).
-            result = budgets.addBudget(chosenCategories.join(",") + ";" + accounts.join(","), everyKey, amountField.text, repeats && carryBox.checked, first, lastDayField.text);
+            result = budgets.addBudget(nameField.text, chosenCategories.join(",") + ";" + accounts.join(","), everyKey, amountField.text, repeats && carryBox.checked, first + "\n" + lastDayField.text);
         } else {
             const from = changes[Math.max(0, fromBox.currentIndex)]?.day ?? "";
-            result = budgets.changeBudget(budgetId, from, amountField.text, repeats && carryBox.checked);
+            // Saving the same amount again would drop what was planned for
+            // later periods (D-345), so a change of only the name sends none.
+            const changesAmount = amountField.text !== (existing?.amountInput ?? "")
+                || (repeats && carryBox.checked) !== (existing?.carryOver ?? false)
+                || fromBox.currentIndex !== firstFromIndex;
+            result = budgets.changeBudget(budgetId, nameField.text, changesAmount, from, amountField.text, repeats && carryBox.checked);
         }
         error.result = result;
         if (result.code === undefined) {
@@ -120,6 +132,30 @@ Kirigami.ScrollablePage {
     }
 
     Kirigami.FormLayout {
+        // A name of the user's own, which the screens show instead of the
+        // categories (D-664). Empty: the budget is called by its categories.
+        Controls.TextField {
+            id: nameField
+
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox the name of a budget", "Name:")
+            Layout.fillWidth: true
+            maximumLength: 100
+            placeholderText: page.i18nContext.i18nc("@info:placeholder", "Optional, for example Holiday")
+            Accessible.name: page.i18nContext.i18nc("@label:textbox the name of a budget", "Name:")
+            onAccepted: {
+                ActionLog.taken("BudgetPage_save_5")
+                page.save()
+            }
+        }
+
+        Controls.Label {
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            font: Kirigami.Theme.smallFont
+            text: page.i18nContext.i18nc("@info", "Without a name, the budget is called by its categories.")
+        }
+
         Controls.ComboBox {
             id: categoryBox
 
@@ -172,7 +208,7 @@ Kirigami.ScrollablePage {
             Kirigami.FormData.label: (page.existing?.categories ?? []).length > 1
                 ? page.i18nContext.i18nc("@label", "Categories:")
                 : page.i18nContext.i18nc("@label", "Category:")
-            text: page.existing?.name ?? ""
+            text: page.existing?.categoryNames ?? ""
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24

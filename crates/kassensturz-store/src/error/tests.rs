@@ -184,6 +184,10 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::BudgetChoice {
             reason: "currencies",
         },
+        StoreError::BudgetName {
+            reason: "too-long",
+            max_chars: 100,
+        },
         StoreError::TooManyBudgets {
             limit: "budgets",
             max: 1_000,

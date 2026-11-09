@@ -51,7 +51,9 @@ fn space_colony() -> Book {
 fn answer(result: &Result<Proposal, ToolError>) -> String {
     match result.as_ref().map_err(ToolError::kind) {
         Ok(_) => PREPARED.into(),
-        Err(ToolError::BadArgument { argument }) => bad(argument),
+        Err(ToolError::BadArgument { argument } | ToolError::NotForChart { argument, .. }) => {
+            bad(argument)
+        }
         Err(ToolError::NotAllowed { argument }) => format!("not-allowed {argument}"),
         Err(ToolError::BadFormula { argument, .. }) => bad_formula(argument),
         Err(error) => error.report().code.into(),

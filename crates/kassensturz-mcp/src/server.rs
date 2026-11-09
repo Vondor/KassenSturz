@@ -182,10 +182,7 @@ impl ServerHandler for Server {
                 ),
                 Err(Failure::Tool(error)) => {
                     let report = error.model_report();
-                    (
-                        error_result(&report, error.allowed_fields()),
-                        Some(report.code),
-                    )
+                    (error_result(&report, &error), Some(report.code))
                 }
                 // The app's answer is read from a file: its code stays out
                 // of the debug log, which takes only fixed codes.
@@ -383,10 +380,7 @@ fn outcome(
         ),
         Err(error) => {
             let report = error.report();
-            (
-                error_result(&report, error.allowed_fields()),
-                Some(report.code),
-            )
+            (error_result(&report, &error), Some(report.code))
         }
     }
 }
@@ -394,14 +388,23 @@ fn outcome(
 /// An error's answer: its code, the report's keywords, the code of its
 /// cause with the cause's keywords, and for a book this server can't read
 /// because of its layout, what the user does next (M6-B194). For a key an
-/// object doesn't take, `allowed` lists the keys it does take, from
-/// KassenSturz's fixed lists, never the model's own key (M6-B201, X-8).
-fn error_result(report: &ErrorReport, allowed: Option<&[&str]>) -> CallToolResult {
+/// object doesn't take, `allowed` lists the keys it does take (M6-B201);
+/// for a chart setting that doesn't suit the chart, the words that do, in
+/// `use_instead` the argument to use, or in `only_for_show_as` the ways of
+/// drawing that take it (M6-B204). All from KassenSturz's
+/// fixed lists, never the model's own text (X-8).
+fn error_result(report: &ErrorReport, error: &ToolError) -> CallToolResult {
     let mut value = Map::new();
     value.insert("error".into(), Value::from(report.code));
     add_params(&mut value, report);
-    if let Some(allowed) = allowed {
+    if let Some(allowed) = error.allowed_fields() {
         value.insert("allowed".into(), Value::from(allowed.to_vec()));
+    }
+    if let Some(argument) = error.use_instead() {
+        value.insert("use_instead".into(), Value::from(argument));
+    }
+    if let Some(ways) = error.only_for_show_as() {
+        value.insert("only_for_show_as".into(), Value::from(ways.to_vec()));
     }
     if let Some(cause) = &report.cause {
         value.insert("cause".into(), Value::from(cause.code));
@@ -460,8 +463,9 @@ mod tests {
 
     #[test]
     fn a_refused_item_is_named_by_its_list_and_place() {
-        let report = ToolError::NameTaken.at("new_rules", 1).model_report();
-        let result = serde_json::to_value(error_result(&report, None)).expect("JSON");
+        let error = ToolError::NameTaken.at("new_rules", 1);
+        let result =
+            serde_json::to_value(error_result(&error.model_report(), &error)).expect("JSON");
         let text = result["content"][0]["text"].as_str().expect("text");
         let answer: Value = serde_json::from_str(text).expect("JSON text");
         assert_eq!(
@@ -478,8 +482,7 @@ mod tests {
         }
         .at("new_budgets", 0);
         let report = error.model_report();
-        let result =
-            serde_json::to_value(error_result(&report, error.allowed_fields())).expect("JSON");
+        let result = serde_json::to_value(error_result(&report, &error)).expect("JSON");
         let text = result["content"][0]["text"].as_str().expect("text");
         let answer: Value = serde_json::from_str(text).expect("JSON text");
         assert_eq!(
@@ -508,6 +511,55 @@ mod tests {
                 .count();
             assert!(length <= MAX_DESCRIPTION_CHARS, "{}: {length}", tool.name);
         }
+    }
+
+    #[test]
+    fn a_chart_setting_that_does_not_suit_says_what_does() {
+        let answer = |error: ToolError| -> Value {
+            let result =
+                serde_json::to_value(error_result(&error.model_report(), &error)).expect("JSON");
+            serde_json::from_str(result["content"][0]["text"].as_str().expect("text"))
+                .expect("JSON text")
+        };
+        assert_eq!(
+            answer(ToolError::NotForChart {
+                argument: "show_as",
+                allowed: vec!["auto", "bar", "table"],
+                use_instead: None,
+                only_for_show_as: Vec::new(),
+            }),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "show_as",
+                "allowed": ["auto", "bar", "table"],
+            })
+        );
+        assert_eq!(
+            answer(ToolError::NotForChart {
+                argument: "categories",
+                allowed: Vec::new(),
+                use_instead: Some("formula"),
+                only_for_show_as: Vec::new(),
+            }),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "categories",
+                "use_instead": "formula",
+            })
+        );
+        assert_eq!(
+            answer(ToolError::NotForChart {
+                argument: "compare",
+                allowed: Vec::new(),
+                use_instead: None,
+                only_for_show_as: vec!["figure", "progress"],
+            }),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "compare",
+                "only_for_show_as": ["figure", "progress"],
+            })
+        );
     }
 
     #[test]

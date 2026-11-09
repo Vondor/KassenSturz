@@ -852,7 +852,7 @@ impl ChatSession {
                 } else {
                     error_json(&report, prepares)
                 };
-                let answer = with_allowed(answer, error.allowed_fields());
+                let answer = with_allowed(answer, &error);
                 (prompt::data_json(&answer), Some(report.code))
             }
         };
@@ -1160,14 +1160,26 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     Value::Object(out)
 }
 
-/// `answer` with the keys an object takes, when the model's call gave it
-/// one it doesn't take (M6-B201): from KassenSturz's fixed lists, never the
-/// model's own key (X-8). A list the answer has already stays.
-fn with_allowed(mut answer: Value, allowed: Option<&'static [&'static str]>) -> Value {
-    if let Some(allowed) = allowed
-        && let Value::Object(object) = &mut answer
-    {
-        object.entry("allowed").or_insert_with(|| json!(allowed));
+/// `answer` with what the model can use instead: the keys an object
+/// takes, when the call gave it one it doesn't take (M6-B201), or the words
+/// that suit the chart, or the argument to use, when a chart setting
+/// doesn't suit it (M6-B204). From KassenSturz's fixed lists, never the
+/// model's own text (X-8). The error's own list replaces the general one of
+/// the argument that [`view_error_json`] gives.
+fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
+    if let Value::Object(object) = &mut answer {
+        if let Some(allowed) = error.allowed_fields() {
+            object.insert("allowed".into(), json!(allowed));
+        }
+        if let Some(argument) = error.use_instead() {
+            object.insert("use_instead".into(), json!(argument));
+        }
+        if let Some(ways) = error.only_for_show_as() {
+            // A general list of the argument's words would mislead: the
+            // chosen way of drawing takes none of them.
+            object.remove("allowed");
+            object.insert("only_for_show_as".into(), json!(ways));
+        }
     }
     answer
 }
@@ -1210,17 +1222,14 @@ mod tests {
             allowed: &["name", "type", "currency"],
         }
         .at("new_accounts", 1);
-        let answer = with_allowed(
-            error_json(&error.model_report(), true),
-            error.allowed_fields(),
-        );
+        let answer = with_allowed(error_json(&error.model_report(), true), &error);
         assert_eq!(answer["error"], json!("ai-tools.unknown-field"));
         assert_eq!(answer["argument"], json!("new_accounts"));
         assert_eq!(answer["item"], json!(2));
         assert_eq!(answer["allowed"], json!(["name", "type", "currency"]));
-        // A list the answer already has stays.
-        let kept = with_allowed(json!({"allowed": ["x"]}), error.allowed_fields());
-        assert_eq!(kept["allowed"], json!(["x"]));
+        // The error's own list replaces a general one.
+        let replaced = with_allowed(json!({"allowed": ["x"]}), &error);
+        assert_eq!(replaced["allowed"], json!(["name", "type", "currency"]));
     }
 
     #[test]

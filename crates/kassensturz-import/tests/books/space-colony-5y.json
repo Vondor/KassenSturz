@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 10,
+  "version": 11,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -155,6 +155,7 @@
   "budgets": [
     {
       "id": "019a0000-0000-7000-8000-00000000005a",
+      "name": null,
       "categories": ["019a0000-0000-7000-8000-000000000021"],
       "accounts": [],
       "every": "month",
@@ -167,6 +168,7 @@
     },
     {
       "id": "019a0000-0000-7000-8000-00000000005b",
+      "name": null,
       "categories": ["019a0000-0000-7000-8000-00000000002b"],
       "accounts": [],
       "every": "month",
@@ -179,6 +181,7 @@
     },
     {
       "id": "019a0000-0000-7000-8000-00000000005c",
+      "name": null,
       "categories": ["019a0000-0000-7000-8000-00000000002e"],
       "accounts": [],
       "every": "month",
@@ -191,6 +194,7 @@
     },
     {
       "id": "019a0000-0000-7000-8000-00000000005d",
+      "name": null,
       "categories": ["019a0000-0000-7000-8000-000000000042"],
       "accounts": [],
       "every": "month",
@@ -203,6 +207,7 @@
     },
     {
       "id": "019a0000-0000-7000-8000-00000000005e",
+      "name": null,
       "categories": ["019a0000-0000-7000-8000-000000000038"],
       "accounts": [],
       "every": "month",

@@ -177,12 +177,16 @@ fn chart_code(book: &Book, arguments: &Value) -> String {
 fn what_the_description_lists_per_data_is_what_propose_view_takes() {
     let Sample { book, .. } = sample();
     let spec = propose_view_spec(Permissions::all()).expect("offered");
+    // The list per data is the description of `data` since M6-B201.
+    let schema: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    let help = schema["properties"]["data"]["description"]
+        .as_str()
+        .expect("text");
     let all_ways: Vec<&str> = view_choices("show_as").expect("a choice");
     let mut checked = 0;
     for dataset in CATALOG.iter().filter(|dataset| dataset.for_ai) {
         let fits = fits(dataset);
-        let line = spec
-            .description
+        let line = help
             .lines()
             .find(|line| line.starts_with(&format!("- {}: ", dataset.id)))
             .unwrap_or_else(|| panic!("{} has a line", dataset.id));

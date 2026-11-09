@@ -241,3 +241,43 @@ fn the_server_stops_when_ai_is_switched_off_while_it_runs() {
         common::stderr(&output)
     );
 }
+
+/// The tool list follows the AI settings, so the server says it can change
+/// and tells the AI tool when it did, here when the write tools are
+/// switched on while it runs (M6-B201).
+#[test]
+fn the_server_tells_the_ai_tool_when_its_tools_change() {
+    let folder = Folder::new("list-changed");
+    folder.switch_write_tools(false);
+    let book = folder.book();
+    let mut session = Session::start(folder.path(), &book);
+    let answer = session.initialize("2025-06-18");
+    assert_eq!(
+        answer["result"]["capabilities"]["tools"]["listChanged"],
+        json!(true),
+        "{answer}"
+    );
+    let names = |list: &Value| -> Vec<String> {
+        list["result"]["tools"]
+            .as_array()
+            .expect("tools")
+            .iter()
+            .map(|tool| tool["name"].as_str().expect("a name").to_owned())
+            .collect()
+    };
+    let before = session.request("tools/list", json!({}));
+    assert!(!names(&before).contains(&"propose_changes".to_owned()));
+
+    folder.switch_write_tools(true);
+    let notice = session.receive().expect("a notification");
+    assert_eq!(
+        notice,
+        json!({"jsonrpc": "2.0", "method": "notifications/tools/list_changed"})
+    );
+    let after = session.request("tools/list", json!({}));
+    assert!(names(&after).contains(&"propose_changes".to_owned()));
+    // Nothing more while the settings stay as they are.
+    session.send(&json!({"jsonrpc": "2.0", "id": 50, "method": "ping"}));
+    assert_eq!(session.receive().expect("an answer")["id"], json!(50));
+    assert!(session.finish().status.success());
+}

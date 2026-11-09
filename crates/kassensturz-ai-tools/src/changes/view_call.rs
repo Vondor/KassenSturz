@@ -329,36 +329,30 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
                 name it is saved under. Never put numbers in it as facts.",
         }),
     );
-    properties.insert(
-        "data".into(),
-        choice(
-            "data",
-            "What the chart shows. The description of this function says what each one counts.",
-        ),
-    );
+    properties.insert("data".into(), choice("data", &data_help()));
     properties.insert(
         "show_as".into(),
         choice(
             "show_as",
             "How it is drawn, or auto to let KassenSturz pick what suits the data. figure is one \
-             key figure, progress a bar towards a figure. The description of this function lists \
-             the ways each data can be drawn.",
+             key figure, progress a bar towards a figure. The description of data lists the ways \
+             each data can be drawn.",
         ),
     );
     properties.insert(
         "measure".into(),
         choice(
             "measure",
-            "Only for figure: which key figure of the data, as the description of this function \
-             lists them per data. Default: the data's first.",
+            "Only for figure: which key figure of the data, as the description of data lists \
+             them. Default: the data's first.",
         ),
     );
     properties.insert(
         "group_by".into(),
         choice(
             "group_by",
-            "How the figures are grouped, as the description of this function lists them per \
-             data. Default: the data's first.",
+            "How the figures are grouped, as the description of data lists them. Default: the \
+             data's first.",
         ),
     );
     properties.insert(
@@ -415,7 +409,9 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
             "categories".into(),
             ids(
                 MAX_VIEW_CATEGORIES,
-                "Only these categories, IDs from list_categories. Leave it out for all.",
+                "Only these categories, IDs from list_categories. Leave it out for all. Not for \
+                 figure or progress, which have no category filter: there, write a formula that \
+                 names the categories instead.",
             ),
         );
     }
@@ -506,10 +502,28 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
          in one answer.\n- KassenSturz computes every figure itself and shows the user a \
          preview; nothing is saved until the user confirms it in KassenSturz's window, and the \
          user may refuse it.\n- A refused call says which argument is wrong and, for a list, \
-         which values it takes.\n\nThe data, each with what it counts, the ways it can be \
-         drawn (show_as), grouped (group_by) and, for figure, measured (measure), and its usual \
-         period:"
+         which values suit the chosen data (allowed), which show_as take the argument \
+         (only_for_show_as) or which argument to use instead (use_instead).\n- The description of data says what each data counts and how \
+         it can be drawn, grouped and measured."
     ));
+    Some(ProposeSpec {
+        name: PROPOSE_VIEW_NAME,
+        description,
+        parameters: parameters.to_string(),
+    })
+}
+
+/// The description of `data`: each dataset the AI may choose, with what it
+/// counts, the ways it can be drawn, grouped and measured, and its usual
+/// period. It is the longest part of `propose_view`'s help, so it lives
+/// with the argument it explains rather than in the function's description,
+/// which some AI tools cut short (M6-B201).
+fn data_help() -> String {
+    let mut description = String::from(
+        "What the chart shows. Each data, with what it counts, the ways it can be drawn \
+         (show_as), grouped (group_by) and, for figure, measured (measure), and its usual \
+         period:",
+    );
     for dataset in datasets() {
         description.push_str(&format!("\n- {}: {}", dataset.id, dataset.description));
         let fits = fits(dataset);
@@ -526,11 +540,7 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         }
         description.push_str(&format!(" Usual period: {}.", default_period(dataset.id)));
     }
-    Some(ProposeSpec {
-        name: PROPOSE_VIEW_NAME,
-        description,
-        parameters: parameters.to_string(),
-    })
+    description
 }
 
 /// Checks a call of `propose_view` as the model wrote it, `text`, against
@@ -573,7 +583,7 @@ pub fn propose_view(
         });
     }
     let item = check(book, arguments, allowed)?;
-    let mut proposal = prepare_view(book, &item, allowed)?;
+    let mut proposal = prepare_view(book, arguments, &item, allowed)?;
     if let Some(early) = counted_early(book, &item, today)? {
         let per = match early.per {
             Per::Month => "months",
@@ -660,25 +670,89 @@ fn from_report(error: ReportError) -> ToolError {
     }
 }
 
-/// The change set of a checked chart `item`, with the schema's refusals
-/// named by the arguments of `propose_view`.
-fn prepare_view(book: &Book, item: &Value, allowed: Permissions) -> Result<Proposal, ToolError> {
+/// The change set of a checked chart `item` made of the call `arguments`,
+/// with the schema's refusals named by the arguments of `propose_view`.
+fn prepare_view(
+    book: &Book,
+    arguments: &Value,
+    item: &Value,
+    allowed: Permissions,
+) -> Result<Proposal, ToolError> {
     prepare(book, &json!({ "new_views": [item] }), allowed).map_err(|error| {
         match error.without_item() {
             // The schema's refusals name the argument of this function, not the
             // item's key it was put under.
-            ToolError::BadArgument { argument } => ToolError::BadArgument {
-                argument: match argument {
+            ToolError::BadArgument { argument } => what_suits(
+                arguments,
+                allowed,
+                match argument {
                     "chart" => "show_as",
                     "dataset" => "data",
                     "grouping" => "group_by",
                     "new_views" => "arguments",
                     other => other,
                 },
-            },
+            ),
             other => other,
         }
     })
+}
+
+/// The refusal of `argument` in a call of `propose_view` whose data is
+/// known, with what the model can use instead (M6-B204): for `show_as`,
+/// `group_by` and `measure` the words that suit the data (and the way of
+/// drawing it), as the description of `data` lists them; for `group_by`,
+/// `measure` and `compare` on a way of drawing that takes none, the ways
+/// that do, so no list of words misleads; for a category list on a key
+/// figure or progress bar, which have no category filter, `formula`.
+/// Everything comes from the catalog, never from the call.
+fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -> ToolError {
+    let bad = ToolError::BadArgument { argument };
+    let Some(dataset) = arguments
+        .get("data")
+        .and_then(Value::as_str)
+        .and_then(kassensturz_report::dataset)
+        .filter(|dataset| dataset.for_ai)
+    else {
+        return bad;
+    };
+    let fits = fits(dataset);
+    let show_as = arguments.get("show_as").and_then(Value::as_str);
+    let drawn_as = |words: &[&str]| show_as.is_some_and(|way| words.contains(&way));
+    // The ways of drawing this data among `ways`.
+    let suiting = |ways: &[&'static str]| -> Vec<&'static str> {
+        fits.show_as
+            .iter()
+            .copied()
+            .filter(|way| ways.contains(way))
+            .collect()
+    };
+    const SINGLE: [&str; 2] = ["figure", "progress"];
+    let (words, use_instead, only_for) = match argument {
+        "show_as" => {
+            let mut words = vec!["auto"];
+            words.extend(&fits.show_as);
+            (words, None, Vec::new())
+        }
+        "group_by" if drawn_as(&fits.grouped_as) => (fits.group_by.clone(), None, Vec::new()),
+        "group_by" => (Vec::new(), None, fits.grouped_as.clone()),
+        "measure" if drawn_as(&["figure"]) => (fits.measure.clone(), None, Vec::new()),
+        "measure" => (Vec::new(), None, suiting(&["figure"])),
+        "compare" if !drawn_as(&SINGLE) => (Vec::new(), None, suiting(&SINGLE)),
+        "categories" if drawn_as(&SINGLE) && offered("formula", allowed) => {
+            (Vec::new(), Some("formula"), Vec::new())
+        }
+        _ => return bad,
+    };
+    if words.is_empty() && use_instead.is_none() && only_for.is_empty() {
+        return bad;
+    }
+    ToolError::NotForChart {
+        argument,
+        allowed: words,
+        use_instead,
+        only_for_show_as: only_for,
+    }
 }
 
 /// Refuses text in which an object has the same key twice, compared after

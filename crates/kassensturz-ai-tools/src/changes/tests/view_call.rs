@@ -20,7 +20,9 @@ fn today() -> kassensturz_core::Date {
 fn view_code(result: Result<Proposal, ToolError>) -> String {
     match result.map_err(ToolError::without_item) {
         Ok(_) => "prepared".into(),
-        Err(ToolError::BadArgument { argument }) => format!("bad-argument {argument}"),
+        Err(ToolError::BadArgument { argument } | ToolError::NotForChart { argument, .. }) => {
+            format!("bad-argument {argument}")
+        }
         Err(ToolError::NotAllowed { argument }) => format!("not-allowed {argument}"),
         Err(error) => error.report().code.into(),
     }
@@ -69,7 +71,8 @@ fn the_lists_the_model_sees_are_the_catalogs_and_the_schemas() {
         "cash_flow_by_month",
     ] {
         assert!(for_ai.contains(&id), "{id}");
-        assert!(spec.description.contains(id), "{id}");
+        let help = properties["data"]["description"].as_str().expect("text");
+        assert!(help.contains(id), "{id}");
     }
     assert!(!for_ai.contains(&"category_over_time"));
     // Every kind of chart that suits one of them, and auto.
@@ -1010,6 +1013,63 @@ fn a_formula_never_tells_a_model_what_it_may_not_read() {
         formula_code(call(&book, &text)),
         "formula unknown-name None"
     );
+}
+
+/// A chart setting that doesn't suit the data says what does (M6-B204):
+/// the ways cash flow can be drawn, `formula` for categories on a key
+/// figure, and the ways that take `compare` for a bar chart. Every word
+/// comes from the catalog, never from the call.
+#[test]
+fn a_setting_that_does_not_suit_the_data_says_what_does() {
+    let Sample { book, food, .. } = sample();
+    let refuse = |arguments: Value| {
+        propose_view(&book, &arguments, Permissions::all(), today()).expect_err("refused")
+    };
+
+    let line = refuse(json!({
+        "title": "Cash flow", "data": "cash_flow_by_month", "show_as": "line"
+    }));
+    assert_eq!(view_code(Err(line.without_item())), "bad-argument show_as");
+    let line = refuse(json!({
+        "title": "Cash flow", "data": "cash_flow_by_month", "show_as": "line"
+    }));
+    assert_eq!(line.allowed_fields(), Some(&["auto", "bar", "table"][..]));
+    assert_eq!(line.use_instead(), None);
+
+    let figure = refuse(json!({
+        "title": "Food", "data": "income_expense_by_month", "show_as": "figure",
+        "categories": [food.to_string()]
+    }));
+    assert_eq!(
+        figure.model_report().param("argument"),
+        Some(&ErrorParam::Keyword("categories"))
+    );
+    assert_eq!(figure.use_instead(), Some("formula"));
+    assert_eq!(figure.allowed_fields(), None);
+
+    let bar = refuse(json!({
+        "title": "Spending", "data": "income_expense_by_month", "show_as": "bar",
+        "compare": "previous_period"
+    }));
+    assert_eq!(
+        bar.model_report().param("argument"),
+        Some(&ErrorParam::Keyword("compare"))
+    );
+    assert_eq!(bar.allowed_fields(), None, "no compare word suits a bar");
+    let ways = bar.only_for_show_as().expect("the ways that take compare");
+    assert!(!ways.is_empty() && ways.iter().all(|way| ["figure", "progress"].contains(way)));
+
+    // The description of categories says so before the call.
+    let spec = propose_view_spec(Permissions::all()).expect("offered");
+    let schema: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    let categories = schema["properties"]["categories"]["description"]
+        .as_str()
+        .expect("text");
+    assert!(
+        categories.contains("Not for figure or progress"),
+        "{categories}"
+    );
+    assert!(categories.contains("formula"), "{categories}");
 }
 
 #[test]

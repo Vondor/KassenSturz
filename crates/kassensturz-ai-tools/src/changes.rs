@@ -2343,12 +2343,22 @@ struct Object<'a> {
 
 impl<'a> Object<'a> {
     /// `value` as an object with only `keys`; `argument` names it when it
-    /// isn't one.
-    fn read(value: &'a Value, keys: &[&str], argument: &'static str) -> Result<Self, ToolError> {
+    /// isn't one, or when it has another key, which the answer doesn't
+    /// repeat but lists `keys` for (M6-B201, X-8).
+    fn read(
+        value: &'a Value,
+        keys: &'static [&'static str],
+        argument: &'static str,
+    ) -> Result<Self, ToolError> {
         let values = value
             .as_object()
-            .filter(|values| values.keys().all(|key| keys.contains(&key.as_str())))
             .ok_or(ToolError::BadArgument { argument })?;
+        if !values.keys().all(|key| keys.contains(&key.as_str())) {
+            return Err(ToolError::UnknownField {
+                argument,
+                allowed: keys,
+            });
+        }
         Ok(Self { values })
     }
 

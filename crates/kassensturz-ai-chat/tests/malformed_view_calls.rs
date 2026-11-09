@@ -17,7 +17,8 @@ mod malformed;
 use common::{Script, TODAY, calls, says, settings, space_colony};
 use kassensturz_ai::{KeyUse, Role};
 use kassensturz_ai_chat::{BuildInfo, ChatSession, NoHooks};
-use kassensturz_ai_tools::{PROPOSE_VIEW_NAME, view_choices};
+use kassensturz_ai_tools::{PROPOSE_VIEW_NAME, propose_view_text, view_choices};
+use kassensturz_core::ai_switch::Permissions;
 use malformed::{Case, Ids, MARKER, PREPARED, cases, misspellings};
 use serde_json::Value;
 
@@ -62,7 +63,7 @@ fn every_refused_call_is_answered_with_fixed_words_only_and_prepares_nothing() {
             vec![calls(&script_calls), says("I could not prepare the chart.")],
         );
         let mut chat = ChatSession::new(BuildInfo::new("0.261031.0", "0000000"))
-            .with_permissions(kassensturz_core::ai_switch::Permissions::all());
+            .with_permissions(Permissions::all());
         let answer = chat
             .ask(&book, &provider, None, "Draw a chart", TODAY, &mut NoHooks)
             .expect("an answer");
@@ -93,13 +94,48 @@ fn every_refused_call_is_answered_with_fixed_words_only_and_prepares_nothing() {
                 continue;
             }
             // A list argument is answered with its values, and nothing
-            // else is (D-353, D-393).
-            let allowed = argument
-                .as_deref()
-                .and_then(view_choices)
-                .map(|words| serde_json::json!(words));
-            if value.get("allowed") != allowed.as_ref() {
+            // else is (D-353, D-393): the values that suit the call's data
+            // where the tool knows them, otherwise all of the argument's
+            // (M6-B204). An argument the chosen way of drawing doesn't take
+            // gets the ways that do instead of a list.
+            let text = if case.text.trim().is_empty() {
+                "{}"
+            } else {
+                case.text.as_str()
+            };
+            let error = propose_view_text(&book, text, Permissions::all()).expect_err("refused");
+            let general = argument.as_deref().and_then(view_choices);
+            let allowed = match (error.only_for_show_as(), error.allowed_fields()) {
+                (Some(_), _) => None,
+                (None, Some(words)) => Some(words.to_vec()),
+                (None, None) => general.clone(),
+            };
+            if value.get("allowed") != allowed.map(|words| serde_json::json!(words)).as_ref() {
                 failures.push(format!("{name}: allowed {:?}", value.get("allowed")));
+            }
+            // Every word is one of the argument's own.
+            if let (Some(words), Some(general)) = (error.allowed_fields(), &general)
+                && let Some(word) = words.iter().find(|word| !general.contains(word))
+            {
+                failures.push(format!("{name}: {word} isn't a word of the argument"));
+            }
+            for (key, words) in [
+                (
+                    "only_for_show_as",
+                    error.only_for_show_as().map(<[_]>::to_vec),
+                ),
+                ("use_instead", error.use_instead().map(|word| vec![word])),
+            ] {
+                let expected = words.map(|words| {
+                    if key == "use_instead" {
+                        serde_json::json!(words[0])
+                    } else {
+                        serde_json::json!(words)
+                    }
+                });
+                if value.get(key) != expected.as_ref() {
+                    failures.push(format!("{name}: {key} {:?}", value.get(key)));
+                }
             }
             let keys: Vec<&str> = value
                 .as_object()
@@ -112,6 +148,8 @@ fn every_refused_call_is_answered_with_fixed_words_only_and_prepares_nothing() {
                     "error",
                     "argument",
                     "allowed",
+                    "only_for_show_as",
+                    "use_instead",
                     "max_bytes",
                     "hint",
                     // A refused formula's place and fixed reason (D-650).

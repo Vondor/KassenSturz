@@ -22,6 +22,34 @@ pub enum ToolError {
         /// The argument's name, from the function's fixed list.
         argument: &'static str,
     },
+    /// A `propose_view` argument that doesn't suit the chosen data or way of
+    /// drawing it, such as `show_as` `line` for data drawn only as bars
+    /// (M6-B204). It is reported as [`Self::BadArgument`]; the answer to the
+    /// model adds the words that suit, or the argument to use instead, all
+    /// from KassenSturz's own lists.
+    NotForChart {
+        /// The argument's name, from the function's fixed list.
+        argument: &'static str,
+        /// The words of the argument that suit, if a list says it.
+        allowed: Vec<&'static str>,
+        /// The argument to use instead, such as `formula` for categories
+        /// on a key figure.
+        use_instead: Option<&'static str>,
+        /// The ways of drawing (`show_as`) the argument applies to, of
+        /// those that suit the data, when the chosen one takes no such
+        /// argument at all: `compare` on a bar chart, say.
+        only_for_show_as: Vec<&'static str>,
+    },
+    /// An object of a `propose_changes` call, such as an item of
+    /// `new_budgets`, has a key it doesn't take (M6-B201). The model's key
+    /// is never repeated back to it (X-8); the answer names the object and
+    /// lists the keys it does take, all from KassenSturz's own fixed lists.
+    UnknownField {
+        /// The object's name, such as `new_budgets` or `arguments`.
+        argument: &'static str,
+        /// The keys the object takes.
+        allowed: &'static [&'static str],
+    },
     /// A call of `propose_view` is longer than its limit (D-353).
     CallTooBig {
         /// The most bytes a call may have.
@@ -185,6 +213,39 @@ impl ToolError {
         }
     }
 
+    /// The keys the object takes, when the error is an unknown key in it
+    /// (M6-B201), or the words that suit the chart, when a `propose_view`
+    /// argument doesn't (M6-B204). The answer to the model lists them, so
+    /// it can fix its call; they come from KassenSturz's fixed lists, never
+    /// from the call.
+    pub fn allowed_fields(&self) -> Option<&[&'static str]> {
+        match self.kind() {
+            Self::UnknownField { allowed, .. } => Some(allowed),
+            Self::NotForChart { allowed, .. } if !allowed.is_empty() => Some(allowed),
+            _ => None,
+        }
+    }
+
+    /// The ways of drawing the data that take the argument, when the chosen
+    /// one takes none (M6-B204).
+    pub fn only_for_show_as(&self) -> Option<&[&'static str]> {
+        match self.kind() {
+            Self::NotForChart {
+                only_for_show_as, ..
+            } if !only_for_show_as.is_empty() => Some(only_for_show_as),
+            _ => None,
+        }
+    }
+
+    /// The argument to use instead, when a `propose_view` argument can't be
+    /// used with the chosen way of drawing (M6-B204).
+    pub fn use_instead(&self) -> Option<&'static str> {
+        match self.kind() {
+            Self::NotForChart { use_instead, .. } => *use_instead,
+            _ => None,
+        }
+    }
+
     /// The error itself, without the place of the item it came from.
     pub fn kind(&self) -> &Self {
         match self {
@@ -222,7 +283,11 @@ impl Report for ToolError {
     fn report(&self) -> ErrorReport {
         match self {
             Self::UnknownFunction => ErrorReport::new("ai-tools.unknown-function"),
-            Self::BadArgument { argument } => ErrorReport::new("ai-tools.bad-argument")
+            Self::BadArgument { argument } | Self::NotForChart { argument, .. } => {
+                ErrorReport::new("ai-tools.bad-argument")
+                    .with("argument", ErrorParam::Keyword(argument))
+            }
+            Self::UnknownField { argument, .. } => ErrorReport::new("ai-tools.unknown-field")
                 .with("argument", ErrorParam::Keyword(argument)),
             Self::CallTooBig { max_bytes } => ErrorReport::new("ai-tools.call-too-big")
                 .with("max_bytes", ErrorParam::count(*max_bytes)),
@@ -434,6 +499,40 @@ mod tests {
                 ToolError::IssueSecret { field },
             ]
         }));
+        // A chart setting that doesn't suit the chart (M6-B204).
+        examples.push(ToolError::NotForChart {
+            argument: "show_as",
+            allowed: vec!["auto", "bar"],
+            use_instead: None,
+            only_for_show_as: Vec::new(),
+        });
+        // A key an object of the call doesn't take (M6-B201).
+        examples.extend(
+            [
+                "arguments",
+                "new_categories",
+                "edit_categories",
+                "new_rules",
+                "edit_rules",
+                "move_rules",
+                "delete_rules",
+                "conditions",
+                "categorize",
+                "delete_categories",
+                "new_accounts",
+                "edit_accounts",
+                "edit_transactions",
+                "new_transactions",
+                "delete_transactions",
+                "new_views",
+                "new_budgets",
+                "edit_budgets",
+            ]
+            .map(|argument| ToolError::UnknownField {
+                argument,
+                allowed: &["name"],
+            }),
+        );
         examples.extend(
             ARGUMENTS
                 .iter()

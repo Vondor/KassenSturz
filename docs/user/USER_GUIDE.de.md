@@ -1,5 +1,7 @@
 # KassenSturz: Benutzerhandbuch
 
+> **Neu:** Das ausführliche Handbuch steht in [de/README.md](de/README.md). Diese Seite bleibt als Kurzfassung.
+
 *Für alle, die KassenSturz zum ersten Mal benutzen. Zum Lesen und Nachschlagen. Alles in diesem Handbuch klappt mit erfundenen Zahlen genauso wie mit echten; zum Ausprobieren nehmen Sie bitte ein Beispielbuch (Abschnitt 2). Eine genauere Beschreibung aller Seiten steht in [NOTES.md](NOTES.md) (englisch). Die Beschriftungen unten sind die der deutschen App.*
 
 ## Inhalt

@@ -13,7 +13,6 @@ use kassensturz_ai::{
     AiError, Finish, FunctionSpec, MAX_ANSWER_TOKENS, Message, PreparedRequest, Provider, Role,
     ToolCall,
 };
-#[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::refusal::{REFUSAL_KEYWORDS, RefusalReasons};
 use kassensturz_ai_tools::{
     ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
@@ -21,6 +20,7 @@ use kassensturz_ai_tools::{
     Unverified, check_numbers, draft_issue, open_page_allowed, propose_on, propose_spec,
     propose_view_spec, propose_view_text, readable_functions, unique_codes, view_choices,
 };
+#[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
 use kassensturz_core::ai_switch::{self, Permissions};
 #[cfg(feature = "debug-log")]

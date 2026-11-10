@@ -168,8 +168,8 @@ pub const FUNCTIONS: &[Function] = &[
             what each one looks for, what it books to, and its sub-Rules. \
             \"conditions_complete\": false means some condition can't be shown or written \
             back exactly (an IBAN, an amount, a date, an account, or a text cut short), so \
-            propose_changes can rename the Rule or change its category but not replace its \
-            conditions.",
+            propose_changes can rename the Rule, change its category and add or remove single \
+            conditions, but not replace all of them.",
         parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
     },
     Function {

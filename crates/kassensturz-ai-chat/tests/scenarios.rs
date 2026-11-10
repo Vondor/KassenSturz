@@ -379,8 +379,9 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     // (with the budget lists of M6c.11, propose_view's datasets of M6c.8
     // and its formulas and own lists of US1.17, and what each dataset takes
     // and the structured descriptions of M6-B200, the paging and IDs of
-    // US2.13, and list_views and the changes of saved charts of D-681,
-    // about 65 KB) for 9,000 tokens is what an uncut request comes to.
+    // US2.13, list_views and the changes of saved charts of D-681, and the
+    // single Rule conditions of #570, about 67 KB) for 9,000 tokens is what
+    // an uncut request comes to.
     let long = "word ".repeat(1_600);
     let answer = chat
         .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)

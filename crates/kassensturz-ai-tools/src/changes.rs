@@ -291,7 +291,7 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         ),
         (
             allowed.allows(Permission::DeleteViews),
-            "deleting charts the user saved under Statistics",
+            "deleting saved charts",
         ),
         (allowed.allows(Permission::NewBudgets), "new budgets"),
         (
@@ -332,14 +332,11 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         general
             .push("A Rule or category that a call deletes can't also be changed or moved in it.");
     }
-    if allowed.allows(Permission::NewViews) {
-        general.push("A chart is prepared with propose_view, not here.");
-    }
     if allowed.allows(Permission::EditViews) {
-        general.push("A saved chart is changed with propose_view and its view_id, not here.");
-    }
-    if allowed.allows(Permission::DeleteViews) {
-        general.push("delete_views takes the IDs that list_views gives.");
+        // The IDs of delete_views are explained in its schema (D-681).
+        general.push("A chart is prepared or changed (view_id) with propose_view, not here.");
+    } else if allowed.allows(Permission::NewViews) {
+        general.push("A chart is prepared with propose_view, not here.");
     }
     if allowed.sorts() {
         transactions.push(

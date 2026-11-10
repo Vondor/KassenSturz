@@ -334,7 +334,7 @@ fn a_call_outside_the_list_or_its_arguments_is_refused() {
         (
             "category_totals",
             json!({ "from": "2026-10-31", "to": "2026-10-01" }),
-            "ai-tools.bad-period",
+            "ai-tools.bad-period to",
         ),
         (
             "category_totals",
@@ -375,6 +375,27 @@ fn a_call_outside_the_list_or_its_arguments_is_refused() {
             "search_transactions",
             json!({ "unsorted_only": "yes" }),
             "ai-tools.bad-argument unsorted_only",
+        ),
+        (
+            "search_transactions",
+            json!({ "offset": -1 }),
+            "ai-tools.bad-argument offset",
+        ),
+        (
+            "search_transactions",
+            json!({ "offset": 100_001 }),
+            "ai-tools.bad-argument offset",
+        ),
+        ("search_transactions", json!({ "offset": 100_000 }), "ok"),
+        (
+            "payee_totals",
+            json!({ "from": "2026-10-01", "to": "2026-10-31", "group_by": "shop" }),
+            "ai-tools.bad-argument group_by",
+        ),
+        (
+            "payee_totals",
+            json!({ "from": "2026-10-01", "to": "2026-10-31", "group_by": "other_party_name" }),
+            "ok",
         ),
         ("list_rules", Value::Null, "ok"),
     ] {

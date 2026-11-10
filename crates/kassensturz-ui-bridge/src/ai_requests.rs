@@ -18,6 +18,7 @@
 
 use std::path::Path;
 
+use kassensturz_ai_tools::refusal::RefusalReasons;
 use kassensturz_ai_tools::requests::{Inbox, Reply, RequestId};
 use kassensturz_ai_tools::{ChangeError, prepare_named};
 use kassensturz_core::Report;
@@ -76,9 +77,10 @@ pub fn tell_confirmed(inbox: &mut dyn Inbox, from: &RequestId, result: &Result<(
     let _ = inbox.reply(from, &reply);
 }
 
-/// Tells the request `from` that the user threw its set away.
-pub fn tell_declined(inbox: &mut dyn Inbox, from: &RequestId) {
-    let _ = inbox.reply(from, &Reply::Declined);
+/// Tells the request `from` that the user threw its set away, and the
+/// reasons they picked, if any (D-678).
+pub fn tell_declined(inbox: &mut dyn Inbox, from: &RequestId, reasons: RefusalReasons) {
+    let _ = inbox.reply(from, &Reply::Declined { reasons });
 }
 
 /// Tells the request `from` that the window forgot its set before the user
@@ -279,14 +281,15 @@ mod tests {
 
         let first = sets.take(arrived[0].id).unwrap();
         assert_eq!(first.from.as_ref(), Some(&declined));
-        tell_declined(&mut ends.app, &declined);
+        let reasons = RefusalReasons::from_keywords(["wrong_transactions"]);
+        tell_declined(&mut ends.app, &declined, reasons);
         for from in sets.clear() {
             tell_dropped(&mut ends.app, &from);
         }
 
         assert_eq!(
             ends.server.standing(&declined),
-            Standing::Answered(Reply::Declined)
+            Standing::Answered(Reply::Declined { reasons })
         );
         assert_eq!(
             ends.server.standing(&forgotten),

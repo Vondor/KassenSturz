@@ -1013,6 +1013,52 @@ msgctxt "@action:button throw the prepared changes away"
 msgid "Throw away"
 msgstr "Verwerfen"
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Wrong category"
+msgstr "Falsche Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Wrong amount"
+msgstr "Falscher Betrag"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Wrong transactions"
+msgstr "Falsche Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Too many changes"
+msgstr "Zu viele Änderungen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Not what I asked for"
+msgstr "Nicht das, worum ich gebeten habe"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@label"
+msgid ""
+"If you throw the changes away, you can tell the AI why. Optional; the AI "
+"gets only the reasons you pick:"
+msgstr ""
+"Wenn Sie die Änderungen verwerfen, können Sie der KI sagen, warum. Freiwillig; "
+"die KI erhält nur die Gründe, die Sie auswählen:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "A reason the AI gets when you throw the changes away"
+msgstr "Ein Grund, den die KI erhält, wenn Sie die Änderungen verwerfen"
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:315
 #, kde-format
 msgctxt "@action:button make all the changes shown"
@@ -11502,14 +11548,16 @@ msgid ""
 "@, for example Pets@\"last month\" or Pets@2026-03. Put Income. or Spending. "
 "in front of a name to pick money that came in or went out, for example "
 "Spending.Pets. Spending.ALL and Income.ALL count everything, also what is "
-"not sorted into a category yet."
+"not sorted into a category yet. A name counts the accounts and categories of "
+"the whole chart, not the lists for money in only or money out only."
 msgstr ""
 "Nehmen Sie die Namen Ihrer Kategorien und Gruppen. Hängen Sie mit @ einen "
 "Zeitraum an einen Namen, zum Beispiel Haustiere@\"last month\" oder "
 "Haustiere@2026-03. Setzen Sie Income. oder Spending. vor einen Namen, um "
 "Geld zu wählen, das hereingekommen oder ausgegeben wurde, zum Beispiel "
 "Spending.Haustiere. Spending.ALL und Income.ALL zählen alles, auch was noch "
-"keiner Kategorie zugeordnet ist."
+"keiner Kategorie zugeordnet ist. Ein Name zählt die Konten und Kategorien des "
+"ganzen Diagramms, nicht die Listen nur für Einnahmen oder nur für Ausgaben."
 
 #: crates/kassensturz-ui-bridge/qml/FormulaField.qml:102
 #, kde-format

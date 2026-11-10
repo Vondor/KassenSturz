@@ -78,6 +78,14 @@ impl Names {
         })
     }
 
+    /// The category that category `id` sits in, if any.
+    fn parent_category(&self, id: AccountId) -> Result<Option<AccountId>, StoreError> {
+        Ok(self
+            .account(id)?
+            .parent
+            .filter(|parent| self.paths.contains_key(parent)))
+    }
+
     /// The user's account `id`, if it is one.
     pub(crate) fn own_account(&self, id: AccountId) -> Result<&Account, ToolError> {
         self.accounts
@@ -398,6 +406,12 @@ pub(crate) fn category_totals(
                     Some(id) => {
                         row.insert("category".into(), w.text(&names.name(id)?));
                         row.insert("category_id".into(), Value::String(id.to_string()));
+                        // So a model sees which rows sit inside another
+                        // and never adds a parent's figure to its
+                        // children's (#593, D-670).
+                        if let Some(parent) = names.parent_category(id)? {
+                            row.insert("parent_id".into(), Value::String(parent.to_string()));
+                        }
                     }
                     None => {
                         row.insert("unsorted".into(), Value::Bool(true));
@@ -432,6 +446,32 @@ pub(crate) fn category_totals(
 pub(crate) const MAX_PAYEES: usize = 50;
 pub(crate) const DEFAULT_PAYEES: usize = 10;
 
+/// What `payee_totals` groups by (#593, D-670).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum PayeeGroup {
+    /// The payee the user or a Rule set, else the bank's other party name.
+    #[default]
+    Payee,
+    /// The bank's other party name, else the payee: a Rule's display payee
+    /// such as "Supermarket" doesn't join different shops into one.
+    OtherPartyName,
+}
+
+impl PayeeGroup {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Payee => "payee",
+            Self::OtherPartyName => "other_party_name",
+        }
+    }
+
+    pub(crate) fn from_name(name: &str) -> Option<Self> {
+        [Self::Payee, Self::OtherPartyName]
+            .into_iter()
+            .find(|group| group.name() == name)
+    }
+}
+
 /// One row of `payee_totals`: the payee (`None` for entries without one),
 /// the amount and the number of transactions.
 type PayeeRow = (Option<String>, Money, usize);
@@ -443,7 +483,8 @@ type PayeeRow = (Option<String>, Money, usize);
 /// model's own arithmetic. Counted as `category_totals` counts: money moved
 /// between the user's own accounts and starting balances are left out, and
 /// each part counts in its transaction's currency. An entry without a payee
-/// counts under `no_payee`.
+/// counts under `no_payee`. `group` says whether the payee shown or the
+/// bank's other party name comes first; each falls back to the other.
 pub(crate) fn payee_totals(
     book: &Book,
     w: &mut Writer<'_>,
@@ -451,6 +492,7 @@ pub(crate) fn payee_totals(
     period: Period,
     accounts: &[AccountId],
     limit: usize,
+    group: PayeeGroup,
 ) -> Result<Value, ToolError> {
     let Period { from, to } = period;
     let overflow = |_| StoreError::AmountOverflow;
@@ -482,16 +524,18 @@ pub(crate) fn payee_totals(
         if !accounts.is_empty() && !part.account.is_some_and(|id| accounts.contains(&id)) {
             continue;
         }
-        let payee = transaction
-            .payee_of(part)
-            .or_else(|| {
-                part.imported
-                    .as_ref()
-                    .and_then(|imported| imported.other_party_name.as_deref())
-            })
-            .map(str::trim)
-            .filter(|payee| !payee.is_empty())
-            .map(str::to_owned);
+        let shown = transaction.payee_of(part);
+        let other_party = part
+            .imported
+            .as_ref()
+            .and_then(|imported| imported.other_party_name.as_deref());
+        let payee = match group {
+            PayeeGroup::Payee => shown.or(other_party),
+            PayeeGroup::OtherPartyName => other_party.or(shown),
+        }
+        .map(str::trim)
+        .filter(|payee| !payee.is_empty())
+        .map(str::to_owned);
         let (sum, count) = sums
             .entry((currency.as_str().to_owned(), payee))
             .or_insert_with(|| (Money::zero(currency), 0));
@@ -519,7 +563,7 @@ pub(crate) fn payee_totals(
                 let mut row = Map::new();
                 match payee {
                     Some(payee) => {
-                        row.insert("payee".into(), w.text(payee));
+                        row.insert(group.name().into(), w.text(payee));
                     }
                     None => {
                         row.insert("no_payee".into(), Value::Bool(true));
@@ -542,6 +586,9 @@ pub(crate) fn payee_totals(
     if !accounts.is_empty() {
         result.insert("accounts".into(), account_names(w, names, accounts)?);
     }
+    if group != PayeeGroup::Payee {
+        result.insert("group_by".into(), Value::from(group.name()));
+    }
     result.insert("currencies".into(), Value::Array(currencies));
     Ok(Value::Object(result))
 }
@@ -555,6 +602,8 @@ pub(crate) struct Search {
     pub(crate) from: Option<Date>,
     pub(crate) to: Option<Date>,
     pub(crate) limit: usize,
+    /// How many matching rows to skip first, for the next page (#593).
+    pub(crate) offset: usize,
     /// The order of the rows (#187).
     pub(crate) sort: Sort,
     /// Only entries of at least / at most this size (#187).
@@ -776,19 +825,31 @@ pub(crate) fn search_transactions(
     }
 
     let mut rows = Vec::new();
-    for &(date, transaction, part, account) in found.iter().take(search.limit) {
+    for &(date, transaction, part, account) in found.iter().skip(search.offset).take(search.limit) {
         rows.push(search_row(w, names, (date, transaction, part, account))?);
     }
+    let shown = rows.len();
     let mut result = json!({
         "matches": w.count(found.len()),
         "order": search.sort.name(),
         "rows": rows,
     });
-    // So a model never takes the rows shown for all of the matches (#187).
-    if found.len() > search.limit {
-        result["rows_left_out"] = w.count(found.len() - search.limit);
+    if search.offset > 0 {
+        result["offset"] = w.count(search.offset);
+    }
+    // So a model never takes the rows shown for all of the matches (#187):
+    // how many come after these, and where the next page starts (#593).
+    let after = search.offset.saturating_add(shown);
+    if found.len() > after {
+        result["rows_left_out"] = w.count(found.len() - after);
+        result["next_offset"] = w.count(after);
     }
     Ok(result)
+}
+
+/// `text` with every run of whitespace as one space, trimmed.
+fn squeeze(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// One entry of a search: the day, the account, the amount as seen from it
@@ -807,6 +868,9 @@ fn search_row(
         Value::String(transaction.id().to_string()),
     );
     row.insert("account".into(), w.text(&account.name));
+    // Every name comes with its ID, so two of the same name are never
+    // mixed up (#593, D-670).
+    row.insert("account_id".into(), Value::String(account.id.to_string()));
     row.insert("amount".into(), w.amount(part.account_amount())?);
     row.insert("currency".into(), Value::from(account.currency.as_str()));
     let imported = part.imported.as_ref();
@@ -823,18 +887,31 @@ fn search_row(
         row.insert("other_party_name".into(), w.text(other_party));
     }
     let memo = part.note.as_deref().or(transaction.note());
+    let bank_text = imported.and_then(|imported| imported.remittance_information.as_deref());
+    // Each text once (#593, D-670): a memo the bank text holds is left out,
+    // and so is a bank text the memo holds, whitespace aside. The bank text
+    // is what Rules test, so it stays when the two are the same.
+    let (memo, bank_text) = match (memo, bank_text) {
+        (Some(memo), Some(bank)) => {
+            let (memo_words, bank_words) = (squeeze(memo), squeeze(bank));
+            if bank_words.contains(&memo_words) {
+                (None, Some(bank))
+            } else if memo_words.contains(&bank_words) {
+                (Some(memo), None)
+            } else {
+                (Some(memo), Some(bank))
+            }
+        }
+        other => other,
+    };
     if let Some(memo) = memo {
         row.insert("memo".into(), w.text(memo));
     }
-    // The bank's text, unless the memo says the same.
-    if let Some(bank_text) = imported
-        .and_then(|imported| imported.remittance_information.as_deref())
-        .filter(|&bank_text| Some(bank_text) != memo)
-    {
+    if let Some(bank_text) = bank_text {
         row.insert("bank_text".into(), w.text(bank_text));
     }
 
-    let mut categories: Vec<String> = Vec::new();
+    let mut categories: Vec<(String, AccountId)> = Vec::new();
     let mut transfer = None;
     let mut unsorted = false;
     let mut starting = false;
@@ -847,12 +924,11 @@ fn search_row(
             Some(id) => {
                 let other = names.account(id)?;
                 if other.kind.is_category() {
-                    let name = names.name(id)?;
-                    if !categories.contains(&name) {
-                        categories.push(name);
+                    if !categories.iter().any(|(_, known)| *known == id) {
+                        categories.push((names.name(id)?, id));
                     }
                 } else if other.kind.is_account() {
-                    transfer.get_or_insert(other.name.as_str());
+                    transfer.get_or_insert(other);
                 } else {
                     starting = true;
                 }
@@ -861,16 +937,26 @@ fn search_row(
     }
     match categories.as_slice() {
         [] => {}
-        [one] => {
-            row.insert("category".into(), w.text(one));
+        [(name, id)] => {
+            row.insert("category".into(), w.text(name));
+            row.insert("category_id".into(), Value::String(id.to_string()));
         }
         several => {
-            let several = several.iter().map(|name| w.text(name)).collect();
-            row.insert("categories".into(), Value::Array(several));
+            let names = several.iter().map(|(name, _)| w.text(name)).collect();
+            let ids = several
+                .iter()
+                .map(|(_, id)| Value::String(id.to_string()))
+                .collect();
+            row.insert("categories".into(), Value::Array(names));
+            row.insert("category_ids".into(), Value::Array(ids));
         }
     }
     if let Some(other) = transfer {
-        row.insert("transfer".into(), w.text(other));
+        row.insert("transfer".into(), w.text(&other.name));
+        row.insert(
+            "transfer_account_id".into(),
+            Value::String(other.id.to_string()),
+        );
     }
     if unsorted {
         row.insert("unsorted".into(), Value::Bool(true));
@@ -972,9 +1058,11 @@ fn rule_rows(
         match rule.actions.book_to {
             Some(BookTo::Category(id)) => {
                 row.insert("category".into(), w.text(&names.name(id)?));
+                row.insert("category_id".into(), Value::String(id.to_string()));
             }
             Some(BookTo::Transfer(id)) => {
                 row.insert("transfer".into(), w.text(&names.name(id)?));
+                row.insert("transfer_account_id".into(), Value::String(id.to_string()));
             }
             None => {}
         }
@@ -1045,7 +1133,10 @@ fn condition_row(
             "booked_to": last.to_string(),
         }),
         Condition::Currency(currency) => json!({ "currency": currency.as_str() }),
-        Condition::Account(id) => json!({ "account": w.text(&names.name(*id)?) }),
+        Condition::Account(id) => json!({
+            "account": w.text(&names.name(*id)?),
+            "account_id": id.to_string(),
+        }),
     })
 }
 

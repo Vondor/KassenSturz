@@ -94,6 +94,9 @@ const FIXED: &[&str] = &[
     "too-big",
     "target-kinds",
     "invalid",
+    // The argument names of `ai-tools.bad-period` (D-670).
+    "to",
+    "from",
 ];
 
 /// A refusal carries fixed names and numbers only, and never the marker.

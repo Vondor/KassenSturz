@@ -107,4 +107,11 @@ QtObject {
     }
 
     function discard(setId) { discarded = discarded.concat([setId]); }
+
+    property var discardedReasons: []
+
+    function discardBecause(setId, reasons) {
+        discarded = discarded.concat([setId]);
+        discardedReasons = discardedReasons.concat([reasons]);
+    }
 }

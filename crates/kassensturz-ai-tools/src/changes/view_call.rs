@@ -667,7 +667,7 @@ pub fn propose_view(
         proposal.output.figures.add_count(u64::from(early.before));
     }
     // What a key figure or a progress bar shows (D-685).
-    view_figure::add_figure(book, &mut proposal, today)?;
+    view_figure::add_figure(book, &mut proposal, allowed, today)?;
     Ok(proposal)
 }
 

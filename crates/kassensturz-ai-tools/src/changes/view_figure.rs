@@ -16,6 +16,7 @@
 //! Charts with bars, lines, slices or a table get nothing here: they show
 //! many figures, which the read functions give.
 
+use kassensturz_core::ai_switch::{Permissions, Row};
 use kassensturz_core::{CurrencyCode, Date, Money, Report};
 use kassensturz_report::{
     ACCOUNT_BALANCES, Asked, CASH_FLOW_BY_MONTH, Compare, Component, ComponentType,
@@ -94,9 +95,19 @@ impl Shown {
 /// `not_computed` with the error code when the figure can't be worked out
 /// for the period (a formula that divides by zero), which the preview
 /// tells the user too.
+///
+/// The figure is a figure of the book, so it reaches the model only when
+/// the permission grid lets it read the same figure with a read function
+/// (D-252): what you have, owe and are worth with the reading of the
+/// accounts (`account_balance`), the money in and out of the accounts with
+/// that of the accounts and the transactions, and everything else (income,
+/// spending, a formula of categories) with that of the categories and the
+/// transactions (`category_totals`). Otherwise `not_shown` names
+/// `computed`, as `list_views` names what it leaves out.
 pub(super) fn add_figure(
     book: &Book,
     proposal: &mut Proposal,
+    allowed: Permissions,
     today: Date,
 ) -> Result<(), ToolError> {
     let (component, period) = match proposal.changes.changes() {
@@ -108,6 +119,12 @@ pub(super) fn add_figure(
         component.kind(),
         ComponentType::KpiCard | ComponentType::ProgressBar
     ) {
+        return Ok(());
+    }
+    if !readable(component, allowed) {
+        if let Value::Object(value) = &mut proposal.output.value {
+            value.insert("not_shown".into(), json!(["computed"]));
+        }
         return Ok(());
     }
     let mut writer = Writer::new(book);
@@ -128,6 +145,20 @@ pub(super) fn add_figure(
     }
     proposal.output.figures.extend(&writer.figures);
     Ok(())
+}
+
+/// Whether `allowed` lets a model read the figure `component` shows with
+/// a read function (see [`add_figure`]).
+fn readable(component: &Component, allowed: Permissions) -> bool {
+    let formula = matches!(component.get("measure"), Some(Setting::Word(word)) if word == FORMULA_MEASURE)
+        || matches!(component.get("formula"), Some(Setting::Text(text)) if !text.trim().is_empty());
+    let rows: &[Row] = match component.dataset().id {
+        _ if formula => &[Row::Categories, Row::Transactions],
+        ACCOUNT_BALANCES => &[Row::Accounts],
+        CASH_FLOW_BY_MONTH => &[Row::Accounts, Row::Transactions],
+        _ => &[Row::Categories, Row::Transactions],
+    };
+    rows.iter().all(|row| allowed.reads(*row))
 }
 
 /// Why a figure wasn't worked out.

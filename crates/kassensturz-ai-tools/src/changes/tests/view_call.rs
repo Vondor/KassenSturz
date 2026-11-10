@@ -1336,6 +1336,27 @@ fn a_figure_the_period_cant_make_is_named_by_its_code() {
         "report.formula-no-value"
     );
     assert!(proposal.output.value.get("computed").is_none());
+    // A model that may not read the figures with a read function doesn't
+    // hear them here either (D-252): the chart is still prepared.
+    let card =
+        json!({"title": "Spent", "data": "spending_by_category", "show_as": "figure"}).to_string();
+    let charts_only = Permissions::defaults()
+        .with(Permission::NewViews, true)
+        .with(Permission::CategoriesRead, true);
+    let proposal = propose_view_text(&book, &card, charts_only, today()).expect("prepared");
+    assert!(proposal.output.value.get("computed").is_none());
+    assert_eq!(proposal.output.value["not_shown"], json!(["computed"]));
+    let reads = charts_only.with(Permission::TransactionsRead, true);
+    let proposal = propose_view_text(&book, &card, reads, today()).expect("prepared");
+    assert_eq!(computed(&proposal)["value"], "103.19");
+    // What you are worth needs only the reading of the accounts.
+    let worth =
+        json!({"title": "Worth", "data": "account_balances", "show_as": "figure"}).to_string();
+    let accounts = Permissions::defaults()
+        .with(Permission::NewViews, true)
+        .with(Permission::AccountsRead, true);
+    let proposal = propose_view_text(&book, &worth, accounts, today()).expect("prepared");
+    assert_eq!(computed(&proposal)["measure"], "net_worth");
     // Charts with many figures get none: the read functions give them.
     let bars =
         json!({"title": "Spent", "data": "spending_by_category", "show_as": "bar"}).to_string();

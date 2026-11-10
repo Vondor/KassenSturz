@@ -342,7 +342,7 @@ Goal: backlog cleanup, working down the US1 later list. Tester: the maintainer a
 
 Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8) · D AI read tools (13 with 20, then 10, then 14a) · E AI change tools (11, 15, 18, 21) · F saved charts via AI (12; after A, its `functions.rs` line after D's first PR) · G Rules run via AI (9; after E's first PR) · I AI privacy (16, then 17; security look before 16). `report/src/schema.rs` is shared by A only; `view_call.rs` by A, then F; `changes.rs` by E, then G. Every step adds only its own `po/de` entries. Expected duration 1 to 1.5 days (Q-459), longest chain E then G with five merges.
 
-- **US2.2** · **planned** · thread A · standard, medium · S to M · [format]. #563: bar and stacked bar charts get *Horizontal / Vertical / Automatic*, automatic as today, the same in `propose_view`. Why: the automatic choice can't be overridden
+- **US2.2** · **built, PR open** · thread A · standard, medium · S to M · [format]. #563: bar and stacked bar charts get *Horizontal / Vertical / Automatic*, automatic as today, the same in `propose_view`. Why: the automatic choice can't be overridden
 
 - **US2.4** · **planned** · thread A, after US2.2 · standard, low · S. #605 (M6-B202 later): the *Hide the grey filter notes* switch gets its own labelled row in *Properties*. Why: at the bottom of the account list it is easy to miss
 

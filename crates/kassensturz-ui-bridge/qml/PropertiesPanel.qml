@@ -172,6 +172,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label:listbox how the figures are grouped", "Group by");
         case "average":
             return i18nContext.i18nc("@label:listbox whether a chart shows the total spending or an average per month, quarter or year", "Show as");
+        case "orientation":
+            return i18nContext.i18nc("@label:listbox which way the bars of a bar chart go", "Bars");
         case "show_hidden":
             return i18nContext.i18nc("@option:check", "Show hidden categories");
         case "hide_note":
@@ -228,6 +230,12 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox show spending as an average", "Average per quarter");
         case "per-year":
             return i18nContext.i18nc("@item:inlistbox show spending as an average", "Average per year");
+        case "auto":
+            return i18nContext.i18nc("@item:inlistbox the bars of a chart go the way that fits the names best", "Automatic");
+        case "horizontal":
+            return i18nContext.i18nc("@item:inlistbox the bars of a chart go across, one row per name", "Across (one row per name)");
+        case "vertical":
+            return i18nContext.i18nc("@item:inlistbox the bars of a chart stand upright, the names below them", "Upright (names below)");
         case "previous_period":
             return i18nContext.i18nc("@item:inlistbox", "The period before");
         case "same_last_year":

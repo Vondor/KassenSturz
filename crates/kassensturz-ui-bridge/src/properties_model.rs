@@ -683,6 +683,48 @@ mod tests {
     }
 
     #[test]
+    fn bars_offer_which_way_they_go_and_read_it_back() {
+        // D-679: a choice field after the legend on bars and stacked bars,
+        // automatic by default; the chart reads its `word`.
+        for kind in [ComponentType::ChartBar, ComponentType::ChartStackedBar] {
+            let mut bars = component(kind, "income_expense_by_month");
+            let view = view_object(Some(&bars), None, NumberForm::DecimalComma);
+            let fields = list_of(&view, "fields");
+            let order: Vec<String> = fields.iter().map(|f| text_of(f, "key")).collect();
+            let legend = order
+                .iter()
+                .position(|key| key == "legend")
+                .expect("legend");
+            assert_eq!(order[legend + 1], "orientation", "{}", kind.id());
+            let field = &fields[legend + 1];
+            assert_eq!(text_of(field, "kind"), "choice");
+            assert_eq!(text_of(field, "place"), "props");
+            assert_eq!(text_of(field, "word"), "auto");
+            let words: Vec<String> = list_of(field, "words")
+                .iter()
+                .map(|word| word.value::<QString>().expect("text").to_string())
+                .collect();
+            assert_eq!(words, ["auto", "horizontal", "vertical"]);
+            bars.set("orientation", Setting::Word("vertical".into()))
+                .unwrap();
+            let view = view_object(Some(&bars), None, NumberForm::DecimalComma);
+            let field = list_of(&view, "fields")
+                .into_iter()
+                .find(|f| text_of(f, "key") == "orientation")
+                .expect("the field");
+            assert_eq!(text_of(&field, "word"), "vertical");
+        }
+        // A line has no bars to turn.
+        let line = component(ComponentType::ChartLine, "income_expense_by_month");
+        let view = view_object(Some(&line), None, NumberForm::DecimalComma);
+        assert!(
+            !list_of(&view, "fields")
+                .iter()
+                .any(|f| text_of(f, "key") == "orientation")
+        );
+    }
+
+    #[test]
     fn json_is_the_document_part_and_reads_back_into_the_same_component() {
         let mut chart = component(ComponentType::ChartDonut, "spending_by_category");
         chart

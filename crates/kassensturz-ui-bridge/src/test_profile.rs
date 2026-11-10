@@ -23,7 +23,7 @@
 //! made-up home, and scans the sources for new reads of these variables.
 
 use std::ffi::OsString;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::bank_connection::FAKE_BANK_VARIABLE;
@@ -31,8 +31,10 @@ use crate::bank_connection::FAKE_BANK_VARIABLE;
 /// The variable that starts the test profile without the fake bank.
 pub const TEST_VARIABLE: &str = "KASSENSTURZ_TEST";
 
-/// The test folder's name, beside the real data folder, never inside it.
-pub const FOLDER_NAME: &str = "kassensturz-test";
+#[cfg(test)]
+use kassensturz_core::test_profile::FOLDER_NAME;
+pub use kassensturz_core::test_profile::{allows_in, root_in, variables};
+use kassensturz_core::test_profile::{hold_mark, real_data_home};
 
 /// The settings file's name, as KConfig names the app's own (`Settings::user`).
 const SETTINGS_FILE: &str = "kassensturzrc";
@@ -40,45 +42,16 @@ const SETTINGS_FILE: &str = "kassensturzrc";
 /// The test folder, once [`apply_at_start`] ran: `None` outside the profile.
 static ROOT: OnceLock<Option<PathBuf>> = OnceLock::new();
 
+/// The test folder's mark, held while the app runs in the test profile
+/// (`kassensturz_core::test_profile::hold_mark`).
+static MARK: OnceLock<std::fs::File> = OnceLock::new();
+
 /// Whether `test` and `fake_bank` (the two variables' values) start the
 /// test profile: `KASSENSTURZ_TEST=1`, or the fake bank with any value.
 /// `KASSENSTURZ_DEBUG_LOG` alone doesn't, since it is also used to look
 /// into a problem with a real book.
 pub fn wanted(test: Option<&OsString>, fake_bank: Option<&OsString>) -> bool {
     test.is_some_and(|value| value == "1") || fake_bank.is_some_and(|value| !value.is_empty())
-}
-
-/// The test folder for a user whose data folder is `data_home` (the real
-/// `XDG_DATA_HOME`, or `HOME/.local/share`, or on Windows `LOCALAPPDATA`).
-pub fn root_in(data_home: &Path) -> PathBuf {
-    data_home.join(FOLDER_NAME)
-}
-
-/// The variables the profile sets, and their values, for `root`.
-pub fn variables(root: &Path) -> Vec<(&'static str, PathBuf)> {
-    let mut variables = vec![
-        ("XDG_DATA_HOME", root.join("data")),
-        ("XDG_CONFIG_HOME", root.join("config")),
-        ("XDG_CACHE_HOME", root.join("cache")),
-        ("XDG_STATE_HOME", root.join("state")),
-    ];
-    if cfg!(windows) {
-        variables.push(("APPDATA", root.join("config")));
-        variables.push(("LOCALAPPDATA", root.join("data")));
-    }
-    variables
-}
-
-/// The real data folder, as the environment names it before the profile
-/// moves it.
-fn real_data_home() -> Option<PathBuf> {
-    let nonempty = |name: &str| std::env::var_os(name).filter(|value| !value.is_empty());
-    if cfg!(windows) {
-        return nonempty("LOCALAPPDATA").map(PathBuf::from);
-    }
-    nonempty("XDG_DATA_HOME")
-        .map(PathBuf::from)
-        .or_else(|| nonempty("HOME").map(|home| PathBuf::from(home).join(".local/share")))
 }
 
 /// Starts the test profile if it is wanted. Runs first in `main`, before Qt
@@ -100,6 +73,26 @@ pub fn apply_at_start() -> bool {
             // SAFETY: nothing but `main`'s first statements runs yet, so no
             // other thread reads or writes the environment.
             unsafe { std::env::set_var(name, value) };
+        }
+    }
+    if let Some(root) = &root {
+        // Held until the app ends, so the MCP server an AI tool starts reads
+        // this profile's book and never the real one (M6-B208, Q-466). If it
+        // can't be held, the server couldn't tell and would read the real
+        // book while the test runs, so the app doesn't start.
+        match hold_mark(root) {
+            Ok(mark) => {
+                let _ = MARK.set(mark);
+            }
+            Err(error) => {
+                eprintln!(
+                    "kassensturz: the test folder {} can't be marked as in use ({error}), so an \
+                     AI tool could read the real book during the test. Check that the folder \
+                     can be written to.",
+                    root.display()
+                );
+                std::process::exit(1);
+            }
         }
     }
     let on = root.is_some();
@@ -134,19 +127,6 @@ pub fn settings_file() -> Option<PathBuf> {
 /// folder.
 pub fn allows(path: &Path) -> bool {
     allows_in(root(), path)
-}
-
-/// [`allows`] for a given test folder.
-pub fn allows_in(root: Option<&Path>, path: &Path) -> bool {
-    let Some(root) = root else {
-        return true;
-    };
-    // Compared without following links, which may not exist yet; a path
-    // with `..` in it is refused rather than worked out.
-    !path
-        .components()
-        .any(|part| matches!(part, Component::ParentDir))
-        && path.starts_with(root)
 }
 
 #[cfg(test)]
@@ -384,8 +364,8 @@ mod path_audit {
         // Follows XDG_DATA_HOME, checked above.
         ("kassensturz-ai-tools/src/requests.rs", 2),
         // The MCP server's `$HOME` in a `LastBook` it reads from the
-        // settings file `ai_switch::settings_file` finds; the app never
-        // starts the server in the test profile.
+        // settings file `ai_switch::settings_file` finds; while a test app
+        // runs, the server moves its folders as the app does (M6-B208).
         ("kassensturz-mcp/src/book_path.rs", 1),
         ("kassensturz-mcp/tests/refuses_to_start.rs", 2),
         ("kassensturz-mcp/tests/common/mod.rs", 3),
@@ -396,8 +376,10 @@ mod path_audit {
         ("kassensturz-platform/src/keepassxc.rs", 1),
         // A test of the settings file's `$HOME` paths.
         ("kassensturz-ui-bridge/src/settings.rs", 1),
-        // The test profile itself.
-        ("kassensturz-ui-bridge/src/test_profile.rs", 23),
+        // The test profile itself, and where it is in the core, which the
+        // MCP server reads too to find a running test app (M6-B208).
+        ("kassensturz-core/src/test_profile.rs", 9),
+        ("kassensturz-ui-bridge/src/test_profile.rs", 14),
     ];
 
     /// The variables that name a user's folders, as string literals.

@@ -212,7 +212,21 @@ impl Session {
     /// As [`Session::start`], with the environment variables `variables`
     /// set too.
     pub fn start_with(folder: &Path, book: &Path, variables: &[(&str, &str)]) -> Self {
-        let mut child = program(folder, &["--book", book.to_str().expect("a UTF-8 path")])
+        Self::spawn(
+            folder,
+            &["--book", book.to_str().expect("a UTF-8 path")],
+            variables,
+        )
+    }
+
+    /// The program started without `--book`, as the user guide sets it up:
+    /// it reads the book the app has open, from the settings file.
+    pub fn start_without_book(folder: &Path) -> Self {
+        Self::spawn(folder, &[], &[])
+    }
+
+    fn spawn(folder: &Path, arguments: &[&str], variables: &[(&str, &str)]) -> Self {
+        let mut child = program(folder, arguments)
             .envs(variables.iter().copied())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

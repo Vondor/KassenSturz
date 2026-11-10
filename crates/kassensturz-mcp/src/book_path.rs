@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! Which book the server reads (D-196): the one given with `--book`, or
-//! else the book the app opened last, as its settings file says.
+//! else the book the app opened last, as its settings file says. That one is
+//! looked up again for every answer, so a book the user opens in the app
+//! while the AI tool keeps this program running is the one read from then on
+//! (M6-B208).
 //!
 //! The app keeps that path with KConfig's `writePathEntry`, which writes the
 //! key as `LastBook[$e]`, puts `$HOME` in place of the user's home folder,
@@ -11,28 +14,77 @@
 //! such as another variable or a command, rather than guess at a path.
 
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
-use kassensturz_core::ai_switch;
+use kassensturz_core::{ai_switch, test_profile};
 
 /// The settings group and key of the book opened last, as the app writes
 /// them (`kassensturz-ui-bridge/src/settings.rs`).
 const BOOKS: &str = "Books";
 const LAST_BOOK: &str = "LastBook";
 
-/// The book named by the program's `arguments`, or the one the app opened
-/// last. The error is a message for the user.
+/// Where the server finds the book it reads.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Source {
+    /// The file given with `--book`, the same for every answer.
+    Given(PathBuf),
+    /// The book the app opened last, looked up again for every answer: the
+    /// app may open another one while this program runs (M6-B208).
+    OpenedLast,
+}
+
+impl Source {
+    /// The book to read now. In the test profile with the test folder
+    /// `test_root`, only a book inside it (Q-399, M6-B208). The error is a
+    /// message for the user.
+    pub(crate) fn path(&self, test_root: Option<&Path>) -> Result<PathBuf, String> {
+        let path = match self {
+            Self::Given(path) => path.clone(),
+            Self::OpenedLast => last_book()?,
+        };
+        if allowed(test_root, &path) {
+            Ok(path)
+        } else {
+            Err(
+                "KassenSturz runs in its test profile, and this book is outside its test \
+                 folder, so it isn't read."
+                    .to_owned(),
+            )
+        }
+    }
+}
+
+/// Where the program's `arguments` say the book is: the file given with
+/// `--book`, or else the one the app opened last. The error is a message for
+/// the user.
 pub(crate) fn from_arguments(
     arguments: impl IntoIterator<Item = OsString>,
-) -> Result<PathBuf, String> {
+) -> Result<Source, String> {
     let mut arguments = arguments.into_iter();
     match arguments.next() {
-        None => last_book(),
+        None => Ok(Source::OpenedLast),
         Some(flag) if flag == "--book" => match (arguments.next(), arguments.next()) {
-            (Some(path), None) if !path.is_empty() => Ok(PathBuf::from(path)),
+            (Some(path), None) if !path.is_empty() => Ok(Source::Given(PathBuf::from(path))),
             _ => Err(usage()),
         },
         Some(_) => Err(usage()),
+    }
+}
+
+/// Whether the test profile with the test folder `test_root` allows the book
+/// at `path`: by its name, and, where it exists, also by where its links lead,
+/// so a link in the test folder can't name a real book.
+fn allowed(test_root: Option<&Path>, path: &Path) -> bool {
+    let Some(root) = test_root else {
+        return true;
+    };
+    if !test_profile::allows_in(Some(root), path) {
+        return false;
+    }
+    match (path.canonicalize(), root.canonicalize()) {
+        (Ok(path), Ok(root)) => test_profile::allows_in(Some(&root), &path),
+        // A book that isn't there can't be read either; its error says so.
+        _ => !path.exists(),
     }
 }
 
@@ -222,8 +274,9 @@ mod tests {
         let args = |list: &[&str]| -> Vec<OsString> { list.iter().map(OsString::from).collect() };
         assert_eq!(
             from_arguments(args(&["--book", "/srv/a.ksz"])),
-            Ok(path("/srv/a.ksz"))
+            Ok(Source::Given(path("/srv/a.ksz")))
         );
+        assert_eq!(from_arguments(args(&[])), Ok(Source::OpenedLast));
         for wrong in [
             &["--book"][..],
             &["--book", ""],

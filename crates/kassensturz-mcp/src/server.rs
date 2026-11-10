@@ -27,6 +27,8 @@ use rmcp::service::{RequestContext, ServerInitializeError};
 use rmcp::{ErrorData, Peer, RoleServer, ServerHandler, ServiceExt};
 use serde_json::{Map, Value};
 
+use crate::book_path::Source;
+use crate::profile::Profile;
 use crate::writes::{self, Failure, WAITS, Waits};
 
 /// What the program says when AI is switched off (D-013).
@@ -39,11 +41,12 @@ const VERSION: &str = env!("KASSENSTURZ_BUILD_VERSION");
 /// The commit this build was made from, empty when the build didn't know.
 const COMMIT: &str = env!("KASSENSTURZ_BUILD_COMMIT");
 
-/// Serves the book at `book` on standard input and output until the AI tool
-/// closes them.
-pub(crate) async fn serve(book: PathBuf) -> Result<(), String> {
+/// Serves the book `book` names on standard input and output until the AI
+/// tool closes them.
+pub(crate) async fn serve(book: Source, profile: Profile) -> Result<(), String> {
     let server = Server {
         book,
+        profile,
         requests: RequestFolder::default_place(),
         waits: WAITS,
         #[cfg(feature = "debug-log")]
@@ -78,6 +81,13 @@ pub(crate) async fn serve(book: PathBuf) -> Result<(), String> {
     watcher.abort();
     stopped
 }
+
+/// The error of a call when the app's settings no longer name a book that
+/// can be read, e.g. after they were changed by hand (M6-B208).
+const NO_BOOK: &str = "mcp.no-book";
+
+/// What the user does after a refusal because a test app started or ended.
+const RESTART: &str = "restart-this-ai-tool";
 
 /// How often the server looks whether the tool list changed (M6-B201).
 const TOOL_LIST_CHECK: Duration = Duration::from_secs(2);
@@ -121,7 +131,9 @@ fn tool_list(log_readable: bool) -> String {
 /// The server: which book it reads, and where requests to the app go.
 /// Nothing else is kept between requests.
 struct Server {
-    book: PathBuf,
+    book: Source,
+    /// The real setup or the test profile, fixed while the server runs.
+    profile: Profile,
     requests: Option<PathBuf>,
     waits: Waits,
     /// The debug log the server writes to in the developer mode, started
@@ -166,9 +178,34 @@ impl ServerHandler for Server {
     ) -> Result<CallToolResponse, ErrorData> {
         stop_if_switched_off();
         let arguments = request.arguments.map_or(Value::Null, Value::Object);
+        // Looked up for each call: the app may have opened another book
+        // since the last one (M6-B208).
+        // A test app started or ended since the start, or does while this
+        // call reads: no answer goes out until the AI tool starts the server
+        // again (Q-466, D-683).
+        let refused = |code: &'static str| {
+            self.note(&request.name, Some(code));
+            let value = serde_json::json!({ "error": code, "next_step": RESTART });
+            Ok(CallToolResult::error(vec![ContentBlock::text(value.to_string())]).into())
+        };
+        if let Some(code) = self.profile.refusal() {
+            return refused(code);
+        }
+        let book = match self.book.path(self.profile.test_root()) {
+            Ok(book) => book,
+            Err(message) => {
+                // The app's settings no longer name a book that can be read,
+                // so nothing is answered from any book.
+                let value = serde_json::json!({ "error": NO_BOOK, "message": message });
+                self.note(&request.name, Some(NO_BOOK));
+                return Ok(
+                    CallToolResult::error(vec![ContentBlock::text(value.to_string())]).into(),
+                );
+            }
+        };
         let (result, code) = if writes::is_write_tool(&request.name) {
             let result = writes::call(
-                &self.book,
+                &book,
                 &request.name,
                 &arguments,
                 self.requests.as_deref(),
@@ -195,8 +232,19 @@ impl ServerHandler for Server {
                 }
             }
         } else {
-            self.read(&request.name, &arguments)
+            match self
+                .profile
+                .guarded(|| self.read(&book, &request.name, &arguments))
+            {
+                Ok(read) => read,
+                Err(code) => return refused(code),
+            }
         };
+        // A write's request already went to the request folder of the
+        // profile read at the start, which only an app of that profile reads.
+        if let Some(code) = self.profile.refusal() {
+            return refused(code);
+        }
         self.note(&request.name, code);
         Ok(result.into())
     }
@@ -214,18 +262,17 @@ impl Server {
 
     /// Runs the read tool `name`: a read function of the book, or the one
     /// that reads the debug log while the AI tool may.
-    fn read(&self, name: &str, arguments: &Value) -> (CallToolResult, Option<&'static str>) {
+    fn read(
+        &self,
+        book: &Path,
+        name: &str,
+        arguments: &Value,
+    ) -> (CallToolResult, Option<&'static str>) {
         #[cfg(feature = "debug-log")]
         if name == READ_DEBUG_LOG.name && self.debug_log.is_on() {
             return outcome(read_debug_log(&self.debug_log, arguments));
         }
-        answer(
-            &self.book,
-            name,
-            arguments,
-            today(),
-            ai_switch::permissions(),
-        )
+        answer(book, name, arguments, today(), ai_switch::permissions())
     }
 
     /// Notes the call of the tool `name` in the debug log, with its error
@@ -304,7 +351,10 @@ const LAYOUT_STEPS: &str = "When a tool answers with next_step, the book couldn'
      open-the-book-in-kassensturz-once means the user opens the book in KassenSturz, which \
      updates it after a backup; save-the-whole-book-with-the-old-build means a test version \
      from before the Beta made the book, so the user opens it with that version, saves the \
-     whole book there and starts a new book from the saved file. The book wasn't changed.";
+     whole book there and starts a new book from the saved file. The book wasn't changed. \
+     restart-this-ai-tool means KassenSturz was started or quit in its test profile since this \
+     AI tool started these tools, so the user quits and restarts this AI tool; until then no \
+     book is read.";
 
 /// The read functions the user allows reading (D-252) as MCP tools, in their order, then the one that
 /// reads the debug log while the AI tool may, and after them the write tools

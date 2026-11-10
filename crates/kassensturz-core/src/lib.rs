@@ -31,6 +31,7 @@ mod money;
 mod rates;
 mod rounding;
 mod rules;
+pub mod test_profile;
 mod transaction;
 mod transfer;
 mod view;

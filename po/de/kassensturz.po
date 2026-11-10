@@ -399,6 +399,18 @@ msgctxt "@info"
 msgid "Each period starts afresh."
 msgstr "Jeder Zeitraum beginnt neu."
 
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:152
+#, kde-format
+msgctxt "@info %1 and %2 are dates"
+msgid ""
+"Nothing was spent from %1 to %2, perhaps because a payment was booked after "
+"that period ended. So that period is left out, and one period before it is "
+"counted instead."
+msgstr ""
+"Von %1 bis %2 wurde nichts ausgegeben, vielleicht weil eine Zahlung erst "
+"nach dem Ende dieses Zeitraums gebucht wurde. Deshalb bleibt dieser Zeitraum "
+"außen vor, und stattdessen zählt ein Zeitraum davor."
+
 #: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:110
 #, kde-format
 msgctxt "@info"

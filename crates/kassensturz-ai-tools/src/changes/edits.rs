@@ -25,7 +25,7 @@ use crate::error::ToolError;
 
 /// The lists of a call in the order [`super::build`] turns their items into
 /// changes, one change for each item.
-const ORDER: [&str; 18] = [
+const ORDER: [&str; 19] = [
     "new_categories",
     "edit_categories",
     "edit_rules",
@@ -44,11 +44,12 @@ const ORDER: [&str; 18] = [
     "delete_views",
     "new_budgets",
     "edit_budgets",
+    "sort_with_rules",
 ];
 
 /// The fields the user may change in an item of each list (D-293). Every
 /// change can be left out; only these can be edited.
-const EDITABLE: [(&str, &[&str]); 4] = [
+const EDITABLE: [(&str, &[&str]); 5] = [
     ("new_categories", &["name", "parent_id"]),
     (
         "new_rules",
@@ -56,6 +57,8 @@ const EDITABLE: [(&str, &[&str]); 4] = [
     ),
     ("categorize", &["category_id", "new_category"]),
     ("new_views", &["title", "chart", "period"]),
+    // The review's own switch, as in the Rules page's dialog (D-631, D-682).
+    ("sort_with_rules", &["sort_again"]),
 ];
 
 /// Where a change stands in the model's call: which list, and which item of
@@ -428,5 +431,6 @@ pub(super) fn list_of(change: &ProposedChange) -> &'static str {
         ProposedChange::DeleteView(_) => "delete_views",
         ProposedChange::NewBudget(_) => "new_budgets",
         ProposedChange::EditBudget(_) => "edit_budgets",
+        ProposedChange::SortWithRules(_) => super::sort_rules::LIST,
     }
 }

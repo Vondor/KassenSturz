@@ -741,9 +741,9 @@ pub(crate) fn payee_totals(
     if !accounts.is_empty() {
         result.insert("accounts".into(), account_names(w, names, accounts)?);
     }
-    if group != PayeeGroup::Payee {
-        result.insert("group_by".into(), Value::from(group.name()));
-    }
+    // Always said, the default too, so the model never guesses which
+    // grouping it got (card C of US2 Phase 3).
+    result.insert("group_by".into(), Value::from(group.name()));
     result.insert("currencies".into(), Value::Array(currencies));
     Ok(Value::Object(result))
 }

@@ -1065,6 +1065,30 @@ fn a_setting_that_does_not_suit_the_data_says_what_does() {
     let ways = bar.only_for_show_as().expect("the ways that take compare");
     assert!(!ways.is_empty() && ways.iter().all(|way| ["figure", "progress"].contains(way)));
 
+    // A formula on a bar chart says which ways show one (card C, US2 Phase
+    // 3), and a target which way measures against one.
+    let formula = refuse(json!({
+        "title": "Food", "data": "income_expense_by_month", "show_as": "bar",
+        "formula": "='Food'"
+    }));
+    assert_eq!(
+        formula.model_report().param("argument"),
+        Some(&ErrorParam::Keyword("formula"))
+    );
+    assert_eq!(
+        formula.only_for_show_as(),
+        Some(&["figure", "progress"][..])
+    );
+    let target = refuse(json!({
+        "title": "Food", "data": "income_expense_by_month", "show_as": "figure",
+        "formula": "=Food", "target": "=Food"
+    }));
+    assert_eq!(
+        target.only_for_show_as(),
+        Some(&["progress"][..]),
+        "{target:?}"
+    );
+
     // The description of categories says so before the call.
     let spec = propose_view_spec(Permissions::all()).expect("offered");
     let schema: Value = serde_json::from_str(&spec.parameters).expect("JSON");

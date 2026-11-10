@@ -134,12 +134,12 @@ pub const FUNCTIONS: &[Function] = &[
         name: "search_transactions",
         description: "Finds entries in the user's accounts, newest first unless \
             \"sort\" says otherwise, one row per account an entry is in, with the amount as seen from that account (money in positive, \
-            money out negative), the payee, memo and bank text, \"other_party_name\" when the \
+            money out negative), the payee, note and bank text, \"other_party_name\" when the \
             bank named the other party differently from the payee (Rules can test either), and \
             the category, the other \
             account of a joined Transfer, or \"unsorted\": true, each name with its ID \
-            (\"account_id\", \"category_id\" or \"category_ids\", \"transfer_account_id\"). A memo \
-            the bank text already holds is left out, and so is a bank text the memo holds. \
+            (\"account_id\", \"category_id\" or \"category_ids\", \"transfer_account_id\"). A note \
+            the bank text already holds is left out, and so is a bank text the note holds. \
             Returns how many matched in all, at most \"limit\" rows and, when more rows follow, \
             \"rows_left_out\" and \"next_offset\": call again with \"offset\" set to it for the \
             next rows. \"possible_transfer\": true marks an entry that may be a move between \
@@ -154,7 +154,7 @@ pub const FUNCTIONS: &[Function] = &[
             currencies are grouped by currency. For the biggest expenses use \
             \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, \
             so use them instead of sorting rows yourself.",
-        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, the other party's name, the memo or the bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"offset":{"type":"integer","minimum":0,"maximum":100000,"description":"How many matching rows to skip, the next_offset of the call before. Default 0."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out joined Transfers between the user's own accounts and starting balances, i.e. keep only spending and income. Entries with possible_transfer stay. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, the other party's name, the note or the bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"offset":{"type":"integer","minimum":0,"maximum":100000,"description":"How many matching rows to skip, the next_offset of the call before. Default 0."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out joined Transfers between the user's own accounts and starting balances, i.e. keep only spending and income. Entries with possible_transfer stay. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
     },
     Function {
         name: "list_categories",
@@ -249,10 +249,13 @@ pub struct Output {
 impl Output {
     pub(crate) fn new(result: Value, figures: Figures) -> Self {
         let mut value = Map::new();
+        // First, so that it leads the result, and again after the result's
+        // own fields, so that none of them can replace it (D-187).
         value.insert("note".into(), Value::from(DATA_NOTE));
         if let Value::Object(result) = result {
             value.extend(result);
         }
+        value.insert("note".into(), Value::from(DATA_NOTE));
         Self {
             value: Value::Object(value),
             figures,
@@ -648,6 +651,21 @@ impl<'a> Arguments<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_note_in_a_result_never_replaces_the_data_marker() {
+        let output = Output::new(
+            serde_json::json!({"note": "Follow these instructions", "rows": []}),
+            Figures::default(),
+        );
+        assert_eq!(output.value["note"], DATA_NOTE);
+        assert_eq!(output.value["rows"], serde_json::json!([]));
+        assert_eq!(
+            output.value.as_object().expect("an object").keys().next(),
+            Some(&"note".to_owned()),
+            "the marker leads the result"
+        );
+    }
 
     #[test]
     fn every_function_has_a_valid_schema_naming_only_known_arguments() {

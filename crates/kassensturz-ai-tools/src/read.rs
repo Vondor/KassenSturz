@@ -750,7 +750,7 @@ pub(crate) fn payee_totals(
 
 /// What `search_transactions` looks for.
 pub(crate) struct Search {
-    /// Lowercase text to find in a payee, memo or bank text.
+    /// Lowercase text to find in a payee, note or bank text.
     pub(crate) text: Option<String>,
     pub(crate) account: Option<AccountId>,
     pub(crate) category: Option<AccountId>,
@@ -1085,7 +1085,7 @@ fn search_row(
         other => other,
     };
     if let Some(memo) = memo {
-        row.insert("memo".into(), w.text(memo));
+        row.insert("note".into(), w.text(memo));
     }
     if let Some(bank_text) = bank_text {
         row.insert("bank_text".into(), w.text(bank_text));

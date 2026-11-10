@@ -131,6 +131,9 @@ fn an_edit_from_a_real_search_is_applied_and_undone() {
     let now = find(&book, &row["transaction_id"]);
     assert_eq!(now["payee"], "Colony Cafe");
     assert_eq!(now["date"], "2027-04-07");
+    // The search gives the note back under the key it was written with
+    // (M6-B217).
+    assert_eq!(now["note"], "Checked by the AI");
     assert_eq!(now["amount"], row["amount"], "the amount stays");
     assert_eq!(seen(&book).0, before.0, "no account balance changes");
     assert_eq!(

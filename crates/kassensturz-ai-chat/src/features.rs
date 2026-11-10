@@ -109,7 +109,7 @@ fn suggest_categories(account: Option<String>) -> String {
         "Sort my transactions that have no category yet.{scope} Find them with \
          search_transactions and \"unsorted_only\": true, look at the categories I have \
          with list_categories, and prepare the changes with propose_changes: a category \
-         for each transaction where the payee, memo or bank text makes the choice clear, \
+         for each transaction where the payee, note or bank text makes the choice clear, \
          using my existing categories first and a new category only when none fits. Leave \
          out the ones you are unsure about and say which. If there are none, say so."
     )
@@ -136,7 +136,7 @@ fn explain_month(today: Date) -> String {
 fn prepare_rules() -> String {
     "Prepare Rules for payees that come back again and again. First look at my Rules with \
      list_rules, then find entries that have no category yet with search_transactions and \
-     \"unsorted_only\": true. Base each new Rule only on a payee, memo or bank text you saw \
+     \"unsorted_only\": true. Base each new Rule only on a payee, note or bank text you saw \
      in those entries, and check that it matches the entries you mean: never make up \
      keywords. Prepare the new Rules and any new categories they need with propose_changes. \
      Don't repeat a Rule I already have. Say which payees you based each one on."

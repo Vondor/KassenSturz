@@ -1668,6 +1668,7 @@ Kirigami.ApplicationWindow {
             rules: ruleBook
             onDone: root.pageStack.pop()
             onAddSubRuleClicked: ruleId => root.replacePage(rulePage, { parentId: ruleId })
+            onHelpClicked: root.pushPage(helpPage)
         }
     }
 
@@ -1708,7 +1709,14 @@ Kirigami.ApplicationWindow {
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
+            onHelpClicked: root.pushPage(helpPage)
         }
+    }
+
+    Component {
+        id: helpPage
+
+        HelpPage {}
     }
 
     Component {

@@ -45,6 +45,8 @@ Kirigami.ScrollablePage {
     signal done()
     // The user wants a Rule inside this one.
     signal addSubRuleClicked(string ruleId)
+    // The user wants the help page on patterns and formulas.
+    signal helpClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -258,6 +260,7 @@ Kirigami.ScrollablePage {
                 choices: page.choices
                 dateExample: page.dateExample
                 amountExample: page.amountExample
+                onHelpClicked: page.helpClicked()
                 onEdited: values => {
                     conditionModel.set(row.index, values);
                 }

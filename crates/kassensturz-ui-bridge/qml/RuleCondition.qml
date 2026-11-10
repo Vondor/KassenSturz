@@ -28,6 +28,8 @@ Kirigami.AbstractCard {
     // The condition changed: these fields have these values now.
     signal edited(var values)
     signal removeClicked()
+    // The user wants the help page on patterns.
+    signal helpClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -144,6 +146,17 @@ Kirigami.AbstractCard {
                 text: card.i18nContext.i18nc("@info", "A pattern is a regular expression in the style of the Rust \"regex\" library, for example ^FRESHO .* DANKE$. It can match part of the text. Capital letters are ignored unless \"Capital letters must match\" is ticked. Lookahead and lookbehind, such as (?=…) or (?<!…), and back-references such as \\1 don't work. If you only want to look for some words, switch this off and use \"contains\".")
                 wrapMode: Text.Wrap
                 font: Kirigami.Theme.smallFont
+            }
+
+            Controls.Button {
+                visible: card.isPattern
+                flat: true
+                text: card.i18nContext.i18nc("@action:button opens the help page", "More about patterns")
+                icon.name: "help-contents"
+                onClicked: {
+                    ActionLog.taken("RuleCondition_morePatternHelp")
+                    card.helpClicked()
+                }
             }
 
             // Amount.

@@ -19044,6 +19044,13 @@ msgctxt ""
 "@item:inlistbox the bars of a chart stand upright, the names below them"
 msgid "Upright (names below)"
 msgstr "Aufrecht (Namen darunter)"
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:197
+#, kde-format
+msgctxt ""
+"@label the row with the switch for the grey lines on a tile that say what it "
+"is filtered to"
+msgid "Filter notes"
+msgstr "Filterhinweise"
 
 #, kde-format
 msgctxt "@info a kind of prepared change"

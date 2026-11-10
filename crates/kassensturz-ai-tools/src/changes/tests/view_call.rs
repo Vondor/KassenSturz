@@ -171,8 +171,10 @@ fn ids_are_offered_only_where_the_grid_lets_the_model_read_them() {
         properties(&all).contains(&"accounts".to_owned()),
         has_accounts
     );
-    // Without Charts › Add there is no function at all.
-    let without = Permissions::all().with(Permission::NewViews, false);
+    // Without Charts › Add and Change there is no function at all.
+    let without = Permissions::all()
+        .with(Permission::NewViews, false)
+        .with(Permission::EditViews, false);
     assert!(propose_view_spec(without).is_none());
     assert_eq!(
         view_code(propose_view_text(

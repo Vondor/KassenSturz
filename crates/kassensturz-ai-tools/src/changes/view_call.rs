@@ -65,6 +65,7 @@ pub const MAX_VIEWS_PER_ANSWER: usize = 3;
 /// Every argument of `propose_view`: the keywords of
 /// `ai-tools.bad-argument` for it.
 pub(crate) const ARGUMENTS: &[&str] = &[
+    "view_id",
     "title",
     "data",
     "show_as",
@@ -296,15 +297,21 @@ fn offered(argument: &str, allowed: Permissions) -> bool {
             allowed.reads(Row::Accounts) && schema_has_ids(argument)
         }
         "formula" | "target" => allowed.reads(Row::Categories),
+        // Changing a saved chart is its own cell (D-681).
+        "view_id" => allowed.allows(Permission::EditViews),
         _ => true,
     }
 }
 
 /// `propose_view` as a model is offered it under `allowed`, or `None` when
-/// the user doesn't allow Charts › Add (D-282): then it isn't offered at
-/// all, and a call is refused.
+/// the user allows neither Charts › Add (D-282) nor Charts › Change
+/// (D-681): then it isn't offered at all, and a call is refused. With
+/// Charts › Change it takes `view_id`, and a call with one changes that
+/// saved chart.
 pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
-    if !allowed.allows(Permission::NewViews) {
+    let adds = allowed.allows(Permission::NewViews);
+    let changes = allowed.allows(Permission::EditViews);
+    if !adds && !changes {
         return None;
     }
     let choice = |argument: &str, description: &str| {
@@ -324,6 +331,18 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         })
     };
     let mut properties = Map::new();
+    if changes {
+        properties.insert(
+            "view_id".into(),
+            json!({
+                "type": "string",
+                "description": "Change this saved chart instead of preparing a new one, ID from \
+                    list_views. Only the arguments you give change; everything else stays as it \
+                    is. Words such as none, total, auto and page put a setting back to its \
+                    default, and an empty list takes a limit away.",
+            }),
+        );
+    }
     properties.insert(
         "title".into(),
         json!({
@@ -495,13 +514,28 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
     let parameters = json!({
         "type": "object",
         "properties": properties,
-        "required": ["title", "data", "show_as"],
+        "required": match (adds, changes) {
+            (true, false) => vec!["title", "data", "show_as"],
+            (false, true) => vec!["view_id"],
+            _ => Vec::new(),
+        },
         "additionalProperties": false,
     });
-    let mut description = String::from(
-        "Prepares one chart for the user to review and save under Statistics.\n- Choose only \
-         from the lists: what it shows (data), how it is drawn (show_as), and optionally a key \
-         figure, a grouping, a period, a comparison",
+    let mut description = String::from(match (adds, changes) {
+        (true, false) => "Prepares one chart for the user to review and save under Statistics.",
+        (false, true) => {
+            "Prepares a change to one chart the user saved under Statistics, named by view_id \
+             from list_views, for the user to review. Only the arguments you give change."
+        }
+        _ => {
+            "Prepares one chart for the user to review and save under Statistics. A new chart \
+             needs title, data and show_as. With view_id from list_views it changes that saved \
+             chart instead: only the arguments you give change."
+        }
+    });
+    description.push_str(
+        "\n- Choose only from the lists: what it shows (data), how it is drawn (show_as), and \
+         optionally a key figure, a grouping, a period, a comparison",
     );
     if offered("categories", allowed) || offered("accounts", allowed) {
         description.push_str(" and the categories or accounts it is limited to");
@@ -592,12 +626,22 @@ pub fn propose_view(
     allowed: Permissions,
     today: Date,
 ) -> Result<Proposal, ToolError> {
-    if !allowed.allows(Permission::NewViews) {
+    let editing = arguments.get("view_id").is_some_and(|id| !id.is_null());
+    let needed = if editing {
+        Permission::EditViews
+    } else {
+        Permission::NewViews
+    };
+    if !allowed.allows(needed) {
         return Err(ToolError::NotAllowed {
-            argument: PROPOSE_VIEW_NAME,
+            argument: if editing {
+                "view_id"
+            } else {
+                PROPOSE_VIEW_NAME
+            },
         });
     }
-    let item = check(book, arguments, allowed)?;
+    let item = check(book, arguments, allowed, editing)?;
     let mut proposal = prepare_view(book, arguments, &item, allowed)?;
     if let Some(early) = counted_early(book, &item, today)? {
         let per = match early.per {
@@ -693,7 +737,12 @@ fn prepare_view(
     item: &Value,
     allowed: Permissions,
 ) -> Result<Proposal, ToolError> {
-    prepare(book, &json!({ "new_views": [item] }), allowed).map_err(|error| {
+    let list = if item.get("view_id").is_some() {
+        "edit_views"
+    } else {
+        "new_views"
+    };
+    prepare(book, &json!({ list: [item] }), allowed).map_err(|error| {
         match error.without_item() {
             // The schema's refusals name the argument of this function, not the
             // item's key it was put under.
@@ -704,7 +753,7 @@ fn prepare_view(
                     "chart" => "show_as",
                     "dataset" => "data",
                     "grouping" => "group_by",
-                    "new_views" => "arguments",
+                    "new_views" | "edit_views" => "arguments",
                     other => other,
                 },
             ),
@@ -839,7 +888,16 @@ fn depth(value: &Value) -> usize {
 
 /// The checks of D-353 in their order; on success, the item of `new_views`
 /// the change set is built from.
-fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, ToolError> {
+/// With `editing` the call changes the saved chart `view_id` (D-681): every
+/// other argument may be left out, and the item holds only those given,
+/// with the words that mean a default (`none`, `total`, `auto`, `page`)
+/// kept, so the change puts that setting back.
+fn check(
+    book: &Book,
+    arguments: &Value,
+    allowed: Permissions,
+    editing: bool,
+) -> Result<Value, ToolError> {
     let whole = ToolError::BadArgument {
         argument: "arguments",
     };
@@ -875,27 +933,46 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
             .map(Some)
             .ok_or(ToolError::BadArgument { argument: name })
     };
-    let title = views::title(
-        given("title")
+    let view_id = if editing {
+        let id = given("view_id")
             .and_then(Value::as_str)
-            .ok_or(ToolError::BadArgument { argument: "title" })?,
-    )?;
-    let data = word("data")?.ok_or(ToolError::BadArgument { argument: "data" })?;
-    let show_as = word("show_as")?.ok_or(ToolError::BadArgument {
-        argument: "show_as",
-    })?;
+            .and_then(|text| uuid::Uuid::try_parse(text).ok())
+            .ok_or(ToolError::BadArgument {
+                argument: "view_id",
+            })?;
+        Some(id.to_string())
+    } else {
+        None
+    };
+    let title = match given("title") {
+        None if editing => None,
+        title => Some(views::title(
+            title
+                .and_then(Value::as_str)
+                .ok_or(ToolError::BadArgument { argument: "title" })?,
+        )?),
+    };
+    let data = word("data")?;
+    let show_as = word("show_as")?;
+    if !editing {
+        data.ok_or(ToolError::BadArgument { argument: "data" })?;
+        show_as.ok_or(ToolError::BadArgument {
+            argument: "show_as",
+        })?;
+    }
+    // A new chart leaves a default out; a change keeps the word, so the
+    // setting goes back to its default.
+    let unless_new = |word, default| unless_new(word, default, editing);
     let measure = word("measure")?;
     let group_by = word("group_by")?;
-    let compare = word("compare")?.filter(|word| *word != NO_COMPARISON);
-    let average = word("average")?.filter(|word| *word != TOTAL);
-    let orientation = word("orientation")?.filter(|word| *word != AUTO);
+    let compare = unless_new(word("compare")?, NO_COMPARISON);
+    let average = unless_new(word("average")?, TOTAL);
+    let orientation = unless_new(word("orientation")?, AUTO);
     let period = match given("period") {
         None => None,
         // A period that moves with today (D-644, D-645) is not in the list.
         Some(Value::String(text)) if Rolling::read(text).is_some() => Some(text.clone()),
-        Some(Value::String(_)) => word("period")?
-            .filter(|word| *word != PAGE)
-            .map(str::to_owned),
+        Some(Value::String(_)) => unless_new(word("period")?, PAGE).map(str::to_owned),
         Some(Value::Object(range)) => Some(range_period(range)?),
         Some(_) => return Err(ToolError::BadArgument { argument: "period" }),
     };
@@ -967,12 +1044,43 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
         if let Some(target) = target {
             check_formula(book, target, Some(formula), "target")?;
         }
-    } else if target.is_some() {
+    } else if target.is_some() && !editing {
+        // A change may give a new target to the saved chart's formula,
+        // which the schema checks when the set is built.
         return Err(ToolError::BadArgument { argument: "target" });
     }
     // 6. A dimension the dataset doesn't apply is refused, never kept: a
     // chart of net worth with categories would look limited while every
-    // category counts (M6-B29, D-350).
+    // category counts (M6-B29, D-350). A change that names no data is
+    // checked against the saved chart's when the set is built.
+    if let Some(view_id) = view_id {
+        return Ok(edit_item(EditItem {
+            view_id,
+            title,
+            data,
+            show_as,
+            words: [
+                ("grouping", group_by),
+                ("measure", measure),
+                ("compare", compare),
+                ("average", average),
+                ("orientation", orientation),
+                ("formula", formula),
+                ("target", target),
+            ],
+            period,
+            lists: [("categories", &categories), ("accounts", &accounts)]
+                .into_iter()
+                .chain(SERIES_LISTS.iter().map(|(key, _, _)| *key).zip(&series))
+                .filter(|(key, _)| given(key).is_some())
+                .collect(),
+        }));
+    }
+    let (Some(title), Some(data), Some(show_as)) = (title, data, show_as) else {
+        return Err(ToolError::BadArgument {
+            argument: "arguments",
+        });
+    };
     let takes = kassensturz_report::dataset(data).map(|info| info.takes);
     if !categories.is_empty() && !takes.is_some_and(|takes| takes.categories) {
         return Err(ToolError::BadArgument {
@@ -1021,6 +1129,57 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
         }
     }
     Ok(Value::Object(item))
+}
+
+/// `word`, or `None` for a new chart's `default`, which is left out; a
+/// change keeps it, so the setting goes back to its default (D-681).
+fn unless_new<'a>(word: Option<&'a str>, default: &str, editing: bool) -> Option<&'a str> {
+    word.filter(|word| editing || *word != default)
+}
+
+/// What a checked call that changes a saved chart named (D-681).
+struct EditItem<'a> {
+    view_id: String,
+    title: Option<String>,
+    data: Option<&'a str>,
+    show_as: Option<&'a str>,
+    words: [(&'static str, Option<&'a str>); 7],
+    period: Option<String>,
+    lists: Vec<(&'static str, &'a Vec<AccountId>)>,
+}
+
+/// The item of `edit_views` made of a checked call (D-681): the keys of
+/// `new_views` for what the call named, and nothing for what it left out.
+fn edit_item(edit: EditItem<'_>) -> Value {
+    let mut item = Map::new();
+    item.insert("view_id".into(), json!(edit.view_id));
+    if let Some(title) = edit.title {
+        item.insert("title".into(), json!(title));
+    }
+    if let Some(data) = edit.data {
+        item.insert("dataset".into(), json!(data));
+    }
+    if let Some(show_as) = edit.show_as {
+        let chart = SHOW_AS
+            .iter()
+            .find(|(word, _)| *word == show_as)
+            .and_then(|(_, kind)| *kind)
+            .map_or("auto", ComponentType::id);
+        item.insert("chart".into(), json!(chart));
+    }
+    for (key, value) in edit.words {
+        if let Some(value) = value {
+            item.insert(key.into(), json!(value));
+        }
+    }
+    if let Some(period) = edit.period {
+        item.insert("period".into(), json!(period));
+    }
+    for (key, list) in edit.lists {
+        let list: Vec<String> = list.iter().map(ToString::to_string).collect();
+        item.insert(key.into(), json!(list));
+    }
+    Value::Object(item)
 }
 
 /// The period a dataset starts with: today's balances and budgets this
@@ -1207,4 +1366,99 @@ fn ids(
             }
         })
         .collect()
+}
+
+/// The most saved charts `list_views` lists.
+pub(crate) const MAX_LISTED_VIEWS: usize = 100;
+
+/// `list_views`: the charts the user saved under Statistics, in the order
+/// of their list, each with its ID and its settings in the words of
+/// `propose_view` (D-681), so a model can change one with `view_id` or
+/// delete it. The categories, accounts and formulas a chart is limited to
+/// are listed only as the grid lets the model read them (D-252, D-650);
+/// otherwise `not_shown` names them. A chart this version can't read has
+/// `"unreadable": true`.
+pub(crate) fn list_views(
+    book: &Book,
+    w: &mut crate::writer::Writer<'_>,
+    allowed: Permissions,
+) -> Result<Value, ToolError> {
+    let views = book.views(Some(kassensturz_core::ViewKind::View))?;
+    let mut rows = Vec::new();
+    for view in views.iter().take(MAX_LISTED_VIEWS) {
+        let mut row = Map::new();
+        row.insert("view_id".into(), json!(view.id.to_string()));
+        row.insert("title".into(), w.text(&view.name));
+        let read = kassensturz_report::Document::read(&view.document)
+            .ok()
+            .and_then(|document| match document.entries.first().map(|e| &e.item) {
+                Some(kassensturz_report::Item::Component(component)) => {
+                    Some((document.period.clone(), component.clone()))
+                }
+                _ => None,
+            });
+        let Some((period, component)) = read else {
+            row.insert("unreadable".into(), Value::Bool(true));
+            rows.push(Value::Object(row));
+            continue;
+        };
+        row.insert("data".into(), json!(component.dataset().id));
+        let show_as = SHOW_AS
+            .iter()
+            .find(|(_, kind)| *kind == Some(component.kind()))
+            .map_or("other", |(word, _)| *word);
+        row.insert("show_as".into(), json!(show_as));
+        row.insert(
+            "period".into(),
+            json!(period.unwrap_or_else(|| default_period(component.dataset().id).to_owned())),
+        );
+        let mut not_shown = Vec::new();
+        for (key, argument) in [
+            ("grouping", "group_by"),
+            ("measure", "measure"),
+            ("compare", "compare"),
+            ("average", "average"),
+            ("orientation", "orientation"),
+        ] {
+            if let Some(kassensturz_report::Setting::Word(word)) = component.get(key)
+                && !word.is_empty()
+                && !(key == "measure" && word == FORMULA_MEASURE)
+            {
+                row.insert(argument.into(), json!(word));
+            }
+        }
+        let lists = ["categories", "accounts"]
+            .into_iter()
+            .chain(SERIES_LISTS.iter().map(|(key, _, _)| *key));
+        for key in lists {
+            if let Some(kassensturz_report::Setting::Ids(ids)) = component.get(key)
+                && !ids.is_empty()
+            {
+                if offered(key, allowed) {
+                    row.insert(key.into(), json!(ids));
+                } else {
+                    not_shown.push(key);
+                }
+            }
+        }
+        for key in ["formula", "target"] {
+            if let Some(kassensturz_report::Setting::Text(text)) = component.get(key)
+                && !text.is_empty()
+            {
+                if offered(key, allowed) {
+                    row.insert(key.into(), w.text(text));
+                } else {
+                    not_shown.push(key);
+                }
+            }
+        }
+        if !not_shown.is_empty() {
+            row.insert("not_shown".into(), json!(not_shown));
+        }
+        rows.push(Value::Object(row));
+    }
+    let mut result = Map::new();
+    result.insert("charts".into(), Value::Array(rows));
+    crate::read::left_out(&mut result, w, views.len(), MAX_LISTED_VIEWS);
+    Ok(Value::Object(result))
 }

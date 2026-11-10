@@ -78,6 +78,8 @@ Kirigami.ScrollablePage {
     readonly property var deletedCategories: kept.filter(change => change.kind === "deleteCategory")
     readonly property var newAccounts: kept.filter(change => change.kind === "newAccount")
     readonly property var newViews: kept.filter(change => change.kind === "newView")
+    readonly property var editedViews: kept.filter(change => change.kind === "editView")
+    readonly property var deletedViews: kept.filter(change => change.kind === "deleteView")
     readonly property var newBudgets: kept.filter(change => change.kind === "newBudget")
     readonly property var editedBudgets: kept.filter(change => change.kind === "editBudget")
     readonly property var editedAccounts: kept.filter(change => change.kind === "editAccount")
@@ -201,7 +203,10 @@ Kirigami.ScrollablePage {
         case "editAccount":
             return change.before;
         case "newView":
+        case "editView":
             return change.title;
+        case "deleteView":
+            return change.name;
         case "newBudget":
         case "editBudget":
             return change.category;
@@ -241,6 +246,10 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "New budget");
         case "editBudget":
             return i18nContext.i18nc("@info a kind of prepared change", "Changed budget");
+        case "editView":
+            return i18nContext.i18nc("@info a kind of prepared change", "Changed chart");
+        case "deleteView":
+            return i18nContext.i18nc("@info a kind of prepared change", "Chart to delete");
         }
         return i18nContext.i18nc("@info a kind of prepared change", "New chart");
     }
@@ -1250,6 +1259,125 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         ai: page.ai
                         change: chartCard.modelData
+                        choices: page.choices
+                        review: page
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.editedViews.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Saved charts that change")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.editedViews : []
+
+            Kirigami.AbstractCard {
+                id: changedChartCard
+
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                // The chart as it will be saved, read by the same code as
+                // one changed by hand (D-681).
+                ComponentProperties {
+                    id: changedChartProperties
+                }
+
+                Component.onCompleted: changedChartProperties.load(modelData.component)
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: changedChartCard.modelData.title
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: changedChartCard.modelData.before !== changedChartCard.modelData.title
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is the name a saved chart has now", "Now called: %1", changedChartCard.modelData.before)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.periodName(changedChartCard.modelData.period)
+                    }
+
+                    ComponentPreview {
+                        Layout.fillWidth: true
+                        subject: changedChartProperties.view
+                        period: changedChartCard.modelData.period
+                        explainFormula: true
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "The AI changed what this saved chart shows; everything it did not name stays as you set it. The figures are worked out by KassenSturz from your book. The chart changes only when you confirm, and Undo puts it back.")
+                    }
+
+                    AiChangeCorrection {
+                        Layout.fillWidth: true
+                        ai: page.ai
+                        change: changedChartCard.modelData
+                        choices: page.choices
+                        review: page
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.deletedViews.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Saved charts to delete")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.deletedViews : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        font.bold: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.name
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "The chart is removed from the Statistic Builder. Your book's figures don't change, and Undo brings the chart back.")
+                    }
+
+                    AiChangeCorrection {
+                        Layout.fillWidth: true
+                        ai: page.ai
+                        change: modelData
                         choices: page.choices
                         review: page
                     }

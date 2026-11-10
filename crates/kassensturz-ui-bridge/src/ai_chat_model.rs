@@ -726,6 +726,21 @@ pub(crate) mod engine {
                 ("component", text(component)),
                 ("charts", list(charts.iter().map(|chart| text(chart)))),
             ],
+            ChangeView::EditView {
+                before,
+                title,
+                period,
+                component,
+            } => vec![
+                ("kind", text("editView")),
+                ("before", text(before)),
+                ("title", text(title)),
+                ("period", text(period)),
+                ("component", text(component)),
+            ],
+            ChangeView::DeleteView { name } => {
+                vec![("kind", text("deleteView")), ("name", text(name))]
+            }
             ChangeView::NewBudget {
                 name,
                 category,
@@ -1837,6 +1852,15 @@ mod tests {
                 carry_over: true,
                 basis: None,
             },
+            ChangeView::EditView {
+                before: "Spending".into(),
+                title: "<b>Spending</b> by row".into(),
+                period: "last-12-months".into(),
+                component: r#"{"type":"chart.bar"}"#.into(),
+            },
+            ChangeView::DeleteView {
+                name: "<b>Old</b> chart".into(),
+            },
         ];
         let rows: Vec<ChangeRow> = views
             .into_iter()
@@ -1860,7 +1884,7 @@ mod tests {
             .collect();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
-        assert_eq!(items.len(), 16);
+        assert_eq!(items.len(), 18);
         // What the user did with each change (D-293).
         assert_eq!(
             keys(&items[1]),
@@ -2076,6 +2100,19 @@ mod tests {
         assert_eq!(number_of(&items[15], "basisPeriods"), 0);
         assert_eq!(text_of(&items[15], "basisAverage"), "");
         assert_eq!(text_of(&items[15], "basisLeftOutFrom"), "");
+        // Saved charts the AI changes or deletes (D-681).
+        assert_eq!(
+            own_keys(&items[16]),
+            ["before", "component", "kind", "period", "title"]
+        );
+        assert_eq!(text_of(&items[16], "kind"), "editView");
+        assert_eq!(text_of(&items[16], "before"), "Spending");
+        assert_eq!(text_of(&items[16], "title"), "<b>Spending</b> by row");
+        assert_eq!(text_of(&items[16], "period"), "last-12-months");
+        assert_eq!(text_of(&items[16], "component"), r#"{"type":"chart.bar"}"#);
+        assert_eq!(own_keys(&items[17]), ["kind", "name"]);
+        assert_eq!(text_of(&items[17], "kind"), "deleteView");
+        assert_eq!(text_of(&items[17], "name"), "<b>Old</b> chart");
     }
 
     /// The keys of a change object without those every change has.

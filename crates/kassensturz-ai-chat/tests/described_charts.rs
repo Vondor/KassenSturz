@@ -195,7 +195,10 @@ fn the_german_example_of_the_button_prepares_the_same_chart() {
 #[test]
 fn without_charts_in_the_grid_a_description_prepares_nothing() {
     let book = space_colony();
-    let allowed = Permissions::all().with(Permission::NewViews, false);
+    // Neither adding nor changing charts (D-681): propose_view isn't offered.
+    let allowed = Permissions::all()
+        .with(Permission::NewViews, false)
+        .with(Permission::EditViews, false);
     let (chat, answer) = ask(&book, allowed, DESCRIBED_CHARTS[1].description);
     assert!(view_calls(&chat).is_empty());
     assert!(answer.changes.is_empty());

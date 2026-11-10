@@ -49,6 +49,9 @@ impl Function {
             "list_rules" => &[Row::Rules],
             // A budget names its category (D-396).
             "list_budgets" => &[Row::Budgets, Row::Categories],
+            // The charts the user saved (D-681); their categories and
+            // accounts only as the grid lets the model read them.
+            "list_views" => &[Row::Charts],
             // A function that reads no row of the book.
             _ => &[],
         }
@@ -182,6 +185,17 @@ pub const FUNCTIONS: &[Function] = &[
             \"current_period\" with what is available, spent and left in it so far, or with \
             \"error\" if that one budget's figures can't be counted now. Amounts \
             are exact decimal text with a dot as the decimal mark.",
+        parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
+    },
+    Function {
+        name: "list_views",
+        description: "Lists the charts the user saved under Statistics, in the order of their \
+            list, each with its \"view_id\" and its title, and what it shows in the words of \
+            propose_view: data, show_as, period and, where set, group_by, measure, compare, \
+            average, orientation, the categories and accounts it is limited to, and its \
+            formula. Use the view_id to change a chart with propose_view or to delete it. What \
+            the user doesn't let you read is named in \"not_shown\"; show_as \"other\" is a \
+            chart made in a way propose_view doesn't offer.",
         parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
     },
 ];
@@ -371,6 +385,7 @@ fn call_with(
         "list_budgets" => {
             read::list_budgets(book, &mut w, today, permissions.reads(Row::Transactions))?
         }
+        "list_views" => crate::changes::list_views(book, &mut w, permissions)?,
         _ => return Err(ToolError::UnknownFunction),
     };
     Ok(Output::new(result, w.figures))

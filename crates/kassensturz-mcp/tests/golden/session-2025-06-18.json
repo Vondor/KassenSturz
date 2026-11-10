@@ -294,6 +294,21 @@
               "type": "object"
             },
             "name": "list_budgets"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Lists the charts the user saved under Statistics, in the order of their list, each with its \"view_id\" and its title, and what it shows in the words of propose_view: data, show_as, period and, where set, group_by, measure, compare, average, orientation, the categories and accounts it is limited to, and its formula. Use the view_id to change a chart with propose_view or to delete it. What the user doesn't let you read is named in \"not_shown\"; show_as \"other\" is a chart made in a way propose_view doesn't offer.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object"
+            },
+            "name": "list_views"
           }
         ]
       }

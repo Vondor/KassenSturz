@@ -366,7 +366,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.16** · **done** (#612, D-677) · thread I · strong, high · S to M · human gate (AI data sharing), security look before the PR. #596 (US1.32): the AI's IBAN mask checks length and check digits (ISO 13616), so ISINs, creditor ids and mandate references stay readable. Why: it hides text the AI needs; no real IBAN may reach a model (D-170)
 
-- **US2.17** · **in review** (D-678) · thread I, after US2.16 · standard, high · M · human gate (AI data sharing). #597 (US1.33): optional fixed reason chips when the user refuses a change set; only the chip's keyword reaches the AI, never free text. Why: "declined" alone doesn't say what to fix
+- **US2.17** · **done** (#615, D-678) · thread I, after US2.16 · standard, high · M · human gate (AI data sharing). #597 (US1.33): optional fixed reason chips when the user refuses a change set; only the chip's keyword reaches the AI, never free text. Why: "declined" alone doesn't say what to fix
 
 - **US2.18** · **planned** · thread E, after US2.15 · standard, medium · S. #598 (US1.34): an optional name next to each id in change items, refused when they don't fit. Why: each miscopy costs a retry
 

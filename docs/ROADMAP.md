@@ -344,7 +344,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.2** · **built, PR open** · thread A · standard, medium · S to M · [format]. #563: bar and stacked bar charts get *Horizontal / Vertical / Automatic*, automatic as today, the same in `propose_view`. Why: the automatic choice can't be overridden
 
-- **US2.4** · **planned** · thread A, after US2.2 · standard, low · S. #605 (M6-B202 later): the *Hide the grey filter notes* switch gets its own labelled row in *Properties*. Why: at the bottom of the account list it is easy to miss
+- **US2.4** · **built, PR open** · thread A, after US2.2 · standard, low · S. #605 (M6-B202 later): the *Hide the grey filter notes* switch gets its own labelled row in *Properties*. Why: at the bottom of the account list it is easy to miss
 
 - **US2.5** · **not done** (Q-461) · #528 (US1.15), accounts as names in formulas, closed. Why: per-series accounts (US1.16, #551) and the number card's account filter (D-417) cover the need
 

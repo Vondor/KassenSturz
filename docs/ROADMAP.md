@@ -390,6 +390,12 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2 backlog 6** · **later** · US3 candidate · waits for: US3. An `ai-tools.bad-argument` refusal of a change list hints at the shape it expects (e.g. "expected a list of objects"), for all 19 change lists (card F verdict). Why: a new feature found in US2 Phase 3; today the refusal names only the argument
 
+- **US2 backlog 7** · **later** · US3 candidate · waits for: US3, with its own plain-words design. A pay-off goal for a small loan or instalment plan without a debt account: a name, the amount owed (or the total and what is already paid), the category or payee whose bookings count, and optionally the number and size of the payments and their due day; it shows what is left, payments left, the expected end date, a progress bar and a "paid off" state, counts late payments, and can be an Overview tile. Why: a new feature from US2 Phase 3; a number card with a formula such as `=1000 - 'Loan'` over a fixed period covers part of it today
+
+- **US2 backlog 8** · **later** · US3 candidate · waits for: US3, and a change of D-394. `new_budgets` for a budget over one stretch of days (`every` range with its first and last day), which the app has and `list_budgets` reports, but the AI may not prepare. Why: D-394 left it out on purpose because the model would have to pick the days; the user would now name them
+
+- **US2 backlog 9** · **later** · US3 candidate · waits for: US3. The answer of an applied `propose_view` (or `check_only`) gives the figure KassenSturz computed for a number card or progress bar, so the AI can confirm it to the user. Why: a new feature from US2 Phase 3; today the AI reads the figure with the read tools
+
 - **US3 candidates** · **later** (Q-461) · waits for: US3, each with its design first, kept as sorted in US2. Items 1 with 3 (#562 a formula per bar and #587 compare with an average, one design for per-bar figures), 6 (US1.10a #607: change a budget's categories or accounts from the current period on, with a dated history so past periods stay as they were, [format]), and 19 with 14b (#571 and #594 part b: join two sides that already have a category as one Transfer, for the AI and the UI, both original amounts kept). Why: design work did not fit the week's remaining usage
 
 ## How to pick work

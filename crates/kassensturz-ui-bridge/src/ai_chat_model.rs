@@ -148,6 +148,13 @@ pub mod qobject {
         #[qinvokable]
         fn discard(self: Pin<&mut AiChat>, id: &QString);
 
+        /// The user throws the set `id` away for `reasons`, a JSON array of
+        /// the keywords of the reasons they picked (D-678). Only those
+        /// keywords reach the AI; anything else in it is left out.
+        #[qinvokable]
+        #[cxx_name = "discardBecause"]
+        fn discard_because(self: Pin<&mut AiChat>, id: &QString, reasons: &QString);
+
         /// The user took the changes they confirmed back with Undo: the
         /// model hears it with the next question.
         #[qinvokable]
@@ -260,6 +267,7 @@ pub(crate) mod engine {
     use kassensturz_ai_chat::{
         Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode, Outcome,
     };
+    use kassensturz_ai_tools::refusal::RefusalReasons;
     use kassensturz_ai_tools::requests::RequestFolder;
     use kassensturz_ai_tools::{
         ChangeError, ChangeSet, EditError, IssueDraft, PageTarget, ProposedChange, ToolError,
@@ -1097,7 +1105,7 @@ pub(crate) mod engine {
         }
     }
 
-    pub(super) fn discard(mut chat: Pin<&mut qobject::AiChat>, id: &str) {
+    pub(super) fn discard(mut chat: Pin<&mut qobject::AiChat>, id: &str, reasons: RefusalReasons) {
         crate::note!(ChangesDeclined);
         let mut rust = chat.as_mut().rust_mut();
         let state = &mut rust.state;
@@ -1114,10 +1122,10 @@ pub(crate) mod engine {
         match from {
             Some(from) => {
                 if let Some(inbox) = state.inbox.as_mut() {
-                    tell_declined(inbox, &from);
+                    tell_declined(inbox, &from, reasons);
                 }
             }
-            None => state.tell_chat(Outcome::Declined),
+            None => state.tell_chat(Outcome::Declined(reasons)),
         }
     }
 
@@ -1230,7 +1238,20 @@ impl qobject::AiChat {
     }
 
     fn discard(self: Pin<&mut Self>, id: &QString) {
-        engine::discard(self, &id.to_string());
+        engine::discard(
+            self,
+            &id.to_string(),
+            kassensturz_ai_tools::refusal::RefusalReasons::NONE,
+        );
+    }
+
+    fn discard_because(self: Pin<&mut Self>, id: &QString, reasons: &QString) {
+        use kassensturz_ai_tools::refusal::RefusalReasons;
+        let reasons = serde_json::from_str(&reasons.to_string())
+            .map_or(RefusalReasons::NONE, |value| {
+                RefusalReasons::from_json(&value)
+            });
+        engine::discard(self, &id.to_string(), reasons);
     }
 
     fn edit_change(
@@ -1302,6 +1323,8 @@ impl qobject::AiChat {
     fn review_leave_out(&self, _phrase: &QString) {}
 
     fn discard(self: Pin<&mut Self>, _id: &QString) {}
+
+    fn discard_because(self: Pin<&mut Self>, _id: &QString, _reasons: &QString) {}
 
     fn edit_change(
         self: Pin<&mut Self>,

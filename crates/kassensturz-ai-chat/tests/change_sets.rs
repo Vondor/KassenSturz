@@ -16,6 +16,7 @@ use kassensturz_ai_chat::{
     BuildInfo, ChatSession, DEMO_CATEGORY, DEMO_CHART, DEMO_LABEL, DemoModel, LogEntry, NoHooks,
     Outcome, demo_provider,
 };
+use kassensturz_ai_tools::refusal::{REFUSAL_KEYWORDS, RefusalReasons};
 use kassensturz_ai_tools::{Confirmed, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, ProposedChange};
 use kassensturz_store::Action;
 use serde_json::{Value, json};
@@ -249,8 +250,8 @@ fn what_the_user_did_with_prepared_changes_reaches_the_model_with_the_next_quest
         told,
         [
             "Hello",
-            Outcome::Confirmed.text(),
-            Outcome::Undone.text(),
+            Outcome::Confirmed.text().as_str(),
+            Outcome::Undone.text().as_str(),
             "Thanks"
         ]
     );
@@ -271,7 +272,8 @@ fn the_outcomes_say_plainly_what_happened_and_invent_no_screen() {
     for outcome in [
         Outcome::Confirmed,
         Outcome::ConfirmedChanged,
-        Outcome::Declined,
+        Outcome::Declined(RefusalReasons::NONE),
+        Outcome::Declined(RefusalReasons::from_keywords(["wrong_category"])),
         Outcome::Failed,
         Outcome::Undone,
     ] {
@@ -290,7 +292,21 @@ fn the_outcomes_say_plainly_what_happened_and_invent_no_screen() {
             .text()
             .contains("do not assume your version")
     );
-    assert!(Outcome::Declined.text().contains("refused"));
+    assert!(
+        Outcome::Declined(RefusalReasons::NONE)
+            .text()
+            .contains("refused")
+    );
+    // Reasons (D-678): only the keywords, in a fixed order, and what they
+    // mean.
+    let reasons = RefusalReasons::from_keywords(["too_many_changes", "wrong_amount"]);
+    let told = Outcome::Declined(reasons).text();
+    assert!(told.contains("refused"), "{told}");
+    assert!(
+        told.contains("from a fixed list: wrong_amount, too_many_changes."),
+        "{told}"
+    );
+    assert!(told.contains(REFUSAL_KEYWORDS), "{told}");
     assert!(Outcome::Failed.text().contains("nothing was changed"));
 }
 

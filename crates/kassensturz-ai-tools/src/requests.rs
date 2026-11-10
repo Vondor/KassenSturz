@@ -36,6 +36,8 @@ use std::time::{Duration, SystemTime};
 
 use serde_json::{Value, json};
 
+use crate::refusal::RefusalReasons;
+
 /// The request folder's name in KassenSturz's data folder.
 pub const FOLDER_NAME: &str = "mcp-requests";
 
@@ -117,8 +119,12 @@ pub enum Reply {
     /// The user confirmed the set and it was applied, as one change undo
     /// takes back.
     Applied,
-    /// The user threw the set away. Nothing changed.
-    Declined,
+    /// The user threw the set away, with the reasons they picked, if any
+    /// (D-678). Nothing changed.
+    Declined {
+        /// The reasons, none if the user gave none.
+        reasons: RefusalReasons,
+    },
     /// Nothing changed, for the reason `code` (an error code, D-034).
     Failed {
         /// The error code.
@@ -137,7 +143,10 @@ impl Reply {
         match self {
             Self::Shown { changes } => json!({"status": "shown", "changes": changes}),
             Self::Applied => json!({"status": "applied"}),
-            Self::Declined => json!({"status": "declined"}),
+            Self::Declined { reasons } if reasons.is_empty() => json!({"status": "declined"}),
+            Self::Declined { reasons } => {
+                json!({"status": "declined", "reasons": reasons.to_json()})
+            }
             Self::Failed { code } => json!({"status": "failed", "error": code}),
         }
     }
@@ -149,7 +158,11 @@ impl Reply {
                 changes: usize::try_from(value.get("changes")?.as_u64()?).ok()?,
             }),
             "applied" => Some(Self::Applied),
-            "declined" => Some(Self::Declined),
+            "declined" => Some(Self::Declined {
+                reasons: value
+                    .get("reasons")
+                    .map_or(RefusalReasons::NONE, RefusalReasons::from_json),
+            }),
             "failed" => Some(Self::Failed {
                 code: value.get("error")?.as_str()?.to_owned(),
             }),

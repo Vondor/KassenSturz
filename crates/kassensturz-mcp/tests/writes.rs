@@ -18,6 +18,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use common::{Folder, Session};
+use kassensturz_ai_tools::refusal::RefusalReasons;
 use kassensturz_ai_tools::requests::{FOLDER_NAME, Inbox, Reply, RequestFolder};
 use kassensturz_store::Book;
 use serde_json::{Value, json};
@@ -259,7 +260,14 @@ fn the_app_shows_the_set_and_the_ai_tool_hears_the_users_decision() {
     let book = folder.book();
     let place = request_folder(&folder);
     let done = Arc::new(AtomicBool::new(false));
-    let calls = app(&place, &book, Reply::Declined, Arc::clone(&done));
+    let calls = app(
+        &place,
+        &book,
+        Reply::Declined {
+            reasons: RefusalReasons::NONE,
+        },
+        Arc::clone(&done),
+    );
 
     let mut session = Session::start(folder.path(), &book);
     let answer = session.initialize("2025-06-18");

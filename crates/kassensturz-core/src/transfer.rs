@@ -9,9 +9,10 @@
 //! bank's statement shows one side: 100 out of checking, 100 into savings.
 //! Imported, each side is a transaction of its own whose other part has no
 //! category yet (D-083), so the move would count as spending and as income.
-//! Joined into one transaction with both accounts, it is a Transfer, which
-//! counts as neither. KassenSturz only suggests which sides belong together;
-//! the user confirms every suggestion (D-030).
+//! A Rule may also have put a side in a category, or the user may have
+//! (D-691). Joined into one transaction with both accounts, it is a
+//! Transfer, which counts as neither. KassenSturz only suggests which sides
+//! belong together; the user confirms every suggestion (D-030).
 
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
@@ -31,12 +32,12 @@ pub const MAX_BUSINESS_DAYS: u32 = 3;
 
 /// One side of a possible Transfer: a transaction that moves money into or
 /// out of one of the user's accounts, and whose other part has no category
-/// yet.
+/// yet or is in a category (D-691).
 ///
-/// Only such a transaction can be one: a part with a category says where
-/// the money went, and manual choices win (D-031), and a transaction the
-/// user broke into more Parts (D-017), or a part in another currency (Q-020),
-/// is left alone too.
+/// A transaction the user broke into more Parts (D-017), or one with a part
+/// in another currency (Q-020), is no side. Whether a side in a category
+/// may be suggested is for the caller to decide: the store passes only the
+/// ones a Rule sorted, never the ones the user sorted (D-031).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct TransferSide {
     /// The transaction.
@@ -49,31 +50,29 @@ pub struct TransferSide {
     /// What it does to that account: positive amounts come in, negative ones
     /// go out. Never zero.
     pub amount: Money,
+    /// The category its other part is in, if it has one. Joined, that part
+    /// goes, and with it the category.
+    pub category: Option<AccountId>,
 }
 
 impl TransferSide {
     /// The side `transaction` is, or [`TransferError::NotASide`] if it can't
     /// be one: it has exactly two parts, one booked to one of the user's
     /// accounts, which `is_account` tells apart from categories, and one
-    /// without a category, in the transaction's currency, and its amount
-    /// isn't zero.
+    /// without a category or in a category, both in the transaction's
+    /// currency, and its amount isn't zero. The other part, which a join
+    /// removes, must not keep an amount from a withdrawn currency
+    /// ([`Split::original`]), which would be lost (D-691).
     pub fn of(
         transaction: &Transaction,
         is_account: impl Fn(AccountId) -> bool,
     ) -> Result<Self, TransferError> {
+        let (booked, other) = Self::parts(transaction, &is_account)?;
         let not_a_side = TransferError::NotASide(transaction.id());
-        let [first, second] = transaction.splits() else {
-            return Err(not_a_side);
-        };
-        let (booked, open) = match (first.account, second.account) {
-            (Some(_), None) => (first, second),
-            (None, Some(_)) => (second, first),
-            _ => return Err(not_a_side),
-        };
         let account = booked.account.ok_or(not_a_side)?;
-        if !is_account(account)
-            || booked.foreign.is_some()
-            || open.foreign.is_some()
+        if booked.foreign.is_some()
+            || other.foreign.is_some()
+            || other.original.is_some()
             || booked.amount.is_zero()
         {
             return Err(not_a_side);
@@ -83,7 +82,26 @@ impl TransferSide {
             booking_date: transaction.date_of(booked),
             account,
             amount: booked.amount,
+            category: other.account,
         })
+    }
+
+    /// The two parts of a side: the one booked to one of the user's
+    /// accounts, then the other one, without a category or in a category.
+    fn parts(
+        transaction: &Transaction,
+        is_account: impl Fn(AccountId) -> bool,
+    ) -> Result<(&Split, &Split), TransferError> {
+        let not_a_side = TransferError::NotASide(transaction.id());
+        let [first, second] = transaction.splits() else {
+            return Err(not_a_side);
+        };
+        let in_account = |split: &Split| split.account.is_some_and(&is_account);
+        match (in_account(first), in_account(second)) {
+            (true, false) => Ok((first, second)),
+            (false, true) => Ok((second, first)),
+            _ => Err(not_a_side),
+        }
     }
 }
 
@@ -99,7 +117,8 @@ pub struct TransferMatch {
     pub business_days: u32,
 }
 
-/// The Transfers among `sides` to suggest to the user (D-021, D-030).
+/// The Transfers among `sides` to suggest to the user (D-021, D-030,
+/// D-691).
 ///
 /// Two sides fit if they are in different accounts, in the same currency,
 /// one takes out exactly what the other puts in, and their booking dates are
@@ -109,9 +128,42 @@ pub struct TransferMatch {
 /// date, then the IDs, so the same book always gets the same suggestions.
 /// They come sorted by the outgoing side's date.
 ///
+/// It runs in two passes, so sides in a category never take a partner away
+/// from a side without one: first sides without a category are paired with
+/// each other, then the sides left over are paired where at least one of
+/// the two is in a category (D-691). The caller passes only the sides in a
+/// category it may suggest.
+///
 /// It only suggests: the user confirms each Transfer (D-030), which joins
 /// the two transactions ([`join_transfer`]).
 pub fn find_transfers(sides: &[TransferSide]) -> Vec<TransferMatch> {
+    let open: Vec<TransferSide> = sides
+        .iter()
+        .filter(|side| side.category.is_none())
+        .copied()
+        .collect();
+    let mut matches = closest_pairs(&open);
+    let used: HashSet<TransactionId> = matches
+        .iter()
+        .flat_map(|found| [found.outgoing.transaction, found.incoming.transaction])
+        .collect();
+    let left: Vec<TransferSide> = sides
+        .iter()
+        .filter(|side| !used.contains(&side.transaction))
+        .copied()
+        .collect();
+    matches.extend(
+        closest_pairs(&left)
+            .into_iter()
+            .filter(|found| found.outgoing.category.is_some() || found.incoming.category.is_some()),
+    );
+    matches.sort_by(match_order);
+    matches
+}
+
+/// The closest pairs among `sides`, each side in at most one, as
+/// [`find_transfers`] chooses them, unsorted.
+fn closest_pairs(sides: &[TransferSide]) -> Vec<TransferMatch> {
     // Only sides with the same currency and size can fit.
     let mut groups: HashMap<(CurrencyCode, u64), Vec<&TransferSide>> = HashMap::new();
     for side in sides {
@@ -174,7 +226,6 @@ pub fn find_transfers(sides: &[TransferSide]) -> Vec<TransferMatch> {
         used.insert(incoming);
         matches.push(candidate);
     }
-    matches.sort_by(match_order);
     matches
 }
 
@@ -188,8 +239,15 @@ pub fn find_transfers(sides: &[TransferSide]) -> Vec<TransferMatch> {
 /// they were, with what their banks delivered (D-083), so neither account's
 /// balance changes; the incoming side's part also keeps the date and payee
 /// its account showed, as its own (D-108), so neither register changes
-/// either. The two parts without a category go. The incoming transaction is
-/// the one to remove.
+/// either. The two other parts go, with their categories if they have any
+/// (D-691). The incoming transaction is the one to remove.
+///
+/// Nothing the user wrote on a removed part is lost: its note and number
+/// move to the account part of the same side when that part has none or the
+/// same, otherwise the join is refused ([`TransferError::PartHoldsMore`]).
+/// Its status ([`Split::status`]) moves when the account part has none; the
+/// account part's own status, the one its statement confirmed, wins. Its
+/// tags are added to the account part's.
 ///
 /// The user decides which sides to join, so the dates may be any number of
 /// days apart; the two sides must be in different accounts and take out and
@@ -219,27 +277,29 @@ pub fn join_transfer(
             second: side_b.amount,
         });
     }
-    let (outgoing, incoming, incoming_account) = if side_a.amount.is_negative() {
-        (a, b, side_b.account)
+    let (outgoing, incoming) = if side_a.amount.is_negative() {
+        (a, b)
     } else {
-        (b, a, side_a.account)
+        (b, a)
     };
-    let incoming_part = incoming
-        .splits()
-        .iter()
-        .find(|split| split.account == Some(incoming_account))
-        .ok_or(TransferError::NotASide(incoming.id()))?;
+    let (outgoing_part, outgoing_other) = TransferSide::parts(outgoing, &is_account)?;
+    let (incoming_part, incoming_other) = TransferSide::parts(incoming, &is_account)?;
+    let outgoing_part = taking_over(outgoing.id(), outgoing_part, outgoing_other)?;
     let incoming_part = Split {
         own_date: Some(incoming.date_of(incoming_part)),
         own_payee: incoming.payee_of(incoming_part).map(str::to_owned),
-        ..incoming_part.clone()
+        ..taking_over(incoming.id(), incoming_part, incoming_other)?
     };
+    // In the order the outgoing transaction had its parts.
     let splits: Vec<Split> = outgoing
         .splits()
         .iter()
-        .map(|split| match split.account {
-            Some(_) => split.clone(),
-            None => incoming_part.clone(),
+        .map(|split| {
+            if split.id == outgoing_part.id {
+                outgoing_part.clone()
+            } else {
+                incoming_part.clone()
+            }
         })
         .collect();
     let payee = outgoing.payee().or(incoming.payee()).map(str::to_owned);
@@ -255,12 +315,73 @@ pub fn join_transfer(
         .map_err(TransferError::Transaction)
 }
 
+/// The account part `kept` of one side, with what the side's other part
+/// `removed` holds and would lose in a join: its note and its number, where
+/// `kept` has none or the same, its status where `kept` has none, and its
+/// tags. A different note or number refuses the join (D-691).
+fn taking_over(
+    transaction: TransactionId,
+    kept: &Split,
+    removed: &Split,
+) -> Result<Split, TransferError> {
+    let refused = |detail| TransferError::PartHoldsMore {
+        transaction,
+        detail,
+    };
+    let note = merged(&kept.note, &removed.note).ok_or(refused(PartDetail::Note))?;
+    let number = merged(&kept.number, &removed.number).ok_or(refused(PartDetail::Number))?;
+    let mut tags = kept.tags.clone();
+    for tag in &removed.tags {
+        if !tags.contains(tag) {
+            tags.push(*tag);
+        }
+    }
+    Ok(Split {
+        note,
+        number,
+        status: kept.status.or(removed.status),
+        tags,
+        ..kept.clone()
+    })
+}
+
+/// `kept`, or `removed` if `kept` is empty; `None` if both are set and
+/// differ, since one would be lost.
+fn merged(kept: &Option<String>, removed: &Option<String>) -> Option<Option<String>> {
+    match (kept, removed) {
+        (_, None) => Some(kept.clone()),
+        (None, Some(_)) => Some(removed.clone()),
+        (Some(a), Some(b)) => (a == b).then(|| kept.clone()),
+    }
+}
+
+/// What a part that a join would remove holds that its side's account part
+/// can't take over ([`TransferError::PartHoldsMore`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PartDetail {
+    /// A note other than the account part's.
+    Note,
+    /// A number other than the account part's.
+    Number,
+}
+
+impl PartDetail {
+    /// The word `docs/ERROR_CODES.md` gives for it.
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Note => "note",
+            Self::Number => "number",
+        }
+    }
+}
+
 /// Why two transactions can't be joined into a Transfer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TransferError {
     /// The transaction isn't one side of a Transfer: it needs exactly two
     /// parts, one booked to one of the user's accounts and one without a
-    /// category yet, in one currency, and an amount other than zero.
+    /// category or in a category, in one currency, and an amount other than
+    /// zero.
     NotASide(TransactionId),
     /// Both are the same transaction.
     SameTransaction(TransactionId),
@@ -274,6 +395,14 @@ pub enum TransferError {
         first: Money,
         /// What the second side does to its account.
         second: Money,
+    },
+    /// The part of `transaction` that joining would remove holds something
+    /// its account part can't take over, which would be lost (D-691).
+    PartHoldsMore {
+        /// The side whose part it is.
+        transaction: TransactionId,
+        /// What it holds.
+        detail: PartDetail,
     },
     /// The joined parts don't form a valid transaction.
     Transaction(TransactionError),
@@ -297,6 +426,14 @@ fn match_order(a: &TransferMatch, b: &TransferMatch) -> Ordering {
 pub fn business_days_apart(a: Date, b: Date, limit: u32) -> Option<u32> {
     let (earlier, later) = if a <= b { (a, b) } else { (b, a) };
     days_apart(earlier, later, limit).map(|(business_days, _)| business_days)
+}
+
+/// How far `a` and `b` are apart, in either order, as business days
+/// (counted as [`business_days_apart`] counts them) and calendar days, with
+/// no limit, e.g. to list the closest sides first.
+pub fn days_between(a: Date, b: Date) -> (u32, u32) {
+    let (earlier, later) = if a <= b { (a, b) } else { (b, a) };
+    days_apart(earlier, later, u32::MAX).unwrap_or((u32::MAX, u32::MAX))
 }
 
 /// How far `earlier` and `later` are apart, as business days and calendar
@@ -332,6 +469,10 @@ mod tests {
         Ok(code) => code,
         Err(_) => panic!("USD is a valid code"),
     };
+    const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+        Ok(code) => code,
+        Err(_) => panic!("DEM is a valid code"),
+    };
 
     fn eur(minor_units: i64) -> Money {
         Money::from_minor_units(minor_units, EUR)
@@ -348,6 +489,15 @@ mod tests {
             booking_date: october(day),
             account,
             amount: eur(minor_units),
+            category: None,
+        }
+    }
+
+    /// [`side`] whose other part is in `category`.
+    fn sorted(account: AccountId, minor_units: i64, day: i8, category: AccountId) -> TransferSide {
+        TransferSide {
+            category: Some(category),
+            ..side(account, minor_units, day)
         }
     }
 
@@ -541,7 +691,23 @@ mod tests {
                 booking_date: october(5),
                 account: checking,
                 amount: eur(-5_320),
+                category: None,
             })
+        );
+        // The other part may have a category (D-691).
+        let sorted = Transaction::new(
+            TransactionId::generate(),
+            october(5),
+            None,
+            vec![
+                Split::new(groceries, eur(5_320)),
+                Split::new(checking, eur(-5_320)),
+            ],
+        )
+        .expect("balanced");
+        assert_eq!(
+            TransferSide::of(&sorted, is_account).map(|side| (side.account, side.category)),
+            Ok((checking, Some(groceries)))
         );
         // The part without a category may come first.
         let flipped = Transaction::new(
@@ -557,10 +723,29 @@ mod tests {
         );
 
         let not_sides = [
-            // The other side has a category already.
+            // Two of the user's accounts: a Transfer already.
             vec![
                 Split::new(checking, eur(-5_320)),
-                Split::new(groceries, eur(5_320)),
+                Split::new(checking, eur(5_320)),
+            ],
+            // The part a join would remove keeps an amount from a withdrawn
+            // currency, which would be lost (D-691).
+            vec![
+                Split::new(checking, eur(-5_320)),
+                Split {
+                    original: Some(crate::OriginalAmount {
+                        amount: Money::from_minor_units(10_406, DEM),
+                        rate: crate::DatedRate {
+                            id: crate::DatedRateId::generate(),
+                            date: Date::new(1999, 1, 1).expect("valid date"),
+                            from: EUR,
+                            to: DEM,
+                            rate: "1.95583".parse().expect("valid rate"),
+                            source: crate::RateSource::Changeover,
+                        },
+                    }),
+                    ..Split::new(groceries, eur(5_320))
+                },
             ],
             // A category instead of an account.
             vec![
@@ -722,7 +907,6 @@ mod tests {
     fn joining_refuses_what_is_no_transfer() {
         let checking = AccountId::generate();
         let savings = AccountId::generate();
-        let groceries = AccountId::generate();
         let is_account = |id: AccountId| id == checking || id == savings;
         let out = imported(checking, -10_000, 5, None);
 
@@ -768,19 +952,208 @@ mod tests {
                 second: Money::from_minor_units(10_000, USD),
             })
         );
-        let categorized = Transaction::new(
+    }
+
+    #[test]
+    fn joining_sides_in_categories_keeps_both_accounts_parts_and_drops_the_categories() {
+        // A standing order a Rule put in "Savings plan" on checking, and the
+        // savings account's side the user put in "Other income" (D-691).
+        let checking = AccountId::generate();
+        let savings = AccountId::generate();
+        let plan = AccountId::generate();
+        let income = AccountId::generate();
+        let is_account = |id: AccountId| id == checking || id == savings;
+        let delivered = |bank_id: &str| crate::ImportedDetails {
+            bank_id: Some(bank_id.into()),
+            ..Default::default()
+        };
+        let out_part = Split {
+            imported: Some(delivered("CHK-0001")),
+            ..Split::new(checking, eur(-25_000))
+        };
+        let out = Transaction::new(
             TransactionId::generate(),
             october(5),
-            None,
-            vec![
-                Split::new(savings, eur(10_000)),
-                Split::new(groceries, eur(-10_000)),
-            ],
+            Some("Savings".into()),
+            vec![out_part.clone(), Split::new(plan, eur(25_000))],
+        )
+        .expect("balanced");
+        let into_part = Split {
+            imported: Some(delivered("SAV-0001")),
+            ..Split::new(savings, eur(25_000))
+        };
+        let into = Transaction::new(
+            TransactionId::generate(),
+            october(6),
+            Some("From checking".into()),
+            vec![Split::new(income, eur(-25_000)), into_part.clone()],
         )
         .expect("balanced");
         assert_eq!(
-            join_transfer(&out, &categorized, is_account),
-            Err(TransferError::NotASide(categorized.id()))
+            TransferSide::of(&out, is_account).map(|side| side.category),
+            Ok(Some(plan))
+        );
+        for (a, b) in [(&out, &into), (&into, &out)] {
+            let joined = join_transfer(a, b, is_account).expect("joined");
+            assert_eq!(joined.id(), out.id());
+            // Both accounts' parts stay as their banks delivered them; the
+            // categories go.
+            assert_eq!(
+                joined.splits(),
+                [
+                    out_part.clone(),
+                    Split {
+                        own_date: Some(october(6)),
+                        own_payee: Some("From checking".into()),
+                        ..into_part.clone()
+                    }
+                ]
+            );
+            assert!(
+                joined
+                    .splits()
+                    .iter()
+                    .all(|split| split.account.is_some_and(is_account))
+            );
+        }
+    }
+
+    #[test]
+    fn what_the_user_wrote_on_a_removed_part_moves_or_refuses_the_join() {
+        let checking = AccountId::generate();
+        let savings = AccountId::generate();
+        let plan = AccountId::generate();
+        let is_account = |id: AccountId| id == checking || id == savings;
+        let tag = crate::TagId::generate();
+        let with = |kept: Split, removed: Split| {
+            Transaction::new(
+                TransactionId::generate(),
+                october(5),
+                None,
+                vec![kept, removed],
+            )
+            .expect("balanced")
+        };
+        let into = imported(savings, 25_000, 5, None);
+
+        // The note, number, status and tags of the category part move to
+        // the account part, which has none.
+        let out = with(
+            Split::new(checking, eur(-25_000)),
+            Split {
+                note: Some("Holiday fund".into()),
+                number: Some("17".into()),
+                status: Some(crate::PartStatus::Cleared),
+                tags: vec![tag],
+                ..Split::new(plan, eur(25_000))
+            },
+        );
+        let joined = join_transfer(&out, &into, is_account).expect("joined");
+        let kept = &joined.splits()[0];
+        assert_eq!(kept.account, Some(checking));
+        assert_eq!(
+            (
+                kept.note.as_deref(),
+                kept.number.as_deref(),
+                kept.status,
+                &kept.tags
+            ),
+            (
+                Some("Holiday fund"),
+                Some("17"),
+                Some(crate::PartStatus::Cleared),
+                &vec![tag]
+            )
+        );
+
+        // The same note on both parts is kept once.
+        let same = with(
+            Split {
+                note: Some("Holiday fund".into()),
+                ..Split::new(checking, eur(-25_000))
+            },
+            Split {
+                note: Some("Holiday fund".into()),
+                ..Split::new(plan, eur(25_000))
+            },
+        );
+        let joined = join_transfer(&same, &into, is_account).expect("joined");
+        assert_eq!(joined.splits()[0].note.as_deref(), Some("Holiday fund"));
+
+        // Two different notes, or numbers, would lose one: refused.
+        for (detail, kept, removed) in [
+            (
+                PartDetail::Note,
+                Split {
+                    note: Some("Mine".into()),
+                    ..Split::new(checking, eur(-25_000))
+                },
+                Split {
+                    note: Some("Holiday fund".into()),
+                    ..Split::new(plan, eur(25_000))
+                },
+            ),
+            (
+                PartDetail::Number,
+                Split {
+                    number: Some("1".into()),
+                    ..Split::new(checking, eur(-25_000))
+                },
+                Split {
+                    number: Some("2".into()),
+                    ..Split::new(plan, eur(25_000))
+                },
+            ),
+        ] {
+            let out = with(kept, removed);
+            for (a, b) in [(&out, &into), (&into, &out)] {
+                assert_eq!(
+                    join_transfer(a, b, is_account),
+                    Err(TransferError::PartHoldsMore {
+                        transaction: out.id(),
+                        detail,
+                    })
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sides_without_a_category_are_paired_first() {
+        let checking = AccountId::generate();
+        let savings = AccountId::generate();
+        let card = AccountId::generate();
+        let category = AccountId::generate();
+        // Out of checking on Monday; into savings on Wednesday without a
+        // category, and into the card on Monday in a category.
+        let out = side(checking, -5_000, 5);
+        let open = side(savings, 5_000, 7);
+        let ruled = sorted(card, 5_000, 5, category);
+        // The closer side in a category doesn't take the open pair apart.
+        assert_eq!(
+            pairs(&find_transfers(&[ruled, open, out])),
+            vec![(out.transaction, open.transaction)]
+        );
+        // Left over, a side in a category pairs with an open one, and with
+        // another side in a category.
+        let ruled_out = sorted(savings, -5_000, 6, category);
+        assert_eq!(
+            pairs(&find_transfers(&[out, ruled])),
+            vec![(out.transaction, ruled.transaction)]
+        );
+        assert_eq!(
+            pairs(&find_transfers(&[ruled_out, ruled])),
+            vec![(ruled_out.transaction, ruled.transaction)]
+        );
+        // Both passes together, sorted by the outgoing side's date.
+        let later_out = sorted(card, -7_500, 8, category);
+        let later_in = side(checking, 7_500, 9);
+        assert_eq!(
+            pairs(&find_transfers(&[later_in, ruled, open, later_out, out])),
+            vec![
+                (out.transaction, open.transaction),
+                (later_out.transaction, later_in.transaction)
+            ]
         );
     }
 

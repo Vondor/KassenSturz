@@ -207,6 +207,12 @@ impl Report for TransferError {
             Self::AmountsDiffer { first, second } => ErrorReport::new("transfer.amounts-differ")
                 .with("first", ErrorParam::Money(first))
                 .with("second", ErrorParam::Money(second)),
+            Self::PartHoldsMore {
+                transaction,
+                detail,
+            } => ErrorReport::new("transfer.part-holds-more")
+                .with("transaction", ErrorParam::Transaction(transaction))
+                .with("what", ErrorParam::Keyword(detail.keyword())),
             // A transaction's own error says what is wrong.
             Self::Transaction(error) => error.report(),
         }

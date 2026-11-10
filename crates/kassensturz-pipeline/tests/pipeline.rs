@@ -455,6 +455,89 @@ fn transfers_are_suggested_and_the_rules_run_on_the_new_transactions_only() {
 }
 
 #[test]
+fn a_side_a_rule_sorted_before_the_other_statement_came_is_suggested() {
+    // #594 (b), D-691: the checking account's side of a standing order is
+    // imported and sorted by a Rule; the savings account's statement comes
+    // later.
+    let Sample {
+        mut book,
+        checking,
+        savings,
+        groceries,
+    } = sample();
+    let own = Rule {
+        id: RuleId::generate(),
+        name: "Own".into(),
+        match_mode: MatchMode::All,
+        conditions: vec![Condition::Text {
+            field: TextField::OtherPartyName,
+            operator: TextOperator::Contains,
+            value: "Own transfer".into(),
+            case_sensitive: false,
+        }],
+        actions: Actions {
+            book_to: Some(BookTo::Category(groceries)),
+            payee: None,
+        },
+    };
+    book.add_rule(&own, None).expect("added");
+    let first = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(5, -10_000, "B1", "Own transfer")])],
+    );
+    let sent = first.imported()[0];
+    assert!(first.transfers.is_empty());
+    assert_eq!(first.rules.changed.len(), 1, "the Rule sorted it");
+
+    let later = import(
+        &mut book,
+        savings,
+        &[statement(vec![entry(6, 10_000, "S1", "Own transfer")])],
+    );
+    let arrived = later.imported()[0];
+    let [found] = &later.transfers[..] else {
+        panic!("one Transfer: {:?}", later.transfers);
+    };
+    assert_eq!(
+        (found.outgoing.transaction, found.incoming.transaction),
+        (sent, arrived)
+    );
+    assert_eq!(found.outgoing.category, Some(groceries));
+    // The Rules leave the new side for the user to decide.
+    let [skipped] = &later.rules.skipped[..] else {
+        panic!("one skipped: {:?}", later.rules.skipped);
+    };
+    assert_eq!(skipped.transaction, arrived);
+
+    // Joined, the move is no spending: no part is in a category any more,
+    // and both accounts keep what their banks delivered.
+    let before = |id| book.transaction(id).expect("read");
+    let (sent_before, arrived_before) = (before(sent), before(arrived));
+    book.join_transfer(arrived, sent).expect("joined");
+    let transfer = book.transaction(sent).expect("read");
+    assert_eq!(
+        transfer
+            .splits()
+            .iter()
+            .map(|split| (split.account, split.amount, split.imported.clone()))
+            .collect::<Vec<_>>(),
+        [
+            (
+                Some(checking),
+                eur(-10_000),
+                sent_before.splits()[0].imported.clone()
+            ),
+            (
+                Some(savings),
+                eur(10_000),
+                arrived_before.splits()[0].imported.clone()
+            ),
+        ]
+    );
+}
+
+#[test]
 fn the_balance_is_checked_against_the_statements_closing_balance() {
     let Sample {
         mut book,

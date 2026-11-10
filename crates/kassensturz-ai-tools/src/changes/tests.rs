@@ -1673,11 +1673,13 @@ fn edit_properties(allowed: Permissions) -> Option<Vec<String>> {
 #[test]
 fn a_locked_field_is_not_offered_and_a_list_with_every_field_locked_is_left_out() {
     // The amount, the date and the payee are locked until the user chooses.
+    // The account's name may go next to its ID (D-675).
     let by_default = additions();
     assert_eq!(
         edit_properties(by_default),
         Some(vec![
             "account_id".into(),
+            "account_name".into(),
             "note".into(),
             "transaction_id".into()
         ])
@@ -3039,6 +3041,7 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
     assert_eq!(state(&book), before, "no entry in the history either");
 }
 
+mod id_names;
 mod rule_batches;
 mod rule_conditions;
 mod rule_tools;

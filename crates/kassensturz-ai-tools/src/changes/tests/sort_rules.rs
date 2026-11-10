@@ -400,3 +400,14 @@ fn the_summary_says_what_sorts() {
         "sort 1 transactions with all Rules"
     );
 }
+
+#[test]
+fn a_rule_named_next_to_its_id_is_checked() {
+    let (sample, rules) = with_rules();
+    let book = sample.book;
+    let pets = rules[1].id.to_string();
+    let named = sort_call(json!({"rule_id": pets, "rule_name": "Pets"}));
+    assert_eq!(code(propose(&book, &named)), "prepared");
+    let wrong = sort_call(json!({"rule_id": pets, "rule_name": "Grocer"}));
+    assert_eq!(code(propose(&book, &wrong)), "ai-tools.name-mismatch");
+}

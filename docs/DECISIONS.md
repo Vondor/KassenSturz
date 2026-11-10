@@ -612,6 +612,21 @@ Status values: **Decided** (set by the maintainer) · **Proposed** (agent defaul
 | D-688 | Reserved | Spare number (D-577), US2: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
 | D-689 | Reserved | Spare number (D-577), US2: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
 | D-690 | Reserved | Spare number (D-577), US2: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-691 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-692 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-693 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-694 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-695 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-696 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-697 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-698 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-699 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-700 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-701 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-702 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-703 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-704 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-705 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
 
 ## Open Questions
 

@@ -626,10 +626,13 @@ pub(super) fn new_budget(
         last_day: None,
         amounts: Vec::new(),
     };
-    if let Some(category) = budgets.iter().find_map(|budget| probe.clashes_with(budget)) {
-        return Err(ToolError::BudgetRefused(StoreError::BudgetOverlap {
-            category,
-        }));
+    // Refused in the AI's own words, pointing to edit_budgets: the store's
+    // code names the category only by its ID (M6-B216).
+    if budgets
+        .iter()
+        .any(|budget| probe.clashes_with(budget).is_some())
+    {
+        return Err(ToolError::HasBudget);
     }
     if prepared
         .iter()

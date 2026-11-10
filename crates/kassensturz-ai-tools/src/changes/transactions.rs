@@ -151,7 +151,7 @@ impl Known {
         let plain = self.plain_parts(&stored);
 
         // The account the user's money moved in or out of, for the review.
-        let own_index = plain.map(|(own, _)| own).or_else(|| {
+        let own_index = plain.ok().map(|(own, _)| own).or_else(|| {
             splits.iter().position(|split| {
                 split
                     .account
@@ -168,9 +168,9 @@ impl Known {
             .unwrap_or_else(|| Money::from_minor_units(0, stored.currency()));
 
         if let Some(text) = amount {
-            let (own, other) = plain.ok_or(ToolError::NotEditable)?;
+            let (own, other) = plain.map_err(not_editable)?;
             if splits[own].original.is_some() {
-                return Err(ToolError::NotEditable);
+                return Err(not_editable("other-currency"));
             }
             let currency = stored.currency();
             let digits = book.currency_minor_digits(currency)?;
@@ -191,7 +191,7 @@ impl Known {
         }
 
         if let Some(new) = account {
-            let (own, _) = plain.ok_or(ToolError::NotEditable)?;
+            let (own, _) = plain.map_err(not_editable)?;
             let target = self.open_account(new, stored.currency())?;
             if splits[own].account == Some(new) {
                 return Err(ToolError::BadArgument {
@@ -212,7 +212,7 @@ impl Known {
                     return Err(ToolError::BadArgument { argument: "date" });
                 }
                 if splits.iter().any(|split| split.own_date.is_some()) {
-                    return Err(ToolError::NotEditable);
+                    return Err(not_editable("own-date"));
                 }
                 edits.push(FieldEdit {
                     field: Field::Date,
@@ -230,7 +230,7 @@ impl Known {
                     return Err(ToolError::BadArgument { argument: "payee" });
                 }
                 if splits.iter().any(|split| split.own_payee.is_some()) {
-                    return Err(ToolError::NotEditable);
+                    return Err(not_editable("own-payee"));
                 }
                 edits.push(FieldEdit {
                     field: Field::Payee,
@@ -258,7 +258,7 @@ impl Known {
         };
 
         let edited = Transaction::new(stored.id(), booking_date, new_payee, splits)
-            .map_err(|_| ToolError::NotEditable)?
+            .map_err(|_| not_editable("split"))?
             .with_details_of(&stored)
             .with_note(new_note);
         // Shown in the order the review lists them.
@@ -284,25 +284,34 @@ impl Known {
     /// part, when the transaction is plain: two parts in the transaction's
     /// currency, no foreign amount, the other part in a category or in none
     /// yet, so not a transfer, and not delivered by a bank or file.
-    fn plain_parts(&self, transaction: &Transaction) -> Option<(usize, usize)> {
+    ///
+    /// When it isn't plain, why not, as the `reason` of
+    /// `ai-tools.not-editable` (M6-B215).
+    fn plain_parts(&self, transaction: &Transaction) -> Result<(usize, usize), &'static str> {
         let [first, second] = transaction.splits() else {
-            return None;
+            return Err("split");
         };
         let account_of = |split: &Split| split.account.and_then(|id| self.accounts.get(&id));
         let (own, other) = match (account_of(first), account_of(second)) {
             (Some(account), _) if account.kind.is_account() => (0, 1),
             (_, Some(account)) if account.kind.is_account() => (1, 0),
-            _ => return None,
+            _ => return Err("split"),
         };
         let parts = [first, second];
-        let own_account = account_of(parts[own])?;
-        let other_is_category =
-            account_of(parts[other]).is_none_or(|account| account.kind.is_category());
-        let in_one_currency = own_account.currency == transaction.currency()
-            && parts.iter().all(|part| part.foreign.is_none());
+        let own_account = account_of(parts[own]).ok_or("split")?;
+        if !account_of(parts[other]).is_none_or(|account| account.kind.is_category()) {
+            return Err("transfer");
+        }
+        if own_account.currency != transaction.currency()
+            || parts.iter().any(|part| part.foreign.is_some())
+        {
+            return Err("other-currency");
+        }
         // A part a bank or file delivered keeps its account and amount (D-067).
-        let delivered = parts[own].imported.is_some();
-        (other_is_category && in_one_currency && !delivered).then_some((own, other))
+        if parts[own].imported.is_some() {
+            return Err("bank-delivered");
+        }
+        Ok((own, other))
     }
 
     /// An open account of the user in `currency`, by its ID.
@@ -317,6 +326,11 @@ impl Known {
         }
         Ok(account)
     }
+}
+
+/// A refusal of a change the transaction can't take, and why (M6-B215).
+fn not_editable(reason: &'static str) -> ToolError {
+    ToolError::NotEditable { reason }
 }
 
 /// A day written as `YYYY-MM-DD`, as the read functions write it.

@@ -352,15 +352,15 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.9** · **planned** · thread G, after E's first PR · strong, high · M. #572: the AI prepares "sort with all Rules" as one change set, the same run as *Apply Rules* with the overwrite option and preview; hand-sorted entries are never touched, one Undo takes it back. Why: the AI can't do it today
 
-- **US2.10** · **planned** · thread D · standard, medium · S. #569: search rows say which Rule sorted an entry or that it was sorted by hand (`sorted_by`). Why: the data exists in `split_rules` but no tool shows it
+- **US2.10** · **built, in review** (#616, D-672) · thread D · standard, medium · S. #569: search rows say which Rule sorted an entry or that it was sorted by hand (`sorted_by`). Why: the data exists in `split_rules` but no tool shows it
 
 - **US2.11** · **planned** · thread E · standard, high · M. #570: `edit_rules` can add or remove single conditions. Why: resending the whole list can carry cut text (#568)
 
 - **US2.12** · **built** (D-681) · thread F, after A · standard, high · M. #599 and #578 (US1.35, US1.17a): a read-only list of saved charts with ids, then change and delete by id, each a change set the user confirms; the salary month after `@` stays later. Why: a chart the AI made can only be changed by hand
 
-- **US2.13** · **built, in review** (#613, D-670) · thread D · standard, medium · M. #593 (US1.29): `parent_id` on `category_totals`, ids next to names, `group_by` for `payee_totals`, argument names on `ai-tools.bad-period`, the memo sent once, `offset` for `search_transactions`; with US2.20. Why: a model can count twice or mix up categories of the same name
+- **US2.13** · **done** (#613, D-670) · thread D · standard, medium · M. #593 (US1.29): `parent_id` on `category_totals`, ids next to names, `group_by` for `payee_totals`, argument names on `ai-tools.bad-period`, the memo sent once, `offset` for `search_transactions`; with US2.20. Why: a model can count twice or mix up categories of the same name
 
-- **US2.14a** · **planned** · thread D, after US2.10 · standard, medium · S. #594 part (a) (US1.30): possible Transfers are marked in the AI tools, and their descriptions say "joined Transfers". Part (b) goes to US3. Why: income and spending look larger than they are
+- **US2.14a** · **built, in review** (#616, D-672) · thread D, after US2.10 · standard, medium · S. #594 part (a) (US1.30): possible Transfers are marked in the AI tools, and their descriptions say "joined Transfers". Part (b) goes to US3. Why: income and spending look larger than they are
 
 - **US2.15** · **planned** · thread E, after US2.11 · standard, high · M. #595 (US1.31): `check_only` for `propose_changes` and `propose_view`; a shorter description only if the maintainer's re-test shows a client still cutting it. Why: a model can't see a computed amount before the user does
 
@@ -370,7 +370,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.18** · **planned** · thread E, after US2.15 · standard, medium · S. #598 (US1.34): an optional name next to each id in change items, refused when they don't fit. Why: each miscopy costs a retry
 
-- **US2.20** · **built, in review** (#613, D-671) · with US2.13 · standard · S. Decision A4: formula names keep following the chart's own accounts and categories, not a series' `income_accounts` / `expenses_accounts`; the tool text and the formula help say so. Why: changing it would change shown figures
+- **US2.20** · **done** (#613, D-671) · with US2.13 · standard · S. Decision A4: formula names keep following the chart's own accounts and categories, not a series' `income_accounts` / `expenses_accounts`; the tool text and the formula help say so. Why: changing it would change shown figures
 
 - **US2.21** · **planned** · thread E, after US2.18 · standard · S. Decision A7 / B5 (amends D-239): only in a refusal, or where a field or list is left out, the AI is told which setting it is (*Settings › AI › What the AI may do*); the list of what is off is never sent. Why: the AI can point the user to the switch
 

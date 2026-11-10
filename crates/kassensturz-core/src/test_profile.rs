@@ -74,9 +74,13 @@ pub fn allows_in(root: Option<&Path>, path: &Path) -> bool {
 /// Marks the test folder `root` as in use by a running test app, for as long
 /// as the returned file stays open. Several test apps may hold it at once.
 pub fn hold_mark(root: &Path) -> io::Result<File> {
+    // Read and write access, not append only: Windows locks only a file
+    // opened for reading or writing.
     let file = OpenOptions::new()
+        .read(true)
+        .write(true)
         .create(true)
-        .append(true)
+        .truncate(false)
         .open(root.join(MARK))?;
     file.lock_shared()?;
     Ok(file)

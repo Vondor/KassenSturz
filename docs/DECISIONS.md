@@ -616,7 +616,7 @@ Status values: **Decided** (set by the maintainer) · **Proposed** (agent defaul
 | D-692 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
 | D-693 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
 | D-694 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
-| D-695 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
+| D-695 | Decided | **The note on what "waiting" means stands at the start of the `propose_changes` and `propose_view` descriptions of the MCP server** (US3.7, US2 backlog 4; applies D-200). Before, the MCP server added it after the tool's own description; AI tools cut long descriptions at the end (M6-B201), so a weak AI could miss that `waiting` means "call `check_proposed_changes`, don't prepare the same changes again". The words are unchanged, only their place. The chat's own descriptions are not touched. | — |
 | D-696 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
 | D-697 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |
 | D-698 | Reserved | Spare number (D-577), US3: the coordinator hands it to a thread; that thread's pull request replaces this row with its decision. | — |

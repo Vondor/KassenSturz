@@ -274,6 +274,9 @@ ColumnLayout {
 
             Layout.fillWidth: true
             chart: modelData
+            // Which way bars go (D-679); charts without the setting are
+            // automatic.
+            orientation: (preview.subject?.fields ?? []).find(f => f.key === "orientation")?.word ?? "auto"
             // A custom chart's description may carry a title of its own.
             title: (chartData.view?.title ?? "") !== "" ? chartData.view.title : preview.title
         }

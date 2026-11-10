@@ -742,7 +742,14 @@ pub fn cases(ids: &Ids) -> Vec<Case> {
 pub fn misspellings() -> Vec<Case> {
     let mut rows = Vec::new();
     for argument in [
-        "data", "show_as", "measure", "group_by", "period", "compare", "average",
+        "data",
+        "show_as",
+        "measure",
+        "group_by",
+        "period",
+        "compare",
+        "average",
+        "orientation",
     ] {
         let words = view_choices(argument).expect("a list");
         for word in &words {

@@ -796,15 +796,17 @@ pub(crate) mod engine {
     /// How a budget's amount was computed, as fields of its change object:
     /// `basisPeriods` is 0 for an amount the user named, and the texts are
     /// then empty (D-395).
-    fn basis_fields(basis: Option<&BasisView>) -> [(&'static str, QVariant); 6] {
+    fn basis_fields(basis: Option<&BasisView>) -> [(&'static str, QVariant); 8] {
         let none = String::new();
-        let texts = basis.map_or([&none, &none, &none, &none, &none], |basis| {
+        let texts = basis.map_or([&none; 7], |basis| {
             [
                 &basis.from,
                 &basis.to,
                 &basis.spent,
                 &basis.average,
                 &basis.step,
+                &basis.left_out_from,
+                &basis.left_out_to,
             ]
         });
         [
@@ -817,6 +819,8 @@ pub(crate) mod engine {
             ("basisSpent", text(texts[2])),
             ("basisAverage", text(texts[3])),
             ("basisStep", text(texts[4])),
+            ("basisLeftOutFrom", text(texts[5])),
+            ("basisLeftOutTo", text(texts[6])),
         ]
     }
 
@@ -1812,6 +1816,8 @@ mod tests {
                     spent: "2.324,40 €".into(),
                     average: "387,40 €".into(),
                     step: "10,00 €".into(),
+                    left_out_from: "01.11.2026".into(),
+                    left_out_to: "30.11.2026".into(),
                 }),
             },
             ChangeView::EditBudget {
@@ -1998,6 +2004,8 @@ mod tests {
         let basis = [
             "basisAverage",
             "basisFrom",
+            "basisLeftOutFrom",
+            "basisLeftOutTo",
             "basisPeriods",
             "basisSpent",
             "basisStep",
@@ -2032,6 +2040,8 @@ mod tests {
         assert_eq!(text_of(&items[14], "basisAverage"), "387,40 €");
         assert_eq!(text_of(&items[14], "basisStep"), "10,00 €");
         assert_eq!(text_of(&items[14], "basisFrom"), "01.05.2026");
+        assert_eq!(text_of(&items[14], "basisLeftOutFrom"), "01.11.2026");
+        assert_eq!(text_of(&items[14], "basisLeftOutTo"), "30.11.2026");
         let mut expected: Vec<&str> = [
             "accounts",
             "amount",
@@ -2065,6 +2075,7 @@ mod tests {
         assert!(flag_of(&items[15], "carryOver"));
         assert_eq!(number_of(&items[15], "basisPeriods"), 0);
         assert_eq!(text_of(&items[15], "basisAverage"), "");
+        assert_eq!(text_of(&items[15], "basisLeftOutFrom"), "");
     }
 
     /// The keys of a change object without those every change has.

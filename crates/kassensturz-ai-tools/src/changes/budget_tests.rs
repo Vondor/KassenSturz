@@ -911,3 +911,132 @@ fn a_budget_gets_the_name_the_user_asked_for_and_keeps_its_amounts() {
         );
     }
 }
+
+/// The book of #576: 50.00 a month on Food, booked on 30 June, 31 July,
+/// 31 August and 30 September; the October payment slipped to 2 November,
+/// and the November one is booked on 30 November. `from` leaves out the
+/// payments before it, for a book that starts later.
+fn slipped(from: Date) -> Small {
+    let mut book = Book::create_in_memory().expect("book");
+    book.use_currency(EUR).expect("currency");
+    let checking = account("Checking", AccountKind::Asset, None);
+    let food = account("Food", AccountKind::Expense, None);
+    let groceries = account("Groceries", AccountKind::Expense, Some(food.id));
+    let salary = account("Salary", AccountKind::Income, None);
+    let fun = account("Fun", AccountKind::Expense, None);
+    for account in [&checking, &food, &groceries, &salary, &fun] {
+        book.add_account(account).expect("added");
+    }
+    for day in [
+        Date::constant(2026, 6, 30),
+        Date::constant(2026, 7, 31),
+        Date::constant(2026, 8, 31),
+        Date::constant(2026, 9, 30),
+        Date::constant(2026, 11, 2),
+        Date::constant(2026, 11, 30),
+    ] {
+        if day >= from {
+            spend(&mut book, checking.id, food.id, day, 5_000);
+        }
+    }
+    Small {
+        book,
+        checking: checking.id,
+        food: food.id,
+        groceries: groceries.id,
+        salary: salary.id,
+        fun: fun.id,
+    }
+}
+
+fn based_on(small: &Small, word: &str, today: Date) -> Result<Proposal, ToolError> {
+    let food = small.food.to_string();
+    super::super::propose_on(
+        &small.book,
+        &json!({"new_budgets": [{"category_id": food, "every": "month", "based_on": word}]}),
+        Permissions::all(),
+        today,
+    )
+}
+
+#[test]
+fn a_payment_that_slipped_past_the_month_end_moves_the_count_back_one_period() {
+    let small = slipped(Date::constant(2000, 1, 1));
+    // On 14 November October is empty: its payment is in November, which
+    // is never counted. The count moves back to the months before it.
+    let proposal = based_on(&small, "last_period", TODAY).expect("prepared");
+    let new = new_budget(&proposal.changes);
+    let basis = new.basis.expect("computed");
+    assert_eq!(new.amount, eur(5_000));
+    assert_eq!(basis.first_day, Date::constant(2026, 9, 1));
+    assert_eq!(basis.last_day, Date::constant(2026, 9, 30));
+    assert_eq!(
+        basis.left_out,
+        Some((Date::constant(2026, 10, 1), Date::constant(2026, 10, 31)))
+    );
+
+    let proposal = based_on(&small, "average_3_periods", TODAY).expect("prepared");
+    let new = new_budget(&proposal.changes);
+    let basis = new.basis.expect("computed");
+    assert_eq!(new.amount, eur(5_000));
+    assert_eq!(basis.spent, eur(15_000));
+    assert_eq!(basis.first_day, Date::constant(2026, 7, 1));
+    assert_eq!(basis.last_day, Date::constant(2026, 9, 30));
+    assert!(basis.left_out.is_some());
+}
+
+#[test]
+fn a_slip_inside_the_periods_counted_evens_out_and_nothing_moves() {
+    let small = slipped(Date::constant(2000, 1, 1));
+    // On 14 December October is empty and November holds two payments:
+    // September to November spent 150.00, 50.00 a month.
+    let today = Date::constant(2026, 12, 14);
+    let proposal = based_on(&small, "average_3_periods", today).expect("prepared");
+    let new = new_budget(&proposal.changes);
+    let basis = new.basis.expect("computed");
+    assert_eq!(new.amount, eur(5_000));
+    assert_eq!(basis.first_day, Date::constant(2026, 9, 1));
+    assert_eq!(basis.last_day, Date::constant(2026, 11, 30));
+    assert_eq!(basis.left_out, None);
+    // The last period alone is November with both payments: what was
+    // spent in it, as before (D-669 moves only past an empty period).
+    let proposal = based_on(&small, "last_period", today).expect("prepared");
+    assert_eq!(new_budget(&proposal.changes).amount, eur(10_000));
+}
+
+#[test]
+fn spending_that_stopped_is_not_taken_for_a_slip() {
+    let small = slipped(Date::constant(2000, 1, 1));
+    // On 14 March 2027 January and February are both empty: the count
+    // doesn't move, and nothing was spent in the last month.
+    let today = Date::constant(2027, 3, 14);
+    assert_eq!(
+        code(based_on(&small, "last_period", today)),
+        "bad-argument based_on"
+    );
+    // December 2026 and January 2027 empty on 14 February: no move
+    // either, the three months hold only November's 100.00.
+    let today = Date::constant(2027, 2, 14);
+    let proposal = based_on(&small, "average_3_periods", today).expect("prepared");
+    let basis = new_budget(&proposal.changes).basis.expect("computed");
+    assert_eq!(basis.left_out, None);
+    assert_eq!(basis.spent, eur(10_000));
+}
+
+#[test]
+fn the_count_moves_back_only_as_far_as_the_book_reaches() {
+    // The book starts with the payment of 31 August: on 14 November the
+    // count can't move back to July, so August to October are counted
+    // as they are: 100.00 in three months, rounded up to 34.00 (a step
+    // of one whole euro).
+    let small = slipped(Date::constant(2026, 8, 1));
+    let proposal = based_on(&small, "average_3_periods", TODAY).expect("prepared");
+    let new = new_budget(&proposal.changes);
+    let basis = new.basis.expect("computed");
+    assert_eq!(basis.left_out, None);
+    assert_eq!(basis.first_day, Date::constant(2026, 8, 1));
+    assert_eq!(new.amount, eur(3_400));
+    // The last period alone moves to September, which the book reaches.
+    let proposal = based_on(&small, "last_period", TODAY).expect("prepared");
+    assert_eq!(new_budget(&proposal.changes).amount, eur(5_000));
+}

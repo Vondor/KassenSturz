@@ -152,7 +152,7 @@ fn choose_ids(
 /// The settings of a chart the AI prepares besides its kind and dataset,
 /// in the order they are set: words, then lists of ids, then formulas
 /// (D-352, D-650).
-const WORDS: [&str; 4] = ["grouping", "measure", "compare", "average"];
+const WORDS: [&str; 5] = ["grouping", "measure", "compare", "average", "orientation"];
 const ID_LISTS: [&str; 6] = [
     "categories",
     "accounts",
@@ -189,6 +189,7 @@ pub(super) fn new_view(
             "measure",
             "compare",
             "average",
+            "orientation",
             "period",
             "categories",
             "accounts",

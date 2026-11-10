@@ -58,6 +58,10 @@ pub struct AmountBasis {
     /// The step the amount was rounded up to, in whole units of the
     /// currency (one of 1, 5, 10, 50, 100).
     pub round_to: u32,
+    /// The newest full period, first and last day, when it had no spending
+    /// and the count moved back one period past it (D-669); `None` when the
+    /// periods right before the current one were counted.
+    pub left_out: Option<(Date, Date)>,
 }
 
 /// A budget the AI prepares, as the user reviews it.
@@ -327,16 +331,27 @@ fn from_report(error: ReportError) -> ToolError {
 /// The amount of `periods` full periods of `every` before the one that
 /// starts on `current`, for `categories` from `accounts` (none: every
 /// account) in `currency`, rounded up to `round_to` whole
-/// units (D-395).
+/// units (D-395, D-669).
 ///
 /// The spending is counted as a budget counts it, by `budget_utilization`
 /// with a budget that exists only here, so the figure is the same the
 /// Budgets page would show for those periods. The rule: the total spent,
 /// divided by the number of periods, rounded **up** to the next multiple of
-/// the step (an exact division stays as it is). It is refused with
-/// `based_on` when the book's first transaction is after the first period
-/// counted (the book doesn't reach back that far, so the average would be
-/// too low), and when nothing was spent in them.
+/// the step (an exact division stays as it is).
+///
+/// **A payment that slipped past a period's end (D-669):** when the newest
+/// of the full periods has no spending at all and the period before it has
+/// some, the periods counted move back by one period, once: a payment
+/// booked a few days late then sits in the current period, which is never
+/// counted, and counting the empty period would make the amount too low
+/// (`last_period` would be refused). The left-out period is kept in the
+/// basis so the review card says so. Nothing moves when the period before
+/// is empty too (the spending stopped), or when the book doesn't reach
+/// back to the moved first period.
+///
+/// It is refused with `based_on` when the book's first transaction is after
+/// the first period counted (the book doesn't reach back that far, so the
+/// average would be too low), and when nothing was spent in them.
 fn amount_based_on(
     book: &Book,
     counts: &Counts<'_>,
@@ -348,53 +363,54 @@ fn amount_based_on(
     let bad = || ToolError::BadArgument {
         argument: "based_on",
     };
-    let last_day = current.yesterday().map_err(|_| bad())?;
+    // The full periods before the current one, newest first: one more than
+    // asked for, the one a slipped payment moves the count back to.
+    let mut starts = Vec::with_capacity(usize::from(periods) + 1);
     let mut first_day = current;
-    for _ in 0..periods {
+    for _ in 0..=periods {
         let before = first_day.yesterday().map_err(|_| bad())?;
         first_day = every.period_start(before).ok_or_else(bad)?;
+        starts.push(first_day);
     }
-    let first_period_end = every.period_end(first_day).ok_or_else(bad)?;
     let earliest = book.booking_date_range()?.map(|(first, _)| first);
-    if earliest.is_none_or(|earliest| earliest > first_period_end) {
-        return Err(bad());
-    }
-    let currency = counts.currency;
-    let probe = Budget {
-        id: BudgetId::generate(),
-        name: None,
-        categories: counts.categories.to_vec(),
-        accounts: counts.accounts.to_vec(),
-        every,
-        first_day,
-        last_day: Some(last_day),
-        amounts: vec![BudgetAmount {
-            from_day: first_day,
-            amount: Money::from_minor_units(1, currency),
-            carry_over: false,
-        }],
+    let reaches = |start: Date| -> Result<bool, ToolError> {
+        let end = every.period_end(start).ok_or_else(bad)?;
+        Ok(earliest.is_some_and(|earliest| earliest <= end))
     };
-    let period = Period::new(first_day, last_day).map_err(from_report)?;
-    let source = Source::read(book, period)
-        .map_err(from_report)?
-        .with_budgets(vec![probe]);
-    let rows = budget_utilization(
-        &source,
-        period,
-        last_day,
-        BudgetGrouping::Period,
-        &Filter::default(),
-        None,
-    )
-    .map_err(from_report)?;
-    let counted: Vec<Money> = rows
-        .iter()
-        .flat_map(|row| row.periods.iter().map(|shown| shown.spent))
-        .collect();
-    if counted.len() != usize::from(periods) {
+    let asked = usize::from(periods);
+    if !reaches(starts[asked - 1])? {
         return Err(bad());
     }
-    let spent = Money::checked_sum(currency, counted).map_err(|_| bad())?;
+    let reaches_moved = reaches(starts[asked])?;
+    // Read from the oldest start the asked may need, up to the day before
+    // the current period; a period before the book's first transaction is
+    // read as nothing spent and only counted if the move is allowed.
+    let read_from = if reaches_moved {
+        starts[asked]
+    } else {
+        starts[asked - 1]
+    };
+    let last_day = current.yesterday().map_err(|_| bad())?;
+    // Oldest first, as `budget_utilization` gives them.
+    let spent_each = spent_per_period(book, counts, every, read_from, last_day)?;
+    let read = if reaches_moved { asked + 1 } else { asked };
+    if spent_each.len() != read {
+        return Err(bad());
+    }
+    let newest_empty = spent_each[read - 1].is_zero();
+    let before_newest_spent = read >= 2 && spent_each[read - 2].minor_units() > 0;
+    let (counted, left_out) = if reaches_moved && newest_empty && before_newest_spent {
+        let left_from = starts[0];
+        (&spent_each[..asked], Some((left_from, last_day)))
+    } else {
+        (&spent_each[read - asked..], None)
+    };
+    let (first_day, last_day) = match left_out {
+        Some((left_from, _)) => (starts[asked], left_from.yesterday().map_err(|_| bad())?),
+        None => (starts[asked - 1], last_day),
+    };
+    let currency = counts.currency;
+    let spent = Money::checked_sum(currency, counted.iter().copied()).map_err(|_| bad())?;
     let digits = book.currency_minor_digits(currency)?;
     let unit = 10_i128.checked_pow(u32::from(digits)).ok_or_else(bad)?;
     let step = unit * i128::from(round_to);
@@ -426,8 +442,52 @@ fn amount_based_on(
             spent,
             average: money(average)?,
             round_to,
+            left_out,
         },
     ))
+}
+
+/// What `counts` spent in each full period of `every` from `first_day`
+/// (a period's start) to `last_day` (a period's end), oldest first,
+/// counted by `budget_utilization` for a budget that exists only here.
+fn spent_per_period(
+    book: &Book,
+    counts: &Counts<'_>,
+    every: BudgetEvery,
+    first_day: Date,
+    last_day: Date,
+) -> Result<Vec<Money>, ToolError> {
+    let probe = Budget {
+        id: BudgetId::generate(),
+        name: None,
+        categories: counts.categories.to_vec(),
+        accounts: counts.accounts.to_vec(),
+        every,
+        first_day,
+        last_day: Some(last_day),
+        amounts: vec![BudgetAmount {
+            from_day: first_day,
+            amount: Money::from_minor_units(1, counts.currency),
+            carry_over: false,
+        }],
+    };
+    let period = Period::new(first_day, last_day).map_err(from_report)?;
+    let source = Source::read(book, period)
+        .map_err(from_report)?
+        .with_budgets(vec![probe]);
+    let rows = budget_utilization(
+        &source,
+        period,
+        last_day,
+        BudgetGrouping::Period,
+        &Filter::default(),
+        None,
+    )
+    .map_err(from_report)?;
+    Ok(rows
+        .iter()
+        .flat_map(|row| row.periods.iter().map(|shown| shown.spent))
+        .collect())
 }
 
 /// What a budget counts: its categories and accounts, and their currency.

@@ -342,13 +342,13 @@ Goal: backlog cleanup, working down the US1 later list. Tester: the maintainer a
 
 Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8) · D AI read tools (13 with 20, then 10, then 14a) · E AI change tools (11, 15, 18, 21) · F saved charts via AI (12; after A, its `functions.rs` line after D's first PR) · G Rules run via AI (9; after E's first PR) · I AI privacy (16, then 17; security look before 16). `report/src/schema.rs` is shared by A only; `view_call.rs` by A, then F; `changes.rs` by E, then G. Every step adds only its own `po/de` entries. Expected duration 1 to 1.5 days (Q-459), longest chain E then G with five merges.
 
-- **US2.2** · **planned** · thread A · standard, medium · S to M · [format]. #563: bar and stacked bar charts get *Horizontal / Vertical / Automatic*, automatic as today, the same in `propose_view`. Why: the automatic choice can't be overridden
+- **US2.2** · **built, PR open** · thread A · standard, medium · S to M · [format]. #563: bar and stacked bar charts get *Horizontal / Vertical / Automatic*, automatic as today, the same in `propose_view`. Why: the automatic choice can't be overridden
 
 - **US2.4** · **planned** · thread A, after US2.2 · standard, low · S. #605 (M6-B202 later): the *Hide the grey filter notes* switch gets its own labelled row in *Properties*. Why: at the bottom of the account list it is easy to miss
 
 - **US2.5** · **not done** (Q-461) · #528 (US1.15), accounts as names in formulas, closed. Why: per-series accounts (US1.16, #551) and the number card's account filter (D-417) cover the need
 
-- **US2.8** · **planned** · thread C · strong, high · M. #576 (US1.10b): a budget amount `based_on` past spending counts a payment that slipped past a month end correctly; the PR writes the rule down. Why: a figure the user relies on for a budget (principle 1)
+- **US2.8** · **in review** (D-669) · thread C · strong, high · M. #576 (US1.10b): a budget amount `based_on` past spending counts a payment that slipped past a month end correctly; the PR writes the rule down. Why: a figure the user relies on for a budget (principle 1)
 
 - **US2.9** · **planned** · thread G, after E's first PR · strong, high · M. #572: the AI prepares "sort with all Rules" as one change set, the same run as *Apply Rules* with the overwrite option and preview; hand-sorted entries are never touched, one Undo takes it back. Why: the AI can't do it today
 
@@ -364,7 +364,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.15** · **planned** · thread E, after US2.11 · standard, high · M. #595 (US1.31): `check_only` for `propose_changes` and `propose_view`; a shorter description only if the maintainer's re-test shows a client still cutting it. Why: a model can't see a computed amount before the user does
 
-- **US2.16** · **planned** · thread I · strong, high · S to M · human gate (AI data sharing), security look before the PR. #596 (US1.32): the AI's IBAN mask checks length and check digits (ISO 13616), so ISINs, creditor ids and mandate references stay readable. Why: it hides text the AI needs; no real IBAN may reach a model (D-170)
+- **US2.16** · **in review** (D-677) · thread I · strong, high · S to M · human gate (AI data sharing), security look before the PR. #596 (US1.32): the AI's IBAN mask checks length and check digits (ISO 13616), so ISINs, creditor ids and mandate references stay readable. Why: it hides text the AI needs; no real IBAN may reach a model (D-170)
 
 - **US2.17** · **in review** (D-678) · thread I, after US2.16 · standard, high · M · human gate (AI data sharing). #597 (US1.33): optional fixed reason chips when the user refuses a change set; only the chip's keyword reaches the AI, never free text. Why: "declined" alone doesn't say what to fix
 

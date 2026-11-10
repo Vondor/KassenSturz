@@ -75,6 +75,7 @@ const FIXED: &[&str] = &[
     "categories",
     "accounts",
     "average",
+    "orientation",
     "income_categories",
     "income_accounts",
     "expenses_categories",

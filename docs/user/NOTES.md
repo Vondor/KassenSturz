@@ -328,3 +328,10 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **What it divides by:** the months of the period up to today. *The last 3 months* with *Only complete months* is divided by 3; this year in November is divided by 10, because December has not happened yet.
 - **Exact:** each amount and the total are divided once from the exact amounts. The shares of the donut stay what they are for the total. The table ends with the average of all of it.
 - **In a formula:** a name can count rolling months, for example `=Groceries@"last 3 complete months" / 3` for the average of the last three whole months, or `=Rent@"last 6 months"`.
+
+## Which way bars go (US2.2)
+
+- **Bars:** in the Properties of a bar or stacked bar chart, *Bars* can be *Automatic* (as before), *Across (one row per name)* or *Upright (names below)*.
+- **Automatic** draws rows only when one series has names too long to stand under their bars; otherwise the bars stand upright.
+- **Across** works for every bar chart: side-by-side bars lie one under another in their row, each with its value; stacked bars are one row of pieces with the value scale underneath. The AI can propose it too.
+- **Only the picture changes:** the figures, the table and the totals stay the same.

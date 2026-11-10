@@ -190,6 +190,17 @@ ColumnLayout {
         return "";
     }
 
+    // The label on the left of a field's row. A switch carries its own
+    // words, so its row has none, except the switch for the grey filter
+    // notes: under a list of accounts it was easy to miss, so it has a row
+    // of its own, *Filter notes* (US2.4, #605, D-680).
+    function rowLabel(field: var): string {
+        if (field.key === "hide_note") {
+            return i18nContext.i18nc("@label the row with the switch for the grey lines on a tile that say what it is filtered to", "Filter notes");
+        }
+        return field.kind === "flag" ? "" : fieldLabel(field.key);
+    }
+
     function wordName(word: string): string {
         switch (word) {
         case "category":
@@ -362,9 +373,12 @@ ColumnLayout {
                 visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
                     && !(panel.hasColumns && ["categories", "series", "groups", "average", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
                 active: visible
-                Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
+                Kirigami.FormData.label: panel.rowLabel(modelData)
                 Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" ? Qt.AlignTop : Qt.AlignVCenter
                 Layout.fillWidth: true
+                // Space between the switch for the grey notes and a list
+                // above it, so it doesn't read as the list's last line (D-680).
+                Layout.topMargin: modelData.key === "hide_note" ? Kirigami.Units.largeSpacing : 0
                 sourceComponent: modelData.kind === "text" ? textField
                     : modelData.kind === "flag" ? flagBox
                     : modelData.kind === "formula" ? formulaBox

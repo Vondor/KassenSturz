@@ -440,6 +440,10 @@ mod tests {
                     char::from(if n < 10 { b'0' + n } else { b'A' + n - 10 })
                 })
                 .collect();
+            // A mistyped one whose characters after the check digits start
+            // with ZZZ is a creditor id's shape, which stays readable on
+            // purpose (see `iban_end`); a correct one is still left out.
+            proptest::prop_assume!(typo == 0 || !bban.starts_with("ZZZ"));
             let correct = with_check_digits(code, &bban);
             // 0: correct, 1: wrong check digits, 2: one character short,
             // 3: one digit more.

@@ -34,11 +34,16 @@ pub(crate) const CHECK_PROPOSED_CHANGES: &str = "check_proposed_changes";
 const PROPOSE_NOTE: &str = " KassenSturz must be running with this book open. The answer's \
     status says whether the user applied the changes (applied), threw them away (declined) or \
     hasn't decided yet (waiting); for waiting, call check_proposed_changes with its request \
-    later. Don't prepare the same changes again while they wait.";
+    later. Don't prepare the same changes again while they wait. Declined may list the \
+    user's reasons: wrong_category, wrong_amount, wrong_transactions, too_many_changes, \
+    not_what_was_asked.";
 
 const CHECK_DESCRIPTION: &str = "Asks whether the user has decided on changes that \
     propose_changes prepared and that were still waiting. Waits a while for the decision. The \
-    answer's status is applied, declined or waiting.";
+    answer's status is applied, declined or waiting. Declined may list reasons the user \
+    picked from a fixed list: wrong_category (a category you chose is wrong), wrong_amount (an \
+    amount is wrong), wrong_transactions (you picked the wrong transactions), too_many_changes \
+    (too many changes at once), not_what_was_asked (not what the user asked for).";
 
 const CHECK_PARAMETERS: &str = r#"{"type":"object","properties":{"request":{"type":"string","description":"The request from the answer of propose_changes."}},"required":["request"],"additionalProperties":false}"#;
 
@@ -220,7 +225,13 @@ async fn wait_for(
                 folder.finish(id);
                 return match reply {
                     Reply::Applied => Ok(status(id, "applied", None)),
-                    Reply::Declined => Ok(status(id, "declined", None)),
+                    Reply::Declined { reasons } => {
+                        let mut answer = status(id, "declined", None);
+                        if !reasons.is_empty() {
+                            answer["reasons"] = reasons.to_json();
+                        }
+                        Ok(answer)
+                    }
                     Reply::Failed { code } => Err(Failure::Code(known_code(&code))),
                     Reply::Shown { .. } => unreachable!("not final"),
                 };
@@ -280,7 +291,19 @@ fn known_code(code: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use kassensturz_ai_tools::refusal::{REFUSAL_KEYWORDS, RefusalReasons};
     use kassensturz_core::ai_switch::Permission;
+
+    #[test]
+    fn the_ai_tool_is_told_what_every_refusal_keyword_means() {
+        assert!(
+            CHECK_DESCRIPTION.contains(REFUSAL_KEYWORDS),
+            "{CHECK_DESCRIPTION}"
+        );
+        for reason in kassensturz_ai_tools::refusal::RefusalReason::ALL {
+            assert!(PROPOSE_NOTE.contains(reason.keyword()), "{reason:?}");
+        }
+    }
 
     fn tools_named(permissions: Permissions) -> Vec<String> {
         tools(permissions)
@@ -389,13 +412,19 @@ mod tests {
             waiting,
             json!({"request": id.as_str(), "status": "waiting", "changes": 2})
         );
-        app.reply(&id, &Reply::Declined).expect("answered");
+        let reasons = RefusalReasons::from_keywords(["wrong_category", "too_many_changes"]);
+        app.reply(&id, &Reply::Declined { reasons })
+            .expect("answered");
         let decided = run(wait_for(&folder, &id, SHORT, || true))
             .ok()
             .expect("decided");
         assert_eq!(
             decided,
-            json!({"request": id.as_str(), "status": "declined"})
+            json!({
+                "request": id.as_str(),
+                "status": "declined",
+                "reasons": ["wrong_category", "too_many_changes"]
+            })
         );
         // The final answer was read: the files are gone.
         assert_eq!(folder.standing(&id), Standing::Unknown);

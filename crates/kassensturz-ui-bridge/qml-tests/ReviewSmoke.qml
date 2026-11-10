@@ -8,7 +8,8 @@
 // is confirmed
 // before the button is pressed, that the user can correct the chart, leave it
 // out and take the AI's version back (M6b.8), and that the button confirms
-// the set once.
+// the set once, and that the reasons for throwing it away are offered and
+// passed on as keywords (US2.17).
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -113,6 +114,17 @@ Kirigami.ApplicationWindow {
             window.check(window.texts(page, []).includes("Put it back"), "a left-out change can be put back");
             page.backToAi("new_views/0");
             window.check(page.kept.length === 3 && !page.kept[0].edited && page.kept[0].title === "Where the money goes", "back to the AI's version");
+            // Optional reasons for throwing the set away (D-678): fixed
+            // choices, and only their keywords are passed on.
+            const shown = window.texts(page.footer, []);
+            window.check(shown.includes("Wrong category") && shown.includes("Not what I asked for"), "the reasons are offered, got " + shown);
+            page.toggleReason("wrong_category", true);
+            page.toggleReason("too_many_changes", true);
+            page.toggleReason("wrong_category", false);
+            page.toggleReason("wrong_amount", true);
+            window.check(JSON.stringify(page.reasons) === '["too_many_changes","wrong_amount"]', "a reason toggles, got " + JSON.stringify(page.reasons));
+            page.throwAway();
+            window.check(chat.discardedReasons.length === 1 && chat.discardedReasons[0] === '["too_many_changes","wrong_amount"]', "throwing away passes the keywords");
             page.confirm();
             window.check(chat.confirmed.length === 1 && chat.confirmed[0] === "7", "the button confirms the set");
             window.check(page.done, "the page is done");

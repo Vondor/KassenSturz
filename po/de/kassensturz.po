@@ -1013,6 +1013,52 @@ msgctxt "@action:button throw the prepared changes away"
 msgid "Throw away"
 msgstr "Verwerfen"
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Wrong category"
+msgstr "Falsche Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Wrong amount"
+msgstr "Falscher Betrag"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Wrong transactions"
+msgstr "Falsche Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Too many changes"
+msgstr "Zu viele Änderungen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@action:button a reason for throwing the AI's changes away"
+msgid "Not what I asked for"
+msgstr "Nicht das, worum ich gebeten habe"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@label"
+msgid ""
+"If you throw the changes away, you can tell the AI why. Optional; the AI "
+"gets only the reasons you pick:"
+msgstr ""
+"Wenn Sie die Änderungen verwerfen, können Sie der KI sagen, warum. Freiwillig; "
+"die KI erhält nur die Gründe, die Sie auswählen:"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "A reason the AI gets when you throw the changes away"
+msgstr "Ein Grund, den die KI erhält, wenn Sie die Änderungen verwerfen"
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:315
 #, kde-format
 msgctxt "@action:button make all the changes shown"

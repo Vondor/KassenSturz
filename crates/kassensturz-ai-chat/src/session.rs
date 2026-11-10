@@ -13,13 +13,14 @@ use kassensturz_ai::{
     AiError, Finish, FunctionSpec, MAX_ANSWER_TOKENS, Message, PreparedRequest, Provider, Role,
     ToolCall,
 };
+#[cfg(feature = "debug-log")]
+use kassensturz_ai_tools::refusal::{REFUSAL_KEYWORDS, RefusalReasons};
 use kassensturz_ai_tools::{
     ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
     OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange, ToolError,
     Unverified, check_numbers, draft_issue, open_page_allowed, propose_on, propose_spec,
     propose_view_spec, propose_view_text, readable_functions, unique_codes, view_choices,
 };
-#[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
 use kassensturz_core::ai_switch::{self, Permissions};
 #[cfg(feature = "debug-log")]
@@ -137,8 +138,9 @@ pub enum Outcome {
     /// the rest were made as the user left them (D-298). What the user
     /// changed is not said.
     ConfirmedChanged,
-    /// The user threw them away; nothing was changed.
-    Declined,
+    /// The user threw them away, with the reasons they picked from a fixed
+    /// list, if any (D-678); nothing was changed.
+    Declined(RefusalReasons),
     /// The user confirmed them but they could not be made; nothing was
     /// changed.
     Failed,
@@ -148,9 +150,22 @@ pub enum Outcome {
 
 impl Outcome {
     /// What the model is told. Fixed text from KassenSturz, nothing from
-    /// the book.
-    pub fn text(self) -> &'static str {
-        match self {
+    /// the book and nothing the user typed: a refusal's reasons are keywords
+    /// of a fixed list.
+    pub fn text(self) -> String {
+        if let Self::Declined(reasons) = self
+            && !reasons.is_empty()
+        {
+            return format!(
+                "KassenSturz: the user reviewed the changes you prepared and refused them. \
+                 Nothing was changed in the user's book, and nothing waits for approval now. \
+                 The reasons the user picked from a fixed list: {}. The list's keywords mean: \
+                 {REFUSAL_KEYWORDS}. Ask the user what to do differently before you prepare \
+                 changes again.",
+                reasons.keywords().join(", ")
+            );
+        }
+        let text = match self {
             Self::Confirmed => {
                 "KassenSturz: the user reviewed the changes you prepared in KassenSturz's chat \
                  sidebar and confirmed them. They were made in the user's book. Nothing \
@@ -163,7 +178,7 @@ impl Outcome {
                  you prepared. Before you speak about them, read them with the functions; do \
                  not assume your version. Nothing waits for approval now."
             }
-            Self::Declined => {
+            Self::Declined(_) => {
                 "KassenSturz: the user reviewed the changes you prepared and refused them. \
                  Nothing was changed in the user's book, and nothing waits for approval now."
             }
@@ -176,7 +191,8 @@ impl Outcome {
                 "KassenSturz: the user took the changes you prepared back with Undo. They are \
                  no longer in the user's book."
             }
-        }
+        };
+        text.to_owned()
     }
 }
 

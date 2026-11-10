@@ -19018,3 +19018,29 @@ msgstr "Der Name eines Budgets passt in eine Zeile. Entfernen Sie den Zeilenumbr
 msgctxt "@info %1 is a number"
 msgid "A budget's name can have at most %1 characters. Choose a shorter name."
 msgstr "Der Name eines Budgets darf höchstens %1 Zeichen haben. Wählen Sie einen kürzeren Namen."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:176
+#, kde-format
+msgctxt "@label:listbox which way the bars of a bar chart go"
+msgid "Bars"
+msgstr "Balken"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:234
+#, kde-format
+msgctxt ""
+"@item:inlistbox the bars of a chart go the way that fits the names best"
+msgid "Automatic"
+msgstr "Automatisch"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:236
+#, kde-format
+msgctxt "@item:inlistbox the bars of a chart go across, one row per name"
+msgid "Across (one row per name)"
+msgstr "Quer (eine Zeile pro Name)"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:238
+#, kde-format
+msgctxt ""
+"@item:inlistbox the bars of a chart stand upright, the names below them"
+msgid "Upright (names below)"
+msgstr "Aufrecht (Namen darunter)"

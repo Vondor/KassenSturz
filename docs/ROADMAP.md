@@ -364,7 +364,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.15** · **planned** · thread E, after US2.11 · standard, high · M. #595 (US1.31): `check_only` for `propose_changes` and `propose_view`; a shorter description only if the maintainer's re-test shows a client still cutting it. Why: a model can't see a computed amount before the user does
 
-- **US2.16** · **planned** · thread I · strong, high · S to M · human gate (AI data sharing), security look before the PR. #596 (US1.32): the AI's IBAN mask checks length and check digits (ISO 13616), so ISINs, creditor ids and mandate references stay readable. Why: it hides text the AI needs; no real IBAN may reach a model (D-170)
+- **US2.16** · **in review** (D-677) · thread I · strong, high · S to M · human gate (AI data sharing), security look before the PR. #596 (US1.32): the AI's IBAN mask checks length and check digits (ISO 13616), so ISINs, creditor ids and mandate references stay readable. Why: it hides text the AI needs; no real IBAN may reach a model (D-170)
 
 - **US2.17** · **planned** · thread I, after US2.16 · standard, high · M · human gate (AI data sharing). #597 (US1.33): optional fixed reason chips when the user refuses a change set; only the chip's keyword reaches the AI, never free text. Why: "declined" alone doesn't say what to fix
 

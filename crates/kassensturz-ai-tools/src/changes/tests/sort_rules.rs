@@ -92,6 +92,86 @@ fn the_rules_sort_what_has_no_category_and_one_undo_takes_it_back() {
     assert_eq!(category_of(&book, unsorted, checking), None);
 }
 
+/// A Rule that books `payee` to `to`, put first in the list.
+fn first_rule(book: &mut Book, name: &str, payee: &str, to: BookTo) {
+    let rule = Rule {
+        id: RuleId::generate(),
+        name: name.into(),
+        match_mode: MatchMode::All,
+        conditions: vec![Condition::Text {
+            field: TextField::Payee,
+            operator: TextOperator::Contains,
+            value: payee.into(),
+            case_sensitive: false,
+        }],
+        actions: Actions {
+            book_to: Some(to),
+            payee: None,
+        },
+    };
+    book.add_rule(&rule, None).expect("Rule");
+    book.move_rule(rule.id, None, 0).expect("first");
+}
+
+#[test]
+fn what_a_rule_fits_but_cannot_sort_stays_and_is_counted_with_its_reason() {
+    let (sample, _) = with_rules();
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        travel,
+        unsorted,
+        ..
+    } = sample;
+    // A category in US dollars, and no rate for the day (card F, finding 3).
+    let tours = bought(
+        &mut book,
+        "Rocket Tours",
+        vec![
+            Split::new(checking, eur(-4500)),
+            Split::uncategorized(eur(4500)),
+        ],
+    );
+    first_rule(&mut book, "Tours", "rocket", BookTo::Category(travel));
+    // A Transfer into an account that is closed by now.
+    let jar = add(&mut book, account("Holiday jar", AccountKind::Asset, EUR));
+    let saved = bought(
+        &mut book,
+        "Jar money",
+        vec![
+            Split::new(checking, eur(-2500)),
+            Split::uncategorized(eur(2500)),
+        ],
+    );
+    first_rule(&mut book, "Jar", "jar money", BookTo::Transfer(jar));
+    book.close_account(jar).expect("closed");
+
+    let proposal = propose(&book, &sort_call(json!({}))).expect("prepared");
+    let sort = the_sort(&proposal);
+    assert_eq!(
+        sort.changes
+            .iter()
+            .map(|c| c.transaction)
+            .collect::<Vec<_>>(),
+        [unsorted]
+    );
+    assert_eq!(
+        (sort.transfers, sort.no_rate, sort.closed, sort.other),
+        (0, 1, 1, 0)
+    );
+    assert_eq!(sort.staying(), 2);
+    assert!(!sort.books_transfer, "nothing goes into the closed account");
+
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(category_of(&book, unsorted, checking), Some(groceries));
+    assert_eq!(category_of(&book, tours, checking), None, "stays as it is");
+    assert_eq!(category_of(&book, saved, checking), None, "stays as it is");
+}
+
 #[test]
 fn sorting_again_follows_a_changed_rule_but_never_what_the_user_sorted() {
     let (sample, rules) = with_rules();

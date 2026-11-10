@@ -424,7 +424,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.6** · **planned** · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
 
-- **US3.7** · **planned** · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
+- **US3.7** · **in review** (D-695) · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
 
 - **US3.8** · **planned** · thread E, after US3.6 · standard, medium · S. US2 backlog 5: `check_only` on `sort_with_rules` gives a `would_sort` count, without the entries (amends D-682). Why: the AI can tell the user beforehand how many it would sort
 

@@ -262,9 +262,9 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.10** · **done** (#549) · thread E · needs: — · strong, high · D-639 to D-642 · [format]. #519 points 1 and 2 with #524: a budget covers several categories and optionally only chosen accounts, the same in the AI budget tools; the budget bars tile gets "Which budgets" (default all), because filtering by category equals one budget only while a budget has one category. Why: a shared household account could not be budgeted without moving categories. Built: book layout 25 and export version 9 (D-640); the categories and accounts are set when a budget is made, and editing them is later (D-639)
 
-- **US1.10a** · **later** · waits for: US1.10 tried in US1 Phase 3, then a design that says what happens to past periods. Changing a budget's categories or accounts after it is made (D-639). Why: it would change the results of periods already shown (D-345); until then, stopping the budget and making a new one keeps the past as it was
+- **US1.10a** · **later, moved to US3 candidates** (Q-461) · waits for: US1.10 tried in US1 Phase 3, then a design that says what happens to past periods. Changing a budget's categories or accounts after it is made (D-639). Why: it would change the results of periods already shown (D-345); until then, stopping the budget and making a new one keeps the past as it was
 
-- **US1.10b** · **later** (Q-443 = 1) · waits for: its own design of the rule. #576: an amount `based_on` past spending comes out too low when a monthly payment slips past a month end (one month has none, the next has two): `last_period` is refused and `average_3_periods` counts two payments in three months. Why: a gap in how the figure is counted, not a wrong balance; `average_6_periods`, `average_12_periods`, a salary day or a named amount work around it until then
+- **US1.10b** · **later, moved to US2.8** (Q-461) (Q-443 = 1) · waits for: its own design of the rule. #576: an amount `based_on` past spending comes out too low when a monthly payment slips past a month end (one month has none, the next has two): `last_period` is refused and `average_3_periods` counts two payments in three months. Why: a gap in how the figure is counted, not a wrong balance; `average_6_periods`, `average_12_periods`, a salary day or a named amount work around it until then
 
 - **US1.11** · **later** · waits for: US1.10 merged and tried, then its own plain-words design. #519 point 3: a reserve target for an account (an amount or N months of a budget, at the month's lowest point). Why: a new idea for everyday users; US1.10 shows first how much is missing
 
@@ -274,29 +274,29 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **US1.14** · **done** (#542) · thread G · needs: — · standard, high · D-653 to D-654. #529: a kind prefix picks the income or the spending category of the same name, and "all spending" and "all income" include unsorted transactions; the ambiguity error points to the prefix. Why: no wrong figure today, but when both have the same path the error's suggestion is a dead end
 
-- **US1.15** · **later** · waits for: US1.16 merged; then only if a formula still needs an account. #528: accounts and account groups as names in formulas (`category[account]`). Why: US1.16 reaches the "spending of one account" goal for charts, and number cards already have an account filter (D-417)
+- **US1.15** · **not done** (Q-461: dropped as US2.5) · waits for: US1.16 merged; then only if a formula still needs an account. #528: accounts and account groups as names in formulas (`category[account]`). Why: US1.16 reaches the "spending of one account" goal for charts, and number cards already have an account filter (D-417)
 
 - **US1.16** · **done** (#551) · thread F, after US1.12 · needs: US1.12 · strong, high · D-644 to D-651 (shared in thread F). #525 and #527: each chart series gets its own category and account filter; side-by-side bars for income against spending, in the app and in the AI tool (the step checks first whether the app already offers them). Why: one chart with IN = salary and OUT = all spending of one account was not possible. Built: four own lists for money in and money out (D-646) and bars in the catalog (D-647; the drawing existed, left out by design, so no bug). The AI tool takes the own lists with US1.17
 
 - **US1.17** · **done** (#553) · thread F, last · needs: US1.12, US1.13, US1.14, US1.16, and US1.6 merged (`kassensturz-ai-tools`) · standard, high · D-644 to D-651 (shared in thread F). #530 and #534: the AI prepares formula cards, custom charts and the new views (average per month, last N months, complete months only, own lists for money in and money out, D-646) for the user to confirm; the formula is shown in plain words first, and figures come from code. Why: the AI could only offer preset views. Built: `propose_view` takes rolling periods, the average, the own lists for money in and out, and a formula with a target for number cards and progress bars, checked against the book; the review page shows the formula, its target and what it counts in words (D-650)
 
-- **US1.17a** · **later** (Q-444 = 1) · waits for: its own step after US1. #578: AI functions to change and delete a saved chart (by its id, each a change set the user confirms); optionally a salary month after `@` in formulas. Why: `propose_view` only makes new charts, so a chart the AI made earlier has to be changed or deleted by hand on the Statistics page, which already can; a wish, not a wrong figure
+- **US1.17a** · **later, moved to US2.12** (Q-461) (Q-444 = 1) · waits for: its own step after US1. #578: AI functions to change and delete a saved chart (by its id, each a change set the user confirms); optionally a salary month after `@` in formulas. Why: `propose_view` only makes new charts, so a chart the AI made earlier has to be changed or deleted by hand on the Statistics page, which already can; a wish, not a wrong figure
 
-- **US1.17b** · **later** (Q-449 = 1) · candidate for US2 · waits for: its own design, together with #562. #587: on a grouped spending chart (bar, stacked bar, table), each category's figure next to a comparison (the average of 3, 6 or 12 full periods, the previous period or the same period last year), e.g. two bars per category, in the app and in `propose_view`; the design also says how months before the first booking of the chosen accounts or categories count. Why: `compare` exists only on number cards and progress bars, and `average` replaces the total; it overlaps #562 (two periods in one bar chart), so both are designed together
+- **US1.17b** · **later, moved to US3 candidates** (Q-461) (Q-449 = 1) · candidate for US2 · waits for: its own design, together with #562. #587: on a grouped spending chart (bar, stacked bar, table), each category's figure next to a comparison (the average of 3, 6 or 12 full periods, the previous period or the same period last year), e.g. two bars per category, in the app and in `propose_view`; the design also says how months before the first booking of the chosen accounts or categories count. Why: `compare` exists only on number cards and progress bars, and `average` replaces the total; it overlaps #562 (two periods in one bar chart), so both are designed together
 
-- **US1.29** · **later** (Q-452) · US2 backlog cleanup · waits for: US2. #593: the AI read tools' results made easier to use safely: `parent_id` on `category_totals` rows, ids next to category and account names in search and Rule rows, `group_by` for `payee_totals`, argument names on `ai-tools.bad-period`, no memo sent twice inside the bank text, and `offset` for `search_transactions`. Why: no wrong figure, but a model can count twice or mix up categories of the same name (US1 AI interface review)
+- **US1.29** · **later, moved to US2.13** (Q-461) (Q-452) · US2 backlog cleanup · waits for: US2. #593: the AI read tools' results made easier to use safely: `parent_id` on `category_totals` rows, ids next to category and account names in search and Rule rows, `group_by` for `payee_totals`, argument names on `ai-tools.bad-period`, no memo sent twice inside the bank text, and `offset` for `search_transactions`. Why: no wrong figure, but a model can count twice or mix up categories of the same name (US1 AI interface review)
 
-- **US1.30** · **later** (Q-452) · US2 backlog cleanup · waits for: US2; part (b) also its own design (strong model). #594: a move between own accounts whose side a Rule sorted counts as income or spending, and is never suggested as a Transfer; (a) mark possible transfers in the AI tools and say "joined Transfers" in their descriptions, (b) let Transfer suggestions also consider sides a Rule (never the user, D-031) sorted. Why: income and spending look larger than they are (principle 1)
+- **US1.30** · **later, moved to US2.14** (Q-461) (Q-452) · US2 backlog cleanup · waits for: US2; part (b) also its own design (strong model). #594: a move between own accounts whose side a Rule sorted counts as income or spending, and is never suggested as a Transfer; (a) mark possible transfers in the AI tools and say "joined Transfers" in their descriptions, (b) let Transfer suggestions also consider sides a Rule (never the user, D-031) sorted. Why: income and spending look larger than they are (principle 1)
 
-- **US1.31** · **later** (Q-452) · US2 backlog cleanup · waits for: US2, after a re-test of the description length on the next build. #595: `check_only` for `propose_changes` and `propose_view` (same check, nothing sent to the app), and a shorter `propose_changes` description if clients still cut it. Why: a model can't see a computed amount before the user does
+- **US1.31** · **later, moved to US2.15** (Q-461) (Q-452) · US2 backlog cleanup · waits for: US2, after a re-test of the description length on the next build. #595: `check_only` for `propose_changes` and `propose_view` (same check, nothing sent to the app), and a shorter `propose_changes` description if clients still cut it. Why: a model can't see a computed amount before the user does
 
-- **US1.32** · **later** (Q-452) · US2 backlog cleanup · waits for: US2, with the security agent's look before the PR. #596: the IBAN mask for the AI checks the length and check digits (ISO 13616) so ISINs, creditor ids and mandate references stay readable. Why: it now hides text the user's AI needs; no real IBAN may reach a model (D-170)
+- **US1.32** · **later, moved to US2.16** (Q-461) (Q-452) · US2 backlog cleanup · waits for: US2, with the security agent's look before the PR. #596: the IBAN mask for the AI checks the length and check digits (ISO 13616) so ISINs, creditor ids and mandate references stay readable. Why: it now hides text the user's AI needs; no real IBAN may reach a model (D-170)
 
-- **US1.33** · **later** (Q-452) · US2 backlog cleanup · waits for: US2 and a small design. #597: optional reason chips when the user refuses an AI change set, passed to the AI as a keyword. Why: "declined" alone doesn't say what to fix
+- **US1.33** · **later, moved to US2.17** (Q-461) (Q-452) · US2 backlog cleanup · waits for: US2 and a small design. #597: optional reason chips when the user refuses an AI change set, passed to the AI as a keyword. Why: "declined" alone doesn't say what to fix
 
-- **US1.34** · **later** (Q-452) · US2 backlog cleanup · waits for: US2; low priority. #598: a name check on ids in change items, or a unique category path in place of an id, so small models miscopy UUIDv7 ids less. Why: a miscopy is refused, so it costs retries, not data
+- **US1.34** · **later, moved to US2.18** (Q-461) (Q-452) · US2 backlog cleanup · waits for: US2; low priority. #598: a name check on ids in change items, or a unique category path in place of an id, so small models miscopy UUIDv7 ids less. Why: a miscopy is refused, so it costs retries, not data
 
-- **US1.35** · **later** (Q-452) · US2 backlog cleanup · waits for: US2, planned together with US1.17a (#578). #599: a read-only AI function that lists the saved charts with their ids. Why: changing or deleting a chart by id needs a way to find it
+- **US1.35** · **later, moved to US2.12** (Q-461) (Q-452) · US2 backlog cleanup · waits for: US2, planned together with US1.17a (#578). #599: a read-only AI function that lists the saved charts with their ids. Why: changing or deleting a chart by id needs a way to find it
 
 - **US1.18** · **done** (#541) · thread H · needs: — · standard, high · D-656 to D-658. #538: clicking a register column header sorts by it (ascending, then descending), in Rust by exact values; the balance column shows only in date order and is hidden with a short note otherwise. Why: a balance after each entry is only true in date order
 
@@ -324,7 +324,7 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 
 - **M6-B202** · **done** (this PR) · US1 Phase 3 thread "Hide grey filter notes on every tile" · standard, medium · D-663 · [format]. #581: every tile with grey filter notes gets the *Hide the grey filter notes* switch in *Properties* (default shown); problem notes stay
 
-- **M6-B202 later** · **later** (Vondor 2026-11-09, US2 backlog) · candidate for US2 · waits for: US2. #605: the *Hide the grey filter notes* switch in a tile's *Properties* sits at the bottom of the account list, where it is hard to spot; give it its own labelled row (e.g. "Filter notes"), apart from the list. Why: the switch works as wanted (#581), only its place is easy to miss
+- **M6-B202 later** · **later, moved to US2.4** (Q-461) (Vondor 2026-11-09, US2 backlog) · candidate for US2 · waits for: US2. #605: the *Hide the grey filter notes* switch in a tile's *Properties* sits at the bottom of the account list, where it is hard to spot; give it its own labelled row (e.g. "Filter notes"), apart from the list. Why: the switch works as wanted (#581), only its place is easy to miss
 
 - **M6-B203** · **done** (this PR) · US1 Phase 3 thread "Give budgets a name" · strong, high · D-664 · Q-446 = 2 · [format]. #584: a budget can have a name of its own, shown instead of its categories in the app and the AI tools; layout 28 updates existing books after a backup, budgets without a name look as before
 
@@ -335,6 +335,50 @@ Build threads (conflict map): A bank (1, then 3) · B AI rule tools (5, then 6; 
 - **M6-B207** · **done** (this PR) · US1 Phase 3 thread "Flag averages before first booking" · strong, medium · D-668 · Q-451 = R. #590: an average per month, quarter or year that counts months before the first transaction of its accounts and categories keeps its figure and says how many months count as zero, under the chart (hidden by *Hide the grey filter notes*) and in the AI tool's answer (`average_note`)
 
 - **US1.27** · **later** · waits for: the maintainer's stage Go after US1 Phase 3, with the [format] items (US1.9, US1.10, US1.12, US1.19) merged and US1.26 passed; then M7a.6 follows. #512: the stage move from Alpha to Beta (D-495 check)
+
+### User Sprint 2 (US2)
+
+Goal: backlog cleanup, working down the US1 later list. Tester: the maintainer alone, on the installed 0.261109.10 (untagged; US1 stays without a pre-release tag), then CI's builds of main in Phase 3; US2 is tagged at the end of its Phase 3 (Q-460). Phase 1 (sort) 2026-11-10; sorted into 27 items, the maintainer kept the smaller set without design work (Q-461 = R) to fit the week's remaining usage. Phase 2 starts with his Go. Numbers below are the sorting list's. Only item 2 is **[format]**.
+
+Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8) · D AI read tools (13 with 20, then 10, then 14a) · E AI change tools (11, 15, 18, 21) · F saved charts via AI (12; after A, its `functions.rs` line after D's first PR) · G Rules run via AI (9; after E's first PR) · I AI privacy (16, then 17; security look before 16). `report/src/schema.rs` is shared by A only; `view_call.rs` by A, then F; `changes.rs` by E, then G. Every step adds only its own `po/de` entries. Expected duration 1 to 1.5 days (Q-459), longest chain E then G with five merges.
+
+- **US2.2** · **planned** · thread A · standard, medium · S to M · [format]. #563: bar and stacked bar charts get *Horizontal / Vertical / Automatic*, automatic as today, the same in `propose_view`. Why: the automatic choice can't be overridden
+
+- **US2.4** · **planned** · thread A, after US2.2 · standard, low · S. #605 (M6-B202 later): the *Hide the grey filter notes* switch gets its own labelled row in *Properties*. Why: at the bottom of the account list it is easy to miss
+
+- **US2.5** · **not done** (Q-461) · #528 (US1.15), accounts as names in formulas, closed. Why: per-series accounts (US1.16, #551) and the number card's account filter (D-417) cover the need
+
+- **US2.8** · **planned** · thread C · strong, high · M. #576 (US1.10b): a budget amount `based_on` past spending counts a payment that slipped past a month end correctly; the PR writes the rule down. Why: a figure the user relies on for a budget (principle 1)
+
+- **US2.9** · **planned** · thread G, after E's first PR · strong, high · M. #572: the AI prepares "sort with all Rules" as one change set, the same run as *Apply Rules* with the overwrite option and preview; hand-sorted entries are never touched, one Undo takes it back. Why: the AI can't do it today
+
+- **US2.10** · **planned** · thread D · standard, medium · S. #569: search rows say which Rule sorted an entry or that it was sorted by hand (`sorted_by`). Why: the data exists in `split_rules` but no tool shows it
+
+- **US2.11** · **planned** · thread E · standard, high · M. #570: `edit_rules` can add or remove single conditions. Why: resending the whole list can carry cut text (#568)
+
+- **US2.12** · **planned** · thread F, after A · standard, high · M. #599 and #578 (US1.35, US1.17a): a read-only list of saved charts with ids, then change and delete by id, each a change set the user confirms; the salary month after `@` stays later. Why: a chart the AI made can only be changed by hand
+
+- **US2.13** · **planned** · thread D · standard, medium · M. #593 (US1.29): `parent_id` on `category_totals`, ids next to names, `group_by` for `payee_totals`, argument names on `ai-tools.bad-period`, the memo sent once, `offset` for `search_transactions`; with US2.20. Why: a model can count twice or mix up categories of the same name
+
+- **US2.14a** · **planned** · thread D, after US2.10 · standard, medium · S. #594 part (a) (US1.30): possible Transfers are marked in the AI tools, and their descriptions say "joined Transfers". Part (b) goes to US3. Why: income and spending look larger than they are
+
+- **US2.15** · **planned** · thread E, after US2.11 · standard, high · M. #595 (US1.31): `check_only` for `propose_changes` and `propose_view`; a shorter description only if the maintainer's re-test shows a client still cutting it. Why: a model can't see a computed amount before the user does
+
+- **US2.16** · **planned** · thread I · strong, high · S to M · human gate (AI data sharing), security look before the PR. #596 (US1.32): the AI's IBAN mask checks length and check digits (ISO 13616), so ISINs, creditor ids and mandate references stay readable. Why: it hides text the AI needs; no real IBAN may reach a model (D-170)
+
+- **US2.17** · **planned** · thread I, after US2.16 · standard, high · M · human gate (AI data sharing). #597 (US1.33): optional fixed reason chips when the user refuses a change set; only the chip's keyword reaches the AI, never free text. Why: "declined" alone doesn't say what to fix
+
+- **US2.18** · **planned** · thread E, after US2.15 · standard, medium · S. #598 (US1.34): an optional name next to each id in change items, refused when they don't fit. Why: each miscopy costs a retry
+
+- **US2.20** · **planned** · with US2.13 · standard · S. Decision A4: formula names keep following the chart's own accounts and categories, not a series' `income_accounts` / `expenses_accounts`; the tool text and the formula help say so. Why: changing it would change shown figures
+
+- **US2.21** · **planned** · thread E, after US2.18 · standard · S. Decision A7 / B5 (amends D-239): only in a refusal, or where a field or list is left out, the AI is told which setting it is (*Settings › AI › What the AI may do*); the list of what is off is never sent. Why: the AI can point the user to the switch
+
+- **US2.22** · **not done** (Q-461) · #539, bank log oddities, closed as done: points 1 and 2 in US1.1 (#548), point 3 dropped (Q-439)
+
+- **US2 later** · **later** (Q-461) · items 7 (US1.11 reserve target) and 23 to 27 (US1.4 #505 checked in Phase 3, US1.25 #511, US1.20 #515, US1.22 #334, US1.21 #333) keep their US1 lines and stay later
+
+- **US3 candidates** · **later** (Q-461) · waits for: US3, each with its design first, kept as sorted in US2. Items 1 with 3 (#562 a formula per bar and #587 compare with an average, one design for per-bar figures), 6 (US1.10a #607: change a budget's categories or accounts from the current period on, with a dated history so past periods stay as they were, [format]), and 19 with 14b (#571 and #594 part b: join two sides that already have a category as one Transfer, for the AI and the UI, both original amounts kept). Why: design work did not fit the week's remaining usage
 
 ## How to pick work
 

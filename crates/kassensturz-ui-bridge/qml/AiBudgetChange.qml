@@ -119,6 +119,9 @@ Kirigami.AbstractCard {
             textFormat: Text.PlainText
             text: !card.changesAmount
                 ? card.i18nContext.i18nc("@info", "Only the name changes. Every amount stays as it was.")
+                : card.isNew && card.change.every === "range"
+                // A stretch of days the user named has one period (D-688).
+                ? card.i18nContext.i18nc("@info %1 and %2 are the first and last day of a budget for one stretch of days", "Once, from %1 to %2", card.change.from, card.change.to)
                 : card.isNew
                 ? card.i18nContext.i18nc("@info %1 says how often a budget starts again, %2 and %3 are the days of its first period", "%1, first period %2 to %3", card.everyText(card.change.every), card.change.from, card.change.to)
                 : card.i18nContext.i18nc("@info %1 says how often a budget starts again, %2 and %3 are the days of the period a change applies from", "%1. The change applies from the period %2 to %3 on; earlier periods stay as they were.", card.everyText(card.change.every), card.change.from, card.change.to)

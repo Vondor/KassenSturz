@@ -100,7 +100,9 @@ pub const FUNCTIONS: &[Function] = &[
             \"unsorted\": true. A row's \"amount\" is what is booked to that category itself, so \
             the rows add up to the totals. A category with subcategories also has \
             \"amount_with_subcategories\": that category and everything below it; for \
-            \"how much on Food\" use that figure, never the sum of the rows. With \
+            \"how much on Food\" use that figure, never the sum of the rows. A row of a \
+            category inside another has \"parent_id\", the ID of the category it is in; a row \
+            without it is a top-level category or money not sorted yet. With \
             \"account_ids\" only transactions with a part in one of those accounts count, \
             each as a whole, and \"accounts\" names them.",
         parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."}},"required":["from","to"],"additionalProperties":false}"#,
@@ -113,8 +115,11 @@ pub const FUNCTIONS: &[Function] = &[
             from a shop lowers what was paid to it. Moves between the user's own accounts and \
             starting balances are left out. Use it for questions such as \"whom did I pay the \
             most\" instead of adding up search results yourself. With \"account_ids\" only \
-            what went out of or into those accounts counts, and \"accounts\" names them.",
-        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most payees per side and currency. Default 10."}},"required":["from","to"],"additionalProperties":false}"#,
+            what went out of or into those accounts counts, and \"accounts\" names them. \
+            With \"group_by\" \"other_party_name\" entries are grouped by the name the bank \
+            gave the other party instead of the payee shown, and rows name it under \
+            \"other_party_name\".",
+        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most payees per side and currency. Default 10."},"group_by":{"type":"string","enum":["payee","other_party_name"],"description":"payee: the payee shown in the app, which a Rule may have set to a general name; other_party_name: the name the bank gave the other party. Each falls back to the other when an entry has none. Default payee."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {
         name: "search_transactions",
@@ -123,8 +128,12 @@ pub const FUNCTIONS: &[Function] = &[
             money out negative), the payee, memo and bank text, \"other_party_name\" when the \
             bank named the other party differently from the payee (Rules can test either), and \
             the category, the other \
-            account of a transfer, or \"unsorted\": true. Returns how many matched in all, \
-            at most \"limit\" rows and, when rows were cut off, \"rows_left_out\". All filters \
+            account of a transfer, or \"unsorted\": true, each name with its ID \
+            (\"account_id\", \"category_id\" or \"category_ids\", \"transfer_account_id\"). A memo \
+            the bank text already holds is left out, and so is a bank text the memo holds. \
+            Returns how many matched in all, at most \"limit\" rows and, when more rows follow, \
+            \"rows_left_out\" and \"next_offset\": call again with \"offset\" set to it for the \
+            next rows. All filters \
             are optional and combine. With \"unsorted_only\" only entries not sorted into a \
             category yet are found. \"min_amount\" and \"max_amount\" keep entries by their size, \
             money in and out alike. \"sort\" \"largest_out\" lists the most money out first \
@@ -132,7 +141,7 @@ pub const FUNCTIONS: &[Function] = &[
             currencies are grouped by currency. For the biggest expenses use \
             \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, \
             so use them instead of sorting rows yourself.",
-        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, the other party's name, the memo or the bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out moves between the user's own accounts and starting balances, i.e. keep only spending and income. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, the other party's name, the memo or the bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"offset":{"type":"integer","minimum":0,"maximum":100000,"description":"How many matching rows to skip, the next_offset of the call before. Default 0."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out moves between the user's own accounts and starting balances, i.e. keep only spending and income. Use it for the biggest expenses. Default false."}},"additionalProperties":false}"#,
     },
     Function {
         name: "list_categories",
@@ -188,11 +197,16 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "max_amount",
     "skip_transfers",
     "account_ids",
+    "offset",
+    "group_by",
 ];
 
 /// The most accounts `account_ids` of a total names (M6-B206), as many as
 /// a budget may count from.
 const MAX_ACCOUNT_IDS: usize = 20;
+
+/// The most rows a search skips (#593).
+const MAX_OFFSET: u64 = 100_000;
 
 /// The most characters of the text a search looks for.
 const MAX_SEARCH_TEXT: usize = 100;
@@ -297,6 +311,15 @@ fn call_with(
                 Some(_) => args.limit()?.min(read::MAX_PAYEES),
             };
             let accounts = args.accounts(&names)?;
+            let group = args
+                .string("group_by")?
+                .map(|name| {
+                    read::PayeeGroup::from_name(name).ok_or(ToolError::BadArgument {
+                        argument: "group_by",
+                    })
+                })
+                .transpose()?
+                .unwrap_or_default();
             read::payee_totals(
                 book,
                 &mut w,
@@ -304,6 +327,7 @@ fn call_with(
                 read::Period { from, to },
                 &accounts,
                 limit,
+                group,
             )?
         }
         "search_transactions" => {
@@ -315,6 +339,7 @@ fn call_with(
                 from: args.date("from")?,
                 to: args.date("to")?,
                 limit: args.limit()?,
+                offset: args.offset()?,
                 sort: args.sort()?,
                 min_amount: args.size("min_amount")?,
                 max_amount: args.size("max_amount")?,
@@ -562,6 +587,18 @@ impl<'a> Arguments<'a> {
         self.string(name)?
             .map(|text| read::Size::parse(text).ok_or(ToolError::BadArgument { argument: name }))
             .transpose()
+    }
+
+    /// `offset`: a whole number from 0 to [`MAX_OFFSET`]; not given is 0.
+    fn offset(&self) -> Result<usize, ToolError> {
+        let Some(value) = self.get("offset") else {
+            return Ok(0);
+        };
+        value
+            .as_u64()
+            .filter(|offset| *offset <= MAX_OFFSET)
+            .and_then(|offset| usize::try_from(offset).ok())
+            .ok_or(ToolError::BadArgument { argument: "offset" })
     }
 
     fn limit(&self) -> Result<usize, ToolError> {

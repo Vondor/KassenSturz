@@ -321,6 +321,7 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **A list for one side only:** in the chart's Properties, *Money in: only these categories*, *Money in: only these accounts*, *Money out: only these categories* and *Money out: only these accounts* count only what you tick, for that side only. Example: money in from the salary category only next to all money out of the checking account, over a salary month.
 - **Nothing ticked** means that side counts like the rest of the chart: the chart's own lists, or the filter bar. The period is always the same for both sides.
 - **Money out of one account** includes money not sorted into a category yet and leaves out Transfers between your own accounts.
+- **Formulas don't follow these lists (US2.20):** a name in a formula counts the accounts and categories of the whole chart, not the lists for one side. The formula help in *Properties* says so.
 
 ## Spending as an average per month (US1.13)
 

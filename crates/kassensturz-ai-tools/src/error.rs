@@ -295,7 +295,11 @@ impl Report for ToolError {
             Self::UnknownArgument => ErrorReport::new("ai-tools.unknown-argument"),
             Self::UnknownAccount => ErrorReport::new("ai-tools.unknown-account"),
             Self::UnknownCategory => ErrorReport::new("ai-tools.unknown-category"),
-            Self::BadPeriod => ErrorReport::new("ai-tools.bad-period"),
+            // The argument names only, never the days the model sent
+            // (X-8, #593, D-670).
+            Self::BadPeriod => ErrorReport::new("ai-tools.bad-period")
+                .with("argument", ErrorParam::Keyword("to"))
+                .with("not_before", ErrorParam::Keyword("from")),
             Self::UnknownTransaction => ErrorReport::new("ai-tools.unknown-transaction"),
             Self::TooManyChanges => ErrorReport::new("ai-tools.too-many-changes"),
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),

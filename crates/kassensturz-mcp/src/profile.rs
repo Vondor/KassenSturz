@@ -223,7 +223,9 @@ mod tests {
 
     #[test]
     fn a_start_again_is_refused_unless_every_folder_is_in_the_test_folder() {
-        let root = Path::new("/home/someone/.local/share/kassensturz-test");
+        // An absolute path on every system, also on Windows with its drive.
+        let data_home = std::env::temp_dir().join("someone-data");
+        let root = &test_profile::root_in(&data_home);
         let moved: Vec<(&str, OsString)> = test_profile::variables(root)
             .into_iter()
             .map(|(name, value)| (name, value.into_os_string()))
@@ -240,7 +242,7 @@ mod tests {
         // One folder left at the real one, or missing.
         for (index, _) in moved.iter().enumerate() {
             let mut changed = moved.clone();
-            changed[index].1 = OsString::from("/home/someone/.config");
+            changed[index].1 = data_home.join("config").into_os_string();
             assert!(started_again_in(root, reading(changed)).is_err());
             let mut missing = moved.clone();
             missing.remove(index);

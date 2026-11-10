@@ -13,7 +13,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, AmountTest, BookTo, Condition, CurrencyCode,
-    Date, MatchMode, Money, Report as _, RuleNode, Split, TextField, TextOperator, Transaction,
+    Date, MatchMode, Money, Report as _, RuleId, RuleNode, Split, SplitId, TextField, TextOperator,
+    Transaction,
 };
 use kassensturz_store::{Book, StoreError};
 use serde_json::{Map, Value, json};
@@ -246,6 +247,113 @@ fn account_names(
     Ok(Value::Array(list))
 }
 
+/// The transactions that may be a move between two of the user's own
+/// accounts that is not joined as a Transfer (#594 (a), D-672): two parts,
+/// one in one of the user's accounts and one in a category or not sorted
+/// yet, and either the bank names one of the user's other accounts as the
+/// other party (by its IBAN, compared here and never sent), or another
+/// such transaction puts the same amount into, or takes it out of, another
+/// of the user's accounts in the same currency at most
+/// [`kassensturz_core::MAX_BUSINESS_DAYS`] business days apart (D-030). Only
+/// a hint: a Rule or the user may have sorted one side on purpose, and the
+/// user decides (D-031).
+pub(crate) fn possible_transfers(
+    book: &Book,
+    names: &Names,
+) -> Result<HashSet<kassensturz_core::TransactionId>, ToolError> {
+    let squeeze_iban = |iban: &str| -> String {
+        iban.chars()
+            .filter(|c| !c.is_whitespace())
+            .flat_map(char::to_uppercase)
+            .collect()
+    };
+    let own_ibans: HashMap<String, AccountId> = book
+        .bank_links()?
+        .into_iter()
+        .filter_map(|link| Some((squeeze_iban(link.iban.as_deref()?), link.account)))
+        .filter(|(iban, _)| !iban.is_empty())
+        .collect();
+    let mut found = HashSet::new();
+    // (currency, size) -> (date, account, money in?, transaction).
+    type Side = (Date, AccountId, bool, kassensturz_core::TransactionId);
+    let mut sides: HashMap<(CurrencyCode, u64), Vec<Side>> = HashMap::new();
+    for transaction in book.transactions()? {
+        let [first, second] = transaction.splits() else {
+            continue;
+        };
+        let own = |split: &Split| -> Result<bool, StoreError> {
+            Ok(match split.account {
+                Some(id) => names.account(id)?.kind.is_account(),
+                None => false,
+            })
+        };
+        let flows = |split: &Split| -> Result<bool, StoreError> {
+            Ok(match split.account {
+                Some(id) => names.account(id)?.kind.is_category(),
+                None => true,
+            })
+        };
+        let part = if own(first)? && flows(second)? {
+            first
+        } else if own(second)? && flows(first)? {
+            second
+        } else {
+            continue;
+        };
+        let (Some(account), false) = (part.account, part.amount.is_zero()) else {
+            continue;
+        };
+        if part.foreign.is_some() {
+            continue;
+        }
+        let other_iban = part
+            .imported
+            .as_ref()
+            .and_then(|imported| imported.other_party_iban.as_deref())
+            .map(squeeze_iban);
+        if other_iban
+            .and_then(|iban| own_ibans.get(&iban).copied())
+            .is_some_and(|other| other != account)
+        {
+            found.insert(transaction.id());
+        }
+        sides
+            .entry((
+                part.amount.currency(),
+                part.amount.minor_units().unsigned_abs(),
+            ))
+            .or_default()
+            .push((
+                transaction.date_of(part),
+                account,
+                !part.amount.is_negative(),
+                transaction.id(),
+            ));
+    }
+    for group in sides.values_mut() {
+        group.sort_by_key(|side| side.0);
+        for (index, &(date, account, money_in, id)) in group.iter().enumerate() {
+            for &(later, other_account, other_in, other) in &group[index + 1..] {
+                // Sorted by date, so every later side is further away.
+                if kassensturz_core::business_days_apart(
+                    date,
+                    later,
+                    kassensturz_core::MAX_BUSINESS_DAYS,
+                )
+                .is_none()
+                {
+                    break;
+                }
+                if account != other_account && money_in != other_in {
+                    found.insert(id);
+                    found.insert(other);
+                }
+            }
+        }
+    }
+    Ok(found)
+}
+
 /// What money a part of a transaction counts as in the totals.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Bucket {
@@ -265,6 +373,12 @@ type Row = (Option<AccountId>, Money, Option<Money>);
 /// D-089): money moved between the user's own accounts and starting
 /// balances are neither, and each part counts in its transaction's
 /// currency, as the money left or reached the user's accounts.
+///
+/// Of the income and spending, what `possible` transactions hold
+/// ([`possible_transfers`]) is said per side and currency under
+/// `possible_transfers`, so a model can tell the user that some of it may
+/// be moves between their own accounts not joined as Transfers (#594 (a),
+/// D-672). The totals stay as the app counts them.
 pub(crate) fn category_totals(
     book: &Book,
     w: &mut Writer<'_>,
@@ -272,16 +386,45 @@ pub(crate) fn category_totals(
     period: Period,
     accounts: &[AccountId],
     limit: usize,
+    possible: &HashSet<kassensturz_core::TransactionId>,
 ) -> Result<Value, ToolError> {
     let Period { from, to } = period;
     let overflow = |_| StoreError::AmountOverflow;
     let mut sums: HashMap<(CurrencyCode, Bucket), Money> = HashMap::new();
+    // (currency, income?) -> (amount, entries) of possible Transfers.
+    let mut maybe_moves: HashMap<(CurrencyCode, bool), (Money, usize)> = HashMap::new();
     let mut transfers = 0;
     for transaction in book.transactions_between(from, to)? {
         if !in_accounts(&transaction, accounts) {
             continue;
         }
         let currency = transaction.currency();
+        if possible.contains(&transaction.id()) {
+            for split in transaction.splits() {
+                // The side the totals count the part on, as below: a
+                // category by its kind, money not sorted yet by its sign.
+                let income = match split.account {
+                    None => split.amount.is_negative(),
+                    Some(id) => match names.account(id)?.kind {
+                        AccountKind::Income => true,
+                        AccountKind::Expense => false,
+                        _ => continue,
+                    },
+                };
+                // What it adds to that side's figure, signed as the side's
+                // rows are: an income part is negative in the book.
+                let added = if income {
+                    split.amount.checked_neg().map_err(overflow)?
+                } else {
+                    split.amount
+                };
+                let (sum, entries) = maybe_moves
+                    .entry((currency, income))
+                    .or_insert_with(|| (Money::zero(currency), 0));
+                *sum = sum.checked_add(added).map_err(overflow)?;
+                *entries += 1;
+            }
+        }
         let mut own_accounts = 0;
         for split in transaction.splits() {
             let bucket = match split.account {
@@ -427,6 +570,18 @@ pub(crate) fn category_totals(
             if side.len() > limit {
                 entry.insert(format!("{key}_left_out"), w.count(side.len() - limit));
             }
+        }
+        let mut maybe = Map::new();
+        for (key, income) in [("income", true), ("spending", false)] {
+            if let Some((amount, entries)) = maybe_moves.get(&(currency, income)) {
+                maybe.insert(
+                    key.into(),
+                    json!({ "amount": w.amount(*amount)?, "entries": w.count(*entries) }),
+                );
+            }
+        }
+        if !maybe.is_empty() {
+            entry.insert("possible_transfers".into(), Value::Object(maybe));
         }
         per_currency.push(Value::Object(entry));
     }
@@ -615,7 +770,14 @@ pub(crate) struct Search {
     /// Only transactions with a part that has no account yet, i.e. no
     /// category (the row's `unsorted`).
     pub(crate) unsorted_only: bool,
+    /// Whether rows say who sorted them (`sorted_by`, #569, D-672): only
+    /// when the user lets the model read the Rules too.
+    pub(crate) sorted_by: bool,
 }
+
+/// The parts a Rule booked and the user didn't change since, with that Rule
+/// (`None`: removed since), as the store keeps them ([`Book::rule_marks`]).
+type Marks = HashMap<SplitId, Option<RuleId>>;
 
 /// How `search_transactions` orders its rows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -733,6 +895,7 @@ pub(crate) fn search_transactions(
     names: &Names,
     search: &Search,
 ) -> Result<Value, ToolError> {
+    let possible = possible_transfers(book, names)?;
     if let Some(account) = search.account {
         names.own_account(account)?;
     }
@@ -801,6 +964,15 @@ pub(crate) fn search_transactions(
             found.push((date, transaction, part, account));
         }
     }
+    let marks: Marks = if search.sorted_by {
+        book.rule_marks()?
+            .into_iter()
+            .map(|mark| (mark.split, mark.rule))
+            .collect()
+    } else {
+        Marks::new()
+    };
+    let marks = search.sorted_by.then_some(&marks);
     // Newest first; the store's order (by booking date, then ID) breaks
     // ties, reversed.
     found.reverse();
@@ -826,7 +998,13 @@ pub(crate) fn search_transactions(
 
     let mut rows = Vec::new();
     for &(date, transaction, part, account) in found.iter().skip(search.offset).take(search.limit) {
-        rows.push(search_row(w, names, (date, transaction, part, account))?);
+        rows.push(search_row(
+            w,
+            names,
+            (date, transaction, part, account),
+            marks,
+            possible.contains(&transaction.id()),
+        )?);
     }
     let shown = rows.len();
     let mut result = json!({
@@ -859,6 +1037,8 @@ fn search_row(
     w: &mut Writer<'_>,
     names: &Names,
     (date, transaction, part, account): (Date, &Transaction, &Split, &Account),
+    marks: Option<&Marks>,
+    possible_transfer: bool,
 ) -> Result<Value, ToolError> {
     let mut row = Map::new();
     row.insert("date".into(), Value::String(date.to_string()));
@@ -963,6 +1143,34 @@ fn search_row(
     }
     if starting {
         row.insert("starting_balance".into(), Value::Bool(true));
+    }
+    // It may be a move between the user's own accounts that isn't joined
+    // as a Transfer, so it counts as income or spending (#594 (a), D-672).
+    if possible_transfer {
+        row.insert("possible_transfer".into(), Value::Bool(true));
+    }
+    // Who sorted it (#569, D-672), for an entry with a category or a
+    // Transfer: a Rule while the store still marks the part it booked, by
+    // hand without such a mark (the user's own choice, or a change after
+    // the Rule). A Rule that only set the payee sorted nothing.
+    if let Some(marks) = marks
+        && (!categories.is_empty() || transfer.is_some())
+    {
+        let mark = transaction
+            .splits()
+            .iter()
+            .find_map(|split| marks.get(&split.id));
+        match mark {
+            Some(rule) => {
+                row.insert("sorted_by".into(), Value::from("rule"));
+                if let Some(rule) = rule {
+                    row.insert("rule_id".into(), Value::String(rule.to_string()));
+                }
+            }
+            None => {
+                row.insert("sorted_by".into(), Value::from("by_hand"));
+            }
+        }
     }
     Ok(Value::Object(row))
 }

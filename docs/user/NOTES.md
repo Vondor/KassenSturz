@@ -321,6 +321,7 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **A list for one side only:** in the chart's Properties, *Money in: only these categories*, *Money in: only these accounts*, *Money out: only these categories* and *Money out: only these accounts* count only what you tick, for that side only. Example: money in from the salary category only next to all money out of the checking account, over a salary month.
 - **Nothing ticked** means that side counts like the rest of the chart: the chart's own lists, or the filter bar. The period is always the same for both sides.
 - **Money out of one account** includes money not sorted into a category yet and leaves out Transfers between your own accounts.
+- **Formulas don't follow these lists (US2.20):** a name in a formula counts the accounts and categories of the whole chart, not the lists for one side. The formula help in *Properties* says so.
 
 ## Spending as an average per month (US1.13)
 
@@ -328,3 +329,10 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **What it divides by:** the months of the period up to today. *The last 3 months* with *Only complete months* is divided by 3; this year in November is divided by 10, because December has not happened yet.
 - **Exact:** each amount and the total are divided once from the exact amounts. The shares of the donut stay what they are for the total. The table ends with the average of all of it.
 - **In a formula:** a name can count rolling months, for example `=Groceries@"last 3 complete months" / 3` for the average of the last three whole months, or `=Rent@"last 6 months"`.
+
+## Which way bars go (US2.2)
+
+- **Bars:** in the Properties of a bar or stacked bar chart, *Bars* can be *Automatic* (as before), *Across (one row per name)* or *Upright (names below)*.
+- **Automatic** draws rows only when one series has names too long to stand under their bars; otherwise the bars stand upright.
+- **Across** works for every bar chart: side-by-side bars lie one under another in their row, each with its value; stacked bars are one row of pieces with the value scale underneath. The AI can propose it too.
+- **Only the picture changes:** the figures, the table and the totals stay the same.

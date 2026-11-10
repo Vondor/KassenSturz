@@ -600,6 +600,7 @@ fn the_function_is_offered_apart_from_the_read_functions() {
     for name in ARGUMENTS.iter().filter(|name| {
         ![
             "new_views",
+            "edit_views",
             "title",
             "dataset",
             "chart",
@@ -1165,7 +1166,7 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
     // Charts alone are offered as propose_view, not here (D-352).
     for permission in Permission::ALL
         .into_iter()
-        .filter(|p| !p.is_read() && *p != Permission::NewViews)
+        .filter(|p| !p.is_read() && !matches!(p, Permission::NewViews | Permission::EditViews))
     {
         let none = Field::ALL
             .iter()
@@ -2594,12 +2595,15 @@ fn a_chart_needs_its_own_cell_of_the_grid_and_propose_changes_has_no_list_for_it
     let only = Permissions::NONE.with(Permission::NewViews, true);
     assert!(propose_spec(only).is_none());
     assert!(propose_view_spec(only).is_some());
-    assert!(propose_view_spec(without).is_none());
+    // Changing a saved chart is offered through it too (D-681): only with
+    // neither cell is there no propose_view.
+    assert!(propose_view_spec(without).is_some());
+    assert!(propose_view_spec(without.with(Permission::EditViews, false)).is_none());
     let all = propose_spec(Permissions::all()).expect("spec");
     assert!(!all.parameters.contains("new_views"));
     assert!(all.description.contains("propose_view"));
     assert!(
-        !propose_spec(without)
+        !propose_spec(without.with(Permission::EditViews, false))
             .expect("spec")
             .description
             .contains("propose_view")
@@ -3037,5 +3041,6 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
 mod rule_batches;
 mod rule_conditions;
 mod rule_tools;
+mod saved_views;
 mod tool_review;
 mod view_call;

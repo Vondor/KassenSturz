@@ -282,12 +282,8 @@ impl ComponentType {
     /// The properties of this component, in the order the panel lists them.
     pub const fn properties(self) -> &'static [Property] {
         match self {
-            Self::ChartLine
-            | Self::ChartBar
-            | Self::ChartStackedBar
-            | Self::ChartArea
-            | Self::ChartPie
-            | Self::ChartDonut => &CHART,
+            Self::ChartLine | Self::ChartArea | Self::ChartPie | Self::ChartDonut => &CHART,
+            Self::ChartBar | Self::ChartStackedBar => &BAR_CHART,
             Self::KpiCard => &KPI_CARD,
             Self::ProgressBar => &PROGRESS_BAR,
             Self::TableRows => &TABLE,
@@ -588,6 +584,20 @@ const AVERAGE: Property = Property {
     kind: Kind::Choice(&crate::AVERAGE_WORDS),
 };
 pub(crate) const AVERAGE_KEY: &str = "average";
+/// `props.orientation` (US2, #563, D-679): which way the bars of a bar or
+/// stacked bar chart go. `auto`, the default, keeps the rule the chart had
+/// before: rows for one series whose names are too long to stand under
+/// their bars (M6-B3), upright bars otherwise. `horizontal` always draws
+/// rows, `vertical` always upright bars. Only the drawing changes, never a
+/// figure.
+const ORIENTATION: Property = Property {
+    key: ORIENTATION_KEY,
+    place: Place::Props,
+    kind: Kind::Choice(&ORIENTATION_WORDS),
+};
+pub(crate) const ORIENTATION_KEY: &str = "orientation";
+/// The words of `props.orientation`, the default first.
+pub const ORIENTATION_WORDS: [&str; 3] = ["auto", "horizontal", "vertical"];
 
 const CHART: [Property; 16] = [
     GROUPING,
@@ -603,6 +613,27 @@ const CHART: [Property; 16] = [
     COLUMNS,
     TITLE,
     LEGEND,
+    SHOW_HIDDEN,
+    HIDE_NOTE,
+    PERIOD,
+];
+/// Bars and stacked bars: a chart's properties and the way the bars go
+/// (D-679), after the legend.
+const BAR_CHART: [Property; 17] = [
+    GROUPING,
+    AVERAGE,
+    GROUPS,
+    CATEGORIES,
+    ACCOUNTS,
+    SERIES,
+    INCOME_CATEGORIES,
+    INCOME_ACCOUNTS,
+    EXPENSES_CATEGORIES,
+    EXPENSES_ACCOUNTS,
+    COLUMNS,
+    TITLE,
+    LEGEND,
+    ORIENTATION,
     SHOW_HIDDEN,
     HIDE_NOTE,
     PERIOD,

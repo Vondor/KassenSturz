@@ -171,8 +171,10 @@ fn ids_are_offered_only_where_the_grid_lets_the_model_read_them() {
         properties(&all).contains(&"accounts".to_owned()),
         has_accounts
     );
-    // Without Charts › Add there is no function at all.
-    let without = Permissions::all().with(Permission::NewViews, false);
+    // Without Charts › Add and Change there is no function at all.
+    let without = Permissions::all()
+        .with(Permission::NewViews, false)
+        .with(Permission::EditViews, false);
     assert!(propose_view_spec(without).is_none());
     assert_eq!(
         view_code(propose_view_text(
@@ -1108,4 +1110,44 @@ fn an_average_that_counts_months_before_the_first_transaction_says_so() {
     .to_string();
     let proposal = call(&book, &total).expect("prepared");
     assert!(proposal.output.value.get("average_note").is_none());
+}
+
+#[test]
+fn the_ai_chooses_which_way_bars_go() {
+    // US2 (#563, D-679): `orientation` for bars and stacked bars, `auto`
+    // as the default, refused on anything else.
+    let Sample { book, .. } = sample();
+    let spec = propose_view_spec(Permissions::all()).expect("offered");
+    let schema: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    assert_eq!(
+        words(&schema["properties"]["orientation"]),
+        ["auto", "horizontal", "vertical"]
+    );
+    assert_eq!(
+        Some(words(&schema["properties"]["orientation"])),
+        view_choices("orientation")
+    );
+    let text = |show_as: &str, orientation: &str| {
+        json!({"title": format!("{show_as} {orientation}"), "data": "income_expense_by_month",
+            "show_as": show_as, "orientation": orientation})
+        .to_string()
+    };
+    for show_as in ["bar", "stacked_bar"] {
+        let proposal = call(&book, &text(show_as, "horizontal")).expect("prepared");
+        let component: Value =
+            serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+        assert_eq!(component["props"]["orientation"], "horizontal", "{show_as}");
+        let proposal = call(&book, &text(show_as, "auto")).expect("prepared");
+        let component: Value =
+            serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+        assert!(component["props"].get("orientation").is_none(), "{show_as}");
+    }
+    assert_eq!(
+        view_code(call(&book, &text("line", "vertical"))),
+        "bad-argument orientation"
+    );
+    assert_eq!(
+        view_code(call(&book, &text("bar", "sideways"))),
+        "bad-argument orientation"
+    );
 }

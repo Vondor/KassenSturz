@@ -14,12 +14,12 @@
 
 use std::collections::HashSet;
 
-use kassensturz_core::ViewKind;
+use kassensturz_core::{StoredView, ViewId, ViewKind};
 use kassensturz_report::{
-    Component, ComponentType, Document, FORMULA_MEASURE, MAX_TEXT_CHARS, PERIODS, ReportError,
-    Rolling, Setting, read_range_word,
+    Component, ComponentType, Document, FORMULA_MEASURE, Item, MAX_TEXT_CHARS, PERIODS,
+    ReportError, Rolling, Setting, read_range_word,
 };
-use kassensturz_store::Book;
+use kassensturz_store::{Book, StoreError};
 use serde_json::{Map, Value};
 
 use super::Object;
@@ -58,6 +58,54 @@ impl NewView {
     pub fn component_json(&self) -> String {
         self.component.to_value().to_string()
     }
+}
+
+/// A saved chart the AI changes (D-681): only what its call named, the
+/// rest as the user left it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EditView {
+    /// The chart.
+    pub id: ViewId,
+    /// Its name now.
+    pub before: String,
+    /// Its name after; the same when it isn't renamed.
+    pub title: String,
+    /// The period it shows after.
+    pub period: String,
+    component: Component,
+    /// The document as the user reviewed it: applying fails if it changed
+    /// since.
+    reviewed: String,
+    /// The document that is saved when the user confirms.
+    document: String,
+}
+
+impl EditView {
+    /// The id of its kind of component after the change.
+    pub fn type_id(&self) -> &'static str {
+        self.component.kind().id()
+    }
+
+    /// The id of the dataset it shows after the change.
+    pub fn dataset_id(&self) -> &'static str {
+        self.component.dataset().id
+    }
+
+    /// The component after the change as JSON text, for the preview.
+    pub fn component_json(&self) -> String {
+        self.component.to_value().to_string()
+    }
+}
+
+/// A saved chart the AI deletes (D-681). Undo brings it back.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeleteView {
+    /// The chart.
+    pub id: ViewId,
+    /// Its name.
+    pub name: String,
+    /// The document as the user reviewed it.
+    reviewed: String,
 }
 
 /// The kind of component `auto` stands for: money by category reads best as
@@ -152,7 +200,7 @@ fn choose_ids(
 /// The settings of a chart the AI prepares besides its kind and dataset,
 /// in the order they are set: words, then lists of ids, then formulas
 /// (D-352, D-650).
-const WORDS: [&str; 4] = ["grouping", "measure", "compare", "average"];
+const WORDS: [&str; 5] = ["grouping", "measure", "compare", "average", "orientation"];
 const ID_LISTS: [&str; 6] = [
     "categories",
     "accounts",
@@ -189,6 +237,7 @@ pub(super) fn new_view(
             "measure",
             "compare",
             "average",
+            "orientation",
             "period",
             "categories",
             "accounts",
@@ -321,4 +370,285 @@ pub(super) fn keep_fitting(item: &mut Map<String, Value>) {
             item.remove(key);
         }
     }
+}
+
+/// A chart saved under Statistics, by the ID in `item`'s `view_id`: a
+/// dashboard or an ID the book doesn't have is unknown (D-681).
+fn saved_chart(book: &Book, item: &Object<'_>) -> Result<StoredView, ToolError> {
+    let id = item
+        .uuid("view_id")?
+        .map(ViewId::from_bytes)
+        .ok_or(ToolError::BadArgument {
+            argument: "view_id",
+        })?;
+    let view = match book.view(id) {
+        Err(StoreError::UnknownView(_)) => return Err(ToolError::UnknownView),
+        other => other?,
+    };
+    if view.kind != ViewKind::View {
+        return Err(ToolError::UnknownView);
+    }
+    Ok(view)
+}
+
+/// A saved chart's document and its one component, or why the AI can't
+/// change it: a chart of a newer version or of a kind this version doesn't
+/// know is kept as it is.
+fn chart_of(view: &StoredView) -> Result<(Document, Component), ToolError> {
+    let unreadable = || ToolError::NotChangeable {
+        argument: "view_id",
+        reason: "unreadable",
+    };
+    let document = Document::read(&view.document).map_err(|_| unreadable())?;
+    match document.entries.first().map(|entry| &entry.item) {
+        Some(Item::Component(component)) => {
+            let component = component.clone();
+            Ok((document, component))
+        }
+        _ => Err(unreadable()),
+    }
+}
+
+/// The keys of an item of `edit_views`: those of `new_views` and the
+/// chart's ID.
+const EDIT_KEYS: [&str; 18] = [
+    "view_id",
+    "title",
+    "dataset",
+    "chart",
+    "grouping",
+    "measure",
+    "compare",
+    "average",
+    "orientation",
+    "period",
+    "categories",
+    "accounts",
+    "income_categories",
+    "income_accounts",
+    "expenses_categories",
+    "expenses_accounts",
+    "formula",
+    "target",
+];
+
+/// The `compare` word for no comparison, which puts the chart's
+/// comparison back to its default.
+const NO_COMPARISON: &str = "none";
+
+/// Checks one entry of `edit_views`, the item `propose_view` made of a call
+/// with `view_id` (D-681), against the book: the saved chart takes each
+/// setting the item names, through the same schema as a chart the user
+/// changes by hand, and keeps every other one. `names` holds the names of
+/// the charts the set saves, so two of them can't take one name; `touched`
+/// the charts it changes or deletes.
+pub(super) fn edit_view(
+    book: &Book,
+    value: &Value,
+    names: &mut HashSet<String>,
+    touched: &mut HashSet<ViewId>,
+) -> Result<EditView, ToolError> {
+    let item = Object::read(value, &EDIT_KEYS, "edit_views")?;
+    let view = saved_chart(book, &item)?;
+    if !touched.insert(view.id) {
+        return Err(ToolError::BadArgument {
+            argument: "view_id",
+        });
+    }
+    let (mut document, mut component) = chart_of(&view)?;
+    let dataset = item.string("dataset")?;
+    if let Some(dataset) = dataset
+        && !kassensturz_report::dataset(dataset).is_some_and(|info| info.for_ai)
+    {
+        return Err(ToolError::BadArgument {
+            argument: "dataset",
+        });
+    }
+    let grouping = item.string("grouping")?;
+    if grouping == Some(kassensturz_report::GROUPS_GROUPING) {
+        return Err(ToolError::BadArgument {
+            argument: "grouping",
+        });
+    }
+    if let Some(chart) = item.string("chart")? {
+        let shown = dataset.unwrap_or(component.dataset().id);
+        let kind = match chart {
+            "auto" => automatic(shown, grouping),
+            id => ComponentType::from_id(id),
+        }
+        .ok_or(ToolError::BadArgument { argument: "chart" })?;
+        if kind != component.kind() {
+            component
+                .change_kind(kind)
+                .map_err(|_: ReportError| ToolError::BadArgument { argument: "chart" })?;
+        }
+    }
+    if let Some(dataset) = dataset {
+        component
+            .use_dataset(dataset)
+            .map_err(|_: ReportError| ToolError::BadArgument {
+                argument: if item.get("chart").is_some() {
+                    "chart"
+                } else {
+                    "dataset"
+                },
+            })?;
+    }
+    let kind = component.kind();
+    let defaults = Component::new(kind, component.dataset().id)
+        .map_err(|_: ReportError| ToolError::BadArgument { argument: "chart" })?;
+    let formula = item.string("formula")?;
+    let mut measure = item.string("measure")?;
+    if formula.is_some() && kind == ComponentType::KpiCard {
+        match measure {
+            None | Some(FORMULA_MEASURE) => measure = Some(FORMULA_MEASURE),
+            Some(_) => {
+                return Err(ToolError::BadArgument {
+                    argument: "measure",
+                });
+            }
+        }
+    }
+    for key in WORDS {
+        let word = match key {
+            "grouping" => grouping,
+            "measure" => measure,
+            _ => item.string(key)?,
+        };
+        let Some(word) = word else { continue };
+        let setting = match (key, defaults.get(key)) {
+            ("compare", Some(default)) if word == NO_COMPARISON => default.clone(),
+            _ => Setting::Word(word.to_owned()),
+        };
+        component
+            .set(key, setting)
+            .map_err(|_| ToolError::BadArgument { argument: key })?;
+    }
+    for key in ID_LISTS {
+        if item.get(key).is_none() {
+            continue;
+        }
+        let ids = item
+            .array(key)?
+            .iter()
+            .map(|id| id.as_str().map(str::to_owned))
+            .collect::<Option<Vec<_>>>()
+            .ok_or(ToolError::BadArgument { argument: key })?;
+        component
+            .set(key, Setting::Ids(ids))
+            .map_err(|_| ToolError::BadArgument { argument: key })?;
+    }
+    for key in FORMULAS {
+        let text = if key == "formula" {
+            formula
+        } else {
+            item.string(key)?
+        };
+        if let Some(text) = text {
+            component
+                .set(key, Setting::Text(text.to_owned()))
+                .map_err(|_| ToolError::BadArgument { argument: key })?;
+        }
+    }
+    let title = match item.string("title")? {
+        Some(text) => {
+            let text = title(text)?;
+            component
+                .set("title", Setting::Text(text.clone()))
+                .map_err(|_| ToolError::BadArgument { argument: "title" })?;
+            text
+        }
+        None => document.name.clone(),
+    };
+    let period = match item.string("period")? {
+        Some("page") => super::view_call::default_period(component.dataset().id).to_owned(),
+        Some(period) if is_view_period(period) => period.to_owned(),
+        Some(_) => return Err(ToolError::BadArgument { argument: "period" }),
+        None => document
+            .period
+            .clone()
+            .unwrap_or_else(|| super::view_call::default_period(component.dataset().id).to_owned()),
+    };
+    // A new name is checked as a new chart's is, against the others.
+    let key = title.to_lowercase();
+    if key != document.name.to_lowercase() {
+        let taken = book
+            .views(Some(ViewKind::View))?
+            .iter()
+            .any(|other| other.id != view.id && other.name.to_lowercase() == key);
+        if taken {
+            return Err(ToolError::NameTaken);
+        }
+    }
+    if !names.insert(key) {
+        return Err(ToolError::NameTaken);
+    }
+    let before = document.name.clone();
+    document.name.clone_from(&title);
+    if item.get("period").is_some() || document.period.is_some() {
+        document.period = Some(period.clone());
+    }
+    if let Some(entry) = document.entries.first_mut() {
+        entry.item = Item::Component(component.clone());
+    }
+    let text = document.to_json();
+    Document::read(&text).map_err(|_| ToolError::BadArgument { argument: "title" })?;
+    Ok(EditView {
+        id: view.id,
+        before,
+        title,
+        period,
+        component,
+        reviewed: view.document,
+        document: text,
+    })
+}
+
+/// Checks one entry of `delete_views` against the book (D-681).
+pub(super) fn delete_view(
+    book: &Book,
+    value: &Value,
+    touched: &mut HashSet<ViewId>,
+) -> Result<DeleteView, ToolError> {
+    let item = Object::read(value, &["view_id"], "delete_views")?;
+    let view = saved_chart(book, &item)?;
+    if !touched.insert(view.id) {
+        return Err(ToolError::NotChangeable {
+            argument: "view_id",
+            reason: "also-deleted",
+        });
+    }
+    Ok(DeleteView {
+        id: view.id,
+        name: view.name,
+        reviewed: view.document,
+    })
+}
+
+/// The saved chart `id` as the user reviewed it, or the set is out of date:
+/// the user changed or deleted it since.
+fn unchanged(book: &Book, id: ViewId, reviewed: &str) -> Result<(), super::ChangeError> {
+    match book.view(id) {
+        Err(StoreError::UnknownView(_)) => Err(super::ChangeError::OutOfDate),
+        Err(error) => Err(error.into()),
+        Ok(view) if view.document != reviewed => Err(super::ChangeError::OutOfDate),
+        Ok(_) => Ok(()),
+    }
+}
+
+/// Saves a changed chart, as the user's own change of it would.
+pub(super) fn apply_edit_view(book: &mut Book, edit: &EditView) -> Result<(), super::ChangeError> {
+    unchanged(book, edit.id, &edit.reviewed)?;
+    book.edit_view(edit.id, &edit.document)?;
+    Ok(())
+}
+
+/// Deletes a saved chart; Undo brings it back.
+pub(super) fn apply_delete_view(
+    book: &mut Book,
+    delete: &DeleteView,
+) -> Result<(), super::ChangeError> {
+    unchanged(book, delete.id, &delete.reviewed)?;
+    book.remove_view(delete.id)?;
+    Ok(())
 }

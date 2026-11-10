@@ -36,6 +36,7 @@ pub const ACTIONS: &[&str] = &[
     "AiChangeReviewPage_close",
     "AiChangeReviewPage_confirmMakeThese",
     "AiChangeReviewPage_putBack",
+    "AiChangeReviewPage_reason",
     "AiChangeReviewPage_throwAway",
     "AiChangeReviewPage_undo",
     "AiChartCard_addToOverview",

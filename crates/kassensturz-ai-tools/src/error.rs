@@ -95,6 +95,8 @@ pub enum ToolError {
     OtherCurrency,
     /// No Rule has that ID.
     UnknownRule,
+    /// No chart saved under Statistics has that ID (D-681).
+    UnknownView,
     /// A Rule or category can't be changed that way: a Rule with sub-Rules
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
     /// Transfer or has conditions a model can't write keeps them. The
@@ -295,7 +297,11 @@ impl Report for ToolError {
             Self::UnknownArgument => ErrorReport::new("ai-tools.unknown-argument"),
             Self::UnknownAccount => ErrorReport::new("ai-tools.unknown-account"),
             Self::UnknownCategory => ErrorReport::new("ai-tools.unknown-category"),
-            Self::BadPeriod => ErrorReport::new("ai-tools.bad-period"),
+            // The argument names only, never the days the model sent
+            // (X-8, #593, D-670).
+            Self::BadPeriod => ErrorReport::new("ai-tools.bad-period")
+                .with("argument", ErrorParam::Keyword("to"))
+                .with("not_before", ErrorParam::Keyword("from")),
             Self::UnknownTransaction => ErrorReport::new("ai-tools.unknown-transaction"),
             Self::TooManyChanges => ErrorReport::new("ai-tools.too-many-changes"),
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
@@ -308,6 +314,7 @@ impl Report for ToolError {
             }
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
+            Self::UnknownView => ErrorReport::new("ai-tools.unknown-view"),
             Self::NotChangeable { argument, reason } => ErrorReport::new("ai-tools.not-changeable")
                 .with("argument", ErrorParam::Keyword(argument))
                 .with("reason", ErrorParam::Keyword(reason)),
@@ -395,6 +402,7 @@ mod tests {
             ToolError::NotDeletable,
             ToolError::OtherCurrency,
             ToolError::UnknownRule,
+            ToolError::UnknownView,
             ToolError::NotChangeable {
                 argument: "conditions",
                 reason: "conditions-hidden",

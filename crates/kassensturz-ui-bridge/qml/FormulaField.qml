@@ -155,7 +155,7 @@ ColumnLayout {
             ? field.i18nContext.i18nc("@info:placeholder an example of a formula for a target", "For example =400")
             : field.i18nContext.i18nc("@info:placeholder an example of a formula", "For example =Pets - Travel")
         Accessible.name: field.i18nContext.i18nc("@label:textbox a formula that works out a figure", "Formula")
-        Accessible.description: field.i18nContext.i18nc("@info", "Use the names of your categories and groups. Add a time range to a name with @, for example Pets@\"last month\" or Pets@2026-03. Put Income. or Spending. in front of a name to pick money that came in or went out, for example Spending.Pets. Spending.ALL and Income.ALL count everything, also what is not sorted into a category yet.")
+        Accessible.description: field.i18nContext.i18nc("@info", "Use the names of your categories and groups. Add a time range to a name with @, for example Pets@\"last month\" or Pets@2026-03. Put Income. or Spending. in front of a name to pick money that came in or went out, for example Spending.Pets. Spending.ALL and Income.ALL count everything, also what is not sorted into a category yet. A name counts the accounts and categories of the whole chart, not the lists for money in only or money out only.")
         // The text decides what is offered; a typing pause decides when the
         // result is worked out again.
         onTextEdited: {

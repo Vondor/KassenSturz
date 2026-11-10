@@ -148,6 +148,13 @@ pub mod qobject {
         #[qinvokable]
         fn discard(self: Pin<&mut AiChat>, id: &QString);
 
+        /// The user throws the set `id` away for `reasons`, a JSON array of
+        /// the keywords of the reasons they picked (D-678). Only those
+        /// keywords reach the AI; anything else in it is left out.
+        #[qinvokable]
+        #[cxx_name = "discardBecause"]
+        fn discard_because(self: Pin<&mut AiChat>, id: &QString, reasons: &QString);
+
         /// The user took the changes they confirmed back with Undo: the
         /// model hears it with the next question.
         #[qinvokable]
@@ -260,6 +267,7 @@ pub(crate) mod engine {
     use kassensturz_ai_chat::{
         Answer, BuildInfo, ChatError, ChatSession, Feature, LogEntry, Mode, Outcome,
     };
+    use kassensturz_ai_tools::refusal::RefusalReasons;
     use kassensturz_ai_tools::requests::RequestFolder;
     use kassensturz_ai_tools::{
         ChangeError, ChangeSet, EditError, IssueDraft, PageTarget, ProposedChange, ToolError,
@@ -718,6 +726,21 @@ pub(crate) mod engine {
                 ("component", text(component)),
                 ("charts", list(charts.iter().map(|chart| text(chart)))),
             ],
+            ChangeView::EditView {
+                before,
+                title,
+                period,
+                component,
+            } => vec![
+                ("kind", text("editView")),
+                ("before", text(before)),
+                ("title", text(title)),
+                ("period", text(period)),
+                ("component", text(component)),
+            ],
+            ChangeView::DeleteView { name } => {
+                vec![("kind", text("deleteView")), ("name", text(name))]
+            }
             ChangeView::NewBudget {
                 name,
                 category,
@@ -788,15 +811,17 @@ pub(crate) mod engine {
     /// How a budget's amount was computed, as fields of its change object:
     /// `basisPeriods` is 0 for an amount the user named, and the texts are
     /// then empty (D-395).
-    fn basis_fields(basis: Option<&BasisView>) -> [(&'static str, QVariant); 6] {
+    fn basis_fields(basis: Option<&BasisView>) -> [(&'static str, QVariant); 8] {
         let none = String::new();
-        let texts = basis.map_or([&none, &none, &none, &none, &none], |basis| {
+        let texts = basis.map_or([&none; 7], |basis| {
             [
                 &basis.from,
                 &basis.to,
                 &basis.spent,
                 &basis.average,
                 &basis.step,
+                &basis.left_out_from,
+                &basis.left_out_to,
             ]
         });
         [
@@ -809,6 +834,8 @@ pub(crate) mod engine {
             ("basisSpent", text(texts[2])),
             ("basisAverage", text(texts[3])),
             ("basisStep", text(texts[4])),
+            ("basisLeftOutFrom", text(texts[5])),
+            ("basisLeftOutTo", text(texts[6])),
         ]
     }
 
@@ -1097,7 +1124,7 @@ pub(crate) mod engine {
         }
     }
 
-    pub(super) fn discard(mut chat: Pin<&mut qobject::AiChat>, id: &str) {
+    pub(super) fn discard(mut chat: Pin<&mut qobject::AiChat>, id: &str, reasons: RefusalReasons) {
         crate::note!(ChangesDeclined);
         let mut rust = chat.as_mut().rust_mut();
         let state = &mut rust.state;
@@ -1114,10 +1141,10 @@ pub(crate) mod engine {
         match from {
             Some(from) => {
                 if let Some(inbox) = state.inbox.as_mut() {
-                    tell_declined(inbox, &from);
+                    tell_declined(inbox, &from, reasons);
                 }
             }
-            None => state.tell_chat(Outcome::Declined),
+            None => state.tell_chat(Outcome::Declined(reasons)),
         }
     }
 
@@ -1230,7 +1257,20 @@ impl qobject::AiChat {
     }
 
     fn discard(self: Pin<&mut Self>, id: &QString) {
-        engine::discard(self, &id.to_string());
+        engine::discard(
+            self,
+            &id.to_string(),
+            kassensturz_ai_tools::refusal::RefusalReasons::NONE,
+        );
+    }
+
+    fn discard_because(self: Pin<&mut Self>, id: &QString, reasons: &QString) {
+        use kassensturz_ai_tools::refusal::RefusalReasons;
+        let reasons = serde_json::from_str(&reasons.to_string())
+            .map_or(RefusalReasons::NONE, |value| {
+                RefusalReasons::from_json(&value)
+            });
+        engine::discard(self, &id.to_string(), reasons);
     }
 
     fn edit_change(
@@ -1302,6 +1342,8 @@ impl qobject::AiChat {
     fn review_leave_out(&self, _phrase: &QString) {}
 
     fn discard(self: Pin<&mut Self>, _id: &QString) {}
+
+    fn discard_because(self: Pin<&mut Self>, _id: &QString, _reasons: &QString) {}
 
     fn edit_change(
         self: Pin<&mut Self>,
@@ -1789,6 +1831,8 @@ mod tests {
                     spent: "2.324,40 €".into(),
                     average: "387,40 €".into(),
                     step: "10,00 €".into(),
+                    left_out_from: "01.11.2026".into(),
+                    left_out_to: "30.11.2026".into(),
                 }),
             },
             ChangeView::EditBudget {
@@ -1807,6 +1851,15 @@ mod tests {
                 carried_over: false,
                 carry_over: true,
                 basis: None,
+            },
+            ChangeView::EditView {
+                before: "Spending".into(),
+                title: "<b>Spending</b> by row".into(),
+                period: "last-12-months".into(),
+                component: r#"{"type":"chart.bar"}"#.into(),
+            },
+            ChangeView::DeleteView {
+                name: "<b>Old</b> chart".into(),
             },
         ];
         let rows: Vec<ChangeRow> = views
@@ -1831,7 +1884,7 @@ mod tests {
             .collect();
         let object = changes_object(&rows);
         let items = elements(&object).expect("an array");
-        assert_eq!(items.len(), 16);
+        assert_eq!(items.len(), 18);
         // What the user did with each change (D-293).
         assert_eq!(
             keys(&items[1]),
@@ -1975,6 +2028,8 @@ mod tests {
         let basis = [
             "basisAverage",
             "basisFrom",
+            "basisLeftOutFrom",
+            "basisLeftOutTo",
             "basisPeriods",
             "basisSpent",
             "basisStep",
@@ -2009,6 +2064,8 @@ mod tests {
         assert_eq!(text_of(&items[14], "basisAverage"), "387,40 €");
         assert_eq!(text_of(&items[14], "basisStep"), "10,00 €");
         assert_eq!(text_of(&items[14], "basisFrom"), "01.05.2026");
+        assert_eq!(text_of(&items[14], "basisLeftOutFrom"), "01.11.2026");
+        assert_eq!(text_of(&items[14], "basisLeftOutTo"), "30.11.2026");
         let mut expected: Vec<&str> = [
             "accounts",
             "amount",
@@ -2042,6 +2099,20 @@ mod tests {
         assert!(flag_of(&items[15], "carryOver"));
         assert_eq!(number_of(&items[15], "basisPeriods"), 0);
         assert_eq!(text_of(&items[15], "basisAverage"), "");
+        assert_eq!(text_of(&items[15], "basisLeftOutFrom"), "");
+        // Saved charts the AI changes or deletes (D-681).
+        assert_eq!(
+            own_keys(&items[16]),
+            ["before", "component", "kind", "period", "title"]
+        );
+        assert_eq!(text_of(&items[16], "kind"), "editView");
+        assert_eq!(text_of(&items[16], "before"), "Spending");
+        assert_eq!(text_of(&items[16], "title"), "<b>Spending</b> by row");
+        assert_eq!(text_of(&items[16], "period"), "last-12-months");
+        assert_eq!(text_of(&items[16], "component"), r#"{"type":"chart.bar"}"#);
+        assert_eq!(own_keys(&items[17]), ["kind", "name"]);
+        assert_eq!(text_of(&items[17], "kind"), "deleteView");
+        assert_eq!(text_of(&items[17], "name"), "<b>Old</b> chart");
     }
 
     /// The keys of a change object without those every change has.

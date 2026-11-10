@@ -75,6 +75,7 @@ const FIXED: &[&str] = &[
     "categories",
     "accounts",
     "average",
+    "orientation",
     "income_categories",
     "income_accounts",
     "expenses_categories",
@@ -93,6 +94,9 @@ const FIXED: &[&str] = &[
     "too-big",
     "target-kinds",
     "invalid",
+    // The argument names of `ai-tools.bad-period` (D-670).
+    "to",
+    "from",
 ];
 
 /// A refusal carries fixed names and numbers only, and never the marker.

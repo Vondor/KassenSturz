@@ -35,6 +35,10 @@ fn expected(case: &Case) -> (String, Option<String>) {
     if case.text.trim().is_empty() {
         return ("ai-tools.bad-argument".into(), Some("title".into()));
     }
+    // A period that ends before it starts names its last day (D-670).
+    if case.expected == "ai-tools.bad-period" {
+        return (case.expected.clone(), Some("to".into()));
+    }
     if let Some(argument) = case.expected.strip_prefix("bad-formula ") {
         return ("ai-tools.bad-formula".into(), Some(argument.into()));
     }
@@ -161,6 +165,9 @@ fn every_refused_call_is_answered_with_fixed_words_only_and_prepares_nothing() {
                     // A refused formula's place and fixed reason (D-650).
                     "position",
                     "reason",
+                    // The first day a period's last day must not be before
+                    // (D-670).
+                    "not_before",
                 ]
                 .contains(key)
             }) {

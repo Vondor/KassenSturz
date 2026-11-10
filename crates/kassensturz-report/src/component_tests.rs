@@ -549,3 +549,53 @@ fn columns_survive_changing_between_charts_and_tables_and_back() {
         assert_eq!(chart.get("columns"), Some(&columns), "after {kind:?}");
     }
 }
+
+#[test]
+fn bars_choose_their_orientation_and_automatic_is_not_written() {
+    // Only bars and stacked bars have the setting (D-679).
+    for kind in ComponentType::ALL {
+        let has = kind.properties().iter().any(|p| p.key == "orientation");
+        assert_eq!(
+            has,
+            matches!(
+                kind,
+                ComponentType::ChartBar | ComponentType::ChartStackedBar
+            ),
+            "{kind:?}"
+        );
+    }
+    assert_eq!(ORIENTATION_WORDS, ["auto", "horizontal", "vertical"]);
+    let mut chart =
+        Component::new(ComponentType::ChartStackedBar, INCOME_EXPENSE_BY_MONTH).unwrap();
+    // A new chart is automatic, as every chart was before, and a document
+    // written without the setting reads as automatic.
+    assert_eq!(
+        chart.get("orientation"),
+        Some(&Setting::Word("auto".into()))
+    );
+    let value = chart.to_value();
+    assert!(value["props"].get("orientation").is_none());
+    assert_eq!(Component::from_value(&value).unwrap(), chart);
+    // A chosen way is written and read back.
+    chart
+        .set("orientation", Setting::Word("horizontal".into()))
+        .unwrap();
+    let value = chart.to_value();
+    assert_eq!(value["props"]["orientation"], json!("horizontal"));
+    assert_eq!(Component::from_value(&value).unwrap(), chart);
+    // A word that is not one of the three is refused.
+    let mut wrong = value.clone();
+    wrong["props"]["orientation"] = json!("diagonal");
+    assert!(Component::from_value(&wrong).is_err());
+    // It stays between bars and stacked bars, and goes with a line.
+    chart.change_kind(ComponentType::ChartBar).unwrap();
+    assert_eq!(
+        chart.get("orientation"),
+        Some(&Setting::Word("horizontal".into()))
+    );
+    chart.change_kind(ComponentType::ChartLine).unwrap();
+    assert_eq!(chart.get("orientation"), None);
+    let mut line = chart.to_value();
+    line["props"]["orientation"] = json!("vertical");
+    assert!(Component::from_value(&line).is_err());
+}

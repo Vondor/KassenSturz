@@ -31,7 +31,9 @@ use crate::bank_connection::FAKE_BANK_VARIABLE;
 /// The variable that starts the test profile without the fake bank.
 pub const TEST_VARIABLE: &str = "KASSENSTURZ_TEST";
 
-pub use kassensturz_core::test_profile::{FOLDER_NAME, allows_in, root_in, variables};
+#[cfg(test)]
+use kassensturz_core::test_profile::FOLDER_NAME;
+pub use kassensturz_core::test_profile::{allows_in, root_in, variables};
 use kassensturz_core::test_profile::{hold_mark, real_data_home};
 
 /// The settings file's name, as KConfig names the app's own (`Settings::user`).

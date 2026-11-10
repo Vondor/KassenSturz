@@ -58,6 +58,10 @@ impl NewView {
     pub fn component_json(&self) -> String {
         self.component.to_value().to_string()
     }
+    /// The component, for the figure its answer gives (D-685).
+    pub(super) const fn component(&self) -> &Component {
+        &self.component
+    }
 }
 
 /// A saved chart the AI changes (D-681): only what its call named, the
@@ -94,6 +98,11 @@ impl EditView {
     /// The component after the change as JSON text, for the preview.
     pub fn component_json(&self) -> String {
         self.component.to_value().to_string()
+    }
+    /// The component after the change, for the figure its answer gives
+    /// (D-685).
+    pub(super) const fn component(&self) -> &Component {
+        &self.component
     }
 }
 

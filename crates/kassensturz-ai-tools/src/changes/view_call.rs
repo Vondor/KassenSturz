@@ -36,7 +36,7 @@ use kassensturz_report::{
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
 
-use super::{Proposal, ProposeSpec, prepare, views};
+use super::{Proposal, ProposeSpec, prepare, view_figure, views};
 use crate::error::ToolError;
 use crate::text::hides_text;
 
@@ -550,7 +550,8 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         ", plus a short title.\n- Call it once per chart, at most {MAX_VIEWS_PER_ANSWER} charts \
          in one answer.\n- KassenSturz computes every figure itself and shows the user a \
          preview; nothing is saved until the user confirms it in KassenSturz's window, and the \
-         user may refuse it.\n- A refused call says which argument is wrong and, for a list, \
+         user may refuse it. For figure and progress the answer's computed holds the figure \
+         the chart shows; tell the user that one.\n- A refused call says which argument is wrong and, for a list, \
          which values suit the chosen data (allowed), which show_as take the argument \
          (only_for_show_as) or which argument to use instead (use_instead).\n- The description of data says what each data counts and how \
          it can be drawn, grouped and measured."
@@ -665,6 +666,8 @@ pub fn propose_view(
         proposal.output.figures.add_count(u64::from(early.counted));
         proposal.output.figures.add_count(u64::from(early.before));
     }
+    // What a key figure or a progress bar shows (D-685).
+    view_figure::add_figure(book, &mut proposal, today)?;
     Ok(proposal)
 }
 

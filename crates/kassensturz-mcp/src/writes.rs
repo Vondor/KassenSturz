@@ -26,7 +26,7 @@ use kassensturz_ai_tools::{
 use kassensturz_core::ai_switch::{self, Permissions};
 use kassensturz_store::Book;
 use rmcp::model::{JsonObject, Tool, ToolAnnotations};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 /// The tool that asks again about a request.
 pub(crate) const CHECK_PROPOSED_CHANGES: &str = "check_proposed_changes";
@@ -183,16 +183,16 @@ async fn propose(
     let (check_only, arguments) = take_check_only(arguments).map_err(Failure::Tool)?;
     // The same check the app makes again (D-199): the AI tool hears about
     // a bad call at once, and nothing reaches the app that can't work.
-    let checked = Book::open_to_read(book)
+    let (checked, figure) = Book::open_to_read(book)
         .map_err(ToolError::from)
         .and_then(|book| {
             book.reading(|book| {
                 let proposal =
                     prepare_named(book, name, &arguments, permissions, crate::server::today())?;
                 if check_only {
-                    check_only_answer(book, &proposal).map(Some)
+                    check_only_answer(book, &proposal).map(|answer| (Some(answer), Map::new()))
                 } else {
-                    Ok(None)
+                    Ok((None, figure_of(&proposal.output.value)))
                 }
             })
         })
@@ -203,7 +203,25 @@ async fn propose(
     let id = folder
         .send_call(book, name, &arguments)
         .map_err(|_| Failure::Code("mcp-writes.folder".into()))?;
-    wait_for(folder, &id, waits, ai_switch::write_tools_enabled).await
+    let mut answer = wait_for(folder, &id, waits, ai_switch::write_tools_enabled).await?;
+    // The figure the prepared chart shows (D-685), with the answer that
+    // says it was saved or still waits; a declined chart shows none.
+    if answer["status"] != "declined"
+        && let Value::Object(answer) = &mut answer
+    {
+        answer.extend(figure);
+    }
+    Ok(answer)
+}
+
+/// The figure a prepared key figure or progress bar shows, from the answer
+/// of `propose_view` (D-685): `computed` and its note, or `not_computed`.
+/// Empty for any other call.
+fn figure_of(answer: &Value) -> Map<String, Value> {
+    ["computed", "computed_note", "not_computed"]
+        .into_iter()
+        .filter_map(|key| Some((key.to_owned(), answer.get(key)?.clone())))
+        .collect()
 }
 
 /// The request named in the arguments of `check_proposed_changes`.

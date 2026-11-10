@@ -180,15 +180,16 @@ impl ServerHandler for Server {
         let arguments = request.arguments.map_or(Value::Null, Value::Object);
         // Looked up for each call: the app may have opened another book
         // since the last one (M6-B208).
-        if let Some(code) = self.profile.refusal() {
-            // A test app started or ended since the start: no book is read
-            // until the AI tool starts the server again (Q-466).
-            let value = serde_json::json!({
-                "error": code,
-                "next_step": RESTART,
-            });
+        // A test app started or ended since the start, or does while this
+        // call reads: no answer goes out until the AI tool starts the server
+        // again (Q-466, D-683).
+        let refused = |code: &'static str| {
             self.note(&request.name, Some(code));
-            return Ok(CallToolResult::error(vec![ContentBlock::text(value.to_string())]).into());
+            let value = serde_json::json!({ "error": code, "next_step": RESTART });
+            Ok(CallToolResult::error(vec![ContentBlock::text(value.to_string())]).into())
+        };
+        if let Some(code) = self.profile.refusal() {
+            return refused(code);
         }
         let book = match self.book.path(self.profile.test_root()) {
             Ok(book) => book,
@@ -231,8 +232,19 @@ impl ServerHandler for Server {
                 }
             }
         } else {
-            self.read(&book, &request.name, &arguments)
+            match self
+                .profile
+                .guarded(|| self.read(&book, &request.name, &arguments))
+            {
+                Ok(read) => read,
+                Err(code) => return refused(code),
+            }
         };
+        // A write's request already went to the request folder of the
+        // profile read at the start, which only an app of that profile reads.
+        if let Some(code) = self.profile.refusal() {
+            return refused(code);
+        }
         self.note(&request.name, code);
         Ok(result.into())
     }

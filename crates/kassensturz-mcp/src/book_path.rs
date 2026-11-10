@@ -42,7 +42,7 @@ impl Source {
             Self::Given(path) => path.clone(),
             Self::OpenedLast => last_book()?,
         };
-        if test_profile::allows_in(test_root, &path) {
+        if allowed(test_root, &path) {
             Ok(path)
         } else {
             Err(
@@ -68,6 +68,23 @@ pub(crate) fn from_arguments(
             _ => Err(usage()),
         },
         Some(_) => Err(usage()),
+    }
+}
+
+/// Whether the test profile with the test folder `test_root` allows the book
+/// at `path`: by its name, and, where it exists, also by where its links lead,
+/// so a link in the test folder can't name a real book.
+fn allowed(test_root: Option<&Path>, path: &Path) -> bool {
+    let Some(root) = test_root else {
+        return true;
+    };
+    if !test_profile::allows_in(Some(root), path) {
+        return false;
+    }
+    match (path.canonicalize(), root.canonicalize()) {
+        (Ok(path), Ok(root)) => test_profile::allows_in(Some(&root), &path),
+        // A book that isn't there can't be read either; its error says so.
+        _ => !path.exists(),
     }
 }
 

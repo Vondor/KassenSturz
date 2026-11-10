@@ -60,9 +60,11 @@ pub(crate) enum Start {
 /// Which profile to read, at the start, before anything reads the settings.
 pub(crate) fn at_start() -> Start {
     if let Some(root) = std::env::var_os(TEST_ROOT).filter(|root| !root.is_empty()) {
-        return Start::Read(Profile::Test {
-            root: PathBuf::from(root),
-        });
+        let root = PathBuf::from(root);
+        return match started_again_in(&root, |name| std::env::var_os(name)) {
+            Ok(()) => Start::Read(Profile::Test { root }),
+            Err(message) => Start::Unknown(message),
+        };
     }
     let Some(root) = test_profile::real_data_home().map(|home| test_profile::root_in(&home)) else {
         return Start::Read(Profile::Real { test_root: None });
@@ -81,6 +83,31 @@ pub(crate) fn at_start() -> Start {
              book is read. Restart this AI tool."
         )),
     }
+}
+
+/// Checks the start again in the test folder `root`, with `variable` reading
+/// the environment: `root` is a test folder, not `/` or a relative path, and
+/// every folder the profile moves is the one under `root`, so nothing can be
+/// read from a real folder in its name.
+fn started_again_in(
+    root: &Path,
+    variable: impl Fn(&str) -> Option<OsString>,
+) -> Result<(), String> {
+    let refused = || {
+        format!(
+            "{TEST_ROOT} doesn't name a test folder with the test profile's folders, so no book \
+             is read. Restart this AI tool."
+        )
+    };
+    if !root.is_absolute() || root.parent().is_none() || root.file_name().is_none() {
+        return Err(refused());
+    }
+    for (name, value) in test_profile::variables(root) {
+        if variable(name).map(PathBuf::from) != Some(value) {
+            return Err(refused());
+        }
+    }
+    Ok(())
 }
 
 /// Starts this program again with `variables` set and the same arguments.
@@ -108,6 +135,20 @@ pub(crate) fn start_again(_variables: Vec<(&'static str, PathBuf)>) -> String {
 }
 
 impl Profile {
+    /// Runs `read` and returns its answer, or the refusal when no call may
+    /// be answered, checked both before and after `read`: a test app that
+    /// starts or ends while it reads drops the answer (M6-B208).
+    pub(crate) fn guarded<T>(&self, read: impl FnOnce() -> T) -> Result<T, &'static str> {
+        if let Some(code) = self.refusal() {
+            return Err(code);
+        }
+        let answer = read();
+        match self.refusal() {
+            Some(code) => Err(code),
+            None => Ok(answer),
+        }
+    }
+
     /// The test folder, in the test profile.
     pub(crate) fn test_root(&self) -> Option<&Path> {
         match self {
@@ -134,6 +175,85 @@ impl Profile {
                 Ok(false) => Some(TEST_APP_ENDED),
                 Err(_) => Some(TEST_APP_UNKNOWN),
             },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn folder(name: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "kassensturz-mcp-profile-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).expect("folder");
+        path
+    }
+
+    #[test]
+    fn an_answer_read_while_a_test_app_started_or_ended_is_dropped() {
+        let root = folder("race");
+        // A test app starts while the real book is read.
+        let real = Profile::Real {
+            test_root: Some(root.clone()),
+        };
+        let mut mark = None;
+        let answer = real.guarded(|| {
+            mark = Some(test_profile::hold_mark(&root).expect("marked"));
+            "real accounts"
+        });
+        assert_eq!(answer, Err(TEST_APP_STARTED));
+
+        // The test app ends while its book is read.
+        let test = Profile::Test { root: root.clone() };
+        assert_eq!(test.guarded(|| "test accounts"), Ok("test accounts"));
+        let answer = test.guarded(|| {
+            drop(mark.take());
+            "test accounts"
+        });
+        assert_eq!(answer, Err(TEST_APP_ENDED));
+
+        // Nothing changes while it reads: the answer stays.
+        assert_eq!(real.guarded(|| "real accounts"), Ok("real accounts"));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_start_again_is_refused_unless_every_folder_is_in_the_test_folder() {
+        let root = Path::new("/home/someone/.local/share/kassensturz-test");
+        let moved: Vec<(&str, OsString)> = test_profile::variables(root)
+            .into_iter()
+            .map(|(name, value)| (name, value.into_os_string()))
+            .collect();
+        let reading = |variables: Vec<(&'static str, OsString)>| {
+            move |name: &str| {
+                variables
+                    .iter()
+                    .find(|(variable, _)| *variable == name)
+                    .map(|(_, value)| value.clone())
+            }
+        };
+        assert_eq!(started_again_in(root, reading(moved.clone())), Ok(()));
+        // One folder left at the real one, or missing.
+        for (index, _) in moved.iter().enumerate() {
+            let mut changed = moved.clone();
+            changed[index].1 = OsString::from("/home/someone/.config");
+            assert!(started_again_in(root, reading(changed)).is_err());
+            let mut missing = moved.clone();
+            missing.remove(index);
+            assert!(started_again_in(root, reading(missing)).is_err());
+        }
+        // The whole file system, or a relative path, as the test folder.
+        for root in ["/", "kassensturz-test", ""] {
+            let root = Path::new(root);
+            let moved = test_profile::variables(root)
+                .into_iter()
+                .map(|(name, value)| (name, value.into_os_string()))
+                .collect();
+            assert!(started_again_in(root, reading(moved)).is_err(), "{root:?}");
         }
     }
 }

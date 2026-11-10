@@ -210,3 +210,52 @@ fn in_the_test_profile_its_own_switch_and_folder_decide() {
     }
     drop(mark);
 }
+
+#[test]
+fn a_link_in_the_test_folder_to_the_real_book_is_refused() {
+    let folder = Folder::new("test-app-link");
+    let root = test_profile_with_example(&folder, true);
+    let link = root.join("data/Link.ksz");
+    std::os::unix::fs::symlink(folder.path().join("Household.ksz"), &link).expect("link");
+    let settings = root.join("config/kassensturzrc");
+    let text = std::fs::read_to_string(&settings)
+        .expect("settings")
+        .replace(
+            &format!("{}", root.join("data/Example.ksz").display()),
+            &format!("{}", link.display()),
+        );
+    std::fs::write(&settings, text).expect("settings written");
+    let mark = kassensturz_core::test_profile::hold_mark(&root).expect("marked");
+    let output = common::run(folder.path(), &[]);
+    assert_eq!(output.status.code(), Some(2), "{}", common::stderr(&output));
+    assert!(common::stderr(&output).contains("test profile"));
+    drop(mark);
+}
+
+#[test]
+fn a_test_folder_named_from_outside_is_refused_unless_every_folder_is_in_it() {
+    let folder = Folder::new("test-root-variable");
+    folder.book();
+    open_in_app(&folder, "Household.ksz");
+    // The variable alone, with the real folders left as they are: no book
+    // is read from them.
+    let root = test_root(&folder);
+    let output = common::program(folder.path(), &[])
+        .env("KASSENSTURZ_MCP_TEST_ROOT", &root)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("runs");
+    assert_eq!(output.status.code(), Some(2), "{}", common::stderr(&output));
+    // The whole file system as the test folder, with every folder moved
+    // under it.
+    let mut command = common::program(folder.path(), &[]);
+    command.env("KASSENSTURZ_MCP_TEST_ROOT", "/");
+    for (name, value) in kassensturz_core::test_profile::variables(std::path::Path::new("/")) {
+        command.env(name, value);
+    }
+    let output = command
+        .stdin(std::process::Stdio::null())
+        .output()
+        .expect("runs");
+    assert_eq!(output.status.code(), Some(2), "{}", common::stderr(&output));
+}

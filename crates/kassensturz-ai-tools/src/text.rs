@@ -29,8 +29,8 @@ pub(crate) const IBAN_LEFT_OUT: &str = "[IBAN left out]";
 /// territories that share a country's layout under their own code (for
 /// example `AX`, `GF`, `JE`), and the countries whose banks use IBANs that
 /// aren't in the registry yet (for example `DZ`, `MA`, `SN`). Only an IBAN
-/// of exactly its country's length is left out; a country missing here is
-/// handled by [`ends_at_word`] instead.
+/// near its country's length is left out (see [`iban_end`]); a country
+/// missing here is handled by the check digits alone.
 #[rustfmt::skip]
 const IBAN_LENGTHS: [(&str, usize); 127] = [
     ("AD", 24), ("AE", 23), ("AL", 28), ("AO", 25), ("AT", 20), ("AX", 18),
@@ -92,44 +92,69 @@ fn ends_at_word(text: &str, end: usize) -> bool {
         .is_some_and(|c| c.is_ascii_alphanumeric())
 }
 
+/// Whether characters with a space before those marked in `spaced` are
+/// written as an IBAN is: without spaces, or in groups of about four (3 to
+/// 5, the last 1 to 5, so one typed character too many or too few in a
+/// group still counts). Text such as an ISIN followed by a word,
+/// `FR0000120271 Total`, is not.
+fn grouped(spaced: &[bool]) -> bool {
+    let mut group_start = 0;
+    for at in (1..spaced.len()).filter(|&at| spaced[at]) {
+        if !(3..=5).contains(&(at - group_start)) {
+            return false;
+        }
+        group_start = at;
+    }
+    group_start == 0 || (1..=5).contains(&(spaced.len() - group_start))
+}
+
 /// The byte index where an IBAN that starts at `start` ends, if one does
 /// (D-677). The characters are letters and digits, capitals or not, with a
-/// single space allowed between any two of them, as people and banks write
-/// it. It starts with two letters and two digits, after a character that is
-/// neither a letter nor a digit, and passes the check digits (ISO 7064 mod
-/// 97-10). For a country in [`IBAN_LENGTHS`] it has exactly that country's
-/// length, and for Germany only digits after the first four (the bank code
-/// and account number); for any other country 15 to 34 characters that end
-/// a word.
+/// single space allowed between any two after the first four, as people and
+/// banks write it. It starts with two letters and two digits. For Germany
+/// every character after the first four is a digit.
+///
+/// For a country in [`IBAN_LENGTHS`] it may start anywhere, also glued to a
+/// word in front (an importer may join a bank's text lines without a
+/// space), and it is either exactly the country's length with the right
+/// check digits (ISO 7064 mod 97-10), or, without that check so a mistyped
+/// one is caught too, up to two characters longer or shorter
+/// and ending a word, written without spaces or grouped as [`grouped`]
+/// says. That second way never takes a creditor id, whose characters after
+/// the check digits start with `ZZZ`.
+///
+/// For any other country it starts a word and is 15 to 34 characters that
+/// end a word and pass the check digits, except after `RF`
+/// ([`NOT_A_COUNTRY`]).
 fn iban_end(text: &str, start: usize) -> Option<usize> {
-    if text[..start]
-        .chars()
-        .next_back()
-        .is_some_and(|c| c.is_ascii_alphanumeric())
-    {
-        return None;
-    }
     // The run's characters as capitals, and the byte index after each.
-    let mut chars: Vec<u8> = Vec::with_capacity(IBAN_MAX);
-    let mut ends: Vec<usize> = Vec::with_capacity(IBAN_MAX);
+    let most = IBAN_MAX + 2;
+    let mut chars: Vec<u8> = Vec::with_capacity(most);
+    let mut ends: Vec<usize> = Vec::with_capacity(most);
+    // Where a space came before a character.
+    let mut spaced: Vec<bool> = Vec::with_capacity(most);
+    let mut space = false;
     let bytes = text.as_bytes();
     let mut index = start;
-    while chars.len() < IBAN_MAX && index < bytes.len() {
+    while chars.len() < most && index < bytes.len() {
         let byte = bytes[index];
         if byte.is_ascii_alphanumeric() {
             chars.push(byte.to_ascii_uppercase());
+            spaced.push(space);
+            space = false;
             index += 1;
             ends.push(index);
         } else if byte == b' '
             && chars.len() >= 4
             && bytes.get(index + 1).is_some_and(u8::is_ascii_alphanumeric)
         {
+            space = true;
             index += 1;
         } else {
             break;
         }
     }
-    let shaped = chars.len() >= IBAN_MIN
+    let shaped = chars.len() >= 4
         && chars[0].is_ascii_alphabetic()
         && chars[1].is_ascii_alphabetic()
         && chars[2].is_ascii_digit()
@@ -138,20 +163,45 @@ fn iban_end(text: &str, start: usize) -> Option<usize> {
         return None;
     }
     let country = std::str::from_utf8(&chars[..2]).ok()?;
+    let fits = |length: usize| country != "DE" || chars[4..length].iter().all(u8::is_ascii_digit);
     match IBAN_LENGTHS.binary_search_by(|(code, _)| (*code).cmp(country)) {
         Ok(found) => {
             let length = IBAN_LENGTHS[found].1;
-            let iban = chars.get(..length)?;
-            let german_digits = country != "DE" || iban[4..].iter().all(u8::is_ascii_digit);
-            (german_digits && check_remainder(iban) == 1).then(|| ends[length - 1])
+            if chars.len() >= length && fits(length) && check_remainder(&chars[..length]) == 1 {
+                return Some(ends[length - 1]);
+            }
+            if chars.get(4..7) == Some(b"ZZZ".as_slice()) {
+                return None;
+            }
+            // Nearest the country's length first, so a short word after it
+            // stays.
+            [0, -1, 1, -2, 2]
+                .into_iter()
+                .filter_map(|off: isize| length.checked_add_signed(off))
+                .filter(|&length| length <= chars.len())
+                .find(|&length| {
+                    fits(length)
+                        && grouped(&spaced[..length])
+                        && ends_at_word(text, ends[length - 1])
+                })
+                .map(|length| ends[length - 1])
         }
         Err(_) if NOT_A_COUNTRY.contains(&country) => None,
-        Err(_) => (IBAN_MIN..=chars.len())
-            .rev()
-            .find(|&length| {
-                ends_at_word(text, ends[length - 1]) && check_remainder(&chars[..length]) == 1
-            })
-            .map(|length| ends[length - 1]),
+        Err(_) => {
+            let starts_word = !text[..start]
+                .chars()
+                .next_back()
+                .is_some_and(|c| c.is_ascii_alphanumeric());
+            if !starts_word {
+                return None;
+            }
+            (IBAN_MIN..=chars.len().min(IBAN_MAX))
+                .rev()
+                .find(|&length| {
+                    ends_at_word(text, ends[length - 1]) && check_remainder(&chars[..length]) == 1
+                })
+                .map(|length| ends[length - 1])
+        }
     }
 }
 
@@ -197,7 +247,15 @@ pub(crate) fn for_model(text: &str) -> String {
     let cleaned: String = text
         .chars()
         .filter(|&c| !hides_text(c))
-        .map(|c| if c.is_control() { ' ' } else { c })
+        .map(|c| {
+            // Spaces that don't break are spaces, so an IBAN grouped with
+            // them is caught too.
+            if c.is_control() || c == '\u{00A0}' || c == '\u{202F}' {
+                ' '
+            } else {
+                c
+            }
+        })
         .collect();
     let masked = mask_ibans(cleaned.trim());
     let mut chars = masked.chars();
@@ -262,23 +320,51 @@ mod tests {
     #[test]
     fn text_that_only_looks_like_an_iban_stays() {
         for text in [
-            // An ISIN: too short for any country.
+            // ISINs: too short for any country, also with a word after them.
             "Bought ISIN DE0005140008 at the exchange",
-            // A creditor id: letters after the check digits, and too short.
+            "Bought FR0000120271 TotalEnergies SE shares",
+            "Sold NL0010273215 ASML Holding",
+            // Creditor ids.
             "Creditor DE98ZZZ09999999999",
-            // A mandate reference with a country's letters but wrong check
-            // digits.
-            "Mandate DE00370400440532013000 signed",
-            "Mandate GB00 WEST 1234 5698 7654 32",
+            "Creditor NL98ZZZ999999999999 for the gym",
+            // Mandate references and other ids.
+            "Mandate MANDATE-2026-0001 of 2026-01-15",
+            "Mandate M2026 0001 4711",
             // A structured creditor reference (ISO 11649).
             "Reference RF18 5390 0754 7034 for the invoice",
-            // One digit short of a German IBAN.
-            "Order DE8937040044053201300 sent",
+            // Words with two digits.
+            "Invoice DE12 of May",
+            "Rent DE12 Rent October 2026",
+            "Rent GB12 Rent October 2026 to",
         ] {
             assert_eq!(for_model(text), text, "{text}");
         }
-        // A correct IBAN with more digits glued on is still left out, so a
-        // typo after it never lets it through.
+    }
+
+    #[test]
+    fn a_mistyped_iban_is_left_out_too() {
+        // Security look at US2.16: wrong check digits, a digit too few or
+        // too many, grouped or not.
+        for (text, shown) in [
+            (
+                "Mandate DE00370400440532013000 signed",
+                "Mandate [IBAN left out] signed",
+            ),
+            ("To DE8937040044053201300 now", "To [IBAN left out] now"),
+            ("To DE003704004405320130001 now", "To [IBAN left out] now"),
+            (
+                "To DE89 3704 0044 0532 0130 0 now",
+                "To [IBAN left out] now",
+            ),
+            (
+                "To DE89 3704 044 0532 0130 00 now",
+                "To [IBAN left out] now",
+            ),
+            ("To GB00 WEST 1234 5698 7654 32.", "To [IBAN left out]."),
+        ] {
+            assert_eq!(for_model(text), shown, "{text}");
+        }
+        // A correct IBAN with more digits glued on is still left out.
         assert_eq!(
             for_model(&format!("Order {GERMAN}123 sent")),
             "Order [IBAN left out]123 sent"
@@ -286,11 +372,21 @@ mod tests {
     }
 
     #[test]
-    fn an_iban_inside_a_longer_word_stays_as_it_was_before() {
-        // As before (`\b`): an IBAN glued to letters in front is not taken
-        // apart, so a long reference isn't cut into pieces.
-        let glued = format!("REF{GERMAN}");
-        assert_eq!(for_model(&glued), glued);
+    fn an_iban_glued_to_a_word_in_front_is_left_out() {
+        // An importer may join a bank's text lines without a space.
+        assert_eq!(
+            for_model(&format!("Rent October{GERMAN} thanks")),
+            "Rent October[IBAN left out] thanks"
+        );
+        assert_eq!(for_model(&format!("REF{BRITISH}")), "REF[IBAN left out]");
+    }
+
+    #[test]
+    fn spaces_that_dont_break_are_spaces() {
+        assert_eq!(
+            for_model("IBAN DE89\u{00A0}3704\u{00A0}0044\u{202F}0532 0130 00"),
+            "IBAN [IBAN left out]"
+        );
     }
 
     #[test]
@@ -301,6 +397,9 @@ mod tests {
             for_model(&format!("Pay {iban} now")),
             "Pay [IBAN left out] now"
         );
+        // Only as a word of its own: inside a word it may be any reference.
+        let glued = format!("REF{iban}");
+        assert_eq!(for_model(&glued), glued);
     }
 
     #[test]
@@ -329,6 +428,7 @@ mod tests {
             seed in proptest::collection::vec(0_u8..36, 30),
             grouped: bool,
             small: bool,
+            typo in 0_u8..4,
             before in "[a-z ]{0,8}",
             after in "( [A-Za-z]{1,8}){0,2}",
         ) {
@@ -340,7 +440,17 @@ mod tests {
                     char::from(if n < 10 { b'0' + n } else { b'A' + n - 10 })
                 })
                 .collect();
-            let iban = with_check_digits(code, &bban);
+            let correct = with_check_digits(code, &bban);
+            // 0: correct, 1: wrong check digits, 2: one character short,
+            // 3: one digit more.
+            let check: u8 = correct[2..4].parse().expect("digits");
+            let iban = match typo {
+                1 => format!("{code}{:02}{bban}", (check + 1) % 100),
+                2 => correct[..correct.len() - 1].to_owned(),
+                3 => format!("{correct}7"),
+                _ => correct.clone(),
+            };
+            let inside = &iban[4..length - 1];
             let mut written: String = if grouped {
                 iban.as_bytes()
                     .chunks(4)
@@ -356,8 +466,15 @@ mod tests {
             let text = format!("{before} {written}{after}");
             let shown = for_model(&text);
             proptest::prop_assert!(shown.contains(IBAN_LEFT_OUT), "{text} -> {shown}");
-            proptest::prop_assert!(!shown.contains(&bban), "{text} -> {shown}");
-            proptest::prop_assert!(shown.ends_with(after.trim_end()), "{text} -> {shown}");
+            proptest::prop_assert!(
+                !shown.to_ascii_uppercase().contains(inside),
+                "{text} -> {shown}"
+            );
+            // A mistyped one may take a short word after it with it: too
+            // much, never too little.
+            if typo == 0 {
+                proptest::prop_assert!(shown.ends_with(after.trim_end()), "{text} -> {shown}");
+            }
         }
     }
 

@@ -412,11 +412,11 @@ Goal: the three designs held back in US2, then the US2 backlog, the help page an
 
 Build threads (conflict map): A charts (12, then design 1, then build 1) · B budgets (11, then design 2, then build 2) · C Transfers (design 3, then build 3; its AI part after E's 9) · D transaction form (4) · E AI tools (7, 9, 5, 6, 8) · G help (13: B218, then #649) · H handbook (14, three docs PRs; the link from the help page after G). `report/src/schema.rs` is shared by A and B, each with its own component entries, A's build first; `ai-tools/src/changes.rs` by E, then C. Expected Phase 2 duration about 6 to 9 hours plus a night pause (Q-459, sized from the retro tables, Q-469); the longest chain is E with five merges.
 
-- **US3.1** · **planned** · thread A · strong, high · L (design, then build). #562 and #587: one design that gives each bar its own figure (its own period or formula, or a comparison bar such as the average of 3, 6 or 12 periods), in the app and in `propose_view`. Why: two separate "per bar" settings would confuse
+- **US3.1** · **design in review** (D-687, `docs/REPORT_DESIGNER_US3.md`; build as US3.1a comparison bars, then US3.1b own figures) · thread A · strong, high · L (design, then build). #562 and #587: one design that gives each bar its own figure (its own period or formula, or a comparison bar such as the average of 3, 6 or 12 periods), in the app and in `propose_view`. Why: two separate "per bar" settings would confuse
 
 - **US3.2** · **planned** · thread B · strong, high · L (design, then build) · [format]. #607 (US1.10a): a budget's categories or accounts can be changed from the current period on; each budget keeps a dated history of its set, so past periods show what they showed before (D-345). Why: today the only way is to stop the budget and make a new one
 
-- **US3.3** · **planned** · thread C · strong, high · L (design, then build). #571 and #594 part b: two sides that already have a category can be joined as one Transfer, in the UI with a preview and through the AI as a change set; both original amounts and currencies stay, one Undo takes it back; a hand-sorted side is never suggested on its own (D-031). Why: income and spending look larger than they are (principle 1)
+- **US3.3** · **design** (D-691 to D-693, design PR; builds: core and store, then the app, then the AI after US3.9) · thread C · strong, high · L (design, then build). #571 and #594 part b: two sides that already have a category can be joined as one Transfer, in the UI with a preview and through the AI as a change set; both original amounts and currencies stay, one Undo takes it back; a hand-sorted side is never suggested on its own (D-031). Why: income and spending look larger than they are (principle 1)
 
 - **US3.4** · **planned** · thread D · standard, medium · S to M. US2 backlog 1: a *Note* field in the add and edit transaction forms. Why: the book and the AI have the note, the user can't type one
 
@@ -424,7 +424,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.6** · **planned** · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
 
-- **US3.7** · **planned** · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
+- **US3.7** · **in review** (D-695) · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
 
 - **US3.8** · **planned** · thread E, after US3.6 · standard, medium · S. US2 backlog 5: `check_only` on `sort_with_rules` gives a `would_sort` count, without the entries (amends D-682). Why: the AI can tell the user beforehand how many it would sort
 
@@ -436,7 +436,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.12** · **planned** · thread A · standard, high · S to M. US2 backlog 9: an applied `propose_view` (or `check_only`) answers with the figure KassenSturz computed for a number card or progress bar. Why: the AI can confirm the figure to the user; numbers still come from code (AGENTS.md §8)
 
-- **US3.13** · **planned** · thread G · standard, medium · M, then M. #648 (M6-B218) first: every real shop or brand name used as an example becomes an invented one, and the pattern help says plainly which syntax works. Then #649 (US2 backlog 11): an in-app help page on Rule patterns (Rust `regex`, capitals ignored unless ticked, no lookaround or back-references) and formulas (LibreOffice Calc style, D-510), with short invented examples, all translatable. Why: a public app should not carry real trademarks, and a one-line hint is not enough
+- **US3.13** · **step 1 in review (M6-B218, D-699)**, step 2 (#649) next · thread G · standard, medium · M, then M. #648 (M6-B218) first: every real shop or brand name used as an example becomes an invented one, and the pattern help says plainly which syntax works. Then #649 (US2 backlog 11): an in-app help page on Rule patterns (Rust `regex`, capitals ignored unless ticked, no lookaround or back-references) and formulas (LibreOffice Calc style, D-510), with short invented examples, all translatable. Why: a public app should not carry real trademarks, and a one-line hint is not enough
 
 - **US3.14** · **planned** · thread H · standard, medium · L (about three docs PRs). #654 (US2 backlog 12): the German user handbook in `docs/user/de/`, one page per topic, "Sie" (D-578), screenshots from the example books only, linked from US3.13's help page; English follows in a later Sprint. Why: `USER_GUIDE.de.md` covers only the M3/M4 basics
 

@@ -31,13 +31,15 @@ use serde_json::{Value, json};
 /// The tool that asks again about a request.
 pub(crate) const CHECK_PROPOSED_CHANGES: &str = "check_proposed_changes";
 
-/// What `propose_changes` adds to the chat's description of it.
-const PROPOSE_NOTE: &str = " KassenSturz must be running with this book open. The answer's \
+/// What the MCP server puts at the start of the description of
+/// `propose_changes` and `propose_view`. At the start, because clients cut
+/// long descriptions at the end (M6-B201, US3.7).
+const PROPOSE_NOTE: &str = "KassenSturz must be running with this book open. The answer's \
     status says whether the user applied the changes (applied), threw them away (declined) or \
     hasn't decided yet (waiting); for waiting, call check_proposed_changes with its request \
     later. Don't prepare the same changes again while they wait. Declined may list the \
     user's reasons: wrong_category, wrong_amount, wrong_transactions, too_many_changes, \
-    not_what_was_asked.";
+    not_what_was_asked. ";
 
 const CHECK_DESCRIPTION: &str = "Asks whether the user has decided on changes that \
     propose_changes prepared and that were still waiting. Waits a while for the decision. The \
@@ -100,7 +102,7 @@ pub(crate) fn tools(permissions: Permissions) -> Vec<Tool> {
         }
         Tool::new(
             spec.name,
-            format!("{}{PROPOSE_NOTE}", spec.description),
+            format!("{PROPOSE_NOTE}{}", spec.description),
             parameters,
         )
         .with_annotations(

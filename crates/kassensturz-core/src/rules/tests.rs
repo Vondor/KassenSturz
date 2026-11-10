@@ -30,9 +30,9 @@ fn delivered() -> ImportedDetails {
         bank_id: Some("2026100500017".into()),
         booking_date: Some(october(5)),
         value_date: Some(october(5)),
-        other_party_name: Some("REWE Markt GmbH".into()),
+        other_party_name: Some("FRESHO Markt GmbH".into()),
         other_party_iban: Some(IBAN.into()),
-        remittance_information: Some("REWE SAGT DANKE 1234".into()),
+        remittance_information: Some("FRESHO SAGT DANKE 1234".into()),
     }
 }
 
@@ -95,13 +95,13 @@ fn text_operators_ignore_capitals_by_default() {
     use TextField::{OtherPartyName as Name, RemittanceInformation as Purpose};
     use TextOperator::*;
     assert!(holds(text(Purpose, Contains, "sagt danke")));
-    assert!(holds(text(Name, Equals, "rewe markt gmbh")));
-    assert!(holds(text(Name, StartsWith, "Rewe")));
+    assert!(holds(text(Name, Equals, "fresho markt gmbh")));
+    assert!(holds(text(Name, StartsWith, "Fresho")));
     assert!(holds(text(Purpose, EndsWith, "1234")));
-    assert!(!holds(text(Name, Equals, "REWE")));
+    assert!(!holds(text(Name, Equals, "FRESHO")));
     assert!(!holds(text(Name, StartsWith, "Markt")));
     assert!(!holds(text(Purpose, EndsWith, "DANKE")));
-    assert!(!holds(text(Purpose, Contains, "Lidl")));
+    assert!(!holds(text(Purpose, Contains, "Brightmart")));
 }
 
 #[test]
@@ -112,10 +112,10 @@ fn capitals_count_when_asked() {
         value: value.into(),
         case_sensitive: true,
     };
-    assert!(holds(condition("REWE", TextOperator::Contains)));
-    assert!(!holds(condition("rewe", TextOperator::Contains)));
-    assert!(holds(condition("^REWE", TextOperator::Matches)));
-    assert!(!holds(condition("^rewe", TextOperator::Matches)));
+    assert!(holds(condition("FRESHO", TextOperator::Contains)));
+    assert!(!holds(condition("fresho", TextOperator::Contains)));
+    assert!(holds(condition("^FRESHO", TextOperator::Matches)));
+    assert!(!holds(condition("^fresho", TextOperator::Matches)));
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn patterns_match_anywhere_unless_anchored() {
     use TextOperator::Matches;
     let purpose = TextField::RemittanceInformation;
     assert!(holds(text(purpose, Matches, r"danke \d{4}")));
-    assert!(holds(text(purpose, Matches, r"^rewe .* \d+$")));
+    assert!(holds(text(purpose, Matches, r"^fresho .* \d+$")));
     assert!(!holds(text(purpose, Matches, r"^danke")));
 }
 
@@ -153,7 +153,7 @@ fn a_missing_field_fails_its_condition() {
         vec![text(
             TextField::RemittanceInformation,
             TextOperator::Contains,
-            "REWE",
+            "FRESHO",
         )],
         None,
     ))];
@@ -222,7 +222,7 @@ fn all_needs_every_condition_and_any_one() {
     let facts = facts(AccountId::generate(), Some(&details));
     let mut groceries = rule(
         vec![
-            text(TextField::OtherPartyName, TextOperator::Contains, "REWE"),
+            text(TextField::OtherPartyName, TextOperator::Contains, "FRESHO"),
             Condition::Amount(AmountTest::MoneyIn),
         ],
         None,
@@ -237,19 +237,19 @@ fn the_first_matching_top_level_rule_wins() {
     let details = delivered();
     let facts = facts(AccountId::generate(), Some(&details));
     let (groceries, household) = (AccountId::generate(), AccountId::generate());
-    let lidl = rule(
+    let brightmart = rule(
         vec![text(
             TextField::OtherPartyName,
             TextOperator::Contains,
-            "Lidl",
+            "Brightmart",
         )],
         Some(BookTo::Category(AccountId::generate())),
     );
-    let rewe = rule(
+    let fresho = rule(
         vec![text(
             TextField::OtherPartyName,
             TextOperator::Contains,
-            "REWE",
+            "FRESHO",
         )],
         Some(BookTo::Category(groceries)),
     );
@@ -257,10 +257,10 @@ fn the_first_matching_top_level_rule_wins() {
         vec![Condition::Amount(AmountTest::MoneyOut)],
         Some(BookTo::Category(household)),
     );
-    let rules = [leaf(lidl), leaf(rewe.clone()), leaf(card)];
+    let rules = [leaf(brightmart), leaf(fresho.clone()), leaf(card)];
     let outcome = run(&rules, &facts).expect("a Rule matches");
-    assert_eq!(outcome.rules, vec![rewe.id]);
-    assert_eq!(outcome.rule(), rewe.id);
+    assert_eq!(outcome.rules, vec![fresho.id]);
+    assert_eq!(outcome.rule(), fresho.id);
     assert_eq!(outcome.actions.book_to, Some(BookTo::Category(groceries)));
 }
 
@@ -277,7 +277,7 @@ fn a_matching_sub_rule_refines_its_parent() {
         vec![text(
             TextField::OtherPartyName,
             TextOperator::Contains,
-            "REWE",
+            "FRESHO",
         )],
         Some(BookTo::Category(food)),
     );
@@ -319,7 +319,7 @@ fn without_a_matching_sub_rule_the_parent_decides() {
         vec![text(
             TextField::OtherPartyName,
             TextOperator::Contains,
-            "REWE",
+            "FRESHO",
         )],
         Some(BookTo::Category(food)),
     );
@@ -344,7 +344,7 @@ fn a_sub_rule_is_only_checked_when_its_parent_matched() {
         vec![text(
             TextField::OtherPartyName,
             TextOperator::Contains,
-            "Lidl",
+            "Brightmart",
         )],
         None,
     );
@@ -389,7 +389,7 @@ fn a_matching_rule_without_actions_still_decides() {
         vec![text(
             TextField::OtherPartyName,
             TextOperator::Contains,
-            "REWE",
+            "FRESHO",
         )],
         None,
     );
@@ -428,7 +428,7 @@ fn rules_that_cannot_work_are_refused() {
             condition: 1
         })
     );
-    let (result, id) = check(vec![text(name, TextOperator::Matches, "REWE (")], None);
+    let (result, id) = check(vec![text(name, TextOperator::Matches, "FRESHO (")], None);
     assert_eq!(
         result,
         Err(RuleError::BadPattern {

@@ -5,7 +5,7 @@
 //! them, and running them on the book's transactions (D-014, D-031, D-088).
 //!
 //! A condition is typed as one argument, `FIELD OPERATOR VALUE`, e.g.
-//! `--if "purpose contains REWE"`, so the shell keeps it together.
+//! `--if "purpose contains FRESHO"`, so the shell keeps it together.
 
 use std::io::Write;
 
@@ -178,7 +178,7 @@ fn read_rule(book: &Book, args: &Arguments, id: RuleId, name: &str) -> Result<Ru
         .collect::<Result<Vec<_>, _>>()?;
     if conditions.is_empty() {
         return Err(CliError::usage(
-            "a Rule needs at least one --if, such as --if \"purpose contains REWE\"",
+            "a Rule needs at least one --if, such as --if \"purpose contains FRESHO\"",
         ));
     }
     let book_to = match (args.value("category")?, args.value("to")?) {
@@ -207,7 +207,7 @@ fn read_rule(book: &Book, args: &Arguments, id: RuleId, name: &str) -> Result<Ru
 fn parse_condition(book: &Book, text: &str, case_sensitive: bool) -> Result<Condition, CliError> {
     let malformed = || {
         CliError::usage(format!(
-            "`{}` isn't a condition. Type FIELD OPERATOR VALUE, such as \"purpose contains REWE\"; \
+            "`{}` isn't a condition. Type FIELD OPERATOR VALUE, such as \"purpose contains FRESHO\"; \
              `kassensturz-cli help` lists them",
             plain(text)
         ))

@@ -381,7 +381,7 @@ fn sample() -> BookData {
         ],
         institutions: vec![Institution {
             id: InstitutionId::from_bytes(id(bank)),
-            name: "Sparkasse \"Musterstadt\"".into(),
+            name: "Musterbank \"Musterstadt\"".into(),
             bank_code: Some("37040044".into()),
             contact: Some("Erika Mustermann".into()),
             address: Some("Hauptstraße 1\n12345 Musterstadt\nDeutschland".into()),

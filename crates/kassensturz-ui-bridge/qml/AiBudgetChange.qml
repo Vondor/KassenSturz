@@ -142,6 +142,17 @@ Kirigami.AbstractCard {
             text: card.basisText()
         }
 
+        // The empty newest period the count moved back past (D-669).
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: card.change.basisLeftOutFrom !== ""
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: visible
+                ? card.i18nContext.i18nc("@info %1 and %2 are dates", "Nothing was spent from %1 to %2, perhaps because a payment was booked after that period ended. So that period is left out, and one period before it is counted instead.", card.change.basisLeftOutFrom, card.change.basisLeftOutTo)
+                : ""
+        }
+
         Controls.Label {
             Layout.fillWidth: true
             wrapMode: Text.Wrap

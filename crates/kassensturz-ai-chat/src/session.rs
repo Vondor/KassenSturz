@@ -1077,8 +1077,8 @@ same call; to rename one, use edit_rules.";
 /// What the model is told when it wanted to rewrite conditions it cannot see
 /// in full (M6-B191).
 const CONDITIONS_HIDDEN_HINT: &str = "This Rule has conditions you cannot write (such as an \
-IBAN). Leave conditions out of this edit_rules item to keep them, or delete the Rule and make \
-a new one.";
+IBAN). Leave conditions out of this edit_rules item to keep them, use add_conditions or \
+remove_conditions to change single ones, or delete the Rule and make a new one.";
 
 /// What the model is told when a call to `propose_changes` failed.
 const NOT_PREPARED_HINT: &str = "Nothing was prepared. Do not tell the user that a change is \

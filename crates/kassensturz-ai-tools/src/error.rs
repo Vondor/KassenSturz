@@ -452,6 +452,14 @@ mod tests {
                 condition: Some(6),
                 reason: "invalid",
             },
+            ToolError::BadCondition {
+                condition: Some(7),
+                reason: "not-there",
+            },
+            ToolError::BadCondition {
+                condition: Some(1),
+                reason: "duplicate",
+            },
             ToolError::AccountNotEmpty,
             ToolError::CategoryInUse {
                 used_by: "subcategories",

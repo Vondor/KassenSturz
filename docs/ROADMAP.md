@@ -354,7 +354,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.10** · **planned** · thread D · standard, medium · S. #569: search rows say which Rule sorted an entry or that it was sorted by hand (`sorted_by`). Why: the data exists in `split_rules` but no tool shows it
 
-- **US2.11** · **planned** · thread E · standard, high · M. #570: `edit_rules` can add or remove single conditions. Why: resending the whole list can carry cut text (#568)
+- **US2.11** · **in review** · thread E · standard, high · M · D-673. #570: `edit_rules` can add or remove single conditions. Why: resending the whole list can carry cut text (#568). **Built (D-673):** `add_conditions` and `remove_conditions` (places as `list_rules` shows them) next to `conditions`; the others stay as stored, also for a Rule with `conditions_complete: false`
 
 - **US2.12** · **planned** · thread F, after A · standard, high · M. #599 and #578 (US1.35, US1.17a): a read-only list of saved charts with ids, then change and delete by id, each a change set the user confirms; the salary month after `@` stays later. Why: a chart the AI made can only be changed by hand
 

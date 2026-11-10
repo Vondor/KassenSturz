@@ -97,6 +97,13 @@ pub enum ToolError {
     UnknownRule,
     /// No chart saved under Statistics has that ID (D-681).
     UnknownView,
+    /// The name an item gave next to an ID is not the name of what the ID
+    /// names: the ID was probably copied wrongly (D-675). `argument` is the
+    /// ID's key.
+    NameMismatch {
+        /// The ID's key, such as `category_id`.
+        argument: &'static str,
+    },
     /// A Rule or category can't be changed that way: a Rule with sub-Rules
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
     /// Transfer or has conditions a model can't write keeps them. The
@@ -315,6 +322,8 @@ impl Report for ToolError {
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
             Self::UnknownView => ErrorReport::new("ai-tools.unknown-view"),
+            Self::NameMismatch { argument } => ErrorReport::new("ai-tools.name-mismatch")
+                .with("argument", ErrorParam::Keyword(argument)),
             Self::NotChangeable { argument, reason } => ErrorReport::new("ai-tools.not-changeable")
                 .with("argument", ErrorParam::Keyword(argument))
                 .with("reason", ErrorParam::Keyword(reason)),
@@ -403,6 +412,9 @@ mod tests {
             ToolError::OtherCurrency,
             ToolError::UnknownRule,
             ToolError::UnknownView,
+            ToolError::NameMismatch {
+                argument: "category_id",
+            },
             ToolError::NotChangeable {
                 argument: "conditions",
                 reason: "conditions-hidden",
@@ -558,6 +570,10 @@ mod tests {
                 .chain(crate::open_page::FIELDS)
                 .map(|&argument| ToolError::BadArgument { argument }),
         );
+        // A name next to an ID that doesn't fit (D-675).
+        for (id, _, _) in crate::changes::NAMED_IDS {
+            examples.push(ToolError::NameMismatch { argument: id });
+        }
         // The MCP server's own argument of the two tools that prepare (D-674).
         examples.push(ToolError::BadArgument {
             argument: crate::changes::CHECK_ONLY,

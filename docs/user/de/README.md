@@ -11,20 +11,20 @@
 3. [Der erste Start](03-erster-start.md)
 4. [Die Übersicht und Ihre Dashboards](04-uebersicht.md)
 
-**Konten, Kategorien und Buchungen** *(folgt)*
+**Konten, Kategorien und Buchungen**
 
-5. Konten
-6. Kategorien
-7. Buchungen eintragen, ändern, aufteilen
-8. Geld zwischen eigenen Konten umbuchen
-9. Rückgängig, Wiederholen und der Verlauf
+5. [Konten](05-konten.md)
+6. [Kategorien und Kategoriegruppen](06-kategorien.md)
+7. [Buchungen eintragen, ändern, aufteilen](07-buchungen.md)
+8. [Geld zwischen eigenen Konten umbuchen](08-umbuchen.md)
+9. [Rückgängig, Wiederholen und der Verlauf](09-rueckgaengig.md)
 
-**Daten hereinholen** *(folgt)*
+**Daten hereinholen**
 
-10. Einen Kontoauszug einlesen
-11. Mit der Bank verbinden
-12. Regeln: die App sortiert für Sie
-13. Budgets
+10. [Einen Kontoauszug einlesen](10-einlesen.md)
+11. [Mit der Bank verbinden](11-bank.md)
+12. [Regeln: die App sortiert für Sie](12-regeln.md)
+13. [Budgets](13-budgets.md)
 
 **Auswerten und verwalten** *(folgt)*
 

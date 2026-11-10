@@ -147,7 +147,11 @@ fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
 fn code(result: Result<Proposal, ToolError>) -> String {
     match result.map_err(ToolError::without_item) {
         Ok(_) => "prepared".into(),
-        Err(ToolError::BadArgument { argument } | ToolError::NotForChart { argument, .. }) => {
+        Err(
+            ToolError::BadArgument { argument }
+            | ToolError::NotShaped { argument, .. }
+            | ToolError::NotForChart { argument, .. },
+        ) => {
             format!("bad-argument {argument}")
         }
         Err(ToolError::UnknownField { argument, .. }) => format!("unknown-field {argument}"),
@@ -3082,6 +3086,7 @@ mod rule_batches;
 mod rule_conditions;
 mod rule_tools;
 mod saved_views;
+mod shape_hints;
 mod sort_rules;
 mod tool_review;
 mod view_call;

@@ -48,7 +48,7 @@ use kassensturz_core::{
 use kassensturz_store::{Action, Book, StoreError};
 use serde_json::{Map, Value, json};
 
-use crate::error::ToolError;
+use crate::error::{ToolError, shape};
 use crate::figures::Figures;
 use crate::functions::{Function, Output};
 use crate::read::MAX_RULE_DEPTH;
@@ -2573,9 +2573,10 @@ impl<'a> Object<'a> {
         keys: &'static [&'static str],
         argument: &'static str,
     ) -> Result<Self, ToolError> {
-        let values = value
-            .as_object()
-            .ok_or(ToolError::BadArgument { argument })?;
+        let values = value.as_object().ok_or(ToolError::NotShaped {
+            argument,
+            expected: shape::OBJECT,
+        })?;
         if !values.keys().all(|key| keys.contains(&key.as_str())) {
             return Err(ToolError::UnknownField {
                 argument,
@@ -2593,24 +2594,28 @@ impl<'a> Object<'a> {
     fn string(&self, name: &'static str) -> Result<Option<&'a str>, ToolError> {
         self.get(name)
             .map(|value| {
-                value
-                    .as_str()
-                    .ok_or(ToolError::BadArgument { argument: name })
+                value.as_str().ok_or(ToolError::NotShaped {
+                    argument: name,
+                    expected: shape::TEXT,
+                })
             })
             .transpose()
     }
 
     fn required_string(&self, name: &'static str) -> Result<&'a str, ToolError> {
-        self.string(name)?
-            .ok_or(ToolError::BadArgument { argument: name })
+        self.string(name)?.ok_or(ToolError::NotShaped {
+            argument: name,
+            expected: shape::TEXT,
+        })
     }
 
     fn boolean(&self, name: &'static str) -> Result<Option<bool>, ToolError> {
         self.get(name)
             .map(|value| {
-                value
-                    .as_bool()
-                    .ok_or(ToolError::BadArgument { argument: name })
+                value.as_bool().ok_or(ToolError::NotShaped {
+                    argument: name,
+                    expected: shape::TRUE_OR_FALSE,
+                })
             })
             .transpose()
     }
@@ -2620,7 +2625,10 @@ impl<'a> Object<'a> {
         match self.get(name) {
             None => Ok(&[]),
             Some(Value::Array(items)) => Ok(items),
-            Some(_) => Err(ToolError::BadArgument { argument: name }),
+            Some(_) => Err(ToolError::NotShaped {
+                argument: name,
+                expected: shape::LIST_OF_OBJECTS,
+            }),
         }
     }
 
@@ -2629,7 +2637,10 @@ impl<'a> Object<'a> {
             .map(|text| {
                 uuid::Uuid::try_parse(text)
                     .map(uuid::Uuid::into_bytes)
-                    .map_err(|_| ToolError::BadArgument { argument: name })
+                    .map_err(|_| ToolError::NotShaped {
+                        argument: name,
+                        expected: shape::ID,
+                    })
             })
             .transpose()
     }

@@ -142,5 +142,8 @@ fn the_instructions_explain_every_next_step() {
     ] {
         assert!(text.contains(step), "{step}: {text}");
     }
+    // A test app started or ended since the start (M6-B208); on its own,
+    // not only inside the update step's name.
+    assert!(text.contains(" restart-this-ai-tool means"), "{text}");
     session.finish();
 }

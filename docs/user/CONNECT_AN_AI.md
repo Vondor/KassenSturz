@@ -74,7 +74,7 @@ This works with Claude Desktop or Claude Code on a Claude subscription, with no 
    - **KassenSturz from your distribution instead of the Flatpak:** the command is `kassensturz-mcp`, with no arguments.
 3. Ask your AI tool about your accounts. It can read accounts, categories, balances, totals per category, transactions and Rules. It never sees PINs, bank logins or account numbers.
 
-It reads the book KassenSturz opened last. KassenSturz may stay open.
+It reads the book KassenSturz opened last. KassenSturz may stay open, and when you open another book there, the AI reads that one from its next answer on.
 
 ### Letting it prepare changes
 

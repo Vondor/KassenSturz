@@ -32,6 +32,8 @@ use std::process::ExitCode;
 #[cfg(feature = "ai")]
 mod book_path;
 #[cfg(feature = "ai")]
+mod profile;
+#[cfg(feature = "ai")]
 mod server;
 #[cfg(feature = "ai")]
 mod writes;
@@ -43,6 +45,19 @@ const REFUSED: u8 = 2;
 fn main() -> ExitCode {
     use kassensturz_core::Report;
 
+    // Before anything reads the settings: while the app runs in its test
+    // profile, this reads that profile, never the real one (M6-B208, Q-466).
+    let profile = match profile::at_start() {
+        profile::Start::Read(profile) => profile,
+        profile::Start::Again(variables) => {
+            eprintln!("error: {}", profile::start_again(variables));
+            return ExitCode::from(REFUSED);
+        }
+        profile::Start::Unknown(message) => {
+            eprintln!("error: {message}");
+            return ExitCode::from(REFUSED);
+        }
+    };
     if !kassensturz_core::ai_switch::enabled() {
         eprintln!("{}", server::SWITCHED_OFF);
         return ExitCode::from(REFUSED);
@@ -53,7 +68,16 @@ fn main() -> ExitCode {
     {
         return show_request_folder();
     }
-    let book = match book_path::from_arguments(std::env::args_os().skip(1)) {
+    let source = match book_path::from_arguments(std::env::args_os().skip(1)) {
+        Ok(source) => source,
+        Err(message) => {
+            eprintln!("error: {message}");
+            return ExitCode::from(REFUSED);
+        }
+    };
+    // Looked up here once to check it; without `--book` every answer looks
+    // it up again, as the app may open another book meanwhile (M6-B208).
+    let book = match source.path(profile.test_root()) {
         Ok(book) => book,
         Err(message) => {
             eprintln!("error: {message}");
@@ -93,7 +117,7 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    match runtime.block_on(server::serve(book)) {
+    match runtime.block_on(server::serve(source, profile)) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("error: {error}");

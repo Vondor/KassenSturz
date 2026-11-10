@@ -326,7 +326,7 @@ Kirigami.ScrollablePage {
 
                         checkable: true
                         checked: page.reasons.indexOf(modelData.keyword) >= 0
-                        text: modelData.label
+                        text: Plain.plain(modelData.label)
                         Accessible.description: page.i18nContext.i18nc("@info:tooltip", "A reason the AI gets when you throw the changes away")
                         onToggled: {
                             ActionLog.taken("AiChangeReviewPage_reason")

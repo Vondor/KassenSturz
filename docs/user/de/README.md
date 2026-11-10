@@ -26,17 +26,17 @@
 12. [Regeln: die App sortiert für Sie](12-regeln.md)
 13. [Budgets](13-budgets.md)
 
-**Auswerten und verwalten** *(folgt)*
+**Auswerten und verwalten**
 
-14. Statistiken und Diagramme
-15. Formeln und Muster
-16. Berichte aus KMyMoney
-17. Kopie speichern und exportieren
-18. Einstellungen
-19. Wenn etwas nicht klappt
-20. Wörter in der App, erklärt
+14. [Statistiken und Diagramme](14-statistiken.md)
+15. [Formeln und Muster](15-formeln.md)
+16. [Berichte aus KMyMoney](16-kmymoney-berichte.md)
+17. [Kopie speichern und exportieren](17-kopie-export.md)
+18. [Einstellungen](18-einstellungen.md)
+19. [Wenn etwas nicht klappt](19-probleme.md)
+20. [Wörter in der App, erklärt](20-woerter.md)
 
-Das ältere, kürzere [Benutzerhandbuch](../USER_GUIDE.de.md) bleibt bis dahin gültig für alles, was hier noch fehlt.
+Das ältere, kürzere [Benutzerhandbuch](../USER_GUIDE.de.md) wird von diesem Handbuch abgelöst und bleibt nur als Kurzfassung stehen.
 
 ## So lesen Sie dieses Handbuch
 

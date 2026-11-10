@@ -172,6 +172,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label:listbox how the figures are grouped", "Group by");
         case "average":
             return i18nContext.i18nc("@label:listbox whether a chart shows the total spending or an average per month, quarter or year", "Show as");
+        case "orientation":
+            return i18nContext.i18nc("@label:listbox which way the bars of a bar chart go", "Bars");
         case "show_hidden":
             return i18nContext.i18nc("@option:check", "Show hidden categories");
         case "hide_note":
@@ -186,6 +188,17 @@ ColumnLayout {
             return i18nContext.i18nc("@label:textbox a formula for what a full progress bar stands for", "Target");
         }
         return "";
+    }
+
+    // The label on the left of a field's row. A switch carries its own
+    // words, so its row has none, except the switch for the grey filter
+    // notes: under a list of accounts it was easy to miss, so it has a row
+    // of its own, *Filter notes* (US2.4, #605, D-680).
+    function rowLabel(field: var): string {
+        if (field.key === "hide_note") {
+            return i18nContext.i18nc("@label the row with the switch for the grey lines on a tile that say what it is filtered to", "Filter notes");
+        }
+        return field.kind === "flag" ? "" : fieldLabel(field.key);
     }
 
     function wordName(word: string): string {
@@ -228,6 +241,12 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox show spending as an average", "Average per quarter");
         case "per-year":
             return i18nContext.i18nc("@item:inlistbox show spending as an average", "Average per year");
+        case "auto":
+            return i18nContext.i18nc("@item:inlistbox the bars of a chart go the way that fits the names best", "Automatic");
+        case "horizontal":
+            return i18nContext.i18nc("@item:inlistbox the bars of a chart go across, one row per name", "Across (one row per name)");
+        case "vertical":
+            return i18nContext.i18nc("@item:inlistbox the bars of a chart stand upright, the names below them", "Upright (names below)");
         case "previous_period":
             return i18nContext.i18nc("@item:inlistbox", "The period before");
         case "same_last_year":
@@ -354,9 +373,12 @@ ColumnLayout {
                 visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
                     && !(panel.hasColumns && ["categories", "series", "groups", "average", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
                 active: visible
-                Kirigami.FormData.label: modelData.kind === "flag" ? "" : panel.fieldLabel(modelData.key)
+                Kirigami.FormData.label: panel.rowLabel(modelData)
                 Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" ? Qt.AlignTop : Qt.AlignVCenter
                 Layout.fillWidth: true
+                // Space between the switch for the grey notes and a list
+                // above it, so it doesn't read as the list's last line (D-680).
+                Layout.topMargin: modelData.key === "hide_note" ? Kirigami.Units.largeSpacing : 0
                 sourceComponent: modelData.kind === "text" ? textField
                     : modelData.kind === "flag" ? flagBox
                     : modelData.kind === "formula" ? formulaBox

@@ -36,7 +36,8 @@ ColumnLayout {
     }
 
     readonly property string kind: change.kind
-    readonly property bool editable: change.fields !== undefined && change.fields.length > 0
+    // A sort's one field is the switch on its own card (D-682).
+    readonly property bool editable: kind !== "sortWithRules" && change.fields !== undefined && change.fields.length > 0
     readonly property var form: change.form !== undefined && change.form !== "" ? JSON.parse(change.form) : ({})
     // The fixed periods, and the change's own when it is another one: a
     // period that moves with today or a range of days (D-650), so opening

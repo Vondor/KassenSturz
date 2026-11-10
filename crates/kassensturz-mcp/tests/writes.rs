@@ -127,7 +127,8 @@ fn the_user_chooses_which_lists_the_ai_tool_may_use_and_it_is_seen_at_once() {
             "categorize".into(),
             "edit_transactions".into(),
             "new_categories".into(),
-            "new_rules".into()
+            "new_rules".into(),
+            "sort_with_rules".into()
         ])
     );
     // With those two locked as well, the list of edits is not offered (D-257).

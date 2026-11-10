@@ -83,6 +83,7 @@ Kirigami.ScrollablePage {
     readonly property var newBudgets: kept.filter(change => change.kind === "newBudget")
     readonly property var editedBudgets: kept.filter(change => change.kind === "editBudget")
     readonly property var editedAccounts: kept.filter(change => change.kind === "editAccount")
+    readonly property var sorts: kept.filter(change => change.kind === "sortWithRules")
     readonly property bool shows: changes.code === undefined && !done
 
     // The name of a field of a transaction the AI changes.
@@ -210,6 +211,8 @@ Kirigami.ScrollablePage {
         case "newBudget":
         case "editBudget":
             return change.category;
+        case "sortWithRules":
+            return change.ruleName !== "" ? change.ruleName : i18nContext.i18nc("@info what a sort the AI prepared uses", "All Rules");
         }
         return i18nContext.i18nc("@info %1 is a date, %2 who was paid or paid, %3 an amount", "%1 · %2 · %3", change.date, change.payee, change.amount);
     }
@@ -250,6 +253,8 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "Changed chart");
         case "deleteView":
             return i18nContext.i18nc("@info a kind of prepared change", "Chart to delete");
+        case "sortWithRules":
+            return i18nContext.i18nc("@info a kind of prepared change", "Sorting with your Rules");
         }
         return i18nContext.i18nc("@info a kind of prepared change", "New chart");
     }
@@ -1417,6 +1422,27 @@ Kirigami.ScrollablePage {
             model: page.shows ? page.editedBudgets : []
 
             AiBudgetChange {
+                required property var modelData
+
+                Layout.fillWidth: true
+                ai: page.ai
+                change: modelData
+                choices: page.choices
+                review: page
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.sorts.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Sorting with your Rules")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.sorts : []
+
+            AiRulesSortChange {
                 required property var modelData
 
                 Layout.fillWidth: true

@@ -23,8 +23,44 @@ QtObject {
     property var view: aiView
     property bool edited: false
     property bool leftOut: false
+    // The set "sort": the AI's sort with all Rules (US2.9, D-682), as
+    // `ChangeView::SortWithRules` writes it.
+    property bool sortAgain: false
+
+    function sortChanges() {
+        return [{
+            kind: "sortWithRules",
+            slot: "sort_with_rules/0",
+            edited: sortAgain,
+            leftOut: false,
+            fields: ["sort_again"],
+            form: JSON.stringify({sort_again: sortAgain}),
+            ruleName: "",
+            sortAgain: sortAgain,
+            changed: sortAgain ? 2 : 1,
+            transfers: 1,
+            noRate: 0,
+            closed: 0,
+            other: 0,
+            examples: [{
+                accountId: "a1",
+                account: "Everyday Checking",
+                id: "t1",
+                date: "05.10.2026",
+                otherParty: "Pet <b>Shop</b>",
+                category: "Pets",
+                amount: "-19,99 €",
+                exactAmount: "-19,99 €",
+                incoming: false,
+                kind: "simple"
+            }]
+        }];
+    }
 
     function changes(setId) {
+        if (setId === "sort") {
+            return sortChanges();
+        }
         return [{
             kind: "newView",
             slot: "new_views/0",
@@ -81,6 +117,10 @@ QtObject {
     function editChange(setId, slot, fields) {
         const changed = JSON.parse(fields);
         edits = edits.concat([fields]);
+        if (setId === "sort") {
+            sortAgain = changed.sort_again === true;
+            return changes(setId);
+        }
         if (changed.title === "") {
             return {code: "ai-changes.edit-text"};
         }

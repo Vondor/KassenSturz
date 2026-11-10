@@ -26,7 +26,7 @@ use kassensturz_ai_chat::{
 use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{
     AmountBasis, ChangeError, ChangeSet, Confirmed, EditError, FieldValue, ProposedChange, Slot,
-    ToolError, every_word,
+    SortWithRules, ToolError, every_word,
 };
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_core::{
@@ -40,7 +40,7 @@ use crate::ai_settings::{Store, with_keys};
 use crate::errors::ErrorText;
 use crate::format::Locale;
 use crate::register::AmountWriter;
-use crate::rules::{ConditionForm, condition_form};
+use crate::rules::{Applied, ConditionForm, apply_examples, condition_form};
 
 /// What the user decides about a request shown to them (D-210).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -570,6 +570,19 @@ pub enum ChangeView {
         /// or one that stays.
         basis: Option<BasisView>,
     },
+    /// The transactions already in the book sorted with the user's Rules
+    /// (US2.9, D-682), shown as the Rules page's dialog shows the same run
+    /// (D-630).
+    SortWithRules {
+        /// The name of the one Rule whose transactions are sorted; empty for
+        /// every Rule.
+        rule_name: String,
+        /// Whether what Rules sorted before is sorted again too (D-631).
+        sort_again: bool,
+        /// How many are sorted, how many stay and why, and the newest of
+        /// them as their account's register will show them.
+        applied: Applied,
+    },
 }
 
 /// How the amount of a prepared budget was computed, written for the user
@@ -957,6 +970,28 @@ fn view_of(
         ProposedChange::DeleteView(delete) => ChangeView::DeleteView {
             name: delete.name.clone(),
         },
+        ProposedChange::SortWithRules(sort) => ChangeView::SortWithRules {
+            rule_name: sort.rule_name.clone().unwrap_or_default(),
+            sort_again: sort.sort_again,
+            applied: sorted_by_rules(book, sort, locale)?,
+        },
+    })
+}
+
+/// What the sort does, counted as "Apply all" counts it, with the same
+/// examples (D-630, D-682).
+fn sorted_by_rules(
+    book: &Book,
+    sort: &SortWithRules,
+    locale: &impl Locale,
+) -> Result<Applied, StoreError> {
+    Ok(Applied {
+        changed: sort.changes.len(),
+        transfers: sort.transfers,
+        no_rate: sort.no_rate,
+        closed: sort.closed,
+        other: sort.other,
+        examples: apply_examples(book, &sort.changes, locale)?,
     })
 }
 

@@ -157,7 +157,7 @@ fn a_statement_becomes_transactions_in_one_user_action() {
     let mut sparse = Entry::booked(october(6), eur(250_000));
     sparse.bank_id = Some("B2".into());
     let entries = vec![
-        entry(5, -5320, "B1", "REWE Markt"),
+        entry(5, -5320, "B1", "FRESHO Markt"),
         sparse.clone(),
         pending,
         entry(7, -1250, "B3", "Bakery"),
@@ -241,7 +241,7 @@ fn an_entry_whose_bank_id_the_account_holds_is_skipped_and_counted() {
         &mut book,
         checking,
         &[statement(vec![
-            entry(5, -5320, "B1", "REWE Markt"),
+            entry(5, -5320, "B1", "FRESHO Markt"),
             entry(6, -1250, "B2", "Bakery"),
         ])],
     );
@@ -254,7 +254,7 @@ fn an_entry_whose_bank_id_the_account_holds_is_skipped_and_counted() {
         checking,
         &[
             statement(vec![
-                entry(5, -5320, "B1", "REWE Markt"),
+                entry(5, -5320, "B1", "FRESHO Markt"),
                 entry(6, -1250, "B2", "Bakery"),
             ]),
             statement(vec![
@@ -286,7 +286,7 @@ fn an_entry_whose_bank_id_the_account_holds_is_skipped_and_counted() {
     let other = import(
         &mut book,
         savings,
-        &[statement(vec![entry(5, -5320, "B1", "REWE Markt")])],
+        &[statement(vec![entry(5, -5320, "B1", "FRESHO Markt")])],
     );
     assert_eq!(other.summary().imported, 1);
 }
@@ -405,10 +405,10 @@ fn transfers_are_suggested_and_the_rules_run_on_the_new_transactions_only() {
     let earlier = import(
         &mut book,
         checking,
-        &[statement(vec![entry(1, -1999, "B0", "REWE City")])],
+        &[statement(vec![entry(1, -1999, "B0", "FRESHO City")])],
     );
     let earlier = earlier.imported()[0];
-    let shops = rule("Shops", "REWE", Some(BookTo::Category(groceries)));
+    let shops = rule("Shops", "FRESHO", Some(BookTo::Category(groceries)));
     book.add_rule(&shops, None).expect("added");
     let own = rule("Own", "Own transfer", Some(BookTo::Category(groceries)));
     book.add_rule(&own, None).expect("added");
@@ -418,7 +418,7 @@ fn transfers_are_suggested_and_the_rules_run_on_the_new_transactions_only() {
         checking,
         &[statement(vec![
             entry(5, -10_000, "B1", "Own transfer"),
-            entry(5, -5320, "B2", "REWE Markt"),
+            entry(5, -5320, "B2", "FRESHO Markt"),
         ])],
     );
     let [sent, purchase] = report.imported()[..] else {
@@ -532,7 +532,7 @@ fn a_preview_shows_what_the_import_would_do_and_changes_nothing() {
     let balance = book.balance(checking).expect("balance");
     let mut statements = [statement(vec![
         entry(5, -10_000, "B1", "Own transfer"),
-        entry(5, -5320, "B2", "REWE Markt"),
+        entry(5, -5320, "B2", "FRESHO Markt"),
     ])];
     statements[0].closing_balance = Some(Balance {
         amount: eur(-15_320),
@@ -623,7 +623,7 @@ fn statements_that_do_not_fit_the_account_are_refused() {
         })
     ));
 
-    let mut three = statement(vec![entry(5, -5320, "B1", "REWE Markt")]);
+    let mut three = statement(vec![entry(5, -5320, "B1", "FRESHO Markt")]);
     three.currency = Currency::new(EUR, 3).expect("valid decimal places");
     assert!(matches!(
         refused(&mut book, checking, three),
@@ -634,7 +634,7 @@ fn statements_that_do_not_fit_the_account_are_refused() {
         })
     ));
 
-    let purchase = || statement(vec![entry(5, -5320, "B1", "REWE Markt")]);
+    let purchase = || statement(vec![entry(5, -5320, "B1", "FRESHO Markt")]);
     let error = refused(&mut book, groceries, purchase());
     assert!(matches!(
         error,
@@ -664,7 +664,7 @@ fn an_import_that_fails_part_way_changes_nothing() {
     let history = history_length(&book);
     let year_0 = Date::new(0, 1, 1).expect("a valid date");
     let statements = [statement(vec![
-        entry(5, -5320, "B1", "REWE Markt"),
+        entry(5, -5320, "B1", "FRESHO Markt"),
         Entry::booked(year_0, eur(-100)),
     ])];
     let failed = import_statements(&mut book, checking, &statements, &Choices::default(), None);

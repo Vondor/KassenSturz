@@ -1244,7 +1244,7 @@ fn records() -> Vec<BankInfo> {
         // Text that isn't UTF-8 in a bank's name (T-09).
         BankInfo {
             code: leak_text("30000000"),
-            name: leak_bytes(b"Sparkasse K\xf6ln"),
+            name: leak_bytes(b"Musterbank K\xf6ln"),
             bic: ptr::null(),
             services: pin_tan("https://fints.koeln.example/"),
         },

@@ -9,7 +9,7 @@
     {"code": "DEM", "minor_digits": 2}
   ],
   "institutions": [
-    {"id": "019a0000-0000-7000-8000-000000000050", "name": "Sparkasse \"Musterstadt\"", "bank_code": "37040044", "contact": "Erika Mustermann", "address": "Hauptstraße 1\n12345 Musterstadt\nDeutschland", "phone": "+49 221 0000000"}
+    {"id": "019a0000-0000-7000-8000-000000000050", "name": "Musterbank \"Musterstadt\"", "bank_code": "37040044", "contact": "Erika Mustermann", "address": "Hauptstraße 1\n12345 Musterstadt\nDeutschland", "phone": "+49 221 0000000"}
   ],
   "accounts": [
     {"id": "019a0000-0000-7000-8000-000000000001", "name": "Girokonto", "kind": "asset", "currency": "EUR", "type": "checking", "closed": false, "parent": null, "number": "DE89 3704 0044 0532 0130 00", "notes": "Joint account\nsince 2020", "institution": "019a0000-0000-7000-8000-000000000050"},

@@ -620,7 +620,8 @@ mod tests {
     fn the_setting_is_named_as_the_app_shows_it() {
         // The English path is the app's own words, and the German one is
         // their translation (D-676).
-        let po = include_str!("../../../po/de/kassensturz.po");
+        // Git may check the file out with Windows line endings.
+        let po = include_str!("../../../po/de/kassensturz.po").replace("\r\n", "\n");
         let english: Vec<&str> = AI_PERMISSIONS.en.split(" › ").collect();
         let german: Vec<&str> = AI_PERMISSIONS.de.split(" › ").collect();
         assert_eq!(english.len(), german.len());

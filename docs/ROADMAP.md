@@ -432,7 +432,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.10** · **later** (Q-474 = R) · US2 backlog 7, a pay-off goal for a small loan, keeps its US2 line. Why: a large new feature with its own design and a new stored thing; a number card with a formula covers part of it today
 
-- **US3.11** · **planned** · thread B · standard, high · S to M. US2 backlog 8: `new_budgets` for a stretch of days, with the first and last day named by the user (amends D-394). Why: the app has it, the AI may not prepare it
+- **US3.11** · **done** (#664, D-688) · thread B · standard, high · S to M. US2 backlog 8: `new_budgets` for a stretch of days (`every` `range` with `first_day` and `last_day`), with the first and last day named by the user (amends D-394); a stretch that is already over is refused. Why: the app has it, the AI may not prepare it
 
 - **US3.12** · **planned** · thread A · standard, high · S to M. US2 backlog 9: an applied `propose_view` (or `check_only`) answers with the figure KassenSturz computed for a number card or progress bar. Why: the AI can confirm the figure to the user; numbers still come from code (AGENTS.md §8)
 

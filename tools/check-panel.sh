@@ -51,6 +51,10 @@
 #   check as you type, that only "Use this description" stores the text, the
 #   list of the parts that are not supported and "Draw it without these".
 #
+# - PermissionsSmoke.qml puts AiPermissionGrid.qml on stand-ins for AiSwitch
+#   and AiSettings and checks that a field switch that is on means the AI may
+#   write it, as in the grid (#631), and what each switch stores.
+#
 # Needs `qml6` and the QML modules the pages import (Kirigami, KI18n,
 # QuickCharts). It fails if a page doesn't load, if a check fails, or if QML
 # prints a warning about a type, a binding or a property.
@@ -72,7 +76,7 @@ mkdir -p "$module"
 for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiRulesSortChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
-    BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard; do
+    BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard AiPermissionGrid; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -86,11 +90,11 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
         FormulaField FormulaWords BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
-        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings; do
+        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -108,6 +112,8 @@ run_smoke() {
 
 run_smoke PanelSmoke
 echo "properties panel: ok"
+run_smoke PermissionsSmoke
+echo "AI field switches: ok"
 run_smoke StatisticsSmoke
 echo "statistics page: ok"
 run_smoke ReviewSmoke

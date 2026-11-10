@@ -104,6 +104,18 @@ pub enum ToolError {
         /// The ID's key, such as `category_id`.
         argument: &'static str,
     },
+    /// A budget amount `based_on` past spending can't be computed: nothing
+    /// was spent in the periods counted, or the book doesn't reach back to
+    /// their start (M6-B210). The days are the periods looked at, so the
+    /// model can ask the user for an amount instead.
+    NothingToBaseOn {
+        /// `nothing-spent` or `book-too-short`.
+        reason: &'static str,
+        /// The first day of the periods looked at.
+        from: kassensturz_core::Date,
+        /// Their last day.
+        to: kassensturz_core::Date,
+    },
     /// A Rule or category can't be changed that way: a Rule with sub-Rules
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
     /// Transfer or has conditions a model can't write keeps them. The
@@ -359,6 +371,12 @@ impl Report for ToolError {
             Self::UnknownView => ErrorReport::new("ai-tools.unknown-view"),
             Self::NameMismatch { argument } => ErrorReport::new("ai-tools.name-mismatch")
                 .with("argument", ErrorParam::Keyword(argument)),
+            Self::NothingToBaseOn { reason, from, to } => {
+                ErrorReport::new("ai-tools.nothing-to-base-on")
+                    .with("reason", ErrorParam::Keyword(reason))
+                    .with("from", ErrorParam::Date(*from))
+                    .with("to", ErrorParam::Date(*to))
+            }
             Self::NotChangeable { argument, reason } => ErrorReport::new("ai-tools.not-changeable")
                 .with("argument", ErrorParam::Keyword(argument))
                 .with("reason", ErrorParam::Keyword(reason)),
@@ -449,6 +467,16 @@ mod tests {
             ToolError::UnknownView,
             ToolError::NameMismatch {
                 argument: "category_id",
+            },
+            ToolError::NothingToBaseOn {
+                reason: "nothing-spent",
+                from: kassensturz_core::Date::constant(2026, 8, 1),
+                to: kassensturz_core::Date::constant(2026, 10, 31),
+            },
+            ToolError::NothingToBaseOn {
+                reason: "book-too-short",
+                from: kassensturz_core::Date::constant(2026, 8, 1),
+                to: kassensturz_core::Date::constant(2026, 10, 31),
             },
             ToolError::NotChangeable {
                 argument: "conditions",

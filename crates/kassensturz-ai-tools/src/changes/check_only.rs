@@ -85,6 +85,15 @@ pub fn check_only_answer(book: &Book, proposal: &Proposal) -> Result<Value, Tool
                 "average": writer.amount(basis.average)?,
                 "rounded_up_to": basis.round_to,
             });
+            // The empty newest period the count moved back past, as the
+            // review card says it (M6-B209).
+            if let Some((left_from, left_to)) = basis.left_out {
+                row["based_on"]["left_out"] = json!({
+                    "from": left_from.to_string(),
+                    "to": left_to.to_string(),
+                    "reason": "nothing-spent",
+                });
+            }
         }
         amounts.push(row);
     }

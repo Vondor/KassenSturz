@@ -349,9 +349,10 @@ fn from_report(error: ReportError) -> ToolError {
 /// is empty too (the spending stopped), or when the book doesn't reach
 /// back to the moved first period.
 ///
-/// It is refused with `based_on` when the book's first transaction is after
-/// the first period counted (the book doesn't reach back that far, so the
-/// average would be too low), and when nothing was spent in them.
+/// It is refused with `ai-tools.nothing-to-base-on` (M6-B210), with the
+/// days looked at, when the book's first transaction is after the first
+/// period counted (`book-too-short`: the average would be too low), and
+/// when nothing was spent in them (`nothing-spent`).
 fn amount_based_on(
     book: &Book,
     counts: &Counts<'_>,
@@ -378,8 +379,14 @@ fn amount_based_on(
         Ok(earliest.is_some_and(|earliest| earliest <= end))
     };
     let asked = usize::from(periods);
+    let last_day = current.yesterday().map_err(|_| bad())?;
     if !reaches(starts[asked - 1])? {
-        return Err(bad());
+        // Not a wrong word: the book is too young for it (M6-B210).
+        return Err(ToolError::NothingToBaseOn {
+            reason: "book-too-short",
+            from: starts[asked - 1],
+            to: last_day,
+        });
     }
     let reaches_moved = reaches(starts[asked])?;
     // Read from the oldest start the asked may need, up to the day before
@@ -390,7 +397,6 @@ fn amount_based_on(
     } else {
         starts[asked - 1]
     };
-    let last_day = current.yesterday().map_err(|_| bad())?;
     // Oldest first, as `budget_utilization` gives them.
     let spent_each = spent_per_period(book, counts, every, read_from, last_day)?;
     let read = if reaches_moved { asked + 1 } else { asked };
@@ -417,7 +423,12 @@ fn amount_based_on(
     let total = i128::from(spent.minor_units());
     let count = i128::from(periods);
     if total <= 0 {
-        return Err(bad());
+        // Nothing spent in the periods looked at (M6-B210).
+        return Err(ToolError::NothingToBaseOn {
+            reason: "nothing-spent",
+            from: first_day,
+            to: last_day,
+        });
     }
     // Rounded up to the step: the smallest multiple of `step` that is at
     // least total / count.

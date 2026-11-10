@@ -459,17 +459,17 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
             budget(
                 json!({"category_id": food, "every": "month", "based_on": "average_12_periods"}),
             ),
-            "bad-argument based_on",
+            "ai-tools.nothing-to-base-on book-too-short",
         ),
         // No full year before 2026 in the book.
         (
             budget(json!({"category_id": food, "every": "year", "based_on": "last_period"})),
-            "bad-argument based_on",
+            "ai-tools.nothing-to-base-on book-too-short",
         ),
         // Fun spent nothing: nothing to base an amount on.
         (
             budget(json!({"category_id": fun, "every": "month", "based_on": "last_period"})),
-            "bad-argument based_on",
+            "ai-tools.nothing-to-base-on nothing-spent",
         ),
         (
             budget(
@@ -1012,7 +1012,25 @@ fn spending_that_stopped_is_not_taken_for_a_slip() {
     let today = Date::constant(2027, 3, 14);
     assert_eq!(
         code(based_on(&small, "last_period", today)),
-        "bad-argument based_on"
+        "ai-tools.nothing-to-base-on nothing-spent"
+    );
+    // The refusal names the month it looked at, so the model can ask the
+    // user for an amount instead (M6-B210).
+    let report = based_on(&small, "last_period", today)
+        .expect_err("refused")
+        .model_report();
+    let days: Vec<_> = report
+        .params
+        .iter()
+        .filter(|(name, _)| *name == "from" || *name == "to")
+        .map(|(_, value)| value.clone())
+        .collect();
+    assert_eq!(
+        days,
+        [
+            kassensturz_core::ErrorParam::Date(Date::constant(2027, 2, 1)),
+            kassensturz_core::ErrorParam::Date(Date::constant(2027, 2, 28)),
+        ]
     );
     // December 2026 and January 2027 empty on 14 February: no move
     // either, the three months hold only November's 100.00.
@@ -1110,4 +1128,32 @@ fn check_only_is_true_false_or_absent() {
             })
         ));
     }
+}
+
+// The check names the left-out period as the review card does (M6-B209).
+#[test]
+fn a_check_names_the_period_a_slipped_payment_left_out() {
+    let small = slipped(Date::constant(2000, 1, 1));
+    let proposal = based_on(&small, "last_period", TODAY).expect("prepared");
+    let answer = check_only_answer(&small.book, &proposal).expect("answered");
+    assert_eq!(
+        answer["budget_amounts"][0]["based_on"],
+        json!({
+            "periods": 1,
+            "from": "2026-09-01",
+            "to": "2026-09-30",
+            "spent": "50.00",
+            "average": "50.00",
+            "rounded_up_to": 1,
+            "left_out": {"from": "2026-10-01", "to": "2026-10-31", "reason": "nothing-spent"},
+        })
+    );
+    // Without a slip there is no left_out.
+    let proposal = based_on(&small, "last_period", Date::constant(2026, 10, 14)).expect("prepared");
+    let answer = check_only_answer(&small.book, &proposal).expect("answered");
+    assert!(
+        answer["budget_amounts"][0]["based_on"]
+            .get("left_out")
+            .is_none()
+    );
 }

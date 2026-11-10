@@ -900,6 +900,7 @@ mod tests {
                 category: groceries.clone(),
                 other_account: String::new(),
                 date: "2026-10-05".into(),
+                note: String::new(),
                 imported: false,
                 delivered_name: String::new(),
             }

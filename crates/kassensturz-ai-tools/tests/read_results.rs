@@ -312,18 +312,18 @@ fn a_text_the_other_text_holds_is_sent_once() {
     // The memo is in the bank text (whitespace aside): only the bank text,
     // which Rules test.
     let first = row_of_day(&value, "2026-10-01");
-    assert!(first.get("memo").is_none(), "{first}");
+    assert!(first.get("note").is_none(), "{first}");
     assert_eq!(
         first["bank_text"],
         json!("CARD PAYMENT  Corner Grocer   North 0815")
     );
     // The bank text is in the memo: only the memo.
     let second = row_of_day(&value, "2026-10-02");
-    assert_eq!(second["memo"], json!("Weekly shop at Corner Grocer South"));
+    assert_eq!(second["note"], json!("Weekly shop at Corner Grocer South"));
     assert!(second.get("bank_text").is_none(), "{second}");
     // Different texts: both.
     let third = row_of_day(&value, "2026-10-03");
-    assert_eq!(third["memo"], json!("Party snacks"));
+    assert_eq!(third["note"], json!("Party snacks"));
     assert_eq!(third["bank_text"], json!("CARD PAYMENT 0816"));
     // The search still finds a row by the text left out.
     let found = run(

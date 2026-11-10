@@ -62,12 +62,17 @@ fn the_rules_sort_what_has_no_category_and_one_undo_takes_it_back() {
         }]
     );
     assert_eq!(sort.staying(), 0);
-    // The model hears the counts, from the run.
-    assert_eq!(proposal.output.value["transactions_sorted"], json!(1));
-    assert_eq!(
-        proposal.output.value["transactions_left_as_they_are"],
-        json!(0)
-    );
+    // The model hears only that one change waits: how many transactions
+    // the run sorts is the book's, which sorting doesn't let it read.
+    let heard: Vec<&String> = proposal
+        .output
+        .value
+        .as_object()
+        .expect("an object")
+        .keys()
+        .collect();
+    assert_eq!(heard, ["note", "prepared", "status"]);
+    assert_eq!(proposal.output.value["prepared"], json!(1));
     let hand_sorted = book.transaction(bought).expect("grocer");
     let in_parts = book.transaction(split).expect("market");
 

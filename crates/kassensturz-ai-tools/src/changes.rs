@@ -1255,22 +1255,13 @@ fn propose_with(
     let mut figures = Figures::new();
     let total = u64::try_from(changes.len()).unwrap_or(u64::MAX);
     figures.add_count(total);
-    let mut answer = json!({
-        "prepared": total,
-        "status": "waiting for the user's review; nothing is changed until the user confirms",
-    });
-    // How many transactions the Rules sort, and how many they fit but
-    // leave as they are: counted by the run, so the model can say it.
-    for change in &changes {
-        if let ProposedChange::SortWithRules(sort) = change {
-            let count = |n: usize| u64::try_from(n).unwrap_or(u64::MAX);
-            figures.add_count(count(sort.changes.len()));
-            figures.add_count(count(sort.staying()));
-            answer["transactions_sorted"] = json!(count(sort.changes.len()));
-            answer["transactions_left_as_they_are"] = json!(count(sort.staying()));
-        }
-    }
-    let output = Output::new(answer, figures);
+    let output = Output::new(
+        json!({
+            "prepared": total,
+            "status": "waiting for the user's review; nothing is changed until the user confirms",
+        }),
+        figures,
+    );
     let (slots, call) = edits::Call::first(arguments, &changes, today);
     Ok(Proposal {
         changes: ChangeSet {

@@ -490,6 +490,22 @@ pub enum ChangeView {
         /// the user may choose from (D-293).
         charts: Vec<&'static str>,
     },
+    /// A saved chart changed (D-681).
+    EditView {
+        /// Its name now.
+        before: String,
+        /// Its name after, the same when it isn't renamed.
+        title: String,
+        /// The period it shows after.
+        period: String,
+        /// The component after the change as JSON text, for the preview.
+        component: String,
+    },
+    /// A saved chart deleted (D-681).
+    DeleteView {
+        /// Its name.
+        name: String,
+    },
     /// A new budget (M6c.11, D-358).
     NewBudget {
         /// The name it gets; empty for none (D-664).
@@ -931,6 +947,15 @@ fn view_of(
                 .filter(|kind| kind.datasets().any(|info| info.id == new.dataset_id()))
                 .map(ComponentType::id)
                 .collect(),
+        },
+        ProposedChange::EditView(edit) => ChangeView::EditView {
+            before: edit.before.clone(),
+            title: edit.title.clone(),
+            period: edit.period.clone(),
+            component: edit.component_json(),
+        },
+        ProposedChange::DeleteView(delete) => ChangeView::DeleteView {
+            name: delete.name.clone(),
         },
     })
 }
@@ -1533,6 +1558,72 @@ mod tests {
         assert_eq!(opened.period, "this-year");
         assert!(book.undo().unwrap().is_some());
         assert!(crate::saved_views::list(&book).unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_saved_chart_the_ai_changes_or_deletes_is_shown_and_undone_like_any_change() {
+        // D-681, through the real list, propose_view and the saved views'
+        // reader.
+        let mut book = space_colony();
+        let today = kassensturz_core::Date::new(2026, 11, 9).unwrap();
+        let call = serde_json::json!({
+            "title": "Where the money goes",
+            "data": "spending_by_category",
+            "show_as": "bar",
+        });
+        let proposal =
+            kassensturz_ai_tools::propose_view(&book, &call, Permissions::all(), today).unwrap();
+        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        let listed =
+            kassensturz_ai_tools::call(&book, "list_views", &serde_json::json!({}), today).unwrap();
+        let id = listed.value["charts"][0]["view_id"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let change = serde_json::json!({"view_id": id, "show_as": "pie", "title": "As a pie"});
+        let proposal =
+            kassensturz_ai_tools::propose_view(&book, &change, Permissions::all(), today).unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
+        let [
+            ChangeView::EditView {
+                before,
+                title,
+                component,
+                ..
+            },
+        ] = views.as_slice()
+        else {
+            panic!("one changed chart: {views:?}");
+        };
+        assert_eq!(
+            (before.as_str(), title.as_str()),
+            ("Where the money goes", "As a pie")
+        );
+        assert_eq!(
+            kassensturz_report::Component::from_json(component)
+                .unwrap()
+                .kind()
+                .id(),
+            "chart.pie"
+        );
+        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        let [row] = <[_; 1]>::try_from(crate::saved_views::list(&book).unwrap()).unwrap();
+        assert_eq!(
+            (row.name.as_str(), row.kind.as_str()),
+            ("As a pie", "chart.pie")
+        );
+        let delete = serde_json::json!({"delete_views": [{"view_id": id}]});
+        let proposal =
+            kassensturz_ai_tools::propose_on(&book, &delete, Permissions::all(), today).unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
+        assert!(matches!(
+            views.as_slice(),
+            [ChangeView::DeleteView { name }] if name == "As a pie"
+        ));
+        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        assert!(crate::saved_views::list(&book).unwrap().is_empty());
+        assert!(book.undo().unwrap().is_some());
+        assert_eq!(crate::saved_views::list(&book).unwrap().len(), 1);
     }
 
     #[test]

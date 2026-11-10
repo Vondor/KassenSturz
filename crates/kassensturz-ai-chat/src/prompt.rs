@@ -102,6 +102,10 @@ with a function instead. Every function result is JSON; amounts are exact decima
 /// What the user asks for when they want a chart prepared.
 const CHART_ASK: &str = "propose a chart or key figure for the user to save";
 
+/// What the user asks for to change a saved chart, which `propose_view`
+/// prepares with a `view_id` (D-681).
+const CHART_CHANGE_ASK: &str = "change a chart the user saved";
+
 /// What the model may prepare and how to say so, for the kinds of change
 /// the user allows (D-239). The kinds it may not prepare are named, so it
 /// tells the user instead of trying another way.
@@ -135,6 +139,7 @@ fn changes(allowed: Permissions) -> String {
             "removed entries of a cash account (delete_transactions)",
         ),
         (allowed.allows(Permission::NewViews), CHART_ASK, ""),
+        (allowed.allows(Permission::EditViews), CHART_CHANGE_ASK, ""),
         (
             allowed.allows(Permission::NewCategories),
             "add categories",
@@ -185,6 +190,11 @@ fn changes(allowed: Permissions) -> String {
             "change the amount of a budget or whether it carries over",
             "changed budgets (edit_budgets, from the current period on)",
         ),
+        (
+            allowed.allows(Permission::DeleteViews),
+            "delete charts the user saved",
+            "deleted saved charts (delete_views, IDs from list_views)",
+        ),
     ];
     let join = |texts: Vec<&str>| match texts.as_slice() {
         [] => String::new(),
@@ -192,16 +202,17 @@ fn changes(allowed: Permissions) -> String {
         [init @ .., last] => format!("{} or {last}", init.join(", ")),
     };
     // A chart has its own function (D-352), so it is not in this sentence.
+    let own_function = |ask: &str| ask == CHART_ASK || ask == CHART_CHANGE_ASK;
     let asks = join(
         kinds
             .iter()
-            .filter(|kind| kind.0 && kind.1 != CHART_ASK)
+            .filter(|kind| kind.0 && !own_function(kind.1))
             .map(|kind| kind.1)
             .collect(),
     );
     let prepared = kinds
         .iter()
-        .filter(|kind| kind.0 && kind.1 != CHART_ASK)
+        .filter(|kind| kind.0 && !own_function(kind.1))
         .map(|kind| kind.2)
         .collect::<Vec<_>>()
         .join(", ");
@@ -217,6 +228,12 @@ fn changes(allowed: Permissions) -> String {
             "When the user asks you to {CHART_ASK}, prepare it with propose_view, one call per \
              chart and at most {MAX_VIEWS_PER_ANSWER} in one answer; choose only from its lists \
              and never write a figure into its title. "
+        ));
+    }
+    if allowed.allows(Permission::EditViews) {
+        text.push_str(&format!(
+            "When the user asks you to {CHART_CHANGE_ASK}, find its view_id with list_views and \
+             call propose_view with that view_id and only the settings that change. "
         ));
     }
     text.push_str(
@@ -464,6 +481,24 @@ mod tests {
         );
         let overview = with_overview(&build, today, &serde_json::json!({}));
         assert!(overview.contains("different currencies are never added"));
+    }
+
+    #[test]
+    fn a_saved_chart_is_changed_with_propose_view_and_deleted_with_propose_changes() {
+        // D-681: the chart's ID comes from list_views.
+        let build = BuildInfo::new("0.261025.1", "1775d22");
+        let today = Date::constant(2026, 10, 25);
+        let change = Permissions::NONE.with(Permission::EditViews, true);
+        let text = with_functions(&build, today, false, change);
+        assert!(text.contains("find its view_id with list_views and call propose_view"));
+        assert!(!text.contains("prepare the changes with propose_changes"));
+        let delete = Permissions::NONE.with(Permission::DeleteViews, true);
+        let text = with_functions(&build, today, false, delete);
+        assert!(text.contains("delete_views, IDs from list_views"));
+        assert!(
+            text.contains(&format!("{CHART_ASK}, {CHART_CHANGE_ASK}, ")),
+            "{text}"
+        );
     }
 
     #[test]

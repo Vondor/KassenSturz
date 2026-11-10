@@ -95,6 +95,8 @@ pub enum ToolError {
     OtherCurrency,
     /// No Rule has that ID.
     UnknownRule,
+    /// No chart saved under Statistics has that ID (D-681).
+    UnknownView,
     /// A Rule or category can't be changed that way: a Rule with sub-Rules
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
     /// Transfer or has conditions a model can't write keeps them. The
@@ -308,6 +310,7 @@ impl Report for ToolError {
             }
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
+            Self::UnknownView => ErrorReport::new("ai-tools.unknown-view"),
             Self::NotChangeable { argument, reason } => ErrorReport::new("ai-tools.not-changeable")
                 .with("argument", ErrorParam::Keyword(argument))
                 .with("reason", ErrorParam::Keyword(reason)),
@@ -395,6 +398,7 @@ mod tests {
             ToolError::NotDeletable,
             ToolError::OtherCurrency,
             ToolError::UnknownRule,
+            ToolError::UnknownView,
             ToolError::NotChangeable {
                 argument: "conditions",
                 reason: "conditions-hidden",

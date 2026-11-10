@@ -773,7 +773,12 @@ impl ChatSession {
             .proposed
             .iter()
             .flat_map(ChangeSet::changes)
-            .filter(|change| matches!(change, ProposedChange::NewView(_)))
+            .filter(|change| {
+                matches!(
+                    change,
+                    ProposedChange::NewView(_) | ProposedChange::EditView(_)
+                )
+            })
             .count();
         let mut view_refused = false;
         let outcome = if call.name == PROPOSE_VIEW_NAME {
@@ -876,6 +881,10 @@ impl ChatSession {
             .iter()
             .filter_map(|change| match change {
                 ProposedChange::NewView(view) => Some(check_numbers(&view.title, &self.figures)),
+                // A new title of a saved chart is the model's text too (D-681).
+                ProposedChange::EditView(view) if view.title != view.before => {
+                    Some(check_numbers(&view.title, &self.figures))
+                }
                 _ => None,
             })
             .flatten()

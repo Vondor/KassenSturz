@@ -78,10 +78,10 @@ ColumnLayout {
         {
             name: i18nContext.i18nc("@label a part of the book", "Charts"),
             cells: [
-                { key: "", absent: "never" },
+                { key: "AllowReadViews", read: true },
                 { key: "AllowNewViews" },
-                { key: "", absent: "never" },
-                { key: "", absent: "never" }
+                { key: "AllowEditViews", needsRead: true },
+                { key: "AllowDeleteViews", needsRead: true }
             ]
         },
         {

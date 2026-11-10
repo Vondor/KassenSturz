@@ -356,7 +356,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.11** · **planned** · thread E · standard, high · M. #570: `edit_rules` can add or remove single conditions. Why: resending the whole list can carry cut text (#568)
 
-- **US2.12** · **planned** · thread F, after A · standard, high · M. #599 and #578 (US1.35, US1.17a): a read-only list of saved charts with ids, then change and delete by id, each a change set the user confirms; the salary month after `@` stays later. Why: a chart the AI made can only be changed by hand
+- **US2.12** · **built** (D-681) · thread F, after A · standard, high · M. #599 and #578 (US1.35, US1.17a): a read-only list of saved charts with ids, then change and delete by id, each a change set the user confirms; the salary month after `@` stays later. Why: a chart the AI made can only be changed by hand
 
 - **US2.13** · **planned** · thread D · standard, medium · M. #593 (US1.29): `parent_id` on `category_totals`, ids next to names, `group_by` for `payee_totals`, argument names on `ai-tools.bad-period`, the memo sent once, `offset` for `search_transactions`; with US2.20. Why: a model can count twice or mix up categories of the same name
 

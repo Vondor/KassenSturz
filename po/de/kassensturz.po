@@ -19044,3 +19044,49 @@ msgctxt ""
 "@item:inlistbox the bars of a chart stand upright, the names below them"
 msgid "Upright (names below)"
 msgstr "Aufrecht (Namen darunter)"
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Changed chart"
+msgstr "Geändertes Diagramm"
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Chart to delete"
+msgstr "Diagramm zum Löschen"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Saved charts that change"
+msgstr "Gespeicherte Diagramme, die sich ändern"
+
+#, kde-format
+msgctxt "@info %1 is the name a saved chart has now"
+msgid "Now called: %1"
+msgstr "Heißt jetzt: %1"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The AI changed what this saved chart shows; everything it did not name stays "
+"as you set it. The figures are worked out by KassenSturz from your book. The "
+"chart changes only when you confirm, and Undo puts it back."
+msgstr ""
+"Die KI hat geändert, was dieses gespeicherte Diagramm zeigt; alles, was sie "
+"nicht genannt hat, bleibt so, wie Sie es eingestellt haben. Die Zahlen "
+"berechnet KassenSturz aus Ihrem Buch. Das Diagramm ändert sich erst, wenn Sie "
+"bestätigen, und Rückgängig stellt es wieder her."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Saved charts to delete"
+msgstr "Gespeicherte Diagramme zum Löschen"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The chart is removed from the Statistic Builder. Your book's figures don't "
+"change, and Undo brings the chart back."
+msgstr ""
+"Das Diagramm wird aus dem Statistik-Baukasten entfernt. Die Zahlen Ihres "
+"Buchs ändern sich nicht, und Rückgängig holt das Diagramm zurück."

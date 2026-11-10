@@ -39,8 +39,8 @@ pub enum Row {
     Accounts,
     /// The transactions.
     Transactions,
-    /// The saved charts (D-282): the AI may only propose new ones, so the
-    /// row has no Read cell.
+    /// The saved charts (D-282): the AI may read, propose, change and
+    /// delete them (D-681).
     Charts,
     /// The budgets (D-358): read, add and change; never delete.
     Budgets,
@@ -92,11 +92,17 @@ pub enum Permission {
     /// Change the amount or carry over of budgets from the current period
     /// on (Budgets, Change; D-358).
     EditBudgets,
+    /// Read the saved charts (Charts, Read; D-681).
+    ChartsRead,
+    /// Change a saved chart (Charts, Change; D-681).
+    EditViews,
+    /// Delete a saved chart (Charts, Delete; D-681).
+    DeleteViews,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 19] = [
+    pub const ALL: [Self; 22] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -112,7 +118,10 @@ impl Permission {
         Self::SortTransactions,
         Self::NewTransactions,
         Self::DeleteTransactions,
+        Self::ChartsRead,
         Self::NewViews,
+        Self::EditViews,
+        Self::DeleteViews,
         Self::BudgetsRead,
         Self::NewBudgets,
         Self::EditBudgets,
@@ -140,6 +149,9 @@ impl Permission {
             Self::BudgetsRead => "AllowReadBudgets",
             Self::NewBudgets => "AllowNewBudgets",
             Self::EditBudgets => "AllowEditBudgets",
+            Self::ChartsRead => "AllowReadViews",
+            Self::EditViews => "AllowEditViews",
+            Self::DeleteViews => "AllowDeleteViews",
         }
     }
 
@@ -156,7 +168,7 @@ impl Permission {
             | Self::NewTransactions
             | Self::DeleteTransactions
             | Self::TransactionsRead => Row::Transactions,
-            Self::NewViews => Row::Charts,
+            Self::ChartsRead | Self::NewViews | Self::EditViews | Self::DeleteViews => Row::Charts,
             Self::BudgetsRead | Self::NewBudgets | Self::EditBudgets => Row::Budgets,
         }
     }
@@ -170,6 +182,7 @@ impl Permission {
                 | Self::AccountsRead
                 | Self::TransactionsRead
                 | Self::BudgetsRead
+                | Self::ChartsRead
         )
     }
 
@@ -189,6 +202,8 @@ impl Permission {
                 | Self::EditAccounts
                 | Self::NewBudgets
                 | Self::EditBudgets
+                | Self::EditViews
+                | Self::DeleteViews
         )
     }
 
@@ -199,7 +214,7 @@ impl Permission {
             Row::Rules => Some(Self::RulesRead),
             Row::Accounts => Some(Self::AccountsRead),
             Row::Transactions => Some(Self::TransactionsRead),
-            Row::Charts => None,
+            Row::Charts => Some(Self::ChartsRead),
             Row::Budgets => Some(Self::BudgetsRead),
         }
     }
@@ -575,6 +590,20 @@ mod tests {
         assert!(added.can_change());
         let sorted = permissions_in("[AI]\nEnabled=true\nAllowSortTransactions=true\n");
         assert!(sorted.reads(Row::Transactions) && !sorted.reads(Row::Categories));
+    }
+
+    #[test]
+    fn changing_or_deleting_a_saved_chart_gives_the_reading_of_the_charts() {
+        // D-681: the AI finds a chart's ID with list_views.
+        for key in ["AllowEditViews", "AllowDeleteViews"] {
+            let got = permissions_in(&format!("[AI]\nEnabled=true\n{key}=true\n"));
+            assert!(got.reads(Row::Charts), "{key}");
+            assert!(!got.reads(Row::Categories), "{key}");
+        }
+        let added = permissions_in("[AI]\nEnabled=true\nAllowNewViews=true\n");
+        assert!(!added.reads(Row::Charts));
+        let read = permissions_in("[AI]\nEnabled=true\nAllowReadViews=true\n");
+        assert!(read.reads(Row::Charts) && !read.can_change());
     }
 
     #[test]

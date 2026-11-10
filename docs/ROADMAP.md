@@ -428,7 +428,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.8** · **planned** · thread E, after US3.6 · standard, medium · S. US2 backlog 5: `check_only` on `sort_with_rules` gives a `would_sort` count, without the entries (amends D-682). Why: the AI can tell the user beforehand how many it would sort
 
-- **US3.9** · **planned** · thread E, after US3.7 · standard, medium · S to M. US2 backlog 6: an `ai-tools.bad-argument` refusal of a change list hints at the shape it expects, for all 19 lists. Why: today it names only the argument
+- **US3.9** · **in review** (D-696) · thread E, after US3.7 · standard, medium · S to M. US2 backlog 6: an `ai-tools.bad-argument` refusal of a change list hints at the shape it expects, for all 19 lists. Why: today it names only the argument
 
 - **US3.10** · **later** (Q-474 = R) · US2 backlog 7, a pay-off goal for a small loan, keeps its US2 line. Why: a large new feature with its own design and a new stored thing; a number card with a formula covers part of it today
 

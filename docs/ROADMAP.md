@@ -362,7 +362,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.14a** · **built, in review** (#616, D-672) · thread D, after US2.10 · standard, medium · S. #594 part (a) (US1.30): possible Transfers are marked in the AI tools, and their descriptions say "joined Transfers". Part (b) goes to US3. Why: income and spending look larger than they are
 
-- **US2.15** · **planned** · thread E, after US2.11 · standard, high · M. #595 (US1.31): `check_only` for `propose_changes` and `propose_view`; a shorter description only if the maintainer's re-test shows a client still cutting it. Why: a model can't see a computed amount before the user does
+- **US2.15** · **in review** · thread E, after US2.11 · standard, high · M · D-674. #595 (US1.31): `check_only` for `propose_changes` and `propose_view`; a shorter description only if the maintainer's re-test shows a client still cutting it. Why: a model can't see a computed amount before the user does **Built (D-674):** `check_only: true` on the MCP server's `propose_changes` and `propose_view` answers counts per list and computed budget amounts and sends nothing to the app; the description stays until the re-test
 
 - **US2.16** · **done** (#612, D-677) · thread I · strong, high · S to M · human gate (AI data sharing), security look before the PR. #596 (US1.32): the AI's IBAN mask checks length and check digits (ISO 13616), so ISINs, creditor ids and mandate references stay readable. Why: it hides text the AI needs; no real IBAN may reach a model (D-170)
 

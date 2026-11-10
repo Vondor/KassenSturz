@@ -11,7 +11,8 @@
 //! (D-216) and waits a while for the user's decision. The app checks the
 //! call again itself, shows the set, and only its confirm button applies it
 //! (D-200). `check_proposed_changes` asks again later about a set the user
-//! hasn't decided on yet.
+//! hasn't decided on yet. With `check_only: true`, the two tools only check
+//! the call and answer what it would prepare, and send nothing (D-674).
 
 use std::path::Path;
 use std::sync::Arc;
@@ -19,8 +20,8 @@ use std::time::{Duration, Instant};
 
 use kassensturz_ai_tools::requests::{Reply, RequestFolder, RequestId, Standing};
 use kassensturz_ai_tools::{
-    PROPOSE_CHANGES, PROPOSE_VIEW_NAME, ProposeSpec, ToolError, prepare_named, propose_spec,
-    propose_view_spec,
+    CHECK_ONLY, CHECK_ONLY_SCHEMA, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, ProposeSpec, ToolError,
+    check_only_answer, prepare_named, propose_spec, propose_view_spec, take_check_only,
 };
 use kassensturz_core::ai_switch::{self, Permissions};
 use kassensturz_store::Book;
@@ -86,10 +87,21 @@ pub(crate) fn tools(permissions: Permissions) -> Vec<Tool> {
         Arc::new(serde_json::from_str(text).expect("the parameters are a JSON object"))
     };
     let prepares = |spec: ProposeSpec| {
+        // Only here, not in the chat: a check sends nothing to the app
+        // (#595, D-674).
+        let mut parameters = schema(&spec.parameters);
+        if let Some(Value::Object(properties)) =
+            Arc::make_mut(&mut parameters).get_mut("properties")
+        {
+            properties.insert(
+                CHECK_ONLY.into(),
+                serde_json::from_str(CHECK_ONLY_SCHEMA).expect("the check_only schema is JSON"),
+            );
+        }
         Tool::new(
             spec.name,
             format!("{}{PROPOSE_NOTE}", spec.description),
-            schema(&spec.parameters),
+            parameters,
         )
         .with_annotations(
             ToolAnnotations::new()
@@ -166,18 +178,30 @@ async fn propose(
     folder: &RequestFolder,
     waits: Waits,
 ) -> Result<Value, Failure> {
+    // `check_only` is this server's own argument: the app gets the call
+    // without it (D-674).
+    let (check_only, arguments) = take_check_only(arguments).map_err(Failure::Tool)?;
     // The same check the app makes again (D-199): the AI tool hears about
     // a bad call at once, and nothing reaches the app that can't work.
-    Book::open_to_read(book)
+    let checked = Book::open_to_read(book)
         .map_err(ToolError::from)
         .and_then(|book| {
             book.reading(|book| {
-                prepare_named(book, name, arguments, permissions, crate::server::today())
+                let proposal =
+                    prepare_named(book, name, &arguments, permissions, crate::server::today())?;
+                if check_only {
+                    check_only_answer(book, &proposal).map(Some)
+                } else {
+                    Ok(None)
+                }
             })
         })
         .map_err(Failure::Tool)?;
+    if let Some(answer) = checked {
+        return Ok(answer);
+    }
     let id = folder
-        .send_call(book, name, arguments)
+        .send_call(book, name, &arguments)
         .map_err(|_| Failure::Code("mcp-writes.folder".into()))?;
     wait_for(folder, &id, waits, ai_switch::write_tools_enabled).await
 }

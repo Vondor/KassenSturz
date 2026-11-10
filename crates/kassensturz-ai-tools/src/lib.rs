@@ -69,12 +69,13 @@ mod writer;
 
 #[cfg(feature = "ai")]
 pub use changes::{
-    AmountBasis, Categorize, ChangeError, ChangeSet, Confirmed, DeleteCategory, DeleteTransaction,
-    EditAccount, EditBudget, EditError, EditTransaction, FieldEdit, FieldValue, MAX_CHANGES,
-    MAX_VIEW_ACCOUNTS, MAX_VIEW_CALL_BYTES, MAX_VIEW_CATEGORIES, MAX_VIEWS_PER_ANSWER, NewAccount,
-    NewBudget, NewCategory, NewRule, NewTransaction, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, Proposal,
-    ProposeSpec, ProposedChange, Slot, adds_allowed, edits_allowed, every_word, prepare_named,
-    propose, propose_on, propose_spec, propose_view, propose_view_spec, propose_view_text,
+    AmountBasis, CHECK_ONLY, CHECK_ONLY_SCHEMA, Categorize, ChangeError, ChangeSet, Confirmed,
+    DeleteCategory, DeleteTransaction, EditAccount, EditBudget, EditError, EditTransaction,
+    FieldEdit, FieldValue, MAX_CHANGES, MAX_VIEW_ACCOUNTS, MAX_VIEW_CALL_BYTES,
+    MAX_VIEW_CATEGORIES, MAX_VIEWS_PER_ANSWER, NewAccount, NewBudget, NewCategory, NewRule,
+    NewTransaction, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, Proposal, ProposeSpec, ProposedChange,
+    Slot, adds_allowed, check_only_answer, edits_allowed, every_word, prepare_named, propose,
+    propose_on, propose_spec, propose_view, propose_view_spec, propose_view_text, take_check_only,
     view_choices,
 };
 #[cfg(all(feature = "ai", feature = "debug-log"))]

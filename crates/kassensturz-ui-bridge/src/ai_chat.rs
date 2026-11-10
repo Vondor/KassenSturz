@@ -1607,7 +1607,15 @@ mod tests {
         assert_eq!(lines[0].before.len(), 10, "{:?}", lines[0]);
         assert_eq!(lines[0].after.len(), 10, "{:?}", lines[0]);
         assert_eq!(lines[1].after, "Colony Cafe");
-        assert_eq!(lines[2].before, row["memo"].as_str().unwrap());
+        // The memo as the book has it: a search row leaves it out when the
+        // bank text holds it (D-670).
+        let edited = book
+            .transactions()
+            .unwrap()
+            .into_iter()
+            .find(|transaction| transaction.id().to_string() == row["transaction_id"])
+            .unwrap();
+        assert_eq!(Some(lines[2].before.as_str()), edited.note());
         assert_eq!(lines[2].after, "weekly");
     }
 

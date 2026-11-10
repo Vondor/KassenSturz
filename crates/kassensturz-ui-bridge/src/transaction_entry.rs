@@ -44,6 +44,9 @@ pub enum EntryError {
     Store(StoreError),
     /// The transaction doesn't add up; only an amount too large can get here.
     Transaction(TransactionError),
+    /// A note longer than `MAX_NOTE_CHARS`, or one with a line break or
+    /// another control character.
+    Note,
 }
 
 impl From<StoreError> for EntryError {
@@ -51,6 +54,9 @@ impl From<StoreError> for EntryError {
         Self::Store(error)
     }
 }
+
+/// The longest note the page takes, the same as the AI may write.
+pub const MAX_NOTE_CHARS: usize = 200;
 
 /// A transaction as the user entered it on the page.
 pub struct NewEntry<'a> {
@@ -66,6 +72,10 @@ pub struct NewEntry<'a> {
     pub category: &'a str,
     /// The date, as typed.
     pub date: &'a str,
+    /// What the user wrote about it, as typed. `Some` sets the note (empty
+    /// removes it); `None` leaves a transaction's note as it is, and an
+    /// added one has none.
+    pub note: Option<&'a str>,
 }
 
 /// A transaction as the page shows it to be changed, every amount and date
@@ -93,6 +103,8 @@ pub struct EntryForm {
     pub other_account: String,
     /// The booking date, in the user's format.
     pub date: String,
+    /// What the user wrote about the transaction as a whole; may be empty.
+    pub note: String,
     /// Whether the account's part came from a bank or a file, so its amount
     /// stays as delivered (D-067).
     pub imported: bool,
@@ -199,6 +211,7 @@ pub fn add(
     let category = find_category(book, &account, entered.category)?;
     let (into_account, into_other) = read_amounts(book, &account, entered, locale)?;
     let date = locale.read_date(entered.date).ok_or(EntryError::Date)?;
+    let note = read_note(entered.note)?.flatten();
     let other = match category {
         Some(category) => Split::new(category.id, into_other),
         None => Split::uncategorized(into_other),
@@ -209,7 +222,8 @@ pub fn add(
         payee(entered.other_party),
         vec![Split::new(account.id, into_account), other],
     )
-    .map_err(EntryError::Transaction)?;
+    .map_err(EntryError::Transaction)?
+    .with_note(note);
     book.add_transaction(&transaction)?;
     Ok(transaction.id())
 }
@@ -274,6 +288,7 @@ pub fn details(
             _ => String::new(),
         },
         date: locale.short_date(date),
+        note: transaction.note().unwrap_or_default().to_owned(),
         imported: own.iter().any(|split| split.imported.is_some()),
         delivered_name,
     })
@@ -319,6 +334,7 @@ pub fn edit(
     let category = find_category(book, &account, entered.category)?;
     let (into_account, into_other) = read_amounts(book, &account, entered, locale)?;
     let date = locale.read_date(entered.date).ok_or(EntryError::Date)?;
+    let note = read_note(entered.note)?;
     let splits = stored
         .splits()
         .iter()
@@ -340,6 +356,10 @@ pub fn edit(
     let transaction = Transaction::new(stored.id(), date, payee(entered.other_party), splits)
         .map_err(EntryError::Transaction)?
         .with_details_of(&stored);
+    let transaction = match note {
+        Some(note) => transaction.with_note(note),
+        None => transaction,
+    };
     book.update_transaction(&transaction)?;
     Ok(())
 }
@@ -376,6 +396,10 @@ pub fn error_text(
         EntryError::NotEditableHere => plain("input.not-editable-here"),
         EntryError::Store(error) => report_text(book, &error.report(), locale),
         EntryError::Transaction(error) => report_text(book, &error.report(), locale),
+        EntryError::Note => ErrorText {
+            code: "input.note-invalid",
+            params: vec![("max", MAX_NOTE_CHARS.to_string())],
+        },
     }
 }
 
@@ -472,6 +496,20 @@ pub(crate) fn typed_amount(
     Ok(format.format(amount, minor_digits, |value| locale.group_digits(value)))
 }
 
+/// A note as typed: `None` to leave the note as it is, else the note to
+/// keep (`None` inside for none), trimmed. Longer than [`MAX_NOTE_CHARS`] or
+/// with a control character, such as a line break, is refused.
+fn read_note(typed: Option<&str>) -> Result<Option<Option<String>>, EntryError> {
+    let Some(typed) = typed else {
+        return Ok(None);
+    };
+    let trimmed = typed.trim();
+    if trimmed.chars().count() > MAX_NOTE_CHARS || trimmed.chars().any(char::is_control) {
+        return Err(EntryError::Note);
+    }
+    Ok(Some((!trimmed.is_empty()).then(|| trimmed.to_owned())))
+}
+
 /// Who the money came from or went to, without spaces around it; none if
 /// nothing was typed.
 pub(crate) fn payee(typed: &str) -> Option<String> {
@@ -535,6 +573,7 @@ mod tests {
             other_party: to,
             category,
             date: "2026-10-05",
+            note: None,
         }
     }
 
@@ -1331,5 +1370,120 @@ mod tests {
         // anyway, and says which account is closed.
         let refused = add(&mut book, &paid(&cash, "5", "", ""), &TestLocale);
         assert_eq!(code(&book, &checking, refused), "store.account-closed");
+    }
+
+    #[test]
+    fn a_note_is_added_shown_changed_kept_and_removed() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        let account_id = find_account(&book, &checking).expect("account").id;
+        add(
+            &mut book,
+            &NewEntry {
+                note: Some("  Birthday cake  "),
+                ..paid(&checking, "12", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("added");
+        let id = transaction_at(&book, &checking, true);
+        // The form shows the note, trimmed, and so does the register row,
+        // which reads it from the same transaction.
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.note, "Birthday cake");
+        let view = register_view(&book, account_id, Sort::default(), &TestLocale).expect("view");
+        assert_eq!(view.rows[0].note, "Birthday cake");
+
+        // A save without a note field leaves the note as it is.
+        edit(
+            &mut book,
+            &id,
+            &paid(&checking, "13", "Corner Grocery", &groceries),
+            &TestLocale,
+        )
+        .expect("edited");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(
+            (form.amount.as_str(), form.note.as_str()),
+            ("13,00", "Birthday cake")
+        );
+
+        // A new note replaces it; an empty one takes it away.
+        edit(
+            &mut book,
+            &id,
+            &NewEntry {
+                note: Some("For Sam"),
+                ..paid(&checking, "13", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("edited");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.note, "For Sam");
+        edit(
+            &mut book,
+            &id,
+            &NewEntry {
+                note: Some("   "),
+                ..paid(&checking, "13", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("edited");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.note, "");
+        let stored = find_transaction(&book, account_id, &id).expect("stored");
+        assert_eq!(stored.note(), None);
+    }
+
+    #[test]
+    fn a_note_too_long_or_over_several_lines_is_refused_and_nothing_changes() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        let long = "x".repeat(MAX_NOTE_CHARS + 1);
+        for bad in [long.as_str(), "first\nsecond", "tab\there"] {
+            let refused = add(
+                &mut book,
+                &NewEntry {
+                    note: Some(bad),
+                    ..paid(&checking, "12", "Corner Grocery", &groceries)
+                },
+                &TestLocale,
+            );
+            let error = refused.expect_err("refused");
+            let text = error_text(&book, &checking, &error, &TestLocale);
+            assert_eq!(text.code, "input.note-invalid");
+            assert_eq!(text.params, [("max", "200".to_owned())]);
+        }
+        // Nothing was added, and the longest note still fits.
+        let id = find_account(&book, &checking).expect("account").id;
+        assert_eq!(book.register(id).expect("register").len(), 1);
+        let exact = "x".repeat(MAX_NOTE_CHARS);
+        add(
+            &mut book,
+            &NewEntry {
+                note: Some(&exact),
+                ..paid(&checking, "12", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("added");
+        let stored = transaction_at(&book, &checking, true);
+        let refused = edit(
+            &mut book,
+            &stored,
+            &NewEntry {
+                note: Some(&long),
+                ..paid(&checking, "99", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        );
+        assert_eq!(code(&book, &checking, refused), "input.note-invalid");
+        let form = details(&book, &checking, &stored, &TestLocale).expect("details");
+        assert_eq!(
+            (form.amount.as_str(), form.note.len()),
+            ("12,00", MAX_NOTE_CHARS)
+        );
     }
 }

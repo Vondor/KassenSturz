@@ -88,6 +88,7 @@ Kirigami.ScrollablePage {
             amountField.text = entry.amount ?? "";
             otherPartyField.text = entry.otherParty ?? "";
             dateField.text = entry.date ?? "";
+            noteField.text = entry.note ?? "";
             categoryBox.currentIndex = page.categoryIndex(entry.category ?? "");
         }
     }
@@ -110,6 +111,7 @@ Kirigami.ScrollablePage {
             otherParty: otherPartyField.text,
             category: chosenCategory(),
             date: dateField.text,
+            note: noteField.text,
         };
     }
 
@@ -296,6 +298,20 @@ Kirigami.ScrollablePage {
             text: page.register.today
             onAccepted: {
                 ActionLog.taken("TransactionPage_save_3")
+                page.save()
+            }
+        }
+
+        // A line about the transaction for the user's own use, e.g. what a
+        // payment was for. Optional, so it comes after the basics.
+        Controls.TextField {
+            id: noteField
+            visible: page.editable
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Note:")
+            placeholderText: page.i18nContext.i18nc("@info:placeholder", "Optional, for example what it was for")
+            maximumLength: 200
+            onAccepted: {
+                ActionLog.taken("TransactionPage_save_5")
                 page.save()
             }
         }

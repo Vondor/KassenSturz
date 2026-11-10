@@ -1331,6 +1331,7 @@ mod tests {
                 other_party,
                 category,
                 date,
+                note: None,
             },
             &TestLocale,
         )
@@ -1945,6 +1946,7 @@ mod tests {
                 other_party: &edit.other_party,
                 category: &rent,
                 date: &edit.date,
+                note: None,
             },
             &TestLocale,
         )
@@ -2337,6 +2339,7 @@ mod tests {
                 other_party: &edit.other_party,
                 category: &rent,
                 date: &edit.date,
+                note: None,
             },
             &TestLocale,
         )

@@ -971,6 +971,7 @@ mod tests {
                 other_party: to,
                 category,
                 date: "2026-10-05",
+                note: None,
             },
             &TestLocale,
         )
@@ -1694,6 +1695,7 @@ mod tests {
                 other_party: "Example Employer Ltd.",
                 category: &salary,
                 date: "2026-10-03",
+                note: None,
             },
             &TestLocale,
         )

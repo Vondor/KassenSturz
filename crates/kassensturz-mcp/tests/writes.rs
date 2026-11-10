@@ -121,10 +121,12 @@ fn the_user_chooses_which_lists_the_ai_tool_may_use_and_it_is_seen_at_once() {
     };
     // Nothing chosen yet: only adding is allowed, and of a transaction only
     // what isn't locked at first (the note and the account) may change.
+    // `check_only` is the server's own argument next to the lists (D-674).
     assert_eq!(
         schema_of(&mut session),
         Some(vec![
             "categorize".into(),
+            "check_only".into(),
             "edit_transactions".into(),
             "new_categories".into(),
             "new_rules".into()
@@ -310,7 +312,7 @@ fn an_applied_set_is_reported_as_applied() {
     folder.switch_write_tools(true);
     let book = folder.book();
     let done = Arc::new(AtomicBool::new(false));
-    app(
+    let calls = app(
         &request_folder(&folder),
         &book,
         Reply::Applied,
@@ -318,10 +320,15 @@ fn an_applied_set_is_reported_as_applied() {
     );
     let mut session = Session::start(folder.path(), &book);
     session.initialize("2025-06-18");
-    let (answer, is_error) = session.call("propose_changes", bakery());
+    // check_only: false is the server's own argument: the app gets the call
+    // without it, and its own check takes it (D-674).
+    let mut call = bakery();
+    call["check_only"] = json!(false);
+    let (answer, is_error) = session.call("propose_changes", call);
     done.store(true, Ordering::SeqCst);
     assert!(!is_error, "{answer}");
     assert_eq!(answer["status"], "applied", "{answer}");
+    assert_eq!(*calls.lock().expect("calls"), [bakery()]);
     assert!(session.finish().status.success());
 }
 
@@ -399,5 +406,78 @@ fn a_chart_with_a_formula_is_checked_against_the_book_through_the_server() {
     assert!(is_error);
     assert_eq!(answer["error"], "ai-tools.bad-formula", "{answer}");
     assert!(answer["position"].is_number(), "{answer}");
+    assert!(session.finish().status.success());
+}
+
+#[test]
+fn a_call_only_checked_answers_what_it_would_prepare_and_sends_nothing() {
+    let folder = Folder::new("writes-check-only");
+    folder.allow(&["AllowNewBudgets=true", "AllowNewViews=true"]);
+    let book = folder.book();
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    // Both tools that prepare changes offer it (D-674).
+    let tools = session.request("tools/list", json!({}));
+    for name in ["propose_changes", "propose_view"] {
+        let tool = tools["result"]["tools"]
+            .as_array()
+            .expect("tools")
+            .iter()
+            .find(|tool| tool["name"] == name)
+            .unwrap_or_else(|| panic!("{name} in {tools}"));
+        assert_eq!(
+            tool["inputSchema"]["properties"]["check_only"]["type"], "boolean",
+            "{name}"
+        );
+    }
+    let groceries = common::GROCERIES.to_string();
+    let (answer, is_error) = session.call(
+        "propose_changes",
+        json!({
+            "check_only": true,
+            "new_categories": [{"key": "b", "name": "Bakery"}],
+            "new_budgets": [{"category_id": groceries, "every": "month", "amount": "250.00"}],
+        }),
+    );
+    assert!(!is_error, "{answer}");
+    assert_eq!(answer["check_only"], json!(true), "{answer}");
+    assert_eq!(answer["would_prepare"], json!(2));
+    assert_eq!(
+        answer["lists"],
+        json!({"new_categories": 1, "new_budgets": 1})
+    );
+    assert_eq!(answer["budget_amounts"][0]["amount"], json!("250.00"));
+    assert_eq!(answer["budget_amounts"][0]["currency"], json!("EUR"));
+    assert_eq!(answer["budget_amounts"][0]["item"], json!(1));
+    // Nothing went to an app, and no app was needed.
+    assert!(files_in(&request_folder(&folder)).is_empty());
+    let read = Book::open_to_read(&book).expect("read");
+    assert!(
+        !read
+            .accounts(true)
+            .expect("accounts")
+            .iter()
+            .any(|account| account.name == "Bakery")
+    );
+    // A check of a bad call is refused like the call.
+    let (answer, is_error) = session.call(
+        "propose_changes",
+        json!({"check_only": true, "new_categories": [{"key": "b"}]}),
+    );
+    assert!(is_error);
+    assert_eq!(answer["error"], "ai-tools.bad-argument", "{answer}");
+    let (answer, is_error) = session.call(
+        "propose_changes",
+        json!({"check_only": "yes", "new_categories": [{"key": "b", "name": "Bakery"}]}),
+    );
+    assert!(is_error);
+    assert_eq!(answer["argument"], "check_only", "{answer}");
+    // check_only: false prepares as before: with no app, it is taken back.
+    let (answer, is_error) = session.call(
+        "propose_changes",
+        json!({"check_only": false, "new_categories": [{"key": "b", "name": "Bakery"}]}),
+    );
+    assert!(is_error);
+    assert_eq!(answer, json!({"error": "mcp-writes.app-not-running"}));
     assert!(session.finish().status.success());
 }

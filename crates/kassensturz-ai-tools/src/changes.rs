@@ -26,10 +26,13 @@ use std::collections::{HashMap, HashSet};
 mod accounts;
 mod budgets;
 mod cash;
+mod check_only;
 mod edits;
 mod transactions;
 mod view_call;
 mod views;
+
+pub use check_only::{CHECK_ONLY, CHECK_ONLY_SCHEMA, check_only_answer, take_check_only};
 
 use kassensturz_core::ai_switch::{Field, Permission, Permissions};
 use kassensturz_core::{

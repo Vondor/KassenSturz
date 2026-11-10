@@ -558,6 +558,10 @@ mod tests {
                 .chain(crate::open_page::FIELDS)
                 .map(|&argument| ToolError::BadArgument { argument }),
         );
+        // The MCP server's own argument of the two tools that prepare (D-674).
+        examples.push(ToolError::BadArgument {
+            argument: crate::changes::CHECK_ONLY,
+        });
         examples
     }
 

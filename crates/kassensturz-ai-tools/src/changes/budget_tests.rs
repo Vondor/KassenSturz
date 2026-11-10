@@ -1040,3 +1040,74 @@ fn the_count_moves_back_only_as_far_as_the_book_reaches() {
     let proposal = based_on(&small, "last_period", TODAY).expect("prepared");
     assert_eq!(new_budget(&proposal.changes).amount, eur(5_000));
 }
+
+// A call only checked (US2.15, #595, D-674).
+#[test]
+fn a_check_names_the_computed_amount_and_how_it_was_computed() {
+    let small = small();
+    let (book, food) = (&small.book, small.food);
+    let call = json!({
+        "check_only": true,
+        "new_categories": [{"key": "b", "name": "Bakery"}],
+        "new_budgets": [{"category_id": food.to_string(), "every": "month",
+            "based_on": "average_3_periods", "round_to": 10}],
+    });
+    let (check_only, call) = take_check_only(&call).expect("taken");
+    assert!(check_only);
+    assert!(
+        call.get(CHECK_ONLY).is_none(),
+        "the lists alone are checked"
+    );
+    let proposal = propose(book, &call).expect("checked");
+    let answer = check_only_answer(book, &proposal).expect("answered");
+    assert_eq!(answer["check_only"], json!(true));
+    assert_eq!(answer["would_prepare"], json!(2));
+    assert!(answer.get("prepared").is_none(), "nothing is prepared");
+    assert_eq!(
+        answer["lists"],
+        json!({"new_categories": 1, "new_budgets": 1})
+    );
+    // 350.01 over August to October, 116.67 a month, rounded up to 120.
+    assert_eq!(
+        answer["budget_amounts"],
+        json!([{
+            "list": "new_budgets",
+            "item": 1,
+            "amount": "120.00",
+            "currency": "EUR",
+            "from": "2026-11-01",
+            "based_on": {
+                "periods": 3,
+                "from": "2026-08-01",
+                "to": "2026-10-31",
+                "spent": "350.01",
+                "average": "116.67",
+                "rounded_up_to": 10,
+            },
+        }])
+    );
+    // No name from the book: only lists, counts, amounts and days.
+    assert!(!answer.to_string().contains("Food"), "{answer}");
+    assert!(!answer.to_string().contains("Bakery"), "{answer}");
+}
+
+#[test]
+fn check_only_is_true_false_or_absent() {
+    let call = json!({"new_categories": []});
+    assert_eq!(
+        take_check_only(&call).expect("absent"),
+        (false, call.clone())
+    );
+    let (on, rest) =
+        take_check_only(&json!({"check_only": false, "new_categories": []})).expect("false");
+    assert!(!on);
+    assert_eq!(rest, call);
+    for bad in [json!("true"), json!(1), json!(null)] {
+        assert!(matches!(
+            take_check_only(&json!({"check_only": bad})),
+            Err(ToolError::BadArgument {
+                argument: CHECK_ONLY
+            })
+        ));
+    }
+}

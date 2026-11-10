@@ -386,6 +386,10 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2 backlog 4** · **later** · US3 candidate · waits for: US3. The note on what "waiting" means (call `check_proposed_changes`, don't prepare the same changes again) moves from the end to the start of the `propose_changes` and `propose_view` descriptions (card E verdict, finding 6). Why: AI tools cut long descriptions at the end (M6-B201), so a weak AI may miss it; it works as designed today
 
+- **US2 backlog 5** · **later** · US3 candidate · waits for: US3. A `would_sort` count before a sort with Rules: how many transactions the run would sort, sent to the AI without the entries themselves (card F verdict). Why: a new feature found in US2 Phase 3, not a bug
+
+- **US2 backlog 6** · **later** · US3 candidate · waits for: US3. An `ai-tools.bad-argument` refusal of a change list hints at the shape it expects (e.g. "expected a list of objects"), for all 19 change lists (card F verdict). Why: a new feature found in US2 Phase 3; today the refusal names only the argument
+
 - **US3 candidates** · **later** (Q-461) · waits for: US3, each with its design first, kept as sorted in US2. Items 1 with 3 (#562 a formula per bar and #587 compare with an average, one design for per-bar figures), 6 (US1.10a #607: change a budget's categories or accounts from the current period on, with a dated history so past periods stay as they were, [format]), and 19 with 14b (#571 and #594 part b: join two sides that already have a category as one Transfer, for the AI and the UI, both original amounts kept). Why: design work did not fit the week's remaining usage
 
 ## How to pick work

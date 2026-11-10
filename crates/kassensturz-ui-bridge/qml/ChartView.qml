@@ -28,6 +28,9 @@ ColumnLayout {
     // What the chart is called, e.g. "Where your money went".
     property string title: ""
     property bool showTable: false
+    // Which way bars go (`props.orientation`, D-679): `auto`, `horizontal`
+    // or `vertical`. Only bars and stacked bars read it.
+    property string orientation: "auto"
     // The point in focus, or -1.
     property int current: -1
     // The legend entry the pointer rests on and where, for the one tooltip
@@ -61,12 +64,55 @@ ColumnLayout {
     readonly property real low: ticks.length > 0 ? ticks[0].value : 0
     readonly property real high: ticks.length > 0 ? ticks[ticks.length - 1].value : 1
 
-    // One series of plain bars whose names would need more than two lines
-    // under their bars is drawn as rows instead: the whole name on the left,
-    // the bar to its right (M6-B3). The width is an estimate (the chart's own
-    // width less the value axis), so the choice never depends on the picture.
-    readonly property bool horizontal: chart.kind === "bar" && chart.series.length === 1 && count > 0 && overlays.length === 0
-        && longestName.advanceWidth > 2 * (view.width - Kirigami.Units.gridUnit * 4) / count
+    // Bars drawn as rows: the whole name on the left, the bars to its right.
+    // The user can choose rows or upright bars for bars and stacked bars
+    // (D-679). Automatic keeps the rule from before: one series of plain
+    // bars whose names would need more than two lines under their bars
+    // (M6-B3). The width is an estimate (the chart's own width less the
+    // value axis), so the choice never depends on the picture.
+    readonly property bool barKind: chart.kind === "bar" || chart.kind === "stacked-bar"
+    readonly property bool horizontal: barKind && count > 0 && overlays.length === 0
+        && (orientation === "horizontal"
+            || orientation !== "vertical" && chart.kind === "bar" && chart.series.length === 1
+                && longestName.advanceWidth > 2 * (view.width - Kirigami.Units.gridUnit * 4) / count)
+    readonly property bool stacked: chart.kind === "stacked-bar"
+
+    // Where `value` sits across a row of `width`, between the axis' lowest
+    // and highest value. Drawing values only place marks (AGENTS.md §5).
+    function across(value: real, width: real): real {
+        const span = high - low;
+        return span > 0 ? Math.max(0, Math.min(1, (value - low) / span)) * width : 0;
+    }
+
+    // The pieces of the bars of row `point` across `width`: one per series,
+    // each `{series, x, width}`. Plain bars start at zero; stacked bars pile
+    // up, those above zero to the right and those below to the left, as the
+    // axis counts them.
+    function rowPieces(point: int, width: real): var {
+        const pieces = [];
+        let up = 0;
+        let down = 0;
+        for (let series = 0; series < chart.series.length; ++series) {
+            const value = chart.series[series].points[point]?.value ?? 0;
+            let from = 0;
+            let to = value;
+            if (stacked) {
+                if (value >= 0) {
+                    from = up;
+                    up += value;
+                    to = up;
+                } else {
+                    from = down;
+                    down += value;
+                    to = down;
+                }
+            }
+            const one = across(from, width);
+            const two = across(to, width);
+            pieces.push({series: series, x: Math.min(one, two), width: Math.abs(two - one)});
+        }
+        return pieces;
+    }
 
     TextMetrics {
         id: longestName
@@ -578,11 +624,19 @@ ColumnLayout {
         }
     }
 
-    // Long category names: one row per category, the name whole (M6-B3).
+    // Bars as rows (M6-B3, D-679): one row per category or month, the name
+    // whole on the left. Plain bars of several series lie one under another
+    // in their row, each with its value; stacked bars are one bar of pieces,
+    // with the value axis under the rows. A series' second mark sits in its
+    // piece where there is room (D-283).
     ColumnLayout {
+        id: rows
+
         Layout.fillWidth: true
         visible: !view.showTable && view.horizontal
         spacing: Kirigami.Units.smallSpacing
+
+        readonly property real nameWidth: view.width * 0.4
 
         Repeater {
             model: view.horizontal ? view.count : 0
@@ -591,7 +645,6 @@ ColumnLayout {
                 id: barRow
 
                 required property int index
-                readonly property var point: view.chart.series[0].points[index]
 
                 Layout.fillWidth: true
                 spacing: Kirigami.Units.smallSpacing
@@ -599,9 +652,10 @@ ColumnLayout {
                 Controls.Label {
                     // One fixed width, so the wrapped name settles its height at
                     // once and the row does not rearrange again (M6-B17).
-                    Layout.preferredWidth: view.width * 0.4
-                    Layout.minimumWidth: view.width * 0.4
-                    Layout.maximumWidth: view.width * 0.4
+                    Layout.preferredWidth: rows.nameWidth
+                    Layout.minimumWidth: rows.nameWidth
+                    Layout.maximumWidth: rows.nameWidth
+                    Layout.alignment: Qt.AlignVCenter
                     text: view.categoryName(barRow.index)
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
@@ -609,23 +663,104 @@ ColumnLayout {
                     Accessible.ignored: true
                 }
 
-                Item {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Kirigami.Units.gridUnit * 1.5
+                    spacing: 1
 
-                    Rectangle {
-                        width: view.high > 0 ? Math.max(0, Math.min(1, barRow.point.value / view.high)) * parent.width : 0
-                        height: parent.height
-                        color: ChartPalette.color(barRow.point.color, view.extraColors)
-                        border.width: view.current === barRow.index ? 2 : 0
-                        border.color: Kirigami.Theme.highlightColor
+                    Repeater {
+                        // Stacked: one line holds every piece.
+                        model: view.stacked ? 1 : view.chart.series.length
+
+                        delegate: RowLayout {
+                            id: barLine
+
+                            required property int index
+
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+
+                            Item {
+                                id: track
+
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: view.chart.series.length > 1 && !view.stacked
+                                    ? Kirigami.Units.gridUnit : Kirigami.Units.gridUnit * 1.5
+
+                                readonly property var pieces: view.rowPieces(barRow.index, width)
+                                    .filter(piece => view.stacked || piece.series === barLine.index)
+
+                                Repeater {
+                                    model: track.pieces
+
+                                    delegate: Rectangle {
+                                        id: piece
+
+                                        required property var modelData
+                                        readonly property var series: view.chart.series[modelData.series]
+
+                                        x: modelData.x
+                                        width: modelData.width
+                                        height: track.height
+                                        color: ChartPalette.color(piece.series.color, view.extraColors)
+                                        border.width: view.current === barRow.index ? 2 : 0
+                                        border.color: Kirigami.Theme.highlightColor
+
+                                        Controls.Label {
+                                            readonly property int marker: view.chart.series.length > 1 ? (piece.series.marker ?? -1) : -1
+
+                                            anchors.centerIn: parent
+                                            visible: marker >= 0 && piece.width > width * 1.4
+                                            text: ["■", "●", "▲", "◆"][marker] ?? ""
+                                            textFormat: Text.PlainText
+                                            font: Kirigami.Theme.smallFont
+                                            color: "white"
+                                            Accessible.ignored: true
+                                        }
+                                    }
+                                }
+                            }
+
+                            Controls.Label {
+                                visible: !view.stacked
+                                text: view.stacked ? "" : (view.chart.series[barLine.index]?.points[barRow.index]?.label ?? "")
+                                textFormat: Text.PlainText
+                                font: Kirigami.Theme.smallFont
+                                Accessible.ignored: true
+                            }
+                        }
                     }
                 }
+            }
+        }
 
-                Controls.Label {
-                    text: barRow.point.label
+        // The value axis under stacked rows, whose pieces carry no values:
+        // the tick labels, as text from Rust, across the bars' width.
+        Item {
+            visible: view.stacked && view.ticks.length > 0
+            Layout.fillWidth: true
+            Layout.leftMargin: rows.nameWidth + Kirigami.Units.smallSpacing
+            Layout.preferredHeight: visible ? tickFont.height : 0
+
+            FontMetrics {
+                id: tickFont
+
+                font: Kirigami.Theme.smallFont
+            }
+
+            Repeater {
+                model: view.stacked ? view.ticks : []
+
+                delegate: Controls.Label {
+                    required property var modelData
+                    required property int index
+
+                    readonly property bool first: index === 0
+                    readonly property bool last: index === view.ticks.length - 1
+                    x: Math.max(0, Math.min(parent.width - width, view.across(modelData.value, parent.width) - (first ? 0 : (last ? width : width / 2))))
+                    text: modelData.label
                     textFormat: Text.PlainText
                     font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.textColor
                     Accessible.ignored: true
                 }
             }

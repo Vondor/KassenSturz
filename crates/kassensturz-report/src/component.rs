@@ -384,6 +384,13 @@ impl Component {
             {
                 continue;
             }
+            // Automatic bars are the default and are not written (D-679),
+            // so a chart saved before the setting existed reads the same.
+            if property.key == crate::schema::ORIENTATION_KEY
+                && matches!(setting, Setting::Word(word) if word == "auto")
+            {
+                continue;
+            }
             match property.place {
                 Place::Params => params.insert(property.key.to_owned(), value),
                 Place::Props => props.insert(property.key.to_owned(), value),

@@ -30,8 +30,8 @@ use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, GroupMember};
 use kassensturz_report::{
     ACCOUNT_BALANCES, AVERAGE_WORDS, BUDGET_UTILIZATION, CATALOG, ComponentType, DatasetInfo,
     FORMULA_MEASURE, FUNCTIONS, Filter, Formula, FormulaResult, GROUPS_GROUPING, Kind,
-    MAX_FORMULA_CHARS, PERIODS, Per, Period, ReportError, Rolling, SPENDING_BY_CATEGORY, Source,
-    Term, range_word,
+    MAX_FORMULA_CHARS, ORIENTATION_WORDS, PERIODS, Per, Period, ReportError, Rolling,
+    SPENDING_BY_CATEGORY, Source, Term, range_word,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
@@ -75,6 +75,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "categories",
     "accounts",
     "average",
+    "orientation",
     "income_categories",
     "income_accounts",
     "expenses_categories",
@@ -151,6 +152,9 @@ const NO_COMPARISON: &str = "none";
 /// The `average` word for the total, which is what a chart shows when it
 /// has no average.
 const TOTAL: &str = "total";
+/// Bars that go the way KassenSturz picks (D-679): the default, so it is
+/// not kept in the item.
+const AUTO: &str = "auto";
 
 /// The datasets the AI may name (D-354): the catalog's entries with
 /// `for_ai`, in its order.
@@ -270,6 +274,7 @@ pub fn view_choices(argument: &str) -> Option<Vec<&'static str>> {
             .chain(schema_words("compare").iter().copied())
             .collect(),
         "average" => AVERAGE_WORDS.to_vec(),
+        "orientation" => ORIENTATION_WORDS.to_vec(),
         _ => return None,
     };
     Some(words)
@@ -402,6 +407,16 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
              total once by the months (quarters, years) of the period up to today. Months \
              before the first transaction of its accounts and categories count as zero; the \
              answer then has an average_note saying how many.",
+        ),
+    );
+    properties.insert(
+        "orientation".into(),
+        choice(
+            "orientation",
+            "Only for bar and stacked_bar: which way the bars go. auto (the default) lets \
+             KassenSturz pick: rows when names are too long to stand under their bars. \
+             horizontal draws one row per name, vertical upright bars. The figures stay \
+             the same.",
         ),
     );
     if offered("categories", allowed) {
@@ -873,6 +888,7 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
     let group_by = word("group_by")?;
     let compare = word("compare")?.filter(|word| *word != NO_COMPARISON);
     let average = word("average")?.filter(|word| *word != TOTAL);
+    let orientation = word("orientation")?.filter(|word| *word != AUTO);
     let period = match given("period") {
         None => None,
         // A period that moves with today (D-644, D-645) is not in the list.
@@ -983,6 +999,7 @@ fn check(book: &Book, arguments: &Value, allowed: Permissions) -> Result<Value, 
         ("measure", measure),
         ("compare", compare),
         ("average", average),
+        ("orientation", orientation),
         ("formula", formula),
         ("target", target),
     ] {

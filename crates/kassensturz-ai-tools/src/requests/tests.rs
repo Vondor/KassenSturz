@@ -125,7 +125,12 @@ fn every_answer_reads_back_as_written() {
     for reply in [
         Reply::Shown { changes: 3 },
         Reply::Applied,
-        Reply::Declined,
+        Reply::Declined {
+            reasons: RefusalReasons::NONE,
+        },
+        Reply::Declined {
+            reasons: RefusalReasons::from_keywords(["wrong_amount", "not_what_was_asked"]),
+        },
         Reply::Failed {
             code: "ai-changes.out-of-date".into(),
         },
@@ -282,7 +287,13 @@ fn only_the_user_may_enter_the_folder_and_read_its_files() {
     assert_eq!(mode(&place.join(id.file(REQUEST))), 0o600);
     let mut app = scratch.folder();
     assert_eq!(app.take_new(&book).len(), 1);
-    app.reply(&id, &Reply::Declined).expect("answered");
+    app.reply(
+        &id,
+        &Reply::Declined {
+            reasons: RefusalReasons::NONE,
+        },
+    )
+    .expect("answered");
     assert_eq!(mode(&place.join(id.file(ANSWER))), 0o600);
 }
 

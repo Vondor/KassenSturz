@@ -59,6 +59,8 @@ mod open_page;
 #[cfg(feature = "ai")]
 mod read;
 #[cfg(feature = "ai")]
+pub mod refusal;
+#[cfg(feature = "ai")]
 pub mod requests;
 #[cfg(feature = "ai")]
 mod text;

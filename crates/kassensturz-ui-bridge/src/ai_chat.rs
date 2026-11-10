@@ -573,6 +573,11 @@ pub struct BasisView {
     pub average: String,
     /// The step the amount was rounded up to, exact.
     pub step: String,
+    /// The first and last day of the empty newest period the count moved
+    /// back past (D-669), in the user's format; both empty when none.
+    pub left_out_from: String,
+    /// See `left_out_from`.
+    pub left_out_to: String,
 }
 
 /// One change of a set as the review screen lists it: what it does, and
@@ -957,6 +962,14 @@ fn basis_view(
         spent: writer.text(basis.spent).exact,
         average: writer.text(basis.average).exact,
         step: writer.text(step).exact,
+        left_out_from: basis
+            .left_out
+            .map(|(first, _)| locale.short_date(first))
+            .unwrap_or_default(),
+        left_out_to: basis
+            .left_out
+            .map(|(_, last)| locale.short_date(last))
+            .unwrap_or_default(),
     })
 }
 

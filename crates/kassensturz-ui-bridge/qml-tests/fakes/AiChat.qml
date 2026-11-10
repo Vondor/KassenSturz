@@ -68,7 +68,9 @@ QtObject {
             basisTo: "31.10.2026",
             basisSpent: "2.324,40 €",
             basisAverage: "387,40 €",
-            basisStep: "10,00 €"
+            basisStep: "10,00 €",
+            basisLeftOutFrom: "",
+            basisLeftOutTo: ""
         }];
     }
 
@@ -105,4 +107,11 @@ QtObject {
     }
 
     function discard(setId) { discarded = discarded.concat([setId]); }
+
+    property var discardedReasons: []
+
+    function discardBecause(setId, reasons) {
+        discarded = discarded.concat([setId]);
+        discardedReasons = discardedReasons.concat([reasons]);
+    }
 }

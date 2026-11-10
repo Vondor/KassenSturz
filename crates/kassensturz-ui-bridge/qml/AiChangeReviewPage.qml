@@ -49,6 +49,18 @@ Kirigami.ScrollablePage {
     // What the last correction answered when it wasn't kept.
     property var correctionResult: ({})
     property bool done: false
+    // The keywords of the reasons the user picked for throwing the set away
+    // (D-678). Optional.
+    property var reasons: []
+    // The reasons the user may pick, keyword and label; the keywords are
+    // those of `kassensturz_ai_tools::refusal::RefusalReason`.
+    readonly property var reasonChoices: [
+        { keyword: "wrong_category", label: i18nContext.i18nc("@action:button a reason for throwing the AI's changes away", "Wrong category") },
+        { keyword: "wrong_amount", label: i18nContext.i18nc("@action:button a reason for throwing the AI's changes away", "Wrong amount") },
+        { keyword: "wrong_transactions", label: i18nContext.i18nc("@action:button a reason for throwing the AI's changes away", "Wrong transactions") },
+        { keyword: "too_many_changes", label: i18nContext.i18nc("@action:button a reason for throwing the AI's changes away", "Too many changes") },
+        { keyword: "not_what_was_asked", label: i18nContext.i18nc("@action:button a reason for throwing the AI's changes away", "Not what I asked for") }
+    ]
 
     // The changes the set holds, and those the user left out.
     readonly property var kept: changes.filter ? changes.filter(change => !change.leftOut) : []
@@ -266,9 +278,15 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // Only the chosen reasons' keywords reach the AI (D-678).
     function throwAway() {
-        chat.discard(setId);
+        chat.discardBecause(setId, JSON.stringify(reasons));
         discarded(setId);
+    }
+
+    function toggleReason(keyword: string, on: bool) {
+        const others = reasons.filter(word => word !== keyword);
+        reasons = on ? others.concat([keyword]) : others;
     }
 
     title: i18nContext.i18nc("@title", "Changes the AI prepared")
@@ -284,30 +302,66 @@ Kirigami.ScrollablePage {
     footer: Controls.ToolBar {
         visible: page.shows
 
-        contentItem: RowLayout {
+        contentItem: ColumnLayout {
             spacing: Kirigami.Units.smallSpacing
 
-            Item {
+            // Optional reasons for throwing the set away (D-678): fixed
+            // choices, no text field, so nothing the user writes reaches the
+            // AI.
+            Controls.Label {
                 Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: page.i18nContext.i18nc("@label", "If you throw the changes away, you can tell the AI why. Optional; the AI gets only the reasons you pick:")
             }
 
-            Controls.Button {
-                icon.name: "edit-delete"
-                text: page.i18nContext.i18nc("@action:button throw the prepared changes away", "Throw away")
-                onClicked: {
-                    ActionLog.taken("AiChangeReviewPage_throwAway")
-                    page.throwAway()
+            Flow {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
+                Repeater {
+                    model: page.reasonChoices
+
+                    Controls.Button {
+                        required property var modelData
+
+                        checkable: true
+                        checked: page.reasons.indexOf(modelData.keyword) >= 0
+                        text: Plain.plain(modelData.label)
+                        Accessible.description: page.i18nContext.i18nc("@info:tooltip", "A reason the AI gets when you throw the changes away")
+                        onToggled: {
+                            ActionLog.taken("AiChangeReviewPage_reason")
+                            page.toggleReason(modelData.keyword, checked)
+                        }
+                    }
                 }
             }
 
-            Controls.Button {
-                highlighted: true
-                enabled: page.kept.length > 0
-                icon.name: "dialog-ok-apply"
-                text: page.i18nContext.i18nc("@action:button make all the changes shown", "Confirm and make these changes")
-                onClicked: {
-                    ActionLog.taken("AiChangeReviewPage_confirmMakeThese")
-                    page.confirm()
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+
+                Item {
+                    Layout.fillWidth: true
+                }
+
+                Controls.Button {
+                    icon.name: "edit-delete"
+                    text: page.i18nContext.i18nc("@action:button throw the prepared changes away", "Throw away")
+                    onClicked: {
+                        ActionLog.taken("AiChangeReviewPage_throwAway")
+                        page.throwAway()
+                    }
+                }
+
+                Controls.Button {
+                    highlighted: true
+                    enabled: page.kept.length > 0
+                    icon.name: "dialog-ok-apply"
+                    text: page.i18nContext.i18nc("@action:button make all the changes shown", "Confirm and make these changes")
+                    onClicked: {
+                        ActionLog.taken("AiChangeReviewPage_confirmMakeThese")
+                        page.confirm()
+                    }
                 }
             }
         }

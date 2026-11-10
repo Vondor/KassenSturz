@@ -322,7 +322,7 @@ fn the_stores_own_checks_reach_the_model() {
         .expect("by hand");
     assert_eq!(
         code(propose(&small.book, &call(small.groceries, "month"))),
-        "store.budget-overlap"
+        "ai-tools.has-budget edit_budgets"
     );
     // A budget inside one that has a budget is a separate figure (D-344).
     assert_eq!(
@@ -750,7 +750,7 @@ fn a_budget_over_several_categories_from_one_account_is_prepared_and_made() {
             &small.book,
             &json!({"new_budgets": [{"category_id": fun, "every": "month", "amount": "20"}]}),
         )),
-        "store.budget-overlap"
+        "ai-tools.has-budget edit_budgets"
     );
 }
 

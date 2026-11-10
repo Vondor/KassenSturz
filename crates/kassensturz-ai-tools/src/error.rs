@@ -79,7 +79,17 @@ pub enum ToolError {
     NotCategorizable,
     /// The transaction can't be edited that way: its amount or account only
     /// when it has two parts in one currency and is no transfer (D-257).
-    NotEditable,
+    /// `reason` says why not, so the model can tell the user (M6-B215).
+    NotEditable {
+        /// `split`, `transfer`, `other-currency`, `bank-delivered`,
+        /// `own-date` or `own-payee`.
+        reason: &'static str,
+    },
+    /// A new budget for a category that already has one for these days and
+    /// accounts: the model can change that one with `edit_budgets` instead
+    /// (M6-B216). The store's own `store.budget-overlap` names the category
+    /// by its ID, which the answer to a model leaves out.
+    HasBudget,
     /// The account isn't a cash account: the AI adds transactions only to
     /// those (D-258).
     NotCashAccount,
@@ -360,7 +370,10 @@ impl Report for ToolError {
             Self::TooManyChanges => ErrorReport::new("ai-tools.too-many-changes"),
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
-            Self::NotEditable => ErrorReport::new("ai-tools.not-editable"),
+            Self::NotEditable { reason } => ErrorReport::new("ai-tools.not-editable")
+                .with("reason", ErrorParam::Keyword(reason)),
+            Self::HasBudget => ErrorReport::new("ai-tools.has-budget")
+                .with("use_instead", ErrorParam::Keyword("edit_budgets")),
             Self::NotCashAccount => ErrorReport::new("ai-tools.not-cash-account"),
             Self::NotDeletable => ErrorReport::new("ai-tools.not-deletable"),
             Self::FieldLocked { field } => {
@@ -459,7 +472,19 @@ mod tests {
             ToolError::TooManyChanges,
             ToolError::NameTaken,
             ToolError::NotCategorizable,
-            ToolError::NotEditable,
+            ToolError::HasBudget,
+            ToolError::NotEditable { reason: "split" },
+            ToolError::NotEditable { reason: "transfer" },
+            ToolError::NotEditable {
+                reason: "other-currency",
+            },
+            ToolError::NotEditable {
+                reason: "bank-delivered",
+            },
+            ToolError::NotEditable { reason: "own-date" },
+            ToolError::NotEditable {
+                reason: "own-payee",
+            },
             ToolError::NotCashAccount,
             ToolError::NotDeletable,
             ToolError::OtherCurrency,

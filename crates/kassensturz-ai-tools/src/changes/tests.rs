@@ -1860,6 +1860,22 @@ fn what_is_not_plain_or_not_allowed_is_refused() {
             "{key}"
         );
     }
+    // The refusal says why, so the model can tell the user (M6-B215).
+    let reason = |transaction: TransactionId| {
+        edit(
+            &book,
+            &json!({"transaction_id": id(transaction), "amount": "-5.00"}),
+        )
+        .expect_err("refused")
+        .without_item()
+        .model_report()
+        .params
+    };
+    assert_eq!(
+        reason(transfer),
+        [("reason", ErrorParam::Keyword("transfer"))]
+    );
+    assert_eq!(reason(split), [("reason", ErrorParam::Keyword("split"))]);
     for transaction in [transfer, split] {
         assert_eq!(
             code(edit(
@@ -3069,3 +3085,35 @@ mod saved_views;
 mod sort_rules;
 mod tool_review;
 mod view_call;
+
+// A bank's amount keeps its figure, and the AI is told why (M6-B215).
+#[test]
+fn an_amount_the_bank_delivered_is_refused_with_its_reason() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let mut paid = Split::new(checking, eur(-3_980));
+    paid.imported = Some(kassensturz_core::ImportedDetails::default());
+    let fuel = bought(
+        &mut book,
+        "Fuel Station",
+        vec![paid, Split::new(groceries, eur(3_980))],
+    );
+    let refused = edit(
+        &book,
+        &json!({"transaction_id": fuel.to_string(), "amount": "-40.00"}),
+    )
+    .expect_err("refused")
+    .model_report();
+    assert_eq!(refused.code, "ai-tools.not-editable");
+    assert!(
+        refused
+            .params
+            .contains(&("reason", ErrorParam::Keyword("bank-delivered"))),
+        "{:?}",
+        refused.params
+    );
+}

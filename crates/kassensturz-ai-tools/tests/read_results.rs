@@ -396,7 +396,7 @@ fn payees_can_be_grouped_by_the_banks_other_party_name() {
     // By the payee shown, the Rule's general name joins both shops; the
     // refund has no payee, so it falls back to the bank's name.
     let by_payee = run(&book, "payee_totals", period.clone());
-    assert!(by_payee.get("group_by").is_none());
+    assert_eq!(by_payee["group_by"], json!("payee"));
     assert_eq!(
         paid(&by_payee),
         [

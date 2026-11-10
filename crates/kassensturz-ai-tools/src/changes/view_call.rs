@@ -762,13 +762,18 @@ fn prepare_view(
     })
 }
 
+/// The data whose key figures and progress bars can show a formula (D-650).
+const FORMULA_DATA: &str = "income_expense_by_month";
+
 /// The refusal of `argument` in a call of `propose_view` whose data is
 /// known, with what the model can use instead (M6-B204): for `show_as`,
 /// `group_by` and `measure` the words that suit the data (and the way of
 /// drawing it), as the description of `data` lists them; for `group_by`,
 /// `measure` and `compare` on a way of drawing that takes none, the ways
 /// that do, so no list of words misleads; for a category list on a key
-/// figure or progress bar, which have no category filter, `formula`.
+/// figure or progress bar, which have no category filter, `formula`; for
+/// `formula` or `target` on a way of drawing that shows none, the ways that
+/// do.
 /// Everything comes from the catalog, never from the call.
 fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -> ToolError {
     let bad = ToolError::BadArgument { argument };
@@ -805,6 +810,15 @@ fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -
         "compare" if !drawn_as(&SINGLE) => (Vec::new(), None, suiting(&SINGLE)),
         "categories" if drawn_as(&SINGLE) && offered("formula", allowed) => {
             (Vec::new(), Some("formula"), Vec::new())
+        }
+        // A formula is the figure of a key figure or a progress bar of money
+        // in and out (D-650); a chart draws none, so the refusal names the
+        // ways that take it.
+        "formula" if dataset.id == FORMULA_DATA && !drawn_as(&SINGLE) => {
+            (Vec::new(), None, suiting(&SINGLE))
+        }
+        "target" if dataset.id == FORMULA_DATA && !drawn_as(&["progress"]) => {
+            (Vec::new(), None, suiting(&["progress"]))
         }
         _ => return bad,
     };

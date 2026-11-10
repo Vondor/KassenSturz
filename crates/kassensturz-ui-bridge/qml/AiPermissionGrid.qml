@@ -261,7 +261,9 @@ ColumnLayout {
     }
 
     // Locked fields, for the transactions the AI may change (D-252). Shown
-    // only while that is on.
+    // only while that is on. A switch here means "the AI may write it", so
+    // on is allowed as in the grid above (#631); the setting stored is still
+    // the lock, the opposite of the switch.
     Kirigami.AbstractCard {
         Layout.fillWidth: true
         visible: grid.historyAtRisk(grid.revision)
@@ -271,14 +273,14 @@ ColumnLayout {
 
             Kirigami.Heading {
                 level: 3
-                text: grid.i18nContext.i18nc("@title:group", "Fields of a transaction the AI may not write")
+                text: grid.i18nContext.i18nc("@title:group", "Fields of a transaction the AI may write")
             }
 
             Controls.Label {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
-                text: grid.i18nContext.i18nc("@info", "A locked field is never written by the AI: not changed on a transaction you already have, and not filled in on one it adds. To add a payment, the account, day and amount must be unlocked. A locked field is still shown to the AI when reading is on.")
+                text: grid.i18nContext.i18nc("@info", "The AI writes only the fields switched on, as in the grid above. A field switched off is never written by the AI: not changed on a transaction you already have, and not filled in on one it adds. To add a payment, the account, day and amount must be switched on. A field switched off is still shown to the AI when reading is on.")
             }
 
             Repeater {
@@ -292,12 +294,12 @@ ColumnLayout {
                     Layout.fillWidth: true
 
                     Controls.Switch {
-                        checked: grid.revision >= 0 && grid.settings.locked(fieldRow.modelData.key)
-                        Accessible.name: grid.i18nContext.i18nc("@label:switch a field of a transaction the AI may not change", "%1 is locked against the AI", fieldRow.modelData.label)
+                        checked: grid.revision >= 0 && !grid.settings.locked(fieldRow.modelData.key)
+                        Accessible.name: grid.i18nContext.i18nc("@label:switch a field of a transaction", "The AI may write %1", fieldRow.modelData.label)
                         onToggled: {
-                            ActionLog.taken("AiPermissionGrid_lockedAgainstAi")
-                            grid.lock(fieldRow.modelData.key, checked);
-                            checked = Qt.binding(() => grid.revision >= 0 && grid.settings.locked(fieldRow.modelData.key));
+                            ActionLog.taken("AiPermissionGrid_fieldWritable")
+                            grid.lock(fieldRow.modelData.key, !checked);
+                            checked = Qt.binding(() => grid.revision >= 0 && !grid.settings.locked(fieldRow.modelData.key));
                         }
                     }
 

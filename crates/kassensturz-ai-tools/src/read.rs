@@ -1286,7 +1286,7 @@ fn rule_rows(
     Ok(rows)
 }
 
-fn condition_row(
+pub(crate) fn condition_row(
     w: &mut Writer<'_>,
     names: &Names,
     condition: &Condition,

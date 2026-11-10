@@ -223,3 +223,59 @@ fn the_schema_offers_both_forms_with_the_codes_bounds() {
     );
     assert!(spec.description.contains("remove_conditions"));
 }
+
+#[test]
+fn a_check_names_the_conditions_remove_conditions_would_take_away() {
+    let (Sample { mut book, .. }, rules) = with_rules();
+    let long = format!("^({})$", vec!["grocer"; 60].join("|"));
+    let iban = Condition::Text {
+        field: TextField::OtherPartyIban,
+        operator: TextOperator::Equals,
+        value: "DE02120300000000202051".into(),
+        case_sensitive: false,
+    };
+    let cut = Condition::Text {
+        field: TextField::OtherPartyName,
+        operator: TextOperator::Matches,
+        value: long,
+        case_sensitive: false,
+    };
+    let mut rule = rules[1].clone();
+    rule.conditions = vec![payee("pet"), iban, payee("zoo"), cut];
+    book.update_rule(&rule).expect("four conditions");
+    let shown = listed(&book, "Pets");
+    // The model asks to take away the 2nd (the IBAN) and the 4th (the cut
+    // pattern), and the check says which ones those are.
+    let call = json!({"edit_rules": [
+        {"rule_id": rule.id.to_string(), "remove_conditions": [4, 2]},
+    ]});
+    let proposal = propose(&book, &call).expect("removed");
+    let answer = crate::check_only_answer(&book, &proposal).expect("checked");
+    let removed = &answer["removed_conditions"];
+    assert_eq!(removed.as_array().map(Vec::len), Some(1), "{answer}");
+    assert_eq!(removed[0]["list"], "edit_rules");
+    assert_eq!(removed[0]["item"], 1);
+    let conditions = removed[0]["conditions"].as_array().expect("conditions");
+    assert_eq!(conditions.len(), 2);
+    assert_eq!(conditions[0]["place"], 2);
+    assert_eq!(
+        conditions[0]["text_left_out"], true,
+        "no IBAN reaches a model"
+    );
+    assert!(!answer.to_string().contains("DE02"));
+    assert_eq!(conditions[1]["place"], 4);
+    // Exactly as list_rules shows it, also when it is cut.
+    for (condition, place) in conditions.iter().zip([2, 4]) {
+        let mut as_listed = shown[place - 1].clone();
+        as_listed["place"] = json!(place);
+        assert_eq!(condition, &as_listed);
+    }
+    // Nothing is named for a call that removes nothing, or for another list.
+    let adds = json!({"edit_rules": [{
+        "rule_id": rule.id.to_string(),
+        "add_conditions": [{"field": "payee", "test": "contains", "text": "fish"}],
+    }]});
+    let answer =
+        crate::check_only_answer(&book, &propose(&book, &adds).expect("added")).expect("checked");
+    assert!(answer.get("removed_conditions").is_none(), "{answer}");
+}

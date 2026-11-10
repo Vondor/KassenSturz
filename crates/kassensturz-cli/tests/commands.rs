@@ -847,7 +847,7 @@ fn a_statement_file_is_imported_once_and_undone_as_a_whole() {
         "add",
         "Shops",
         "--if",
-        "other-party contains REWE",
+        "other-party contains FRESHO",
         "--category",
         "Food/Groceries",
     ]);
@@ -857,7 +857,7 @@ fn a_statement_file_is_imported_once_and_undone_as_a_whole() {
         "october.kstest",
         &[
             "account;DE89370400440532013000;;EUR",
-            "entry;booked;2026-10-05;2026-10-05;-53.20;B1;REWE Markt;;Card payment",
+            "entry;booked;2026-10-05;2026-10-05;-53.20;B1;FRESHO Markt;;Card payment",
             "entry;booked;2026-10-12;;-25.00;;Bakery;;",
             "entry;pending;2026-10-13;;-9.99;P1;Kiosk;;",
             "entry;booked;2026-10-14;;1500.00;B2;Example Employer;;Salary",
@@ -919,7 +919,7 @@ fn a_statement_file_is_imported_once_and_undone_as_a_whole() {
     assert!(!imported.contains("Nothing was changed."), "{imported}");
     assert_eq!(register(), before + 2);
     let groceries = session.ok(&["register", "Food/Groceries"]);
-    assert!(groceries.contains("REWE Markt"), "{groceries}");
+    assert!(groceries.contains("FRESHO Markt"), "{groceries}");
 
     // The same file again: what has a bank ID is skipped, the rest waits.
     let again = import(&[]);
@@ -988,7 +988,7 @@ fn a_camt053_file_goes_through_the_whole_pipeline() {
         )
     };
     let entries = [
-        entry("53.20", "DBIT", "BOOK", "C1", "REWE Markt"),
+        entry("53.20", "DBIT", "BOOK", "C1", "FRESHO Markt"),
         entry("9.99", "DBIT", "PDNG", "C2", "Kiosk"),
         entry("1500.00", "CRDT", "BOOK", "C3", "Example Employer"),
     ]
@@ -1074,7 +1074,7 @@ fn an_mt940_file_goes_through_the_whole_pipeline() {
         &path,
         ":20:STARTUMS\n:25:DE89370400440532013000\n:60F:C261001EUR100,00\n\
          :61:2610051005D53,20NMSCNONREF//M1\n\
-         :86:177?00Kartenzahlung?20SVWZ+Einkauf?32REWE Markt\n\
+         :86:177?00Kartenzahlung?20SVWZ+Einkauf?32FRESHO Markt\n\
          :61:2610061006C1500,00NTRFNONREF//M2\n\
          :86:166?00Gutschrift?20SVWZ+Gehalt?32Example Employer\n\
          :62F:C261031EUR1,00\n-\n",
@@ -1156,7 +1156,7 @@ fn an_ofx_file_goes_through_the_whole_pipeline() {
          <BANKACCTFROM>\n<BANKID>COBADEFF\n<ACCTID>DE89370400440532013000\n\
          <ACCTTYPE>CHECKING\n</BANKACCTFROM>\n<BANKTRANLIST>\n\
          <STMTTRN>\n<TRNTYPE>DEBIT\n<DTPOSTED>20261005\n<TRNAMT>-53.20\n<FITID>M1\n\
-         <NAME>REWE Markt\n<MEMO>Einkauf\n</STMTTRN>\n\
+         <NAME>FRESHO Markt\n<MEMO>Einkauf\n</STMTTRN>\n\
          <STMTTRN>\n<TRNTYPE>CREDIT\n<DTPOSTED>20261006\n<TRNAMT>1500.00\n<FITID>M2\n\
          <NAME>Example Employer\n<MEMO>Gehalt\n</STMTTRN>\n\
          </BANKTRANLIST>\n<LEDGERBAL><BALAMT>1.00<DTASOF>20261031</LEDGERBAL>\n\
@@ -1253,7 +1253,7 @@ fn a_csv_file_is_read_with_its_settings() {
         "umsaetze.csv",
         b"Konto DE89370400440532013000\r\n\
           Buchungstag;Empf\xe4nger;Betrag;Status\r\n\
-          05.10.2026;REWE Markt;-53,20;Gebucht\r\n\
+          05.10.2026;FRESHO Markt;-53,20;Gebucht\r\n\
           06.10.2026;Kiosk;-9,99;Vorgemerkt\r\n\
           07.10.2026;B\xe4ckerei;-1.003,50;Gebucht\r\n",
     );

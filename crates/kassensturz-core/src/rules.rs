@@ -4,7 +4,7 @@
 //! Rules: the user's own instructions for categorizing transactions, like an
 //! email client's filters (D-014, D-031, D-088).
 //!
-//! A Rule has conditions, e.g. "the purpose contains REWE", and actions,
+//! A Rule has conditions, e.g. "the purpose contains FRESHO", and actions,
 //! e.g. "book it to Groceries". Rules form a tree: a sub-Rule is checked
 //! only when its parent matched, and refines the parent's actions. Of the
 //! top-level Rules, the first one in the user's order that matches decides;
@@ -167,7 +167,7 @@ pub enum BookTo {
 pub struct Actions {
     /// Where the other side is booked.
     pub book_to: Option<BookTo>,
-    /// The payee to show, e.g. "Supermarket" for "REWE MARKT 1234 SAGT
+    /// The payee to show, e.g. "Supermarket" for "FRESHO MARKT 1234 SAGT
     /// DANKE". Never empty.
     pub payee: Option<String>,
 }

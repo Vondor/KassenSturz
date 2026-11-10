@@ -11,6 +11,12 @@
 //
 //     prompt.ask(register.transferSuggestions(transactionId));
 //
+// It is also the preview for a pair the user picked (US3.3, D-692), which
+// `TransferPartnerDialog` lists:
+//
+//     prompt.askPicked([partner]);
+//
+// A side that is in a category says which one goes and who put it there.
 // `finished()` follows when the last suggestion has been answered or the
 // dialog was closed.
 
@@ -29,10 +35,14 @@ Kirigami.PromptDialog {
     property var suggestions: []
     // The suggestion asked about now.
     property int current: 0
+    // Whether the pairs were picked by the user (joinPicked) rather than
+    // suggested (joinTransfer).
+    property bool picked: false
 
     readonly property var suggestion: suggestions[current] ?? ({})
     readonly property var outgoing: suggestion.outgoing ?? ({})
     readonly property var incoming: suggestion.incoming ?? ({})
+    readonly property bool anyCategory: (outgoing.category ?? "") !== "" || (incoming.category ?? "") !== ""
 
     // Every suggestion has been answered, or the dialog was closed.
     signal finished()
@@ -44,21 +54,47 @@ Kirigami.PromptDialog {
     // Asks about `found`, a list of suggestions; an error object or an empty
     // list asks nothing and finishes at once.
     function ask(found: var) {
+        start(found, false);
+    }
+
+    // Asks about `found`, pairs the user picked from transferPartners().
+    function askPicked(found: var) {
+        start(found, true);
+    }
+
+    function start(found: var, byHand: bool) {
         // An error comes back as an object without a length.
         if (!(found?.length > 0)) {
             finished();
             return;
         }
         error.result = ({});
+        picked = byHand;
         suggestions = found;
         current = 0;
         open();
     }
 
+    // Who put a side in its category, and that it goes (D-692).
+    function sortedText(side: var): string {
+        const category = side.category ?? "";
+        if (category === "") {
+            return "";
+        }
+        if (side.sortedBy === "rule") {
+            return (side.rule ?? "") !== ""
+                ? i18nContext.i18nc("@info %1 is a category, %2 the name of a Rule", "Sorted as “%1” by the Rule “%2”. Joined, it no longer counts in “%1”.", category, side.rule)
+                : i18nContext.i18nc("@info %1 is a category", "Sorted as “%1” by a Rule. Joined, it no longer counts in “%1”.", category);
+        }
+        return i18nContext.i18nc("@info %1 is a category", "You sorted it as “%1” yourself. Joined, it no longer counts in “%1”.", category);
+    }
+
     // Joins the pair shown, or leaves it apart, and moves on.
     function answer(join: bool) {
         if (join) {
-            const result = register.joinTransfer(outgoing.id, incoming.id);
+            const result = picked
+                ? register.joinPicked(suggestion.partnerIsIncoming ? outgoing.id : incoming.id, suggestion.partnerIsIncoming ? incoming.id : outgoing.id)
+                : register.joinTransfer(outgoing.id, incoming.id);
             error.result = result;
             if (result.code !== undefined) {
                 return;
@@ -125,6 +161,22 @@ Kirigami.PromptDialog {
         Controls.Label {
             textFormat: Text.PlainText
             Layout.fillWidth: true
+            visible: text !== ""
+            text: prompt.sortedText(prompt.outgoing)
+            wrapMode: Text.Wrap
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: prompt.outgoing.movesNote ?? false
+            text: prompt.i18nContext.i18nc("@info %1 is the name of an account", "What you wrote on it stays, on the entry in %1.", prompt.outgoing.account ?? "")
+            wrapMode: Text.Wrap
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
             text: prompt.i18nContext.i18nc("@info %1 is an amount, %2 the name of an account, %3 a date", "%1 arrived in %2 on %3.", prompt.suggestion.amount ?? "", prompt.incoming.account ?? "", prompt.incoming.date ?? "")
             wrapMode: Text.Wrap
             font.bold: true
@@ -138,11 +190,35 @@ Kirigami.PromptDialog {
             wrapMode: Text.Wrap
         }
 
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: text !== ""
+            text: prompt.sortedText(prompt.incoming)
+            wrapMode: Text.Wrap
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: prompt.incoming.movesNote ?? false
+            text: prompt.i18nContext.i18nc("@info %1 is the name of an account", "What you wrote on it stays, on the entry in %1.", prompt.incoming.account ?? "")
+            wrapMode: Text.Wrap
+        }
+
         // Explain, don't assume (AGENTS.md §6).
         Controls.Label {
             Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.smallSpacing
             text: prompt.i18nContext.i18nc("@info", "If you join them, they count as moving your own money around, not as spending and income. Both accounts keep their balance and the dates they show. Undo takes it apart again.")
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: prompt.anyCategory
+            text: prompt.i18nContext.i18nc("@info", "Undo also brings the categories back.")
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
         }

@@ -1538,6 +1538,7 @@ Kirigami.ApplicationWindow {
 
         AccountsPage {
             accounts: accountList
+            register: accountRegister
             onAddAccountClicked: root.addAccount()
             onAccountClicked: accountId => root.showRegister(accountId)
             onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })

@@ -202,6 +202,11 @@ fn section_allowed(allowed: Permissions, name: &str, permission: Permission) -> 
     }
 }
 
+/// What a list of transactions says when the user locked some of its
+/// fields: they are left out, and where the user unlocks them (D-676).
+const LOCKED_NOTE: &str = "Fields the user locked against the AI are left out; the user can \
+    unlock them under Settings › AI provider and privacy › What the AI may do.";
+
 /// What a model is offered for preparing changes under `allowed`, or
 /// `None` when nothing may be prepared: then the function isn't offered
 /// at all, and is refused if it is called (D-239).
@@ -226,31 +231,43 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         return None;
     }
     // A locked field is not offered either (D-257).
-    if let Some(fields) = properties
-        .get_mut("edit_transactions")
-        .and_then(|list| list.get_mut("items"))
-        .and_then(|items| items.get_mut("properties"))
-        .and_then(Value::as_object_mut)
-    {
-        for (field, key) in EDITABLE_FIELDS {
-            if allowed.locked(field) {
-                fields.remove(key);
+    if let Some(list) = properties.get_mut("edit_transactions") {
+        let mut locked = false;
+        if let Some(fields) = list
+            .get_mut("items")
+            .and_then(|items| items.get_mut("properties"))
+            .and_then(Value::as_object_mut)
+        {
+            for (field, key) in EDITABLE_FIELDS {
+                if allowed.locked(field) {
+                    locked |= fields.remove(key).is_some();
+                }
             }
+            names::without_orphans(fields);
         }
-        names::without_orphans(fields);
+        // Which setting leaves fields out, not which fields (D-676).
+        if locked {
+            list["description"] = json!(LOCKED_NOTE);
+        }
     }
-    if let Some(fields) = properties
-        .get_mut("new_transactions")
-        .and_then(|list| list.get_mut("items"))
-        .and_then(|items| items.get_mut("properties"))
-        .and_then(Value::as_object_mut)
-    {
-        for (field, key) in NEW_TRANSACTION_FIELDS {
-            if allowed.locked(field) {
-                fields.remove(key);
+    if let Some(list) = properties.get_mut("new_transactions") {
+        let mut locked = false;
+        if let Some(fields) = list
+            .get_mut("items")
+            .and_then(|items| items.get_mut("properties"))
+            .and_then(Value::as_object_mut)
+        {
+            for (field, key) in NEW_TRANSACTION_FIELDS {
+                if allowed.locked(field) {
+                    locked |= fields.remove(key).is_some();
+                }
             }
+            names::without_orphans(fields);
         }
-        names::without_orphans(fields);
+        // Which setting leaves fields out, not which fields (D-676).
+        if locked {
+            list["description"] = json!(LOCKED_NOTE);
+        }
     }
     if !allowed.allows(Permission::NewCategories) {
         // Nothing to point at: the keys of new categories.

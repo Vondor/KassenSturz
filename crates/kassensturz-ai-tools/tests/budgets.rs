@@ -182,8 +182,16 @@ fn list_budgets_reads_what_the_grid_allows_and_its_figures_come_from_the_dataset
         rows[0].get("current_period").is_none(),
         "no spending without Transactions"
     );
+    // The answer says which field is missing and where the user turns it
+    // on, not what else is off (D-676).
+    assert_eq!(listed["hidden"]["fields"], json!(["current_period"]));
+    assert_eq!(
+        listed["hidden"]["setting"]["en"],
+        "Settings › AI provider and privacy › What the AI may do"
+    );
 
     let all = read(&book, names.with(Permission::TransactionsRead, true)).expect("read");
+    assert!(all.get("hidden").is_none(), "{all}");
     let current = &all["budgets"][0]["current_period"];
     assert_eq!(current["from"], "2026-10-01");
     assert_eq!(current["to"], "2026-10-31");

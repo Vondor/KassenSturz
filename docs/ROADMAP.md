@@ -372,7 +372,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.20** · **done** (#613, D-671) · with US2.13 · standard · S. Decision A4: formula names keep following the chart's own accounts and categories, not a series' `income_accounts` / `expenses_accounts`; the tool text and the formula help say so. Why: changing it would change shown figures
 
-- **US2.21** · **planned** · thread E, after US2.18 · standard · S. Decision A7 / B5 (amends D-239): only in a refusal, or where a field or list is left out, the AI is told which setting it is (*Settings › AI › What the AI may do*); the list of what is off is never sent. Why: the AI can point the user to the switch
+- **US2.21** · **in review** · thread E, after US2.18 · standard · S · D-676. Decision A7 / B5 (amends D-239): only in a refusal, or where a field or list is left out, the AI is told which setting it is (*Settings › AI › What the AI may do*); the list of what is off is never sent. Why: the AI can point the user to the switch. **Built (D-676):** `setting` (English and German path) on `not-allowed` and `field-locked` answers, `hidden` in `list_budgets`, and a note on transaction lists with locked fields
 
 - **US2.22** · **not done** (Q-461) · #539, bank log oddities, closed as done: points 1 and 2 in US1.1 (#548), point 3 dropped (Q-439)
 

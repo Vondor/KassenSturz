@@ -235,6 +235,16 @@ impl ToolError {
         }
     }
 
+    /// Where the user switches on what this refusal says is off: the cells
+    /// and locks of "What the AI may do" (D-676). Only a refusal says it,
+    /// never a list of everything that is off (D-239).
+    pub fn setting(&self) -> Option<Setting> {
+        match self.kind() {
+            Self::NotAllowed { .. } | Self::FieldLocked { .. } => Some(AI_PERMISSIONS),
+            _ => None,
+        }
+    }
+
     /// The ways of drawing the data that take the argument, when the chosen
     /// one takes none (M6-B204).
     pub fn only_for_show_as(&self) -> Option<&[&'static str]> {
@@ -279,6 +289,31 @@ impl From<StoreError> for ToolError {
         Self::Store(error)
     }
 }
+
+/// A place in KassenSturz's settings, as the app shows it in English and
+/// in German, so the AI can point the user there in their language
+/// (D-676).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Setting {
+    /// The path in the English app.
+    pub en: &'static str,
+    /// The same path in the German app.
+    pub de: &'static str,
+}
+
+impl Setting {
+    /// The setting as a model reads it: `{"en": ..., "de": ...}`.
+    pub fn json(self) -> serde_json::Value {
+        serde_json::json!({"en": self.en, "de": self.de})
+    }
+}
+
+/// The AI settings' grid of what the AI may read, add, change and delete,
+/// with the field locks below it (D-252).
+pub const AI_PERMISSIONS: Setting = Setting {
+    en: "Settings › AI provider and privacy › What the AI may do",
+    de: "Einstellungen › KI-Anbieter und Datenschutz › Was die KI darf",
+};
 
 impl core::fmt::Display for ToolError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -589,6 +624,35 @@ mod tests {
             argument: crate::changes::CHECK_ONLY,
         });
         examples
+    }
+
+    #[test]
+    fn the_setting_is_named_as_the_app_shows_it() {
+        // The English path is the app's own words, and the German one is
+        // their translation (D-676).
+        // Git may check the file out with Windows line endings.
+        let po = include_str!("../../../po/de/kassensturz.po").replace("\r\n", "\n");
+        let english: Vec<&str> = AI_PERMISSIONS.en.split(" › ").collect();
+        let german: Vec<&str> = AI_PERMISSIONS.de.split(" › ").collect();
+        assert_eq!(english.len(), german.len());
+        for (en, de) in english.iter().zip(&german) {
+            let entry = format!("msgid \"{en}\"\nmsgstr \"{de}\"");
+            // The button that opens the page ends in an ellipsis.
+            let button = format!("msgid \"{en}…\"\nmsgstr \"{de}…\"");
+            assert!(
+                po.contains(&entry) || po.contains(&button),
+                "{en} / {de} in po/de"
+            );
+        }
+        assert_eq!(
+            ToolError::NotAllowed {
+                argument: "delete_rules"
+            }
+            .at("delete_rules", 0)
+            .setting(),
+            Some(AI_PERMISSIONS)
+        );
+        assert_eq!(ToolError::UnknownRule.setting(), None);
     }
 
     #[test]

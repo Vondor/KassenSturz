@@ -403,6 +403,10 @@ fn error_result(report: &ErrorReport, error: &ToolError) -> CallToolResult {
     if let Some(argument) = error.use_instead() {
         value.insert("use_instead".into(), Value::from(argument));
     }
+    // Where the user can switch on what is off (D-676).
+    if let Some(setting) = error.setting() {
+        value.insert("setting".into(), setting.json());
+    }
     if let Some(ways) = error.only_for_show_as() {
         value.insert("only_for_show_as".into(), Value::from(ways.to_vec()));
     }

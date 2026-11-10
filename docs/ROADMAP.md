@@ -368,7 +368,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.17** · **done** (#615, D-678) · thread I, after US2.16 · standard, high · M · human gate (AI data sharing). #597 (US1.33): optional fixed reason chips when the user refuses a change set; only the chip's keyword reaches the AI, never free text. Why: "declined" alone doesn't say what to fix
 
-- **US2.18** · **planned** · thread E, after US2.15 · standard, medium · S. #598 (US1.34): an optional name next to each id in change items, refused when they don't fit. Why: each miscopy costs a retry
+- **US2.18** · **in review** · thread E, after US2.15 · standard, medium · S · D-675. #598 (US1.34): an optional name next to each id in change items, refused when they don't fit. Why: each miscopy costs a retry. **Built (D-675):** optional `category_name`, `parent_name`, `account_name`, `rule_name` and `parent_rule_name` next to the IDs of `propose_changes`; a name that does not fit is `ai-tools.name-mismatch`
 
 - **US2.20** · **done** (#613, D-671) · with US2.13 · standard · S. Decision A4: formula names keep following the chart's own accounts and categories, not a series' `income_accounts` / `expenses_accounts`; the tool text and the formula help say so. Why: changing it would change shown figures
 

@@ -198,7 +198,7 @@ pub struct Rebooked {
 
 /// What "Apply now" on a Rule or "Apply all" on the Rules page would do, or
 /// did, to the transactions already in the book (D-630).
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Applied {
     /// How many transactions are sorted.
     pub changed: usize,
@@ -789,7 +789,7 @@ fn applied_of(run: &RuleRun) -> Applied {
 /// The newest of `changes`, as their account's register shows them once
 /// the Rules sorted them: in the category or account they go to, with the
 /// name the Rule shows.
-fn apply_examples(
+pub(crate) fn apply_examples(
     book: &Book,
     changes: &[RuleChange],
     locale: &impl Locale,

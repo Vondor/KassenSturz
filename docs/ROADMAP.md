@@ -350,7 +350,7 @@ Build threads (conflict map): A chart settings (2, then 4) · C budget figure (8
 
 - **US2.8** · **in review** (D-669) · thread C · strong, high · M. #576 (US1.10b): a budget amount `based_on` past spending counts a payment that slipped past a month end correctly; the PR writes the rule down. Why: a figure the user relies on for a budget (principle 1)
 
-- **US2.9** · **planned** · thread G, after E's first PR · strong, high · M. #572: the AI prepares "sort with all Rules" as one change set, the same run as *Apply Rules* with the overwrite option and preview; hand-sorted entries are never touched, one Undo takes it back. Why: the AI can't do it today
+- **US2.9** · **built, in review** (#624, D-682) · thread G · strong, high · M. #572: the AI prepares "sort with all Rules" as one change set, the same run as *Apply Rules* with the overwrite option and preview; hand-sorted entries are never touched, one Undo takes it back (D-682: `sort_with_rules` in a call of its own, applied only as reviewed). Why: the AI can't do it today
 
 - **US2.10** · **built, in review** (#616, D-672) · thread D · standard, medium · S. #569: search rows say which Rule sorted an entry or that it was sorted by hand (`sorted_by`). Why: the data exists in `split_rules` but no tool shows it
 

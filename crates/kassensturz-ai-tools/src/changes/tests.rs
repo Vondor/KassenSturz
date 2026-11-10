@@ -1143,12 +1143,13 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
         .keys()
         .map(String::as_str)
         .collect();
-    assert_eq!(lists.len(), 4, "{lists:?}");
+    assert_eq!(lists.len(), 5, "{lists:?}");
     for list in [
         "new_categories",
         "new_rules",
         "categorize",
         "edit_transactions",
+        "sort_with_rules",
     ] {
         assert!(lists.contains(&list), "{list}");
     }
@@ -3065,5 +3066,6 @@ mod rule_batches;
 mod rule_conditions;
 mod rule_tools;
 mod saved_views;
+mod sort_rules;
 mod tool_review;
 mod view_call;

@@ -470,6 +470,15 @@ mod tests {
                 argument: "rule_id",
                 reason: "also-deleted",
             },
+            // Sorting with the user's Rules (US2.9, D-682).
+            ToolError::NotChangeable {
+                argument: "sort_with_rules",
+                reason: "nothing-to-sort",
+            },
+            ToolError::NotChangeable {
+                argument: "sort_with_rules",
+                reason: "not-alone",
+            },
             ToolError::BadCondition {
                 condition: None,
                 reason: "none",
@@ -590,6 +599,7 @@ mod tests {
                 "new_views",
                 "new_budgets",
                 "edit_budgets",
+                "sort_with_rules",
             ]
             .map(|argument| ToolError::UnknownField {
                 argument,

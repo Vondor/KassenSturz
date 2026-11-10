@@ -67,6 +67,7 @@ pub const ACTIONS: &[&str] = &[
     "AiRequestReview_leaveOut",
     "AiRequestReview_send",
     "AiRequestReview_wordPhraseLeave",
+    "AiRulesSortChange_alsoSortAgain",
     "AiSettingsEntry_aiProviderPrivacy",
     "AiSettingsPage_activated",
     "AiSettingsPage_forceActiveFocus",

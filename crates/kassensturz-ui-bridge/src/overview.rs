@@ -94,7 +94,7 @@ pub struct MonthTotals {
 
 /// A recent transaction on the overview, as seen from one of the user's
 /// accounts.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LatestRow {
     /// The ID of the account it is seen from, as text.
     pub account_id: String,

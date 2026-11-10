@@ -18314,6 +18314,33 @@ msgctxt "@title:window %1 is the name of a Rule"
 msgid "Sort your transactions with %1"
 msgstr "Ihre Buchungen mit %1 zuordnen"
 
+#, kde-format
+msgctxt "@info what a sort the AI prepared uses"
+msgid "All Rules"
+msgstr "Alle Regeln"
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Sorting with your Rules"
+msgstr "Zuordnen mit Ihren Regeln"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Sorting with your Rules"
+msgstr "Zuordnen mit Ihren Regeln"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your own Rules decide where each transaction goes, not the AI. If your book "
+"changes before you confirm, nothing is sorted and you are asked to prepare "
+"it again. Undo takes the whole run back."
+msgstr ""
+"Ihre eigenen Regeln entscheiden, wohin jede Buchung kommt, nicht die KI. "
+"Ändert sich Ihr Buch, bevor Sie bestätigen, wird nichts zugeordnet und Sie "
+"werden gebeten, es neu vorbereiten zu lassen. Rückgängig nimmt den ganzen "
+"Lauf zurück."
+
 #: crates/kassensturz-ui-bridge/qml/RulesApply.qml
 #, kde-format
 msgctxt "@action:button %1 is a number"

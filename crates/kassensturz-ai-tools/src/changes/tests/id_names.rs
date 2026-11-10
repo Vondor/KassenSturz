@@ -175,10 +175,11 @@ fn named_ids(parameters: &str) -> usize {
 
 #[test]
 fn the_schema_offers_a_name_next_to_each_id() {
-    assert_eq!(named_ids(PROPOSE_CHANGES.parameters), 16);
+    // 16, and the Rule of `sort_with_rules` (US2.9, D-682).
+    assert_eq!(named_ids(PROPOSE_CHANGES.parameters), 17);
     // A locked field is not offered, and neither is its name (D-257).
     for allowed in [Permissions::all(), additions()] {
         let spec = propose_spec(allowed).expect("offered");
-        assert!(named_ids(&spec.parameters) < 16);
+        assert!(named_ids(&spec.parameters) < 17);
     }
 }

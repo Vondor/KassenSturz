@@ -124,6 +124,11 @@ fn changes(allowed: Permissions) -> String {
             "a category for transactions you found",
         ),
         (
+            allowed.sorts(),
+            "sort their transactions with their own Rules",
+            "sorting with the user's own Rules (sort_with_rules, in a call of its own)",
+        ),
+        (
             edits_allowed(allowed),
             "change the date, payee, note, amount or account of transactions",
             "changed fields of transactions (edit_transactions)",

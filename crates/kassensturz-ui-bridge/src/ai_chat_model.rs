@@ -287,6 +287,7 @@ pub(crate) mod engine {
     use crate::book_session::app_version;
     use crate::format::Locale;
     use crate::number_format::app_locale;
+    use crate::overview_model::latest_row_object;
     use crate::rules_model::condition_object;
     use crate::session;
 
@@ -805,6 +806,24 @@ pub(crate) mod engine {
                 fields.extend(basis_fields(basis.as_ref()));
                 fields
             }
+            ChangeView::SortWithRules {
+                rule_name,
+                sort_again,
+                applied,
+            } => vec![
+                ("kind", text("sortWithRules")),
+                ("ruleName", text(rule_name)),
+                ("sortAgain", QVariant::from(sort_again)),
+                ("changed", whole(applied.changed)),
+                ("transfers", whole(applied.transfers)),
+                ("noRate", whole(applied.no_rate)),
+                ("closed", whole(applied.closed)),
+                ("other", whole(applied.other)),
+                (
+                    "examples",
+                    list(applied.examples.iter().map(latest_row_object)),
+                ),
+            ],
         }
     }
 
@@ -2149,5 +2168,117 @@ mod tests {
         assert_eq!(text_of(&items[1], "key"), "pets");
         assert!(flag_of(&items[1], "income"));
         assert_eq!(text_of(&items[1], "currency"), "USD");
+    }
+
+    #[test]
+    fn a_sort_with_the_rules_reads_back_as_qml_reads_it() {
+        // US2.9, D-682: through the real proposal and the review's rows, so
+        // a field the card reads can't go missing between Rust and QML.
+        use kassensturz_ai_tools::propose;
+        use kassensturz_core::ai_switch::Permissions;
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, Actions, BookTo, Condition, CurrencyCode, Date,
+            MatchMode, Money, Rule, RuleId, Split, TextField, TextOperator, Transaction,
+            TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use crate::ai_chat::rows_of;
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let account = |name: &str, kind: AccountKind| Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = account("Checking", AccountKind::Asset);
+        let pets = account("Pets", AccountKind::Expense);
+        book.add_account(&checking).unwrap();
+        book.add_account(&pets).unwrap();
+        let shop = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 10, 5),
+            Some("Pet <b>Shop</b>".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-1999, eur)),
+                Split::uncategorized(Money::from_minor_units(1999, eur)),
+            ],
+        )
+        .unwrap();
+        book.add_transaction(&shop).unwrap();
+        book.add_rule(
+            &Rule {
+                id: RuleId::generate(),
+                name: "Pet food".into(),
+                match_mode: MatchMode::All,
+                conditions: vec![Condition::Text {
+                    field: TextField::Payee,
+                    operator: TextOperator::Contains,
+                    value: "pet".into(),
+                    case_sensitive: false,
+                }],
+                actions: Actions {
+                    book_to: Some(BookTo::Category(pets.id)),
+                    payee: None,
+                },
+            },
+            None,
+        )
+        .unwrap();
+
+        let proposal = propose(
+            &book,
+            &serde_json::json!({"sort_with_rules": [{}]}),
+            Permissions::all(),
+        )
+        .unwrap();
+        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 1);
+        let sort = &items[0];
+        assert_eq!(
+            own_keys(sort),
+            [
+                "changed",
+                "closed",
+                "examples",
+                "kind",
+                "noRate",
+                "other",
+                "ruleName",
+                "sortAgain",
+                "transfers"
+            ]
+        );
+        assert_eq!(text_of(sort, "kind"), "sortWithRules");
+        assert_eq!(text_of(sort, "slot"), "sort_with_rules/0");
+        assert_eq!(text_of(sort, "ruleName"), "");
+        assert!(!flag_of(sort, "sortAgain"));
+        assert_eq!(number_of(sort, "changed"), 1);
+        assert_eq!(number_of(sort, "transfers"), 0);
+        // The user's one correction is the switch (D-293).
+        let fields: Vec<String> = list_of(sort, "fields")
+            .iter()
+            .map(|field| field.value::<QString>().unwrap().to_string())
+            .collect();
+        assert_eq!(fields, ["sort_again"]);
+        let examples = list_of(sort, "examples");
+        assert_eq!(examples.len(), 1);
+        assert_eq!(text_of(&examples[0], "otherParty"), "Pet <b>Shop</b>");
+        assert_eq!(text_of(&examples[0], "category"), "Pets");
+        assert_eq!(text_of(&examples[0], "kind"), "simple");
+        assert_eq!(text_of(&examples[0], "account"), "Checking");
+        assert!(!text_of(&examples[0], "exactAmount").is_empty());
     }
 }

@@ -69,7 +69,7 @@ trap 'rm -rf "$work"' EXIT
 # each other and the stand-ins as they see the Rust objects.
 module="$work/imports/io/github/vondor/kassensturz"
 mkdir -p "$module"
-for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays ChartTable DataTable \
+for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiRulesSortChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
     BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard; do
@@ -81,7 +81,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
     echo 'singleton ChartPalette 1.0 ChartPalette.qml'
     echo 'singleton Plain 1.0 Plain.qml'
     echo 'singleton ActionLog 1.0 ActionLog.qml'
-    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays \
+    for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiRulesSortChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays \
         ChartTable DataTable AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter FormError SavedViews \
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
@@ -90,7 +90,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -112,6 +112,8 @@ run_smoke StatisticsSmoke
 echo "statistics page: ok"
 run_smoke ReviewSmoke
 echo "review page: ok"
+run_smoke SortSmoke
+echo "sort with all Rules in the review: ok"
 run_smoke ChatChartSmoke
 echo "chat chart card: ok"
 run_smoke GroupsSmoke

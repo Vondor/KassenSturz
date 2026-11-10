@@ -149,6 +149,15 @@ fn the_user_chooses_which_lists_the_ai_tool_may_use_and_it_is_seen_at_once() {
     assert!(is_error);
     assert_eq!(answer["error"], "ai-tools.not-allowed", "{answer}");
     assert_eq!(answer["argument"], "delete_rules", "{answer}");
+    // Where the user can allow it, in both languages of the app (D-676).
+    assert_eq!(
+        answer["setting"],
+        json!({
+            "en": "Settings › AI provider and privacy › What the AI may do",
+            "de": "Einstellungen › KI-Anbieter und Datenschutz › Was die KI darf",
+        }),
+        "{answer}"
+    );
     assert!(files_in(&request_folder(&folder)).is_empty());
 
     // The user ticks one more box: seen at the next look, no restart.

@@ -81,7 +81,7 @@ pub use changes::{
 #[cfg(all(feature = "ai", feature = "debug-log"))]
 pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
 #[cfg(feature = "ai")]
-pub use error::ToolError;
+pub use error::{AI_PERMISSIONS, Setting, ToolError};
 #[cfg(feature = "ai")]
 pub use figures::{Figures, Unverified, check_numbers};
 #[cfg(feature = "ai")]

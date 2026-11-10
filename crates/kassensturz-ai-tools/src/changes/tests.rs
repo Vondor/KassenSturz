@@ -1683,6 +1683,26 @@ fn a_locked_field_is_not_offered_and_a_list_with_every_field_locked_is_left_out(
             "transaction_id".into()
         ])
     );
+    // Which setting left fields out, but not which ones (D-676).
+    let spec = propose_spec(by_default).expect("offered");
+    let parameters: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    let note = parameters["properties"]["edit_transactions"]["description"]
+        .as_str()
+        .expect("a note");
+    assert!(note.contains("What the AI may do"), "{note}");
+    for field in ["amount", "date", "payee"] {
+        assert!(!note.contains(field), "{note}");
+    }
+    let unlocked = Field::ALL
+        .into_iter()
+        .fold(Permissions::all(), |p, field| p.with_lock(field, false));
+    let spec = propose_spec(unlocked).expect("offered");
+    let parameters: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    assert!(
+        parameters["properties"]["edit_transactions"]
+            .get("description")
+            .is_none()
+    );
     let amount_free = by_default.with_lock(Field::Amount, false);
     assert!(
         edit_properties(amount_free)

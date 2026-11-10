@@ -1199,6 +1199,10 @@ fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
         if let Some(argument) = error.use_instead() {
             object.insert("use_instead".into(), json!(argument));
         }
+        // Where the user can switch on what is off (D-676).
+        if let Some(setting) = error.setting() {
+            object.insert("setting".into(), setting.json());
+        }
         if let Some(ways) = error.only_for_show_as() {
             // A general list of the argument's words would mislead: the
             // chosen way of drawing takes none of them.
@@ -1255,6 +1259,26 @@ mod tests {
         // The error's own list replaces a general one.
         let replaced = with_allowed(json!({"allowed": ["x"]}), &error);
         assert_eq!(replaced["allowed"], json!(["name", "type", "currency"]));
+    }
+
+    #[test]
+    fn a_refusal_for_something_switched_off_names_the_setting() {
+        // Where the user allows it, in the app's two languages (D-676).
+        for error in [
+            ToolError::NotAllowed {
+                argument: "delete_rules",
+            },
+            ToolError::FieldLocked { field: "payee" }.at("edit_transactions", 0),
+        ] {
+            let answer = with_allowed(error_json(&error.model_report(), true), &error);
+            assert_eq!(
+                answer["setting"],
+                kassensturz_ai_tools::AI_PERMISSIONS.json()
+            );
+        }
+        let other = ToolError::UnknownRule;
+        let answer = with_allowed(error_json(&other.model_report(), true), &other);
+        assert!(answer.get("setting").is_none(), "{answer}");
     }
 
     #[test]

@@ -1499,6 +1499,18 @@ pub(crate) fn list_budgets(
     }
     let mut result = Map::new();
     result.insert("budgets".into(), Value::Array(rows));
+    // What this period spent and has left needs the reading of
+    // Transactions: say which field is missing and where the user turns it
+    // on (D-676).
+    if !spending && !budgets.is_empty() {
+        result.insert(
+            "hidden".into(),
+            json!({
+                "fields": ["current_period"],
+                "setting": crate::error::AI_PERMISSIONS.json(),
+            }),
+        );
+    }
     left_out(&mut result, w, budgets.len(), MAX_BUDGETS);
     Ok(Value::Object(result))
 }

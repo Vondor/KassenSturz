@@ -1336,11 +1336,15 @@ mod tests {
             ],
             "the account is read in `load()`, or again once it was loaded"
         );
-        // `load()` is what the list's size, and a timer, call.
+        // `load()` is what the list's size, and a timer, call; the size
+        // only once the page is made (`Qt.callLater`), when the list is
+        // inside the page's scroll view: before, the scroll view took the
+        // height of every line and the list made them all (M6-B227).
         assert!(page.contains("model: page.loaded ? page.register : null"));
         assert!(page.contains(
-            "onHeightChanged: {\n            if (height > 0) {\n                page.load();"
+            "onHeightChanged: {\n            if (height > 0) {\n                Qt.callLater(page.load);"
         ));
+        assert!(!page.contains("\n            load();"));
         assert!(page.contains("onTriggered: page.load()"));
     }
 }

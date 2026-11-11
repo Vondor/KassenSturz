@@ -1309,7 +1309,7 @@ fn propose_with(
     let Built {
         changes,
         rule_order,
-    } = build(book, arguments, allowed, today)?;
+    } = build(book, arguments, allowed, today).map_err(|error| hide_spending(error, allowed))?;
     if changes.is_empty() {
         return Err(ToolError::BadArgument {
             argument: "arguments",
@@ -1335,6 +1335,25 @@ fn propose_with(
         },
         output,
     })
+}
+
+/// `error`, or for a model the user doesn't let read what categories spent,
+/// a refusal of an amount `based_on` spending that names neither the
+/// reason nor the days (M6-B222, D-704): `nothing-spent` and
+/// `book-too-short` would tell it about the spending.
+fn hide_spending(error: ToolError, allowed: Permissions) -> ToolError {
+    if check_only::spending_readable(allowed) {
+        return error;
+    }
+    match error {
+        ToolError::NothingToBaseOn { .. } => ToolError::SpendingNotShown,
+        ToolError::InItem { list, item, cause } => ToolError::InItem {
+            list,
+            item,
+            cause: Box::new(hide_spending(*cause, allowed)),
+        },
+        other => other,
+    }
 }
 
 /// The changes a checked call makes, and the order of the top-level Rules

@@ -19,7 +19,7 @@ pub const CHECK_ONLY: &str = "check_only";
 
 /// What the MCP server adds to the parameters of `propose_changes` and
 /// `propose_view`.
-pub const CHECK_ONLY_SCHEMA: &str = r#"{"type":"boolean","description":"true: only check the call and answer what it would prepare (how many changes of each list, the budget amounts KassenSturz computes, how many transactions a sort with Rules would sort, and which conditions remove_conditions would take away); nothing is sent to KassenSturz and the user sees nothing. Then call again without it to prepare the changes. Default false."}"#;
+pub const CHECK_ONLY_SCHEMA: &str = r#"{"type":"boolean","description":"true: only check the call and answer what it would prepare (how many changes of each list, the budget amounts KassenSturz computes (one based on spending only when the user lets you read categories and transactions), how many transactions a sort with Rules would sort, and which conditions remove_conditions would take away); nothing is sent to KassenSturz and the user sees nothing. Then call again without it to prepare the changes. Default false."}"#;
 
 /// The call without `check_only`, and whether it asked for a check only.
 /// A value that is not `true` or `false` is refused.
@@ -43,7 +43,9 @@ pub fn take_check_only(arguments: &Value) -> Result<(bool, Value), ToolError> {
 /// The answer to a call that was only checked: what the call answers when
 /// it prepares the set (its notes, such as an average's), with a status
 /// that says nothing was sent, the count of the changes per list, and every
-/// budget amount the set would plan, as exact decimal text, and the conditions
+/// budget amount the set would plan, as exact decimal text (one computed
+/// from spending only when the model may read that spending, otherwise
+/// `not_shown`), and the conditions
 /// `remove_conditions` would take away, as `list_rules` shows them. No other
 /// text of the book is in it, so nothing reaches the model that a read
 /// function would have masked.
@@ -61,6 +63,7 @@ pub fn check_only_answer(
     let mut writer = Writer::new(book);
     let mut lists = Map::new();
     let mut amounts = Vec::new();
+    let spending_shown = spending_readable(permissions);
     for (slot, change) in set.slots().iter().zip(set.changes()) {
         let slot = slot.to_string();
         let (list, index) = slot.split_once('/').unwrap_or((slot.as_str(), "0"));
@@ -77,10 +80,19 @@ pub fn check_only_answer(
         let mut row = json!({
             "list": list,
             "item": item,
-            "amount": writer.amount(amount)?,
             "currency": amount.currency().as_str(),
             "from": from.to_string(),
         });
+        // An amount computed from spending tells what the categories spent,
+        // so it is shown only to a model the user lets read that spending,
+        // as `list_budgets` and a chart's figures are (M6-B222, D-704). An
+        // amount the model named itself tells nothing new.
+        if basis.is_some() && !spending_shown {
+            row["not_shown"] = json!(["amount", "based_on"]);
+            amounts.push(row);
+            continue;
+        }
+        row["amount"] = json!(writer.amount(amount)?);
         // How KassenSturz computed it, for an amount `based_on` spending.
         if let Some(basis) = basis {
             row["based_on"] = json!({
@@ -141,6 +153,15 @@ pub fn check_only_answer(
         answer.insert("budget_amounts".into(), Value::Array(amounts));
     }
     Ok(Value::Object(answer))
+}
+
+/// Whether `permissions` let a model read what categories spent: the
+/// categories and the transactions in them, as a chart's figures need
+/// (`view_figure.rs`). Without it a check names no amount computed from
+/// spending, and an amount that can't be computed is refused without
+/// saying why (M6-B222, D-704).
+pub(super) fn spending_readable(permissions: Permissions) -> bool {
+    permissions.reads(Row::Categories) && permissions.reads(Row::Transactions)
 }
 
 /// The conditions `remove_conditions` would take away, one row per Rule

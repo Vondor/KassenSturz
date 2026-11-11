@@ -73,6 +73,6 @@ Die Listen „Geld rein: nur diese …“ gelten für Formeln **nicht**: Ein Nam
 
 ## Muster in Regeln
 
-In einer Bedingung einer Regel (Seite 12) können Sie **Muster (fortgeschritten)** wählen. Sie finden dann Texte, die einer Form entsprechen, statt nur ein Wort. Das ist nie nötig, und die Hilfe in der App erklärt, wie Sie es schreiben, mit ausgedachten Beispielen.
+In einer Bedingung einer Regel (Seite 12) können Sie **Muster (fortgeschritten)** wählen. Sie finden dann Texte, die einer Form entsprechen, statt nur ein Wort. Das ist nie nötig. Wie Sie Muster und Formeln schreiben, erklärt die Hilfeseite **Hilfe: Muster und Formeln** in der App, mit ausgedachten Beispielen. Sie öffnet sich unter **Einstellungen** (Karte „Über KassenSturz“) und über **Mehr über Muster** unter einer Muster-Bedingung in einer Regel.
 
 **Wenn etwas anders aussieht:** Die Funktionen auf dieser Seite sind die der aktuellen Version. Kommt eine Meldung mit „unbekannte Funktion“, steht sie hier nicht und gibt es noch nicht.

@@ -154,6 +154,11 @@ pub enum ToolError {
         /// Their last day.
         to: kassensturz_core::Date,
     },
+    /// [`ToolError::NothingToBaseOn`] for a model the user doesn't let
+    /// read what categories spent: one refusal for either reason, with no
+    /// days, so it tells nothing about the spending (M6-B222, D-704). The
+    /// model can ask the user for an amount.
+    SpendingNotShown,
     /// A Rule or category can't be changed that way: a Rule with sub-Rules
     /// can't be deleted, only a top-level Rule moves, a Rule that books a
     /// Transfer or has conditions a model can't write keeps them. The
@@ -431,6 +436,8 @@ impl Report for ToolError {
                     .with("from", ErrorParam::Date(*from))
                     .with("to", ErrorParam::Date(*to))
             }
+            Self::SpendingNotShown => ErrorReport::new("ai-tools.nothing-to-base-on")
+                .with("reason", ErrorParam::Keyword("spending-not-readable")),
             Self::NotChangeable { argument, reason } => ErrorReport::new("ai-tools.not-changeable")
                 .with("argument", ErrorParam::Keyword(argument))
                 .with("reason", ErrorParam::Keyword(reason)),
@@ -545,6 +552,7 @@ mod tests {
                 from: kassensturz_core::Date::constant(2026, 8, 1),
                 to: kassensturz_core::Date::constant(2026, 10, 31),
             },
+            ToolError::SpendingNotShown,
             ToolError::NotChangeable {
                 argument: "conditions",
                 reason: "conditions-hidden",

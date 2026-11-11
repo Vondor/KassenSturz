@@ -108,11 +108,54 @@ fn grouped(spaced: &[bool]) -> bool {
     group_start == 0 || (1..=5).contains(&(spaced.len() - group_start))
 }
 
+/// The most characters between two groups of an IBAN (see [`gap_end`]):
+/// enough for a line break with a deep indent, or a statement file's
+/// columns padded with spaces.
+const MAX_GAP: usize = 32;
+
+/// Whether `c` may stand on its own between two groups of an IBAN, as a
+/// hyphen, a dot or a slash do in `DE89-3704-...` (D-705). Dashes that look
+/// like a hyphen count too.
+fn group_mark(c: char) -> bool {
+    matches!(
+        c,
+        '-' | '.' | '/' | '\u{2010}' | '\u{2011}' | '\u{2012}' | '\u{2013}' | '\u{2212}'
+    )
+}
+
+/// The byte index of the letter or digit after the gap between two groups
+/// of an IBAN that starts at `index`, a byte index into `text`, if there is
+/// such a gap (D-705): one to [`MAX_GAP`] characters, any number of spaces
+/// of any kind (a line break followed by an indent is two) and at most one
+/// [`group_mark`]. Anything else, or nothing after it, ends the IBAN.
+fn gap_end(text: &str, index: usize) -> Option<usize> {
+    let mut marks = 0;
+    for (count, (at, c)) in text[index..].char_indices().enumerate() {
+        if c.is_ascii_alphanumeric() {
+            return (count > 0).then_some(index + at);
+        }
+        if count == MAX_GAP {
+            return None;
+        }
+        if group_mark(c) {
+            marks += 1;
+            if marks > 1 {
+                return None;
+            }
+        } else if !c.is_whitespace() {
+            return None;
+        }
+    }
+    None
+}
+
 /// The byte index where an IBAN that starts at `start` ends, if one does
 /// (D-677). The characters are letters and digits, capitals or not, with a
-/// single space allowed between any two after the first four, as people and
-/// banks write it. It starts with two letters and two digits. For Germany
-/// every character after the first four is a digit.
+/// gap allowed between any two after the country code, as people, banks
+/// and statement files write it: spaces of any kind, also two or a line
+/// break, and at most one hyphen, dot or slash ([`gap_end`], D-705). It
+/// starts with two letters and two digits. For Germany every character
+/// after the first four is a digit.
 ///
 /// For a country in [`IBAN_LENGTHS`] it may start anywhere, also glued to a
 /// word in front (an importer may join a bank's text lines without a
@@ -140,16 +183,17 @@ fn iban_end(text: &str, start: usize) -> Option<usize> {
         let byte = bytes[index];
         if byte.is_ascii_alphanumeric() {
             chars.push(byte.to_ascii_uppercase());
-            spaced.push(space);
+            // A gap after the country code, `DE 89 3704 ...`, is no group
+            // of its own: the first four are one group.
+            spaced.push(space && chars.len() != 3);
             space = false;
             index += 1;
             ends.push(index);
-        } else if byte == b' '
-            && chars.len() >= 4
-            && bytes.get(index + 1).is_some_and(u8::is_ascii_alphanumeric)
+        } else if chars.len() >= 2
+            && let Some(next) = gap_end(text, index)
         {
             space = true;
-            index += 1;
+            index = next;
         } else {
             break;
         }
@@ -248,9 +292,10 @@ pub(crate) fn for_model(text: &str) -> String {
         .chars()
         .filter(|&c| !hides_text(c))
         .map(|c| {
-            // Spaces that don't break are spaces, so an IBAN grouped with
-            // them is caught too.
-            if c.is_control() || c == '\u{00A0}' || c == '\u{202F}' {
+            // Every kind of space is a space (one that doesn't break, a
+            // thin one, ...), so an IBAN grouped with them is caught too
+            // (D-705).
+            if c.is_control() || c.is_whitespace() {
                 ' '
             } else {
                 c
@@ -390,6 +435,78 @@ mod tests {
     }
 
     #[test]
+    fn an_iban_split_in_other_ways_is_left_out_too() {
+        // M6-B223 (#690, D-705): the ways the review found, and a few more.
+        for text in [
+            // A line break inside it, also with the next line's indent.
+            "From DE89 3704 0044\n0532 0130 00 thanks",
+            "From DE89 3704 0044\n 0532 0130 00 thanks",
+            "From DE89 3704 0044\r\n    0532 0130 00 thanks",
+            "From DE89 3704 0044\n                          0532 0130 00 thanks",
+            // Two spaces, or a tab, between groups.
+            "From DE89  3704  0044  0532  0130  00 thanks",
+            "From DE89\t3704 0044 0532 0130 00 thanks",
+            // A hyphen, a dot or a slash, also with spaces around it.
+            "From DE89-3704-0044-0532-0130-00 thanks",
+            "From DE89.3704.0044.0532.0130.00 thanks",
+            "From DE89/3704/0044/0532/0130/00 thanks",
+            "From DE89 - 3704 - 0044 - 0532 - 0130 - 00 thanks",
+            "From DE89\u{2013}3704\u{2013}0044\u{2013}0532\u{2013}0130\u{2013}00 thanks",
+            // Thin and other spaces of Unicode.
+            "From DE89\u{2009}3704\u{2009}0044\u{2009}0532\u{2009}0130\u{2009}00 thanks",
+            "From DE89\u{3000}3704\u{2007}0044\u{205F}0532 0130 00 thanks",
+            // A space after the country code.
+            "From DE 89 3704 0044 0532 0130 00 thanks",
+            "From DE 89370400440532013000 thanks",
+            "From GB 82 WEST 1234 5698 7654 32 thanks",
+            // Mistyped and split in such a way.
+            "From DE89-3704-0044-0532-0130-0 thanks",
+            "From DE89 3704 0044\n 0532 0130 0 thanks",
+        ] {
+            let shown = for_model(text);
+            assert_eq!(shown, "From [IBAN left out] thanks", "{text:?}");
+        }
+        // A dot that ends the sentence stays, and so does what follows.
+        assert_eq!(
+            for_model("Paid to DE89-3704-0044-0532-0130-00. Thanks"),
+            "Paid to [IBAN left out]. Thanks"
+        );
+        assert_eq!(
+            for_model("Paid to DE89 3704 0044 0532 0130 00 - rent"),
+            "Paid to [IBAN left out] - rent"
+        );
+    }
+
+    #[test]
+    fn a_gap_is_short_and_has_one_mark_at_most() {
+        for text in [
+            // Two marks, or a gap longer than a line break and an indent.
+            "From DE89 3704 0044 --0532 0130 00 thanks",
+            "From DE89 3704 0044 ./0532 0130 00 thanks",
+            "From DE89 3704 0044                                  0532 0130 00 thanks",
+            // A comma or a colon is no group mark.
+            "From DE89 3704 0044,0532 0130 00 thanks",
+            "From DE89 3704 0044:0532 0130 00 thanks",
+        ] {
+            let shown = for_model(text);
+            // The text stays readable as it is, apart from the spaces.
+            assert!(!shown.contains(IBAN_LEFT_OUT), "{text:?} -> {shown}");
+        }
+        // Text that only looks like one stays, with the new gaps too.
+        for text in [
+            "Mandate M-2026-0001-4711 of 2026-01-15",
+            "Invoice DE12-of-May",
+            "Rent DE12 - Rent October 2026",
+            "Order AB12.03.2026 shipped",
+            "Reference RF18-5390-0754-7034 for the invoice",
+            "Creditor DE98-ZZZ0-9999-9999-99",
+            "Bought ISIN DE 0005140008 at the exchange",
+        ] {
+            assert_eq!(for_model(text), text, "{text}");
+        }
+    }
+
+    #[test]
     fn an_iban_of_a_country_not_listed_is_left_out_when_it_ends_a_word() {
         // `ZZ` has no IBANs; its check digits are computed for the test.
         let iban = with_check_digits("ZZ", "1234567890123456");
@@ -419,6 +536,10 @@ mod tests {
         format!("{country}{check:02}{bban}")
     }
 
+    /// Gaps between an IBAN's groups, as statement files and people write
+    /// them (D-705).
+    const GAPS: [&str; 8] = [" ", "  ", "-", ".", "/", "\n ", "\u{2009}", " - "];
+
     proptest::proptest! {
         /// Whatever a listed country's IBAN holds and however it is grouped
         /// and written, none of its characters reach the model.
@@ -427,6 +548,7 @@ mod tests {
             country in 0..IBAN_LENGTHS.len(),
             seed in proptest::collection::vec(0_u8..36, 30),
             grouped: bool,
+            gap in 0_usize..GAPS.len(),
             small: bool,
             typo in 0_u8..4,
             before in "[a-z ]{0,8}",
@@ -460,7 +582,7 @@ mod tests {
                     .chunks(4)
                     .map(|chunk| std::str::from_utf8(chunk).expect("ASCII"))
                     .collect::<Vec<_>>()
-                    .join(" ")
+                    .join(GAPS[gap])
             } else {
                 iban.clone()
             };

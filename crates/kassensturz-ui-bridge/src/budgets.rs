@@ -161,6 +161,9 @@ pub struct Bar {
     pub counted_to: String,
     /// Whether spending is counted only to a day before the period's end.
     pub running: bool,
+    /// Whether the budget has not started yet: the bar is empty, nothing is
+    /// spent and what it plans is left (D-710).
+    pub starts_later: bool,
     /// What the period plans.
     pub planned: String,
     /// What came from the period before (negative after overspending).
@@ -247,7 +250,8 @@ fn bar<L: Locale>(
         first_day: locale.short_date(period.first_day),
         last_day: locale.short_date(period.last_day),
         counted_to: locale.short_date(period.counted_to),
-        running: period.counted_to < period.last_day,
+        running: !period.starts_later && period.counted_to < period.last_day,
+        starts_later: period.starts_later,
         planned: text.amount(period.planned),
         carried_in: text.amount(period.carried_in),
         available: text.amount(period.available),
@@ -273,7 +277,8 @@ fn bar<L: Locale>(
 /// those or a category inside them (empty: every budget). `budgets` are the
 /// IDs of the budgets the tile shows, its *Which budgets* (D-642; empty:
 /// every budget); one no longer in the book is left out. A budget that has
-/// not started or has ended by then has no bar.
+/// not started by then has an empty bar of its first period (D-710); one
+/// that has ended by then has no bar.
 pub fn bars_filtered(
     book: &Book,
     locale: &impl Locale,
@@ -563,7 +568,8 @@ pub struct BudgetRow {
     pub can_stop: bool,
     /// The periods a change can apply from, newest first.
     pub changes: Vec<PeriodChoice>,
-    /// This period's bar; none for a budget that is not running.
+    /// This period's bar, or its first period's, empty, for a budget that
+    /// starts later (D-710); none for an ended one.
     pub bar: Option<Bar>,
 }
 
@@ -1181,9 +1187,21 @@ mod tests {
         );
         assert_eq!(bar.counted_to, "2026-10-19");
         assert!(bar.running);
-        // The month before is complete and had nothing spent.
+        // In the month before the budget had not started: an empty bar of
+        // its first month, all of it left (D-710).
         let september = bars(&f.book, &TestLocale, "2026-09", &[]).expect("bars");
-        assert!(september.is_empty());
+        assert_eq!(september.len(), 1);
+        let later = &september[0];
+        assert!(later.starts_later && !later.running);
+        assert_eq!(
+            (later.first_day.as_str(), later.last_day.as_str()),
+            ("2026-10-01", "2026-10-31")
+        );
+        assert_eq!(later.spent, "0,00 €");
+        assert_eq!(later.left, "400,00 €");
+        assert_eq!(later.used, "0,0 %");
+        assert_eq!(later.permille, 0);
+        assert!(!bar.starts_later);
     }
 
     #[test]
@@ -1344,7 +1362,22 @@ mod tests {
             (row.first_day.as_str(), row.last_day.as_str()),
             ("2026-12-01", "2026-12-24")
         );
-        assert!(row.bar.is_none());
+        // Not started yet: an empty bar with all of it left (M6-B237, D-710).
+        let bar = row.bar.as_ref().expect("an empty bar");
+        assert!(bar.starts_later);
+        assert_eq!(
+            (bar.first_day.as_str(), bar.last_day.as_str()),
+            ("2026-12-01", "2026-12-24")
+        );
+        assert_eq!(
+            (
+                bar.spent.as_str(),
+                bar.available.as_str(),
+                bar.left.as_str()
+            ),
+            ("0,00 €", "250,00 €", "250,00 €")
+        );
+        assert!(bar.has_share && bar.notes.is_empty());
         assert!(!row.can_stop);
         assert_eq!(row.changes.len(), 1);
         let no_end = NewBudget {

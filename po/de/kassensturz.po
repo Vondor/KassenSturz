@@ -5553,6 +5553,12 @@ msgctxt "@info %1 is an amount of money"
 msgid "%1 left"
 msgstr "%1 übrig"
 
+#: crates/kassensturz-ui-bridge/qml/BudgetBars.qml:124
+#, kde-format
+msgctxt "@info %1 and %2 are the first and last day of a budget that has not started yet"
+msgid "%1 to %2. Starts on %1, nothing spent yet."
+msgstr "%1 bis %2. Beginnt am %1, noch nichts ausgegeben."
+
 #: crates/kassensturz-ui-bridge/qml/BudgetBars.qml:122
 #, kde-format
 msgctxt "@info %1 and %2 are dates, %3 a date"

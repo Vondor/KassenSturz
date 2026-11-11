@@ -1375,7 +1375,8 @@ pub(crate) const MAX_BUDGETS: usize = 100;
 /// (or first) period and whether it carries over (D-358, D-396). With
 /// `spending`, which needs the reading of Transactions as well, the
 /// current period's spent and left come with it, as `budget_utilization`
-/// counts them. Ended budgets are left out: they can't be changed.
+/// counts them; a budget that starts later gives its first period, not
+/// started (D-710). Ended budgets are left out: they can't be changed.
 pub(crate) fn list_budgets(
     book: &Book,
     w: &mut Writer<'_>,
@@ -1505,6 +1506,11 @@ pub(crate) fn list_budgets(
             current.insert("available".into(), w.amount(shown.available)?);
             current.insert("spent".into(), w.amount(shown.spent)?);
             current.insert("left".into(), w.amount(shown.left)?);
+            // A budget that starts later has its first period, with
+            // nothing spent and all of it left (D-710).
+            if shown.starts_later {
+                current.insert("not_started".into(), Value::Bool(true));
+            }
             row.insert("current_period".into(), Value::Object(current));
         } else if let Some(report) = failed.get(&budget.id) {
             // Only the codes, never a text the report may hold.

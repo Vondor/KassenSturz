@@ -1160,3 +1160,127 @@ fn a_named_budget_is_labelled_by_its_name() {
     assert_eq!(shown.label(" › "), "Food");
     assert_eq!(shown.periods[0].spent, named_spent);
 }
+
+/// A budget that starts after the day asked for (M6-B236, M6-B237, D-710):
+/// with the grouping `budget` it shows its first period, not started, with
+/// nothing spent, nothing carried in and all of it left, even when a
+/// transaction is already booked in it; a chart over time leaves it out.
+#[test]
+fn a_budget_that_starts_later_shows_its_first_period_with_all_of_it_left() {
+    let mut base = sample();
+    let loan = account(&mut base.book, "Loan", AccountKind::Expense, EUR, None);
+    let once = base
+        .book
+        .add_budget(
+            &[loan],
+            &[],
+            BudgetEvery::Range,
+            date(2026, 12, 1),
+            Some(date(2027, 11, 30)),
+            money(110_599),
+            false,
+        )
+        .unwrap();
+    let pets = account(&mut base.book, "Pets", AccountKind::Expense, EUR, None);
+    let monthly = base
+        .book
+        .add_budget(
+            &[pets],
+            &[],
+            BudgetEvery::Month,
+            date(2027, 1, 1),
+            None,
+            money(5_000),
+            true,
+        )
+        .unwrap();
+    // Booked ahead, inside the first period: not spent before it starts.
+    add(
+        &mut base.book,
+        date(2026, 12, 5),
+        vec![
+            Split::new(base.checking, money(-2_000)),
+            Split::new(loan, money(2_000)),
+        ],
+    );
+    let today = date(2026, 11, 11);
+    let november = period(date(2026, 11, 1), date(2026, 11, 30));
+    let shown = ask(
+        &base.book,
+        november,
+        today,
+        BudgetGrouping::Budget,
+        &Filter::default(),
+    );
+    let row = find(&shown, once);
+    assert_eq!(row.periods.len(), 1);
+    let first = &row.periods[0];
+    assert!(first.starts_later);
+    assert_eq!(
+        (first.first_day, first.last_day, first.counted_to),
+        (date(2026, 12, 1), date(2027, 11, 30), date(2026, 12, 1))
+    );
+    assert_eq!(first.planned, money(110_599));
+    assert_eq!(first.available, money(110_599));
+    assert_eq!(first.carried_in, money(0));
+    assert_eq!(first.spent, money(0));
+    assert_eq!(first.left, money(110_599));
+    assert_eq!(first.used, Some(Percent::from_tenths(0)));
+    assert_eq!(first.notes(), Vec::new());
+    // A repeating one shows only its first period.
+    let pets_first = &find(&shown, monthly).periods;
+    assert_eq!(pets_first.len(), 1);
+    assert!(pets_first[0].starts_later);
+    assert_eq!(
+        (pets_first[0].first_day, pets_first[0].last_day),
+        (date(2027, 1, 1), date(2027, 1, 31))
+    );
+    assert_eq!(pets_first[0].left, money(5_000));
+    // The budgets that run show as before, not started.
+    assert!(
+        shown
+            .iter()
+            .filter(|result| result.budget != once && result.budget != monthly)
+            .all(|result| result.periods.iter().all(|period| !period.starts_later))
+    );
+    // Only the ones asked for.
+    let source = Source::read_with_budgets(&base.book, november, today).expect("read");
+    let only = budget_utilization(
+        &source,
+        november,
+        today,
+        BudgetGrouping::Budget,
+        &Filter::default(),
+        Some(&[once]),
+    )
+    .expect("budgets");
+    assert_eq!(only.len(), 1);
+    assert_eq!(only[0].budget, once);
+    // A chart over time has no period of it yet (D-379).
+    let over_time = ask(
+        &base.book,
+        november,
+        today,
+        BudgetGrouping::Period,
+        &Filter::default(),
+    );
+    assert!(
+        over_time
+            .iter()
+            .all(|result| result.budget != once && result.budget != monthly)
+    );
+    // Once it has started it counts as any budget.
+    let december = period(date(2026, 12, 1), date(2026, 12, 31));
+    let started = ask(
+        &base.book,
+        december,
+        date(2026, 12, 31),
+        BudgetGrouping::Budget,
+        &Filter::default(),
+    );
+    let running = &find(&started, once).periods[0];
+    assert!(!running.starts_later);
+    assert_eq!(running.spent, money(2_000));
+    assert_eq!(running.left, money(108_599));
+    assert!(find(&started, monthly).periods[0].starts_later);
+}

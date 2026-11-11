@@ -295,6 +295,7 @@ pub fn bar_object(bar: &Bar) -> QVariant {
         ("lastDay", text(&bar.last_day)),
         ("countedTo", text(&bar.counted_to)),
         ("running", QVariant::from(&bar.running)),
+        ("startsLater", QVariant::from(&bar.starts_later)),
         ("planned", text(&bar.planned)),
         ("carriedIn", text(&bar.carried_in)),
         ("available", text(&bar.available)),
@@ -577,9 +578,13 @@ mod tests {
         assert_eq!(text_of(&bar, "left"), "150,00 €");
         assert_eq!(text_of(&bar, "used"), "50,0 %");
         assert_eq!(number_of(&bar, "permille"), 500);
-        // The budget that has not started has no bar.
+        // The budget that has not started has an empty bar of its first
+        // period, all of it left (D-710).
         assert_eq!(text_of(&rows[1], "state"), "upcoming");
-        assert!(!keys(&rows[1]).contains(&"bar".to_owned()));
+        let later = object_of(&rows[1], "bar");
+        assert!(flag_of(&later, "startsLater"));
+        assert_eq!(text_of(&later, "spent"), "0,00 €");
+        assert_eq!(text_of(&later, "left"), "9600,00 €");
         assert!(!flag_of(&rows[1], "canStop"));
         assert_eq!(text_of(&rows[1], "every"), "salary-month");
         assert_eq!(number_of(&rows[1], "salaryDay"), 25);
@@ -669,10 +674,12 @@ mod tests {
                 "running",
                 "salaryDay",
                 "spent",
+                "startsLater",
                 "used"
             ]
         );
         assert_eq!(text_of(&bar, "name"), "Food");
+        assert!(!flag_of(&bar, "startsLater"));
         assert_eq!(text_of(&bar, "ownName"), "");
         assert_eq!(text_of(&bar, "categoryNames"), "Food");
         assert!(flag_of(&bar, "running"));
@@ -685,5 +692,14 @@ mod tests {
         assert_eq!(text_of(&notes[0], "word"), "carried-in");
         assert_eq!(text_of(&notes[0], "amount"), "100,00 €");
         assert!(flag_of(&notes[0], "negative"));
+        // The salary-month budget starts later: an empty bar of its first
+        // period, all of it left (D-710).
+        let later = bar_object(&bars[1]);
+        assert_eq!(text_of(&later, "name"), "Flat");
+        assert!(flag_of(&later, "startsLater"));
+        assert!(!flag_of(&later, "running"));
+        assert_eq!(text_of(&later, "firstDay"), "2027-01-25");
+        assert_eq!(text_of(&later, "spent"), "0,00 €");
+        assert_eq!(text_of(&later, "left"), "9600,00 €");
     }
 }

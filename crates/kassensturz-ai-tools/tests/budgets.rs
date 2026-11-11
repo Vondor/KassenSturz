@@ -278,3 +278,36 @@ fn a_budget_whose_figures_cant_be_counted_says_so_in_its_row_and_the_others_are_
     assert_eq!(rows[1]["current_period"]["from"], "2026-10-01");
     assert!(rows[1]["current_period"]["spent"].is_string(), "{listed}");
 }
+
+/// A budget that starts later has the figures of its first period, not
+/// started: nothing spent and all of it left, as the bars show it
+/// (M6-B237, D-710).
+#[test]
+fn list_budgets_gives_a_budget_that_starts_later_its_first_period() {
+    let mut book = five_years();
+    let category = a_spending_category(&book);
+    let eur = book.account(category).expect("there").currency;
+    book.add_budget(
+        &[category],
+        &[],
+        BudgetEvery::Range,
+        Date::constant(2026, 12, 1),
+        Some(Date::constant(2027, 11, 30)),
+        kassensturz_core::Money::from_minor_units(110_599, eur),
+        false,
+    )
+    .expect("by hand");
+    let all = Permissions::NONE
+        .with(Permission::BudgetsRead, true)
+        .with(Permission::CategoriesRead, true)
+        .with(Permission::TransactionsRead, true);
+    let listed = read(&book, all).expect("read");
+    let row = &listed["budgets"][0];
+    assert_eq!(row["starts"], "2026-12-01", "{listed}");
+    assert_eq!(row["ends"], "2027-11-30");
+    assert_eq!(
+        row["current_period"],
+        json!({"from": "2026-12-01", "to": "2027-11-30", "available": "1105.99",
+            "spent": "0.00", "left": "1105.99", "not_started": true})
+    );
+}

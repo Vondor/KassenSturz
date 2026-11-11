@@ -1573,7 +1573,13 @@ mod tests {
             ChangeView::EditAccount { after, closed: true, was_closed: false, .. }
                 if after == "Renamed by the AI"
         )));
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
         assert!(book.account(first.id).unwrap().closed);
         assert!(book.undo().unwrap().is_some());
         assert!(!book.account(first.id).unwrap().closed);
@@ -1621,7 +1627,13 @@ mod tests {
         );
         assert!(crate::saved_views::list(&book).unwrap().is_empty());
 
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
 
         // The saved chart opens in the statistics page as any other.
         let [row] = <[_; 1]>::try_from(crate::saved_views::list(&book).unwrap()).unwrap();
@@ -1649,7 +1661,13 @@ mod tests {
         });
         let proposal =
             kassensturz_ai_tools::propose_view(&book, &call, Permissions::all(), today).unwrap();
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
         let listed =
             kassensturz_ai_tools::call(&book, "list_views", &serde_json::json!({}), today).unwrap();
         let id = listed.value["charts"][0]["view_id"]
@@ -1682,7 +1700,13 @@ mod tests {
                 .id(),
             "chart.pie"
         );
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
         let [row] = <[_; 1]>::try_from(crate::saved_views::list(&book).unwrap()).unwrap();
         assert_eq!(
             (row.name.as_str(), row.kind.as_str()),
@@ -1696,7 +1720,13 @@ mod tests {
             views.as_slice(),
             [ChangeView::DeleteView { name }] if name == "As a pie"
         ));
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
         assert!(crate::saved_views::list(&book).unwrap().is_empty());
         assert!(book.undo().unwrap().is_some());
         assert_eq!(crate::saved_views::list(&book).unwrap().len(), 1);
@@ -1726,7 +1756,13 @@ mod tests {
             };
             let read = kassensturz_report::Component::from_json(component).unwrap();
             assert_eq!((read.kind().id(), read.dataset().id), (kind, data));
-            confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+            confirm_in(
+                &mut book,
+                proposal.changes,
+                Permissions::all(),
+                Date::constant(2026, 11, 9),
+            )
+            .unwrap();
         }
         let rows = crate::saved_views::list(&book).unwrap();
         assert_eq!(rows.len(), 3);
@@ -1853,7 +1889,13 @@ mod tests {
         assert_eq!(accounts, "");
         assert_eq!(new_category, "Food, Fun");
         assert_eq!(new_accounts, "Checking");
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 14),
+        )
+        .unwrap();
         let budget = book.budget(id).unwrap();
         assert_eq!(
             budget
@@ -1898,7 +1940,13 @@ mod tests {
         book.remove_transaction(change.transaction).unwrap();
         let history = book.history().unwrap().len();
 
-        let error = confirm_in(&mut book, set, Permissions::all()).unwrap_err();
+        let error = confirm_in(
+            &mut book,
+            set,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap_err();
 
         assert!(matches!(error, ChangeError::OutOfDate), "{error:?}");
         assert_eq!(

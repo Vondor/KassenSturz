@@ -1214,8 +1214,30 @@ pub(crate) mod tests {
     #[test]
     fn the_help_page_explains_every_function_with_an_example_that_works() {
         let mut book = book();
-        account(&mut book, "Groceries", AccountKind::Expense, None);
+        let groceries = account(&mut book, "Groceries", AccountKind::Expense, None);
         account(&mut book, "Eating out", AccountKind::Expense, None);
+        // Groceries in August and September, so that CHANGE has an earlier
+        // figure to compare with.
+        let checking = book
+            .accounts(false)
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.name == "Checking account")
+            .expect("the checking account")
+            .id;
+        for (month, amount) in [(8, 4_000), (9, 5_000)] {
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                Date::new(2026, month, 10).expect("a date"),
+                None,
+                vec![
+                    Split::new(checking, Money::from_minor_units(-amount, EUR)),
+                    Split::new(groceries, Money::from_minor_units(amount, EUR)),
+                ],
+            )
+            .expect("balanced");
+            book.add_transaction(&transaction).expect("added");
+        }
         let lines = help_page_lines();
         // Every function of the closed list has its own line, in the list's
         // order, and its example calls it.

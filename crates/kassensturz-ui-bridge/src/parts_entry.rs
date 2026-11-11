@@ -92,7 +92,9 @@ impl From<EntryError> for PartsError {
             EntryError::Transaction(error) => Self::Transaction(error),
             EntryError::Amount(AmountInputError::TooLarge) => Self::TooLarge,
             // The Parts page has no note field, so `Note` can't come from it.
-            EntryError::Amount(_) | EntryError::NoSuchEntry | EntryError::Note => Self::NoSuchEntry,
+            EntryError::Amount(_) | EntryError::NoSuchEntry | EntryError::Note { .. } => {
+                Self::NoSuchEntry
+            }
             EntryError::NotPositive => Self::NotPositive,
             EntryError::Date => Self::Date,
             EntryError::NotEditableHere => Self::NotEditableHere,

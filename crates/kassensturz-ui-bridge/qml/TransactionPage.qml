@@ -90,6 +90,7 @@ Kirigami.ScrollablePage {
             otherPartyField.text = entry.otherParty ?? "";
             dateField.text = entry.date ?? "";
             noteField.text = entry.note ?? "";
+            loadedNote = noteField.text;
             categoryBox.currentIndex = page.categoryIndex(entry.category ?? "");
         }
     }
@@ -104,16 +105,25 @@ Kirigami.ScrollablePage {
         return categoryBox.currentIndex <= 0 ? "" : categoryChoices[categoryBox.currentIndex - 1].id;
     }
 
-    // What the user typed, as the Rust side takes it.
+    // The note as it was loaded, so a save sends it only when the user
+    // changed it (D-703): an imported note the page can't take as typed
+    // text, e.g. a long memo, then stays exactly as it is.
+    property string loadedNote: ""
+
+    // What the user typed, as the Rust side takes it. Without a `note` key
+    // the Rust side leaves the note as it is.
     function form(): var {
-        return {
+        const typed = {
             moneyIn: moneyIn,
             amount: amountField.text,
             otherParty: otherPartyField.text,
             category: chosenCategory(),
             date: dateField.text,
-            note: noteField.text,
         };
+        if (noteField.text !== loadedNote) {
+            typed.note = noteField.text;
+        }
+        return typed;
     }
 
     function save() {
@@ -310,17 +320,30 @@ Kirigami.ScrollablePage {
             }
         }
 
-        // A line about the transaction for the user's own use, e.g. what a
-        // payment was for. Optional, so it comes after the basics.
-        Controls.TextField {
+        // A few words about the transaction for the user's own use, e.g.
+        // what a payment was for. Optional, so it comes after the basics.
+        // It wraps and takes line breaks, so an imported memo shows whole
+        // (D-703); Tab moves on as in the other fields, Ctrl+Enter saves.
+        Controls.TextArea {
             id: noteField
             visible: page.editable
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            wrapMode: TextEdit.Wrap
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Note:")
             placeholderText: page.i18nContext.i18nc("@info:placeholder", "Optional, for example what it was for")
-            maximumLength: 200
-            onAccepted: {
-                ActionLog.taken("TransactionPage_save_5")
-                page.save()
+            Accessible.name: page.i18nContext.i18nc("@label:textbox", "Note:")
+            Keys.onTabPressed: event => nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
+            Keys.onBacktabPressed: event => nextItemInFocusChain(false).forceActiveFocus(Qt.BacktabFocusReason)
+
+            // Ctrl+Enter saves; Enter alone starts a new line.
+            Shortcut {
+                sequences: ["Ctrl+Return", "Ctrl+Enter"]
+                enabled: noteField.activeFocus
+                onActivated: {
+                    ActionLog.taken("TransactionPage_save_5")
+                    page.save()
+                }
             }
         }
 

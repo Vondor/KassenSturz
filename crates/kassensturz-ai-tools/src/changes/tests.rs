@@ -562,9 +562,18 @@ fn a_new_category_takes_the_usual_currency_or_has_to_name_one() {
         &mut s.book,
         account("Dollar account", AccountKind::Asset, USD),
     );
-    assert_eq!(code(propose(&s.book, &call)), "bad-argument currency");
+    // Its own refusal says why, as the schema can't (#652).
+    assert_eq!(code(propose(&s.book, &call)), "ai-tools.currency-needed");
     let named = json!({"new_categories": [{"key": "a", "name": "Gifts", "currency": "USD"}]});
     assert_eq!(code(propose(&s.book, &named)), "prepared");
+    // The same for a new account; one inside a category takes its parent's.
+    let account_call = json!({"new_accounts": [{"name": "Wallet", "type": "cash"}]});
+    assert_eq!(
+        code(propose(&s.book, &account_call)),
+        "ai-tools.currency-needed"
+    );
+    let inside = json!({"new_categories": [{"key": "a", "name": "Cinema", "parent_id": s.food.to_string()}]});
+    assert_eq!(code(propose(&s.book, &inside)), "prepared");
 }
 
 #[test]

@@ -465,6 +465,7 @@ pub const ACTIONS: &[&str] = &[
     "TransactionPage_breakDownTransaction",
     "TransactionPage_changeParts",
     "TransactionPage_checkAgainstBank",
+    "TransactionPage_chooseCategory",
     "TransactionPage_createRuleTransaction",
     "TransactionPage_iPaidMoney",
     "TransactionPage_iReceivedMoney",

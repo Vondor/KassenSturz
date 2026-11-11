@@ -393,7 +393,10 @@ Kirigami.ScrollablePage {
             model: [page.i18nContext.i18nc("@item:inlistbox the transaction gets no category yet", "Not sorted yet")]
                 .concat(page.categoryChoices.map(choice => choice.path))
             Accessible.name: page.i18nContext.i18nc("@label:listbox", "The category")
-            onActivated: page.categoryId = page.chosenCategory()
+            onActivated: {
+                ActionLog.taken("TransactionPage_chooseCategory")
+                page.categoryId = page.chosenCategory()
+            }
         }
 
         Controls.TextField {

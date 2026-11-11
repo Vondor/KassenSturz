@@ -24,6 +24,8 @@ QtObject {
         return [{ id: "salary", path: "Salary" }];
     }
     function amountExample(accountId) { return "12.50"; }
+    function noteLength(typed) { return typed.length; }
+    function noteLimit(stored) { return Math.max(512, stored.length); }
     function accountChoices() { return [{ id: "savings", name: "Savings" }]; }
     function editTransaction(accountId, transactionId, form) {
         saved = saved.concat([form]);

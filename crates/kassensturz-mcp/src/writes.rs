@@ -192,7 +192,8 @@ async fn propose(
                 let proposal =
                     prepare_named(book, name, &arguments, permissions, crate::server::today())?;
                 if check_only {
-                    check_only_answer(book, &proposal).map(|answer| (Some(answer), Map::new()))
+                    check_only_answer(book, &proposal, permissions)
+                        .map(|answer| (Some(answer), Map::new()))
                 } else {
                     Ok((None, figure_of(&proposal.output.value)))
                 }

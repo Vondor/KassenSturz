@@ -513,10 +513,8 @@ fn read_note(
     let Some(typed) = typed else {
         return Ok(None);
     };
-    let note = typed.trim().replace("\r\n", "\n").replace('\r', "\n");
-    let longest = stored
-        .map_or(0, |stored| stored.chars().count())
-        .max(MAX_NOTE_CHARS);
+    let note = normalized_note(typed);
+    let longest = note_limit(stored.unwrap_or_default());
     if note.chars().count() > longest
         || note
             .chars()
@@ -525,6 +523,24 @@ fn read_note(
         return Err(EntryError::Note { max: longest });
     }
     Ok(Some((!note.is_empty()).then_some(note)))
+}
+
+/// A note as it is kept: trimmed at both ends, every line break `\n`.
+fn normalized_note(typed: &str) -> String {
+    typed.trim().replace("\r\n", "\n").replace('\r', "\n")
+}
+
+/// How long the note `typed` is, counted the way a save counts it, so the
+/// page's counter and its stop at the limit agree with the save (B-226).
+pub fn note_length(typed: &str) -> usize {
+    normalized_note(typed).chars().count()
+}
+
+/// The longest note that may replace `stored`: [`MAX_NOTE_CHARS`], or the
+/// stored note's own length if it is longer, e.g. a memo imported from a
+/// KMyMoney book (D-703). An added transaction has none stored (`""`).
+pub fn note_limit(stored: &str) -> usize {
+    note_length(stored).max(MAX_NOTE_CHARS)
 }
 
 /// Who the money came from or went to, without spaces around it; none if
@@ -1503,6 +1519,43 @@ mod tests {
             (form.amount.as_str(), form.note.len()),
             ("12,00", MAX_NOTE_CHARS)
         );
+    }
+
+    #[test]
+    fn the_page_counts_a_note_the_way_a_save_does() {
+        // Spaces around it don't count, a line break counts once however it
+        // was typed, and a character outside the basic plane counts once.
+        assert_eq!(note_length("  two\r\nlines\t "), 9);
+        assert_eq!(note_length("caf\u{e9} \u{1f600}"), 6);
+        assert_eq!(note_limit(""), MAX_NOTE_CHARS);
+        assert_eq!(note_limit("short"), MAX_NOTE_CHARS);
+        let imported = "y".repeat(MAX_NOTE_CHARS + 88);
+        assert_eq!(note_limit(&imported), MAX_NOTE_CHARS + 88);
+        // What the counter calls full is exactly what a save still takes.
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        let full = format!(" {}\r\n", "z".repeat(MAX_NOTE_CHARS - 2) + "\r\nz");
+        assert_eq!(note_length(&full), note_limit(""));
+        add(
+            &mut book,
+            &NewEntry {
+                note: Some(&full),
+                ..paid(&checking, "12", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("added");
+        let one_more = format!("{full}z");
+        assert!(note_length(&one_more) > note_limit(""));
+        let refused = add(
+            &mut book,
+            &NewEntry {
+                note: Some(&one_more),
+                ..paid(&checking, "12", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        );
+        assert_eq!(code(&book, &checking, refused), "input.note-invalid");
     }
 
     #[test]

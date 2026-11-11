@@ -96,7 +96,7 @@ fn ends_at_word(text: &str, end: usize) -> bool {
 /// written as an IBAN is: without spaces, or in groups of about four (3 to
 /// 5, the last 1 to 5, so one typed character too many or too few in a
 /// group still counts). Text such as an ISIN followed by a word,
-/// `FR0000120271 Total`, is not.
+/// `FR000KS00027 Sonnfeld`, is not.
 fn grouped(spaced: &[bool]) -> bool {
     let mut group_start = 0;
     for at in (1..spaced.len()).filter(|&at| spaced[at]) {
@@ -366,9 +366,9 @@ mod tests {
     fn text_that_only_looks_like_an_iban_stays() {
         for text in [
             // ISINs: too short for any country, also with a word after them.
-            "Bought ISIN DE0005140008 at the exchange",
-            "Bought FR0000120271 TotalEnergies SE shares",
-            "Sold NL0010273215 ASML Holding",
+            "Bought ISIN DE000KS00016 at the exchange",
+            "Bought FR000KS00027 Sonnfeld Energie SE shares",
+            "Sold NL000KS00031 Polderlicht Holding",
             // Creditor ids.
             "Creditor DE98ZZZ09999999999",
             "Creditor NL98ZZZ999999999999 for the gym",

@@ -792,7 +792,7 @@ fn changing_a_rule_can_rebook_what_it_booked() {
 
     // When a Rule no longer matches, what it booked stays (Q-046).
     let mut elsewhere = shops.clone();
-    elsewhere.conditions = vec![name_contains("EDEKA")];
+    elsewhere.conditions = vec![name_contains("NORDLICHT")];
     let run = book.update_rule_and_rebook(&elsewhere).expect("changed");
     assert!(run.changed.is_empty());
     assert_eq!(other_side(&book, &water, checking), Some(household));

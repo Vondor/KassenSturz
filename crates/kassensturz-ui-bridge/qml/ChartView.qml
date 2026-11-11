@@ -160,6 +160,17 @@ ColumnLayout {
         // together as in a pie (D-666).
         case "other":
             return i18nContext.i18nc("@label the smaller slices of a pie put together", "Other");
+        // The second bar of a spending chart with a comparison (US3.1a).
+        case "previous_period":
+            return i18nContext.i18nc("@label a series of a chart: spending in the period before", "Period before");
+        case "same_last_year":
+            return i18nContext.i18nc("@label a series of a chart: spending in the same days a year earlier", "Same period last year");
+        case "average_3":
+            return i18nContext.i18nc("@label a series of a chart: the average spending of earlier periods", "Average of the 3 periods before");
+        case "average_6":
+            return i18nContext.i18nc("@label a series of a chart: the average spending of earlier periods", "Average of the 6 periods before");
+        case "average_12":
+            return i18nContext.i18nc("@label a series of a chart: the average spending of earlier periods", "Average of the 12 periods before");
         }
         return "";
     }

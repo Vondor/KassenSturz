@@ -4,8 +4,10 @@
 //! Budgets the AI prepares (M6c.11, D-358, D-394, D-395).
 //!
 //! A model names one or more spending categories, optionally the user's
-//! accounts the budget counts from (D-641), how often the budget repeats and
-//! either an amount the user named in the chat or what the amount is
+//! accounts the budget counts from (D-641), how often the budget repeats, or
+//! the first and last day the user named for a budget over one stretch of
+//! days (D-688), and either an amount the user named in the chat or what the
+//! amount is
 //! **based on**: the last full period, or the average of the last 3, 6 or
 //! 12 full periods, rounded up to a step. With `based_on` the amount is
 //! computed here, from the same counting `budget_utilization` uses for a
@@ -24,7 +26,7 @@ use kassensturz_store::{Book, StoreError};
 use serde_json::Value;
 
 use super::Object;
-use super::transactions::parse_amount;
+use super::transactions::{parse_amount, parse_date};
 use crate::error::ToolError;
 
 /// The most budgets one set may prepare, new and changed together (D-358).
@@ -79,9 +81,12 @@ pub struct NewBudget {
     pub account_names: Vec<String>,
     /// How often it repeats.
     pub every: BudgetEvery,
-    /// The first day of its first period: the current one.
+    /// The first day of its first period: the current one, or for a
+    /// budget over one stretch of days the first day the user named
+    /// (D-688).
     pub first_day: Date,
-    /// The last day of its first period.
+    /// The last day of its first period; for a stretch of days its last
+    /// day, after which the budget ends.
     pub first_period_end: Date,
     /// What it plans for each period.
     pub amount: Money,
@@ -179,15 +184,16 @@ pub fn every_word(every: BudgetEvery) -> &'static str {
     }
 }
 
-/// The repeating kind of period a call names. A range is not offered: it
-/// has days of its own that the model would have to pick (D-394).
-/// A month may start on its `salary_day`, 1 being the calendar month
-/// (D-651).
+/// The kind of period a call names. A month may start on its
+/// `salary_day`, 1 being the calendar month (D-651). A `range` is one
+/// stretch of days whose first and last day the user named (D-688, which
+/// amends D-394: the model never picks them).
 fn every_of(item: &Object<'_>) -> Result<BudgetEvery, ToolError> {
     let every = match item.required_string("every")? {
         "month" => BudgetEvery::Month,
         "quarter" => BudgetEvery::Quarter,
         "year" => BudgetEvery::Year,
+        "range" => BudgetEvery::Range,
         _ => return Err(ToolError::BadArgument { argument: "every" }),
     };
     let bad = ToolError::BadArgument {
@@ -202,6 +208,54 @@ fn every_of(item: &Object<'_>) -> Result<BudgetEvery, ToolError> {
             .and_then(BudgetEvery::salary_month)
             .ok_or(bad),
     }
+}
+
+/// The first and last day of a new budget's first period (D-688).
+///
+/// A repeating budget starts with the current period, so a call that names
+/// days for it is refused (`first_day` or `last_day`). A `range` needs both
+/// days, as `YYYY-MM-DD`, which the user named: the book's own checks of a
+/// budget's days reach the model at once (`store.budget-period`), and a
+/// range that ended before `today` is refused (`last_day`), as the AI never
+/// prepares a budget only for the past. Its first day may be before today:
+/// "from the first of this month to Christmas" is a stretch the user may
+/// name, and no budget's past result changes by it.
+fn first_period(
+    item: &Object<'_>,
+    every: BudgetEvery,
+    today: Date,
+) -> Result<(Date, Date), ToolError> {
+    let day = |name: &'static str| -> Result<Option<Date>, ToolError> {
+        item.string(name)?
+            .map(|text| parse_date(text).map_err(|_| ToolError::BadArgument { argument: name }))
+            .transpose()
+    };
+    let (first, last) = (day("first_day")?, day("last_day")?);
+    if every.repeats() {
+        return match (first, last) {
+            (None, None) => current_period(every, today),
+            (Some(_), _) => Err(ToolError::BadArgument {
+                argument: "first_day",
+            }),
+            (None, Some(_)) => Err(ToolError::BadArgument {
+                argument: "last_day",
+            }),
+        };
+    }
+    let first = first.ok_or(ToolError::BadArgument {
+        argument: "first_day",
+    })?;
+    let last = last.ok_or(ToolError::BadArgument {
+        argument: "last_day",
+    })?;
+    kassensturz_store::check_budget_days(every, first, Some(last))
+        .map_err(ToolError::BudgetRefused)?;
+    if last < today {
+        return Err(ToolError::BadArgument {
+            argument: "last_day",
+        });
+    }
+    Ok((first, last))
 }
 
 /// How many full periods `based_on` counts.
@@ -579,6 +633,8 @@ pub(super) fn new_budget(
             "account_ids",
             "every",
             "salary_day",
+            "first_day",
+            "last_day",
             "amount",
             "based_on",
             "round_to",
@@ -613,9 +669,17 @@ pub(super) fn new_budget(
     let (currency, paths) = spending_categories(book, &categories)?;
     let account_names = own_accounts(book, &accounts)?;
     let every = every_of(&item)?;
-    let (first_day, first_period_end) = current_period(every, today)?;
+    let (first_day, first_period_end) = first_period(&item, every, today)?;
+    let carry_over = item.boolean("carry_over")?.unwrap_or(false);
+    if carry_over && !every.repeats() {
+        // A stretch of days has no next period (the store's own check).
+        return Err(ToolError::BudgetRefused(StoreError::BudgetPeriod {
+            reason: "carry-over-on-range",
+        }));
+    }
     // A category's money is in one budget at a time (D-344, D-639): this
-    // one keeps going from the current period on.
+    // one keeps going from the current period on, or covers the days the
+    // user named.
     let probe = Budget {
         id: BudgetId::generate(),
         name: None,
@@ -623,7 +687,7 @@ pub(super) fn new_budget(
         accounts: accounts.clone(),
         every,
         first_day,
-        last_day: None,
+        last_day: last_day_of(every, first_period_end),
         amounts: Vec::new(),
     };
     // Refused in the AI's own words, pointing to edit_budgets: the store's
@@ -659,9 +723,15 @@ pub(super) fn new_budget(
         first_day,
         first_period_end,
         amount,
-        carry_over: item.boolean("carry_over")?.unwrap_or(false),
+        carry_over,
         basis,
     })
+}
+
+/// The last day a new budget is made with: none for one that keeps going,
+/// the user's last day for a stretch of days (D-688).
+fn last_day_of(every: BudgetEvery, first_period_end: Date) -> Option<Date> {
+    (!every.repeats()).then_some(first_period_end)
 }
 
 /// A change of a budget from an item of `edit_budgets`, from the current
@@ -771,7 +841,7 @@ pub(super) fn apply_new_budget(book: &mut Book, new: &NewBudget) -> Result<(), S
         &new.accounts,
         new.every,
         new.first_day,
-        None,
+        last_day_of(new.every, new.first_period_end),
         new.amount,
         new.carry_over,
     )

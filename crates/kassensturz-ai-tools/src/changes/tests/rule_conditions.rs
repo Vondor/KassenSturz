@@ -279,3 +279,65 @@ fn a_check_names_the_conditions_remove_conditions_would_take_away() {
         crate::check_only_answer(&book, &propose(&book, &adds).expect("added")).expect("checked");
     assert!(answer.get("removed_conditions").is_none(), "{answer}");
 }
+
+#[test]
+fn list_rules_shows_one_rule_by_its_id_with_its_sub_rules() {
+    let (
+        Sample {
+            mut book,
+            groceries,
+            ..
+        },
+        rules,
+    ) = with_rules();
+    let sub = Rule {
+        id: RuleId::generate(),
+        name: "Corner".into(),
+        match_mode: MatchMode::All,
+        conditions: vec![payee("corner")],
+        actions: Actions {
+            book_to: Some(BookTo::Category(groceries)),
+            payee: None,
+        },
+    };
+    book.add_rule(&sub, Some(rules[0].id)).expect("sub-Rule");
+    let all = crate::call(&book, "list_rules", &json!({}), today())
+        .expect("answered")
+        .value;
+    assert_eq!(all["rules"].as_array().map(Vec::len), Some(3));
+    // A top-level Rule comes with its sub-Rules, exactly as in the whole list.
+    let one = crate::call(
+        &book,
+        "list_rules",
+        &json!({"rule_id": rules[0].id.to_string()}),
+        today(),
+    )
+    .expect("answered")
+    .value;
+    assert_eq!(one["rules"].as_array().map(Vec::len), Some(1));
+    assert_eq!(one["rules"][0], all["rules"][0]);
+    assert_eq!(one["rules"][0]["sub_rules"][0]["name"], "Corner");
+    // A sub-Rule alone.
+    let one = crate::call(
+        &book,
+        "list_rules",
+        &json!({"rule_id": sub.id.to_string()}),
+        today(),
+    )
+    .expect("answered")
+    .value;
+    assert_eq!(one["rules"][0]["name"], "Corner");
+    assert!(one.get("left_out").is_none(), "{one}");
+    // A Rule the book does not have, and an ID that is none.
+    let missing = crate::call(
+        &book,
+        "list_rules",
+        &json!({"rule_id": RuleId::generate().to_string()}),
+        today(),
+    )
+    .expect_err("refused");
+    assert_eq!(missing.report().code, "ai-tools.unknown-rule");
+    let bad =
+        crate::call(&book, "list_rules", &json!({"rule_id": "x"}), today()).expect_err("refused");
+    assert_eq!(bad.report().code, "ai-tools.bad-argument");
+}

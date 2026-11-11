@@ -283,7 +283,8 @@ impl ComponentType {
     pub const fn properties(self) -> &'static [Property] {
         match self {
             Self::ChartLine | Self::ChartArea | Self::ChartPie | Self::ChartDonut => &CHART,
-            Self::ChartBar | Self::ChartStackedBar => &BAR_CHART,
+            Self::ChartBar => &BAR_CHART,
+            Self::ChartStackedBar => &STACKED_BAR,
             Self::KpiCard => &KPI_CARD,
             Self::ProgressBar => &PROGRESS_BAR,
             Self::TableRows => &TABLE,
@@ -584,6 +585,17 @@ const AVERAGE: Property = Property {
     kind: Kind::Choice(&crate::AVERAGE_WORDS),
 };
 pub(crate) const AVERAGE_KEY: &str = "average";
+/// `params.compare` of a spending bar chart or table (US3.1a, #587, D-687):
+/// each category next to its figure in the period before, the same period
+/// last year, or the average of the 3, 6 or 12 periods before. Only
+/// `spending_by_category` compares; other datasets offer `none` alone. A
+/// key figure card's `compare` is [`COMPARE`], with its two words.
+const COMPARE_SPENDING: Property = Property {
+    key: COMPARE_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&crate::COMPARE_WORDS),
+};
+pub(crate) const COMPARE_KEY: &str = "compare";
 /// `props.orientation` (US2, #563, D-679): which way the bars of a bar or
 /// stacked bar chart go. `auto`, the default, keeps the rule the chart had
 /// before: rows for one series whose names are too long to stand under
@@ -617,9 +629,32 @@ const CHART: [Property; 16] = [
     HIDE_NOTE,
     PERIOD,
 ];
-/// Bars and stacked bars: a chart's properties and the way the bars go
-/// (D-679), after the legend.
-const BAR_CHART: [Property; 17] = [
+/// Bars: a chart's properties, the comparison of spending (US3.1a) after
+/// the average, and the way the bars go (D-679) after the legend.
+const BAR_CHART: [Property; 18] = [
+    GROUPING,
+    AVERAGE,
+    COMPARE_SPENDING,
+    GROUPS,
+    CATEGORIES,
+    ACCOUNTS,
+    SERIES,
+    INCOME_CATEGORIES,
+    INCOME_ACCOUNTS,
+    EXPENSES_CATEGORIES,
+    EXPENSES_ACCOUNTS,
+    COLUMNS,
+    TITLE,
+    LEGEND,
+    ORIENTATION,
+    SHOW_HIDDEN,
+    HIDE_NOTE,
+    PERIOD,
+];
+/// Stacked bars: the properties of bars without a comparison, since spending
+/// stacked is one bar split into its categories (D-666) and has no place for
+/// a second one.
+const STACKED_BAR: [Property; 17] = [
     GROUPING,
     AVERAGE,
     GROUPS,
@@ -642,9 +677,10 @@ const KPI_CARD: [Property; 7] = [
     MEASURE, ACCOUNTS, HIDE_NOTE, COMPARE, FORMULA, TITLE, PERIOD,
 ];
 const PROGRESS_BAR: [Property; 7] = [ACCOUNTS, COMPARE, FORMULA, TARGET, TITLE, HIDE_NOTE, PERIOD];
-const TABLE: [Property; 14] = [
+const TABLE: [Property; 15] = [
     GROUPING,
     AVERAGE,
+    COMPARE_SPENDING,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
@@ -696,7 +732,7 @@ impl Property {
             Kind::Choice(_) if self.key == MEASURE_KEY && self.place == Place::Params => {
                 dataset.measures
             }
-            Kind::Choice(words) if self.key == AVERAGE_KEY => {
+            Kind::Choice(words) if self.key == AVERAGE_KEY || self.compares_spending() => {
                 if dataset.id == crate::SPENDING_BY_CATEGORY {
                     words
                 } else {
@@ -714,6 +750,13 @@ impl Property {
             | Kind::Columns
             | Kind::Spec => &[],
         }
+    }
+
+    /// Whether this is a spending chart's `params.compare` (US3.1a), whose
+    /// words beyond `none` only spending by category takes.
+    fn compares_spending(&self) -> bool {
+        self.key == COMPARE_KEY
+            && matches!(self.kind, Kind::Choice(words) if words.first() == Some(&"none"))
     }
 
     /// The value of a new component.

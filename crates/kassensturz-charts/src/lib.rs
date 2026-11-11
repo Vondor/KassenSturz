@@ -14,6 +14,7 @@
 //! they place marks and are never read back. The provider draws; it formats
 //! no number, and it answers pointer events with indices, never values.
 
+mod compared;
 mod custom;
 mod datasets;
 mod error;
@@ -23,6 +24,7 @@ mod palette;
 mod provider;
 mod ticks;
 
+pub use compared::{compare_key, spending_by_category_compared};
 pub use custom::{CustomChart, CustomError, MAX_ROWS, MAX_SERIES, custom_chart};
 pub use datasets::{
     category_over_time, income_expense_by_month, spending_by_category, spending_by_category_as,

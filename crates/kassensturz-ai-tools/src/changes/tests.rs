@@ -3091,6 +3091,7 @@ mod shape_hints;
 mod sort_rules;
 mod tool_review;
 mod view_call;
+mod view_columns;
 
 // A bank's amount keeps its figure, and the AI is told why (M6-B215).
 #[test]

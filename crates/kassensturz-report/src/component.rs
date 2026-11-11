@@ -384,6 +384,13 @@ impl Component {
             {
                 continue;
             }
+            // No comparison is the default and is not written (US3.1a), so
+            // an older build reads such a chart as it always did.
+            if property.key == crate::schema::COMPARE_KEY
+                && matches!(setting, Setting::Word(word) if word == "none")
+            {
+                continue;
+            }
             // Automatic bars are the default and are not written (D-679),
             // so a chart saved before the setting existed reads the same.
             if property.key == crate::schema::ORIENTATION_KEY

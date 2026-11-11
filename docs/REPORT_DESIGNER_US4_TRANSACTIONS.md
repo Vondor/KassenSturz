@@ -65,7 +65,7 @@ Every value is checked when a document is read (D-281): an unknown `rows` word m
 
 ### 1.6 Type, size, name
 
-- Type id **`table.transactions`**, a data widget that fills itself from its own bridge object, like the budget bars (`BookBudgets`). Its source names the new list `transactions` in the catalog with `suits: ["transactions"]`, `takes: ALL` and `for_ai: false`.
+- Type id **`table.transactions`**, filled by its own bridge object (`BookTransactions`, like the budget bars' `BookBudgets`). Its document names no dataset, as *Where the money came from* (`table.income_sources`), and like that tile it takes all three shared filters (`filter::takes`). So no dataset is added to the catalog, which the AI and the chart descriptions read.
 - **Not in `ComponentType::ALL`:** the AI does not propose this tile, and no AI tool reads it. So no human gate (AI data sharing) applies. Letting `propose_view` add it is a possible later wish with its own gate.
 - Smallest size **4 × 3**, default **6 × 5** on the 12-column grid (D-287, D-296).
 - English name *Transactions*, German *Buchungen* (`docs/GLOSSARY.md`). In the Add menu under *Figures and tables*.
@@ -87,7 +87,7 @@ A new rolling period beside *the last N months* and *a salary month* (D-644, D-6
 
 ## 3. What is built, in one PR
 
-1. `kassensturz-report`: `Rolling::Days` (word, read, period, tests on month and year ends and leap days); `ComponentType::Transactions` with its property table (`rows`), sizes, `LIBRARY`; the `transactions` entry of the catalog.
+1. `kassensturz-report`: `Rolling::Days` (word, read, period, tests on month and year ends and leap days); `ComponentType::Transactions` with its property table (`rows`), sizes, `LIBRARY`, and `Takes::ALL` in `filter::takes`.
 2. `kassensturz-core`: `table_transactions` in `vocabulary::DETAILS`.
 3. `kassensturz-ui-bridge` (Rust): `transactions_tile.rs` (the rows, from the store's register and outline reads, filter and order in Rust, at most `rows`) and `transactions_tile_model.rs` (`BookTransactions`, `show(period, scope)`, `view` with `rows`, `shown`, `total`, `accounts` and the filter notes); bridge tests that read the object back as QML does, including a Transfer between two listed accounts, a split with one Part in the filter, two currencies, and the 200-row cut.
 4. QML: `TransactionsTile.qml`, its branch in `GridItem.qml`, `GridNames.qml`, `AddMenu.qml`, the *Rows* choice in the properties panel, *The last days…* in `PeriodChoice.qml`; a smoke test in `qml-tests/`.

@@ -756,7 +756,8 @@ pub struct Categorize {
 }
 
 /// The changes a model prepared, checked against the book. Only
-/// [`propose`] makes one, and only [`ChangeSet::apply`] changes the book.
+/// [`propose`] makes one, and only [`ChangeSet::apply_on`] (or `apply`) changes
+/// the book.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChangeSet {
     changes: Vec<ProposedChange>,
@@ -1063,11 +1064,37 @@ impl ChangeSet {
         parts.join("; ")
     }
 
-    /// Applies the set to `book` as one user action, which one undo takes
-    /// back (D-198). Everything is applied or nothing: if the book changed
-    /// since the set was prepared, or the book refuses one of the changes,
-    /// the book stays as it was.
+    /// Applies the set to `book` as [`ChangeSet::apply_on`] does, on the
+    /// day each of its budget changes was prepared, so a budget's period
+    /// never moved. For tests and the command line; the app's confirm
+    /// button uses `apply_on` with the day of the confirm.
     pub fn apply(self, book: &mut Book, confirmed: Confirmed) -> Result<(), ChangeError> {
+        self.apply_at(book, confirmed, None)
+    }
+
+    /// Applies the set to `book` as one user action, which one undo takes
+    /// back (D-198), confirmed on `today`. Everything is applied or
+    /// nothing: if the book changed since the set was prepared, or the
+    /// book refuses one of the changes, the book stays as it was. A budget
+    /// change prepared in a period that is over by `today` is out of date
+    /// too (M6-B224): it would start in, or change, a period that is
+    /// already over (D-689).
+    pub fn apply_on(
+        self,
+        book: &mut Book,
+        confirmed: Confirmed,
+        today: Date,
+    ) -> Result<(), ChangeError> {
+        self.apply_at(book, confirmed, Some(today))
+    }
+
+    /// [`ChangeSet::apply_on`], or on the day of the proposal for `None`.
+    fn apply_at(
+        self,
+        book: &mut Book,
+        confirmed: Confirmed,
+        today: Option<Date>,
+    ) -> Result<(), ChangeError> {
         let Confirmed(()) = confirmed;
         // The user left every change out (D-293): nothing to make, and no
         // empty entry in the history.
@@ -1181,8 +1208,12 @@ impl ChangeSet {
                     }
                     ProposedChange::EditView(edit) => views::apply_edit_view(book, edit)?,
                     ProposedChange::DeleteView(delete) => views::apply_delete_view(book, delete)?,
-                    ProposedChange::NewBudget(new) => budgets::apply_new_budget(book, new)?,
-                    ProposedChange::EditBudget(edit) => budgets::apply_edit_budget(book, edit)?,
+                    ProposedChange::NewBudget(new) => {
+                        budgets::apply_new_budget(book, new, today)?;
+                    }
+                    ProposedChange::EditBudget(edit) => {
+                        budgets::apply_edit_budget(book, edit, today)?;
+                    }
                     ProposedChange::SortWithRules(sort) => sort_rules::apply(book, sort)?,
                     ProposedChange::JoinTransfer(join) => joins::apply(book, join)?,
                 }

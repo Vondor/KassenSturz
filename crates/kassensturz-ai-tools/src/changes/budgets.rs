@@ -945,8 +945,21 @@ pub(super) fn edit_budget(
     })
 }
 
-/// Makes the new budget in `book`, with the store's checks.
-pub(super) fn apply_new_budget(book: &mut Book, new: &NewBudget) -> Result<(), StoreError> {
+/// Makes the new budget in `book`, with the store's checks. A repeating
+/// one starts with the period the user reviewed; confirmed on a `today` in
+/// a later period it is out of date (M6-B224), since its first period is
+/// over and an amount `based_on` spending counted other periods.
+pub(super) fn apply_new_budget(
+    book: &mut Book,
+    new: &NewBudget,
+    today: Option<Date>,
+) -> Result<(), super::ChangeError> {
+    if let Some(today) = today
+        && new.every.repeats()
+        && new.every.period_start(today) != Some(new.first_day)
+    {
+        return Err(super::ChangeError::OutOfDate);
+    }
     book.add_named_budget(
         new.name.as_deref(),
         &new.categories,
@@ -956,22 +969,34 @@ pub(super) fn apply_new_budget(book: &mut Book, new: &NewBudget) -> Result<(), S
         last_day_of(new.every, new.first_period_end),
         new.amount,
         new.carry_over,
-    )
-    .map(|_| ())
+    )?;
+    Ok(())
 }
 
 /// Changes the budget in `book` from its period on, if it is still as the
-/// user reviewed it.
+/// user reviewed it. Confirmed on a `today` whose period is not the one
+/// the change was prepared in, it is out of date (M6-B224): it would
+/// change a period that is already over (D-689), or skip one.
 pub(super) fn apply_edit_budget(
     book: &mut Book,
     edit: &EditBudget,
+    today: Option<Date>,
 ) -> Result<(), super::ChangeError> {
     match book.budget(edit.budget) {
         Ok(stored) if stored == edit.reviewed => {}
         Ok(_) | Err(StoreError::UnknownBudget(_)) => return Err(super::ChangeError::OutOfDate),
         Err(other) => return Err(other.into()),
     }
+    let today = today.unwrap_or(edit.today);
     if edit.changes_amount || edit.counts.is_some() {
+        // The same period as `edit_budget` picked, on the day of the confirm.
+        let from_day = edit
+            .reviewed
+            .period_containing(today.max(edit.reviewed.first_day))
+            .map(|(start, _)| start);
+        if from_day != Some(edit.from_day) {
+            return Err(super::ChangeError::OutOfDate);
+        }
         book.edit_budget(
             edit.budget,
             edit.from_day,
@@ -980,7 +1005,7 @@ pub(super) fn apply_edit_budget(
             edit.counts
                 .as_ref()
                 .map(|counts| (counts.categories.as_slice(), counts.accounts.as_slice())),
-            edit.today,
+            today,
         )?;
     }
     if let Some(name) = &edit.rename {

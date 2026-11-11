@@ -238,7 +238,7 @@ mod tests {
         // The window's confirm button.
         let waiting = sets.take(arrived[0].id).unwrap();
         assert_eq!(waiting.from.as_ref(), Some(&id));
-        let result = confirm_in(&mut book, waiting.set, Permissions::all());
+        let result = confirm_in(&mut book, waiting.set, Permissions::all(), DAY);
         tell_confirmed(&mut ends.app, &id, &result);
 
         assert!(result.is_ok());

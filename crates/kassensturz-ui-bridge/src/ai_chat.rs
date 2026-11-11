@@ -1118,18 +1118,21 @@ pub fn outcome_of(result: &Result<(), ChangeError>, corrected: bool) -> Outcome 
     }
 }
 
-/// Applies `set` to `book` as the user's own action: the one place in the
-/// app that makes a [`Confirmed`]. Only the confirm button of the review
-/// screen reaches it (D-171, D-200; M5.12 checks that no other code does).
+/// Applies `set` to `book` as the user's own action on `today`: the one
+/// place in the app that makes a [`Confirmed`]. Only the confirm button of
+/// the review screen reaches it (D-171, D-200; M5.12 checks that no other
+/// code does). A budget change prepared in a period that is over by
+/// `today` is out of date (M6-B224).
 pub fn confirm_in(
     book: &mut Book,
     set: ChangeSet,
     allowed: Permissions,
+    today: Date,
 ) -> Result<(), ChangeError> {
     // The user may have turned a kind of change off since the set was
     // prepared (D-239).
     set.check_allowed(allowed)?;
-    set.apply(book, Confirmed::by_the_user())
+    set.apply_on(book, Confirmed::by_the_user(), today)
 }
 
 #[cfg(test)]
@@ -1396,7 +1399,13 @@ mod tests {
 
         let set = sets.take(id).unwrap().set;
         assert!(sets.is_empty());
-        confirm_in(&mut book, set, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            set,
+            Permissions::all(),
+            Date::constant(2026, 10, 25),
+        )
+        .unwrap();
 
         // One user action in the history, which one undo takes back.
         assert_eq!(book.history().unwrap().len(), before + 1);
@@ -1504,7 +1513,7 @@ mod tests {
         let before = book.history().unwrap().len();
         let set = sets.take(id).unwrap().set;
         let corrected = set.corrected();
-        let result = confirm_in(&mut book, set, all);
+        let result = confirm_in(&mut book, set, all, Date::constant(2026, 10, 25));
         // The chat hears a fixed line that the user corrected the set (D-298).
         assert_eq!(outcome_of(&result, corrected), Outcome::ConfirmedChanged);
         assert_eq!(outcome_of(&result, false), Outcome::Confirmed);

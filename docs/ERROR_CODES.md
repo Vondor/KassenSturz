@@ -384,7 +384,7 @@ The user confirmed a change set (D-199), and it couldn't be applied. Nothing of 
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
-| `ai-changes.out-of-date` | | | A transaction in the changes was changed or removed after the AI prepared them, so nothing was changed. Ask the AI to prepare them again. |
+| `ai-changes.out-of-date` | | | A transaction in the changes was changed or removed after the AI prepared them, or a budget change was prepared in a period that is over now (M6-B224), so nothing was changed. Ask the AI to prepare them again. |
 | `ai-changes.not-allowed` | | | The changes hold a kind of change that you have turned off in the AI settings since the AI prepared them, so nothing was changed. Turn it on again in the AI settings, or ask the AI to prepare the changes again. |
 | `ai-changes.not-editable` | | | The user tried to change a prepared change in a way it can't be changed (a change that can only be left out, a field it doesn't have, or one left out), so nothing was kept. Leave the change out, or take the AI's version (D-297). |
 | `ai-changes.edit-text` | | | A name, title or text to look for that the user typed is empty, too long (100 characters, a chart's title 200) or holds line breaks or hidden characters, so the edit wasn't kept. Type it again. |

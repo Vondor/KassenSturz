@@ -191,6 +191,94 @@ fn the_user_chooses_which_lists_the_ai_tool_may_use_and_it_is_seen_at_once() {
     assert!(session.finish().status.success());
 }
 
+/// The case of M6-B231 (#711): the AI tool already runs the server, every
+/// other cell is on, and the user switches "Moves between your accounts ›
+/// Change" on last. The server tells the AI tool that its tools changed,
+/// and the new list offers `join_transfers` and names it among the kinds of
+/// change, without a restart. (In the tested build an AI tool that showed no
+/// such list was still running an older server.)
+#[test]
+fn joining_transfers_switched_on_while_the_server_runs_is_offered_at_once() {
+    let folder = Folder::new("writes-join-later");
+    let others = [
+        "AllowReadTransactions=true",
+        "AllowSortTransactions=true",
+        "AllowNewTransactions=true",
+        "AllowDeleteTransactions=true",
+        "AllowReadAccounts=true",
+        "AllowReadBudgets=true",
+        "AllowNewBudgets=true",
+    ];
+    folder.allow(&others);
+    let book = folder.book();
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    let propose = |session: &mut Session| -> Value {
+        let answer = session.request("tools/list", json!({}));
+        answer["result"]["tools"]
+            .as_array()
+            .expect("tools")
+            .iter()
+            .find(|tool| tool["name"] == "propose_changes")
+            .cloned()
+            .expect("propose_changes is offered")
+    };
+    let before = propose(&mut session);
+    assert!(
+        before["inputSchema"]["properties"]
+            .get("join_transfers")
+            .is_none(),
+        "{before}"
+    );
+    assert!(
+        !before["description"]
+            .as_str()
+            .expect("a description")
+            .contains("joining Transfers"),
+        "{before}"
+    );
+
+    let mut now = others.to_vec();
+    now.push("AllowJoinTransfers=true");
+    folder.allow(&now);
+    let notice = session.receive().expect("a notification");
+    assert_eq!(
+        notice,
+        json!({"jsonrpc": "2.0", "method": "notifications/tools/list_changed"})
+    );
+    let after = propose(&mut session);
+    assert!(
+        after["inputSchema"]["properties"]
+            .get("join_transfers")
+            .is_some(),
+        "{after}"
+    );
+    assert!(
+        after["description"]
+            .as_str()
+            .expect("a description")
+            .contains("joining Transfers"),
+        "{after}"
+    );
+    // And a call is checked against the book, not refused as not allowed:
+    // the ID here names no transaction of the book.
+    let (answer, is_error) = session.call(
+        "propose_changes",
+        json!({
+            "check_only": true,
+            "join_transfers": [{
+                "transaction_id": "00000000-0000-0000-0000-000000000001",
+                "other_transaction_id": "00000000-0000-0000-0000-000000000002",
+            }],
+        }),
+    );
+    assert!(is_error, "{answer}");
+    assert_ne!(answer["error"], "ai-tools.not-allowed", "{answer}");
+    assert_eq!(answer["list"], "join_transfers", "{answer}");
+    assert!(files_in(&request_folder(&folder)).is_empty());
+    assert!(session.finish().status.success());
+}
+
 #[test]
 fn a_bad_call_is_refused_at_once_and_reaches_no_app() {
     let folder = Folder::new("writes-bad-call");

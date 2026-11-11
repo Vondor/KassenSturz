@@ -420,7 +420,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.4** · **planned** · thread D · standard, medium · S to M. US2 backlog 1: a *Note* field in the add and edit transaction forms. Why: the book and the AI have the note, the user can't type one
 
-- **US3.5** · **planned** · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
+- **US3.5** · **in review** (D-697) · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
 
 - **US3.6** · **planned** · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
 

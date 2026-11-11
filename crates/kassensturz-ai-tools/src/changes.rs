@@ -671,6 +671,10 @@ pub struct EditRule {
     pub rule: Rule,
     /// The category it books to, as a path, if it books to one.
     pub category: Option<Vec<String>>,
+    /// The places, from 1 and in order, of the conditions of `before` that
+    /// `remove_conditions` takes away (US3.5): `check_only` names these
+    /// conditions as `list_rules` shows them.
+    pub removed_conditions: Vec<usize>,
 }
 
 /// A top-level Rule moved.
@@ -2093,8 +2097,9 @@ impl Known {
             }
             rule.conditions = conditions(item.array("conditions")?)?;
         }
+        let mut removed_conditions = Vec::new();
         if item.get("remove_conditions").is_some() || item.get("add_conditions").is_some() {
-            rule.conditions = changed_conditions(
+            (rule.conditions, removed_conditions) = changed_conditions(
                 &before.conditions,
                 item.array("remove_conditions")?,
                 item.array("add_conditions")?,
@@ -2120,6 +2125,7 @@ impl Known {
             category: self.rule_category(&rule),
             before,
             rule,
+            removed_conditions,
         })
     }
 
@@ -2397,7 +2403,7 @@ fn changed_conditions(
     kept: &[Condition],
     remove: &[Value],
     add: &[Value],
-) -> Result<Vec<Condition>, ToolError> {
+) -> Result<(Vec<Condition>, Vec<usize>), ToolError> {
     let bad = |condition, reason| ToolError::BadCondition { condition, reason };
     let mut gone = HashSet::new();
     for value in remove {
@@ -2436,7 +2442,9 @@ fn changed_conditions(
     if result.len() > MAX_CONDITIONS {
         return Err(bad(None, "too-many"));
     }
-    Ok(result)
+    let mut removed: Vec<usize> = gone.into_iter().collect();
+    removed.sort_unstable();
+    Ok((result, removed))
 }
 
 /// The conditions of a Rule as a model wrote them: at least one, at most

@@ -184,7 +184,7 @@ mod tests {
     use super::*;
     use crate::categories::{NewCategory, add_category};
     use crate::register::tests::TestLocale;
-    use crate::variant::read_back::{keys, list_of, number_of, text_of};
+    use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of};
 
     const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
         Ok(code) => code,
@@ -234,10 +234,14 @@ mod tests {
         assert_eq!(bars.len(), 1);
         assert_eq!(text_of(&bars[0], "name"), "Food");
         assert_eq!(text_of(&bars[0], "planned"), "250,00 €");
-        // A period before the budget started has no bar, but the book has a
-        // budget, which the component tells from "no budget yet".
+        // In a period before the budget started its bar is empty and says
+        // so (D-710).
         let earlier = ask(&book, "2026-08", &[]);
-        assert!(list_of(&earlier, "bars").is_empty());
+        let before = list_of(&earlier, "bars");
+        assert_eq!(before.len(), 1);
+        assert!(flag_of(&before[0], "startsLater"));
+        assert_eq!(text_of(&before[0], "firstDay"), "2026-10-01");
+        assert_eq!(text_of(&before[0], "left"), "250,00 €");
         assert_eq!(number_of(&earlier, "count"), 1);
     }
 

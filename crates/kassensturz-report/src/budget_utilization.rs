@@ -96,7 +96,9 @@ pub struct BudgetPeriod {
     /// The period's last day.
     pub last_day: Date,
     /// The last day whose spending is counted: the period's last day, or
-    /// the day asked for if that is earlier.
+    /// the day asked for if that is earlier. For a period that starts later
+    /// than the day asked for (`starts_later`) nothing is counted and this
+    /// is its first day.
     pub counted_to: Date,
     /// What the budget plans for this period, from the amount that applies
     /// from its first day (D-345).
@@ -123,6 +125,13 @@ pub struct BudgetPeriod {
     /// Whether the budget counts other categories or accounts from this
     /// period on than in the one before (D-689).
     pub counts_changed: bool,
+    /// Whether this is the first period of a budget that has not started
+    /// by the day asked for (D-710): nothing is spent yet, nothing is
+    /// carried in, and what it plans is left.
+    pub starts_later: bool,
+    /// Whether this is the last period of a budget that ended before the
+    /// day asked for (D-710): its figures are complete.
+    pub ended: bool,
 }
 
 impl BudgetPeriod {
@@ -194,7 +203,8 @@ fn asked_day(period: Period, today: Date) -> Date {
 /// for `period` on `asked`, or `None` if none is: for a budget that carries
 /// over in any period, its first day, where the carried chain starts
 /// (D-347); otherwise the start of its period that contains the shown
-/// period's first day (or the day asked for, if that is earlier).
+/// period's first day (or the day asked for, if that is earlier), or of its
+/// last period if it ended before that day (D-710).
 fn first_needed(budget: &Budget, period: Period, asked: Date) -> Option<Date> {
     if budget.first_day > asked {
         return None;
@@ -203,6 +213,7 @@ fn first_needed(budget: &Budget, period: Period, asked: Date) -> Option<Date> {
         return Some(budget.first_day);
     }
     let from = period.first().min(asked).max(budget.first_day);
+    let from = budget.last_day.map_or(from, |last| from.min(last));
     budget.period_containing(from).map(|(start, _)| start)
 }
 
@@ -370,8 +381,9 @@ fn spending(
 ///
 /// The day asked for is `period`'s last day, or `today` if that is earlier.
 /// With [`BudgetGrouping::Budget`] each budget shows the period that
-/// contains that day, and a budget that has not started or has ended by
-/// then is left out; with [`BudgetGrouping::Period`] each budget shows every
+/// contains that day; a budget that has not started by then shows its first
+/// period as not started (`starts_later`, spent zero), and one that has
+/// ended by then its last period, complete (`ended`, D-710); with [`BudgetGrouping::Period`] each budget shows every
 /// one of its periods that `period` touches, up to that day. The budgets
 /// come in the order of the category tree (by their first category), a
 /// category's budgets by their first day. `only` keeps the budgets it names
@@ -420,10 +432,17 @@ pub fn budget_utilization(
         }) {
             continue;
         }
-        let Some(start) = first_needed(budget, period, asked) else {
-            continue;
+        // A budget that starts later shows its first period, not started,
+        // with the grouping `budget` (D-710); a chart over time leaves it
+        // out (D-379).
+        let start = match first_needed(budget, period, asked) {
+            Some(start) => start,
+            None if grouping == BudgetGrouping::Budget && budget.first_day > asked => {
+                budget.first_day
+            }
+            None => continue,
         };
-        if start < covers.first() || asked > covers.last() {
+        if start <= asked && (start < covers.first() || asked > covers.last()) {
             return Err(ReportError::PeriodNotRead);
         }
         // The book keeps every category of a budget, in every set, in its
@@ -450,6 +469,10 @@ pub fn budget_utilization(
     let mut results = Vec::new();
     for (((budget, currency), start), spending) in shown.iter().zip(starts).zip(&spent) {
         let (budget, currency) = (*budget, *currency);
+        if start > asked {
+            results.push(not_started(source, &position, budget, currency, asked)?);
+            continue;
+        }
         let mut carried = Money::zero(currency);
         let mut periods = Vec::new();
         for (first_day, last_day) in periods_from(budget, start, asked) {
@@ -482,6 +505,8 @@ pub fn budget_utilization(
                         && (pair[0].categories != pair[1].categories
                             || pair[0].accounts != pair[1].accounts)
                 }),
+                starts_later: false,
+                ended: false,
             });
             carried = if amount.carry_over && budget.every.repeats() {
                 left
@@ -490,6 +515,17 @@ pub fn budget_utilization(
             };
         }
         let periods: Vec<BudgetPeriod> = match grouping {
+            // A budget that ended before the day asked for shows its last
+            // period, complete (D-710).
+            BudgetGrouping::Budget if budget.last_day.is_some_and(|last| last < asked) => periods
+                .into_iter()
+                .next_back()
+                .map(|last| BudgetPeriod {
+                    ended: true,
+                    ..last
+                })
+                .into_iter()
+                .collect(),
             BudgetGrouping::Budget => periods
                 .into_iter()
                 .filter(|shown| shown.first_day <= asked && asked <= shown.last_day)
@@ -502,30 +538,7 @@ pub fn budget_utilization(
         if periods.is_empty() {
             continue;
         }
-        let asked_set = budget
-            .counts_on(asked)
-            .ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
-        let paths = asked_set
-            .categories
-            .iter()
-            .map(|category| {
-                source
-                    .tree()
-                    .get(position.get(category).copied().unwrap_or(usize::MAX))
-                    .map(|entry| entry.path.clone())
-                    .unwrap_or_default()
-            })
-            .collect();
-        results.push(BudgetUtilization {
-            budget: budget.id,
-            name: budget.name.clone(),
-            categories: asked_set.categories.clone(),
-            paths,
-            accounts: asked_set.accounts.clone(),
-            every: budget.every,
-            currency,
-            periods,
-        });
+        results.push(row(source, &position, budget, currency, asked, periods)?);
     }
     results.sort_by_key(|result| {
         (
@@ -539,6 +552,84 @@ pub fn budget_utilization(
         )
     });
     Ok(results)
+}
+
+/// The result row of `budget` with `periods`, naming the set it counts on
+/// `asked`.
+fn row(
+    source: &Source,
+    position: &HashMap<AccountId, usize>,
+    budget: &Budget,
+    currency: CurrencyCode,
+    asked: Date,
+    periods: Vec<BudgetPeriod>,
+) -> Result<BudgetUtilization, ReportError> {
+    let asked_set = budget
+        .counts_on(asked)
+        .ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
+    let paths = asked_set
+        .categories
+        .iter()
+        .map(|category| {
+            source
+                .tree()
+                .get(position.get(category).copied().unwrap_or(usize::MAX))
+                .map(|entry| entry.path.clone())
+                .unwrap_or_default()
+        })
+        .collect();
+    Ok(BudgetUtilization {
+        budget: budget.id,
+        name: budget.name.clone(),
+        categories: asked_set.categories.clone(),
+        paths,
+        accounts: asked_set.accounts.clone(),
+        every: budget.every,
+        currency,
+        periods,
+    })
+}
+
+/// The row of a budget that starts after `asked`: its first period, not
+/// started (D-710). Nothing is counted or carried in, so `available` and
+/// `left` are what it plans and the share used is 0 %, or has no value if
+/// it plans nothing.
+fn not_started(
+    source: &Source,
+    position: &HashMap<AccountId, usize>,
+    budget: &Budget,
+    currency: CurrencyCode,
+    asked: Date,
+) -> Result<BudgetUtilization, ReportError> {
+    let (first_day, last_day) = periods_from(budget, budget.first_day, budget.first_day)
+        .into_iter()
+        .next()
+        .ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
+    let amount = budget
+        .amount_for(first_day)
+        .ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
+    let spent = Money::zero(currency);
+    let used = if amount.amount.minor_units() > 0 {
+        percent_of(spent, amount.amount)?
+    } else {
+        None
+    };
+    let period = BudgetPeriod {
+        first_day,
+        last_day,
+        counted_to: first_day,
+        planned: amount.amount,
+        carried_in: Money::zero(currency),
+        available: amount.amount,
+        spent,
+        left: amount.amount,
+        used,
+        carries_over: amount.carry_over,
+        counts_changed: false,
+        starts_later: true,
+        ended: false,
+    };
+    row(source, position, budget, currency, asked, vec![period])
 }
 
 impl BudgetUtilization {

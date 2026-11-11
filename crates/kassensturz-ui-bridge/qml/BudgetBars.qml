@@ -120,7 +120,14 @@ ColumnLayout {
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 opacity: 0.8
-                text: entry.modelData.running
+                // A budget that has not started yet shows an empty bar with
+                // what it plans left; one that has ended its last period
+                // (D-710).
+                text: entry.modelData.startsLater
+                    ? list.i18nContext.i18nc("@info %1 and %2 are the first and last day of a budget that has not started yet", "%1 to %2. Starts on %1, nothing spent yet.", entry.modelData.firstDay, entry.modelData.lastDay)
+                    : entry.modelData.ended
+                    ? list.i18nContext.i18nc("@info %1 and %2 are the first and last day of the last period of a budget that has ended", "%1 to %2. Ended on %2.", entry.modelData.firstDay, entry.modelData.lastDay)
+                    : entry.modelData.running
                     ? list.i18nContext.i18nc("@info %1 and %2 are dates, %3 a date", "%1 to %2. Spending counted up to %3.", entry.modelData.firstDay, entry.modelData.lastDay, entry.modelData.countedTo)
                     : list.i18nContext.i18nc("@info %1 and %2 are dates", "%1 to %2", entry.modelData.firstDay, entry.modelData.lastDay)
             }

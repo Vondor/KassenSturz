@@ -204,6 +204,18 @@ pub mod qobject {
         #[cxx_name = "amountExample"]
         fn amount_example(self: &AccountRegister, account_id: &QString) -> QString;
 
+        /// How long the note `typed` is, counted the way a save counts it,
+        /// for the page's counter (B-226).
+        #[qinvokable]
+        #[cxx_name = "noteLength"]
+        fn note_length(self: &AccountRegister, typed: &QString) -> i32;
+
+        /// The longest note that may replace `stored` (empty for a new
+        /// transaction): 512, or the stored note's length if longer (D-703).
+        #[qinvokable]
+        #[cxx_name = "noteLimit"]
+        fn note_limit(self: &AccountRegister, stored: &QString) -> i32;
+
         /// The transaction with `transaction_id` as the Parts page shows it
         /// (M3.6, D-119): `total`, `totalFixed`, `otherParty`, `date`,
         /// `currency`, `moneyIn`, its `parts` (each with `id`, `category`,
@@ -646,6 +658,14 @@ impl qobject::AccountRegister {
             transaction_entry::example(book, &account_id, &app_locale()).unwrap_or_default()
         });
         QString::from(example.unwrap_or_default().as_str())
+    }
+
+    fn note_length(&self, typed: &QString) -> i32 {
+        i32::try_from(transaction_entry::note_length(&typed.to_string())).unwrap_or(i32::MAX)
+    }
+
+    fn note_limit(&self, stored: &QString) -> i32 {
+        i32::try_from(transaction_entry::note_limit(&stored.to_string())).unwrap_or(i32::MAX)
     }
 
     fn parts_details(&self, account_id: &QString, transaction_id: &QString) -> QVariant {

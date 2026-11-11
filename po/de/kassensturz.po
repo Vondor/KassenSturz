@@ -19789,3 +19789,19 @@ msgid ""
 msgstr ""
 "Frühere Zeiträume zählen weiter, was sie gezählt haben, ihre Ergebnisse "
 "ändern sich also nicht. Jeder Betrag bleibt, wie er war."
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:408
+#, kde-format
+msgctxt "@info %1 is the longest a note may be"
+msgid ""
+"A note may be up to %1 characters long, so the rest did not fit. Please "
+"shorten the note to add more."
+msgstr ""
+"Eine Notiz darf bis zu %1 Zeichen lang sein, der Rest passte nicht mehr "
+"hinein. Bitte kürzen Sie die Notiz, um mehr hinzuzufügen."
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:409
+#, kde-format
+msgctxt "@info %1 characters typed so far, %2 the longest a note may be"
+msgid "%1 of %2 characters"
+msgstr "%1 von %2 Zeichen"

@@ -1626,3 +1626,98 @@ fn malformed_stretch_of_days_calls_are_refused_with_a_fixed_keyword() {
         assert_eq!(code(propose(&small.book, &call)), expected, "{call}");
     }
 }
+
+// M6-B224 (#691): a budget change confirmed after its period is over is out
+// of date, so no period that is over changes or gets a budget.
+#[test]
+fn a_budget_change_confirmed_in_a_later_period_is_out_of_date() {
+    let mut small = small();
+    let food = small
+        .book
+        .add_budget(
+            &[small.food],
+            &[],
+            BudgetEvery::Month,
+            Date::constant(2026, 6, 1),
+            None,
+            eur(30_000),
+            false,
+        )
+        .expect("a budget made by hand");
+    let before = small.book.budget(food).expect("there");
+    let history = small.book.history().expect("history").len();
+    // Prepared on the last day of November.
+    let last_day = Date::constant(2026, 11, 30);
+    let edit = json!({"edit_budgets": [{"budget_id": food.to_string(),
+        "amount": "320.00", "category_ids": [small.groceries.to_string()]}]});
+    let new = json!({"new_budgets": [{"category_id": small.fun.to_string(),
+        "every": "month", "amount": "40.00"}]});
+    for call in [&edit, &new] {
+        let proposal = super::super::propose_on(&small.book, call, Permissions::all(), last_day)
+            .expect("prepared");
+        // Confirmed the next day, in December: out of date, nothing made.
+        let next_day = Date::constant(2026, 12, 1);
+        assert!(
+            matches!(
+                proposal.changes.clone().apply_on(
+                    &mut small.book,
+                    Confirmed::by_the_user(),
+                    next_day
+                ),
+                Err(ChangeError::OutOfDate)
+            ),
+            "{call}"
+        );
+        assert_eq!(small.book.budget(food).expect("there"), before);
+        assert_eq!(small.book.budgets().expect("budgets").len(), 1);
+        assert_eq!(small.book.history().expect("history").len(), history);
+    }
+    // Confirmed later on the same day, or earlier in November, it applies
+    // from November.
+    let proposal = super::super::propose_on(&small.book, &edit, Permissions::all(), last_day)
+        .expect("prepared");
+    proposal
+        .changes
+        .apply_on(
+            &mut small.book,
+            Confirmed::by_the_user(),
+            Date::constant(2026, 11, 30),
+        )
+        .expect("applied");
+    let after = small.book.budget(food).expect("there");
+    assert_eq!(
+        after
+            .amount_for(Date::constant(2026, 11, 1))
+            .map(|row| row.amount),
+        Some(eur(32_000))
+    );
+    assert_eq!(
+        after
+            .amount_for(Date::constant(2026, 10, 1))
+            .map(|row| row.amount),
+        Some(eur(30_000))
+    );
+    assert_eq!(
+        after
+            .counts_on(Date::constant(2026, 10, 1))
+            .map(|set| set.categories.clone()),
+        Some(vec![small.food])
+    );
+    assert_eq!(
+        after
+            .counts_on(Date::constant(2026, 11, 1))
+            .map(|set| set.categories.clone()),
+        Some(vec![small.groceries])
+    );
+    let proposal = super::super::propose_on(&small.book, &new, Permissions::all(), last_day)
+        .expect("prepared");
+    proposal
+        .changes
+        .apply_on(
+            &mut small.book,
+            Confirmed::by_the_user(),
+            Date::constant(2026, 11, 2),
+        )
+        .expect("applied");
+    assert_eq!(small.book.budgets().expect("budgets").len(), 2);
+}

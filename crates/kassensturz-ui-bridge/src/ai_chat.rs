@@ -1118,18 +1118,21 @@ pub fn outcome_of(result: &Result<(), ChangeError>, corrected: bool) -> Outcome 
     }
 }
 
-/// Applies `set` to `book` as the user's own action: the one place in the
-/// app that makes a [`Confirmed`]. Only the confirm button of the review
-/// screen reaches it (D-171, D-200; M5.12 checks that no other code does).
+/// Applies `set` to `book` as the user's own action on `today`: the one
+/// place in the app that makes a [`Confirmed`]. Only the confirm button of
+/// the review screen reaches it (D-171, D-200; M5.12 checks that no other
+/// code does). A budget change prepared in a period that is over by
+/// `today` is out of date (M6-B224).
 pub fn confirm_in(
     book: &mut Book,
     set: ChangeSet,
     allowed: Permissions,
+    today: Date,
 ) -> Result<(), ChangeError> {
     // The user may have turned a kind of change off since the set was
     // prepared (D-239).
     set.check_allowed(allowed)?;
-    set.apply(book, Confirmed::by_the_user())
+    set.apply_on(book, Confirmed::by_the_user(), today)
 }
 
 #[cfg(test)]
@@ -1396,7 +1399,13 @@ mod tests {
 
         let set = sets.take(id).unwrap().set;
         assert!(sets.is_empty());
-        confirm_in(&mut book, set, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            set,
+            Permissions::all(),
+            Date::constant(2026, 10, 25),
+        )
+        .unwrap();
 
         // One user action in the history, which one undo takes back.
         assert_eq!(book.history().unwrap().len(), before + 1);
@@ -1504,7 +1513,7 @@ mod tests {
         let before = book.history().unwrap().len();
         let set = sets.take(id).unwrap().set;
         let corrected = set.corrected();
-        let result = confirm_in(&mut book, set, all);
+        let result = confirm_in(&mut book, set, all, Date::constant(2026, 10, 25));
         // The chat hears a fixed line that the user corrected the set (D-298).
         assert_eq!(outcome_of(&result, corrected), Outcome::ConfirmedChanged);
         assert_eq!(outcome_of(&result, false), Outcome::Confirmed);
@@ -1564,7 +1573,13 @@ mod tests {
             ChangeView::EditAccount { after, closed: true, was_closed: false, .. }
                 if after == "Renamed by the AI"
         )));
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
         assert!(book.account(first.id).unwrap().closed);
         assert!(book.undo().unwrap().is_some());
         assert!(!book.account(first.id).unwrap().closed);
@@ -1612,7 +1627,13 @@ mod tests {
         );
         assert!(crate::saved_views::list(&book).unwrap().is_empty());
 
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
 
         // The saved chart opens in the statistics page as any other.
         let [row] = <[_; 1]>::try_from(crate::saved_views::list(&book).unwrap()).unwrap();
@@ -1640,7 +1661,13 @@ mod tests {
         });
         let proposal =
             kassensturz_ai_tools::propose_view(&book, &call, Permissions::all(), today).unwrap();
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
         let listed =
             kassensturz_ai_tools::call(&book, "list_views", &serde_json::json!({}), today).unwrap();
         let id = listed.value["charts"][0]["view_id"]
@@ -1673,7 +1700,13 @@ mod tests {
                 .id(),
             "chart.pie"
         );
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
         let [row] = <[_; 1]>::try_from(crate::saved_views::list(&book).unwrap()).unwrap();
         assert_eq!(
             (row.name.as_str(), row.kind.as_str()),
@@ -1687,7 +1720,13 @@ mod tests {
             views.as_slice(),
             [ChangeView::DeleteView { name }] if name == "As a pie"
         ));
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
         assert!(crate::saved_views::list(&book).unwrap().is_empty());
         assert!(book.undo().unwrap().is_some());
         assert_eq!(crate::saved_views::list(&book).unwrap().len(), 1);
@@ -1717,7 +1756,13 @@ mod tests {
             };
             let read = kassensturz_report::Component::from_json(component).unwrap();
             assert_eq!((read.kind().id(), read.dataset().id), (kind, data));
-            confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+            confirm_in(
+                &mut book,
+                proposal.changes,
+                Permissions::all(),
+                Date::constant(2026, 11, 9),
+            )
+            .unwrap();
         }
         let rows = crate::saved_views::list(&book).unwrap();
         assert_eq!(rows.len(), 3);
@@ -1844,7 +1889,13 @@ mod tests {
         assert_eq!(accounts, "");
         assert_eq!(new_category, "Food, Fun");
         assert_eq!(new_accounts, "Checking");
-        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            Date::constant(2026, 11, 14),
+        )
+        .unwrap();
         let budget = book.budget(id).unwrap();
         assert_eq!(
             budget
@@ -1889,7 +1940,13 @@ mod tests {
         book.remove_transaction(change.transaction).unwrap();
         let history = book.history().unwrap().len();
 
-        let error = confirm_in(&mut book, set, Permissions::all()).unwrap_err();
+        let error = confirm_in(
+            &mut book,
+            set,
+            Permissions::all(),
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap_err();
 
         assert!(matches!(error, ChangeError::OutOfDate), "{error:?}");
         assert_eq!(

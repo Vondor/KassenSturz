@@ -14,7 +14,12 @@ based on the [KDE Community Code of Conduct](https://kde.org/code-of-conduct/), 
 - **Be collaborative.** Say what you are working on, ask when you are stuck and help when you can. Explain
   things in plain words: many of us have no finance or programming background.
 - **Be patient with beginners.** Nobody was born knowing how to write a good bug report or pull request.
+- **Respect AI-assisted work.** This project is built with the help of AI, openly, and AI is welcome in it. If
+  something is wrong, say what is wrong and how to fix it; "an AI wrote this" is not a reason on its own to
+  reject or mock a change, and neither is the fact that a person wrote it. Judge the work, not how it was made.
 - **Stay on the project.** Keep issues and pull requests about KassenSturz.
+- **Keep politics out.** KassenSturz is about software. The project does not lean towards or represent any
+  political side, and discussions here stay about the software, whatever your views are.
 
 ## What is not acceptable
 

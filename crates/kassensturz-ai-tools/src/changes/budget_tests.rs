@@ -1328,6 +1328,60 @@ fn a_check_names_the_computed_amount_and_how_it_was_computed() {
     assert!(!answer.to_string().contains("Bakery"), "{answer}");
 }
 
+// M6-B222 (#689, D-704): a check names an amount computed from spending
+// only to a model that may read that spending.
+#[test]
+fn a_check_hides_a_computed_amount_without_the_reading_of_spending() {
+    use kassensturz_core::ai_switch::Row;
+
+    let small = small();
+    let (book, food) = (&small.book, small.food);
+    let call = json!({"new_budgets": [
+        {"category_id": food.to_string(), "every": "month",
+            "based_on": "average_3_periods", "round_to": 10},
+        {"category_id": small.fun.to_string(), "every": "month", "amount": "75.00"},
+    ]});
+    let proposal = propose(book, &call).expect("checked");
+    // Only budgets: the grid lets the model read no category and no
+    // transaction.
+    let budgets_only = Permissions::NONE.with(Permission::NewBudgets, true);
+    assert!(
+        budgets_only.reads(Row::Budgets)
+            && !budgets_only.reads(Row::Categories)
+            && !budgets_only.reads(Row::Transactions),
+        "set up"
+    );
+    let with_categories = budgets_only.with(Permission::CategoriesRead, true);
+    let with_transactions = budgets_only.with(Permission::TransactionsRead, true);
+    for permissions in [budgets_only, with_categories, with_transactions] {
+        let answer = check_only_answer(book, &proposal, permissions).expect("answered");
+        let text = answer.to_string();
+        // 350.01 spent, 116.67 on average, 120.00 planned: none of them.
+        for figure in ["350.01", "116.67", "120.00"] {
+            assert!(!text.contains(figure), "{figure} in {text}");
+        }
+        assert_eq!(
+            answer["budget_amounts"],
+            json!([
+                {"list": "new_budgets", "item": 1, "currency": "EUR", "from": "2026-11-01",
+                    "not_shown": ["amount", "based_on"]},
+                // The amount the model named itself stays.
+                {"list": "new_budgets", "item": 2, "currency": "EUR", "from": "2026-11-01",
+                    "amount": "75.00"},
+            ])
+        );
+        assert_eq!(answer["would_prepare"], json!(2));
+    }
+    // With both readings it is shown, as before.
+    let both = with_categories.with(Permission::TransactionsRead, true);
+    let answer = check_only_answer(book, &proposal, both).expect("answered");
+    assert_eq!(answer["budget_amounts"][0]["amount"], json!("120.00"));
+    assert_eq!(
+        answer["budget_amounts"][0]["based_on"]["spent"],
+        json!("350.01")
+    );
+}
+
 #[test]
 fn check_only_is_true_false_or_absent() {
     let call = json!({"new_categories": []});

@@ -17402,9 +17402,10 @@ msgstr ""
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:205
 #, kde-format
 msgctxt "@info %1 is the name of an account"
-msgid "What you wrote on it stays, on the entry in %1."
+msgid "What you wrote on it or attached to it stays, on the entry in %1."
 msgstr ""
-"Was Sie dazu geschrieben haben, bleibt erhalten, bei der Buchung in %1."
+"Was Sie dazu geschrieben oder angehängt haben, bleibt erhalten, bei der "
+"Buchung in %1."
 
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:221
 #, kde-format

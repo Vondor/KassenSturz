@@ -170,7 +170,7 @@ Kirigami.PromptDialog {
             textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: prompt.outgoing.movesNote ?? false
-            text: prompt.i18nContext.i18nc("@info %1 is the name of an account", "What you wrote on it stays, on the entry in %1.", prompt.outgoing.account ?? "")
+            text: prompt.i18nContext.i18nc("@info %1 is the name of an account", "What you wrote on it or attached to it stays, on the entry in %1.", prompt.outgoing.account ?? "")
             wrapMode: Text.Wrap
         }
 
@@ -202,7 +202,7 @@ Kirigami.PromptDialog {
             textFormat: Text.PlainText
             Layout.fillWidth: true
             visible: prompt.incoming.movesNote ?? false
-            text: prompt.i18nContext.i18nc("@info %1 is the name of an account", "What you wrote on it stays, on the entry in %1.", prompt.incoming.account ?? "")
+            text: prompt.i18nContext.i18nc("@info %1 is the name of an account", "What you wrote on it or attached to it stays, on the entry in %1.", prompt.incoming.account ?? "")
             wrapMode: Text.Wrap
         }
 

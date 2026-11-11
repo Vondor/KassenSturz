@@ -16,7 +16,7 @@ use rusqlite::params;
 
 use crate::error::StoreError;
 use crate::originals::keeping_originals;
-use crate::transactions::insert_splits;
+use crate::transactions::{insert_attachments, insert_splits};
 use crate::{Action, Book};
 
 /// How many transactions [`Book::transfer_partners`] lists at most.
@@ -185,7 +185,8 @@ impl Book {
     /// removed. Both accounts' balances and registers stay as they were, and
     /// the two other parts go, with their categories and the Rule marks on
     /// them; what the user wrote on them moves or refuses the join
-    /// ([`join_transfer`]). It is one user action, which undo takes back as
+    /// ([`join_transfer`]). Both transactions' notes and attachments stay,
+    /// on the joined one (D-706). It is one user action, which undo takes back as
     /// a whole, categories and Rule marks included.
     ///
     /// Any two sides can be joined, however far apart their dates are, since
@@ -214,13 +215,17 @@ impl Book {
                     "DELETE FROM transactions WHERE id = ?1",
                     [removed.to_bytes()],
                 )?;
+                // Both sides' notes and attachments stay with it (D-706).
                 book.conn.execute(
-                    "UPDATE transactions SET payee = ?2 WHERE id = ?1",
-                    params![id, joined.payee()],
+                    "UPDATE transactions SET payee = ?2, note = ?3 WHERE id = ?1",
+                    params![id, joined.payee(), joined.note()],
                 )?;
                 book.conn
                     .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
-                insert_splits(&book.conn, &joined)
+                insert_splits(&book.conn, &joined)?;
+                book.conn
+                    .execute("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
+                insert_attachments(&book.conn, &joined)
             })
         })?;
         Ok(joined.id())

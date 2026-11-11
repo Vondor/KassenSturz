@@ -11,7 +11,7 @@
 //! kind is refused with an error code, never guessed at.
 
 use kassensturz_core::ai_switch::{Permissions, Row};
-use kassensturz_core::{AccountId, Date};
+use kassensturz_core::{AccountId, Date, RuleId};
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
 
@@ -169,8 +169,9 @@ pub const FUNCTIONS: &[Function] = &[
             \"conditions_complete\": false means some condition can't be shown or written \
             back exactly (an IBAN, an amount, a date, an account, or a text cut short), so \
             propose_changes can rename the Rule, change its category and add or remove single \
-            conditions, but not replace all of them.",
-        parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
+            conditions, but not replace all of them. With rule_id, only that Rule (with its \
+            sub-Rules), for a look at one Rule without reading them all.",
+        parameters: r#"{"type":"object","properties":{"rule_id":{"type":"string","description":"Only this Rule, ID from an earlier list_rules. It can be a sub-Rule. Leave it out to list all Rules."}},"additionalProperties":false}"#,
     },
     Function {
         name: "list_budgets",
@@ -223,6 +224,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "account_ids",
     "offset",
     "group_by",
+    "rule_id",
 ];
 
 /// The most accounts `account_ids` of a total names (M6-B206), as many as
@@ -384,7 +386,19 @@ fn call_with(
             read::search_transactions(book, &mut w, &names, &search)?
         }
         "list_categories" => read::list_categories(book, &mut w)?,
-        "list_rules" => read::list_rules(book, &mut w, &Names::read(book)?)?,
+        "list_rules" => {
+            let only = args
+                .string("rule_id")?
+                .map(|text| {
+                    uuid::Uuid::try_parse(text)
+                        .map(|id| RuleId::from_bytes(id.into_bytes()))
+                        .map_err(|_| ToolError::BadArgument {
+                            argument: "rule_id",
+                        })
+                })
+                .transpose()?;
+            read::list_rules(book, &mut w, &Names::read(book)?, only)?
+        }
         "list_budgets" => {
             read::list_budgets(book, &mut w, today, permissions.reads(Row::Transactions))?
         }

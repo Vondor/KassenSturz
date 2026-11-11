@@ -384,6 +384,14 @@ msgctxt "@info %1 is what a budget plans now, %2 what it plans from then on"
 msgid "%1 → %2"
 msgstr "%1 → %2"
 
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:85
+#, kde-format
+msgctxt ""
+"@info %1 and %2 are the first and last day of a budget for one stretch of "
+"days"
+msgid "Once, from %1 to %2"
+msgstr "Einmal, vom %1 bis %2"
+
 #: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml:83
 #, kde-format
 msgctxt ""

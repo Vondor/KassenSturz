@@ -414,7 +414,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.1** · **design merged** (#667, #670, D-687, `docs/REPORT_DESIGNER_US3.md`); **US3.1a comparison bars done** (`params.compare` on spending bars and tables); **US3.1b formula columns for the AI done** (`propose_view` and `list_views` take `columns`, help line on the board) · thread A · strong, high · L (design, then build). #562 and #587: one design that gives each bar its own figure (its own period or formula, or a comparison bar such as the average of 3, 6 or 12 periods), in the app and in `propose_view`. Why: two separate "per bar" settings would confuse
 
-- **US3.2** · **planned** · thread B · strong, high · L (design, then build) · [format]. #607 (US1.10a): a budget's categories or accounts can be changed from the current period on; each budget keeps a dated history of its set, so past periods show what they showed before (D-345). Why: today the only way is to stop the budget and make a new one
+- **US3.2** · **design in review** (`docs/BUDGET_HISTORY.md`, D-689; build next, D-690) · thread B · strong, high · L (design, then build) · [format]. #607 (US1.10a): a budget's categories or accounts can be changed from the current period on; each budget keeps a dated history of its set, so past periods show what they showed before (D-345). Why: today the only way is to stop the budget and make a new one
 
 - **US3.3** · **building** (design #662, D-691 to D-693; core and store built, then the app, then the AI after US3.9) · thread C · strong, high · L (design, then build). #571 and #594 part b: two sides that already have a category can be joined as one Transfer, in the UI with a preview and through the AI as a change set; both original amounts and currencies stay, one Undo takes it back; a hand-sorted side is never suggested on its own (D-031). Why: income and spending look larger than they are (principle 1)
 
@@ -422,7 +422,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.5** · **in review** (D-697) · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
 
-- **US3.6** · **planned** · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
+- **US3.6** · **in review** (D-698) · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
 
 - **US3.7** · **in review** (D-695) · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
 
@@ -432,7 +432,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.10** · **later** (Q-474 = R) · US2 backlog 7, a pay-off goal for a small loan, keeps its US2 line. Why: a large new feature with its own design and a new stored thing; a number card with a formula covers part of it today
 
-- **US3.11** · **planned** · thread B · standard, high · S to M. US2 backlog 8: `new_budgets` for a stretch of days, with the first and last day named by the user (amends D-394). Why: the app has it, the AI may not prepare it
+- **US3.11** · **done** (#664, D-688) · thread B · standard, high · S to M. US2 backlog 8: `new_budgets` for a stretch of days (`every` `range` with `first_day` and `last_day`), with the first and last day named by the user (amends D-394); a stretch that is already over is refused. Why: the app has it, the AI may not prepare it
 
 - **US3.12** · **done** (#666, D-685) · thread A · standard, high · S to M. US2 backlog 9: an applied `propose_view` (or `check_only`) answers with the figure KassenSturz computed for a number card or progress bar. Why: the AI can confirm the figure to the user; numbers still come from code (AGENTS.md §8)
 

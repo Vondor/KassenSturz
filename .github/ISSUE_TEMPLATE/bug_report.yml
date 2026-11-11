@@ -8,7 +8,7 @@ body:
         Thanks for reporting a bug. Please do **not** include real personal or financial
         data, screenshots of real account numbers, or real IBANs — use synthetic examples
         (AGENTS.md hard rule 3.1.2). For a security vulnerability, use a private report
-        instead of a public issue (see SECURITY.md once it exists, D-056).
+        instead of a public issue (see SECURITY.md).
   - type: textarea
     id: what-happened
     attributes:

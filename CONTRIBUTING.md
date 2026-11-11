@@ -5,6 +5,8 @@ it's written for AI coding agents, but every rule in it (mission, boundaries, do
 how to work here) applies to human contributors too. This file only adds the short,
 GitHub-specific checklist; it doesn't duplicate AGENTS.md's rules.
 
+Please also read our short [code of conduct](CODE_OF_CONDUCT.md).
+
 ## Before you open a pull request
 
 1. Read `AGENTS.md`, then `docs/DECISIONS.md`, `docs/ROADMAP.md` and `docs/ARCHITECTURE.md`.
@@ -43,8 +45,8 @@ falls into one of these, say so in the pull request description and ask.
 
 ## Reporting a security issue
 
-See [SECURITY.md](SECURITY.md) once it exists (scheduled before the bank-connection milestone, D-056).
-Until then, please open a private report via GitHub's security advisories rather than a public issue.
+See [SECURITY.md](SECURITY.md). Please report a vulnerability privately through GitHub's security
+advisories rather than in a public issue.
 
 ## License
 

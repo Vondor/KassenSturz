@@ -448,6 +448,8 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.18** · **later** (Q-474 = R) · #511 (US1.25), bank setup in the first-run wizard, keeps its US1 line; decided with the stage Go and #513. Why: it puts a bank human gate in front of every new user, and bank sync has been tested on one machine only
 
+- **US3 backlog 1** · **later** (the maintainer, 2026-11-11) · US4 candidate · waits for: US4, with its own design. A transactions tile for the Overview and dashboards: a list that works like an account's register, but the user chooses which accounts it shows (one, several or all), which categories, and which days (e.g. the whole month or the last 7 days). Today: no tile lists single transactions; `table.rows` shows a dataset's totals, not entries. Tiles and the filter bar already narrow by accounts and categories (D-350, D-417), and the shared period setting covers this month, last month, last N months, salary months and typed ranges (D-332, D-644), but no rolling "last N days". Why: a new feature while US3 is in Phase 2, so nothing is built now
+
 ## How to pick work
 
 1. If the maintainer named a step (e.g. "do step M1.3"), do that step. Otherwise take the lowest-numbered milestone that still has open items, and within it the lowest step that is still `todo` and whose prerequisites are `done`. The one exception: the clickable QML mock of the first-run flow (M1.M) runs alongside M1 (D-068).

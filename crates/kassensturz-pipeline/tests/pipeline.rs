@@ -157,7 +157,7 @@ fn a_statement_becomes_transactions_in_one_user_action() {
     let mut sparse = Entry::booked(october(6), eur(250_000));
     sparse.bank_id = Some("B2".into());
     let entries = vec![
-        entry(5, -5320, "B1", "REWE Markt"),
+        entry(5, -5320, "B1", "FRESHO Markt"),
         sparse.clone(),
         pending,
         entry(7, -1250, "B3", "Bakery"),
@@ -241,7 +241,7 @@ fn an_entry_whose_bank_id_the_account_holds_is_skipped_and_counted() {
         &mut book,
         checking,
         &[statement(vec![
-            entry(5, -5320, "B1", "REWE Markt"),
+            entry(5, -5320, "B1", "FRESHO Markt"),
             entry(6, -1250, "B2", "Bakery"),
         ])],
     );
@@ -254,7 +254,7 @@ fn an_entry_whose_bank_id_the_account_holds_is_skipped_and_counted() {
         checking,
         &[
             statement(vec![
-                entry(5, -5320, "B1", "REWE Markt"),
+                entry(5, -5320, "B1", "FRESHO Markt"),
                 entry(6, -1250, "B2", "Bakery"),
             ]),
             statement(vec![
@@ -286,7 +286,7 @@ fn an_entry_whose_bank_id_the_account_holds_is_skipped_and_counted() {
     let other = import(
         &mut book,
         savings,
-        &[statement(vec![entry(5, -5320, "B1", "REWE Markt")])],
+        &[statement(vec![entry(5, -5320, "B1", "FRESHO Markt")])],
     );
     assert_eq!(other.summary().imported, 1);
 }
@@ -405,10 +405,10 @@ fn transfers_are_suggested_and_the_rules_run_on_the_new_transactions_only() {
     let earlier = import(
         &mut book,
         checking,
-        &[statement(vec![entry(1, -1999, "B0", "REWE City")])],
+        &[statement(vec![entry(1, -1999, "B0", "FRESHO City")])],
     );
     let earlier = earlier.imported()[0];
-    let shops = rule("Shops", "REWE", Some(BookTo::Category(groceries)));
+    let shops = rule("Shops", "FRESHO", Some(BookTo::Category(groceries)));
     book.add_rule(&shops, None).expect("added");
     let own = rule("Own", "Own transfer", Some(BookTo::Category(groceries)));
     book.add_rule(&own, None).expect("added");
@@ -418,7 +418,7 @@ fn transfers_are_suggested_and_the_rules_run_on_the_new_transactions_only() {
         checking,
         &[statement(vec![
             entry(5, -10_000, "B1", "Own transfer"),
-            entry(5, -5320, "B2", "REWE Markt"),
+            entry(5, -5320, "B2", "FRESHO Markt"),
         ])],
     );
     let [sent, purchase] = report.imported()[..] else {
@@ -452,6 +452,89 @@ fn transfers_are_suggested_and_the_rules_run_on_the_new_transactions_only() {
     book.undo().expect("undone");
     assert!(book.transaction(purchase).is_err());
     assert_eq!(category(&book, earlier), None);
+}
+
+#[test]
+fn a_side_a_rule_sorted_before_the_other_statement_came_is_suggested() {
+    // #594 (b), D-691: the checking account's side of a standing order is
+    // imported and sorted by a Rule; the savings account's statement comes
+    // later.
+    let Sample {
+        mut book,
+        checking,
+        savings,
+        groceries,
+    } = sample();
+    let own = Rule {
+        id: RuleId::generate(),
+        name: "Own".into(),
+        match_mode: MatchMode::All,
+        conditions: vec![Condition::Text {
+            field: TextField::OtherPartyName,
+            operator: TextOperator::Contains,
+            value: "Own transfer".into(),
+            case_sensitive: false,
+        }],
+        actions: Actions {
+            book_to: Some(BookTo::Category(groceries)),
+            payee: None,
+        },
+    };
+    book.add_rule(&own, None).expect("added");
+    let first = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(5, -10_000, "B1", "Own transfer")])],
+    );
+    let sent = first.imported()[0];
+    assert!(first.transfers.is_empty());
+    assert_eq!(first.rules.changed.len(), 1, "the Rule sorted it");
+
+    let later = import(
+        &mut book,
+        savings,
+        &[statement(vec![entry(6, 10_000, "S1", "Own transfer")])],
+    );
+    let arrived = later.imported()[0];
+    let [found] = &later.transfers[..] else {
+        panic!("one Transfer: {:?}", later.transfers);
+    };
+    assert_eq!(
+        (found.outgoing.transaction, found.incoming.transaction),
+        (sent, arrived)
+    );
+    assert_eq!(found.outgoing.category, Some(groceries));
+    // The Rules leave the new side for the user to decide.
+    let [skipped] = &later.rules.skipped[..] else {
+        panic!("one skipped: {:?}", later.rules.skipped);
+    };
+    assert_eq!(skipped.transaction, arrived);
+
+    // Joined, the move is no spending: no part is in a category any more,
+    // and both accounts keep what their banks delivered.
+    let before = |id| book.transaction(id).expect("read");
+    let (sent_before, arrived_before) = (before(sent), before(arrived));
+    book.join_transfer(arrived, sent).expect("joined");
+    let transfer = book.transaction(sent).expect("read");
+    assert_eq!(
+        transfer
+            .splits()
+            .iter()
+            .map(|split| (split.account, split.amount, split.imported.clone()))
+            .collect::<Vec<_>>(),
+        [
+            (
+                Some(checking),
+                eur(-10_000),
+                sent_before.splits()[0].imported.clone()
+            ),
+            (
+                Some(savings),
+                eur(10_000),
+                arrived_before.splits()[0].imported.clone()
+            ),
+        ]
+    );
 }
 
 #[test]
@@ -532,7 +615,7 @@ fn a_preview_shows_what_the_import_would_do_and_changes_nothing() {
     let balance = book.balance(checking).expect("balance");
     let mut statements = [statement(vec![
         entry(5, -10_000, "B1", "Own transfer"),
-        entry(5, -5320, "B2", "REWE Markt"),
+        entry(5, -5320, "B2", "FRESHO Markt"),
     ])];
     statements[0].closing_balance = Some(Balance {
         amount: eur(-15_320),
@@ -623,7 +706,7 @@ fn statements_that_do_not_fit_the_account_are_refused() {
         })
     ));
 
-    let mut three = statement(vec![entry(5, -5320, "B1", "REWE Markt")]);
+    let mut three = statement(vec![entry(5, -5320, "B1", "FRESHO Markt")]);
     three.currency = Currency::new(EUR, 3).expect("valid decimal places");
     assert!(matches!(
         refused(&mut book, checking, three),
@@ -634,7 +717,7 @@ fn statements_that_do_not_fit_the_account_are_refused() {
         })
     ));
 
-    let purchase = || statement(vec![entry(5, -5320, "B1", "REWE Markt")]);
+    let purchase = || statement(vec![entry(5, -5320, "B1", "FRESHO Markt")]);
     let error = refused(&mut book, groceries, purchase());
     assert!(matches!(
         error,
@@ -664,7 +747,7 @@ fn an_import_that_fails_part_way_changes_nothing() {
     let history = history_length(&book);
     let year_0 = Date::new(0, 1, 1).expect("a valid date");
     let statements = [statement(vec![
-        entry(5, -5320, "B1", "REWE Markt"),
+        entry(5, -5320, "B1", "FRESHO Markt"),
         Entry::booked(year_0, eur(-100)),
     ])];
     let failed = import_statements(&mut book, checking, &statements, &Choices::default(), None);

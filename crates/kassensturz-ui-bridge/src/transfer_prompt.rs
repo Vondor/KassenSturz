@@ -10,11 +10,16 @@
 //! prompt shows as text (D-065) and refuses a pair the book no longer
 //! suggests. The prompt is used after a transaction the user typed, and by
 //! the import (M3.10) for the Transfers its statements suggest.
+//!
+//! Since US3.3 (D-691, D-692) a side may already be in a category: a Rule's
+//! is suggested, and any side, also one the user sorted, can be picked from
+//! [`partners`] and joined with [`join_picked`]. Each side then says which
+//! category goes and who put it there.
 
 use kassensturz_core::{
-    Account, AccountId, Report, Split, Transaction, TransferMatch, TransferSide,
+    Account, AccountId, Report, Split, Transaction, TransactionId, TransferMatch, TransferSide,
 };
-use kassensturz_store::{Book, StoreError};
+use kassensturz_store::{Book, SideSorting, StoreError};
 
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
@@ -47,6 +52,31 @@ pub struct SideText {
     pub date: String,
     /// The other party its account shows; may be empty.
     pub other_party: String,
+    /// The category its other part is in, which joining takes away; empty
+    /// if it has none yet.
+    pub category: String,
+    /// Who put it there: `rule`, `hand`, or empty if it has no category.
+    pub sorted_by: &'static str,
+    /// The name of the Rule that did, if `sorted_by` is `rule` and the Rule
+    /// still exists.
+    pub rule: String,
+    /// Whether the part that goes has a note or number of its own, which
+    /// moves to this side's entry (D-691).
+    pub moves_note: bool,
+}
+
+/// A transaction the user may pick as the other side of a Transfer, with
+/// the Transfer it would make ([`partners`]).
+#[derive(Debug, PartialEq, Eq)]
+pub struct PartnerText {
+    /// The Transfer the two would make, for the same prompt as a
+    /// suggestion.
+    pub transfer: SuggestionText,
+    /// Whether the picked transaction is the incoming side (`true`) or the
+    /// outgoing one.
+    pub partner_is_incoming: bool,
+    /// Whether its date is within the days a suggestion allows.
+    pub likely: bool,
 }
 
 /// A suggested Transfer, as the prompt shows it: the money that left one
@@ -80,6 +110,80 @@ pub fn suggestions(
         })
         .map(|found| suggestion_text(book, &accounts, found, locale))
         .collect()
+}
+
+/// The transactions the user may pick as the other side of a Transfer with
+/// the one with the ID `chosen` (D-692): `Book::transfer_partners`, the
+/// closest first, also ones the user sorted by hand.
+pub fn partners(
+    book: &Book,
+    chosen: &str,
+    locale: &impl Locale,
+) -> Result<Vec<PartnerText>, TransferPromptError> {
+    let chosen = transaction_id(chosen)?;
+    let accounts = book.all_accounts()?;
+    let own = {
+        let transaction = book.transaction(chosen)?;
+        let ids: Vec<AccountId> = book.accounts(true)?.iter().map(|a| a.id).collect();
+        TransferSide::of(&transaction, |id| ids.contains(&id))
+            .map_err(|error| TransferPromptError::Store(StoreError::Transfer(error)))?
+    };
+    book.transfer_partners(chosen)?
+        .iter()
+        .map(|partner| {
+            let partner_is_incoming = !partner.side.amount.is_negative();
+            let (outgoing, incoming) = if partner_is_incoming {
+                (own, partner.side)
+            } else {
+                (partner.side, own)
+            };
+            let found = TransferMatch {
+                outgoing,
+                incoming,
+                business_days: partner.business_days,
+            };
+            Ok(PartnerText {
+                transfer: suggestion_text(book, &accounts, &found, locale)?,
+                partner_is_incoming,
+                likely: partner.likely,
+            })
+        })
+        .collect()
+}
+
+/// Joins `chosen` with `picked`, a transaction the user picked from
+/// [`partners`] after seeing the preview. A transaction that isn't one of
+/// its partners (any more) is refused, as a stale suggestion is.
+pub fn join_picked(book: &mut Book, chosen: &str, picked: &str) -> Result<(), TransferPromptError> {
+    let chosen = transaction_id(chosen)?;
+    let picked = transaction_id(picked)?;
+    let partner = book
+        .transfer_partners(chosen)?
+        .into_iter()
+        .find(|partner| partner.side.transaction == picked)
+        .ok_or(TransferPromptError::NoSuchSuggestion)?;
+    book.join_transfer(chosen, partner.side.transaction)?;
+    Ok(())
+}
+
+/// A transaction's ID as the UI hands it over, written as `Display` writes
+/// it; anything else is no entry.
+fn transaction_id(text: &str) -> Result<TransactionId, TransferPromptError> {
+    let digits: Vec<u8> = text.bytes().filter(|byte| *byte != b'-').collect();
+    let mut bytes = [0_u8; 16];
+    if digits.len() != 32 {
+        return Err(TransferPromptError::NoSuchSuggestion);
+    }
+    for (byte, pair) in bytes.iter_mut().zip(digits.chunks(2)) {
+        let pair = std::str::from_utf8(pair).map_err(|_| TransferPromptError::NoSuchSuggestion)?;
+        *byte = u8::from_str_radix(pair, 16).map_err(|_| TransferPromptError::NoSuchSuggestion)?;
+    }
+    let id = TransactionId::from_bytes(bytes);
+    if id.to_string() == text {
+        Ok(id)
+    } else {
+        Err(TransferPromptError::NoSuchSuggestion)
+    }
 }
 
 /// Joins the two transactions of a suggested Transfer, the way the user
@@ -130,6 +234,28 @@ fn side_text(
 ) -> Result<SideText, TransferPromptError> {
     let transaction = book.transaction(side.transaction)?;
     let booked = booked_part(&transaction, side.account);
+    let name_of = |id: AccountId| {
+        accounts
+            .iter()
+            .find(|account| account.id == id)
+            .map(|account| account.name.clone())
+            .unwrap_or_default()
+    };
+    let (sorted_by, rule) = match book.side_sorting(side)? {
+        SideSorting::Open => ("", String::new()),
+        SideSorting::ByRule(rule) => (
+            "rule",
+            match rule {
+                Some(id) => book.rule(id).map(|rule| rule.name).unwrap_or_default(),
+                None => String::new(),
+            },
+        ),
+        SideSorting::ByHand => ("hand", String::new()),
+    };
+    let removed = transaction
+        .splits()
+        .iter()
+        .find(|part| part.account != Some(side.account));
     Ok(SideText {
         id: side.transaction.to_string(),
         account: accounts
@@ -142,6 +268,10 @@ fn side_text(
             .and_then(|part| transaction.payee_of(part))
             .unwrap_or_default()
             .to_owned(),
+        category: side.category.map(name_of).unwrap_or_default(),
+        sorted_by,
+        rule,
+        moves_note: removed.is_some_and(|part| part.note.is_some() || part.number.is_some()),
     })
 }
 
@@ -259,12 +389,20 @@ mod tests {
                     account: "Checking account".into(),
                     date: "2026-10-05".into(),
                     other_party: "My savings".into(),
+                    category: String::new(),
+                    sorted_by: "",
+                    rule: String::new(),
+                    moves_note: false,
                 },
                 incoming: SideText {
                     id: arrived.clone(),
                     account: "Savings".into(),
                     date: "2026-10-06".into(),
                     other_party: String::new(),
+                    category: String::new(),
+                    sorted_by: "",
+                    rule: String::new(),
+                    moves_note: false,
                 },
                 amount: Shown {
                     text: "100,00 €".into(),
@@ -289,6 +427,74 @@ mod tests {
         assert_eq!(suggestions(&book, &other, &TestLocale).expect("none"), []);
     }
 
+    /// A Rule that books what the user typed with the payee `payee` to
+    /// `category`, run on the book (D-088).
+    fn sort_with_a_rule(book: &mut Book, payee: &str, category: &str) -> String {
+        let category = book
+            .categories()
+            .expect("categories")
+            .into_iter()
+            .find(|entry| entry.category.id.to_string() == category)
+            .expect("category")
+            .category
+            .id;
+        let rule = kassensturz_core::Rule {
+            id: kassensturz_core::RuleId::generate(),
+            name: "Standing order".into(),
+            match_mode: kassensturz_core::MatchMode::All,
+            conditions: vec![kassensturz_core::Condition::Text {
+                field: kassensturz_core::TextField::Payee,
+                operator: kassensturz_core::TextOperator::Equals,
+                value: payee.into(),
+                case_sensitive: false,
+            }],
+            actions: kassensturz_core::Actions {
+                book_to: Some(kassensturz_core::BookTo::Category(category)),
+                payee: None,
+            },
+        };
+        book.add_rule(&rule, None).expect("Rule added");
+        let run = book.run_rules().expect("Rules ran");
+        assert_eq!(run.changed.len(), 1, "{run:?}");
+        rule.name
+    }
+
+    #[test]
+    fn a_side_a_rule_sorted_is_asked_about_and_says_which_category_goes() {
+        let (mut book, checking, savings) = book_with_two_accounts();
+        let groceries = category_id(&book, "Food › Groceries");
+        let out = typed(
+            &mut book,
+            &checking,
+            false,
+            "100",
+            "My savings",
+            "",
+            "2026-10-05",
+        );
+        let rule = sort_with_a_rule(&mut book, "My savings", &groceries);
+        let arrived = typed(&mut book, &savings, true, "100", "", "", "2026-10-06");
+        let [found] = &suggestions(&book, &arrived, &TestLocale).expect("suggested")[..] else {
+            panic!("one suggestion");
+        };
+        assert_eq!(found.outgoing.id, out);
+        assert_eq!(
+            (
+                found.outgoing.category.as_str(),
+                found.outgoing.sorted_by,
+                found.outgoing.rule.as_str()
+            ),
+            ("Groceries", "rule", rule.as_str())
+        );
+        assert_eq!(found.incoming.sorted_by, "");
+        let balances = (balance_of(&book, &checking), balance_of(&book, &savings));
+        join(&mut book, &out, &arrived).expect("joined");
+        assert_eq!(
+            (balance_of(&book, &checking), balance_of(&book, &savings)),
+            balances
+        );
+    }
+
     #[test]
     fn a_side_with_a_category_is_not_asked_about() {
         let (mut book, checking, savings) = book_with_two_accounts();
@@ -304,6 +510,62 @@ mod tests {
         );
         let arrived = typed(&mut book, &savings, true, "100", "", "", "2026-10-05");
         assert_eq!(suggestions(&book, &arrived, &TestLocale).expect("none"), []);
+    }
+
+    #[test]
+    fn a_side_the_user_sorted_can_be_picked_and_joined() {
+        let (mut book, checking, savings) = book_with_two_accounts();
+        let groceries = category_id(&book, "Food › Groceries");
+        let out = typed(
+            &mut book,
+            &checking,
+            false,
+            "100",
+            "",
+            &groceries,
+            "2026-10-05",
+        );
+        // Three weeks later, so no suggestion would ever pair them.
+        let arrived = typed(&mut book, &savings, true, "100", "", "", "2026-10-26");
+        let [partner] = &partners(&book, &out, &TestLocale).expect("partners")[..] else {
+            panic!("one partner");
+        };
+        assert!(partner.partner_is_incoming);
+        assert!(!partner.likely);
+        assert_eq!(partner.transfer.incoming.id, arrived);
+        assert_eq!(
+            (
+                partner.transfer.outgoing.category.as_str(),
+                partner.transfer.outgoing.sorted_by
+            ),
+            ("Groceries", "hand")
+        );
+        // A suggestion's join refuses it; the picked join takes it.
+        assert!(matches!(
+            join(&mut book, &out, &arrived),
+            Err(TransferPromptError::NoSuchSuggestion)
+        ));
+        let balances = (balance_of(&book, &checking), balance_of(&book, &savings));
+        join_picked(&mut book, &arrived, &out).expect("joined");
+        assert_eq!(
+            (balance_of(&book, &checking), balance_of(&book, &savings)),
+            balances
+        );
+        // Picked again, or by an ID that isn't one, it is refused.
+        assert!(matches!(
+            join_picked(&mut book, &arrived, &out),
+            Err(TransferPromptError::Store(_) | TransferPromptError::NoSuchSuggestion)
+        ));
+        assert!(matches!(
+            join_picked(&mut book, "not an ID", &out),
+            Err(TransferPromptError::NoSuchSuggestion)
+        ));
+        // Undo brings the category back.
+        book.undo().expect("undone");
+        assert_eq!(
+            partners(&book, &out, &TestLocale).expect("partners").len(),
+            1
+        );
     }
 
     #[test]

@@ -252,7 +252,7 @@ pub fn cases(ids: &Ids) -> Vec<Case> {
         ),
         row(
             "a range nested one level too deep",
-            with(json!({"period": {"from": [["2026-01-01"]]}})),
+            with(json!({"period": {"from": [[["2026-01-01"]]]}})),
             &bad("arguments"),
         ),
         row(

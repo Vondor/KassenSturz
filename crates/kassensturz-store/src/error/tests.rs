@@ -90,6 +90,10 @@ fn examples() -> Vec<ErrorReport> {
             first: money,
             second: money,
         },
+        TransferError::PartHoldsMore {
+            transaction,
+            detail: kassensturz_core::PartDetail::Note,
+        },
         // `TransferError::Transaction` and `StoreError::Transfer` report
         // the code of the error they hold, like `StoreError::Corrupt`.
     ];

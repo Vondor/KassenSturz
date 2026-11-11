@@ -62,8 +62,8 @@ pub use transaction::{
     Transaction, TransactionError, TransactionId,
 };
 pub use transfer::{
-    MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, business_days_apart,
-    find_transfers, join_transfer,
+    MAX_BUSINESS_DAYS, PartDetail, TransferError, TransferMatch, TransferSide, business_days_apart,
+    days_between, find_transfers, join_transfer,
 };
 pub use view::{StoredView, ViewId, ViewKind};
 pub use withdrawn::Withdrawn;

@@ -160,6 +160,7 @@ fn every_refused_call_is_answered_with_fixed_words_only_and_prepares_nothing() {
                     "allowed",
                     "only_for_show_as",
                     "use_instead",
+                    "expected_shape",
                     "max_bytes",
                     "hint",
                     // A refused formula's place and fixed reason (D-650).

@@ -39,7 +39,7 @@ use kassensturz_core::{
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
-pub use budgets::checked_budget_name;
+pub use budgets::{check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 /// The oldest layout this KassenSturz updates a book from, and the layout
@@ -49,6 +49,7 @@ pub use layout::{FIRST_VERSION as FIRST_LAYOUT, VERSION as LAYOUT};
 pub use lock::Lock;
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
+pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};
 
 use lock::HeldLock;
 

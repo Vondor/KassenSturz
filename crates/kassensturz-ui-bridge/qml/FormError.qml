@@ -250,6 +250,13 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is an example date", "This isn't a date. Type it like this: %1", result.example);
         case "input.no-such-entry":
             return i18nContext.i18nc("@info", "This choice isn't there anymore. Choose again.");
+        // Joining two sides of a move of money (D-691).
+        case "transfer.not-a-side":
+            return i18nContext.i18nc("@info", "This transaction can't be one side of a move between your accounts: it is broken down into several parts, or has an amount in another currency.");
+        case "transfer.part-holds-more":
+            return result.what === "number"
+                ? i18nContext.i18nc("@info", "Both entries have a different number of their own, and joining would lose one. Change the parts so only one number is left, then join them.")
+                : i18nContext.i18nc("@info", "Both entries have a different note of their own, and joining would lose one. Change the parts so only one note is left, then join them.");
         case "input.date-in-future":
             return i18nContext.i18nc("@info", "This day hasn't come yet. Type today or a day in the past.");
         case "input.unknown-currency":

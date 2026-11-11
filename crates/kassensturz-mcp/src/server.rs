@@ -457,6 +457,9 @@ fn error_result(report: &ErrorReport, error: &ToolError) -> CallToolResult {
     if let Some(setting) = error.setting() {
         value.insert("setting".into(), setting.json());
     }
+    if let Some(shape) = error.expected_shape() {
+        value.insert("expected_shape".into(), Value::from(shape));
+    }
     if let Some(ways) = error.only_for_show_as() {
         value.insert("only_for_show_as".into(), Value::from(ways.to_vec()));
     }
@@ -614,6 +617,23 @@ mod tests {
                 "only_for_show_as": ["figure", "progress"],
             })
         );
+    }
+
+    #[test]
+    fn a_change_list_of_the_wrong_kind_says_what_it_expects() {
+        let error = ToolError::NotShaped {
+            argument: "new_rules",
+            expected: "a list of objects",
+        }
+        .at("categorize", 0);
+        let result =
+            serde_json::to_value(error_result(&error.model_report(), &error)).expect("JSON");
+        let answer: Value =
+            serde_json::from_str(result["content"][0]["text"].as_str().expect("text"))
+                .expect("JSON text");
+        assert_eq!(answer["error"], "ai-tools.bad-argument");
+        assert_eq!(answer["argument"], "new_rules");
+        assert_eq!(answer["expected_shape"], "a list of objects");
     }
 
     #[test]

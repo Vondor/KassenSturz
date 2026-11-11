@@ -125,9 +125,9 @@ fn rules_are_kept_as_a_tree_in_the_users_order() {
     } = sample();
     let before = history_length(&book);
     let food = Some(BookTo::Category(groceries));
-    let rewe = add(&mut book, "REWE", "REWE", food, None);
-    let lidl = add(&mut book, "Lidl", "Lidl", food, None);
-    let drinks = add(&mut book, "Drinks", "Getränke", None, Some(rewe.id));
+    let fresho = add(&mut book, "FRESHO", "FRESHO", food, None);
+    let brightmart = add(&mut book, "Brightmart", "Brightmart", food, None);
+    let drinks = add(&mut book, "Drinks", "Getränke", None, Some(fresho.id));
     let mut detailed = rule(
         "Details",
         vec![
@@ -158,10 +158,15 @@ fn rules_are_kept_as_a_tree_in_the_users_order() {
     let tree = book.rules().expect("Rules");
     assert_eq!(
         names(&tree),
-        ["REWE", "REWE/Drinks", "REWE/Drinks/Details", "Lidl"]
+        [
+            "FRESHO",
+            "FRESHO/Drinks",
+            "FRESHO/Drinks/Details",
+            "Brightmart"
+        ]
     );
-    assert_eq!(tree[0].rule, rewe);
-    assert_eq!(tree[1].rule, lidl);
+    assert_eq!(tree[0].rule, fresho);
+    assert_eq!(tree[1].rule, brightmart);
     assert_eq!(tree[0].sub_rules[0].sub_rules[0].rule, detailed);
     assert_eq!(book.rule(detailed.id).expect("read"), detailed);
     assert_eq!(
@@ -179,10 +184,10 @@ fn a_rule_is_checked_before_it_is_added() {
         groceries,
         ..
     } = sample();
-    let first = add(&mut book, "Groceries", "REWE", None, None);
+    let first = add(&mut book, "Groceries", "FRESHO", None, None);
     let refused = |book: &mut Book, rule: Rule, parent| book.add_rule(&rule, parent).unwrap_err();
 
-    let again = rule(" groceries ", vec![name_contains("Lidl")], None);
+    let again = rule(" groceries ", vec![name_contains("Brightmart")], None);
     assert!(matches!(
         refused(&mut book, again.clone(), None),
         StoreError::DuplicateRuleName { existing } if existing == first.id
@@ -192,7 +197,7 @@ fn a_rule_is_checked_before_it_is_added() {
     assert!(matches!(
         refused(
             &mut book,
-            rule(" ", vec![name_contains("Lidl")], None),
+            rule(" ", vec![name_contains("Brightmart")], None),
             None
         ),
         StoreError::EmptyRuleName
@@ -203,17 +208,17 @@ fn a_rule_is_checked_before_it_is_added() {
     ));
     let nowhere = RuleId::generate();
     assert!(matches!(
-        refused(&mut book, rule("Lidl", vec![name_contains("Lidl")], None), Some(nowhere)),
+        refused(&mut book, rule("Brightmart", vec![name_contains("Brightmart")], None), Some(nowhere)),
         StoreError::UnknownRule(id) if id == nowhere
     ));
-    let empty = rule("Lidl", vec![], None);
+    let empty = rule("Brightmart", vec![], None);
     assert!(matches!(
         refused(&mut book, empty.clone(), None),
         StoreError::Rule(RuleError::NoConditions(id)) if id == empty.id
     ));
     let into_account = rule(
-        "Lidl",
-        vec![name_contains("Lidl")],
+        "Brightmart",
+        vec![name_contains("Brightmart")],
         Some(BookTo::Category(checking)),
     );
     assert!(matches!(
@@ -221,26 +226,26 @@ fn a_rule_is_checked_before_it_is_added() {
         StoreError::RuleNeedsCategory(id) if id == checking
     ));
     let into_category = rule(
-        "Lidl",
-        vec![name_contains("Lidl")],
+        "Brightmart",
+        vec![name_contains("Brightmart")],
         Some(BookTo::Transfer(groceries)),
     );
     assert!(matches!(
         refused(&mut book, into_category, None),
         StoreError::NotAnAccount(id) if id == groceries
     ));
-    let on_category = rule("Lidl", vec![Condition::Account(groceries)], None);
+    let on_category = rule("Brightmart", vec![Condition::Account(groceries)], None);
     assert!(matches!(
         refused(&mut book, on_category, None),
         StoreError::NotAnAccount(id) if id == groceries
     ));
-    let in_dollars = rule("Lidl", vec![Condition::Currency(USD)], None);
+    let in_dollars = rule("Brightmart", vec![Condition::Currency(USD)], None);
     assert!(matches!(
         refused(&mut book, in_dollars, None),
         StoreError::UnknownCurrency(currency) if currency == USD
     ));
     let dollar_amount = rule(
-        "Lidl",
+        "Brightmart",
         vec![Condition::Amount(AmountTest::Equals(
             Money::from_minor_units(-999, USD),
         ))],
@@ -252,8 +257,8 @@ fn a_rule_is_checked_before_it_is_added() {
     ));
     let unknown = AccountId::generate();
     let to_nowhere = rule(
-        "Lidl",
-        vec![name_contains("Lidl")],
+        "Brightmart",
+        vec![name_contains("Brightmart")],
         Some(BookTo::Category(unknown)),
     );
     assert!(matches!(
@@ -274,7 +279,7 @@ fn a_rule_can_be_changed_in_place() {
         salary,
         ..
     } = sample();
-    let first = add(&mut book, "Shops", "REWE", None, None);
+    let first = add(&mut book, "Shops", "FRESHO", None, None);
     let sub = add(&mut book, "Food", "Markt", None, Some(first.id));
     add(
         &mut book,
@@ -288,7 +293,7 @@ fn a_rule_can_be_changed_in_place() {
     let mut changed = first.clone();
     changed.name = "Supermarkets".into();
     changed.match_mode = MatchMode::Any;
-    changed.conditions.push(name_contains("Lidl"));
+    changed.conditions.push(name_contains("Brightmart"));
     changed.actions = Actions {
         book_to: Some(BookTo::Category(groceries)),
         payee: Some("Supermarket".into()),
@@ -410,13 +415,13 @@ fn removing_a_rule_removes_its_sub_rules() {
     let shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
-    let sub = add(&mut book, "Sub", "REWE", None, Some(shops.id));
-    add(&mut book, "Later", "Lidl", None, None);
-    let purchase = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let sub = add(&mut book, "Sub", "FRESHO", None, Some(shops.id));
+    add(&mut book, "Later", "Brightmart", None, None);
+    let purchase = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
     book.run_rules().expect("run");
     assert_eq!(
         book.rule_mark(purchase.id()).expect("mark").map(|m| m.rule),
@@ -469,7 +474,7 @@ fn running_the_rules_books_what_has_no_category_yet() {
     let shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
@@ -483,7 +488,7 @@ fn running_the_rules_books_what_has_no_category_yet() {
     );
     pay.actions.payee = Some("Salary".into());
     book.add_rule(&pay, None).expect("added");
-    let purchase = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let purchase = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
     let wages = imported(&mut book, checking, 240_000, 1, "Example Employer");
     let other = imported(&mut book, checking, -1250, 6, "Bakery");
     let before = history_length(&book);
@@ -550,12 +555,12 @@ fn the_rules_can_run_on_some_transactions_only() {
     let shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
-    let earlier = imported(&mut book, checking, -5320, 5, "REWE Markt");
-    let new = imported(&mut book, checking, -1999, 6, "REWE City");
+    let earlier = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
+    let new = imported(&mut book, checking, -1999, 6, "FRESHO City");
     let before = history_length(&book);
 
     let run = book.run_rules_on(&[new.id()]).expect("run");
@@ -593,14 +598,14 @@ fn manual_choices_win() {
     add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
     // Categorized by hand when it was entered.
     let by_hand = transaction(
         date(2026, 10, 5),
-        "REWE Markt",
+        "FRESHO Markt",
         &[(checking, eur(-5320)), (household, eur(5320))],
     );
     book.add_transaction(&by_hand).expect("added");
@@ -611,7 +616,7 @@ fn manual_choices_win() {
         None,
         vec![
             Split {
-                imported: imported(&mut book, checking, -100, 1, "REWE Markt").splits()[0]
+                imported: imported(&mut book, checking, -100, 1, "FRESHO Markt").splits()[0]
                     .imported
                     .clone(),
                 ..Split::new(checking, eur(-3000))
@@ -623,7 +628,7 @@ fn manual_choices_win() {
     .expect("balanced");
     book.add_transaction(&parts).expect("added");
     // Categorized by a Rule, then changed by the user.
-    let changed_later = imported(&mut book, checking, -999, 7, "REWE Markt");
+    let changed_later = imported(&mut book, checking, -999, 7, "FRESHO Markt");
     book.run_rules().expect("run");
     let mut edited = book.transaction(changed_later.id()).expect("read");
     let splits = edited
@@ -670,15 +675,15 @@ fn a_rule_books_a_transaction_once() {
     let mut shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
-    let purchase = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let purchase = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
     book.run_rules().expect("run");
     assert_eq!(other_side(&book, &purchase, checking), Some(groceries));
 
-    // The user decides REWE is household shopping after all. What the Rule
+    // The user decides FRESHO is household shopping after all. What the Rule
     // booked earlier keeps its booking (Q-044).
     shops.actions.book_to = Some(BookTo::Category(household));
     book.update_rule(&shops).expect("changed");
@@ -686,7 +691,7 @@ fn a_rule_books_a_transaction_once() {
     assert!(book.run_rules().expect("run again").changed.is_empty());
     assert_eq!(other_side(&book, &purchase, checking), Some(groceries));
     // A new purchase gets the changed Rule's category.
-    let later = imported(&mut book, checking, -1999, 6, "REWE Markt");
+    let later = imported(&mut book, checking, -1999, 6, "FRESHO Markt");
     assert_eq!(
         changed(&book.run_rules().expect("run")),
         [(later.id(), shops.id)]
@@ -705,16 +710,16 @@ fn changing_a_rule_can_rebook_what_it_booked() {
     } = sample();
     let household = account(&mut book, "Household", AccountKind::Expense, EUR);
     let food = Some(BookTo::Category(groceries));
-    let mut shops = add(&mut book, "Shops", "REWE", food, None);
+    let mut shops = add(&mut book, "Shops", "FRESHO", food, None);
     // A sub-Rule that leaves the category to its parent.
     let mut drinks = rule("Drinks", vec![name_contains("Getränke")], None);
     drinks.actions.payee = Some("Drinks shop".into());
     book.add_rule(&drinks, Some(shops.id)).expect("added");
     let bakery = add(&mut book, "Bakery", "Bakery", food, None);
-    let purchase = imported(&mut book, checking, -5320, 5, "REWE Markt");
-    let water = imported(&mut book, checking, -699, 6, "REWE Getränke");
+    let purchase = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
+    let water = imported(&mut book, checking, -699, 6, "FRESHO Getränke");
     let bread = imported(&mut book, checking, -350, 7, "Bakery");
-    let by_hand = imported(&mut book, checking, -1250, 8, "REWE Markt");
+    let by_hand = imported(&mut book, checking, -1250, 8, "FRESHO Markt");
     book.run_rules().expect("run");
     // Changed by the user after a Rule booked it: their choice wins (D-031).
     let mut edited = book.transaction(by_hand.id()).expect("read");
@@ -851,10 +856,10 @@ fn a_rule_that_only_sets_the_payee_leaves_the_category_open() {
         groceries,
         ..
     } = sample();
-    let mut tidy = rule("Tidy", vec![name_contains("REWE")], None);
+    let mut tidy = rule("Tidy", vec![name_contains("FRESHO")], None);
     tidy.actions.payee = Some("Supermarket".into());
     book.add_rule(&tidy, None).expect("added");
-    let purchase = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let purchase = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
     book.run_rules().expect("run");
     let read = book.transaction(purchase.id()).expect("read");
     assert_eq!(read.payee(), Some("Supermarket"));
@@ -868,7 +873,7 @@ fn a_rule_that_only_sets_the_payee_leaves_the_category_open() {
     let shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
@@ -1119,10 +1124,10 @@ fn the_rules_check_the_date_and_payee_the_account_shows() {
 #[test]
 fn a_broken_pattern_in_a_book_stops_the_run() {
     let Sample { mut book, .. } = sample();
-    let rule = add(&mut book, "Shops", "REWE", None, None);
+    let rule = add(&mut book, "Shops", "FRESHO", None, None);
     book.as_another_program()
         .execute(
-            "UPDATE rule_conditions SET operator = 'matches', text_value = 'REWE ('",
+            "UPDATE rule_conditions SET operator = 'matches', text_value = 'FRESHO ('",
             [],
         )
         .expect("changed");
@@ -1192,7 +1197,7 @@ fn the_matches_of_the_rules_include_what_nobody_booked_through_them() {
     let shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
@@ -1210,8 +1215,8 @@ fn the_matches_of_the_rules_include_what_nobody_booked_through_them() {
     };
     book.add_rule(&big, None).expect("added");
     book.add_rule(&big_shops, Some(big.id)).expect("added");
-    let booked = imported(&mut book, checking, -5320, 5, "REWE Markt");
-    let waiting = imported(&mut book, checking, -1250, 6, "REWE Express");
+    let booked = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
+    let waiting = imported(&mut book, checking, -1250, 6, "FRESHO Express");
     let sub = imported(&mut book, checking, -990, 7, "Big Market");
     let other = imported(&mut book, checking, -300, 8, "Bakery");
     book.run_rules().expect("run");
@@ -1267,15 +1272,15 @@ fn a_rule_that_is_not_in_the_book_yet_can_be_previewed_on_its_own() {
         groceries,
         ..
     } = sample();
-    let first = imported(&mut book, checking, -5320, 5, "REWE Markt");
-    let second = imported(&mut book, checking, -1250, 6, "REWE Express");
+    let first = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
+    let second = imported(&mut book, checking, -1250, 6, "FRESHO Express");
     imported(&mut book, checking, -300, 7, "Bakery");
     // A Rule before the previewed one takes everything it fits first, but a
     // preview looks at the conditions alone.
     add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
@@ -1290,7 +1295,7 @@ fn a_rule_that_is_not_in_the_book_yet_can_be_previewed_on_its_own() {
             .collect::<Vec<_>>(),
         [(second.id(), vec![draft.id])]
     );
-    let wide = rule("Shops", vec![name_contains("rewe")], None);
+    let wide = rule("Shops", vec![name_contains("fresho")], None);
     let ids: Vec<TransactionId> = book
         .rule_preview(&wide)
         .expect("preview")
@@ -1391,20 +1396,20 @@ fn applying_the_rules_sorts_what_has_no_category_as_one_undo_step() {
     } = sample();
     let household = account(&mut book, "Household", AccountKind::Expense, EUR);
     // Already in the book before the Rules exist, as an import leaves them.
-    let shop = imported(&mut book, checking, -5320, 5, "REWE Markt");
+    let shop = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
     let bakery = imported(&mut book, checking, -450, 6, "Corner Bakery");
     let nothing_fits = imported(&mut book, checking, -999, 7, "Cinema");
     // Sorted by hand when it was typed in.
     let by_hand = transaction(
         date(2026, 10, 8),
-        "REWE Markt",
+        "FRESHO Markt",
         &[(checking, eur(-1999)), (household, eur(1999))],
     );
     book.add_transaction(&by_hand).expect("added");
     let shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
@@ -1472,22 +1477,22 @@ fn applying_one_rule_sorts_only_what_it_decides() {
         salary,
     } = sample();
     let household = account(&mut book, "Household", AccountKind::Expense, EUR);
-    let market = imported(&mut book, checking, -5320, 5, "REWE Markt");
-    let city = imported(&mut book, checking, -1250, 6, "REWE City");
-    let center = imported(&mut book, checking, -830, 7, "REWE Center");
+    let market = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
+    let city = imported(&mut book, checking, -1250, 6, "FRESHO City");
+    let center = imported(&mut book, checking, -830, 7, "FRESHO Center");
     let bakery = imported(&mut book, checking, -450, 8, "Corner Bakery");
-    // An earlier Rule takes "REWE Markt" first (D-031).
+    // An earlier Rule takes "FRESHO Markt" first (D-031).
     let first = add(
         &mut book,
         "Market",
-        "REWE Markt",
+        "FRESHO Markt",
         Some(BookTo::Category(salary)),
         None,
     );
     let shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
@@ -1574,12 +1579,12 @@ fn sorting_again_what_rules_sorted_is_a_separate_switch() {
     let mut shops = add(
         &mut book,
         "Shops",
-        "REWE",
+        "FRESHO",
         Some(BookTo::Category(groceries)),
         None,
     );
-    let booked = imported(&mut book, checking, -5320, 5, "REWE Markt");
-    let edited_later = imported(&mut book, checking, -999, 6, "REWE City");
+    let booked = imported(&mut book, checking, -5320, 5, "FRESHO Markt");
+    let edited_later = imported(&mut book, checking, -999, 6, "FRESHO City");
     book.run_rules().expect("run");
     // The user changes one of them afterwards, so the Rules leave it alone
     // (D-031).
@@ -1598,11 +1603,11 @@ fn sorting_again_what_rules_sorted_is_a_separate_switch() {
     book.update_transaction(&edited).expect("edited");
     let by_hand = transaction(
         date(2026, 10, 7),
-        "REWE Markt",
+        "FRESHO Markt",
         &[(checking, eur(-1999)), (salary, eur(1999))],
     );
     book.add_transaction(&by_hand).expect("added");
-    let open = imported(&mut book, checking, -830, 8, "REWE Center");
+    let open = imported(&mut book, checking, -830, 8, "FRESHO Center");
 
     // The Rule changes, without sorting again what it sorted.
     shops.actions.book_to = Some(BookTo::Category(household));

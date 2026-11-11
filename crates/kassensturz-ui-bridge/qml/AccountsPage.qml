@@ -17,6 +17,8 @@ Kirigami.ScrollablePage {
     id: page
 
     required property AccountList accounts
+    // Any register will do for the Transfers, which belong to the book.
+    required property AccountRegister register
     readonly property var sections: accounts.view.sections ?? []
     readonly property var closedAccounts: accounts.view.closed ?? []
     property bool showClosed: false
@@ -52,6 +54,17 @@ Kirigami.ScrollablePage {
                 page.getTransactionsClicked()
             }
         },
+        // Every move between the user's accounts the book suggests, open
+        // and Rule-sorted sides (D-692), one question at a time.
+        Kirigami.Action {
+            icon.name: "edit-link"
+            visible: page.sections.length > 0
+            text: page.i18nContext.i18nc("@action:button", "Find moves between my accounts…")
+            onTriggered: {
+                ActionLog.taken("AccountsPage_findMoves")
+                page.findMoves()
+            }
+        },
         Kirigami.Action {
             icon.name: "view-visible"
             text: page.i18nContext.i18nc("@action:button", "Show closed accounts")
@@ -64,6 +77,21 @@ Kirigami.ScrollablePage {
             }
         }
     ]
+
+    function findMoves() {
+        const found = register.transferSuggestions("");
+        if (found?.length > 0) {
+            transferPrompt.ask(found);
+        } else {
+            applicationWindow().showPassiveNotification(i18nContext.i18nc("@info", "No moves between your accounts to ask about. Moves you sorted yourself aren't looked for: open one of their entries and choose “Join with the other side of a move…”."), "long");
+        }
+    }
+
+    TransferPrompt {
+        id: transferPrompt
+
+        register: page.register
+    }
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing

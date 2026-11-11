@@ -33,7 +33,7 @@ use crate::register_columns::{Column, Columns};
 use crate::session;
 use crate::settings::Settings;
 use crate::transaction_entry::{self, EntryError, EntryForm, NewEntry, RemovalNotice};
-use crate::transfer_prompt::{self, SideText, SuggestionText};
+use crate::transfer_prompt::{self, PartnerText, SideText, SuggestionText};
 use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
@@ -261,7 +261,9 @@ pub mod qobject {
         /// The Transfers to ask the user about (M3.7, D-120): pairs of
         /// transactions that look like one move of money between two of the
         /// user's accounts, as a list of objects with `outgoing` and
-        /// `incoming` (each with `id`, `account`, `date` and `otherParty`),
+        /// `incoming` (each with `id`, `account`, `date`, `otherParty`, and
+        /// `category`, `sortedBy`, `rule` and `movesNote` for a side that is
+        /// in a category, D-692),
         /// `amount`, `exactAmount` and `businessDays`. Only those that
         /// involve the transaction with this ID, or all of them if it is
         /// empty. An error comes back as an object with its `code`. Nothing
@@ -279,6 +281,25 @@ pub mod qobject {
             self: Pin<&mut AccountRegister>,
             outgoing: &QString,
             incoming: &QString,
+        ) -> QVariant;
+
+        /// The transactions the user may pick as the other side of a
+        /// Transfer with the transaction with this ID (D-692), the closest
+        /// first: each like a suggestion, with `partnerIsIncoming` and
+        /// `likely`. An error comes back as an object with its `code`.
+        #[qinvokable]
+        #[cxx_name = "transferPartners"]
+        fn transfer_partners(self: &AccountRegister, chosen: &QString) -> QVariant;
+
+        /// Joins the transaction `chosen` with `picked`, one of its
+        /// `transferPartners`, after the user confirmed the preview.
+        /// Returns an empty map, or the error's `code` and its parameters.
+        #[qinvokable]
+        #[cxx_name = "joinPicked"]
+        fn join_picked(
+            self: Pin<&mut AccountRegister>,
+            chosen: &QString,
+            picked: &QString,
         ) -> QVariant;
     }
 
@@ -781,6 +802,29 @@ impl qobject::AccountRegister {
         self.finish(result)
     }
 
+    fn transfer_partners(&self, chosen: &QString) -> QVariant {
+        let chosen = chosen.to_string();
+        let found = session::with_book(|book| {
+            transfer_prompt::partners(book, &chosen, &app_locale())
+                .map_err(|error| transfer_prompt::error_text(book, &error, &app_locale()))
+        });
+        match found {
+            Some(Ok(partners)) => list(partners.iter().map(partner_object)),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn join_picked(self: Pin<&mut Self>, chosen: &QString, picked: &QString) -> QVariant {
+        let (chosen, picked) = (chosen.to_string(), picked.to_string());
+        let result = session::with_book_mut(|book| {
+            transfer_prompt::join_picked(book, &chosen, &picked)
+                .map_err(|error| transfer_prompt::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        self.finish(result)
+    }
+
     fn row_count(&self, _parent: &QModelIndex) -> i32 {
         self.rust().count
     }
@@ -835,7 +879,12 @@ impl qobject::AccountRegister {
 
 /// A suggested Transfer as `TransferPrompt.qml` takes it.
 pub(crate) fn suggestion_object(found: &SuggestionText) -> QVariant {
-    map([
+    map(suggestion_fields(found))
+}
+
+/// The fields of [`suggestion_object`].
+fn suggestion_fields(found: &SuggestionText) -> [(&'static str, QVariant); 5] {
+    [
         ("outgoing", side_object(&found.outgoing)),
         ("incoming", side_object(&found.incoming)),
         ("amount", text(&found.amount.text)),
@@ -844,6 +893,25 @@ pub(crate) fn suggestion_object(found: &SuggestionText) -> QVariant {
             "businessDays",
             QVariant::from(&i32::try_from(found.business_days).unwrap_or(0)),
         ),
+    ]
+}
+
+/// A transaction the user may pick for a Transfer, as
+/// `TransferPartnerDialog.qml` lists it and `TransferPrompt.qml` asks about
+/// it: a suggestion, and which side is the picked one.
+fn partner_object(partner: &PartnerText) -> QVariant {
+    let [a, b, c, d, e] = suggestion_fields(&partner.transfer);
+    map([
+        a,
+        b,
+        c,
+        d,
+        e,
+        (
+            "partnerIsIncoming",
+            QVariant::from(&partner.partner_is_incoming),
+        ),
+        ("likely", QVariant::from(&partner.likely)),
     ])
 }
 
@@ -854,6 +922,10 @@ fn side_object(side: &SideText) -> QVariant {
         ("account", text(&side.account)),
         ("date", text(&side.date)),
         ("otherParty", text(&side.other_party)),
+        ("category", text(&side.category)),
+        ("sortedBy", text(side.sorted_by)),
+        ("rule", text(&side.rule)),
+        ("movesNote", QVariant::from(&side.moves_note)),
     ])
 }
 
@@ -1055,9 +1127,13 @@ fn error_text(book: &Book, account_id: &str, error: &EntryError) -> ErrorText {
 
 #[cfg(test)]
 mod tests {
-    use super::{column_choices_object, form_object, notice_object};
+    use super::{
+        column_choices_object, form_object, notice_object, partner_object, suggestion_object,
+    };
+    use crate::register::Shown;
     use crate::register_columns::{Column, Columns};
     use crate::transaction_entry::{EntryForm, RemovalNotice};
+    use crate::transfer_prompt::{PartnerText, SideText, SuggestionText};
     use crate::variant::read_back::{elements, flag_of, keys, number_of, text_of};
 
     /// The Columns menu reads these by name: the key, whether the column is
@@ -1118,6 +1194,106 @@ mod tests {
         assert_eq!(text_of(&notice, "undo"), "days");
         assert_eq!(number_of(&notice, "undoDays"), 30);
         assert_eq!(keys(&notice), ["holdsOriginal", "undo", "undoDays"]);
+    }
+
+    fn side(id: &str, category: &str, sorted_by: &'static str) -> SideText {
+        SideText {
+            id: id.into(),
+            account: "Checking account".into(),
+            date: "2026-10-05".into(),
+            other_party: "My savings".into(),
+            category: category.into(),
+            sorted_by,
+            rule: if sorted_by == "rule" {
+                "Standing order".into()
+            } else {
+                String::new()
+            },
+            moves_note: sorted_by == "hand",
+        }
+    }
+
+    fn transfer() -> SuggestionText {
+        SuggestionText {
+            outgoing: side("out", "Savings plan", "rule"),
+            incoming: side("in", "", ""),
+            amount: Shown {
+                text: "100,00 €".into(),
+                exact: "100,00 €".into(),
+            },
+            business_days: 1,
+        }
+    }
+
+    /// `TransferPrompt.qml` reads these by name (AGENTS.md §9.4), and since
+    /// US3.3 the category that goes and who sorted it (D-692).
+    #[test]
+    fn the_transfer_prompt_reads_back_both_sides_and_their_categories() {
+        let found = suggestion_object(&transfer());
+        assert_eq!(
+            keys(&found),
+            [
+                "amount",
+                "businessDays",
+                "exactAmount",
+                "incoming",
+                "outgoing"
+            ]
+        );
+        assert_eq!(text_of(&found, "amount"), "100,00 €");
+        assert_eq!(number_of(&found, "businessDays"), 1);
+        let outgoing = crate::variant::read_back::object_of(&found, "outgoing");
+        assert_eq!(
+            keys(&outgoing),
+            [
+                "account",
+                "category",
+                "date",
+                "id",
+                "movesNote",
+                "otherParty",
+                "rule",
+                "sortedBy"
+            ]
+        );
+        assert_eq!(text_of(&outgoing, "id"), "out");
+        assert_eq!(text_of(&outgoing, "category"), "Savings plan");
+        assert_eq!(text_of(&outgoing, "sortedBy"), "rule");
+        assert_eq!(text_of(&outgoing, "rule"), "Standing order");
+        assert!(!flag_of(&outgoing, "movesNote"));
+        let incoming = crate::variant::read_back::object_of(&found, "incoming");
+        assert_eq!(text_of(&incoming, "sortedBy"), "");
+        assert_eq!(text_of(&incoming, "category"), "");
+    }
+
+    /// The picker lists these, and hands each to the prompt (D-692).
+    #[test]
+    fn the_transfer_picker_reads_back_each_partner() {
+        let partner = partner_object(&PartnerText {
+            transfer: SuggestionText {
+                incoming: side("in", "Other income", "hand"),
+                ..transfer()
+            },
+            partner_is_incoming: true,
+            likely: false,
+        });
+        assert_eq!(
+            keys(&partner),
+            [
+                "amount",
+                "businessDays",
+                "exactAmount",
+                "incoming",
+                "likely",
+                "outgoing",
+                "partnerIsIncoming"
+            ]
+        );
+        assert!(flag_of(&partner, "partnerIsIncoming"));
+        assert!(!flag_of(&partner, "likely"));
+        let incoming = crate::variant::read_back::object_of(&partner, "incoming");
+        assert_eq!(text_of(&incoming, "sortedBy"), "hand");
+        assert!(flag_of(&incoming, "movesNote"));
     }
 
     /// The account page must not read the account while it is still being

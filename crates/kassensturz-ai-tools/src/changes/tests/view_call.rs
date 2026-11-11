@@ -115,7 +115,7 @@ fn the_lists_the_model_sees_are_the_catalogs_and_the_schemas() {
     }
     assert_eq!(
         words(&properties["compare"]),
-        ["none", "previous_period", "same_last_year"]
+        kassensturz_report::COMPARE_WORDS
     );
     let periods = words(&properties["period"]["anyOf"][0]);
     assert_eq!(periods[0], "page");
@@ -337,7 +337,7 @@ fn a_broken_or_hostile_call_is_refused_in_the_fixed_order() {
         ("[1, 2]", "bad-argument arguments"),
         ("null", "bad-argument arguments"),
         (
-            r#"{"title":"A","data":"spending_by_category","show_as":"pie","period":{"from":[["2026-01-01"]]}}"#,
+            r#"{"title":"A","data":"spending_by_category","show_as":"pie","period":{"from":[[["2026-01-01"]]]}}"#,
             "bad-argument arguments",
         ),
         // 2. A key twice, also when written with an escape; it wins over
@@ -557,7 +557,7 @@ fn the_mcp_and_the_request_files_reach_both_functions_by_name() {
     ));
     // A parsed call has no key twice, but is checked for size and depth.
     let deep = json!({"title": "A", "data": "spending_by_category", "show_as": "pie",
-        "period": {"from": {"day": ["2026-01-01"]}}});
+        "period": {"from": {"day": [["2026-01-01"]]}}});
     assert_eq!(
         view_code(prepare_named(
             &book,
@@ -1173,5 +1173,257 @@ fn the_ai_chooses_which_way_bars_go() {
     assert_eq!(
         view_code(call(&book, &text("bar", "sideways"))),
         "bad-argument orientation"
+    );
+}
+
+/// The sample book with a salary paid on the day of its other
+/// transactions, so a month has income, spending and a savings rate.
+fn with_income() -> Book {
+    let mut sample = sample();
+    bought(
+        &mut sample.book,
+        "Employer",
+        vec![
+            Split::new(sample.checking, eur(250_000)),
+            Split::new(sample.salary, eur(-250_000)),
+        ],
+    );
+    sample.book
+}
+
+/// The one entry of an answer's `computed`.
+fn computed(proposal: &Proposal) -> &Map<String, Value> {
+    match proposal.output.value["computed"]
+        .as_array()
+        .map(Vec::as_slice)
+    {
+        Some([Value::Object(entry)]) => entry,
+        other => panic!("one entry, not {other:?}"),
+    }
+}
+
+#[test]
+fn a_key_figure_answers_with_the_figure_kassensturz_computed() {
+    // US3.12 (D-685): the figure comes from the report functions the card
+    // uses, for the chart's own period and comparison.
+    let book = with_income();
+    let text = json!({"title": "Left", "data": "income_expense_by_month",
+        "show_as": "figure", "measure": "net", "period": "this-month",
+        "compare": "same_last_year"})
+    .to_string();
+    let proposal = call(&book, &text).expect("prepared");
+    let entry = computed(&proposal);
+    // What the card is made of (`compare_income_expense`), read here once.
+    let period = kassensturz_report::Period::this_month(today()).expect("a period");
+    let source = kassensturz_report::Source::read(
+        &book,
+        kassensturz_report::comparison_span(period, kassensturz_report::Compare::SameLastYear)
+            .expect("a span"),
+    )
+    .expect("read");
+    let (_, changes) = kassensturz_report::compare_income_expense(
+        &source,
+        period,
+        &kassensturz_report::Filter::default(),
+        kassensturz_report::Compare::SameLastYear,
+    )
+    .expect("worked out");
+    let [change] = changes.as_slice() else {
+        panic!("one currency: {changes:?}");
+    };
+    let decimal = |money: Money| crate::writer::decimal_text(money.minor_units(), 2);
+    assert_eq!(entry["value"], decimal(change.net.current));
+    assert_eq!(entry["value"], "2396.81");
+    assert_eq!(entry["previous"], decimal(change.net.previous));
+    assert_eq!(entry["measure"], "net");
+    assert_eq!(entry["unit"], "amount");
+    assert_eq!(entry["currency"], "EUR");
+    assert_eq!(
+        (&entry["from"], &entry["to"]),
+        (&json!("2026-10-01"), &json!("2026-10-31"))
+    );
+    assert_eq!(
+        (&entry["previous_from"], &entry["previous_to"]),
+        (&json!("2025-10-01"), &json!("2025-10-31"))
+    );
+    assert!(
+        proposal.output.value["computed_note"]
+            .as_str()
+            .is_some_and(|note| note.contains("never work out one of your own"))
+    );
+    // The model may relay it; a figure of its own is flagged (D-052).
+    let figures = &proposal.output.figures;
+    assert_eq!(
+        crate::check_numbers("The card shows 2,396.81 EUR, up from 0.00.", figures),
+        []
+    );
+    assert_eq!(
+        crate::check_numbers("The card shows 2,400.00 EUR.", figures).len(),
+        1
+    );
+    // A check only answers with it too, so a model can tell the user
+    // before anything is shown (D-674).
+    let checked = check_only_answer(&book, &proposal, Permissions::all()).expect("checked");
+    assert_eq!(checked["computed"], proposal.output.value["computed"]);
+}
+
+#[test]
+fn a_progress_bar_answers_with_its_share_and_target() {
+    let book = with_income();
+    // Without a formula a bar shows the share of the income kept.
+    let rate = json!({"title": "Kept", "data": "income_expense_by_month",
+        "show_as": "progress", "period": "this-month"})
+    .to_string();
+    let proposal = call(&book, &rate).expect("prepared");
+    let entry = computed(&proposal);
+    assert_eq!(entry["measure"], "savings-rate");
+    assert_eq!(entry["unit"], "percent");
+    // 2,396.81 of 2,500.00, to one place.
+    assert_eq!(entry["value"], "95.9");
+    assert_eq!(
+        crate::check_numbers("You kept 95.9 % of your income.", &proposal.output.figures),
+        []
+    );
+    // With a formula and a target, the figure, what a full bar is and how
+    // full it is, from `FormulaValue::fill`.
+    let formula = json!({"title": "Groceries of food", "data": "income_expense_by_month",
+        "show_as": "progress", "formula": "=Groceries", "target": "=Food",
+        "period": "this-month"})
+    .to_string();
+    let proposal = call(&book, &formula).expect("prepared");
+    let entry = computed(&proposal);
+    assert_eq!(entry["measure"], "formula");
+    assert_eq!(entry["unit"], "amount");
+    assert_eq!(entry["currency"], "EUR");
+    assert_eq!(entry["value"], "73.20");
+    assert_eq!(entry["target"], "83.20");
+    let fill = kassensturz_report::FormulaValue::Amount(eur(7320))
+        .fill(kassensturz_report::FormulaValue::Amount(eur(8320)))
+        .expect("a share");
+    assert_eq!(
+        entry["share"],
+        crate::writer::decimal_text(fill.tenths(), 1)
+    );
+    assert_eq!(entry["share"], "88.0");
+    // No income, no savings rate: the entry says why instead of a value.
+    let empty = Book::create_in_memory().expect("book");
+    let proposal = call(&empty, &rate).expect("prepared");
+    let entries = proposal.output.value["computed"]
+        .as_array()
+        .expect("a list");
+    assert!(entries.is_empty(), "{entries:?}");
+    let spent = json!({"title": "Kept", "data": "income_expense_by_month",
+        "show_as": "progress", "period": "this-month"})
+    .to_string();
+    let proposal = call(&sample().book, &spent).expect("prepared");
+    let entry = computed(&proposal);
+    assert!(entry.get("value").is_none(), "{entry:?}");
+    assert_eq!(entry["value_missing"], "no-income");
+}
+
+#[test]
+fn a_figure_the_period_cant_make_is_named_by_its_code() {
+    // A division by zero is no mistake of the formula (D-650): the chart is
+    // prepared, and the answer names the code the preview shows in words.
+    let book = with_income();
+    let text = json!({"title": "Share", "data": "income_expense_by_month",
+        "show_as": "figure", "formula": "=Groceries / (Food - Food)",
+        "period": "this-month"})
+    .to_string();
+    let proposal = call(&book, &text).expect("prepared");
+    assert_eq!(
+        proposal.output.value["not_computed"],
+        "report.formula-no-value"
+    );
+    assert!(proposal.output.value.get("computed").is_none());
+    // A model that may not read the figures with a read function doesn't
+    // hear them here either (D-252): the chart is still prepared.
+    let card =
+        json!({"title": "Spent", "data": "spending_by_category", "show_as": "figure"}).to_string();
+    let charts_only = Permissions::defaults()
+        .with(Permission::NewViews, true)
+        .with(Permission::CategoriesRead, true);
+    let proposal = propose_view_text(&book, &card, charts_only, today()).expect("prepared");
+    assert!(proposal.output.value.get("computed").is_none());
+    assert_eq!(proposal.output.value["not_shown"], json!(["computed"]));
+    let reads = charts_only.with(Permission::TransactionsRead, true);
+    let proposal = propose_view_text(&book, &card, reads, today()).expect("prepared");
+    assert_eq!(computed(&proposal)["value"], "103.19");
+    // What you are worth needs only the reading of the accounts.
+    let worth =
+        json!({"title": "Worth", "data": "account_balances", "show_as": "figure"}).to_string();
+    let accounts = Permissions::defaults()
+        .with(Permission::NewViews, true)
+        .with(Permission::AccountsRead, true);
+    let proposal = propose_view_text(&book, &worth, accounts, today()).expect("prepared");
+    assert_eq!(computed(&proposal)["measure"], "net_worth");
+    // Charts with many figures get none: the read functions give them.
+    let bars =
+        json!({"title": "Spent", "data": "spending_by_category", "show_as": "bar"}).to_string();
+    let proposal = call(&book, &bars).expect("prepared");
+    assert!(proposal.output.value.get("computed").is_none());
+    assert!(proposal.output.value.get("not_computed").is_none());
+}
+
+#[test]
+fn the_ai_compares_spending_by_category_as_a_second_bar() {
+    // US3.1a (#587, D-687): `compare` with six words for bars and tables of
+    // spending, the three of a key figure for figure and progress.
+    let Sample { book, .. } = sample();
+    let text = |show_as: &str, data: &str, compare: &str| {
+        json!({"title": format!("{show_as} {compare}"), "data": data,
+            "show_as": show_as, "compare": compare})
+        .to_string()
+    };
+    for show_as in ["bar", "table"] {
+        for compare in [
+            "previous_period",
+            "same_last_year",
+            "average-3",
+            "average-12",
+        ] {
+            let proposal =
+                call(&book, &text(show_as, "spending_by_category", compare)).expect("prepared");
+            let component: Value =
+                serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+            assert_eq!(component["params"]["compare"], compare, "{show_as}");
+        }
+        // No comparison is the default and is not written.
+        let proposal =
+            call(&book, &text(show_as, "spending_by_category", "none")).expect("prepared");
+        let component: Value =
+            serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+        assert!(component["params"].get("compare").is_none(), "{show_as}");
+    }
+    let refuse = |arguments: String| {
+        propose_view_text(&book, &arguments, Permissions::all(), today()).expect_err("refused")
+    };
+    // A pie and a stacked bar have no place for a second bar: the refusal
+    // names the ways that compare.
+    for show_as in ["pie", "stacked_bar"] {
+        let pie = refuse(text(show_as, "spending_by_category", "previous_period"));
+        assert_eq!(
+            pie.model_report().param("argument"),
+            Some(&ErrorParam::Keyword("compare"))
+        );
+        let ways = pie.only_for_show_as().expect("the ways that compare");
+        assert!(ways.contains(&"bar") && ways.contains(&"table"), "{ways:?}");
+        assert!(!ways.contains(&"pie"));
+    }
+    // Only spending averages earlier periods; a key figure keeps its words.
+    let figure = refuse(text("figure", "income_expense_by_month", "average-3"));
+    assert_eq!(
+        figure.model_report().param("argument"),
+        Some(&ErrorParam::Keyword("compare"))
+    );
+    let money_in = refuse(text("bar", "income_expense_by_month", "previous_period"));
+    assert_eq!(money_in.allowed_fields(), None);
+    // A word that is no comparison at all is refused before anything else.
+    assert_eq!(
+        view_code(call(
+            &book,
+            &text("bar", "spending_by_category", "average-5")
+        )),
+        "bad-argument compare"
     );
 }

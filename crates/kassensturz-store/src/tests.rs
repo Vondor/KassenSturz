@@ -869,7 +869,7 @@ fn an_accounts_type_must_fit_its_kind() {
 fn accounts_are_listed_by_name_without_categories_or_closed_ones() {
     let mut book = Book::create_in_memory().expect("book created");
     book.use_currency(EUR).expect("currency used");
-    let visa = typed_account(&mut book, "visa", AccountType::CreditCard).expect("added");
+    let card = typed_account(&mut book, "Travel card", AccountType::CreditCard).expect("added");
     let cash = typed_account(&mut book, "Cash", AccountType::Cash).expect("added");
     let old = typed_account(&mut book, "Old savings", AccountType::Savings).expect("added");
     account(&mut book, "Groceries", AccountKind::Expense, EUR);
@@ -883,15 +883,15 @@ fn accounts_are_listed_by_name_without_categories_or_closed_ones() {
             .map(|account| account.name)
             .collect()
     };
-    assert_eq!(names(false), ["Cash", "visa"]);
-    assert_eq!(names(true), ["Cash", "Old savings", "visa"]);
+    assert_eq!(names(false), ["Cash", "Travel card"]);
+    assert_eq!(names(true), ["Cash", "Old savings", "Travel card"]);
     let ids: Vec<_> = book
         .accounts(false)
         .expect("accounts")
         .into_iter()
         .map(|account| account.id)
         .collect();
-    assert_eq!(ids, [cash, visa]);
+    assert_eq!(ids, [cash, card]);
 }
 
 #[test]

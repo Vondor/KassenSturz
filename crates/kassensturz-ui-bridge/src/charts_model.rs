@@ -809,6 +809,67 @@ mod tests {
     }
 
     #[test]
+    fn a_comparison_reads_back_as_a_second_series_with_its_columns_and_note() {
+        // US3.1a (D-687): September next to August, the way ChartView.qml
+        // and ChartTable.qml read it.
+        let words = |list: &[QVariant]| -> Vec<String> {
+            list.iter()
+                .map(|cell| cell.value::<QString>().expect("text").to_string())
+                .collect()
+        };
+        let mut asked = request("spending_by_category", "bar");
+        asked.period = "last-month".into();
+        asked.scope.compare = "previous_period".into();
+        let view = view_of(&asked);
+        let chart = &list_of(&view, "charts")[0];
+        let series = list_of(chart, "series");
+        let keys_of: Vec<String> = series.iter().map(|one| text_of(one, "key")).collect();
+        assert_eq!(keys_of, ["spending", "previous_period"]);
+        assert_eq!(number_of(&series[1], "color"), 1);
+        let points = list_of(&series[1], "points");
+        assert_eq!(text_of(&points[0], "label"), "800,00 €");
+        assert_eq!(text_of(&points[1], "minorUnits"), "0");
+        let table = object_of(chart, "table");
+        assert_eq!(
+            words(&list_of(&table, "columns")),
+            [
+                "category",
+                "total",
+                "previous_period",
+                "change",
+                "change_percent"
+            ]
+        );
+        let rows = list_of(&table, "rows");
+        assert_eq!(
+            words(&elements(&rows[0]).expect("a row")),
+            ["Rent", "800,00 €", "800,00 €", "0,00 €", "0,0 %"]
+        );
+        // Groceries were not bought in August: no percent of nothing.
+        assert_eq!(words(&elements(&rows[1]).expect("a row"))[4], "");
+        // August has transactions: nothing is before the first one.
+        assert!(list_of(&object_of(&view, "filter"), "notes").is_empty());
+        // The average of June to August: June and July are before the
+        // book's first transaction on 3 August, and the note says so.
+        asked.scope.compare = "average-3".into();
+        let view = view_of(&asked);
+        let notes = list_of(&object_of(&view, "filter"), "notes");
+        assert_eq!(notes.len(), 1);
+        assert_eq!(text_of(&notes[0], "kind"), "compare-early");
+        assert_eq!(text_of(&notes[0], "id"), "average-3");
+        assert_eq!(number_of(&notes[0], "counted"), 3);
+        assert_eq!(number_of(&notes[0], "before"), 2);
+        let chart = &list_of(&view, "charts")[0];
+        assert_eq!(text_of(&list_of(chart, "series")[1], "key"), "average_3");
+        // A pie has no place for a second bar: it is drawn as before.
+        let mut pie = asked.clone();
+        pie.kind = "pie".into();
+        let view = view_of(&pie);
+        assert_eq!(list_of(&list_of(&view, "charts")[0], "series").len(), 1);
+        assert!(list_of(&object_of(&view, "filter"), "notes").is_empty());
+    }
+
+    #[test]
     fn a_monthly_chart_has_an_axis_and_series_that_read_back() {
         let view = view_of(&request("income_expense_by_month", "bar"));
         let chart = &list_of(&view, "charts")[0];

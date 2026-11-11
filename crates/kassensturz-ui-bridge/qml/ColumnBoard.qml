@@ -1125,7 +1125,8 @@ ColumnLayout {
         // Adds a column.
         Rectangle {
             width: Kirigami.Units.gridUnit * 14
-            height: Kirigami.Units.gridUnit * 12
+            // Grows with its help text, so a long translation stays inside.
+            height: Math.max(Kirigami.Units.gridUnit * 12, addContent.implicitHeight + Kirigami.Units.largeSpacing * 2)
             radius: Kirigami.Units.cornerRadius
             color: Kirigami.Theme.backgroundColor
             border.width: addDrop.containsDrag ? 2 : 1
@@ -1144,6 +1145,8 @@ ColumnLayout {
             }
 
             ColumnLayout {
+                id: addContent
+
                 anchors {
                     left: parent.left
                     right: parent.right
@@ -1192,6 +1195,16 @@ ColumnLayout {
                     font: Kirigami.Theme.smallFont
                     opacity: 0.7
                     text: board.i18nContext.i18nc("@info", "Name it, then drag categories in, or drop a category here to start a column with it. For example, put Restaurants and Coffee into a column called Fast food.")
+                }
+
+                // The way to a formula column is easy to miss (US3.1b, D-687).
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font: Kirigami.Theme.smallFont
+                    opacity: 0.7
+                    text: board.i18nContext.i18nc("@info an example of a formula; the words in quotes stay in English", "A column can also be a formula, e.g. =Salary@\"last month\", with its own period.")
                 }
             }
         }

@@ -1203,6 +1203,9 @@ fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
         if let Some(setting) = error.setting() {
             object.insert("setting".into(), setting.json());
         }
+        if let Some(shape) = error.expected_shape() {
+            object.insert("expected_shape".into(), json!(shape));
+        }
         if let Some(ways) = error.only_for_show_as() {
             // A general list of the argument's words would mislead: the
             // chosen way of drawing takes none of them.

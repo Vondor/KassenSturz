@@ -119,6 +119,18 @@ fn check_days(every: BudgetEvery, first: Date, last: Option<Date>) -> Result<(),
     }
 }
 
+/// Refuses days a budget can't have, with the reasons of
+/// [`Book::add_budget`] (`not-period-start`, `not-period-end`,
+/// `no-last-day`, `too-long`, `ends-before-starts`), so a caller that
+/// prepares a budget before it is made can say so at once (D-688).
+pub fn check_budget_days(
+    every: BudgetEvery,
+    first_day: Date,
+    last_day: Option<Date>,
+) -> Result<(), StoreError> {
+    check_days(every, first_day, last_day)
+}
+
 /// Refuses an amount that isn't above zero, is too large or isn't in the
 /// category's currency.
 fn check_amount(amount: Money, currency: CurrencyCode) -> Result<(), StoreError> {

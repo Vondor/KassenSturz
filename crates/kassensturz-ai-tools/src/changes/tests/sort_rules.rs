@@ -496,3 +496,36 @@ fn a_rule_named_next_to_its_id_is_checked() {
     let wrong = sort_call(json!({"rule_id": pets, "rule_name": "Grocer"}));
     assert_eq!(code(propose(&book, &wrong)), "ai-tools.name-mismatch");
 }
+
+#[test]
+fn a_check_counts_what_the_sort_would_sort_where_the_reading_of_transactions_is_given() {
+    use kassensturz_core::ai_switch::{Permission, Row};
+
+    let (Sample { book, .. }, _) = with_rules();
+    let proposal = propose(&book, &sort_call(json!({}))).expect("prepared");
+    let counted = crate::check_only_answer(&book, &proposal, Permissions::all()).expect("checked");
+    assert_eq!(counted["would_sort"], json!(1), "{counted}");
+    assert_eq!(counted["lists"]["sort_with_rules"], json!(1));
+    // The same sort that the user reviews: the count is the run's.
+    assert_eq!(
+        counted["would_sort"],
+        json!(the_sort(&proposal).changes.len())
+    );
+    // Allowing the sort gives the reading of Transactions too (D-252), so
+    // the count tells the model nothing it could not read; the check
+    // still leaves it out where that reading is not given.
+    let sorting_only = Permissions::NONE.with(Permission::SortTransactions, true);
+    assert!(sorting_only.reads(Row::Transactions), "set up");
+    let counted = crate::check_only_answer(&book, &proposal, sorting_only).expect("checked");
+    assert_eq!(counted["would_sort"], json!(1), "{counted}");
+    let silent = crate::check_only_answer(&book, &proposal, Permissions::NONE).expect("checked");
+    assert!(silent.get("would_sort").is_none(), "{silent}");
+    // Another call has no such count.
+    let other = propose(
+        &book,
+        &json!({"new_categories": [{"key": "k", "name": "Pets"}]}),
+    )
+    .expect("prepared");
+    let answer = crate::check_only_answer(&book, &other, Permissions::all()).expect("checked");
+    assert!(answer.get("would_sort").is_none(), "{answer}");
+}

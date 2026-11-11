@@ -130,6 +130,7 @@ fn main() {
                 "qml/TransactionPage.qml",
                 "qml/TransactionRow.qml",
                 "qml/TransferPrompt.qml",
+                "qml/TransferPartnerDialog.qml",
                 "qml/ExampleBookChooser.qml",
                 "qml/ExampleBooksPage.qml",
                 "qml/WelcomePage.qml",

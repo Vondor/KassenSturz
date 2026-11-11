@@ -200,6 +200,11 @@ fn changes(allowed: Permissions) -> String {
             "delete charts the user saved",
             "deleted saved charts (delete_views, IDs from list_views)",
         ),
+        (
+            allowed.allows(Permission::JoinTransfers),
+            "join the two sides of a move between their own accounts as one Transfer",
+            "joined sides of a move between the user's accounts (join_transfers)",
+        ),
     ];
     let join = |texts: Vec<&str>| match texts.as_slice() {
         [] => String::new(),

@@ -4,7 +4,8 @@
 // Opens AiPermissionGrid.qml on stand-ins for the Rust objects (fakes/) and
 // checks that a switch means "allowed" in the field box as in the grid
 // (#631, D-684): a locked field's switch is off, an unlocked one's on, and
-// switching a field on unlocks it.
+// switching a field on unlocks it; and that the cell for joining Transfers
+// keeps Transactions › Read on.
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -81,6 +82,15 @@ Kirigami.ApplicationWindow {
                 window.check(settings.locked("LockAmount"), "switching it off locks it again");
                 window.check(!amount.checked, "the switch stays off");
             }
+            // Joining two sides is its own row (D-693), and it keeps
+            // Transactions › Read on, as a change of that row does.
+            settings.allowed = ({ AllowJoinTransfers: true });
+            const transactions = grid.rows.find(row => row.key === "Transactions");
+            window.check(transactions !== undefined, "the grid has its Transactions row");
+            window.check(grid.readForced(transactions, 0), "joining keeps the transactions readable");
+            window.check(grid.historyAtRisk(0), "joining warns about the history");
+            settings.allowed = ({});
+            window.check(!grid.readForced(transactions, 0), "without it Read is free again");
             console.log(window.failed ? "permissions: FAILED" : "permissions: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

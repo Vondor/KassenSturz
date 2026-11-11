@@ -25,7 +25,7 @@ use crate::error::ToolError;
 
 /// The lists of a call in the order [`super::build`] turns their items into
 /// changes, one change for each item.
-const ORDER: [&str; 19] = [
+const ORDER: [&str; 20] = [
     "new_categories",
     "edit_categories",
     "edit_rules",
@@ -39,6 +39,7 @@ const ORDER: [&str; 19] = [
     "edit_transactions",
     "new_transactions",
     "delete_transactions",
+    "join_transfers",
     "new_views",
     "edit_views",
     "delete_views",
@@ -432,5 +433,6 @@ pub(super) fn list_of(change: &ProposedChange) -> &'static str {
         ProposedChange::NewBudget(_) => "new_budgets",
         ProposedChange::EditBudget(_) => "edit_budgets",
         ProposedChange::SortWithRules(_) => super::sort_rules::LIST,
+        ProposedChange::JoinTransfer(_) => super::joins::LIST,
     }
 }

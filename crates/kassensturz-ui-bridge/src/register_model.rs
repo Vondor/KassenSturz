@@ -883,7 +883,7 @@ pub(crate) fn suggestion_object(found: &SuggestionText) -> QVariant {
 }
 
 /// The fields of [`suggestion_object`].
-fn suggestion_fields(found: &SuggestionText) -> [(&'static str, QVariant); 5] {
+pub(crate) fn suggestion_fields(found: &SuggestionText) -> [(&'static str, QVariant); 5] {
     [
         ("outgoing", side_object(&found.outgoing)),
         ("incoming", side_object(&found.incoming)),

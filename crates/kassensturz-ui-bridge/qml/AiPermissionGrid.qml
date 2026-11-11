@@ -68,11 +68,25 @@ ColumnLayout {
         },
         {
             name: i18nContext.i18nc("@label a part of the book", "Transactions"),
+            key: "Transactions",
             cells: [
                 { key: "AllowReadTransactions", read: true },
                 { key: "AllowNewTransactions" },
                 { key: "AllowSortTransactions", needsRead: true },
                 { key: "AllowDeleteTransactions", needsRead: true }
+            ]
+        },
+        {
+            // Its own row, so allowing sorting never allowed merging two
+            // transactions into one (D-693). It reads the transactions, so
+            // it keeps Transactions › Read on.
+            name: i18nContext.i18nc("@label a part of the book", "Moves between your accounts"),
+            readRow: "Transactions",
+            cells: [
+                { key: "", absent: "viaTransactions" },
+                { key: "", absent: "never" },
+                { key: "AllowJoinTransfers", needsRead: true },
+                { key: "", absent: "never" }
             ]
         },
         {
@@ -116,7 +130,7 @@ ColumnLayout {
     // delete. That is the one part that can hurt for good, so it is marked
     // with a warning while any of it is on.
     function historyAtRisk(again: int): bool {
-        return ["AllowNewTransactions", "AllowSortTransactions", "AllowDeleteTransactions"].some(key => settings.allows(key));
+        return ["AllowNewTransactions", "AllowSortTransactions", "AllowDeleteTransactions", "AllowJoinTransfers"].some(key => settings.allows(key));
     }
 
     // Whether the cell is on, as the settings say it.
@@ -127,8 +141,9 @@ ColumnLayout {
     }
 
     // Whether Read of this row is on because something in the row needs it.
+    // A row may also need the reading of another one (`readRow`).
     function readForced(row: var, again: int): bool {
-        return row.cells.some(cell => cell.needsRead && settings.allows(cell.key));
+        return rows.some(other => (other === row || other.readRow === row.key) && other.cells.some(cell => cell.needsRead && settings.allows(cell.key)));
     }
 
     function choose(key: string, value: bool) {
@@ -237,6 +252,8 @@ ColumnLayout {
                     textFormat: Text.PlainText
                     text: cell.modelData.absent === "never"
                         ? grid.i18nContext.i18nc("@info the AI is never offered this", "not offered")
+                        : cell.modelData.absent === "viaTransactions"
+                        ? grid.i18nContext.i18nc("@info reading this row is the reading of the transactions", "as Transactions")
                         : grid.i18nContext.i18nc("@info the AI can't do this yet", "not yet")
                 }
             }

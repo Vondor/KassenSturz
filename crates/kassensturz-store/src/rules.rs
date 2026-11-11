@@ -10,9 +10,10 @@
 //! marks the part a Rule booked. What a Rule booked keeps its booking when
 //! the Rules change later, unless the user changes that Rule and asks for
 //! what it booked to follow ([`Book::update_rule_and_rebook`]). When the
-//! user changes such a transaction, its parts are written again without the
-//! mark, so no Rule changes it again; and a transaction broken into more
-//! Parts is never theirs (D-031).
+//! user gives such a transaction another category or payee, or breaks it
+//! into more Parts, its parts are written again without the mark, so no
+//! Rule changes it again (D-031); a change that keeps what a Rule decides,
+//! such as a note or a date, keeps the mark (D-707).
 
 use std::collections::{HashMap, HashSet};
 
@@ -99,9 +100,10 @@ pub struct RuleSkip {
 }
 
 /// Which part of a transaction a Rule booked, and which Rule. A transaction
-/// with a mark is one a Rule booked and the user didn't change since, so
-/// changing that Rule can book it again when the user asks for it
-/// ([`Book::update_rule_and_rebook`]); one the user changed has none.
+/// with a mark is one a Rule booked and the user didn't sort otherwise
+/// since, so changing that Rule can book it again when the user asks for it
+/// ([`Book::update_rule_and_rebook`]); one the user gave another category,
+/// payee or other Parts has none (D-707).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuleMark {
     /// The part the Rule booked, or left without a category while it set

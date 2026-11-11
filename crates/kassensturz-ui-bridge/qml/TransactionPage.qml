@@ -92,6 +92,7 @@ Kirigami.ScrollablePage {
             noteField.text = entry.note ?? "";
             loadedNote = noteField.text;
             categoryBox.currentIndex = page.categoryIndex(entry.category ?? "");
+            loadedFields = fieldsText();
         }
     }
 
@@ -109,6 +110,40 @@ Kirigami.ScrollablePage {
     // changed it (D-703): an imported note the page can't take as typed
     // text, e.g. a long memo, then stays exactly as it is.
     property string loadedNote: ""
+
+    // The other fields as they were loaded or last saved, so a step that
+    // leaves the page can tell whether the user typed something (M6-B227).
+    property string loadedFields: ""
+
+    function fieldsText(): string {
+        return JSON.stringify([moneyIn, amountField.text, otherPartyField.text, chosenCategory(), dateField.text]);
+    }
+
+    // Whether the form holds something the user typed and didn't save.
+    function unsaved(): bool {
+        return !adding && editable && (fieldsText() !== loadedFields || noteField.text !== loadedNote);
+    }
+
+    // Saves what the user typed before a step that leaves the page: joining
+    // it with the other side of a move, breaking it down or making a Rule
+    // from it work on the saved transaction, and the page closes after
+    // them, so a note typed but not saved was lost without a word
+    // (M6-B227). Saving is its own change, which Undo takes back on its
+    // own. False when it couldn't be saved; the form then says why and the
+    // step waits.
+    function keepTyped(): bool {
+        if (!unsaved()) {
+            return true;
+        }
+        const result = register.editTransaction(chosenAccount, transactionId, form());
+        error.result = result;
+        if (result.code !== undefined) {
+            return false;
+        }
+        loadedNote = noteField.text;
+        loadedFields = fieldsText();
+        return true;
+    }
 
     // What the user typed, as the Rust side takes it. Without a `note` key
     // the Rust side leaves the note as it is.
@@ -381,7 +416,9 @@ Kirigami.ScrollablePage {
             flat: true
             onClicked: {
                 ActionLog.taken("TransactionPage_breakDownTransaction")
-                page.breakDownClicked(page.chosenAccount, page.transactionId)
+                if (page.keepTyped()) {
+                    page.breakDownClicked(page.chosenAccount, page.transactionId)
+                }
             }
         }
 
@@ -394,7 +431,9 @@ Kirigami.ScrollablePage {
             flat: true
             onClicked: {
                 ActionLog.taken("TransactionPage_joinOtherSide")
-                partnerDialog.show(page.transactionId)
+                if (page.keepTyped()) {
+                    partnerDialog.show(page.transactionId)
+                }
             }
         }
 
@@ -407,7 +446,9 @@ Kirigami.ScrollablePage {
             flat: true
             onClicked: {
                 ActionLog.taken("TransactionPage_createRuleTransaction")
-                page.createRuleClicked(page.chosenAccount, page.transactionId)
+                if (page.keepTyped()) {
+                    page.createRuleClicked(page.chosenAccount, page.transactionId)
+                }
             }
         }
 

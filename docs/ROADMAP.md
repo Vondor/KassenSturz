@@ -422,7 +422,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.5** · **in review** (D-697) · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
 
-- **US3.6** · **planned** · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
+- **US3.6** · **in review** (D-698) · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
 
 - **US3.7** · **in review** (D-695) · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
 

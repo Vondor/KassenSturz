@@ -272,10 +272,15 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Lists the user's Rules, which sort new transactions into categories: what each one looks for, what it books to, and its sub-Rules. \"conditions_complete\": false means some condition can't be shown or written back exactly (an IBAN, an amount, a date, an account, or a text cut short), so propose_changes can rename the Rule, change its category and add or remove single conditions, but not replace all of them.",
+            "description": "Lists the user's Rules, which sort new transactions into categories: what each one looks for, what it books to, and its sub-Rules. \"conditions_complete\": false means some condition can't be shown or written back exactly (an IBAN, an amount, a date, an account, or a text cut short), so propose_changes can rename the Rule, change its category and add or remove single conditions, but not replace all of them. With rule_id, only that Rule (with its sub-Rules), for a look at one Rule without reading them all.",
             "inputSchema": {
               "additionalProperties": false,
-              "properties": {},
+              "properties": {
+                "rule_id": {
+                  "description": "Only this Rule, ID from an earlier list_rules. It can be a sub-Rule. Leave it out to list all Rules.",
+                  "type": "string"
+                }
+              },
               "type": "object"
             },
             "name": "list_rules"

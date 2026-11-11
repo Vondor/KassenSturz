@@ -1187,4 +1187,75 @@ pub(crate) mod tests {
         assert!(at("=1.").names.is_empty());
         assert!(at("=Pets.").names.is_empty());
     }
+
+    /// The help page's examples, each with the text its line gives.
+    fn help_page_lines() -> Vec<(String, String)> {
+        let unquote = |line: &str, start: &str| {
+            let rest = line.trim().strip_prefix(start)?;
+            let inner = rest.strip_suffix('"')?;
+            Some(inner.replace("\\\"", "\"").replace("\\\\", "\\"))
+        };
+        let page = include_str!("../qml/HelpPage.qml");
+        let mut text = String::new();
+        let mut lines = Vec::new();
+        for line in page.lines() {
+            if line.trim().starts_with("text:")
+                && let Some((_, said)) = line.split_once("\", \"")
+            {
+                text = said.trim_end_matches("\")").into();
+            }
+            if let Some(example) = unquote(line, "description: \"=") {
+                lines.push((text.clone(), format!("={example}")));
+            }
+        }
+        lines
+    }
+
+    #[test]
+    fn the_help_page_explains_every_function_with_an_example_that_works() {
+        let mut book = book();
+        let groceries = account(&mut book, "Groceries", AccountKind::Expense, None);
+        account(&mut book, "Eating out", AccountKind::Expense, None);
+        // Groceries in August and September, so that CHANGE has an earlier
+        // figure to compare with.
+        let checking = book
+            .accounts(false)
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.name == "Checking account")
+            .expect("the checking account")
+            .id;
+        for (month, amount) in [(8, 4_000), (9, 5_000)] {
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                Date::new(2026, month, 10).expect("a date"),
+                None,
+                vec![
+                    Split::new(checking, Money::from_minor_units(-amount, EUR)),
+                    Split::new(groceries, Money::from_minor_units(amount, EUR)),
+                ],
+            )
+            .expect("balanced");
+            book.add_transaction(&transaction).expect("added");
+        }
+        let lines = help_page_lines();
+        // Every function of the closed list has its own line, in the list's
+        // order, and its example calls it.
+        let explained: Vec<&str> = lines
+            .iter()
+            .filter_map(|(text, _)| text.split_once(':').map(|(name, _)| name))
+            .filter(|name| FUNCTIONS.iter().any(|function| function.name == *name))
+            .collect();
+        let names: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
+        assert_eq!(explained, names);
+        for (text, example) in &lines {
+            if let Some((name, _)) = text.split_once(':')
+                && names.contains(&name)
+            {
+                assert!(example.contains(&format!("{name}(")), "{text}: {example}");
+            }
+            // Every example on the page reads and gives a figure.
+            let _ = shown(&book, &TestLocale, &request(example));
+        }
+    }
 }

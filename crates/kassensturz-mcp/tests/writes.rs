@@ -241,10 +241,12 @@ fn app(
         while !done.load(Ordering::SeqCst) {
             for request in inbox.take_new(&book) {
                 let read = Book::open_to_read(&book).expect("read");
-                let proposal = kassensturz_ai_tools::propose(
+                let proposal = kassensturz_ai_tools::prepare_named(
                     &read,
+                    request.function,
                     &request.arguments,
                     kassensturz_core::ai_switch::Permissions::all(),
+                    kassensturz_core::Date::constant(2026, 10, 31),
                 )
                 .expect("proposed");
                 inbox
@@ -339,6 +341,45 @@ fn an_applied_set_is_reported_as_applied() {
     assert!(!is_error, "{answer}");
     assert_eq!(answer["status"], "applied", "{answer}");
     assert_eq!(*calls.lock().expect("calls"), [bakery()]);
+    assert!(session.finish().status.success());
+}
+
+#[test]
+fn an_applied_key_figure_answers_with_the_figure_it_shows() {
+    // US3.12 (D-685): the AI tool hears what the saved card shows, worked
+    // out by KassenSturz when it checked the call.
+    let folder = Folder::new("writes-figure");
+    folder.allow(&["AllowNewViews=true"]);
+    let book = folder.book();
+    let done = Arc::new(AtomicBool::new(false));
+    let calls = app(
+        &request_folder(&folder),
+        &book,
+        Reply::Applied,
+        Arc::clone(&done),
+    );
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    let card = json!({"title": "Spent in October", "data": "spending_by_category",
+        "show_as": "figure", "period": {"from": "2026-10-01", "to": "2026-10-31"}});
+    let (answer, is_error) = session.call("propose_view", card.clone());
+    done.store(true, Ordering::SeqCst);
+    assert!(!is_error, "{answer}");
+    assert_eq!(answer["status"], "applied", "{answer}");
+    let entry = &answer["computed"][0];
+    assert_eq!(entry["measure"], "total", "{answer}");
+    assert_eq!(entry["value"], "42.50", "{answer}");
+    assert_eq!(entry["currency"], "EUR", "{answer}");
+    assert_eq!(entry["from"], "2026-10-01", "{answer}");
+    assert!(answer["computed_note"].is_string(), "{answer}");
+    // The app got the call as the AI tool sent it, without the figure.
+    assert_eq!(*calls.lock().expect("calls"), std::slice::from_ref(&card));
+    // A check only says it too, and sends nothing.
+    let mut checked = card;
+    checked["check_only"] = json!(true);
+    let (answer, is_error) = session.call("propose_view", checked);
+    assert!(!is_error, "{answer}");
+    assert_eq!(answer["computed"][0]["value"], "42.50", "{answer}");
     assert!(session.finish().status.success());
 }
 

@@ -35,6 +35,7 @@ mod sort_rules;
 pub(crate) use names::NAMED_IDS;
 mod transactions;
 mod view_call;
+mod view_figure;
 mod views;
 
 pub use check_only::{CHECK_ONLY, CHECK_ONLY_SCHEMA, check_only_answer, take_check_only};

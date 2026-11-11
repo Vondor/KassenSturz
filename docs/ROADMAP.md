@@ -434,7 +434,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.11** · **planned** · thread B · standard, high · S to M. US2 backlog 8: `new_budgets` for a stretch of days, with the first and last day named by the user (amends D-394). Why: the app has it, the AI may not prepare it
 
-- **US3.12** · **planned** · thread A · standard, high · S to M. US2 backlog 9: an applied `propose_view` (or `check_only`) answers with the figure KassenSturz computed for a number card or progress bar. Why: the AI can confirm the figure to the user; numbers still come from code (AGENTS.md §8)
+- **US3.12** · **done** (#666, D-685) · thread A · standard, high · S to M. US2 backlog 9: an applied `propose_view` (or `check_only`) answers with the figure KassenSturz computed for a number card or progress bar. Why: the AI can confirm the figure to the user; numbers still come from code (AGENTS.md §8)
 
 - **US3.13** · **step 1 in review (M6-B218, D-699)**, step 2 (#649) next · thread G · standard, medium · M, then M. #648 (M6-B218) first: every real shop or brand name used as an example becomes an invented one, and the pattern help says plainly which syntax works. Then #649 (US2 backlog 11): an in-app help page on Rule patterns (Rust `regex`, capitals ignored unless ticked, no lookaround or back-references) and formulas (LibreOffice Calc style, D-510), with short invented examples, all translatable. Why: a public app should not carry real trademarks, and a one-line hint is not enough
 

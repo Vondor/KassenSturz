@@ -24,6 +24,7 @@ pub const DETAILS: &[&str] = &[
     "propose_view",
     "check_proposed_changes",
     "read_debug_log",
+    "server_info",
     "draft_issue",
     "open_page",
     // A call of a function that isn't offered.

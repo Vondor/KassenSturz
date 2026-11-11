@@ -22,7 +22,7 @@ set -eu
 cd "$(dirname "$0")/.."
 
 work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+trap '[ -n "${KEEP_CHARTS:-}" ] && cp -r "$work/out" "$KEEP_CHARTS"; rm -rf "$work"' EXIT
 qml=crates/kassensturz-ui-bridge/qml
 cp "$qml"/ChartView.qml "$qml"/ChartOverlays.qml "$qml"/ChartTable.qml "$qml"/ChartPalette.qml \
     "$qml"/DataTable.qml "$qml"/AmountLabel.qml \
@@ -45,6 +45,11 @@ mkdir "$work/out"
         echo "check-charts: names on slices cover each other (above)" >&2
         exit 1
     fi
+    # Plain bars go in rows when a name's word would not fit under its bar,
+    # and stay upright otherwise (M6-B3, M6-B229).
+    for want in '2-bar false' '4-bar true' '18-bar true' '19-bar false'; do
+        grep -q "bar-rows $want\$" run.log || { echo "check-charts: expected bar-rows $want" >&2; exit 1; }
+    done
     grep -c 'name-overlaps' run.log | grep -qv '^0$' || { echo "check-charts: no name check ran" >&2; exit 1; }
 )
 
@@ -113,7 +118,12 @@ custom_thin = {
     ("15-bar", green): 100,
     ("17-bar", blue): 300,
     ("17-bar", pink): 300,
+    # A bar of zero is a thin line of its colour (M6-B229).
+    ("19-bar", blue): 40,
 }
+# A lone bar is never wider than three grid units (M6-B229): far fewer
+# pixels than half the picture.
+widest = {("19-bar", orange): 40000}
 expected = {
     "0-line": [blue, orange],
     "1-area": [blue, orange],
@@ -129,6 +139,9 @@ expected = {
     "15-bar": [blue, orange, green],
     "16-stacked-area": [blue, orange],
     "17-bar": [blue, green, pink],
+    # Spending compared with an average (M6-B229): rows, and one lone bar.
+    "18-bar": [blue, orange],
+    "19-bar": [blue, orange],
 }
 failed = False
 for name, colors in expected.items():
@@ -146,6 +159,9 @@ for name, colors in expected.items():
         least = custom_thin.get((name, color), 300 if name in thin else 3000)
         if found < least:
             print("  too few: the chart was not drawn")
+            failed = True
+        if found > widest.get((name, color), found):
+            print("  too many: the bar is too wide")
             failed = True
 sys.exit(1 if failed else 0)
 PY

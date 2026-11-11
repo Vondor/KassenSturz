@@ -110,6 +110,10 @@ Kirigami.ScrollablePage {
     // changed it (D-703): an imported note the page can't take as typed
     // text, e.g. a long memo, then stays exactly as it is.
     property string loadedNote: ""
+    // The longest note the page takes: 512, or the loaded note's own length
+    // if it is longer, so an imported memo can be changed without being cut
+    // (D-703, B-226).
+    readonly property int noteLimit: register.noteLimit(entry.note ?? "")
 
     // The other fields as they were loaded or last saved, so a step that
     // leaves the page can tell whether the user typed something (M6-B227).
@@ -359,27 +363,86 @@ Kirigami.ScrollablePage {
         // what a payment was for. Optional, so it comes after the basics.
         // It wraps and takes line breaks, so an imported memo shows whole
         // (D-703); Tab moves on as in the other fields, Ctrl+Enter saves.
-        Controls.TextArea {
-            id: noteField
+        // It grows up to a few lines and then scrolls, so the buttons below
+        // stay in view, and it stops taking text at the limit a save checks,
+        // with a counter below that shows how much is left (B-226).
+        Controls.ScrollView {
+            id: noteScroll
             visible: page.editable
             Layout.fillWidth: true
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
-            wrapMode: TextEdit.Wrap
+            Layout.maximumHeight: Kirigami.Units.gridUnit * 8
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Note:")
-            placeholderText: page.i18nContext.i18nc("@info:placeholder", "Optional, for example what it was for")
-            Accessible.name: page.i18nContext.i18nc("@label:textbox", "Note:")
-            Keys.onTabPressed: event => nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
-            Keys.onBacktabPressed: event => nextItemInFocusChain(false).forceActiveFocus(Qt.BacktabFocusReason)
 
-            // Ctrl+Enter saves; Enter alone starts a new line.
-            Shortcut {
-                sequences: ["Ctrl+Return", "Ctrl+Enter"]
-                enabled: noteField.activeFocus
-                onActivated: {
-                    ActionLog.taken("TransactionPage_save_5")
-                    page.save()
+            Controls.TextArea {
+                id: noteField
+                wrapMode: TextEdit.Wrap
+                placeholderText: page.i18nContext.i18nc("@info:placeholder", "Optional, for example what it was for")
+                Accessible.name: page.i18nContext.i18nc("@label:textbox", "Note:")
+                Accessible.description: noteCounter.text
+                Keys.onTabPressed: event => nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
+                Keys.onBacktabPressed: event => nextItemInFocusChain(false).forceActiveFocus(Qt.BacktabFocusReason)
+
+                // The text as it last fitted, to go back to when typing or
+                // pasting would make it longer than the limit; text that
+                // makes it shorter is always taken, and nothing already in
+                // the field is cut.
+                property string fitting: ""
+                property int counted: 0
+                property bool refused: false
+                property bool restoring: false
+
+                onTextChanged: {
+                    if (restoring) {
+                        return;
+                    }
+                    const typedLength = page.register.noteLength(text);
+                    if (typedLength > page.noteLimit && typedLength > counted) {
+                        // Put the cursor back where the refused text went in.
+                        const cursor = cursorPosition - (text.length - fitting.length);
+                        restoring = true;
+                        text = fitting;
+                        cursorPosition = Math.max(0, Math.min(cursor, text.length));
+                        restoring = false;
+                        refused = true;
+                        return;
+                    }
+                    fitting = text;
+                    counted = typedLength;
+                    refused = false;
+                }
+
+                // Ctrl+Enter saves; Enter alone starts a new line.
+                Shortcut {
+                    sequences: ["Ctrl+Return", "Ctrl+Enter"]
+                    enabled: noteField.activeFocus
+                    onActivated: {
+                        ActionLog.taken("TransactionPage_save_5")
+                        page.save()
+                    }
                 }
             }
+        }
+
+        // How long the note is and how long it may be; when typing or
+        // pasting was stopped at the limit it says why, in the field's
+        // column so it is seen where the text goes (B-226).
+        Controls.Label {
+            id: noteCounter
+            visible: page.editable
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            font: Kirigami.Theme.smallFont
+            color: noteField.refused
+                ? Kirigami.Theme.negativeTextColor
+                : noteField.counted >= page.noteLimit
+                    ? Kirigami.Theme.neutralTextColor
+                    : Kirigami.Theme.disabledTextColor
+            text: noteField.refused
+                ? page.i18nContext.i18nc("@info %1 is the longest a note may be", "A note may be up to %1 characters long, so the rest did not fit. Please shorten the note to add more.", page.noteLimit)
+                : page.i18nContext.i18nc("@info %1 characters typed so far, %2 the longest a note may be", "%1 of %2 characters", noteField.counted, page.noteLimit)
         }
 
         RowLayout {

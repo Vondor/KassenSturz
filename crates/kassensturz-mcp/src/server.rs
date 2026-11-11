@@ -10,9 +10,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use kassensturz_ai_tools::requests::RequestFolder;
+use kassensturz_ai_tools::{Function, ToolError, readable_functions};
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{READ_DEBUG_LOG, read_debug_log};
-use kassensturz_ai_tools::{ToolError, readable_functions};
 use kassensturz_core::ai_switch::{self, Permissions};
 #[cfg(feature = "debug-log")]
 use kassensturz_core::debug_log::{DebugLog, Event};
@@ -178,6 +178,14 @@ impl ServerHandler for Server {
     ) -> Result<CallToolResponse, ErrorData> {
         stop_if_switched_off();
         let arguments = request.arguments.map_or(Value::Null, Value::Object);
+        // Reads no book, so it answers even when no book can be read or a
+        // test app started since: the AI can always tell which build of
+        // these tools runs (M6-B225).
+        if request.name == SERVER_INFO.name {
+            let (result, code) = server_info(&arguments);
+            self.note(&request.name, code);
+            return Ok(result.into());
+        }
         // Looked up for each call: the app may have opened another book
         // since the last one (M6-B208).
         // A test app started or ended since the start, or does while this
@@ -341,6 +349,49 @@ pub(crate) fn instructions(write_tools: bool, log_readable: bool) -> String {
     )
 }
 
+/// The tool that says which build of these tools runs (M6-B225). Only the
+/// MCP server offers it: the AI tool starts this program on its own, so
+/// after an update of KassenSturz it may still run the old build, while the
+/// chat inside the app always is the app's build. It reads no book and is
+/// offered whatever the user allows reading.
+const SERVER_INFO: Function = Function {
+    name: "server_info",
+    description: "Says which build of KassenSturz these tools are: version, e.g. \
+        0.261111.29, and commit. Compare it with the version under About in KassenSturz's Settings: \
+        when they differ, this AI tool still runs an older build of these tools, so the \
+        user quits and restarts this AI tool. Reads nothing from the book.",
+    parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
+};
+
+/// The answer of [`SERVER_INFO`]: this build's version and commit, the
+/// same as the MCP handshake's `serverInfo.version` and the instructions,
+/// for AI tools that show neither to the model (M6-B225). It takes no
+/// arguments; an empty object or none is fine.
+fn server_info(arguments: &Value) -> (CallToolResult, Option<&'static str>) {
+    let takes_none = match arguments {
+        Value::Null => true,
+        Value::Object(values) => values.is_empty(),
+        _ => false,
+    };
+    if !takes_none {
+        return outcome(Err(ToolError::BadArgument {
+            argument: "arguments",
+        }));
+    }
+    let mut value = serde_json::json!({
+        "app": "KassenSturz",
+        "version": VERSION,
+        "pre_release": true,
+    });
+    if !COMMIT.is_empty() {
+        value["commit"] = Value::from(COMMIT);
+    }
+    (
+        CallToolResult::success(vec![ContentBlock::text(value.to_string())]),
+        None,
+    )
+}
+
 /// What the instructions say about an answer with `next_step`, the keywords
 /// of [`next_step`] (M6-B194).
 const LAYOUT_STEPS: &str = "When a tool answers with next_step, the book couldn't be read \
@@ -356,7 +407,8 @@ const LAYOUT_STEPS: &str = "When a tool answers with next_step, the book couldn'
      AI tool started these tools, so the user quits and restarts this AI tool; until then no \
      book is read.";
 
-/// The read functions the user allows reading (D-252) as MCP tools, in their order, then the one that
+/// The read functions the user allows reading (D-252) as MCP tools, in their order, then
+/// [`SERVER_INFO`], which reads no book and is always offered (M6-B225), then the one that
 /// reads the debug log while the AI tool may, and after them the write tools
 /// while they are on.
 fn tools(
@@ -364,7 +416,7 @@ fn tools(
     write_permissions: Option<Permissions>,
     log_readable: bool,
 ) -> Vec<Tool> {
-    let read = readable_functions(permissions);
+    let read = readable_functions(permissions).chain([&SERVER_INFO]);
     #[cfg(feature = "debug-log")]
     let read = read.chain(log_readable.then_some(&READ_DEBUG_LOG));
     #[cfg(not(feature = "debug-log"))]
@@ -640,18 +692,20 @@ mod tests {
     fn every_read_function_is_a_read_only_tool() {
         let tools = tools(Permissions::all(), None, false);
         let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_ref()).collect();
-        let functions: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
+        let mut functions: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
+        // The build's own tool comes right after the read functions (M6-B225).
+        functions.push(SERVER_INFO.name);
         assert_eq!(names, functions);
         let with_writes = super::tools(Permissions::all(), Some(Permissions::all()), false);
-        assert_eq!(with_writes.len(), FUNCTIONS.len() + 3);
+        assert_eq!(with_writes.len(), FUNCTIONS.len() + 4);
         assert_eq!(with_writes[..tools.len()], tools[..]);
         // In the developer mode, the debug log's tool comes after the read
         // functions (D-227).
         let with_log = super::tools(Permissions::all(), Some(Permissions::all()), true);
         #[cfg(feature = "debug-log")]
         {
-            assert_eq!(with_log.len(), FUNCTIONS.len() + 4);
-            assert_eq!(with_log[FUNCTIONS.len()].name, READ_DEBUG_LOG.name);
+            assert_eq!(with_log.len(), FUNCTIONS.len() + 5);
+            assert_eq!(with_log[FUNCTIONS.len() + 1].name, READ_DEBUG_LOG.name);
         }
         #[cfg(not(feature = "debug-log"))]
         assert_eq!(with_log, with_writes);
@@ -676,6 +730,32 @@ mod tests {
                 tool.name
             );
         }
+    }
+
+    #[test]
+    fn server_info_names_the_build_whatever_the_user_allows_reading() {
+        // Offered even when the user allows reading nothing of the book.
+        let tools = tools(Permissions::defaults(), None, false);
+        assert!(tools.iter().any(|tool| tool.name == SERVER_INFO.name));
+        let (result, code) = server_info(&Value::Null);
+        assert_eq!(code, None);
+        assert_eq!(result.is_error, Some(false));
+        let text = result.content[0].as_text().expect("text").text.clone();
+        let answer: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(answer["app"], "KassenSturz");
+        assert_eq!(answer["version"], VERSION);
+        assert_eq!(answer["pre_release"], true);
+        if COMMIT.is_empty() {
+            assert!(answer.get("commit").is_none(), "{answer}");
+        } else {
+            assert_eq!(answer["commit"], COMMIT);
+        }
+        assert_eq!(server_info(&serde_json::json!({})).1, None);
+        // It takes no arguments, and never echoes what was sent (X-8).
+        let (result, code) = server_info(&serde_json::json!({"sql": "DROP TABLE accounts"}));
+        assert_eq!(code, Some("ai-tools.bad-argument"));
+        let text = result.content[0].as_text().expect("text").text.clone();
+        assert!(!text.contains("DROP"), "{text}");
     }
 
     #[test]

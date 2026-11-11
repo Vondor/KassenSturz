@@ -314,6 +314,21 @@
               "type": "object"
             },
             "name": "list_views"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Says which build of KassenSturz these tools are: version, e.g. 0.261111.29, and commit. Compare it with the version under About in KassenSturz's Settings: when they differ, this AI tool still runs an older build of these tools, so the user quits and restarts this AI tool. Reads nothing from the book.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object"
+            },
+            "name": "server_info"
           }
         ]
       }

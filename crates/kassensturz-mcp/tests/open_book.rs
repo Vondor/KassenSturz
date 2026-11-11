@@ -259,3 +259,36 @@ fn a_test_folder_named_from_outside_is_refused_unless_every_folder_is_in_it() {
         .expect("runs");
     assert_eq!(output.status.code(), Some(2), "{}", common::stderr(&output));
 }
+
+/// The AI can read which build of these tools runs, for AI tools that show
+/// it neither the handshake's version nor the instructions, and it can even
+/// when no book can be read (M6-B225).
+#[test]
+fn server_info_names_the_build_even_when_no_book_is_read() {
+    let folder = Folder::new("server-info");
+    folder.book();
+    open_in_app(&folder, "Household.ksz");
+    let mut session = Session::start_without_book(folder.path());
+    let handshake = session.initialize("2025-06-18");
+    // The settings no longer name a book, so every book tool refuses.
+    folder.switch_ai(true);
+    let (refused, error) = session.call("list_accounts", json!({}));
+    assert!(error, "{refused}");
+    assert_eq!(refused["error"], json!("mcp.no-book"), "{refused}");
+
+    let (answer, error) = session.call("server_info", json!({}));
+    assert!(!error, "{answer}");
+    assert_eq!(answer["app"], json!("KassenSturz"), "{answer}");
+    let version = env!("KASSENSTURZ_BUILD_VERSION");
+    assert_eq!(answer["version"], json!(version), "{answer}");
+    assert_eq!(
+        answer["version"], handshake["result"]["serverInfo"]["version"],
+        "the same version as the handshake"
+    );
+    assert_eq!(answer["pre_release"], json!(true), "{answer}");
+    let commit = env!("KASSENSTURZ_BUILD_COMMIT");
+    if !commit.is_empty() {
+        assert_eq!(answer["commit"], json!(commit), "{answer}");
+    }
+    session.finish();
+}

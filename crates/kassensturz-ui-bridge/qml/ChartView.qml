@@ -66,15 +66,18 @@ ColumnLayout {
 
     // Bars drawn as rows: the whole name on the left, the bars to its right.
     // The user can choose rows or upright bars for bars and stacked bars
-    // (D-679). Automatic keeps the rule from before: one series of plain
-    // bars whose names would need more than two lines under their bars
-    // (M6-B3). The width is an estimate (the chart's own width less the
-    // value axis), so the choice never depends on the picture.
+    // (D-679). Automatic: plain bars, of one series or several side by side,
+    // whose names would need more than two lines under their bars (M6-B3),
+    // or whose longest word is wider than a bar's slot and would break
+    // inside the word (M6-B229). The width is an estimate (the chart's own
+    // width less the value axis), so the choice never depends on the picture.
     readonly property bool barKind: chart.kind === "bar" || chart.kind === "stacked-bar"
+    readonly property real slotEstimate: (view.width - Kirigami.Units.gridUnit * 4) / Math.max(1, count)
     readonly property bool horizontal: barKind && count > 0 && overlays.length === 0
         && (orientation === "horizontal"
-            || orientation !== "vertical" && chart.kind === "bar" && chart.series.length === 1
-                && longestName.advanceWidth > 2 * (view.width - Kirigami.Units.gridUnit * 4) / count)
+            || orientation !== "vertical" && chart.kind === "bar"
+                && (longestName.advanceWidth > 2 * slotEstimate
+                    || longestWord.advanceWidth > slotEstimate - Kirigami.Units.smallSpacing))
     readonly property bool stacked: chart.kind === "stacked-bar"
 
     // Where `value` sits across a row of `width`, between the axis' lowest
@@ -112,6 +115,24 @@ ColumnLayout {
             pieces.push({series: series, x: Math.min(one, two), width: Math.abs(two - one)});
         }
         return pieces;
+    }
+
+    // The longest single word of the names: a word is never broken.
+    TextMetrics {
+        id: longestWord
+
+        font: Kirigami.Theme.smallFont
+        text: {
+            let found = "";
+            for (let index = 0; index < view.count; ++index) {
+                for (const word of view.categoryName(index).split(/\s+/)) {
+                    if (word.length > found.length) {
+                        found = word;
+                    }
+                }
+            }
+            return found;
+        }
     }
 
     TextMetrics {
@@ -509,8 +530,33 @@ ColumnLayout {
                     lineAligned: view.lines
                 }
 
-                // The second mark of each bar's series, in the bar (D-283),
-                // where there is more than one series to tell apart.
+                // A bar of zero, where other series have bars: a thin line of
+                // its series' colour on the zero line, so the empty slot
+                // reads as "nothing" and not as a gap (M6-B229).
+                Repeater {
+                    model: !view.round && !view.lines && !view.stacked && view.chart.series.length > 1
+                        ? view.chart.series.length * view.count : 0
+
+                    delegate: Rectangle {
+                        required property int index
+                        readonly property int seriesIndex: Math.floor(index / view.count)
+                        readonly property int pointIndex: index % view.count
+                        readonly property var series: view.chart.series[seriesIndex]
+                        readonly property real value: series?.points[pointIndex]?.value ?? 1
+                        readonly property real span: view.high - view.low
+
+                        visible: value === 0 && span > 0
+                        width: view.barWidth(plot.width)
+                        height: 2
+                        x: view.barMiddle(seriesIndex, pointIndex, plot.width) - width / 2
+                        y: span > 0 ? (1 - (0 - view.low) / span) * plot.height - height : 0
+                        color: series ? ChartPalette.color(series.color, view.extraColors) : "transparent"
+                    }
+                }
+
+                // The second mark of each bar's series (D-283), where there
+                // is more than one series to tell apart: white in a tall bar,
+                // in the series' colour just above a short one (M6-B229).
                 Repeater {
                     model: !view.round && !view.lines && view.chart.series.length > 1
                         ? view.chart.series.length * view.count : 0
@@ -527,7 +573,9 @@ ColumnLayout {
                         y: place ? place.y : 0
                         text: ["■", "●", "▲", "◆"][marker] ?? ""
                         textFormat: Text.PlainText
-                        color: "white"
+                        color: place && place.inside
+                            ? "white"
+                            : ChartPalette.color(view.chart.series[seriesIndex]?.color ?? 0, view.extraColors)
                         Accessible.ignored: true
                     }
                 }
@@ -716,15 +764,19 @@ ColumnLayout {
                                         border.width: view.current === barRow.index ? 2 : 0
                                         border.color: Kirigami.Theme.highlightColor
 
+                                        // In the piece where there is room, else just
+                                        // after a plain bar in its colour (M6-B229).
                                         Controls.Label {
                                             readonly property int marker: view.chart.series.length > 1 ? (piece.series.marker ?? -1) : -1
+                                            readonly property bool inside: piece.width > width * 1.4
 
-                                            anchors.centerIn: parent
-                                            visible: marker >= 0 && piece.width > width * 1.4
+                                            x: inside ? (piece.width - width) / 2 : piece.width + 2
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            visible: marker >= 0 && (inside || !view.stacked)
                                             text: ["■", "●", "▲", "◆"][marker] ?? ""
                                             textFormat: Text.PlainText
                                             font: Kirigami.Theme.smallFont
-                                            color: "white"
+                                            color: inside ? "white" : piece.color
                                             Accessible.ignored: true
                                         }
                                     }
@@ -987,6 +1039,9 @@ ColumnLayout {
             yRange { from: view.low; to: view.high; automatic: false }
             stacked: view.chart.kind === "stacked-bar"
             spacing: Kirigami.Units.smallSpacing
+            // Never wider than a few lines of text: a chart of one category
+            // would otherwise fill half the picture with each bar (M6-B229).
+            barWidth: view.barWidth(width)
             indexingMode: Charts.Chart.IndexEachSource
             colorSource: Charts.ArraySource {
                 array: view.chart.series.map(series => ChartPalette.color(series.color, view.extraColors))
@@ -1015,18 +1070,38 @@ ColumnLayout {
 
     // The sources of values of a chart, one per series, from the drawing
     // values: they only place the marks (AGENTS.md §5).
+    // The width of one bar in a picture `width` wide: an equal share of the
+    // category's slot, at most three grid units. The bar chart centres each
+    // category's bars in its slot (KQuickCharts, a set `barWidth`).
+    function barWidth(width: real): real {
+        const group = stacked ? 1 : Math.max(1, chart.series.length);
+        const share = width / Math.max(1, count) / group - Kirigami.Units.smallSpacing;
+        return Math.max(1, Math.min(Kirigami.Units.gridUnit * 3, share));
+    }
+
+    // The middle of bar (`series`, `point`) across a picture `width` wide.
+    function barMiddle(series: int, point: int, width: real): real {
+        const slot = width / Math.max(1, count);
+        if (stacked) {
+            return (point + 0.5) * slot;
+        }
+        const group = Math.max(1, chart.series.length);
+        const one = barWidth(width);
+        const gap = Kirigami.Units.smallSpacing;
+        const all = one * group + gap * (group - 1);
+        return point * slot + slot / 2 - all / 2 + series * (one + gap) + one / 2;
+    }
+
     // Where the mark of bar (`series`, `point`) goes in a picture of `width` by
-    // `height`: near the top of the bar, or null when the bar is too short
-    // for it, then the table has the value. `size` is the mark's height.
+    // `height`: near the top of the bar (`inside`), or just above a bar too
+    // short for it; null for a bar below zero or a piece of a stacked bar
+    // too short for it. `size` is the mark's height.
     function barPlace(series: int, point: int, width: real, height: real, size: real): var {
         // While the charts switch, a mark can ask for a series that is gone.
         const points = chart.series[series]?.points;
         if (!points || points[point] === undefined) {
             return null;
         }
-        const stacked = chart.kind === "stacked-bar";
-        const slot = width / count;
-        const group = chart.series.length;
         let from = 0;
         let to = points[point].value;
         if (stacked) {
@@ -1041,12 +1116,14 @@ ColumnLayout {
         const span = high - low;
         const top = Math.max(0, (1 - (to - low) / span) * height);
         const bottom = (1 - (from - low) / span) * height;
-        if (to <= from || bottom - top < size * 1.2) {
+        if (to < from || stacked && (to === from || bottom - top < size * 1.2)) {
             return null;
         }
+        const inside = bottom - top >= size * 1.2;
         return {
-            x: stacked ? (point + 0.5) * slot : point * slot + (series + 0.5) * slot / group,
-            y: top + size * 0.2
+            x: barMiddle(series, point, width),
+            y: inside ? top + size * 0.2 : Math.max(0, top - size - 2),
+            inside: inside
         };
     }
 

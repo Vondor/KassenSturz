@@ -89,6 +89,8 @@ fn no_tool_answer_holds_a_secret() {
     let mut names = tool_names(&mut session);
     names.sort();
     let mut expected: Vec<_> = FUNCTIONS.iter().map(|f| f.name.to_owned()).collect();
+    // And the build's own tool, which reads no book (M6-B225).
+    expected.push("server_info".to_owned());
     expected.sort();
     assert_eq!(names, expected);
 
@@ -96,6 +98,7 @@ fn no_tool_answer_holds_a_secret() {
     let groceries = GROCERIES.to_string();
     for (name, arguments) in [
         ("list_accounts", json!({"include_closed": true})),
+        ("server_info", json!({})),
         ("account_balance", json!({"account_id": checking})),
         (
             "category_totals",
@@ -159,6 +162,7 @@ fn the_write_tools_offer_no_way_to_apply_or_pay() {
     expected.extend([
         "propose_changes".to_owned(),
         "check_proposed_changes".to_owned(),
+        "server_info".to_owned(),
     ]);
     expected.sort();
     assert_eq!(names, expected, "write tools only propose and check");

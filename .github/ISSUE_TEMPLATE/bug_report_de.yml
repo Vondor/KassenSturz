@@ -1,0 +1,49 @@
+name: Fehler melden (Deutsch)
+description: In KassenSturz funktioniert etwas nicht so, wie es sollte.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke, dass Sie uns einen Fehler melden. Bitte schreiben Sie **keine echten**
+        Kontonummern, IBANs, Beträge oder Namen in die Meldung und laden Sie keine
+        Bilder davon hoch. Nehmen Sie stattdessen ausgedachte Beispiele.
+        Wenn es um eine Sicherheitslücke geht, melden Sie sie bitte nicht hier,
+        sondern privat (siehe SECURITY.md).
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: Was ist passiert?
+      description: Was hatten Sie stattdessen erwartet?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Was haben Sie davor gemacht?
+      description: Schreiben Sie bitte Schritt für Schritt auf, wie wir den Fehler nachstellen können.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: KassenSturz-Version
+      description: Sie finden die Nummer in den Einstellungen unter „Über“.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Auf welchem Computer läuft KassenSturz?
+      options:
+        - Windows
+        - Ubuntu
+        - Anderes Linux (KDE Plasma)
+        - Anderes Linux (GNOME)
+        - Anderes Linux
+        - macOS
+    validations:
+      required: true

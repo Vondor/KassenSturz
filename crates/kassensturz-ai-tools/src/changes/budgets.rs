@@ -670,12 +670,6 @@ pub(super) fn new_budget(
     )?;
     let one = item.id("category_id")?;
     let several = ids_of(&item, "category_ids")?;
-    // The argument that names the categories, for a refusal.
-    let named = if one.is_some() {
-        "category_id"
-    } else {
-        "category_ids"
-    };
     let categories = match (one, several.is_empty()) {
         (Some(id), true) => vec![id],
         (None, false) => several,
@@ -721,17 +715,14 @@ pub(super) fn new_budget(
     };
     // Refused in the AI's own words, pointing to edit_budgets: the store's
     // code names the category only by its ID (M6-B216).
+    // Another new budget of the same set counts the same money: the same
+    // refusal, so the model learns to keep one of them (#651).
     if budgets
         .iter()
+        .chain(prepared.iter())
         .any(|budget| probe.clashes_with(budget).is_some())
     {
         return Err(ToolError::HasBudget);
-    }
-    if prepared
-        .iter()
-        .any(|budget| probe.clashes_with(budget).is_some())
-    {
-        return Err(ToolError::BadArgument { argument: named });
     }
     let counts = Counts {
         categories: &categories,

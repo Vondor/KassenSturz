@@ -521,7 +521,7 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
                 {"category_id": food, "every": "month", "amount": "10"},
                 {"category_id": food, "every": "year", "amount": "10"}
             ]}),
-            "bad-argument category_id",
+            "ai-tools.has-budget edit_budgets",
         ),
         // Several categories (D-641): one way to name them, as a list of
         // IDs, each once, in one currency; the accounts are the user's own.
@@ -580,7 +580,7 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
                 {"category_ids": [food, fun], "every": "month", "amount": "10"},
                 {"category_id": fun, "every": "year", "amount": "10"}
             ]}),
-            "bad-argument category_id",
+            "ai-tools.has-budget edit_budgets",
         ),
         (
             json!({"edit_budgets": [{"amount": "10"}]}),

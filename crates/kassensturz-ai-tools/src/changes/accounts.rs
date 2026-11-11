@@ -153,9 +153,7 @@ impl Known {
                 .ok_or(ToolError::BadArgument {
                     argument: "currency",
                 })?,
-            None => self.usual_currency.ok_or(ToolError::BadArgument {
-                argument: "currency",
-            })?,
+            None => self.usual_currency.ok_or(ToolError::CurrencyNeeded)?,
         };
         if self.account_name_taken(&name, None) {
             return Err(ToolError::NameTaken);

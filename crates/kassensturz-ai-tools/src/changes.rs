@@ -1963,9 +1963,7 @@ impl Known {
             }
             (Some(parent), _) => parent.currency,
             (None, Some(asked)) => asked,
-            (None, None) => self.usual_currency.ok_or(ToolError::BadArgument {
-                argument: "currency",
-            })?,
+            (None, None) => self.usual_currency.ok_or(ToolError::CurrencyNeeded)?,
         };
         let kind = if income {
             AccountKind::Income

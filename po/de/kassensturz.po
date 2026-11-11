@@ -17154,6 +17154,12 @@ msgctxt "@item:inlistbox the transaction gets no category yet"
 msgid "Not sorted yet"
 msgstr "Noch nicht zugeordnet"
 
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:72
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "The category it has now (not in this list)"
+msgstr "Bisherige Kategorie (nicht in dieser Liste)"
+
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:332
 #, kde-format
 msgctxt "@action:button"

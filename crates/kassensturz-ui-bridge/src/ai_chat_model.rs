@@ -1062,8 +1062,9 @@ pub(crate) mod engine {
         let corrected = set.corrected();
         // The only call that applies a set: the confirm button's (D-200).
         // No book open any more means the set is out of date.
+        let today = app_locale().today();
         let result = session::with_book_mut(|book| {
-            confirm_in(book, set, kassensturz_core::ai_switch::permissions())
+            confirm_in(book, set, kassensturz_core::ai_switch::permissions(), today)
         })
         .unwrap_or(Err(ChangeError::OutOfDate));
         if let Some(from) = &from

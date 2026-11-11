@@ -64,10 +64,11 @@ Joining the two sides of a Transfer between the user's own accounts into one tra
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
-| `transfer.not-a-side` | `transaction` | | {transaction} can't be one side of a Transfer: it needs one part for one of your accounts and one part without a category yet. Choose a transaction from your bank that has no category. |
+| `transfer.not-a-side` | `transaction` | | {transaction} can't be one side of a Transfer: it needs one part for one of your accounts and one other part, with or without a category, both in one currency. Choose a transaction from your bank that isn't broken down into more parts. |
 | `transfer.same-transaction` | `transaction` | | A Transfer needs two transactions: money out of one account and into another. Choose the other side. |
 | `transfer.same-account` | `account` | | Both transactions are in {account}. A Transfer moves money between two of your accounts. Choose the other account's transaction. |
 | `transfer.amounts-differ` | `first`, `second` | | One side says {first}, the other {second}. The money taken out of one account has to be what arrived in the other. Choose the matching transaction. |
+| `transfer.part-holds-more` | `transaction`, `what` | `note`, `number` | Joining {transaction} would take away its category part, and that part has its own {what}, different from the one on the account's part. Open the transaction, change the parts so only one {what} is left, then join them. |
 
 A joined transaction that wouldn't add up is reported with its `transaction` code.
 

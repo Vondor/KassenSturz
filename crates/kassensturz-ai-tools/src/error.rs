@@ -11,6 +11,22 @@
 use kassensturz_core::{ErrorParam, ErrorReport, Report};
 use kassensturz_store::StoreError;
 
+/// The words that say what an argument of a change list has to be
+/// (US3.9). They are the same for every list, so a small model learns one
+/// set; the answer's `expected_shape` is one of them.
+pub(crate) mod shape {
+    /// An object (`{...}`), as the call itself and every item of a list is.
+    pub(crate) const OBJECT: &str = "an object";
+    /// A list whose items are objects, as every list of changes is.
+    pub(crate) const LIST_OF_OBJECTS: &str = "a list of objects";
+    /// Text, in quotation marks.
+    pub(crate) const TEXT: &str = "text";
+    /// `true` or `false`, without quotation marks.
+    pub(crate) const TRUE_OR_FALSE: &str = "true or false";
+    /// Text that is an ID, as the read functions give it.
+    pub(crate) const ID: &str = "text that is an ID, as the read functions give it";
+}
+
 /// An error of a read function.
 #[derive(Debug)]
 pub enum ToolError {
@@ -21,6 +37,18 @@ pub enum ToolError {
     BadArgument {
         /// The argument's name, from the function's fixed list.
         argument: &'static str,
+    },
+    /// An argument of a `propose_changes` call is of the wrong kind, such as
+    /// a list that is an object or an item that is a text (US3.9). It is
+    /// reported as [`Self::BadArgument`]; the answer to the model adds the
+    /// shape that was expected, from KassenSturz's own fixed words, never
+    /// the model's text (X-8).
+    NotShaped {
+        /// The argument's name, from the function's fixed list.
+        argument: &'static str,
+        /// What the argument has to be: one of the fixed words of
+        /// [`shape`].
+        expected: &'static str,
     },
     /// A `propose_view` argument that doesn't suit the chosen data or way of
     /// drawing it, such as `show_as` `line` for data drawn only as bars
@@ -267,6 +295,15 @@ impl ToolError {
         }
     }
 
+    /// What the argument has to be, when it was of the wrong kind (US3.9):
+    /// the answer to the model says it, so it can fix its call.
+    pub fn expected_shape(&self) -> Option<&'static str> {
+        match self.kind() {
+            Self::NotShaped { expected, .. } => Some(expected),
+            _ => None,
+        }
+    }
+
     /// The ways of drawing the data that take the argument, when the chosen
     /// one takes none (M6-B204).
     pub fn only_for_show_as(&self) -> Option<&[&'static str]> {
@@ -349,10 +386,10 @@ impl Report for ToolError {
     fn report(&self) -> ErrorReport {
         match self {
             Self::UnknownFunction => ErrorReport::new("ai-tools.unknown-function"),
-            Self::BadArgument { argument } | Self::NotForChart { argument, .. } => {
-                ErrorReport::new("ai-tools.bad-argument")
-                    .with("argument", ErrorParam::Keyword(argument))
-            }
+            Self::BadArgument { argument }
+            | Self::NotShaped { argument, .. }
+            | Self::NotForChart { argument, .. } => ErrorReport::new("ai-tools.bad-argument")
+                .with("argument", ErrorParam::Keyword(argument)),
             Self::UnknownField { argument, .. } => ErrorReport::new("ai-tools.unknown-field")
                 .with("argument", ErrorParam::Keyword(argument)),
             Self::CallTooBig { max_bytes } => ErrorReport::new("ai-tools.call-too-big")
@@ -625,6 +662,18 @@ mod tests {
             ]
         }));
         // A chart setting that doesn't suit the chart (M6-B204).
+        for expected in [
+            super::shape::OBJECT,
+            super::shape::LIST_OF_OBJECTS,
+            super::shape::TEXT,
+            super::shape::TRUE_OR_FALSE,
+            super::shape::ID,
+        ] {
+            examples.push(ToolError::NotShaped {
+                argument: "arguments",
+                expected,
+            });
+        }
         examples.push(ToolError::NotForChart {
             argument: "show_as",
             allowed: vec!["auto", "bar"],

@@ -854,7 +854,7 @@ impl Book {
     }
 
     /// The parts Rules booked, with the Rule that decided.
-    fn marks(&self) -> Result<HashMap<SplitId, Option<RuleId>>, StoreError> {
+    pub(crate) fn marks(&self) -> Result<HashMap<SplitId, Option<RuleId>>, StoreError> {
         let mut statement = self
             .conn
             .prepare("SELECT split_id, rule_id FROM split_rules")?;

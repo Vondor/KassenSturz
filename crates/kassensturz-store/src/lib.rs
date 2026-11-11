@@ -49,6 +49,7 @@ pub use layout::{FIRST_VERSION as FIRST_LAYOUT, VERSION as LAYOUT};
 pub use lock::Lock;
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
+pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};
 
 use lock::HeldLock;
 

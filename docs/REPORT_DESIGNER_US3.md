@@ -1,15 +1,15 @@
-# Per-bar figures: comparison bars and your own figures (US3.1)
+# Per-bar figures: comparison bars and a formula per bar (US3.1)
 
 Design of User Sprint 3 item US3.1, written by thread A in Phase 2 before its build (D-687; its row stays apart from D-685's so parallel pull requests don't touch neighbouring lines, D-577). It answers two wishes from US1 Phase 3 with one idea, **each bar can carry its own figure**:
 
 - **#587:** on a spending chart by category, each category's figure next to a comparison (the period before, the same period last year, or the average of 3, 6 or 12 periods before), as two bars per category. It is the same in the app and in `propose_view`.
 - **#562:** a bar chart whose bars are figures the user writes, each as a formula. For example, last month's salary next to this month's money out.
 
-They are designed together because both put more than one figure source into one bar chart. Two separate "per bar" settings would confuse the user. The design keeps them as **two settings on two kinds of data**, so a chart never has both: a *comparison* belongs to spending by category, and *your own figures* is a dataset of its own whose bars are formulas.
+They are designed together because both put more than one figure source into one bar chart. Two separate "per bar" settings would confuse the user. The design keeps them as **two settings that never meet in one chart**: a *comparison* belongs to the rows of spending by category, and a *formula per bar* is a column of the columns the app already has (D-339, D-341).
 
-Release stage: **Alpha** (D-274). There is no book layout change and no document version change. A new choice word, a new dataset and one new property of the existing `views` documents need no migration in Alpha (D-045). An older build refuses a chart that uses them as it refuses any unknown word. The book format is not touched, so this is not a **[format]** item.
+Release stage: **Alpha** (D-274). There is no book layout change and no document version change. New choice words of an existing property of the `views` documents need no migration in Alpha (D-045). An older build refuses a chart that uses them as it refuses any unknown word. The book format is not touched, so this is not a **[format]** item.
 
-**What stays true (D-342):** the app is complete without either. A chart has no comparison until the user picks one, and *Your own figures* appears only when the user adds it from the Add menu. **Numbers come from code (AGENTS.md §8):** every figure is worked out by `kassensturz-report`. Amounts reach QML only as text (D-065).
+**What stays true (D-342):** the app is complete without either. A chart has no comparison until the user picks one, and columns stay where the Statistic Builder already has them. **Numbers come from code (AGENTS.md §8):** every figure is worked out by `kassensturz-report`. Amounts reach QML only as text (D-065).
 
 ## 1. Comparison bars on spending by category (D-687 part 1; #587)
 
@@ -59,45 +59,37 @@ The same approach as D-668: **the figures stay, and the chart says so.** Today a
 - `kassensturz-ui-bridge`: `charts.rs` reads `params.compare` into the request and reads the source over the whole span. The notes of 1.3 are added as `NoteView`s, read back as QML reads them. `ChartView.qml` names series 1, and `PropertiesPanel` shows the choice. New strings are translated (`po/de`).
 - AI: in `propose_view`, `compare` is allowed for show_as `bar` and `table` with data `spending_by_category`, and the `average-N` words only there (`what_suits` lists the words per show_as). `list_views` reports it. The answer has no `computed`: a chart of many figures is read with the read functions (D-685).
 
-## 2. Your own figures: one bar per formula (D-687 part 2; #562)
+## 2. A formula per bar: the AI gets the columns the app already has (D-687 part 2; #562)
 
-### 2.1 The dataset and the setting
+**Corrected after the design merged (#667):** the app already draws a bar per formula. A bar chart or table can be made of named columns (`params.columns`, D-339), and since D-341 a column can be a formula whose `@` gives it its own period. So the example of #562 already works in the Statistic Builder today, as two columns *Salary last month* `=Salary@"last month"` and *Money out this month* `=Spending.ALL`. A new dataset `own_figures` would have been a second way to do the same thing, so it is dropped. What is missing is that the AI can't prepare columns, and that the way to a formula column is hard to find.
 
-- A new catalog dataset **`own_figures`**, *"Your own figures: one bar per figure you write as a formula"*. It suits bar and table. It has no grouping and no key figure. It takes the accounts filter as a formula card does: the accounts narrow what every name counts. Categories are named in the formulas themselves, so the component's categories list doesn't apply, as on cards (D-650).
-- A new property **`params.bars`** (`Kind::Bars`): a list of **1 to 8 bars**, each `{"label": text, "formula": text}`. A label is plain text of at most 60 characters. A formula is in the stored form of D-292, at most `MAX_FORMULA_CHARS`.
-- **Each bar's period:** the chart's period, so a bar without `@` counts the chart's period. **A bar's own period is the formula's `@`** (D-649), for example `=Salary@"last month"`. No new period setting is needed, and the example of #562 is two bars: *Salary last month* `=Salary@"last month"` and *Money out this month* `=Spending.ALL`.
+### 2.1 The AI prepares columns
 
-### 2.2 The figures
+- `propose_view` takes **`columns`**: a list of 1 to 12 objects (`MAX_COLUMNS`). Each is either `{"name": text, "formula": text}` or `{"name": text, "categories": [IDs]}`, never both. Names must not be empty and must differ ignoring capitals, as the board demands (D-339).
+- It is allowed for show_as bar, stacked_bar, line, area and table with data `spending_by_category` (the datasets and kinds that take `params.columns` today; the build reads the schema for the exact list). When columns are given, they are the bars, as in the app.
+- It is **offered only with Categories › Read**, as `formula` is (D-650). Each formula is checked by `check_formula`. A mistake names `columns` and the column's place: `ai-tools.bad-formula` with `argument: "columns"`, `item` and `position`. A formula that gives a percent or a plain number is refused as the app refuses it (`report.column-formula-not-amount`, as a bad-formula reason `kinds`).
+- `MAX_VIEW_CALL_BYTES` rises from 8 KiB to 16 KiB, so 12 columns with formulas still fit.
+- `compare` (section 1) and `columns` don't go together: the comparison is for the dataset's own rows. A call with both is refused as `bad-argument compare`, and the schema refuses it in the app too.
+- `list_views` reports a chart's columns (names, and formulas or members only as the grid lets the model read them, D-681). The answer of `propose_view` has no `computed`, because a chart of many figures is read with the read functions (D-685).
 
-- Each bar is `Formula::evaluate` over the chart's period with the chart's accounts filter. These are the functions a formula card uses, so the same formula shows the same figure on a card and on a bar.
-- **One kind per chart:** the first bar that works decides the kind (an amount in one currency, a percent or a number). A later bar of another kind, or an amount in another currency, is left out of the drawing with a note: *"Bar 3 is a percent, the others are amounts, so it is left out."* The table still lists it with its own figure.
-- **A bar that can't be worked out** (a division by zero, an unknown name after a category was removed) is left out with a note naming the bar and the error in words, as the formula card says it (D-650). The others still draw.
-- **No total** under the chart: the bars are different things, so a sum would mean nothing.
+### 2.2 Easier to find in the app
 
-### 2.3 Drawing and editing
+- The Statistic Builder's board already turns an empty column into a formula column (D-341). The build adds one line of help under *Add a column*: *"A column can also be a formula, e.g. =Salary@"last month", with its own period."* This adds no new control.
 
-- **Bars:** one series, key `own`, one bar per entry in the order of the list, each named by its label (plain text, the user's own). The orientation rules of D-679 apply, so long labels give rows.
-- **Table:** *Bar*, *Figure*, and *Counts* (the categories and periods the formula counted, in the words `FormulaWords.qml` uses).
-- **The properties panel:** a *Bars* list. Each row has a name field and the existing formula field (with its suggestions and its mistake shown in words, M6b), plus buttons to move the row up or down and to remove it, and *Add a bar* up to 8. A new chart starts with one empty bar and the hint *"Write a formula for each bar, e.g. =Groceries or =Salary@"last month"."*
-- **The Add menu:** *Your own figures* under the charts.
+### 2.3 Where it lives in code (for the build)
 
-### 2.4 Where it lives in code (for the build)
-
-- `kassensturz-report`: `catalog.rs` adds `own_figures` (with `for_ai: true`). `schema.rs` adds `BARS` and `Kind::Bars` with its checks (1 to 8 entries, the label rules of `TITLE`, each formula parsed in stored form) to `BAR_CHART` and `TABLE`. A component refuses `bars` on another dataset and needs it on `own_figures`. `own_figures(source, period, filter, bars, currency)` gives one result per bar (`Ok` value or the error).
-- `kassensturz-charts`: `own_figures` builds the model and the table, with the notes of 2.2.
-- `kassensturz-ui-bridge` and QML: the request, the notes, the *Bars* editor, and the strings (`po/de`).
-- AI: `propose_view` takes `bars`, a list of 1 to 8 objects `{label, formula}`, only with data `own_figures` and show_as `bar` or `table`. It is offered only with Categories › Read, as `formula` is (D-650). Each formula is checked by `check_formula`, and a mistake names `bars` and the bar's place: `ai-tools.bad-formula` with `argument: "bars"`, `item` and `position`. `MAX_VIEW_CALL_BYTES` rises from 8 KiB to 16 KiB, so eight formulas of the longest length still fit. The answer's `computed` (D-685) gives each bar's figure with its place and label index, under the same permission rule. `list_views` reports the bars.
+- `ai-tools/src/changes/view_call.rs` (the argument, its schema and checks), `changes/views.rs` (the item key `columns`, set with `Setting::Columns`), `list_views`, the Statistic Builder's board QML (the help line), `po/de`. No change to `kassensturz-report` or `kassensturz-charts`.
 
 ## 3. Build order and the conflict map
 
 US3.1's build is **two PRs on thread A, in this order**, because both touch the same files:
 
 1. **US3.1a, comparison bars (section 1).** Files: `report/src/schema.rs` (its own entries only, US3 conflict map), `report/src/metrics.rs`, `report/src/spending.rs`, `charts/src/datasets.rs`, `ui-bridge/src/charts.rs`, `ChartView.qml`, `PropertiesPanel`, `ai-tools/src/changes/view_call.rs`, `po/de`.
-2. **US3.1b, your own figures (section 2)**, after 1a merges. Files: `report/src/catalog.rs`, `schema.rs`, a new `report/src/own_figures.rs`, `charts/src/datasets.rs`, the bridge, a new `BarsEditor.qml`, `view_call.rs`, `po/de`.
+2. **US3.1b, columns for the AI (section 2)**, after 1a merges. Files: `ai-tools/src/changes/view_call.rs`, `changes/views.rs`, the board QML, `po/de`.
 
 Thread B (budgets) also edits `schema.rs` with its own entries. A's build merges first, as the conflict map says. Each PR adds only its own German entries and its own roadmap line (D-577).
 
-**Tests** (AGENTS.md §9.4): the report figures of both sides against `spending_by_category_shown` for each period, and the average of N against the exact sum. Notes are tested on a synthetic book whose first transaction is late. Each bar is checked against a formula card with the same formula. The bridge maps are read back as QML reads them. The AI calls cover the refusals per show_as and the oversized call.
+**Tests** (AGENTS.md §9.4): the report figures of both sides against `spending_by_category_shown` for each period, and the average of N against the exact sum. Notes are tested on a synthetic book whose first transaction is late. The AI's columns are checked against the same chart built by hand with `params.columns`. The bridge maps are read back as QML reads them. The AI calls cover the refusals per show_as and the oversized call.
 
 ## 4. Choices made here, open to the maintainer
 
@@ -105,5 +97,5 @@ These are the safest reversible defaults (AGENTS.md §10). Each can change befor
 
 1. **An average compares with periods as long as the chart's own,** not always with months. A year chart then compares with the average year. *Why:* it is the rule `Period::before` already follows for cards, so one word means one thing everywhere.
 2. **Months before the first booking count as zero, with a note** (1.3), as D-668 does. *Why:* figures never change behind the user's back.
-3. **Comparison and own figures are two settings on two datasets,** never both in one chart. *Why:* a chart then has one plain-words meaning, and the everyday-user test (§6) stays easy.
-4. **At most 8 own bars.** *Why:* that is what one chart can label readably at the default size, and what the AI's call can hold.
+3. **A comparison and columns are never in one chart.** *Why:* a chart then has one plain-words meaning, and the everyday-user test (§6) stays easy.
+4. **#562 reuses the columns of D-339 and D-341,** with no new dataset. *Why:* one way to make a bar per formula, already tested, instead of two.

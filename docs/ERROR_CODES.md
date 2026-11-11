@@ -64,10 +64,11 @@ Joining the two sides of a Transfer between the user's own accounts into one tra
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
-| `transfer.not-a-side` | `transaction` | | {transaction} can't be one side of a Transfer: it needs one part for one of your accounts and one part without a category yet. Choose a transaction from your bank that has no category. |
+| `transfer.not-a-side` | `transaction` | | {transaction} can't be one side of a Transfer: it needs one part for one of your accounts and one other part, with or without a category, both in one currency. Choose a transaction from your bank that isn't broken down into more parts. |
 | `transfer.same-transaction` | `transaction` | | A Transfer needs two transactions: money out of one account and into another. Choose the other side. |
 | `transfer.same-account` | `account` | | Both transactions are in {account}. A Transfer moves money between two of your accounts. Choose the other account's transaction. |
 | `transfer.amounts-differ` | `first`, `second` | | One side says {first}, the other {second}. The money taken out of one account has to be what arrived in the other. Choose the matching transaction. |
+| `transfer.part-holds-more` | `transaction`, `what` | `note`, `number` | Joining {transaction} would take away its category part, and that part has its own {what}, different from the one on the account's part. Open the transaction, change the parts so only one {what} is left, then join them. |
 
 A joined transaction that wouldn't add up is reported with its `transaction` code.
 
@@ -474,6 +475,7 @@ Not rows yet: each code gets its row (in this section, the store's or the AI's) 
 - **Budgets over several categories (US1.10, built; D-639 to D-641):** `store.budget-choice` (row above) and the limits `categories` and `accounts` of `store.budget-too-many`; `store.budget-overlap` now also depends on the accounts. `ai-tools.bad-argument` gains `category_ids` (not a list of IDs, more than 20, given together with `category_id`, or a budget of the set already counting the same money) and `account_ids` (not a list of IDs, or more than 20); `category_id` is refused when neither is given. `store.budget-choice` reaches the model as it reaches the user; an account that isn't in the book is `ai-tools.unknown-account`. `FormError.qml` gets the words of `store.budget-choice` with the budget screens of this step.
 - **Account filter of the totals (M6-B206, D-667):** `ai-tools.bad-argument` keyword `account_ids` now also for `category_totals` and `payee_totals` (not a list of IDs, or more than 20); an ID that is not one of the user's own accounts is `ai-tools.unknown-account`.
 - **Budgets for a stretch of days (US3.11, D-688):** `new_budgets` takes `every` `range`; `ai-tools.bad-argument` gains `first_day` (missing for a range, not a `YYYY-MM-DD` day, or given for a repeating budget) and `last_day` (the same, or before today). `store.budget-period` (`ends-before-starts`, `too-long`, `carry-over-on-range`) reaches the model when the set is prepared, as it reaches the user.
+- **Shape hint of a refused change list (US3.9, D-696):** `ai-tools.bad-argument` keeps its code, parameter and keywords; when the argument was of the wrong kind, the answer to the model also has `expected_shape`, one of `a list of objects`, `an object`, `text`, `true or false` or `text that is an ID, as the read functions give it`. It is not a parameter of the report.
 - **Read-tool results (US2, #593, D-670):** `ai-tools.bad-period` now names its arguments, `argument` `to` and `not_before` `from`, never the days sent (X-8); `ai-tools.bad-argument` gains `offset` (not a whole number from 0 to 100000, for `search_transactions`) and `group_by` also for `payee_totals` (not `payee` or `other_party_name`).
 
 ### Planned for M6d (D-435 to D-447)

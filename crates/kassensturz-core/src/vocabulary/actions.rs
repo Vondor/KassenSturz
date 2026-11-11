@@ -472,6 +472,7 @@ pub const ACTIONS: &[&str] = &[
     "TransactionPage_save_2",
     "TransactionPage_save_3",
     "TransactionPage_save_4",
+    "TransactionPage_save_5",
     "TransactionRow_sortByColumn",
     "TransferPartnerDialog_pick",
     "TransferPrompt_noKeepThem",

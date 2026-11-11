@@ -416,9 +416,9 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.2** · **built** (design `docs/BUDGET_HISTORY.md`, D-689; build D-690: layout 29, export version 12, the Change sheet and the history line; the AI's `edit_budgets` `category_ids` and `account_ids` with the review card's before and after in their own pull request) · thread B · strong, high · L (design, then build) · [format]. #607 (US1.10a): a budget's categories or accounts can be changed from the current period on; each budget keeps a dated history of its set, so past periods show what they showed before (D-345). Why: today the only way is to stop the budget and make a new one
 
-- **US3.3** · **building** (design #662, D-691 to D-693; core and store built, then the app, then the AI after US3.9) · thread C · strong, high · L (design, then build). #571 and #594 part b: two sides that already have a category can be joined as one Transfer, in the UI with a preview and through the AI as a change set; both original amounts and currencies stay, one Undo takes it back; a hand-sorted side is never suggested on its own (D-031). Why: income and spending look larger than they are (principle 1)
+- **US3.3** · **building** (design #662, D-691 to D-693; core and store, the app and the AI's `join_transfers` built) · thread C · strong, high · L (design, then build). #571 and #594 part b: two sides that already have a category can be joined as one Transfer, in the UI with a preview and through the AI as a change set; both original amounts and currencies stay, one Undo takes it back; a hand-sorted side is never suggested on its own (D-031). Why: income and spending look larger than they are (principle 1)
 
-- **US3.4** · **planned** · thread D · standard, medium · S to M. US2 backlog 1: a *Note* field in the add and edit transaction forms. Why: the book and the AI have the note, the user can't type one
+- **US3.4** · **in review (D-694)** · thread D · standard, medium · S to M. US2 backlog 1: a *Note* field in the add and edit transaction forms. Why: the book and the AI have the note, the user can't type one
 
 - **US3.5** · **in review** (D-697) · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
 
@@ -447,6 +447,8 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 - **US3.17** · **check** (Q-474 = R) · Phase 3 test plan. #505 (US1.4): after a bank login is removed, its keychain entry has an empty password field; then the issue is closed
 
 - **US3.18** · **later** (Q-474 = R) · #511 (US1.25), bank setup in the first-run wizard, keeps its US1 line; decided with the stage Go and #513. Why: it puts a bank human gate in front of every new user, and bank sync has been tested on one machine only
+
+- **US3 backlog 1** · **later** (the maintainer, 2026-11-11) · US4 candidate · waits for: US4, with its own design. A transactions tile for the Overview and dashboards: a list that works like an account's register, but the user chooses which accounts it shows (one, several or all), which categories, and which days (e.g. the whole month or the last 7 days). Today: no tile lists single transactions; `table.rows` shows a dataset's totals, not entries. Tiles and the filter bar already narrow by accounts and categories (D-350, D-417), and the shared period setting covers this month, last month, last N months, salary months and typed ranges (D-332, D-644), but no rolling "last N days". Why: a new feature while US3 is in Phase 2, so nothing is built now
 
 ## How to pick work
 

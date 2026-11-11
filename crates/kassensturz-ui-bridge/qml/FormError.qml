@@ -265,6 +265,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is the name of a category", "The default categories can't be written: %1 isn't among them. Please report this, so it can be fixed.", result.parent);
         case "input.not-editable-here":
             return i18nContext.i18nc("@info", "This transaction can't be changed on this page. Go back to the list and open it again.");
+        case "input.note-invalid":
+            return i18nContext.i18nc("@info %1 is a number of characters", "A note can have up to %1 characters on a single line. Please shorten it or remove the line break.", result.max);
         case "input.no-parts":
             return i18nContext.i18nc("@info", "Add at least one part, so the transaction says what it was for.");
         case "input.too-many-open-parts":

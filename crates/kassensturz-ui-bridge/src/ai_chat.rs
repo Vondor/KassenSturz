@@ -41,6 +41,7 @@ use crate::errors::ErrorText;
 use crate::format::Locale;
 use crate::register::AmountWriter;
 use crate::rules::{Applied, ConditionForm, apply_examples, condition_form};
+use crate::transfer_prompt::{SuggestionText, suggestion_text};
 
 /// What the user decides about a request shown to them (D-210).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -592,6 +593,14 @@ pub enum ChangeView {
         /// them as their account's register will show them.
         applied: Applied,
     },
+    /// Two sides of a move between the user's accounts joined as one
+    /// Transfer (US3.3, D-693), shown as the app's own prompt shows a
+    /// Transfer to join (D-692): both sides from the book, the category
+    /// that goes and who sorted it.
+    JoinTransfer {
+        /// The two sides and the amount, written for the user.
+        transfer: SuggestionText,
+    },
 }
 
 /// How the amount of a prepared budget was computed, written for the user
@@ -994,6 +1003,9 @@ fn view_of(
             rule_name: sort.rule_name.clone().unwrap_or_default(),
             sort_again: sort.sort_again,
             applied: sorted_by_rules(book, sort, locale)?,
+        },
+        ProposedChange::JoinTransfer(join) => ChangeView::JoinTransfer {
+            transfer: suggestion_text(book, &book.all_accounts()?, &join.transfer, locale)?,
         },
     })
 }

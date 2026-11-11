@@ -65,6 +65,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a note that money moved between the user's own accounts is not counted", "Note about moved money");
         case "notice.unsorted":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a note with how many transactions have no category yet and the newest of them", "Transactions without a category");
+        case "notice.alarms":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: lines that say when a budget or an account crosses a limit the user set", "Warnings");
         }
         return i18nContext.i18nc("@item:inlistbox a part of the layout that this version doesn't know", "Unknown");
     }

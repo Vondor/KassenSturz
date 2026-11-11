@@ -18,8 +18,8 @@
 //! own budget operations and their checks.
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, Budget, BudgetAmount, BudgetEvery, BudgetId, CurrencyCode,
-    Date, Money,
+    Account, AccountId, AccountKind, Budget, BudgetAmount, BudgetCounts, BudgetEvery, BudgetId,
+    CurrencyCode, Date, Money,
 };
 use kassensturz_report::{BudgetGrouping, Filter, Period, ReportError, Source, budget_utilization};
 use kassensturz_store::{Book, StoreError};
@@ -525,8 +525,11 @@ fn spent_per_period(
     let probe = Budget {
         id: BudgetId::generate(),
         name: None,
-        categories: counts.categories.to_vec(),
-        accounts: counts.accounts.to_vec(),
+        counts: vec![BudgetCounts {
+            from_day: first_day,
+            categories: counts.categories.to_vec(),
+            accounts: counts.accounts.to_vec(),
+        }],
         every,
         first_day,
         last_day: Some(last_day),
@@ -683,8 +686,11 @@ pub(super) fn new_budget(
     let probe = Budget {
         id: BudgetId::generate(),
         name: None,
-        categories: categories.clone(),
-        accounts: accounts.clone(),
+        counts: vec![BudgetCounts {
+            from_day: first_day,
+            categories: categories.clone(),
+            accounts: accounts.clone(),
+        }],
         every,
         first_day,
         last_day: last_day_of(every, first_period_end),
@@ -783,11 +789,16 @@ pub(super) fn edit_budget(
     let before = *budget
         .amount_for(from_day)
         .ok_or(ToolError::Store(StoreError::UnknownBudget(id)))?;
-    let (currency, paths) = spending_categories(book, &budget.categories)?;
-    let account_names = own_accounts(book, &budget.accounts)?;
+    // What it counts in that period (D-689).
+    let set = budget
+        .counts_on(from_day)
+        .cloned()
+        .ok_or(ToolError::Store(StoreError::UnknownBudget(id)))?;
+    let (currency, paths) = spending_categories(book, &set.categories)?;
+    let account_names = own_accounts(book, &set.accounts)?;
     let counts = Counts {
-        categories: &budget.categories,
-        accounts: &budget.accounts,
+        categories: &set.categories,
+        accounts: &set.accounts,
         currency,
     };
     let carry_over = item.boolean("carry_over")?;
@@ -818,9 +829,9 @@ pub(super) fn edit_budget(
         name_before: budget.name.clone(),
         rename,
         changes_amount,
-        categories: budget.categories.clone(),
+        categories: set.categories,
         paths,
-        accounts: budget.accounts.clone(),
+        accounts: set.accounts,
         account_names,
         every: budget.every,
         from_day,

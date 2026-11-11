@@ -164,7 +164,50 @@ pub struct BudgetAmount {
     pub carry_over: bool,
 }
 
-/// A budget as the book keeps it (D-344, D-639).
+/// What a budget counts from one of its periods on, until the next
+/// [`BudgetCounts`] of the same budget (D-689): its spending categories and
+/// the accounts it counts from. Like its amounts, a change applies from the
+/// start of one period on, so earlier periods keep counting what they
+/// counted and their results don't change (D-345).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BudgetCounts {
+    /// The first day of the budget's period from which this applies.
+    pub from_day: Date,
+    /// The spending categories, at least one, in the order the user chose
+    /// them, each counted with everything inside it and every category
+    /// once however often it is reached (D-291, D-639). They share one
+    /// currency, the budget's.
+    pub categories: Vec<AccountId>,
+    /// The user's own accounts whose transactions it counts, or empty for
+    /// all of them (D-639). A transaction counts as a whole, as with the
+    /// filters (D-350): if it touches one of these accounts, its parts in
+    /// the categories count.
+    pub accounts: Vec<AccountId>,
+}
+
+impl BudgetCounts {
+    /// Whether this set and `other` count the same money: they share a
+    /// category and count from at least one account in common (no
+    /// accounts chosen means every account). Returns a category they
+    /// share.
+    fn shares_with(&self, other: &Self) -> Option<AccountId> {
+        let accounts_overlap = self.accounts.is_empty()
+            || other.accounts.is_empty()
+            || self
+                .accounts
+                .iter()
+                .any(|account| other.accounts.contains(account));
+        if !accounts_overlap {
+            return None;
+        }
+        self.categories
+            .iter()
+            .copied()
+            .find(|category| other.categories.contains(category))
+    }
+}
+
+/// A budget as the book keeps it (D-344, D-639, D-689).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Budget {
     /// The budget's ID.
@@ -173,16 +216,9 @@ pub struct Budget {
     /// then call it by its categories, as before budgets had names (layout
     /// 28, D-664). Never empty, without spaces around it, on one line.
     pub name: Option<String>,
-    /// The spending categories it is for, at least one, in the order the
-    /// user chose them, each counted with everything inside it and every
-    /// category once however often it is reached (D-291, D-639). They share
-    /// one currency, the budget's.
-    pub categories: Vec<AccountId>,
-    /// The user's own accounts whose transactions it counts, or empty for
-    /// all of them (D-639). A transaction counts as a whole, as with the
-    /// filters (D-350): if it touches one of these accounts, its parts in
-    /// the categories count.
-    pub accounts: Vec<AccountId>,
+    /// What it counts, oldest first; the first starts on `first_day`, and
+    /// each applies from the first day of one of its periods (D-689).
+    pub counts: Vec<BudgetCounts>,
     /// How long one period is.
     pub every: BudgetEvery,
     /// The first day of its first period.
@@ -209,27 +245,80 @@ impl Budget {
     }
 
     /// Whether this budget and `other` would count the same money on the
-    /// same day, which the book refuses (D-344, D-639): their days overlap,
-    /// they share a category, and they count from at least one account in
-    /// common (no accounts chosen means every account). Returns a category
-    /// they share. A budget on a category and another on a category inside
-    /// it are separate figures and are not checked against each other.
+    /// same day, which the book refuses (D-344, D-639): on some day both
+    /// count a set that shares a category, and the two sets count from at
+    /// least one account in common (no accounts chosen means every
+    /// account). Each set is checked on its own days (D-689). Returns a
+    /// category they share. A budget on a category and another on a
+    /// category inside it are separate figures and are not checked against
+    /// each other.
     pub fn clashes_with(&self, other: &Self) -> Option<AccountId> {
-        let days_overlap = self.first_day <= other.last_day.unwrap_or(Date::MAX)
-            && other.first_day <= self.last_day.unwrap_or(Date::MAX);
-        let accounts_overlap = self.accounts.is_empty()
-            || other.accounts.is_empty()
-            || self
-                .accounts
-                .iter()
-                .any(|account| other.accounts.contains(account));
-        if !(days_overlap && accounts_overlap) {
-            return None;
+        for (mine, my_first, my_last) in self.counts_with_days() {
+            for (theirs, their_first, their_last) in other.counts_with_days() {
+                let days_overlap = my_first <= their_last && their_first <= my_last;
+                if days_overlap && let Some(category) = mine.shares_with(theirs) {
+                    return Some(category);
+                }
+            }
         }
-        self.categories
+        None
+    }
+
+    /// Each set the budget counts with the first and last day it applies
+    /// on: from its `from_day` to the day before the next set's, the last
+    /// one to the budget's last day (or [`Date::MAX`] if it keeps going).
+    /// A set with no day left before the budget's last day is left out.
+    pub fn counts_with_days(&self) -> impl Iterator<Item = (&BudgetCounts, Date, Date)> {
+        let last = self.last_day.unwrap_or(Date::MAX);
+        self.counts
             .iter()
-            .copied()
-            .find(|category| other.categories.contains(category))
+            .enumerate()
+            .map(move |(index, counts)| {
+                let until = self
+                    .counts
+                    .get(index + 1)
+                    .and_then(|next| next.from_day.yesterday().ok())
+                    .unwrap_or(last)
+                    .min(last);
+                (counts, counts.from_day.max(self.first_day), until)
+            })
+            // A set that would start after the budget's last day has no days.
+            .filter(|(_, from, until)| from <= until)
+    }
+
+    /// What the budget counts in the period that starts on `period_start`:
+    /// the last of its sets that applies from that day or earlier (D-689),
+    /// or `None` before its first day.
+    pub fn counts_for(&self, period_start: Date) -> Option<&BudgetCounts> {
+        self.counts
+            .iter()
+            .filter(|counts| counts.from_day <= period_start)
+            .max_by_key(|counts| counts.from_day)
+    }
+
+    /// What the budget counts as the screens show it on `day`: the set of
+    /// the period that contains `day`, the first set if the budget hasn't
+    /// started by then, the last one if it has ended (D-689). `None` only
+    /// for a budget without sets, which the book never keeps.
+    pub fn counts_on(&self, day: Date) -> Option<&BudgetCounts> {
+        match self.period_containing(day) {
+            Some((start, _)) => self.counts_for(start),
+            None if day < self.first_day => self.counts.first(),
+            None => self.counts.last(),
+        }
+    }
+
+    /// Every category any of its sets counts, each once, in the order they
+    /// first appear (D-689): a category of an earlier set is still in use,
+    /// since the earlier periods count it.
+    pub fn all_categories(&self) -> Vec<AccountId> {
+        let mut all = Vec::new();
+        for category in self.counts.iter().flat_map(|counts| &counts.categories) {
+            if !all.contains(category) {
+                all.push(*category);
+            }
+        }
+        all
     }
 
     /// What the budget plans for the period that starts on `period_start`:
@@ -373,8 +462,11 @@ mod tests {
         let budget = Budget {
             id: BudgetId::generate(),
             name: None,
-            categories: vec![AccountId::generate()],
-            accounts: Vec::new(),
+            counts: vec![BudgetCounts {
+                from_day: day(2026, 9, 1),
+                categories: vec![AccountId::generate()],
+                accounts: Vec::new(),
+            }],
             every: BudgetEvery::Month,
             first_day: day(2026, 9, 1),
             last_day: Some(day(2026, 12, 31)),
@@ -430,8 +522,11 @@ mod tests {
         let budget = |categories: Vec<AccountId>, accounts: Vec<AccountId>, first, last| Budget {
             id: BudgetId::generate(),
             name: None,
-            categories,
-            accounts,
+            counts: vec![BudgetCounts {
+                from_day: first,
+                categories,
+                accounts,
+            }],
             every: BudgetEvery::Month,
             first_day: first,
             last_day: last,
@@ -461,5 +556,97 @@ mod tests {
             None,
         );
         assert_eq!(household.clashes_with(&other), None);
+    }
+
+    /// A budget whose set changed counts each set on its own days, and two
+    /// budgets clash only where their sets of the same days share money
+    /// (D-689).
+    #[test]
+    fn each_set_of_a_budget_counts_on_its_own_days() {
+        let (food, fun, travel) = (
+            AccountId::generate(),
+            AccountId::generate(),
+            AccountId::generate(),
+        );
+        let set = |from_day, categories: Vec<AccountId>| BudgetCounts {
+            from_day,
+            categories,
+            accounts: Vec::new(),
+        };
+        let changed = Budget {
+            id: BudgetId::generate(),
+            name: None,
+            counts: vec![
+                set(day(2026, 9, 1), vec![food]),
+                set(day(2026, 11, 1), vec![food, fun]),
+            ],
+            every: BudgetEvery::Month,
+            first_day: day(2026, 9, 1),
+            last_day: None,
+            amounts: Vec::new(),
+        };
+        let first = |budget: &Budget, start| {
+            budget
+                .counts_for(start)
+                .map(|counts| counts.categories.clone())
+        };
+        assert_eq!(first(&changed, day(2026, 8, 1)), None);
+        assert_eq!(first(&changed, day(2026, 10, 1)), Some(vec![food]));
+        assert_eq!(first(&changed, day(2026, 11, 1)), Some(vec![food, fun]));
+        assert_eq!(first(&changed, day(2027, 3, 1)), Some(vec![food, fun]));
+        let days: Vec<(Date, Date)> = changed
+            .counts_with_days()
+            .map(|(_, from, to)| (from, to))
+            .collect();
+        assert_eq!(
+            days,
+            [
+                (day(2026, 9, 1), day(2026, 10, 31)),
+                (day(2026, 11, 1), Date::MAX)
+            ]
+        );
+        assert_eq!(changed.all_categories(), [food, fun]);
+        // The screens show the set of today's period; before the first day
+        // the first set, after the last day the last one.
+        assert_eq!(
+            changed
+                .counts_on(day(2026, 10, 9))
+                .map(|c| c.categories.len()),
+            Some(1)
+        );
+        assert_eq!(
+            changed
+                .counts_on(day(2026, 1, 9))
+                .map(|c| c.categories.len()),
+            Some(1)
+        );
+
+        // Fun from September to October was in no set of this budget: a
+        // budget for it then doesn't clash; one in November does.
+        let fun_before = Budget {
+            id: BudgetId::generate(),
+            counts: vec![set(day(2026, 9, 1), vec![fun])],
+            last_day: Some(day(2026, 10, 31)),
+            ..changed.clone()
+        };
+        assert_eq!(changed.clashes_with(&fun_before), None);
+        assert_eq!(fun_before.clashes_with(&changed), None);
+        let fun_later = Budget {
+            id: BudgetId::generate(),
+            counts: vec![set(day(2026, 12, 1), vec![fun, travel])],
+            first_day: day(2026, 12, 1),
+            ..changed.clone()
+        };
+        assert_eq!(changed.clashes_with(&fun_later), Some(fun));
+        // An ended budget's last set ends on its last day.
+        let ended = Budget {
+            last_day: Some(day(2026, 11, 30)),
+            ..changed.clone()
+        };
+        assert_eq!(ended.clashes_with(&fun_later), None);
+        assert_eq!(
+            ended.counts_on(day(2027, 1, 9)).map(|c| c.categories.len()),
+            Some(2)
+        );
     }
 }

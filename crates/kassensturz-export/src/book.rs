@@ -49,8 +49,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// categories (M6b.L, D-290), version 8 the budgets (M6c.L, D-344,
 /// D-345), version 9 a budget's several categories and its accounts
 /// (US1.10, D-640), version 10 a monthly budget's salary day (D-651),
-/// version 11 a budget's name (M6-B203, D-664).
-pub const VERSION: u64 = 11;
+/// version 11 a budget's name (M6-B203, D-664), version 12 what a budget
+/// counts from which day on (US3.2, D-690).
+pub const VERSION: u64 = 12;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -384,13 +385,32 @@ impl BookWriter {
                 "name",
                 budget.name.as_deref().map_or(Json::Null, Json::text),
             ),
+            // What it counts, from which day on, oldest first (D-690).
             (
-                "categories",
-                Json::List(budget.categories.iter().copied().map(Json::id).collect()),
-            ),
-            (
-                "accounts",
-                Json::List(budget.accounts.iter().copied().map(Json::id).collect()),
+                "counts",
+                Json::List(
+                    budget
+                        .counts
+                        .iter()
+                        .map(|set| {
+                            Json::Object(vec![
+                                ("from_day", Json::date(set.from_day)),
+                                (
+                                    "categories",
+                                    Json::List(
+                                        set.categories.iter().copied().map(Json::id).collect(),
+                                    ),
+                                ),
+                                (
+                                    "accounts",
+                                    Json::List(
+                                        set.accounts.iter().copied().map(Json::id).collect(),
+                                    ),
+                                ),
+                            ])
+                        })
+                        .collect(),
+                ),
             ),
             (
                 "every",

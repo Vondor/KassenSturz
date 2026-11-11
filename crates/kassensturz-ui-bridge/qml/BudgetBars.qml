@@ -46,6 +46,8 @@ ColumnLayout {
                 : i18nContext.i18nc("@info %1 is an amount of money", "%1 carried over from the period before.", note.amount);
         case "nothing-to-spend":
             return i18nContext.i18nc("@info", "Nothing is available to spend in this period, so there is no share to show.");
+        case "counts-changed":
+            return i18nContext.i18nc("@info", "From this period on, the budget counts other categories or accounts.");
         default:
             return "";
         }

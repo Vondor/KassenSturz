@@ -210,7 +210,7 @@ fn a_prepared_budget_is_made_only_on_confirm_and_one_undo_takes_it_back() {
         .expect("applied");
     let budgets = small.book.budgets().expect("budgets");
     assert_eq!(budgets.len(), 1);
-    assert_eq!(budgets[0].categories, [small.fun]);
+    assert_eq!(budgets[0].counts[0].categories, [small.fun]);
     assert_eq!(budgets[0].every, BudgetEvery::Quarter);
     assert_eq!(budgets[0].first_day, Date::constant(2026, 10, 1));
     assert_eq!(budgets[0].last_day, None);
@@ -737,8 +737,8 @@ fn a_budget_over_several_categories_from_one_account_is_prepared_and_made() {
         .apply(&mut small.book, Confirmed::by_the_user())
         .expect("applied");
     let budgets = small.book.budgets().expect("read");
-    assert_eq!(budgets[0].categories, [small.fun, small.food]);
-    assert_eq!(budgets[0].accounts, [small.checking]);
+    assert_eq!(budgets[0].counts[0].categories, [small.fun, small.food]);
+    assert_eq!(budgets[0].counts[0].accounts, [small.checking]);
     // The same category from another account is a budget of its own; from
     // every account it would count checking twice.
     let savings_id = savings.id.to_string();
@@ -1082,7 +1082,7 @@ fn a_check_names_the_computed_amount_and_how_it_was_computed() {
         "the lists alone are checked"
     );
     let proposal = propose(book, &call).expect("checked");
-    let answer = check_only_answer(book, &proposal).expect("answered");
+    let answer = check_only_answer(book, &proposal, Permissions::all()).expect("answered");
     assert_eq!(answer["check_only"], json!(true));
     assert_eq!(answer["would_prepare"], json!(2));
     assert!(answer.get("prepared").is_none(), "nothing is prepared");
@@ -1140,7 +1140,7 @@ fn check_only_is_true_false_or_absent() {
 fn a_check_names_the_period_a_slipped_payment_left_out() {
     let small = slipped(Date::constant(2000, 1, 1));
     let proposal = based_on(&small, "last_period", TODAY).expect("prepared");
-    let answer = check_only_answer(&small.book, &proposal).expect("answered");
+    let answer = check_only_answer(&small.book, &proposal, Permissions::all()).expect("answered");
     assert_eq!(
         answer["budget_amounts"][0]["based_on"],
         json!({
@@ -1155,7 +1155,7 @@ fn a_check_names_the_period_a_slipped_payment_left_out() {
     );
     // Without a slip there is no left_out.
     let proposal = based_on(&small, "last_period", Date::constant(2026, 10, 14)).expect("prepared");
-    let answer = check_only_answer(&small.book, &proposal).expect("answered");
+    let answer = check_only_answer(&small.book, &proposal, Permissions::all()).expect("answered");
     assert!(
         answer["budget_amounts"][0]["based_on"]
             .get("left_out")

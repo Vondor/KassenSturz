@@ -117,7 +117,8 @@ fn every_of(key: &str) -> Result<BudgetEvery, BudgetsError> {
 /// sentence (D-380) and the amount it names, empty if it names none.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoteRow {
-    /// `over`, `nothing-to-spend` or `carried-in`.
+    /// `over`, `nothing-to-spend`, `carried-in` or `counts-changed`
+    /// (D-689).
     pub word: &'static str,
     /// The amount, written for the user, without a minus sign: `negative`
     /// says which way it went.
@@ -224,7 +225,7 @@ fn bar<L: Locale>(
                     true,
                 ),
                 BudgetNote::CarriedIn(amount) => (text.amount(amount), false),
-                BudgetNote::NothingToSpend => (String::new(), false),
+                BudgetNote::NothingToSpend | BudgetNote::CountsChanged => (String::new(), false),
             };
             NoteRow {
                 word: note.id(),
@@ -364,13 +365,19 @@ pub fn choices(book: &Book) -> Result<Vec<BudgetChoice>, StoreError> {
         .budgets()?
         .into_iter()
         .map(|budget| {
-            let categories = budget
-                .categories
+            // What it counts now or, if a change is planned, from then on
+            // (D-689): the newest set.
+            let (categories, accounts) = budget
+                .counts
+                .last()
+                .map(|set| (set.categories.as_slice(), set.accounts.as_slice()))
+                .unwrap_or_default();
+            let categories = categories
                 .iter()
                 .filter_map(|id| paths.get(id).cloned())
                 .collect::<Vec<_>>()
                 .join(", ");
-            let accounts = accounts_text(&budget.accounts, &names);
+            let accounts = accounts_text(accounts, &names);
             // Its own name, if the user gave it one (D-664).
             let label = budget.name.unwrap_or(categories);
             BudgetChoice {
@@ -524,6 +531,16 @@ pub struct BudgetRow {
     /// The names of the accounts it counts from, separated by commas;
     /// empty when it counts every account.
     pub accounts: String,
+    /// The IDs of the accounts it counts from, as text; empty for every
+    /// account.
+    pub account_ids: Vec<String>,
+    /// The first day, ISO 8601, of the earliest period from which a change
+    /// of what it counts may apply: the current one, or its first if it
+    /// starts later; empty for an ended budget (D-689).
+    pub counts_from: String,
+    /// What it counted before, and what it is to count later, if that
+    /// differs from what it counts now: oldest first (D-689).
+    pub history: Vec<CountsLine>,
     /// `month`, `salary-month`, `quarter`, `year` or `range`.
     pub every: &'static str,
     /// The day a `salary-month` starts on, else 0 (D-651).
@@ -550,6 +567,23 @@ pub struct BudgetRow {
     pub bar: Option<Bar>,
 }
 
+/// What a budget counted before the set it counts now, or is to count
+/// after it (D-689): the budget page's history line, e.g. *Until 31 Oct
+/// 2026 it counted Food, Rent.*
+#[derive(Debug, PartialEq, Eq)]
+pub struct CountsLine {
+    /// Whether it is an earlier set; else a set planned for later.
+    pub earlier: bool,
+    /// For an earlier set its last day, for a later one its first day, as
+    /// the user writes dates.
+    pub day: String,
+    /// Its categories' paths, separated by commas.
+    pub category_names: String,
+    /// The names of the accounts it counts from, separated by commas;
+    /// empty for every account.
+    pub accounts: String,
+}
+
 /// Everything the page shows.
 #[derive(Debug)]
 pub struct BudgetsView {
@@ -570,18 +604,17 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
     let text = AppText::new(book, locale);
     let names = account_names(book)?;
     let mut rows = Vec::new();
-    for budget in book.budgets()? {
-        let chosen: Vec<&CategoryRow> = budget
-            .categories
-            .iter()
+    let paths_of = |ids: &[AccountId]| {
+        ids.iter()
             .filter_map(|id| {
                 let id = id.to_string();
                 categories.iter().find(|row| row.id == id)
             })
-            .collect();
-        let Some(category) = chosen.first() else {
-            continue;
-        };
+            .map(|row| row.path.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    for budget in book.budgets()? {
         let started = budget.first_day <= today;
         let ended = budget.last_day.is_some_and(|last| last < today);
         let state = if !started {
@@ -601,6 +634,41 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
             today
         };
         let start = budget.every.period_start(day).unwrap_or(budget.first_day);
+        // What it counts on that day (D-689).
+        let Some(set) = budget.counts_on(day) else {
+            continue;
+        };
+        let chosen: Vec<&CategoryRow> = set
+            .categories
+            .iter()
+            .filter_map(|id| {
+                let id = id.to_string();
+                categories.iter().find(|row| row.id == id)
+            })
+            .collect();
+        let Some(category) = chosen.first() else {
+            continue;
+        };
+        let history = budget
+            .counts_with_days()
+            .filter(|(other, _, _)| other.from_day != set.from_day)
+            .map(|(other, from, until)| {
+                let earlier = other.from_day < set.from_day;
+                CountsLine {
+                    earlier,
+                    day: locale.short_date(if earlier { until } else { from }),
+                    category_names: paths_of(&other.categories),
+                    accounts: accounts_text(&other.accounts, &names),
+                }
+            })
+            .collect();
+        // A change of what it counts applies from the current period on, or
+        // from the first if it starts later; an ended one has none.
+        let counts_from = if today < budget.first_day {
+            Some(budget.first_day)
+        } else {
+            budget.period_containing(today).map(|(start, _)| start)
+        };
         let planned = budget
             .amount_for(start)
             .or_else(|| budget.amounts.first())
@@ -623,7 +691,10 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
                 .unwrap_or_else(|| category_names.clone()),
             own_name: budget.name.clone().unwrap_or_default(),
             category_names,
-            accounts: accounts_text(&budget.accounts, &names),
+            accounts: accounts_text(&set.accounts, &names),
+            account_ids: set.accounts.iter().map(ToString::to_string).collect(),
+            counts_from: counts_from.map_or_else(String::new, |day| day.to_string()),
+            history,
             every: every_key(budget.every),
             salary_day: salary_day_of(budget.every),
             currency: category.currency.clone(),
@@ -664,7 +735,11 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
 /// The currency of `budget`'s amounts: its first category's, which the book
 /// keeps for all of them.
 fn book_currency(book: &Book, budget: &Budget) -> Result<CurrencyCode, BudgetsError> {
-    let first = budget.categories.first().ok_or(BudgetsError::NoSuchEntry)?;
+    let first = budget
+        .counts
+        .first()
+        .and_then(|set| set.categories.first())
+        .ok_or(BudgetsError::NoSuchEntry)?;
     Ok(book.account(*first)?.currency)
 }
 
@@ -830,11 +905,18 @@ pub struct BudgetChange<'a> {
     pub amount: &'a str,
     /// Whether what is left goes into the next period from then on.
     pub carry_over: bool,
+    /// What it counts from `from_day` on: the spending categories' IDs as
+    /// text, at least one, and the IDs of the user's own accounts, empty for
+    /// every account (D-689); `None` when the user left them as they are.
+    pub counts: Option<(&'a [String], &'a [String])>,
 }
 
-/// Saves what the user changed of the budget: its name (D-664), and the
-/// amount with `carry_over` from the period that starts on `from_day` on
-/// (D-345, D-361), as one change that one Undo takes back.
+/// Saves what the user changed of the budget: its name (D-664), the
+/// amount with `carry_over` (D-345, D-361) and what it counts (D-689),
+/// from the period that starts on `from_day` on, as one change that one
+/// Undo takes back. What it counts changes from the current period on at
+/// the earliest (`store.budget-period` `before-current-period`); the same
+/// categories and accounts again are no change.
 pub fn change_budget(
     book: &mut Book,
     id: &str,
@@ -845,15 +927,50 @@ pub fn change_budget(
     let amount = if change.changes_amount {
         let currency = book_currency(book, &budget)?;
         let amount = read_amount(book, change.amount, currency, locale)?;
-        let from = iso_day(change.from_day)?;
-        Some((from, amount, change.carry_over && budget.every.repeats()))
+        Some((amount, change.carry_over && budget.every.repeats()))
     } else {
         None
     };
-    book.as_one_action(kassensturz_store::Action::EditBudget, |book| {
-        if let Some((from, amount, carry_over)) = amount {
-            book.edit_budget_amount(budget.id, from, amount, carry_over)?;
+    let counts = match change.counts {
+        Some((categories, accounts)) => {
+            let from = iso_day(change.from_day)?;
+            let mut chosen = Vec::with_capacity(categories.len());
+            for id in categories {
+                chosen.push(category_of(book, id)?.0);
+            }
+            let own = book.accounts(true)?;
+            let mut from_accounts = Vec::with_capacity(accounts.len());
+            for id in accounts {
+                let account = own
+                    .iter()
+                    .find(|account| account.id.to_string() == *id)
+                    .ok_or(BudgetsError::NoSuchEntry)?;
+                from_accounts.push(account.id);
+            }
+            // The same set again is no change, from any period.
+            let same = budget
+                .counts_on(from)
+                .is_some_and(|set| set.categories == chosen && set.accounts == from_accounts);
+            (!same).then_some((chosen, from_accounts))
         }
+        None => None,
+    };
+    if amount.is_none() && counts.is_none() {
+        book.set_budget_name(budget.id, Some(change.name))?;
+        return Ok(());
+    }
+    let from = iso_day(change.from_day)?;
+    let today = locale.today();
+    book.as_one_action(kassensturz_store::Action::EditBudget, |book| {
+        book.edit_budget(
+            budget.id,
+            from,
+            amount,
+            counts
+                .as_ref()
+                .map(|(categories, accounts)| (categories.as_slice(), accounts.as_slice())),
+            today,
+        )?;
         book.set_budget_name(budget.id, Some(change.name))
     })?;
     Ok(())
@@ -1021,6 +1138,7 @@ mod tests {
             from_day: from,
             amount,
             carry_over: false,
+            counts: None,
         }
     }
 
@@ -1597,6 +1715,7 @@ mod tests {
             from_day: "2026-10-01",
             amount: "400,00",
             carry_over: false,
+            counts: None,
         };
         let changes = f.book.history().expect("history").len();
         change_budget(&mut f.book, &id, &rename, &TestLocale).expect("renamed");
@@ -1633,5 +1752,64 @@ mod tests {
         .expect_err("refused");
         assert_eq!(f.code(&error).0, "store.budget-name");
         assert_eq!(f.book.budgets().expect("budgets")[0].amounts, before);
+    }
+
+    #[test]
+    fn what_a_budget_counts_changes_from_this_period_on_and_the_page_says_what_it_counted() {
+        // D-689: September keeps counting food; from October on it counts
+        // food and rent, paid from checking.
+        let mut f = fixture();
+        let (food, rent) = (f.food.clone(), f.rent.clone());
+        f.add(&food, "month", "400,00", false, "2026-09-01");
+        let id = f.book.budgets().expect("budgets")[0].id.to_string();
+        let row = &view(&f.book, &TestLocale).expect("view").budgets[0];
+        assert_eq!(row.counts_from, "2026-10-01");
+        assert!(row.history.is_empty());
+        assert!(row.account_ids.is_empty());
+        let checking = f.checking.to_string();
+        let (categories, accounts) = ([food.clone(), rent.clone()], [checking.clone()]);
+        let mut change = BudgetChange {
+            name: "",
+            changes_amount: false,
+            from_day: "2026-09-01",
+            amount: "400,00",
+            carry_over: false,
+            counts: Some((&categories, &accounts)),
+        };
+        // Not from a period that has passed.
+        let error = change_budget(&mut f.book, &id, &change, &TestLocale).expect_err("refused");
+        assert_eq!(
+            f.code(&error),
+            (
+                "store.budget-period",
+                vec![("reason", "before-current-period".to_owned())]
+            )
+        );
+        let changes = f.book.history().expect("history").len();
+        change.from_day = "2026-10-01";
+        change_budget(&mut f.book, &id, &change, &TestLocale).expect("changed");
+        assert_eq!(f.book.history().expect("history").len(), changes + 1);
+        let row = &view(&f.book, &TestLocale).expect("view").budgets[0];
+        assert_eq!(row.categories, [food.clone(), rent.clone()]);
+        assert_eq!(row.category_names, "Food, Rent");
+        assert_eq!(row.account_ids, [checking]);
+        assert_eq!(row.accounts, "Checking");
+        assert_eq!(
+            row.history,
+            [CountsLine {
+                earlier: true,
+                day: "2026-09-30".into(),
+                category_names: "Food".into(),
+                accounts: String::new(),
+            }]
+        );
+        // The same set again is no change.
+        change_budget(&mut f.book, &id, &change, &TestLocale).expect("nothing to do");
+        assert_eq!(f.book.history().expect("history").len(), changes + 1);
+        // One Undo takes it back.
+        f.book.undo().expect("undone");
+        let row = &view(&f.book, &TestLocale).expect("view").budgets[0];
+        assert_eq!(row.categories, [food]);
+        assert!(row.history.is_empty());
     }
 }

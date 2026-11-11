@@ -1436,6 +1436,11 @@ pub(crate) fn list_budgets(
     for budget in budgets.iter().take(MAX_BUDGETS) {
         let mut row = Map::new();
         row.insert("budget_id".into(), Value::String(budget.id.to_string()));
+        // What it counts today, or from its first day if it starts later
+        // (D-689): earlier sets are not listed.
+        let Some(set) = budget.counts_on(today) else {
+            continue;
+        };
         // The name the user gave it, if any (D-664): text of the book, as
         // the category paths are.
         if let Some(name) = &budget.name {
@@ -1447,15 +1452,14 @@ pub(crate) fn list_budgets(
         row.insert(
             "category_ids".into(),
             Value::Array(
-                budget
-                    .categories
+                set.categories
                     .iter()
                     .map(|id| Value::String(id.to_string()))
                     .collect(),
             ),
         );
-        let mut categories = Vec::with_capacity(budget.categories.len());
-        for id in &budget.categories {
+        let mut categories = Vec::with_capacity(set.categories.len());
+        for id in &set.categories {
             let path = paths
                 .get(id)
                 .map(|path| path.join(" › "))
@@ -1463,12 +1467,11 @@ pub(crate) fn list_budgets(
             categories.push(w.text(&path));
         }
         row.insert("categories".into(), Value::Array(categories));
-        if !budget.accounts.is_empty() {
+        if !set.accounts.is_empty() {
             row.insert(
                 "account_ids".into(),
                 Value::Array(
-                    budget
-                        .accounts
+                    set.accounts
                         .iter()
                         .map(|id| Value::String(id.to_string()))
                         .collect(),

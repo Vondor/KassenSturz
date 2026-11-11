@@ -6,6 +6,7 @@
 //! as a budget amount KassenSturz computes with `based_on`, before anything
 //! goes in front of the user. Nothing is sent to the app.
 
+use kassensturz_core::ai_switch::{Permissions, Row};
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
 
@@ -18,7 +19,7 @@ pub const CHECK_ONLY: &str = "check_only";
 
 /// What the MCP server adds to the parameters of `propose_changes` and
 /// `propose_view`.
-pub const CHECK_ONLY_SCHEMA: &str = r#"{"type":"boolean","description":"true: only check the call and answer what it would prepare (how many changes of each list, the budget amounts KassenSturz computes, and which conditions remove_conditions would take away); nothing is sent to KassenSturz and the user sees nothing. Then call again without it to prepare the changes. Default false."}"#;
+pub const CHECK_ONLY_SCHEMA: &str = r#"{"type":"boolean","description":"true: only check the call and answer what it would prepare (how many changes of each list, the budget amounts KassenSturz computes, how many transactions a sort with Rules would sort, and which conditions remove_conditions would take away); nothing is sent to KassenSturz and the user sees nothing. Then call again without it to prepare the changes. Default false."}"#;
 
 /// The call without `check_only`, and whether it asked for a check only.
 /// A value that is not `true` or `false` is refused.
@@ -46,7 +47,11 @@ pub fn take_check_only(arguments: &Value) -> Result<(bool, Value), ToolError> {
 /// `remove_conditions` would take away, as `list_rules` shows them. No other
 /// text of the book is in it, so nothing reaches the model that a read
 /// function would have masked.
-pub fn check_only_answer(book: &Book, proposal: &Proposal) -> Result<Value, ToolError> {
+pub fn check_only_answer(
+    book: &Book,
+    proposal: &Proposal,
+    permissions: Permissions,
+) -> Result<Value, ToolError> {
     let mut answer = match &proposal.output.value {
         Value::Object(object) => object.clone(),
         _ => Map::new(),
@@ -101,6 +106,26 @@ pub fn check_only_answer(book: &Book, proposal: &Proposal) -> Result<Value, Tool
     let removed = removed_conditions(book, &mut writer, set.slots(), set.changes())?;
     if !removed.is_empty() {
         answer.insert("removed_conditions".into(), Value::Array(removed));
+    }
+    // How many transactions a sort with Rules would sort (US3.8, D-699):
+    // only with the reading of Transactions, so it tells the model nothing
+    // beyond what the user lets it read (amends D-682).
+    if permissions.reads(Row::Transactions) {
+        let would_sort: usize = set
+            .changes()
+            .iter()
+            .map(|change| match change {
+                ProposedChange::SortWithRules(sort) => sort.changes.len(),
+                _ => 0,
+            })
+            .sum();
+        if set
+            .changes()
+            .iter()
+            .any(|change| matches!(change, ProposedChange::SortWithRules(_)))
+        {
+            answer.insert("would_sort".into(), json!(would_sort));
+        }
     }
     answer.insert("check_only".into(), json!(true));
     answer.insert(

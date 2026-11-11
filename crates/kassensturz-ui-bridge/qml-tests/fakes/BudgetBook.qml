@@ -15,10 +15,13 @@ QtObject {
     property var view: ({
         budgets: [
             {id: "b-food", categories: ["c-food"], name: "Food", ownName: "", categoryNames: "Food", accounts: "", every: "month", salaryDay: 0, currency: "EUR", amount: "400,00 €", amountInput: "400,00", carryOver: true,
+             accountIds: [], countsFrom: "2026-10-01",
+             history: [{earlier: true, day: "2026-09-30", categoryNames: "Rent", accounts: "Checking"}],
              state: "running", firstDay: "2026-09-01", lastDay: "", canStop: true,
              changes: [{day: "2026-10-01", firstDay: "2026-10-01", lastDay: "2026-10-31", current: true},
                        {day: "2026-09-01", firstDay: "2026-09-01", lastDay: "2026-09-30", current: false}]},
             {id: "b-rent", categories: ["c-rent"], name: "Flat", ownName: "Flat", categoryNames: "Rent", accounts: "Checking", every: "salary-month", salaryDay: 25, currency: "EUR", amount: "800,00 €", amountInput: "800,00", carryOver: false,
+             accountIds: ["a-checking"], countsFrom: "2027-01-25", history: [],
              state: "upcoming", firstDay: "2027-01-25", lastDay: "", canStop: false, changes: []}
         ],
         categories: [
@@ -45,6 +48,8 @@ QtObject {
         return amount === "" ? {code: "store.budget-amount", reason: "not-positive"} : {};
     }
 
+    // `fromDay` may go on after a line break with what the budget counts
+    // from then on (D-689).
     function changeBudget(id, name, changesAmount, fromDay, amount, carryOver) {
         calls.push("changeBudget:" + [id, name, changesAmount, fromDay, amount, carryOver].join(":"));
         return {};

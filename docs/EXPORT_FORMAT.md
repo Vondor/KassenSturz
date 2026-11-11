@@ -2,7 +2,7 @@
 
 The complete export holds a whole KassenSturz book in one JSON file (D-029, D-100). It is the stable way to move a book's data: into a new book, to another program, or from a development build of the Alpha to the Beta (D-045, D-046, D-536). Unlike the book file itself (`docs/BOOK_FORMAT.md`), this format is meant to be read and written by other programs, so it changes only with a new [version](#versions).
 
-**Status: version 11** (D-664). Versions 1 to 10 are read as [described below](#versions).
+**Status: version 12** (D-690). Versions 1 to 11 are read as [described below](#versions).
 
 In the command-line tool, `export FILE --format book` writes it and `create --from FILE` makes a new book from it. In code, `BookExport` (ID `book`) in `kassensturz-export` writes it, `read_book` reads it, and `export_book` and `fill_book` in `kassensturz-pipeline` connect it to a book.
 
@@ -46,8 +46,9 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 9 | A budget lists its `categories` (one or more) and the `accounts` it counts from, in place of its one `category` (US1.10, D-639, D-640). |
 | 10 | A monthly budget has a `salary_day`: the day of the month its periods start on, for a budget that repeats every salary month (D-651). |
 | 11 | A budget has a `name`: the name the user gave it, or `null` (M6-B203, D-664). |
+| 12 | A budget lists what it `counts`, from which day on: dated sets of `categories` and `accounts`, in place of its one `categories` and `accounts` (US3.2, D-689, D-690). |
 
-An older file is read as version 11 without what came later: a version 10 budget has no name, and a version 10 budget with `name` is refused; a version 9 budget's months are calendar months, and a version 9 budget with `salary_day` is refused; a version 8 budget's `category` is read as a list of that one category with no accounts, and a version 8 budget with `categories` or `accounts` is refused; a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories`, and so is a version 1 to 7 file with `budgets` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, a version 7 file the `groups` and `hidden_categories` lists too, and a version 8 file the `budgets` list too, even when they are empty (`export.missing-value`).
+An older file is read as version 12 without what came later: a version 11 budget's `categories` and `accounts` are read as one set from its `first_day`, and a version 11 budget with `counts`, or a version 12 budget with `categories` or `accounts`, is refused; a version 10 budget has no name, and a version 10 budget with `name` is refused; a version 9 budget's months are calendar months, and a version 9 budget with `salary_day` is refused; a version 8 budget's `category` is read as a list of that one category with no accounts, and a version 8 budget with `categories` or `accounts` is refused; a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories`, and so is a version 1 to 7 file with `budgets` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, a version 7 file the `groups` and `hidden_categories` lists too, and a version 8 file the `budgets` list too, even when they are empty (`export.missing-value`).
 
 ## The top level
 
@@ -75,7 +76,7 @@ An older file is read as version 11 without what came later: a version 10 budget
 | Key | Value |
 |---|---|
 | `format` | Always `"kassensturz-book"`. A JSON file without it isn't a complete export (`export.not-a-book`). |
-| `version` | The [version](#versions) of the format: `9`. |
+| `version` | The [version](#versions) of the format: `12`. |
 | `settings` | The book's [settings](#settings). |
 | `currencies` | The [currencies](#currencies) the book uses. |
 | `institutions` | The [banks](#banks) the accounts are held at. Version 4 and later. |
@@ -183,13 +184,20 @@ The book checks when it is filled that every member is in the file and of the gr
 |---|---|
 | `id` | The budget's ID. Unique. |
 | `name` | The name the user gave it, e.g. `"Holiday"`, or `null` (or left out) for none, which the app calls by its categories. Spaces around it are left out and an empty name is none; at most 100 characters on one line (`store.budget-name`). Names may repeat. Version 11 and later (D-664). |
-| `categories` | The IDs of its spending categories, at least one and at most 100, each once, all in one currency, in the order the user chose them; each must be in the file (`store.unknown-account`, `store.budget-not-spending`, `store.budget-choice`, `store.budget-too-many`). Version 9 and later; a version 8 file has `category`, the ID of its one category. |
-| `accounts` | The IDs of the user's own accounts it counts from, at most 100, each once, each in the file; empty for every account (`store.unknown-account`, `store.budget-choice`, `store.budget-too-many`). Version 9 and later. Two budgets whose days overlap share no category, or share none of the accounts they count from (`store.budget-overlap`). |
+| `counts` | What it counts, oldest first, each a set as below: the categories and accounts it counts from that set's `from_day` until the next set's, so earlier periods keep what they counted (D-689). The first starts on `first_day`; each later one on the first day of one of its periods, not after `last_day`, each day once (`store.budget-period`: `counts-before-start`, `not-period-start`, `counts-twice`, `amount-after-end`). At most 1,200 (`store.budget-too-many`, `counts`). Every set is in the budget's one currency (`store.budget-choice`, `currencies`). Two budgets share no category on overlapping days of their sets, or share none of the accounts they count from (`store.budget-overlap`). Version 12 and later; versions 9 to 11 have the one set's `categories` and `accounts` on the budget itself, and a version 8 file `category`, the ID of its one category. |
 | `every` | How long one period is: `month`, `quarter` or `year` (calendar months, quarters or years; it repeats) or `range` (one stretch of days; it doesn't repeat). |
 | `salary_day` | For `month`, the day of the month each period starts on, 2 to 31: a salary month, from that day to the day before it in the next month, in a shorter month its last day (D-645, D-651). `null` or left out for calendar months and for every other `every` (`export.bad-value`). Version 10 and later. |
 | `first_day` | The first day of its first period: for `month`, `quarter` and `year` the first day of one (for a salary month, a salary day). |
 | `last_day` | The last day of its last period, or `null` if it keeps going (never for `range`): for `month`, `quarter` and `year` the last day of one. A `range` touches at most 1,200 calendar months (`store.budget-period`). |
 | `amounts` | What it plans, oldest first, each an object as below. The first starts on `first_day`; each later one on the first day of one of its periods, and applies until the next (`store.budget-period`: `first-amount-missing`, `amount-twice`, `not-period-start`, `amount-before-start`, `amount-after-end`). At most 1,200 (`store.budget-too-many`). |
+
+Each set:
+
+| Key | Value |
+|---|---|
+| `from_day` | The first day of the period from which it counts. |
+| `categories` | The IDs of its spending categories, at least one and at most 100, each once, all in one currency, in the order the user chose them; each must be in the file (`store.unknown-account`, `store.budget-not-spending`, `store.budget-choice`, `store.budget-too-many`). |
+| `accounts` | The IDs of the user's own accounts it counts from, at most 100, each once, each in the file; empty for every account (`store.unknown-account`, `store.budget-choice`, `store.budget-too-many`). |
 
 Each amount:
 
@@ -318,7 +326,7 @@ A book with one account, one category in one group, and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 11,
+  "version": 12,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}

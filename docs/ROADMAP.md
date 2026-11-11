@@ -414,7 +414,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.1** · **design merged** (#667, #670, D-687, `docs/REPORT_DESIGNER_US3.md`); **US3.1a comparison bars done** (`params.compare` on spending bars and tables); **US3.1b formula columns for the AI done** (`propose_view` and `list_views` take `columns`, help line on the board) · thread A · strong, high · L (design, then build). #562 and #587: one design that gives each bar its own figure (its own period or formula, or a comparison bar such as the average of 3, 6 or 12 periods), in the app and in `propose_view`. Why: two separate "per bar" settings would confuse
 
-- **US3.2** · **design in review** (`docs/BUDGET_HISTORY.md`, D-689; build next, D-690) · thread B · strong, high · L (design, then build) · [format]. #607 (US1.10a): a budget's categories or accounts can be changed from the current period on; each budget keeps a dated history of its set, so past periods show what they showed before (D-345). Why: today the only way is to stop the budget and make a new one
+- **US3.2** · **built, AI part next** (design `docs/BUDGET_HISTORY.md`, D-689; build D-690: layout 29, export version 12, the Change sheet and the history line; the AI's `edit_budgets` lists follow in their own pull request) · thread B · strong, high · L (design, then build) · [format]. #607 (US1.10a): a budget's categories or accounts can be changed from the current period on; each budget keeps a dated history of its set, so past periods show what they showed before (D-345). Why: today the only way is to stop the budget and make a new one
 
 - **US3.3** · **building** (design #662, D-691 to D-693; core and store, the app and the AI's `join_transfers` built) · thread C · strong, high · L (design, then build). #571 and #594 part b: two sides that already have a category can be joined as one Transfer, in the UI with a preview and through the AI as a change set; both original amounts and currencies stay, one Undo takes it back; a hand-sorted side is never suggested on its own (D-031). Why: income and spending look larger than they are (principle 1)
 
@@ -426,7 +426,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.7** · **in review** (D-695) · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
 
-- **US3.8** · **planned** · thread E, after US3.6 · standard, medium · S. US2 backlog 5: `check_only` on `sort_with_rules` gives a `would_sort` count, without the entries (amends D-682). Why: the AI can tell the user beforehand how many it would sort
+- **US3.8** · **in review** (D-682 amended) · thread E, after US3.6 · standard, medium · S. US2 backlog 5: `check_only` on `sort_with_rules` gives a `would_sort` count, without the entries (amends D-682). Why: the AI can tell the user beforehand how many it would sort
 
 - **US3.9** · **in review** (D-696) · thread E, after US3.7 · standard, medium · S to M. US2 backlog 6: an `ai-tools.bad-argument` refusal of a change list hints at the shape it expects, for all 19 lists. Why: today it names only the argument
 

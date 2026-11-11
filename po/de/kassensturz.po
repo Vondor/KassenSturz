@@ -19470,6 +19470,73 @@ msgid_plural "%1 of the %2 periods this comparison averages are before the first
 msgstr[0] "%1 der %2 Zeiträume, deren Durchschnitt dieser Vergleich bildet, liegt vor der ersten Buchung und zählt als null."
 msgstr[1] "%1 der %2 Zeiträume, deren Durchschnitt dieser Vergleich bildet, liegen vor der ersten Buchung und zählen als null."
 
+#: crates/kassensturz-ui-bridge/qml/BudgetBars.qml
+#, kde-format
+msgctxt "@info"
+msgid "From this period on, the budget counts other categories or accounts."
+msgstr "Ab diesem Zeitraum zählt das Budget andere Kategorien oder Konten."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@info %1 is a date, %2 a list of categories"
+msgid "Until %1 it counted %2."
+msgstr "Bis zum %1 zählte es %2."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@info %1 is a date, %2 a list of categories, %3 a list of account names"
+msgid "Until %1 it counted %2, only money paid from %3."
+msgstr "Bis zum %1 zählte es %2, nur Geld, das von %3 bezahlt wurde."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@info %1 is a date, %2 a list of categories"
+msgid "From %1 on it counts %2."
+msgstr "Ab dem %1 zählt es %2."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@info %1 is a date, %2 a list of categories, %3 a list of account names"
+msgid "From %1 on it counts %2, only money paid from %3."
+msgstr "Ab dem %1 zählt es %2, nur Geld, das von %3 bezahlt wurde."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "Change the categories or accounts"
+msgstr "Kategorien oder Konten ändern"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Earlier periods keep counting what they counted, so their results don't "
+"change."
+msgstr ""
+"Frühere Zeiträume zählen weiter, was sie gezählt haben, ihre Ergebnisse "
+"ändern sich also nicht."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"What a budget counts changes from this period on, so the results of earlier "
+"periods stay. Choose this period or a later one."
+msgstr ""
+"Was ein Budget zählt, ändert sich ab diesem Zeitraum, die Ergebnisse "
+"früherer Zeiträume bleiben also. Wählen Sie diesen oder einen späteren "
+"Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"A budget can keep at most %1 changes of what it counts. Stop it and set a new "
+"budget instead."
+msgstr ""
+"Ein Budget kann höchstens %1 Änderungen dessen behalten, was es zählt. "
+"Beenden Sie es und legen Sie stattdessen ein neues Budget fest."
+
 #: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
 #, kde-format
 msgctxt "@info an example of a formula; the words in quotes stay in English"

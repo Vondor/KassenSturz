@@ -68,6 +68,11 @@ pub enum BudgetNote {
     /// `carried-in`: this much came from the period before, below zero
     /// after overspending (e.g. *Carried from last month: 12 €*).
     CarriedIn(Money),
+    /// `counts-changed`: the budget counts other categories or accounts
+    /// from this period on than in the period before (D-689), so its
+    /// figures are not those of the old choice (*Counts other categories
+    /// from this month on*).
+    CountsChanged,
 }
 
 impl BudgetNote {
@@ -77,6 +82,7 @@ impl BudgetNote {
             Self::Over(_) => "over",
             Self::NothingToSpend => "nothing-to-spend",
             Self::CarriedIn(_) => "carried-in",
+            Self::CountsChanged => "counts-changed",
         }
     }
 }
@@ -114,6 +120,9 @@ pub struct BudgetPeriod {
     pub used: Option<Percent>,
     /// Whether what is left at the end of this period goes into the next.
     pub carries_over: bool,
+    /// Whether the budget counts other categories or accounts from this
+    /// period on than in the one before (D-689).
+    pub counts_changed: bool,
 }
 
 impl BudgetPeriod {
@@ -139,6 +148,9 @@ impl BudgetPeriod {
         if !self.carried_in.is_zero() {
             notes.push(BudgetNote::CarriedIn(self.carried_in));
         }
+        if self.counts_changed {
+            notes.push(BudgetNote::CountsChanged);
+        }
         notes
     }
 }
@@ -151,12 +163,14 @@ pub struct BudgetUtilization {
     /// The name the user gave it, or `None`: the screens then call it by
     /// its categories (D-664).
     pub name: Option<String>,
-    /// Its spending categories, in the order the user chose them (D-639).
+    /// Its spending categories in the period asked for, in the order the
+    /// user chose them (D-639, D-689).
     pub categories: Vec<AccountId>,
     /// Each category's names from the top-level category down, e.g.
     /// `["Food", "Groceries"]`, in the order of `categories`.
     pub paths: Vec<Vec<String>>,
-    /// The user's own accounts it counts from, or empty for all (D-639).
+    /// The user's own accounts it counts from in the period asked for, or
+    /// empty for all (D-639, D-689).
     pub accounts: Vec<AccountId>,
     /// How long one of its periods is.
     pub every: BudgetEvery,
@@ -273,24 +287,35 @@ fn from_accounts(transaction: &Transaction, accounts: &[AccountId]) -> bool {
         })
 }
 
-/// The parts each of `budgets` counts: those booked to its categories and
-/// the categories inside them, each category once per budget however often
-/// it is reached (D-291), from its accounts if it has any (D-639), in its
-/// currency as booked (D-043). A part in another currency than the
-/// budget's that has no amount in it is a broken book, not a figure to
-/// guess.
+/// Where a category's parts count: the budget's index, the first and last
+/// day of the set that counts the category, and that set's accounts.
+type Counter<'a> = (usize, Date, Date, &'a [AccountId]);
+
+/// The parts each of `budgets` counts: on each day, those booked to the
+/// categories of its set for that day and the categories inside them, each
+/// category once per budget however often it is reached (D-291), from the
+/// set's accounts if it has any (D-639, D-689), in its currency as booked
+/// (D-043). A part in another currency than the budget's that has no
+/// amount in it is a broken book, not a figure to guess.
 fn spending(
     source: &Source,
     budgets: &[(&Budget, CurrencyCode)],
     covers: Period,
 ) -> Result<Vec<Spending>, ReportError> {
-    // Which budgets each category counts towards: a budget on a category
-    // and another inside it are separate figures (D-344).
-    let mut towards: HashMap<AccountId, Vec<usize>> = HashMap::new();
+    // Which budgets each category counts towards, on which days and from
+    // which accounts: a budget on a category and another inside it are
+    // separate figures (D-344), and each set of a budget counts on its own
+    // days (D-689), which never overlap.
+    let mut towards: HashMap<AccountId, Vec<Counter<'_>>> = HashMap::new();
     for (index, (budget, _)) in budgets.iter().enumerate() {
-        let roots: HashSet<AccountId> = budget.categories.iter().copied().collect();
-        for category in source.inside(&roots).into_keys() {
-            towards.entry(category).or_default().push(index);
+        for (set, from, until) in budget.counts_with_days() {
+            let roots: HashSet<AccountId> = set.categories.iter().copied().collect();
+            for category in source.inside(&roots).into_keys() {
+                towards
+                    .entry(category)
+                    .or_default()
+                    .push((index, from, until, &set.accounts));
+            }
         }
     }
     let mut spent: Vec<Spending> = budgets
@@ -318,11 +343,11 @@ fn spending(
             if amount.is_zero() {
                 continue;
             }
-            for &index in counted {
-                let (budget, currency) = budgets[index];
-                if !from_accounts(transaction, &budget.accounts) {
+            for &(index, from, until, accounts) in counted {
+                if day < from || day > until || !from_accounts(transaction, accounts) {
                     continue;
                 }
+                let (_, currency) = budgets[index];
                 if currency != amount.currency() {
                     return Err(ReportError::Store(StoreError::Corrupt(
                         Corruption::CurrencyMismatch {
@@ -351,8 +376,8 @@ fn spending(
 /// come in the order of the category tree (by their first category), a
 /// category's budgets by their first day. `only` keeps the budgets it names
 /// (the bars' *Which budgets*, D-642), `None` all of them.
-/// `filter.categories` keeps the budgets with a category that is one of
-/// them or inside one; `filter.accounts` does not apply, since a budget
+/// `filter.categories` keeps the budgets whose set for the day asked for
+/// has a category that is one of them or inside one (D-689); `filter.accounts` does not apply, since a budget
 /// counts the accounts it names itself, or every account (D-350, D-639:
 /// the shared filters do not apply accounts to it, and say so).
 ///
@@ -384,8 +409,11 @@ pub fn budget_utilization(
         if only.is_some_and(|only| !only.contains(&budget.id)) {
             continue;
         }
+        let Some(asked_set) = budget.counts_on(asked) else {
+            return Err(StoreError::Corrupt(Corruption::BrokenReferences).into());
+        };
         if chosen.as_ref().is_some_and(|chosen| {
-            !budget
+            !asked_set
                 .categories
                 .iter()
                 .any(|category| chosen.contains(category))
@@ -398,9 +426,9 @@ pub fn budget_utilization(
         if start < covers.first() || asked > covers.last() {
             return Err(ReportError::PeriodNotRead);
         }
-        // The book keeps every category of a budget in its first one's
-        // currency.
-        let first = budget
+        // The book keeps every category of a budget, in every set, in its
+        // first one's currency.
+        let first = asked_set
             .categories
             .first()
             .ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
@@ -448,6 +476,12 @@ pub fn budget_utilization(
                 left,
                 used,
                 carries_over: amount.carry_over,
+                // Sets start on the first day of a period (D-689).
+                counts_changed: budget.counts.windows(2).any(|pair| {
+                    pair[1].from_day == first_day
+                        && (pair[0].categories != pair[1].categories
+                            || pair[0].accounts != pair[1].accounts)
+                }),
             });
             carried = if amount.carry_over && budget.every.repeats() {
                 left
@@ -468,7 +502,10 @@ pub fn budget_utilization(
         if periods.is_empty() {
             continue;
         }
-        let paths = budget
+        let asked_set = budget
+            .counts_on(asked)
+            .ok_or(StoreError::Corrupt(Corruption::BrokenReferences))?;
+        let paths = asked_set
             .categories
             .iter()
             .map(|category| {
@@ -482,9 +519,9 @@ pub fn budget_utilization(
         results.push(BudgetUtilization {
             budget: budget.id,
             name: budget.name.clone(),
-            categories: budget.categories.clone(),
+            categories: asked_set.categories.clone(),
             paths,
-            accounts: budget.accounts.clone(),
+            accounts: asked_set.accounts.clone(),
             every: budget.every,
             currency,
             periods,

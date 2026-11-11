@@ -796,3 +796,73 @@ fn a_currency_no_table_lists_comes_in_as_the_user_says_it_was_replaced() {
         Err(StoreError::WithdrawnCurrency(ROL))
     ));
 }
+
+/// A file's tags come in whatever their names and counts (D-712, X3): a
+/// name too long for a book is cut, keeping it different from the others, a
+/// line break becomes a space, and a part keeps its first 20 tags; what is
+/// left out is counted, never refused.
+#[test]
+fn tags_beyond_what_a_book_keeps_are_cut_or_counted_never_refused() {
+    use kassensturz_core::{MAX_TAG_NAME_CHARS, MAX_TAGS_ON_PART};
+    use kassensturz_import::BookTag;
+
+    let mut file = household();
+    let long = "A very long tag name that another program allowed ".repeat(2);
+    assert!(long.chars().count() > 90);
+    file.tags = vec![
+        BookTag {
+            key: "T-long".into(),
+            name: long.clone(),
+        },
+        // The same 60 characters as the first, once cut.
+        BookTag {
+            key: "T-long-2".into(),
+            name: format!("{long}, again"),
+        },
+        BookTag {
+            key: "T-lines".into(),
+            name: "Tax\n2026".into(),
+        },
+    ];
+    for number in 0..25 {
+        file.tags.push(BookTag {
+            key: format!("T{number}"),
+            name: format!("Tag {number}"),
+        });
+    }
+    let groceries = &mut file.transactions[1].parts[1];
+    groceries.tags = (0..25).map(|number| format!("T{number}")).collect();
+    file.transactions[1].parts[0].tags = vec!["T-long".into(), "T-long-2".into(), "T-lines".into()];
+
+    let mut book = Book::create_in_memory().expect("book created");
+    let report = fill_book_from(&mut book, &file, &HashMap::new()).expect("filled");
+    let names: Vec<String> = book
+        .tags()
+        .expect("tags")
+        .into_iter()
+        .map(|tag| tag.name)
+        .collect();
+    let cut: String = long.chars().take(MAX_TAG_NAME_CHARS).collect();
+    assert!(names.contains(&cut.trim_end().to_owned()), "{names:?}");
+    assert!(
+        names
+            .iter()
+            .all(|name| name.chars().count() <= MAX_TAG_NAME_CHARS)
+    );
+    assert!(names.iter().any(|name| name.ends_with(" (2)")), "{names:?}");
+    assert!(names.contains(&"Tax 2026".to_owned()), "{names:?}");
+    assert_eq!(names.len(), 28);
+
+    let shopping = book
+        .transactions()
+        .expect("transactions")
+        .into_iter()
+        .find(|transaction| transaction.payee() == Some("Corner Grocery"))
+        .expect("the grocery shopping");
+    assert_eq!(shopping.splits()[0].tags.len(), 3);
+    assert_eq!(shopping.splits()[1].tags.len(), MAX_TAGS_ON_PART);
+    assert!(report.skipped.contains(&Skipped {
+        what: SkippedData::Tags,
+        count: 5,
+    }));
+}

@@ -143,6 +143,9 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.empty-name` | | | Give it a name. |
 | `store.duplicate-payee-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
 | `store.duplicate-tag-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
+| `store.tag-name` | `reason`, `max_chars` | `too-long`, `line-break` | The tag's name can't be kept: it can have at most {max_chars} characters (`too-long`) and must fit on one line (`line-break`). Choose a shorter name (D-712). |
+| `store.tag-too-many` | `limit`, `max` | `transaction`, `part`, `book` | A transaction (`transaction`) and each of its parts (`part`) can carry at most {max} tags, and a book can have at most {max} tags (`book`). Take a tag away, or merge two tags you use for the same thing (D-712). |
+| `store.tag-merged-into-itself` | `tag` | | A tag can't be merged into itself. Choose another tag to merge it into (D-712). |
 | `store.parent-kind-mismatch` | `parent`, `parent_kind`, `kind` | | Income categories go inside income, spending categories inside spending. Choose another category. |
 | `store.parent-currency-mismatch` | `parent`, `parent_currency`, `currency` | | {parent} counts in {parent_currency}, this category in {currency}. Choose a category in the same currency. |
 | `store.category-inside-itself` | `account` | | {account} can't go inside itself or one of its own subcategories. Choose another place. |

@@ -131,11 +131,19 @@ pub enum Action {
     /// Made an account an account of another type, e.g. savings instead
     /// of checking (D-625).
     ChangeAccountType,
+    /// Gave a tag another name (D-712).
+    RenameTag,
+    /// Removed a tag from every transaction and part that carried it, and
+    /// from the book (D-712).
+    RemoveTag,
+    /// Gave every transaction and part with one tag another one instead,
+    /// and removed the first (D-712).
+    MergeTags,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 44] = [
+    pub const ALL: [Self; 47] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -180,6 +188,9 @@ impl Action {
         Self::EditBudget,
         Self::RemoveBudget,
         Self::ChangeAccountType,
+        Self::RenameTag,
+        Self::RemoveTag,
+        Self::MergeTags,
     ];
 }
 
@@ -279,7 +290,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 25] = [
+pub(crate) const RECORDED: [Recorded; 26] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -456,6 +467,16 @@ pub(crate) const RECORDED: [Recorded; 25] = [
         columns: &[
             ("id", "BLOB"),
             ("split_id", "BLOB"),
+            ("tag_id", "BLOB"),
+            ("position", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "transaction_tags",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("transaction_id", "BLOB"),
             ("tag_id", "BLOB"),
             ("position", "INTEGER"),
         ],
@@ -1477,6 +1498,9 @@ fn action_to_text(action: Action) -> &'static str {
         Action::EditBudget => "edit_budget",
         Action::RemoveBudget => "remove_budget",
         Action::ChangeAccountType => "change_account_type",
+        Action::RenameTag => "rename_tag",
+        Action::RemoveTag => "remove_tag",
+        Action::MergeTags => "merge_tags",
     }
 }
 

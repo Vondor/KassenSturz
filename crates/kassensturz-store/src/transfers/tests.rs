@@ -891,3 +891,53 @@ fn the_user_may_pick_any_side_with_the_opposite_amount() {
         Err(StoreError::Transfer(TransferError::NotASide(id))) if id == shopping.id()
     ));
 }
+
+// US4.8 (D-713): a join keeps the tags on the whole of both sides, the
+// outgoing side's first, each once, and one Undo takes it back.
+#[test]
+fn joining_keeps_both_sides_tags_on_the_whole() {
+    let Accounts {
+        mut book,
+        checking,
+        savings,
+        ..
+    } = accounts();
+    let tag = |book: &mut Book, name: &str| {
+        let tag = kassensturz_core::Tag {
+            id: kassensturz_core::TagId::generate(),
+            name: name.into(),
+        };
+        book.add_tag(&tag).expect("tag added");
+        tag.id
+    };
+    let (holiday, savings_tag, tax) = (
+        tag(&mut book, "Holiday"),
+        tag(&mut book, "Savings"),
+        tag(&mut book, "Tax"),
+    );
+    let tagged = |book: &mut Book, side: &Transaction, tags: Vec<kassensturz_core::TagId>| {
+        let changed = Transaction::new(
+            side.id(),
+            side.booking_date(),
+            side.payee().map(str::to_owned),
+            side.splits().to_vec(),
+        )
+        .expect("balanced")
+        .with_tags(tags);
+        book.update_transaction(&changed).expect("changed");
+        book.transaction(side.id()).expect("read")
+    };
+    let out = side(&mut book, checking, -10000, 5);
+    let into = side(&mut book, savings, 10000, 6);
+    let out = tagged(&mut book, &out, vec![holiday, tax]);
+    let into = tagged(&mut book, &into, vec![savings_tag, holiday]);
+
+    let joined = book.join_transfer(into.id(), out.id()).expect("joined");
+    assert_eq!(
+        book.transaction(joined).expect("read").tags(),
+        [holiday, tax, savings_tag]
+    );
+    book.undo().expect("undone");
+    assert_eq!(book.transaction(out.id()).expect("read"), out);
+    assert_eq!(book.transaction(into.id()).expect("read"), into);
+}

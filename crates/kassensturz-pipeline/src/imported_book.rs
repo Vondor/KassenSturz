@@ -10,9 +10,9 @@ use std::collections::{HashMap, HashSet};
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Changeover, Condition, ConvertedPart,
     Currency, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount, Institution,
-    InstitutionId, MatchMode, Money, MoneyError, OriginalAmount, Payee, PayeeId, RateSource,
-    RoundingMode, Rule, RuleId, RuleNode, Split, Tag, TagId, Transaction, TransactionId,
-    TransferMatch, ViewId, Withdrawn,
+    InstitutionId, MAX_TAG_NAME_CHARS, MAX_TAGS_IN_BOOK, MAX_TAGS_ON_PART, MatchMode, Money,
+    MoneyError, OriginalAmount, Payee, PayeeId, RateSource, RoundingMode, Rule, RuleId, RuleNode,
+    Split, Tag, TagId, Transaction, TransactionId, TransferMatch, ViewId, Withdrawn,
 };
 use kassensturz_export::{BookData, ViewData};
 use kassensturz_import::{
@@ -313,9 +313,13 @@ fn fill(
         rules: data.rules.len(),
         patterns_left_out,
         skipped: with_counted(
-            &with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
-            SkippedData::Reports,
-            reports_left_out,
+            &with_counted(
+                &with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
+                SkippedData::Reports,
+                reports_left_out,
+            ),
+            SkippedData::Tags,
+            mapper.tags_left_out,
         ),
         reports,
     })
@@ -380,6 +384,12 @@ struct Mapper {
     order: Vec<(String, AccountKind, bool)>,
     institutions: HashMap<String, InstitutionId>,
     tags: HashMap<String, TagId>,
+    /// The file's tags beyond what a book keeps (D-712): their uses are left
+    /// out, and counted in `tags_left_out`.
+    tags_over: HashSet<String>,
+    /// How many tags on parts were left out: on a part beyond what one keeps,
+    /// or a tag beyond what a book keeps (D-712).
+    tags_left_out: usize,
     /// Whether the account with the key is one of the user's accounts, as
     /// opposed to a category or an internal account.
     user_accounts: HashMap<String, bool>,
@@ -544,18 +554,26 @@ impl Mapper {
     }
 
     /// The tags, with new IDs and names that differ, as the book asks:
-    /// a second "Kids" becomes "Kids (2)".
+    /// a second "Kids" becomes "Kids (2)". A name fits what the book keeps
+    /// (D-712): a line break becomes a space, and a name longer than
+    /// [`MAX_TAG_NAME_CHARS`] is cut, so the tag and its uses still come in.
+    /// A tag beyond [`MAX_TAGS_IN_BOOK`] is left out with its uses.
     fn tags(&mut self, imported: &[BookTag]) -> Result<Vec<Tag>, PipelineError> {
         let mut taken = HashSet::new();
-        let mut tags = Vec::with_capacity(imported.len());
+        let mut tags = Vec::with_capacity(imported.len().min(MAX_TAGS_IN_BOOK));
         for tag in imported {
-            let id = TagId::generate();
-            if self.tags.insert(tag.key.clone(), id).is_some() {
+            if self.tags.contains_key(&tag.key) || self.tags_over.contains(&tag.key) {
                 return Err(ImportError::Malformed { line: None }.into());
             }
+            if tags.len() == MAX_TAGS_IN_BOOK {
+                self.tags_over.insert(tag.key.clone());
+                continue;
+            }
+            let id = TagId::generate();
+            self.tags.insert(tag.key.clone(), id);
             tags.push(Tag {
                 id,
-                name: unique_name(&tag.name, &mut taken),
+                name: fitting_tag_name(&tag.name, &mut taken),
             });
         }
         Ok(tags)
@@ -813,16 +831,29 @@ impl Mapper {
             Some(key) => Some((self.id(key)?, self.user_accounts[key.as_str()])),
             None => None,
         };
-        let tags = part
-            .tags
-            .iter()
-            .map(|key| {
-                self.tags
-                    .get(key)
-                    .copied()
-                    .ok_or(ImportError::Malformed { line: None })
-            })
-            .collect::<Result<Vec<TagId>, ImportError>>()?;
+        // A part keeps at most what the book keeps on one (D-712), the
+        // first ones; the rest, and the uses of a tag beyond what a book
+        // keeps, are counted as left out.
+        let mut tags = Vec::new();
+        for key in &part.tags {
+            if self.tags_over.contains(key) {
+                self.tags_left_out += 1;
+                continue;
+            }
+            let tag = self
+                .tags
+                .get(key)
+                .copied()
+                .ok_or(ImportError::Malformed { line: None })?;
+            if tags.contains(&tag) {
+                continue;
+            }
+            if tags.len() == MAX_TAGS_ON_PART {
+                self.tags_left_out += 1;
+            } else {
+                tags.push(tag);
+            }
+        }
         let mut split = Split {
             account: account.map(|(id, _)| id),
             foreign: part
@@ -957,6 +988,28 @@ fn unique_name(wanted: &str, taken: &mut HashSet<String>) -> String {
     while !taken.insert(name.to_lowercase()) {
         number += 1;
         name = format!("{wanted} ({number})");
+    }
+    name
+}
+
+/// `wanted` as a tag's name the book keeps (D-712), unique as
+/// [`unique_name`] makes it: on one line, a line break or other control
+/// character becoming a space, and at most [`MAX_TAG_NAME_CHARS`]
+/// characters, the number after a taken one included.
+fn fitting_tag_name(wanted: &str, taken: &mut HashSet<String>) -> String {
+    let one_line: String = wanted
+        .trim()
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let cut = |text: &str, most: usize| -> String { text.chars().take(most).collect() };
+    let mut name = cut(&one_line, MAX_TAG_NAME_CHARS).trim_end().to_owned();
+    let mut number = 1;
+    while !taken.insert(name.to_lowercase()) {
+        number += 1;
+        let suffix = format!(" ({number})");
+        let room = MAX_TAG_NAME_CHARS - suffix.chars().count();
+        name = format!("{}{suffix}", cut(&one_line, room).trim_end());
     }
     name
 }

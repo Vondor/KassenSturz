@@ -318,11 +318,20 @@ pub fn join_transfer(
         .chain(incoming.attachments())
         .cloned()
         .collect();
+    // Both sides' tags on the whole, the outgoing one's first, each once
+    // (D-713).
+    let tags = outgoing
+        .tags()
+        .iter()
+        .chain(incoming.tags())
+        .copied()
+        .collect();
     Transaction::new(outgoing.id(), outgoing.booking_date(), payee, splits)
         .map(|joined| {
             joined
                 .with_note(note)
                 .with_attachments(attachments)
+                .with_tags(tags)
                 .with_entry_date(outgoing.entered_on().or(incoming.entered_on()))
         })
         .map_err(TransferError::Transaction)

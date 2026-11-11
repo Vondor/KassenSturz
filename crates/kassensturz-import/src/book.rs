@@ -361,7 +361,10 @@ pub enum SkippedData {
     /// beyond [`MAX_REPORTS`].
     Reports,
     /// Tags on parts that the reader couldn't match to the file's list of
-    /// tags, counted as tags; the list itself comes in (D-132).
+    /// tags, counted as tags; the list itself comes in (D-132). The book
+    /// import adds the tags a part or the book can't keep (D-712): those
+    /// on a part beyond the first 20, and every use of a tag beyond a
+    /// book's 1,000.
     Tags,
     /// Exchange rates and prices the price table can't hold: prices of
     /// securities, rates of a currency KassenSturz doesn't know, such as

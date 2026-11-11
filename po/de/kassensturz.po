@@ -6476,6 +6476,24 @@ msgctxt "@info a change you made"
 msgid "Added a tag"
 msgstr "Ein Schlagwort hinzugefügt"
 
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:108
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Renamed a tag"
+msgstr "Ein Schlagwort umbenannt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:110
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Removed a tag"
+msgstr "Ein Schlagwort entfernt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:112
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Merged two tags"
+msgstr "Zwei Schlagwörter zusammengeführt"
+
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:106
 #, kde-format
 msgctxt "@info a change you made"

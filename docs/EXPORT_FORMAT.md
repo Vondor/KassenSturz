@@ -2,7 +2,7 @@
 
 The complete export holds a whole KassenSturz book in one JSON file (D-029, D-100). It is the stable way to move a book's data: into a new book, to another program, or from a development build of the Alpha to the Beta (D-045, D-046, D-536). Unlike the book file itself (`docs/BOOK_FORMAT.md`), this format is meant to be read and written by other programs, so it changes only with a new [version](#versions).
 
-**Status: version 12** (D-690). Versions 1 to 11 are read as [described below](#versions).
+**Status: version 13** (D-712). Versions 1 to 12 are read as [described below](#versions).
 
 In the command-line tool, `export FILE --format book` writes it and `create --from FILE` makes a new book from it. In code, `BookExport` (ID `book`) in `kassensturz-export` writes it, `read_book` reads it, and `export_book` and `fill_book` in `kassensturz-pipeline` connect it to a book.
 
@@ -47,8 +47,9 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 10 | A monthly budget has a `salary_day`: the day of the month its periods start on, for a budget that repeats every salary month (D-651). |
 | 11 | A budget has a `name`: the name the user gave it, or `null` (M6-B203, D-664). |
 | 12 | A budget lists what it `counts`, from which day on: dated sets of `categories` and `accounts`, in place of its one `categories` and `accounts` (US3.2, D-689, D-690). |
+| 13 | A transaction has `tags` on the whole of it, besides each part's own (US4.8, D-712). |
 
-An older file is read as version 12 without what came later: a version 11 budget's `categories` and `accounts` are read as one set from its `first_day`, and a version 11 budget with `counts`, or a version 12 budget with `categories` or `accounts`, is refused; a version 10 budget has no name, and a version 10 budget with `name` is refused; a version 9 budget's months are calendar months, and a version 9 budget with `salary_day` is refused; a version 8 budget's `category` is read as a list of that one category with no accounts, and a version 8 budget with `categories` or `accounts` is refused; a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories`, and so is a version 1 to 7 file with `budgets` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, a version 7 file the `groups` and `hidden_categories` lists too, and a version 8 file the `budgets` list too, even when they are empty (`export.missing-value`).
+An older file is read as version 13 without what came later: a version 12 transaction has no tags on the whole, and a version 12 transaction with `tags` is refused; a version 11 budget's `categories` and `accounts` are read as one set from its `first_day`, and a version 11 budget with `counts`, or a version 12 budget with `categories` or `accounts`, is refused; a version 10 budget has no name, and a version 10 budget with `name` is refused; a version 9 budget's months are calendar months, and a version 9 budget with `salary_day` is refused; a version 8 budget's `category` is read as a list of that one category with no accounts, and a version 8 budget with `categories` or `accounts` is refused; a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories`, and so is a version 1 to 7 file with `budgets` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, a version 7 file the `groups` and `hidden_categories` lists too, and a version 8 file the `budgets` list too, even when they are empty (`export.missing-value`).
 
 ## The top level
 
@@ -87,7 +88,7 @@ An older file is read as version 12 without what came later: a version 11 budget
 | `hidden_categories` | The IDs of the [categories hidden from charts](#category-groups-and-hidden-categories). Version 7 and later. |
 | `budgets` | The [budgets](#budgets). Version 8 and later. |
 | `payees` | The [payees](#payees) with their details. Version 4 and later. |
-| `tags` | The [tags](#tags) parts can carry. Version 4 and later. |
+| `tags` | The [tags](#tags) transactions and parts can carry. Version 4 and later. |
 | `rates` | The [price table](#rates). |
 | `rules` | The [Rules](#rules), as a tree. |
 | `transactions` | The [transactions](#transactions) with their parts. |
@@ -231,7 +232,7 @@ One object per tag, sorted by name. Version 4 and later.
 | Key | Value |
 |---|---|
 | `id` | Its ID. |
-| `name` | Its name. Names are unique, ignoring capitals. |
+| `name` | Its name: 1 to 60 characters on one line, without spaces around it. Names are unique, ignoring capitals (`store.tag-name`, `store.duplicate-tag-name`). A book has at most 1,000 tags (`store.tag-too-many`, `book`, D-712). |
 
 ### Rates
 
@@ -288,6 +289,7 @@ One object per transaction, sorted by booking date and ID.
 | `currency` | The currency the transaction balances in (D-043). |
 | `note` | What the user noted about the whole transaction, or `null`. Version 4 and later. |
 | `entered` | The day it was entered into the book, if known, or `null`. Version 4 and later. |
+| `tags` | The [tags](#tags) on the whole transaction, by ID, in the user's order, each once: every part counts for them too (D-713). At most 20 (`store.tag-too-many`, `transaction`). May be left out when empty. Version 13 and later (D-712). |
 | `attachments` | Links to the documents that belong to it, e.g. a receipt, in their order: objects with `link`, a path or URL that isn't empty, and `title`, text or `null`. The book keeps the link only, never the file. May be left out when empty. Version 4 and later. |
 | `parts` | Its [parts](#parts): their amounts add up to zero. |
 
@@ -305,7 +307,7 @@ One object per transaction, sorted by booking date and ID.
 | `note` | What the user noted about this part, or `null`. For a part booked to an account, the KMyMoney import puts the memo into `delivered` instead, as a bank's text. Version 4 and later. |
 | `number` | A cheque or document number, or `null`. Version 4 and later. |
 | `status` | `cleared` if the part was seen on the bank's side, `reconciled` if it was checked against a statement, or `null`. Version 4 and later. |
-| `tags` | The IDs of the [tags](#tags) it carries, in their order, each at most once. May be left out when empty. Version 4 and later. |
+| `tags` | The IDs of the [tags](#tags) it carries, in their order, each at most once, at most 20 (`store.tag-too-many`, `part`). May be left out when empty. Version 4 and later. |
 | `delivered` | What a bank or file delivered for it (D-083): an object with `bank_id`, `booking_date`, `value_date`, `other_party_name`, `other_party_iban` and `remittance_information`, each of them text or a date, or `null`. Otherwise `null`. |
 | `booked_by_rule` | If a Rule booked it and may book it again when the user changes that Rule (D-088): an object with `rule`, the Rule's ID, or `null` if that Rule was removed since. Otherwise `null`. |
 
@@ -326,7 +328,7 @@ A book with one account, one category in one group, and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 12,
+  "version": 13,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -364,6 +366,7 @@ A book with one account, one category in one group, and one transaction:
       "currency": "EUR",
       "note": null,
       "entered": null,
+      "tags": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000004", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-4.50", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},

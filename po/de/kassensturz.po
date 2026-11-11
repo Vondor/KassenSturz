@@ -270,6 +270,25 @@ msgctxt "@title"
 msgid "Closed accounts"
 msgstr "Geschlossene Konten"
 
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:62
+#, kde-format
+msgctxt "@action:button"
+msgid "Find moves between my accounts…"
+msgstr "Bewegungen zwischen meinen Konten finden…"
+
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:86
+#, kde-format
+msgctxt "@info"
+msgid ""
+"No moves between your accounts to ask about. Moves you sorted yourself "
+"aren't looked for: open one of their entries and choose “Join with the other "
+"side of a move…”."
+msgstr ""
+"Es gibt keine Bewegungen zwischen Ihren Konten, nach denen gefragt werden "
+"kann. Bewegungen, die Sie selbst zugeordnet haben, werden nicht gesucht: "
+"Öffnen Sie eine ihrer Buchungen und wählen Sie „Mit der Gegenseite einer "
+"Bewegung verbinden…“."
+
 #: crates/kassensturz-ui-bridge/qml/AddMenu.qml:47
 #, kde-format
 msgctxt "@title:menu a group of widgets: charts"
@@ -17081,6 +17100,12 @@ msgctxt "@action:button"
 msgid "Create a Rule from this transaction…"
 msgstr "Aus dieser Buchung eine Regel erstellen…"
 
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:353
+#, kde-format
+msgctxt "@action:button"
+msgid "Join with the other side of a move…"
+msgstr "Mit der Gegenseite einer Bewegung verbinden…"
+
 #: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:50
 #, kde-format
 msgctxt "@label"
@@ -17177,6 +17202,60 @@ msgctxt "@title:column what the account held after the transaction"
 msgid "Balance after"
 msgstr "Kontostand danach"
 
+#: crates/kassensturz-ui-bridge/qml/TransferPartnerDialog.qml:54
+#, kde-format
+msgctxt "@title:window"
+msgid "Which entry is the other side?"
+msgstr "Welche Buchung ist die Gegenseite?"
+
+#: crates/kassensturz-ui-bridge/qml/TransferPartnerDialog.qml:70
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These entries in your other accounts move exactly this amount the other way. "
+"Choose the one that belongs to this move; you see what changes before "
+"anything is joined."
+msgstr ""
+"Diese Buchungen in Ihren anderen Konten bewegen genau diesen Betrag in die "
+"Gegenrichtung. Wählen Sie die, die zu dieser Bewegung gehört; Sie sehen, was "
+"sich ändert, bevor etwas verbunden wird."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPartnerDialog.qml:79
+#, kde-format
+msgctxt "@info"
+msgid "No matching entry found"
+msgstr "Keine passende Buchung gefunden"
+
+#: crates/kassensturz-ui-bridge/qml/TransferPartnerDialog.qml:80
+#, kde-format
+msgctxt "@info"
+msgid ""
+"None of your other accounts has an entry that moves exactly this amount the "
+"other way. Import the other account's statement, or type its side, then try "
+"again."
+msgstr ""
+"Keines Ihrer anderen Konten hat eine Buchung, die genau diesen Betrag in die "
+"Gegenrichtung bewegt. Importieren Sie den Kontoauszug des anderen Kontos "
+"oder tippen Sie dessen Seite ein und versuchen Sie es dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPartnerDialog.qml:129
+#, kde-format
+msgctxt "@info %1 is a category"
+msgid "Sorted as “%1” by a Rule"
+msgstr "Von einer Regel „%1“ zugeordnet"
+
+#: crates/kassensturz-ui-bridge/qml/TransferPartnerDialog.qml:130
+#, kde-format
+msgctxt "@info %1 is a category"
+msgid "You sorted it as “%1” yourself"
+msgstr "Von Ihnen selbst „%1“ zugeordnet"
+
+#: crates/kassensturz-ui-bridge/qml/TransferPartnerDialog.qml:138
+#, kde-format
+msgctxt "@info the entry is within a few days of the chosen one"
+msgid "Likely: only a few days apart"
+msgstr "Wahrscheinlich: nur wenige Tage auseinander"
+
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:74
 #, kde-format
 msgctxt "@title:window"
@@ -17243,6 +17322,41 @@ msgstr ""
 "Wenn Sie sie verbinden, zählen sie als Verschieben Ihres eigenen Geldes, "
 "nicht als Ausgabe und Einnahme. Beide Konten behalten ihren Kontostand und "
 "die Daten, die sie zeigen. „Rückgängig“ trennt sie wieder."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:86
+#, kde-format
+msgctxt "@info %1 is a category, %2 the name of a Rule"
+msgid "Sorted as “%1” by the Rule “%2”. Joined, it no longer counts in “%1”."
+msgstr ""
+"Von der Regel „%2“ „%1“ zugeordnet. Verbunden zählt es nicht mehr bei „%1“."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:87
+#, kde-format
+msgctxt "@info %1 is a category"
+msgid "Sorted as “%1” by a Rule. Joined, it no longer counts in “%1”."
+msgstr ""
+"Von einer Regel „%1“ zugeordnet. Verbunden zählt es nicht mehr bei „%1“."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:89
+#, kde-format
+msgctxt "@info %1 is a category"
+msgid "You sorted it as “%1” yourself. Joined, it no longer counts in “%1”."
+msgstr ""
+"Sie haben es selbst „%1“ zugeordnet. Verbunden zählt es nicht mehr bei „%1“."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:173
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:205
+#, kde-format
+msgctxt "@info %1 is the name of an account"
+msgid "What you wrote on it stays, on the entry in %1."
+msgstr ""
+"Was Sie dazu geschrieben haben, bleibt erhalten, bei der Buchung in %1."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:221
+#, kde-format
+msgctxt "@info"
+msgid "Undo also brings the categories back."
+msgstr "„Rückgängig“ bringt auch die Kategorien zurück."
 
 #: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:80
 #, kde-format
@@ -19095,6 +19209,39 @@ msgstr "Der Name eines Budgets passt in eine Zeile. Entfernen Sie den Zeilenumbr
 msgctxt "@info %1 is a number"
 msgid "A budget's name can have at most %1 characters. Choose a shorter name."
 msgstr "Der Name eines Budgets darf höchstens %1 Zeichen haben. Wählen Sie einen kürzeren Namen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:255
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This transaction can't be one side of a move between your accounts: it is "
+"broken down into several parts, or has an amount in another currency."
+msgstr ""
+"Diese Buchung kann keine Seite einer Bewegung zwischen Ihren Konten sein: "
+"Sie ist in mehrere Teile aufgeteilt oder hat einen Betrag in einer anderen "
+"Währung."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:258
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Both entries have a different number of their own, and joining would lose "
+"one. Change the parts so only one number is left, then join them."
+msgstr ""
+"Beide Buchungen haben eine eigene, unterschiedliche Nummer, und beim "
+"Verbinden ginge eine verloren. Ändern Sie die Teile so, dass nur eine Nummer "
+"bleibt, und verbinden Sie sie dann."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:259
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Both entries have a different note of their own, and joining would lose one. "
+"Change the parts so only one note is left, then join them."
+msgstr ""
+"Beide Buchungen haben eine eigene, unterschiedliche Notiz, und beim "
+"Verbinden ginge eine verloren. Ändern Sie die Teile so, dass nur eine Notiz "
+"bleibt, und verbinden Sie sie dann."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:176
 #, kde-format

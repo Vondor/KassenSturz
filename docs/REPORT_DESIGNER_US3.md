@@ -72,6 +72,8 @@ The same approach as D-668: **the figures stay, and the chart says so.** Today a
 - `compare` (section 1) and `columns` don't go together: the comparison is for the dataset's own rows. A call with both is refused as `bad-argument compare`, and the schema refuses it in the app too.
 - `list_views` reports a chart's columns (names, and formulas or members only as the grid lets the model read them, D-681). The answer of `propose_view` has no `computed`, because a chart of many figures is read with the read functions (D-685).
 
+**As built (US3.1b):** columns are taken with show_as bar, stacked_bar, pie, donut and table: line and area have `params.columns` in the schema but don't draw spending by category, so a call asks for one of the others (`not-for-chart` names them). A call with columns and an `average` other than `total` is refused as `bad-argument average`, as a column has its own figure. A change of a saved chart (`view_id`) can set columns, and an empty list takes them away. A column of categories that are not in the book is refused as `unknown-category` with the column's place. The app hides `compare` on a chart with columns rather than refusing the document, so an old document still opens.
+
 ### 2.2 Easier to find in the app
 
 - The Statistic Builder's board already turns an empty column into a formula column (D-341). The build adds one line of help under *Add a column*: *"A column can also be a formula, e.g. =Salary@"last month", with its own period."* This adds no new control.

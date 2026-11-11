@@ -19506,3 +19506,9 @@ msgid ""
 msgstr ""
 "Ein Budget kann höchstens %1 Änderungen dessen behalten, was es zählt. "
 "Beenden Sie es und legen Sie stattdessen ein neues Budget fest."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+#, kde-format
+msgctxt "@info an example of a formula; the words in quotes stay in English"
+msgid "A column can also be a formula, e.g. =Salary@\"last month\", with its own period."
+msgstr "Eine Spalte kann auch eine Formel sein, z. B. =Gehalt@\"last month\", mit einem eigenen Zeitraum."

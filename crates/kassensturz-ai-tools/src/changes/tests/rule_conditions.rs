@@ -250,7 +250,7 @@ fn a_check_names_the_conditions_remove_conditions_would_take_away() {
         {"rule_id": rule.id.to_string(), "remove_conditions": [4, 2]},
     ]});
     let proposal = propose(&book, &call).expect("removed");
-    let answer = crate::check_only_answer(&book, &proposal).expect("checked");
+    let answer = crate::check_only_answer(&book, &proposal, Permissions::all()).expect("checked");
     let removed = &answer["removed_conditions"];
     assert_eq!(removed.as_array().map(Vec::len), Some(1), "{answer}");
     assert_eq!(removed[0]["list"], "edit_rules");
@@ -275,8 +275,12 @@ fn a_check_names_the_conditions_remove_conditions_would_take_away() {
         "rule_id": rule.id.to_string(),
         "add_conditions": [{"field": "payee", "test": "contains", "text": "fish"}],
     }]});
-    let answer =
-        crate::check_only_answer(&book, &propose(&book, &adds).expect("added")).expect("checked");
+    let answer = crate::check_only_answer(
+        &book,
+        &propose(&book, &adds).expect("added"),
+        Permissions::all(),
+    )
+    .expect("checked");
     assert!(answer.get("removed_conditions").is_none(), "{answer}");
 }
 

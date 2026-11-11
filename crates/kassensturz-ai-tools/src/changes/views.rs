@@ -16,8 +16,8 @@ use std::collections::HashSet;
 
 use kassensturz_core::{StoredView, ViewId, ViewKind};
 use kassensturz_report::{
-    Component, ComponentType, Document, FORMULA_MEASURE, Item, MAX_TEXT_CHARS, PERIODS,
-    ReportError, Rolling, Setting, read_range_word,
+    ColumnSetting, Component, ComponentType, Document, FORMULA_MEASURE, Item, MAX_TEXT_CHARS,
+    PERIODS, ReportError, Rolling, Setting, read_range_word,
 };
 use kassensturz_store::{Book, StoreError};
 use serde_json::{Map, Value};
@@ -206,6 +206,55 @@ fn choose_ids(
         .map_err(|_| ToolError::BadArgument { argument: key })
 }
 
+/// Sets the chart's columns (US3.1b, D-687) from the item's `columns`: each
+/// `{name, formula}` or `{name, categories}`, checked against the book by
+/// `propose_view`; the schema checks the names and the lengths again. An
+/// empty list takes the columns away. Only spending is made of columns.
+fn choose_columns(component: &mut Component, value: Option<&Value>) -> Result<(), ToolError> {
+    const BAD: ToolError = ToolError::BadArgument {
+        argument: "columns",
+    };
+    let Some(value) = value else {
+        return Ok(());
+    };
+    let columns = value
+        .as_array()
+        .ok_or(BAD)?
+        .iter()
+        .map(|entry| {
+            let entry = entry.as_object()?;
+            let name = entry.get("name")?.as_str()?.to_owned();
+            let formula = match entry.get("formula") {
+                Some(formula) => formula.as_str()?.to_owned(),
+                None => String::new(),
+            };
+            let members = match entry.get("categories") {
+                Some(ids) => ids
+                    .as_array()?
+                    .iter()
+                    .map(|id| id.as_str().map(str::to_owned))
+                    .collect::<Option<Vec<_>>>()?,
+                None => Vec::new(),
+            };
+            let known = entry
+                .keys()
+                .all(|key| ["name", "formula", "categories"].contains(&key.as_str()));
+            (known && formula.is_empty() != members.is_empty()).then_some(ColumnSetting {
+                name,
+                members,
+                formula,
+            })
+        })
+        .collect::<Option<Vec<_>>>()
+        .ok_or(BAD)?;
+    if !columns.is_empty() && component.dataset().id != kassensturz_report::SPENDING_BY_CATEGORY {
+        return Err(BAD);
+    }
+    component
+        .set("columns", Setting::Columns(columns))
+        .map_err(|_| BAD)
+}
+
 /// The settings of a chart the AI prepares besides its kind and dataset,
 /// in the order they are set: words, then lists of ids, then formulas
 /// (D-352, D-650).
@@ -256,6 +305,7 @@ pub(super) fn new_view(
             "expenses_accounts",
             "formula",
             "target",
+            "columns",
         ],
         "new_views",
     )?;
@@ -311,6 +361,7 @@ pub(super) fn new_view(
     for key in ID_LISTS {
         choose_ids(&mut component, key, item.array(key)?)?;
     }
+    choose_columns(&mut component, item.get("columns"))?;
     for (key, text) in FORMULAS.into_iter().zip([formula, target]) {
         if let Some(text) = text {
             component
@@ -420,7 +471,7 @@ fn chart_of(view: &StoredView) -> Result<(Document, Component), ToolError> {
 
 /// The keys of an item of `edit_views`: those of `new_views` and the
 /// chart's ID.
-const EDIT_KEYS: [&str; 18] = [
+const EDIT_KEYS: [&str; 19] = [
     "view_id",
     "title",
     "dataset",
@@ -439,6 +490,7 @@ const EDIT_KEYS: [&str; 18] = [
     "expenses_accounts",
     "formula",
     "target",
+    "columns",
 ];
 
 /// The `compare` word for no comparison, which puts the chart's
@@ -547,6 +599,7 @@ pub(super) fn edit_view(
             .set(key, Setting::Ids(ids))
             .map_err(|_| ToolError::BadArgument { argument: key })?;
     }
+    choose_columns(&mut component, item.get("columns"))?;
     for key in FORMULAS {
         let text = if key == "formula" {
             formula

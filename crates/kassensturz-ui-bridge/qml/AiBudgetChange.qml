@@ -5,8 +5,10 @@
 // (M6c.11, D-358, D-395): its name, if it has one (D-664), the category, how
 // often it starts again, the first period it applies to, the amount,
 // whether it carries over and, for an amount KassenSturz computed, how it
-// came about. A change of only the name says that no amount changes. Every
-// text from the model or the book is plain text (T-08).
+// came about. A change of only the name says that no amount changes. A
+// change of what a budget counts shows the categories and accounts before
+// and after, and that earlier periods keep counting what they counted
+// (D-690). Every text from the model or the book is plain text (T-08).
 
 import QtQuick
 import QtQuick.Layouts
@@ -34,6 +36,8 @@ Kirigami.AbstractCard {
     readonly property bool isNew: change.kind === "newBudget"
     // A change of the name only leaves every amount as it was (D-664).
     readonly property bool changesAmount: isNew || (change.changesAmount ?? true)
+    // What it counts changes from the period of the change on (D-690).
+    readonly property bool changesCounts: !isNew && (change.changesCounts ?? false)
     readonly property string ownName: change.name ?? ""
 
     function everyText(every: string): string {
@@ -53,6 +57,18 @@ Kirigami.AbstractCard {
     }
 
     // How the amount came about, in words, or "" for one the user named.
+    // What a budget counts, in words: categories and, when chosen, accounts.
+    function countsText(now: bool, categories: string, accounts: string): string {
+        if (now) {
+            return accounts === ""
+                ? i18nContext.i18nc("@info %1 is a list of categories", "Now it counts %1.", categories)
+                : i18nContext.i18nc("@info %1 is a list of categories, %2 a list of account names", "Now it counts %1, only money paid from %2.", categories, accounts);
+        }
+        return accounts === ""
+            ? i18nContext.i18nc("@info %1 is a list of categories", "From this change on it counts %1.", categories)
+            : i18nContext.i18nc("@info %1 is a list of categories, %2 a list of account names", "From this change on it counts %1, only money paid from %2.", categories, accounts);
+    }
+
     function basisText(): string {
         const periods = change.basisPeriods;
         if (periods === 0) {
@@ -103,10 +119,38 @@ Kirigami.AbstractCard {
                 : card.i18nContext.i18nc("@info", "The name is taken away, so the budget is called by its categories again.")
         }
 
+        // What it counts now and from the change on (D-690).
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: card.changesCounts
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: visible ? card.countsText(true, card.change.category, card.change.accounts ?? "") : ""
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: card.changesCounts
+            wrapMode: Text.Wrap
+            font.bold: true
+            textFormat: Text.PlainText
+            text: visible ? card.countsText(false, card.change.newCategory ?? "", card.change.newAccounts ?? "") : ""
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: card.changesCounts
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: card.changesAmount
+                ? card.i18nContext.i18nc("@info", "Earlier periods keep counting what they counted, so their results don't change.")
+                : card.i18nContext.i18nc("@info", "Earlier periods keep counting what they counted, so their results don't change. Every amount stays as it was.")
+        }
+
         // A budget may count only some of the user's accounts (D-641).
         Controls.Label {
             Layout.fillWidth: true
-            visible: (card.change.accounts ?? "") !== ""
+            visible: !card.changesCounts && (card.change.accounts ?? "") !== ""
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             text: card.i18nContext.i18nc("@info %1 is a list of account names", "Only money paid from %1", card.change.accounts ?? "")
@@ -117,7 +161,7 @@ Kirigami.AbstractCard {
             wrapMode: Text.Wrap
             opacity: 0.8
             textFormat: Text.PlainText
-            text: !card.changesAmount
+            text: !card.changesAmount && !card.changesCounts
                 ? card.i18nContext.i18nc("@info", "Only the name changes. Every amount stays as it was.")
                 : card.isNew && card.change.every === "range"
                 // A stretch of days the user named has one period (D-688).

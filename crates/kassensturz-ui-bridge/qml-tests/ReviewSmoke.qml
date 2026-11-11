@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Opens AiChangeReviewPage.qml on stand-ins for the Rust objects (fakes/) with
-// a set that holds one new chart (M6a.9, D-282) and one new budget (M6c.11,
-// D-358) and checks that the page shows the chart with its title, its period
+// a set that holds one new chart (M6a.9, D-282), one new budget (M6c.11,
+// D-358) and one budget that counts other categories (D-690) and checks that the page shows the chart with its title, its period
 // and a preview, the budget with how its amount was computed, that nothing
 // is confirmed
 // before the button is pressed, that the user can correct the chart, leave it
@@ -88,14 +88,22 @@ Kirigami.ApplicationWindow {
             window.check(all.includes("Counts Pets (with Vet, Cat food and 2 more), Travel in September 2026"), "what it counts, in words");
             window.check(chat.confirmed.length === 0, "nothing is confirmed before the button");
             window.check(page.newBudgets.length === 1, "the page holds the new budget");
-            window.check(window.find(page, "AiBudgetChange", []).length === 1, "one budget card");
+            window.check(page.editedBudgets.length === 1, "the page holds the changed budget");
+            window.check(window.find(page, "AiBudgetChange", []).length === 2, "one card for each budget");
             window.check(all.includes("Food › Groceries"), "the budget's category is shown");
             window.check(all.includes("Every salary month, from day 25, first period 25.10.2026 to 24.11.2026"), "how often, from which day (D-651) and from when, got " + all);
+            // A changed budget shows what it counts before and after, and
+            // that the past keeps its results (D-690).
+            window.check(all.includes("Now it counts Food."), "what it counts now, got " + all);
+            window.check(all.includes("From this change on it counts Food, Fun, only money paid from Everyday Checking."), "what it counts from the change on");
+            window.check(all.includes("Earlier periods keep counting what they counted, so their results don't change. Every amount stays as it was."), "the past stays");
+            window.check(!all.includes("Only the name changes. Every amount stays as it was."), "not taken for a new name");
+            window.check(all.includes("Every month. The change applies from the period 01.11.2026 to 30.11.2026 on; earlier periods stay as they were."), "from which period");
             window.check(all.includes("Average of the last 6 full periods, 01.05.2026 to 31.10.2026: 387,40 € per period (2.324,40 € in all), rounded up to a multiple of 10,00 €."), "how the amount was computed");
 
             // The user corrects the chart before confirming (D-293).
             const correction = window.find(page, "AiChangeCorrection", []);
-            window.check(correction.length === 3, "one correction row for each change");
+            window.check(correction.length === 4, "one correction row for each change");
             correction[1].start();
             window.check(correction[1].fields().period === "last-salary-month-25", "the form keeps a rolling period");
             correction[1].editing = false;
@@ -110,10 +118,10 @@ Kirigami.ApplicationWindow {
             window.check(window.texts(page, []).includes("Changed by you"), "marked as changed by the user");
             window.check(page.correctionResult.code === undefined, "no error left over");
             page.leaveOut("new_views/0");
-            window.check(page.kept.length === 2 && page.leftOut.length === 1, "left out");
+            window.check(page.kept.length === 3 && page.leftOut.length === 1, "left out");
             window.check(window.texts(page, []).includes("Put it back"), "a left-out change can be put back");
             page.backToAi("new_views/0");
-            window.check(page.kept.length === 3 && !page.kept[0].edited && page.kept[0].title === "Where the money goes", "back to the AI's version");
+            window.check(page.kept.length === 4 && !page.kept[0].edited && page.kept[0].title === "Where the money goes", "back to the AI's version");
             // Optional reasons for throwing the set away (D-678): fixed
             // choices, and only their keywords are passed on.
             const shown = window.texts(page.footer, []);

@@ -774,8 +774,11 @@ pub(crate) mod engine {
                 renames,
                 new_name,
                 changes_amount,
+                changes_counts,
                 category,
                 accounts,
+                new_category,
+                new_accounts,
                 every,
                 salary_day,
                 from,
@@ -792,8 +795,11 @@ pub(crate) mod engine {
                     ("renames", QVariant::from(renames)),
                     ("newName", text(new_name)),
                     ("changesAmount", QVariant::from(changes_amount)),
+                    ("changesCounts", QVariant::from(changes_counts)),
                     ("category", text(category)),
                     ("accounts", text(accounts)),
+                    ("newCategory", text(new_category)),
+                    ("newAccounts", text(new_accounts)),
                     ("every", text(every)),
                     ("salaryDay", QVariant::from(salary_day)),
                     ("from", text(from)),
@@ -1859,8 +1865,11 @@ mod tests {
                 renames: true,
                 new_name: "Weekends".into(),
                 changes_amount: true,
+                changes_counts: true,
                 category: "Fun".into(),
                 accounts: String::new(),
+                new_category: "Fun, Travel".into(),
+                new_accounts: "Checking".into(),
                 every: "quarter",
                 salary_day: 0,
                 from: "01.10.2026".into(),
@@ -2093,10 +2102,13 @@ mod tests {
             "carryOver",
             "category",
             "changesAmount",
+            "changesCounts",
             "every",
             "from",
             "kind",
             "name",
+            "newAccounts",
+            "newCategory",
             "newName",
             "renames",
             "salaryDay",
@@ -2112,6 +2124,9 @@ mod tests {
         assert!(flag_of(&items[15], "renames"));
         assert_eq!(text_of(&items[15], "newName"), "Weekends");
         assert!(flag_of(&items[15], "changesAmount"));
+        assert!(flag_of(&items[15], "changesCounts"));
+        assert_eq!(text_of(&items[15], "newCategory"), "Fun, Travel");
+        assert_eq!(text_of(&items[15], "newAccounts"), "Checking");
         assert_eq!(text_of(&items[15], "before"), "100,00 €");
         assert_eq!(number_of(&items[15], "salaryDay"), 0);
         assert!(!flag_of(&items[15], "carriedOver"));

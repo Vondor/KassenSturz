@@ -917,6 +917,220 @@ fn a_budget_gets_the_name_the_user_asked_for_and_keeps_its_amounts() {
     }
 }
 
+/// What a budget counts changes from the current period on, and earlier
+/// periods keep counting what they counted (D-689, D-690).
+#[test]
+fn an_edit_changes_what_a_budget_counts_from_the_current_period_on() {
+    let mut small = small();
+    let (food, fun, checking) = (small.food, small.fun, small.checking);
+    spend(
+        &mut small.book,
+        checking,
+        fun,
+        Date::constant(2026, 10, 15),
+        3_000,
+    );
+    let id = small
+        .book
+        .add_budget(
+            &[food],
+            &[],
+            BudgetEvery::Month,
+            Date::constant(2026, 6, 1),
+            None,
+            eur(30_000),
+            false,
+        )
+        .expect("a budget made by hand");
+    let before = small.book.budget(id).expect("there");
+    let edit_call = |extra: Value| {
+        let mut item = json!({"budget_id": id.to_string()});
+        for (key, value) in extra.as_object().expect("an object") {
+            item[key] = value.clone();
+        }
+        json!({"edit_budgets": [item]})
+    };
+    let proposal = propose(
+        &small.book,
+        &edit_call(json!({"category_ids": [food.to_string(), fun.to_string()]})),
+    )
+    .expect("prepared");
+    let [ProposedChange::EditBudget(edit)] = proposal.changes.changes() else {
+        panic!("one edit");
+    };
+    assert!(!edit.changes_amount);
+    assert_eq!(edit.paths, [vec!["Food".to_owned()]]);
+    let counts = edit.counts.as_ref().expect("a new set");
+    assert_eq!(counts.categories, [food, fun]);
+    assert!(counts.accounts.is_empty());
+    assert_eq!(
+        proposal.changes.summary(),
+        "budget for \"Food\" changes to count \"Food\", \"Fun\" from 2026-11-01"
+    );
+    proposal
+        .changes
+        .apply(&mut small.book, Confirmed::by_the_user())
+        .expect("applied");
+    let after = small.book.budget(id).expect("there");
+    assert_eq!(after.amounts, before.amounts, "no amount changes");
+    assert_eq!(
+        after
+            .counts_on(Date::constant(2026, 10, 1))
+            .expect("October")
+            .categories,
+        [food]
+    );
+    assert_eq!(
+        after
+            .counts_on(Date::constant(2026, 11, 1))
+            .expect("November")
+            .categories,
+        [food, fun]
+    );
+    small.book.undo().expect("undone");
+    assert_eq!(small.book.budget(id).expect("there"), before);
+    small.book.redo().expect("redone");
+    assert_eq!(small.book.budget(id).expect("there"), after);
+    small.book.undo().expect("undone again");
+
+    // Only the accounts: the categories stay.
+    let proposal = propose(
+        &small.book,
+        &edit_call(json!({"account_ids": [checking.to_string()]})),
+    )
+    .expect("prepared");
+    let [ProposedChange::EditBudget(edit)] = proposal.changes.changes() else {
+        panic!("one edit");
+    };
+    let counts = edit.counts.as_ref().expect("a new set");
+    assert_eq!(counts.categories, [food]);
+    assert_eq!(counts.account_names, ["Checking"]);
+    assert_eq!(
+        proposal.changes.summary(),
+        "budget for \"Food\" changes to count \"Food\" (paid from \"Checking\") from 2026-11-01"
+    );
+
+    // A new amount based_on spending counts the new set: October's 50.01
+    // on Food and 30.00 on Fun, rounded up to whole euros.
+    let proposal = propose(
+        &small.book,
+        &edit_call(json!({"category_ids": [fun.to_string(), food.to_string()],
+            "based_on": "last_period"})),
+    )
+    .expect("prepared");
+    let [ProposedChange::EditBudget(edit)] = proposal.changes.changes() else {
+        panic!("one edit");
+    };
+    assert!(edit.changes_amount);
+    assert_eq!(edit.amount, eur(8_100));
+    proposal
+        .changes
+        .apply(&mut small.book, Confirmed::by_the_user())
+        .expect("applied");
+    let after = small.book.budget(id).expect("there");
+    assert_eq!(
+        after
+            .amount_for(Date::constant(2026, 11, 1))
+            .expect("now")
+            .amount,
+        eur(8_100)
+    );
+    assert_eq!(
+        after
+            .amount_for(Date::constant(2026, 10, 1))
+            .expect("before")
+            .amount,
+        eur(30_000)
+    );
+    small.book.undo().expect("one undo takes both back");
+    assert_eq!(small.book.budget(id).expect("there"), before);
+
+    // The same set again, in any order, is no change.
+    assert_eq!(
+        code(propose(
+            &small.book,
+            &edit_call(json!({"category_ids": [food.to_string()]}))
+        )),
+        "bad-argument category_ids"
+    );
+    assert_eq!(
+        code(propose(&small.book, &edit_call(json!({"account_ids": []})))),
+        "bad-argument account_ids"
+    );
+    // The book's own checks reach the model.
+    for (extra, expected) in [
+        (
+            json!({"category_ids": []}),
+            "store.budget-choice no-category",
+        ),
+        (
+            json!({"category_ids": [food.to_string(), food.to_string()]}),
+            "store.budget-choice category-twice",
+        ),
+        (
+            json!({"category_ids": [small.salary.to_string()]}),
+            "store.budget-not-spending",
+        ),
+        (
+            json!({"category_ids": [checking.to_string()]}),
+            "ai-tools.unknown-category",
+        ),
+        (
+            json!({"account_ids": [food.to_string()]}),
+            "store.budget-choice not-own-account",
+        ),
+        (json!({"category_ids": "Food"}), "bad-argument category_ids"),
+        (
+            json!({"account_ids": ["not an id"]}),
+            "bad-argument account_ids",
+        ),
+    ] {
+        assert_eq!(
+            code(propose(&small.book, &edit_call(extra.clone()))),
+            expected,
+            "{extra}"
+        );
+    }
+
+    // A category of another currency: the amounts are in the budget's.
+    let usd = CurrencyCode::new("USD").expect("valid");
+    small.book.use_currency(usd).expect("currency");
+    let trips = Account {
+        currency: usd,
+        ..account("Trips", AccountKind::Expense, None)
+    };
+    small.book.add_account(&trips).expect("added");
+    assert_eq!(
+        code(propose(
+            &small.book,
+            &edit_call(json!({"category_ids": [food.to_string(), trips.id.to_string()]}))
+        )),
+        "store.budget-choice currencies"
+    );
+
+    // Fun has a budget of its own: a category's money is in one budget at
+    // a time (D-344).
+    small
+        .book
+        .add_budget(
+            &[fun],
+            &[],
+            BudgetEvery::Month,
+            Date::constant(2026, 6, 1),
+            None,
+            eur(5_000),
+            false,
+        )
+        .expect("by hand");
+    assert_eq!(
+        code(propose(
+            &small.book,
+            &edit_call(json!({"category_ids": [food.to_string(), fun.to_string()]}))
+        )),
+        "store.budget-overlap"
+    );
+}
+
 /// The book of #576: 50.00 a month on Food, booked on 30 June, 31 July,
 /// 31 August and 30 September; the October payment slipped to 2 November,
 /// and the November one is booked on 30 November. `from` leaves out the

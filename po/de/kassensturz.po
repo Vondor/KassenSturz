@@ -19512,3 +19512,37 @@ msgstr ""
 msgctxt "@info an example of a formula; the words in quotes stay in English"
 msgid "A column can also be a formula, e.g. =Salary@\"last month\", with its own period."
 msgstr "Eine Spalte kann auch eine Formel sein, z. B. =Gehalt@\"last month\", mit einem eigenen Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml
+#, kde-format
+msgctxt "@info %1 is a list of categories"
+msgid "Now it counts %1."
+msgstr "Jetzt zählt es %1."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml
+#, kde-format
+msgctxt "@info %1 is a list of categories, %2 a list of account names"
+msgid "Now it counts %1, only money paid from %2."
+msgstr "Jetzt zählt es %1, nur Geld, das von %2 bezahlt wurde."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml
+#, kde-format
+msgctxt "@info %1 is a list of categories"
+msgid "From this change on it counts %1."
+msgstr "Ab dieser Änderung zählt es %1."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml
+#, kde-format
+msgctxt "@info %1 is a list of categories, %2 a list of account names"
+msgid "From this change on it counts %1, only money paid from %2."
+msgstr "Ab dieser Änderung zählt es %1, nur Geld, das von %2 bezahlt wurde."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Earlier periods keep counting what they counted, so their results don't "
+"change. Every amount stays as it was."
+msgstr ""
+"Frühere Zeiträume zählen weiter, was sie gezählt haben, ihre Ergebnisse "
+"ändern sich also nicht. Jeder Betrag bleibt, wie er war."

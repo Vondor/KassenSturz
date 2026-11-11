@@ -55,6 +55,9 @@
 #   and AiSettings and checks that a field switch that is on means the AI may
 #   write it, as in the grid (#631), and what each switch stores.
 #
+# - TransactionSmoke.qml opens TransactionPage.qml on a stand-in for
+#   AccountRegister and checks that a note typed but not saved is saved
+#   before "Join with the other side of a move…" (M6-B227).
 # - PartsSmoke.qml opens PartsPage.qml on a stand-in for AccountRegister and
 #   checks the line that says what the Parts add up to and removing a Part,
 #   with no KI18n warning about a missing argument (M6-B235).
@@ -80,7 +83,8 @@ mkdir -p "$module"
 for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiRulesSortChange AiJoinTransferChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
-    BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard AiPermissionGrid PartsPage PartRow RemoveOriginalDialog; do
+    BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard AiPermissionGrid \
+    TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog PartsPage PartRow; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -94,11 +98,12 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
         FormulaField FormulaWords BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
-        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings PartsPage PartRow RemoveOriginalDialog AccountRegister; do
+        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings \
+        TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister PartsPage PartRow; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -118,6 +123,8 @@ run_smoke PanelSmoke
 echo "properties panel: ok"
 run_smoke PermissionsSmoke
 echo "AI field switches: ok"
+run_smoke TransactionSmoke
+echo "transaction page keeps a typed note: ok"
 run_smoke PartsSmoke
 echo "parts page: ok"
 run_smoke StatisticsSmoke

@@ -19553,6 +19553,142 @@ msgstr ""
 "auf und ergänzt beim Tippen die Namen Ihrer Kategorien. Ein Fehler wird "
 "in Worten beschrieben, mit markierter Stelle."
 
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:137
+#, kde-format
+msgctxt "@title:group"
+msgid "All functions"
+msgstr "Alle Funktionen"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:141
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These are all the functions a formula can use. Their names stay in English, "
+"as in the formula field. Where a function takes several figures, you can "
+"give as many as you need, each separated by ;. A test is a comparison such "
+"as Pets > 100."
+msgstr "Das sind alle Funktionen, die eine Formel verwenden kann. Ihre Namen bleiben englisch, wie im Formelfeld. Wo eine Funktion mehrere Zahlen nimmt, können Sie so viele angeben, wie Sie brauchen, jeweils durch ; getrennt. Ein Test ist ein Vergleich wie Pets > 100."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:146
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "SUM: adds the figures up."
+msgstr "SUM: zählt die Zahlen zusammen."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:154
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "AVERAGE: the sum divided by how many figures there are."
+msgstr "AVERAGE: die Summe geteilt durch die Anzahl der Zahlen."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:162
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "MIN: the smallest of the figures."
+msgstr "MIN: die kleinste der Zahlen."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:170
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "MAX: the largest of the figures."
+msgstr "MAX: die größte der Zahlen."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:178
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid ""
+"COUNT: how many transactions the categories or groups have in the period. A "
+"transaction in more than one of them counts once."
+msgstr "COUNT: wie viele Buchungen die Kategorien oder Gruppen im Zeitraum haben. Eine Buchung, die in mehreren davon steht, zählt einmal."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:186
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "ABS: the figure without its minus sign."
+msgstr "ABS: die Zahl ohne ihr Minuszeichen."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:194
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid ""
+"SIGN: -1 for a figure below zero, 0 for zero and 1 for a figure above zero."
+msgstr "SIGN: -1 für eine Zahl unter null, 0 für null und 1 für eine Zahl über null."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:202
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid ""
+"ROUND: rounds to that many decimal places, 5 and up away from zero. Without "
+"places it rounds to a whole number; -1 rounds to tens, -2 to hundreds."
+msgstr "ROUND: rundet auf so viele Nachkommastellen, ab 5 weg von null. Ohne Stellen rundet sie auf eine ganze Zahl; -1 rundet auf Zehner, -2 auf Hunderter."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:210
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "ROUNDUP: rounds away from zero to that many decimal places."
+msgstr "ROUNDUP: rundet weg von null auf so viele Nachkommastellen."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:218
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "ROUNDDOWN: rounds toward zero to that many decimal places."
+msgstr "ROUNDDOWN: rundet zu null hin auf so viele Nachkommastellen."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:226
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid ""
+"INT: rounds down to a whole number. Below zero that is away from zero, as in "
+"LibreOffice Calc: -2.5 becomes -3."
+msgstr "INT: rundet ab auf eine ganze Zahl. Unter null ist das weg von null, wie in LibreOffice Calc: Aus -2,5 wird -3."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:234
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid ""
+"IF: gives the first figure when the test is true, the second when it is not."
+msgstr "IF: gibt die erste Zahl, wenn der Test stimmt, sonst die zweite."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:242
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "AND: true when every test is true."
+msgstr "AND: stimmt, wenn jeder Test stimmt."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:250
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "OR: true when at least one test is true."
+msgstr "OR: stimmt, wenn mindestens ein Test stimmt."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:258
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "NOT: turns true into false and false into true."
+msgstr "NOT: macht aus „stimmt“ ein „stimmt nicht“ und aus „stimmt nicht“ ein „stimmt“."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:266
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid ""
+"IFERROR: gives the fallback when the first part has no value, for example "
+"when it divides by zero."
+msgstr "IFERROR: gibt den Ersatzwert, wenn der erste Teil keinen Wert hat, zum Beispiel weil er durch null teilt."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:274
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid "PERCENT_OF: the part as a share of the whole, shown as a percent."
+msgstr "PERCENT_OF: der Teil als Anteil am Ganzen, in Prozent."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:282
+#, kde-format
+msgctxt "@info a function of formulas, its English name first"
+msgid ""
+"CHANGE: how far the new figure is from the old one, as a percent of the old "
+"one."
+msgstr "CHANGE: wie weit die neue Zahl von der alten entfernt ist, in Prozent der alten."
+
 #: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:154
 #, kde-format
 msgctxt "@action:button opens the help page"

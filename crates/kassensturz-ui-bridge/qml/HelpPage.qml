@@ -132,4 +132,156 @@ FormCard.FormCardPage {
     FormCard.FormSectionText {
         text: page.i18nContext.i18nc("@info", "You can use + - * / and brackets, % for a percentage, and the comparisons = <> < > <= >=. Between the parts of a function, ; works everywhere, as in LibreOffice Calc. If your number format uses a decimal point, a comma works as well. A period word such as \"last month\", \"this year\" or \"last 12 months\" in quotes after @ gives a name its own period. The formula field lists the functions with a short line each and completes the names of your categories while you type. A mistake is described in words, with the place marked.")
     }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "All functions")
+    }
+
+    FormCard.FormSectionText {
+        text: page.i18nContext.i18nc("@info", "These are all the functions a formula can use. Their names stay in English, as in the formula field. Where a function takes several figures, you can give as many as you need, each separated by ;. A test is a comparison such as Pets > 100.")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "SUM: adds the figures up.")
+            description: "=SUM(Groceries; Pets; Travel)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "AVERAGE: the sum divided by how many figures there are.")
+            description: "=AVERAGE(Groceries; Pets; Travel)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "MIN: the smallest of the figures.")
+            description: "=MIN(Groceries; Pets)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "MAX: the largest of the figures.")
+            description: "=MAX(Groceries; Pets)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "COUNT: how many transactions the categories or groups have in the period. A transaction in more than one of them counts once.")
+            description: "=COUNT(Groceries; Pets)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "ABS: the figure without its minus sign.")
+            description: "=ABS(Salary - Groceries)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "SIGN: -1 for a figure below zero, 0 for zero and 1 for a figure above zero.")
+            description: "=SIGN(Salary - Groceries)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "ROUND: rounds to that many decimal places, 5 and up away from zero. Without places it rounds to a whole number; -1 rounds to tens, -2 to hundreds.")
+            description: "=ROUND(Groceries / 3; 2)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "ROUNDUP: rounds away from zero to that many decimal places.")
+            description: "=ROUNDUP(Groceries / 3; 0)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "ROUNDDOWN: rounds toward zero to that many decimal places.")
+            description: "=ROUNDDOWN(Groceries / 3; 1)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "INT: rounds down to a whole number. Below zero that is away from zero, as in LibreOffice Calc: -2.5 becomes -3.")
+            description: "=INT(Groceries / 7)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "IF: gives the first figure when the test is true, the second when it is not.")
+            description: "=IF(Pets > 100; Pets; 0)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "AND: true when every test is true.")
+            description: "=IF(AND(Pets > 50; Travel > 50); Pets + Travel; 0)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "OR: true when at least one test is true.")
+            description: "=IF(OR(Pets > 100; Travel > 100); 1; 0)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "NOT: turns true into false and false into true.")
+            description: "=IF(NOT(Pets > 100); Pets; 100)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "IFERROR: gives the fallback when the first part has no value, for example when it divides by zero.")
+            description: "=IFERROR(Groceries / Travel; 0)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "PERCENT_OF: the part as a share of the whole, shown as a percent.")
+            description: "=PERCENT_OF(Groceries; Salary)"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info a function of formulas, its English name first", "CHANGE: how far the new figure is from the old one, as a percent of the old one.")
+            description: "=CHANGE(Groceries; Groceries@\"last month\")"
+            descriptionItem.textFormat: Text.PlainText
+        }
+    }
 }

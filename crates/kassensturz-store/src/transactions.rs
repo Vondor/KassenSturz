@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 use kassensturz_core::{
     Account, AccountId, Attachment, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount,
-    ImportedDetails, Money, OriginalAmount, PartStatus, Split, SplitId, TagId, Transaction,
+    ImportedDetails, Money, OriginalAmount, PartStatus, RuleId, Split, SplitId, TagId, Transaction,
     TransactionId,
 };
 use rusqlite::{Connection, OptionalExtension, params};
@@ -161,8 +161,15 @@ impl Book {
     /// get one ([`StoreError::OriginalChanged`]). And the total booked to a
     /// closed account stays the same ([`StoreError::AccountClosed`]), so no
     /// money appears in or vanishes from it.
+    ///
+    /// A part a Rule booked stays marked as booked by that Rule (D-088) as
+    /// long as the transaction keeps what a Rule decides: its parts, their
+    /// categories and its payee. A new note, date or amount doesn't make it
+    /// sorted by hand; another category or payee, or a part added or
+    /// removed, takes the mark away (D-031, D-707).
     pub fn update_transaction(&mut self, transaction: &Transaction) -> Result<(), StoreError> {
         let stored = self.transaction(transaction.id())?;
+        let kept_marks = self.kept_rule_marks(&stored, transaction)?;
         let accounts = self.check_transaction(transaction)?;
         check_imported_unchanged(&stored, transaction)?;
         check_originals_unchanged(&stored, transaction)?;
@@ -210,11 +217,55 @@ impl Book {
                 book.conn
                     .execute_cached("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
                 insert_splits(&book.conn, transaction)?;
+                for (split, rule) in &kept_marks {
+                    book.conn.execute_cached(
+                        "INSERT INTO split_rules (split_id, rule_id) VALUES (?1, ?2)",
+                        params![split.to_bytes(), rule.map(RuleId::to_bytes)],
+                    )?;
+                }
                 book.conn
                     .execute_cached("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
                 insert_attachments(&book.conn, transaction)
             })
         })
+    }
+
+    /// The Rule marks of `stored`'s parts, each with its Rule's ID as stored
+    /// (none if the Rule was removed since), if `changed` keeps what a Rule
+    /// decides: the same parts with the same categories and accounts, and
+    /// the same payee. None otherwise, so a transaction the user gave
+    /// another category, another payee or other Parts is theirs (D-031,
+    /// D-707).
+    fn kept_rule_marks(
+        &self,
+        stored: &Transaction,
+        changed: &Transaction,
+    ) -> Result<Vec<(SplitId, Option<RuleId>)>, StoreError> {
+        let same_parts = stored.payee() == changed.payee()
+            && stored.splits().len() == changed.splits().len()
+            && stored.splits().iter().all(|part| {
+                changed
+                    .splits()
+                    .iter()
+                    .any(|other| other.id == part.id && other.account == part.account)
+            });
+        if !same_parts {
+            return Ok(Vec::new());
+        }
+        let mut statement = self.conn.prepare_cached(
+            "SELECT m.split_id, m.rule_id
+             FROM split_rules AS m JOIN splits AS s ON s.id = m.split_id
+             WHERE s.transaction_id = ?1",
+        )?;
+        let marks = statement
+            .query_map([stored.id().to_bytes()], |row| {
+                Ok((
+                    SplitId::from_bytes(row.get(0)?),
+                    row.get::<_, Option<[u8; 16]>>(1)?.map(RuleId::from_bytes),
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(marks)
     }
 
     /// Removes a transaction with all its parts, also one delivered by a

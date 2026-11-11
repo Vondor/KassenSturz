@@ -479,6 +479,31 @@ struct RuleSorted {
     out: Transaction,
 }
 
+/// `transaction` with its part in `from` booked to `to` instead, the rest
+/// as it was, as the transaction page changes a category.
+fn booked_to(transaction: &Transaction, from: AccountId, to: AccountId) -> Transaction {
+    let splits = transaction
+        .splits()
+        .iter()
+        .map(|split| Split {
+            account: if split.account == Some(from) {
+                Some(to)
+            } else {
+                split.account
+            },
+            ..split.clone()
+        })
+        .collect();
+    Transaction::new(
+        transaction.id(),
+        transaction.booking_date(),
+        transaction.payee().map(str::to_owned),
+        splits,
+    )
+    .expect("balanced")
+    .with_details_of(transaction)
+}
+
 fn rule_sorted() -> RuleSorted {
     let Accounts {
         mut book,
@@ -535,15 +560,101 @@ fn a_side_a_rule_sorted_is_suggested_and_one_sorted_by_hand_is_not() {
         && matches!(skip.reason, StoreError::TransferSuggested(id) if id == into.id())));
     assert_eq!(book.transaction(into.id()).expect("read"), into);
 
-    // Once the user changes the sorted side by hand, it is theirs (D-031)
-    // and no longer suggested.
-    book.update_transaction(&out).expect("changed");
+    // Once the user gives the sorted side another category by hand, it is
+    // theirs (D-031, D-707) and no longer suggested.
+    let gifts = account(&mut book, "Gifts", AccountKind::Expense, EUR);
+    book.update_transaction(&booked_to(&out, plan, gifts))
+        .expect("changed");
     assert_eq!(
         book.side_sorting(&side_of(&book, out.id()))
             .expect("sorting"),
         SideSorting::ByHand
     );
     assert_eq!(pairs(&book), Vec::new());
+}
+
+// Fable review F-5 (M6-B221, #688): a note or a date typed on a
+// Rule-sorted entry leaves it sorted by the Rule; only a new category
+// makes it the user's (D-707).
+#[test]
+fn a_change_that_keeps_the_category_keeps_the_rule_mark() {
+    let RuleSorted {
+        mut book,
+        plan,
+        rule,
+        out,
+        ..
+    } = rule_sorted();
+    let sorting = |book: &Book| {
+        let accounts = book.account_ids().expect("accounts");
+        let side = TransferSide::of(&book.transaction(out.id()).expect("read"), |a| {
+            accounts.contains(&a)
+        })
+        .expect("a side");
+        book.side_sorting(&side).expect("sorting")
+    };
+    let by_rule = SideSorting::ByRule(Some(rule.id));
+    assert_eq!(sorting(&book), by_rule);
+
+    // A note, as the transaction page or the AI's edit_transactions adds
+    // it, and a later day: still the Rule's.
+    let noted = Transaction::new(out.id(), date(2026, 10, 6), None, out.splits().to_vec())
+        .expect("balanced")
+        .with_details_of(&out)
+        .with_note(Some("Holiday fund".into()));
+    book.update_transaction(&noted).expect("noted");
+    assert_eq!(sorting(&book), by_rule);
+    assert_eq!(
+        book.transaction(out.id()).expect("read").note(),
+        Some("Holiday fund")
+    );
+    // Undo and redo take the note back and forth; the mark stays.
+    book.undo().expect("undo").expect("a change");
+    assert_eq!(book.transaction(out.id()).expect("read"), out);
+    assert_eq!(sorting(&book), by_rule);
+    book.redo().expect("redo").expect("a change");
+    assert_eq!(sorting(&book), by_rule);
+
+    let gifts = account(&mut book, "Gifts", AccountKind::Expense, EUR);
+    // Broken into Parts: the user's, until undone.
+    let mut parts: Vec<Split> = noted
+        .splits()
+        .iter()
+        .map(|split| match split.account {
+            Some(account) if account == plan => Split {
+                amount: Money::from_minor_units(15_000, EUR),
+                ..split.clone()
+            },
+            _ => split.clone(),
+        })
+        .collect();
+    parts.push(Split::new(gifts, Money::from_minor_units(5_000, EUR)));
+    let broken = Transaction::new(noted.id(), noted.booking_date(), None, parts)
+        .expect("balanced")
+        .with_details_of(&noted);
+    book.update_transaction(&broken).expect("broken down");
+    let marks = book.marks().expect("marks");
+    assert!(
+        broken
+            .splits()
+            .iter()
+            .all(|part| !marks.contains_key(&part.id))
+    );
+    book.undo().expect("undo").expect("a change");
+    assert_eq!(sorting(&book), by_rule);
+
+    // Another category by hand: now the user's.
+    book.update_transaction(&booked_to(&noted, plan, gifts))
+        .expect("changed");
+    assert_eq!(sorting(&book), SideSorting::ByHand);
+    // Back to the Rule's category by hand: still the user's.
+    let back = booked_to(&book.transaction(out.id()).expect("read"), gifts, plan);
+    book.update_transaction(&back).expect("changed back");
+    assert_eq!(sorting(&book), SideSorting::ByHand);
+    // Undo brings the Rule's category and its mark back.
+    book.undo().expect("undo").expect("a change");
+    book.undo().expect("undo").expect("a change");
+    assert_eq!(sorting(&book), by_rule);
 }
 
 #[test]

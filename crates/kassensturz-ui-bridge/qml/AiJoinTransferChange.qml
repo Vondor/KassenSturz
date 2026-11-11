@@ -100,7 +100,7 @@ Kirigami.AbstractCard {
                     wrapMode: Text.Wrap
                     opacity: 0.8
                     textFormat: Text.PlainText
-                    text: card.i18nContext.i18nc("@info %1 is the name of an account", "What you wrote on it stays, on the entry in %1.", sideBlock.modelData.side.account ?? "")
+                    text: card.i18nContext.i18nc("@info %1 is the name of an account", "What you wrote on it or attached to it stays, on the entry in %1.", sideBlock.modelData.side.account ?? "")
                 }
             }
         }

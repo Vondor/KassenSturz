@@ -60,8 +60,10 @@ pub struct SideText {
     /// The name of the Rule that did, if `sorted_by` is `rule` and the Rule
     /// still exists.
     pub rule: String,
-    /// Whether the part that goes has a note or number of its own, which
-    /// moves to this side's entry (D-691).
+    /// Whether something the user wrote or attached moves to the joined
+    /// entry: the part that goes has a note or number of its own (D-691),
+    /// or this is the incoming side, whose transaction goes, and it has a
+    /// note or an attachment (D-706).
     pub moves_note: bool,
 }
 
@@ -271,7 +273,9 @@ fn side_text(
         category: side.category.map(name_of).unwrap_or_default(),
         sorted_by,
         rule,
-        moves_note: removed.is_some_and(|part| part.note.is_some() || part.number.is_some()),
+        moves_note: removed.is_some_and(|part| part.note.is_some() || part.number.is_some())
+            || (!side.amount.is_negative()
+                && (transaction.note().is_some() || !transaction.attachments().is_empty())),
     })
 }
 
@@ -425,6 +429,40 @@ mod tests {
             "2026-10-06",
         );
         assert_eq!(suggestions(&book, &other, &TestLocale).expect("none"), []);
+    }
+
+    // Fable review F-2 (M6-B220, #687): the prompt says that the incoming
+    // side's note stays, and joining keeps it on the Transfer (D-706).
+    #[test]
+    fn the_incoming_sides_note_is_named_and_kept_by_the_join() {
+        let (mut book, checking, savings) = book_with_two_accounts();
+        let out = typed(&mut book, &checking, false, "100", "", "", "2026-10-05");
+        let arrived = transaction_entry::add(
+            &mut book,
+            &NewEntry {
+                account: &savings,
+                money_in: true,
+                amount: "100",
+                other_party: "",
+                category: "",
+                date: "2026-10-06",
+                note: Some("Holiday fund"),
+            },
+            &TestLocale,
+        )
+        .expect("transaction added")
+        .to_string();
+        let found = suggestions(&book, &arrived, &TestLocale).expect("suggested");
+        assert_eq!(
+            found
+                .iter()
+                .map(|found| (found.outgoing.moves_note, found.incoming.moves_note))
+                .collect::<Vec<_>>(),
+            [(false, true)]
+        );
+        join(&mut book, &out, &arrived).expect("joined");
+        let form = transaction_entry::details(&book, &checking, &out, &TestLocale).expect("form");
+        assert_eq!(form.note, "Holiday fund");
     }
 
     /// A Rule that books what the user typed with the payee `payee` to

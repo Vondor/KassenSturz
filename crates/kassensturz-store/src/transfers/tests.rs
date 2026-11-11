@@ -6,8 +6,8 @@
 //! IBAN Registry (D-055).
 
 use kassensturz_core::{
-    AccountKind, Actions, BookTo, Condition, ImportedDetails, MatchMode, Money, Rule, RuleId,
-    Split, TextField, TextOperator, Transaction, TransferError, TransferSide,
+    AccountKind, Actions, Attachment, BookTo, Condition, ImportedDetails, MatchMode, Money, Rule,
+    RuleId, Split, TextField, TextOperator, Transaction, TransferError, TransferSide,
 };
 
 use super::*;
@@ -357,6 +357,75 @@ fn joining_keeps_the_incoming_payee_if_the_outgoing_side_has_none() {
     assert_eq!(
         book.transaction(joined).expect("read").payee(),
         Some("From checking")
+    );
+}
+
+/// `side` with `note` and one attachment named `file`, as the transaction
+/// page and the attachment list write them (D-132, D-694).
+fn noted(book: &mut Book, side: &Transaction, note: Option<&str>, file: &str) -> Transaction {
+    let changed = Transaction::new(
+        side.id(),
+        side.booking_date(),
+        side.payee().map(str::to_owned),
+        side.splits().to_vec(),
+    )
+    .expect("balanced")
+    .with_note(note.map(str::to_owned))
+    .with_attachments(vec![Attachment {
+        link: format!("/home/user/Documents/{file}"),
+        title: Some(file.to_owned()),
+    }]);
+    book.update_transaction(&changed).expect("changed");
+    book.transaction(side.id()).expect("read")
+}
+
+// Fable review F-2 (M6-B220, #687): a join keeps what the user wrote on and
+// attached to both transactions (D-706).
+#[test]
+fn joining_keeps_both_sides_notes_and_attachments_and_undo_takes_it_back() {
+    let Accounts {
+        mut book,
+        checking,
+        savings,
+        ..
+    } = accounts();
+    let files = |transaction: &Transaction| -> Vec<String> {
+        transaction
+            .attachments()
+            .iter()
+            .filter_map(|attachment| attachment.title.clone())
+            .collect()
+    };
+
+    // Only the incoming side has a note: it stays, and so does its file.
+    let out = side(&mut book, checking, -20_000, 5);
+    let out = noted(&mut book, &out, None, "statement.pdf");
+    let into = side(&mut book, savings, 20_000, 5);
+    let into = noted(&mut book, &into, Some("Holiday fund"), "plan.pdf");
+    let joined = book.join_transfer(into.id(), out.id()).expect("joined");
+    let read = book.transaction(joined).expect("read");
+    assert_eq!(read.note(), Some("Holiday fund"));
+    assert_eq!(files(&read), ["statement.pdf", "plan.pdf"]);
+    // Undo brings both transactions back as they were.
+    book.undo().expect("undo").expect("a change");
+    assert_eq!(book.transaction(out.id()).expect("read"), out);
+    assert_eq!(book.transaction(into.id()).expect("read"), into);
+
+    // Two different notes: both stay, the outgoing one first.
+    let out = noted(&mut book, &out, Some("For the summer"), "statement.pdf");
+    let joined = book.join_transfer(out.id(), into.id()).expect("joined");
+    assert_eq!(
+        book.transaction(joined).expect("read").note(),
+        Some("For the summer\nHoliday fund")
+    );
+    book.undo().expect("undo").expect("a change");
+
+    // The same note on both sides is kept once.
+    let out = noted(&mut book, &out, Some("Holiday fund"), "statement.pdf");
+    let joined = book.join_transfer(out.id(), into.id()).expect("joined");
+    assert_eq!(
+        book.transaction(joined).expect("read").note(),
+        Some("Holiday fund")
     );
 }
 

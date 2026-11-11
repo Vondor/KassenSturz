@@ -177,6 +177,25 @@ Kirigami.ApplicationWindow {
             window.all(changing, "TextField", []).find(field => field.text === "400,00").text = "380,00";
             changing.save();
             window.check(changed()[1] === "changeBudget:b-food:Weekly shop:true:2026-10-01:380,00:true", "changing sends the period, got " + changed()[1]);
+            // What it counted before is said in one line (D-689).
+            const sheetTexts = window.texts(changing, []);
+            window.check(sheetTexts.includes("Until 2026-09-30 it counted Rent, only money paid from Checking."), "the sheet says what it counted before, got " + sheetTexts);
+            // Changing what it counts offers this period on only, and sends
+            // the new set after the day.
+            const changeBoxes = () => window.all(changing, "CheckBox", []).filter(box => box.visible);
+            const changeBox = text => changeBoxes().find(candidate => candidate.text === text);
+            window.check(changeBox("Rent") === undefined, "the categories wait for their tick");
+            window.check(changing.fromChoices.length === 2, "every listed period for an amount, got " + changing.fromChoices.length);
+            changeBox("Change the categories or accounts").toggle();
+            window.check(changing.fromChoices.length === 1 && changing.fromChoices[0].day === "2026-10-01", "a new set starts this period at the earliest, got " + JSON.stringify(changing.fromChoices));
+            window.check(window.texts(changing, []).includes("Earlier periods keep counting what they counted, so their results don't change."), "the sheet says the past stays");
+            changeBox("Rent").toggle();
+            changeBox("Rent").toggled();
+            changeBox("Savings").toggle();
+            changeBox("Savings").toggled();
+            changing.save();
+            window.check(changed()[2] === "changeBudget:b-food:Weekly shop:true:2026-10-01\nc-food,c-rent;a-savings:380,00:true", "a new set is sent after the day, got " + JSON.stringify(changed()[2]));
+            window.check(ActionLog.mode.actions.includes("BudgetPage_editCategory"), "ticking a category says it ran");
             // A budget with a name shows it, and its categories under it.
             const listedNames = window.texts(page, []);
             window.check(listedNames.includes("Flat") && listedNames.some(text => text.includes("Rent")), "a named budget shows its name and categories, got " + listedNames);

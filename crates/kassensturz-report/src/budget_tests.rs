@@ -831,6 +831,168 @@ proptest! {
     }
 }
 
+/// The generated spending of a second category, month by month.
+fn other_spending() -> impl Strategy<Value = Vec<Vec<(i8, i64)>>> {
+    prop::collection::vec(
+        prop::collection::vec((1i8..=28, -5_000i64..50_000), 0..4),
+        8,
+    )
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(48))]
+
+    /// Changing what the budget counts from one period on (D-689) never
+    /// changes an earlier period's figures; from that period on it counts
+    /// the new category only, and the carried chain runs on across the
+    /// change as a step-by-step sum, also with an amount changed with it.
+    #[test]
+    fn a_new_set_never_alters_an_earlier_period_and_the_chain_runs_on(
+        plan in months(),
+        other in other_spending(),
+        from in 0usize..8,
+        new_amount in proptest::option::of(1i64..100_000),
+    ) {
+        let from = from % plan.len();
+        let (mut book, budget, _) = generated(&plan);
+        let checking = book
+            .accounts(false)
+            .unwrap()
+            .into_iter()
+            .find(|account| account.name == "Checking")
+            .unwrap()
+            .id;
+        let gifts = account(&mut book, "Gifts", AccountKind::Expense, EUR, None);
+        for (index, spending) in other.iter().take(plan.len()).enumerate() {
+            let start = month_start(index);
+            for &(day, cents) in spending {
+                if cents == 0 {
+                    continue;
+                }
+                add(
+                    &mut book,
+                    date(start.year(), start.month(), day),
+                    vec![
+                        Split::new(checking, money(-cents)),
+                        Split::new(gifts, money(cents)),
+                    ],
+                );
+            }
+        }
+        let shown = all_months(plan.len());
+        let before = ask(&book, shown, shown.last(), BudgetGrouping::Period, &Filter::default());
+        let carry = plan[from].1;
+        book.edit_budget(
+            budget,
+            month_start(from),
+            new_amount.map(|amount| (money(amount), carry)),
+            Some((&[gifts], &[])),
+            month_start(from),
+        )
+        .unwrap();
+        let after = ask(&book, shown, shown.last(), BudgetGrouping::Period, &Filter::default());
+        let (before, after) = (&find(&before, budget).periods, &find(&after, budget).periods);
+        prop_assert_eq!(&before[..from], &after[..from]);
+        let mut carried = if from == 0 {
+            0
+        } else {
+            let last = &after[from - 1];
+            if last.carries_over { last.left.minor_units() } else { 0 }
+        };
+        for (index, row) in after.iter().enumerate().skip(from) {
+            // A new amount replaces what was planned for later periods.
+            let (amount, carries) = match new_amount {
+                Some(amount) => (amount, carry),
+                None => (plan[index].0, plan[index].1),
+            };
+            let spent: i64 = other[index].iter().map(|(_, cents)| cents).sum();
+            prop_assert_eq!(row.planned.minor_units(), amount);
+            prop_assert_eq!(row.carried_in.minor_units(), carried);
+            prop_assert_eq!(row.spent.minor_units(), spent);
+            prop_assert_eq!(row.left, row.available.checked_sub(row.spent).unwrap());
+            prop_assert_eq!(row.counts_changed, index == from && from > 0);
+            carried = if carries { amount + carried - spent } else { 0 };
+        }
+    }
+}
+
+#[test]
+fn a_budget_shows_the_set_of_the_period_asked_for_and_says_when_it_changed() {
+    let mut base = sample();
+    let id = base
+        .book
+        .add_budget(
+            &[base.groceries],
+            &[],
+            BudgetEvery::Month,
+            date(2026, 8, 1),
+            None,
+            money(30_000),
+            false,
+        )
+        .unwrap();
+    base.book
+        .edit_budget(
+            id,
+            date(2026, 10, 1),
+            None,
+            Some((&[base.rent], &[base.checking])),
+            date(2026, 10, 5),
+        )
+        .unwrap();
+    let all = period(date(2026, 8, 1), date(2026, 10, 31));
+    let results = ask(
+        &base.book,
+        all,
+        date(2026, 10, 31),
+        BudgetGrouping::Period,
+        &Filter::default(),
+    );
+    let shown = find(&results, id);
+    // The row names October's set; September still counted groceries.
+    assert_eq!(shown.categories, [base.rent]);
+    assert_eq!(shown.accounts, [base.checking]);
+    let [august, september, last] = &shown.periods[..] else {
+        panic!("three months");
+    };
+    assert!(!august.counts_changed && !september.counts_changed);
+    assert!(last.counts_changed);
+    assert!(last.notes().contains(&BudgetNote::CountsChanged));
+    assert_eq!(BudgetNote::CountsChanged.id(), "counts-changed");
+    // Groceries 40.00 on 1 Sep, refund 15.00 on 12 Sep; rent 800.00 on
+    // 3 Oct from checking.
+    assert_eq!(september.spent, money(2_500));
+    assert_eq!(last.spent, money(80_000));
+    // The filter looks at the set of the period asked for.
+    let groceries_only = Filter {
+        categories: Some(vec![base.groceries]),
+        ..Filter::default()
+    };
+    let september_only = period(date(2026, 9, 1), date(2026, 9, 30));
+    let asked = |shown, filter| {
+        ask(
+            &base.book,
+            shown,
+            date(2026, 10, 31),
+            BudgetGrouping::Budget,
+            filter,
+        )
+    };
+    assert!(
+        asked(september_only, &groceries_only)
+            .iter()
+            .any(|row| row.budget == id)
+    );
+    assert!(
+        !asked(october(), &groceries_only)
+            .iter()
+            .any(|row| row.budget == id)
+    );
+    // And the row for September names September's set.
+    let september_row = asked(september_only, &Filter::default());
+    assert_eq!(find(&september_row, id).categories, [base.groceries]);
+}
+
 /// What one budget made of `categories` from `accounts` spent in the
 /// quarter July to September, asked for on 1 December; the budget is
 /// removed again, so the next one can count the same money.

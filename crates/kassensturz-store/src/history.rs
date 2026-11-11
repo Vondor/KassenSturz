@@ -540,6 +540,7 @@ pub(crate) const RECORDED: [Recorded; 25] = [
             ("budget_id", "BLOB"),
             ("category_id", "BLOB"),
             ("position", "INTEGER"),
+            ("from_day", "TEXT"),
         ],
     },
     Recorded {
@@ -550,6 +551,7 @@ pub(crate) const RECORDED: [Recorded; 25] = [
             ("budget_id", "BLOB"),
             ("account_id", "BLOB"),
             ("position", "INTEGER"),
+            ("from_day", "TEXT"),
         ],
     },
     Recorded {

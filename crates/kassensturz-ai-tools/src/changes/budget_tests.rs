@@ -1380,6 +1380,38 @@ fn a_check_hides_a_computed_amount_without_the_reading_of_spending() {
         answer["budget_amounts"][0]["based_on"]["spent"],
         json!("350.01")
     );
+
+    // An amount that can't be computed is refused without the reason and
+    // the days: nothing spent on Fun, and a book too short for 12 months.
+    let refusal = |category: AccountId, based_on: &str, allowed: Permissions| {
+        let call = json!({"new_budgets": [{"category_id": category.to_string(),
+            "every": "month", "based_on": based_on}]});
+        let error = super::super::propose_on(book, &call, allowed, TODAY)
+            .expect_err("refused")
+            .without_item();
+        let report = error.report();
+        (report.code, report.params)
+    };
+    for (category, based_on, reason) in [
+        (small.fun, "last_period", "nothing-spent"),
+        (food, "average_12_periods", "book-too-short"),
+    ] {
+        let (code, params) = refusal(category, based_on, Permissions::all());
+        assert_eq!(code, "ai-tools.nothing-to-base-on");
+        assert_eq!(params[0].1, kassensturz_core::ErrorParam::Keyword(reason));
+        assert_eq!(params.len(), 3, "with the days");
+        for allowed in [budgets_only, with_categories, with_transactions] {
+            let (code, params) = refusal(category, based_on, allowed);
+            assert_eq!(code, "ai-tools.nothing-to-base-on");
+            assert_eq!(
+                params,
+                [(
+                    "reason",
+                    kassensturz_core::ErrorParam::Keyword("spending-not-readable")
+                )]
+            );
+        }
+    }
 }
 
 #[test]

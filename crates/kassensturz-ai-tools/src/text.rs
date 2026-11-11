@@ -109,8 +109,9 @@ fn grouped(spaced: &[bool]) -> bool {
 }
 
 /// The most characters between two groups of an IBAN (see [`gap_end`]):
-/// enough for a line break with the next line's indent.
-const MAX_GAP: usize = 8;
+/// enough for a line break with a deep indent, or a statement file's
+/// columns padded with spaces.
+const MAX_GAP: usize = 32;
 
 /// Whether `c` may stand on its own between two groups of an IBAN, as a
 /// hyphen, a dot or a slash do in `DE89-3704-...` (D-705). Dashes that look
@@ -441,6 +442,7 @@ mod tests {
             "From DE89 3704 0044\n0532 0130 00 thanks",
             "From DE89 3704 0044\n 0532 0130 00 thanks",
             "From DE89 3704 0044\r\n    0532 0130 00 thanks",
+            "From DE89 3704 0044\n                          0532 0130 00 thanks",
             // Two spaces, or a tab, between groups.
             "From DE89  3704  0044  0532  0130  00 thanks",
             "From DE89\t3704 0044 0532 0130 00 thanks",
@@ -481,7 +483,7 @@ mod tests {
             // Two marks, or a gap longer than a line break and an indent.
             "From DE89 3704 0044 --0532 0130 00 thanks",
             "From DE89 3704 0044 ./0532 0130 00 thanks",
-            "From DE89 3704 0044          0532 0130 00 thanks",
+            "From DE89 3704 0044                                  0532 0130 00 thanks",
             // A comma or a colon is no group mark.
             "From DE89 3704 0044,0532 0130 00 thanks",
             "From DE89 3704 0044:0532 0130 00 thanks",

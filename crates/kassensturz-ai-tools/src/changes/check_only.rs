@@ -158,8 +158,9 @@ pub fn check_only_answer(
 /// Whether `permissions` let a model read what categories spent: the
 /// categories and the transactions in them, as a chart's figures need
 /// (`view_figure.rs`). Without it a check names no amount computed from
-/// spending (M6-B222, D-704).
-fn spending_readable(permissions: Permissions) -> bool {
+/// spending, and an amount that can't be computed is refused without
+/// saying why (M6-B222, D-704).
+pub(super) fn spending_readable(permissions: Permissions) -> bool {
     permissions.reads(Row::Categories) && permissions.reads(Row::Transactions)
 }
 

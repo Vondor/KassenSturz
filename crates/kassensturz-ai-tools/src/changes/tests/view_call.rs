@@ -337,7 +337,7 @@ fn a_broken_or_hostile_call_is_refused_in_the_fixed_order() {
         ("[1, 2]", "bad-argument arguments"),
         ("null", "bad-argument arguments"),
         (
-            r#"{"title":"A","data":"spending_by_category","show_as":"pie","period":{"from":[["2026-01-01"]]}}"#,
+            r#"{"title":"A","data":"spending_by_category","show_as":"pie","period":{"from":[[["2026-01-01"]]]}}"#,
             "bad-argument arguments",
         ),
         // 2. A key twice, also when written with an escape; it wins over
@@ -557,7 +557,7 @@ fn the_mcp_and_the_request_files_reach_both_functions_by_name() {
     ));
     // A parsed call has no key twice, but is checked for size and depth.
     let deep = json!({"title": "A", "data": "spending_by_category", "show_as": "pie",
-        "period": {"from": {"day": ["2026-01-01"]}}});
+        "period": {"from": {"day": [["2026-01-01"]]}}});
     assert_eq!(
         view_code(prepare_named(
             &book,

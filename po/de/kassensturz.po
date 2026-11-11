@@ -19431,3 +19431,9 @@ msgid "%1 of the %2 periods this comparison averages is before the first transac
 msgid_plural "%1 of the %2 periods this comparison averages are before the first transaction and count as zero."
 msgstr[0] "%1 der %2 Zeiträume, deren Durchschnitt dieser Vergleich bildet, liegt vor der ersten Buchung und zählt als null."
 msgstr[1] "%1 der %2 Zeiträume, deren Durchschnitt dieser Vergleich bildet, liegen vor der ersten Buchung und zählen als null."
+
+#: crates/kassensturz-ui-bridge/qml/ColumnBoard.qml
+#, kde-format
+msgctxt "@info an example of a formula; the words in quotes stay in English"
+msgid "A column can also be a formula, e.g. =Salary@\"last month\", with its own period."
+msgstr "Eine Spalte kann auch eine Formel sein, z. B. =Gehalt@\"last month\", mit einem eigenen Zeitraum."

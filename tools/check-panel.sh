@@ -58,6 +58,9 @@
 # - TransactionSmoke.qml opens TransactionPage.qml on a stand-in for
 #   AccountRegister and checks that a note typed but not saved is saved
 #   before "Join with the other side of a move…" (M6-B227).
+# - PartsSmoke.qml opens PartsPage.qml on a stand-in for AccountRegister and
+#   checks the line that says what the Parts add up to and removing a Part,
+#   with no KI18n warning about a missing argument (M6-B235).
 #
 # Needs `qml6` and the QML modules the pages import (Kirigami, KI18n,
 # QuickCharts). It fails if a page doesn't load, if a check fails, or if QML
@@ -81,7 +84,7 @@ for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange 
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
     BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard AiPermissionGrid \
-    TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog; do
+    TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog PartsPage PartRow; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -96,11 +99,11 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
         FormulaField FormulaWords BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
         BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings \
-        TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister; do
+        TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister PartsPage PartRow; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -108,7 +111,7 @@ run_smoke() {
         QML_IMPORT_PATH="$work/imports" QT_QPA_PLATFORM=offscreen \
             timeout 90 qml6 "$1.qml" > run.log 2>&1 || status=$?
         cat run.log
-        if grep -E 'FAIL|TypeError|ReferenceError|is not a type|Binding loop|Cannot assign|Unable to assign|is not installed|Cannot read|overrides a member of the base object|invalid override' run.log; then
+        if grep -E 'FAIL|TypeError|ReferenceError|is not a type|Binding loop|Cannot assign|Unable to assign|is not installed|Cannot read|arguments to message|overrides a member of the base object|invalid override' run.log; then
             echo "check-panel: $1 printed warnings or failures (above)" >&2
             status=1
         fi
@@ -122,6 +125,8 @@ run_smoke PermissionsSmoke
 echo "AI field switches: ok"
 run_smoke TransactionSmoke
 echo "transaction page keeps a typed note: ok"
+run_smoke PartsSmoke
+echo "parts page: ok"
 run_smoke StatisticsSmoke
 echo "statistics page: ok"
 run_smoke ReviewSmoke

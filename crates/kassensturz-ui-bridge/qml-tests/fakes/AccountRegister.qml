@@ -5,6 +5,10 @@
 // (M6-B227): one saved transaction, +530.00 into Savings, with a note, and
 // one entry in Checking that could be its other side. It records what the
 // page saves and which partners it asks for.
+//
+// For PartsPage.qml (M6-B235): a transaction of 10,00 € in two Parts; the
+// preview adds up what the form holds, in cents, and says the form can't be
+// read while `unreadable` is set.
 
 import QtQuick
 
@@ -16,6 +20,11 @@ QtObject {
     // What the stored note was each time the partners were read.
     property var notesWhenPartnersRead: []
     property string today: "2026-09-01"
+    // The Parts page: whether the preview refuses the form, how often it
+    // was asked and the last form it got.
+    property bool unreadable: false
+    property int previews: 0
+    property var lastForm: null
 
     function details(accountId, transactionId) {
         return ({ kind: "simple", moneyIn: true, amount: "530.00", otherParty: "", date: "2026-09-01", note: note, category: "salary" });
@@ -42,6 +51,56 @@ QtObject {
     }
     function joinPicked(a, b) { return ({}); }
     function joinTransfer(a, b) { return ({}); }
+
+    function cents(text) {
+        return text === "" ? 0 : Math.round(Number(text.replace(",", ".")) * 100);
+    }
+    function euro(value) {
+        return (value / 100).toFixed(2).replace(".", ",") + " €";
+    }
+    function partsDetails(accountId, transactionId) {
+        return {
+            id: transactionId,
+            moneyIn: false,
+            total: "10,00",
+            otherParty: "Example shop",
+            date: "2026-11-02",
+            totalFixed: false,
+            fixed: [],
+            parts: [
+                { id: "s1", category: "c1", amount: "4,00", foreignAmount: "" },
+                { id: "s2", category: "c2", amount: "6,00", foreignAmount: "" },
+            ],
+        };
+    }
+    function partCategoryChoices(accountId, transactionId, moneyIn) {
+        return [
+            { id: "c1", path: "Food", currency: "" },
+            { id: "c2", path: "Household", currency: "" },
+        ];
+    }
+    function partsPreview(accountId, transactionId, form) {
+        previews++;
+        lastForm = form;
+        if (unreadable) {
+            return { code: "input.not-a-number" };
+        }
+        let sum = 0;
+        const parts = [];
+        for (const part of form.parts) {
+            sum += cents(part.amount);
+            parts.push({ open: false });
+        }
+        const difference = cents(form.total) - sum;
+        return {
+            sum: euro(sum),
+            missing: difference > 0 ? euro(difference) : "",
+            over: difference < 0 ? euro(-difference) : "",
+            parts: parts,
+        };
+    }
+    function saveParts(accountId, transactionId, form) { return ({}); }
+
     function removalNotice(accountId, transactionId) { return ({}); }
     function removeTransaction(accountId, transactionId) { return ({}); }
 }

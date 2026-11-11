@@ -416,19 +416,19 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.2** · **built** (design `docs/BUDGET_HISTORY.md`, D-689; build D-690: layout 29, export version 12, the Change sheet and the history line; the AI's `edit_budgets` `category_ids` and `account_ids` with the review card's before and after in their own pull request) · thread B · strong, high · L (design, then build) · [format]. #607 (US1.10a): a budget's categories or accounts can be changed from the current period on; each budget keeps a dated history of its set, so past periods show what they showed before (D-345). Why: today the only way is to stop the budget and make a new one
 
-- **US3.3** · **building** (design #662, D-691 to D-693; core and store, the app and the AI's `join_transfers` built) · thread C · strong, high · L (design, then build). #571 and #594 part b: two sides that already have a category can be joined as one Transfer, in the UI with a preview and through the AI as a change set; both original amounts and currencies stay, one Undo takes it back; a hand-sorted side is never suggested on its own (D-031). Why: income and spending look larger than they are (principle 1)
+- **US3.3** · **done** (design #662, D-691 to D-693; #669 core and store, #672 the app, #675 the AI's `join_transfers`, which closes #571) · thread C · strong, high · L (design, then build). #571 and #594 part b: two sides that already have a category can be joined as one Transfer, in the UI with a preview and through the AI as a change set; both original amounts and currencies stay, one Undo takes it back; a hand-sorted side is never suggested on its own (D-031). Why: income and spending look larger than they are (principle 1)
 
-- **US3.4** · **in review (D-694)** · thread D · standard, medium · S to M. US2 backlog 1: a *Note* field in the add and edit transaction forms. Why: the book and the AI have the note, the user can't type one
+- **US3.4** · **done** (#663, D-694) · thread D · standard, medium · S to M. US2 backlog 1: a *Note* field in the add and edit transaction forms. Why: the book and the AI have the note, the user can't type one
 
-- **US3.5** · **in review** (D-697) · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
+- **US3.5** · **done** (#671, D-697) · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
 
-- **US3.6** · **in review** (D-698) · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
+- **US3.6** · **done** (#674, D-698) · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
 
-- **US3.7** · **in review** (D-695) · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
+- **US3.7** · **done** (#658, D-695) · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
 
-- **US3.8** · **in review** (D-682 amended) · thread E, after US3.6 · standard, medium · S. US2 backlog 5: `check_only` on `sort_with_rules` gives a `would_sort` count, without the entries (amends D-682). Why: the AI can tell the user beforehand how many it would sort
+- **US3.8** · **done** (#676, D-682 amended) · thread E, after US3.6 · standard, medium · S. US2 backlog 5: `check_only` on `sort_with_rules` gives a `would_sort` count, without the entries (amends D-682). Why: the AI can tell the user beforehand how many it would sort
 
-- **US3.9** · **in review** (D-696) · thread E, after US3.7 · standard, medium · S to M. US2 backlog 6: an `ai-tools.bad-argument` refusal of a change list hints at the shape it expects, for all 19 lists. Why: today it names only the argument
+- **US3.9** · **done** (#665, D-696) · thread E, after US3.7 · standard, medium · S to M. US2 backlog 6: an `ai-tools.bad-argument` refusal of a change list hints at the shape it expects, for all 19 lists. Why: today it names only the argument
 
 - **US3.10** · **later** (Q-474 = R) · US2 backlog 7, a pay-off goal for a small loan, keeps its US2 line. Why: a large new feature with its own design and a new stored thing; a number card with a formula covers part of it today
 
@@ -436,7 +436,7 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.12** · **done** (#666, D-685) · thread A · standard, high · S to M. US2 backlog 9: an applied `propose_view` (or `check_only`) answers with the figure KassenSturz computed for a number card or progress bar. Why: the AI can confirm the figure to the user; numbers still come from code (AGENTS.md §8)
 
-- **US3.13** · **step 1 merged (M6-B218, D-699), step 2 in review (#649, D-700)** · thread G · standard, medium · M, then M. #648 (M6-B218) first: every real shop or brand name used as an example becomes an invented one, and the pattern help says plainly which syntax works. Then #649 (US2 backlog 11): an in-app help page on Rule patterns (Rust `regex`, capitals ignored unless ticked, no lookaround or back-references) and formulas (LibreOffice Calc style, D-510), with short invented examples, all translatable. Why: a public app should not carry real trademarks, and a one-line hint is not enough
+- **US3.13** · **step 1 merged (M6-B218, D-699), step 2 merged (#668, #649, D-700)** · thread G · standard, medium · M, then M. #648 (M6-B218) first: every real shop or brand name used as an example becomes an invented one, and the pattern help says plainly which syntax works. Then #649 (US2 backlog 11): an in-app help page on Rule patterns (Rust `regex`, capitals ignored unless ticked, no lookaround or back-references) and formulas (LibreOffice Calc style, D-510), with short invented examples, all translatable. Why: a public app should not carry real trademarks, and a one-line hint is not enough
 
 - **US3.14** · **planned** · thread H · standard, medium · L (about three docs PRs). #654 (US2 backlog 12): the German user handbook in `docs/user/de/`, one page per topic, "Sie" (D-578), screenshots from the example books only, linked from US3.13's help page; English follows in a later Sprint. Why: `USER_GUIDE.de.md` covers only the M3/M4 basics
 

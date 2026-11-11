@@ -543,13 +543,22 @@ pub enum ChangeView {
         /// Its new name; empty when it is taken away or stays.
         new_name: String,
         /// Whether the amount or the carry over changes; `false` for a new
-        /// name only.
+        /// name or a change of what it counts only.
         changes_amount: bool,
-        /// Its categories as paths, separated by commas (D-641).
+        /// Whether what it counts changes from `from` on (D-690).
+        changes_counts: bool,
+        /// Its categories as paths, separated by commas (D-641), as it
+        /// counts them now.
         category: String,
-        /// The names of the accounts it counts from, separated by commas;
-        /// empty for every account.
+        /// The names of the accounts it counts from now, separated by
+        /// commas; empty for every account.
         accounts: String,
+        /// The categories it counts from `from` on, as `category`; empty
+        /// when they stay.
+        new_category: String,
+        /// The accounts it counts from `from` on, as `accounts`; empty for
+        /// every account or when they stay.
+        new_accounts: String,
         /// How often it starts again: `month`, `salary-month`, `quarter`,
         /// `year` or `range`.
         every: &'static str,
@@ -943,8 +952,19 @@ fn view_of(
                 renames: edit.rename.is_some(),
                 new_name: edit.rename.clone().flatten().unwrap_or_default(),
                 changes_amount: edit.changes_amount,
+                changes_counts: edit.counts.is_some(),
                 category: paths_text(&edit.paths),
                 accounts: edit.account_names.join(", "),
+                new_category: edit
+                    .counts
+                    .as_ref()
+                    .map(|counts| paths_text(&counts.paths))
+                    .unwrap_or_default(),
+                new_accounts: edit
+                    .counts
+                    .as_ref()
+                    .map(|counts| counts.account_names.join(", "))
+                    .unwrap_or_default(),
                 every: budget_every(edit.every),
                 salary_day: edit.every.salary_day().map_or(0, i32::from),
                 from: locale.short_date(edit.from_day),
@@ -1755,6 +1775,91 @@ mod tests {
             .unwrap();
         assert_eq!(Some(lines[2].before.as_str()), edited.note());
         assert_eq!(lines[2].after, "weekly");
+    }
+
+    #[test]
+    fn a_budget_that_counts_other_categories_is_shown_before_and_after() {
+        // D-690, through the real edit_budgets call.
+        use kassensturz_core::{Account, AccountId, AccountType, CurrencyCode};
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let account = |name: &str, kind: AccountKind| Account {
+            id: AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = account("Checking", AccountKind::Asset);
+        let food = account("Food", AccountKind::Expense);
+        let fun = account("Fun", AccountKind::Expense);
+        for each in [&checking, &food, &fun] {
+            book.add_account(each).unwrap();
+        }
+        let id = book
+            .add_budget(
+                &[food.id],
+                &[],
+                BudgetEvery::Month,
+                Date::constant(2026, 6, 1),
+                None,
+                Money::from_minor_units(30_000, eur),
+                false,
+            )
+            .unwrap();
+        let proposal = kassensturz_ai_tools::propose_on(
+            &book,
+            &serde_json::json!({"edit_budgets": [{"budget_id": id.to_string(),
+                "category_ids": [food.id.to_string(), fun.id.to_string()],
+                "account_ids": [checking.id.to_string()]}]}),
+            Permissions::all(),
+            Date::constant(2026, 11, 14),
+        )
+        .unwrap();
+
+        let views = views_of(&book, &proposal.changes, &TestLocale);
+
+        let [
+            ChangeView::EditBudget {
+                changes_amount,
+                changes_counts,
+                category,
+                accounts,
+                new_category,
+                new_accounts,
+                ..
+            },
+        ] = views.as_slice()
+        else {
+            panic!("one budget change: {views:?}");
+        };
+        assert!(!changes_amount && *changes_counts);
+        assert_eq!(category, "Food");
+        assert_eq!(accounts, "");
+        assert_eq!(new_category, "Food, Fun");
+        assert_eq!(new_accounts, "Checking");
+        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
+        let budget = book.budget(id).unwrap();
+        assert_eq!(
+            budget
+                .counts_on(Date::constant(2026, 10, 1))
+                .unwrap()
+                .categories,
+            [food.id]
+        );
+        assert_eq!(
+            budget
+                .counts_on(Date::constant(2026, 11, 1))
+                .unwrap()
+                .accounts,
+            [checking.id]
+        );
     }
 
     #[test]

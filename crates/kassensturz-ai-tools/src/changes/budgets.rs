@@ -96,7 +96,22 @@ pub struct NewBudget {
     pub basis: Option<AmountBasis>,
 }
 
-/// A budget whose amount or carry over the AI changes from one period on.
+/// What a budget the AI changes counts from the period of the change on
+/// (D-689, D-690): its spending categories and the accounts it counts from.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NewCounts {
+    /// The spending categories, in the order the call names them.
+    pub categories: Vec<AccountId>,
+    /// Their paths, in the same order.
+    pub paths: Vec<Vec<String>>,
+    /// The user's own accounts it counts from, empty for all.
+    pub accounts: Vec<AccountId>,
+    /// Their names, in the same order.
+    pub account_names: Vec<String>,
+}
+
+/// A budget whose amount, carry over, name or what it counts the AI changes
+/// from one period on.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EditBudget {
     /// The budget.
@@ -107,9 +122,14 @@ pub struct EditBudget {
     /// away), or `None` when the name stays as it is (D-664).
     pub rename: Option<Option<String>>,
     /// Whether the amount or the carry over changes; `false` for a change
-    /// of the name only, which then leaves every period's amount as it is.
+    /// of the name or of what it counts only, which then leaves every
+    /// period's amount as it is.
     pub changes_amount: bool,
-    /// Its spending categories.
+    /// What it counts from `from_day` on, or `None` when that stays
+    /// (D-690); earlier periods keep counting what they counted.
+    pub counts: Option<NewCounts>,
+    /// Its spending categories in the period the change applies from, as
+    /// they are now.
     pub categories: Vec<AccountId>,
     /// Their paths, in the same order.
     pub paths: Vec<Vec<String>>,
@@ -135,6 +155,9 @@ pub struct EditBudget {
     pub basis: Option<AmountBasis>,
     /// The budget as it was checked, so a change in between is caught.
     pub(super) reviewed: Budget,
+    /// The day the change was prepared on, which the book checks a change
+    /// of what it counts against (`before-current-period`).
+    pub(super) today: Date,
 }
 
 /// The categories' paths in quotes, separated by commas, for the
@@ -758,6 +781,8 @@ pub(super) fn edit_budget(
             "based_on",
             "round_to",
             "carry_over",
+            "category_ids",
+            "account_ids",
         ],
         "edit_budgets",
     )?;
@@ -796,20 +821,94 @@ pub(super) fn edit_budget(
         .ok_or(ToolError::Store(StoreError::UnknownBudget(id)))?;
     let (currency, paths) = spending_categories(book, &set.categories)?;
     let account_names = own_accounts(book, &set.accounts)?;
-    let counts = Counts {
-        categories: &set.categories,
-        accounts: &set.accounts,
-        currency,
+    // What it counts from the period of the change on (D-690): each list
+    // given replaces the one it has; the same set again is no change.
+    let named_counts = if item.get("category_ids").is_some() {
+        "category_ids"
+    } else {
+        "account_ids"
+    };
+    let new_counts = if item.get("category_ids").is_some() || item.get("account_ids").is_some() {
+        let categories = if item.get("category_ids").is_some() {
+            ids_of(&item, "category_ids")?
+        } else {
+            set.categories.clone()
+        };
+        let accounts = if item.get("account_ids").is_some() {
+            ids_of(&item, "account_ids")?
+        } else {
+            set.accounts.clone()
+        };
+        // The same members in another order are the same set.
+        let same = |new: &[AccountId], old: &[AccountId]| {
+            new.len() == old.len()
+                && new.iter().all(|id| old.contains(id))
+                && old.iter().all(|id| new.contains(id))
+        };
+        if same(&categories, &set.categories) && same(&accounts, &set.accounts) {
+            None
+        } else {
+            let (new_currency, new_paths) = spending_categories(book, &categories)?;
+            if new_currency != currency {
+                // The amounts are in the budget's one currency (D-689).
+                return Err(ToolError::BudgetRefused(StoreError::BudgetChoice {
+                    reason: "currencies",
+                }));
+            }
+            let new_names = own_accounts(book, &accounts)?;
+            // The money of a category is in one budget at a time (D-344):
+            // the new set from the period of the change on.
+            let mut after = budget.clone();
+            after.counts.retain(|kept| kept.from_day < from_day);
+            after.counts.push(BudgetCounts {
+                from_day,
+                categories: categories.clone(),
+                accounts: accounts.clone(),
+            });
+            if let Some(clash) = budgets
+                .iter()
+                .filter(|other| other.id != id)
+                .find_map(|other| after.clashes_with(other))
+            {
+                return Err(ToolError::BudgetRefused(StoreError::BudgetOverlap {
+                    category: clash,
+                }));
+            }
+            Some(NewCounts {
+                categories,
+                paths: new_paths,
+                accounts,
+                account_names: new_names,
+            })
+        }
+    } else {
+        None
+    };
+    // A new amount based_on spending counts what the budget counts from
+    // the period of the change on.
+    let counts = match &new_counts {
+        Some(new) => Counts {
+            categories: &new.categories,
+            accounts: &new.accounts,
+            currency,
+        },
+        None => Counts {
+            categories: &set.categories,
+            accounts: &set.accounts,
+            currency,
+        },
     };
     let carry_over = item.boolean("carry_over")?;
     let amount = amount_of(book, &item, &counts, budget.every, from_day)?;
     // A new name alone is a change too; the same name again is none.
     let rename = name_of(&item)?.filter(|name| *name != budget.name);
     let changes_amount = amount.is_some() || carry_over.is_some();
-    if !changes_amount && rename.is_none() {
+    if !changes_amount && rename.is_none() && new_counts.is_none() {
         return Err(ToolError::BadArgument {
             argument: if item.get("name").is_some() {
                 "name"
+            } else if item.get("category_ids").is_some() || item.get("account_ids").is_some() {
+                named_counts
             } else {
                 "amount"
             },
@@ -829,6 +928,7 @@ pub(super) fn edit_budget(
         name_before: budget.name.clone(),
         rename,
         changes_amount,
+        counts: new_counts,
         categories: set.categories,
         paths,
         accounts: set.accounts,
@@ -841,6 +941,7 @@ pub(super) fn edit_budget(
         carry_over,
         basis,
         reviewed: budget,
+        today,
     })
 }
 
@@ -870,8 +971,17 @@ pub(super) fn apply_edit_budget(
         Ok(_) | Err(StoreError::UnknownBudget(_)) => return Err(super::ChangeError::OutOfDate),
         Err(other) => return Err(other.into()),
     }
-    if edit.changes_amount {
-        book.edit_budget_amount(edit.budget, edit.from_day, edit.amount, edit.carry_over)?;
+    if edit.changes_amount || edit.counts.is_some() {
+        book.edit_budget(
+            edit.budget,
+            edit.from_day,
+            edit.changes_amount
+                .then_some((edit.amount, edit.carry_over)),
+            edit.counts
+                .as_ref()
+                .map(|counts| (counts.categories.as_slice(), counts.accounts.as_slice())),
+            edit.today,
+        )?;
     }
     if let Some(name) = &edit.rename {
         book.set_budget_name(edit.budget, name.as_deref())?;

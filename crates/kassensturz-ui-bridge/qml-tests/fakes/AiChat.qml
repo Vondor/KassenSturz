@@ -107,6 +107,39 @@ QtObject {
             basisStep: "10,00 €",
             basisLeftOutFrom: "",
             basisLeftOutTo: ""
+        }, {
+            // A budget that counts other categories from now on (D-690).
+            kind: "editBudget",
+            slot: "edit_budgets/0",
+            edited: false,
+            leftOut: false,
+            fields: [],
+            form: "",
+            name: "",
+            renames: false,
+            newName: "",
+            changesAmount: false,
+            changesCounts: true,
+            category: "Food",
+            accounts: "",
+            newCategory: "Food, Fun",
+            newAccounts: "Everyday Checking",
+            every: "month",
+            salaryDay: 0,
+            from: "01.11.2026",
+            to: "30.11.2026",
+            before: "300,00 €",
+            amount: "300,00 €",
+            carriedOver: false,
+            carryOver: false,
+            basisPeriods: 0,
+            basisFrom: "",
+            basisTo: "",
+            basisSpent: "",
+            basisAverage: "",
+            basisStep: "",
+            basisLeftOutFrom: "",
+            basisLeftOutTo: ""
         }];
     }
 

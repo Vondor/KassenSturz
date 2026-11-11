@@ -43,6 +43,8 @@ FormCard.FormCardPage {
     signal saveCopyClicked()
     signal bookFromFileClicked()
     signal showHistoryClicked()
+    // The user wants the help page on patterns and formulas.
+    signal helpClicked()
     // The user wants the page of the provider and of what is sent; only
     // offered while the switch is on.
     signal aiSettingsClicked()
@@ -936,6 +938,17 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormCard {
+        FormCard.FormButtonDelegate {
+            text: page.i18nContext.i18nc("@action:button opens a help page", "Help: patterns and formulas")
+            description: page.i18nContext.i18nc("@info", "How to write a pattern in a Rule and a formula for a chart")
+            onClicked: {
+                ActionLog.taken("SettingsPage_helpPatternsFormulas")
+                page.helpClicked()
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
         FormCard.FormTextDelegate {
             descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label the version of KassenSturz that is running", "Version")

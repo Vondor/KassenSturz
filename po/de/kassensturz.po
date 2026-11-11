@@ -19382,6 +19382,196 @@ msgstr ""
 "Das Diagramm wird aus dem Statistik-Baukasten entfernt. Die Zahlen Ihres "
 "Buchs ändern sich nicht, und Rückgängig holt das Diagramm zurück."
 
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:26
+#, kde-format
+msgctxt "@title"
+msgid "Help: patterns and formulas"
+msgstr "Hilfe: Muster und Formeln"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:29
+#, kde-format
+msgctxt "@title:group"
+msgid "Patterns in Rules"
+msgstr "Muster in Regeln"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:33
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A Rule looks at the name or the purpose of a transaction. Most of the time "
+"\"contains\" is all you need: it finds the words you type anywhere in the "
+"text, and capital letters don't matter. A pattern is for the cases where "
+"that is not enough. Switch it on with \"Use a pattern (advanced)\" in a "
+"condition."
+msgstr ""
+"Eine Regel schaut auf den Namen oder den Verwendungszweck eines Umsatzes. "
+"Meistens reicht „enthält“: Es findet die Wörter, die Sie eingeben, "
+"irgendwo im Text, und Groß- und Kleinschreibung spielt keine Rolle. Ein "
+"Muster ist für die Fälle, in denen das nicht reicht. Schalten Sie es in "
+"einer Bedingung mit „Muster verwenden (fortgeschritten)“ ein."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:38
+#, kde-format
+msgctxt "@info"
+msgid "Either of two names"
+msgstr "Einer von zwei Namen"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:46
+#, kde-format
+msgctxt "@info"
+msgid "The text starts with a word"
+msgstr "Der Text beginnt mit einem Wort"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:54
+#, kde-format
+msgctxt "@info"
+msgid "The text ends with four digits"
+msgstr "Der Text endet mit vier Ziffern"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:62
+#, kde-format
+msgctxt "@info"
+msgid "A word, then anything, then another word"
+msgstr "Ein Wort, dann beliebiger Text, dann ein weiteres Wort"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:69
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A pattern can match a part of the text, so you don't need to cover the whole "
+"text. ^ means the start of the text and $ means its end. A dot stands for "
+"any one character and .* for any amount of any characters. \\d is a digit, "
+"and a vertical bar means \"or\". To look for one of these characters itself, "
+"put a backslash before it, for example \\. for a dot."
+msgstr ""
+"Ein Muster kann auf einen Teil des Textes passen, Sie müssen also nicht "
+"den ganzen Text beschreiben. ^ steht für den Anfang des Textes und $ für "
+"sein Ende. Ein Punkt steht für ein beliebiges Zeichen und .* für beliebig "
+"viele beliebige Zeichen. \\d ist eine Ziffer, und ein senkrechter Strich "
+"bedeutet „oder“. Wenn Sie nach einem dieser Zeichen selbst suchen wollen, "
+"setzen Sie einen Rückwärtsschrägstrich davor, zum Beispiel \\. für einen "
+"Punkt."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:73
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Patterns use the syntax of the Rust \"regex\" library. Capital letters are "
+"ignored unless \"Capital letters must match\" is ticked. Lookahead and "
+"lookbehind, such as (?=…) or (?<!…), and back-references such as \\1 don't "
+"work. If a pattern can't be read, KassenSturz says so and changes nothing."
+msgstr ""
+"Muster verwenden die Schreibweise der Rust-Bibliothek „regex“. Groß- und "
+"Kleinschreibung wird nicht beachtet, außer wenn „Groß- und "
+"Kleinschreibung muss übereinstimmen“ angehakt ist. Vorausschau und "
+"Rückschau wie (?=…) oder (?<!…) und Rückverweise wie \\1 funktionieren "
+"nicht. Wenn ein Muster nicht gelesen werden kann, sagt KassenSturz das "
+"und ändert nichts."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:77
+#, kde-format
+msgctxt "@title:group"
+msgid "Formulas"
+msgstr "Formeln"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:81
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A formula works like a formula in a spreadsheet such as LibreOffice Calc. A "
+"category or a group stands for its total in the chart's period, as a "
+"positive amount. You can start with = or leave it out. KassenSturz works out "
+"the formula from the exact amounts of your book and shows what it counted "
+"next to the result. A formula only reads your book; it never changes a "
+"transaction or a balance."
+msgstr ""
+"Eine Formel funktioniert wie eine Formel in einer Tabellenkalkulation wie "
+"LibreOffice Calc. Eine Kategorie oder eine Gruppe steht für ihre Summe im "
+"Zeitraum der Grafik, als positiver Betrag. Sie können mit = beginnen oder "
+"es weglassen. KassenSturz rechnet die Formel aus den genauen Beträgen "
+"Ihres Buchs und zeigt neben dem Ergebnis, was es gezählt hat. Eine Formel "
+"liest Ihr Buch nur; sie ändert nie einen Umsatz oder einen Kontostand."
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:86
+#, kde-format
+msgctxt "@info"
+msgid "What is left after one category"
+msgstr "Was nach einer Kategorie übrig bleibt"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:94
+#, kde-format
+msgctxt "@info"
+msgid "Two categories added up"
+msgstr "Zwei Kategorien zusammengezählt"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:102
+#, kde-format
+msgctxt "@info"
+msgid "A name with spaces goes in single quotes"
+msgstr "Ein Name mit Leerzeichen steht in einfachen Anführungszeichen"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:110
+#, kde-format
+msgctxt "@info"
+msgid "One category in a period of its own"
+msgstr "Eine Kategorie mit eigenem Zeitraum"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:118
+#, kde-format
+msgctxt "@info"
+msgid "An average per month over the last three whole months"
+msgstr "Ein Durchschnitt pro Monat über die letzten drei vollen Monate"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:126
+#, kde-format
+msgctxt "@info"
+msgid "Count Pets only when it is above 100"
+msgstr "Haustiere nur zählen, wenn es über 100 sind"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:133
+#, kde-format
+msgctxt "@info"
+msgid ""
+"You can use + - * / and brackets, % for a percentage, and the comparisons = "
+"<> < > <= >=. Between the parts of a function, ; works everywhere, as in "
+"LibreOffice Calc. If your number format uses a decimal point, a comma works "
+"as well. A period word such as \"last month\", \"this year\" or \"last 12 "
+"months\" in quotes after @ gives a name its own period. The formula field "
+"lists the functions with a short line each and completes the names of your "
+"categories while you type. A mistake is described in words, with the place "
+"marked."
+msgstr ""
+"Sie können + - * / und Klammern verwenden, % für einen Prozentwert und "
+"die Vergleiche = <> < > <= >=. Zwischen den Teilen einer Funktion "
+"funktioniert ; überall, wie in LibreOffice Calc. Wenn Ihr Zahlenformat "
+"einen Dezimalpunkt verwendet, geht auch ein Komma. Ein Zeitraumwort wie "
+"„letzter Monat“ ist hier nicht möglich: Schreiben Sie die englischen "
+"Wörter wie \"last month\", \"this year\" oder \"last 12 months\" in "
+"Anführungszeichen hinter ein @, dann hat der Name seinen eigenen "
+"Zeitraum. Das Formelfeld listet die Funktionen mit je einer kurzen Zeile "
+"auf und ergänzt beim Tippen die Namen Ihrer Kategorien. Ein Fehler wird "
+"in Worten beschrieben, mit markierter Stelle."
+
+#: crates/kassensturz-ui-bridge/qml/RuleCondition.qml:154
+#, kde-format
+msgctxt "@action:button opens the help page"
+msgid "More about patterns"
+msgstr "Mehr zu Mustern"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:942
+#, kde-format
+msgctxt "@action:button opens a help page"
+msgid "Help: patterns and formulas"
+msgstr "Hilfe: Muster und Formeln"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:943
+#, kde-format
+msgctxt "@info"
+msgid "How to write a pattern in a Rule and a formula for a chart"
+msgstr ""
+"Wie Sie ein Muster in einer Regel und eine Formel für eine Grafik "
+"schreiben"
+
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml
 #, kde-format
 msgctxt "@title:column a table of a chart: spending in the period before"

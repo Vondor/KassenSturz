@@ -446,6 +446,18 @@ fn rules_that_cannot_work_are_refused() {
             condition: 0
         })
     );
+    // Neither does lookahead or lookbehind; the help page says so (#649).
+    for pattern in ["fresho(?=market)", "(?<!brightmart) market"] {
+        let (result, id) = check(vec![text(name, TextOperator::Matches, pattern)], None);
+        assert_eq!(
+            result,
+            Err(RuleError::BadPattern {
+                rule: id,
+                condition: 0
+            }),
+            "{pattern}"
+        );
+    }
     let (result, id) = check(
         vec![Condition::Amount(AmountTest::Between {
             min: eur(-1000),

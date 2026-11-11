@@ -103,6 +103,7 @@ fn main() {
                 "qml/TitleWords.qml",
                 "qml/GridItem.qml",
                 "qml/DashboardGrid.qml",
+                "qml/HelpPage.qml",
                 "qml/HistoryPage.qml",
                 "qml/ImportDonePage.qml",
                 "qml/ImportPreviewPage.qml",

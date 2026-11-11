@@ -1844,10 +1844,7 @@ mod tests {
         assert_eq!(accounts, "");
         assert_eq!(new_category, "Food, Fun");
         assert_eq!(new_accounts, "Checking");
-        proposal
-            .changes
-            .apply(&mut book, Confirmed::by_the_user())
-            .unwrap();
+        confirm_in(&mut book, proposal.changes, Permissions::all()).unwrap();
         let budget = book.budget(id).unwrap();
         assert_eq!(
             budget

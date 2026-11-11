@@ -221,6 +221,9 @@ pub struct Asked {
     pub series: Vec<SeriesAsked>,
     /// What spending is averaged per (D-648); `None` for its total.
     pub average: Option<crate::Per>,
+    /// What a spending chart compares each category with (US3.1a, D-687);
+    /// `None` for no comparison and for a key figure's own `compare`.
+    pub compare: Option<crate::CompareWith>,
 }
 
 /// A note under a component about its filter (D-350). The component writes
@@ -355,6 +358,14 @@ impl Asked {
                 Some(Setting::Word(word)) => crate::Per::read(word),
                 _ => None,
             },
+            compare: match component.get(crate::schema::COMPARE_KEY) {
+                Some(Setting::Word(word))
+                    if component.dataset().id == crate::SPENDING_BY_CATEGORY =>
+                {
+                    crate::CompareWith::read(word)
+                }
+                _ => None,
+            },
         })
     }
 
@@ -375,6 +386,7 @@ impl Asked {
             takes: self.takes,
             series: Vec::new(),
             average: self.average,
+            compare: self.compare,
         }
     }
 

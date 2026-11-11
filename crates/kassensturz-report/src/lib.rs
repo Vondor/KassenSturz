@@ -39,6 +39,7 @@ mod budget_utilization;
 mod cash_flow;
 mod catalog;
 mod columns;
+mod compared;
 mod component;
 mod dashboard_file;
 mod dashboard_file_read;
@@ -76,6 +77,10 @@ pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
 pub use columns::{
     Column, MAX_COLUMNS, SharedCategory, columns_over_time, columns_span, columns_spending,
     shared as shared_categories, unknown as unknown_column_members,
+};
+pub use compared::{
+    COMPARE_WORDS, CompareWith, ComparedEarly, ComparedRow, SpendingCompared, compared_early,
+    spending_compared,
 };
 pub use component::Component;
 pub use dashboard_file::{
@@ -133,6 +138,8 @@ pub use text::{TextFormat, TextTable};
 mod budget_tests;
 #[cfg(test)]
 mod columns_tests;
+#[cfg(test)]
+mod compared_tests;
 #[cfg(test)]
 mod component_tests;
 #[cfg(test)]

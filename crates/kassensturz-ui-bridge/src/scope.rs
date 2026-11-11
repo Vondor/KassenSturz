@@ -46,6 +46,9 @@ pub struct Scope {
     /// What spending is averaged per (US1.13, D-648): a `params.average`
     /// word, empty for the total.
     pub average: String,
+    /// What a spending chart compares each category with (US3.1a, D-687): a
+    /// `params.compare` word, empty for no comparison.
+    pub compare: String,
 }
 
 /// The own lists of one series of a chart (D-646): empty for a dimension it
@@ -71,6 +74,7 @@ impl Default for Scope {
             takes: Takes::ALL,
             series: Vec::new(),
             average: String::new(),
+            compare: String::new(),
         }
     }
 }
@@ -107,6 +111,10 @@ impl Scope {
             average: asked
                 .average
                 .map(|per| per.word().to_owned())
+                .unwrap_or_default(),
+            compare: asked
+                .compare
+                .map(|compare| compare.word().to_owned())
                 .unwrap_or_default(),
         }
     }
@@ -160,6 +168,7 @@ impl Scope {
                 }))
                 .collect::<Vec<_>>(),
             "average": self.average,
+            "compare": self.compare,
         })
         .to_string()
     }
@@ -219,6 +228,12 @@ impl Scope {
                 .filter(|word| kassensturz_report::Per::read(word).is_some())
                 .unwrap_or_default()
                 .to_owned(),
+            compare: value
+                .get("compare")
+                .and_then(Value::as_str)
+                .filter(|word| kassensturz_report::CompareWith::read(word).is_some())
+                .unwrap_or_default()
+                .to_owned(),
         }
     }
 
@@ -246,8 +261,9 @@ impl Scope {
             takes: self.takes,
             // Each series is applied on its own (`for_series`).
             series: Vec::new(),
-            // An average changes no filter.
+            // An average and a comparison change no filter.
             average: None,
+            compare: None,
         }
         .apply(source)
     }
@@ -616,6 +632,7 @@ mod tests {
                 },
             ],
             average: "per-month".into(),
+            compare: "same_last_year".into(),
         };
         assert_eq!(Scope::from_text(&scope.to_text()), scope);
     }
@@ -866,6 +883,31 @@ mod tests {
         }))
         .expect("component");
         assert!(total.to_value()["params"].get("average").is_none());
+    }
+
+    #[test]
+    fn a_comparison_goes_from_the_component_through_the_scope_text() {
+        // A seam test (US3.1a, D-687): the component's `compare` goes
+        // through the real Asked and the scope text to the chart.
+        let component = kassensturz_report::Component::from_value(&json!({
+            "type": "chart.bar", "dataset": "spending_by_category",
+            "params": {"compare": "average-3"}
+        }))
+        .expect("component");
+        let asked = Asked::new(&component, None, &Filters::default()).expect("asks");
+        let scope = Scope::from_text(&Scope::from_asked(&asked).to_text());
+        assert_eq!(scope.compare, "average-3");
+        // A word that is not a comparison is not passed on.
+        assert_eq!(Scope::from_text(r#"{"compare": "average-5"}"#).compare, "");
+        // No comparison is the default and is not written.
+        let none = kassensturz_report::Component::from_value(&json!({
+            "type": "chart.bar", "dataset": "spending_by_category",
+            "params": {"compare": "none"}
+        }))
+        .expect("component");
+        assert!(none.to_value()["params"].get("compare").is_none());
+        let asked = Asked::new(&none, None, &Filters::default()).expect("asks");
+        assert_eq!(Scope::from_asked(&asked).compare, "");
     }
 
     #[test]

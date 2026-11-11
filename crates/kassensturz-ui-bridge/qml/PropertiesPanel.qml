@@ -251,6 +251,15 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "The period before");
         case "same_last_year":
             return i18nContext.i18nc("@item:inlistbox", "The same days a year earlier");
+        // What a spending chart compares each category with (US3.1a).
+        case "none":
+            return i18nContext.i18nc("@item:inlistbox a chart compares its spending with nothing", "None");
+        case "average-3":
+            return i18nContext.i18nc("@item:inlistbox a chart compares its spending with the average of earlier periods", "The average of the 3 periods before");
+        case "average-6":
+            return i18nContext.i18nc("@item:inlistbox a chart compares its spending with the average of earlier periods", "The average of the 6 periods before");
+        case "average-12":
+            return i18nContext.i18nc("@item:inlistbox a chart compares its spending with the average of earlier periods", "The average of the 12 periods before");
         case "income":
         case "money_in":
             return i18nContext.i18nc("@item:inlistbox", "Money in");
@@ -371,7 +380,7 @@ ColumnLayout {
                 readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: ""})
 
                 visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
-                    && !(panel.hasColumns && ["categories", "series", "groups", "average", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
+                    && !(panel.hasColumns && ["categories", "series", "groups", "average", "compare", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
                 active: visible
                 Kirigami.FormData.label: panel.rowLabel(modelData)
                 Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" ? Qt.AlignTop : Qt.AlignVCenter

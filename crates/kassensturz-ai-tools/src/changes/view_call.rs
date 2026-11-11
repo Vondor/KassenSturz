@@ -230,17 +230,19 @@ fn union(lists: impl Iterator<Item = &'static [&'static str]>) -> Vec<&'static s
     words
 }
 
-/// The words of a choice property of the schema, from the first kind of
-/// component that has it.
-fn schema_words(key: &str) -> &'static [&'static str] {
-    ComponentType::ALL
-        .iter()
-        .flat_map(|kind| kind.properties())
-        .find_map(|property| match property.kind {
-            Kind::Choice(words) if property.key == key => Some(words),
-            _ => None,
-        })
-        .unwrap_or(&[])
+/// The words of a choice property of the schema, from every kind of
+/// component that has it: a key figure's `compare` has two, a spending
+/// chart's six (US3.1a).
+fn schema_words(key: &str) -> Vec<&'static str> {
+    union(
+        ComponentType::ALL
+            .iter()
+            .flat_map(|kind| kind.properties())
+            .filter_map(|property| match property.kind {
+                Kind::Choice(words) if property.key == key => Some(words),
+                _ => None,
+            }),
+    )
 }
 
 /// Whether some kind of component the AI may choose has a list of ids
@@ -271,9 +273,15 @@ pub fn view_choices(argument: &str) -> Option<Vec<&'static str>> {
             .filter(|word| *word != GROUPS_GROUPING)
             .collect(),
         "period" => std::iter::once(PAGE).chain(PERIODS).collect(),
-        "compare" => std::iter::once(NO_COMPARISON)
-            .chain(schema_words("compare").iter().copied())
-            .collect(),
+        "compare" => {
+            let mut words = vec![NO_COMPARISON];
+            for word in schema_words("compare") {
+                if !words.contains(&word) {
+                    words.push(word);
+                }
+            }
+            words
+        }
         "average" => AVERAGE_WORDS.to_vec(),
         "orientation" => ORIENTATION_WORDS.to_vec(),
         _ => return None,
@@ -414,7 +422,11 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         "compare".into(),
         choice(
             "compare",
-            "Only for figure and progress: what to compare with. Default none.",
+            "What to compare with. Default none. For figure and progress: previous_period or \
+             same_last_year. For bar and table of spending_by_category only: each category \
+             next to its figure in previous_period, same_last_year, or the average of the 3, \
+             6 or 12 periods before (average-3, average-6, average-12), each as long as the \
+             chart's period, as a second bar or column.",
         ),
     );
     properties.insert(
@@ -800,6 +812,7 @@ fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -
             .collect()
     };
     const SINGLE: [&str; 2] = ["figure", "progress"];
+    const COMPARED: [&str; 2] = ["bar", "table"];
     let (words, use_instead, only_for) = match argument {
         "show_as" => {
             let mut words = vec!["auto"];
@@ -810,7 +823,19 @@ fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -
         "group_by" => (Vec::new(), None, fits.grouped_as.clone()),
         "measure" if drawn_as(&["figure"]) => (fits.measure.clone(), None, Vec::new()),
         "measure" => (Vec::new(), None, suiting(&["figure"])),
-        "compare" if !drawn_as(&SINGLE) => (Vec::new(), None, suiting(&SINGLE)),
+        // A spending bar or table compares with its six words (US3.1a), a
+        // key figure and a progress bar with three; anything else with none.
+        "compare" if dataset.id == SPENDING_BY_CATEGORY && drawn_as(&COMPARED) => {
+            (kassensturz_report::COMPARE_WORDS.to_vec(), None, Vec::new())
+        }
+        "compare" if !drawn_as(&SINGLE) => {
+            let ways: &[&str] = if dataset.id == SPENDING_BY_CATEGORY {
+                &["figure", "progress", "bar", "table"]
+            } else {
+                &SINGLE
+            };
+            (Vec::new(), None, suiting(ways))
+        }
         "categories" if drawn_as(&SINGLE) && offered("formula", allowed) => {
             (Vec::new(), Some("formula"), Vec::new())
         }

@@ -58,7 +58,7 @@ pub(crate) fn extent(series: &[Series], stacked: bool) -> (i64, i64) {
 /// The note about hidden categories, `None` when nothing is hidden. The
 /// largest hidden category is named; the screen writes the sentence. The
 /// amount is the exact one or its `average`.
-fn hidden_note(
+pub(crate) fn hidden_note(
     data: &SpendingByCategory,
     format: &impl TextFormat,
     average: Option<&Average>,
@@ -72,13 +72,13 @@ fn hidden_note(
 }
 
 /// `money` as a chart shows it: the exact amount, or its average.
-fn shown_as(money: Money, average: Option<&Average>) -> Money {
+pub(crate) fn shown_as(money: Money, average: Option<&Average>) -> Money {
     average.map_or(money, |average| average.of(money))
 }
 
 /// The fixed name of the amount column of a spending table: `total`, or
 /// the average it shows (D-648), which the UI translates.
-fn amount_column(average: Option<&Average>) -> &'static str {
+pub(crate) fn amount_column(average: Option<&Average>) -> &'static str {
     match average.map(|average| average.per) {
         None => "total",
         Some(Per::Month) => "per_month",

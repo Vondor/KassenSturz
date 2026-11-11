@@ -1202,13 +1202,20 @@ pub(crate) fn list_categories(book: &Book, w: &mut Writer<'_>) -> Result<Value, 
 }
 
 /// `list_rules`: the Rules that sort new transactions (D-015), each with
-/// its sub-Rules.
+/// its sub-Rules. With `only`, just that Rule (at any depth) with the
+/// sub-Rules inside it (US3.6, D-698); one the book does not have is
+/// `ai-tools.unknown-rule`.
 pub(crate) fn list_rules(
     book: &Book,
     w: &mut Writer<'_>,
     names: &Names,
+    only: Option<RuleId>,
 ) -> Result<Value, ToolError> {
     let tree = book.rules()?;
+    let tree = match only {
+        None => tree,
+        Some(id) => vec![find_rule(&tree, id).ok_or(ToolError::UnknownRule)?.clone()],
+    };
     let mut budget = MAX_RULES;
     let mut total = 0;
     count_rules(&tree, &mut total);
@@ -1221,6 +1228,16 @@ pub(crate) fn list_rules(
         result.insert("left_out".into(), w.count(total - listed));
     }
     Ok(Value::Object(result))
+}
+
+fn find_rule(nodes: &[RuleNode], id: RuleId) -> Option<&RuleNode> {
+    nodes.iter().find_map(|node| {
+        if node.rule.id == id {
+            Some(node)
+        } else {
+            find_rule(&node.sub_rules, id)
+        }
+    })
 }
 
 fn count_rules(nodes: &[RuleNode], total: &mut usize) {
@@ -1286,7 +1303,7 @@ fn rule_rows(
     Ok(rows)
 }
 
-fn condition_row(
+pub(crate) fn condition_row(
     w: &mut Writer<'_>,
     names: &Names,
     condition: &Condition,

@@ -412,7 +412,7 @@ Goal: the three designs held back in US2, then the US2 backlog, the help page an
 
 Build threads (conflict map): A charts (12, then design 1, then build 1) · B budgets (11, then design 2, then build 2) · C Transfers (design 3, then build 3; its AI part after E's 9) · D transaction form (4) · E AI tools (7, 9, 5, 6, 8) · G help (13: B218, then #649) · H handbook (14, three docs PRs; the link from the help page after G). `report/src/schema.rs` is shared by A and B, each with its own component entries, A's build first; `ai-tools/src/changes.rs` by E, then C. Expected Phase 2 duration about 6 to 9 hours plus a night pause (Q-459, sized from the retro tables, Q-469); the longest chain is E with five merges.
 
-- **US3.1** · **design merged** (#667, D-687, `docs/REPORT_DESIGNER_US3.md`; build as US3.1a comparison bars, then US3.1b formula columns for the AI) · thread A · strong, high · L (design, then build). #562 and #587: one design that gives each bar its own figure (its own period or formula, or a comparison bar such as the average of 3, 6 or 12 periods), in the app and in `propose_view`. Why: two separate "per bar" settings would confuse
+- **US3.1** · **design merged** (#667, #670, D-687, `docs/REPORT_DESIGNER_US3.md`); **US3.1a comparison bars done** (`params.compare` on spending bars and tables); US3.1b formula columns for the AI next · thread A · strong, high · L (design, then build). #562 and #587: one design that gives each bar its own figure (its own period or formula, or a comparison bar such as the average of 3, 6 or 12 periods), in the app and in `propose_view`. Why: two separate "per bar" settings would confuse
 
 - **US3.2** · **planned** · thread B · strong, high · L (design, then build) · [format]. #607 (US1.10a): a budget's categories or accounts can be changed from the current period on; each budget keeps a dated history of its set, so past periods show what they showed before (D-345). Why: today the only way is to stop the budget and make a new one
 
@@ -420,9 +420,9 @@ Build threads (conflict map): A charts (12, then design 1, then build 1) · B bu
 
 - **US3.4** · **planned** · thread D · standard, medium · S to M. US2 backlog 1: a *Note* field in the add and edit transaction forms. Why: the book and the AI have the note, the user can't type one
 
-- **US3.5** · **planned** · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
+- **US3.5** · **in review** (D-697) · thread E, after US3.9 · standard, medium · S. US2 backlog 2: `check_only` names the conditions `remove_conditions` would remove, not only their places. Why: a model can confirm it picked the right ones
 
-- **US3.6** · **planned** · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
+- **US3.6** · **in review** (D-698) · thread E, after US3.5 · standard, medium · S. US2 backlog 3: `list_rules` for one Rule by its ID. Why: today the AI reads the whole list
 
 - **US3.7** · **in review** (D-695) · thread E · standard, low · S. US2 backlog 4: the note on what "waiting" means moves to the start of the `propose_changes` and `propose_view` descriptions. Why: AI tools cut long descriptions at the end (M6-B201)
 

@@ -234,7 +234,7 @@ Releases (D-036, D-152): the first usable release is **Linux only, after M0–M3
 
 ## User Sprints
 
-After M7a the work runs in User Sprints: a round with testers whose work comes from what they find (collect, build, prototype rounds, retro). Release stage: Alpha until the maintainer gives the stage Go to Beta. One table row per item, one table per Sprint, like the milestone steps above. Each kept item: number from the sorting list, **status**, then the scope column: build thread, needs, tier and effort, decision numbers, what is changed and why. A **later** item says what it waits for; a **not done** line says why it was dropped. Issues of later items stay open with the label `later`.
+After M7a the work runs in User Sprints: a round with testers whose work comes from what they find (collect, build, prototype rounds, retro). Release stage: Alpha until the maintainer gives the stage Go to Beta. One table row per item, one table per Sprint, like the milestone steps above (D-708). Each kept item: number from the sorting list, **status**, then the scope column: build thread, needs, tier and effort, decision numbers, what is changed and why. A **later** item says what it waits for; a **not done** line says why it was dropped. Issues of later items stay open with the label `later`.
 
 ### User Sprint 1 (US1)
 

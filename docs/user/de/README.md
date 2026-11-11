@@ -2,6 +2,8 @@
 
 *Für alle, die KassenSturz von Hand benutzen, ohne KI. Jede Seite erklärt eine Aufgabe in einfachen Worten. Alle Beispiele sind ausgedacht; zum Üben nehmen Sie bitte eines der Beispielbücher (Seite 3). Die Beschriftungen entsprechen der deutschen App.*
 
+Dieses Handbuch gibt es auch [auf Englisch](../en/README.md).
+
 ## Inhalt
 
 **Ankommen**

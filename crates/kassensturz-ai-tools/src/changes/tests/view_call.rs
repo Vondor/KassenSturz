@@ -1263,7 +1263,7 @@ fn a_key_figure_answers_with_the_figure_kassensturz_computed() {
     );
     // A check only answers with it too, so a model can tell the user
     // before anything is shown (D-674).
-    let checked = check_only_answer(&book, &proposal).expect("checked");
+    let checked = check_only_answer(&book, &proposal, Permissions::all()).expect("checked");
     assert_eq!(checked["computed"], proposal.output.value["computed"]);
 }
 

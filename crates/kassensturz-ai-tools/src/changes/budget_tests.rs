@@ -1079,7 +1079,7 @@ fn a_check_names_the_computed_amount_and_how_it_was_computed() {
         "the lists alone are checked"
     );
     let proposal = propose(book, &call).expect("checked");
-    let answer = check_only_answer(book, &proposal).expect("answered");
+    let answer = check_only_answer(book, &proposal, Permissions::all()).expect("answered");
     assert_eq!(answer["check_only"], json!(true));
     assert_eq!(answer["would_prepare"], json!(2));
     assert!(answer.get("prepared").is_none(), "nothing is prepared");
@@ -1137,7 +1137,7 @@ fn check_only_is_true_false_or_absent() {
 fn a_check_names_the_period_a_slipped_payment_left_out() {
     let small = slipped(Date::constant(2000, 1, 1));
     let proposal = based_on(&small, "last_period", TODAY).expect("prepared");
-    let answer = check_only_answer(&small.book, &proposal).expect("answered");
+    let answer = check_only_answer(&small.book, &proposal, Permissions::all()).expect("answered");
     assert_eq!(
         answer["budget_amounts"][0]["based_on"],
         json!({
@@ -1152,7 +1152,7 @@ fn a_check_names_the_period_a_slipped_payment_left_out() {
     );
     // Without a slip there is no left_out.
     let proposal = based_on(&small, "last_period", Date::constant(2026, 10, 14)).expect("prepared");
-    let answer = check_only_answer(&small.book, &proposal).expect("answered");
+    let answer = check_only_answer(&small.book, &proposal, Permissions::all()).expect("answered");
     assert!(
         answer["budget_amounts"][0]["based_on"]
             .get("left_out")

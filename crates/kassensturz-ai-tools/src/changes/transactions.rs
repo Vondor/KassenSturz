@@ -25,8 +25,12 @@ use serde_json::Value;
 
 use crate::error::ToolError;
 
-/// The longest payee or note a model may write.
-const MAX_TEXT_CHARS: usize = 200;
+/// The longest payee a model may write.
+const MAX_PAYEE_CHARS: usize = 200;
+
+/// The longest note a model may write, the same as the transaction page
+/// takes (D-703).
+pub(crate) const MAX_NOTE_CHARS: usize = 512;
 
 /// One side of a [`FieldEdit`]: the value as the book holds it, for the
 /// front end to write in the user's format.
@@ -347,11 +351,17 @@ pub(super) fn parse_date(text: &str) -> Result<Date, ToolError> {
 }
 
 /// A payee or note a model wrote, as the book will keep it: trimmed, not
-/// too long, without control characters or characters that hide text
-/// (threat T-08). Empty means none.
+/// too long ([`MAX_NOTE_CHARS`] for the `note`, [`MAX_PAYEE_CHARS`] for
+/// anything else), on one line, without control characters or characters
+/// that hide text (threat T-08). Empty means none.
 pub(super) fn free_text(text: &str, argument: &'static str) -> Result<Option<String>, ToolError> {
     let text = text.trim();
-    let bad = text.chars().count() > MAX_TEXT_CHARS
+    let longest = if argument == "note" {
+        MAX_NOTE_CHARS
+    } else {
+        MAX_PAYEE_CHARS
+    };
+    let bad = text.chars().count() > longest
         || text
             .chars()
             .any(|c| c.is_control() || crate::text::hides_text(c));
@@ -459,7 +469,15 @@ mod tests {
         assert_eq!(free_text("   ", "payee").ok(), Some(None));
         assert!(free_text("a\u{202e}b", "payee").is_err());
         assert!(free_text("a\nb", "note").is_err());
-        assert!(free_text(&"x".repeat(201), "note").is_err());
+        assert!(free_text(&"x".repeat(201), "payee").is_err());
+        assert_eq!(
+            free_text(&"x".repeat(512), "note")
+                .ok()
+                .flatten()
+                .map(|note| note.len()),
+            Some(512)
+        );
+        assert!(free_text(&"x".repeat(513), "note").is_err());
     }
 
     #[test]

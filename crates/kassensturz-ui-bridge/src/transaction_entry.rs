@@ -44,9 +44,10 @@ pub enum EntryError {
     Store(StoreError),
     /// The transaction doesn't add up; only an amount too large can get here.
     Transaction(TransactionError),
-    /// A note longer than `MAX_NOTE_CHARS`, or one with a line break or
-    /// another control character.
-    Note,
+    /// A note longer than `MAX_NOTE_CHARS` (or than the note it replaces),
+    /// or one with a control character other than a line break or a tab.
+    /// `max` is the longest it may be.
+    Note { max: usize },
 }
 
 impl From<StoreError> for EntryError {
@@ -55,8 +56,10 @@ impl From<StoreError> for EntryError {
     }
 }
 
-/// The longest note the page takes, the same as the AI may write.
-pub const MAX_NOTE_CHARS: usize = 200;
+/// The longest note the page takes (the maintainer's choice, D-703); the AI
+/// keeps its own limit of 200. A note that is already longer, e.g. a memo
+/// from a KMyMoney book, may stay as long when the user changes it.
+pub const MAX_NOTE_CHARS: usize = 512;
 
 /// A transaction as the user entered it on the page.
 pub struct NewEntry<'a> {
@@ -211,7 +214,7 @@ pub fn add(
     let category = find_category(book, &account, entered.category)?;
     let (into_account, into_other) = read_amounts(book, &account, entered, locale)?;
     let date = locale.read_date(entered.date).ok_or(EntryError::Date)?;
-    let note = read_note(entered.note)?.flatten();
+    let note = read_note(entered.note, None)?.flatten();
     let other = match category {
         Some(category) => Split::new(category.id, into_other),
         None => Split::uncategorized(into_other),
@@ -334,7 +337,7 @@ pub fn edit(
     let category = find_category(book, &account, entered.category)?;
     let (into_account, into_other) = read_amounts(book, &account, entered, locale)?;
     let date = locale.read_date(entered.date).ok_or(EntryError::Date)?;
-    let note = read_note(entered.note)?;
+    let note = read_note(entered.note, stored.note())?;
     let splits = stored
         .splits()
         .iter()
@@ -396,9 +399,9 @@ pub fn error_text(
         EntryError::NotEditableHere => plain("input.not-editable-here"),
         EntryError::Store(error) => report_text(book, &error.report(), locale),
         EntryError::Transaction(error) => report_text(book, &error.report(), locale),
-        EntryError::Note => ErrorText {
+        EntryError::Note { max } => ErrorText {
             code: "input.note-invalid",
-            params: vec![("max", MAX_NOTE_CHARS.to_string())],
+            params: vec![("max", max.to_string())],
         },
     }
 }
@@ -497,17 +500,31 @@ pub(crate) fn typed_amount(
 }
 
 /// A note as typed: `None` to leave the note as it is, else the note to
-/// keep (`None` inside for none), trimmed. Longer than [`MAX_NOTE_CHARS`] or
-/// with a control character, such as a line break, is refused.
-fn read_note(typed: Option<&str>) -> Result<Option<Option<String>>, EntryError> {
+/// keep (`None` inside for none), trimmed at both ends, with every line
+/// break written as `\n` (D-703). It may have line breaks and tabs, as
+/// memos from a bank or KMyMoney do; another control character is refused,
+/// and so is a note longer than [`MAX_NOTE_CHARS`] or than `stored`, the
+/// note it replaces, whichever is longer, so a long imported note can be
+/// changed without being cut.
+fn read_note(
+    typed: Option<&str>,
+    stored: Option<&str>,
+) -> Result<Option<Option<String>>, EntryError> {
     let Some(typed) = typed else {
         return Ok(None);
     };
-    let trimmed = typed.trim();
-    if trimmed.chars().count() > MAX_NOTE_CHARS || trimmed.chars().any(char::is_control) {
-        return Err(EntryError::Note);
+    let note = typed.trim().replace("\r\n", "\n").replace('\r', "\n");
+    let longest = stored
+        .map_or(0, |stored| stored.chars().count())
+        .max(MAX_NOTE_CHARS);
+    if note.chars().count() > longest
+        || note
+            .chars()
+            .any(|c| c.is_control() && c != '\n' && c != '\t')
+    {
+        return Err(EntryError::Note { max: longest });
     }
-    Ok(Some((!trimmed.is_empty()).then(|| trimmed.to_owned())))
+    Ok(Some((!note.is_empty()).then_some(note)))
 }
 
 /// Who the money came from or went to, without spaces around it; none if
@@ -1439,11 +1456,11 @@ mod tests {
     }
 
     #[test]
-    fn a_note_too_long_or_over_several_lines_is_refused_and_nothing_changes() {
+    fn a_note_too_long_or_with_a_control_character_is_refused_and_nothing_changes() {
         let (mut book, checking) = book_with_checking();
         let groceries = category_id(&book, "Food › Groceries");
         let long = "x".repeat(MAX_NOTE_CHARS + 1);
-        for bad in [long.as_str(), "first\nsecond", "tab\there"] {
+        for bad in [long.as_str(), "bell\u{7}", "escape\u{1b}[0m"] {
             let refused = add(
                 &mut book,
                 &NewEntry {
@@ -1455,7 +1472,7 @@ mod tests {
             let error = refused.expect_err("refused");
             let text = error_text(&book, &checking, &error, &TestLocale);
             assert_eq!(text.code, "input.note-invalid");
-            assert_eq!(text.params, [("max", "200".to_owned())]);
+            assert_eq!(text.params, [("max", "512".to_owned())]);
         }
         // Nothing was added, and the longest note still fits.
         let id = find_account(&book, &checking).expect("account").id;
@@ -1486,5 +1503,187 @@ mod tests {
             (form.amount.as_str(), form.note.len()),
             ("12,00", MAX_NOTE_CHARS)
         );
+    }
+
+    #[test]
+    fn a_note_keeps_its_line_breaks_and_tabs() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        add(
+            &mut book,
+            &NewEntry {
+                note: Some("  Shopping list\r\n- bread\r- milk\tx2\n  "),
+                ..paid(&checking, "12", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("added");
+        // Trimmed at both ends, every line break written as `\n` (D-703).
+        let id = transaction_at(&book, &checking, true);
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.note, "Shopping list\n- bread\n- milk\tx2");
+    }
+
+    /// A KMyMoney file with a two-line memo and one of 303 characters, as
+    /// such memos often are (synthetic, from the US1 to US3 review), and
+    /// `LONGER_MEMO` stands for one longer than the page takes.
+    const MEMO_NOTES_KMY: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE KMYMONEY-FILE>
+<KMYMONEY-FILE>
+  <FILEINFO>
+    <VERSION id="1"/>
+  </FILEINFO>
+  <ACCOUNTS>
+    <ACCOUNT id="AStd::Asset" parentaccount="" type="9" name="Anlagen" currency="EUR"/>
+    <ACCOUNT id="AStd::Expense" parentaccount="" type="13" name="Ausgabe" currency="EUR"/>
+    <ACCOUNT id="A000001" parentaccount="AStd::Asset" type="1" name="Checking" currency="EUR"/>
+    <ACCOUNT id="A000002" parentaccount="AStd::Expense" type="13" name="Groceries" currency="EUR"/>
+  </ACCOUNTS>
+  <TRANSACTIONS>
+    <TRANSACTION id="T000000000000000001" postdate="2020-01-03" memo="Line one of the memo&#10;line two of the memo" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="-2475/100" shares="-2475/100" memo="" account="A000001" bankid=""/>
+        <SPLIT id="S0002" payee="" reconcileflag="0" value="2475/100" shares="2475/100" memo="" account="A000002" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000002" postdate="2020-01-04" memo="Invoice 4711 for the garden shed, paid in two parts as agreed on the phone. Invoice 4711 for the garden shed, paid in two parts as agreed on the phone. Invoice 4711 for the garden shed, paid in two parts as agreed on the phone. Invoice 4711 for the garden shed, paid in two parts as agreed on the phone." commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="-1000/100" shares="-1000/100" memo="" account="A000001" bankid=""/>
+        <SPLIT id="S0002" payee="" reconcileflag="0" value="1000/100" shares="1000/100" memo="" account="A000002" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+    <TRANSACTION id="T000000000000000003" postdate="2020-01-05" memo="LONGER_MEMO" commodity="EUR">
+      <SPLITS>
+        <SPLIT id="S0001" payee="" reconcileflag="0" value="-500/100" shares="-500/100" memo="" account="A000001" bankid=""/>
+        <SPLIT id="S0002" payee="" reconcileflag="0" value="500/100" shares="500/100" memo="" account="A000002" bankid=""/>
+      </SPLITS>
+    </TRANSACTION>
+  </TRANSACTIONS>
+</KMYMONEY-FILE>
+"#;
+
+    /// The book the importer and the pipeline make from [`MEMO_NOTES_KMY`]
+    /// with a memo of 600 characters (AGENTS.md §9.4), and its Checking
+    /// account's ID as text.
+    fn book_with_imported_memos() -> (Book, String) {
+        use kassensturz_import::{Imported, Kmy, Limits, import};
+        let file = MEMO_NOTES_KMY.replace("LONGER_MEMO", &"Garden shed. ".repeat(47)[..600]);
+        let Imported::Book(imported) =
+            import(&Kmy, file.as_bytes(), &Limits::default()).expect("the file reads")
+        else {
+            panic!("a book");
+        };
+        let mut book = Book::create_in_memory().expect("a book in memory");
+        kassensturz_pipeline::fill_book_from(
+            &mut book,
+            &imported,
+            &std::collections::HashMap::new(),
+        )
+        .expect("filled");
+        let checking = book
+            .accounts(false)
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.name == "Checking")
+            .expect("the Checking account")
+            .id
+            .to_string();
+        (book, checking)
+    }
+
+    /// The Checking account's transaction on `date` (ISO), its ID as text.
+    fn imported_on(book: &Book, checking: &str, date: &str) -> String {
+        let id = find_account(book, checking).expect("account").id;
+        book.register(id)
+            .expect("register")
+            .into_iter()
+            .find(|entry| entry.booking_date.to_string() == date)
+            .map(|entry| entry.transaction.to_string())
+            .unwrap_or_else(|| panic!("a transaction on {date}"))
+    }
+
+    // Fable review F-1 (M6-B219, #686): saving an imported transaction
+    // with a long or multi-line memo must never cut or block it (D-703).
+    #[test]
+    fn an_imported_long_or_multi_line_note_stays_whole_when_the_entry_is_saved() {
+        let (mut book, checking) = book_with_imported_memos();
+        let two_lines = imported_on(&book, &checking, "2020-01-03");
+        let long = imported_on(&book, &checking, "2020-01-04");
+        let longer = imported_on(&book, &checking, "2020-01-05");
+        let groceries = details(&book, &checking, &two_lines, &TestLocale)
+            .expect("details")
+            .category;
+        let memo = "Line one of the memo\nline two of the memo";
+        let long_memo = details(&book, &checking, &long, &TestLocale)
+            .expect("details")
+            .note;
+        assert_eq!(long_memo.chars().count(), 303);
+        let longer_memo = details(&book, &checking, &longer, &TestLocale)
+            .expect("details")
+            .note;
+        assert_eq!(longer_memo.chars().count(), 600);
+        let notes = [
+            (&two_lines, memo),
+            (&long, long_memo.as_str()),
+            (&longer, longer_memo.as_str()),
+        ];
+
+        // The page shows both notes whole. A save that leaves the note
+        // field alone sends no note (TransactionPage.qml) and keeps both.
+        for (id, note) in notes {
+            let form = details(&book, &checking, id, &TestLocale).expect("details");
+            assert_eq!(form.note, note);
+            edit(
+                &mut book,
+                id,
+                &NewEntry {
+                    date: &form.date,
+                    ..paid(&checking, &form.amount, "Corner Grocery", "")
+                },
+                &TestLocale,
+            )
+            .expect("saved without the note");
+            let saved = details(&book, &checking, id, &TestLocale).expect("details");
+            assert_eq!((saved.note.as_str(), saved.category.as_str()), (note, ""));
+        }
+
+        // Sent unchanged, as a field that shows the whole note sends it,
+        // both are taken as they are.
+        for (id, note) in notes {
+            let form = details(&book, &checking, id, &TestLocale).expect("details");
+            edit(
+                &mut book,
+                id,
+                &NewEntry {
+                    date: &form.date,
+                    note: Some(note),
+                    ..paid(&checking, &form.amount, "", &groceries)
+                },
+                &TestLocale,
+            )
+            .expect("saved with the note");
+            let saved = details(&book, &checking, id, &TestLocale).expect("details");
+            assert_eq!(saved.note, note);
+        }
+
+        // A note longer than the page takes may be changed at its own
+        // length, not beyond it, and the message names that length.
+        let changed = longer_memo.replacen("Garden", "Golden", 1);
+        let form = details(&book, &checking, &longer, &TestLocale).expect("details");
+        let entry = |note| NewEntry {
+            date: &form.date,
+            note: Some(note),
+            ..paid(&checking, &form.amount, "", &groceries)
+        };
+        edit(&mut book, &longer, &entry(&changed), &TestLocale).expect("changed");
+        let too_long = format!("{}!", longer_memo);
+        let error = edit(&mut book, &longer, &entry(&too_long), &TestLocale).expect_err("refused");
+        let text = error_text(&book, &checking, &error, &TestLocale);
+        assert_eq!(
+            (text.code, text.params),
+            ("input.note-invalid", vec![("max", "600".to_owned())])
+        );
+        let saved = details(&book, &checking, &longer, &TestLocale).expect("details");
+        assert_eq!(saved.note, changed);
     }
 }

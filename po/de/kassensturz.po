@@ -14243,11 +14243,11 @@ msgstr "Optional, zum Beispiel wofür es war"
 #, kde-format
 msgctxt "@info %1 is a number of characters"
 msgid ""
-"A note can have up to %1 characters on a single line. Please shorten it or "
-"remove the line break."
+"A note can have up to %1 characters. Please shorten it, or remove any "
+"invisible special characters pasted into it."
 msgstr ""
-"Eine Notiz darf bis zu %1 Zeichen lang sein und nur aus einer Zeile "
-"bestehen. Bitte kürzen Sie sie oder entfernen Sie den Zeilenumbruch."
+"Eine Notiz darf bis zu %1 Zeichen lang sein. Bitte kürzen Sie sie oder "
+"entfernen Sie unsichtbare Sonderzeichen, die mit eingefügt wurden."
 
 #: crates/kassensturz-ui-bridge/qml/PartsPage.qml:226
 #, kde-format

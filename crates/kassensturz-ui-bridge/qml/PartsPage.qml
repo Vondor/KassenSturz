@@ -105,6 +105,11 @@ Kirigami.ScrollablePage {
         return (preview.parts ?? [])[index] ?? ({});
     }
 
+    function removePart(index: int) {
+        page.partsModel.remove(index);
+        refresh();
+    }
+
     function addPart() {
         page.partsModel.append({ splitId: "", category: "", amount: "", foreignAmount: "" });
         refresh();
@@ -275,10 +280,10 @@ Kirigami.ScrollablePage {
                         model.foreignAmount = text;
                         page.refresh();
                     }
-                    onRemoveClicked: {
-                        page.partsModel.remove(index);
-                        page.refresh();
-                    }
+                    // The page removes the row: removing it here destroys
+                    // this delegate, and the rest of the handler would then
+                    // run without `page` (M6-B235).
+                    onRemoveClicked: page.removePart(index)
                     onAccepted: {
                         ActionLog.taken("PartsPage_save_4")
                         page.save()
@@ -301,11 +306,16 @@ Kirigami.ScrollablePage {
             textFormat: Text.PlainText
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
             visible: (page.preview.sum ?? "") !== ""
-            text: (page.preview.missing ?? "") !== ""
-                ? page.i18nContext.i18nc("@info %1 and %2 are amounts of money", "The parts add up to %1. %2 is still to be sorted into a part.", page.preview.sum, page.preview.missing)
-                : (page.preview.over ?? "") !== ""
-                    ? page.i18nContext.i18nc("@info %1 and %2 are amounts of money", "The parts add up to %1, which is %2 more than the total.", page.preview.sum, page.preview.over)
-                    : page.i18nContext.i18nc("@info %1 is an amount of money", "The parts add up to %1, the whole transaction.", page.preview.sum)
+            // Worked out only while there is a sum: before the first
+            // preview, or when the form can't be read, there is none, and
+            // KI18n warns about a message given no amount (M6-B235).
+            text: (page.preview.sum ?? "") === ""
+                ? ""
+                : (page.preview.missing ?? "") !== ""
+                    ? page.i18nContext.i18nc("@info %1 and %2 are amounts of money", "The parts add up to %1. %2 is still to be sorted into a part.", page.preview.sum, page.preview.missing)
+                    : (page.preview.over ?? "") !== ""
+                        ? page.i18nContext.i18nc("@info %1 and %2 are amounts of money", "The parts add up to %1, which is %2 more than the total.", page.preview.sum, page.preview.over)
+                        : page.i18nContext.i18nc("@info %1 is an amount of money", "The parts add up to %1, the whole transaction.", page.preview.sum)
             wrapMode: Text.Wrap
         }
 

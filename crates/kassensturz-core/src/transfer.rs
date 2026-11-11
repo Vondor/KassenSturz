@@ -303,13 +303,26 @@ pub fn join_transfer(
         })
         .collect();
     let payee = outgoing.payee().or(incoming.payee()).map(str::to_owned);
-    // The joined transaction keeps the outgoing side's note, or else the
-    // incoming side's, and the outgoing side's entry date (D-132).
-    let note = outgoing.note().or(incoming.note()).map(str::to_owned);
+    // Nothing the user wrote or attached on either side is lost (D-706):
+    // the joined transaction keeps both sides' notes, the outgoing one's
+    // first and each once, on lines of their own, and both sides'
+    // attachments, the outgoing one's first; and the outgoing side's entry
+    // date (D-132).
+    let note = match (outgoing.note(), incoming.note()) {
+        (Some(out), Some(into)) if out != into => Some(format!("{out}\n{into}")),
+        (out, into) => out.or(into).map(str::to_owned),
+    };
+    let attachments = outgoing
+        .attachments()
+        .iter()
+        .chain(incoming.attachments())
+        .cloned()
+        .collect();
     Transaction::new(outgoing.id(), outgoing.booking_date(), payee, splits)
         .map(|joined| {
             joined
                 .with_note(note)
+                .with_attachments(attachments)
                 .with_entry_date(outgoing.entered_on().or(incoming.entered_on()))
         })
         .map_err(TransferError::Transaction)

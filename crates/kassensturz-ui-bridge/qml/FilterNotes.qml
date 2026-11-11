@@ -28,12 +28,13 @@ ColumnLayout {
     // out. The notes about a problem (a filter that chooses nothing, one that
     // names something gone) stay, so a tile is never empty without a reason.
     // The note that an average counts months before the first transaction
-    // (M6-B207, #590, D-668) is left out too: the figure is right as it is.
+    // (M6-B207, #590, D-668) is left out too: the figure is right as it is,
+    // and so is the one about a comparison's early periods (US3.1a).
     property bool hideMarks: false
 
     readonly property var own: hideMarks ? [] : (filter?.own ?? []).filter(word => !(accountsInTitle && word === "accounts"))
     readonly property var filtered: hideMarks ? [] : (filter?.filtered ?? []).filter(word => word !== "period" && !(accountsInTitle && word === "accounts"))
-    readonly property var list: (filter?.notes ?? []).filter(note => !(hideMarks && (note.kind === "not-applied" || note.kind === "average-early")))
+    readonly property var list: (filter?.notes ?? []).filter(note => !(hideMarks && (note.kind === "not-applied" || note.kind === "average-early" || note.kind === "compare-early")))
     readonly property bool quiet: own.length === 0 && filtered.length === 0 && list.length === 0
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -73,6 +74,14 @@ ColumnLayout {
                 return i18nContext.i18ncp("@info %1 is how many years of an average are before the first transaction, %2 how many it counts", "%1 of the %2 years this average counts is before the first transaction and counts as zero.", "%1 of the %2 years this average counts are before the first transaction and count as zero.", note.before, note.counted);
             }
             return i18nContext.i18ncp("@info %1 is how many months of an average are before the first transaction, %2 how many it counts", "%1 of the %2 months this average counts is before the first transaction and counts as zero.", "%1 of the %2 months this average counts are before the first transaction and count as zero.", note.before, note.counted);
+        }
+        if (note.kind === "compare-early") {
+            // A comparison whose periods end before the first transaction it
+            // could count: they count as zero (US3.1a).
+            if (note.counted <= 1) {
+                return i18nContext.i18nc("@info", "The period compared is before the first transaction.");
+            }
+            return i18nContext.i18ncp("@info %1 is how many periods of a comparison are before the first transaction, %2 how many it averages", "%1 of the %2 periods this comparison averages is before the first transaction and counts as zero.", "%1 of the %2 periods this comparison averages are before the first transaction and count as zero.", note.before, note.counted);
         }
         if (note.kind === "gone") {
             return i18nContext.i18nc("@info", "The filter names something that no longer exists. Take it out of the filter.");

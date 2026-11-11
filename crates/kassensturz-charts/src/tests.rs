@@ -903,3 +903,93 @@ fn the_balances_are_a_table_by_account_or_by_what_you_have_and_owe() {
         Err(ChartError::KindNotSupported(ChartKind::Line))
     );
 }
+
+/// US3.1a (D-687): spending next to a comparison, made from the report's
+/// real `spending_compared` (tests where steps meet).
+#[test]
+fn spending_next_to_a_comparison_is_two_series_and_a_table_with_the_change() {
+    use kassensturz_core::RoundingMode;
+    use kassensturz_report::{Compare, CompareWith, spending_compared};
+    let book = book();
+    let october = Period::new(date(2026, 10, 1), date(2026, 10, 31)).expect("a period");
+    let today = date(2026, 11, 10);
+    let rounding = RoundingMode::HalfAwayFromZero;
+    let chart_of = |compare: CompareWith| {
+        let source = Source::read(&book, compare.read_span(october).unwrap()).unwrap();
+        let data = spending_compared(
+            &source,
+            october,
+            &Filter::default(),
+            Level::Each,
+            &Shown::default(),
+            compare,
+        )
+        .unwrap()
+        .remove(0);
+        let earlier = compare.divisor(october, None, today, rounding).unwrap();
+        (
+            spending_by_category_compared(&data, compare, ChartKind::Bar, &Words, None, &earlier),
+            data,
+            earlier,
+        )
+    };
+    let before = CompareWith::Earlier(Compare::PreviousPeriod);
+    let (chart, data, earlier) = chart_of(before);
+    let chart = chart.unwrap();
+    assert_eq!(chart.categories, ["Rent", "Food › Groceries", "(unsorted)"]);
+    assert_eq!(chart.unsorted, Some(2));
+    let keys: Vec<&str> = chart.series.iter().map(|series| series.key).collect();
+    assert_eq!(keys, ["spending", "previous_period"]);
+    assert_eq!(
+        chart
+            .series
+            .iter()
+            .map(|series| series.color)
+            .collect::<Vec<_>>(),
+        [0, 1]
+    );
+    let amounts = |index: usize| -> Vec<i64> {
+        chart.series[index]
+            .points
+            .iter()
+            .map(|point| point.minor_units)
+            .collect()
+    };
+    assert_eq!(amounts(0), [80_000, 5_320, 1_234]);
+    assert_eq!(amounts(1), [80_000, 0, 0]);
+    assert_eq!(
+        chart.table.columns,
+        [
+            "category",
+            "total",
+            "previous_period",
+            "change",
+            "change_percent"
+        ]
+    );
+    assert_eq!(
+        chart.table.rows[0],
+        ["Rent", "800,00 EUR", "800,00 EUR", "0,00 EUR", "0 tenths"]
+    );
+    // Nothing to compare with has no percent.
+    assert_eq!(
+        chart.table.rows[1],
+        ["Food › Groceries", "53,20 EUR", "0,00 EUR", "53,20 EUR", ""]
+    );
+    // The total under the chart stays the period's own.
+    assert_eq!(chart.total, "865,54 EUR");
+    // A stacked bar and a pie have no place for a second bar.
+    for kind in [ChartKind::StackedBar, ChartKind::Pie] {
+        assert_eq!(
+            spending_by_category_compared(&data, before, kind, &Words, None, &earlier),
+            Err(ChartError::KindNotSupported(kind))
+        );
+    }
+    // The average of the three months before divides September's rent once.
+    let (chart, _, _) = chart_of(CompareWith::Average(3));
+    let chart = chart.unwrap();
+    assert_eq!(chart.series[1].key, "average_3");
+    assert_eq!(chart.series[1].points[0].minor_units, 26_667);
+    assert_eq!(chart.table.rows[0][2], "266,67 EUR");
+    assert_eq!(chart.table.rows[0][3], "533,33 EUR");
+}

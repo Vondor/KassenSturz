@@ -115,7 +115,7 @@ fn the_lists_the_model_sees_are_the_catalogs_and_the_schemas() {
     }
     assert_eq!(
         words(&properties["compare"]),
-        ["none", "previous_period", "same_last_year"]
+        kassensturz_report::COMPARE_WORDS
     );
     let periods = words(&properties["period"]["anyOf"][0]);
     assert_eq!(periods[0], "page");
@@ -1363,4 +1363,67 @@ fn a_figure_the_period_cant_make_is_named_by_its_code() {
     let proposal = call(&book, &bars).expect("prepared");
     assert!(proposal.output.value.get("computed").is_none());
     assert!(proposal.output.value.get("not_computed").is_none());
+}
+
+#[test]
+fn the_ai_compares_spending_by_category_as_a_second_bar() {
+    // US3.1a (#587, D-687): `compare` with six words for bars and tables of
+    // spending, the three of a key figure for figure and progress.
+    let Sample { book, .. } = sample();
+    let text = |show_as: &str, data: &str, compare: &str| {
+        json!({"title": format!("{show_as} {compare}"), "data": data,
+            "show_as": show_as, "compare": compare})
+        .to_string()
+    };
+    for show_as in ["bar", "table"] {
+        for compare in [
+            "previous_period",
+            "same_last_year",
+            "average-3",
+            "average-12",
+        ] {
+            let proposal =
+                call(&book, &text(show_as, "spending_by_category", compare)).expect("prepared");
+            let component: Value =
+                serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+            assert_eq!(component["params"]["compare"], compare, "{show_as}");
+        }
+        // No comparison is the default and is not written.
+        let proposal =
+            call(&book, &text(show_as, "spending_by_category", "none")).expect("prepared");
+        let component: Value =
+            serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+        assert!(component["params"].get("compare").is_none(), "{show_as}");
+    }
+    let refuse = |arguments: String| {
+        propose_view_text(&book, &arguments, Permissions::all(), today()).expect_err("refused")
+    };
+    // A pie and a stacked bar have no place for a second bar: the refusal
+    // names the ways that compare.
+    for show_as in ["pie", "stacked_bar"] {
+        let pie = refuse(text(show_as, "spending_by_category", "previous_period"));
+        assert_eq!(
+            pie.model_report().param("argument"),
+            Some(&ErrorParam::Keyword("compare"))
+        );
+        let ways = pie.only_for_show_as().expect("the ways that compare");
+        assert!(ways.contains(&"bar") && ways.contains(&"table"), "{ways:?}");
+        assert!(!ways.contains(&"pie"));
+    }
+    // Only spending averages earlier periods; a key figure keeps its words.
+    let figure = refuse(text("figure", "income_expense_by_month", "average-3"));
+    assert_eq!(
+        figure.model_report().param("argument"),
+        Some(&ErrorParam::Keyword("compare"))
+    );
+    let money_in = refuse(text("bar", "income_expense_by_month", "previous_period"));
+    assert_eq!(money_in.allowed_fields(), None);
+    // A word that is no comparison at all is refused before anything else.
+    assert_eq!(
+        view_code(call(
+            &book,
+            &text("bar", "spending_by_category", "average-5")
+        )),
+        "bad-argument compare"
+    );
 }

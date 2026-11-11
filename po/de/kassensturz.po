@@ -19321,3 +19321,113 @@ msgid ""
 msgstr ""
 "Das Diagramm wird aus dem Statistik-Baukasten entfernt. Die Zahlen Ihres "
 "Buchs ändern sich nicht, und Rückgängig holt das Diagramm zurück."
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml
+#, kde-format
+msgctxt "@title:column a table of a chart: spending in the period before"
+msgid "Period before"
+msgstr "Zeitraum davor"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml
+#, kde-format
+msgctxt "@title:column a table of a chart: spending in the same days a year earlier"
+msgid "Same period last year"
+msgstr "Gleicher Zeitraum im Vorjahr"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml
+#, kde-format
+msgctxt "@title:column a table of a chart: the average spending of earlier periods"
+msgid "Average of the 3 periods before"
+msgstr "Durchschnitt der 3 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml
+#, kde-format
+msgctxt "@title:column a table of a chart: the average spending of earlier periods"
+msgid "Average of the 6 periods before"
+msgstr "Durchschnitt der 6 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml
+#, kde-format
+msgctxt "@title:column a table of a chart: the average spending of earlier periods"
+msgid "Average of the 12 periods before"
+msgstr "Durchschnitt der 12 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml
+#, kde-format
+msgctxt "@title:column a table of a chart: how much more or less was spent than in the comparison"
+msgid "Change"
+msgstr "Veränderung"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml
+#, kde-format
+msgctxt "@title:column a table of a chart: the change in percent of the comparison"
+msgid "Change in %"
+msgstr "Veränderung in %"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml
+#, kde-format
+msgctxt "@label a series of a chart: spending in the period before"
+msgid "Period before"
+msgstr "Zeitraum davor"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml
+#, kde-format
+msgctxt "@label a series of a chart: spending in the same days a year earlier"
+msgid "Same period last year"
+msgstr "Gleicher Zeitraum im Vorjahr"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml
+#, kde-format
+msgctxt "@label a series of a chart: the average spending of earlier periods"
+msgid "Average of the 3 periods before"
+msgstr "Durchschnitt der 3 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml
+#, kde-format
+msgctxt "@label a series of a chart: the average spending of earlier periods"
+msgid "Average of the 6 periods before"
+msgstr "Durchschnitt der 6 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml
+#, kde-format
+msgctxt "@label a series of a chart: the average spending of earlier periods"
+msgid "Average of the 12 periods before"
+msgstr "Durchschnitt der 12 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml
+#, kde-format
+msgctxt "@info"
+msgid "The period compared is before the first transaction."
+msgstr "Der verglichene Zeitraum liegt vor der ersten Buchung."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@item:inlistbox a chart compares its spending with nothing"
+msgid "None"
+msgstr "Kein Vergleich"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@item:inlistbox a chart compares its spending with the average of earlier periods"
+msgid "The average of the 3 periods before"
+msgstr "Der Durchschnitt der 3 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@item:inlistbox a chart compares its spending with the average of earlier periods"
+msgid "The average of the 6 periods before"
+msgstr "Der Durchschnitt der 6 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@item:inlistbox a chart compares its spending with the average of earlier periods"
+msgid "The average of the 12 periods before"
+msgstr "Der Durchschnitt der 12 Zeiträume davor"
+
+#: crates/kassensturz-ui-bridge/qml/FilterNotes.qml
+#, kde-format
+msgctxt "@info %1 is how many periods of a comparison are before the first transaction, %2 how many it averages"
+msgid "%1 of the %2 periods this comparison averages is before the first transaction and counts as zero."
+msgid_plural "%1 of the %2 periods this comparison averages are before the first transaction and count as zero."
+msgstr[0] "%1 der %2 Zeiträume, deren Durchschnitt dieser Vergleich bildet, liegt vor der ersten Buchung und zählt als null."
+msgstr[1] "%1 der %2 Zeiträume, deren Durchschnitt dieser Vergleich bildet, liegen vor der ersten Buchung und zählen als null."

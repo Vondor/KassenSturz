@@ -62,6 +62,25 @@ Window {
         };
     }
 
+    // Spending compared with the average of the 3 months before (M6-B229):
+    // with long names the bars go in rows; one category whose spending is
+    // zero keeps a narrow average bar beside a zero line under its name.
+    function compared(names, spent, average, currency) {
+        const ticks = [0, 1000, 2000, 3000, 4000, 5000].filter(v => v <= Math.max(...spent, ...average) + 1000);
+        return {
+            kind: "bar", dataset: "spending_by_category", currency: currency, round: false,
+            total: "", paletteSize: 8, count: names.length, unsortedIndex: -1, hidden: ({}), slices: ({other: -1, holds: [], shares: [], named: [], undrawn: []}),
+            categories: names,
+            series: [
+                {key: "spending", name: "", color: 0, marker: 0, points: spent.map(v => point(v + ",00", v, 0))},
+                {key: "average_3", name: "", color: 1, marker: 1, points: average.map(v => point(v + ",00", v, 1))}
+            ],
+            ticks: ticks.map(v => ({label: String(v), minorUnits: String(v * 100), value: v * 100})),
+            table: {currency: currency, columns: ["category", "spending", "average_3"],
+                    rows: names.map((n, i) => [n, spent[i] + ",00", average[i] + ",00"])}
+        };
+    }
+
     // Rent and one more category are hidden: the note stays under the chart.
     function spendingWithHidden(kind) {
         const chart = spending(kind);
@@ -212,7 +231,10 @@ Window {
         monthly("line"), monthly("area"), monthly("bar"), monthly("stacked-bar"),
         spending("bar"), spending("pie"), spending("donut"), spendingWithHidden("pie"), spendingWithOther("pie"), spendingWithOther("donut"), overTime(), netWorth(), cashFlow(),
         spendingCrowded("pie"), spendingCrowded("donut"),
-        customLayers(), stackedArea(), marksOnly()
+        customLayers(), stackedArea(), marksOnly(),
+        compared(["Miscellaneous", "Subspace Communications", "Taxes and Fees", "Clothing and Gear", "Food"],
+                 [40, 300, 1255, 1110, 900], [120, 280, 4020, 75, 0], "EUR"),
+        compared(["Travel"], [0], [2433], "USD")
     ]
     property int shown: 0
 
@@ -236,6 +258,8 @@ Window {
             if (!view.showTable) {
                 // tools/check-charts.sh fails on any slice names that cover each other.
                 console.log("name-overlaps", name, view.nameOverlaps());
+                // tools/check-charts.sh checks which bar charts are rows.
+                console.log("bar-rows", name, view.horizontal);
             }
             view.grabToImage(function (result) {
                 result.saveToFile(window.outDir + "/" + name + ".png");

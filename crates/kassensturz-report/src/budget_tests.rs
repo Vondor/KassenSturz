@@ -287,19 +287,24 @@ fn spending_is_counted_in_the_categorys_currency_as_booked() {
     assert_eq!(row.left, dollars(5_100));
     assert_eq!(row.used, Some(Percent::from_tenths(796)));
     assert!(!row.carries_over);
-    // After its last day a range is over and not shown; grouped by period
-    // it still is.
+    // After its last day a range is over: it shows its one period,
+    // complete and marked ended (D-710); grouped by period it is shown too.
     let later = date(2026, 11, 2);
-    assert!(
-        ask(
-            &base.book,
-            october(),
-            later,
-            BudgetGrouping::Budget,
-            &Filter::default()
-        )
-        .is_empty()
+    let over = ask(
+        &base.book,
+        october(),
+        later,
+        BudgetGrouping::Budget,
+        &Filter::default(),
     );
+    let ended = &find(&over, trip).periods;
+    assert_eq!(ended.len(), 1);
+    assert!(ended[0].ended && !ended[0].starts_later);
+    assert_eq!(
+        (ended[0].first_day, ended[0].last_day, ended[0].counted_to),
+        (date(2026, 10, 20), date(2026, 10, 30), date(2026, 10, 30))
+    );
+    assert_eq!(ended[0].spent, dollars(19_900));
     let by_period = ask(
         &base.book,
         october(),
@@ -508,19 +513,28 @@ fn a_changed_amount_and_the_switch_apply_from_one_period_on() {
     assert_eq!(after[2].carried_in, money(0));
     assert_eq!(after[2].available, money(8_000));
 
-    // Stopped after September: not shown in October, but its periods are.
+    // Stopped after September: in October it shows September, complete
+    // and marked ended (D-710), with what August carried in; grouped by
+    // period its periods are shown.
     base.book
         .set_budget_last_day(budget, Some(date(2026, 9, 30)))
         .unwrap();
-    assert!(
-        ask(
-            &base.book,
-            october(),
-            date(2026, 10, 31),
-            BudgetGrouping::Budget,
-            &Filter::default()
-        )
-        .is_empty()
+    let october_view = ask(
+        &base.book,
+        october(),
+        date(2026, 10, 31),
+        BudgetGrouping::Budget,
+        &Filter::default(),
+    );
+    let last = &find(&october_view, budget).periods;
+    assert_eq!(last.len(), 1);
+    assert!(last[0].ended);
+    assert_eq!(
+        BudgetPeriod {
+            ended: false,
+            ..last[0]
+        },
+        after[1]
     );
     let stopped = ask(
         &base.book,

@@ -296,6 +296,7 @@ pub fn bar_object(bar: &Bar) -> QVariant {
         ("countedTo", text(&bar.counted_to)),
         ("running", QVariant::from(&bar.running)),
         ("startsLater", QVariant::from(&bar.starts_later)),
+        ("ended", QVariant::from(&bar.ended)),
         ("planned", text(&bar.planned)),
         ("carriedIn", text(&bar.carried_in)),
         ("available", text(&bar.available)),
@@ -660,6 +661,7 @@ mod tests {
                 "categoryNames",
                 "countedTo",
                 "currency",
+                "ended",
                 "every",
                 "firstDay",
                 "hasShare",
@@ -680,6 +682,7 @@ mod tests {
         );
         assert_eq!(text_of(&bar, "name"), "Food");
         assert!(!flag_of(&bar, "startsLater"));
+        assert!(!flag_of(&bar, "ended"));
         assert_eq!(text_of(&bar, "ownName"), "");
         assert_eq!(text_of(&bar, "categoryNames"), "Food");
         assert!(flag_of(&bar, "running"));

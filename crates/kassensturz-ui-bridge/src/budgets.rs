@@ -164,6 +164,9 @@ pub struct Bar {
     /// Whether the budget has not started yet: the bar is empty, nothing is
     /// spent and what it plans is left (D-710).
     pub starts_later: bool,
+    /// Whether the budget ended before the day asked for: this is its last
+    /// period, complete (D-710).
+    pub ended: bool,
     /// What the period plans.
     pub planned: String,
     /// What came from the period before (negative after overspending).
@@ -252,6 +255,7 @@ fn bar<L: Locale>(
         counted_to: locale.short_date(period.counted_to),
         running: !period.starts_later && period.counted_to < period.last_day,
         starts_later: period.starts_later,
+        ended: period.ended,
         planned: text.amount(period.planned),
         carried_in: text.amount(period.carried_in),
         available: text.amount(period.available),
@@ -277,8 +281,8 @@ fn bar<L: Locale>(
 /// those or a category inside them (empty: every budget). `budgets` are the
 /// IDs of the budgets the tile shows, its *Which budgets* (D-642; empty:
 /// every budget); one no longer in the book is left out. A budget that has
-/// not started by then has an empty bar of its first period (D-710); one
-/// that has ended by then has no bar.
+/// not started by then has an empty bar of its first period, and one that
+/// has ended by then the bar of its last period (D-710).
 pub fn bars_filtered(
     book: &Book,
     locale: &impl Locale,
@@ -568,8 +572,8 @@ pub struct BudgetRow {
     pub can_stop: bool,
     /// The periods a change can apply from, newest first.
     pub changes: Vec<PeriodChoice>,
-    /// This period's bar, or its first period's, empty, for a budget that
-    /// starts later (D-710); none for an ended one.
+    /// This period's bar; for a budget that starts later its first
+    /// period's, empty, and for an ended one its last period's (D-710).
     pub bar: Option<Bar>,
 }
 
@@ -1337,6 +1341,39 @@ mod tests {
         let again = add_budget(&mut f.book, &new(&[f.food.clone()], "5"), &TestLocale)
             .expect_err("one at a time");
         assert_eq!(f.code(&again).0, "store.budget-overlap");
+    }
+
+    /// A ticked budget that has ended still has a bar: its last period,
+    /// complete, marked ended (D-710).
+    #[test]
+    fn a_budget_that_has_ended_shows_its_last_period() {
+        let mut f = fixture();
+        let new = NewBudget {
+            name: "",
+            categories: &[f.food.clone()],
+            accounts: &[],
+            every: "range",
+            amount: "250,00",
+            carry_over: false,
+            first_day: "2026-09-01",
+            last_day: "2026-09-30",
+        };
+        add_budget(&mut f.book, &new, &TestLocale).expect("a range");
+        let food = f.food.clone();
+        f.spend(&food, day(2026, 9, 10), 4_000);
+        let shown = bars(&f.book, &TestLocale, "this-month", &[]).expect("bars");
+        assert_eq!(shown.len(), 1);
+        let bar = &shown[0];
+        assert!(bar.ended && !bar.starts_later && !bar.running);
+        assert_eq!(
+            (bar.first_day.as_str(), bar.last_day.as_str()),
+            ("2026-09-01", "2026-09-30")
+        );
+        assert_eq!(bar.spent, "40,00 €");
+        assert_eq!(bar.left, "210,00 €");
+        let page = view(&f.book, &TestLocale).expect("view");
+        assert_eq!(page.budgets[0].state, "ended");
+        assert!(page.budgets[0].bar.as_ref().is_some_and(|bar| bar.ended));
     }
 
     #[test]

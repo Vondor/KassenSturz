@@ -190,6 +190,7 @@ fn budget_rows_are_split_by_currency_and_keep_the_percent() {
         carries_over: false,
         counts_changed: false,
         starts_later: false,
+        ended: false,
     };
     let budget = |name: &str, currency, used| BudgetUtilization {
         budget: BudgetId::generate(),

@@ -210,6 +210,7 @@ Kirigami.ApplicationWindow {
             // A budget that has not started yet is shown with all of it left (D-710).
             window.check(drawn.includes("Loan") && drawn.includes("0,00 € of 400,00 € (0,0 %)") && drawn.includes("400,00 € left"), "a budget that starts later has an empty bar, got " + drawn);
             window.check(drawn.includes("2026-12-01 to 2027-11-30. Starts on 2026-12-01, nothing spent yet."), "a budget that starts later says when, got " + drawn);
+            window.check(drawn.includes("Trip") && drawn.includes("2026-08-01 to 2026-08-31. Ended on 2026-08-31."), "a budget that has ended shows its last period and says so, got " + drawn);
             console.log(window.failed ? "budgets: FAILED" : "budgets: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

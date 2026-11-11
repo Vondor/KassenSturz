@@ -129,6 +129,9 @@ pub struct BudgetPeriod {
     /// by the day asked for (D-710): nothing is spent yet, nothing is
     /// carried in, and what it plans is left.
     pub starts_later: bool,
+    /// Whether this is the last period of a budget that ended before the
+    /// day asked for (D-710): its figures are complete.
+    pub ended: bool,
 }
 
 impl BudgetPeriod {
@@ -200,7 +203,8 @@ fn asked_day(period: Period, today: Date) -> Date {
 /// for `period` on `asked`, or `None` if none is: for a budget that carries
 /// over in any period, its first day, where the carried chain starts
 /// (D-347); otherwise the start of its period that contains the shown
-/// period's first day (or the day asked for, if that is earlier).
+/// period's first day (or the day asked for, if that is earlier), or of its
+/// last period if it ended before that day (D-710).
 fn first_needed(budget: &Budget, period: Period, asked: Date) -> Option<Date> {
     if budget.first_day > asked {
         return None;
@@ -209,6 +213,7 @@ fn first_needed(budget: &Budget, period: Period, asked: Date) -> Option<Date> {
         return Some(budget.first_day);
     }
     let from = period.first().min(asked).max(budget.first_day);
+    let from = budget.last_day.map_or(from, |last| from.min(last));
     budget.period_containing(from).map(|(start, _)| start)
 }
 
@@ -377,8 +382,8 @@ fn spending(
 /// The day asked for is `period`'s last day, or `today` if that is earlier.
 /// With [`BudgetGrouping::Budget`] each budget shows the period that
 /// contains that day; a budget that has not started by then shows its first
-/// period as not started (`starts_later`, spent zero, D-710), and one that
-/// has ended by then is left out; with [`BudgetGrouping::Period`] each budget shows every
+/// period as not started (`starts_later`, spent zero), and one that has
+/// ended by then its last period, complete (`ended`, D-710); with [`BudgetGrouping::Period`] each budget shows every
 /// one of its periods that `period` touches, up to that day. The budgets
 /// come in the order of the category tree (by their first category), a
 /// category's budgets by their first day. `only` keeps the budgets it names
@@ -501,6 +506,7 @@ pub fn budget_utilization(
                             || pair[0].accounts != pair[1].accounts)
                 }),
                 starts_later: false,
+                ended: false,
             });
             carried = if amount.carry_over && budget.every.repeats() {
                 left
@@ -509,6 +515,17 @@ pub fn budget_utilization(
             };
         }
         let periods: Vec<BudgetPeriod> = match grouping {
+            // A budget that ended before the day asked for shows its last
+            // period, complete (D-710).
+            BudgetGrouping::Budget if budget.last_day.is_some_and(|last| last < asked) => periods
+                .into_iter()
+                .next_back()
+                .map(|last| BudgetPeriod {
+                    ended: true,
+                    ..last
+                })
+                .into_iter()
+                .collect(),
             BudgetGrouping::Budget => periods
                 .into_iter()
                 .filter(|shown| shown.first_day <= asked && asked <= shown.last_day)
@@ -610,6 +627,7 @@ fn not_started(
         carries_over: amount.carry_over,
         counts_changed: false,
         starts_later: true,
+        ended: false,
     };
     row(source, position, budget, currency, asked, vec![period])
 }

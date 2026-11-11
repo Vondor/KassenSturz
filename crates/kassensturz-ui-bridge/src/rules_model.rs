@@ -573,6 +573,7 @@ mod tests {
                 other_party,
                 category,
                 date,
+                note: None,
             },
             &TestLocale,
         )

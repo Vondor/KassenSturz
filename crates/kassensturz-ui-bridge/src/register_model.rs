@@ -936,6 +936,9 @@ struct Form {
     other_party: String,
     category: String,
     date: String,
+    /// The note; `None` when the form has none, e.g. an older page, so a
+    /// saved transaction keeps the one it has.
+    note: Option<String>,
 }
 
 impl Form {
@@ -949,6 +952,10 @@ impl Form {
             other_party: field(&map, "otherParty"),
             category: field(&map, "category"),
             date: field(&map, "date"),
+            note: map
+                .get(&QString::from("note"))
+                .is_some()
+                .then(|| field(&map, "note")),
         }
     }
 
@@ -960,6 +967,7 @@ impl Form {
             other_party: &self.other_party,
             category: &self.category,
             date: &self.date,
+            note: self.note.as_deref(),
         }
     }
 }
@@ -1048,6 +1056,7 @@ fn form_object(form: &EntryForm) -> QVariant {
         ("category", text(&form.category)),
         ("otherAccount", text(&form.other_account)),
         ("date", text(&form.date)),
+        ("note", text(&form.note)),
         ("imported", QVariant::from(&form.imported)),
         ("deliveredName", text(&form.delivered_name)),
     ])
@@ -1167,13 +1176,15 @@ mod tests {
             category: String::new(),
             other_account: String::new(),
             date: "2026-10-08".into(),
+            note: "Bought for the picnic".into(),
             imported: true,
             delivered_name: "CORNER GROCERY".into(),
         });
         assert_eq!(text_of(&form, "otherParty"), "Corner Grocery");
         assert_eq!(text_of(&form, "deliveredName"), "CORNER GROCERY");
+        assert_eq!(text_of(&form, "note"), "Bought for the picnic");
         assert!(flag_of(&form, "imported"));
-        assert_eq!(keys(&form).len(), 11);
+        assert_eq!(keys(&form).len(), 12);
         let notice = notice_object(&RemovalNotice {
             holds_original: true,
             undo: "days",

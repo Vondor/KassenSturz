@@ -338,6 +338,7 @@ mod tests {
                 other_party,
                 category,
                 date,
+                note: None,
             },
             &TestLocale,
         )
@@ -671,6 +672,7 @@ mod tests {
                 other_party: "",
                 category: &groceries,
                 date: "2026-10-05",
+                note: None,
             },
             &TestLocale,
         )

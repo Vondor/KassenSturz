@@ -396,6 +396,7 @@ mod tests {
                 other_party: "Corner Grocery",
                 category: "",
                 date,
+                note: None,
             },
             &TestLocale,
         )

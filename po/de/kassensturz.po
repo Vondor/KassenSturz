@@ -14203,6 +14203,28 @@ msgctxt "@label:textbox"
 msgid "Date:"
 msgstr "Datum:"
 
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:305
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Note:"
+msgstr "Notiz:"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:306
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Optional, for example what it was for"
+msgstr "Optional, zum Beispiel wofür es war"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:261
+#, kde-format
+msgctxt "@info %1 is a number of characters"
+msgid ""
+"A note can have up to %1 characters on a single line. Please shorten it or "
+"remove the line break."
+msgstr ""
+"Eine Notiz darf bis zu %1 Zeichen lang sein und nur aus einer Zeile "
+"bestehen. Bitte kürzen Sie sie oder entfernen Sie den Zeilenumbruch."
+
 #: crates/kassensturz-ui-bridge/qml/PartsPage.qml:226
 #, kde-format
 msgctxt "@title:group"

@@ -98,11 +98,17 @@ pub enum Permission {
     EditViews,
     /// Delete a saved chart (Charts, Delete; D-681).
     DeleteViews,
+    /// Join two sides of a move between the user's accounts as one
+    /// Transfer (Moves between your accounts, Change; D-693). Its own cell,
+    /// not part of Transactions › Change: a user who allowed sorting never
+    /// allowed merging two transactions into one. It reads the
+    /// transactions, so it switches Transactions › Read on.
+    JoinTransfers,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 22] = [
+    pub const ALL: [Self; 23] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -125,6 +131,7 @@ impl Permission {
         Self::BudgetsRead,
         Self::NewBudgets,
         Self::EditBudgets,
+        Self::JoinTransfers,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -152,6 +159,7 @@ impl Permission {
             Self::ChartsRead => "AllowReadViews",
             Self::EditViews => "AllowEditViews",
             Self::DeleteViews => "AllowDeleteViews",
+            Self::JoinTransfers => "AllowJoinTransfers",
         }
     }
 
@@ -167,7 +175,8 @@ impl Permission {
             Self::SortTransactions
             | Self::NewTransactions
             | Self::DeleteTransactions
-            | Self::TransactionsRead => Row::Transactions,
+            | Self::TransactionsRead
+            | Self::JoinTransfers => Row::Transactions,
             Self::ChartsRead | Self::NewViews | Self::EditViews | Self::DeleteViews => Row::Charts,
             Self::BudgetsRead | Self::NewBudgets | Self::EditBudgets => Row::Budgets,
         }
@@ -204,6 +213,7 @@ impl Permission {
                 | Self::EditBudgets
                 | Self::EditViews
                 | Self::DeleteViews
+                | Self::JoinTransfers
         )
     }
 

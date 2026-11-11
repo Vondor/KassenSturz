@@ -884,6 +884,12 @@ msgctxt "@info a kind of prepared change"
 msgid "New Rule"
 msgstr "Neue Regel"
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:218
+#, kde-format
+msgctxt "@info %1 is an amount, %2 and %3 the names of accounts"
+msgid "%1 · %2 → %3"
+msgstr "%1 · %2 → %3"
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:219
 #, kde-format
 msgctxt "@info a kind of prepared change"
@@ -1011,6 +1017,12 @@ msgstr "Eine Zahl"
 msgctxt "@item:inlistbox a way to show figures"
 msgid "Progress bar"
 msgstr "Fortschrittsbalken"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:262
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Two entries joined as one move"
+msgstr "Zwei Buchungen als eine Bewegung verbunden"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:263
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:71
@@ -2568,6 +2580,12 @@ msgctxt "@label a part of the book"
 msgid "Charts"
 msgstr "Diagramme"
 
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:83
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Moves between your accounts"
+msgstr "Bewegungen zwischen Ihren Konten"
+
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:88
 #, kde-format
 msgctxt "@label a part of the book"
@@ -2650,6 +2668,12 @@ msgstr ""
 "Die letzten Schritte lassen sich rückgängig machen, aber das ersetzt keine "
 "Sicherung. Speichern Sie zuerst eine Kopie Ihres Haushaltsbuchs (Eine Kopie "
 "meiner Daten speichern → Das ganze Haushaltsbuch)."
+
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:256
+#, kde-format
+msgctxt "@info reading this row is the reading of the transactions"
+msgid "as Transactions"
+msgstr "wie Buchungen"
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:260
 #, kde-format
@@ -19141,6 +19165,12 @@ msgid ""
 msgstr ""
 "Der Kontostand zählt dann zu dem, was Sie haben, statt zu dem, was Sie "
 "schulden; Ihr Vermögen bleibt gleich."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1464
+#, kde-format
+msgctxt "@title:group"
+msgid "Moves between your accounts, joined as one"
+msgstr "Bewegungen zwischen Ihren Konten, zu einer verbunden"
 
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:40
 #, kde-format

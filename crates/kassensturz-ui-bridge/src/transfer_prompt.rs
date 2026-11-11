@@ -42,7 +42,7 @@ impl From<StoreError> for TransferPromptError {
 }
 
 /// One side of a suggested Transfer, as the prompt shows it.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SideText {
     /// The transaction's ID as text.
     pub id: String,
@@ -81,7 +81,7 @@ pub struct PartnerText {
 
 /// A suggested Transfer, as the prompt shows it: the money that left one
 /// account and arrived in another.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SuggestionText {
     /// The side the money left from.
     pub outgoing: SideText,
@@ -108,7 +108,7 @@ pub fn suggestions(
                 || found.outgoing.transaction.to_string() == involving
                 || found.incoming.transaction.to_string() == involving
         })
-        .map(|found| suggestion_text(book, &accounts, found, locale))
+        .map(|found| Ok(suggestion_text(book, &accounts, found, locale)?))
         .collect()
 }
 
@@ -215,7 +215,7 @@ pub(crate) fn suggestion_text(
     accounts: &[Account],
     found: &TransferMatch,
     locale: &impl Locale,
-) -> Result<SuggestionText, TransferPromptError> {
+) -> Result<SuggestionText, StoreError> {
     // Both sides are the same size, and the incoming one is positive.
     let amount = found.incoming.amount;
     Ok(SuggestionText {
@@ -231,7 +231,7 @@ fn side_text(
     accounts: &[Account],
     side: &TransferSide,
     locale: &impl Locale,
-) -> Result<SideText, TransferPromptError> {
+) -> Result<SideText, StoreError> {
     let transaction = book.transaction(side.transaction)?;
     let booked = booked_part(&transaction, side.account);
     let name_of = |id: AccountId| {

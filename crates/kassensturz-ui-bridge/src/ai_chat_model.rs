@@ -288,6 +288,7 @@ pub(crate) mod engine {
     use crate::format::Locale;
     use crate::number_format::app_locale;
     use crate::overview_model::latest_row_object;
+    use crate::register_model::suggestion_fields;
     use crate::rules_model::condition_object;
     use crate::session;
 
@@ -824,6 +825,11 @@ pub(crate) mod engine {
                     list(applied.examples.iter().map(latest_row_object)),
                 ),
             ],
+            ChangeView::JoinTransfer { transfer } => {
+                let mut entries = vec![("kind", text("joinTransfer"))];
+                entries.extend(suggestion_fields(transfer));
+                entries
+            }
         }
     }
 
@@ -2280,5 +2286,127 @@ mod tests {
         assert_eq!(text_of(&examples[0], "kind"), "simple");
         assert_eq!(text_of(&examples[0], "account"), "Checking");
         assert!(!text_of(&examples[0], "exactAmount").is_empty());
+    }
+
+    #[test]
+    fn a_join_of_two_sides_reads_back_as_qml_reads_it() {
+        // US3.3, D-693: through the real proposal and the review's rows, as
+        // the app's own Transfer prompt shows the pair (D-692).
+        use kassensturz_ai_tools::propose;
+        use kassensturz_core::ai_switch::Permissions;
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Transaction,
+            TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use crate::ai_chat::rows_of;
+        use crate::register::tests::TestLocale;
+        use crate::variant::read_back::object_of;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let account = |name: &str, kind: AccountKind| Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = account("Checking", AccountKind::Asset);
+        let savings = account("Savings", AccountKind::Asset);
+        let food = account("Food", AccountKind::Expense);
+        for account in [&checking, &savings, &food] {
+            book.add_account(account).unwrap();
+        }
+        let eur = |cents| Money::from_minor_units(cents, eur);
+        let mut entry = |payee: &str, splits| {
+            let transaction = Transaction::new(
+                TransactionId::generate(),
+                Date::constant(2026, 10, 5),
+                Some(payee.into()),
+                splits,
+            )
+            .unwrap();
+            book.add_transaction(&transaction).unwrap();
+            transaction.id()
+        };
+        // The user put the outgoing side into Food by hand.
+        let out = entry(
+            "To <b>savings</b>",
+            vec![
+                Split::new(checking.id, eur(-5000)),
+                Split::new(food.id, eur(5000)),
+            ],
+        );
+        let into = entry(
+            "From checking",
+            vec![
+                Split::new(savings.id, eur(5000)),
+                Split::uncategorized(eur(-5000)),
+            ],
+        );
+
+        let proposal = propose(
+            &book,
+            &serde_json::json!({"join_transfers": [{
+                "transaction_id": into.to_string(),
+                "other_transaction_id": out.to_string(),
+            }]}),
+            Permissions::all(),
+        )
+        .unwrap();
+        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 1);
+        let join = &items[0];
+        assert_eq!(
+            own_keys(join),
+            [
+                "amount",
+                "businessDays",
+                "exactAmount",
+                "incoming",
+                "kind",
+                "outgoing"
+            ]
+        );
+        assert_eq!(text_of(join, "kind"), "joinTransfer");
+        assert_eq!(text_of(join, "slot"), "join_transfers/0");
+        assert!(!text_of(join, "exactAmount").is_empty());
+        assert_eq!(number_of(join, "businessDays"), 0);
+        // Nothing of a pair can be edited, only left out (D-293).
+        assert!(list_of(join, "fields").is_empty());
+        let outgoing = object_of(join, "outgoing");
+        assert_eq!(
+            keys(&outgoing),
+            [
+                "account",
+                "category",
+                "date",
+                "id",
+                "movesNote",
+                "otherParty",
+                "rule",
+                "sortedBy"
+            ]
+        );
+        assert_eq!(text_of(&outgoing, "id"), out.to_string());
+        assert_eq!(text_of(&outgoing, "account"), "Checking");
+        assert_eq!(text_of(&outgoing, "otherParty"), "To <b>savings</b>");
+        assert_eq!(text_of(&outgoing, "category"), "Food");
+        assert_eq!(text_of(&outgoing, "sortedBy"), "hand");
+        let incoming = object_of(join, "incoming");
+        assert_eq!(text_of(&incoming, "id"), into.to_string());
+        assert_eq!(text_of(&incoming, "account"), "Savings");
+        assert_eq!(text_of(&incoming, "category"), "");
+        assert_eq!(text_of(&incoming, "sortedBy"), "");
     }
 }

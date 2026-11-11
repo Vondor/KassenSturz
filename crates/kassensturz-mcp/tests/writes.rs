@@ -142,6 +142,13 @@ fn the_user_chooses_which_lists_the_ai_tool_may_use_and_it_is_seen_at_once() {
     );
     assert!(lists.contains(&"categorize".to_owned()), "{lists:?}");
     folder.allow(&[]);
+    // Joining two sides as one Transfer is its own cell, offered only once
+    // the user switches it on (D-693).
+    assert!(!lists.contains(&"join_transfers".to_owned()), "{lists:?}");
+    folder.allow(&["AllowJoinTransfers=true"]);
+    let lists = schema_of(&mut session).expect("offered");
+    assert!(lists.contains(&"join_transfers".to_owned()), "{lists:?}");
+    folder.allow(&[]);
     // A list that is not offered is refused when called anyway.
     let (answer, is_error) = session.call(
         "propose_changes",

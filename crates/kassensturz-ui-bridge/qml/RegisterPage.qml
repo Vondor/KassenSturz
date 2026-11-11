@@ -155,7 +155,7 @@ Kirigami.ScrollablePage {
         // The filter box of a new page starts empty.
         register.setFilter("");
         if (list.height > 0) {
-            load();
+            Qt.callLater(page.load);
         }
     }
 
@@ -409,9 +409,14 @@ Kirigami.ScrollablePage {
 
         // Set once the account is read (`page.load`).
         model: page.loaded ? page.register : null
+        // Not while the page is still being made (M6-B227): the list then
+        // isn't inside the page's scroll view yet, and the scroll view took
+        // the height of all the lines as its own, so the list made a line for
+        // every transaction. In a wide window, with the column titles, that
+        // froze the app for minutes on an account with 3,000 transactions.
         onHeightChanged: {
             if (height > 0) {
-                page.load();
+                Qt.callLater(page.load);
             }
         }
         // The page shows the chosen account; the model also serves the

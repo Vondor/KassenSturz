@@ -398,9 +398,8 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
     }
     if adds_allowed(allowed) {
         transactions.push(
-            "new_transactions: the user's own purchases in cash are written down, only in a \
-             cash account (list_accounts gives each account's type); the amount is negative for \
-             money paid out.",
+            "new_transactions: only the user's own purchases in cash, only in a cash account \
+             (list_accounts gives each account's type).",
         );
     }
     if allowed.allows(Permission::DeleteTransactions) {
@@ -446,21 +445,18 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         rules.push("One call can both change and move a Rule.");
     }
     if allowed.allows(Permission::NewBudgets) || allowed.allows(Permission::EditBudgets) {
+        // Short: with every cell on and no field locked the description
+        // reached 4,201 characters (M6-B231); each list's schema says more.
         budgets.push(
-            "A budget is what the user plans to spend on one or more spending categories each \
-             month, quarter or year, optionally only what was paid from some of the user's \
-             accounts.",
+            "A budget is what the user plans to spend on spending categories each month, \
+             quarter or year, optionally only from some of their accounts.",
         );
         budgets.push(
-            "For its amount, use based_on so that KassenSturz computes it from what the \
-             categories spent and shows the user how; give amount only for a figure the user \
-             named, and never compute an amount yourself.",
+            "For its amount use based_on, so KassenSturz computes it; give amount only for a \
+             figure the user named, never one you computed.",
         );
-        budgets.push(
-            "A budget can have a name, such as Holiday; without one the user sees its \
-             categories. Give a name only when the user asked for one.",
-        );
-        budgets.push("A budget is never deleted here. At most 50 budgets in one call.");
+        budgets
+            .push("Give a name only when the user asked for one. A budget is never deleted here.");
     }
     if allowed.allows(Permission::NewAccounts) {
         accounts

@@ -88,7 +88,14 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 ),
                 "formula" => component.kind() == ComponentType::KpiCard && !uses,
                 "target" => !has_formula,
-                "compare" => uses,
+                // A chart made of columns shows their totals, so it has no
+                // comparison of the dataset's own rows either (US3.1a).
+                "compare" => {
+                    uses || matches!(
+                        component.get("columns"),
+                        Some(Setting::Columns(columns)) if !columns.is_empty()
+                    )
+                }
                 // The budgets' table lists each budget's current period, as
                 // the budget bars do (D-666): there is nothing to group.
                 "grouping" => {

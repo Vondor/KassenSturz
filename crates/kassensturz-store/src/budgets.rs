@@ -8,7 +8,9 @@
 //! A budget refers to its categories and accounts by ID, and nothing here
 //! ever writes to a transaction, a category or an account. The amount and the carry-over switch are
 //! dated rows, so a change applies from the start of one period on and an
-//! earlier period keeps what it had (D-345). The book checks what keeps a
+//! earlier period keeps what it had (D-345); so are the categories and
+//! accounts it counts, whose rows carry the first day of the period they
+//! apply from (layout 29, D-689). The book checks what keeps a
 //! budget's figures meaningful when it writes: spending categories in one
 //! currency, the user's own accounts, days that fit the kind of period, a
 //! category's money in one budget at a time, amounts above zero in the
@@ -18,7 +20,8 @@
 use std::collections::HashMap;
 
 use kassensturz_core::{
-    Account, AccountId, AccountKind, Budget, BudgetAmount, BudgetEvery, BudgetId, Date,
+    Account, AccountId, AccountKind, Budget, BudgetAmount, BudgetCounts, BudgetEvery, BudgetId,
+    Date,
 };
 use kassensturz_core::{CurrencyCode, Money};
 use rusqlite::params;
@@ -31,6 +34,9 @@ use crate::{Action, Book, currency_from_text, date_from_text, date_to_text};
 const MAX_BUDGETS: usize = 1_000;
 /// The most amounts one budget keeps (D-345, T-47).
 const MAX_AMOUNTS: usize = 1_200;
+/// The most sets of categories and accounts one budget keeps, as many as
+/// its amounts (D-689, T-47).
+const MAX_COUNTS: usize = MAX_AMOUNTS;
 /// The most categories one budget counts (D-639, T-47).
 const MAX_CATEGORIES: usize = 100;
 /// The most accounts one budget counts from (D-639, T-47).
@@ -119,6 +125,18 @@ fn check_days(every: BudgetEvery, first: Date, last: Option<Date>) -> Result<(),
     }
 }
 
+/// Refuses days a budget can't have, with the reasons of
+/// [`Book::add_budget`] (`not-period-start`, `not-period-end`,
+/// `no-last-day`, `too-long`, `ends-before-starts`), so a caller that
+/// prepares a budget before it is made can say so at once (D-688).
+pub fn check_budget_days(
+    every: BudgetEvery,
+    first_day: Date,
+    last_day: Option<Date>,
+) -> Result<(), StoreError> {
+    check_days(every, first_day, last_day)
+}
+
 /// Refuses an amount that isn't above zero, is too large or isn't in the
 /// category's currency.
 fn check_amount(amount: Money, currency: CurrencyCode) -> Result<(), StoreError> {
@@ -163,9 +181,33 @@ fn check_row(
     Ok(())
 }
 
+/// The set of `counts` that applies from `from_day`, added in its place
+/// (oldest first) when there is none yet: how the rows of a budget's
+/// categories and accounts, each with the first day of its set, become its
+/// sets (D-689). Every set the book keeps has a category, so a set seen
+/// only through its accounts is still kept, with no category, and the
+/// checks when writing refuse it.
+fn counts_from(counts: &mut Vec<BudgetCounts>, from_day: Date) -> &mut BudgetCounts {
+    let place = match counts.binary_search_by_key(&from_day, |set| set.from_day) {
+        Ok(place) => place,
+        Err(place) => {
+            counts.insert(
+                place,
+                BudgetCounts {
+                    from_day,
+                    categories: Vec::new(),
+                    accounts: Vec::new(),
+                },
+            );
+            place
+        }
+    };
+    &mut counts[place]
+}
+
 impl Book {
     /// Every budget, in the order they were made (their IDs), each with its
-    /// amounts, oldest first.
+    /// sets of categories and accounts and its amounts, oldest first.
     pub fn budgets(&self) -> Result<Vec<Budget>, StoreError> {
         let mut statement = self.conn.prepare_cached(
             "SELECT id, every, first_day, last_day, salary_day, name FROM budgets ORDER BY id",
@@ -187,8 +229,7 @@ impl Book {
             budgets.push(Budget {
                 id: BudgetId::from_bytes(id),
                 name,
-                categories: Vec::new(),
-                accounts: Vec::new(),
+                counts: Vec::new(),
                 every: every_from_text(&every, salary_day),
                 first_day: date_from_text(&first_day)?,
                 last_day: last_day.as_deref().map(date_from_text).transpose()?,
@@ -204,41 +245,50 @@ impl Book {
         // every category of a budget in one currency.
         let mut currencies = HashMap::new();
         let mut statement = self.conn.prepare_cached(
-            "SELECT budget_categories.budget_id, budget_categories.category_id, accounts.currency
+            "SELECT budget_categories.budget_id, budget_categories.from_day,
+                    budget_categories.category_id, accounts.currency
              FROM budget_categories JOIN accounts ON accounts.id = budget_categories.category_id
-             ORDER BY budget_categories.budget_id, budget_categories.position",
+             ORDER BY budget_categories.budget_id, budget_categories.from_day,
+                      budget_categories.position",
         )?;
         let categories = statement
             .query_map([], |row| {
                 Ok((
                     BudgetId::from_bytes(row.get(0)?),
-                    AccountId::from_bytes(row.get(1)?),
-                    row.get::<_, String>(2)?,
+                    row.get::<_, String>(1)?,
+                    AccountId::from_bytes(row.get(2)?),
+                    row.get::<_, String>(3)?,
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
-        for (budget, category, currency) in categories {
+        for (budget, from_day, category, currency) in categories {
             if let Some(&index) = place.get(&budget) {
-                if budgets[index].categories.is_empty() {
+                if budgets[index].counts.is_empty() {
                     currencies.insert(budget, currency_from_text(&currency)?);
                 }
-                budgets[index].categories.push(category);
+                counts_from(&mut budgets[index].counts, date_from_text(&from_day)?)
+                    .categories
+                    .push(category);
             }
         }
         let mut statement = self.conn.prepare_cached(
-            "SELECT budget_id, account_id FROM budget_accounts ORDER BY budget_id, position",
+            "SELECT budget_id, from_day, account_id FROM budget_accounts
+             ORDER BY budget_id, from_day, position",
         )?;
         let accounts = statement
             .query_map([], |row| {
                 Ok((
                     BudgetId::from_bytes(row.get(0)?),
-                    AccountId::from_bytes(row.get(1)?),
+                    row.get::<_, String>(1)?,
+                    AccountId::from_bytes(row.get(2)?),
                 ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
-        for (budget, account) in accounts {
+        for (budget, from_day, account) in accounts {
             if let Some(&index) = place.get(&budget) {
-                budgets[index].accounts.push(account);
+                counts_from(&mut budgets[index].counts, date_from_text(&from_day)?)
+                    .accounts
+                    .push(account);
             }
         }
         let mut statement = self.conn.prepare_cached(
@@ -341,8 +391,11 @@ impl Book {
         let budget = Budget {
             id: BudgetId::generate(),
             name: checked_budget_name(name)?,
-            categories: categories.to_vec(),
-            accounts: accounts.to_vec(),
+            counts: vec![BudgetCounts {
+                from_day: first_day,
+                categories: categories.to_vec(),
+                accounts: accounts.to_vec(),
+            }],
             every,
             first_day,
             last_day,
@@ -394,26 +447,163 @@ impl Book {
                 max: MAX_AMOUNTS,
             });
         }
-        let same_day = budget.amounts.iter().find(|old| old.from_day == from_day);
-        self.as_one_action(Action::EditBudget, |book| {
-            let day = date_to_text(from_day)?;
-            book.conn.execute(
-                "DELETE FROM budget_amounts WHERE budget_id = ?1 AND from_day > ?2",
-                params![id.to_bytes(), day],
-            )?;
-            match same_day {
-                Some(old) if *old == row => {}
-                Some(_) => {
-                    book.conn.execute(
-                        "UPDATE budget_amounts SET amount = ?3, carry_over = ?4
-                         WHERE budget_id = ?1 AND from_day = ?2",
-                        params![id.to_bytes(), day, amount.minor_units(), carry_over],
-                    )?;
+        self.as_one_action(Action::EditBudget, |book| book.write_amount(&budget, &row))
+    }
+
+    /// Writes `row` as `budget`'s amount from its day on, after the checks:
+    /// the amounts planned for later periods go, one of the same day is
+    /// changed, nothing that stays the same is written.
+    fn write_amount(&self, budget: &Budget, row: &BudgetAmount) -> Result<(), StoreError> {
+        let id = budget.id;
+        let day = date_to_text(row.from_day)?;
+        self.conn.execute(
+            "DELETE FROM budget_amounts WHERE budget_id = ?1 AND from_day > ?2",
+            params![id.to_bytes(), day],
+        )?;
+        match budget
+            .amounts
+            .iter()
+            .find(|old| old.from_day == row.from_day)
+        {
+            Some(old) if old == row => {}
+            Some(_) => {
+                self.conn.execute(
+                    "UPDATE budget_amounts SET amount = ?3, carry_over = ?4
+                     WHERE budget_id = ?1 AND from_day = ?2",
+                    params![id.to_bytes(), day, row.amount.minor_units(), row.carry_over],
+                )?;
+            }
+            None => self.insert_amount(id, row)?,
+        }
+        Ok(())
+    }
+
+    /// Changes the budget `id` from the period that starts on `from_day`
+    /// on, as one user action [`Action::EditBudget`] (D-345, D-689): its
+    /// amount and carry over (`amount`, as [`Book::edit_budget_amount`]
+    /// does) and what it counts (`counts`: its categories and the accounts
+    /// it counts from, none for every account), or both. Earlier periods
+    /// keep what they had and what they counted, so their results don't
+    /// change; what was planned for later periods is replaced.
+    ///
+    /// A change of what it counts follows the rules of [`Book::add_budget`]
+    /// for its categories and accounts, in the budget's one currency
+    /// (`store.budget-choice` `currencies`), and of overlaps, checked per
+    /// set ([`Budget::clashes_with`]). It applies from the current period
+    /// on, never earlier: `from_day` is not before the start of the period
+    /// that contains `today`, or the budget's first day if it starts later
+    /// ([`StoreError::BudgetPeriod`] `before-current-period`), and an ended
+    /// budget can't change what it counts (`amount-after-end`). An amount
+    /// alone may still change an earlier period, as before. Nothing that
+    /// stays the same is recorded.
+    pub fn edit_budget(
+        &mut self,
+        id: BudgetId,
+        from_day: Date,
+        amount: Option<(Money, bool)>,
+        counts: Option<(&[AccountId], &[AccountId])>,
+        today: Date,
+    ) -> Result<(), StoreError> {
+        let budget = self.budget(id)?;
+        let period = |reason| StoreError::BudgetPeriod { reason };
+        let currency = self.budget_currency(&budget)?;
+        let row = amount.map(|(amount, carry_over)| BudgetAmount {
+            from_day,
+            amount,
+            carry_over,
+        });
+        if let Some(row) = &row {
+            check_row(&budget, row, currency)?;
+            let earlier = budget
+                .amounts
+                .iter()
+                .filter(|kept| kept.from_day < from_day)
+                .count();
+            if earlier + 1 > MAX_AMOUNTS {
+                return Err(StoreError::TooManyBudgets {
+                    limit: "amounts",
+                    max: MAX_AMOUNTS,
+                });
+            }
+        }
+        let mut changed = None;
+        if let Some((categories, accounts)) = counts {
+            let earliest = if today < budget.first_day {
+                budget.first_day
+            } else {
+                budget
+                    .period_containing(today)
+                    .map(|(start, _)| start)
+                    .ok_or(period("amount-after-end"))?
+            };
+            if from_day < earliest {
+                return Err(period("before-current-period"));
+            }
+            let set = BudgetCounts {
+                from_day,
+                categories: categories.to_vec(),
+                accounts: accounts.to_vec(),
+            };
+            let mut kept: Vec<BudgetCounts> = budget
+                .counts
+                .iter()
+                .filter(|old| old.from_day < from_day)
+                .cloned()
+                .collect();
+            let same_as_before = kept.last().is_some_and(|before| {
+                before.categories == set.categories && before.accounts == set.accounts
+            });
+            if !same_as_before {
+                kept.push(set);
+            }
+            if kept != budget.counts {
+                let after = Budget {
+                    counts: kept,
+                    ..budget.clone()
+                };
+                if self.check_choice(&after)? != currency {
+                    return Err(StoreError::BudgetChoice {
+                        reason: "currencies",
+                    });
                 }
-                None => book.insert_amount(id, &row)?,
+                self.check_overlap(&after)?;
+                changed = Some(after);
+            }
+        }
+        self.as_one_action(Action::EditBudget, |book| {
+            if let Some(row) = &row {
+                book.write_amount(&budget, row)?;
+            }
+            if let Some(after) = &changed {
+                book.write_counts(&budget, after)?;
             }
             Ok(())
         })
+    }
+
+    /// Writes the sets of `after` in place of those of `before`, the same
+    /// budget: only the sets that differ are removed and written again.
+    fn write_counts(&self, before: &Budget, after: &Budget) -> Result<(), StoreError> {
+        let id = before.id.to_bytes();
+        for old in &before.counts {
+            if !after.counts.contains(old) {
+                let day = date_to_text(old.from_day)?;
+                self.conn.execute(
+                    "DELETE FROM budget_categories WHERE budget_id = ?1 AND from_day = ?2",
+                    params![id, day],
+                )?;
+                self.conn.execute(
+                    "DELETE FROM budget_accounts WHERE budget_id = ?1 AND from_day = ?2",
+                    params![id, day],
+                )?;
+            }
+        }
+        for new in &after.counts {
+            if !before.counts.contains(new) {
+                self.insert_counts(before.id, new)?;
+            }
+        }
+        Ok(())
     }
 
     /// Gives the budget `id` a new last day, or none so it keeps going; the
@@ -439,10 +629,14 @@ impl Book {
         self.as_one_action(Action::EditBudget, |book| {
             let last = last_day.map(date_to_text).transpose()?;
             if let Some(last) = &last {
-                book.conn.execute(
-                    "DELETE FROM budget_amounts WHERE budget_id = ?1 AND from_day > ?2",
-                    params![id.to_bytes(), last],
-                )?;
+                // What was planned, and what was to be counted, after the
+                // new last day (D-689).
+                for table in ["budget_amounts", "budget_categories", "budget_accounts"] {
+                    book.conn.execute(
+                        &format!("DELETE FROM {table} WHERE budget_id = ?1 AND from_day > ?2"),
+                        params![id.to_bytes(), last],
+                    )?;
+                }
             }
             book.conn.execute(
                 "UPDATE budgets SET last_day = ?2 WHERE id = ?1 AND last_day IS NOT ?2",
@@ -511,15 +705,77 @@ impl Book {
     /// The currency of `budget`'s amounts: its first category's, which all
     /// its categories share.
     fn budget_currency(&self, budget: &Budget) -> Result<CurrencyCode, StoreError> {
-        let first = budget.categories.first().ok_or(StoreError::BudgetChoice {
-            reason: "no-category",
-        })?;
+        let first = budget
+            .counts
+            .first()
+            .and_then(|counts| counts.categories.first())
+            .ok_or(StoreError::BudgetChoice {
+                reason: "no-category",
+            })?;
         Ok(self.account(*first)?.currency)
     }
 
     /// Refuses categories and accounts a budget can't count (see
-    /// [`Book::add_budget`]) and returns the categories' one currency.
+    /// [`Book::add_budget`]) and returns the categories' one currency: in
+    /// every set, which are at most [`MAX_COUNTS`], the first starting on
+    /// the budget's first day, each later one on the first day of one of
+    /// its periods, not after its last day, oldest first and each day once
+    /// (D-689; `store.budget-period` `counts-before-start`, `counts-twice`,
+    /// `not-period-start`, `amount-after-end`).
     fn check_choice(&self, budget: &Budget) -> Result<CurrencyCode, StoreError> {
+        let period = |reason| StoreError::BudgetPeriod { reason };
+        if budget.counts.len() > MAX_COUNTS {
+            return Err(StoreError::TooManyBudgets {
+                limit: "counts",
+                max: MAX_COUNTS,
+            });
+        }
+        match budget.counts.first() {
+            Some(first) if first.from_day == budget.first_day => {}
+            Some(first) if first.from_day < budget.first_day => {
+                return Err(period("counts-before-start"));
+            }
+            Some(_) => return Err(period("not-period-start")),
+            None => {
+                return Err(StoreError::BudgetChoice {
+                    reason: "no-category",
+                });
+            }
+        }
+        for (set, next) in budget.counts.iter().zip(&budget.counts[1..]) {
+            if next.from_day <= set.from_day {
+                return Err(period("counts-twice"));
+            }
+        }
+        let mut currency = None;
+        for set in &budget.counts {
+            if budget.last_day.is_some_and(|last| set.from_day > last) {
+                return Err(period("amount-after-end"));
+            }
+            if set.from_day != budget.first_day
+                && !(budget.every.repeats() && budget.every.is_period_start(set.from_day))
+            {
+                return Err(period("not-period-start"));
+            }
+            let found = self.check_counts(set)?;
+            match currency {
+                None => currency = Some(found),
+                Some(first) if first != found => {
+                    return Err(StoreError::BudgetChoice {
+                        reason: "currencies",
+                    });
+                }
+                Some(_) => {}
+            }
+        }
+        currency.ok_or(StoreError::BudgetChoice {
+            reason: "no-category",
+        })
+    }
+
+    /// Refuses one set of categories and accounts a budget can't count
+    /// (D-639) and returns the categories' one currency.
+    fn check_counts(&self, budget: &BudgetCounts) -> Result<CurrencyCode, StoreError> {
         let choice = |reason| StoreError::BudgetChoice { reason };
         let too_many = |limit, max| StoreError::TooManyBudgets { limit, max };
         if budget.categories.len() > MAX_CATEGORIES {
@@ -559,8 +815,9 @@ impl Book {
     /// accounts.
     fn insert_budget(&self, budget: &Budget) -> Result<(), StoreError> {
         let name = checked_budget_name(budget.name.as_deref())?;
-        let currency = self.check_choice(budget)?;
+        // The days first: the sets' checks rely on them.
         check_days(budget.every, budget.first_day, budget.last_day)?;
+        let currency = self.check_choice(budget)?;
         if budget.amounts.len() > MAX_AMOUNTS {
             return Err(StoreError::TooManyBudgets {
                 limit: "amounts",
@@ -605,32 +862,44 @@ impl Book {
                 name,
             ],
         )?;
-        for (position, category) in budget.categories.iter().enumerate() {
-            self.conn.execute(
-                "INSERT INTO budget_categories (id, budget_id, category_id, position)
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![
-                    uuid::Uuid::now_v7().into_bytes(),
-                    budget.id.to_bytes(),
-                    category.to_bytes(),
-                    i64::try_from(position).unwrap_or(i64::MAX),
-                ],
-            )?;
-        }
-        for (position, account) in budget.accounts.iter().enumerate() {
-            self.conn.execute(
-                "INSERT INTO budget_accounts (id, budget_id, account_id, position)
-                 VALUES (?1, ?2, ?3, ?4)",
-                params![
-                    uuid::Uuid::now_v7().into_bytes(),
-                    budget.id.to_bytes(),
-                    account.to_bytes(),
-                    i64::try_from(position).unwrap_or(i64::MAX),
-                ],
-            )?;
+        for set in &budget.counts {
+            self.insert_counts(budget.id, set)?;
         }
         for row in &budget.amounts {
             self.insert_amount(budget.id, row)?;
+        }
+        Ok(())
+    }
+
+    /// Writes the rows of one set of `budget`'s categories and accounts,
+    /// each with the first day the set applies from (D-689).
+    fn insert_counts(&self, budget: BudgetId, set: &BudgetCounts) -> Result<(), StoreError> {
+        let from_day = date_to_text(set.from_day)?;
+        for (position, category) in set.categories.iter().enumerate() {
+            self.conn.execute(
+                "INSERT INTO budget_categories (id, budget_id, category_id, position, from_day)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    uuid::Uuid::now_v7().into_bytes(),
+                    budget.to_bytes(),
+                    category.to_bytes(),
+                    i64::try_from(position).unwrap_or(i64::MAX),
+                    from_day,
+                ],
+            )?;
+        }
+        for (position, account) in set.accounts.iter().enumerate() {
+            self.conn.execute(
+                "INSERT INTO budget_accounts (id, budget_id, account_id, position, from_day)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    uuid::Uuid::now_v7().into_bytes(),
+                    budget.to_bytes(),
+                    account.to_bytes(),
+                    i64::try_from(position).unwrap_or(i64::MAX),
+                    from_day,
+                ],
+            )?;
         }
         Ok(())
     }
@@ -658,7 +927,7 @@ impl Book {
             "SELECT budget_id FROM budget_categories WHERE category_id = ?1 AND budget_id <> ?2",
         )?;
         let mut others: Vec<BudgetId> = Vec::new();
-        for category in &budget.categories {
+        for category in &budget.all_categories() {
             let found = sharing
                 .query_map(params![category.to_bytes(), budget.id.to_bytes()], |row| {
                     Ok(BudgetId::from_bytes(row.get(0)?))
@@ -695,24 +964,36 @@ impl Book {
                 ))
             },
         )?;
-        let ids = |sql: &str| -> Result<Vec<AccountId>, StoreError> {
+        let rows = |sql: &str| -> Result<Vec<(String, AccountId)>, StoreError> {
             let mut statement = self.conn.prepare_cached(sql)?;
             let found = statement
                 .query_map([id.to_bytes()], |row| {
-                    Ok(AccountId::from_bytes(row.get(0)?))
+                    Ok((row.get::<_, String>(0)?, AccountId::from_bytes(row.get(1)?)))
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
             Ok(found)
         };
+        let mut counts = Vec::new();
+        for (from_day, category) in rows(
+            "SELECT from_day, category_id FROM budget_categories WHERE budget_id = ?1
+             ORDER BY from_day, position",
+        )? {
+            counts_from(&mut counts, date_from_text(&from_day)?)
+                .categories
+                .push(category);
+        }
+        for (from_day, account) in rows(
+            "SELECT from_day, account_id FROM budget_accounts WHERE budget_id = ?1
+             ORDER BY from_day, position",
+        )? {
+            counts_from(&mut counts, date_from_text(&from_day)?)
+                .accounts
+                .push(account);
+        }
         Ok(Budget {
             id,
             name,
-            categories: ids(
-                "SELECT category_id FROM budget_categories WHERE budget_id = ?1 ORDER BY position",
-            )?,
-            accounts: ids(
-                "SELECT account_id FROM budget_accounts WHERE budget_id = ?1 ORDER BY position",
-            )?,
+            counts,
             every: every_from_text(&every, salary_day),
             first_day: date_from_text(&first_day)?,
             last_day: last_day.as_deref().map(date_from_text).transpose()?,

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The commands for Transfers between the user's own accounts: the
-//! suggested ones, and joining two transactions into one (D-021, D-087).
+//! suggested ones, and joining two transactions into one (D-021, D-087,
+//! D-691).
 
 use std::io::Write;
 
@@ -44,7 +45,9 @@ pub(crate) fn transfer(
 }
 
 /// `transfer suggest`: the pairs of transactions that look like the two
-/// sides of one Transfer. Nothing is changed; `transfer join` joins a pair.
+/// sides of one Transfer, with the category a Rule put a side in, which
+/// joining takes away (D-691). Nothing is changed; `transfer join` joins a
+/// pair, or any two sides the user picks.
 fn suggest(book: &Book, out: &mut dyn Write) -> Result<(), CliError> {
     let suggestions = book.transfer_suggestions()?;
     if suggestions.is_empty() {
@@ -61,9 +64,14 @@ fn suggest(book: &Book, out: &mut dyn Write) -> Result<(), CliError> {
         "To".to_owned(),
         "Amount".to_owned(),
         "IDs".to_owned(),
+        "Sorted by a Rule".to_owned(),
     ]];
     for found in suggestions {
         let (outgoing, incoming) = (found.outgoing, found.incoming);
+        let mut sorted = Vec::new();
+        for category in [outgoing.category, incoming.category].into_iter().flatten() {
+            sorted.push(plain(&book.account(category)?.name));
+        }
         rows.push(vec![
             outgoing.booking_date.to_string(),
             plain(&book.account(outgoing.account)?.name),
@@ -75,12 +83,14 @@ fn suggest(book: &Book, out: &mut dyn Write) -> Result<(), CliError> {
                 short_id(outgoing.transaction),
                 short_id(incoming.transaction)
             ),
+            sorted.join(", "),
         ]);
     }
     write!(out, "{}", table(&rows, &[4]))?;
     writeln!(
         out,
-        "Check each one: `transfer join ID ID` joins the two into one Transfer."
+        "Check each one: `transfer join ID ID` joins the two into one Transfer; \
+         a category a Rule chose goes."
     )?;
     Ok(())
 }

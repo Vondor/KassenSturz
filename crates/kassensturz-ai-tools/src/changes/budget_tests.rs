@@ -98,7 +98,9 @@ fn propose(book: &Book, arguments: &Value) -> Result<Proposal, ToolError> {
 fn code(result: Result<Proposal, ToolError>) -> String {
     match result.map_err(ToolError::without_item) {
         Ok(_) => "prepared".into(),
-        Err(ToolError::BadArgument { argument }) => format!("bad-argument {argument}"),
+        Err(ToolError::BadArgument { argument } | ToolError::NotShaped { argument, .. }) => {
+            format!("bad-argument {argument}")
+        }
         Err(ToolError::UnknownField { argument, .. }) => format!("unknown-field {argument}"),
         Err(ToolError::NotAllowed { argument }) => format!("not-allowed {argument}"),
         Err(error) => {
@@ -208,7 +210,7 @@ fn a_prepared_budget_is_made_only_on_confirm_and_one_undo_takes_it_back() {
         .expect("applied");
     let budgets = small.book.budgets().expect("budgets");
     assert_eq!(budgets.len(), 1);
-    assert_eq!(budgets[0].categories, [small.fun]);
+    assert_eq!(budgets[0].counts[0].categories, [small.fun]);
     assert_eq!(budgets[0].every, BudgetEvery::Quarter);
     assert_eq!(budgets[0].first_day, Date::constant(2026, 10, 1));
     assert_eq!(budgets[0].last_day, None);
@@ -404,9 +406,10 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
             budget(json!({"category_id": food, "every": "week", "amount": "1"})),
             "bad-argument every",
         ),
+        // A stretch of days needs both days the user named (D-688).
         (
             budget(json!({"category_id": food, "every": "range", "amount": "1"})),
-            "bad-argument every",
+            "bad-argument first_day",
         ),
         (
             budget(json!({"category_id": food, "every": 1, "amount": "1"})),
@@ -499,11 +502,13 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
             ),
             "bad-argument carry_over",
         ),
+        // A repeating budget starts with the current period; only a
+        // stretch of days names its first day (D-688).
         (
             budget(
                 json!({"category_id": food, "every": "month", "amount": "10", "first_day": "2026-01-01"}),
             ),
-            "unknown-field new_budgets",
+            "bad-argument first_day",
         ),
         (
             budget(
@@ -732,8 +737,8 @@ fn a_budget_over_several_categories_from_one_account_is_prepared_and_made() {
         .apply(&mut small.book, Confirmed::by_the_user())
         .expect("applied");
     let budgets = small.book.budgets().expect("read");
-    assert_eq!(budgets[0].categories, [small.fun, small.food]);
-    assert_eq!(budgets[0].accounts, [small.checking]);
+    assert_eq!(budgets[0].counts[0].categories, [small.fun, small.food]);
+    assert_eq!(budgets[0].counts[0].accounts, [small.checking]);
     // The same category from another account is a budget of its own; from
     // every account it would count checking twice.
     let savings_id = savings.id.to_string();
@@ -1077,7 +1082,7 @@ fn a_check_names_the_computed_amount_and_how_it_was_computed() {
         "the lists alone are checked"
     );
     let proposal = propose(book, &call).expect("checked");
-    let answer = check_only_answer(book, &proposal).expect("answered");
+    let answer = check_only_answer(book, &proposal, Permissions::all()).expect("answered");
     assert_eq!(answer["check_only"], json!(true));
     assert_eq!(answer["would_prepare"], json!(2));
     assert!(answer.get("prepared").is_none(), "nothing is prepared");
@@ -1135,7 +1140,7 @@ fn check_only_is_true_false_or_absent() {
 fn a_check_names_the_period_a_slipped_payment_left_out() {
     let small = slipped(Date::constant(2000, 1, 1));
     let proposal = based_on(&small, "last_period", TODAY).expect("prepared");
-    let answer = check_only_answer(&small.book, &proposal).expect("answered");
+    let answer = check_only_answer(&small.book, &proposal, Permissions::all()).expect("answered");
     assert_eq!(
         answer["budget_amounts"][0]["based_on"],
         json!({
@@ -1150,10 +1155,174 @@ fn a_check_names_the_period_a_slipped_payment_left_out() {
     );
     // Without a slip there is no left_out.
     let proposal = based_on(&small, "last_period", Date::constant(2026, 10, 14)).expect("prepared");
-    let answer = check_only_answer(&small.book, &proposal).expect("answered");
+    let answer = check_only_answer(&small.book, &proposal, Permissions::all()).expect("answered");
     assert!(
         answer["budget_amounts"][0]["based_on"]
             .get("left_out")
             .is_none()
     );
+}
+
+/// A budget for one stretch of days covers the days the user named, from
+/// the first to the last (D-688, which amends D-394): it is prepared, made
+/// on confirm as the book's own range, read back by `list_budgets` with
+/// those days, and one Undo takes it back.
+#[test]
+fn a_budget_for_a_stretch_of_days_covers_the_days_the_user_named() {
+    let mut small = small();
+    let fun = small.fun.to_string();
+    let proposal = propose(
+        &small.book,
+        &json!({"new_budgets": [{"name": "Presents", "category_id": fun, "every": "range",
+            "first_day": "2026-12-01", "last_day": "2026-12-24", "amount": "300.00"}]}),
+    )
+    .expect("prepared");
+    let new = new_budget(&proposal.changes);
+    assert_eq!(new.every, BudgetEvery::Range);
+    assert_eq!(new.first_day, Date::constant(2026, 12, 1));
+    assert_eq!(new.first_period_end, Date::constant(2026, 12, 24));
+    assert_eq!(new.amount, eur(30_000));
+    assert!(!new.carry_over);
+    assert_eq!(
+        proposal.changes.summary(),
+        "new budget \"Presents\" for \"Fun\" from 2026-12-01 to 2026-12-24"
+    );
+    proposal
+        .changes
+        .apply(&mut small.book, Confirmed::by_the_user())
+        .expect("applied");
+    let budgets = small.book.budgets().expect("budgets");
+    assert_eq!(budgets.len(), 1);
+    assert_eq!(budgets[0].every, BudgetEvery::Range);
+    assert_eq!(budgets[0].first_day, Date::constant(2026, 12, 1));
+    assert_eq!(budgets[0].last_day, Some(Date::constant(2026, 12, 24)));
+    assert_eq!(budgets[0].amounts.len(), 1);
+    assert_eq!(budgets[0].amounts[0].amount, eur(30_000));
+    assert!(!budgets[0].amounts[0].carry_over);
+
+    // The AI reads it back with the days it covers.
+    let listed = crate::call(&small.book, "list_budgets", &json!({}), TODAY)
+        .expect("read")
+        .value;
+    let row = &listed["budgets"][0];
+    assert_eq!(row["every"], "range", "{listed}");
+    assert_eq!(row["starts"], "2026-12-01", "{listed}");
+    assert_eq!(row["ends"], "2026-12-24", "{listed}");
+    assert_eq!(row["amount"], "300.00", "{listed}");
+
+    // The same category can't get another budget on those days, and the
+    // refusal points to edit_budgets as for a repeating one.
+    let again = json!({"new_budgets": [{"category_id": fun, "every": "range",
+        "first_day": "2026-12-20", "last_day": "2027-01-06", "amount": "50.00"}]});
+    assert_eq!(
+        code(propose(&small.book, &again)),
+        "ai-tools.has-budget edit_budgets"
+    );
+    // After its last day the category is free again.
+    let after = json!({"new_budgets": [{"category_id": fun, "every": "range",
+        "first_day": "2026-12-25", "last_day": "2027-01-06", "amount": "50.00"}]});
+    assert_eq!(code(propose(&small.book, &after)), "prepared");
+
+    small.book.undo().expect("undone");
+    assert!(small.book.budgets().expect("budgets").is_empty());
+}
+
+/// A stretch of days may start before today when it reaches today or later,
+/// and a budget over a stretch that is over already is refused: the AI
+/// never prepares a budget only for the past (D-688).
+#[test]
+fn a_stretch_of_days_must_not_be_over_already() {
+    let small = small();
+    let fun = small.fun.to_string();
+    let call = |first: &str, last: &str| {
+        json!({"new_budgets": [{"category_id": fun, "every": "range",
+            "first_day": first, "last_day": last, "amount": "10.00"}]})
+    };
+    // TODAY is 14 November 2026.
+    let started = propose(&small.book, &call("2026-11-01", "2026-11-14")).expect("prepared");
+    assert_eq!(
+        new_budget(&started.changes).first_day,
+        Date::constant(2026, 11, 1)
+    );
+    assert_eq!(
+        code(propose(&small.book, &call("2026-11-01", "2026-11-13"))),
+        "bad-argument last_day"
+    );
+    assert_eq!(
+        code(propose(&small.book, &call("2026-12-01", "2026-12-01"))),
+        "prepared",
+        "a single day is a stretch too"
+    );
+}
+
+/// The malformed calls a model may make for a stretch of days, each with
+/// its fixed keyword (D-688).
+#[test]
+fn malformed_stretch_of_days_calls_are_refused_with_a_fixed_keyword() {
+    let small = small();
+    let food = small.food.to_string();
+    let range = |fields: Value| {
+        let mut item = json!({"category_id": food, "every": "range",
+            "first_day": "2026-12-01", "last_day": "2026-12-24", "amount": "10.00"});
+        for (key, value) in fields.as_object().expect("object") {
+            if value.is_null() {
+                item.as_object_mut().expect("object").remove(key);
+            } else {
+                item[key] = value.clone();
+            }
+        }
+        json!({"new_budgets": [item]})
+    };
+    let cases: Vec<(Value, &str)> = vec![
+        (range(json!({"first_day": null})), "bad-argument first_day"),
+        (range(json!({"last_day": null})), "bad-argument last_day"),
+        (
+            range(json!({"first_day": "1 December"})),
+            "bad-argument first_day",
+        ),
+        (
+            range(json!({"first_day": "2026-12-1"})),
+            "bad-argument first_day",
+        ),
+        (
+            range(json!({"first_day": 20261201})),
+            "bad-argument first_day",
+        ),
+        (
+            range(json!({"last_day": "2026-02-30"})),
+            "bad-argument last_day",
+        ),
+        (
+            range(json!({"last_day": "2026-12-24T00:00"})),
+            "bad-argument last_day",
+        ),
+        (
+            range(json!({"first_day": "2026-12-24", "last_day": "2026-12-01"})),
+            "store.budget-period ends-before-starts",
+        ),
+        (
+            range(json!({"first_day": "2026-12-01", "last_day": "2127-12-31"})),
+            "store.budget-period too-long",
+        ),
+        (
+            range(json!({"carry_over": true})),
+            "store.budget-period carry-over-on-range",
+        ),
+        (
+            range(json!({"amount": null, "based_on": "last_period"})),
+            "bad-argument based_on",
+        ),
+        (range(json!({"amount": null})), "bad-argument amount"),
+        (range(json!({"salary_day": 25})), "bad-argument salary_day"),
+        // A repeating budget starts with the current period: its days are
+        // never named.
+        (range(json!({"every": "month"})), "bad-argument first_day"),
+        (
+            range(json!({"every": "year", "first_day": null})),
+            "bad-argument last_day",
+        ),
+    ];
+    for (call, expected) in cases {
+        assert_eq!(code(propose(&small.book, &call)), expected, "{call}");
+    }
 }

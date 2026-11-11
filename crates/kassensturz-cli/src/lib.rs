@@ -149,8 +149,10 @@ Commands:
                                  sides of one Transfer between your accounts:
                                  the same amount out of one and into another,
                                  at most 3 business days apart, the other side
-                                 without a category yet. Nothing is changed
-  transfer join ID ID            join two such transactions into one Transfer
+                                 without a category yet or put in one by a
+                                 Rule. Nothing is changed
+  transfer join ID ID            join two transactions into one Transfer, also
+                                 ones you sorted yourself; their categories go
   register NAME                  an account's or category's transactions
   balances [--all]               every account's balance, and the totals
   rate add --date DATE --from CODE --to CODE --rate RATE

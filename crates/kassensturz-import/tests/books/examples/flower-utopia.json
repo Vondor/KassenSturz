@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 11,
+  "version": 12,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -41,8 +41,13 @@
     {
       "id": "019a0000-0000-7000-8000-000000000018",
       "name": null,
-      "categories": ["019a0000-0000-7000-8000-00000000000c"],
-      "accounts": [],
+      "counts": [
+        {
+          "from_day": "2024-11-01",
+          "categories": ["019a0000-0000-7000-8000-00000000000c"],
+          "accounts": []
+        }
+      ],
       "every": "month",
       "salary_day": null,
       "first_day": "2024-11-01",
@@ -54,8 +59,13 @@
     {
       "id": "019a0000-0000-7000-8000-000000000019",
       "name": null,
-      "categories": ["019a0000-0000-7000-8000-000000000013"],
-      "accounts": [],
+      "counts": [
+        {
+          "from_day": "2024-11-01",
+          "categories": ["019a0000-0000-7000-8000-000000000013"],
+          "accounts": []
+        }
+      ],
       "every": "month",
       "salary_day": null,
       "first_day": "2024-11-01",
@@ -67,8 +77,13 @@
     {
       "id": "019a0000-0000-7000-8000-00000000001a",
       "name": null,
-      "categories": ["019a0000-0000-7000-8000-000000000015"],
-      "accounts": [],
+      "counts": [
+        {
+          "from_day": "2024-11-01",
+          "categories": ["019a0000-0000-7000-8000-000000000015"],
+          "accounts": []
+        }
+      ],
       "every": "month",
       "salary_day": null,
       "first_day": "2024-11-01",
@@ -80,8 +95,13 @@
     {
       "id": "019a0000-0000-7000-8000-00000000001b",
       "name": null,
-      "categories": ["019a0000-0000-7000-8000-00000000000b"],
-      "accounts": [],
+      "counts": [
+        {
+          "from_day": "2024-11-01",
+          "categories": ["019a0000-0000-7000-8000-00000000000b"],
+          "accounts": []
+        }
+      ],
       "every": "month",
       "salary_day": null,
       "first_day": "2024-11-01",
@@ -93,8 +113,13 @@
     {
       "id": "019a0000-0000-7000-8000-00000000001c",
       "name": null,
-      "categories": ["019a0000-0000-7000-8000-000000000010"],
-      "accounts": [],
+      "counts": [
+        {
+          "from_day": "2024-11-01",
+          "categories": ["019a0000-0000-7000-8000-000000000010"],
+          "accounts": []
+        }
+      ],
       "every": "month",
       "salary_day": null,
       "first_day": "2024-11-01",

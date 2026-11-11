@@ -92,8 +92,13 @@ impl Figures {
 
     /// `amount`, in a currency with `minor_digits` decimal places.
     pub fn add_money(&mut self, amount: Money, minor_digits: u8) {
-        let units = amount.minor_units();
-        let value = Exact::new(u128::from(units.unsigned_abs()), minor_digits);
+        self.add_decimal(amount.minor_units(), minor_digits);
+    }
+
+    /// The number `units` × 10^−`scale` with its sign, e.g. a percent
+    /// KassenSturz worked out to one place (D-685): 234 and 1 is 23.4.
+    pub fn add_decimal(&mut self, units: i64, scale: u8) {
+        let value = Exact::new(u128::from(units.unsigned_abs()), scale);
         self.values.insert(value);
         if units == 0 {
             self.add_both_signs(value);

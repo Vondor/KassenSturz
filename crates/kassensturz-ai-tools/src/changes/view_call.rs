@@ -36,21 +36,21 @@ use kassensturz_report::{
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
 
-use super::{Proposal, ProposeSpec, prepare, views};
+use super::{Proposal, ProposeSpec, prepare, view_figure, views};
 use crate::error::ToolError;
 use crate::text::hides_text;
 
 /// The name a model calls it by.
 pub const PROPOSE_VIEW_NAME: &str = "propose_view";
 
-/// The longest call, in bytes of its JSON text (D-353, D-650). A call with
-/// every argument, the most ids in every list and two formulas of the
-/// longest length in plain letters fits.
-pub const MAX_VIEW_CALL_BYTES: usize = 8 * 1024;
+/// The longest call, in bytes of its JSON text (D-353, D-650, D-687). A
+/// call with every argument, the most ids in every list, two formulas of
+/// the longest length and twelve formula columns fits.
+pub const MAX_VIEW_CALL_BYTES: usize = 16 * 1024;
 
-/// The deepest nesting of a call: the call, a period range or a list of
-/// ids, and nothing inside those.
-const MAX_DEPTH: usize = 3;
+/// The deepest nesting of a call: the call, a period range or a list (of
+/// ids or of columns), a column, and the list of a column's categories.
+const MAX_DEPTH: usize = 4;
 
 /// The most categories a chart the AI prepares may be limited to.
 pub const MAX_VIEW_CATEGORIES: usize = 12;
@@ -83,6 +83,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "expenses_accounts",
     "formula",
     "target",
+    "columns",
 ];
 
 /// The own lists of money in and money out (D-646): each list's argument,
@@ -230,17 +231,19 @@ fn union(lists: impl Iterator<Item = &'static [&'static str]>) -> Vec<&'static s
     words
 }
 
-/// The words of a choice property of the schema, from the first kind of
-/// component that has it.
-fn schema_words(key: &str) -> &'static [&'static str] {
-    ComponentType::ALL
-        .iter()
-        .flat_map(|kind| kind.properties())
-        .find_map(|property| match property.kind {
-            Kind::Choice(words) if property.key == key => Some(words),
-            _ => None,
-        })
-        .unwrap_or(&[])
+/// The words of a choice property of the schema, from every kind of
+/// component that has it: a key figure's `compare` has two, a spending
+/// chart's six (US3.1a).
+fn schema_words(key: &str) -> Vec<&'static str> {
+    union(
+        ComponentType::ALL
+            .iter()
+            .flat_map(|kind| kind.properties())
+            .filter_map(|property| match property.kind {
+                Kind::Choice(words) if property.key == key => Some(words),
+                _ => None,
+            }),
+    )
 }
 
 /// Whether some kind of component the AI may choose has a list of ids
@@ -271,9 +274,15 @@ pub fn view_choices(argument: &str) -> Option<Vec<&'static str>> {
             .filter(|word| *word != GROUPS_GROUPING)
             .collect(),
         "period" => std::iter::once(PAGE).chain(PERIODS).collect(),
-        "compare" => std::iter::once(NO_COMPARISON)
-            .chain(schema_words("compare").iter().copied())
-            .collect(),
+        "compare" => {
+            let mut words = vec![NO_COMPARISON];
+            for word in schema_words("compare") {
+                if !words.contains(&word) {
+                    words.push(word);
+                }
+            }
+            words
+        }
         "average" => AVERAGE_WORDS.to_vec(),
         "orientation" => ORIENTATION_WORDS.to_vec(),
         _ => return None,
@@ -296,7 +305,8 @@ fn offered(argument: &str, allowed: Permissions) -> bool {
         "accounts" | "income_accounts" | "expenses_accounts" => {
             allowed.reads(Row::Accounts) && schema_has_ids(argument)
         }
-        "formula" | "target" => allowed.reads(Row::Categories),
+        // A column names categories, by its list or its formula (D-687).
+        "formula" | "target" | "columns" => allowed.reads(Row::Categories),
         // Changing a saved chart is its own cell (D-681).
         "view_id" => allowed.allows(Permission::EditViews),
         _ => true,
@@ -414,7 +424,11 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         "compare".into(),
         choice(
             "compare",
-            "Only for figure and progress: what to compare with. Default none.",
+            "What to compare with. Default none. For figure and progress: previous_period or \
+             same_last_year. For bar and table of spending_by_category only: each category \
+             next to its figure in previous_period, same_last_year, or the average of the 3, \
+             6 or 12 periods before (average-3, average-6, average-12), each as long as the \
+             chart's period, as a second bar or column.",
         ),
     );
     properties.insert(
@@ -511,6 +525,9 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
             }),
         );
     }
+    if offered("columns", allowed) {
+        properties.insert("columns".into(), columns_schema());
+    }
     let parameters = json!({
         "type": "object",
         "properties": properties,
@@ -546,11 +563,19 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
              instead, which the user sees in plain words before confirming",
         );
     }
+    if offered("columns", allowed) {
+        description.push_str(
+            "; a chart or table of spending_by_category can instead be made of named columns, \
+             each a list of categories or a formula, for example last month's salary next to \
+             this month's spending",
+        );
+    }
     description.push_str(&format!(
         ", plus a short title.\n- Call it once per chart, at most {MAX_VIEWS_PER_ANSWER} charts \
          in one answer.\n- KassenSturz computes every figure itself and shows the user a \
          preview; nothing is saved until the user confirms it in KassenSturz's window, and the \
-         user may refuse it.\n- A refused call says which argument is wrong and, for a list, \
+         user may refuse it. For figure and progress the answer's computed holds the figure \
+         the chart shows; tell the user that one.\n- A refused call says which argument is wrong and, for a list, \
          which values suit the chosen data (allowed), which show_as take the argument \
          (only_for_show_as) or which argument to use instead (use_instead).\n- The description of data says what each data counts and how \
          it can be drawn, grouped and measured."
@@ -559,6 +584,136 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         name: PROPOSE_VIEW_NAME,
         description,
         parameters: parameters.to_string(),
+    })
+}
+
+/// The most categories one column the AI prepares may hold.
+pub const MAX_COLUMN_CATEGORIES: usize = 12;
+
+/// The schema of `columns` (US3.1b, D-687): the named columns a chart of
+/// spending is made of instead of its categories (D-339), each a list of
+/// categories or a formula with its own period after `@` (D-341).
+fn columns_schema() -> Value {
+    json!({
+        "type": "array",
+        "minItems": 1,
+        "maxItems": kassensturz_report::MAX_COLUMNS,
+        "items": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": kassensturz_report::MAX_TEXT_CHARS,
+                    "description": "The column's name: a bar, slice or table row. No two \
+                        columns share a name, ignoring capitals.",
+                },
+                "formula": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": MAX_FORMULA_CHARS,
+                    "description": "The column's figure as a formula written as for formula, \
+                        which must give an amount, e.g. =Salary@\"last month\" or \
+                        =Spending.ALL. Not together with categories.",
+                },
+                "categories": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": MAX_COLUMN_CATEGORIES,
+                    "uniqueItems": true,
+                    "items": {"type": "string"},
+                    "description": "Category IDs from list_categories whose spending the column \
+                        adds up. Not together with formula.",
+                },
+            },
+            "required": ["name"],
+            "additionalProperties": false,
+        },
+        "description": "Only for data spending_by_category: the chart or table is made of these \
+            columns instead of the categories, in this order. Each has a name and either \
+            categories or a formula; a formula's @ gives a column its own period, so two \
+            columns can show two periods. Not together with compare or average. An empty list \
+            takes the columns away from a saved chart.",
+    })
+}
+
+/// One column of a call (US3.1b): its name and its categories or formula,
+/// as the model gave them.
+struct ColumnCall<'a> {
+    name: &'a str,
+    categories: Vec<AccountId>,
+    formula: Option<&'a str>,
+}
+
+/// The columns of a call, checked for their shape (D-339, D-687): 1 to
+/// [`MAX_COLUMNS`](kassensturz_report::MAX_COLUMNS) (none for a change that
+/// takes them away), each a name and either categories or a formula, no
+/// two names alike ignoring capitals. A mistake names the column's place.
+fn column_calls(
+    value: Option<&Value>,
+    editing: bool,
+) -> Result<Option<Vec<ColumnCall<'_>>>, ToolError> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let items = value.as_array().ok_or(BAD_COLUMNS)?;
+    if items.len() > kassensturz_report::MAX_COLUMNS || (items.is_empty() && !editing) {
+        return Err(BAD_COLUMNS);
+    }
+    let mut names = HashSet::new();
+    let mut columns = Vec::new();
+    for (index, item) in items.iter().enumerate() {
+        let column = column_call(item, &mut names).map_err(|error| error.at("columns", index))?;
+        columns.push(column);
+    }
+    Ok(Some(columns))
+}
+
+/// The refusal of a column whose shape is wrong.
+const BAD_COLUMNS: ToolError = ToolError::BadArgument {
+    argument: "columns",
+};
+
+/// One column of [`column_calls`]; `names` holds the names before it, in
+/// lower case.
+fn column_call<'a>(
+    item: &'a Value,
+    names: &mut HashSet<String>,
+) -> Result<ColumnCall<'a>, ToolError> {
+    let object = item.as_object().ok_or(BAD_COLUMNS)?;
+    if object
+        .keys()
+        .any(|key| !["name", "formula", "categories"].contains(&key.as_str()))
+    {
+        return Err(BAD_COLUMNS);
+    }
+    let name = object
+        .get("name")
+        .and_then(Value::as_str)
+        .ok_or(BAD_COLUMNS)?;
+    if name.trim().is_empty()
+        || name.chars().count() > kassensturz_report::MAX_TEXT_CHARS
+        || name.chars().any(|c| c.is_control() || hides_text(c))
+        || !names.insert(name.trim().to_lowercase())
+    {
+        return Err(BAD_COLUMNS);
+    }
+    let formula = text(
+        object.get("formula").filter(|value| !value.is_null()),
+        "columns",
+    )?;
+    let categories = ids(
+        object.get("categories").filter(|value| !value.is_null()),
+        "columns",
+        MAX_COLUMN_CATEGORIES,
+    )?;
+    if formula.is_some() == !categories.is_empty() {
+        return Err(BAD_COLUMNS);
+    }
+    Ok(ColumnCall {
+        name,
+        categories,
+        formula,
     })
 }
 
@@ -665,6 +820,8 @@ pub fn propose_view(
         proposal.output.figures.add_count(u64::from(early.counted));
         proposal.output.figures.add_count(u64::from(early.before));
     }
+    // What a key figure or a progress bar shows (D-685).
+    view_figure::add_figure(book, &mut proposal, allowed, today)?;
     Ok(proposal)
 }
 
@@ -797,6 +954,7 @@ fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -
             .collect()
     };
     const SINGLE: [&str; 2] = ["figure", "progress"];
+    const COMPARED: [&str; 2] = ["bar", "table"];
     let (words, use_instead, only_for) = match argument {
         "show_as" => {
             let mut words = vec!["auto"];
@@ -807,7 +965,19 @@ fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -
         "group_by" => (Vec::new(), None, fits.grouped_as.clone()),
         "measure" if drawn_as(&["figure"]) => (fits.measure.clone(), None, Vec::new()),
         "measure" => (Vec::new(), None, suiting(&["figure"])),
-        "compare" if !drawn_as(&SINGLE) => (Vec::new(), None, suiting(&SINGLE)),
+        // A spending bar or table compares with its six words (US3.1a), a
+        // key figure and a progress bar with three; anything else with none.
+        "compare" if dataset.id == SPENDING_BY_CATEGORY && drawn_as(&COMPARED) => {
+            (kassensturz_report::COMPARE_WORDS.to_vec(), None, Vec::new())
+        }
+        "compare" if !drawn_as(&SINGLE) => {
+            let ways: &[&str] = if dataset.id == SPENDING_BY_CATEGORY {
+                &["figure", "progress", "bar", "table"]
+            } else {
+                &SINGLE
+            };
+            (Vec::new(), None, suiting(ways))
+        }
         "categories" if drawn_as(&SINGLE) && offered("formula", allowed) => {
             (Vec::new(), Some("formula"), Vec::new())
         }
@@ -817,6 +987,12 @@ fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -
         "formula" if dataset.id == FORMULA_DATA && !drawn_as(&SINGLE) => {
             (Vec::new(), None, suiting(&SINGLE))
         }
+        // Columns make the bars, slices or rows of spending (D-339).
+        "columns" if dataset.id == SPENDING_BY_CATEGORY => (
+            Vec::new(),
+            None,
+            suiting(&["bar", "stacked_bar", "pie", "donut", "table"]),
+        ),
         "target" if dataset.id == FORMULA_DATA && !drawn_as(&["progress"]) => {
             (Vec::new(), None, suiting(&["progress"]))
         }
@@ -1003,8 +1179,33 @@ fn check(
     }
     let formula = text(given("formula"), "formula")?;
     let target = text(given("target"), "target")?;
+    let columns = column_calls(given("columns"), editing)?;
+    // Columns are the rows of their own (D-339): a comparison or an
+    // average of the dataset's rows means nothing for them (D-687).
+    if columns.as_ref().is_some_and(|columns| !columns.is_empty()) {
+        if compare.is_some_and(|word| word != NO_COMPARISON) {
+            return Err(ToolError::BadArgument {
+                argument: "compare",
+            });
+        }
+        if average.is_some_and(|word| word != TOTAL) {
+            return Err(ToolError::BadArgument {
+                argument: "average",
+            });
+        }
+        if data.is_some_and(|data| data != SPENDING_BY_CATEGORY) {
+            return Err(BAD_COLUMNS);
+        }
+    }
+    let column_categories = columns
+        .iter()
+        .flatten()
+        .flat_map(|column| &column.categories);
     // 5. Ids by the grid and the book.
-    if !categories.is_empty() || !accounts.is_empty() || series.iter().any(|list| !list.is_empty())
+    if !categories.is_empty()
+        || !accounts.is_empty()
+        || series.iter().any(|list| !list.is_empty())
+        || column_categories.clone().next().is_some()
     {
         let kinds: HashMap<AccountId, _> = book
             .all_accounts()?
@@ -1028,6 +1229,11 @@ fn check(
         };
         if !categories.iter().all(category) {
             return Err(ToolError::UnknownCategory);
+        }
+        for (index, column) in columns.iter().flatten().enumerate() {
+            if !column.categories.iter().all(category) {
+                return Err(ToolError::UnknownCategory.at("columns", index));
+            }
         }
         let account = |id: &AccountId| kinds.get(id).is_some_and(|(kind, _)| kind.is_account());
         if !accounts.iter().all(account) {
@@ -1053,6 +1259,12 @@ fn check(
     }
     // A formula's names by the book (D-650), as the formula field checks
     // them: no figure of the period decides, only the names and the kinds.
+    for (index, column) in columns.iter().flatten().enumerate() {
+        if let Some(formula) = column.formula {
+            check_formula(book, formula, None, "columns")
+                .map_err(|error| error.at("columns", index))?;
+        }
+    }
     if let Some(formula) = formula {
         check_formula(book, formula, None, "formula")?;
         if let Some(target) = target {
@@ -1083,6 +1295,7 @@ fn check(
                 ("target", target),
             ],
             period,
+            columns: columns.as_deref().map(column_items),
             lists: [("categories", &categories), ("accounts", &accounts)]
                 .into_iter()
                 .chain(SERIES_LISTS.iter().map(|(key, _, _)| *key).zip(&series))
@@ -1142,7 +1355,31 @@ fn check(
             item.insert(key.into(), json!(list));
         }
     }
+    if let Some(columns) = &columns {
+        item.insert("columns".into(), column_items(columns));
+    }
     Ok(Value::Object(item))
+}
+
+/// The columns as the item of `new_views` or `edit_views` keeps them: each
+/// `{name, formula}` or `{name, categories}` (D-687).
+fn column_items(columns: &[ColumnCall<'_>]) -> Value {
+    Value::Array(
+        columns
+            .iter()
+            .map(|column| match column.formula {
+                Some(formula) => json!({"name": column.name, "formula": formula}),
+                None => json!({
+                    "name": column.name,
+                    "categories": column
+                        .categories
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>(),
+                }),
+            })
+            .collect(),
+    )
 }
 
 /// `word`, or `None` for a new chart's `default`, which is left out; a
@@ -1159,6 +1396,7 @@ struct EditItem<'a> {
     show_as: Option<&'a str>,
     words: [(&'static str, Option<&'a str>); 7],
     period: Option<String>,
+    columns: Option<Value>,
     lists: Vec<(&'static str, &'a Vec<AccountId>)>,
 }
 
@@ -1188,6 +1426,9 @@ fn edit_item(edit: EditItem<'_>) -> Value {
     }
     if let Some(period) = edit.period {
         item.insert("period".into(), json!(period));
+    }
+    if let Some(columns) = edit.columns {
+        item.insert("columns".into(), columns);
     }
     for (key, list) in edit.lists {
         let list: Vec<String> = list.iter().map(ToString::to_string).collect();
@@ -1336,6 +1577,16 @@ fn check_formula(
             reason: "unknown-name",
         });
     }
+    // A column's figure is an amount (D-341): a percent or a plain number
+    // is refused as the chart would refuse it.
+    if argument == "columns" && !matches!(result.value, kassensturz_report::FormulaValue::Amount(_))
+    {
+        return Err(ToolError::BadFormula {
+            argument,
+            position: None,
+            reason: "kinds",
+        });
+    }
     if let Some(measured) = measured {
         let figure = match work(measured) {
             Ok(figure) => figure,
@@ -1464,6 +1715,30 @@ pub(crate) fn list_views(
                 } else {
                     not_shown.push(key);
                 }
+            }
+        }
+        // A chart made of columns (D-339) lists them as propose_view takes
+        // them (D-687): they name categories, so only with their reading.
+        if let Some(kassensturz_report::Setting::Columns(columns)) = component.get("columns")
+            && !columns.is_empty()
+        {
+            if offered("columns", allowed) {
+                let listed: Vec<Value> = columns
+                    .iter()
+                    .map(|column| {
+                        let mut entry = Map::new();
+                        entry.insert("name".into(), w.text(&column.name));
+                        if column.formula.is_empty() {
+                            entry.insert("categories".into(), json!(column.members));
+                        } else {
+                            entry.insert("formula".into(), w.text(&column.formula));
+                        }
+                        Value::Object(entry)
+                    })
+                    .collect();
+                row.insert("columns".into(), Value::Array(listed));
+            } else {
+                not_shown.push("columns");
             }
         }
         if !not_shown.is_empty() {

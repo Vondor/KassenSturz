@@ -9,7 +9,8 @@
 // has its own page (M3.6, D-119), which "Break down this transaction" opens
 // for a simple one too; a Transfer can only be removed from here. After a
 // transaction is saved that looks like one side of a Transfer, the page asks
-// whether it is (M3.7, D-120).
+// whether it is (M3.7, D-120), and a saved one can be joined with an entry
+// of another account the user picks, even one sorted already (US3.3, D-692).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -88,6 +89,7 @@ Kirigami.ScrollablePage {
             amountField.text = entry.amount ?? "";
             otherPartyField.text = entry.otherParty ?? "";
             dateField.text = entry.date ?? "";
+            noteField.text = entry.note ?? "";
             categoryBox.currentIndex = page.categoryIndex(entry.category ?? "");
         }
     }
@@ -110,6 +112,7 @@ Kirigami.ScrollablePage {
             otherParty: otherPartyField.text,
             category: chosenCategory(),
             date: dateField.text,
+            note: noteField.text,
         };
     }
 
@@ -157,6 +160,13 @@ Kirigami.ScrollablePage {
 
         register: page.register
         onFinished: page.done()
+    }
+
+    TransferPartnerDialog {
+        id: partnerDialog
+
+        register: page.register
+        onPicked: partner => transferPrompt.askPicked([partner])
     }
 
     Kirigami.FormLayout {
@@ -300,6 +310,20 @@ Kirigami.ScrollablePage {
             }
         }
 
+        // A line about the transaction for the user's own use, e.g. what a
+        // payment was for. Optional, so it comes after the basics.
+        Controls.TextField {
+            id: noteField
+            visible: page.editable
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Note:")
+            placeholderText: page.i18nContext.i18nc("@info:placeholder", "Optional, for example what it was for")
+            maximumLength: 200
+            onAccepted: {
+                ActionLog.taken("TransactionPage_save_5")
+                page.save()
+            }
+        }
+
         RowLayout {
             Controls.Button {
                 visible: page.editable
@@ -335,6 +359,19 @@ Kirigami.ScrollablePage {
             onClicked: {
                 ActionLog.taken("TransactionPage_breakDownTransaction")
                 page.breakDownClicked(page.chosenAccount, page.transactionId)
+            }
+        }
+
+        // Money moved to or from another of the user's accounts, also when
+        // it is sorted already (D-692): the user picks the other side.
+        Controls.Button {
+            visible: !page.adding && page.kind === "simple"
+            text: page.i18nContext.i18nc("@action:button", "Join with the other side of a move…")
+            icon.name: "edit-link"
+            flat: true
+            onClicked: {
+                ActionLog.taken("TransactionPage_joinOtherSide")
+                partnerDialog.show(page.transactionId)
             }
         }
 

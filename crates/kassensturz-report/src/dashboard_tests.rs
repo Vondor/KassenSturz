@@ -425,8 +425,9 @@ fn asks(entry: &Entry) -> (&'static str, String, String, String, String) {
     let Item::Component(component) = &entry.item else {
         panic!("a known component");
     };
+    // No comparison (US3.1a) asks for nothing more.
     let word = |key: &str| match component.get(key) {
-        Some(Setting::Word(word)) => word.clone(),
+        Some(Setting::Word(word)) if word != "none" => word.clone(),
         _ => String::new(),
     };
     (
@@ -539,7 +540,7 @@ fn the_default_overview_shows_the_same_figures_as_the_overview_on_the_sample_boo
     let mut figures = 0;
     for (component, shown) in every_component() {
         let span = match component.get("compare") {
-            Some(Setting::Word(name)) => {
+            Some(Setting::Word(name)) if name != "none" => {
                 comparison_span(shown, Compare::from_id(name).unwrap()).unwrap()
             }
             _ => shown,

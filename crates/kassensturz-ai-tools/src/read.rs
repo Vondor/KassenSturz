@@ -1202,13 +1202,20 @@ pub(crate) fn list_categories(book: &Book, w: &mut Writer<'_>) -> Result<Value, 
 }
 
 /// `list_rules`: the Rules that sort new transactions (D-015), each with
-/// its sub-Rules.
+/// its sub-Rules. With `only`, just that Rule (at any depth) with the
+/// sub-Rules inside it (US3.6, D-698); one the book does not have is
+/// `ai-tools.unknown-rule`.
 pub(crate) fn list_rules(
     book: &Book,
     w: &mut Writer<'_>,
     names: &Names,
+    only: Option<RuleId>,
 ) -> Result<Value, ToolError> {
     let tree = book.rules()?;
+    let tree = match only {
+        None => tree,
+        Some(id) => vec![find_rule(&tree, id).ok_or(ToolError::UnknownRule)?.clone()],
+    };
     let mut budget = MAX_RULES;
     let mut total = 0;
     count_rules(&tree, &mut total);
@@ -1221,6 +1228,16 @@ pub(crate) fn list_rules(
         result.insert("left_out".into(), w.count(total - listed));
     }
     Ok(Value::Object(result))
+}
+
+fn find_rule(nodes: &[RuleNode], id: RuleId) -> Option<&RuleNode> {
+    nodes.iter().find_map(|node| {
+        if node.rule.id == id {
+            Some(node)
+        } else {
+            find_rule(&node.sub_rules, id)
+        }
+    })
 }
 
 fn count_rules(nodes: &[RuleNode], total: &mut usize) {
@@ -1286,7 +1303,7 @@ fn rule_rows(
     Ok(rows)
 }
 
-fn condition_row(
+pub(crate) fn condition_row(
     w: &mut Writer<'_>,
     names: &Names,
     condition: &Condition,
@@ -1419,6 +1436,11 @@ pub(crate) fn list_budgets(
     for budget in budgets.iter().take(MAX_BUDGETS) {
         let mut row = Map::new();
         row.insert("budget_id".into(), Value::String(budget.id.to_string()));
+        // What it counts today, or from its first day if it starts later
+        // (D-689): earlier sets are not listed.
+        let Some(set) = budget.counts_on(today) else {
+            continue;
+        };
         // The name the user gave it, if any (D-664): text of the book, as
         // the category paths are.
         if let Some(name) = &budget.name {
@@ -1430,15 +1452,14 @@ pub(crate) fn list_budgets(
         row.insert(
             "category_ids".into(),
             Value::Array(
-                budget
-                    .categories
+                set.categories
                     .iter()
                     .map(|id| Value::String(id.to_string()))
                     .collect(),
             ),
         );
-        let mut categories = Vec::with_capacity(budget.categories.len());
-        for id in &budget.categories {
+        let mut categories = Vec::with_capacity(set.categories.len());
+        for id in &set.categories {
             let path = paths
                 .get(id)
                 .map(|path| path.join(" › "))
@@ -1446,12 +1467,11 @@ pub(crate) fn list_budgets(
             categories.push(w.text(&path));
         }
         row.insert("categories".into(), Value::Array(categories));
-        if !budget.accounts.is_empty() {
+        if !set.accounts.is_empty() {
             row.insert(
                 "account_ids".into(),
                 Value::Array(
-                    budget
-                        .accounts
+                    set.accounts
                         .iter()
                         .map(|id| Value::String(id.to_string()))
                         .collect(),

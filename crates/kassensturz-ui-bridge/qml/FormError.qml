@@ -250,6 +250,13 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is an example date", "This isn't a date. Type it like this: %1", result.example);
         case "input.no-such-entry":
             return i18nContext.i18nc("@info", "This choice isn't there anymore. Choose again.");
+        // Joining two sides of a move of money (D-691).
+        case "transfer.not-a-side":
+            return i18nContext.i18nc("@info", "This transaction can't be one side of a move between your accounts: it is broken down into several parts, or has an amount in another currency.");
+        case "transfer.part-holds-more":
+            return result.what === "number"
+                ? i18nContext.i18nc("@info", "Both entries have a different number of their own, and joining would lose one. Change the parts so only one number is left, then join them.")
+                : i18nContext.i18nc("@info", "Both entries have a different note of their own, and joining would lose one. Change the parts so only one note is left, then join them.");
         case "input.date-in-future":
             return i18nContext.i18nc("@info", "This day hasn't come yet. Type today or a day in the past.");
         case "input.unknown-currency":
@@ -258,6 +265,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is the name of a category", "The default categories can't be written: %1 isn't among them. Please report this, so it can be fixed.", result.parent);
         case "input.not-editable-here":
             return i18nContext.i18nc("@info", "This transaction can't be changed on this page. Go back to the list and open it again.");
+        case "input.note-invalid":
+            return i18nContext.i18nc("@info %1 is a number of characters", "A note can have up to %1 characters on a single line. Please shorten it or remove the line break.", result.max);
         case "input.no-parts":
             return i18nContext.i18nc("@info", "Add at least one part, so the transaction says what it was for.");
         case "input.too-many-open-parts":
@@ -511,6 +520,8 @@ Kirigami.InlineMessage {
             case "amount-before-start":
             case "amount-after-end":
                 return i18nContext.i18nc("@info", "A change can't apply before the budget starts or after it ends. Choose one of the periods in the list.");
+            case "before-current-period":
+                return i18nContext.i18nc("@info", "What a budget counts changes from this period on, so the results of earlier periods stay. Choose this period or a later one.");
             default:
                 return i18nContext.i18nc("@info", "These days don't fit the budget. Choose other days.");
             }
@@ -527,6 +538,8 @@ Kirigami.InlineMessage {
                 return i18nContext.i18nc("@info %1 is a number", "A budget can count at most %1 categories. Choose fewer, or a category that has the others inside it.", result.max);
             case "accounts":
                 return i18nContext.i18nc("@info %1 is a number", "A budget can count at most %1 accounts. Choose fewer, or tick none to count every account.", result.max);
+            case "counts":
+                return i18nContext.i18nc("@info %1 is a number", "A budget can keep at most %1 changes of what it counts. Stop it and set a new budget instead.", result.max);
             }
             return i18nContext.i18nc("@info %1 is a number", "A book can keep at most %1 budgets. Delete a budget you no longer need.", result.max);
         case "store.category-in-use":

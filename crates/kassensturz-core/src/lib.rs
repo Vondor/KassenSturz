@@ -41,7 +41,7 @@ mod withdrawn;
 pub use account::{Account, AccountId, AccountKind, AccountType};
 pub use bank_link::BankLink;
 pub use budget::{
-    Budget, BudgetAmount, BudgetEvery, BudgetId, salary_day, salary_month_of,
+    Budget, BudgetAmount, BudgetCounts, BudgetEvery, BudgetId, salary_day, salary_month_of,
     salary_month_starting_in,
 };
 pub use category_group::{CategoryGroup, GroupId, GroupKind, GroupMember};
@@ -62,8 +62,8 @@ pub use transaction::{
     Transaction, TransactionError, TransactionId,
 };
 pub use transfer::{
-    MAX_BUSINESS_DAYS, TransferError, TransferMatch, TransferSide, business_days_apart,
-    find_transfers, join_transfer,
+    MAX_BUSINESS_DAYS, PartDetail, TransferError, TransferMatch, TransferSide, business_days_apart,
+    days_between, find_transfers, join_transfer,
 };
 pub use view::{StoredView, ViewId, ViewKind};
 pub use withdrawn::Withdrawn;

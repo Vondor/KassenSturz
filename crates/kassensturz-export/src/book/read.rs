@@ -19,10 +19,11 @@ use std::path::Path;
 
 use kassensturz_core::{
     Account, AccountId, Actions, AmountTest, Attachment, BankLink, BookTo, Budget, BudgetAmount,
-    BudgetEvery, BudgetId, CategoryGroup, Condition, Currency, CurrencyCode, Date, DatedRate,
-    DatedRateId, ExchangeRate, ForeignAmount, GroupId, GroupMember, ImportedDetails, Institution,
-    InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition, RateSource, Rule,
-    RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId, ViewId,
+    BudgetCounts, BudgetEvery, BudgetId, CategoryGroup, Condition, Currency, CurrencyCode, Date,
+    DatedRate, DatedRateId, ExchangeRate, ForeignAmount, GroupId, GroupMember, ImportedDetails,
+    Institution, InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition,
+    RateSource, Rule, RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId,
+    ViewId,
 };
 use serde_json::{Map, Value};
 
@@ -308,11 +309,22 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         let mut ids = HashSet::new();
         for (value, path) in top.list("budgets")? {
             // Version 8 names one category; version 9 a list of them and
-            // the accounts (D-640).
+            // the accounts (D-640); version 12 a dated list of both (D-690).
             let budget = Object::new(
                 value,
                 &path,
-                if version >= 11 {
+                if version >= 12 {
+                    &[
+                        "id",
+                        "name",
+                        "counts",
+                        "every",
+                        "salary_day",
+                        "first_day",
+                        "last_day",
+                        "amounts",
+                    ]
+                } else if version >= 11 {
                     &[
                         "id",
                         "name",
@@ -377,20 +389,40 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
                     carry_over: row.boolean("carry_over")?,
                 });
             }
-            let (categories, accounts) = if version >= 9 {
-                let ids = |key| -> Result<Vec<AccountId>> {
-                    budget
-                        .list(key)?
-                        .into_iter()
-                        .map(|(value, path)| parse_id(value, &path).map(AccountId::from_bytes))
-                        .collect()
-                };
-                (ids("categories")?, ids("accounts")?)
+            let ids = |object: &Object, key| -> Result<Vec<AccountId>> {
+                object
+                    .list(key)?
+                    .into_iter()
+                    .map(|(value, path)| parse_id(value, &path).map(AccountId::from_bytes))
+                    .collect()
+            };
+            let first_day = budget.date("first_day")?;
+            // Version 12: what it counts, from which day on (D-690); the
+            // book checks the sets when it is filled. Older versions have one
+            // set, from the first day.
+            let counts = if version >= 12 {
+                let mut counts = Vec::new();
+                for (value, path) in budget.list("counts")? {
+                    let set = Object::new(value, &path, &["from_day", "categories", "accounts"])?;
+                    counts.push(BudgetCounts {
+                        from_day: set.date("from_day")?,
+                        categories: ids(&set, "categories")?,
+                        accounts: ids(&set, "accounts")?,
+                    });
+                }
+                counts
+            } else if version >= 9 {
+                vec![BudgetCounts {
+                    from_day: first_day,
+                    categories: ids(&budget, "categories")?,
+                    accounts: ids(&budget, "accounts")?,
+                }]
             } else {
-                (
-                    vec![AccountId::from_bytes(budget.id("category")?)],
-                    Vec::new(),
-                )
+                vec![BudgetCounts {
+                    from_day: first_day,
+                    categories: vec![AccountId::from_bytes(budget.id("category")?)],
+                    accounts: Vec::new(),
+                }]
             };
             // Version 10: a month that starts on another day than the 1st is
             // a salary month (D-651); only a month has one, 2 to 31.
@@ -418,10 +450,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
             budgets.push(Budget {
                 id,
                 name,
-                categories,
-                accounts,
+                counts,
                 every,
-                first_day: budget.date("first_day")?,
+                first_day,
                 last_day: budget.optional_date("last_day")?,
                 amounts,
             });

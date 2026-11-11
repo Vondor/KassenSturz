@@ -5,7 +5,7 @@
 //! amounts are made up (AGENTS.md §3.1 rule 2).
 
 use kassensturz_core::{
-    AccountId, AccountKind, Budget, BudgetAmount, BudgetEvery, BudgetId, Money,
+    AccountId, AccountKind, Budget, BudgetAmount, BudgetCounts, BudgetEvery, BudgetId, Money,
 };
 
 use super::{MAX_AMOUNT, MAX_AMOUNTS, MAX_BUDGETS};
@@ -80,8 +80,11 @@ fn a_budget_is_kept_with_its_period_and_amount() {
     let expected = Budget {
         id,
         name: None,
-        categories: vec![groceries],
-        accounts: Vec::new(),
+        counts: vec![BudgetCounts {
+            from_day: date(2026, 9, 1),
+            categories: vec![groceries],
+            accounts: Vec::new(),
+        }],
         every: Month,
         first_day: date(2026, 9, 1),
         last_day: None,
@@ -518,8 +521,11 @@ fn a_book_keeps_at_most_1000_budgets_of_at_most_1200_amounts() {
         Budget {
             id: BudgetId::generate(),
             name: None,
-            categories: vec![category],
-            accounts: Vec::new(),
+            counts: vec![BudgetCounts {
+                from_day: first,
+                categories: vec![category],
+                accounts: Vec::new(),
+            }],
             every: Month,
             first_day: first,
             last_day: Some(first.last_of_month()),
@@ -583,8 +589,11 @@ fn budgets_come_back_with_their_ids_when_a_book_is_filled() {
     let budgets = vec![Budget {
         id: BudgetId::generate(),
         name: None,
-        categories: vec![groceries],
-        accounts: Vec::new(),
+        counts: vec![BudgetCounts {
+            from_day: date(2026, 7, 1),
+            categories: vec![groceries],
+            accounts: Vec::new(),
+        }],
         every: Quarter,
         first_day: date(2026, 7, 1),
         last_day: Some(date(2027, 6, 30)),
@@ -698,8 +707,9 @@ fn a_budget_covers_several_categories_from_chosen_accounts() {
         )
         .expect("added");
     let kept = book.budget(id).expect("read");
-    assert_eq!(kept.categories, [rent, power, groceries]);
-    assert_eq!(kept.accounts, [shared]);
+    assert_eq!(kept.counts.len(), 1);
+    assert_eq!(kept.counts[0].categories, [rent, power, groceries]);
+    assert_eq!(kept.counts[0].accounts, [shared]);
     // The same category from another account is another figure.
     let own = book
         .add_budget(
@@ -1027,8 +1037,11 @@ fn a_restored_budget_keeps_its_name() {
     let named = |name: &str| Budget {
         id: BudgetId::generate(),
         name: Some(name.to_owned()),
-        categories: vec![groceries],
-        accounts: Vec::new(),
+        counts: vec![BudgetCounts {
+            from_day: date(2026, 9, 1),
+            categories: vec![groceries],
+            accounts: Vec::new(),
+        }],
         every: Month,
         first_day: date(2026, 9, 1),
         last_day: None,
@@ -1056,4 +1069,248 @@ fn a_restored_budget_keeps_its_name() {
         },
     );
     assert!(book.budgets().expect("read").is_empty());
+}
+
+#[test]
+fn what_a_budget_counts_changes_from_the_current_period_on() {
+    // D-689: past periods keep what they counted.
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let id = monthly(&mut book, groceries);
+    let rent = account(&mut book, "Rent", AccountKind::Expense, EUR);
+    let today = date(2026, 11, 11);
+    let before = book.budget(id).expect("read");
+    book.edit_budget(
+        id,
+        date(2026, 11, 1),
+        None,
+        Some((&[groceries, rent], &[checking])),
+        today,
+    )
+    .expect("changed");
+    assert_eq!(last_action(&book), Action::EditBudget);
+    let after = book.budget(id).expect("read");
+    assert_eq!(
+        after.counts,
+        [
+            before.counts[0].clone(),
+            BudgetCounts {
+                from_day: date(2026, 11, 1),
+                categories: vec![groceries, rent],
+                accounts: vec![checking],
+            }
+        ]
+    );
+    // October still counts what it counted, November the new set.
+    assert_eq!(after.counts_for(date(2026, 10, 1)), Some(&before.counts[0]));
+    assert_eq!(after.counts_on(today), Some(&after.counts[1]));
+    assert_eq!(book.category_use(rent).expect("use"), Some("budgets"));
+    // One change, which Undo takes back and Redo makes again.
+    book.undo().expect("undone");
+    assert_eq!(book.budget(id).expect("read"), before);
+    assert_eq!(book.category_use(rent).expect("use"), None);
+    book.redo().expect("made again");
+    assert_eq!(book.budget(id).expect("read"), after);
+    // A later period may be planned too, and replaced again from the
+    // current one on.
+    book.edit_budget(id, date(2027, 1, 1), None, Some((&[rent], &[])), today)
+        .expect("planned");
+    assert_eq!(book.budget(id).expect("read").counts.len(), 3);
+    book.edit_budget(
+        id,
+        date(2026, 11, 1),
+        None,
+        Some((&[groceries], &[])),
+        today,
+    )
+    .expect("replaced");
+    assert_eq!(book.budget(id).expect("read").counts, before.counts);
+    // The same set again records nothing.
+    let changes = book.history().expect("history").len();
+    book.edit_budget(
+        id,
+        date(2026, 12, 1),
+        None,
+        Some((&[groceries], &[])),
+        today,
+    )
+    .expect("nothing to do");
+    assert_eq!(book.history().expect("history").len(), changes);
+}
+
+#[test]
+fn what_a_budget_counted_in_the_past_stays() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let id = monthly(&mut book, groceries);
+    let today = date(2026, 11, 11);
+    let counts = (&[groceries][..], &[checking][..]);
+    assert_period(
+        book.edit_budget(id, date(2026, 10, 1), None, Some(counts), today),
+        "before-current-period",
+    );
+    assert_period(
+        book.edit_budget(id, date(2026, 9, 1), None, Some(counts), today),
+        "before-current-period",
+    );
+    // A set starts a period.
+    assert_period(
+        book.edit_budget(id, date(2026, 11, 15), None, Some(counts), today),
+        "not-period-start",
+    );
+    // An ended budget keeps what it counted.
+    book.set_budget_last_day(id, Some(date(2026, 10, 31)))
+        .expect("stopped");
+    assert_period(
+        book.edit_budget(id, date(2026, 11, 1), None, Some(counts), today),
+        "amount-after-end",
+    );
+    assert_eq!(book.budget(id).expect("read").counts.len(), 1);
+}
+
+#[test]
+fn a_budget_that_has_not_started_changes_as_a_whole() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let id = monthly(&mut book, groceries);
+    let today = date(2026, 8, 20);
+    book.edit_budget(
+        id,
+        date(2026, 9, 1),
+        None,
+        Some((&[groceries], &[checking])),
+        today,
+    )
+    .expect("changed");
+    assert_eq!(
+        book.budget(id).expect("read").counts,
+        [BudgetCounts {
+            from_day: date(2026, 9, 1),
+            categories: vec![groceries],
+            accounts: vec![checking],
+        }]
+    );
+    // Not before its first day.
+    assert_period(
+        book.edit_budget(id, date(2026, 8, 1), None, Some((&[groceries], &[])), today),
+        "before-current-period",
+    );
+}
+
+#[test]
+fn a_changed_set_follows_the_rules_of_a_new_budget() {
+    let Sample {
+        mut book,
+        groceries,
+        salary,
+        ..
+    } = sample();
+    let id = monthly(&mut book, groceries);
+    let today = date(2026, 11, 11);
+    let from = date(2026, 11, 1);
+    book.use_currency(USD).expect("currency used");
+    let travel = account(&mut book, "Travel", AccountKind::Expense, USD);
+    let choice = |reason| StoreError::BudgetChoice { reason };
+    // One currency, the budget's own.
+    assert_refused(
+        book.edit_budget(id, from, None, Some((&[travel], &[])), today),
+        choice("currencies"),
+    );
+    assert_refused(
+        book.edit_budget(id, from, None, Some((&[], &[])), today),
+        choice("no-category"),
+    );
+    assert_refused(
+        book.edit_budget(id, from, None, Some((&[salary], &[])), today),
+        StoreError::BudgetNotSpending(salary),
+    );
+    // Overlaps are checked on the days of each set: a category another
+    // budget counts from November on can't join this one then.
+    let rent = account(&mut book, "Rent", AccountKind::Expense, EUR);
+    book.add_budget(
+        &[rent],
+        &[],
+        Month,
+        date(2026, 11, 1),
+        None,
+        eur(90_000),
+        false,
+    )
+    .expect("added");
+    assert_refused(
+        book.edit_budget(id, from, None, Some((&[groceries, rent], &[])), today),
+        StoreError::BudgetOverlap { category: rent },
+    );
+    // Once this budget no longer counts groceries from January on, another
+    // budget may count them from then: each set clashes only on its days.
+    let shoes = account(&mut book, "Shoes", AccountKind::Expense, EUR);
+    book.edit_budget(id, date(2027, 1, 1), None, Some((&[shoes], &[])), today)
+        .expect("planned");
+    book.add_budget(
+        &[groceries],
+        &[],
+        Month,
+        date(2027, 1, 1),
+        None,
+        eur(30_000),
+        false,
+    )
+    .expect("free from January");
+    // Bringing groceries back from January would clash with it.
+    assert_refused(
+        book.edit_budget(id, date(2027, 1, 1), None, Some((&[groceries], &[])), today),
+        StoreError::BudgetOverlap {
+            category: groceries,
+        },
+    );
+    assert_eq!(book.budget(id).expect("read").counts.len(), 2);
+}
+
+#[test]
+fn an_amount_and_a_set_change_together_as_one_change() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let id = monthly(&mut book, groceries);
+    let before = book.budget(id).expect("read");
+    let changes = book.history().expect("history").len();
+    book.edit_budget(
+        id,
+        date(2026, 11, 1),
+        Some((eur(45_000), false)),
+        Some((&[groceries], &[checking])),
+        date(2026, 11, 11),
+    )
+    .expect("changed");
+    assert_eq!(book.history().expect("history").len(), changes + 1);
+    let after = book.budget(id).expect("read");
+    assert_eq!(after.amounts.len(), 2);
+    assert_eq!(after.counts.len(), 2);
+    book.undo().expect("undone");
+    assert_eq!(book.budget(id).expect("read"), before);
+    // Stopping the budget before a planned set takes the set with it, and
+    // Undo brings it back.
+    book.redo().expect("made again");
+    book.set_budget_last_day(id, Some(date(2026, 10, 31)))
+        .expect("stopped");
+    let stopped = book.budget(id).expect("read");
+    assert_eq!(stopped.counts, before.counts);
+    assert_eq!(stopped.amounts, before.amounts);
+    book.undo().expect("undone");
+    assert_eq!(book.budget(id).expect("read"), after);
 }

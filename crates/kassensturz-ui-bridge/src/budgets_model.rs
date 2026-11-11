@@ -83,8 +83,12 @@ pub mod qobject {
         /// Gives the budget the name `name` (empty for none, D-664) and,
         /// with `changes_amount`, plans `amount` for it from the period that
         /// starts on `from_day` (one of its `changes`) on, as one change.
-        /// Without `changes_amount` no period's amount is touched. Returns
-        /// an empty map, or the error.
+        /// Without `changes_amount` no period's amount is touched.
+        /// `from_day` may go on after a line break with what the budget
+        /// counts from then on, as `addBudget`'s `chosen` (D-689): only
+        /// from `countsFrom` on. Without it what the budget counts stays.
+        /// (One text for both keeps the call within seven arguments.)
+        /// Returns an empty map, or the error.
         #[qinvokable]
         #[cxx_name = "changeBudget"]
         fn change_budget(
@@ -196,6 +200,10 @@ impl qobject::BudgetBook {
     ) -> QVariant {
         let (id, name) = (id.to_string(), name.to_string());
         let (from_day, amount) = (from_day.to_string(), amount.to_string());
+        let (from_day, chosen) = match from_day.split_once('\n') {
+            Some((day, chosen)) => (day.to_owned(), Some(split_choice(chosen))),
+            None => (from_day, None),
+        };
         let result = change(|book, locale| {
             let change = BudgetChange {
                 name: &name,
@@ -203,6 +211,9 @@ impl qobject::BudgetBook {
                 from_day: &from_day,
                 amount: &amount,
                 carry_over,
+                counts: chosen
+                    .as_ref()
+                    .map(|(categories, accounts)| (categories.as_slice(), accounts.as_slice())),
             };
             budgets::change_budget(book, &id, &change, locale)
         });
@@ -323,6 +334,22 @@ fn row_object(row: &BudgetRow) -> QVariant {
         ("ownName", text(&row.own_name)),
         ("categoryNames", text(&row.category_names)),
         ("accounts", text(&row.accounts)),
+        (
+            "accountIds",
+            list(row.account_ids.iter().map(|id| text(id))),
+        ),
+        ("countsFrom", text(&row.counts_from)),
+        (
+            "history",
+            list(row.history.iter().map(|line| {
+                map([
+                    ("earlier", QVariant::from(&line.earlier)),
+                    ("day", text(&line.day)),
+                    ("categoryNames", text(&line.category_names)),
+                    ("accounts", text(&line.accounts)),
+                ])
+            })),
+        ),
         ("every", text(row.every)),
         ("salaryDay", QVariant::from(&row.salary_day)),
         ("currency", text(&row.currency)),
@@ -493,6 +520,7 @@ mod tests {
         assert_eq!(
             keys(&rows[0]),
             [
+                "accountIds",
                 "accounts",
                 "amount",
                 "amountInput",
@@ -502,9 +530,11 @@ mod tests {
                 "categories",
                 "categoryNames",
                 "changes",
+                "countsFrom",
                 "currency",
                 "every",
                 "firstDay",
+                "history",
                 "id",
                 "lastDay",
                 "name",
@@ -524,6 +554,10 @@ mod tests {
         assert_eq!(list_of(&rows[0], "categories").len(), 1);
         // It counts every account, so no account is named.
         assert_eq!(text_of(&rows[0], "accounts"), "");
+        assert!(list_of(&rows[0], "accountIds").is_empty());
+        // What it counts may change from October on; it never changed.
+        assert_eq!(text_of(&rows[0], "countsFrom"), "2026-10-01");
+        assert!(list_of(&rows[0], "history").is_empty());
         assert_eq!(text_of(&rows[0], "every"), "month");
         assert_eq!(number_of(&rows[0], "salaryDay"), 0);
         assert_eq!(text_of(&rows[0], "state"), "running");
@@ -555,6 +589,54 @@ mod tests {
             ["currency", "depth", "id", "name", "path"]
         );
         assert_eq!(text_of(&categories[0], "currency"), "EUR");
+    }
+
+    /// A budget whose set changed from October on (D-689), changed through
+    /// the page's own function, reads back its accounts and what it
+    /// counted before, the way QML reads them.
+    #[test]
+    fn a_changed_set_reads_back_with_its_history() {
+        let mut book = book();
+        let budget = book.budgets().expect("budgets")[0].clone();
+        let checking = book
+            .accounts(false)
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.name == "Checking")
+            .expect("the checking account")
+            .id
+            .to_string();
+        let food = budget.counts[0].categories[0].to_string();
+        let (categories, accounts) = ([food], [checking.clone()]);
+        let change = BudgetChange {
+            name: "",
+            changes_amount: false,
+            from_day: "2026-10-01",
+            amount: "",
+            carry_over: false,
+            counts: Some((&categories, &accounts)),
+        };
+        budgets::change_budget(&mut book, &budget.id.to_string(), &change, &TestLocale)
+            .expect("changed");
+        let view = view_object(&budgets::view(&book, &TestLocale).expect("view"));
+        let row = &list_of(&view, "budgets")[0];
+        let ids = list_of(row, "accountIds");
+        assert_eq!(ids.len(), 1);
+        assert_eq!(
+            ids[0].value::<QString>().map(|id| id.to_string()),
+            Some(checking)
+        );
+        assert_eq!(text_of(row, "accounts"), "Checking");
+        let history = list_of(row, "history");
+        assert_eq!(history.len(), 1);
+        assert_eq!(
+            keys(&history[0]),
+            ["accounts", "categoryNames", "day", "earlier"]
+        );
+        assert!(flag_of(&history[0], "earlier"));
+        assert_eq!(text_of(&history[0], "day"), "2026-09-30");
+        assert_eq!(text_of(&history[0], "categoryNames"), "Food");
+        assert_eq!(text_of(&history[0], "accounts"), "");
     }
 
     #[test]

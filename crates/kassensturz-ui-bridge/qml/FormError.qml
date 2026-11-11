@@ -518,6 +518,8 @@ Kirigami.InlineMessage {
             case "amount-before-start":
             case "amount-after-end":
                 return i18nContext.i18nc("@info", "A change can't apply before the budget starts or after it ends. Choose one of the periods in the list.");
+            case "before-current-period":
+                return i18nContext.i18nc("@info", "What a budget counts changes from this period on, so the results of earlier periods stay. Choose this period or a later one.");
             default:
                 return i18nContext.i18nc("@info", "These days don't fit the budget. Choose other days.");
             }
@@ -534,6 +536,8 @@ Kirigami.InlineMessage {
                 return i18nContext.i18nc("@info %1 is a number", "A budget can count at most %1 categories. Choose fewer, or a category that has the others inside it.", result.max);
             case "accounts":
                 return i18nContext.i18nc("@info %1 is a number", "A budget can count at most %1 accounts. Choose fewer, or tick none to count every account.", result.max);
+            case "counts":
+                return i18nContext.i18nc("@info %1 is a number", "A budget can keep at most %1 changes of what it counts. Stop it and set a new budget instead.", result.max);
             }
             return i18nContext.i18nc("@info %1 is a number", "A book can keep at most %1 budgets. Delete a budget you no longer need.", result.max);
         case "store.category-in-use":

@@ -8,8 +8,11 @@
 // applies from the start of one of the budget's periods on, so the results
 // of earlier periods never change. A budget can have a name, such as
 // "Holiday", which the screens show instead of its categories (D-664); a
-// change of only the name touches no amount. The page shows which period
-// comes first, and every mistake gets a plain message.
+// change of only the name touches no amount. What a budget counts, its
+// categories and accounts, can change too, from the current period on: the
+// earlier periods keep counting what they counted, and the page says what
+// that was (D-689). The page shows which period comes first, and every
+// mistake gets a plain message.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -47,6 +50,16 @@ Kirigami.ScrollablePage {
     // The periods to start with (new) or to change from (existing).
     property var starts: []
     readonly property var changes: existing?.changes ?? []
+    // What it counts from the chosen period on, when the user changes that
+    // (D-689): categories in its currency, and accounts (none for every
+    // account), by ID.
+    property var editCategories: []
+    property var editAccounts: []
+    readonly property bool changesCounts: !adding && countsBox.checked
+    readonly property var editChoices: categoryChoices.filter(category => category.currency === (existing?.currency ?? ""))
+    // The periods a change may apply from: only the current one and later
+    // when what it counts changes, so earlier results stay (D-689).
+    readonly property var fromChoices: changesCounts ? changes.filter(choice => choice.day >= (existing?.countsFrom ?? "")) : changes
     readonly property string currency: adding ? (chosenCategory?.currency ?? "") : (existing?.currency ?? "")
     // The period a change applies from when the page opens, to tell whether
     // the user changed the amount part at all.
@@ -83,9 +96,14 @@ Kirigami.ScrollablePage {
             amountField.text = existing?.amountInput ?? "";
             carryBox.checked = existing?.carryOver ?? false;
             nameField.text = existing?.ownName ?? "";
+            editCategories = (existing?.categories ?? []).slice();
+            editAccounts = (existing?.accountIds ?? []).slice();
         }
         loadStarts();
     }
+
+    // The list of periods changes with it; the latest one is first.
+    onChangesCountsChanged: fromBox.currentIndex = changesCounts ? 0 : firstFromIndex
 
     // The first period the new budget will have, in words.
     readonly property string firstPeriod: {
@@ -110,13 +128,16 @@ Kirigami.ScrollablePage {
             // The categories, then the accounts after a semicolon (D-639).
             result = budgets.addBudget(nameField.text, chosenCategories.join(",") + ";" + accounts.join(","), everyKey, amountField.text, repeats && carryBox.checked, first + "\n" + lastDayField.text);
         } else {
-            const from = changes[Math.max(0, fromBox.currentIndex)]?.day ?? "";
+            const from = fromChoices[Math.max(0, fromBox.currentIndex)]?.day ?? "";
             // Saving the same amount again would drop what was planned for
             // later periods (D-345), so a change of only the name sends none.
             const changesAmount = amountField.text !== (existing?.amountInput ?? "")
                 || (repeats && carryBox.checked) !== (existing?.carryOver ?? false)
-                || fromBox.currentIndex !== firstFromIndex;
-            result = budgets.changeBudget(budgetId, nameField.text, changesAmount, from, amountField.text, repeats && carryBox.checked);
+                || from !== (changes[firstFromIndex]?.day ?? "");
+            // What it counts follows the day after a line break, as
+            // addBudget's categories and accounts (D-689).
+            const counts = changesCounts ? "\n" + editCategories.join(",") + ";" + editAccounts.join(",") : "";
+            result = budgets.changeBudget(budgetId, nameField.text, changesAmount, from + counts, amountField.text, repeats && carryBox.checked);
         }
         error.result = result;
         if (result.code === undefined) {
@@ -204,7 +225,7 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Label {
-            visible: !page.adding
+            visible: !page.adding && !page.changesCounts
             Kirigami.FormData.label: (page.existing?.categories ?? []).length > 1
                 ? page.i18nContext.i18nc("@label", "Categories:")
                 : page.i18nContext.i18nc("@label", "Category:")
@@ -251,12 +272,98 @@ Kirigami.ScrollablePage {
         }
 
         Controls.Label {
-            visible: !page.adding && (page.existing?.accounts ?? "") !== ""
+            visible: !page.adding && !page.changesCounts && (page.existing?.accounts ?? "") !== ""
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Accounts:")
             text: page.i18nContext.i18nc("@info %1 is a list of account names", "Only money paid from %1", page.existing?.accounts ?? "")
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+        }
+
+        // What it counted before, or is to count later (D-689), so an old
+        // period's other figures never surprise.
+        ColumnLayout {
+            visible: !page.adding && (page.existing?.history ?? []).length > 0
+            spacing: 0
+
+            Repeater {
+                model: page.adding ? [] : (page.existing?.history ?? [])
+
+                delegate: Controls.Label {
+                    required property var modelData
+
+                    Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font: Kirigami.Theme.smallFont
+                    text: modelData.earlier
+                        ? (modelData.accounts === ""
+                            ? page.i18nContext.i18nc("@info %1 is a date, %2 a list of categories", "Until %1 it counted %2.", modelData.day, modelData.categoryNames)
+                            : page.i18nContext.i18nc("@info %1 is a date, %2 a list of categories, %3 a list of account names", "Until %1 it counted %2, only money paid from %3.", modelData.day, modelData.categoryNames, modelData.accounts))
+                        : (modelData.accounts === ""
+                            ? page.i18nContext.i18nc("@info %1 is a date, %2 a list of categories", "From %1 on it counts %2.", modelData.day, modelData.categoryNames)
+                            : page.i18nContext.i18nc("@info %1 is a date, %2 a list of categories, %3 a list of account names", "From %1 on it counts %2, only money paid from %3.", modelData.day, modelData.categoryNames, modelData.accounts))
+                }
+            }
+        }
+
+        // A change of what it counts, from the current period on (D-689);
+        // an ended budget keeps what it counted.
+        Controls.CheckBox {
+            id: countsBox
+
+            visible: !page.adding && (page.existing?.countsFrom ?? "") !== ""
+            text: page.i18nContext.i18nc("@option:check", "Change the categories or accounts")
+        }
+
+        ColumnLayout {
+            visible: page.changesCounts
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Categories:")
+            spacing: 0
+
+            Repeater {
+                model: page.changesCounts ? page.editChoices : []
+
+                delegate: Controls.CheckBox {
+                    required property var modelData
+
+                    text: Plain.plain(modelData.path)
+                    checked: page.editCategories.includes(modelData.id)
+                    onToggled: {
+                        ActionLog.taken("BudgetPage_editCategory")
+                        page.editCategories = page.toggled(page.editCategories, modelData.id, checked)
+                    }
+                }
+            }
+        }
+
+        ColumnLayout {
+            visible: page.changesCounts && page.accountChoices.length > 1
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Accounts:")
+            spacing: 0
+
+            Repeater {
+                model: page.changesCounts ? page.accountChoices : []
+
+                delegate: Controls.CheckBox {
+                    required property var modelData
+
+                    text: Plain.plain(modelData.name)
+                    checked: page.editAccounts.includes(modelData.id)
+                    onToggled: {
+                        ActionLog.taken("BudgetPage_editAccount")
+                        page.editAccounts = page.toggled(page.editAccounts, modelData.id, checked)
+                    }
+                }
+            }
+
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                text: page.i18nContext.i18nc("@info", "Nothing ticked: money paid from every account counts.")
+            }
         }
 
         Controls.ComboBox {
@@ -356,7 +463,7 @@ Kirigami.ScrollablePage {
 
             visible: !page.adding
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox the period a change starts to apply from", "From this period on:")
-            model: page.changes.map((choice, at) => at === page.changes.length - 1 && page.changes.length > 1
+            model: page.fromChoices.map(choice => page.changes.length > 1 && choice.day === page.changes[page.changes.length - 1].day
                 ? page.i18nContext.i18nc("@item:inlistbox %1 is a stretch of days", "%1 (the first period, to correct it from the start)", words.days(choice.firstDay, choice.lastDay))
                 : words.period(choice))
             Accessible.name: page.i18nContext.i18nc("@label:listbox the period a change starts to apply from", "From this period on:")
@@ -368,7 +475,9 @@ Kirigami.ScrollablePage {
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             font: Kirigami.Theme.smallFont
-            text: page.i18nContext.i18nc("@info", "Earlier periods keep what they had, so their results don't change.")
+            text: page.changesCounts
+                ? page.i18nContext.i18nc("@info", "Earlier periods keep counting what they counted, so their results don't change.")
+                : page.i18nContext.i18nc("@info", "Earlier periods keep what they had, so their results don't change.")
         }
 
         Controls.CheckBox {

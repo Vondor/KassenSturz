@@ -41,7 +41,7 @@ mod withdrawn;
 pub use account::{Account, AccountId, AccountKind, AccountType};
 pub use bank_link::BankLink;
 pub use budget::{
-    Budget, BudgetAmount, BudgetEvery, BudgetId, salary_day, salary_month_of,
+    Budget, BudgetAmount, BudgetCounts, BudgetEvery, BudgetId, salary_day, salary_month_of,
     salary_month_starting_in,
 };
 pub use category_group::{CategoryGroup, GroupId, GroupKind, GroupMember};

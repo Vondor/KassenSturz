@@ -141,6 +141,8 @@ pub const ACTIONS: &[&str] = &[
     "BookProblemPage_tryAgain",
     "BookProblemPage_tryExampleBook",
     "BudgetBars_setBudget",
+    "BudgetPage_editAccount",
+    "BudgetPage_editCategory",
     "BudgetPage_pickAccount",
     "BudgetPage_pickCategory",
     "BudgetPage_save",

@@ -16,7 +16,7 @@ use kassensturz_core::{
     Split, SplitId, Tag, TagId, TextField, TextOperator, Transaction, TransactionError,
     TransactionId, ViewId,
 };
-use kassensturz_core::{Budget, BudgetAmount, BudgetEvery, BudgetId};
+use kassensturz_core::{Budget, BudgetAmount, BudgetCounts, BudgetEvery, BudgetId};
 use kassensturz_core::{CategoryGroup, GroupId, GroupKind, GroupMember};
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
@@ -476,14 +476,25 @@ fn sample() -> BookData {
         ],
         hidden_categories: vec![AccountId::from_bytes(id(bakery))],
         // A monthly budget of two categories paid from one account, whose
-        // amount changed, carrying over until then, and a budget for some
+        // amount and categories changed, carrying over until then, and a budget for some
         // days in another currency (D-344, D-345, D-639).
         budgets: vec![
             Budget {
                 id: BudgetId::from_bytes(id(0x91)),
                 name: None,
-                categories: vec![AccountId::from_bytes(id(food)), AccountId::from_bytes(id(bakery))],
-                accounts: vec![AccountId::from_bytes(id(1))],
+                counts: vec![
+                    BudgetCounts {
+                        from_day: date(2026, 9, 1),
+                        categories: vec![AccountId::from_bytes(id(food)), AccountId::from_bytes(id(bakery))],
+                        accounts: vec![AccountId::from_bytes(id(1))],
+                    },
+                    // From November on, food alone from every account (D-690).
+                    BudgetCounts {
+                        from_day: date(2026, 11, 1),
+                        categories: vec![AccountId::from_bytes(id(food))],
+                        accounts: Vec::new(),
+                    },
+                ],
                 every: BudgetEvery::Month,
                 first_day: date(2026, 9, 1),
                 last_day: None,
@@ -503,8 +514,11 @@ fn sample() -> BookData {
             Budget {
                 id: BudgetId::from_bytes(id(0x92)),
                 name: None,
-                categories: vec![AccountId::from_bytes(id(travel))],
-                accounts: Vec::new(),
+                counts: vec![BudgetCounts {
+                    from_day: date(2026, 7, 10),
+                    categories: vec![AccountId::from_bytes(id(travel))],
+                    accounts: Vec::new(),
+                }],
                 every: BudgetEvery::Range,
                 first_day: date(2026, 7, 10),
                 last_day: Some(date(2026, 7, 24)),
@@ -519,8 +533,11 @@ fn sample() -> BookData {
             Budget {
                 id: BudgetId::from_bytes(id(0x93)),
                 name: Some("Food \"until payday\"".into()),
-                categories: vec![AccountId::from_bytes(id(food))],
-                accounts: vec![AccountId::from_bytes(id(2))],
+                counts: vec![BudgetCounts {
+                    from_day: date(2026, 9, 25),
+                    categories: vec![AccountId::from_bytes(id(food))],
+                    accounts: vec![AccountId::from_bytes(id(2))],
+                }],
                 every: BudgetEvery::SalaryMonth { day: 25 },
                 first_day: date(2026, 9, 25),
                 last_day: Some(date(2026, 12, 24)),
@@ -693,13 +710,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 11", "\"version\": 12")),
-        Err(ExportError::NewerVersion { version: 12 })
+        read_book(&changed("\"version\": 12", "\"version\": 13")),
+        Err(ExportError::NewerVersion { version: 13 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 11",
+                "\"version\": 12",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1464,8 +1481,11 @@ fn budgets_come_with_version_8() {
         vec![Budget {
             id: BudgetId::from_bytes(id(0x91)),
             name: None,
-            categories: vec![AccountId::from_bytes(id(2))],
-            accounts: Vec::new(),
+            counts: vec![BudgetCounts {
+                from_day: date(2026, 9, 1),
+                categories: vec![AccountId::from_bytes(id(2))],
+                accounts: Vec::new(),
+            }],
             every: BudgetEvery::Month,
             first_day: date(2026, 9, 1),
             last_day: None,
@@ -1525,11 +1545,20 @@ fn a_budgets_categories_and_accounts_are_lists_from_version_9() {
         format!(r#"{{{id_91}, "categories": ["{food}"], "accounts": ["{account}"], {amounts}}}"#);
     let old = format!(r#"{{{id_91}, "category": "{food}", {amounts}}}"#);
     let book = read_book(version(9, &new).as_bytes()).expect("read");
-    assert_eq!(book.budgets[0].categories, [AccountId::from_bytes(id(2))]);
-    assert_eq!(book.budgets[0].accounts, [AccountId::from_bytes(id(1))]);
+    assert_eq!(
+        book.budgets[0].counts[0].categories,
+        [AccountId::from_bytes(id(2))]
+    );
+    assert_eq!(
+        book.budgets[0].counts[0].accounts,
+        [AccountId::from_bytes(id(1))]
+    );
     let book = read_book(version(8, &old).as_bytes()).expect("read");
-    assert_eq!(book.budgets[0].categories, [AccountId::from_bytes(id(2))]);
-    assert!(book.budgets[0].accounts.is_empty());
+    assert_eq!(
+        book.budgets[0].counts[0].categories,
+        [AccountId::from_bytes(id(2))]
+    );
+    assert!(book.budgets[0].counts[0].accounts.is_empty());
     // Each version has its own keys.
     assert_eq!(
         read_book(version(9, &old).as_bytes()),
@@ -1554,6 +1583,78 @@ fn a_budgets_categories_and_accounts_are_lists_from_version_9() {
     assert_eq!(
         read_book(version(9, &not_an_id).as_bytes()),
         bad("budgets[0].categories[0]", Expected::Id)
+    );
+}
+
+#[test]
+fn what_a_budget_counts_is_a_dated_list_from_version_12() {
+    // Version 12 lists a budget's sets, each from its day on (D-690);
+    // version 11 has one set on the budget itself, read as one set from
+    // the first day.
+    let lists = r#""institutions": [], "payees": [], "tags": [], "rates": [], "bank_links": [], "views": [], "groups": [], "hidden_categories": []"#;
+    let version = |number: u64, budgets: &str| {
+        SHORT
+            .replacen("\"version\": 1", &format!("\"version\": {number}"), 1)
+            .replacen(r#""rates": []"#, lists, 1)
+            .replacen(
+                r#""hidden_categories": []"#,
+                &format!(r#""hidden_categories": [], "budgets": [{budgets}]"#),
+                1,
+            )
+    };
+    let food = "019a0000-0000-7000-8000-000000000002";
+    let account = "019a0000-0000-7000-8000-000000000001";
+    let rest = r#""every": "month", "first_day": "2026-09-01", "amounts": [{"from_day": "2026-09-01", "amount": "400", "currency": "EUR", "carry_over": false}]"#;
+    let id_91 = r#""id": "019a0000-0000-7000-8000-000000000091""#;
+    let one =
+        format!(r#"{{{id_91}, "categories": ["{food}"], "accounts": ["{account}"], {rest}}}"#);
+    let sets = format!(
+        r#"{{{id_91}, "counts": [{{"from_day": "2026-09-01", "categories": ["{food}"], "accounts": ["{account}"]}}, {{"from_day": "2026-11-01", "categories": ["{food}"], "accounts": []}}], {rest}}}"#
+    );
+    let book = read_book(version(12, &sets).as_bytes()).expect("read");
+    assert_eq!(
+        book.budgets[0].counts,
+        [
+            BudgetCounts {
+                from_day: date(2026, 9, 1),
+                categories: vec![AccountId::from_bytes(id(2))],
+                accounts: vec![AccountId::from_bytes(id(1))],
+            },
+            BudgetCounts {
+                from_day: date(2026, 11, 1),
+                categories: vec![AccountId::from_bytes(id(2))],
+                accounts: Vec::new(),
+            },
+        ]
+    );
+    let book = read_book(version(11, &one).as_bytes()).expect("read");
+    assert_eq!(
+        book.budgets[0].counts,
+        [BudgetCounts {
+            from_day: date(2026, 9, 1),
+            categories: vec![AccountId::from_bytes(id(2))],
+            accounts: vec![AccountId::from_bytes(id(1))],
+        }]
+    );
+    // The keys of one version are refused in the other.
+    assert_eq!(
+        read_book(version(12, &one).as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "budgets[0].accounts".into()
+        })
+    );
+    assert_eq!(
+        read_book(version(11, &sets).as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "budgets[0].counts".into()
+        })
+    );
+    let no_day = sets.replacen(r#""from_day": "2026-11-01", "#, "", 1);
+    assert_eq!(
+        read_book(version(12, &no_day).as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "budgets[0].counts[1].from_day".into()
+        })
     );
 }
 

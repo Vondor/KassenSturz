@@ -210,7 +210,7 @@ fn a_prepared_budget_is_made_only_on_confirm_and_one_undo_takes_it_back() {
         .expect("applied");
     let budgets = small.book.budgets().expect("budgets");
     assert_eq!(budgets.len(), 1);
-    assert_eq!(budgets[0].categories, [small.fun]);
+    assert_eq!(budgets[0].counts[0].categories, [small.fun]);
     assert_eq!(budgets[0].every, BudgetEvery::Quarter);
     assert_eq!(budgets[0].first_day, Date::constant(2026, 10, 1));
     assert_eq!(budgets[0].last_day, None);
@@ -737,8 +737,8 @@ fn a_budget_over_several_categories_from_one_account_is_prepared_and_made() {
         .apply(&mut small.book, Confirmed::by_the_user())
         .expect("applied");
     let budgets = small.book.budgets().expect("read");
-    assert_eq!(budgets[0].categories, [small.fun, small.food]);
-    assert_eq!(budgets[0].accounts, [small.checking]);
+    assert_eq!(budgets[0].counts[0].categories, [small.fun, small.food]);
+    assert_eq!(budgets[0].counts[0].accounts, [small.checking]);
     // The same category from another account is a budget of its own; from
     // every account it would count checking twice.
     let savings_id = savings.id.to_string();

@@ -161,8 +161,12 @@ pub const FUNCTIONS: &[Function] = &[
             \"tag_ids\" when the transaction carries tags, and \"parts\" when it is split \
             into parts: each with its category (or \"unsorted\"), amount as seen from the \
             account and \"name\". min_amount and max_amount also find a split by one part's \
-            amount; \"matched_part\" then names that part, from 1.",
-        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, the other party's name, the note or the bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"offset":{"type":"integer","minimum":0,"maximum":100000,"description":"How many matching rows to skip, the next_offset of the call before. Default 0."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out joined Transfers between the user's own accounts and starting balances, i.e. keep only spending and income. Entries with possible_transfer stay. Use it for the biggest expenses. Default false."},"tag_id":{"type":"string","description":"Only transactions with this tag, on the whole or on a part, ID from list_tags."}},"additionalProperties":false}"#,
+            amount; \"matched_part\" then names that part, from 1. \"reference\" finds the \
+            transaction of a bill by its invoice or order number in the bank text, note or part \
+            names, by letters and digits only; the answer then says \"matched_by\": \
+            \"reference\". When it finds nothing (\"found\": false), report the bill as \
+            not found: never match it by amount or date instead.",
+        parameters: r#"{"type":"object","properties":{"text":{"type":"string","maxLength":100,"description":"Text to find in the payee, the other party's name, the note or the bank text, ignoring case. Leave it out to not filter by text."},"account_id":{"type":"string","description":"Only entries of this account, ID from list_accounts."},"category_id":{"type":"string","description":"Only transactions booked to this category or one below it, ID from list_categories."},"from":{"type":"string","format":"date","description":"First booking day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last booking day, YYYY-MM-DD."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most rows to return. Default 20."},"offset":{"type":"integer","minimum":0,"maximum":100000,"description":"How many matching rows to skip, the next_offset of the call before. Default 0."},"unsorted_only":{"type":"boolean","description":"Only entries that have no category yet. Default false."},"sort":{"type":"string","enum":["newest","largest_out","largest_in"],"description":"Order of the rows. Default newest."},"min_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at least this size, as plain decimal text without sign, e.g. 100 or 49.99."},"max_amount":{"type":"string","pattern":"^[0-9]+(\\.[0-9]+)?$","description":"Only entries of at most this size, as plain decimal text without sign."},"skip_transfers":{"type":"boolean","description":"Leave out joined Transfers between the user's own accounts and starting balances, i.e. keep only spending and income. Entries with possible_transfer stay. Use it for the biggest expenses. Default false."},"tag_id":{"type":"string","description":"Only transactions with this tag, on the whole or on a part, ID from list_tags."},"reference":{"type":"string","maxLength":100,"description":"A bill's invoice or order number, e.g. RE-2026/0042. Compared by letters and digits only, ignoring case; at least 4 of them."}},"additionalProperties":false}"#,
     },
     Function {
         name: "list_categories",
@@ -243,6 +247,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "group_by",
     "rule_id",
     "tag_id",
+    "reference",
 ];
 
 /// The most accounts `account_ids` of a total names (M6-B206), as many as
@@ -386,6 +391,7 @@ fn call_with(
             let names = Names::read(book)?;
             let search = Search {
                 text: args.search_text()?,
+                reference: args.reference()?,
                 account: args.id("account_id")?,
                 category: args.id("category_id")?,
                 from: args.date("from")?,
@@ -654,6 +660,28 @@ impl<'a> Arguments<'a> {
             return Err(ToolError::BadArgument { argument: "text" });
         }
         Ok(Some(text.to_lowercase()))
+    }
+
+    /// A bill's reference or order number, by its letters and digits only:
+    /// at least [`read::MIN_REFERENCE_CHARS`] of them (D-738).
+    fn reference(&self) -> Result<Option<String>, ToolError> {
+        let Some(text) = self.string("reference")? else {
+            return Ok(None);
+        };
+        // An empty text means "no reference", as with `text` (#195).
+        if text.trim().is_empty() {
+            return Ok(None);
+        }
+        if text.chars().count() > MAX_SEARCH_TEXT {
+            return Err(ToolError::BadArgument {
+                argument: "reference",
+            });
+        }
+        let key = read::reference_key(text);
+        if key.chars().count() < read::MIN_REFERENCE_CHARS {
+            return Err(ToolError::ReferenceTooShort);
+        }
+        Ok(Some(key))
     }
 
     fn sort(&self) -> Result<read::Sort, ToolError> {

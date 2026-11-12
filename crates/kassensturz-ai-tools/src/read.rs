@@ -789,6 +789,9 @@ pub(crate) fn payee_totals(
 pub(crate) struct Search {
     /// Lowercase text to find in a payee, note or bank text.
     pub(crate) text: Option<String>,
+    /// A bill's reference or order number, as [`reference_key`] gives it,
+    /// to find in the bank text, the note or a part's name (D-738).
+    pub(crate) reference: Option<String>,
     pub(crate) account: Option<AccountId>,
     pub(crate) category: Option<AccountId>,
     pub(crate) from: Option<Date>,
@@ -925,6 +928,38 @@ fn holds(transaction: &Transaction, part: &Split, text: &str) -> bool {
         })
 }
 
+/// The fewest letters or digits a `reference` must have, so a short number
+/// never matches half the book (D-738).
+pub(crate) const MIN_REFERENCE_CHARS: usize = 4;
+
+/// What the model is told when no transaction carries a `reference`
+/// (#717 item 5): a bill that matches nothing is not found, never guessed.
+const REFERENCE_NOT_FOUND: &str = "No transaction carries this reference. Report the bill \
+    as not found. Do not match it by amount or date.";
+
+/// `text` with only its letters and digits, lowercase, so `RE-2026/0042`
+/// and `re 2026 0042` compare equal (D-738).
+pub(crate) fn reference_key(text: &str) -> String {
+    text.chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// Whether `transaction` carries `key`, a [`reference_key`], in its bank
+/// text, its note or the name of one of its parts.
+fn carries(transaction: &Transaction, key: &str) -> bool {
+    let found = |value: Option<&str>| value.is_some_and(|value| reference_key(value).contains(key));
+    found(transaction.note())
+        || transaction.splits().iter().any(|split| {
+            found(split.note.as_deref())
+                || split
+                    .imported
+                    .as_ref()
+                    .is_some_and(|imported| found(imported.remittance_information.as_deref()))
+        })
+}
+
 /// `search_transactions`: the entries of the user's accounts that match,
 /// in the order `search.sort` names (newest first by default), one row per
 /// account an entry is in, at most `search.limit` of them, with how many
@@ -963,6 +998,13 @@ pub(crate) fn search_transactions(
         if search
             .tag
             .is_some_and(|tag| !transaction.all_tags().contains(&tag))
+        {
+            continue;
+        }
+        if search
+            .reference
+            .as_deref()
+            .is_some_and(|key| !carries(transaction, key))
         {
             continue;
         }
@@ -1096,6 +1138,16 @@ pub(crate) fn search_transactions(
     if found.len() > after {
         result["rows_left_out"] = w.count(found.len() - after);
         result["next_offset"] = w.count(after);
+    }
+    // A reference found nothing: the bill is not found, and the model is
+    // told never to guess it by amount or date (D-738).
+    if search.reference.is_some() {
+        if found.is_empty() {
+            result["found"] = Value::Bool(false);
+            result["what_to_do"] = Value::from(REFERENCE_NOT_FOUND);
+        } else {
+            result["matched_by"] = Value::from("reference");
+        }
     }
     Ok(result)
 }

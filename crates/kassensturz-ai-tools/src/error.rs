@@ -11,6 +11,8 @@
 use kassensturz_core::{ErrorParam, ErrorReport, Report};
 use kassensturz_store::StoreError;
 
+use crate::read::MIN_REFERENCE_CHARS;
+
 /// The words that say what an argument of a change list has to be
 /// (US3.9). They are the same for every list, so a small model learns one
 /// set; the answer's `expected_shape` is one of them.
@@ -116,6 +118,9 @@ pub enum ToolError {
     UnknownTransaction,
     /// No tag of the book has that ID (US5.2, D-744).
     UnknownTag,
+    /// A `reference` to search for has fewer than four letters or digits,
+    /// so it would match half the book (US5.12, D-738).
+    ReferenceTooShort,
     /// The parts of a split the AI prepared don't add up to what the
     /// transaction did to the account (US5.1, D-737). The amounts are exact
     /// decimal text in the transaction's currency, worked out by
@@ -509,6 +514,8 @@ impl Report for ToolError {
                 .with("not_before", ErrorParam::Keyword("from")),
             Self::UnknownTransaction => ErrorReport::new("ai-tools.unknown-transaction"),
             Self::UnknownTag => ErrorReport::new("ai-tools.unknown-tag"),
+            Self::ReferenceTooShort => ErrorReport::new("ai-tools.reference-too-short")
+                .with("min_chars", ErrorParam::count(MIN_REFERENCE_CHARS)),
             // The amounts go to the model through [`Self::amounts`]: a
             // report carries keywords and counts, never text.
             Self::PartsDontAddUp { .. } => ErrorReport::new("ai-tools.parts-dont-add-up"),
@@ -637,6 +644,7 @@ mod tests {
             ToolError::BadPeriod,
             ToolError::UnknownTransaction,
             ToolError::UnknownTag,
+            ToolError::ReferenceTooShort,
             ToolError::PartsDontAddUp {
                 total: "-19.99".into(),
                 sum: "-19.98".into(),

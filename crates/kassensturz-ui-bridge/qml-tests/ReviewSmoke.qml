@@ -80,6 +80,9 @@ Kirigami.ApplicationWindow {
             const all = window.texts(page, []);
             window.check(all.includes("Where the money goes"), "the title is shown");
             window.check(all.includes("This year"), "the period is shown in words");
+            // What the chart leaves out is said, so a title can't hide it (D-729).
+            window.check(all.includes("Shows only: Category is one of Food, Rent; Closed is no"), "the filters in words, got " + all);
+            window.check(all.filter(text => text.startsWith("Shows only:")).length === 1, "a chart without filters says nothing");
             window.check(window.find(page, "ComponentPreview", []).length === 2, "one preview each");
             // A formula the AI wrote is shown in words before it is
             // confirmed, over a period that moves with today (US1.17, D-650).

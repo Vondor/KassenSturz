@@ -317,6 +317,82 @@ impl Sets {
     }
 }
 
+/// One filter of a chart description the AI wrote, for the review card to
+/// say in words what the chart leaves out (D-729), so a title such as "All
+/// spending" can't hide a filter. Values are written for the user here
+/// (D-065); the field and the test are fixed words the page translates.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FilterView {
+    /// The field it tests, as the description names it (`category`).
+    pub field: &'static str,
+    /// `equal`, `one-of`, `at-least`, `at-most` or `between`.
+    pub test: &'static str,
+    /// The values, written for the user; for a yes/no field `yes` or `no`.
+    pub values: Vec<String>,
+    /// Whether the values are the words `yes` and `no`.
+    pub yes_no: bool,
+}
+
+/// The filters of `description`, the chart's own and each layer's, in
+/// the order they are written. Empty for no description or one that can't
+/// be read (the preview says why).
+pub(crate) fn filter_views(description: Option<&str>, locale: &impl Locale) -> Vec<FilterView> {
+    use kassensturz_report::spec::{FilterTest, SpecValue};
+    let Some(read) = description.and_then(|text| kassensturz_report::spec::read(text).ok()) else {
+        return Vec::new();
+    };
+    let Some(chart) = read.chart() else {
+        return Vec::new();
+    };
+    let value = |value: &SpecValue| match value {
+        SpecValue::Text(text) => text.as_str().to_owned(),
+        SpecValue::Day(day) => locale.short_date(*day),
+        SpecValue::Number(number) => spec_number_text(number.digits(), number.places(), locale),
+        SpecValue::YesNo(yes) => if *yes { "yes" } else { "no" }.to_owned(),
+    };
+    chart
+        .filters()
+        .iter()
+        .chain(chart.layers().iter().flat_map(|layer| layer.filters()))
+        .map(|filter| {
+            let (test, values): (&'static str, Vec<String>) = match filter.test() {
+                FilterTest::Equal(one) => ("equal", vec![value(one)]),
+                FilterTest::OneOf(many) => ("one-of", many.iter().map(value).collect()),
+                FilterTest::Range {
+                    from: Some(from),
+                    to: Some(to),
+                } => ("between", vec![value(from), value(to)]),
+                FilterTest::Range {
+                    from: Some(from), ..
+                } => ("at-least", vec![value(from)]),
+                FilterTest::Range { to: Some(to), .. } => ("at-most", vec![value(to)]),
+                FilterTest::Range { .. } => ("at-least", Vec::new()),
+            };
+            FilterView {
+                field: filter.field().name(),
+                test,
+                values,
+                yes_no: filter.field().value() == kassensturz_report::spec::FieldValue::YesNo,
+            }
+        })
+        .collect()
+}
+
+/// A number of a description, `digits` with `places` decimal places, in the
+/// user's way of writing numbers, exactly as written (no rounding).
+fn spec_number_text(digits: i64, places: u8, locale: &impl Locale) -> String {
+    let places = u32::from(places);
+    let scale = 10u64.pow(places);
+    let magnitude = digits.unsigned_abs();
+    let sign = if digits < 0 { "-" } else { "" };
+    let whole = locale.group_digits(magnitude / scale);
+    if places == 0 {
+        return format!("{sign}{whole}");
+    }
+    let fraction = format!("{:0width$}", magnitude % scale, width = places as usize);
+    format!("{sign}{whole}{}{fraction}", locale.decimal_point())
+}
+
 /// One change of a set as the review screen shows it. Every text in it came
 /// from the model or the book: shown as plain text (T-08, T-34).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -490,6 +566,8 @@ pub enum ChangeView {
         /// The kinds of chart its figures suit, by their fixed IDs, which
         /// the user may choose from (D-293).
         charts: Vec<&'static str>,
+        /// The filters of a description the AI wrote, in words (D-729).
+        filters: Vec<FilterView>,
     },
     /// A saved chart changed (D-681).
     EditView {
@@ -501,6 +579,9 @@ pub enum ChangeView {
         period: String,
         /// The component after the change as JSON text, for the preview.
         component: String,
+        /// The filters of a description the AI wrote anew, in words
+        /// (D-729).
+        filters: Vec<FilterView>,
     },
     /// A saved chart deleted (D-681).
     DeleteView {
@@ -996,12 +1077,17 @@ fn view_of(
                     .map(ComponentType::id)
                     .collect()
             },
+            filters: filter_views(new.description(), locale),
         },
         ProposedChange::EditView(edit) => ChangeView::EditView {
             before: edit.before.clone(),
             title: edit.title.clone(),
             period: edit.period.clone(),
             component: edit.component_json(),
+            filters: filter_views(
+                edit.description().filter(|_| edit.writes_description()),
+                locale,
+            ),
         },
         ProposedChange::DeleteView(delete) => ChangeView::DeleteView {
             name: delete.name.clone(),
@@ -1784,6 +1870,59 @@ mod tests {
         .unwrap();
         let rows = crate::saved_views::list(&book).unwrap();
         assert_eq!(rows.len(), 1);
+    }
+
+    #[test]
+    fn the_filters_of_a_chart_the_ai_described_are_shown_in_words() {
+        // Security's follow-up to #749 (D-729): a title can't hide what a
+        // filter leaves out, the review card says it.
+        let book = space_colony();
+        let description = serde_json::json!({
+            "data": {"name": "spending_by_category"},
+            "transform": [
+                {"filter": {"field": "category", "oneOf": ["Food", "Rent"]}},
+                {"filter": {"field": "total", "range": ["1250.50", null]}}
+            ],
+            "mark": "bar",
+            "encoding": {
+                "x": {"field": "category", "type": "nominal"},
+                "y": {"field": "total", "type": "quantitative"}
+            }
+        })
+        .to_string();
+        let call = serde_json::json!({
+            "title": "All spending", "show_as": "custom", "description": description,
+        });
+        let proposal = kassensturz_ai_tools::propose_view(
+            &book,
+            &call,
+            Permissions::all(),
+            kassensturz_core::Date::new(2026, 11, 9).unwrap(),
+        )
+        .unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
+        let [ChangeView::NewView { filters, .. }] = views.as_slice() else {
+            panic!("one chart: {views:?}");
+        };
+        assert_eq!(
+            filters,
+            &[
+                FilterView {
+                    field: "category",
+                    test: "one-of",
+                    values: vec!["Food".into(), "Rent".into()],
+                    yes_no: false,
+                },
+                FilterView {
+                    field: "total",
+                    test: "at-least",
+                    values: vec!["1250,50".into()],
+                    yes_no: false,
+                },
+            ]
+        );
+        // A chart without a description has none.
+        assert!(filter_views(None, &TestLocale).is_empty());
     }
 
     #[test]

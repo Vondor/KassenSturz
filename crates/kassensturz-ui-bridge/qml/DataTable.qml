@@ -31,14 +31,26 @@ ColumnLayout {
     Accessible.name: title
 
     // Measures text in the table's font, so a figure column is never narrower
-    // than its longest figure (M6-B26).
+    // than its longest figure (M6-B26), in the font the labels use,
+    // Kirigami's, not the application's, which can be smaller.
     FontMetrics {
         id: metrics
+        font: Kirigami.Theme.defaultFont
+    }
+
+    // The headers are bold, which is wider than a margin on the normal font
+    // allowed for: "Pro Monat" was cut to "Pro Mon…" (#590, US5 P3).
+    FontMetrics {
+        id: headerMetrics
+        font.family: Kirigami.Theme.defaultFont.family
+        font.pointSize: Kirigami.Theme.defaultFont.pointSize
+        font.bold: true
     }
 
     // The width the figures of column `index` need, without cutting any
-    // (principle 1: amounts are never elided). The first column holds names,
-    // which wrap, so it needs none. Headers are bold, hence the margin.
+    // (principle 1: amounts are never elided), nor its header. The first
+    // column holds names, which wrap, so it needs none. Headers are bold, so
+    // they are measured in bold.
     function figureWidth(index: int): real {
         if (index === 0) {
             return 0;
@@ -50,7 +62,8 @@ ColumnLayout {
             }
         }
         const title = columnTitle(columns[index]);
-        return Math.ceil(Math.max(widest, metrics.advanceWidth(title) * 1.1)) + 2;
+        // A little room for hinting, so the bold header is never cut.
+        return Math.ceil(Math.max(widest, headerMetrics.advanceWidth(title) * 1.05)) + 2;
     }
 
     // The names column takes what the figure columns leave (a layout shares

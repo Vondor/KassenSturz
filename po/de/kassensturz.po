@@ -21136,3 +21136,214 @@ msgstr "Tag"
 msgctxt "@item:inlistbox one candle of a candle chart covers a week, Monday to Sunday"
 msgid "Week (Monday to Sunday)"
 msgstr "Woche (Montag bis Sonntag)"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:17
+#, kde-format
+msgctxt "@info:tooltip on a tile shown as a small status icon"
+msgid "Click to see the whole tile."
+msgstr "Klicken Sie, um die ganze Kachel zu sehen."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:22
+#, kde-format
+msgctxt "@info a status icon: bank data is being fetched"
+msgid "Updating…"
+msgstr "Wird aktualisiert…"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:28
+#, kde-format
+msgctxt "@info a status icon: no warning applies"
+msgid "All fine"
+msgstr "Alles in Ordnung"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:30
+#, kde-format
+msgctxt "@info a status icon, %1 is how many"
+msgid "%1 warning applies"
+msgid_plural "%1 warnings apply"
+msgstr[0] "%1 Warnung trifft zu"
+msgstr[1] "%1 Warnungen treffen zu"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:32
+#, kde-format
+msgctxt "@info a status icon"
+msgid "Warnings can't be read"
+msgstr "Warnungen nicht lesbar"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:35
+#, kde-format
+msgctxt "@info a status icon, %1 is how many"
+msgid "%1 warning can't be checked"
+msgid_plural "%1 warnings can't be checked"
+msgstr[0] "%1 Warnung nicht prüfbar"
+msgstr[1] "%1 Warnungen nicht prüfbar"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:36
+#, kde-format
+msgctxt "@info a status icon"
+msgid "No warnings set yet"
+msgstr "Noch keine Warnungen festgelegt"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:41
+#, kde-format
+msgctxt "@info a status icon: every transaction has a category"
+msgid "All sorted"
+msgstr "Alles zugeordnet"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:43
+#, kde-format
+msgctxt "@info a status icon, %1 is how many"
+msgid "%1 without a category"
+msgid_plural "%1 without a category"
+msgstr[0] "%1 ohne Kategorie"
+msgstr[1] "%1 ohne Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:45
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:54
+#, kde-format
+msgctxt "@info a status icon"
+msgid "Not known yet"
+msgstr "Noch nicht bekannt"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:50
+#, kde-format
+msgctxt "@info a status icon: every bank account was updated recently"
+msgid "Bank data is recent"
+msgstr "Bankdaten sind aktuell"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:52
+#, kde-format
+msgctxt "@info a status icon, %1 is how many"
+msgid "%1 account not updated for long"
+msgid_plural "%1 accounts not updated for long"
+msgstr[0] "%1 Konto lange nicht aktualisiert"
+msgstr[1] "%1 Konten lange nicht aktualisiert"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:59
+#, kde-format
+msgctxt "@info a status icon: the last bank update worked"
+msgid "Last update worked"
+msgstr "Letzte Aktualisierung hat geklappt"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:61
+#, kde-format
+msgctxt "@info a status icon, %1 is how many"
+msgid "%1 notice to check"
+msgid_plural "%1 notices to check"
+msgstr[0] "%1 Hinweis zu prüfen"
+msgstr[1] "%1 Hinweise zu prüfen"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:63
+#, kde-format
+msgctxt "@info a status icon"
+msgid "Last update failed"
+msgstr "Letzte Aktualisierung fehlgeschlagen"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:65
+#, kde-format
+msgctxt "@info a status icon: no account can be updated from a bank yet"
+msgid "Not set up yet"
+msgstr "Noch nicht eingerichtet"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:74
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "New transactions are being fetched from your bank right now."
+msgstr "Gerade werden neue Umsätze von Ihrer Bank abgerufen."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:80
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid "All fine. Your warning doesn't apply today."
+msgid_plural "All fine. None of your %1 warnings applies today."
+msgstr[0] "Alles in Ordnung. Ihre Warnung trifft heute nicht zu."
+msgstr[1] "Alles in Ordnung. Keine Ihrer %1 Warnungen trifft heute zu."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:82
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid "%1 of your warnings applies today."
+msgid_plural "%1 of your warnings apply today."
+msgstr[0] "%1 Ihrer Warnungen trifft heute zu."
+msgstr[1] "%1 Ihrer Warnungen treffen heute zu."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:84
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The warnings of this tile could not be read."
+msgstr "Die Warnungen dieser Kachel konnten nicht gelesen werden."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:87
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid "%1 warning could not be checked today."
+msgid_plural "%1 warnings could not be checked today."
+msgstr[0] "%1 Warnung konnte heute nicht geprüft werden."
+msgstr[1] "%1 Warnungen konnten heute nicht geprüft werden."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:88
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "No warnings set yet. You can add one in this tile's settings."
+msgstr "Noch keine Warnungen festgelegt. Sie können in den Einstellungen dieser Kachel eine hinzufügen."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:92
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid "%1 transaction has no category yet."
+msgid_plural "%1 transactions have no category yet."
+msgstr[0] "%1 Buchung hat noch keine Kategorie."
+msgstr[1] "%1 Buchungen haben noch keine Kategorie."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:94
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Every transaction has a category."
+msgstr "Jede Buchung hat eine Kategorie."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:98
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid "%1 bank account was not updated for a long time."
+msgid_plural "%1 bank accounts were not updated for a long time."
+msgstr[0] "%1 Bankkonto wurde lange nicht aktualisiert."
+msgstr[1] "%1 Bankkonten wurden lange nicht aktualisiert."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:100
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Every bank account was updated recently."
+msgstr "Jedes Bankkonto wurde kürzlich aktualisiert."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:105
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The last update of your bank accounts worked."
+msgstr "Die letzte Aktualisierung Ihrer Bankkonten hat geklappt."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:107
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid "The last update brought %1 notice to check."
+msgid_plural "The last update brought %1 notices to check."
+msgstr[0] "Die letzte Aktualisierung brachte %1 Hinweis zum Prüfen."
+msgstr[1] "Die letzte Aktualisierung brachte %1 Hinweise zum Prüfen."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:110
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid "The last update didn't work for %1 account. You can try again."
+msgid_plural "The last update didn't work for %1 accounts. You can try again."
+msgstr[0] "Die letzte Aktualisierung hat bei %1 Konto nicht geklappt. Sie können es noch einmal versuchen."
+msgstr[1] "Die letzte Aktualisierung hat bei %1 Konten nicht geklappt. Sie können es noch einmal versuchen."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:111
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The last update didn't work. You can try again."
+msgstr "Die letzte Aktualisierung hat nicht geklappt. Sie können es noch einmal versuchen."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:113
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "No account is updated from a bank yet, or bank connections can't be used here."
+msgstr "Noch kein Konto wird von einer Bank aktualisiert, oder Bankverbindungen können hier nicht genutzt werden."

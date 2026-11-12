@@ -705,3 +705,48 @@ fn a_new_period_box_lands_where_no_widget_is() {
         .unwrap();
     assert_eq!(frame_of(&editor, &added), frame(0, 4, 12, 5));
 }
+
+/// The four status tiles go down to one cell and show their icon below
+/// their full size, in either direction (US5.4, D-735); every other type
+/// keeps its smallest size and never shows an icon.
+#[test]
+fn status_tiles_shrink_to_one_cell_and_show_their_icon_below_full_size() {
+    let status = [
+        ("notice.alarms", Size { cols: 3, rows: 2 }),
+        ("bank.update_all", Size { cols: 3, rows: 1 }),
+        ("notice.fetch_gap", Size { cols: 4, rows: 1 }),
+        ("notice.unsorted", Size { cols: 4, rows: 1 }),
+    ];
+    for (id, full) in status {
+        let kind = ComponentType::from_id(id).unwrap();
+        assert_eq!(kind.smallest_size(), Size { cols: 1, rows: 1 }, "{id}");
+        assert_eq!(kind.full_size(), Some(full), "{id}");
+        assert!(
+            !kind.shows_as_icon(full.cols, full.rows),
+            "{id} at full size"
+        );
+        assert!(!kind.shows_as_icon(12, 24), "{id} at the largest size");
+        assert!(
+            kind.shows_as_icon(full.cols - 1, full.rows),
+            "{id} narrower"
+        );
+        assert!(kind.shows_as_icon(1, 1), "{id} at one cell");
+        if full.rows > 1 {
+            assert!(kind.shows_as_icon(full.cols, full.rows - 1), "{id} lower");
+        }
+        // A one-cell frame is a valid document, read the real way.
+        try_dashboard(&[("a", id, frame(0, 0, 1, 1))]).unwrap();
+    }
+    for kind in ComponentType::LIBRARY {
+        if status.iter().any(|(id, _)| *id == kind.id()) {
+            continue;
+        }
+        assert_eq!(kind.full_size(), None, "{}", kind.id());
+        assert!(!kind.shows_as_icon(1, 1), "{}", kind.id());
+    }
+    // The note about moved money keeps its text form and its smallest size.
+    assert_eq!(
+        ComponentType::TransfersNote.smallest_size(),
+        Size { cols: 4, rows: 1 }
+    );
+}

@@ -111,6 +111,8 @@ fn main() {
                 "qml/ChartExamples.qml",
                 "qml/TitleWords.qml",
                 "qml/GridItem.qml",
+                "qml/StatusIcon.qml",
+                "qml/TileStatusWords.qml",
                 "qml/DashboardGrid.qml",
                 "qml/HelpPage.qml",
                 "qml/HistoryPage.qml",

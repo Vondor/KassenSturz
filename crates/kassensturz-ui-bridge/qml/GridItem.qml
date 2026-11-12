@@ -30,6 +30,9 @@ Item {
     readonly property bool selected: board.editing && board.selectedId === itemId
     readonly property bool narrow: board.narrow
     readonly property bool unknown: present && info.unknown
+    // A status tile below its full size shows its status icon (US5.4,
+    // D-735); Rust decides it by cell count.
+    readonly property bool compact: present && !unknown && (info.compact ?? false)
     // The component as ComponentPreview reads it. It is only taken again when
     // the component itself changed, so moving or resizing does not ask the
     // book for the figures again.
@@ -236,22 +239,128 @@ Item {
             // In edit mode the component is a picture of itself: the overlay
             // above takes the pointer, which selects and drags it.
             active: cell.present && cell.contentMade
-            sourceComponent: cell.unknown ? unknownBox
-                : cell.info?.type === "text.heading" ? headingBox
-                : cell.info?.type === "group.period" ? boxLabel
-                : cell.info?.type === "card.net_worth" ? netWorthBox
-                : cell.info?.type === "table.income_sources" ? incomeBox
-                : cell.info?.type === "budget.progress" ? budgetBox
-                : cell.info?.type === "table.transactions" ? transactionsBox
-                : cell.info?.type === "text.separator" ? separatorBox
-                : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
-                : cell.info?.type === "bank.update_all" ? updateAllBox
-                : cell.info?.type === "page.period" ? periodHeaderBox
-                : cell.info?.type === "page.filters" ? filterBarBox
-                : cell.info?.type === "page.tabs" ? dashboardTabsBox
-                : cell.info?.type === "notice.unsorted" ? unsortedBox
-                : cell.info?.type === "notice.alarms" ? alarmsBox
-                : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
+            sourceComponent: cell.compact ? statusBox : cell.fullBox
+        }
+    }
+
+    // The component in its full form: in the frame, or in the window a status
+    // icon opens (D-736).
+    readonly property Component fullBox: cell.unknown ? unknownBox
+        : cell.info?.type === "text.heading" ? headingBox
+        : cell.info?.type === "group.period" ? boxLabel
+        : cell.info?.type === "card.net_worth" ? netWorthBox
+        : cell.info?.type === "table.income_sources" ? incomeBox
+        : cell.info?.type === "budget.progress" ? budgetBox
+        : cell.info?.type === "table.transactions" ? transactionsBox
+        : cell.info?.type === "text.separator" ? separatorBox
+        : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
+        : cell.info?.type === "bank.update_all" ? updateAllBox
+        : cell.info?.type === "page.period" ? periodHeaderBox
+        : cell.info?.type === "page.filters" ? filterBarBox
+        : cell.info?.type === "page.tabs" ? dashboardTabsBox
+        : cell.info?.type === "notice.unsorted" ? unsortedBox
+        : cell.info?.type === "notice.alarms" ? alarmsBox
+        : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
+
+    TileStatusWords {
+        id: statusWords
+    }
+
+    // The status icon of a tile below its full size (US5.4, D-734, D-735,
+    // `docs/STATUS_TILES.md`). The state comes from Rust with the figures the
+    // tile already reads; only `running` is read from the bank object itself,
+    // which changes while an update runs. A click opens the whole tile
+    // (D-736); while arranging, the overlay above selects it instead.
+    Component {
+        id: statusBox
+
+        Item {
+            id: statusItem
+
+            readonly property bool failed: false
+            readonly property string type: cell.info?.type ?? ""
+            readonly property bool isAlarms: type === "notice.alarms"
+            readonly property string rules: isAlarms ? (cell.subject?.preview?.alarms || "[]") : "[]"
+            readonly property var pageView: cell.board.pageView ?? ({})
+            readonly property var updateAll: cell.board.updateAll ?? ({})
+            readonly property string status: type === "notice.alarms" ? (alarmFeed.view?.status ?? "")
+                : type === "notice.unsorted" ? (pageView.unsortedStatus ?? "")
+                : type === "notice.fetch_gap" ? (pageView.fetchGapStatus ?? "")
+                : type === "bank.update_all" ? ((cell.board.bank?.updating ?? false) ? "running" : (cell.board.bankReady ? (updateAll.status ?? "") : "unknown"))
+                : ""
+            readonly property int count: type === "notice.alarms" ? (alarmFeed.view?.statusCount ?? 0)
+                : type === "notice.unsorted" ? (pageView.unsorted ?? 0)
+                : type === "notice.fetch_gap" ? (pageView.fetchGaps ?? []).length
+                : type === "bank.update_all" ? (updateAll.statusCount ?? 0)
+                : 0
+
+            onRulesChanged: if (isAlarms) alarmFeed.show(rules)
+            Component.onCompleted: if (isAlarms) alarmFeed.show(rules)
+
+            Connections {
+                target: cell.board
+                enabled: statusItem.isAlarms
+
+                function onBookChangesChanged() {
+                    alarmFeed.refresh();
+                }
+            }
+
+            BookAlarms {
+                id: alarmFeed
+            }
+
+            StatusIcon {
+                anchors.fill: parent
+                status: statusItem.status
+                name: names.name(cell.info)
+                words: statusWords.words(statusItem.type, status, statusItem.count)
+                sentence: statusWords.sentence(statusItem.type, status, statusItem.count)
+                clickHint: statusWords.clickHint
+                wordsShown: cell.narrow || (cell.info?.cols ?? 0) >= 3
+                arranging: cell.board.editing
+                onOpened: wholeTile.open()
+            }
+        }
+    }
+
+    // The whole tile in a window over the page (D-736). An action inside
+    // that opens another page closes it first.
+    Kirigami.Dialog {
+        id: wholeTile
+
+        title: cell.present ? Plain.plain(names.name(cell.info)) : ""
+        standardButtons: Kirigami.Dialog.Close
+        preferredWidth: Math.max(20 * Kirigami.Units.gridUnit, cell.board.cellWidth(6))
+        padding: Kirigami.Units.largeSpacing
+
+        Connections {
+            target: cell.board
+            enabled: wholeTile.opened
+
+            function onSetBudgetClicked() {
+                wholeTile.close();
+            }
+            function onTransactionClicked(accountId, transactionId) {
+                wholeTile.close();
+            }
+            function onGetTransactionsClicked(accountId) {
+                wholeTile.close();
+            }
+            function onConnectBankClicked() {
+                wholeTile.close();
+            }
+        }
+
+        Item {
+            implicitWidth: wholeTile.preferredWidth - 2 * wholeTile.padding
+            implicitHeight: cell.board.frameHeight(3)
+
+            Loader {
+                anchors.fill: parent
+                active: wholeTile.opened
+                sourceComponent: cell.fullBox
+            }
         }
     }
 

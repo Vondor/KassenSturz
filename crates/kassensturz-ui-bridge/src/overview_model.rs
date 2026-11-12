@@ -12,6 +12,7 @@ use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QVariant;
+use kassensturz_report::status;
 use kassensturz_store::StoreError;
 
 use crate::accounts_model::sections_object;
@@ -210,6 +211,15 @@ fn view_object(view: &OverviewView, gaps: &[FetchGap], changes: u64) -> QVariant
             list(view.unsorted_rows.iter().map(latest_row_object)),
         ),
         ("fetchGaps", list(gaps.iter().map(fetch_gap_object))),
+        // The status icons of the two notice tiles (US5.4, D-734).
+        (
+            "unsortedStatus",
+            text(status::waiting(view.unsorted).status.id()),
+        ),
+        (
+            "fetchGapStatus",
+            text(status::waiting(gaps.len()).status.id()),
+        ),
         ("bookChanges", text(&changes.to_string())),
     ])
 }
@@ -279,6 +289,12 @@ mod tests {
         // With the warning off, the list is there and empty.
         let off = view_object(&view, &[], 0);
         assert!(list_of(&off, "fetchGaps").is_empty());
+
+        // The notice tiles' status icons (D-734): a gap waits, none is fine.
+        assert_eq!(text_of(&object, "fetchGapStatus"), "to-do");
+        assert_eq!(text_of(&off, "fetchGapStatus"), "fine");
+        let unsorted = if view.unsorted > 0 { "to-do" } else { "fine" };
+        assert_eq!(text_of(&object, "unsortedStatus"), unsorted);
     }
 
     /// The budget count the Overview grid collapses the budget bars by,

@@ -20,6 +20,7 @@ use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QVariant};
 use kassensturz_bank::{BankError, BankQuestion, Pin as BankPin, Tan, TanRequest};
 use kassensturz_core::Report;
 use kassensturz_platform::SecretStorage;
+use kassensturz_report::status::{self, UpdateFigures, UpdateRun};
 
 use crate::bank_connection::{
     self, Answer, Connection, Event, FetchOutcome, FetchRow, FoundAccount, ListedBankAccount,
@@ -387,6 +388,9 @@ pub struct BankConnectionRust {
     found: Vec<FoundAccount>,
     /// Set by *Stop* while *Update all accounts* runs.
     stop: Arc<AtomicBool>,
+    /// How the last *Update all accounts* of this session ended, for the
+    /// tile's status icon (US5.4, D-734).
+    last_run: Option<UpdateRun>,
 }
 
 impl cxx_qt::Initialize for qobject::BankConnection {
@@ -619,7 +623,7 @@ impl qobject::BankConnection {
             update_all::state(book, &locale)
                 .map_err(|error| crate::errors::report_text(book, &error.report(), &locale))
         }) {
-            Some(Ok(state)) => state_object(&state),
+            Some(Ok(state)) => state_object(&state, self.rust().last_run),
             Some(Err(error)) => error_object(&error),
             None => error_object(&ErrorText::plain("input.no-such-entry")),
         }
@@ -838,14 +842,14 @@ fn deliver(mut qobject: Pin<&mut qobject::BankConnection>, event: Event) {
         Event::UpdateAllDone(result) => {
             qobject.as_mut().set_busy(false);
             // Booked on the GUI thread, which holds the book (D-449).
-            let object = match result {
-                Ok(fetched) => session::with_book_mut(|book| {
-                    update_all::book_all(book, fetched, &app_locale())
-                })
-                .map_or_else(
-                    || error_object(&ErrorText::plain("input.no-such-entry")),
-                    |summary| summary_object(&summary),
-                ),
+            let booked = result.map(|fetched| {
+                session::with_book_mut(|book| update_all::book_all(book, fetched, &app_locale()))
+            });
+            qobject.as_mut().rust_mut().last_run =
+                Some(last_run(booked.as_ref().ok().and_then(Option::as_ref)));
+            let object = match booked {
+                Ok(Some(summary)) => summary_object(&summary),
+                Ok(None) => error_object(&ErrorText::plain("input.no-such-entry")),
                 Err(error) => error_object(&error),
             };
             qobject.as_mut().set_update_summary(object.clone());
@@ -1139,7 +1143,35 @@ fn fetch_object(result: &Result<Vec<FetchOutcome>, ErrorText>, locale: &impl Loc
     }
 }
 
-fn state_object(state: &State) -> QVariant {
+/// How an *Update all accounts* ended, for the status icon (D-734): failed
+/// as a whole when the bank or the book could not be used, otherwise how
+/// many accounts failed and how many notices wait.
+fn last_run(booked: Option<&Summary>) -> UpdateRun {
+    match booked {
+        Some(summary) => UpdateRun::Done {
+            failed: summary
+                .accounts
+                .iter()
+                .filter(|line| line.state == "failed")
+                .count(),
+            to_check: summary.notices.len(),
+        },
+        None => UpdateRun::Failed,
+    }
+}
+
+/// The widget's state before it is pressed, with its status (`status`,
+/// `statusCount`, D-734). Asked only while bank connections can be used;
+/// `running` is read by the icon from `updating` itself, which changes
+/// while an update runs.
+fn state_object(state: &State, last: Option<UpdateRun>) -> QVariant {
+    let shown = status::update_all(UpdateFigures {
+        usable: true,
+        linked: state.linked,
+        never: state.never,
+        running: false,
+        last,
+    });
     map([
         (
             "linked",
@@ -1147,6 +1179,8 @@ fn state_object(state: &State) -> QVariant {
         ),
         ("lastUpdated", text(&state.last_updated)),
         ("never", QVariant::from(&state.never)),
+        ("status", text(shown.status.id())),
+        ("statusCount", count(shown.count)),
     ])
 }
 
@@ -1726,16 +1760,21 @@ mod tests {
 
     #[test]
     fn the_update_all_state_and_summary_read_back_as_qml_reads_them() {
-        let state = state_object(&State {
+        let state = State {
             linked: 2,
             last_updated: "2026-10-09".to_owned(),
             never: false,
-        });
-        assert_eq!(number_of(&state, "linked"), 2);
-        assert_eq!(text_of(&state, "lastUpdated"), "2026-10-09");
-        assert!(!flag_of(&state, "never"));
+        };
+        let state_read = state_object(&state, None);
+        assert_eq!(number_of(&state_read, "linked"), 2);
+        assert_eq!(text_of(&state_read, "lastUpdated"), "2026-10-09");
+        assert!(!flag_of(&state_read, "never"));
+        assert_eq!(text_of(&state_read, "status"), "fine");
+        assert_eq!(number_of(&state_read, "statusCount"), 0);
+        let failed = state_object(&state, Some(UpdateRun::Failed));
+        assert_eq!(text_of(&failed, "status"), "failed");
 
-        let summary = summary_object(&Summary {
+        let booked = Summary {
             updated: 1,
             booked: 3,
             accounts: vec![
@@ -1774,7 +1813,17 @@ mod tests {
                 usual: shown("4.50 EUR"),
                 size: shown("45.23 EUR"),
             }],
-        });
+        };
+        // One account failed: the tile shows "failed" for it (D-734).
+        assert_eq!(
+            last_run(Some(&booked)),
+            UpdateRun::Done {
+                failed: 1,
+                to_check: 1
+            }
+        );
+        assert_eq!(last_run(None), UpdateRun::Failed);
+        let summary = summary_object(&booked);
         assert_eq!(number_of(&summary, "updated"), 1);
         assert_eq!(number_of(&summary, "booked"), 3);
         assert_eq!(number_of(&summary, "toCheck"), 1);

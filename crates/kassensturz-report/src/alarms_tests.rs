@@ -479,7 +479,9 @@ fn the_tile_shows_no_data_and_the_ai_never_sees_it() {
     assert!(!ComponentType::ALL.contains(&kind));
     assert!(kind.shows_no_data());
     assert_eq!(kind.default_size(), grid::Size { cols: 6, rows: 3 });
-    assert_eq!(kind.smallest_size(), grid::Size { cols: 3, rows: 2 });
+    // It shrinks to its status icon below 3 x 2 (D-735).
+    assert_eq!(kind.smallest_size(), grid::Size { cols: 1, rows: 1 });
+    assert_eq!(kind.full_size(), Some(grid::Size { cols: 3, rows: 2 }));
     let component = Component::new(kind, "").unwrap();
     assert_eq!(
         component.to_value(),

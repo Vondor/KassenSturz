@@ -165,6 +165,49 @@ Kirigami.ScrollablePage {
     // (D-703, B-226).
     readonly property int noteLimit: register.noteLimit(entry.note ?? "")
 
+    // `typed` is `before` with text put in (and maybe some taken out) at one
+    // place. Returns `{text, cursor}`: `before` with as much of the new text
+    // as keeps the note within `limit`, and the cursor after it. The length
+    // is counted by Rust, as a save counts it.
+    function fitNote(before: string, typed: string, limit: int): var {
+        let start = 0;
+        while (start < before.length && start < typed.length && before[start] === typed[start]) {
+            start++;
+        }
+        let end = 0;
+        while (end < before.length - start && end < typed.length - start && before[before.length - 1 - end] === typed[typed.length - 1 - end]) {
+            end++;
+        }
+        const head = typed.slice(0, start);
+        const added = typed.slice(start, typed.length - end);
+        const tail = typed.slice(typed.length - end);
+        // The most of `added` that fits, found by halving.
+        let low = 0;
+        let high = added.length;
+        while (low < high) {
+            const middle = Math.ceil((low + high) / 2);
+            if (register.noteLength(head + added.slice(0, middle) + tail) <= limit) {
+                low = middle;
+            } else {
+                high = middle - 1;
+            }
+        }
+        // Never keep half of a character that takes two UTF-16 units.
+        if (low > 0 && low < added.length) {
+            const unit = added.charCodeAt(low - 1);
+            if (unit >= 0xD800 && unit <= 0xDBFF) {
+                low--;
+            }
+        }
+        const kept = head + added.slice(0, low) + tail;
+        // Even the new text cut to nothing doesn't fit (the user replaced a
+        // short piece with a longer one at the limit): keep the note as it was.
+        if (register.noteLength(kept) > limit) {
+            return {text: before, cursor: start};
+        }
+        return {text: kept, cursor: start + low};
+    }
+
     // The other fields as they were loaded or last saved, so a step that
     // leaves the page can tell whether the user typed something (M6-B227).
     property string loadedFields: ""
@@ -465,12 +508,16 @@ Kirigami.ScrollablePage {
                     }
                     const typedLength = page.register.noteLength(text);
                     if (typedLength > page.noteLimit && typedLength > counted) {
-                        // Put the cursor back where the refused text went in.
-                        const cursor = cursorPosition - (text.length - fitting.length);
+                        // Keep as much of the new text as fits and refuse
+                        // only the rest, so a long paste is cut at the
+                        // limit, not dropped (#707, US4 P3 R1).
+                        const kept = page.fitNote(fitting, text, page.noteLimit);
                         restoring = true;
-                        text = fitting;
-                        cursorPosition = Math.max(0, Math.min(cursor, text.length));
+                        text = kept.text;
+                        cursorPosition = Math.max(0, Math.min(kept.cursor, text.length));
                         restoring = false;
+                        fitting = text;
+                        counted = page.register.noteLength(text);
                         refused = true;
                         return;
                     }

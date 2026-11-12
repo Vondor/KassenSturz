@@ -153,9 +153,11 @@ ColumnLayout {
     }
 
     // Whether Read of this row is on because something in the row needs it.
-    // A row may also need the reading of another one (`readRow`).
+    // A row may also need the reading of another one (`readRow`). Only a row
+    // that names one does: most rows have neither a `key` nor a `readRow`,
+    // and two missing names are not a match (US4 P3, R5).
     function readForced(row: var, again: int): bool {
-        return rows.some(other => (other === row || other.readRow === row.key) && other.cells.some(cell => cell.needsRead && settings.allows(cell.key)));
+        return rows.some(other => (other === row || (row.key !== undefined && other.readRow === row.key)) && other.cells.some(cell => cell.needsRead && settings.allows(cell.key)));
     }
 
     function choose(key: string, value: bool) {
@@ -226,7 +228,7 @@ ColumnLayout {
 
                 Layout.fillWidth: cell.isName
                 Layout.preferredWidth: cell.isName ? Kirigami.Units.gridUnit * 8 : Kirigami.Units.gridUnit * 5
-                implicitHeight: Math.max(nameLabel.implicitHeight, toggle.implicitHeight)
+                implicitHeight: Math.max(nameLabel.implicitHeight, toggle.implicitHeight, absentLabel.visible ? absentLabel.implicitHeight : 0)
 
                 Controls.Label {
                     id: nameLabel
@@ -256,10 +258,18 @@ ColumnLayout {
                     }
                 }
 
+                // Wrapped within its own column, so a longer translation
+                // never runs into the next cell (US4 P3, R8).
                 Controls.Label {
-                    anchors.centerIn: parent
+                    id: absentLabel
+
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
                     visible: !cell.isName && cell.modelData.key === ""
                     enabled: false
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.Wrap
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                     textFormat: Text.PlainText
                     text: cell.modelData.absent === "never"

@@ -74,6 +74,22 @@ Kirigami.ApplicationWindow {
             window.check(register.saved.length === 1, "nothing new typed, nothing saved again");
             window.check(register.notesWhenPartnersRead.length === 2, "the partners were read again");
 
+            // A paste longer than the limit keeps what fits, not nothing
+            // (#707, US4 P3 R1).
+            const note = notes[0];
+            note.text = "";
+            note.insert(0, "a".repeat(600));
+            window.check(note.text === "a".repeat(512), "a 600-character paste keeps the first 512, got " + note.text.length);
+            window.check(note.cursorPosition === 512, "the cursor is after the kept text, got " + note.cursorPosition);
+            note.text = "start end";
+            note.insert(6, "b".repeat(600));
+            window.check(note.text === "start " + "b".repeat(503) + "end", "a paste in the middle keeps the end of the note and what fits, got " + note.text.length);
+            note.insert(3, "c");
+            window.check(note.text.length === 512 && note.text.indexOf("c") < 0, "at the limit nothing more goes in");
+            note.text = "";
+            note.insert(0, "x" + "\u{1F600}".repeat(300));
+            window.check(note.text.length <= 512 && note.text.charCodeAt(note.text.length - 1) !== 0xD83D, "a character that takes two units is never cut in half, got " + note.text.length);
+
             console.log(window.failed ? "transaction page: FAILED" : "transaction page: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

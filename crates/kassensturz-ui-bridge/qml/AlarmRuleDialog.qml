@@ -43,9 +43,16 @@ Kirigami.Dialog {
     property string typed: ""
     readonly property string plain: feed && account !== "" && typed.trim() !== "" ? feed.readAmount(typed, account) : ""
 
-    readonly property bool onAccount: reason === "account_below" || reason === "account_reserve"
-    readonly property bool onBudget: reason !== "account_below"
-    readonly property bool ready: (!onAccount || account !== "") && (!onBudget || budget !== "") && (reason !== "account_below" || plain !== "")
+    // Not named `on…`: QML reads a member named so as a signal handler, and
+    // `dialog.onAccount` was then undefined, which hid both pickers and let
+    // Save through without a budget (US4 P3, step 7).
+    readonly property bool forAccount: reason === "account_below" || reason === "account_reserve"
+    readonly property bool forBudget: reason !== "account_below"
+    readonly property bool ready: (!forAccount || account !== "") && (!forBudget || budget !== "") && (reason !== "account_below" || plain !== "")
+
+    // The pickers, for the smoke test.
+    property alias accountPicker: accountBox
+    property alias budgetPicker: budgetBox
 
     signal saved(int index, var rule)
 
@@ -164,7 +171,7 @@ Kirigami.Dialog {
 
                 Kirigami.FormData.label: dialog.i18nContext.i18nc("@label:listbox", "Account:")
                 Accessible.name: Kirigami.FormData.label
-                visible: dialog.onAccount && dialog.accounts.length > 0
+                visible: dialog.forAccount && dialog.accounts.length > 0
                 model: dialog.accounts
                 textRole: "name"
                 valueRole: "id"
@@ -176,7 +183,7 @@ Kirigami.Dialog {
             }
 
             Controls.Label {
-                visible: dialog.onAccount && dialog.accounts.length === 0
+                visible: dialog.forAccount && dialog.accounts.length === 0
                 wrapMode: Text.Wrap
                 text: dialog.i18nContext.i18nc("@info", "There are no accounts to pick yet.")
             }
@@ -188,7 +195,7 @@ Kirigami.Dialog {
                     ? dialog.i18nContext.i18nc("@label:listbox the budget a reserve is counted in", "Of which budget:")
                     : dialog.i18nContext.i18nc("@label:listbox", "Budget:")
                 Accessible.name: Kirigami.FormData.label
-                visible: dialog.onBudget && dialog.budgets.length > 0
+                visible: dialog.forBudget && dialog.budgets.length > 0
                 model: dialog.budgets
                 textRole: "name"
                 valueRole: "id"
@@ -200,7 +207,7 @@ Kirigami.Dialog {
             }
 
             Controls.Label {
-                visible: dialog.onBudget && dialog.budgets.length === 0
+                visible: dialog.forBudget && dialog.budgets.length === 0
                 wrapMode: Text.Wrap
                 text: dialog.i18nContext.i18nc("@info", "There are no budgets to pick yet. Set one on the page Budgets first.")
             }
@@ -245,7 +252,7 @@ Kirigami.Dialog {
             }
 
             Controls.CheckBox {
-                visible: dialog.onAccount
+                visible: dialog.forAccount
                 text: dialog.i18nContext.i18nc("@option:check", "Check the lowest point of this month, not just today")
                 checked: dialog.lowest
                 onToggled: {
@@ -257,7 +264,7 @@ Kirigami.Dialog {
 
         Controls.Label {
             Layout.fillWidth: true
-            visible: dialog.onAccount
+            visible: dialog.forAccount
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             font: Kirigami.Theme.smallFont

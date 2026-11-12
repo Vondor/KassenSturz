@@ -1454,6 +1454,77 @@ msgstr ""
 "KassenSturz aus Ihrem Buch, nicht die KI. Es wird nur im Statistik-Baukasten "
 "gespeichert, wenn Sie bestätigen, und Rückgängig entfernt es wieder."
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+msgctxt "@label a field of a chart's data: the main category a category belongs to"
+msgid "Main category"
+msgstr "Hauptkategorie"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+msgctxt "@label a field of a chart's data"
+msgid "Currency"
+msgstr "Währung"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+msgctxt "@label a field of a chart's data: whether the account is money the user owes"
+msgid "Money you owe"
+msgstr "Geld, das Sie schulden"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+msgctxt "@label a field of a chart's data: whether the account is closed"
+msgid "Closed"
+msgstr "Geschlossen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+msgctxt "@label a field of a chart's data: money in less money out in a month"
+msgid "Change"
+msgstr "Veränderung"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+msgctxt "@label the value of a yes-or-no field a chart filters by"
+msgid "yes"
+msgstr "ja"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+msgctxt "@label the value of a yes-or-no field a chart filters by"
+msgid "no"
+msgstr "nein"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 is a field of a chart's data, %2 a list of values"
+msgid "%1 is one of %2"
+msgstr "%1 ist eines von %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 is a field of a chart's data, %2 a value"
+msgid "%1 is at least %2"
+msgstr "%1 ist mindestens %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 is a field of a chart's data, %2 a value"
+msgid "%1 is at most %2"
+msgstr "%1 ist höchstens %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 is a field of a chart's data, %2 and %3 values"
+msgid "%1 is from %2 to %3"
+msgstr "%1 ist von %2 bis %3"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 is a field of a chart's data, %2 a value"
+msgid "%1 is %2"
+msgstr "%1 ist %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 lists what a chart keeps, such as: Category is one of Food, Rent"
+msgid "Shows only: %1"
+msgstr "Zeigt nur: %1"
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1265
 #, kde-format
 msgctxt "@info"

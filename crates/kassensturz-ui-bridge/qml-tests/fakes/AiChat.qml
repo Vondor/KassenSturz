@@ -71,6 +71,8 @@ QtObject {
             title: view.title,
             period: view.period,
             charts: ["chart.pie", "chart.donut", "chart.bar"],
+            // What a chart's own description leaves out (D-729).
+            filters: [{field: "category", test: "one-of", values: ["Food", "Rent"], yesNo: false}, {field: "closed", test: "equal", values: ["no"], yesNo: true}],
             component: JSON.stringify({type: view.chart, dataset: "spending_by_category", params: {grouping: "category"}, props: {title: view.title}})
         }, {
             // A number card with a formula the AI wrote, over a salary
@@ -84,6 +86,7 @@ QtObject {
             title: "Food less travel",
             period: "last-salary-month-25",
             charts: ["kpi.card", "progress.bar"],
+            filters: [],
             component: JSON.stringify({type: "kpi.card", dataset: "income_expense_by_month", params: {measure: "formula"}, props: {title: "Food less travel", formula: "=Pets - Travel"}})
         }, {
             kind: "newBudget",

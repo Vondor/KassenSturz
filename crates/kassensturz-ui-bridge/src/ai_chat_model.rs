@@ -278,9 +278,9 @@ pub(crate) mod engine {
 
     use super::*;
     use crate::ai_chat::{
-        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction, Review,
-        Screen, Sets, Waiting, answer_from, category_choices, code_text, confirm_in, corrected,
-        hooks, outcome_of, rows_of,
+        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction,
+        FilterView, Review, Screen, Sets, Waiting, answer_from, category_choices, code_text,
+        confirm_in, corrected, hooks, outcome_of, rows_of,
     };
     use crate::ai_requests::{Arrived, take_requests, tell_confirmed, tell_declined, tell_dropped};
     use crate::ai_settings::{self, Store};
@@ -546,6 +546,23 @@ pub(crate) mod engine {
         }))
     }
 
+    /// The filters of a chart description as QML reads them: each with
+    /// its field, its test, its values (already written for the user) and
+    /// whether the values are the words yes and no (D-729).
+    pub(crate) fn filter_list(filters: &[FilterView]) -> QVariant {
+        list(filters.iter().map(|filter| {
+            map([
+                ("field", text(filter.field)),
+                ("test", text(filter.test)),
+                (
+                    "values",
+                    list(filter.values.iter().map(|value| text(value))),
+                ),
+                ("yesNo", QVariant::from(&filter.yes_no)),
+            ])
+        }))
+    }
+
     /// One change's own fields.
     fn view_entries(view: &ChangeView) -> Vec<(&'static str, QVariant)> {
         match view {
@@ -721,24 +738,28 @@ pub(crate) mod engine {
                 period,
                 component,
                 charts,
+                filters,
             } => vec![
                 ("kind", text("newView")),
                 ("title", text(title)),
                 ("period", text(period)),
                 ("component", text(component)),
                 ("charts", list(charts.iter().map(|chart| text(chart)))),
+                ("filters", filter_list(filters)),
             ],
             ChangeView::EditView {
                 before,
                 title,
                 period,
                 component,
+                filters,
             } => vec![
                 ("kind", text("editView")),
                 ("before", text(before)),
                 ("title", text(title)),
                 ("period", text(period)),
                 ("component", text(component)),
+                ("filters", filter_list(filters)),
             ],
             ChangeView::DeleteView { name } => {
                 vec![("kind", text("deleteView")), ("name", text(name))]
@@ -1416,7 +1437,9 @@ mod tests {
     use super::engine::{
         changes_object, choices_object, entry_object, finished_object, review_object, sets_object,
     };
-    use crate::ai_chat::{BasisView, CategoryChoice, ChangeRow, ChangeView, EditLine, Review};
+    use crate::ai_chat::{
+        BasisView, CategoryChoice, ChangeRow, ChangeView, EditLine, FilterView, Review,
+    };
     use crate::rules::ConditionForm;
     use crate::variant::read_back::{
         elements, flag_of, keys, list_of, number_of, object_of, text_of,
@@ -1845,6 +1868,12 @@ mod tests {
                 period: "this-year".into(),
                 component: r#"{"type":"chart.pie"}"#.into(),
                 charts: vec!["chart.pie", "chart.bar"],
+                filters: vec![FilterView {
+                    field: "category",
+                    test: "one-of",
+                    values: vec!["<b>Food</b>".into(), "Rent".into()],
+                    yes_no: false,
+                }],
             },
             ChangeView::NewBudget {
                 name: "<b>Weekly</b> shop".into(),
@@ -1892,6 +1921,7 @@ mod tests {
                 title: "<b>Spending</b> by row".into(),
                 period: "last-12-months".into(),
                 component: r#"{"type":"chart.bar"}"#.into(),
+                filters: Vec::new(),
             },
             ChangeView::DeleteView {
                 name: "<b>Old</b> chart".into(),
@@ -2053,9 +2083,22 @@ mod tests {
         assert_eq!(text_of(&items[12], "category"), "");
         assert_eq!(
             own_keys(&items[13]),
-            ["charts", "component", "kind", "period", "title"]
+            ["charts", "component", "filters", "kind", "period", "title"]
         );
         assert_eq!(list_of(&items[13], "charts").len(), 2);
+        // What the chart's description leaves out, in words (D-729).
+        let filters = list_of(&items[13], "filters");
+        assert_eq!(filters.len(), 1);
+        assert_eq!(keys(&filters[0]), ["field", "test", "values", "yesNo"]);
+        assert_eq!(text_of(&filters[0], "field"), "category");
+        assert_eq!(text_of(&filters[0], "test"), "one-of");
+        let values = list_of(&filters[0], "values");
+        assert_eq!(values.len(), 2);
+        assert_eq!(
+            values[0].value::<QString>().unwrap().to_string(),
+            "<b>Food</b>"
+        );
+        assert!(!flag_of(&filters[0], "yesNo"));
         assert_eq!(text_of(&items[13], "kind"), "newView");
         assert_eq!(text_of(&items[13], "title"), "<b>Where it goes</b>");
         assert_eq!(text_of(&items[13], "period"), "this-year");
@@ -2144,8 +2187,9 @@ mod tests {
         // Saved charts the AI changes or deletes (D-681).
         assert_eq!(
             own_keys(&items[16]),
-            ["before", "component", "kind", "period", "title"]
+            ["before", "component", "filters", "kind", "period", "title"]
         );
+        assert!(list_of(&items[16], "filters").is_empty());
         assert_eq!(text_of(&items[16], "kind"), "editView");
         assert_eq!(text_of(&items[16], "before"), "Spending");
         assert_eq!(text_of(&items[16], "title"), "<b>Spending</b> by row");

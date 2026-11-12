@@ -115,6 +115,65 @@ Kirigami.ScrollablePage {
         return gridNames.periodName(id);
     }
 
+    // What a chart's own description leaves out, in words (D-729), so a
+    // title such as "All spending" can't hide a filter. The values are
+    // written for the user by the core already (D-065).
+    function filterField(field: string): string {
+        switch (field) {
+        case "category": return i18nContext.i18nc("@title:column a table of a chart", "Category");
+        case "top_level": return i18nContext.i18nc("@label a field of a chart's data: the main category a category belongs to", "Main category");
+        case "total": return i18nContext.i18nc("@title:column a table of a chart", "Total");
+        case "currency": return i18nContext.i18nc("@label a field of a chart's data", "Currency");
+        case "month": return i18nContext.i18nc("@title:column a table of a chart", "Month");
+        case "income": return i18nContext.i18nc("@title:column a table of a chart", "Money in");
+        case "expenses": return i18nContext.i18nc("@title:column a table of a chart", "Money out");
+        case "net": return i18nContext.i18nc("@title:column a table of a chart", "Left over");
+        case "account": return i18nContext.i18nc("@title:column a table of a chart", "Account");
+        case "owed": return i18nContext.i18nc("@label a field of a chart's data: whether the account is money the user owes", "Money you owe");
+        case "closed": return i18nContext.i18nc("@label a field of a chart's data: whether the account is closed", "Closed");
+        case "balance": return i18nContext.i18nc("@title:column a table of a chart", "Balance");
+        case "assets": return i18nContext.i18nc("@title:column a table of a chart: what the user has", "You have");
+        case "liabilities": return i18nContext.i18nc("@title:column a table of a chart: what the user owes", "You owe");
+        case "net_worth": return i18nContext.i18nc("@title:column a table of a chart: what the user has less what they owe", "You are worth");
+        case "start": return i18nContext.i18nc("@title:column a table of a chart: what the accounts held at the start of the month", "At the start");
+        case "money_in": return i18nContext.i18nc("@title:column a table of a chart", "Money in");
+        case "money_out": return i18nContext.i18nc("@title:column a table of a chart", "Money out");
+        case "net_change": return i18nContext.i18nc("@label a field of a chart's data: money in less money out in a month", "Change");
+        case "end": return i18nContext.i18nc("@title:column a table of a chart: what the accounts held at the end of the month", "At the end");
+        default: return field;
+        }
+    }
+
+    function filterValue(filter: var, value: string): string {
+        if (!filter.yesNo) {
+            return value;
+        }
+        return value === "yes"
+            ? i18nContext.i18nc("@label the value of a yes-or-no field a chart filters by", "yes")
+            : i18nContext.i18nc("@label the value of a yes-or-no field a chart filters by", "no");
+    }
+
+    function filterText(filter: var): string {
+        const field = filterField(filter.field);
+        const values = (filter.values ?? []).map(value => filterValue(filter, value));
+        switch (filter.test) {
+        case "one-of":
+            return i18nContext.i18nc("@info %1 is a field of a chart's data, %2 a list of values", "%1 is one of %2", field, values.join(", "));
+        case "at-least":
+            return i18nContext.i18nc("@info %1 is a field of a chart's data, %2 a value", "%1 is at least %2", field, values[0] ?? "");
+        case "at-most":
+            return i18nContext.i18nc("@info %1 is a field of a chart's data, %2 a value", "%1 is at most %2", field, values[0] ?? "");
+        case "between":
+            return i18nContext.i18nc("@info %1 is a field of a chart's data, %2 and %3 values", "%1 is from %2 to %3", field, values[0] ?? "", values[1] ?? "");
+        default:
+            return i18nContext.i18nc("@info %1 is a field of a chart's data, %2 a value", "%1 is %2", field, values[0] ?? "");
+        }
+    }
+
+    function filtersText(filters: var): string {
+        return i18nContext.i18nc("@info %1 lists what a chart keeps, such as: Category is one of Food, Rent", "Shows only: %1", (filters ?? []).map(filterText).join("; "));
+    }
+
     // A Rule's condition in words.
     function conditionText(condition: var): string {
         if (condition.kind === "text") {
@@ -1248,6 +1307,15 @@ Kirigami.ScrollablePage {
                         text: page.periodName(chartCard.modelData.period)
                     }
 
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: (chartCard.modelData.filters ?? []).length > 0
+                        wrapMode: Text.Wrap
+                        font.bold: true
+                        textFormat: Text.PlainText
+                        text: page.filtersText(chartCard.modelData.filters)
+                    }
+
                     ComponentPreview {
                         Layout.fillWidth: true
                         subject: chartProperties.view
@@ -1327,6 +1395,15 @@ Kirigami.ScrollablePage {
                         opacity: 0.8
                         textFormat: Text.PlainText
                         text: page.periodName(changedChartCard.modelData.period)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: (changedChartCard.modelData.filters ?? []).length > 0
+                        wrapMode: Text.Wrap
+                        font.bold: true
+                        textFormat: Text.PlainText
+                        text: page.filtersText(changedChartCard.modelData.filters)
                     }
 
                     ComponentPreview {

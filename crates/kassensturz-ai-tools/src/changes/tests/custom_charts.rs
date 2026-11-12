@@ -382,3 +382,64 @@ fn the_texts_of_a_description_are_listed_for_the_number_check() {
     assert!(titles.contains(&"Balance, money in and money out".to_owned()));
     assert!(titles.contains(&"Money in".to_owned()));
 }
+
+#[test]
+fn a_description_gets_the_same_answer_on_any_book() {
+    // Security look of #749: a filter that names a category or an account
+    // must not tell the model whether the book has one, so a description
+    // is answered the same on a book that has it and on an empty one.
+    let Sample { book: full, .. } = sample();
+    let empty = Book::create_in_memory().expect("book");
+    let names = |name: &str, field: &str, data: &str, y: &str| {
+        format!(
+            r#"{{"data":{{"name":"{data}"}},"transform":[{{"filter":{{"field":"{field}","equal":"{name}"}}}}],
+            "mark":"bar","encoding":{{"x":{{"field":"{field}","type":"nominal"}},
+            "y":{{"field":"{y}","type":"quantitative"}}}}}}"#
+        )
+    };
+    let descriptions = [
+        names("Groceries", "category", "spending_by_category", "total"),
+        names(
+            "No such category",
+            "category",
+            "spending_by_category",
+            "total",
+        ),
+        names("Checking account", "account", "account_balances", "balance"),
+        names("No such account", "account", "account_balances", "balance"),
+        // And refusals: unsupported, unknown field, data not offered.
+        names("Groceries", "category", "spending_by_category", "total").replacen(
+            "\"mark\"",
+            "\"params\":[],\"mark\"",
+            1,
+        ),
+        names("Groceries", "no_field", "spending_by_category", "total"),
+        names("Groceries", "category", "budget_utilization", "spent"),
+    ];
+    for description in &descriptions {
+        let answer = |book: &Book| {
+            let result = propose_view(book, &call(description), describing(), today());
+            let report = result
+                .as_ref()
+                .err()
+                .map(|error| format!("{:?}", error.model_report()));
+            (code(result), report)
+        };
+        assert_eq!(answer(&full), answer(&empty), "{description}");
+    }
+    // The test means something: names prepare, the broken ones are refused.
+    let on_empty = |index: usize| {
+        code(propose_view(
+            &empty,
+            &call(&descriptions[index]),
+            describing(),
+            today(),
+        ))
+    };
+    for index in 0..4 {
+        assert_eq!(on_empty(index), "prepared", "{index}");
+    }
+    for index in 4..7 {
+        assert_ne!(on_empty(index), "prepared", "{index}");
+    }
+}

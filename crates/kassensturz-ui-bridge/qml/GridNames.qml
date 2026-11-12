@@ -49,6 +49,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: where the month's money came from, by category", "Where your money came from");
         case "budget.progress":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: how much of each budget is spent and left", "Budgets");
+        case "table.transactions":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: a list of single transactions, newest first", "Transactions");
         case "group.period":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a framed area with a period of its own for the widgets inside it", "Period box");
         case "bank.update_all":
@@ -63,6 +65,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a note that money moved between the user's own accounts is not counted", "Note about moved money");
         case "notice.unsorted":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a note with how many transactions have no category yet and the newest of them", "Transactions without a category");
+        case "notice.alarms":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: lines that say when a budget or an account crosses a limit the user set", "Warnings");
         }
         return i18nContext.i18nc("@item:inlistbox a part of the layout that this version doesn't know", "Unknown");
     }
@@ -161,6 +165,9 @@ QtObject {
             return described.complete
                 ? i18nContext.i18ncp("@item:inlistbox a period of whole months that are over", "The last complete month", "The last %1 complete months", described.count)
                 : i18nContext.i18ncp("@item:inlistbox a period of months up to and with this one", "This month", "The last %1 months", described.count);
+        }
+        if (described.rolling === "days") {
+            return i18nContext.i18ncp("@item:inlistbox a period of days up to today, today included", "Today", "The last %1 days", described.count);
         }
         if (described.rolling === "salary") {
             return described.before

@@ -117,6 +117,20 @@ pub enum ComponentType {
     /// [`ComponentType::ALL`]: the AI does not write or see descriptions
     /// (Q-352).
     CustomChart,
+    /// `table.transactions`: single transactions of the chosen accounts,
+    /// categories and period, newest first, like an account's list (US4.7,
+    /// D-716). It only shows them; a click opens the transaction. Its own
+    /// bridge object fills it, so its document names no dataset, and like
+    /// the income sources it takes every shared filter. It is in
+    /// [`ComponentType::LIBRARY`], never in [`ComponentType::ALL`]: the AI
+    /// neither proposes nor reads it.
+    Transactions,
+    /// `notice.alarms`: the warnings tile, a list of rules the user sets
+    /// that says which of them a budget or an account crosses today (US4.9,
+    /// D-721). It shows no dataset; its own bridge object fills it. It is in
+    /// [`ComponentType::LIBRARY`] and never in [`ComponentType::ALL`]: the AI
+    /// neither proposes it nor sees its rules.
+    Alarms,
 }
 
 impl ComponentType {
@@ -136,7 +150,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 23] = [
+    pub const LIBRARY: [Self; 25] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -160,6 +174,8 @@ impl ComponentType {
         Self::FilterBar,
         Self::DashboardTabs,
         Self::CustomChart,
+        Self::Transactions,
+        Self::Alarms,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -179,6 +195,8 @@ impl ComponentType {
                 | Self::PeriodHeader
                 | Self::FilterBar
                 | Self::DashboardTabs
+                | Self::Transactions
+                | Self::Alarms
         )
     }
 
@@ -208,6 +226,8 @@ impl ComponentType {
             Self::FilterBar => "page.filters",
             Self::DashboardTabs => "page.tabs",
             Self::CustomChart => "chart.custom",
+            Self::Transactions => "table.transactions",
+            Self::Alarms => "notice.alarms",
         }
     }
 
@@ -245,7 +265,9 @@ impl ComponentType {
             | Self::BankUpdateAll
             | Self::PeriodHeader
             | Self::FilterBar
-            | Self::DashboardTabs => "text",
+            | Self::DashboardTabs
+            | Self::Transactions
+            | Self::Alarms => "text",
         }
     }
 
@@ -301,6 +323,8 @@ impl ComponentType {
             Self::BudgetProgress => &BUDGET_PROGRESS,
             Self::BankUpdateAll => &UPDATE_ALL,
             Self::CustomChart => &CUSTOM_CHART,
+            Self::Transactions => &TRANSACTIONS,
+            Self::Alarms => &ALARMS,
         }
     }
 }
@@ -369,6 +393,11 @@ pub enum Kind {
     /// [`crate::spec::read`] must accept. What it holds is the user's own
     /// text; nothing of it is changed.
     Spec,
+    /// The rules of a warnings tile (US4.9, D-722): at most
+    /// [`crate::MAX_ALARMS`], each checked by [`crate::AlarmRule::check`].
+    /// They name accounts and budgets by the book's IDs, so a dashboard
+    /// file leaves them out (D-726).
+    Alarms,
 }
 
 /// One column of a chart or table: what it is called and what is under it.
@@ -407,6 +436,8 @@ pub enum Setting {
     Ids(Vec<String>),
     /// For [`Kind::Columns`].
     Columns(Vec<ColumnSetting>),
+    /// For [`Kind::Alarms`].
+    Alarms(Vec<crate::AlarmRule>),
 }
 
 const TITLE: Property = Property {
@@ -712,7 +743,30 @@ const NOTES_ONLY: [Property; 1] = [HIDE_NOTE];
 /// parts that are not supported, the series of a chart over time and the
 /// categories of the budgets (Q-353), which count only while the description
 /// names that dataset, and the period.
+/// The warnings tile (D-721, D-722): its rules and its title.
+const ALARM_RULES: Property = Property {
+    key: ALARMS_KEY,
+    place: Place::Props,
+    kind: Kind::Alarms,
+};
+const ALARMS: [Property; 2] = [ALARM_RULES, TITLE];
+
+/// The key of the warnings tile's rules.
+pub const ALARMS_KEY: &str = "alarms";
+
 const CUSTOM_CHART: [Property; 6] = [SPEC, PARTIAL, SERIES, CATEGORIES, HIDE_NOTE, PERIOD];
+
+/// `params.rows` of the transactions tile (D-716): how many of the newest
+/// transactions it lists.
+const ROWS: Property = Property {
+    key: "rows",
+    place: Place::Params,
+    kind: Kind::Choice(&crate::LISTED_ROWS),
+};
+
+/// The transactions tile (US4.7, D-716): its own accounts and categories,
+/// how many rows, a title, the grey notes switch and the period.
+const TRANSACTIONS: [Property; 6] = [ACCOUNTS, CATEGORIES, ROWS, TITLE, HIDE_NOTE, PERIOD];
 
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }
@@ -748,7 +802,8 @@ impl Property {
             | Kind::Budgets
             | Kind::Formula
             | Kind::Columns
-            | Kind::Spec => &[],
+            | Kind::Spec
+            | Kind::Alarms => &[],
         }
     }
 
@@ -767,6 +822,7 @@ impl Property {
             Kind::Flag { default } => Setting::Flag(default),
             Kind::Ids | Kind::Accounts | Kind::Budgets => Setting::Ids(Vec::new()),
             Kind::Columns => Setting::Columns(Vec::new()),
+            Kind::Alarms => Setting::Alarms(Vec::new()),
             Kind::Choice(_) | Kind::Grouping => Setting::Word(
                 self.words(dataset)
                     .first()
@@ -862,6 +918,16 @@ impl Property {
                             return Err(invalid("bad-text", self.path()));
                         }
                     }
+                }
+                Ok(())
+            }
+            (Kind::Alarms, Setting::Alarms(rules)) => {
+                if rules.len() > crate::MAX_ALARMS {
+                    return Err(invalid("too-many", self.path()));
+                }
+                for rule in rules {
+                    rule.check()
+                        .map_err(|reason| invalid(reason, self.path()))?;
                 }
                 Ok(())
             }

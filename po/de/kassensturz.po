@@ -20103,3 +20103,362 @@ msgstr "Einige Teilbeträge haben auch die Schlagwörter: %1"
 msgctxt "@label %1 is a list of tags, e.g. Holiday, Tax"
 msgid "Tags: %1"
 msgstr "Schlagwörter: %1"
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid "No transactions in these categories in this period."
+msgstr "Keine Buchungen in diesen Kategorien in diesem Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid "No transactions in this period."
+msgstr "Keine Buchungen in diesem Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The transactions can't be listed for this period. Choose another period in "
+"Properties."
+msgstr ""
+"Die Buchungen können für diesen Zeitraum nicht aufgelistet werden. Wählen "
+"Sie in den Eigenschaften einen anderen Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info %1 is how many are listed, %2 how many there are"
+msgid "Showing the newest %1 of %2."
+msgstr "Die neuesten %1 von %2 werden angezeigt."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: a list of single transactions, newest "
+"first"
+msgid "Transactions"
+msgstr "Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt "@item:inlistbox a period of days up to today, today included"
+msgid "Today"
+msgid_plural "The last %1 days"
+msgstr[0] "Heute"
+msgstr[1] "Die letzten %1 Tage"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a period of a number of days up to today that the user "
+"chooses"
+msgid "The last days…"
+msgstr "Die letzten Tage…"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml
+#, kde-format
+msgctxt "@label:spinbox how many days a period counts back, today included"
+msgid "Days:"
+msgstr "Tage:"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "How many days"
+msgstr "Wie viele Tage"
+
+msgctxt "@info"
+msgid ""
+"No warnings set yet. Add one in this tile's settings, for example: tell me "
+"when the shared account falls under 500."
+msgstr "Noch keine Warnungen. Fügen Sie eine in den Einstellungen dieser Kachel hinzu, zum Beispiel: Sagen Sie mir, wenn das gemeinsame Konto unter 500 fällt."
+
+msgctxt "@info"
+msgid ""
+"The warnings can't be checked right now. Open the tile's settings to check "
+"its rules, or try again after reopening the book."
+msgstr "Die Warnungen können gerade nicht geprüft werden. Prüfen Sie die Regeln in den Einstellungen der Kachel, oder versuchen Sie es nach dem erneuten Öffnen des Buchs noch einmal."
+
+msgctxt "@info"
+msgid "All fine. Your warning doesn't apply today."
+msgstr "Alles in Ordnung. Ihre Warnung trifft heute nicht zu."
+
+msgctxt "@info %1 is how many warnings, always more than one"
+msgid "All fine. None of your %1 warnings applies today."
+msgstr "Alles in Ordnung. Keine Ihrer %1 Warnungen trifft heute zu."
+
+msgctxt "@info %1 is how many"
+msgid "%1 more warning is set and fine."
+msgid_plural "%1 more warnings are set and fine."
+msgstr[0] "%1 weitere Warnung ist eingerichtet und in Ordnung."
+msgstr[1] "%1 weitere Warnungen sind eingerichtet und in Ordnung."
+
+msgctxt "@title:window"
+msgid "Add a warning"
+msgstr "Warnung hinzufügen"
+
+msgctxt "@title:window"
+msgid "Change a warning"
+msgstr "Warnung ändern"
+
+msgctxt "@title:group"
+msgid "What should be watched?"
+msgstr "Was soll beobachtet werden?"
+
+msgctxt "@label:listbox the budget a reserve is counted in"
+msgid "Of which budget:"
+msgstr "Von welchem Budget:"
+
+msgctxt "@label:listbox"
+msgid "Budget:"
+msgstr "Budget:"
+
+msgctxt "@label:spinbox a share of a budget's amount"
+msgid "Share (%):"
+msgstr "Anteil (%):"
+
+msgctxt "@info"
+msgid ""
+"Type an amount such as 500 or 500,00, with no more decimal places than the "
+"account's currency has."
+msgstr "Geben Sie einen Betrag wie 500 oder 500,00 ein, mit nicht mehr Nachkommastellen, als die Währung des Kontos hat."
+
+msgctxt "@label:spinbox how many periods of a budget a reserve is"
+msgid "How many periods:"
+msgstr "Wie viele Zeiträume:"
+
+msgctxt "@option:check"
+msgid "Check the lowest point of this month, not just today"
+msgstr "Den tiefsten Stand dieses Monats prüfen, nicht nur heute"
+
+msgctxt "@info"
+msgid ""
+"The lowest point is the smallest balance at the end of a day, from the start "
+"of this month to today. For an account you owe on, such as a credit card, a "
+"debt is a negative balance: under −1,000 means more than 1,000 owed."
+msgstr "Der tiefste Stand ist der kleinste Kontostand am Ende eines Tages, vom Anfang dieses Monats bis heute. Bei einem Konto, auf dem Sie Schulden haben, etwa einer Kreditkarte, ist eine Schuld ein negativer Stand: unter −1.000 heißt mehr als 1.000 Schulden."
+
+msgctxt "@info"
+msgid ""
+"No warnings yet. The tile shows a line when one of them applies today, and "
+"nothing ever leaves the app."
+msgstr "Noch keine Warnungen. Die Kachel zeigt eine Zeile, wenn eine davon heute zutrifft, und nichts verlässt jemals die App."
+
+msgctxt "@action:button change a warning"
+msgid "Change"
+msgstr "Ändern"
+
+msgctxt "@action:button remove a warning"
+msgid "Remove"
+msgstr "Entfernen"
+
+msgctxt "@action:button"
+msgid "Add a warning…"
+msgstr "Warnung hinzufügen …"
+
+msgctxt "@option:radio a kind of warning"
+msgid "A budget is used up past a share"
+msgstr "Ein Budget ist über einen Anteil hinaus verbraucht"
+
+msgctxt "@option:radio a kind of warning"
+msgid "A budget was used less than a share"
+msgstr "Ein Budget wurde weniger als zu einem Anteil genutzt"
+
+msgctxt "@option:radio a kind of warning"
+msgid "An account falls under an amount"
+msgstr "Ein Konto fällt unter einen Betrag"
+
+msgctxt "@option:radio a kind of warning"
+msgid "Keep a reserve on an account"
+msgstr "Eine Reserve auf einem Konto halten"
+
+msgctxt "@info"
+msgid "For example, tell me when Food has used more than 80 % this month."
+msgstr "Zum Beispiel: Sagen Sie mir, wenn bei Essen diesen Monat mehr als 80 % verbraucht sind."
+
+msgctxt "@info"
+msgid ""
+"For example, tell me when less than 80 % of Savings was put away last month. "
+"It looks at the budget's last finished period."
+msgstr "Zum Beispiel: Sagen Sie mir, wenn letzten Monat weniger als 80 % fürs Sparen zurückgelegt wurden. Es zählt der letzte abgeschlossene Zeitraum des Budgets."
+
+msgctxt "@info"
+msgid "For example, tell me when the shared account is under 500."
+msgstr "Zum Beispiel: Sagen Sie mir, wenn das gemeinsame Konto unter 500 liegt."
+
+msgctxt "@info"
+msgid ""
+"The account should always hold, say, one month of a budget. It is checked at "
+"the month's lowest point."
+msgstr "Das Konto soll immer, sagen wir, einen Monat eines Budgets halten. Geprüft wird am tiefsten Stand des Monats."
+
+msgctxt "@info part of a sentence: when"
+msgid "last month"
+msgstr "letzten Monat"
+
+msgctxt "@info part of a sentence: when"
+msgid "this month"
+msgstr "diesen Monat"
+
+msgctxt ""
+"@info part of a sentence: when; a salary month runs from payday to the day "
+"before the next one"
+msgid "last salary month"
+msgstr "letzten Gehaltsmonat"
+
+msgctxt ""
+"@info part of a sentence: when; a salary month runs from payday to the day "
+"before the next one"
+msgid "this salary month"
+msgstr "diesen Gehaltsmonat"
+
+msgctxt "@info part of a sentence: when"
+msgid "last quarter"
+msgstr "letztes Quartal"
+
+msgctxt "@info part of a sentence: when"
+msgid "this quarter"
+msgstr "dieses Quartal"
+
+msgctxt "@info part of a sentence: when"
+msgid "last year"
+msgstr "letztes Jahr"
+
+msgctxt "@info part of a sentence: when"
+msgid "this year"
+msgstr "dieses Jahr"
+
+msgctxt "@info part of a sentence: when; a budget for one stretch of days"
+msgid "in its period"
+msgstr "in seinem Zeitraum"
+
+msgctxt "@info part of a sentence"
+msgid "%1 month"
+msgid_plural "%1 months"
+msgstr[0] "%1 Monat"
+msgstr[1] "%1 Monate"
+
+msgctxt "@info part of a sentence"
+msgid "%1 quarter"
+msgid_plural "%1 quarters"
+msgstr[0] "%1 Quartal"
+msgstr[1] "%1 Quartale"
+
+msgctxt "@info part of a sentence"
+msgid "%1 year"
+msgid_plural "%1 years"
+msgstr[0] "%1 Jahr"
+msgstr[1] "%1 Jahre"
+
+msgctxt "@info part of a sentence: how many times a budget's amount"
+msgid "%1 time"
+msgid_plural "%1 times"
+msgstr[0] "%1-mal"
+msgstr[1] "%1-mal"
+
+msgctxt "@info"
+msgid ""
+"A warning is about an account that is no longer in the book. Change or "
+"remove it in this tile's settings."
+msgstr "Eine Warnung betrifft ein Konto, das nicht mehr im Buch ist. Ändern oder entfernen Sie sie in den Einstellungen dieser Kachel."
+
+msgctxt "@info"
+msgid ""
+"A warning is about a budget that no longer exists. Change or remove it in "
+"this tile's settings."
+msgstr "Eine Warnung betrifft ein Budget, das es nicht mehr gibt. Ändern oder entfernen Sie sie in den Einstellungen dieser Kachel."
+
+msgctxt "@info %1 is an account, %2 a budget"
+msgid ""
+"Can't check the reserve of %1: the account and the budget %2 are in "
+"different currencies, and they are never converted for a reserve."
+msgstr "Die Reserve von %1 kann nicht geprüft werden: Das Konto und das Budget %2 haben verschiedene Währungen, und für eine Reserve wird nie umgerechnet."
+
+msgctxt "@info %1 is an account"
+msgid ""
+"Can't check the warning for %1: its amount doesn't fit the account's "
+"currency. Change it in this tile's settings."
+msgstr "Die Warnung für %1 kann nicht geprüft werden: Ihr Betrag passt nicht zur Währung des Kontos. Ändern Sie ihn in den Einstellungen dieser Kachel."
+
+msgctxt "@info %1 is a budget, %2 when, %3 an amount"
+msgid "%1 has nothing left to spend %2, and %3 were spent."
+msgstr "%1 hat %2 nichts mehr zum Ausgeben, und %3 wurden ausgegeben."
+
+msgctxt "@info %1 is a budget, %2 an amount, %3 when"
+msgid "%1 is over by %2 %3."
+msgstr "%1 ist %3 um %2 überschritten."
+
+msgctxt "@info %1 is a budget, %2 and %3 amounts, %4 when, %5 a whole percent"
+msgid "%1 has used %2 of %3 %4, more than %5 %."
+msgstr "%1 hat %4 %2 von %3 verbraucht, mehr als %5 %."
+
+msgctxt "@info %1 is a budget, %2 and %3 amounts, %4 when, %5 a whole percent"
+msgid "%1 used only %2 of %3 %4, less than %5 %."
+msgstr "%1 hat %4 nur %2 von %3 genutzt, weniger als %5 %."
+
+msgctxt "@info %1 is an account, %2 and %3 amounts, %4 a date"
+msgid "%1 went down to %2 this month (on %4), under your limit of %3."
+msgstr "%1 fiel diesen Monat auf %2 (am %4), unter Ihre Grenze von %3."
+
+msgctxt "@info %1 is an account, %2 and %3 amounts"
+msgid "%1 holds %2, under your limit of %3."
+msgstr "%1 hat %2, unter Ihrer Grenze von %3."
+
+msgctxt ""
+"@info %1 is an account, %2 and %3 amounts, %4 how many periods, e.g. 1 "
+"month, %5 a budget, %6 a date"
+msgid ""
+"%1 went down to %2 this month (on %6), under its reserve of %3: %4 of %5."
+msgstr "%1 fiel diesen Monat auf %2 (am %6), unter seine Reserve von %3: %4 von %5."
+
+msgctxt ""
+"@info %1 is an account, %2 and %3 amounts, %4 how many periods, e.g. 1 "
+"month, %5 a budget"
+msgid "%1 holds %2, under its reserve of %3: %4 of %5."
+msgstr "%1 hat %2, unter seiner Reserve von %3: %4 von %5."
+
+msgctxt "@info an account that was removed"
+msgid "(a removed account)"
+msgstr "(ein entferntes Konto)"
+
+msgctxt "@info a budget that was removed"
+msgid "(a removed budget)"
+msgstr "(ein entferntes Budget)"
+
+msgctxt "@item %1 is a budget, %2 a whole percent"
+msgid "%1 used more than %2 %"
+msgstr "%1 mehr als %2 % verbraucht"
+
+msgctxt "@item %1 is a budget, %2 a whole percent"
+msgid "%1 used less than %2 % (last finished period)"
+msgstr "%1 weniger als %2 % genutzt (letzter abgeschlossener Zeitraum)"
+
+msgctxt "@item %1 is an account, %2 an amount"
+msgid "%1 under %2 at its lowest point this month"
+msgstr "%1 unter %2 am tiefsten Stand dieses Monats"
+
+msgctxt "@item %1 is an account, %2 an amount"
+msgid "%1 under %2"
+msgstr "%1 unter %2"
+
+msgctxt ""
+"@item %1 is an account, %2 how many periods, e.g. 1 month, %3 a budget"
+msgid "Reserve on %1: %2 of %3, at its lowest point this month"
+msgstr "Reserve auf %1: %2 von %3, am tiefsten Stand dieses Monats"
+
+msgctxt ""
+"@item %1 is an account, %2 how many periods, e.g. 1 month, %3 a budget"
+msgid "Reserve on %1: %2 of %3"
+msgstr "Reserve auf %1: %2 von %3"
+
+msgctxt ""
+"@item:inlistbox a part of the layout: lines that say when a budget or an "
+"account crosses a limit the user set"
+msgid "Warnings"
+msgstr "Warnungen"
+
+msgctxt "@label the rules of the warnings tile"
+msgid "Warnings"
+msgstr "Warnungen"
+

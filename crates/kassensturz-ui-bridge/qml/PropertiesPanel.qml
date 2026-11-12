@@ -166,6 +166,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label which accounts the money out of a chart counts, for money out only", "Money out: only these accounts");
         case "budgets":
             return i18nContext.i18nc("@label which budgets the budget bars show", "Which budgets");
+        case "alarms":
+            return i18nContext.i18nc("@label the rules of the warnings tile", "Warnings");
         case "legend":
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
@@ -383,7 +385,7 @@ ColumnLayout {
                     && !(panel.hasColumns && ["categories", "series", "groups", "average", "compare", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
                 active: visible
                 Kirigami.FormData.label: panel.rowLabel(modelData)
-                Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" ? Qt.AlignTop : Qt.AlignVCenter
+                Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" || modelData.kind === "alarms" ? Qt.AlignTop : Qt.AlignVCenter
                 Layout.fillWidth: true
                 // Space between the switch for the grey notes and a list
                 // above it, so it doesn't read as the list's last line (D-680).
@@ -392,7 +394,20 @@ ColumnLayout {
                     : modelData.kind === "flag" ? flagBox
                     : modelData.kind === "formula" ? formulaBox
                     : modelData.kind === "spec" ? specBox
-                    : modelData.kind === "ids" ? idsBox : choiceBox
+                    : modelData.kind === "ids" ? idsBox
+                    : modelData.kind === "alarms" ? alarmsBox : choiceBox
+
+                // The warnings tile's rules (US4.9, D-722).
+                Component {
+                    id: alarmsBox
+
+                    AlarmRulesField {
+                        rulesText: row.modelData.text || "[]"
+                        accounts: panel.idOptions("accounts")
+                        budgets: panel.idOptions("budgets")
+                        onRulesEdited: json => panel.model.setAlarms(json)
+                    }
+                }
 
                 Component {
                     id: textField

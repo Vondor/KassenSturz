@@ -209,6 +209,14 @@ fn map_component(refs: &mut Refs<'_>, component: &mut Value) {
                     ids.clear();
                 }
             }
+            // The rules name accounts and budgets by the book's IDs, which
+            // mean nothing in another book (D-726).
+            Kind::Alarms => {
+                if let Some(Value::Array(rules)) = value {
+                    refs.left_out += rules.len();
+                    rules.clear();
+                }
+            }
             Kind::Columns => {
                 if let Some(Value::Array(columns)) = value {
                     for column in columns {

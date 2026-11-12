@@ -297,6 +297,14 @@ impl Component {
                             })
                             .collect::<Result<Vec<_>, _>>()?,
                     ),
+                    (Kind::Alarms, Value::Array(list)) => Setting::Alarms(
+                        list.iter()
+                            .map(|entry| {
+                                crate::AlarmRule::read(entry)
+                                    .ok_or_else(|| invalid("wrong-type", &path))
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
+                    ),
                     (Kind::Choice(_) | Kind::Grouping, Value::String(word)) => {
                         Setting::Word(word.clone())
                     }
@@ -364,6 +372,9 @@ impl Component {
                         })
                         .collect(),
                 ),
+                Setting::Alarms(rules) => {
+                    Value::Array(rules.iter().map(crate::AlarmRule::to_value).collect())
+                }
             };
             if self.kind == ComponentType::CustomChart
                 && property.place == Place::Params

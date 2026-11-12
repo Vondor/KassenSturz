@@ -88,6 +88,14 @@ pub mod qobject {
         #[cxx_name = "setColumns"]
         fn set_columns(self: Pin<&mut ComponentProperties>, json: &QString);
 
+        /// Sets the rules of a warnings tile: a JSON list of rules as the
+        /// document writes them (D-722), empty list for none. A text that is
+        /// no such list changes nothing; a rule with a wrong value is
+        /// refused and the panel shows why.
+        #[qinvokable]
+        #[cxx_name = "setAlarms"]
+        fn set_alarms(self: Pin<&mut ComponentProperties>, json: &QString);
+
         /// Sets a formula property (`formula`, or a progress bar's `target`),
         /// written in the user's number format as in the field. The book
         /// keeps it in the form it stores (D-295). A text that cannot be read
@@ -190,6 +198,7 @@ pub(crate) fn view_object(
                 ("chosen", text(&preview.chosen)),
                 ("only", text(&preview.only)),
                 ("budgets", text(&preview.budgets)),
+                ("alarms", text(&preview.alarms)),
                 ("showHidden", QVariant::from(&preview.show_hidden)),
                 ("columns", text(&preview.columns)),
                 ("compare", text(&preview.compare)),
@@ -314,6 +323,15 @@ impl qobject::ComponentProperties {
         self.change(|component| component.set("columns", Setting::Columns(columns)));
     }
 
+    fn set_alarms(self: Pin<&mut Self>, json: &QString) {
+        let Some(rules) = properties::read_alarms(&json.to_string()) else {
+            return;
+        };
+        self.change(|component| {
+            component.set(kassensturz_report::ALARMS_KEY, Setting::Alarms(rules))
+        });
+    }
+
     fn set_formula(self: Pin<&mut Self>, key: &QString, value: &QString) {
         let key = key.to_string();
         let typed = value.to_string();
@@ -427,6 +445,7 @@ mod tests {
         assert_eq!(
             keys(&preview),
             [
+                "alarms",
                 "budgets",
                 "chart",
                 "chosen",
@@ -1029,6 +1048,33 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn the_warnings_tile_offers_its_rules_and_sets_them_from_json() {
+        // The rules as one field of kind `alarms`, its text the JSON list
+        // the document writes, and the same list in the preview for the
+        // tile's `BookAlarms` (US4.9, D-722).
+        let mut tile = component(ComponentType::Alarms, "");
+        let rule = r#"[{"budget":"b1","reason":"budget_over","share":80}]"#;
+        let rules = properties::read_alarms(rule).expect("a list of rules");
+        tile.set("alarms", Setting::Alarms(rules)).expect("set");
+        let view = view_object(Some(&tile), None, NumberForm::DecimalComma);
+        assert!(flag_of(&view, "hasSettings"));
+        let fields = list_of(&view, "fields");
+        let alarms = fields
+            .iter()
+            .find(|f| text_of(f, "key") == "alarms")
+            .expect("the rules are a field");
+        assert_eq!(text_of(alarms, "kind"), "alarms");
+        assert_eq!(text_of(alarms, "text"), rule);
+        let preview = object_of(&view, "preview");
+        assert_eq!(text_of(&preview, "shows"), "alarms");
+        assert_eq!(text_of(&preview, "alarms"), rule);
+        // Text that is no list of rules is not read.
+        assert!(properties::read_alarms("{}").is_none());
+        assert!(properties::read_alarms(r#"[{"reason":"no"}]"#).is_none());
+        assert_eq!(properties::read_alarms("[]"), Some(Vec::new()));
     }
 
     #[test]

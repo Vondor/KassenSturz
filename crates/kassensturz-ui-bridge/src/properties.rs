@@ -157,6 +157,9 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
                 Kind::Ids | Kind::Accounts | Kind::Budgets => "ids",
+                // The warnings tile's rules, as a JSON list in `text`; the
+                // panel lists them with the names `BookAlarms` gives (D-722).
+                Kind::Alarms => "alarms",
                 Kind::Columns | Kind::Choice(_) | Kind::Grouping => return None,
             };
             let (mut text, mut flag, mut word) = (String::new(), false, String::new());
@@ -170,6 +173,7 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 Setting::Word(value) => word.clone_from(value),
                 Setting::Ids(ids) => chosen.clone_from(ids),
                 Setting::Columns(_) => {}
+                Setting::Alarms(rules) => text = alarms_json(rules),
             }
             Some(Field {
                 key: property.key,
@@ -234,6 +238,9 @@ pub struct Preview {
     /// The IDs of the budgets the budget bars show, separated by commas,
     /// for `BookBudgets.setBudgets`; empty for every budget (D-642).
     pub budgets: String,
+    /// The rules of a warnings tile as a JSON list, for `BookAlarms.show`;
+    /// empty for every other component (D-722).
+    pub alarms: String,
     /// Whether the hidden categories are shown anyway.
     pub show_hidden: bool,
     /// The columns of a chart or table as the document writes them (a JSON
@@ -290,6 +297,30 @@ pub fn columns_json(component: &Component, show: &dyn Fn(&str) -> String) -> Opt
         ),
         _ => None,
     }
+}
+
+/// The rules of a warnings tile as the document writes them, a JSON list
+/// (D-722).
+pub fn alarms_json(rules: &[kassensturz_report::AlarmRule]) -> String {
+    serde_json::Value::Array(
+        rules
+            .iter()
+            .map(kassensturz_report::AlarmRule::to_value)
+            .collect(),
+    )
+    .to_string()
+}
+
+/// The rules a JSON list of rules says, or `None` when the text is no such
+/// list or one of them is not a rule (D-722). Their values are checked when
+/// they are set.
+pub fn read_alarms(json: &str) -> Option<Vec<kassensturz_report::AlarmRule>> {
+    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+    value
+        .as_array()?
+        .iter()
+        .map(kassensturz_report::AlarmRule::read)
+        .collect()
 }
 
 /// The columns a JSON list of `{"name", "members", "formula"}` says, or `None` when
@@ -403,6 +434,8 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::ChartCandlestick => ("chart", "candlestick"),
         // Its own list, drawn by the page from `BookTransactions` (D-716).
         ComponentType::Transactions => ("transactions", ""),
+        // Filled by its own `BookAlarms` from its rules (D-721).
+        ComponentType::Alarms => ("alarms", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {
@@ -432,6 +465,10 @@ pub fn preview(component: &Component) -> Preview {
         ),
         only: ids(component, "categories"),
         budgets: ids(component, "budgets"),
+        alarms: match component.get(kassensturz_report::ALARMS_KEY) {
+            Some(Setting::Alarms(rules)) => alarms_json(rules),
+            _ => String::new(),
+        },
         show_hidden: matches!(component.get("show_hidden"), Some(Setting::Flag(true))),
         columns: columns_json(component, &str::to_owned)
             .filter(|json| json != "[]")

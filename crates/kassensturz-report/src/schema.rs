@@ -131,6 +131,12 @@ pub enum ComponentType {
     /// [`ComponentType::LIBRARY`], never in [`ComponentType::ALL`]: the AI
     /// neither proposes nor reads it.
     Transactions,
+    /// `notice.alarms`: the warnings tile, a list of rules the user sets
+    /// that says which of them a budget or an account crosses today (US4.9,
+    /// D-721). It shows no dataset; its own bridge object fills it. It is in
+    /// [`ComponentType::LIBRARY`] and never in [`ComponentType::ALL`]: the AI
+    /// neither proposes it nor sees its rules.
+    Alarms,
 }
 
 impl ComponentType {
@@ -150,7 +156,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 25] = [
+    pub const LIBRARY: [Self; 26] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -176,6 +182,7 @@ impl ComponentType {
         Self::CustomChart,
         Self::ChartCandlestick,
         Self::Transactions,
+        Self::Alarms,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -196,6 +203,7 @@ impl ComponentType {
                 | Self::FilterBar
                 | Self::DashboardTabs
                 | Self::Transactions
+                | Self::Alarms
         )
     }
 
@@ -227,6 +235,7 @@ impl ComponentType {
             Self::CustomChart => "chart.custom",
             Self::ChartCandlestick => "chart.candlestick",
             Self::Transactions => "table.transactions",
+            Self::Alarms => "notice.alarms",
         }
     }
 
@@ -266,7 +275,8 @@ impl ComponentType {
             | Self::PeriodHeader
             | Self::FilterBar
             | Self::DashboardTabs
-            | Self::Transactions => "text",
+            | Self::Transactions
+            | Self::Alarms => "text",
         }
     }
 
@@ -324,6 +334,7 @@ impl ComponentType {
             Self::CustomChart => &CUSTOM_CHART,
             Self::ChartCandlestick => &CANDLESTICK,
             Self::Transactions => &TRANSACTIONS,
+            Self::Alarms => &ALARMS,
         }
     }
 }
@@ -392,6 +403,11 @@ pub enum Kind {
     /// [`crate::spec::read`] must accept. What it holds is the user's own
     /// text; nothing of it is changed.
     Spec,
+    /// The rules of a warnings tile (US4.9, D-722): at most
+    /// [`crate::MAX_ALARMS`], each checked by [`crate::AlarmRule::check`].
+    /// They name accounts and budgets by the book's IDs, so a dashboard
+    /// file leaves them out (D-726).
+    Alarms,
 }
 
 /// One column of a chart or table: what it is called and what is under it.
@@ -430,6 +446,8 @@ pub enum Setting {
     Ids(Vec<String>),
     /// For [`Kind::Columns`].
     Columns(Vec<ColumnSetting>),
+    /// For [`Kind::Alarms`].
+    Alarms(Vec<crate::AlarmRule>),
 }
 
 const TITLE: Property = Property {
@@ -738,6 +756,17 @@ const NOTES_ONLY: [Property; 1] = [HIDE_NOTE];
 /// parts that are not supported, the series of a chart over time and the
 /// categories of the budgets (Q-353), which count only while the description
 /// names that dataset, and the period.
+/// The warnings tile (D-721, D-722): its rules and its title.
+const ALARM_RULES: Property = Property {
+    key: ALARMS_KEY,
+    place: Place::Props,
+    kind: Kind::Alarms,
+};
+const ALARMS: [Property; 2] = [ALARM_RULES, TITLE];
+
+/// The key of the warnings tile's rules.
+pub const ALARMS_KEY: &str = "alarms";
+
 const CUSTOM_CHART: [Property; 6] = [SPEC, PARTIAL, SERIES, CATEGORIES, HIDE_NOTE, PERIOD];
 
 /// `params.rows` of the transactions tile (D-716): how many of the newest
@@ -786,7 +815,8 @@ impl Property {
             | Kind::Budgets
             | Kind::Formula
             | Kind::Columns
-            | Kind::Spec => &[],
+            | Kind::Spec
+            | Kind::Alarms => &[],
         }
     }
 
@@ -805,6 +835,7 @@ impl Property {
             Kind::Flag { default } => Setting::Flag(default),
             Kind::Ids | Kind::Accounts | Kind::Budgets => Setting::Ids(Vec::new()),
             Kind::Columns => Setting::Columns(Vec::new()),
+            Kind::Alarms => Setting::Alarms(Vec::new()),
             Kind::Choice(_) | Kind::Grouping => Setting::Word(
                 self.words(dataset)
                     .first()
@@ -900,6 +931,16 @@ impl Property {
                             return Err(invalid("bad-text", self.path()));
                         }
                     }
+                }
+                Ok(())
+            }
+            (Kind::Alarms, Setting::Alarms(rules)) => {
+                if rules.len() > crate::MAX_ALARMS {
+                    return Err(invalid("too-many", self.path()));
+                }
+                for rule in rules {
+                    rule.check()
+                        .map_err(|reason| invalid(reason, self.path()))?;
                 }
                 Ok(())
             }

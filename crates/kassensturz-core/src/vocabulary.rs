@@ -52,6 +52,7 @@ pub const DETAILS: &[&str] = &[
     "notice_fetch_gap",
     "notice_transfers",
     "notice_unsorted",
+    "notice_alarms",
     "page_period",
     "page_filters",
     "page_tabs",

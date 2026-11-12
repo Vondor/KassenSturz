@@ -89,6 +89,7 @@ for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange 
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
     BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard AiPermissionGrid \
+    AlarmList AlarmRuleDialog AlarmRulesField AlarmWords \
     TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog PartsPage PartRow TransactionRow; do
     cp "$bridge/qml/$file.qml" "$module"
 done
@@ -103,12 +104,13 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         ComponentProperties BookCharts BookCards AiSwitch AiChat AccountTypes AiErrorMessage \
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
         FormulaField FormulaWords BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
+        AlarmList AlarmRuleDialog AlarmRulesField AlarmWords BookAlarms \
         BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings \
         TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister PartsPage PartRow TransactionRow BookTransactions; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$bridge"/qml-tests/CategorySmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$bridge"/qml-tests/CategorySmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$bridge"/qml-tests/AlarmsSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -134,6 +136,8 @@ run_smoke CategorySmoke
 echo "transaction page shows the stored category: ok"
 run_smoke PartsSmoke
 echo "parts page: ok"
+run_smoke AlarmsSmoke
+echo "warnings tile: ok"
 run_smoke StatisticsSmoke
 echo "statistics page: ok"
 run_smoke ReviewSmoke

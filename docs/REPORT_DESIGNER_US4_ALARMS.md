@@ -21,7 +21,7 @@ Release stage: **Alpha** (D-274). The rules live in the tile's settings in the d
 | AI | in `LIBRARY`, **not** in `ALL`: the AI does not propose it and never sees its rules (no AI data sharing gate) |
 | Sizes | default 6 × 3, smallest 3 × 2 (`grid.rs`) |
 | Properties | `alarms` (the list of rules, §2), `title` (empty: *Warnings*) |
-| Period | **today**, always. The page's period header and filter bar don't change it: a warning is about where the user stands now. The tile's corner note says *Today* like the net worth card |
+| Period | **today**, always. The page's period header and filter bar don't change it: a warning is about where the user stands now |
 | Debug log | the detail word `notice_alarms` (`vocabulary.rs`); rules, names and amounts are never logged |
 
 **What it shows**, in this order:
@@ -32,7 +32,7 @@ Release stage: **Alpha** (D-274). The rules live in the tile's settings in the d
 4. A rule whose budget or account was **removed from the book** shows a line of its own: *A warning is about a budget that no longer exists. Change or remove it in this tile's settings.* It is never dropped silently.
 5. A rule that **can't be compared** (the account and the budget have different currencies, or the budget plans nothing this period) shows why in one line (§3), so the user never reads "all fine" for a rule that could not be checked.
 
-Each triggered line can be clicked: an account rule opens the account's register, a budget rule the budget's page. Keyboard: the lines are in the tab order; each has a screen-reader name equal to its sentence.
+A triggered budget line can be clicked and opens the Budgets page; account lines are plain text (opening an account's register from a tile is a possible follow-up). Keyboard: the lines are in the tab order; each has a screen-reader name equal to its sentence.
 
 ## 2. The rules (D-722)
 
@@ -67,7 +67,7 @@ All comparisons are on exact integer minor units of one currency. "Share" compar
 - **`available`** is what the budget bars show as available: the planned amount plus what was carried in (D-347). `spent` is the bars' spent (refunds reduce it, D-639 accounts and categories apply). The budget rules read `budget_utilization` with the grouping `budget`, so the tile and the bars always agree.
 - **"over" is strict**: exactly 100 % used is not over, as the bars say. **"under" is strict** too.
 - **`budget_under` looks at the period that ended last**, because a period that is still running is nearly always "under" at its start, which would make the tile cry wolf every first of the month. A budget with no finished period yet (it started this period, or it is a `Range` that has not ended) is not triggered and is not counted as "can't compare". A budget that has **ended** (D-710) is checked on its last period once, then stays as it is.
-- **A budget that plans nothing** this period (available zero or less): `budget_over` is triggered as soon as anything is spent (*Food has nothing left to spend this month and 12.00 € were spent.*); `budget_under` is not triggered.
+- **A budget with nothing to spend** this period (available zero or less, after overspending was carried in): `budget_over` is triggered whenever the bars say *over*, that is as soon as `spent` is more than `available` (*Food has nothing left to spend this month, and 12.00 € were spent.*); `budget_under` is not triggered. (A budget's planned amount is never zero; the book refuses that.)
 - **The words "this month" / "last month"** follow the budget's own period: *this quarter*, *this year*, *this salary month*, *in this period* for a range.
 - **No advice** (§3.1 rule 11): the sentences say what is, never what to do with the money.
 
@@ -75,7 +75,7 @@ The default share of `budget_under` is 80 so a new rule makes sense without edit
 
 ## 4. The lowest point of the month (D-724)
 
-`lowest` means: the smallest of the account's **end-of-day balances** from the last day of the month before to today (the start of the month and every day of it so far). Several bookings on one day count only as that day's end, so a salary and a rent booked the same day don't show a dip that never was. The month is the **calendar month** that contains today; on the first of a month it is the end of the month before and today.
+`lowest` means: the smallest of the account's **end-of-day balances** from the last day of the month before to today (the start of the month and every day of it so far). Several bookings on one day count only as that day's end, so a salary and a rent booked the same day don't show a dip that never was. When several days tie, the sentence names the first of them (the day it went down to that). The month is the **calendar month** that contains today; on the first of a month it is the end of the month before and today.
 
 - **Why the lowest point and not the balance now:** #519 asks whether the reserve holds "after fixed costs go out, before contributions arrive". The balance now would say "fine" right after the salary and hide the dip of the last week. Only what has been booked counts: planned payments in the future are the forecast of #725 (after Gold), not this.
 - Liability accounts: the balance is as booked, a debt is negative (as in `account_balances`); "under −1,000" means more than 1,000 owed. The rule editor says so for an account the user owes on.
@@ -112,7 +112,7 @@ Following `docs/ADDING_A_WIDGET.md`:
 - **`kassensturz-core`:** `notice_alarms` in `DETAILS`.
 - **`kassensturz-ui-bridge`:** `alarms.rs` (open book → result rows with text figures and the parsed rule summaries) and `alarms_model.rs` (`BookAlarms` qobject, `show(rules)`, `refresh()`), a `setAlarms` and an amount check in the properties model, preview in `properties.rs`.
 - **QML:** `AlarmsBox` in `GridItem.qml`, `AlarmRuleDialog.qml`, the *Warnings* field in `PropertiesPanel.qml`, `GridNames.qml`, `AddMenu.qml`, `TemplatePicture.qml`, `build.rs`, `tools/check-panel.sh`, a smoke test `AlarmsSmoke.qml` with a fake `BookAlarms`.
-- **Tests:** each reason triggered and not, at the exact limit (strict), share and reserve with large amounts (no overflow), the lowest point with several bookings on one day and on the first of a month, a removed budget or account, different currencies, a budget with no finished period, an ended budget; the rule list read from and written to a document and refused with each bad field; the dashboard file leaving the rules out; the bridge objects read back the way QML reads them (AGENTS.md §9.4); the figures checked against the real `budget_utilization` output and against the balances of a book with transfers (seams). X3: the new stored fields' limits are tested by reading back every importer's golden output into a book and evaluating a rule on it.
+- **Tests:** each reason triggered and not, at the exact limit (strict), share and reserve with large amounts (no overflow), the lowest point with several bookings on one day and on the first of a month, a removed budget or account, different currencies, a budget with no finished period, an ended budget; the rule list read from and written to a document and refused with each bad field; the dashboard file leaving the rules out; the bridge objects read back the way QML reads them (AGENTS.md §9.4); the figures checked against the real `budget_utilization` output (seam). X3 does not apply: no importer writes a rule; the rules live only in dashboard documents, and their limits are tested on the document reader and on the currencies' stored digits.
 - **Text:** English and German entries in `po/de`; `docs/GLOSSARY.md` gets *Warning* and *Reserve*.
 
 ## 8. Not in this step

@@ -141,6 +141,11 @@ QString monthAndYear(std::int32_t year, std::int32_t month)
     return locale.toString(QDate(year, month, 1), QStringLiteral("MMMM yyyy"));
 }
 
+std::int32_t firstDayOfWeek()
+{
+    return static_cast<std::int32_t>(QLocale().firstDayOfWeek());
+}
+
 QString today()
 {
     return QDate::currentDate().toString(Qt::ISODate);

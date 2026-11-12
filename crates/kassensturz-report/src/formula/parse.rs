@@ -26,11 +26,36 @@ pub(crate) enum Words {
     LastQuarter,
     ThisYear,
     LastYear,
+    /// `"this week"`: the week the figure's last day is in, starting on the
+    /// locale's first day of the week ([`crate::first_weekday`], D-740).
+    ThisWeek,
+    /// `"last week"`: the whole week before it.
+    LastWeek,
     /// `"last N months"` (the figure's month and the N-1 before it, so
     /// `"last 12 months"` as before) or `"last N complete months"` (the N
     /// whole months before the figure's month), N from 1 to
     /// [`crate::MAX_ROLLING_MONTHS`] (US1.13, D-649; the words of D-644).
     Months {
+        count: u16,
+        complete: bool,
+    },
+    /// `"N months ago"`: the one calendar month N months before the
+    /// figure's month, N from 1 to [`crate::MAX_ROLLING_MONTHS`] (US5.6,
+    /// D-740): `"2 months ago"` is the month before last.
+    MonthsAgo {
+        count: u16,
+    },
+    /// `"last N weeks"` (the figure's week and the N-1 before it) or
+    /// `"last N complete weeks"` (the N whole weeks before it), N from 1 to
+    /// [`crate::MAX_FORMULA_WEEKS`] (US5.6, D-740).
+    Weeks {
+        count: u16,
+        complete: bool,
+    },
+    /// `"last N years"` (the figure's calendar year and the N-1 before it)
+    /// or `"last N complete years"` (the N whole years before it), N from 1
+    /// to [`crate::MAX_FORMULA_YEARS`] (US5.6, D-740).
+    Years {
         count: u16,
         complete: bool,
     },
@@ -42,46 +67,89 @@ pub(crate) enum Words {
     },
 }
 
+/// Why the words after `@` are no period.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NotWords {
+    /// Not words formulas know.
+    Unknown,
+    /// A form formulas know, with a number outside 1 to `most` or written
+    /// with a leading zero; `unit` is `days`, `weeks`, `months` or `years`
+    /// (#759 point 3).
+    Count { unit: &'static str, most: u16 },
+}
+
 impl Words {
-    fn read(text: &str) -> Option<Self> {
+    fn read(text: &str) -> Result<Self, NotWords> {
         let words = text
             .split_whitespace()
             .map(str::to_lowercase)
             .collect::<Vec<_>>()
             .join(" ");
-        Some(match words.as_str() {
+        Ok(match words.as_str() {
             "this month" => Self::ThisMonth,
             "last month" => Self::LastMonth,
             "this quarter" => Self::ThisQuarter,
             "last quarter" => Self::LastQuarter,
             "this year" => Self::ThisYear,
             "last year" => Self::LastYear,
-            _ => return Self::months(&words),
+            "this week" => Self::ThisWeek,
+            "last week" => Self::LastWeek,
+            _ => return Self::counted(&words),
         })
     }
 
-    /// `last N months`, `last N complete months` or `last N days`, N
-    /// written without a leading zero, so each period is written one way.
-    fn months(words: &str) -> Option<Self> {
-        let rest = words.strip_prefix("last ")?;
-        let count = |number: &str, most: u16| -> Option<u16> {
-            if number.starts_with('0') || !number.bytes().all(|byte| byte.is_ascii_digit()) {
-                return None;
-            }
-            let count: u16 = number.parse().ok()?;
-            (1..=most).contains(&count).then_some(count)
-        };
-        if let Some(number) = rest.strip_suffix(" days") {
-            let count = count(number, crate::MAX_ROLLING_DAYS)?;
-            return Some(Self::Days { count });
-        }
-        let (number, complete) = if let Some(number) = rest.strip_suffix(" complete months") {
-            (number, true)
+    /// The forms with a number N: `last N days`, `last N [complete] weeks`,
+    /// `last N [complete] months`, `last N [complete] years` and
+    /// `N months ago`. N is written in digits without a leading zero, so
+    /// each period is written one way; for N = 1 the unit may be singular
+    /// (`last 1 month`, `1 month ago`).
+    fn counted(words: &str) -> Result<Self, NotWords> {
+        let (number, unit, ago) = if let Some(rest) = words.strip_prefix("last ") {
+            let Some((number, unit)) = rest.split_once(' ') else {
+                return Err(NotWords::Unknown);
+            };
+            (number, unit, false)
+        } else if let Some(rest) = words.strip_suffix(" ago") {
+            let Some((number, unit)) = rest.split_once(' ') else {
+                return Err(NotWords::Unknown);
+            };
+            (number, unit, true)
         } else {
-            (rest.strip_suffix(" months")?, false)
+            return Err(NotWords::Unknown);
         };
-        let count = count(number, crate::MAX_ROLLING_MONTHS)?;
-        Some(Self::Months { count, complete })
+        let (complete, unit) = match unit.strip_prefix("complete ") {
+            Some(unit) if !ago => (true, unit),
+            _ => (false, unit),
+        };
+        let (unit, singular, most) = match unit {
+            "days" | "day" if !complete && !ago => ("days", unit == "day", crate::MAX_ROLLING_DAYS),
+            "weeks" | "week" if !ago => ("weeks", unit == "week", crate::MAX_FORMULA_WEEKS),
+            "months" | "month" => ("months", unit == "month", crate::MAX_ROLLING_MONTHS),
+            "years" | "year" if !ago => ("years", unit == "year", crate::MAX_FORMULA_YEARS),
+            _ => return Err(NotWords::Unknown),
+        };
+        if number.is_empty() || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+            return Err(NotWords::Unknown);
+        }
+        let refused = NotWords::Count { unit, most };
+        if number.starts_with('0') {
+            return Err(refused);
+        }
+        let count = number
+            .parse::<u16>()
+            .ok()
+            .filter(|count| (1..=most).contains(count))
+            .ok_or(refused)?;
+        if singular && count != 1 {
+            return Err(NotWords::Unknown);
+        }
+        Ok(match (unit, ago) {
+            ("months", true) => Self::MonthsAgo { count },
+            ("days", _) => Self::Days { count },
+            ("weeks", _) => Self::Weeks { count, complete },
+            ("years", _) => Self::Years { count, complete },
+            _ => Self::Months { count, complete },
+        })
     }
 }
 
@@ -468,9 +536,16 @@ impl Parser<'_> {
             let period_at = self.at();
             range = Some(match self.take().map(|token| token.kind.clone()) {
                 Some(Token::Dates(period)) => Range::Dates(period),
-                Some(Token::Text(words)) => Range::Words(
-                    Words::read(&words).ok_or_else(|| syntax(period_at, "bad-period"))?,
-                ),
+                Some(Token::Text(words)) => {
+                    Range::Words(Words::read(&words).map_err(|not| match not {
+                        NotWords::Unknown => syntax(period_at, "bad-period"),
+                        NotWords::Count { unit, most } => ReportError::FormulaPeriodCount {
+                            position: period_at,
+                            unit,
+                            most,
+                        },
+                    })?)
+                }
                 _ => return Err(syntax(period_at, "bad-period")),
             });
         }

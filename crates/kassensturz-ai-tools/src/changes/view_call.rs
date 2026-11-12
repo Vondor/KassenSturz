@@ -135,10 +135,13 @@ pub(crate) fn formula_help() -> String {
          income_categories and expenses_categories don't apply to it). @ after a name takes \
          another period, e.g. =Groceries@\"last 3 complete months\" / 3 for the average month. \
          After @ write, in double quotes, \"this month\", \"last month\", \"this quarter\", \
-         \"last quarter\", \"this year\", \"last year\", \"last N months\" (the chart's month \
-         and the N-1 before it), \"last N complete months\" (the N whole months before it), \
-         N from 1 to 120, or \"last N days\" (the chart's last day and the N-1 before it, N \
-         from 1 to 366), each counted from the chart's period; or, without quotes, a year \
+         \"last quarter\", \"this year\", \"last year\", \"this week\", \"last week\", \
+         \"last N months\" (the chart's month and the N-1 before it), \"last N complete \
+         months\" (the N whole months before it), \"N months ago\" (one month, \"2 months ago\" \
+         is the month before last), N from 1 to 120; \"last N weeks\" and \"last N complete \
+         weeks\", N from 1 to 520; \"last N years\" and \"last N complete years\", N from 1 to \
+         10; or \"last N days\" (the chart's last day and the N-1 before it, N from 1 to 366), \
+         each counted from the chart's period; or, without quotes, a year \
          2026, a month 2026-09, a day 2026-09-15, or a range of them such as 2026-01..2026-03. \
          There is no salary month after @. Write ; between arguments and . as the decimal \
          mark. The functions are {}. KassenSturz works the figure out itself; a refused \
@@ -1633,6 +1636,18 @@ fn check_formula(
 ) -> Result<(), ToolError> {
     let refused = |error: ReportError| -> Result<(), ToolError> {
         let (position, reason) = match error {
+            ReportError::FormulaPeriodCount {
+                position,
+                unit,
+                most,
+            } => {
+                return Err(ToolError::BadFormulaPeriodCount {
+                    argument,
+                    position,
+                    unit,
+                    most,
+                });
+            }
             ReportError::FormulaSyntax { position, .. } => (Some(position), "syntax"),
             ReportError::FormulaUnknownName { position, .. } => (Some(position), "unknown-name"),
             ReportError::FormulaAmbiguousName { position, by, .. } => (

@@ -55,6 +55,9 @@ mod ffi {
 
         fn today() -> QString;
 
+        #[cxx_name = "firstDayOfWeek"]
+        fn first_day_of_week() -> i32;
+
         #[cxx_name = "dateTime"]
         fn date_time(seconds: i64) -> QString;
 
@@ -83,6 +86,16 @@ impl QtLocale {
     /// e.g. "21.10.2026 14:02".
     pub fn date_time(time: Timestamp) -> String {
         ffi::date_time(time.as_second()).to_string()
+    }
+
+    /// The locale's first day of the week, e.g. Monday in Germany and
+    /// Sunday in the United States, for the week words of formulas
+    /// (D-740). Monday, as in ISO 8601, if Qt gives no day.
+    pub fn first_weekday() -> kassensturz_report::Weekday {
+        i8::try_from(ffi::first_day_of_week())
+            .ok()
+            .and_then(|day| kassensturz_report::Weekday::from_monday_one_offset(day).ok())
+            .unwrap_or(kassensturz_report::Weekday::Monday)
     }
 
     /// The locale's own currency, e.g. EUR in Germany, if it has one.
@@ -190,8 +203,17 @@ mod tests {
         assert_eq!(locale.read_date("10/5/2026"), None);
         let time: Timestamp = "2026-10-05T12:00:00Z".parse().expect("valid time");
         assert!(QtLocale::date_time(time).starts_with("05.10.2026 "));
+        // Weeks start on Monday in Germany, on Sunday in the US (D-740).
+        assert_eq!(
+            QtLocale::first_weekday(),
+            kassensturz_report::Weekday::Monday
+        );
 
         QtLocale::set_default("en_US");
+        assert_eq!(
+            QtLocale::first_weekday(),
+            kassensturz_report::Weekday::Sunday
+        );
         assert_eq!(format(&locale, 123_456, "USD"), "$1,234.56");
         // Qt's American English writes negative amounts in parentheses.
         assert_eq!(format(&locale, -5320, "USD"), "($53.20)");

@@ -148,6 +148,8 @@ fn main() {
     platform::start_in_user_folder();
     platform::set_window_icon();
     platform::load_ki18n_qml();
+    // The week words of formulas start on the locale's first day (D-740).
+    kassensturz_report::set_first_weekday(locale::QtLocale::first_weekday());
     crate::note!(AppStarted);
     // Plasma's style, unless the user chose another one.
     if std::env::var_os("QT_QUICK_CONTROLS_STYLE").is_none() {

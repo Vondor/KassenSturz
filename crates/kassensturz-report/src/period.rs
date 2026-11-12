@@ -3,7 +3,10 @@
 
 //! Periods: ranges of calendar dates without time zone (D-061).
 
+use std::sync::atomic::{AtomicI8, Ordering};
+
 use jiff::ToSpan;
+use jiff::civil::Weekday;
 use kassensturz_core::Date;
 
 use crate::ReportError;
@@ -54,6 +57,39 @@ pub const MAX_ROLLING_MONTHS: u16 = 120;
 /// The most days a "last N days" period counts back (US4.7, D-717): a
 /// whole leap year.
 pub const MAX_ROLLING_DAYS: u16 = 366;
+
+/// The most weeks a formula's `"last N weeks"` counts back: ten years, as
+/// months do (US5.6, D-740).
+pub const MAX_FORMULA_WEEKS: u16 = 520;
+
+/// The most years a formula's `"last N years"` counts back: ten, as months
+/// do (US5.6, D-740).
+pub const MAX_FORMULA_YEARS: u16 = 10;
+
+/// The first day of the week as a Monday-one offset (1 Monday … 7 Sunday).
+static FIRST_WEEKDAY: AtomicI8 = AtomicI8::new(1);
+
+/// Makes `day` the first day of the week for the week words of formulas
+/// (`"this week"`, `"last N weeks"`, D-740). The app sets it once at start
+/// from the user's locale; until then, and in programs without a locale
+/// such as the MCP server, weeks start on Monday as in ISO 8601.
+pub fn set_first_weekday(day: Weekday) {
+    FIRST_WEEKDAY.store(day.to_monday_one_offset(), Ordering::Relaxed);
+}
+
+/// The first day of the week the week words count with
+/// ([`set_first_weekday`]).
+pub fn first_weekday() -> Weekday {
+    Weekday::from_monday_one_offset(FIRST_WEEKDAY.load(Ordering::Relaxed))
+        .unwrap_or(Weekday::Monday)
+}
+
+/// The first day of the week that `day` is in, when weeks start on
+/// `first`.
+pub(crate) fn week_of(day: Date, first: Weekday) -> Result<Date, ReportError> {
+    day.checked_sub(i32::from(day.weekday().since(first)).days())
+        .map_err(|_| ReportError::BadPeriod)
+}
 
 /// A period that moves with today (US1.12, D-644): the last few calendar
 /// months, or a salary month that starts on a day of the month. Its word

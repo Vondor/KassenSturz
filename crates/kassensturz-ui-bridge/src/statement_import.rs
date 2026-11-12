@@ -1456,6 +1456,81 @@ mod tests {
         assert_eq!(link.last_fetched_on, None);
     }
 
+    /// The warning about old bank data (R2-15) where the steps meet: the day
+    /// a real fetch noted through the import is the day the overview counts
+    /// from, so a fetch long ago warns, one undo or a new fetch clears it, and
+    /// a preview or a switched-off warning says nothing.
+    #[test]
+    fn the_warning_about_old_bank_data_follows_what_a_fetch_noted() {
+        use crate::fetch_gap::{gaps, limit_of};
+
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking",
+            AccountType::Checking,
+            "1000,00",
+            "2026-09-30",
+        );
+        let fetched_on = Date::new(2026, 10, 9).expect("a date");
+        let loaded = fetched_for(&mut book, checking, fetched_on);
+        let limit = limit_of("60");
+        assert_eq!(limit, Some(60), "the 60 days choice");
+        let later = Date::new(2026, 12, 20).expect("a date");
+
+        // A linked account never fetched, and a preview, give no warning.
+        assert!(
+            gaps(&book, later, limit, &TestLocale)
+                .expect("gaps")
+                .is_empty()
+        );
+        preview(&mut book, &loaded, &TestLocale).expect("preview");
+        assert!(
+            gaps(&book, later, limit, &TestLocale)
+                .expect("gaps")
+                .is_empty()
+        );
+
+        import(&mut book, &loaded, &TestLocale).expect("imported");
+        let days =
+            u32::try_from(fetched_on.until(later).expect("a span").get_days()).expect("days");
+        // Inside the limit: nothing yet. Past it: the account is named, with
+        // the day the import noted and the days since.
+        let inside = Date::new(2026, 12, 7).expect("a date");
+        assert!(
+            gaps(&book, inside, limit, &TestLocale)
+                .expect("gaps")
+                .is_empty(),
+            "59 days is not older than 60"
+        );
+        let found = gaps(&book, later, limit, &TestLocale).expect("gaps");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].account, "Checking");
+        assert_eq!(found[0].account_id, checking);
+        assert_eq!(found[0].days, days);
+        assert_eq!(found[0].last_fetched, TestLocale.short_date(fetched_on));
+        assert!(
+            gaps(&book, later, limit_of("off"), &TestLocale)
+                .expect("gaps")
+                .is_empty(),
+            "switched off"
+        );
+
+        // A new fetch on the later day clears it; undoing that brings the old
+        // day, and so the warning, back.
+        book.note_bank_fetch(checking, later).expect("fetch noted");
+        assert!(
+            gaps(&book, later, limit, &TestLocale)
+                .expect("gaps")
+                .is_empty()
+        );
+        book.undo().expect("undone");
+        assert_eq!(
+            gaps(&book, later, limit, &TestLocale).expect("gaps").len(),
+            1
+        );
+    }
+
     #[test]
     fn a_fetched_statement_for_an_account_that_lost_its_link_imports_nothing() {
         let mut book = started();

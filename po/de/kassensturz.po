@@ -20462,3 +20462,137 @@ msgctxt "@label the rules of the warnings tile"
 msgid "Warnings"
 msgstr "Warnungen"
 
+
+#: crates/kassensturz-ui-bridge/qml/PartRow.qml:175
+#, kde-format
+msgctxt "@label:textbox %1 is the number of the part"
+msgid "Tags of part %1"
+msgstr "Schlagwörter von Teilbetrag %1"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:203
+msgctxt "@action:button"
+msgid "Tags"
+msgstr "Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:204
+msgctxt "@info"
+msgid "Rename, merge or remove your tags."
+msgstr "Schlagwörter umbenennen, zusammenführen oder entfernen."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:36
+msgctxt "@title"
+msgid "Tags"
+msgstr "Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:42
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 transaction"
+msgid_plural "%1 transactions"
+msgstr[0] "%1 Buchung"
+msgstr[1] "%1 Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:43
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 part"
+msgid_plural "%1 parts"
+msgstr[0] "%1 Teilbetrag"
+msgstr[1] "%1 Teilbeträgen"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:45
+#, kde-format
+msgctxt "@info %1 is how many transactions, %2 how many parts"
+msgid "Used on %1 and %2"
+msgstr "Verwendet bei %1 und %2"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:48
+#, kde-format
+msgctxt "@info %1 is how many transactions"
+msgid "Used on %1"
+msgstr "Verwendet bei %1"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:51
+#, kde-format
+msgctxt "@info %1 is how many parts"
+msgid "Used on %1"
+msgstr "Verwendet bei %1"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:53
+msgctxt "@info"
+msgid "Not used yet"
+msgstr "Noch nicht verwendet"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:74
+msgctxt "@info"
+msgid ""
+"Tags are your own labels, for example Holiday 2026 or Tax. They never change "
+"an amount or a sum. Add them on a transaction's page or on one of its parts."
+msgstr ""
+"Schlagwörter sind Ihre eigenen Kennzeichen, zum Beispiel Urlaub 2026 oder "
+"Steuer. Sie ändern nie einen Betrag oder eine Summe. Sie fügen sie auf der "
+"Seite einer Buchung oder bei einem ihrer Teilbeträge hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:81
+msgctxt "@info"
+msgid "No tags yet."
+msgstr "Noch keine Schlagwörter."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:162
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:176
+msgctxt "@label:listbox"
+msgid "Merge it into:"
+msgstr "Zusammenführen mit:"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:175
+msgctxt "@item:inlistbox no tag chosen yet"
+msgid "Choose a tag"
+msgstr "Schlagwort wählen"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:180
+msgctxt "@action:button"
+msgid "Merge"
+msgstr "Zusammenführen"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:197
+#, kde-format
+msgctxt "@info %1 and %2 are the names of tags"
+msgid ""
+"Everything tagged %1 gets %2 instead, and %1 is removed. You can undo this."
+msgstr ""
+"Alles mit dem Schlagwort %1 bekommt stattdessen %2, und %1 wird entfernt. "
+"Sie können das rückgängig machen."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:202
+msgctxt "@action:button"
+msgid "Remove this tag…"
+msgstr "Dieses Schlagwort entfernen…"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:219
+msgctxt "@title:window"
+msgid "Remove this tag?"
+msgstr "Dieses Schlagwort entfernen?"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:221
+#, kde-format
+msgctxt "@info %1 is the name of a tag, %2 how often it is used"
+msgid ""
+"%1 is taken off everything it is on (%2) and removed from the book. The "
+"transactions and their amounts stay as they are. You can undo this."
+msgstr ""
+"%1 wird überall weggenommen (%2) und aus dem Buch entfernt. Die Buchungen "
+"und ihre Beträge bleiben, wie sie sind. Sie können das rückgängig machen."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:222
+#, kde-format
+msgctxt "@info %1 is the name of a tag"
+msgid ""
+"%1 is not used anywhere. It is removed from the book. You can undo this."
+msgstr ""
+"%1 wird nirgends verwendet. Es wird aus dem Buch entfernt. Sie können das "
+"rückgängig machen."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:226
+msgctxt "@action:button"
+msgid "Remove the tag"
+msgstr "Schlagwort entfernen"

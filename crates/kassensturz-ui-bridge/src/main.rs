@@ -107,6 +107,7 @@ mod settings;
 mod statement_import;
 mod statement_import_model;
 mod tags;
+mod tags_model;
 #[cfg(test)]
 mod test_folder;
 mod test_profile;

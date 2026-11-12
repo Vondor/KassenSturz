@@ -139,6 +139,38 @@ pub fn resolve(book: &mut Book, wanted: &[TagInput<'_>]) -> Result<Vec<TagId>, S
     Ok(ids)
 }
 
+/// The tag whose ID is `id` (as text); one the book doesn't have is
+/// refused (`store.unknown-tag`).
+fn find(book: &Book, id: &str) -> Result<TagId, StoreError> {
+    book.tags()?
+        .into_iter()
+        .find(|tag| tag.id.to_string() == id)
+        .map(|tag| tag.id)
+        .ok_or_else(|| StoreError::UnknownTag(TagId::generate()))
+}
+
+/// Renames the tag `id` (as text) everywhere it is used; Undo takes it
+/// back (D-086).
+pub fn rename(book: &mut Book, id: &str, name: &str) -> Result<(), StoreError> {
+    let tag = find(book, id)?;
+    book.rename_tag(tag, name)
+}
+
+/// Removes the tag `id` from every transaction and part and from the book,
+/// in one user action that one Undo takes back (Q-495).
+pub fn remove(book: &mut Book, id: &str) -> Result<(), StoreError> {
+    let tag = find(book, id)?;
+    book.remove_tag(tag)
+}
+
+/// Puts the tag `into` wherever `from` is and removes `from`, in one user
+/// action that one Undo takes back.
+pub fn merge(book: &mut Book, from: &str, into: &str) -> Result<(), StoreError> {
+    let from = find(book, from)?;
+    let into = find(book, into)?;
+    book.merge_tags(from, into)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,6 +233,46 @@ mod tests {
         ));
         let shown = texts(&names_of(&book), &resolved);
         assert_eq!(shown[1].name, "Tax");
+    }
+
+    #[test]
+    fn a_tag_is_renamed_merged_and_removed_by_its_id_as_text() {
+        let mut book = Book::create_in_memory().expect("book");
+        let wanted = [
+            TagInput {
+                id: "",
+                name: "Holiday",
+            },
+            TagInput {
+                id: "",
+                name: "Trip",
+            },
+        ];
+        let made = book
+            .as_one_action(kassensturz_store::Action::AddTransaction, |book| {
+                resolve(book, &wanted)
+            })
+            .expect("made");
+        let (holiday, trip) = (made[0].to_string(), made[1].to_string());
+        rename(&mut book, &holiday, "Holiday 2026").expect("renamed");
+        assert!(matches!(
+            rename(&mut book, &trip, "holiday 2026"),
+            Err(StoreError::DuplicateTagName { .. })
+        ));
+        merge(&mut book, &trip, &holiday).expect("merged");
+        let left = names_of(&book);
+        assert_eq!(left.values().collect::<Vec<_>>(), ["Holiday 2026"]);
+        assert!(matches!(
+            remove(&mut book, &trip),
+            Err(StoreError::UnknownTag(_))
+        ));
+        remove(&mut book, &holiday).expect("removed");
+        assert!(names_of(&book).is_empty());
+        // Each was one step that Undo takes back.
+        book.undo().expect("undone");
+        assert_eq!(names_of(&book).len(), 1);
+        book.undo().expect("undone");
+        assert_eq!(names_of(&book).len(), 2);
     }
 
     fn names_of(book: &Book) -> HashMap<TagId, String> {

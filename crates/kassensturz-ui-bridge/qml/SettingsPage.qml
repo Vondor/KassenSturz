@@ -43,6 +43,8 @@ FormCard.FormCardPage {
     signal saveCopyClicked()
     signal bookFromFileClicked()
     signal showHistoryClicked()
+    // The user wants the page of the book's tags (US4.8).
+    signal tagsClicked()
     // The user wants the help page on patterns and formulas.
     signal helpClicked()
     // The user wants the page of the provider and of what is sent; only
@@ -192,6 +194,18 @@ FormCard.FormCardPage {
             description: page.session.fileName
             // A file's name could contain anything.
             descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: "tag"
+            text: page.i18nContext.i18nc("@action:button", "Tags")
+            description: page.i18nContext.i18nc("@info", "Rename, merge or remove your tags.")
+            onClicked: {
+                ActionLog.taken("SettingsPage_tags")
+                page.tagsClicked()
+            }
         }
 
         FormCard.FormDelegateSeparator {}

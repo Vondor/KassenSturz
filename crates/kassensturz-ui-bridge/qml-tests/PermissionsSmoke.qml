@@ -105,6 +105,15 @@ Kirigami.ApplicationWindow {
             window.check(grid.historyAtRisk(0), "joining warns about the history");
             settings.allowed = ({});
             window.check(!grid.readForced(transactions, 0), "without it Read is free again");
+            // Tagging is its own row too (D-744): it keeps Transactions ›
+            // Read on, and only labels transactions, so no history warning.
+            const tagging = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowTagTransactions"));
+            window.check(tagging !== undefined, "the grid has a row for tags on transactions");
+            settings.allowed = ({ AllowTagTransactions: true });
+            window.check(grid.isOn("AllowTagTransactions", 0), "the tag cell reads its setting");
+            window.check(grid.readForced(transactions, 0), "tagging keeps the transactions readable");
+            window.check(!grid.historyAtRisk(0), "tagging doesn't warn about the history");
+            settings.allowed = ({});
             // Chart descriptions are their own row with one cell (D-729);
             // they read nothing and don't touch the history.
             const descriptions = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowCustomCharts"));

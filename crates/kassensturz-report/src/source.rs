@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Budget, CategoryGroup, Currency, CurrencyCode, Date, GroupId,
-    Money, RoundingMode, Tag, TagId, Transaction,
+    Money, RoundingMode, Tag, Transaction,
 };
 use kassensturz_store::{Book, CategoryEntry, StoreError};
 
@@ -385,10 +385,6 @@ impl Source {
             .accounts
             .as_ref()
             .map(|accounts| accounts.iter().copied().collect());
-        let tags: Option<HashSet<TagId>> = filter
-            .tags
-            .as_ref()
-            .map(|tags| tags.iter().copied().collect());
         let overflow = |_| StoreError::AmountOverflow;
         let mut parts = Vec::new();
         for (index, transaction) in self.transactions.iter().enumerate() {
@@ -436,12 +432,8 @@ impl Source {
                 if split.amount.is_zero() {
                     continue;
                 }
-                if let Some(tags) = &tags
-                    && !transaction
-                        .tags()
-                        .iter()
-                        .chain(&split.tags)
-                        .any(|tag| tags.contains(tag))
+                if let Some(tags) = &filter.tags
+                    && !crate::filter::carries_tag(transaction, split, tags)
                 {
                     continue;
                 }

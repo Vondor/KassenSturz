@@ -85,6 +85,7 @@ Kirigami.ScrollablePage {
     readonly property var editedAccounts: kept.filter(change => change.kind === "editAccount")
     readonly property var sorts: kept.filter(change => change.kind === "sortWithRules")
     readonly property var joins: kept.filter(change => change.kind === "joinTransfer")
+    readonly property var taggings: kept.filter(change => change.kind === "tagTransaction")
     readonly property bool shows: changes.code === undefined && !done
 
     // The name of a field of a transaction the AI changes.
@@ -319,6 +320,8 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "Sorting with your Rules");
         case "joinTransfer":
             return i18nContext.i18nc("@info a kind of prepared change", "Two entries joined as one move");
+        case "tagTransaction":
+            return i18nContext.i18nc("@info a kind of prepared change", "Transaction that gets other tags");
         }
         return i18nContext.i18nc("@info a kind of prepared change", "New chart");
     }
@@ -1191,6 +1194,82 @@ Kirigami.ScrollablePage {
                         opacity: 0.8
                         textFormat: Text.PlainText
                         text: page.i18nContext.i18nc("@info", "The balance of the cash account changes. Undo brings it back.")
+                    }
+
+                    AiChangeCorrection {
+                        Layout.fillWidth: true
+                        ai: page.ai
+                        change: modelData
+                        choices: page.choices
+                        review: page
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.taggings.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Transactions that get other tags")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.taggings : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: modelData.payee !== "" ? modelData.payee : page.i18nContext.i18nc("@info a transaction without a name", "(no name)")
+                        }
+
+                        Controls.Label {
+                            textFormat: Text.PlainText
+                            text: modelData.amount
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: modelData.account !== "" ? page.i18nContext.i18nc("@info %1 is a date, %2 the name of an account", "%1 · %2", modelData.date, modelData.account) : modelData.date
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: modelData.added.length > 0
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a list of tag names", "Tags put on: %1", modelData.added.join(", "))
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: modelData.removed.length > 0
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a list of tag names", "Tags taken off: %1", modelData.removed.join(", "))
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "Only the tags on the whole transaction change. Tags on single parts stay. No amount changes.")
                     }
 
                     AiChangeCorrection {

@@ -205,6 +205,11 @@ fn changes(allowed: Permissions) -> String {
             "join the two sides of a move between their own accounts as one Transfer",
             "joined sides of a move between the user's accounts (join_transfers)",
         ),
+        (
+            allowed.allows(Permission::TagTransactions),
+            "put the user's tags on transactions or take them off",
+            "tags on transactions (tag_transactions, IDs from list_tags)",
+        ),
     ];
     let join = |texts: Vec<&str>| match texts.as_slice() {
         [] => String::new(),

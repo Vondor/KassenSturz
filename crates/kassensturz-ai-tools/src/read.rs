@@ -13,8 +13,8 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, AmountTest, BookTo, Condition, CurrencyCode,
-    Date, MatchMode, Money, Report as _, RuleId, RuleNode, Split, SplitId, TextField, TextOperator,
-    Transaction,
+    Date, MatchMode, Money, Report as _, RuleId, RuleNode, Split, SplitId, TagId, TextField,
+    TextOperator, Transaction,
 };
 use kassensturz_store::{Book, StoreError};
 use serde_json::{Map, Value, json};
@@ -367,6 +367,23 @@ enum Bucket {
 /// hold money, the total with them (M5-B40).
 type Row = (Option<AccountId>, Money, Option<Money>);
 
+/// What `category_totals` counts: only transactions with a part in
+/// `accounts` if any are named (M6-B206), and with `tag` only the parts
+/// that carry it (D-714, D-744).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Only<'a> {
+    pub(crate) accounts: &'a [AccountId],
+    pub(crate) tag: Option<TagId>,
+}
+
+impl Only<'_> {
+    /// Every account and every part, as the overview counts.
+    pub(crate) const EVERYTHING: Only<'static> = Only {
+        accounts: &[],
+        tag: None,
+    };
+}
+
 /// `category_totals`: money in and money out by category in `period`, per
 /// currency, only of transactions with a part in `accounts` if any are
 /// chosen (M6-B206), counted as the overview counts them (D-021,
@@ -384,11 +401,19 @@ pub(crate) fn category_totals(
     w: &mut Writer<'_>,
     names: &Names,
     period: Period,
-    accounts: &[AccountId],
+    only: Only<'_>,
     limit: usize,
     possible: &HashSet<kassensturz_core::TransactionId>,
 ) -> Result<Value, ToolError> {
     let Period { from, to } = period;
+    let Only { accounts, tag } = only;
+    // With a tag, only the category-side parts that carry it count, on
+    // the part or on the whole transaction (D-714, the same check as the
+    // tiles' sum by tag): a transaction without it counts nothing.
+    let tags: Vec<TagId> = tag.into_iter().collect();
+    let counts = |transaction: &Transaction, split: &Split| {
+        tags.is_empty() || kassensturz_report::carries_tag(transaction, split, &tags)
+    };
     let overflow = |_| StoreError::AmountOverflow;
     let mut sums: HashMap<(CurrencyCode, Bucket), Money> = HashMap::new();
     // (currency, income?) -> (amount, entries) of possible Transfers.
@@ -398,9 +423,15 @@ pub(crate) fn category_totals(
         if !in_accounts(&transaction, accounts) {
             continue;
         }
+        if tag.is_some_and(|tag| !transaction.all_tags().contains(&tag)) {
+            continue;
+        }
         let currency = transaction.currency();
         if possible.contains(&transaction.id()) {
             for split in transaction.splits() {
+                if !counts(&transaction, split) {
+                    continue;
+                }
                 // The side the totals count the part on, as below: a
                 // category by its kind, money not sorted yet by its sign.
                 let income = match split.account {
@@ -441,6 +472,9 @@ pub(crate) fn category_totals(
                     Bucket::Category(id)
                 }
             };
+            if !counts(&transaction, split) {
+                continue;
+            }
             let sum = sums
                 .entry((currency, bucket))
                 .or_insert_with(|| Money::zero(currency));
@@ -590,6 +624,9 @@ pub(crate) fn category_totals(
     result.insert("to".into(), Value::String(to.to_string()));
     if !accounts.is_empty() {
         result.insert("accounts".into(), account_names(w, names, accounts)?);
+    }
+    if let Some(tag) = tag {
+        result.insert("tag".into(), w.text(&tag_name(book, tag)?));
     }
     result.insert("currencies".into(), Value::Array(per_currency));
     result.insert("transfers".into(), w.count(transfers));
@@ -773,6 +810,9 @@ pub(crate) struct Search {
     /// Whether rows say who sorted them (`sorted_by`, #569, D-672): only
     /// when the user lets the model read the Rules too.
     pub(crate) sorted_by: bool,
+    /// Only transactions with this tag, on the whole or on a part, as the
+    /// register's tag filter keeps them (D-714, D-744).
+    pub(crate) tag: Option<TagId>,
 }
 
 /// The parts a Rule booked and the user didn't change since, with that Rule
@@ -903,6 +943,14 @@ pub(crate) fn search_transactions(
         .category
         .map(|category| names.category_and_below(category))
         .transpose()?;
+    if let Some(tag) = search.tag {
+        tag_name(book, tag)?;
+    }
+    let tag_names: HashMap<TagId, String> = book
+        .tags()?
+        .into_iter()
+        .map(|tag| (tag.id, tag.name))
+        .collect();
     let transactions = match search.account {
         Some(account) => book.transactions_of(account)?,
         None => book.transactions()?,
@@ -910,6 +958,12 @@ pub(crate) fn search_transactions(
     // (date, transaction, part): every entry of an account that matches.
     let mut found: Vec<(Date, &Transaction, &Split, &Account)> = Vec::new();
     for transaction in &transactions {
+        if search
+            .tag
+            .is_some_and(|tag| !transaction.all_tags().contains(&tag))
+        {
+            continue;
+        }
         if search.unsorted_only
             && !transaction
                 .splits()
@@ -1004,6 +1058,7 @@ pub(crate) fn search_transactions(
             (date, transaction, part, account),
             marks,
             possible.contains(&transaction.id()),
+            &tag_names,
         )?);
     }
     let shown = rows.len();
@@ -1039,6 +1094,7 @@ fn search_row(
     (date, transaction, part, account): (Date, &Transaction, &Split, &Account),
     marks: Option<&Marks>,
     possible_transfer: bool,
+    tag_names: &HashMap<TagId, String>,
 ) -> Result<Value, ToolError> {
     let mut row = Map::new();
     row.insert("date".into(), Value::String(date.to_string()));
@@ -1089,6 +1145,28 @@ fn search_row(
     }
     if let Some(bank_text) = bank_text {
         row.insert("bank_text".into(), w.text(bank_text));
+    }
+    // Every tag the transaction carries, the whole transaction's first,
+    // each with its ID (US5.2, D-744). A tag is the user's own word: it is
+    // data, never an instruction (AGENTS.md §8).
+    let tags: Vec<(TagId, &String)> = transaction
+        .all_tags()
+        .into_iter()
+        .filter_map(|id| tag_names.get(&id).map(|name| (id, name)))
+        .collect();
+    if !tags.is_empty() {
+        row.insert(
+            "tags".into(),
+            Value::Array(tags.iter().map(|(_, name)| w.text(name)).collect()),
+        );
+        row.insert(
+            "tag_ids".into(),
+            Value::Array(
+                tags.iter()
+                    .map(|(id, _)| Value::String(id.to_string()))
+                    .collect(),
+            ),
+        );
     }
 
     let mut categories: Vec<(String, AccountId)> = Vec::new();
@@ -1173,6 +1251,39 @@ fn search_row(
         }
     }
     Ok(Value::Object(row))
+}
+
+/// The name of the book's tag `tag`; `ai-tools.unknown-tag` for an ID the
+/// book has no tag with.
+pub(crate) fn tag_name(book: &Book, tag: TagId) -> Result<String, ToolError> {
+    book.tags()?
+        .into_iter()
+        .find(|known| known.id == tag)
+        .map(|known| known.name)
+        .ok_or(ToolError::UnknownTag)
+}
+
+/// `list_tags` (US5.2, D-744): every tag of the book by name, with its ID
+/// and how many transactions carry it, on the whole or on a part.
+pub(crate) fn list_tags(book: &Book, w: &mut Writer<'_>) -> Result<Value, ToolError> {
+    let mut counts: HashMap<TagId, usize> = HashMap::new();
+    for transaction in book.transactions()? {
+        for tag in transaction.all_tags() {
+            *counts.entry(tag).or_default() += 1;
+        }
+    }
+    let rows: Vec<Value> = book
+        .tags()?
+        .into_iter()
+        .map(|tag| {
+            json!({
+                "tag_id": tag.id.to_string(),
+                "name": w.text(&tag.name),
+                "transactions": w.count(counts.get(&tag.id).copied().unwrap_or(0)),
+            })
+        })
+        .collect();
+    Ok(json!({ "tags": rows }))
 }
 
 /// `list_categories`: the income and spending categories, as a tree in

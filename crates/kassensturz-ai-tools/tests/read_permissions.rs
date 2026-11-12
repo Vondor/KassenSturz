@@ -69,7 +69,7 @@ fn each_row_opens_only_the_functions_that_read_it() {
     );
     assert_eq!(
         names(Permissions::NONE.with(Permission::TransactionsRead, true)),
-        ["payee_totals", "search_transactions"]
+        ["payee_totals", "search_transactions", "list_tags"]
     );
     // Totals per category read both rows.
     let both = Permissions::NONE
@@ -81,7 +81,8 @@ fn each_row_opens_only_the_functions_that_read_it() {
             "category_totals",
             "payee_totals",
             "search_transactions",
-            "list_categories"
+            "list_categories",
+            "list_tags"
         ]
     );
     assert_eq!(names(Permissions::all()).len(), FUNCTIONS.len());

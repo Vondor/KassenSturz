@@ -90,6 +90,12 @@ Kirigami.ApplicationWindow {
             window.check(lines.includes("Shared account went down to 200,00 € this month (on 2026-10-03), under your limit of 500,00 €."), "the lowest point is named with its day, got " + lines);
             window.check(lines.includes("Shared account holds 200,00 €, under its reserve of 500,00 €: 2 months of Household."), "a reserve names its periods and budget, got " + lines);
 
+            // A rule for "less than 500 %" can trigger while the budget is
+            // over: the sentence then says so, never "only" (#759).
+            some.shown = ({rows: [Object.assign({}, feed.view.rows[0], {reason: "budget_under", share: 500, spent: "1.100,00 €", available: "300,00 €", over: "800,00 €", ended: true})], count: 1, shown: 1});
+            const under = window.texts(some, []);
+            window.check(under.some(text => text.startsWith("Household used 1.100,00 € of 300,00 €") && text.includes("over by 800,00 €") && !text.includes("only")), "a budget over its amount below a share says it is over, got " + under);
+
             const listed = window.texts(field, []);
             window.check(listed.includes("Household used more than 100 %"), "the settings list a budget rule, got " + listed);
             window.check(listed.includes("Shared account under 500,00 at its lowest point this month"), "the settings list an account rule, got " + listed);

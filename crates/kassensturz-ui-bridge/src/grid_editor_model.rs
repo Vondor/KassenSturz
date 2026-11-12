@@ -422,6 +422,15 @@ fn item_object(row: &grid_editor::Row, form: NumberForm) -> QVariant {
         ("rows", number(row.frame.rows)),
         ("minCols", number(row.least.cols)),
         ("minRows", number(row.least.rows)),
+        // A status tile below its full size shows its icon (US5.4, D-735).
+        (
+            "compact",
+            QVariant::from(&row.component.as_ref().is_some_and(|component| {
+                component
+                    .kind()
+                    .shows_as_icon(row.frame.cols, row.frame.rows)
+            })),
+        ),
         ("asked", asked_object(row)),
         (
             "subject",
@@ -1188,11 +1197,12 @@ mod tests {
         assert_eq!(
             keys(first),
             [
-                "asked", "col", "cols", "id", "minCols", "minRows", "row", "rows", "subject",
-                "type", "unknown"
+                "asked", "col", "cols", "compact", "id", "minCols", "minRows", "row", "rows",
+                "subject", "type", "unknown"
             ]
         );
         assert_eq!(text_of(first, "id"), "income");
+        assert!(!flag_of(first, "compact"));
         assert_eq!(text_of(first, "type"), "kpi.card");
         assert!(!flag_of(first, "unknown"));
         // The subject is what ComponentPreview and the panel read.
@@ -1207,6 +1217,30 @@ mod tests {
             kassensturz_report::ComponentType::LIBRARY.len()
         );
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
+    }
+
+    /// The bank warnings of the built-in Overview shrink to one cell and
+    /// then read back as `compact`, the way the grid item reads it to show
+    /// the status icon (US5.4, D-735).
+    #[test]
+    fn a_status_tile_below_its_full_size_reads_back_as_compact() {
+        let mut layout = layout();
+        let read = |layout: &Layout| {
+            let view = view_object(Some(layout), true, NumberForm::DecimalComma, None, &[], "");
+            list_of(&view, "items")
+                .into_iter()
+                .find(|item| text_of(item, "type") == "notice.fetch_gap")
+                .expect("the bank warnings")
+        };
+        let full = read(&layout);
+        assert!(!flag_of(&full, "compact"));
+        assert_eq!(number_of(&full, "minCols"), 1);
+        assert_eq!(number_of(&full, "minRows"), 1);
+        let id = text_of(&full, "id");
+        assert!(layout.editor.resize_to(&id, 1, 1).expect("resized"));
+        let small = read(&layout);
+        assert_eq!(number_of(&small, "cols"), 1);
+        assert!(flag_of(&small, "compact"));
     }
 
     #[test]

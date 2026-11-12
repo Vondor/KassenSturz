@@ -43,17 +43,15 @@ impl ComponentType {
             Self::KpiCard => Size { cols: 2, rows: 2 },
             Self::ProgressBar | Self::Heading => Size { cols: 3, rows: 1 },
             Self::Separator => Size { cols: 1, rows: 1 },
-            Self::PeriodBox
-            | Self::NetWorth
-            | Self::IncomeSources
-            | Self::BudgetProgress
-            | Self::Alarms => Size { cols: 3, rows: 2 },
-            // Only the button fits in one row; the status, the warnings and
-            // the summary scroll (US1.8, #521, D-635).
-            Self::BankUpdateAll => Size { cols: 3, rows: 1 },
-            Self::FetchNotice | Self::TransfersNote | Self::UnsortedNote => {
-                Size { cols: 4, rows: 1 }
+            Self::PeriodBox | Self::NetWorth | Self::IncomeSources | Self::BudgetProgress => {
+                Size { cols: 3, rows: 2 }
             }
+            // A status tile shrinks down to one cell and shows its status
+            // icon below its full size (US5.4, D-735).
+            Self::Alarms | Self::BankUpdateAll | Self::FetchNotice | Self::UnsortedNote => {
+                Size { cols: 1, rows: 1 }
+            }
+            Self::TransfersNote => Size { cols: 4, rows: 1 },
             // The tabs, the month header and the filter bar may be as narrow
             // as one column: the user decides (D-533).
             Self::FilterBar | Self::DashboardTabs | Self::PeriodHeader => Size { cols: 1, rows: 1 },
@@ -66,6 +64,31 @@ impl ComponentType {
             | Self::ChartDonut
             | Self::CustomChart
             | Self::ChartCandlestick => Size { cols: 3, rows: 3 },
+        }
+    }
+
+    /// The smallest frame a status tile shows its full text form in; below
+    /// it, in columns or rows, the tile shows its status icon (US5.4,
+    /// D-735). `None` for every type that has no icon form.
+    pub const fn full_size(self) -> Option<Size> {
+        match self {
+            Self::Alarms => Some(Size { cols: 3, rows: 2 }),
+            // Only the button fits in one row; the status, the warnings and
+            // the summary scroll (US1.8, #521, D-635).
+            Self::BankUpdateAll => Some(Size { cols: 3, rows: 1 }),
+            Self::FetchNotice | Self::UnsortedNote => Some(Size { cols: 4, rows: 1 }),
+            _ => None,
+        }
+    }
+
+    /// Whether a component of this type in a frame of `cols` by `rows`
+    /// cells shows its status icon instead of its text (D-735): only a
+    /// status tile, and only below its full size. Decided by cell count,
+    /// never by pixels, so resizing the window never switches it.
+    pub const fn shows_as_icon(self, cols: u32, rows: u32) -> bool {
+        match self.full_size() {
+            Some(full) => cols < full.cols || rows < full.rows,
+            None => false,
         }
     }
 

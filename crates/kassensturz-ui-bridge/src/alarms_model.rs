@@ -11,6 +11,8 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_core::Report;
 
+use kassensturz_report::status::{self, AlarmsFigures, Status};
+
 use crate::alarms::{self, AlarmRow, AlarmsError, AlarmsView};
 use crate::number_format::app_locale;
 use crate::properties::read_alarms;
@@ -129,19 +131,49 @@ pub(crate) fn row_object(row: &AlarmRow) -> QVariant {
     ])
 }
 
+/// The tile's status for its icon (US5.4, D-734): the rules that are
+/// triggered or name something gone wait for the user; one that can't be
+/// compared is never fine.
+fn alarms_status(result: &Result<AlarmsView, AlarmsError>, count: usize) -> Status {
+    status::alarms(result.as_ref().ok().map(|view| {
+        AlarmsFigures {
+            rules: count,
+            to_do: view
+                .rows
+                .iter()
+                .filter(|row| row.state == "triggered" || row.state == "gone")
+                .count(),
+            cant_check: view
+                .rows
+                .iter()
+                .filter(|row| row.state == "cant-check")
+                .count(),
+        }
+    }))
+}
+
 fn view_object(result: &Result<AlarmsView, AlarmsError>, count: usize) -> QVariant {
+    let shown = alarms_status(result, count);
+    let status = ("status", text(shown.status.id()));
+    let status_count = ("statusCount", number(shown.count));
     match result {
         Ok(view) => map([
             ("rows", list(view.rows.iter().map(row_object))),
             ("count", number(count)),
             ("shown", number(view.shown)),
+            status,
+            status_count,
         ]),
         Err(error) => {
             let report = match error {
                 AlarmsError::Report(error) => error.report(),
                 AlarmsError::Store(error) => error.report(),
             };
-            map([("error", map([("code", text(report.code))]))])
+            map([
+                ("error", map([("code", text(report.code))])),
+                status,
+                status_count,
+            ])
         }
     }
 }
@@ -158,7 +190,21 @@ mod tests {
         let f = fixture();
         let rules = rules(&f);
         let view = view_object(&alarms::view(&f.book, &TestLocale, &rules), rules.len());
-        assert_eq!(keys(&view), ["count", "rows", "shown"]);
+        assert_eq!(
+            keys(&view),
+            ["count", "rows", "shown", "status", "statusCount"]
+        );
+        // The icon says something waits: the triggered and gone lines.
+        assert_eq!(text_of(&view, "status"), "to-do");
+        let waiting = list_of(&view, "rows")
+            .iter()
+            .filter(|row| ["triggered", "gone"].contains(&text_of(row, "state").as_str()))
+            .count();
+        assert!(waiting > 0);
+        assert_eq!(
+            number_of(&view, "statusCount"),
+            i32::try_from(waiting).unwrap()
+        );
         assert_eq!(number_of(&view, "count"), 4);
         assert_eq!(number_of(&view, "shown"), 4);
         let rows = list_of(&view, "rows");
@@ -208,5 +254,7 @@ mod tests {
         let view = view_object(&alarms::view(&f.book, &TestLocale, &[]), 0);
         assert!(list_of(&view, "rows").is_empty());
         assert_eq!(number_of(&view, "count"), 0);
+        // No rule yet is never "all fine" (D-734).
+        assert_eq!(text_of(&view, "status"), "unknown");
     }
 }

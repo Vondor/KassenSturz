@@ -337,3 +337,10 @@ What the user sees and does, step by step, and the messages they can meet. Each 
 - **Automatic** draws rows only when one series has names too long to stand under their bars; otherwise the bars stand upright.
 - **Across** works for every bar chart: side-by-side bars lie one under another in their row, each with its value; stacked bars are one row of pieces with the value scale underneath. The AI can propose it too.
 - **Only the picture changes:** the figures, the table and the totals stay the same.
+
+## Small status tiles (US5.4)
+
+- **Warnings**, **Transactions without a category**, **Warnings about old bank data** and **Update all accounts** can be made as small as one cell under *Edit layout*. When a tile is smaller than its text needs, it shows a **status icon** instead.
+- **What the icon means:** a green circle with a tick means all fine; an orange triangle with "!" means something waits for you (a warning applies, transactions need a category, an account wasn't updated for long, notices to check); a blue turning ring means an update is running; a red diamond with "×" means the last update didn't work; a grey circle with "?" means nothing is set up yet or it isn't known yet. The shapes differ, so you can tell them apart without the colours.
+- **Point at the icon** for a sentence that says what it means. **Click it** (or press Enter) to see the whole tile in a window; Esc or *Close* closes it.
+- From three columns wide, a few words stand next to the icon.

@@ -477,6 +477,7 @@ pub const ACTIONS: &[&str] = &[
     "StatisticsPage_saveNewView",
     "StatisticsPage_setType",
     "StatisticsPage_startNewOne",
+    "StatusIcon_open",
     "TagField_addTag",
     "TagField_chooseTag",
     "TagField_removeTag",

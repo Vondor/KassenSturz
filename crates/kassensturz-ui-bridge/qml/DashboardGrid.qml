@@ -89,6 +89,8 @@ Item {
     // page's own figures are (after an import, a link, an undo).
     readonly property var updateAll: {
         void pageView;
+        // Asked again after each update, for the status icon (D-734).
+        void bank?.updateSummary;
         const state = bankReady && bank ? bank.updateAllState() : ({});
         return state.code === undefined ? state : ({});
     }

@@ -64,6 +64,7 @@ mod schema;
 mod source;
 pub mod spec;
 mod spending;
+pub mod status;
 pub mod templates;
 mod text;
 

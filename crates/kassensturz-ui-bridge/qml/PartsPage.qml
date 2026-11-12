@@ -34,6 +34,8 @@ Kirigami.ScrollablePage {
     property string amountExample: ""
     // The Parts as the form holds them.
     readonly property ListModel partsModel: ListModel {}
+    // The book's tags, for each Part's own Tags field (US4.8).
+    property var tagChoices: []
 
     // Saved or removed.
     signal done()
@@ -60,8 +62,11 @@ Kirigami.ScrollablePage {
         dateField.text = entry.date;
         amountExample = register.amountExample(accountId);
         for (const part of entry.parts) {
-            page.partsModel.append({ splitId: part.id, category: part.category, amount: part.amount, foreignAmount: part.foreignAmount });
+            // A list in a ListModel role turns into a model of its own, so
+            // the tags are kept as JSON text.
+            page.partsModel.append({ splitId: part.id, category: part.category, amount: part.amount, foreignAmount: part.foreignAmount, tags: JSON.stringify(part.tags ?? []) });
         }
+        tagChoices = register.tagChoices();
         reloadChoices();
         refresh();
     }
@@ -83,7 +88,7 @@ Kirigami.ScrollablePage {
         const parts = [];
         for (let i = 0; i < page.partsModel.count; i++) {
             const part = page.partsModel.get(i);
-            parts.push({ id: part.splitId, category: part.category, amount: part.amount, foreignAmount: part.foreignAmount });
+            parts.push({ id: part.splitId, category: part.category, amount: part.amount, foreignAmount: part.foreignAmount, tags: JSON.parse(part.tags) });
         }
         return {
             moneyIn: moneyIn,
@@ -111,7 +116,7 @@ Kirigami.ScrollablePage {
     }
 
     function addPart() {
-        page.partsModel.append({ splitId: "", category: "", amount: "", foreignAmount: "" });
+        page.partsModel.append({ splitId: "", category: "", amount: "", foreignAmount: "", tags: "[]" });
         refresh();
     }
 
@@ -265,6 +270,8 @@ Kirigami.ScrollablePage {
                     category: model.category
                     amount: model.amount
                     foreignAmount: model.foreignAmount
+                    tags: JSON.parse(model.tags)
+                    tagChoices: page.tagChoices
                     preview: page.previewOf(index)
                     amountExample: page.amountExample
                     moneyIn: page.moneyIn
@@ -279,6 +286,9 @@ Kirigami.ScrollablePage {
                     onForeignAmountEdited: text => {
                         model.foreignAmount = text;
                         page.refresh();
+                    }
+                    onTagsEdited: tags => {
+                        model.tags = JSON.stringify(tags);
                     }
                     // The page removes the row: removing it here destroys
                     // this delegate, and the rest of the handler would then

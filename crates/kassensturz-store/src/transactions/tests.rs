@@ -1385,6 +1385,7 @@ fn outlines_of(transactions: &[Transaction]) -> HashMap<TransactionId, Transacti
                         note: split.note.clone(),
                     })
                     .collect(),
+                tags: transaction.all_tags(),
             };
             (transaction.id(), outline)
         })
@@ -1412,9 +1413,20 @@ fn the_outlines_of_an_accounts_transactions_agree_with_the_whole_transactions() 
         "Market",
         &[(checking, eur(-1200)), (groceries, eur(1200))],
     );
+    // Tags on the whole of one and on a part (D-712, D-713).
+    let [holiday, tax] = ["Holiday", "Tax"].map(|name| {
+        let tag = kassensturz_core::Tag {
+            id: kassensturz_core::TagId::generate(),
+            name: name.into(),
+        };
+        book.add_tag(&tag).expect("tag added");
+        tag.id
+    });
+    let shopping = shopping.with_tags(vec![holiday]);
     let mut parts = market.splits().to_vec();
     parts[0].note = Some("Paid in cash at the stall".into());
-    let market = with_parts(&market, parts);
+    parts[1].tags = vec![tax, holiday];
+    let market = with_parts(&market, parts).with_tags(vec![holiday]);
     let imported = imported_purchase(&mut book, checking);
     let moved = transfer(checking, dollars, None);
     for added in [&shopping, &market, &moved] {
@@ -1430,6 +1442,9 @@ fn the_outlines_of_an_accounts_transactions_agree_with_the_whole_transactions() 
         outlines[&market.id()].parts[0].note.as_deref(),
         Some("Paid in cash at the stall")
     );
+    assert_eq!(outlines[&shopping.id()].tags, [holiday]);
+    assert_eq!(outlines[&market.id()].tags, [holiday, tax]);
+    assert!(outlines[&moved.id()].tags.is_empty());
     assert!(outlines[&moved.id()].parts[1].foreign);
     assert_eq!(outlines[&imported.id()].parts[1].account, None);
     assert_eq!(

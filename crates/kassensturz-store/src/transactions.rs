@@ -48,6 +48,11 @@ pub struct TransactionOutline {
     pub note: Option<String>,
     /// Its parts, in their order.
     pub parts: Vec<PartOutline>,
+    /// Every tag it carries, on the whole or on a part: the whole
+    /// transaction's first, in the user's order, then each part's own in
+    /// the parts' order, each tag once (D-712, D-713). A register line is
+    /// found by any of them (Q-493).
+    pub tags: Vec<TagId>,
 }
 
 /// One part of a [`TransactionOutline`].
@@ -594,6 +599,27 @@ impl Book {
                 foreign: row.get(3)?,
                 note: row.get(4)?,
             });
+        }
+        drop(rows);
+        // The tags on the whole, then those of the parts, each once.
+        let mut statement = self.conn.prepare_cached(
+            "SELECT transaction_id, tag_id, 0, 0, position FROM transaction_tags
+             WHERE transaction_id IN (SELECT transaction_id FROM splits WHERE account_id = ?1)
+             UNION ALL
+             SELECT s.transaction_id, g.tag_id, 1, s.position, g.position
+             FROM split_tags AS g JOIN splits AS s ON s.id = g.split_id
+             WHERE s.transaction_id IN (SELECT transaction_id FROM splits WHERE account_id = ?1)
+             ORDER BY 1, 3, 4, 5",
+        )?;
+        let mut rows = statement.query([account.to_bytes()])?;
+        while let Some(row) = rows.next()? {
+            let transaction = TransactionId::from_bytes(row.get(0)?);
+            let tag = TagId::from_bytes(row.get(1)?);
+            if let Some(outline) = outlines.get_mut(&transaction)
+                && !outline.tags.contains(&tag)
+            {
+                outline.tags.push(tag);
+            }
         }
         Ok(outlines)
     }

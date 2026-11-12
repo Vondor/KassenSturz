@@ -29,10 +29,15 @@ ColumnLayout {
     required property string amountExample
     // Whether the page's money went in rather than out, for the labels.
     required property bool moneyIn
+    // The part's own tags and the book's tags to choose from (US4.8,
+    // D-713); the whole transaction's tags are set on its own page.
+    required property var tags
+    property var tagChoices: []
 
     signal categoryChosen(string categoryId)
     signal amountEdited(string text)
     signal foreignAmountEdited(string text)
+    signal tagsEdited(var tags)
     signal removeClicked()
     signal accepted()
 
@@ -161,5 +166,13 @@ ColumnLayout {
         font: Kirigami.Theme.smallFont
         wrapMode: Text.Wrap
         Layout.fillWidth: true
+    }
+
+    TagField {
+        Layout.fillWidth: true
+        tags: row.tags
+        choices: row.tagChoices
+        accessibleName: row.i18nContext.i18nc("@label:textbox %1 is the number of the part", "Tags of part %1", row.number)
+        onEdited: row.tagsEdited(tags)
     }
 }

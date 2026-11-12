@@ -574,6 +574,7 @@ mod tests {
                 category,
                 date,
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )

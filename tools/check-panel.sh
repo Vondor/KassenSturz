@@ -66,6 +66,13 @@
 # - PartsSmoke.qml opens PartsPage.qml on a stand-in for AccountRegister and
 #   checks the line that says what the Parts add up to and removing a Part,
 #   with no KI18n warning about a missing argument (M6-B235).
+# - TagSmoke.qml opens TransactionPage.qml on the same stand-in and checks
+#   the Tags field: a tag chosen, one made by typing, one taken away with
+#   the keyboard, and that a save sends the tags only when they changed
+#   (US4.8).
+# - TagsSmoke.qml opens Settings › Tags on a stand-in for BookTags and
+#   checks the use counts in words, renaming and merging by ID, and that a
+#   refused name keeps its reason (US4.8).
 #
 # Needs `qml6` and the QML modules the pages import (Kirigami, KI18n,
 # QuickCharts). It fails if a page doesn't load, if a check fails, or if QML
@@ -90,7 +97,7 @@ for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange 
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
     BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard AiPermissionGrid \
     AlarmList AlarmRuleDialog AlarmRulesField AlarmWords \
-    TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog PartsPage PartRow TransactionRow; do
+    TransactionPage TagField TagsPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog PartsPage PartRow TransactionRow; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -106,11 +113,11 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         FormulaField FormulaWords BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
         AlarmList AlarmRuleDialog AlarmRulesField AlarmWords BookAlarms \
         BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings \
-        TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister PartsPage PartRow TransactionRow BookTransactions; do
+        TransactionPage TagField TagsPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister BookTags PartsPage PartRow TransactionRow BookTransactions; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$bridge"/qml-tests/CategorySmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$bridge"/qml-tests/AlarmsSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$bridge"/qml-tests/CategorySmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$bridge"/qml-tests/AlarmsSmoke.qml "$bridge"/qml-tests/TagSmoke.qml "$bridge"/qml-tests/TagsSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -138,6 +145,10 @@ run_smoke PartsSmoke
 echo "parts page: ok"
 run_smoke AlarmsSmoke
 echo "warnings tile: ok"
+run_smoke TagSmoke
+echo "transaction page tags: ok"
+run_smoke TagsSmoke
+echo "settings tags page: ok"
 run_smoke StatisticsSmoke
 echo "statistics page: ok"
 run_smoke ReviewSmoke

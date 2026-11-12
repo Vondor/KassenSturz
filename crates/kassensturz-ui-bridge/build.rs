@@ -134,6 +134,8 @@ fn main() {
                 "qml/SettingsPage.qml",
                 "qml/StatisticsPage.qml",
                 "qml/TransactionPage.qml",
+                "qml/TagField.qml",
+                "qml/TagsPage.qml",
                 "qml/TransactionRow.qml",
                 "qml/TransferPrompt.qml",
                 "qml/TransferPartnerDialog.qml",
@@ -196,6 +198,7 @@ fn main() {
         "src/saved_views_model.rs",
         "src/settings.rs",
         "src/statement_import_model.rs",
+        "src/tags_model.rs",
         "src/test_profile_model.rs",
     ])
     .cpp_files([

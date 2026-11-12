@@ -413,6 +413,19 @@ impl Transaction {
         &self.tags
     }
 
+    /// Every tag the transaction carries, on the whole or on a part: the
+    /// whole transaction's first, then each part's own in the parts' order,
+    /// each once. A search for any of them finds it (D-713, Q-493).
+    pub fn all_tags(&self) -> Vec<TagId> {
+        let mut tags = self.tags.clone();
+        for tag in self.splits.iter().flat_map(|split| &split.tags) {
+            if !tags.contains(tag) {
+                tags.push(*tag);
+            }
+        }
+        tags
+    }
+
     /// The tags `part` counts for: the whole transaction's first, then the
     /// part's own, each once (D-713). Worked out when asked, never stored,
     /// so a part added later counts for the transaction's tags too.

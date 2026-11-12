@@ -291,6 +291,29 @@ fn the_budgets_a_tile_shows_stay_in_their_book() {
 }
 
 #[test]
+fn the_warning_rules_of_a_tile_stay_in_their_book() {
+    let sample = sample();
+    let text = format!(
+        r#"{{"format": "kassensturz-dashboard", "version": {VERSION}, "kind": "dashboard",
+            "name": "Watch", "components": [
+              {{"id": "w1", "type": "notice.alarms", "props": {{"title": "Mine", "alarms": [
+                {{"reason": "account_below", "account": "{GONE}", "amount": "500.00"}},
+                {{"reason": "budget_over", "budget": "{GONE}", "share": 80}}]}},
+               "frame": {{"col": 0, "row": 0, "cols": 6, "rows": 3}}}}]}}"#
+    );
+    let document = Document::read(&text).expect("reads");
+    let file = write(&sample, &document);
+    // The rules name the book's own accounts and budgets (D-726): a tile
+    // opened from the file starts with none, and keeps its title.
+    assert_eq!((file.references, file.left_out), (0, 2));
+    assert!(!file.text.contains(GONE));
+    let value: Value = serde_json::from_str(&file.text).expect("JSON");
+    let props = &value["dashboard"]["components"][0]["props"];
+    assert_eq!(props["alarms"], serde_json::json!([]));
+    assert_eq!(props["title"], serde_json::json!("Mine"));
+}
+
+#[test]
 fn the_built_in_overview_can_be_saved_without_references() {
     let sample = sample();
     let overview = Document::default_overview().expect("built in");

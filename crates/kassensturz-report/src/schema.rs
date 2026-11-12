@@ -651,6 +651,19 @@ const ORIENTATION: Property = Property {
 pub(crate) const ORIENTATION_KEY: &str = "orientation";
 /// The words of `props.orientation`, the default first.
 pub const ORIENTATION_WORDS: [&str; 3] = ["auto", "horizontal", "vertical"];
+/// `params.candle` (US4.10, Q-498, D-719): how many days one candle of a
+/// candle chart covers. `auto`, the default, keeps the rule of D-719 (a
+/// candle per day up to a month, per week up to half a year, else per
+/// month); `day`, `week` and `month` always use that length. It decides
+/// which days each candle's figures come from, so it is a parameter.
+const CANDLE: Property = Property {
+    key: CANDLE_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&CANDLE_WORDS),
+};
+pub(crate) const CANDLE_KEY: &str = "candle";
+/// The words of `params.candle`, the default first.
+pub const CANDLE_WORDS: [&str; 4] = ["auto", "day", "week", "month"];
 
 const CHART: [Property; 16] = [
     GROUPING,
@@ -672,7 +685,7 @@ const CHART: [Property; 16] = [
 ];
 /// Candles: which accounts, the title, the legend and the period; the
 /// length of a candle follows the period (D-719).
-const CANDLESTICK: [Property; 4] = [ACCOUNTS, TITLE, LEGEND, PERIOD];
+const CANDLESTICK: [Property; 5] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE];
 /// Bars: a chart's properties, the comparison of spending (US3.1a) after
 /// the average, and the way the bars go (D-679) after the legend.
 const BAR_CHART: [Property; 18] = [

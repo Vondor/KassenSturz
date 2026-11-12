@@ -18,9 +18,9 @@ use kassensturz_charts::{
 };
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
-    ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, Column, CompareWith, Filter,
-    INCOME_EXPENSE_BY_MONTH, Level, NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period,
-    ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
+    ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, CandleLength, Column,
+    CompareWith, Filter, INCOME_EXPENSE_BY_MONTH, Level, NET_WORTH_OVER_TIME, Overlap, Per,
+    Percent, Period, ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
     account_balances as balances_dataset, balance_candles as candles_dataset,
     cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
     columns_over_time, columns_span, columns_spending, compared_early, counted_early,
@@ -524,7 +524,8 @@ pub fn charts(
             // The chosen accounts' balance as candles (US4.10, D-718,
             // D-719): the same accounts as the cash flow.
             CASH_FLOW_BY_MONTH if kind == ChartKind::Candlestick => {
-                candles_dataset(&source, period, &filter)?
+                let length = CandleLength::read(&request.scope.candle);
+                candles_dataset(&source, period, &filter, length)?
                     .iter()
                     .map(|data| candles_chart(data, &text))
                     .collect::<Result<Vec<_>, _>>()?

@@ -599,3 +599,34 @@ fn bars_choose_their_orientation_and_automatic_is_not_written() {
     line["props"]["orientation"] = json!("vertical");
     assert!(Component::from_value(&line).is_err());
 }
+
+#[test]
+fn candles_choose_their_length_and_automatic_is_not_written() {
+    // Only the candle chart has the setting (Q-498).
+    for kind in ComponentType::LIBRARY {
+        let has = kind.properties().iter().any(|p| p.key == "candle");
+        assert_eq!(has, kind == ComponentType::ChartCandlestick, "{kind:?}");
+    }
+    assert_eq!(CANDLE_WORDS, ["auto", "day", "week", "month"]);
+    let mut chart = Component::new(ComponentType::ChartCandlestick, CASH_FLOW_BY_MONTH).unwrap();
+    // A new chart follows the period, as before the setting, and a chart
+    // written without the setting reads the same.
+    assert_eq!(chart.get("candle"), Some(&Setting::Word("auto".into())));
+    let value = chart.to_value();
+    assert!(value["params"].get("candle").is_none());
+    assert_eq!(Component::from_value(&value).unwrap(), chart);
+    let asked = Asked::new(&chart, None, &Filters::default()).unwrap();
+    assert_eq!(asked.candle, None);
+    // A chosen length is written, read back and asked for.
+    chart.set("candle", Setting::Word("month".into())).unwrap();
+    let value = chart.to_value();
+    assert_eq!(value["params"]["candle"], json!("month"));
+    assert_eq!(Component::from_value(&value).unwrap(), chart);
+    let asked = Asked::new(&chart, None, &Filters::default()).unwrap();
+    assert_eq!(asked.candle, Some(CandleLength::Month));
+    assert_eq!(asked.for_series("income").candle, Some(CandleLength::Month));
+    // A word that is not one of the four is refused.
+    let mut wrong = value.clone();
+    wrong["params"]["candle"] = json!("year");
+    assert!(Component::from_value(&wrong).is_err());
+}

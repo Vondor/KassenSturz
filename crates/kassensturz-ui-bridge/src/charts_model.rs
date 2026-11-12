@@ -1350,6 +1350,39 @@ mod tests {
     }
 
     #[test]
+    fn a_chosen_candle_length_reaches_the_chart() {
+        // Q-498: the last 12 months draw a candle per month by themselves; a
+        // chart set to a candle per week draws one for each week instead,
+        // and the first opens and the last closes on the same balances.
+        let count = |candle: &str| {
+            let mut asked = request("cash_flow_by_month", "candlestick");
+            asked.scope.candle = candle.into();
+            let view = view_of(&asked);
+            let chart = list_of(&view, "charts").remove(0);
+            let series = list_of(&chart, "series");
+            let units =
+                |at: usize, of: usize| text_of(&list_of(&series[of], "points")[at], "minorUnits");
+            let last = usize::try_from(number_of(&chart, "count")).unwrap() - 1;
+            (number_of(&chart, "count"), units(0, 0), units(last, 3))
+        };
+        let (months, open, close) = count("");
+        assert!((12..=13).contains(&months), "{months}");
+        let (weeks, week_open, week_close) = count("week");
+        assert!((52..=54).contains(&weeks), "{weeks}");
+        assert_eq!((week_open, week_close), (open.clone(), close.clone()));
+        assert_eq!(count("month").0, months);
+        // A word the scope doesn't know is read as automatic.
+        assert_eq!(
+            crate::scope::Scope::from_text(r#"{"candle": "year"}"#).candle,
+            ""
+        );
+        assert_eq!(
+            crate::scope::Scope::from_text(r#"{"candle": "week"}"#).candle,
+            "week"
+        );
+    }
+
+    #[test]
     fn every_column_of_the_tables_of_the_accounts_has_a_name_on_screen() {
         // A column the screen has no words for would show its fixed name.
         let table = include_str!("../qml/ChartTable.qml");

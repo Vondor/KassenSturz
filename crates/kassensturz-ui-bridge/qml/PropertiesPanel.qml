@@ -176,6 +176,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label:listbox whether a chart shows the total spending or an average per month, quarter or year", "Show as");
         case "orientation":
             return i18nContext.i18nc("@label:listbox which way the bars of a bar chart go", "Bars");
+        case "candle":
+            return i18nContext.i18nc("@label:listbox how many days one candle of a candle chart covers", "One candle per");
         case "show_hidden":
             return i18nContext.i18nc("@option:check", "Show hidden categories");
         case "hide_note":
@@ -213,6 +215,10 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "My groups, with the other categories on their own");
         case "month":
             return i18nContext.i18nc("@item:inlistbox", "Month");
+        case "day":
+            return i18nContext.i18nc("@item:inlistbox one candle of a candle chart covers a day", "Day");
+        case "week":
+            return i18nContext.i18nc("@item:inlistbox one candle of a candle chart covers a week, Monday to Sunday", "Week (Monday to Sunday)");
         case "budget":
             return i18nContext.i18nc("@item:inlistbox", "Each budget");
         case "period":

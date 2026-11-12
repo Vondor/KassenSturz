@@ -20895,3 +20895,18 @@ msgstr ""
 msgctxt "@action:button"
 msgid "Remove the tag"
 msgstr "Schlagwort entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:180
+msgctxt "@label:listbox how many days one candle of a candle chart covers"
+msgid "One candle per"
+msgstr "Eine Kerze je"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:219
+msgctxt "@item:inlistbox one candle of a candle chart covers a day"
+msgid "Day"
+msgstr "Tag"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:221
+msgctxt "@item:inlistbox one candle of a candle chart covers a week, Monday to Sunday"
+msgid "Week (Monday to Sunday)"
+msgstr "Woche (Montag bis Sonntag)"

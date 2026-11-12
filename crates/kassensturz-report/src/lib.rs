@@ -136,8 +136,8 @@ pub use period::{
     read_range_word,
 };
 pub use schema::{
-    ALARMS_KEY, ColumnSetting, ComponentType, FORMULA_MEASURE, Kind, MAX_IDS, MAX_TEXT_CHARS,
-    ORIENTATION_WORDS, Place, Property, Setting, dataset_for,
+    ALARMS_KEY, CANDLE_WORDS, ColumnSetting, ComponentType, FORMULA_MEASURE, Kind, MAX_IDS,
+    MAX_TEXT_CHARS, ORIENTATION_WORDS, Place, Property, Setting, dataset_for,
 };
 pub use source::Source;
 pub use spending::{

@@ -761,6 +761,36 @@ mod tests {
     }
 
     #[test]
+    fn the_candle_length_reads_back_the_way_qml_reads_it() {
+        // Q-498: a candle chart offers one candle per day, week or month,
+        // automatic by default, as a parameter of its own.
+        let mut candles = component(ComponentType::ChartCandlestick, "cash_flow_by_month");
+        let view = view_object(Some(&candles), None, NumberForm::DecimalComma);
+        let fields = list_of(&view, "fields");
+        let field = fields
+            .iter()
+            .find(|f| text_of(f, "key") == "candle")
+            .expect("the field");
+        assert_eq!(text_of(field, "kind"), "choice");
+        assert_eq!(text_of(field, "place"), "params");
+        assert_eq!(text_of(field, "word"), "auto");
+        let words: Vec<String> = list_of(field, "words")
+            .iter()
+            .map(|word| word.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(words, ["auto", "day", "week", "month"]);
+        candles
+            .set("candle", Setting::Word("month".into()))
+            .unwrap();
+        let view = view_object(Some(&candles), None, NumberForm::DecimalComma);
+        let field = list_of(&view, "fields")
+            .into_iter()
+            .find(|f| text_of(f, "key") == "candle")
+            .expect("the field");
+        assert_eq!(text_of(&field, "word"), "month");
+    }
+
+    #[test]
     fn json_is_the_document_part_and_reads_back_into_the_same_component() {
         let mut chart = component(ComponentType::ChartDonut, "spending_by_category");
         chart

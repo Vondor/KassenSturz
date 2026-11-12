@@ -73,6 +73,6 @@ The lists "Money in: only these …" do **not** apply to formulas: a name in a f
 
 ## Patterns in Rules
 
-In a condition of a Rule (page 12) you can choose **Use a pattern (advanced)**. It then finds texts that have a certain shape, instead of only one word. You never need it. How to write patterns and formulas is explained on the help page **Help: patterns and formulas** in the app, with made-up examples. It opens from **Settings** (the "About" card) and from **More about patterns** under a pattern condition in a Rule.
+In a condition of a Rule (page 12) you can choose **Use a pattern (advanced)**. It then finds texts that have a certain shape, instead of only one word. You never need it. How to write patterns and formulas is explained on the help page **Help: patterns, formulas and charts** in the app, with made-up examples. It opens from **Settings** (the "About" card) and from **More about patterns** under a pattern condition in a Rule.
 
 **If something looks different:** the functions on this page are those of the current version. If a message says a function is unknown, it isn't listed here and doesn't exist yet.

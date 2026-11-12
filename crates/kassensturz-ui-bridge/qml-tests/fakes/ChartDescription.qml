@@ -19,6 +19,14 @@ QtObject {
         view = answer;
     }
 
+    // Two ready examples, as `examples()` of the Rust object lists them.
+    function examples() {
+        return [
+            {key: "balance-and-flows", dataset: "cash_flow_by_month", text: "{\"data\": {\"name\": \"cash_flow_by_month\"}}"},
+            {key: "left-each-month", dataset: "income_expense_by_month", text: "{\"data\": {\"name\": \"income_expense_by_month\"}}"}
+        ];
+    }
+
     function openFile(file) {
         openedFiles.push(String(file));
         view = ({ok: true, dataset: "income_expense_by_month", canDraw: true, count: 0, unsupported: [], text: "from the file", opened: (view.opened ?? 0) + 1});

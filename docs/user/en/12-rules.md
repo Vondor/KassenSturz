@@ -20,7 +20,7 @@ On a transaction's page, **Create a Rule from this transaction…** does the sam
 4. Under **Then**, say what happens: sort into a category. A Rule can also replace the **Name shown**, for example with a clear "Supermarket" instead of a jumble such as "SUPERSTORE 1234 THANK YOU".
 5. **Add a Rule** saves it.
 
-**Use a pattern (advanced)** allows more exact conditions. You never need it; how it works is on the help page **Help: patterns and formulas** (under a pattern condition: **More about patterns**) and on page 15.
+**Use a pattern (advanced)** allows more exact conditions. You never need it; how it works is on the help page **Help: patterns, formulas and charts** (under a pattern condition: **More about patterns**) and on page 15.
 
 ## Order and Rules inside Rules
 

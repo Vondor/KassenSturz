@@ -3,7 +3,8 @@
 
 // One help page in plain words on the two things a person types that look
 // like a small language: the patterns of a Rule's conditions and the
-// formulas of charts and key figures (US3.13, #649, D-700). Every example
+// formulas of charts and key figures (US3.13, #649, D-700), and the
+// descriptions of custom charts (US4.11, #700 part A, D-720). Every example
 // uses invented names (D-699). The rules it states are the ones the code
 // keeps: a pattern is a Rust `regex` pattern, capitals are ignored unless
 // "Capital letters must match" is ticked, and lookaround and
@@ -23,7 +24,11 @@ FormCard.FormCardPage {
         translationDomain: "kassensturz"
     }
 
-    title: i18nContext.i18nc("@title", "Help: patterns and formulas")
+    title: i18nContext.i18nc("@title", "Help: patterns, formulas and charts")
+
+    // The ready chart descriptions, written once in Rust, and their names.
+    readonly property ChartDescription examples: ChartDescription {}
+    readonly property ChartExamples exampleNames: ChartExamples {}
 
     FormCard.FormHeader {
         title: page.i18nContext.i18nc("@title:group", "Patterns in Rules")
@@ -284,4 +289,105 @@ FormCard.FormCardPage {
             descriptionItem.textFormat: Text.PlainText
         }
     }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Custom charts")
+    }
+
+    FormCard.FormSectionText {
+        text: page.i18nContext.i18nc("@info", "A custom chart is drawn from a short description in the Vega-Lite language: which data to use, the kind of mark (bar, line, area, arc, point, text or rule) and which field goes where. In the properties of a custom chart, \"Insert an example\" puts one of the examples below into the field, where you can change it. Nothing is kept until you choose \"Use this description\".")
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Data names and their fields")
+    }
+
+    FormCard.FormSectionText {
+        text: page.i18nContext.i18nc("@info", "Write the data name as \"data\": { \"name\": … }. Each name has the fields listed after it. Amounts are exact; a chart never adds up different currencies.")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormTextDelegate {
+            textItem.wrapMode: Text.Wrap
+            text: page.i18nContext.i18nc("@info what a data name of a chart description holds", "What you spent in the period, one row per category.")
+            description: "spending_by_category: category, top_level, total, currency"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            textItem.wrapMode: Text.Wrap
+            text: page.i18nContext.i18nc("@info what a data name of a chart description holds", "Money in and money out of each month, and what is left.")
+            description: "income_expense_by_month: month, income, expenses, net, currency"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            textItem.wrapMode: Text.Wrap
+            text: page.i18nContext.i18nc("@info what a data name of a chart description holds", "What each account held at the end of the period, and whether it is a debt or closed.")
+            description: "account_balances: account, owed, closed, balance, currency"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            textItem.wrapMode: Text.Wrap
+            text: page.i18nContext.i18nc("@info what a data name of a chart description holds", "What you have, owe and are worth at the end of each month.")
+            description: "net_worth_over_time: month, assets, liabilities, net_worth, currency"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            textItem.wrapMode: Text.Wrap
+            text: page.i18nContext.i18nc("@info what a data name of a chart description holds", "For the chosen accounts together, each month's start, money in, money out, net change and end.")
+            description: "cash_flow_by_month: month, start, money_in, money_out, net_change, end, currency"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            textItem.wrapMode: Text.Wrap
+            text: page.i18nContext.i18nc("@info what a data name of a chart description holds", "Each month's total of the categories and groups you pick in the properties, one series each.")
+            description: "category_over_time: month, series, total, currency"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            textItem.wrapMode: Text.Wrap
+            text: page.i18nContext.i18nc("@info what a data name of a chart description holds", "Each budget's period with what was planned, carried in, available, spent and left, and the share used.")
+            description: "budget_utilization: category, every, first_day, last_day, planned, carried_in, available, spent, left, used, carries_over, currency"
+            descriptionItem.textFormat: Text.PlainText
+        }
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Examples of chart descriptions")
+    }
+
+    FormCard.FormCard {
+        Repeater {
+            model: page.examples.examples()
+
+            delegate: FormCard.FormTextDelegate {
+                required property var modelData
+
+                text: page.exampleNames.name(modelData.key)
+                textItem.textFormat: Text.PlainText
+                textItem.wrapMode: Text.Wrap
+                description: modelData.text
+                descriptionItem.textFormat: Text.PlainText
+                descriptionItem.font: Kirigami.Theme.fixedWidthFont
+            }
+        }
+    }
+
 }

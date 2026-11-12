@@ -1534,6 +1534,39 @@ mod tests {
         assert_eq!(list_of(chart, "overlays").len(), 1);
     }
 
+    /// Every ready example of the help page and the "Insert an example"
+    /// menu (US4.11, D-720) draws from the book's real data, as the screen
+    /// asks for it, with its own title and no part left out.
+    #[test]
+    fn every_ready_example_draws_from_the_book() {
+        for example in kassensturz_report::spec::SPEC_EXAMPLES {
+            let view = view_of(&custom(example.text, false));
+            let shown = list_of(&view, "charts");
+            assert!(!shown.is_empty(), "{} drew nothing", example.key);
+            assert!(!text_of(&view, "title").is_empty(), "{}", example.key);
+            for chart in &shown {
+                assert_eq!(
+                    text_of(chart, "dataset"),
+                    example.dataset,
+                    "{}",
+                    example.key
+                );
+                assert!(
+                    !list_of(chart, "series").is_empty() || !list_of(chart, "overlays").is_empty()
+                );
+            }
+        }
+        // The bars-plus-lines example: the balance as bars, money in and
+        // money out as two lines over them.
+        let view = view_of(&custom(
+            kassensturz_report::spec::SPEC_EXAMPLES[0].text,
+            false,
+        ));
+        let chart = &list_of(&view, "charts")[0];
+        assert_eq!(text_of(chart, "kind"), "bar");
+        assert_eq!(list_of(chart, "overlays").len(), 2);
+    }
+
     /// The answers of a yes/no field are written with the screen's words
     /// (D-525): in the categories, the legend and the table, read back the
     /// way QML reads the chart; the English words stand until it gives some.

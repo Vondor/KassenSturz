@@ -20,6 +20,7 @@ use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QUrl, QVariant};
 use kassensturz_core::{ErrorParam, Report};
 use kassensturz_report::ReportError;
+use kassensturz_report::spec::SPEC_EXAMPLES;
 
 use crate::book_session::local_path;
 use crate::chart_spec::{self, Check};
@@ -59,6 +60,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "openFile"]
         fn open_file(self: Pin<&mut ChartDescription>, file: &QUrl);
+
+        /// The ready examples (US4.11, D-720), each with its fixed `key`,
+        /// which the screen puts into words, the `dataset` it uses and its
+        /// `text`. The help page shows them and "Insert an example" puts
+        /// one into the field.
+        #[qinvokable]
+        fn examples(self: &ChartDescription) -> QVariant;
     }
 }
 
@@ -113,7 +121,22 @@ pub(crate) fn view_object(check: &Check, read: &str, opened: i32) -> QVariant {
     map(entries)
 }
 
+/// The ready examples as QML reads them.
+pub(crate) fn examples_object() -> QVariant {
+    list(SPEC_EXAMPLES.iter().map(|example| {
+        map([
+            ("key", text(example.key)),
+            ("dataset", text(example.dataset)),
+            ("text", text(example.text)),
+        ])
+    }))
+}
+
 impl qobject::ChartDescription {
+    fn examples(&self) -> QVariant {
+        examples_object()
+    }
+
     fn show(mut self: Pin<&mut Self>, view: QVariant) {
         self.as_mut().rust_mut().view = view;
         self.as_mut().view_changed();
@@ -162,6 +185,43 @@ mod tests {
     const MONTHLY: &str = r#"{"data":{"name":"income_expense_by_month"},"mark":"bar",
       "encoding":{"x":{"field":"month","type":"temporal","timeUnit":"yearmonth"},
       "y":{"field":"net","type":"quantitative"}}}"#;
+
+    /// The examples read back as the help page and the menu read them, and
+    /// each is checked as fully supported, as the field would check it.
+    #[test]
+    fn the_examples_read_back_the_way_qml_reads_them() {
+        let examples = crate::variant::read_back::elements(&examples_object()).expect("a list");
+        assert_eq!(examples.len(), SPEC_EXAMPLES.len());
+        for (example, wanted) in examples.iter().zip(SPEC_EXAMPLES) {
+            assert_eq!(keys(example), ["dataset", "key", "text"]);
+            assert_eq!(text_of(example, "key"), wanted.key);
+            let checked = view_object(&chart_spec::check(&text_of(example, "text")), "", 0);
+            assert!(flag_of(&checked, "ok"), "{}", wanted.key);
+            assert!(flag_of(&checked, "canDraw"), "{}", wanted.key);
+            assert_eq!(number_of(&checked, "count"), 0, "{}", wanted.key);
+        }
+        // Every key has words on the screen.
+        let help = include_str!("../qml/ChartExamples.qml");
+        for wanted in SPEC_EXAMPLES {
+            assert!(
+                help.contains(&format!("case \"{}\":", wanted.key)),
+                "{} needs a name",
+                wanted.key
+            );
+        }
+    }
+
+    /// The help page lists every data name a description can use with all
+    /// of its fields, on one line each (US4.11).
+    #[test]
+    fn the_help_page_lists_every_data_name_with_its_fields() {
+        let help = include_str!("../qml/HelpPage.qml");
+        for dataset in kassensturz_report::spec::SPEC_DATASETS {
+            let fields: Vec<&str> = dataset.fields().iter().map(|field| field.name()).collect();
+            let line = format!("description: \"{}: {}\"", dataset.id(), fields.join(", "));
+            assert!(help.contains(&line), "HelpPage.qml needs {line}");
+        }
+    }
 
     /// A fully supported description, a description with a part that is not
     /// supported and a refused one, read back the way QML reads them.

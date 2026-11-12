@@ -140,7 +140,7 @@ Kirigami.ApplicationWindow {
                 // A card whose title names its accounts leaves out the marks about
                 // them, and only those (US1.9, #523).
                 notes.filter = {
-                    own: ["accounts", "categories"], filtered: ["accounts", "categories"], accounts: ["Cash box"], accountsMore: 0, categories: ["Food"], categoriesMore: 0,
+                    own: ["accounts", "categories"], filtered: ["accounts", "categories", "tags"], accounts: ["Cash box"], accountsMore: 0, categories: ["Food"], categoriesMore: 0, tags: ["Holiday"], tagsMore: 0,
                     notes: [{kind: "gone", dimension: "categories", id: "c-gone"}], nothing: false
                 };
                 notes.accountsInTitle = true;
@@ -152,6 +152,7 @@ Kirigami.ApplicationWindow {
                 window.check(labels.some(text => text.includes("Own filter") && text.includes("categories") && !text.includes("accounts")), "the own mark leaves out the accounts: " + JSON.stringify(labels));
                 window.check(labels.every(text => !text.includes("Cash box")), "the accounts are not named in the marks: " + JSON.stringify(labels));
                 window.check(labels.some(text => text.includes("Food")), "the categories still are");
+                window.check(labels.some(text => text.includes("tags: Holiday")), "the tags a sum by tag counts are named (US5.2): " + JSON.stringify(labels));
                 window.check(labels.some(text => text.includes("no longer exists")), "a note about the filter stays");
                 notes.accountsInTitle = false;
                 window.check(window.findAll(notes, item => item.text !== undefined && item.visible, []).some(text => text.text.includes("Cash box")), "shown again when the title does not name them");

@@ -65,7 +65,8 @@ Window {
         choices: QtObject {
             property var view: ({
                 groups: [{id: "g1", name: "Fixed", income: false}, {id: "g2", name: "Pay", income: true}],
-                categories: [{id: "c1", name: "Rent", path: "Home > Rent", income: false}]
+                categories: [{id: "c1", name: "Rent", path: "Home > Rent", income: false}],
+                tags: [{id: "t1", name: "Holiday"}]
             })
         }
     }
@@ -132,6 +133,10 @@ Window {
             window.check(only.length === 2 && only[0].id === "g1" && only[1].id === "c1", "spending only: " + JSON.stringify(only));
             const series = panel.idOptions("series");
             window.check(series.length === 3 && series[2].id === "c1" && series[2].name === "Home > Rent", "groups then categories: " + JSON.stringify(series));
+            // Only count these tags offers the book's tags (US5.2).
+            const tags = panel.idOptions("tags");
+            window.check(tags.length === 1 && tags[0].id === "t1" && tags[0].name === "Holiday", "the tags: " + JSON.stringify(tags));
+            window.check(panel.fieldLabel("tags") === "Only count these tags", "the tags' label: " + panel.fieldLabel("tags"));
 
             shown[0].activated(1);
             texts[0].text = "New title";

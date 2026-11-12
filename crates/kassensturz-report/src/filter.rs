@@ -6,15 +6,16 @@
 //!
 //! A [`Filter`] is what a dataset function takes. The shared filters are
 //! where it comes from: for each component the report layer works out, per
-//! dimension (period, accounts, categories), which setting applies, first
-//! match wins:
+//! dimension (period, accounts, categories, tags), which setting applies,
+//! first match wins:
 //!
 //! 1. the component's own setting (`props.period` other than `page`,
-//!    `params.categories`, `params.accounts`);
+//!    `params.categories`, `params.accounts`, `params.tags`);
 //! 2. for the period only, the period box the component lies in (D-333);
 //! 3. the dashboard's filter bar ([`Filters`]: the document's `filters`, or
-//!    a choice the user made for now);
-//! 4. nothing: all accounts, all categories, the page's own period.
+//!    a choice the user made for now); it has no tags (US5.2);
+//! 4. nothing: all accounts, all categories, every part whatever its tags,
+//!    the page's own period.
 //!
 //! [`Asked`] is that choice, before the book is consulted;
 //! [`Asked::apply`] checks its IDs against the book and gives the [`Filter`]
@@ -24,13 +25,13 @@
 
 use std::collections::HashSet;
 
-use kassensturz_core::{AccountId, GroupMember};
+use kassensturz_core::{AccountId, GroupMember, TagId};
 
 use crate::{Component, ComponentType, ReportError, Setting, Source};
 
-/// Narrows a dataset to some accounts and some categories. `None` means no
-/// narrowing; `Some` with an empty list means nothing is chosen, so the
-/// dataset is empty.
+/// Narrows a dataset to some accounts, some categories and some tags. `None`
+/// means no narrowing; `Some` with an empty list means nothing is chosen, so
+/// the dataset is empty.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Filter {
     /// Only transactions with a part booked to one of these accounts of the
@@ -40,6 +41,14 @@ pub struct Filter {
     /// Only parts booked to these categories or their subcategories. Money
     /// not sorted into a category yet is left out, since it is in none.
     pub categories: Option<Vec<AccountId>>,
+    /// Only parts that carry one of these tags, their own or the whole
+    /// transaction's (D-713). This is the one place a sum by tag is counted
+    /// (D-714): only category-side parts ever count (Income, Expense or no
+    /// category yet), each once, in the transaction's currency, so a tag on
+    /// the whole transaction never counts its account side, and a Transfer,
+    /// which has none, counts nothing. A part with two of the tags counts
+    /// once.
+    pub tags: Option<Vec<TagId>>,
 }
 
 /// The most IDs in one list of a filter: the filter bar's, or a
@@ -55,15 +64,18 @@ pub enum Dimension {
     Accounts,
     /// `categories`: the categories (or My groups) whose money counts.
     Categories,
+    /// `tags`: the tags whose parts count (US5.2, D-714).
+    Tags,
 }
 
 impl Dimension {
-    /// The fixed word: `period`, `accounts` or `categories`.
+    /// The fixed word: `period`, `accounts`, `categories` or `tags`.
     pub const fn word(self) -> &'static str {
         match self {
             Self::Period => "period",
             Self::Accounts => "accounts",
             Self::Categories => "categories",
+            Self::Tags => "tags",
         }
     }
 }
@@ -79,14 +91,18 @@ pub struct Takes {
     pub accounts: bool,
     /// Which categories count.
     pub categories: bool,
+    /// Which tags count (US5.2): only the datasets made of the parts that
+    /// count as income or spending, never a budget's or a balance.
+    pub tags: bool,
 }
 
 impl Takes {
-    /// Period, accounts and categories.
+    /// Period, accounts, categories and tags.
     pub const ALL: Self = Self {
         period: true,
         accounts: true,
         categories: true,
+        tags: true,
     };
     /// Period and accounts: the datasets of balances, which count accounts
     /// and no categories.
@@ -94,19 +110,22 @@ impl Takes {
         period: true,
         accounts: true,
         categories: false,
+        tags: false,
     };
     /// Period and categories: budgets, which count their category's money
-    /// from every account.
+    /// from every account, tagged or not.
     pub const NO_ACCOUNTS: Self = Self {
         period: true,
         accounts: false,
         categories: true,
+        tags: false,
     };
     /// Nothing: a component that shows no figures.
     pub const NOTHING: Self = Self {
         period: false,
         accounts: false,
         categories: false,
+        tags: false,
     };
 
     /// Whether `dimension` is one of them.
@@ -115,6 +134,7 @@ impl Takes {
             Dimension::Period => self.period,
             Dimension::Accounts => self.accounts,
             Dimension::Categories => self.categories,
+            Dimension::Tags => self.tags,
         }
     }
 }
@@ -141,7 +161,8 @@ pub enum Origin {
     PeriodBox,
     /// The dashboard's filter bar.
     FilterBar,
-    /// Nothing chose it: the page's period, all accounts, all categories.
+    /// Nothing chose it: the page's period, all accounts, all categories,
+    /// every tag.
     Default,
 }
 
@@ -214,6 +235,9 @@ pub struct Asked {
     pub accounts: Option<Chosen>,
     /// The categories and groups, `None` for all of them.
     pub categories: Option<Chosen>,
+    /// The tags, `None` for every part whatever its tags. Only the
+    /// component's own (`params.tags`): the filter bar has none (US5.2).
+    pub tags: Option<Chosen>,
     /// The dimensions the component's dataset takes.
     pub takes: Takes,
     /// The series with a filter of their own (D-646), in the order of
@@ -262,7 +286,7 @@ pub struct Applied {
     /// The dimensions a filter narrows the figures by: the *Filtered* mark
     /// lists what `filter` keeps of them.
     pub filtered: Vec<Dimension>,
-    /// The notes, in the order period, accounts, categories.
+    /// The notes, in the order period, accounts, categories, tags.
     pub notes: Vec<FilterNote>,
 }
 
@@ -322,7 +346,13 @@ fn bar_ids(ids: &[String]) -> Option<Chosen> {
 pub fn takes(component: &Component) -> Takes {
     match component.kind() {
         ComponentType::NetWorth => Takes::NO_CATEGORIES,
-        ComponentType::IncomeSources | ComponentType::Transactions => Takes::ALL,
+        ComponentType::IncomeSources => Takes::ALL,
+        // Its list keeps whole transactions and has no tags to choose
+        // (D-716), so a tag never narrows it.
+        ComponentType::Transactions => Takes {
+            tags: false,
+            ..Takes::ALL
+        },
         kind if kind.shows_no_data() => Takes::NOTHING,
         _ => component.dataset().takes,
     }
@@ -355,6 +385,7 @@ impl Asked {
             period_origin,
             accounts: own_ids(component, "accounts").or_else(|| bar_ids(&bar.accounts)),
             categories: own_ids(component, "categories").or_else(|| bar_ids(&bar.categories)),
+            tags: own_ids(component, crate::schema::TAGS_KEY),
             takes,
             series: series_asked(component),
             average: match component.get(crate::schema::AVERAGE_KEY) {
@@ -390,6 +421,7 @@ impl Asked {
             categories: own
                 .and_then(|own| own.categories.clone())
                 .or_else(|| self.categories.clone()),
+            tags: self.tags.clone(),
             takes: self.takes,
             series: Vec::new(),
             average: self.average,
@@ -406,9 +438,10 @@ impl Asked {
     /// dimension or not: a list of more than [`MAX_FILTER_IDS`] IDs or with
     /// one twice, an account list naming something that is not one of the
     /// user's own accounts (a category, the starting balances), a category
-    /// list naming an account. An ID the book doesn't know is left out with
-    /// a [`FilterNote::Gone`]; a list left with nothing chooses nothing.
-    /// A group counts all its members (D-291).
+    /// list naming an account, a tag list naming anything but a tag. An ID
+    /// the book doesn't know is left out with a [`FilterNote::Gone`]; a list
+    /// left with nothing chooses nothing. A group counts all its members
+    /// (D-291).
     pub fn apply(&self, source: &Source) -> Result<Applied, ReportError> {
         let mut applied = Applied::default();
         if self.period_origin == Origin::Own {
@@ -436,6 +469,17 @@ impl Asked {
                 |filter, kept| filter.categories = Some(kept),
             );
         }
+        if let Some(chosen) = &self.tags {
+            let kept = tags_of(source, &chosen.ids, &mut applied.notes)?;
+            narrow(
+                &mut applied,
+                Dimension::Tags,
+                chosen,
+                kept,
+                self.takes,
+                |filter, kept| filter.tags = Some(kept),
+            );
+        }
         Ok(applied)
     }
 }
@@ -459,13 +503,13 @@ fn series_asked(component: &Component) -> Vec<SeriesAsked> {
 
 /// Puts what a list kept into `applied`: the filter, the marks and the
 /// notes, or the note that the dataset does not take the dimension.
-fn narrow(
+fn narrow<T>(
     applied: &mut Applied,
     dimension: Dimension,
     chosen: &Chosen,
-    kept: Vec<AccountId>,
+    kept: Vec<T>,
     takes: Takes,
-    set: impl FnOnce(&mut Filter, Vec<AccountId>),
+    set: impl FnOnce(&mut Filter, Vec<T>),
 ) {
     if !takes.takes(dimension) {
         // Nothing of this list counts, so neither do the notes about it.
@@ -544,6 +588,40 @@ fn categories_of(
             }
             None => notes.push(FilterNote::Gone {
                 dimension: Dimension::Categories,
+                id: id.clone(),
+            }),
+        }
+    }
+    Ok(kept)
+}
+
+/// The tags `ids` name, each once in the order they are first named; a gone
+/// one is noted. An ID of something else of the book (an account, a
+/// category, a group) is refused, so a list meant for another dimension
+/// never counts as a list of tags that are all gone.
+fn tags_of(
+    source: &Source,
+    ids: &[String],
+    notes: &mut Vec<FilterNote>,
+) -> Result<Vec<TagId>, ReportError> {
+    check_list(Dimension::Tags, ids)?;
+    let mut kept: Vec<TagId> = Vec::new();
+    for id in ids {
+        match source
+            .tags()
+            .iter()
+            .find(|tag| tag.id.to_string().eq_ignore_ascii_case(id))
+        {
+            Some(tag) => {
+                if !kept.contains(&tag.id) {
+                    kept.push(tag.id);
+                }
+            }
+            None if account_by_id(source, id).is_some() || source.member_by_id(id).is_some() => {
+                return Err(refused("not-a-tag", Dimension::Tags));
+            }
+            None => notes.push(FilterNote::Gone {
+                dimension: Dimension::Tags,
                 id: id.clone(),
             }),
         }

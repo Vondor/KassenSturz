@@ -211,10 +211,12 @@ fn both_sides_are_what_spending_by_category_gives_for_their_days() {
         Filter {
             accounts: Some(vec![sample.checking]),
             categories: None,
+            tags: None,
         },
         Filter {
             accounts: None,
             categories: Some(vec![sample.food]),
+            tags: None,
         },
     ];
     for shown in [october(), period(date(2026, 9, 1), date(2026, 10, 31))] {
@@ -330,6 +332,7 @@ fn periods_before_the_first_transaction_are_named() {
     let checking_only = Filter {
         accounts: Some(vec![checking]),
         categories: None,
+        tags: None,
     };
     // April to September, four of them before 3 August.
     assert_eq!(

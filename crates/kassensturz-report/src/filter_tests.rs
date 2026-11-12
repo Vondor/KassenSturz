@@ -268,6 +268,7 @@ fn asked(accounts: &[String], categories: &[String], takes: Takes) -> Asked {
         period_origin: Origin::Default,
         accounts: list(accounts),
         categories: list(categories),
+        tags: None,
         takes,
         series: Vec::new(),
         average: None,

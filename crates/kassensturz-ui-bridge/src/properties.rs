@@ -110,7 +110,9 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
             // A list of IDs is offered only where it is used: the groups of a
             // chart that groups by My groups, the series of a chart over time.
             // The budget bars' *Which budgets* is always offered (D-642).
-            if let (Kind::Ids | Kind::Accounts, Setting::Ids(_)) = (&property.kind, setting) {
+            if let (Kind::Ids | Kind::Accounts | Kind::Tags, Setting::Ids(_)) =
+                (&property.kind, setting)
+            {
                 // The accounts and categories of a component are its own
                 // filters (M6c.7, D-350): offered where its dataset takes
                 // them, and empty means it follows the filter bar.
@@ -127,6 +129,9 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                     }
                     "categories" => takes.categories,
                     "accounts" => takes.accounts,
+                    // Only where the figures are made of parts (US5.2): not
+                    // for a balance or a budget.
+                    "tags" => takes.tags,
                     // Money in and money out with lists of their own
                     // (US1.16, D-646): only for the dataset with those two
                     // series, and not for one made of columns, which count
@@ -156,7 +161,7 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                 Kind::Formula => "formula",
                 Kind::Flag { .. } => "flag",
                 Kind::Choice(_) | Kind::Grouping if words.len() > 1 => "choice",
-                Kind::Ids | Kind::Accounts | Kind::Budgets => "ids",
+                Kind::Ids | Kind::Accounts | Kind::Budgets | Kind::Tags => "ids",
                 // The warnings tile's rules, as a JSON list in `text`; the
                 // panel lists them with the names `BookAlarms` gives (D-722).
                 Kind::Alarms => "alarms",

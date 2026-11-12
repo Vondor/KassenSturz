@@ -906,6 +906,8 @@ fn counted_early(
     let filter = Filter {
         accounts: ids("accounts"),
         categories: ids("categories"),
+        // The AI neither reads nor sets tags here (US5.2 step a).
+        tags: None,
     };
     let source = Source::read(book, period).map_err(from_report)?;
     kassensturz_report::counted_early(book, &source, period, &filter, per, today)

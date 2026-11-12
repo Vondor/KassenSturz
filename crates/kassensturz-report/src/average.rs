@@ -333,6 +333,7 @@ mod tests {
         let checking_only = Filter {
             accounts: Some(vec![checking]),
             categories: None,
+            tags: None,
         };
         let year = period(day(2025, 11, 1), day(2026, 10, 31));
         let today = day(2026, 11, 9);
@@ -374,6 +375,7 @@ mod tests {
         let checking_only = Filter {
             accounts: Some(vec![checking]),
             categories: None,
+            tags: None,
         };
         let this_year = period(day(2026, 1, 1), day(2026, 12, 31));
         // On 9 November: ten months counted, seven (January to July) early.

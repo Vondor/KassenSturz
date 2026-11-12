@@ -213,6 +213,14 @@ fn view_object(view: &GroupsView) -> QVariant {
         ),
         ("groups", list(view.groups.iter().map(group_object))),
         (
+            "tags",
+            list(
+                view.tags
+                    .iter()
+                    .map(|(id, name)| map([("id", text(id)), ("name", text(name))])),
+            ),
+        ),
+        (
             "budgets",
             list(
                 view.budgets
@@ -289,8 +297,22 @@ mod tests {
         category_groups::add_group(&mut book, "Fixed costs", false, std::slice::from_ref(&rent))
             .expect("group");
         category_groups::set_hidden(&mut book, std::slice::from_ref(&food)).expect("hidden");
+        let holiday = kassensturz_core::TagId::generate();
+        book.add_tag(&kassensturz_core::Tag {
+            id: holiday,
+            name: "Holiday".into(),
+        })
+        .expect("tag");
         let view = view_object(&category_groups::view(&book).expect("view"));
-        assert_eq!(keys(&view), ["accounts", "budgets", "categories", "groups"]);
+        assert_eq!(
+            keys(&view),
+            ["accounts", "budgets", "categories", "groups", "tags"]
+        );
+        // The tags for *Only count these tags* (US5.2).
+        let tags = list_of(&view, "tags");
+        assert_eq!(keys(&tags[0]), ["id", "name"]);
+        assert_eq!(text_of(&tags[0], "id"), holiday.to_string());
+        assert_eq!(text_of(&tags[0], "name"), "Holiday");
         // No budget yet: nothing to pick in *Which budgets* (D-642).
         assert!(list_of(&view, "budgets").is_empty());
         let groups = list_of(&view, "groups");

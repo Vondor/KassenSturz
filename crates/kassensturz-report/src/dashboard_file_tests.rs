@@ -134,7 +134,8 @@ fn the_file_names_what_the_dashboard_uses_and_holds_no_id() {
           "columns": [],
           "grouping": "category",
           "groups": [],
-          "series": []
+          "series": [],
+          "tags": []
         },
         "props": {
           "hide_note": false,
@@ -173,7 +174,8 @@ fn the_file_names_what_the_dashboard_uses_and_holds_no_id() {
             }
           ],
           "grouping": "category",
-          "groups": []
+          "groups": [],
+          "tags": []
         },
         "props": {
           "hide_note": false,

@@ -166,6 +166,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label which accounts the money out of a chart counts, for money out only", "Money out: only these accounts");
         case "budgets":
             return i18nContext.i18nc("@label which budgets the budget bars show", "Which budgets");
+        case "tags":
+            return i18nContext.i18nc("@label which tags the money of a chart, table or card is limited to", "Only count these tags");
         case "alarms":
             return i18nContext.i18nc("@label the rules of the warnings tile", "Warnings");
         case "legend":
@@ -303,6 +305,10 @@ ColumnLayout {
         // The budget bars' Which budgets (D-642).
         if (key === "budgets") {
             return (book.budgets ?? []).map(budget => ({id: budget.id, name: budget.name}));
+        }
+        // Only count these tags (US5.2, D-714).
+        if (key === "tags") {
+            return (book.tags ?? []).map(tag => ({id: tag.id, name: tag.name}));
         }
         // A budget belongs to a category, not to a group (D-357).
         const forBudgets = view.preview?.shows === "budget-progress" || view.dataset === "budget_utilization";
@@ -547,6 +553,8 @@ ColumnLayout {
                                 ? panel.i18nContext.i18nc("@info", "There are no accounts to pick yet.")
                                 : row.modelData.key === "budgets"
                                 ? panel.i18nContext.i18nc("@info", "There are no budgets to pick yet. Set one on the page Budgets first.")
+                                : row.modelData.key === "tags"
+                                ? panel.i18nContext.i18nc("@info", "There are no tags to pick yet. Add one to a transaction, or in Settings › Tags.")
                                 : panel.i18nContext.i18nc("@info", "There is nothing to pick yet. Make groups on the page My groups and hidden categories first.")
                         }
 
@@ -574,6 +582,19 @@ ColumnLayout {
                             font: Kirigami.Theme.smallFont
                             opacity: 0.75
                             text: panel.i18nContext.i18nc("@info", "Nothing ticked: this counts like the rest of the chart. Tick some to count only those for this one series, for example money in from the salary category only.")
+                        }
+
+                        // A sum by tag counts only the tagged parts of a
+                        // bill, never the whole bill (D-714).
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                            visible: row.modelData.key === "tags" && picker.options.length > 0
+                            wrapMode: Text.Wrap
+                            textFormat: Text.PlainText
+                            font: Kirigami.Theme.smallFont
+                            opacity: 0.75
+                            text: panel.i18nContext.i18nc("@info", "Nothing ticked: all money counts. Tick some to count only the money with those tags. Of a bill split into parts, only the tagged parts count. Transfers between your own accounts never count.")
                         }
 
                         Controls.Label {

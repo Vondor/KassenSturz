@@ -391,7 +391,13 @@ Build threads (conflict map): E1 AI join (1) · E2 AI fixes (5, 6, then 2 after 
 | **US4.15** | Phase 3 test plan. #708 (M6-B228): re-test the history line after changing a budget's categories from the current period on; a bug only if it shows again |  |  | **check** |
 | **US4.16** | Phase 3 test plan. #594: a move between own accounts that a Rule sorted is offered as a Transfer (US3.3); then the issue is closed |  |  | **check** |
 | **US4.17** | Phase 3 test plan. #595 point 2: the test AI quotes the end of the `propose_changes` description in a fresh chat; a small fix only if it is cut, otherwise #595 is closed |  |  | **check** |
-| **US4.18** | Phase 3 test plan. #505 (US1.4): after a bank login is removed, its keychain entry has an empty password field; then the issue is closed |  |  | **check** |
+| **US4.18** | Phase 3 test plan. #505 (US1.4): after a bank login is removed, its keychain entry has an empty password field; then the issue is closed |  |  | **check**, carried to the next round |
+| **US4 P3.1** | Phase 3, Q-498 = R: the balance candles get an "Eine Kerze je" (one candle per) setting for day, week or month | [#754](https://github.com/Vondor/KassenSturz/pull/754) | standard | done (#754) |
+| **US4 P3.2** | Phase 3, Q-499 = R: formulas read "last N days" after `@` as the period box does, and the help lists every period a formula name can take; the other period forms (weeks, months ago, last N years, dates in the user's format) are #757 | [#756](https://github.com/Vondor/KassenSturz/pull/756) | standard | done (#756); #757 slot: US5 |
+| **US4 P3.3** | Phase 3 fixes from the test VM runs: warning pickers, the AI grid, pasting a note, a lone bar | [#755](https://github.com/Vondor/KassenSturz/pull/755) | standard | done (#755) |
+| **US4 P3.4** | Phase 3 test plan: steps 12 and 13 closed; step 4 (#505, US4.18) carried to the next round |  |  | done |
+| **US4 P3.5** | Q-500 = R: install 0.261112.15. Tag candidate for the pre-release: v0.261112.15 on d144be4 (Q-472, the maintainer pushes the tag) |  |  | **tag candidate** |
+| **US4 P3 backlog** | US5: #752 (status tiles shrink to 1x1), #753 (every chart type in the Statistic Builder), #757 (more period forms after `@`), #758 (a reused main Flatpak shows the PR head's commit), #759 (three wording nits) |  |  | **later**, slot: US5 |
 | **US4 slots** | V2: #515 before Beta, its design in US5 · #513, #512, #511, #509 before Beta (stage items) · #725, #647, #334, #333 after Gold (`rc-or-later`) |  |  | sorted |
 
 ## How to pick work

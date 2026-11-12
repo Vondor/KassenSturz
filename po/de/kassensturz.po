@@ -11870,6 +11870,18 @@ msgctxt "@title"
 msgid "Where your money came from"
 msgstr "Woher Ihr Geld kam"
 
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info shown when no bank account needs a warning"
+msgid "No warnings: every bank account was updated recently."
+msgstr "Keine Warnungen: Alle Bankkonten wurden vor Kurzem aktualisiert."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info shown when no transaction is without a category"
+msgid "Every transaction has a category."
+msgstr "Alle Buchungen haben eine Kategorie."
+
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml:543
 #, kde-format
 msgctxt "@info"

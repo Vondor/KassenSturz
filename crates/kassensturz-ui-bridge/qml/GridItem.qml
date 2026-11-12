@@ -875,13 +875,17 @@ Item {
                 width: parent.width
                 spacing: Kirigami.Units.smallSpacing
 
+                // In the window a status icon opens (D-736) it says that all
+                // is well, never an empty window (#785).
                 Controls.Label {
                     Layout.fillWidth: true
-                    visible: cell.board.editing && gaps.length === 0
+                    visible: (cell.board.editing || cell.compact) && gaps.length === 0
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     color: Kirigami.Theme.disabledTextColor
-                    text: names.i18nContext.i18nc("@info", "Warnings about bank accounts that were not updated for a long time appear here. There are none right now.")
+                    text: cell.board.editing
+                        ? names.i18nContext.i18nc("@info", "Warnings about bank accounts that were not updated for a long time appear here. There are none right now.")
+                        : names.i18nContext.i18nc("@info shown when no bank account needs a warning", "No warnings: every bank account was updated recently.")
                 }
 
                 Repeater {
@@ -960,14 +964,18 @@ Item {
 
                 Controls.Label {
                     Layout.fillWidth: true
-                    visible: unsortedList.count > 0 || cell.board.editing
+                    // In the window a status icon opens (D-736) it says that
+                    // all is well, never an empty window (#785).
+                    visible: unsortedList.count > 0 || cell.board.editing || cell.compact
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     font.bold: unsortedList.count > 0
                     color: unsortedList.count > 0 ? Kirigami.Theme.textColor : Kirigami.Theme.disabledTextColor
                     text: unsortedList.count > 0
                         ? names.i18nContext.i18ncp("@info %1 is how many", "%1 transaction has no category yet. Open it to choose one.", "%1 transactions have no category yet. Open one to choose a category.", unsortedList.count)
-                        : names.i18nContext.i18nc("@info", "A note appears here when a transaction has no category. There is none right now.")
+                        : cell.board.editing
+                        ? names.i18nContext.i18nc("@info", "A note appears here when a transaction has no category. There is none right now.")
+                        : names.i18nContext.i18nc("@info shown when no transaction is without a category", "Every transaction has a category.")
                 }
 
                 Repeater {

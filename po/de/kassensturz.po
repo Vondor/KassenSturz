@@ -21522,3 +21522,56 @@ msgid ""
 msgstr ""
 "Nur die Schlagwörter der ganzen Buchung ändern sich. Schlagwörter einzelner "
 "Teile bleiben. Kein Betrag ändert sich."
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Transaction broken into parts"
+msgstr "In Teilbeträge aufgeteilte Buchung"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Transactions broken into parts"
+msgstr "In Teilbeträge aufgeteilte Buchungen"
+
+#, kde-format
+msgctxt "@info"
+msgid "Its parts are joined back into one:"
+msgstr "Ihre Teilbeträge werden wieder zu einem zusammengefasst:"
+
+#, kde-format
+msgctxt "@info %1 is a number of parts"
+msgid "It is broken into %1 part:"
+msgid_plural "It is broken into %1 parts:"
+msgstr[0] "Sie wird in %1 Teilbetrag aufgeteilt:"
+msgstr[1] "Sie wird in %1 Teilbeträge aufgeteilt:"
+
+#, kde-format
+msgctxt "@info %1 is a category, %2 what the part was for"
+msgid "%1 · %2"
+msgstr "%1 · %2"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The parts add up to the amount the bank booked, which stays as it is. Undo "
+"takes the whole change back."
+msgstr ""
+"Die Teilbeträge ergeben zusammen genau den Betrag, den die Bank gebucht hat; "
+"dieser bleibt unverändert. Rückgängig nimmt die ganze Änderung zurück."
+
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Parts of transactions"
+msgstr "Teilbeträge von Buchungen"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"To break transactions into parts, switch on Category and Amount below. The "
+"amount the bank booked never changes; the parts must add up to it. With Note "
+"on, the AI can also name each part."
+msgstr ""
+"Damit Buchungen in Teilbeträge aufgeteilt werden können, schalten Sie unten "
+"Kategorie und Betrag ein. Der von der Bank gebuchte Betrag ändert sich nie; "
+"die Teilbeträge müssen genau ihn ergeben. Mit eingeschalteter Notiz kann die "
+"KI jedem Teilbetrag auch einen Namen geben."

@@ -873,6 +873,33 @@ pub(crate) mod engine {
                 ("added", list(added.iter().map(|name| text(name)))),
                 ("removed", list(removed.iter().map(|name| text(name)))),
             ],
+            ChangeView::SplitTransaction {
+                date,
+                payee,
+                account,
+                total,
+                before,
+                parts,
+            } => {
+                let parts_of = |parts: &[crate::ai_chat::PartView]| {
+                    list(parts.iter().map(|part| {
+                        map([
+                            ("category", text(&part.category)),
+                            ("amount", text(&part.amount)),
+                            ("name", text(&part.name)),
+                        ])
+                    }))
+                };
+                vec![
+                    ("kind", text("splitTransaction")),
+                    ("date", text(date)),
+                    ("payee", text(payee)),
+                    ("account", text(account)),
+                    ("total", text(total)),
+                    ("before", parts_of(before)),
+                    ("parts", parts_of(parts)),
+                ]
+            }
         }
     }
 
@@ -2581,6 +2608,100 @@ mod tests {
         assert_eq!(removed.len(), 1);
         assert_eq!(removed[0].value::<QString>().unwrap().to_string(), "Tax");
         // Nothing of it can be edited, only left out.
+        assert!(list_of(change, "fields").is_empty());
+    }
+
+    #[test]
+    fn a_split_reads_back_as_qml_reads_it() {
+        // US5.1, D-737: through the real proposal and the review's rows.
+        use kassensturz_ai_tools::propose;
+        use kassensturz_core::ai_switch::{Field, Permissions};
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Transaction,
+            TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use crate::ai_chat::rows_of;
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let account = |name: &str, kind: AccountKind| Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = account("Checking", AccountKind::Asset);
+        let office = account("<b>Office</b>", AccountKind::Expense);
+        for account in [&checking, &office] {
+            book.add_account(account).unwrap();
+        }
+        let transaction = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 11, 3),
+            Some("Papierladen Nord".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-1999, eur)),
+                Split::uncategorized(Money::from_minor_units(1999, eur)),
+            ],
+        )
+        .unwrap();
+        book.add_transaction(&transaction).unwrap();
+
+        let unlocked = Field::ALL
+            .into_iter()
+            .fold(Permissions::all(), |permissions, field| {
+                permissions.with_lock(field, false)
+            });
+        let proposal = propose(
+            &book,
+            &serde_json::json!({"split_transactions": [{
+                "transaction_id": transaction.id().to_string(),
+                "parts": [
+                    {"category_id": office.id.to_string(), "amount": "-12.50", "name": "Invoice RE-0042"},
+                    {"amount": "-7.49"}
+                ],
+            }]}),
+            unlocked,
+        )
+        .unwrap();
+        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 1);
+        let change = &items[0];
+        assert_eq!(
+            own_keys(change),
+            [
+                "account", "before", "date", "kind", "parts", "payee", "total"
+            ]
+        );
+        assert_eq!(text_of(change, "kind"), "splitTransaction");
+        assert_eq!(text_of(change, "slot"), "split_transactions/0");
+        assert_eq!(text_of(change, "account"), "Checking");
+        assert_eq!(text_of(change, "payee"), "Papierladen Nord");
+        assert!(!text_of(change, "total").is_empty());
+        assert!(!text_of(change, "date").is_empty());
+        let before = list_of(change, "before");
+        assert_eq!(before.len(), 1);
+        assert_eq!(text_of(&before[0], "category"), "", "not sorted yet");
+        let parts = list_of(change, "parts");
+        assert_eq!(parts.len(), 2);
+        assert_eq!(own_keys(&parts[0]), ["amount", "category", "name"]);
+        assert_eq!(text_of(&parts[0], "category"), "<b>Office</b>");
+        assert_eq!(text_of(&parts[0], "name"), "Invoice RE-0042");
+        assert!(!text_of(&parts[0], "amount").is_empty());
+        assert_eq!(text_of(&parts[1], "category"), "");
+        assert_eq!(text_of(&parts[1], "name"), "");
         assert!(list_of(change, "fields").is_empty());
     }
 }

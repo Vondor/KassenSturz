@@ -115,11 +115,18 @@ pub enum Permission {
     /// allowed labelling. Only tags the book already has; it reads the
     /// transactions, so it switches Transactions › Read on.
     TagTransactions,
+    /// Break a transaction into parts, or join its parts back into one
+    /// (Parts of transactions, Change; US5.1, D-737). Its own cell, off by
+    /// default: a user who allowed sorting never allowed the AI to divide a
+    /// payment. The account's own part never changes, and the parts must
+    /// add up to it exactly. It reads the transactions, so it switches
+    /// Transactions › Read on.
+    SplitTransactions,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -145,6 +152,7 @@ impl Permission {
         Self::EditBudgets,
         Self::JoinTransfers,
         Self::TagTransactions,
+        Self::SplitTransactions,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -175,6 +183,7 @@ impl Permission {
             Self::CustomCharts => "AllowCustomCharts",
             Self::JoinTransfers => "AllowJoinTransfers",
             Self::TagTransactions => "AllowTagTransactions",
+            Self::SplitTransactions => "AllowSplitTransactions",
         }
     }
 
@@ -192,7 +201,8 @@ impl Permission {
             | Self::DeleteTransactions
             | Self::TransactionsRead
             | Self::JoinTransfers
-            | Self::TagTransactions => Row::Transactions,
+            | Self::TagTransactions
+            | Self::SplitTransactions => Row::Transactions,
             Self::ChartsRead
             | Self::NewViews
             | Self::EditViews
@@ -235,6 +245,7 @@ impl Permission {
                 | Self::DeleteViews
                 | Self::JoinTransfers
                 | Self::TagTransactions
+                | Self::SplitTransactions
         )
     }
 

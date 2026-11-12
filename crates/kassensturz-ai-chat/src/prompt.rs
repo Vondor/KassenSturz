@@ -210,6 +210,11 @@ fn changes(allowed: Permissions) -> String {
             "put the user's tags on transactions or take them off",
             "tags on transactions (tag_transactions, IDs from list_tags)",
         ),
+        (
+            allowed.allows(Permission::SplitTransactions),
+            "break transactions into parts",
+            "transactions broken into parts that add up to their amount (split_transactions)",
+        ),
     ];
     let join = |texts: Vec<&str>| match texts.as_slice() {
         [] => String::new(),

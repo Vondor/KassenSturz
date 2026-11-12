@@ -26,7 +26,7 @@ use kassensturz_ai_chat::{
 use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{
     AmountBasis, ChangeError, ChangeSet, Confirmed, EditError, FieldValue, ProposedChange, Slot,
-    SortWithRules, ToolError, every_word,
+    SortWithRules, SplitPart, ToolError, every_word,
 };
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_core::{
@@ -699,6 +699,24 @@ pub enum ChangeView {
         /// The names of the tags taken off it.
         removed: Vec<String>,
     },
+    /// A transaction broken into parts, or joined back into one (US5.1,
+    /// D-737), with the transaction as the register shows it. Its account's
+    /// amount stays, and the parts add up to it.
+    SplitTransaction {
+        /// Its day, in the user's format.
+        date: String,
+        /// Who was paid or paid, empty for none.
+        payee: String,
+        /// The user's account it is in.
+        account: String,
+        /// What it did to that account, which stays, exact, in the user's
+        /// format.
+        total: String,
+        /// The parts it has now besides the account's.
+        before: Vec<PartView>,
+        /// The parts it gets.
+        parts: Vec<PartView>,
+    },
 }
 
 /// How the amount of a prepared budget was computed, written for the user
@@ -1127,7 +1145,52 @@ fn view_of(
             added: tag.added.clone(),
             removed: tag.removed.clone(),
         },
+        ProposedChange::SplitTransaction(split) => ChangeView::SplitTransaction {
+            date: locale.short_date(split.date),
+            payee: split.payee.clone().unwrap_or_default(),
+            account: split.account.clone(),
+            total: AmountWriter::new(book, split.total.currency(), locale)?
+                .text(split.total)
+                .exact,
+            before: part_views(book, &split.before, locale)?,
+            parts: part_views(book, &split.parts, locale)?,
+        },
     })
+}
+
+/// One part of a split as the review shows it (D-737).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PartView {
+    /// Its category's path, empty for *Not sorted yet*.
+    pub category: String,
+    /// Its amount as seen from the account, exact, in the user's format.
+    pub amount: String,
+    /// Its name, empty for none.
+    pub name: String,
+}
+
+/// The parts of a split as the review shows them.
+fn part_views(
+    book: &Book,
+    parts: &[SplitPart],
+    locale: &impl Locale,
+) -> Result<Vec<PartView>, StoreError> {
+    parts
+        .iter()
+        .map(|part| {
+            Ok(PartView {
+                category: part
+                    .category
+                    .as_ref()
+                    .map(|path| path.join(" › "))
+                    .unwrap_or_default(),
+                amount: AmountWriter::new(book, part.amount.currency(), locale)?
+                    .text(part.amount)
+                    .exact,
+                name: part.name.clone().unwrap_or_default(),
+            })
+        })
+        .collect()
 }
 
 /// What the sort does, counted as "Apply all" counts it, with the same

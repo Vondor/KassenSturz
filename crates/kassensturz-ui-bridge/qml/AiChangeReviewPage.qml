@@ -86,6 +86,7 @@ Kirigami.ScrollablePage {
     readonly property var sorts: kept.filter(change => change.kind === "sortWithRules")
     readonly property var joins: kept.filter(change => change.kind === "joinTransfer")
     readonly property var taggings: kept.filter(change => change.kind === "tagTransaction")
+    readonly property var splits: kept.filter(change => change.kind === "splitTransaction")
     readonly property bool shows: changes.code === undefined && !done
 
     // The name of a field of a transaction the AI changes.
@@ -322,6 +323,8 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "Two entries joined as one move");
         case "tagTransaction":
             return i18nContext.i18nc("@info a kind of prepared change", "Transaction that gets other tags");
+        case "splitTransaction":
+            return i18nContext.i18nc("@info a kind of prepared change", "Transaction broken into parts");
         }
         return i18nContext.i18nc("@info a kind of prepared change", "New chart");
     }
@@ -1276,6 +1279,107 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         ai: page.ai
                         change: modelData
+                        choices: page.choices
+                        review: page
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.splits.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Transactions broken into parts")
+            textFormat: Text.PlainText
+        }
+
+        // A split (D-737): the bank total stays, and the parts add up to it
+        // exactly; KassenSturz checked that before this card was shown.
+        Repeater {
+            model: page.shows ? page.splits : []
+
+            Kirigami.AbstractCard {
+                id: splitCard
+
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: splitCard.modelData.payee !== "" ? splitCard.modelData.payee : page.i18nContext.i18nc("@info a transaction without a name", "(no name)")
+                        }
+
+                        Controls.Label {
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: splitCard.modelData.total
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a date, %2 the name of an account", "%1 · %2", splitCard.modelData.date, splitCard.modelData.account)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: splitCard.modelData.parts.length === 1
+                            ? page.i18nContext.i18nc("@info", "Its parts are joined back into one:")
+                            : page.i18nContext.i18ncp("@info %1 is a number of parts", "It is broken into %1 part:", "It is broken into %1 parts:", splitCard.modelData.parts.length)
+                    }
+
+                    Repeater {
+                        model: splitCard.modelData.parts
+
+                        RowLayout {
+                            id: partRow
+
+                            required property var modelData
+
+                            Layout.fillWidth: true
+                            Layout.leftMargin: Kirigami.Units.largeSpacing
+
+                            Controls.Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                textFormat: Text.PlainText
+                                readonly property string where: partRow.modelData.category !== "" ? partRow.modelData.category : page.i18nContext.i18nc("@item:inlistbox the part gets no category yet", "Not sorted yet")
+                                text: partRow.modelData.name !== "" ? page.i18nContext.i18nc("@info %1 is a category, %2 what the part was for", "%1 · %2", where, partRow.modelData.name) : where
+                                Accessible.name: text + " " + partRow.modelData.amount
+                            }
+
+                            Controls.Label {
+                                textFormat: Text.PlainText
+                                text: partRow.modelData.amount
+                            }
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "The parts add up to the amount the bank booked, which stays as it is. Undo takes the whole change back.")
+                    }
+
+                    AiChangeCorrection {
+                        Layout.fillWidth: true
+                        ai: page.ai
+                        change: splitCard.modelData
                         choices: page.choices
                         review: page
                     }

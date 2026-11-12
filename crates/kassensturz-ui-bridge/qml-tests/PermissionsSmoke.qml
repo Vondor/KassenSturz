@@ -114,6 +114,15 @@ Kirigami.ApplicationWindow {
             window.check(grid.readForced(transactions, 0), "tagging keeps the transactions readable");
             window.check(!grid.historyAtRisk(0), "tagging doesn't warn about the history");
             settings.allowed = ({});
+            // Breaking into parts is its own row (D-737): it keeps
+            // Transactions › Read on and writes parts, so it warns.
+            const splitting = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowSplitTransactions"));
+            window.check(splitting !== undefined, "the grid has a row for parts of transactions");
+            settings.allowed = ({ AllowSplitTransactions: true });
+            window.check(grid.isOn("AllowSplitTransactions", 0), "the split cell reads its setting");
+            window.check(grid.readForced(transactions, 0), "splitting keeps the transactions readable");
+            window.check(grid.historyAtRisk(0), "splitting warns about the history");
+            settings.allowed = ({});
             // Chart descriptions are their own row with one cell (D-729);
             // they read nothing and don't touch the history.
             const descriptions = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowCustomCharts"));

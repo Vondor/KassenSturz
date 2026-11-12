@@ -116,6 +116,19 @@ pub enum ToolError {
     UnknownTransaction,
     /// No tag of the book has that ID (US5.2, D-744).
     UnknownTag,
+    /// The parts of a split the AI prepared don't add up to what the
+    /// transaction did to the account (US5.1, D-737). The amounts are exact
+    /// decimal text in the transaction's currency, worked out by
+    /// KassenSturz from the book and the model's parts, so the model can
+    /// correct its split; nothing is ever made up to fill the difference.
+    PartsDontAddUp {
+        /// What the transaction did to the account.
+        total: String,
+        /// What the parts add up to.
+        sum: String,
+        /// `total` minus `sum`: what a part is missing (positive: money in).
+        difference: String,
+    },
     /// A change set would hold more than [`crate::MAX_CHANGES`] changes.
     TooManyChanges,
     /// A new category or Rule would have the name of one that is there
@@ -377,6 +390,20 @@ impl ToolError {
         }
     }
 
+    /// The amounts a refusal names for the model, as exact decimal text
+    /// KassenSturz worked out: for a split whose parts don't add up, the
+    /// transaction's total, the parts' sum and the difference (D-737).
+    pub fn amounts(&self) -> Option<[(&'static str, &str); 3]> {
+        match self.kind() {
+            Self::PartsDontAddUp {
+                total,
+                sum,
+                difference,
+            } => Some([("total", total), ("sum", sum), ("difference", difference)]),
+            _ => None,
+        }
+    }
+
     /// The error itself, without the place of the item it came from.
     pub fn kind(&self) -> &Self {
         match self {
@@ -482,6 +509,9 @@ impl Report for ToolError {
                 .with("not_before", ErrorParam::Keyword("from")),
             Self::UnknownTransaction => ErrorReport::new("ai-tools.unknown-transaction"),
             Self::UnknownTag => ErrorReport::new("ai-tools.unknown-tag"),
+            // The amounts go to the model through [`Self::amounts`]: a
+            // report carries keywords and counts, never text.
+            Self::PartsDontAddUp { .. } => ErrorReport::new("ai-tools.parts-dont-add-up"),
             Self::TooManyChanges => ErrorReport::new("ai-tools.too-many-changes"),
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
@@ -607,6 +637,11 @@ mod tests {
             ToolError::BadPeriod,
             ToolError::UnknownTransaction,
             ToolError::UnknownTag,
+            ToolError::PartsDontAddUp {
+                total: "-19.99".into(),
+                sum: "-19.98".into(),
+                difference: "-0.01".into(),
+            },
             ToolError::TooManyChanges,
             ToolError::NameTaken,
             ToolError::NotCategorizable,

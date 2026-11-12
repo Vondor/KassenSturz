@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: AI field switches
 
 // Opens AiPermissionGrid.qml on stand-ins for the Rust objects (fakes/) and
 // checks that a switch means "allowed" in the field box as in the grid

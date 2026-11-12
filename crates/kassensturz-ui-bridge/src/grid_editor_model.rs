@@ -1202,7 +1202,10 @@ mod tests {
         assert_eq!(text_of(&preview, "shows"), "card");
         assert_eq!(text_of(&preview, "measure"), "income");
         let library = list_of(&view, "library");
-        assert_eq!(library.len(), 26);
+        assert_eq!(
+            library.len(),
+            kassensturz_report::ComponentType::LIBRARY.len()
+        );
         assert_eq!(keys(&library[0]), ["dataset", "type"]);
     }
 

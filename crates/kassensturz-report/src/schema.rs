@@ -155,8 +155,10 @@ impl ComponentType {
     ];
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
-    /// the heading (D-312).
-    pub const LIBRARY: [Self; 26] = [
+    /// the heading (D-312). A slice, not an array, so adding a component
+    /// changes no count here or in a test (US5.10, Q-502); tests compare
+    /// with `LIBRARY.len()`.
+    pub const LIBRARY: &'static [Self] = &[
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -242,7 +244,7 @@ impl ComponentType {
     /// The component with this id; `None` for one this version doesn't
     /// know (a document shows a placeholder for it, D-278).
     pub fn from_id(id: &str) -> Option<Self> {
-        Self::LIBRARY.into_iter().find(|kind| kind.id() == id)
+        Self::LIBRARY.iter().copied().find(|kind| kind.id() == id)
     }
 
     /// Which entry of a dataset's `suits` (catalog) says it fits this

@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: period header, filter bar and tabs widgets
+// check-panel-desktop: the same with the desktop style (its TabBar complained about a bar with no tab, M6-B101)
 
 // Opens DashboardGrid.qml with the period header, the filter bar (M6d.8,
 // D-474) and the dashboard tabs (M6d.9, D-529) as widgets on stand-ins for

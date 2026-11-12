@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: transaction page shows the stored category
 
 // Opens TransactionPage.qml on a stand-in for AccountRegister (fakes/) and
 // checks that the category box always shows the category the transaction

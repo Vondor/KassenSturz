@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: chat chart card
 
 // Opens AiChartCard.qml, the chart preview in the chat (M6c.9, D-355, D-402),
 // on stand-ins for the Rust objects (fakes/) and checks that the card shows

@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: budget pages
 
 // Opens BudgetsPage.qml, BudgetPage.qml and BudgetBars.qml on stand-ins for
 // the Rust objects BudgetBook and BookBudgets (fakes/) and checks that the

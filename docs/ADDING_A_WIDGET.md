@@ -65,8 +65,8 @@ Read the diff of the pull request closest to your widget. Each one shows the who
 2. **`GridNames.qml`**: its name in the Add menu and in tooltips, with an `i18nc` context that says what it is (`"@item:inlistbox a part of the layout: …"`).
 3. **`AddMenu.qml`**: add the type id to one of the groups (*Charts*, *Figures and tables*, *Bank*, *Layout*, *Notes*).
 4. **`TemplatePicture.qml`**: the icon of the type in template pictures, if the default icon doesn't fit.
-5. **A new QML file:** add it to the list in **`build.rs`** (cxx-qt registers QML files by their path) and to the module lists in **`tools/check-panel.sh`**.
-6. **A smoke test** in `qml-tests/` (for example `PageWidgetsSmoke.qml`, `UpdateAllSmoke.qml`), run by `tools/check-panel.sh`. Fakes for bridge objects live in `qml-tests/fakes/`.
+5. **A new QML file:** add it to the list in **`build.rs`** (cxx-qt registers QML files by their path). `tools/check-panel.sh` puts every file of `qml/` into its test module by itself (US5.10).
+6. **A smoke test** in `qml-tests/`, one file per test named `…Smoke.qml` (for example `PageWidgetsSmoke.qml`, `UpdateAllSmoke.qml`). `tools/check-panel.sh` runs every file with a line `// check-panel: <what passed>` under its license header, and again with the desktop style when it also has `// check-panel-desktop: <what passed>`; the script holds no list to edit (US5.10, Q-502). Fakes for bridge objects live in `qml-tests/fakes/`.
 7. **Accessibility:** keyboard reachable, a screen-reader name, enough contrast (AGENTS.md §6). Hidden edit-mode parts use a `Loader`, not `visible: false` (`docs/ARCHITECTURE.md`, "Opening the Overview").
 8. **AI:** an AI-related widget is hidden while AI is off, not greyed out (AGENTS.md §8, D-013), and the build without AI (D-039) still has to work; `tools/check-no-ai.sh` checks its dependencies.
 
@@ -95,7 +95,7 @@ tools/check-panel.sh            # QML smoke tests, in the Qt container
 tools/check-translations.sh
 ```
 
-Tests that already cover every type tell you what you missed: in `crates/kassensturz-ui-bridge/src/grid_editor.rs`, `every_library_kind_has_a_debug_log_detail` checks `DETAILS`, and `the_library_offers_the_twenty_four_components_and_adds_each_with_its_defaults` adds every `LIBRARY` kind (update its count and name, and the length of the `LIBRARY` array, when you add one).
+Tests that already cover every type tell you what you missed: in `crates/kassensturz-ui-bridge/src/grid_editor.rs`, `every_library_kind_has_a_debug_log_detail` checks `DETAILS`, and `the_library_offers_every_component_and_adds_each_with_its_defaults` adds every `LIBRARY` kind. `LIBRARY` is a slice and the tests compare with `LIBRARY.len()`, so a new type changes no count (US5.10, Q-502).
 
 ## 5. Human gates to check
 

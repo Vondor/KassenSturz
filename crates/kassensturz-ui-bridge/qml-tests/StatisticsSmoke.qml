@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: statistics page
 
 // Opens StatisticsPage.qml on stand-ins for the Rust objects (fakes/) and
 // clicks through it (M6a.7): a chart shows, a view is saved, a second one

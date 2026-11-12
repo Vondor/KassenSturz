@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: custom chart description
 
 // Loads SpecPage.qml, the description field of a custom chart (M6e.3), on
 // stand-ins for ChartDescription and ComponentProperties and checks what a

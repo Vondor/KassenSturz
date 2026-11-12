@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: dashboard grid
 
 // Opens DashboardGrid.qml on a stand-in for DashboardLayout (fakes/) and
 // checks what the grid draws and what its keys ask the layout for (M6b.3):

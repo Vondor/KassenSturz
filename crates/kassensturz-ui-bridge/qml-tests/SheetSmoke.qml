@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: properties dialog of the overview
+// check-panel-desktop: the same with the desktop style, whose controls are sized by the platform (M6-B197)
 
 // Opens PropertiesSheet.qml, the Properties dialog of a component on the
 // Overview, on a stand-in for ComponentProperties (fakes/), made when it

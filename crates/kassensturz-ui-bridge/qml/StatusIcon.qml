@@ -10,6 +10,11 @@
 // icon theme, so they look the same on every platform. The state is decided
 // in Rust; this only draws it and its words.
 //
+// A tile that names its `emblem` (D-750) shows its own drawn symbol in the
+// theme's text colour, so tiles can be told apart, and the state becomes a
+// badge in its lower right corner; while something is to do or failed, the
+// icon also gets a tinted frame.
+//
 // On the page it is a button: a click, a tap, Enter or Space asks for the
 // whole tile (`opened`, D-736). While the layout is arranged it takes no
 // pointer, so the grid's overlay selects the tile as for every other one.
@@ -38,6 +43,11 @@ Controls.AbstractButton {
     property bool wordsShown: false
     // While arranging the tile is a picture of itself.
     property bool arranging: false
+    // Which tile it is, by its type: `notice.alarms` (a bell),
+    // `notice.unsorted` (a tag), `notice.fetch_gap` (a bank with a clock) or
+    // `bank.update_all` (two turning arrows). Any other word draws no emblem
+    // and the state shape fills the icon on its own.
+    property string emblem: ""
 
     signal opened
 
@@ -47,6 +57,9 @@ Controls.AbstractButton {
         : shown === "running" ? Kirigami.Theme.highlightColor
         : shown === "failed" ? Kirigami.Theme.negativeTextColor
         : Kirigami.Theme.disabledTextColor
+    readonly property bool hasEmblem: ["notice.alarms", "notice.unsorted", "notice.fetch_gap", "bank.update_all"].includes(emblem)
+    // A frame in the state's colour when something wants a look.
+    readonly property bool flagged: hasEmblem && (shown === "to-do" || shown === "failed")
     readonly property string hint: sentence === "" ? clickHint : sentence + " " + clickHint
     property string clickHint: ""
     // As large as the shorter side allows, at most 3 grid units.
@@ -72,9 +85,10 @@ Controls.AbstractButton {
 
     background: Rectangle {
         radius: Kirigami.Units.smallSpacing
-        color: icon.visualFocus ? Qt.alpha(Kirigami.Theme.highlightColor, 0.15) : "transparent"
-        border.width: icon.visualFocus ? 1 : 0
-        border.color: Kirigami.Theme.highlightColor
+        color: icon.visualFocus ? Qt.alpha(Kirigami.Theme.highlightColor, 0.15)
+            : icon.flagged ? Qt.alpha(icon.tint, 0.12) : "transparent"
+        border.width: icon.visualFocus || icon.flagged ? 1 : 0
+        border.color: icon.visualFocus ? Kirigami.Theme.highlightColor : icon.tint
     }
 
     contentItem: Item {
@@ -83,12 +97,64 @@ Controls.AbstractButton {
             width: icon.wordsShown ? parent.width : implicitWidth
             spacing: Kirigami.Units.smallSpacing
 
-            Canvas {
-                id: shape
-
+            Item {
                 Layout.preferredWidth: icon.side
                 Layout.preferredHeight: icon.side
                 Layout.alignment: Qt.AlignVCenter
+
+            // The tile's own symbol, drawn from 24 × 24 outlines like the
+            // shapes below, in the text colour of the theme (light or dark).
+            Canvas {
+                id: emblemShape
+
+                objectName: "emblem"
+                anchors.fill: parent
+                visible: icon.hasEmblem
+                readonly property string key: icon.emblem + String(Kirigami.Theme.textColor) + width
+                onKeyChanged: requestPaint()
+                Accessible.ignored: true
+
+                onPaint: {
+                    const ctx = getContext("2d");
+                    ctx.reset();
+                    if (!icon.hasEmblem) {
+                        return;
+                    }
+                    ctx.scale(width / 24, height / 24);
+                    ctx.strokeStyle = Kirigami.Theme.textColor;
+                    ctx.lineWidth = 1.6;
+                    ctx.lineCap = "round";
+                    ctx.lineJoin = "round";
+                    const outline = icon.emblem === "notice.alarms" ? "M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z M10 20.5a2 2 0 0 0 4 0"
+                        : icon.emblem === "notice.unsorted" ? "M3 12V4h8l10 10-8 8z"
+                        : icon.emblem === "notice.fetch_gap" ? "M2.5 9L11 4l8.5 5z M4.5 9.5v7 M8 9.5v7 M11.5 9.5v4 M2.5 19h9 M17.5 14v2.5l1.8 1.2"
+                        : "M19.5 8.5A8 8 0 0 0 5 7 M19.5 4v4.5H15 M4.5 15.5A8 8 0 0 0 19 17 M4.5 20v-4.5H9";
+                    ctx.path = outline;
+                    ctx.stroke();
+                    // The round parts: the tag's hole and the bank's clock.
+                    if (icon.emblem === "notice.unsorted") {
+                        ctx.beginPath();
+                        ctx.arc(7.5, 8.5, 1.5, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    } else if (icon.emblem === "notice.fetch_gap") {
+                        ctx.beginPath();
+                        ctx.arc(17.5, 16.5, 4.5, 0, 2 * Math.PI);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            Canvas {
+                id: shape
+
+                objectName: "state"
+                // Alone it fills the icon; beside an emblem it is a badge.
+                width: icon.hasEmblem ? Math.round(parent.width * 0.5) : parent.width
+                height: width
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: icon.hasEmblem ? -Math.round(parent.width * 0.08) : 0
+                anchors.bottomMargin: icon.hasEmblem ? -Math.round(parent.width * 0.08) : 0
                 // Drawn again when the state, the colour or the size changes.
                 readonly property string key: icon.shown + String(icon.tint) + width
                 onKeyChanged: requestPaint()
@@ -156,6 +222,7 @@ Controls.AbstractButton {
                     font.pixelSize: parent.height * (icon.shown === "to-do" ? 0.45 : 0.55)
                     Accessible.ignored: true
                 }
+            }
             }
 
             Controls.Label {

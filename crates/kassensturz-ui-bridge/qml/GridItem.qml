@@ -314,6 +314,7 @@ Item {
                 anchors.fill: parent
                 status: statusItem.status
                 name: names.name(cell.info)
+                emblem: statusItem.type
                 words: statusWords.words(statusItem.type, status, statusItem.count)
                 sentence: statusWords.sentence(statusItem.type, status, statusItem.count)
                 clickHint: statusWords.clickHint

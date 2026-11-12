@@ -1067,6 +1067,25 @@ fn a_setting_that_does_not_suit_the_data_says_what_does() {
     let ways = bar.only_for_show_as().expect("the ways that take compare");
     assert!(!ways.is_empty() && ways.iter().all(|way| ["figure", "progress"].contains(way)));
 
+    // The ready-made "Where your money came from" asked for as a chart
+    // (R2-16): a measure on a chart says a key figure takes it, and the
+    // hint says that ready-made tiles aren't charts and where to make one.
+    let sources = refuse(json!({
+        "title": "Where your money came from", "data": "income_expense_by_month",
+        "show_as": "bar", "measure": "money_in"
+    }));
+    assert_eq!(
+        sources.model_report().param("argument"),
+        Some(&ErrorParam::Keyword("measure"))
+    );
+    assert_eq!(sources.only_for_show_as(), Some(&["figure"][..]));
+    let hint = sources.hint().expect("a plain hint");
+    assert!(
+        hint.contains("not charts") && hint.contains("Statistic Builder"),
+        "{hint}"
+    );
+    assert_eq!(bar.hint(), None, "only a refused measure gets it");
+
     // A formula on a bar chart says which ways show one (card C, US2 Phase
     // 3), and a target which way measures against one.
     let formula = refuse(json!({

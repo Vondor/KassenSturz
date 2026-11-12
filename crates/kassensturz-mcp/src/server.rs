@@ -571,6 +571,10 @@ fn error_result(report: &ErrorReport, error: &ToolError) -> CallToolResult {
     if let Some(ways) = error.only_for_show_as() {
         value.insert("only_for_show_as".into(), Value::from(ways.to_vec()));
     }
+    // E.g. a ready-made tile asked for as a chart (R2-16).
+    if let Some(hint) = error.hint() {
+        value.insert("hint".into(), Value::from(hint));
+    }
     if let Some(cause) = &report.cause {
         value.insert("cause".into(), Value::from(cause.code));
         // E.g. the book's layout and the one this server reads, so the AI
@@ -741,6 +745,22 @@ mod tests {
                 "error": "ai-tools.bad-argument",
                 "argument": "compare",
                 "only_for_show_as": ["figure", "progress"],
+            })
+        );
+        // A measure on a chart, e.g. a ready-made tile asked for as one
+        // (R2-16), also gets the plain hint.
+        assert_eq!(
+            answer(ToolError::NotForChart {
+                argument: "measure",
+                allowed: Vec::new(),
+                use_instead: None,
+                only_for_show_as: vec!["figure"],
+            }),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "measure",
+                "only_for_show_as": ["figure"],
+                "hint": kassensturz_ai_tools::READY_MADE_TILE_HINT,
             })
         );
     }

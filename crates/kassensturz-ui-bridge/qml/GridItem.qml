@@ -329,7 +329,7 @@ Item {
     Kirigami.Dialog {
         id: wholeTile
 
-        title: cell.present ? Plain.plain(names.name(cell.info)) : ""
+        title: cell.present ? Plain.plain(names.windowTitle(cell.info)) : ""
         standardButtons: Kirigami.Dialog.Close
         preferredWidth: Math.max(20 * Kirigami.Units.gridUnit, cell.board.cellWidth(6))
         padding: Kirigami.Units.largeSpacing
@@ -515,9 +515,20 @@ Item {
                 width: parent.width
                 spacing: Kirigami.Units.smallSpacing
 
+                // With nothing in yet the tile still says what it is and
+                // why it is empty, never a blank box (#781).
+                Kirigami.Heading {
+                    Layout.fillWidth: true
+                    visible: totals.length === 0
+                    textFormat: Text.PlainText
+                    elide: Text.ElideRight
+                    text: names.i18nContext.i18nc("@title", "Where your money came from")
+                    level: 3
+                }
+
                 Controls.Label {
                     Layout.fillWidth: true
-                    visible: cell.board.editing && totals.length === 0
+                    visible: totals.length === 0
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     color: Kirigami.Theme.disabledTextColor

@@ -24,6 +24,7 @@ use serde_json::{Value, json};
 
 const VERSION: &str = env!("KASSENSTURZ_BUILD_VERSION");
 const COMMIT: &str = env!("KASSENSTURZ_BUILD_COMMIT");
+const COMMIT_FROM: &str = env!("KASSENSTURZ_BUILD_COMMIT_FROM");
 
 fn golden(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -39,7 +40,16 @@ fn normalized(session: &Value) -> String {
     } else {
         format!("KassenSturz {VERSION} (commit {COMMIT}) ")
     };
-    let text = serde_json::to_string_pretty(session).expect("JSON") + "\n";
+    // A pull request's build adds one sentence about its commit (#758).
+    let note = format!(
+        " Commit {COMMIT} is the last commit of a pull request; on main this build stands \
+         for the merge of that commit."
+    );
+    let mut text = serde_json::to_string_pretty(session).expect("JSON") + "\n";
+    if !COMMIT.is_empty() && COMMIT_FROM == "pull-request-head" {
+        assert!(text.contains(&note), "{text}");
+        text = text.replace(&note, "");
+    }
     text.replace(&build, "KassenSturz {version} (commit {commit}) ")
         .replace(
             &format!("\"version\": \"{VERSION}\""),

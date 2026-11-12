@@ -62,7 +62,9 @@ unzip -q -o "$work/bundle.zip" -d "$dir" || no "bundle not readable"
 [ -s "$dir/KassenSturz.flatpak" ] || no "the bundle is empty"
 
 # What Settings → About shows for this bundle: the number and the pull
-# request's last commit, not main's merge commit (D-427).
-echo "$number ($(printf %s "$head" | cut -c1-7))" > "$dir/about.txt"
+# request's last commit, not main's merge commit (D-427), marked as such by the
+# pull request build's `build-commit-from` (#758). The same English text as
+# SettingsPage.qml.
+echo "$number ($(printf %s "$head" | cut -c1-7)), built from a pull request's last commit (on main: the merge of that commit)" > "$dir/about.txt"
 echo "reused=true" >> "$out"
 echo "Flatpak $number reused from run $run (pull request head $head, same files as main)."

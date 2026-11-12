@@ -262,6 +262,36 @@ fn syntax_mistakes_say_where_and_what() {
             "=Pets@\"last -3 months\"",
             "report.formula-syntax position=7 reason=bad-period",
         ),
+        // Only what the help lists (Q-499): days up to a leap year, no
+        // weeks, no other words, no dates in quotes.
+        (
+            "=Pets@\"last 0 days\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"last 07 days\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"last 367 days\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"last 6 day\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"last 6 weeks\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"pre last month\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"12.11.26\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
         (
             "=Pets@26",
             "report.formula-syntax position=7 reason=bad-period",
@@ -591,6 +621,35 @@ fn names_count_what_the_datasets_count_on_a_real_book() {
             .and_then(|formula| formula.span(october))
             .ok(),
         Some(period(date(2025, 11, 1), date(2026, 10, 31)))
+    );
+    // Rolling days count back from the figure's last day, that day
+    // included, as the period box does (Q-499, US4.7). The span covers
+    // the figure's own day too, so a figure of one day shows the words'.
+    let last_day = period(date(2026, 10, 31), date(2026, 10, 31));
+    let span = |text: &str| {
+        Formula::parse(text)
+            .and_then(|formula| formula.span(last_day))
+            .ok()
+    };
+    assert_eq!(
+        span("=Rent@\"last 7 days\""),
+        Some(period(date(2026, 10, 25), date(2026, 10, 31)))
+    );
+    assert_eq!(
+        span("=Rent@\"Last  1 Days\""),
+        Some(period(date(2026, 10, 31), date(2026, 10, 31)))
+    );
+    assert_eq!(
+        span("=Rent@\"last 366 days\""),
+        Some(period(date(2025, 10, 31), date(2026, 10, 31)))
+    );
+    assert_eq!(
+        worked_out(
+            &source,
+            "=Groceries@\"last 12 days\"",
+            period(date(2026, 9, 1), date(2026, 9, 12))
+        ),
+        Ok(eur(2_500))
     );
     assert_eq!(figure("=Groceries@2026-08"), Ok(eur(5_320)));
     assert_eq!(figure("=Groceries@2026-09-01..2026-09-12"), Ok(eur(2_500)));

@@ -135,7 +135,103 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormSectionText {
-        text: page.i18nContext.i18nc("@info", "You can use + - * / and brackets, % for a percentage, and the comparisons = <> < > <= >=. Between the parts of a function, ; works everywhere, as in LibreOffice Calc. If your number format uses a decimal point, a comma works as well. A period word such as \"last month\", \"this year\" or \"last 12 months\" in quotes after @ gives a name its own period. The formula field lists the functions with a short line each and completes the names of your categories while you type. A mistake is described in words, with the place marked.")
+        text: page.i18nContext.i18nc("@info", "You can use + - * / and brackets, % for a percentage, and the comparisons = <> < > <= >=. Between the parts of a function, ; works everywhere, as in LibreOffice Calc. If your number format uses a decimal point, a comma works as well. A period after @ gives a name its own period; the next part lists every period you can write. The formula field lists the functions with a short line each and completes the names of your categories while you type. A mistake is described in words, with the place marked.")
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Periods in formulas")
+    }
+
+    FormCard.FormSectionText {
+        text: page.i18nContext.i18nc("@info", "Without @, a name counts the chart's period. With @ after it, the name counts a period of its own. There are two ways to write one: a period word in double quotes, or dates without quotes.")
+    }
+
+    FormCard.FormCard {
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The month before the chart's month")
+            description: "=Groceries@\"last month\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The chart's quarter")
+            description: "=Groceries@\"this quarter\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The chart's month and the 5 months before it")
+            description: "=Groceries@\"last 6 months\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The 3 whole months before the chart's month")
+            description: "=Groceries@\"last 3 complete months\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The chart's last day and the 6 days before it")
+            description: "=Groceries@\"last 7 days\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "One year")
+            description: "=Groceries@2026"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "One month")
+            description: "=Groceries@2026-09"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "One day, here 12 November 2026")
+            description: "=Groceries@2026-11-12"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "From one day to another, both included")
+            description: "=Groceries@2026-11-01..2026-11-12"
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "From one month to another")
+            description: "=Groceries@2026-01..2026-03"
+            descriptionItem.textFormat: Text.PlainText
+        }
+    }
+
+    FormCard.FormSectionText {
+        text: page.i18nContext.i18nc("@info", "These are all the period words: \"this month\", \"last month\", \"this quarter\", \"last quarter\", \"this year\", \"last year\", \"last N months\" and \"last N complete months\", with N from 1 to 120, and \"last N days\", with N from 1 to 366. They stay in English, like the function names, and capital letters don't matter. A word counts from the chart's period: in a chart for November, \"last month\" is October. \"last N months\" includes the chart's month, \"last N complete months\" doesn't.")
+    }
+
+    FormCard.FormSectionText {
+        text: page.i18nContext.i18nc("@info", "Dates are written year first, with a minus between year, month and day: 2026 is a year, 2026-11 a month and 2026-11-12 a day. Two of them joined by .. are a range from the first day of the first to the last day of the second, up to 100 years long. Other ways of writing a date, such as 12.11.26, and words such as weeks or the month before last don't work yet; a period like that is written with dates, for example 2026-09 for the month before last in November.")
     }
 
     FormCard.FormHeader {

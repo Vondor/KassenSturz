@@ -343,6 +343,7 @@ mod tests {
                 category,
                 date,
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )
@@ -447,6 +448,7 @@ mod tests {
                 category: "",
                 date: "2026-10-06",
                 note: Some("Holiday fund"),
+                tags: None,
             },
             &TestLocale,
         )
@@ -711,6 +713,7 @@ mod tests {
                 category: &groceries,
                 date: "2026-10-05",
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )

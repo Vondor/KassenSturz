@@ -14,6 +14,7 @@ use kassensturz_store::{Book, StoreError, TransactionOutline};
 
 use crate::format::{AmountFormat, Locale};
 use crate::register_columns::{Column, Columns};
+use crate::tags::{self, TagText};
 
 /// Writes amounts of one currency in the user's regional format.
 pub struct AmountWriter<'a, L> {
@@ -124,9 +125,27 @@ pub struct RegisterRow {
     /// The day the money counts from or until, as the user's locale writes
     /// dates. Filled only while its column is chosen.
     pub value_date: String,
+    /// Every tag it carries, on the whole or on a part, in the user's
+    /// order (D-713): a search by any of them finds the line (Q-493).
+    pub tags: Vec<TagText>,
 }
 
 impl RegisterRow {
+    /// The names of its tags, as one line, e.g. "Holiday, Tax".
+    pub fn tag_line(&self) -> String {
+        self.tags
+            .iter()
+            .map(|tag| tag.name.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// Whether the row carries the tag with the ID `tag` (as text), on the
+    /// whole or on a part. An empty `tag` fits every row.
+    pub fn has_tag(&self, tag: &str) -> bool {
+        tag.is_empty() || self.tags.iter().any(|own| own.id == tag)
+    }
+
     /// Whether the row fits what the user typed in the quick filter: every
     /// word of `query` appears, ignoring case, in its date, who it came from
     /// or went to, category, amount (as shown or exactly) or note. An empty
@@ -146,6 +165,7 @@ impl RegisterRow {
             &self.other_party_iban,
             &self.purpose,
             &self.value_date,
+            &self.tag_line(),
         ]
         .map(|text| text.to_lowercase())
         .join("\n");
@@ -202,6 +222,8 @@ pub struct Entry {
     /// What the user noted about it: the transaction's note, or else the
     /// note of its part in this account (D-132); may be empty.
     pub note: String,
+    /// Every tag it carries, on the whole or on a part (D-713).
+    pub tags: Vec<TagText>,
 }
 
 impl Entry {
@@ -228,6 +250,7 @@ impl Entry {
             other_party_iban: String::new(),
             purpose: String::new(),
             value_date: String::new(),
+            tags: self.tags.clone(),
         }
     }
 }
@@ -297,6 +320,7 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
     // register with thousands of lines needed to open (M6-B8, D-387).
     let outlines: HashMap<TransactionId, TransactionOutline> =
         book.transaction_outlines(account)?;
+    let tag_names = tags::names(book)?;
     let accounts: HashMap<AccountId, kassensturz_core::Account> = book
         .all_accounts()?
         .into_iter()
@@ -339,6 +363,7 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
             kind,
             balance,
             note,
+            tags: tags::texts(&tag_names, &outline.tags),
         });
     }
     Ok(entries)
@@ -361,6 +386,7 @@ pub fn latest_entries(
         .get(&account)
         .ok_or(StoreError::UnknownAccount(account))?;
     let mut found: Vec<Entry> = Vec::new();
+    let tag_names = tags::names(book)?;
     // The register is in date order, so the newest are at its end. An
     // account can show one transaction on two days (D-108): only the later
     // counts, as in the overview's list of the newest.
@@ -407,6 +433,7 @@ pub fn latest_entries(
             kind,
             balance: Money::zero(details.currency),
             note,
+            tags: tags::texts(&tag_names, &transaction.all_tags()),
         });
     }
     Ok(found)
@@ -755,6 +782,7 @@ mod sort_tests {
             kind: EntryKind::Simple,
             balance: Money::from_minor_units(minor, eur),
             note: String::new(),
+            tags: Vec::new(),
         }
     }
 
@@ -820,6 +848,10 @@ mod sort_tests {
             other_party_iban: String::new(),
             purpose: String::new(),
             value_date: String::new(),
+            tags: vec![TagText {
+                id: "tag-1".into(),
+                name: "Holiday".into(),
+            }],
         };
         assert!(row.fits(""));
         assert!(row.fits("  "));
@@ -828,6 +860,13 @@ mod sort_tests {
         assert!(row.fits("sunday 3,80"));
         assert!(row.fits("2026-03"));
         assert!(!row.fits("bakery rent"));
+        // A tag counts as part of its text, and the tag filter finds it by
+        // ID (Q-493).
+        assert!(row.fits("holiday"));
+        assert!(row.has_tag("tag-1"));
+        assert!(row.has_tag(""));
+        assert!(!row.has_tag("tag-2"));
+        assert_eq!(row.tag_line(), "Holiday");
         // What the account held afterwards is not part of the row's text.
         assert!(!row.fits("100"));
     }

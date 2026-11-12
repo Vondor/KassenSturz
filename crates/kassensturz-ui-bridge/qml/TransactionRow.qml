@@ -32,6 +32,9 @@ RowLayout {
     property bool owes: false
     // What the user noted about it; empty when nothing was noted.
     property string note: ""
+    // The tags of the entry and of its parts, each once, joined by commas
+    // (US4.8, D-713); empty when it has none.
+    property string tags: ""
     // Wide pages show a row as the lines of a book, one column each: date,
     // from or to, category, payment, deposit and balance. `header` makes the
     // row the book's column titles instead, so that both line up.
@@ -88,6 +91,9 @@ RowLayout {
     // A note from a bank statement can run over several lines; Text only
     // elides a single line, so the rest would spill into the next column.
     readonly property string oneLineNote: note.replace(/\s*\n\s*/g, " ")
+    readonly property string tagsText: tags === ""
+        ? ""
+        : i18nContext.i18nc("@label %1 is a list of tags, e.g. Holiday, Tax", "Tags: %1", tags)
     readonly property string balanceText: balance === "" || !balanceShown ? "" : balanceLabel(balance)
     readonly property string exactBalanceText: balance === "" || !balanceShown ? "" : balanceLabel(exactBalance)
 
@@ -117,7 +123,7 @@ RowLayout {
     Accessible.role: Accessible.ListItem
     Accessible.name: header
         ? ""
-        : [title, details, note, exactAmount, exactBalanceText].filter(text => text !== "").join(", ")
+        : [title, details, note, tagsText, exactAmount, exactBalanceText].filter(text => text !== "").join(", ")
 
     // The book's columns. In the column titles, the ones that can be sorted
     // by are buttons (US1.18).
@@ -194,6 +200,16 @@ RowLayout {
             Layout.fillWidth: true
             visible: !row.header && row.note !== ""
             text: row.oneLineNote
+            elide: Text.ElideRight
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: !row.header && row.tags !== ""
+            text: row.tagsText
             elide: Text.ElideRight
             font: Kirigami.Theme.smallFont
             color: Kirigami.Theme.disabledTextColor
@@ -354,6 +370,16 @@ RowLayout {
             Layout.fillWidth: true
             visible: row.note !== ""
             text: row.oneLineNote
+            elide: Text.ElideRight
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: row.tags !== ""
+            text: row.tagsText
             elide: Text.ElideRight
             font: Kirigami.Theme.smallFont
             color: Kirigami.Theme.disabledTextColor

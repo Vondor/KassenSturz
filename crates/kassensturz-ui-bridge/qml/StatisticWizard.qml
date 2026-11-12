@@ -33,9 +33,13 @@ ColumnLayout {
     readonly property bool isNew: builder.openId === "" && !onOverview
     // The properties that belong to each step; the others are not offered
     // there.
-    readonly property var rangeKeys: ["grouping", "measure"]
+    readonly property var rangeKeys: ["grouping", "measure", "candle"]
     readonly property var advancedKeys: ["compare", "formula", "target"]
-    readonly property var seriesKeys: ["categories", "groups", "series", "show_hidden"]
+    // Candles show the balance of accounts, so their second step chooses
+    // accounts; budget bars choose budgets (US5.5, #753).
+    readonly property var seriesKeys: workbench.view.type === "chart.candlestick"
+        ? ["accounts"]
+        : ["budgets", "categories", "groups", "series", "show_hidden"]
     readonly property var elementKeys: ["title", "legend"]
     // Formulas and fine tuning are one deliberate step away (Q-260).
     property bool advanced: false
@@ -47,7 +51,9 @@ ColumnLayout {
         {id: "pie", types: ["chart.pie", "chart.donut"]},
         {id: "lines", types: ["chart.line", "chart.area"]},
         {id: "figure", types: ["kpi.card", "progress.bar"]},
-        {id: "table", types: ["table.rows"]}
+        {id: "table", types: ["table.rows"]},
+        {id: "candles", types: ["chart.candlestick"]},
+        {id: "budgets", types: ["budget.progress"]}
     ]
     readonly property var currentKind: kinds.find(kind => kind.types.includes(workbench.view.type)) ?? kinds[0]
     readonly property alias nameText: wizardName.text
@@ -101,6 +107,12 @@ ColumnLayout {
         case "table.rows":
         case "table":
             return "view-list-details";
+        case "chart.candlestick":
+        case "candles":
+            return "office-chart-scatter";
+        case "budget.progress":
+        case "budgets":
+            return "office-chart-bar-percentage";
         }
         return "office-chart-bar";
     }
@@ -115,6 +127,10 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox a kind of chart", "Lines");
         case "figure":
             return i18nContext.i18nc("@item:inlistbox a kind of display", "One figure");
+        case "candles":
+            return i18nContext.i18nc("@item:inlistbox a kind of chart: the balance of accounts per day, week or month", "Balance candles");
+        case "budgets":
+            return i18nContext.i18nc("@item:inlistbox a kind of display: how much of each budget is spent and left", "Budgets");
         }
         return i18nContext.i18nc("@item:inlistbox a kind of display", "Table");
     }
@@ -124,6 +140,12 @@ ColumnLayout {
         case 0:
             return i18nContext.i18nc("@title:group a step of the wizard", "Period");
         case 1:
+            switch (workbench.view.type) {
+            case "chart.candlestick":
+                return i18nContext.i18nc("@title:group a step of the wizard", "Choose accounts");
+            case "budget.progress":
+                return i18nContext.i18nc("@title:group a step of the wizard", "Choose budgets");
+            }
             return i18nContext.i18nc("@title:group a step of the wizard", "Choose categories");
         }
         return i18nContext.i18nc("@title:group a step of the wizard", "Look and preview");
@@ -134,6 +156,12 @@ ColumnLayout {
         case 0:
             return i18nContext.i18nc("@info", "Choose the period the figures are taken from. For example: this month, or from 01.01.2026 to 31.03.2026.");
         case 1:
+            switch (workbench.view.type) {
+            case "chart.candlestick":
+                return i18nContext.i18nc("@info", "Choose the accounts whose balance the candles show. With none ticked, your checking, savings and cash accounts count together. For example: only your checking account.");
+            case "budget.progress":
+                return i18nContext.i18nc("@info", "Choose which budgets get a bar. With none ticked, every budget gets one. For example: Groceries and Leisure.");
+            }
             return i18nContext.i18nc("@info", "Choose which categories are counted. Every category that is not ticked is left out. For example: Groceries and Restaurants, but not Insurance.");
         }
         return i18nContext.i18nc("@info", "Choose how it looks and give it a title and a name. For example: Household costs.");

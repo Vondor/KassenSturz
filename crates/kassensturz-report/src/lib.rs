@@ -37,6 +37,7 @@ mod alarms;
 mod average;
 mod balances;
 mod budget_utilization;
+mod builder;
 mod candles;
 mod cash_flow;
 mod catalog;

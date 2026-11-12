@@ -16875,6 +16875,71 @@ msgctxt "@title:group a step of the wizard"
 msgid "Look and preview"
 msgstr "Aussehen und Vorschau"
 
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:131
+#, kde-format
+msgctxt ""
+"@item:inlistbox a kind of chart: the balance of accounts per day, week or "
+"month"
+msgid "Balance candles"
+msgstr "Kontostand als Kerzen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:133
+#, kde-format
+msgctxt ""
+"@item:inlistbox a kind of display: how much of each budget is spent and left"
+msgid "Budgets"
+msgstr "Budgets"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:145
+#, kde-format
+msgctxt "@title:group a step of the wizard"
+msgid "Choose accounts"
+msgstr "Konten wählen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:147
+#, kde-format
+msgctxt "@title:group a step of the wizard"
+msgid "Choose budgets"
+msgstr "Budgets wählen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:161
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Choose the accounts whose balance the candles show. With none ticked, your "
+"checking, savings and cash accounts count together. For example: only your "
+"checking account."
+msgstr ""
+"Wählen Sie die Konten, deren Kontostand die Kerzen zeigen. Ist keines "
+"angehakt, zählen Ihre Giro-, Spar- und Bargeldkonten zusammen. Zum Beispiel: "
+"nur Ihr Girokonto."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:163
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Choose which budgets get a bar. With none ticked, every budget gets one. For "
+"example: Groceries and Leisure."
+msgstr ""
+"Wählen Sie, welche Budgets einen Balken bekommen. Ist keines angehakt, "
+"bekommt jedes Budget einen. Zum Beispiel: Lebensmittel und Freizeit."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:98
+#, kde-format
+msgctxt ""
+"@item:inlistbox a way to show figures: the balance per day, week or month "
+"with its start, highest, lowest and end"
+msgid "Balance candles"
+msgstr "Kontostand als Kerzen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:100
+#, kde-format
+msgctxt ""
+"@item:inlistbox a way to show figures: one bar per budget, how much is spent "
+"and left"
+msgid "Budget bars"
+msgstr "Budgetbalken"
+
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:133
 #, kde-format
 msgctxt "@info"

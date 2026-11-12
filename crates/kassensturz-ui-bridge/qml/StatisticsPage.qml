@@ -53,7 +53,7 @@ Kirigami.ScrollablePage {
     property string openName: ""
     property string period: "last-12-months"
     readonly property var periods: ["this-month", "last-month", "last-12-months", "this-year", "last-year"]
-    readonly property var types: ["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "kpi.card", "progress.bar", "table.rows"]
+    readonly property var types: ["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "kpi.card", "progress.bar", "table.rows", "chart.candlestick", "budget.progress"]
     property var renamed: ({})
     // A new view is made in the wizard (D-335); "Show all settings at once"
     // and opening a saved view give the page with every setting.
@@ -94,6 +94,10 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@item:inlistbox a way to show figures", "Progress bar");
         case "table.rows":
             return i18nContext.i18nc("@item:inlistbox a way to show figures", "Table");
+        case "chart.candlestick":
+            return i18nContext.i18nc("@item:inlistbox a way to show figures: the balance per day, week or month with its start, highest, lowest and end", "Balance candles");
+        case "budget.progress":
+            return i18nContext.i18nc("@item:inlistbox a way to show figures: one bar per budget, how much is spent and left", "Budget bars");
         }
         return "";
     }

@@ -38,6 +38,7 @@ mod books;
 mod budget_bars_model;
 mod budgets;
 mod budgets_model;
+mod builder_audit;
 mod cards;
 mod cards_model;
 mod categories;

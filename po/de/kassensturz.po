@@ -21255,6 +21255,31 @@ msgctxt "@label:listbox how many days one candle of a candle chart covers"
 msgid "One candle per"
 msgstr "Eine Kerze je"
 
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:183
+msgctxt "@label:listbox which boxes of a candle chart are filled with color and which are hollow"
+msgid "Candle boxes"
+msgstr "Kerzenkörper"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:225
+msgctxt "@item:inlistbox candle boxes: a candle that ended higher is hollow, one that ended lower filled"
+msgid "Rising hollow, falling filled"
+msgstr "Steigende hohl, fallende gefüllt"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:227
+msgctxt "@item:inlistbox candle boxes: a candle that ended higher is filled, one that ended lower hollow"
+msgid "Rising filled, falling hollow"
+msgstr "Steigende gefüllt, fallende hohl"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:229
+msgctxt "@item:inlistbox candle boxes: every box filled, rising and falling differ by color only"
+msgid "All filled"
+msgstr "Alle gefüllt"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:231
+msgctxt "@item:inlistbox candle boxes: every box hollow, rising and falling differ by color only"
+msgid "All hollow"
+msgstr "Alle hohl"
+
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:219
 msgctxt "@item:inlistbox one candle of a candle chart covers a day"
 msgid "Day"

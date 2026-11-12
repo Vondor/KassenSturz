@@ -284,6 +284,15 @@ Window {
                 // tools/check-charts.sh checks that a lone bar beside a series
                 // of zeros sits in the middle of its name (US4 P3 R3b).
                 console.log("bar-middle", name, Math.round(view.barMiddle(view.chart.series.length - 1, 0, 1000)));
+                // tools/check-charts.sh checks that the candle legend shows
+                // the boxes each fill draws (D-748): rising, then falling.
+                if (view.candles) {
+                    for (const fill of ["up-hollow", "down-hollow", "all-filled", "all-hollow"]) {
+                        view.candleFill = fill;
+                        console.log("candle-legend", fill, view.legendEntries.map(entry => entry.hollow ? "hollow" : "filled").join(","));
+                    }
+                    view.candleFill = "up-hollow";
+                }
             }
             view.grabToImage(function (result) {
                 result.saveToFile(window.outDir + "/" + name + ".png");

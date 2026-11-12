@@ -374,6 +374,8 @@ ColumnLayout {
             // Which way bars go (D-679); charts without the setting are
             // automatic.
             orientation: (preview.subject?.fields ?? []).find(f => f.key === "orientation")?.word ?? "auto"
+            // Which candles have a filled box (D-748).
+            candleFill: (preview.subject?.fields ?? []).find(f => f.key === "candle_fill")?.word ?? "up-hollow"
             // A custom chart's description may carry a title of its own.
             title: (chartData.view?.title ?? "") !== "" ? chartData.view.title : preview.title
         }

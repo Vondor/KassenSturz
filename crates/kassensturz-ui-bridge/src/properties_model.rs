@@ -805,6 +805,38 @@ mod tests {
     }
 
     #[test]
+    fn the_candle_boxes_read_back_the_way_qml_reads_them() {
+        // D-748: which candles are filled is a choice of the chart's look,
+        // `ComponentPreview.qml` passes its word on to `ChartView.qml`.
+        let mut candles = component(ComponentType::ChartCandlestick, "cash_flow_by_month");
+        let field_of = |chart: &Component| {
+            list_of(
+                &view_object(Some(chart), None, NumberForm::DecimalComma),
+                "fields",
+            )
+            .into_iter()
+            .find(|f| text_of(f, "key") == "candle_fill")
+            .expect("the field")
+        };
+        let field = field_of(&candles);
+        assert_eq!(text_of(&field, "kind"), "choice");
+        assert_eq!(text_of(&field, "place"), "props");
+        assert_eq!(text_of(&field, "word"), "up-hollow");
+        let words: Vec<String> = list_of(&field, "words")
+            .iter()
+            .map(|word| word.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(
+            words,
+            ["up-hollow", "down-hollow", "all-filled", "all-hollow"]
+        );
+        candles
+            .set("candle_fill", Setting::Word("all-hollow".into()))
+            .unwrap();
+        assert_eq!(text_of(&field_of(&candles), "word"), "all-hollow");
+    }
+
+    #[test]
     fn json_is_the_document_part_and_reads_back_into_the_same_component() {
         let mut chart = component(ComponentType::ChartDonut, "spending_by_category");
         chart

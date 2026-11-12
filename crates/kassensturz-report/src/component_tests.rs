@@ -630,3 +630,47 @@ fn candles_choose_their_length_and_automatic_is_not_written() {
     wrong["params"]["candle"] = json!("year");
     assert!(Component::from_value(&wrong).is_err());
 }
+
+#[test]
+fn candles_choose_their_filled_boxes_and_a_chart_without_the_setting_keeps_its_look() {
+    // D-748: only the candle chart has the setting, a property of its look.
+    for &kind in ComponentType::LIBRARY {
+        let has = kind.properties().iter().any(|p| p.key == "candle_fill");
+        assert_eq!(has, kind == ComponentType::ChartCandlestick, "{kind:?}");
+    }
+    assert_eq!(
+        CANDLE_FILL_WORDS,
+        ["up-hollow", "down-hollow", "all-filled", "all-hollow"]
+    );
+    let mut chart = Component::new(ComponentType::ChartCandlestick, CASH_FLOW_BY_MONTH).unwrap();
+    // A new chart, and one written before the setting, looks as before.
+    assert_eq!(
+        chart.get("candle_fill"),
+        Some(&Setting::Word("up-hollow".into()))
+    );
+    let mut value = chart.to_value();
+    value["props"]
+        .as_object_mut()
+        .unwrap()
+        .remove("candle_fill");
+    assert_eq!(Component::from_value(&value).unwrap(), chart);
+    // A choice is written in the props and read back; it asks for no other
+    // figures.
+    let before = Asked::new(&chart, None, &Filters::default()).unwrap();
+    for word in ["down-hollow", "all-filled", "all-hollow"] {
+        chart
+            .set("candle_fill", Setting::Word(word.into()))
+            .unwrap();
+        let value = chart.to_value();
+        assert_eq!(value["props"]["candle_fill"], json!(word));
+        assert!(value["params"].get("candle_fill").is_none());
+        assert_eq!(Component::from_value(&value).unwrap(), chart);
+        assert_eq!(
+            Asked::new(&chart, None, &Filters::default()).unwrap(),
+            before
+        );
+    }
+    let mut wrong = chart.to_value();
+    wrong["props"]["candle_fill"] = json!("striped");
+    assert!(Component::from_value(&wrong).is_err());
+}

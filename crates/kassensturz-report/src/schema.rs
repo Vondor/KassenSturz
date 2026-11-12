@@ -683,6 +683,20 @@ const CANDLE: Property = Property {
     kind: Kind::Choice(&CANDLE_WORDS),
 };
 pub(crate) const CANDLE_KEY: &str = "candle";
+/// `props.candle_fill` (D-748): which candles of a candle chart have a
+/// filled box. `up-hollow`, the default, keeps D-718's look (a candle that
+/// ended higher is hollow, one that ended lower filled); `down-hollow` is
+/// the other way round, `all-filled` and `all-hollow` draw every box alike,
+/// so up and down differ by their colour only, as the user chose. How the
+/// candles look only, so it is a property.
+const CANDLE_FILL: Property = Property {
+    key: CANDLE_FILL_KEY,
+    place: Place::Props,
+    kind: Kind::Choice(&CANDLE_FILL_WORDS),
+};
+pub(crate) const CANDLE_FILL_KEY: &str = "candle_fill";
+/// The words of `props.candle_fill`, the default first.
+pub const CANDLE_FILL_WORDS: [&str; 4] = ["up-hollow", "down-hollow", "all-filled", "all-hollow"];
 /// The words of `params.candle`, the default first.
 pub const CANDLE_WORDS: [&str; 4] = ["auto", "day", "week", "month"];
 
@@ -706,8 +720,9 @@ const CHART: [Property; 17] = [
     PERIOD,
 ];
 /// Candles: which accounts, the title, the legend and the period; the
-/// length of a candle follows the period (D-719).
-const CANDLESTICK: [Property; 5] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE];
+/// length of a candle follows the period (D-719); which boxes are filled
+/// (D-748).
+const CANDLESTICK: [Property; 6] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE, CANDLE_FILL];
 /// Bars: a chart's properties, the comparison of spending (US3.1a) after
 /// the average, and the way the bars go (D-679) after the legend.
 const BAR_CHART: [Property; 19] = [

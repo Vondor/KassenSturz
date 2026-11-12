@@ -52,6 +52,12 @@ ColumnLayout {
     // default a candle that ended higher is hollow and one that ended lower
     // filled (D-718).
     property string candleFill: "up-hollow"
+    // Whether the legend is shown (`props.legend`, *Show the legend*). It
+    // was stored but not read, so the switch did nothing (US5 Phase 3).
+    // The total, the explanation under candles and the text of the point
+    // in focus are not the legend and stay.
+    property bool showLegend: true
+    readonly property bool legendShown: legendFlow.visible
 
     // Whether a candle's box is hollow: `rose` when it ended at least where
     // it started.
@@ -916,8 +922,10 @@ ColumnLayout {
 
     // The legend: color, second mark and name, never the color alone.
     Flow {
+        id: legendFlow
+
         Layout.fillWidth: true
-        visible: !view.showTable
+        visible: !view.showTable && view.showLegend
         spacing: Kirigami.Units.largeSpacing
 
         Repeater {

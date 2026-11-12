@@ -292,6 +292,11 @@ Window {
                         console.log("candle-legend", fill, view.legendEntries.map(entry => entry.hollow ? "hollow" : "filled").join(","));
                     }
                     view.candleFill = "up-hollow";
+                    // *Show the legend* switched off hides only the legend.
+                    view.showLegend = false;
+                    console.log("legend-shown", "off", view.legendShown);
+                    view.showLegend = true;
+                    console.log("legend-shown", "on", view.legendShown);
                 }
             }
             view.grabToImage(function (result) {

@@ -376,6 +376,8 @@ ColumnLayout {
             orientation: (preview.subject?.fields ?? []).find(f => f.key === "orientation")?.word ?? "auto"
             // Which candles have a filled box (D-748).
             candleFill: (preview.subject?.fields ?? []).find(f => f.key === "candle_fill")?.word ?? "up-hollow"
+            // *Show the legend*; a chart without the setting shows it.
+            showLegend: (preview.subject?.fields ?? []).find(f => f.key === "legend")?.flag ?? true
             // A custom chart's description may carry a title of its own.
             title: (chartData.view?.title ?? "") !== "" ? chartData.view.title : preview.title
         }

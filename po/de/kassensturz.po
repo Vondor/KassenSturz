@@ -16875,6 +16875,69 @@ msgctxt "@title:group a step of the wizard"
 msgid "Look and preview"
 msgstr "Aussehen und Vorschau"
 
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:153
+#, kde-format
+msgctxt ""
+"@item:inlistbox a kind of chart: one the user describes in a short text"
+msgid "Your own description"
+msgstr "Eigene Beschreibung"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:155
+#, kde-format
+msgctxt "@item:inlistbox a kind of display: single transactions, newest first"
+msgid "Transactions"
+msgstr "Umsätze"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:171
+#, kde-format
+msgctxt "@title:group a step of the wizard"
+msgid "Describe the chart"
+msgstr "Diagramm beschreiben"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:173
+#, kde-format
+msgctxt "@title:group a step of the wizard"
+msgid "Choose accounts and categories"
+msgstr "Konten und Kategorien wählen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:191
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Change the text that describes the chart, or start from a ready one with "
+"“Insert an example”. The preview below shows the result."
+msgstr ""
+"Ändern Sie den Text, der das Diagramm beschreibt, oder beginnen Sie mit einem "
+"fertigen über „Beispiel einfügen“. Die Vorschau unten zeigt das Ergebnis."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:193
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Choose whose transactions are listed. With none ticked, every open account "
+"and every category counts. For example: only your checking account, only "
+"Groceries."
+msgstr ""
+"Wählen Sie, wessen Umsätze aufgelistet werden. Ist nichts angehakt, zählen "
+"alle offenen Konten und alle Kategorien. Zum Beispiel: nur Ihr Girokonto, "
+"nur Lebensmittel."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:102
+#, kde-format
+msgctxt ""
+"@item:inlistbox a way to show figures: a chart the user describes in a short "
+"text"
+msgid "Custom chart"
+msgstr "Eigenes Diagramm"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:104
+#, kde-format
+msgctxt ""
+"@item:inlistbox a way to show figures: a list of single transactions, newest "
+"first"
+msgid "Transactions list"
+msgstr "Umsatzliste"
+
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:131
 #, kde-format
 msgctxt ""

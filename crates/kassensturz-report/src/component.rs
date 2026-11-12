@@ -194,9 +194,14 @@ impl Component {
     /// Makes this another type of component. It keeps its dataset if the new
     /// type can show it and otherwise takes the dataset a new one of that
     /// type starts with ([`ComponentType::first_dataset`]). A setting the new type has too, with a value it allows
-    /// there, stays (the title, for one); the rest take their defaults.
+    /// there, stays (the title, for one); the rest take their defaults. A
+    /// Builder type that names no dataset, the transactions list, takes
+    /// none (US5.5), so the Statistic Builder can switch to it and back;
+    /// a chart still can't become a heading or another part of the page.
     pub fn change_kind(&mut self, kind: ComponentType) -> Result<(), ReportError> {
-        let dataset = if kind.datasets().any(|d| d.id == self.dataset.id) {
+        let dataset = if kind.shows_no_data() && kind.in_builder() {
+            crate::dataset_for(kind, "")?
+        } else if kind.datasets().any(|d| d.id == self.dataset.id) {
             self.dataset
         } else {
             kind.first_dataset()

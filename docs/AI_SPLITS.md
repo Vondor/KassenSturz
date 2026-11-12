@@ -72,7 +72,7 @@ A new cell **Transactions › Split** (`Permission::SplitTransactions`), its own
 A bill names an order or invoice number; the bank text ("Purpose", D-083) of the payment usually carries it. `search_transactions` gets an argument `reference`:
 
 - It matches the bank text, the transaction's note and the part names. Both sides are compared with **letters and digits only, ignoring case**, so `RE-2026/0042` finds `re 2026 0042`. The reference must have at least 4 letters or digits (`ai-tools.reference-too-short`), so a short number never matches half the book.
-- With `reference`, the answer says `"matched_by": "reference"`. With no match it says `"found": false` and a model-facing note: *"No transaction carries this reference. Report the bill as not found. Do not match it by amount or date."* The tool description says the same. KassenSturz never offers a guess by amount for a reference that matched nothing (#717 item 5).
+- With `reference`, the answer says `"matched_by": "reference"`. With no match it says `"found": false` and, in `what_to_do` (the result's `note` is the data notice, D-187), a model-facing note: *"No transaction carries this reference. Report the bill as not found. Do not match it by amount or date."* The tool description says the same. KassenSturz never offers a guess by amount for a reference that matched nothing (#717 item 5).
 - **Several bills, one debit:** each reference finds the same transaction. The model then proposes one split with a part per bill, named by its invoice number, and attaches each bill (§3).
 - Read-only, under *Transactions › Read*; nothing is stored.
 

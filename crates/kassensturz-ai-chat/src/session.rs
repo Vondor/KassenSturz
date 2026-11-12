@@ -17,8 +17,9 @@ use kassensturz_ai_tools::refusal::{REFUSAL_KEYWORDS, RefusalReasons};
 use kassensturz_ai_tools::{
     ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
     OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange, ToolError,
-    Unverified, check_numbers, draft_issue, open_page_allowed, propose_on, propose_spec,
-    propose_view_spec, propose_view_text, readable_functions, unique_codes, view_choices,
+    Unverified, check_numbers, description_titles, draft_issue, open_page_allowed, propose_on,
+    propose_spec, propose_view_spec, propose_view_text, readable_functions, unique_codes,
+    view_choices,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -895,15 +896,26 @@ impl ChatSession {
     fn title_numbers(&self, set: &ChangeSet) -> Vec<Unverified> {
         set.changes()
             .iter()
-            .filter_map(|change| match change {
-                ProposedChange::NewView(view) => Some(check_numbers(&view.title, &self.figures)),
-                // A new title of a saved chart is the model's text too (D-681).
-                ProposedChange::EditView(view) if view.title != view.before => {
-                    Some(check_numbers(&view.title, &self.figures))
-                }
-                _ => None,
+            .flat_map(|change| {
+                // The texts of a description the AI wrote are its text too
+                // (D-729): the titles of the chart, its axes and legends.
+                let (title, description) = match change {
+                    ProposedChange::NewView(view) => (Some(&view.title), view.description()),
+                    // A new title of a saved chart is the model's text too
+                    // (D-681).
+                    ProposedChange::EditView(view) => (
+                        (view.title != view.before).then_some(&view.title),
+                        view.description().filter(|_| view.writes_description()),
+                    ),
+                    _ => (None, None),
+                };
+                title
+                    .cloned()
+                    .into_iter()
+                    .chain(description.map(description_titles).unwrap_or_default())
+                    .flat_map(|text| check_numbers(&text, &self.figures))
+                    .collect::<Vec<_>>()
             })
-            .flatten()
             .collect()
     }
 

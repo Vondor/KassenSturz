@@ -63,6 +63,17 @@ impl<'a> Writer<'a> {
         self.figures.add_text(&shown);
         Value::String(shown)
     }
+
+    /// A longer text of the user's, cleaned as [`Self::text`] cleans one,
+    /// whole or not at all: `None` when it is over `max_bytes` (D-729).
+    pub(crate) fn whole_text(&mut self, text: &str, max_bytes: usize) -> Option<Value> {
+        let shown = crate::text::cleaned_for_model(text);
+        if shown.len() > max_bytes {
+            return None;
+        }
+        self.figures.add_text(&shown);
+        Some(Value::String(shown))
+    }
 }
 
 /// `units` minor units with `digits` decimal places as text, exactly:

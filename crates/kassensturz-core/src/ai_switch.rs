@@ -98,6 +98,11 @@ pub enum Permission {
     EditViews,
     /// Delete a saved chart (Charts, Delete; D-681).
     DeleteViews,
+    /// Write a custom chart's description (Chart descriptions; D-709,
+    /// D-729). It adds nothing alone: a new custom chart also needs
+    /// [`Self::NewViews`], a changed description of a saved one
+    /// [`Self::EditViews`].
+    CustomCharts,
     /// Join two sides of a move between the user's accounts as one
     /// Transfer (Moves between your accounts, Change; D-693). Its own cell,
     /// not part of Transactions › Change: a user who allowed sorting never
@@ -108,7 +113,7 @@ pub enum Permission {
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 24] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -128,6 +133,7 @@ impl Permission {
         Self::NewViews,
         Self::EditViews,
         Self::DeleteViews,
+        Self::CustomCharts,
         Self::BudgetsRead,
         Self::NewBudgets,
         Self::EditBudgets,
@@ -159,6 +165,7 @@ impl Permission {
             Self::ChartsRead => "AllowReadViews",
             Self::EditViews => "AllowEditViews",
             Self::DeleteViews => "AllowDeleteViews",
+            Self::CustomCharts => "AllowCustomCharts",
             Self::JoinTransfers => "AllowJoinTransfers",
         }
     }
@@ -177,7 +184,11 @@ impl Permission {
             | Self::DeleteTransactions
             | Self::TransactionsRead
             | Self::JoinTransfers => Row::Transactions,
-            Self::ChartsRead | Self::NewViews | Self::EditViews | Self::DeleteViews => Row::Charts,
+            Self::ChartsRead
+            | Self::NewViews
+            | Self::EditViews
+            | Self::DeleteViews
+            | Self::CustomCharts => Row::Charts,
             Self::BudgetsRead | Self::NewBudgets | Self::EditBudgets => Row::Budgets,
         }
     }
@@ -414,11 +425,22 @@ impl Permissions {
         self.cells == 0
     }
 
-    /// Whether any kind of change may be prepared.
+    /// Whether any kind of change may be prepared. Chart descriptions
+    /// alone prepare nothing: they only widen Charts › Add and Change
+    /// (D-729).
     pub fn can_change(self) -> bool {
-        Permission::ALL
-            .iter()
-            .any(|permission| !permission.is_read() && self.allows(*permission))
+        Permission::ALL.iter().any(|permission| {
+            !permission.is_read()
+                && *permission != Permission::CustomCharts
+                && self.allows(*permission)
+        })
+    }
+
+    /// Whether the AI may write a custom chart's description: the cell
+    /// Chart descriptions with Charts › Add or Charts › Change (D-729).
+    pub fn writes_chart_descriptions(self) -> bool {
+        self.allows(Permission::CustomCharts)
+            && (self.allows(Permission::NewViews) || self.allows(Permission::EditViews))
     }
 }
 
@@ -614,6 +636,26 @@ mod tests {
         assert!(!added.reads(Row::Charts));
         let read = permissions_in("[AI]\nEnabled=true\nAllowReadViews=true\n");
         assert!(read.reads(Row::Charts) && !read.can_change());
+    }
+
+    #[test]
+    fn chart_descriptions_widen_adding_and_changing_charts_and_prepare_nothing_alone() {
+        // D-729: the cell reads nothing and prepares nothing on its own.
+        let alone = permissions_in("[AI]\nEnabled=true\nAllowCustomCharts=true\n");
+        assert!(alone.allows(Permission::CustomCharts));
+        assert!(!alone.reads(Row::Charts) && !alone.can_change());
+        assert!(!alone.writes_chart_descriptions());
+        for key in ["AllowNewViews", "AllowEditViews"] {
+            let with = permissions_in(&format!(
+                "[AI]\nEnabled=true\nAllowCustomCharts=true\n{key}=true\n"
+            ));
+            assert!(with.writes_chart_descriptions(), "{key}");
+            let without = permissions_in(&format!("[AI]\nEnabled=true\n{key}=true\n"));
+            assert!(!without.writes_chart_descriptions(), "{key}");
+        }
+        assert!(!Permission::CustomCharts.on_by_default());
+        assert!(!Permission::CustomCharts.needs_read());
+        assert_eq!(Permission::CustomCharts.row(), Row::Charts);
     }
 
     #[test]

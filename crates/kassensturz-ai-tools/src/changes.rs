@@ -27,6 +27,7 @@ mod accounts;
 mod budgets;
 mod cash;
 mod check_only;
+mod custom_chart;
 mod edits;
 mod joins;
 mod names;
@@ -59,6 +60,9 @@ use crate::text::{for_model, hides_text};
 pub use accounts::{DeleteCategory, EditAccount, NewAccount};
 pub use budgets::{AmountBasis, EditBudget, NewBudget, NewCounts, every_word};
 pub use cash::{DeleteTransaction, NewTransaction};
+pub use custom_chart::{
+    DESCRIPTION_DATA, MAX_AI_DESCRIPTION_BYTES, SHOW_AS_CUSTOM, description_titles,
+};
 pub use edits::{EditError, Slot};
 pub use joins::JoinTransfer;
 pub use sort_rules::SortWithRules;
@@ -862,8 +866,15 @@ impl ChangeSet {
             ProposedChange::EditAccount(_) => allowed.allows(Permission::EditAccounts),
             ProposedChange::NewTransaction(_) => adds_allowed(allowed),
             ProposedChange::DeleteTransaction(_) => allowed.allows(Permission::DeleteTransactions),
-            ProposedChange::NewView(_) => allowed.allows(Permission::NewViews),
-            ProposedChange::EditView(_) => allowed.allows(Permission::EditViews),
+            // A description the AI wrote needs Chart descriptions too (D-729).
+            ProposedChange::NewView(view) => {
+                allowed.allows(Permission::NewViews)
+                    && (view.description().is_none() || allowed.allows(Permission::CustomCharts))
+            }
+            ProposedChange::EditView(view) => {
+                allowed.allows(Permission::EditViews)
+                    && (!view.writes_description() || allowed.allows(Permission::CustomCharts))
+            }
             ProposedChange::DeleteView(_) => allowed.allows(Permission::DeleteViews),
             ProposedChange::NewBudget(_) => allowed.allows(Permission::NewBudgets),
             ProposedChange::EditBudget(_) => allowed.allows(Permission::EditBudgets),
@@ -1648,17 +1659,27 @@ fn build(
         return Err(ToolError::TooManyChanges);
     }
     let mut view_names = HashSet::new();
+    // A description the AI wrote needs Chart descriptions (D-729).
+    let describes = allowed.allows(Permission::CustomCharts);
+    let not_described = ToolError::NotAllowed {
+        argument: "description",
+    };
     for (index, item) in new_views.iter().enumerate() {
-        changes.push(ProposedChange::NewView(
-            views::new_view(book, item, &mut view_names).map_err(|e| e.at("new_views", index))?,
-        ));
+        let view =
+            views::new_view(book, item, &mut view_names).map_err(|e| e.at("new_views", index))?;
+        if view.description().is_some() && !describes {
+            return Err(not_described);
+        }
+        changes.push(ProposedChange::NewView(view));
     }
     let mut touched_views = HashSet::new();
     for (index, item) in edited_views.iter().enumerate() {
-        changes.push(ProposedChange::EditView(
-            views::edit_view(book, item, &mut view_names, &mut touched_views)
-                .map_err(|e| e.at("edit_views", index))?,
-        ));
+        let view = views::edit_view(book, item, &mut view_names, &mut touched_views)
+            .map_err(|e| e.at("edit_views", index))?;
+        if view.writes_description() && !describes {
+            return Err(not_described);
+        }
+        changes.push(ProposedChange::EditView(view));
     }
     for (index, item) in deleted_views.iter().enumerate() {
         changes.push(ProposedChange::DeleteView(

@@ -11,6 +11,10 @@
 //! from `kassensturz-report`. The chart is saved only when the user confirms
 //! the set, and is marked as AI-made in the history like every other change
 //! of a set (D-198).
+//!
+//! With the cell Chart descriptions (D-729) the AI may instead write a
+//! custom chart's description (`chart.custom`, D-504), which
+//! [`super::custom_chart`] checks before the same schema does.
 
 use std::collections::HashSet;
 
@@ -62,6 +66,21 @@ impl NewView {
     pub(super) const fn component(&self) -> &Component {
         &self.component
     }
+
+    /// The description the AI wrote, for a custom chart (D-729).
+    pub fn description(&self) -> Option<&str> {
+        description_of(&self.component)
+    }
+}
+
+/// A custom chart's description, if `component` is one.
+fn description_of(component: &Component) -> Option<&str> {
+    match component.get("spec") {
+        Some(Setting::Text(text)) if component.kind() == ComponentType::CustomChart => {
+            Some(text.as_str())
+        }
+        _ => None,
+    }
 }
 
 /// A saved chart the AI changes (D-681): only what its call named, the
@@ -82,6 +101,8 @@ pub struct EditView {
     reviewed: String,
     /// The document that is saved when the user confirms.
     document: String,
+    /// Whether the AI wrote the chart's description anew (D-729).
+    describes: bool,
 }
 
 impl EditView {
@@ -103,6 +124,17 @@ impl EditView {
     /// (D-685).
     pub(super) const fn component(&self) -> &Component {
         &self.component
+    }
+
+    /// Whether the change gives the custom chart a description the AI
+    /// wrote (D-729).
+    pub const fn writes_description(&self) -> bool {
+        self.describes
+    }
+
+    /// The description after the change, for a custom chart.
+    pub fn description(&self) -> Option<&str> {
+        description_of(&self.component)
     }
 }
 
@@ -306,6 +338,7 @@ pub(super) fn new_view(
             "formula",
             "target",
             "columns",
+            "spec",
         ],
         "new_views",
     )?;
@@ -329,9 +362,29 @@ pub(super) fn new_view(
         id => ComponentType::from_id(id),
     }
     .ok_or(ToolError::BadArgument { argument: "chart" })?;
+    // A description only with a custom chart, and a custom chart only with
+    // one that passes the AI's checks and names this dataset (D-729).
+    let spec = item.string("spec")?;
+    if (kind == ComponentType::CustomChart) != spec.is_some() {
+        return Err(ToolError::BadArgument {
+            argument: "description",
+        });
+    }
+    if let Some(spec) = spec
+        && super::custom_chart::check(spec)?.dataset != dataset
+    {
+        return Err(ToolError::BadArgument { argument: "data" });
+    }
     // The dataset exists, so a refusal means the chart doesn't suit it.
     let mut component = Component::new(kind, dataset)
         .map_err(|_: ReportError| ToolError::BadArgument { argument: "chart" })?;
+    if let Some(spec) = spec {
+        component
+            .set("spec", Setting::Text(spec.to_owned()))
+            .map_err(|_| ToolError::BadArgument {
+                argument: "description",
+            })?;
+    }
     let formula = item.string("formula")?;
     let target = item.string("target")?;
     if target.is_some() && formula.is_none() {
@@ -369,9 +422,13 @@ pub(super) fn new_view(
                 .map_err(|_| ToolError::BadArgument { argument: key })?;
         }
     }
-    component
-        .set("title", Setting::Text(title.clone()))
-        .map_err(|_| ToolError::BadArgument { argument: "title" })?;
+    // A custom chart has no title of its own: it is the name it is saved
+    // under, and its description may carry one (D-504).
+    if kind != ComponentType::CustomChart {
+        component
+            .set("title", Setting::Text(title.clone()))
+            .map_err(|_| ToolError::BadArgument { argument: "title" })?;
+    }
     let period = item.string("period")?.unwrap_or(DEFAULT_PERIOD);
     if !is_view_period(period) {
         return Err(ToolError::BadArgument { argument: "period" });
@@ -471,7 +528,7 @@ fn chart_of(view: &StoredView) -> Result<(Document, Component), ToolError> {
 
 /// The keys of an item of `edit_views`: those of `new_views` and the
 /// chart's ID.
-const EDIT_KEYS: [&str; 19] = [
+const EDIT_KEYS: [&str; 20] = [
     "view_id",
     "title",
     "dataset",
@@ -491,6 +548,7 @@ const EDIT_KEYS: [&str; 19] = [
     "formula",
     "target",
     "columns",
+    "spec",
 ];
 
 /// The `compare` word for no comparison, which puts the chart's
@@ -517,6 +575,31 @@ pub(super) fn edit_view(
         });
     }
     let (mut document, mut component) = chart_of(&view)?;
+    // A custom chart stays one and a built-in chart stays built in; only a
+    // custom chart takes a description, which the AI's checks pass first
+    // (D-729). Its dataset follows the description (D-504).
+    let custom = component.kind() == ComponentType::CustomChart;
+    let custom_kind = |argument| ToolError::NotChangeable {
+        argument,
+        reason: "custom-kind",
+    };
+    if let Some(chart) = item.string("chart")?
+        && (chart == ComponentType::CustomChart.id()) != custom
+    {
+        return Err(custom_kind("show_as"));
+    }
+    let spec = item.string("spec")?;
+    if let Some(spec) = spec {
+        if !custom {
+            return Err(custom_kind("description"));
+        }
+        super::custom_chart::check(spec)?;
+        component
+            .set("spec", Setting::Text(spec.to_owned()))
+            .map_err(|_| ToolError::BadArgument {
+                argument: "description",
+            })?;
+    }
     let dataset = item.string("dataset")?;
     if let Some(dataset) = dataset
         && !kassensturz_report::dataset(dataset).is_some_and(|info| info.for_ai)
@@ -531,7 +614,7 @@ pub(super) fn edit_view(
             argument: "grouping",
         });
     }
-    if let Some(chart) = item.string("chart")? {
+    if let Some(chart) = item.string("chart")?.filter(|_| !custom) {
         let shown = dataset.unwrap_or(component.dataset().id);
         let kind = match chart {
             "auto" => automatic(shown, grouping),
@@ -615,9 +698,11 @@ pub(super) fn edit_view(
     let title = match item.string("title")? {
         Some(text) => {
             let text = title(text)?;
-            component
-                .set("title", Setting::Text(text.clone()))
-                .map_err(|_| ToolError::BadArgument { argument: "title" })?;
+            if !custom {
+                component
+                    .set("title", Setting::Text(text.clone()))
+                    .map_err(|_| ToolError::BadArgument { argument: "title" })?;
+            }
             text
         }
         None => document.name.clone(),
@@ -663,6 +748,7 @@ pub(super) fn edit_view(
         component,
         reviewed: view.document,
         document: text,
+        describes: spec.is_some(),
     })
 }
 

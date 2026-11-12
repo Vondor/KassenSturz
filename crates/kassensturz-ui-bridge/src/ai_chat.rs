@@ -984,11 +984,18 @@ fn view_of(
             title: new.title.clone(),
             period: new.period.clone(),
             component: new.component_json(),
-            charts: ComponentType::ALL
-                .into_iter()
-                .filter(|kind| kind.datasets().any(|info| info.id == new.dataset_id()))
-                .map(ComponentType::id)
-                .collect(),
+            // A chart the AI described stays one; another kind would lose its
+            // description, and a custom chart needs one (D-729).
+            charts: if new.description().is_some() {
+                vec![ComponentType::CustomChart.id()]
+            } else {
+                ComponentType::ALL
+                    .into_iter()
+                    .filter(|kind| *kind != ComponentType::CustomChart)
+                    .filter(|kind| kind.datasets().any(|info| info.id == new.dataset_id()))
+                    .map(ComponentType::id)
+                    .collect()
+            },
         },
         ProposedChange::EditView(edit) => ChangeView::EditView {
             before: edit.before.clone(),
@@ -1730,6 +1737,53 @@ mod tests {
         assert!(crate::saved_views::list(&book).unwrap().is_empty());
         assert!(book.undo().unwrap().is_some());
         assert_eq!(crate::saved_views::list(&book).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_chart_the_ai_described_is_previewed_and_saved_as_a_custom_chart() {
+        // #700 part B (D-729): part A's example, through the real preview
+        // and saved-view readers; the review page offers no other kind.
+        let mut book = space_colony();
+        let allowed = Permissions::all();
+        assert!(allowed.allows(kassensturz_core::ai_switch::Permission::CustomCharts));
+        let example = kassensturz_report::spec::SPEC_EXAMPLES
+            .iter()
+            .find(|example| example.key == "balance-and-flows")
+            .unwrap();
+        let call = serde_json::json!({
+            "title": "Balance and flows", "show_as": "custom", "description": example.text,
+        });
+        let proposal = kassensturz_ai_tools::propose_view(
+            &book,
+            &call,
+            allowed,
+            kassensturz_core::Date::new(2026, 11, 9).unwrap(),
+        )
+        .unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
+        let [
+            ChangeView::NewView {
+                component, charts, ..
+            },
+        ] = views.as_slice()
+        else {
+            panic!("one chart: {views:?}");
+        };
+        assert_eq!(charts, &["chart.custom"]);
+        let read = kassensturz_report::Component::from_json(component).unwrap();
+        assert_eq!(
+            (read.kind().id(), read.dataset().id),
+            ("chart.custom", "cash_flow_by_month")
+        );
+        confirm_in(
+            &mut book,
+            proposal.changes,
+            allowed,
+            Date::constant(2026, 11, 9),
+        )
+        .unwrap();
+        let rows = crate::saved_views::list(&book).unwrap();
+        assert_eq!(rows.len(), 1);
     }
 
     #[test]

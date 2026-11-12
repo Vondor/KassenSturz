@@ -5,7 +5,8 @@
 // Opens StatusIcon.qml with TileStatusWords.qml (US5.4, D-734, D-736) and
 // checks that each state has words for the screen reader and a hover
 // sentence, that an unknown word shows as "unknown", that a click asks for
-// the whole tile and that while arranging it takes no click.
+// the whole tile and that while arranging it takes no click; and that a
+// tile's emblem (D-750) is drawn with the state as a corner badge.
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -46,6 +47,37 @@ Kirigami.ApplicationWindow {
         onOpened: window.opened += 1
     }
 
+    StatusIcon {
+        id: bell
+
+        x: 60
+        width: 48
+        height: 48
+        name: "Warnings"
+        status: "to-do"
+        emblem: "notice.alarms"
+    }
+
+    StatusIcon {
+        id: plain
+
+        x: 120
+        width: 48
+        height: 48
+        status: "fine"
+        emblem: "something.else"
+    }
+
+    function child(item, name) {
+        for (let i = 0; i < item.children.length; ++i) {
+            const found = item.children[i].objectName === name ? item.children[i] : child(item.children[i], name);
+            if (found) {
+                return found;
+            }
+        }
+        return null;
+    }
+
     Timer {
         interval: 400
         running: true
@@ -69,6 +101,14 @@ Kirigami.ApplicationWindow {
             window.check(window.opened === 1, "a click asks for the whole tile");
             icon.arranging = true;
             window.check(!icon.enabled, "while arranging the icon takes no click");
+
+            const emblem = window.child(bell, "emblem");
+            const badge = window.child(bell, "state");
+            window.check(emblem !== null && emblem.visible && emblem.width > 0, "a known tile draws its emblem");
+            window.check(badge !== null && Math.abs(badge.width - emblem.width / 2) <= 1, "beside an emblem the state is a badge half its size, got " + (badge ? badge.width : "none"));
+            window.check(bell.flagged && bell.background.border.width === 1, "something to do frames the icon");
+            window.check(!window.child(plain, "emblem").visible && window.child(plain, "state").width === window.child(plain, "emblem").width, "an unknown tile draws no emblem and the state fills the icon");
+            window.check(!plain.flagged && !icon.flagged, "fine, or no emblem, draws no frame");
 
             console.log(window.failed ? "status: FAILED" : "status: ok");
             Qt.exit(window.failed ? 1 : 0);

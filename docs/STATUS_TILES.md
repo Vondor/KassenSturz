@@ -28,6 +28,21 @@ Every status tile is in exactly one of five states. The state is never shown by 
 
 **Where it lives.** A small Rust module `kassensturz-report/src/status.rs` holds the `TileStatus` enum, its `id()` word and the order above, plus one pure function per tile (§5) that takes the figures the tile already uses and returns its status and a count. The bridge puts the word and the count into the objects the tiles already read (§5). One QML component, `StatusIcon.qml`, draws any status: shape, mark, colour, short words, hover text and the screen-reader label. A tile adopts the icon by handing it a status word, a count and its own words; nothing else is shared.
 
+### Each tile's own emblem (D-750)
+
+At 1 × 1 the state alone doesn't say which tile it is, so a tile that has an emblem draws it as the icon and shows its state as a **badge** in the lower right corner, half the icon's size, with the same shape, mark and colour as above (#787, mock-up approved by the maintainer in US5 Phase 3).
+
+| Tile | Emblem |
+|---|---|
+| Warnings (`notice.alarms`) | a bell |
+| Transactions without a category (`notice.unsorted`) | a tag |
+| Warnings about old bank data (`notice.fetch_gap`) | a bank with a clock |
+| Update all accounts (`bank.update_all`) | two arrows turning in a circle |
+
+- The emblem is drawn by the app from 24 × 24 outlines (like the state shapes), in the theme's **text colour**, so it is dark in a light theme and light in a dark one. The badge's mark uses the theme's background colour, as before.
+- When the state is `to-do` or `failed`, the icon also gets a **frame** tinted in the state's colour, so it stands out from the side of the eye. `fine`, `running` and `unknown` have no frame.
+- A tile type with no emblem (none yet) shows the state shape filling the icon, as in the first build. `StatusIcon` takes the tile type as `emblem`.
+
 ## 2. Words: screen reader and hover text
 
 - **Screen-reader name** (`Accessible.name`): the tile's name, a colon and the short words, e.g. *Warnings: 2 warnings apply*, *Update all accounts: last update failed*. The role is a button (§4).
@@ -73,7 +88,7 @@ The switch is decided **by cell count**, never by pixels, so it doesn't change w
 - `grid.rs`: each of the four types accepts 1 × 1 and still refuses 0 × 0; `shows_as_icon` is true just below the full size in either direction and false at it; other types keep their smallest sizes (`frame-too-small` unchanged for them).
 - **Read back the way QML does** (AGENTS.md §9.4): the layout object carries `compact`; the alarm view, the page view and both bank objects carry the new `status` (and `count`) fields, each read from the `QVariant` map in a bridge test.
 - A dashboard with a 1 × 1 tile of each kind round-trips through *Save to a file…* and *Add from a file…* unchanged (`docs/DASHBOARD_FILE.md`).
-- The panel smoke test (`tools/check-panel.sh`) loads `StatusIcon.qml`.
+- The panel smoke test (`tools/check-panel.sh`) loads `StatusIcon.qml`, and checks that a tile with an emblem draws it with the state as a half-size badge and a frame for `to-do`, and that a type without one draws the state alone (D-750).
 
 ## 7. Decisions
 
@@ -81,4 +96,5 @@ The switch is decided **by cell count**, never by pixels, so it doesn't change w
 |---|---|
 | D-734 | One shared status set for tiles: `fine`, `to-do`, `running`, `failed`, `unknown`, each with its own drawn shape and mark as well as a colour (never colour alone), short words for the screen reader and a hover sentence. Decided in Rust (`status.rs`), drawn by one QML component (`StatusIcon.qml`). `running` > `failed` > `to-do` > `unknown` > `fine`. Orange for "something to do", red only for "failed" (safe default). |
 | D-735 | A status tile type has a full size (its old smallest size) and a smallest size of 1 × 1; below its full size in columns or rows it shows the icon form. Decided by cell count in Rust (`shows_as_icon`, `compact` on the layout object), never by pixels. Short words beside the icon from 3 columns and in the one-column view. |
+| D-750 | Each status tile shows its own drawn emblem in the theme's text colour (bell, tag, bank with clock, turning arrows), with its state as a corner badge half its size, and a frame in the state's colour for `to-do` and `failed` (#787). |
 | D-736 | On the page, a click, tap, Enter or Space on a status icon opens the full tile in a window over the page; Esc, Close or a click outside closes it and focus returns to the icon. In edit mode a click selects as for every tile. First build: Warnings, Transactions without a category, Warnings about old bank data, Update all accounts. |

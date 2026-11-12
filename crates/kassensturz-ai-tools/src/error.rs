@@ -1055,6 +1055,7 @@ mod tests {
         let mut seen = HashSet::new();
         for error in [
             ChangeError::OutOfDate,
+            ChangeError::BudgetOutOfDate,
             ChangeError::NotApplied(StoreError::AmountOverflow),
             ChangeError::NotAllowed,
         ] {

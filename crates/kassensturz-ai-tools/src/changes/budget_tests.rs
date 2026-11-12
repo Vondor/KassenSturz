@@ -292,7 +292,7 @@ fn an_edit_changes_a_budget_from_the_current_period_on_and_keeps_the_past() {
         .changes
         .apply(&mut small.book, Confirmed::by_the_user())
         .expect_err("out of date");
-    assert_eq!(error.report().code, "ai-changes.out-of-date");
+    assert_eq!(error.report().code, "ai-changes.budget-out-of-date");
 }
 
 #[test]
@@ -1700,7 +1700,7 @@ fn a_budget_change_confirmed_in_a_later_period_is_out_of_date() {
                     Confirmed::by_the_user(),
                     next_day
                 ),
-                Err(ChangeError::OutOfDate)
+                Err(ChangeError::BudgetOutOfDate)
             ),
             "{call}"
         );

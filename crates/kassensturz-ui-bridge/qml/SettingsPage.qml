@@ -939,8 +939,8 @@ FormCard.FormCardPage {
 
     FormCard.FormCard {
         FormCard.FormButtonDelegate {
-            text: page.i18nContext.i18nc("@action:button opens a help page", "Help: patterns and formulas")
-            description: page.i18nContext.i18nc("@info", "How to write a pattern in a Rule and a formula for a chart")
+            text: page.i18nContext.i18nc("@action:button opens a help page", "Help: patterns, formulas and charts")
+            description: page.i18nContext.i18nc("@info", "How to write a pattern in a Rule, a formula for a chart and the description of a custom chart")
             onClicked: {
                 ActionLog.taken("SettingsPage_helpPatternsFormulas")
                 page.helpClicked()

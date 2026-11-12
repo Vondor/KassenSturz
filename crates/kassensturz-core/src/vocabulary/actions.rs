@@ -426,6 +426,8 @@ pub const ACTIONS: &[&str] = &[
     "SettingsPage_tryExampleBook",
     "SpecPage_chose",
     "SpecPage_editPalette",
+    "SpecPage_exampleInserted",
+    "SpecPage_exampleMenu",
     "SpecPage_kept",
     "SpecPage_leftOut",
     "SpecPage_openClicked",

@@ -162,6 +162,53 @@ ColumnLayout {
                 openDialog.open()
             }
         }
+
+        // Ready examples (US4.11, D-720): one goes into the field, where it
+        // can be changed; nothing is kept until "Use this description".
+        Controls.Button {
+            id: exampleButton
+
+            text: page.i18nContext.i18nc("@action:button opens a list of ready chart descriptions", "Insert an example")
+            icon.name: "insert-text"
+            onClicked: {
+                ActionLog.taken("SpecPage_exampleMenu")
+                exampleMenu.popup(exampleButton, 0, exampleButton.height)
+            }
+
+            Controls.Menu {
+                id: exampleMenu
+
+                Instantiator {
+                    model: description.examples()
+
+                    delegate: Controls.MenuItem {
+                        required property var modelData
+
+                        text: Plain.plain(exampleNames.name(modelData.key))
+                        onTriggered: {
+                            ActionLog.taken("SpecPage_exampleInserted")
+                            area.text = modelData.text
+                            description.check(area.text)
+                        }
+                    }
+                    onObjectAdded: (index, object) => exampleMenu.insertItem(index, object)
+                    onObjectRemoved: (index, object) => exampleMenu.removeItem(object)
+                }
+            }
+        }
+    }
+
+    ChartExamples {
+        id: exampleNames
+    }
+
+    Controls.Label {
+        Layout.fillWidth: true
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+        font: Kirigami.Theme.smallFont
+        opacity: 0.75
+        text: page.i18nContext.i18nc("@info", "Settings › Help lists the data names a description can use, with their fields, and the examples.")
     }
 
     // The colors a description can use by name: the palette's places as they

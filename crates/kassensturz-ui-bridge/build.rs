@@ -100,6 +100,7 @@ fn main() {
                 "qml/FilterPicker.qml",
                 "qml/AddMenu.qml",
                 "qml/GridNames.qml",
+                "qml/ChartExamples.qml",
                 "qml/TitleWords.qml",
                 "qml/GridItem.qml",
                 "qml/DashboardGrid.qml",

@@ -141,6 +141,22 @@ Window {
             case 5: {
                 window.check(window.area().text === "from the file", "a file fills the field: " + window.area().text);
                 window.check(window.calls.length === 1, "reading a file stores nothing: " + window.calls);
+                // A ready example goes into the field by its name, and is
+                // checked, but nothing is stored (US4.11).
+                const insert = window.button("Insert an example");
+                window.check(insert !== undefined, "there is an Insert an example button");
+                insert.clicked();
+                // The button holds its menu.
+                const menu = insert.data.filter(o => o && o.insertItem !== undefined && o.count !== undefined)[0];
+                window.check(menu !== undefined && menu.count === 2, "the menu lists both examples: " + (menu ? menu.count : "no menu"));
+                const first = menu.itemAt(0);
+                window.check(first.text === "Balance as bars, money in and out as lines", "the example has its name: " + first.text);
+                first.triggered();
+                window.check(window.area().text === "{\"data\": {\"name\": \"cash_flow_by_month\"}}", "the example fills the field: " + window.area().text);
+                const asked = window.description().checked;
+                window.check(asked[asked.length - 1] === window.area().text, "the example was checked");
+                window.check(window.calls.length === 1, "an example stores nothing: " + window.calls);
+                window.check(window.button(use).enabled === true, "the example can be used");
                 Qt.exit(window.failed ? 1 : 0);
                 break;
             }

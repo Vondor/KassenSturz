@@ -529,12 +529,20 @@ mod engine {
             typed.allow_unencrypted,
             key,
         ) {
-            Saved::Refused(error) => {
+            Saved::Refused {
+                error,
+                unencrypted_off,
+            } => {
                 let error = ai_error(&error);
                 crate::note!(ProviderRefused, None, Some(error.code));
-                map([("saved", QVariant::from(&false))]
-                    .into_iter()
-                    .chain(error_fields(&error)))
+                map([
+                    ("saved", QVariant::from(&false)),
+                    // The saved opt-in to plain http:// was turned off, so
+                    // the page reads the form again (R2-4).
+                    ("unencryptedOff", QVariant::from(&unencrypted_off)),
+                ]
+                .into_iter()
+                .chain(error_fields(&error)))
             }
             Saved::NotWritten => map([("saved", QVariant::from(&false))]),
             Saved::Written {
@@ -1319,7 +1327,8 @@ mod tests {
             typed("http://192.168.1.2:1/v1", "big", "none"),
             "",
         );
-        assert_eq!(keys(&refused), ["code", "saved"]);
+        assert_eq!(keys(&refused), ["code", "saved", "unencryptedOff"]);
+        assert!(!flag_of(&refused, "unencryptedOff"));
         assert!(!flag_of(&refused, "saved"));
         assert_eq!(text_of(&refused, "code"), "ai.plain-http");
 
@@ -1375,10 +1384,16 @@ mod tests {
         assert!(store.give_consent(TODAY));
         assert_eq!(text_of(&load_in(&store, false), "consent"), "given");
 
-        // Unticking it refuses the same address and keeps what was saved.
+        // Unticking it refuses the address but turns plain http:// off, so
+        // the box the page reads back is what is in force (R2-4).
         let refused = save_in(&store, &mut kept, typed(home, "m", "none"), "");
         assert_eq!(text_of(&refused, "code"), "ai.plain-http");
-        assert!(flag_of(&load_in(&store, false), "allowUnencrypted"));
+        assert!(flag_of(&refused, "unencryptedOff"));
+        let off = load_in(&store, false);
+        assert!(!flag_of(&off, "allowUnencrypted"));
+        assert!(!flag_of(&off, "unencrypted"));
+        assert_eq!(text_of(&off, "address"), home);
+        assert_eq!(text_of(&off, "addressError"), "ai.plain-http");
 
         // An https:// address saves the box as unticked.
         save_in(

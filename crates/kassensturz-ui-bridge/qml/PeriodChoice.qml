@@ -29,8 +29,8 @@ ColumnLayout {
     // The word is one of the quick choices (`last-12-months` is one, and a
     // rolling word too).
     readonly property bool quick: options.some(option => option.word === word)
-    // A rolling period that isn't a quick choice: `months` or `salary`, else
-    // empty.
+    // A rolling period that isn't a quick choice: `months`, `days` or
+    // `salary`, else empty.
     readonly property string rolling: typing || quick ? "" : (described.rolling ?? "")
 
     // The period was chosen: a word from the quick choices, or a range.
@@ -42,7 +42,7 @@ ColumnLayout {
 
     function indexOfWord(): int {
         if (isRange) {
-            return options.length + 2;
+            return options.length + 3;
         }
         if (quick) {
             return options.findIndex(option => option.word === word);
@@ -50,8 +50,11 @@ ColumnLayout {
         if (rolling === "months") {
             return options.length;
         }
-        if (rolling === "salary") {
+        if (rolling === "days") {
             return options.length + 1;
+        }
+        if (rolling === "salary") {
+            return options.length + 2;
         }
         return -1;
     }
@@ -62,6 +65,8 @@ ColumnLayout {
         if (described.rolling === "months") {
             monthCount.value = described.count;
             completeMonths.checked = described.complete === true;
+        } else if (described.rolling === "days") {
+            dayCount.value = described.count;
         } else if (described.rolling === "salary") {
             salaryDay.value = described.day;
             whichSalaryMonth.currentIndex = described.before === true ? 1 : 0;
@@ -94,6 +99,7 @@ ColumnLayout {
         Accessible.name: Kirigami.FormData.label
         model: choice.options.concat([
             {word: "", name: choice.i18nContext.i18nc("@item:inlistbox a period of a number of months the user chooses", "The last months…")},
+            {word: "", name: choice.i18nContext.i18nc("@item:inlistbox a period of a number of days up to today that the user chooses", "The last days…")},
             {word: "", name: choice.i18nContext.i18nc("@item:inlistbox a period from a day of the month the user chooses, such as payday, to the day before it in the next month", "A salary month…")},
             {word: "", name: choice.i18nContext.i18nc("@item:inlistbox a period the user types as two dates", "A range of dates…")}
         ])
@@ -110,6 +116,9 @@ ColumnLayout {
                 // makes its figures look small (D-644).
                 choice.chosen(range.months(3, true));
             } else if (index === choice.options.length + 1) {
+                // A week, today included (D-717).
+                choice.chosen(range.days(7));
+            } else if (index === choice.options.length + 2) {
                 choice.chosen(range.salaryMonth(1, false));
             } else {
                 choice.typing = true;
@@ -152,6 +161,29 @@ ColumnLayout {
         onToggled: {
             ActionLog.taken("PeriodChoice_complete")
             choice.chosen(range.months(monthCount.value, checked));
+        }
+    }
+
+    // The last days: how many, today included (US4.7, D-717).
+    RowLayout {
+        Layout.fillWidth: true
+        visible: choice.rolling === "days"
+        spacing: Kirigami.Units.smallSpacing
+
+        Controls.Label {
+            text: choice.i18nContext.i18nc("@label:spinbox how many days a period counts back, today included", "Days:")
+            textFormat: Text.PlainText
+        }
+
+        Controls.SpinBox {
+            id: dayCount
+
+            from: 1
+            to: 366
+            editable: true
+            value: choice.described.count ?? 7
+            Accessible.name: choice.i18nContext.i18nc("@label:spinbox", "How many days")
+            onValueModified: choice.chosen(range.days(value))
         }
     }
 

@@ -158,6 +158,7 @@ fn main() {
         "src/bank_connection_model.rs",
         "src/budget_bars_model.rs",
         "src/budgets_model.rs",
+        "src/transactions_tile_model.rs",
         "src/book_from_file_model.rs",
         "src/book_session.rs",
         "src/categories_model.rs",

@@ -242,6 +242,7 @@ Item {
                 : cell.info?.type === "card.net_worth" ? netWorthBox
                 : cell.info?.type === "table.income_sources" ? incomeBox
                 : cell.info?.type === "budget.progress" ? budgetBox
+                : cell.info?.type === "table.transactions" ? transactionsBox
                 : cell.info?.type === "text.separator" ? separatorBox
                 : cell.info?.type === "notice.fetch_gap" ? fetchGapBox
                 : cell.info?.type === "bank.update_all" ? updateAllBox
@@ -526,6 +527,146 @@ Item {
                 budgetCount: feed.view?.count ?? 0
                 arranging: cell.board.editing
                 onSetBudgetClicked: cell.board.setBudgetClicked()
+            }
+        }
+    }
+
+    // Single transactions of the chosen accounts, categories and days,
+    // newest first (US4.7, D-716). The list, its order and every amount come
+    // from `BookTransactions`; it only shows them, and a click opens the
+    // transaction as from its account's list.
+    Component {
+        id: transactionsBox
+
+        Flickable {
+            id: listed
+
+            readonly property bool failed: listedFeed.view?.error !== undefined
+            readonly property string period: cell.board.periodFor(cell.info)
+            readonly property string rows: (cell.subject?.fields ?? []).find(field => field.key === "rows")?.word ?? ""
+            readonly property string scope: cell.info?.asked?.scope ?? ""
+            readonly property var shown: listedFeed.view?.rows ?? []
+            readonly property int total: listedFeed.view?.total ?? 0
+            readonly property bool several: listedFeed.view?.severalAccounts ?? false
+            readonly property bool narrowed: (listedFeed.view?.filter?.filtered ?? []).indexOf("categories") >= 0
+
+            function ask() {
+                listedFeed.setScope(scope);
+                listedFeed.show(period, rows);
+            }
+
+            onPeriodChanged: ask()
+            onRowsChanged: ask()
+            onScopeChanged: ask()
+            Component.onCompleted: ask()
+
+            Connections {
+                target: cell.board
+
+                function onBookChangesChanged() {
+                    listed.ask();
+                }
+            }
+
+            contentHeight: listedColumn.implicitHeight
+            clip: true
+
+            Controls.ScrollBar.vertical: Controls.ScrollBar {
+                policy: Controls.ScrollBar.AsNeeded
+            }
+
+            BookTransactions {
+                id: listedFeed
+            }
+
+            ColumnLayout {
+                id: listedColumn
+
+                // Leaves room for the scroll bar, which would cover the amounts.
+                width: parent.width - Kirigami.Units.gridUnit
+                spacing: 0
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: !listed.failed && listed.total === 0 && listedFeed.view !== undefined
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    color: Kirigami.Theme.disabledTextColor
+                    text: listed.narrowed
+                        ? names.i18nContext.i18nc("@info", "No transactions in these categories in this period.")
+                        : names.i18nContext.i18nc("@info", "No transactions in this period.")
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    visible: listed.failed
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    color: Kirigami.Theme.neutralTextColor
+                    text: names.i18nContext.i18nc("@info", "The transactions can't be listed for this period. Choose another period in Properties.")
+                }
+
+                Repeater {
+                    model: listed.shown
+
+                    delegate: Controls.ItemDelegate {
+                        id: listedRow
+
+                        required property var modelData
+                        required property int index
+
+                        Layout.fillWidth: true
+                        // In edit mode the overlay takes the pointer; the rows
+                        // open nothing then.
+                        enabled: !cell.board.editing
+                        Accessible.name: listedLine.Accessible.name
+                        onClicked: {
+                            ActionLog.taken("GridItem_openListed")
+                            cell.board.transactionClicked(listedRow.modelData.accountId, listedRow.modelData.id)
+                        }
+                        Keys.onReturnPressed: clicked()
+                        Keys.onEnterPressed: clicked()
+
+                        background: Rectangle {
+                            readonly property bool lit: listedRow.down || listedRow.hovered || listedRow.visualFocus
+
+                            color: lit
+                                ? Kirigami.Theme.highlightColor
+                                : listedRow.index % 2 === 1 ? Kirigami.Theme.alternateBackgroundColor : "transparent"
+                            opacity: lit ? 0.3 : 1
+                        }
+
+                        contentItem: TransactionRow {
+                            id: listedLine
+
+                            date: listedRow.modelData.date
+                            otherParty: listedRow.modelData.otherParty
+                            category: listedRow.modelData.other
+                            amount: listedRow.modelData.amount
+                            exactAmount: listedRow.modelData.exact
+                            incoming: listedRow.modelData.incoming
+                            kind: listedRow.modelData.kind
+                            account: listed.several ? listedRow.modelData.account : ""
+                        }
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    Layout.topMargin: Kirigami.Units.smallSpacing
+                    visible: listed.total > listed.shown.length
+                    textFormat: Text.PlainText
+                    wrapMode: Text.Wrap
+                    font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.disabledTextColor
+                    text: names.i18nContext.i18nc("@info %1 is how many are listed, %2 how many there are", "Showing the newest %1 of %2.", listed.shown.length, listed.total)
+                }
+
+                FilterNotes {
+                    Layout.fillWidth: true
+                    filter: listedFeed.view?.filter
+                    hideMarks: cell.hideNote
+                }
             }
         }
     }

@@ -117,6 +117,14 @@ pub enum ComponentType {
     /// [`ComponentType::ALL`]: the AI does not write or see descriptions
     /// (Q-352).
     CustomChart,
+    /// `table.transactions`: single transactions of the chosen accounts,
+    /// categories and period, newest first, like an account's list (US4.7,
+    /// D-716). It only shows them; a click opens the transaction. Its own
+    /// bridge object fills it, so its document names no dataset, and like
+    /// the income sources it takes every shared filter. It is in
+    /// [`ComponentType::LIBRARY`], never in [`ComponentType::ALL`]: the AI
+    /// neither proposes nor reads it.
+    Transactions,
 }
 
 impl ComponentType {
@@ -136,7 +144,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 23] = [
+    pub const LIBRARY: [Self; 24] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -160,6 +168,7 @@ impl ComponentType {
         Self::FilterBar,
         Self::DashboardTabs,
         Self::CustomChart,
+        Self::Transactions,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -179,6 +188,7 @@ impl ComponentType {
                 | Self::PeriodHeader
                 | Self::FilterBar
                 | Self::DashboardTabs
+                | Self::Transactions
         )
     }
 
@@ -208,6 +218,7 @@ impl ComponentType {
             Self::FilterBar => "page.filters",
             Self::DashboardTabs => "page.tabs",
             Self::CustomChart => "chart.custom",
+            Self::Transactions => "table.transactions",
         }
     }
 
@@ -245,7 +256,8 @@ impl ComponentType {
             | Self::BankUpdateAll
             | Self::PeriodHeader
             | Self::FilterBar
-            | Self::DashboardTabs => "text",
+            | Self::DashboardTabs
+            | Self::Transactions => "text",
         }
     }
 
@@ -301,6 +313,7 @@ impl ComponentType {
             Self::BudgetProgress => &BUDGET_PROGRESS,
             Self::BankUpdateAll => &UPDATE_ALL,
             Self::CustomChart => &CUSTOM_CHART,
+            Self::Transactions => &TRANSACTIONS,
         }
     }
 }
@@ -713,6 +726,18 @@ const NOTES_ONLY: [Property; 1] = [HIDE_NOTE];
 /// categories of the budgets (Q-353), which count only while the description
 /// names that dataset, and the period.
 const CUSTOM_CHART: [Property; 6] = [SPEC, PARTIAL, SERIES, CATEGORIES, HIDE_NOTE, PERIOD];
+
+/// `params.rows` of the transactions tile (D-716): how many of the newest
+/// transactions it lists.
+const ROWS: Property = Property {
+    key: "rows",
+    place: Place::Params,
+    kind: Kind::Choice(&crate::LISTED_ROWS),
+};
+
+/// The transactions tile (US4.7, D-716): its own accounts and categories,
+/// how many rows, a title, the grey notes switch and the period.
+const TRANSACTIONS: [Property; 6] = [ACCOUNTS, CATEGORIES, ROWS, TITLE, HIDE_NOTE, PERIOD];
 
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }

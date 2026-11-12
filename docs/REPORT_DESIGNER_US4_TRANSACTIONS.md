@@ -12,14 +12,14 @@ The steps follow `docs/ADDING_A_WIDGET.md` (D-534).
 
 ### 1.1 The rows
 
-One row per transaction, **newest first**; on the same day the one added last comes first, as in an account's list (D-067). Each row has:
+One row per transaction, **newest first**; on the same day the one added last comes first, as in an account's list (D-067). A row looks like a line of an account's list on a narrow window (`TransactionRow.qml`): *To: Corner shop* or *From: …* on top, then the date, the category and, when the tile can list more than one account, the account, with the amount on the right. It holds:
 
 | Column | What it holds |
 |---|---|
 | Date | the booking date, in the user's date format |
 | Account | the user's account it is listed from; **only shown when the tile can list more than one account** |
 | From / To | the name shown (D-034); empty if there is none |
-| Category | the category; for a Transfer *Transfer: <other account>*; for a transaction with several Parts *Several Parts*; *Not sorted yet* when it has none |
+| Category | the category; for a Transfer *Moved to …* or *Moved from …* with the other account; for a transaction with several Parts *Several parts*; *Not sorted yet* when it has none (the words of the account's list) |
 | Amount | the amount as seen from that account, with the user's number format, the exact amount on hover (D-002), red for money out as in the register |
 
 - **No balance column.** An account's list shows what was left after each entry only in date order and for one account (D-656). A tile mixes accounts and leaves rows out, so a figure beside a row would read wrong.
@@ -40,7 +40,7 @@ The grey filter notes and their *Hide the grey filter notes* switch work as on e
 
 ### 1.3 How many
 
-The list scrolls inside the tile. It holds **at most 200 rows** (a dashboard file is untrusted, D-281, and a tile is no place for a year of bookings). When more transactions fit, the last line says *Showing the newest 200 of N.* and *Open the list* takes the user to the full list when the tile lists one account; for several accounts the line only counts. The user can lower the number in *Properties* (**Rows: 10, 20, 50, 100, 200**; default 20).
+The list scrolls inside the tile. It holds **at most 200 rows** (a dashboard file is untrusted, D-281, and a tile is no place for a year of bookings). When more transactions fit, the last line says *Showing the newest 200 of N.*; for all of them the user opens the account's list or widens the tile's *Rows*. The user can lower the number in *Properties* (**Rows: 10, 20, 50, 100, 200**; default 20).
 
 When nothing fits, the tile says *No transactions in this period.*, or *No transactions in these categories in this period.* with a category filter, never an empty box (AGENTS.md §6, no dead ends).
 
@@ -81,8 +81,8 @@ A new rolling period beside *the last N months* and *a salary month* (D-644, D-6
 
 - **Word** `last-N-days`, N from 1 to **366**, written without a leading zero (as the other rolling words). It covers **today and the N − 1 days before**: `last-7-days` on a Wednesday is the Thursday a week before up to that Wednesday. `last-1-days` is today only.
 - It is a period word like any other: every tile, the period box, the filter bar and the formula functions that take a period word read it, because they all go through `Period::named` and `is_period_word`. Charts by month show the one or two months it touches, counted only on its days, as a typed range does today.
-- **Comparison periods** (`previous_period`, D-687) of a period of N days are the N days right before, which `Period::before` already does for typed ranges.
-- **Choosing it:** the period choice gets *The last days…* below *The last months…*, with a spin box *Days:* (1 to 366, default 7).
+- **Comparison periods** (`previous_period`, D-687) of a period of N days are worked out as for a typed range (`Period::before`): the N days right before, or the whole month before when the N days happen to be one whole calendar month.
+- **Choosing it:** the period choice gets *The last days…* below *The last months…*, with a spin box *Days:* (1 to 366, default 7). The AI's tools don't offer it yet: their period pattern names months and salary months only, so nothing changes for the AI.
 - The upper end 366 keeps a whole leap year possible; for longer spans the last N months or a typed range fit better.
 
 ## 3. What is built, in one PR

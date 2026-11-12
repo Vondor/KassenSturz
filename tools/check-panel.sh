@@ -89,7 +89,7 @@ for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange 
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
     BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard AiPermissionGrid \
-    TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog PartsPage PartRow; do
+    TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog PartsPage PartRow TransactionRow; do
     cp "$bridge/qml/$file.qml" "$module"
 done
 cp "$bridge"/qml-tests/fakes/*.qml "$module"
@@ -104,7 +104,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
         FormulaField FormulaWords BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
         BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings \
-        TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister PartsPage PartRow; do
+        TransactionPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister PartsPage PartRow TransactionRow BookTransactions; do
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"

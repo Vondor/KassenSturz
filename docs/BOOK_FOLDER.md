@@ -1,6 +1,6 @@
 # Choosing the folder for the book
 
-**Status:** design for US5.3 (#515), with the outside security review's findings of 2026-11-12 worked in, decisions D-730 to D-733 (Proposed) and question Q-510 in `docs/DECISIONS.md`. Nothing here is built yet; the build is slotted before Beta (US6). Stage: Alpha, so no migration is involved (D-274): the book's own layout doesn't change at all.
+**Status:** design for US5.3 (#515), with the outside security review's findings of 2026-11-12 worked in, decisions D-730 to D-733 (Proposed) in `docs/DECISIONS.md`; Q-510 (folder portal or a file permission) answered R by the maintainer on 2026-11-12: the folder portal. Nothing here is built yet; the build is slotted before Beta (US6). Stage: Alpha, so no migration is involved (D-274): the book's own layout doesn't change at all.
 
 ## 1. Today
 
@@ -121,7 +121,7 @@ A book file is never removed without the user's yes; only a `.part` file is.
 
 - **D-113:** "Open another book…" in the Flatpak chooses a folder and then a book in it. `book.sandboxed` remains only for a single file the portal handed over. A remembered book path may be a document-portal path, kept with `$XDG_RUNTIME_DIR`, plus its real path as display text. New codes `book.no-access`, `book.read-only`, `book.write-failed`. The rest stands (a missing book is never replaced, an existing file never replaced, a book that doesn't open leaves the open one open).
 - **D-125:** "where the platform allows it" now includes the Flatpak whenever the portal offers folders: there the user picks the folder and types the name on the app's page, because a single file from the save dialog can't hold a book. Outside the Flatpak the save dialog stays. The empty-file case of saving a copy is unchanged.
-- **Q-071:** answered by D-730 with a fourth option, "the folder portal, no file permission", once Vondor answers Q-510. Its note "the app has no network access" is out of date since D-142.
+- **Q-071:** answered by D-730 with a fourth option, "the folder portal, no file permission" (Q-510 answered R by the maintainer, 2026-11-12). Its note "the app has no network access" is out of date since D-142.
 - **Q-081:** answer B now reaches the Flatpak too; the data folder stays the default for anyone who doesn't choose.
 - **D-080 and the MCP server:** the remembered path is read by one shared function in the app and in `kassensturz-mcp` (D-730).
 - **D-033:** backups stay in the data folder; the three "before moving" backups are kept apart from the ten automatic ones.

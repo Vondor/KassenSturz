@@ -21,7 +21,7 @@ use std::time::{Duration, Instant};
 use kassensturz_ai_tools::requests::{Reply, RequestFolder, RequestId, Standing};
 use kassensturz_ai_tools::{
     CHECK_ONLY, CHECK_ONLY_SCHEMA, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, ProposeSpec, ToolError,
-    check_only_answer, prepare_named, propose_spec, propose_view_spec, take_check_only,
+    check_only_answer, prepare_named_with_bills, propose_spec, propose_view_spec, take_check_only,
 };
 use kassensturz_core::ai_switch::{self, Permissions};
 use kassensturz_store::Book;
@@ -138,6 +138,16 @@ pub(crate) fn tools(permissions: Permissions) -> Vec<Tool> {
     tools
 }
 
+/// `permissions` with Transactions › Attach bills off while no bill folder
+/// is chosen (D-739): `attach_bills` is offered only with a folder.
+pub(crate) fn with_bill_folder(permissions: Permissions, folder_chosen: bool) -> Permissions {
+    if folder_chosen {
+        permissions
+    } else {
+        permissions.with(ai_switch::Permission::AttachBills, false)
+    }
+}
+
 /// Whether `name` is one of the write tools.
 pub(crate) fn is_write_tool(name: &str) -> bool {
     name == PROPOSE_CHANGES.name || name == PROPOSE_VIEW_NAME || name == CHECK_PROPOSED_CHANGES
@@ -152,7 +162,8 @@ pub(crate) async fn call(
     folder: Option<&Path>,
     waits: Waits,
 ) -> Result<Value, Failure> {
-    let permissions = ai_switch::permissions();
+    let bill_folder = ai_switch::bill_folder();
+    let permissions = with_bill_folder(ai_switch::permissions(), bill_folder.is_some());
     if !ai_switch::write_tools_enabled() || !permissions.can_change() {
         return Err(Failure::Code("mcp-writes.off".into()));
     }
@@ -160,7 +171,16 @@ pub(crate) async fn call(
         .and_then(|path| RequestFolder::open(path.to_path_buf()).ok())
         .ok_or_else(|| Failure::Code("mcp-writes.folder".into()))?;
     let result = if name == PROPOSE_CHANGES.name || name == PROPOSE_VIEW_NAME {
-        propose(book, name, arguments, permissions, &folder, waits).await
+        propose(
+            book,
+            name,
+            arguments,
+            permissions,
+            bill_folder.as_deref(),
+            &folder,
+            waits,
+        )
+        .await
     } else {
         let id = request_of(arguments)?;
         wait_for(&folder, &id, waits, ai_switch::write_tools_enabled).await
@@ -177,6 +197,7 @@ async fn propose(
     name: &str,
     arguments: &Value,
     permissions: Permissions,
+    bill_folder: Option<&Path>,
     folder: &RequestFolder,
     waits: Waits,
 ) -> Result<Value, Failure> {
@@ -189,8 +210,14 @@ async fn propose(
         .map_err(ToolError::from)
         .and_then(|book| {
             book.reading(|book| {
-                let proposal =
-                    prepare_named(book, name, &arguments, permissions, crate::server::today())?;
+                let proposal = prepare_named_with_bills(
+                    book,
+                    name,
+                    &arguments,
+                    permissions,
+                    crate::server::today(),
+                    bill_folder,
+                )?;
                 if check_only {
                     check_only_answer(book, &proposal, permissions)
                         .map(|answer| (Some(answer), Map::new()))

@@ -296,6 +296,18 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // The bills linked to the transaction (D-739), read again after a link
+    // is taken off, so the fields typed meanwhile stay.
+    property var bills: entry.bills ?? []
+
+    function removeBill(link: string) {
+        const result = register.removeBill(accountId, transactionId, link);
+        error.result = result;
+        if (result.code === undefined) {
+            bills = register.details(accountId, transactionId).bills ?? [];
+        }
+    }
+
     function removeNow() {
         const result = register.removeTransaction(chosenAccount, transactionId);
         error.result = result;
@@ -579,6 +591,74 @@ Kirigami.ScrollablePage {
             font: Kirigami.Theme.smallFont
             color: Kirigami.Theme.disabledTextColor
             text: page.i18nContext.i18nc("@info %1 is a list of tags, e.g. Tax, Gift", "Some parts also have the tags: %1", (page.entry.partTags ?? []).map(tag => tag.name).join(", "))
+        }
+
+        // The bills and other documents linked to it (D-132, D-739): shown
+        // with AI off too, as the links are the user's. Opening goes
+        // through the system (in the Flatpak the OpenURI portal), so
+        // KassenSturz never runs a file; removing takes off the link only.
+        ColumnLayout {
+            visible: !page.adding && page.bills.length > 0
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Bills:")
+
+            Repeater {
+                model: page.bills
+
+                ColumnLayout {
+                    id: billRow
+
+                    required property var modelData
+
+                    Layout.fillWidth: true
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: billRow.modelData.name
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: billRow.modelData.missing
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        color: Kirigami.Theme.negativeTextColor
+                        text: page.i18nContext.i18nc("@info %1 is where the file was", "This bill isn't where it was: %1. Put it back there, or remove the link.", billRow.modelData.link)
+                    }
+
+                    RowLayout {
+                        Controls.Button {
+                            visible: billRow.modelData.url !== "" && !billRow.modelData.missing
+                            text: page.i18nContext.i18nc("@action:button", "Open bill")
+                            icon.name: "document-open"
+                            onClicked: {
+                                ActionLog.taken("TransactionPage_openBill")
+                                Qt.openUrlExternally(billRow.modelData.url)
+                            }
+                        }
+
+                        Controls.Button {
+                            text: page.i18nContext.i18nc("@action:button", "Remove link")
+                            icon.name: "edit-delete-remove"
+                            onClicked: {
+                                ActionLog.taken("TransactionPage_removeBill")
+                                page.removeBill(billRow.modelData.link)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                text: page.i18nContext.i18nc("@info", "Removing a link leaves the file where it is. KassenSturz never moves, changes or deletes a bill.")
+            }
         }
 
         RowLayout {

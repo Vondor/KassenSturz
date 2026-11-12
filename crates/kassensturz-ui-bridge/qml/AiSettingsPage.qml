@@ -12,6 +12,7 @@
 
 import QtQuick
 import QtQuick.Controls as Controls
+import QtQuick.Dialogs as Dialogs
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
@@ -647,6 +648,68 @@ Kirigami.ScrollablePage {
                 page.notWritten = !page.settings.setWriteTools(checked);
                 checked = page.settings.writeTools();
             }
+        }
+
+        // The bill folder (US5.13, D-739): the user's own AI tools read a
+        // bill there themselves and may link it to a transaction.
+        // KassenSturz stores only the link and never touches the files.
+        Kirigami.Heading {
+            level: 3
+            text: page.i18nContext.i18nc("@title:group", "Bill folder")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "Choose a folder where you keep your bills as PDF or picture files. Your AI tools can then read a bill there themselves, find the payment it belongs to and suggest linking it to that transaction, if you allow \"Bills linked to transactions\" above. KassenSturz itself never reads, moves, changes or deletes these files.")
+        }
+
+        Controls.Label {
+            id: billFolderPath
+
+            property string folder: page.settings.billFolder()
+
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            font.italic: folder === ""
+            text: folder !== "" ? folder : page.i18nContext.i18nc("@info no bill folder is chosen", "No folder chosen.")
+        }
+
+        RowLayout {
+            Controls.Button {
+                text: page.i18nContext.i18nc("@action:button", "Choose folder…")
+                icon.name: "folder-open"
+                onClicked: {
+                    ActionLog.taken("AiSettingsPage_chooseBillFolder")
+                    billFolderDialog.open()
+                }
+            }
+
+            Controls.Button {
+                visible: billFolderPath.folder !== ""
+                text: page.i18nContext.i18nc("@action:button", "Remove")
+                icon.name: "edit-clear"
+                onClicked: {
+                    ActionLog.taken("AiSettingsPage_removeBillFolder")
+                    page.notWritten = !page.settings.removeBillFolder();
+                    billFolderPath.folder = page.settings.billFolder();
+                }
+            }
+        }
+    }
+
+    // The system's folder chooser: in the Flatpak the file chooser portal,
+    // which grants the app this one folder (D-739).
+    Dialogs.FolderDialog {
+        id: billFolderDialog
+
+        title: page.i18nContext.i18nc("@title:window", "Choose your bill folder")
+        onAccepted: {
+            ActionLog.taken("AiSettingsPage_billFolderChosen")
+            page.notWritten = !page.settings.setBillFolder(selectedFolder);
+            billFolderPath.folder = page.settings.billFolder();
         }
     }
 

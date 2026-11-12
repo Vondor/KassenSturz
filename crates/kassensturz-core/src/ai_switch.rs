@@ -28,6 +28,12 @@ pub const ON: &str = "true";
 /// counts only while AI itself is on.
 pub const WRITE_TOOLS_KEY: &str = "McpWriteTools";
 
+/// The key in [`GROUP`] of the folder the user chose for their bills
+/// (US5.13, D-739): the user's own AI tools may link a file inside it to a
+/// transaction. Kept per computer, as the system's folder chooser returned
+/// it.
+pub const BILL_FOLDER_KEY: &str = "BillFolder";
+
 /// One row of the permission grid in the AI settings (D-252).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Row {
@@ -122,11 +128,18 @@ pub enum Permission {
     /// add up to it exactly. It reads the transactions, so it switches
     /// Transactions › Read on.
     SplitTransactions,
+    /// Link a bill from the bill folder to a transaction (Transactions,
+    /// Attach bills; US5.13, D-739). Offered to the user's own AI tools
+    /// only, over MCP, and only while a bill folder is chosen. Its own
+    /// cell, off by default: a link may name only a file inside the folder
+    /// the user chose. It reads the transactions, so it switches
+    /// Transactions › Read on.
+    AttachBills,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 26] = [
+    pub const ALL: [Self; 27] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -153,6 +166,7 @@ impl Permission {
         Self::JoinTransfers,
         Self::TagTransactions,
         Self::SplitTransactions,
+        Self::AttachBills,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -184,6 +198,7 @@ impl Permission {
             Self::JoinTransfers => "AllowJoinTransfers",
             Self::TagTransactions => "AllowTagTransactions",
             Self::SplitTransactions => "AllowSplitTransactions",
+            Self::AttachBills => "AllowAttachBills",
         }
     }
 
@@ -202,7 +217,8 @@ impl Permission {
             | Self::TransactionsRead
             | Self::JoinTransfers
             | Self::TagTransactions
-            | Self::SplitTransactions => Row::Transactions,
+            | Self::SplitTransactions
+            | Self::AttachBills => Row::Transactions,
             Self::ChartsRead
             | Self::NewViews
             | Self::EditViews
@@ -246,6 +262,7 @@ impl Permission {
                 | Self::JoinTransfers
                 | Self::TagTransactions
                 | Self::SplitTransactions
+                | Self::AttachBills
         )
     }
 
@@ -500,6 +517,43 @@ pub fn permissions_in(text: &str) -> Permissions {
     )
 }
 
+/// The bill folder of the settings file's `text` (D-739): `None` while AI
+/// is off, when none is chosen, or when the entry is not a plain absolute
+/// path. KConfig's escapes of a written path (`\\`, `\s`, `\t`, `\n`,
+/// `\r`) are read back; any other escape leaves the folder unset, so a
+/// damaged file never names another folder.
+pub fn bill_folder_in(text: &str) -> Option<PathBuf> {
+    if !enabled_in(text) {
+        return None;
+    }
+    let raw = value_in(text, GROUP, BILL_FOLDER_KEY)?;
+    let mut path = String::with_capacity(raw.len());
+    let mut chars = raw.chars();
+    while let Some(c) = chars.next() {
+        if c != '\\' {
+            path.push(c);
+            continue;
+        }
+        path.push(match chars.next()? {
+            '\\' => '\\',
+            's' => ' ',
+            't' => '\t',
+            'n' => '\n',
+            'r' => '\r',
+            _ => return None,
+        });
+    }
+    let path = PathBuf::from(path);
+    path.is_absolute().then_some(path)
+}
+
+/// The bill folder in this user's settings, if one is chosen and AI is on.
+pub fn bill_folder() -> Option<PathBuf> {
+    settings_file()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .and_then(|text| bill_folder_in(&text))
+}
+
 /// The value of `key` in `group` of the settings file's `text`, with the
 /// spaces around it removed, as KConfig wrote it: the last entry of a key
 /// wins, as in KConfig. KConfig's escapes (`\s`, `\\` and so on) are left
@@ -711,5 +765,31 @@ mod tests {
     #[test]
     fn a_missing_file_is_off() {
         assert!(!enabled_at(Path::new("/nonexistent/kassensturzrc")));
+    }
+    #[test]
+    fn the_bill_folder_is_read_back_as_kconfig_wrote_it_and_only_while_ai_is_on() {
+        let on = "[AI]\nEnabled=true\n";
+        assert_eq!(bill_folder_in(on), None);
+        assert_eq!(
+            bill_folder_in(&format!("{on}BillFolder=/home/sam/Bills\n")),
+            Some(PathBuf::from("/home/sam/Bills"))
+        );
+        assert_eq!(
+            bill_folder_in(&format!("{on}BillFolder=/home/sam/My Bills\\s\n")),
+            Some(PathBuf::from("/home/sam/My Bills "))
+        );
+        assert_eq!(
+            bill_folder_in(&format!("{on}BillFolder=/a\\\\b\n")),
+            Some(PathBuf::from("/a\\b"))
+        );
+        // Off, relative, empty or with an escape KassenSturz doesn't know.
+        assert_eq!(
+            bill_folder_in("[AI]\nEnabled=false\nBillFolder=/home/sam/Bills\n"),
+            None
+        );
+        assert_eq!(bill_folder_in(&format!("{on}BillFolder=Bills\n")), None);
+        assert_eq!(bill_folder_in(&format!("{on}BillFolder=\n")), None);
+        assert_eq!(bill_folder_in(&format!("{on}BillFolder=/a\\x2fb\n")), None);
+        assert_eq!(bill_folder_in(&format!("{on}BillFolder=/a\\\n")), None);
     }
 }

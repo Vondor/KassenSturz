@@ -406,8 +406,13 @@ impl ChatSession {
     /// Which changes the model may prepare now (D-239). Asked again for
     /// each request and each call: the user may change it while a
     /// question runs.
+    /// Bills are attached only by the user's own AI tools over MCP, which
+    /// read the bill themselves: the chat reads no PDF, so it is never
+    /// offered `attach_bills` (Q-506, D-739).
     fn permissions(&self) -> Permissions {
-        self.permissions.unwrap_or_else(ai_switch::permissions)
+        self.permissions
+            .unwrap_or_else(ai_switch::permissions)
+            .with(ai_switch::Permission::AttachBills, false)
     }
 
     /// The conversation, writing to `log` while the developer mode is on
@@ -1262,6 +1267,24 @@ fn view_error_json(report: &ErrorReport) -> Value {
 mod tests {
     use super::*;
     use kassensturz_ai_tools::FUNCTIONS;
+
+    /// The chat reads no bill, so it never attaches one (Q-506, D-739): not
+    /// offered, and refused if a model tries, whatever the user allowed.
+    #[test]
+    fn the_chat_never_attaches_bills() {
+        let session = ChatSession::new(crate::BuildInfo::new("0.1.0", "abc"))
+            .with_permissions(Permissions::all());
+        let permissions = session.permissions();
+        assert!(!permissions.allows(ai_switch::Permission::AttachBills));
+        assert!(permissions.allows(ai_switch::Permission::SplitTransactions));
+        let specs = function_specs(false, permissions);
+        assert!(specs.iter().all(|spec| spec.name != "bill_folder"));
+        let propose = specs
+            .iter()
+            .find(|spec| spec.name == "propose_changes")
+            .expect("offered");
+        assert!(!propose.parameters.to_string().contains("attach_bills"));
+    }
 
     #[test]
     fn an_unknown_key_lists_the_keys_its_object_takes() {

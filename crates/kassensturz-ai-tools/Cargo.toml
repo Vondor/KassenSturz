@@ -28,6 +28,7 @@ serde_json = { workspace = true, optional = true }
 uuid = { workspace = true, optional = true }
 
 [dev-dependencies]
+kassensturz-export.workspace = true
 kassensturz-import.workspace = true
 kassensturz-pipeline.workspace = true
 kassensturz-store = { workspace = true, features = ["bundled-sqlite"] }

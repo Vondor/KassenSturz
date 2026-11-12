@@ -125,6 +125,94 @@ pub struct EntryForm {
     /// page shows another one (the user or a Rule changed it); empty
     /// otherwise. The original stays next to what the user sees (D-375).
     pub delivered_name: String,
+    /// The bills and other documents linked to it, in their order
+    /// (D-132, D-739). Shown with AI off too: the links are the user's.
+    pub bills: Vec<BillText>,
+}
+
+/// A document linked to a transaction, as the page shows it (D-739).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BillText {
+    /// The link as stored: a path on this computer or a web address. It
+    /// names the bill to take off with [`remove_bill`].
+    pub link: String,
+    /// What it is called: its title, else the file's name, else the link.
+    pub name: String,
+    /// The address the system opens it with, empty when it can't be opened
+    /// from here: a `file://` address for a path, a web address as it is.
+    pub url: String,
+    /// Whether it is a path whose file isn't there any more.
+    pub missing: bool,
+}
+
+/// How the page shows each document linked to `transaction`.
+fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
+    transaction
+        .attachments()
+        .iter()
+        .map(|attachment| {
+            let link = attachment.link.as_str();
+            let path = std::path::Path::new(link);
+            let web = link.starts_with("https://") || link.starts_with("http://");
+            let local = !web && path.is_absolute();
+            let file_name = local
+                .then(|| path.file_name().and_then(|name| name.to_str()))
+                .flatten();
+            BillText {
+                link: link.to_owned(),
+                name: attachment
+                    .title
+                    .clone()
+                    .or_else(|| file_name.map(str::to_owned))
+                    .unwrap_or_else(|| link.to_owned()),
+                url: if web {
+                    link.to_owned()
+                } else if local {
+                    file_url(link)
+                } else {
+                    String::new()
+                },
+                missing: local && !path.is_file(),
+            }
+        })
+        .collect()
+}
+
+/// The `file://` address of the absolute path `path`, each byte but
+/// letters, digits, `/` and `-._~` percent-encoded, so `#`, `?` and spaces
+/// in a name stay part of it.
+fn file_url(path: &str) -> String {
+    let mut url = String::from("file://");
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) {
+            url.push(char::from(byte));
+        } else {
+            url.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    url
+}
+
+/// Takes the link `link` off the transaction with `id` (as text), seen from
+/// `account`, as one step Undo takes back (D-739). The file itself is never
+/// touched. A link it doesn't have is `input.no-such-entry`.
+pub fn remove_bill(book: &mut Book, account: &str, id: &str, link: &str) -> Result<(), EntryError> {
+    let account = find_account(book, account)?;
+    let stored = find_transaction(book, account.id, id)?;
+    let kept: Vec<_> = stored
+        .attachments()
+        .iter()
+        .filter(|attachment| attachment.link != link)
+        .cloned()
+        .collect();
+    if kept.len() == stored.attachments().len() {
+        return Err(EntryError::NoSuchEntry);
+    }
+    let transaction = stored.with_attachments(kept);
+    book.as_one_action(Action::EditTransaction, |book| {
+        book.update_transaction(&transaction)
+    })?;
+    Ok(())
 }
 
 /// What removing a transaction takes with it, for the plain warning before
@@ -322,6 +410,7 @@ pub fn details(
         ),
         imported: own.iter().any(|split| split.imported.is_some()),
         delivered_name,
+        bills: bill_texts(&transaction),
     })
 }
 
@@ -976,6 +1065,7 @@ mod tests {
                 delivered_name: String::new(),
                 tags: Vec::new(),
                 part_tags: Vec::new(),
+                bills: Vec::new(),
             }
         );
         // Saving the form unchanged reads the amount it wrote.
@@ -1907,5 +1997,83 @@ mod tests {
         );
         let saved = details(&book, &checking, &longer, &TestLocale).expect("details");
         assert_eq!(saved.note, changed);
+    }
+
+    /// The page lists a transaction's bills, opens them by a `file://`
+    /// address and takes a link off as one Undo, never touching the file
+    /// (D-739). A bill moved away shows as missing, not as an error.
+    #[test]
+    fn lists_its_bills_and_takes_a_link_off_as_one_undo() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        add(
+            &mut book,
+            &paid(&checking, "53,20", "Corner Grocery", &groceries),
+            &TestLocale,
+        )
+        .expect("added");
+        let id = transaction_at(&book, &checking, true);
+        let folder = crate::test_folder::TestFolder::new();
+        let bill = folder.join("RE 0042#1.pdf");
+        std::fs::write(&bill, b"%PDF-1.4 synthetic").unwrap();
+        let bill_link = bill.to_str().unwrap().to_owned();
+        let gone = folder.join("moved.png").to_str().unwrap().to_owned();
+        let stored = find_transaction(&book, find_account(&book, &checking).unwrap().id, &id)
+            .expect("found");
+        let linked = stored.with_attachments(vec![
+            kassensturz_core::Attachment {
+                link: bill_link.clone(),
+                title: Some("Invoice RE-0042".into()),
+            },
+            kassensturz_core::Attachment {
+                link: gone.clone(),
+                title: None,
+            },
+            kassensturz_core::Attachment {
+                link: "https://example.org/bill".into(),
+                title: None,
+            },
+            kassensturz_core::Attachment {
+                link: "receipts/odd.pdf".into(),
+                title: None,
+            },
+        ]);
+        book.update_transaction(&linked).unwrap();
+
+        let bills = details(&book, &checking, &id, &TestLocale)
+            .expect("details")
+            .bills;
+        assert_eq!(bills.len(), 4);
+        assert_eq!(bills[0].name, "Invoice RE-0042");
+        assert!(bills[0].url.starts_with("file:///"), "{}", bills[0].url);
+        assert!(
+            bills[0].url.ends_with("/RE%200042%231.pdf"),
+            "{}",
+            bills[0].url
+        );
+        assert!(!bills[0].missing);
+        assert_eq!(bills[1].name, "moved.png");
+        assert!(bills[1].missing);
+        assert_eq!(bills[2].url, "https://example.org/bill");
+        assert!(!bills[2].missing);
+        // A link that is neither a path here nor a web address isn't opened.
+        assert_eq!(bills[3].url, "");
+        assert_eq!(bills[3].name, "receipts/odd.pdf");
+
+        remove_bill(&mut book, &checking, &id, &bill_link).expect("removed");
+        let left = details(&book, &checking, &id, &TestLocale)
+            .expect("details")
+            .bills;
+        assert_eq!(left.len(), 3);
+        assert!(bill.is_file(), "the file stays where it was");
+        assert!(matches!(
+            remove_bill(&mut book, &checking, &id, &bill_link),
+            Err(EntryError::NoSuchEntry)
+        ));
+        book.undo().expect("undone");
+        let back = details(&book, &checking, &id, &TestLocale)
+            .expect("details")
+            .bills;
+        assert_eq!(back, bills);
     }
 }

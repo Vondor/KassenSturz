@@ -900,6 +900,20 @@ pub(crate) mod engine {
                     ("parts", parts_of(parts)),
                 ]
             }
+            ChangeView::AttachBill {
+                date,
+                payee,
+                account,
+                file,
+                title,
+            } => vec![
+                ("kind", text("attachBill")),
+                ("date", text(date)),
+                ("payee", text(payee)),
+                ("account", text(account)),
+                ("file", text(file)),
+                ("title", text(title)),
+            ],
         }
     }
 
@@ -1275,6 +1289,7 @@ pub(crate) mod engine {
                     sets,
                     kassensturz_core::ai_switch::permissions(),
                     app_locale().today(),
+                    kassensturz_core::ai_switch::bill_folder().as_deref(),
                 )
             })
             .unwrap_or_default()
@@ -2703,5 +2718,81 @@ mod tests {
         assert_eq!(text_of(&parts[1], "category"), "");
         assert_eq!(text_of(&parts[1], "name"), "");
         assert!(list_of(change, "fields").is_empty());
+    }
+
+    #[test]
+    fn a_bill_reads_back_as_qml_reads_it() {
+        // US5.13, D-739: through the real proposal of the MCP way in and
+        // the review's rows.
+        use kassensturz_ai_tools::{PROPOSE_CHANGES, prepare_named_with_bills};
+        use kassensturz_core::ai_switch::Permissions;
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Transaction,
+            TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use crate::ai_chat::rows_of;
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let checking = Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: "Checking".into(),
+            kind: AccountKind::Asset,
+            currency: eur,
+            account_type: Some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        book.add_account(&checking).unwrap();
+        let transaction = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 11, 3),
+            Some("Papierladen Nord".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-1999, eur)),
+                Split::uncategorized(Money::from_minor_units(1999, eur)),
+            ],
+        )
+        .unwrap();
+        book.add_transaction(&transaction).unwrap();
+        let folder = crate::test_folder::TestFolder::new();
+        std::fs::write(folder.join("RE-0042.pdf"), b"synthetic").unwrap();
+
+        let proposal = prepare_named_with_bills(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({"attach_bills": [{
+                "transaction_id": transaction.id().to_string(),
+                "file": "RE-0042.pdf",
+                "title": "<b>Invoice</b>",
+            }]}),
+            Permissions::all(),
+            Date::constant(2026, 11, 12),
+            Some(&folder.join("")),
+        )
+        .unwrap();
+        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 1);
+        let change = &items[0];
+        assert_eq!(
+            own_keys(change),
+            ["account", "date", "file", "kind", "payee", "title"]
+        );
+        assert_eq!(text_of(change, "kind"), "attachBill");
+        assert_eq!(text_of(change, "slot"), "attach_bills/0");
+        assert_eq!(text_of(change, "file"), "RE-0042.pdf");
+        assert_eq!(text_of(change, "title"), "<b>Invoice</b>");
+        assert_eq!(text_of(change, "account"), "Checking");
+        assert_eq!(text_of(change, "payee"), "Papierladen Nord");
+        assert!(!text_of(change, "date").is_empty());
     }
 }

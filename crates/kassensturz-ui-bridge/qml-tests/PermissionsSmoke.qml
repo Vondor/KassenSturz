@@ -123,6 +123,15 @@ Kirigami.ApplicationWindow {
             window.check(grid.readForced(transactions, 0), "splitting keeps the transactions readable");
             window.check(grid.historyAtRisk(0), "splitting warns about the history");
             settings.allowed = ({});
+            // Bills are their own row with an Add cell (D-739): it keeps
+            // Transactions › Read on and only links files, so no warning.
+            const bills = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowAttachBills"));
+            window.check(bills !== undefined, "the grid has a row for bills");
+            settings.allowed = ({ AllowAttachBills: true });
+            window.check(grid.isOn("AllowAttachBills", 0), "the bill cell reads its setting");
+            window.check(grid.readForced(transactions, 0), "linking bills keeps the transactions readable");
+            window.check(!grid.historyAtRisk(0), "linking bills doesn't warn about the history");
+            settings.allowed = ({});
             // Chart descriptions are their own row with one cell (D-729);
             // they read nothing and don't touch the history.
             const descriptions = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowCustomCharts"));

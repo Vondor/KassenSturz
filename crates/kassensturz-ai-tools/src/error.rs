@@ -121,6 +121,18 @@ pub enum ToolError {
     /// A `reference` to search for has fewer than four letters or digits,
     /// so it would match half the book (US5.12, D-738).
     ReferenceTooShort,
+    /// No bill folder is chosen on this computer, so no bill can be
+    /// attached (US5.13, D-739).
+    NoBillFolder,
+    /// A bill to attach is not inside the bill folder once `..` and links
+    /// are resolved. The path is not repeated back.
+    BillOutsideFolder,
+    /// A bill to attach is not a PDF, PNG or JPEG file by its name.
+    BillType,
+    /// A bill to attach is not a file in the bill folder.
+    BillNotFound,
+    /// The same bill is attached to the same transaction twice.
+    Duplicate,
     /// The parts of a split the AI prepared don't add up to what the
     /// transaction did to the account (US5.1, D-737). The amounts are exact
     /// decimal text in the transaction's currency, worked out by
@@ -516,6 +528,11 @@ impl Report for ToolError {
             Self::UnknownTag => ErrorReport::new("ai-tools.unknown-tag"),
             Self::ReferenceTooShort => ErrorReport::new("ai-tools.reference-too-short")
                 .with("min_chars", ErrorParam::count(MIN_REFERENCE_CHARS)),
+            Self::NoBillFolder => ErrorReport::new("ai-tools.no-bill-folder"),
+            Self::BillOutsideFolder => ErrorReport::new("ai-tools.bill-outside-folder"),
+            Self::BillType => ErrorReport::new("ai-tools.bill-type"),
+            Self::BillNotFound => ErrorReport::new("ai-tools.bill-not-found"),
+            Self::Duplicate => ErrorReport::new("ai-tools.duplicate"),
             // The amounts go to the model through [`Self::amounts`]: a
             // report carries keywords and counts, never text.
             Self::PartsDontAddUp { .. } => ErrorReport::new("ai-tools.parts-dont-add-up"),
@@ -645,6 +662,11 @@ mod tests {
             ToolError::UnknownTransaction,
             ToolError::UnknownTag,
             ToolError::ReferenceTooShort,
+            ToolError::NoBillFolder,
+            ToolError::BillOutsideFolder,
+            ToolError::BillType,
+            ToolError::BillNotFound,
+            ToolError::Duplicate,
             ToolError::PartsDontAddUp {
                 total: "-19.99".into(),
                 sum: "-19.98".into(),

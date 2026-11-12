@@ -16,7 +16,7 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 #[cfg(feature = "ai")]
 use cxx_qt::Threading;
-use cxx_qt_lib::{QString, QVariant};
+use cxx_qt_lib::{QString, QUrl, QVariant};
 
 use crate::errors::ErrorText;
 use crate::variant::error_object;
@@ -31,6 +31,9 @@ pub mod qobject {
 
         include!("cxx-qt-lib/qvariant.h");
         type QVariant = cxx_qt_lib::QVariant;
+
+        include!("cxx-qt-lib/qurl.h");
+        type QUrl = cxx_qt_lib::QUrl;
     }
 
     extern "RustQt" {
@@ -156,6 +159,26 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setWriteTools"]
         fn set_write_tools(self: &AiSettings, on: bool) -> bool;
+
+        /// The folder the user chose for their bills (US5.13, D-739), as
+        /// the system's folder chooser returned it; empty for none, and
+        /// always in a build without AI.
+        #[qinvokable]
+        #[cxx_name = "billFolder"]
+        fn bill_folder(self: &AiSettings) -> QString;
+
+        /// Keeps the folder the chooser returned as `folder` as the bill
+        /// folder. Returns whether that was saved; a URL that is not a
+        /// local folder is not.
+        #[qinvokable]
+        #[cxx_name = "setBillFolder"]
+        fn set_bill_folder(self: &AiSettings, folder: &QUrl) -> bool;
+
+        /// Forgets the bill folder. The bills and the links to them stay.
+        /// Returns whether that was saved.
+        #[qinvokable]
+        #[cxx_name = "removeBillFolder"]
+        fn remove_bill_folder(self: &AiSettings) -> bool;
 
         /// Whether the AI may prepare the kind of change whose settings key
         /// is `key` (`AllowNewRules` and so on, D-239): what the user chose,
@@ -639,6 +662,24 @@ impl qobject::AiSettings {
         keep_write_tools(&crate::settings::Settings::user(), on)
     }
 
+    fn bill_folder(&self) -> QString {
+        QString::from(bill_folder_in(&crate::settings::Settings::user()).as_str())
+    }
+
+    fn set_bill_folder(&self, folder: &QUrl) -> bool {
+        crate::book_session::local_path(folder).is_some_and(|path| {
+            path.is_absolute()
+                && path.is_dir()
+                && path
+                    .to_str()
+                    .is_some_and(|path| keep_bill_folder(&crate::settings::Settings::user(), path))
+        })
+    }
+
+    fn remove_bill_folder(&self) -> bool {
+        keep_bill_folder(&crate::settings::Settings::user(), "")
+    }
+
     fn slow_answer(&self) -> QString {
         QString::from(slow_answer_in(&crate::settings::Settings::user()))
     }
@@ -855,6 +896,32 @@ fn keep_write_tools(_settings: &crate::settings::Settings, _on: bool) -> bool {
     false
 }
 
+/// The bill folder in `settings` (D-739), empty for none; empty in a build
+/// without AI.
+#[cfg(feature = "ai")]
+fn bill_folder_in(settings: &crate::settings::Settings) -> String {
+    use kassensturz_core::ai_switch::{BILL_FOLDER_KEY, GROUP};
+    settings.text(GROUP, BILL_FOLDER_KEY)
+}
+
+#[cfg(not(feature = "ai"))]
+fn bill_folder_in(_settings: &crate::settings::Settings) -> String {
+    String::new()
+}
+
+/// Keeps `path` as the bill folder in `settings`, or none for an empty
+/// one. Returns whether that was saved.
+#[cfg(feature = "ai")]
+fn keep_bill_folder(settings: &crate::settings::Settings, path: &str) -> bool {
+    use kassensturz_core::ai_switch::{BILL_FOLDER_KEY, GROUP};
+    settings.set_text(GROUP, BILL_FOLDER_KEY, path)
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_bill_folder(_settings: &crate::settings::Settings, _path: &str) -> bool {
+    false
+}
+
 #[cfg(all(test, feature = "ai"))]
 mod notice_tests {
     use super::*;
@@ -882,6 +949,46 @@ mod notice_tests {
         assert!(notice_in(&settings, "cut"));
         assert!(!keep_notice(&settings, "numbers", false));
         assert!(notice_in(&settings, "numbers"));
+    }
+}
+
+#[cfg(all(test, feature = "ai"))]
+mod bill_folder_tests {
+    use std::path::PathBuf;
+
+    use kassensturz_core::ai_switch::{ENABLED_KEY, GROUP, ON, bill_folder_in as read_by_tools};
+
+    use super::*;
+    use crate::settings::Settings;
+    use crate::test_folder::TestFolder;
+
+    /// The seam (D-739): the folder as KConfig writes it is the folder the
+    /// MCP server and the window read without Qt.
+    #[test]
+    fn the_bill_folder_kconfig_writes_is_the_one_the_ai_tools_read() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(settings.set_text(GROUP, ENABLED_KEY, ON));
+        assert_eq!(bill_folder_in(&settings), "");
+        for path in [
+            "/home/sam/Bills",
+            "/home/sam/Rechnungen 2026, Belege",
+            " /home/sam/lead and trail ",
+            "/home/sam/Grüße/€uro",
+            "/home/sam/back\\slash/[brackets]=equals;semi",
+            "/run/user/1000/doc/1a2b3c4d/Bills",
+        ] {
+            assert!(keep_bill_folder(&settings, path), "{path}");
+            assert_eq!(bill_folder_in(&settings), path);
+            let text = std::fs::read_to_string(&file).unwrap();
+            let expected = path.starts_with('/').then(|| PathBuf::from(path));
+            assert_eq!(read_by_tools(&text), expected, "{path}: {text}");
+        }
+        assert!(keep_bill_folder(&settings, ""));
+        assert_eq!(bill_folder_in(&settings), "");
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(read_by_tools(&text), None);
     }
 }
 

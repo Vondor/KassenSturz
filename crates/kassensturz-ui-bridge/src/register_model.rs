@@ -213,6 +213,18 @@ pub mod qobject {
             transaction_id: &QString,
         ) -> QVariant;
 
+        /// Takes the link `link` off the transaction (D-739), as one step
+        /// Undo takes back; the file itself is never touched. Returns an
+        /// empty map, or the error's `code`.
+        #[qinvokable]
+        #[cxx_name = "removeBill"]
+        fn remove_bill(
+            self: Pin<&mut AccountRegister>,
+            account_id: &QString,
+            transaction_id: &QString,
+            link: &QString,
+        ) -> QVariant;
+
         /// An amount in the account's currency written the way the user
         /// should type it.
         #[qinvokable]
@@ -692,6 +704,23 @@ impl qobject::AccountRegister {
         let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
         let result = change(&account_id, |book| {
             transaction_entry::remove(book, &account_id, &transaction_id)
+        });
+        self.finish(result)
+    }
+
+    fn remove_bill(
+        self: Pin<&mut Self>,
+        account_id: &QString,
+        transaction_id: &QString,
+        link: &QString,
+    ) -> QVariant {
+        let (account_id, transaction_id, link) = (
+            account_id.to_string(),
+            transaction_id.to_string(),
+            link.to_string(),
+        );
+        let result = change(&account_id, |book| {
+            transaction_entry::remove_bill(book, &account_id, &transaction_id, &link)
         });
         self.finish(result)
     }
@@ -1199,6 +1228,17 @@ fn form_object(form: &EntryForm) -> QVariant {
         ("partTags", tags_object(&form.part_tags)),
         ("imported", QVariant::from(&form.imported)),
         ("deliveredName", text(&form.delivered_name)),
+        (
+            "bills",
+            list(form.bills.iter().map(|bill| {
+                map([
+                    ("link", text(&bill.link)),
+                    ("name", text(&bill.name)),
+                    ("url", text(&bill.url)),
+                    ("missing", QVariant::from(&bill.missing)),
+                ])
+            })),
+        ),
     ])
 }
 
@@ -1274,7 +1314,7 @@ mod tests {
     use crate::register::Shown;
     use crate::register_columns::{Column, Columns};
     use crate::tags::{TagChoice, TagText};
-    use crate::transaction_entry::{EntryForm, RemovalNotice};
+    use crate::transaction_entry::{BillText, EntryForm, RemovalNotice};
     use crate::transfer_prompt::{PartnerText, SideText, SuggestionText};
     use crate::variant::read_back::{elements, flag_of, keys, number_of, text_of};
 
@@ -1329,12 +1369,28 @@ mod tests {
             }],
             imported: true,
             delivered_name: "CORNER GROCERY".into(),
+            bills: vec![BillText {
+                link: "/home/sam/Bills/RE 0042#1.pdf".into(),
+                name: "Invoice RE-0042".into(),
+                url: "file:///home/sam/Bills/RE%200042%231.pdf".into(),
+                missing: true,
+            }],
         });
         assert_eq!(text_of(&form, "otherParty"), "Corner Grocery");
         assert_eq!(text_of(&form, "deliveredName"), "CORNER GROCERY");
         assert_eq!(text_of(&form, "note"), "Bought for the picnic");
         assert!(flag_of(&form, "imported"));
-        assert_eq!(keys(&form).len(), 14);
+        assert_eq!(keys(&form).len(), 15);
+        // The bills as TransactionPage.qml reads them (D-739).
+        let bills =
+            elements(&crate::variant::read_back::object_of(&form, "bills")).expect("a list");
+        assert_eq!(keys(&bills[0]), ["link", "missing", "name", "url"]);
+        assert_eq!(text_of(&bills[0], "name"), "Invoice RE-0042");
+        assert_eq!(
+            text_of(&bills[0], "url"),
+            "file:///home/sam/Bills/RE%200042%231.pdf"
+        );
+        assert!(flag_of(&bills[0], "missing"));
         // The tags as TagField.qml reads them (D-712), and back as the form
         // gives them.
         let tags = elements(&crate::variant::read_back::object_of(&form, "tags")).expect("a list");

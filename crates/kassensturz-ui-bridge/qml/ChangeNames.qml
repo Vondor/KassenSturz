@@ -104,6 +104,12 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Added someone you pay or get money from");
         case "add-tag":
             return i18nContext.i18nc("@info a change you made", "Added a tag");
+        case "rename-tag":
+            return i18nContext.i18nc("@info a change you made", "Renamed a tag");
+        case "remove-tag":
+            return i18nContext.i18nc("@info a change you made", "Removed a tag");
+        case "merge-tags":
+            return i18nContext.i18nc("@info a change you made", "Merged two tags");
         case "link-bank-account":
             return i18nContext.i18nc("@info a change you made", "Linked an account to your bank");
         case "unlink-bank-account":

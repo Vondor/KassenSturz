@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 12,
+  "version": 13,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -186,6 +186,7 @@
       "currency": "EUR",
       "note": null,
       "entered": null,
+      "tags": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000020", "account": "019a0000-0000-7000-8000-000000000001", "amount": "1000.00", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -199,6 +200,7 @@
       "currency": "EUR",
       "note": "Saturday \"shopping\"\nwith the kids",
       "entered": "2026-10-06",
+      "tags": ["019a0000-0000-7000-8000-000000000053"],
       "attachments": [
         {"link": "receipts/2026-10-05-bakery.pdf", "title": "Receipt"},
         {"link": "https://example.com/orders/4711", "title": null}
@@ -243,6 +245,7 @@
       "currency": "EUR",
       "note": null,
       "entered": null,
+      "tags": [],
       "attachments": [],
       "parts": [
         {
@@ -274,6 +277,7 @@
       "currency": "EUR",
       "note": null,
       "entered": null,
+      "tags": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000034", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-90.00", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -301,6 +305,7 @@
       "currency": "EUR",
       "note": null,
       "entered": null,
+      "tags": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000003d", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-0.01", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -328,6 +333,7 @@
       "currency": "EUR",
       "note": null,
       "entered": null,
+      "tags": [],
       "attachments": [],
       "parts": [
         {

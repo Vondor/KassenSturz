@@ -399,6 +399,8 @@ pub fn preview(component: &Component) -> Preview {
         // Drawn from its own description (M6e.3): `shows` is `chart`, and
         // `spec` is what tells the screen to ask for a custom chart.
         ComponentType::CustomChart => ("chart", "bar"),
+        // Its own list, drawn by the page from `BookTransactions` (D-716).
+        ComponentType::Transactions => ("transactions", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

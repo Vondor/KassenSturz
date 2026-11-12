@@ -51,6 +51,10 @@ pub fn read_range_word(word: &str) -> Option<(Option<Date>, Option<Date>)> {
 /// The most months a "last N months" period counts back (D-644).
 pub const MAX_ROLLING_MONTHS: u16 = 120;
 
+/// The most days a "last N days" period counts back (US4.7, D-717): a
+/// whole leap year.
+pub const MAX_ROLLING_DAYS: u16 = 366;
+
 /// A period that moves with today (US1.12, D-644): the last few calendar
 /// months, or a salary month that starts on a day of the month. Its word
 /// names it completely, so a component, a period box or the filter bar
@@ -76,6 +80,12 @@ pub enum Rolling {
         /// Whether it is the salary month before the one today is in.
         before: bool,
     },
+    /// Today and the `count` − 1 days before it (US4.7, D-717). Word
+    /// `last-N-days`.
+    Days {
+        /// How many days, 1 to [`MAX_ROLLING_DAYS`].
+        count: u16,
+    },
 }
 
 impl Rolling {
@@ -92,6 +102,7 @@ impl Rolling {
             } => format!("last-{count}-complete-months"),
             Self::SalaryMonth { day, before: false } => format!("this-salary-month-{day}"),
             Self::SalaryMonth { day, before: true } => format!("last-salary-month-{day}"),
+            Self::Days { count } => format!("last-{count}-days"),
         }
     }
 
@@ -112,6 +123,10 @@ impl Rolling {
                     count,
                     complete: true,
                 });
+            }
+            if let Some(count) = rest.strip_suffix("-days") {
+                let count = number(count).filter(|n| *n <= MAX_ROLLING_DAYS)?;
+                return Some(Self::Days { count });
             }
             if let Some(count) = rest.strip_suffix("-months") {
                 let count = number(count).filter(|n| *n <= MAX_ROLLING_MONTHS)?;
@@ -159,6 +174,12 @@ impl Rolling {
                     month = month.checked_sub(1.month()).map_err(bad)?;
                 }
                 salary_month(month, day)
+            }
+            Self::Days { count } => {
+                let first = today
+                    .checked_sub((i32::from(count) - 1).days())
+                    .map_err(bad)?;
+                Period::new(first, today)
             }
         }
     }
@@ -740,6 +761,43 @@ mod tests {
     }
 
     #[test]
+    fn the_last_days_count_today_and_the_days_before() {
+        let named = |word: &str, today: Date| Period::named(word, today, None).unwrap().unwrap();
+        // A Wednesday: the Thursday a week before up to that Wednesday.
+        assert_eq!(
+            named("last-7-days", date(2026, 11, 11)),
+            Period::new(date(2026, 11, 5), date(2026, 11, 11)).unwrap()
+        );
+        // Today only.
+        assert_eq!(
+            named("last-1-days", date(2026, 3, 1)),
+            Period::new(date(2026, 3, 1), date(2026, 3, 1)).unwrap()
+        );
+        // Across a year's end and a leap day.
+        assert_eq!(
+            named("last-10-days", date(2027, 1, 3)),
+            Period::new(date(2026, 12, 25), date(2027, 1, 3)).unwrap()
+        );
+        assert_eq!(
+            named("last-2-days", date(2028, 3, 1)),
+            Period::new(date(2028, 2, 29), date(2028, 3, 1)).unwrap()
+        );
+        assert_eq!(
+            named("last-366-days", date(2028, 12, 31)),
+            Period::new(date(2028, 1, 1), date(2028, 12, 31)).unwrap()
+        );
+        // The period before is the same number of days right before.
+        assert_eq!(
+            named("last-7-days", date(2026, 11, 11)).before().unwrap(),
+            Period::new(date(2026, 10, 29), date(2026, 11, 4)).unwrap()
+        );
+        for word in ["last-0-days", "last-07-days", "last-367-days", "last-7-day"] {
+            assert_eq!(Rolling::read(word), None, "{word}");
+            assert!(!is_period_word(word), "{word}");
+        }
+    }
+
+    #[test]
     fn rolling_words_are_written_and_read_exactly() {
         for rolling in [
             Rolling::Months {
@@ -757,6 +815,10 @@ mod tests {
             Rolling::SalaryMonth {
                 day: 1,
                 before: true,
+            },
+            Rolling::Days { count: 1 },
+            Rolling::Days {
+                count: MAX_ROLLING_DAYS,
             },
         ] {
             let word = rolling.word();

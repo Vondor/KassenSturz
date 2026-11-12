@@ -42,6 +42,7 @@ pub const DETAILS: &[&str] = &[
     "progress_bar",
     "table_rows",
     "table_income_sources",
+    "table_transactions",
     "card_net_worth",
     "budget_progress",
     "text_heading",

@@ -50,8 +50,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// D-345), version 9 a budget's several categories and its accounts
 /// (US1.10, D-640), version 10 a monthly budget's salary day (D-651),
 /// version 11 a budget's name (M6-B203, D-664), version 12 what a budget
-/// counts from which day on (US3.2, D-690).
-pub const VERSION: u64 = 12;
+/// counts from which day on (US3.2, D-690), version 13 the tags on a whole
+/// transaction (US4.8, D-712).
+pub const VERSION: u64 = 13;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -513,6 +514,16 @@ impl BookWriter {
             ("currency", Json::text(transaction.currency().as_str())),
             ("note", Json::optional_text(transaction.note())),
             ("entered", Json::optional_date(transaction.entered_on())),
+            (
+                "tags",
+                Json::List(
+                    transaction
+                        .tags()
+                        .iter()
+                        .map(|&tag| Json::id(tag))
+                        .collect(),
+                ),
+            ),
             (
                 "attachments",
                 Json::List(

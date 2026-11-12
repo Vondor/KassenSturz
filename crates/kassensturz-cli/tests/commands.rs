@@ -2164,7 +2164,7 @@ fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
     .expect("written");
     std::fs::write(
         new.0.join("busy.json"),
-        written.replace("\"version\": 12", "\"version\": 13"),
+        written.replace("\"version\": 13", "\"version\": 14"),
     )
     .expect("written");
     for (from, code) in [

@@ -173,26 +173,19 @@ impl Book {
         Ok(payees)
     }
 
-    /// Adds a tag. The name can't be empty, and no two tags share one,
-    /// ignoring capitals and spaces around it.
+    /// Adds a tag. The name can't be empty, longer than
+    /// [`kassensturz_core::MAX_TAG_NAME_CHARS`] or on more than one line,
+    /// and no two tags share one, ignoring capitals and spaces around it; it
+    /// is kept without those spaces. A book keeps at most
+    /// [`kassensturz_core::MAX_TAGS_IN_BOOK`] tags (D-712).
     pub fn add_tag(&mut self, tag: &Tag) -> Result<(), StoreError> {
-        if tag.name.trim().is_empty() {
-            return Err(StoreError::EmptyName);
-        }
-        let wanted = tag.name.trim().to_lowercase();
-        if let Some(existing) = self
-            .tags()?
-            .into_iter()
-            .find(|other| other.id != tag.id && other.name.trim().to_lowercase() == wanted)
-        {
-            return Err(StoreError::DuplicateTagName {
-                existing: existing.name,
-            });
-        }
+        let name = crate::tags::checked_tag_name(&tag.name)?;
+        self.check_tag_name_free(&name, Some(tag.id))?;
+        self.check_room_for_a_tag()?;
         self.as_one_action(Action::AddTag, |book| {
             book.conn.execute(
                 "INSERT INTO tags (id, name) VALUES (?1, ?2)",
-                params![tag.id.to_bytes(), tag.name],
+                params![tag.id.to_bytes(), name],
             )?;
             Ok(())
         })

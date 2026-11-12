@@ -225,6 +225,15 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::DuplicatePayeeName {
             existing: "Bakery".into(),
         },
+        StoreError::TagName {
+            reason: "too-long",
+            max_chars: 60,
+        },
+        StoreError::TooManyTags {
+            limit: "part",
+            max: 20,
+        },
+        StoreError::TagMergedIntoItself(kassensturz_core::TagId::generate()),
         StoreError::DuplicateTagName {
             existing: "Kids".into(),
         },

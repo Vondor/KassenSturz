@@ -238,6 +238,7 @@ pub const ACTIONS: &[&str] = &[
     "GridItem_getNewTransactions",
     "GridItem_moveEarlier",
     "GridItem_moveLater",
+    "GridItem_openListed",
     "GridItem_openUnsorted",
     "GridItem_properties",
     "GridItem_remove",

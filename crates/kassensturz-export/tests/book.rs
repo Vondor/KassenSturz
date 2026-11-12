@@ -339,6 +339,7 @@ fn sample() -> BookData {
             transaction(34, day(5), None, vec![bought, rolls])
                 .with_note(Some("Saturday \"shopping\"\nwith the kids".into()))
                 .with_entry_date(Some(day(6)))
+                .with_tags(vec![TagId::from_bytes(id(83))])
                 .with_attachments(vec![
                     Attachment {
                         link: "receipts/2026-10-05-bakery.pdf".into(),
@@ -710,13 +711,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 12", "\"version\": 13")),
-        Err(ExportError::NewerVersion { version: 13 })
+        read_book(&changed("\"version\": 13", "\"version\": 14")),
+        Err(ExportError::NewerVersion { version: 14 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 12",
+                "\"version\": 13",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1760,5 +1761,50 @@ fn a_budget_keeps_its_name_from_version_11() {
             path: "budgets[0].name".into(),
             expected: Expected::Text
         })
+    );
+}
+
+/// Version 13 has the tags on a whole transaction (D-712); an older file
+/// has none, and the key is refused there. A tag the file doesn't list, or
+/// one given twice, is refused.
+#[test]
+fn a_transaction_has_tags_on_the_whole_from_version_13() {
+    let file = golden();
+    let tagged = "\"tags\": [\"019a0000-0000-7000-8000-000000000053\"],\n";
+    let book = read_book(file.as_bytes()).expect("read");
+    let kids = TagId::from_bytes(id(83));
+    assert!(book.transactions.iter().any(|t| t.tags() == [kids]));
+
+    let older = file.replacen("\"version\": 13", "\"version\": 12", 1);
+    assert_eq!(
+        read_book(older.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "transactions[0].tags".into()
+        })
+    );
+    let without =
+        older
+            .replace("      \"tags\": [],\n", "")
+            .replacen(&format!("      {tagged}"), "", 1);
+    let book = read_book(without.as_bytes()).expect("read");
+    assert!(book.transactions.iter().all(|t| t.tags().is_empty()));
+
+    let twice = file.replacen(
+        tagged,
+        "\"tags\": [\"019a0000-0000-7000-8000-000000000053\", \"019a0000-0000-7000-8000-000000000053\"],\n",
+        1,
+    );
+    assert_eq!(
+        read_book(twice.as_bytes()),
+        bad("transactions[1].tags[1]", Expected::Id)
+    );
+    let unknown = file.replacen(
+        tagged,
+        "\"tags\": [\"019a0000-0000-7000-8000-0000000000ff\"],\n",
+        1,
+    );
+    assert_eq!(
+        read_book(unknown.as_bytes()),
+        bad("transactions[1].tags[0]", Expected::Id)
     );
 }

@@ -7,7 +7,9 @@
 //! QML, which only ever sees text (D-065).
 
 use kassensturz_core::Date;
-use kassensturz_report::{MAX_ROLLING_MONTHS, ReportError, Rolling, range_word, read_range_word};
+use kassensturz_report::{
+    MAX_ROLLING_DAYS, MAX_ROLLING_MONTHS, ReportError, Rolling, range_word, read_range_word,
+};
 
 use crate::format::Locale;
 
@@ -99,6 +101,16 @@ pub fn months_word(count: i32, complete: bool) -> Option<String> {
         .ok()
         .filter(|count| (1..=MAX_ROLLING_MONTHS).contains(count))?;
     Some(Rolling::Months { count, complete }.word())
+}
+
+/// The word for "the last `count` days" (US4.7, D-717): today and the days
+/// before it; `None` for a count KassenSturz doesn't keep (below 1 or above
+/// [`MAX_ROLLING_DAYS`]).
+pub fn days_word(count: i32) -> Option<String> {
+    let count = u16::try_from(count)
+        .ok()
+        .filter(|count| (1..=MAX_ROLLING_DAYS).contains(count))?;
+    Some(Rolling::Days { count }.word())
 }
 
 /// The word for the salary month that starts on `day` (D-645), the one today

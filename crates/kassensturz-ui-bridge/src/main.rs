@@ -109,6 +109,8 @@ mod test_folder;
 mod test_profile;
 mod test_profile_model;
 mod transaction_entry;
+mod transactions_tile;
+mod transactions_tile_model;
 mod transfer_prompt;
 mod update_all;
 mod variant;

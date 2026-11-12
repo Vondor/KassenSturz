@@ -22,6 +22,7 @@ use kassensturz_core::{
 };
 use kassensturz_store::{Book, StoreError};
 use serde_json::Value;
+use std::collections::HashMap;
 
 use crate::error::ToolError;
 
@@ -88,12 +89,14 @@ impl EditTransaction {
 
 impl Known {
     /// Checks one item of `edit_transactions` and works out the transaction
-    /// it makes, under the locks of `allowed`.
+    /// it makes, under the locks of `allowed`. A transaction in
+    /// `categorized` is edited as the set's `categorize` leaves it (#718).
     pub(super) fn edit_transaction(
         &self,
         book: &Book,
         value: &Value,
         allowed: Permissions,
+        categorized: &HashMap<TransactionId, Transaction>,
     ) -> Result<EditTransaction, ToolError> {
         let item = Object::read(
             value,
@@ -113,9 +116,14 @@ impl Known {
             .ok_or(ToolError::BadArgument {
                 argument: "transaction_id",
             })?;
-        let stored = match book.transaction(id) {
-            Err(StoreError::UnknownTransaction(_)) => return Err(ToolError::UnknownTransaction),
-            other => other?,
+        let stored = match categorized.get(&id) {
+            Some(after) => after.clone(),
+            None => match book.transaction(id) {
+                Err(StoreError::UnknownTransaction(_)) => {
+                    return Err(ToolError::UnknownTransaction);
+                }
+                other => other?,
+            },
         };
 
         let date = item.string("date")?.map(parse_date).transpose()?;

@@ -21,6 +21,10 @@ QtObject {
         if (months !== null) {
             return {custom: false, text: "", rolling: "months", count: Number(months[1]), complete: months[2] !== undefined, day: 0, before: false};
         }
+        const days = /^last-([1-9][0-9]*)-days$/.exec(word);
+        if (days !== null) {
+            return {custom: false, text: "", rolling: "days", count: Number(days[1]), complete: false, day: 0, before: false};
+        }
         const salary = /^(this|last)-salary-month-([1-9][0-9]*)$/.exec(word);
         if (salary !== null) {
             return {custom: false, text: "", rolling: "salary", count: 0, complete: false, day: Number(salary[2]), before: salary[1] === "last"};
@@ -31,6 +35,10 @@ QtObject {
 
     function months(count, complete) {
         return count < 1 || count > 120 ? "" : "last-" + count + (complete ? "-complete-months" : "-months");
+    }
+
+    function days(count) {
+        return count < 1 || count > 366 ? "" : "last-" + count + "-days";
     }
 
     function salaryMonth(day, before) {

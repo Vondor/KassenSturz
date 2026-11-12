@@ -82,6 +82,20 @@ pub enum PayeeRecognition {
     ByKeyWords(Vec<String>),
 }
 
+/// The longest name a tag can have, in characters, after the spaces around
+/// it are taken away (D-712). Long enough for "Holiday 2026 with the
+/// grandparents", short enough to fit on a tag chip.
+pub const MAX_TAG_NAME_CHARS: usize = 60;
+
+/// The most tags one transaction can carry on the whole of it (D-712).
+pub const MAX_TAGS_ON_TRANSACTION: usize = 20;
+
+/// The most tags of its own one part can carry (D-712).
+pub const MAX_TAGS_ON_PART: usize = 20;
+
+/// The most tags one book can have (D-712).
+pub const MAX_TAGS_IN_BOOK: usize = 1_000;
+
 /// A tag the user marks parts with, e.g. "Holiday 2026", to find them
 /// across categories (D-132).
 #[derive(Clone, Debug, PartialEq, Eq)]

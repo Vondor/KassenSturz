@@ -33,13 +33,23 @@ ColumnLayout {
     readonly property bool isNew: builder.openId === "" && !onOverview
     // The properties that belong to each step; the others are not offered
     // there.
-    readonly property var rangeKeys: ["grouping", "measure", "candle"]
+    readonly property var rangeKeys: ["grouping", "measure", "candle", "rows"]
     readonly property var advancedKeys: ["compare", "formula", "target"]
     // Candles show the balance of accounts, so their second step chooses
-    // accounts; budget bars choose budgets (US5.5, #753).
-    readonly property var seriesKeys: workbench.view.type === "chart.candlestick"
-        ? ["accounts"]
-        : ["budgets", "categories", "groups", "series", "show_hidden"]
+    // accounts; budget bars choose budgets; a custom chart is described in
+    // its own text; the transactions list chooses accounts and categories
+    // (US5.5, #753).
+    readonly property var seriesKeys: {
+        switch (workbench.view.type) {
+        case "chart.candlestick":
+            return ["accounts"];
+        case "chart.custom":
+            return ["spec", "series", "categories"];
+        case "table.transactions":
+            return ["accounts", "categories"];
+        }
+        return ["budgets", "categories", "groups", "series", "show_hidden"];
+    }
     readonly property var elementKeys: ["title", "legend"]
     // Formulas and fine tuning are one deliberate step away (Q-260).
     property bool advanced: false
@@ -53,7 +63,9 @@ ColumnLayout {
         {id: "figure", types: ["kpi.card", "progress.bar"]},
         {id: "table", types: ["table.rows"]},
         {id: "candles", types: ["chart.candlestick"]},
-        {id: "budgets", types: ["budget.progress"]}
+        {id: "budgets", types: ["budget.progress"]},
+        {id: "custom", types: ["chart.custom"]},
+        {id: "list", types: ["table.transactions"]}
     ]
     readonly property var currentKind: kinds.find(kind => kind.types.includes(workbench.view.type)) ?? kinds[0]
     readonly property alias nameText: wizardName.text
@@ -113,6 +125,12 @@ ColumnLayout {
         case "budget.progress":
         case "budgets":
             return "office-chart-bar-percentage";
+        case "chart.custom":
+        case "custom":
+            return "document-edit";
+        case "table.transactions":
+        case "list":
+            return "view-list-text";
         }
         return "office-chart-bar";
     }
@@ -131,6 +149,10 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox a kind of chart: the balance of accounts per day, week or month", "Balance candles");
         case "budgets":
             return i18nContext.i18nc("@item:inlistbox a kind of display: how much of each budget is spent and left", "Budgets");
+        case "custom":
+            return i18nContext.i18nc("@item:inlistbox a kind of chart: one the user describes in a short text", "Your own description");
+        case "list":
+            return i18nContext.i18nc("@item:inlistbox a kind of display: single transactions, newest first", "Transactions");
         }
         return i18nContext.i18nc("@item:inlistbox a kind of display", "Table");
     }
@@ -145,6 +167,10 @@ ColumnLayout {
                 return i18nContext.i18nc("@title:group a step of the wizard", "Choose accounts");
             case "budget.progress":
                 return i18nContext.i18nc("@title:group a step of the wizard", "Choose budgets");
+            case "chart.custom":
+                return i18nContext.i18nc("@title:group a step of the wizard", "Describe the chart");
+            case "table.transactions":
+                return i18nContext.i18nc("@title:group a step of the wizard", "Choose accounts and categories");
             }
             return i18nContext.i18nc("@title:group a step of the wizard", "Choose categories");
         }
@@ -161,6 +187,10 @@ ColumnLayout {
                 return i18nContext.i18nc("@info", "Choose the accounts whose balance the candles show. With none ticked, your checking, savings and cash accounts count together. For example: only your checking account.");
             case "budget.progress":
                 return i18nContext.i18nc("@info", "Choose which budgets get a bar. With none ticked, every budget gets one. For example: Groceries and Leisure.");
+            case "chart.custom":
+                return i18nContext.i18nc("@info", "Change the text that describes the chart, or start from a ready one with “Insert an example”. The preview below shows the result.");
+            case "table.transactions":
+                return i18nContext.i18nc("@info", "Choose whose transactions are listed. With none ticked, every open account and every category counts. For example: only your checking account, only Groceries.");
             }
             return i18nContext.i18nc("@info", "Choose which categories are counted. Every category that is not ticked is left out. For example: Groceries and Restaurants, but not Insurance.");
         }

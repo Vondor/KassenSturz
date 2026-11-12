@@ -266,6 +266,103 @@ ColumnLayout {
         }
     }
 
+    // The transactions list (US4.7, D-716), as the Overview's tile lists
+    // it, so the Statistic Builder can show it before it is kept (US5.5,
+    // #753). The rows, their order and every amount come from
+    // `BookTransactions`; nothing opens from here.
+    Loader {
+        Layout.fillWidth: true
+        active: preview.asked.shows === "transactions" && preview.period !== ""
+        visible: active
+
+        sourceComponent: ColumnLayout {
+            id: listed
+
+            readonly property string rows: (preview.subject?.fields ?? []).find(field => field.key === "rows")?.word ?? ""
+            readonly property string scope: preview.scope ?? preview.asked.scope ?? ""
+            readonly property var shown: listedFeed.view?.rows ?? []
+            readonly property int total: listedFeed.view?.total ?? 0
+            readonly property bool failed: listedFeed.view?.error !== undefined
+            readonly property bool narrowed: (listedFeed.view?.filter?.filtered ?? []).indexOf("categories") >= 0
+
+            function ask() {
+                listedFeed.setScope(scope);
+                listedFeed.show(preview.period, rows);
+            }
+
+            onRowsChanged: ask()
+            onScopeChanged: ask()
+            Component.onCompleted: ask()
+
+            Connections {
+                target: preview
+
+                function onPeriodChanged() {
+                    listed.ask();
+                }
+            }
+
+            spacing: 0
+
+            BookTransactions {
+                id: listedFeed
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                visible: !listed.failed && listed.total === 0 && listedFeed.view !== undefined
+                textFormat: Text.PlainText
+                wrapMode: Text.Wrap
+                color: Kirigami.Theme.disabledTextColor
+                text: listed.narrowed
+                    ? preview.i18nContext.i18nc("@info", "No transactions in these categories in this period.")
+                    : preview.i18nContext.i18nc("@info", "No transactions in this period.")
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                visible: listed.failed
+                type: Kirigami.MessageType.Warning
+                text: preview.i18nContext.i18nc("@info", "This couldn't be shown right now. Try another period, or open the page again.")
+            }
+
+            Repeater {
+                model: listed.shown
+
+                delegate: TransactionRow {
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    date: modelData.date
+                    otherParty: modelData.otherParty
+                    category: modelData.other
+                    amount: modelData.amount
+                    exactAmount: modelData.exact
+                    incoming: modelData.incoming
+                    kind: modelData.kind
+                    account: listedFeed.view?.severalAccounts ? modelData.account : ""
+                }
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                Layout.topMargin: Kirigami.Units.smallSpacing
+                visible: listed.total > listed.shown.length
+                textFormat: Text.PlainText
+                wrapMode: Text.Wrap
+                font: Kirigami.Theme.smallFont
+                color: Kirigami.Theme.disabledTextColor
+                text: preview.i18nContext.i18nc("@info %1 is how many are listed, %2 how many there are", "Showing the newest %1 of %2.", listed.shown.length, listed.total)
+            }
+
+            FilterNotes {
+                Layout.fillWidth: true
+                filter: listedFeed.view?.filter
+                hideMarks: preview.hideNote
+            }
+        }
+    }
+
     Repeater {
         model: preview.asked.shows === "chart" ? preview.charts : []
 

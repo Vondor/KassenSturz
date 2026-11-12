@@ -17,7 +17,7 @@ impl ComponentType {
     /// "Show as" list names them. The screens' own lists
     /// (`StatisticsPage.qml`, `StatisticWizard.qml`, `OverviewPage.qml`) are
     /// checked against it by the UI bridge's `builder_audit`.
-    pub const BUILDER: [Self; 11] = [
+    pub const BUILDER: [Self; 13] = [
         Self::ChartBar,
         Self::ChartPie,
         Self::ChartDonut,
@@ -29,6 +29,8 @@ impl ComponentType {
         Self::TableRows,
         Self::ChartCandlestick,
         Self::BudgetProgress,
+        Self::CustomChart,
+        Self::Transactions,
     ];
 
     /// The components that are not a chart, so the Builder doesn't offer
@@ -53,10 +55,6 @@ impl ComponentType {
         Self::Alarms,
     ];
 
-    /// Charts the Builder does not offer yet: the second step of #753 adds
-    /// them and empties this list.
-    pub const BUILDER_NEXT: [Self; 2] = [Self::CustomChart, Self::Transactions];
-
     /// Whether the Statistic Builder makes this component.
     pub fn in_builder(self) -> bool {
         Self::BUILDER.contains(&self)
@@ -65,7 +63,7 @@ impl ComponentType {
 
 #[cfg(test)]
 mod tests {
-    use crate::ComponentType;
+    use crate::{Component, ComponentType};
 
     /// The rule of #753: a component the library offers is made in the
     /// Builder or marked as not a chart, never neither and never both. A
@@ -76,23 +74,43 @@ mod tests {
             let lists = [
                 ComponentType::BUILDER.contains(kind),
                 ComponentType::NOT_A_CHART.contains(kind),
-                ComponentType::BUILDER_NEXT.contains(kind),
             ];
             assert_eq!(
                 lists.iter().filter(|&&listed| listed).count(),
                 1,
-                "{} must be in exactly one of BUILDER, NOT_A_CHART and BUILDER_NEXT",
+                "{} must be in exactly one of BUILDER and NOT_A_CHART",
                 kind.id()
             );
         }
-        let listed = ComponentType::BUILDER.len()
-            + ComponentType::NOT_A_CHART.len()
-            + ComponentType::BUILDER_NEXT.len();
+        let listed = ComponentType::BUILDER.len() + ComponentType::NOT_A_CHART.len();
         assert_eq!(
             listed,
             ComponentType::LIBRARY.len(),
             "a list holds a component twice"
         );
+    }
+
+    /// The Builder switches a view between its types, as the "Show as" list
+    /// and the wizard's kinds do: from bars to every Builder type and back,
+    /// each step a valid component that a saved view reads back unchanged.
+    #[test]
+    fn the_builder_switches_from_bars_to_every_type_and_back() {
+        for kind in ComponentType::BUILDER {
+            let mut view =
+                Component::new(ComponentType::ChartBar, crate::SPENDING_BY_CATEGORY).unwrap();
+            view.change_kind(kind)
+                .unwrap_or_else(|error| panic!("{}: {error:?}", kind.id()));
+            assert_eq!(view.kind(), kind);
+            assert_eq!(
+                Component::from_value(&view.to_value()).unwrap(),
+                view,
+                "{}",
+                kind.id()
+            );
+            view.change_kind(ComponentType::ChartBar)
+                .unwrap_or_else(|error| panic!("back from {}: {error:?}", kind.id()));
+            assert_eq!(view.kind(), ComponentType::ChartBar);
+        }
     }
 
     /// Everything the AI may prepare is a chart the Builder makes as well.

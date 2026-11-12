@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: sort with all Rules in the review
 
 // Opens AiChangeReviewPage.qml on the stand-ins (fakes/) with the AI's sort
 // with all Rules (US2.9, D-682) and checks that the card says what sorts,

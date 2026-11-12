@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: transaction page keeps a typed note
 
 // Opens TransactionPage.qml on a stand-in for AccountRegister (fakes/) and
 // checks that a note typed but not saved is saved before "Join with the

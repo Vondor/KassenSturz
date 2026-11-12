@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: chart colors in settings
 
 // Loads ChartColorsCard.qml, the chart colors in Settings (M7a.10, D-589), on
 // a stand-in for ChartPaletteSettings (fakes/) and checks what a person sees

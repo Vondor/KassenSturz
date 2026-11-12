@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: warnings tile
 
 // Opens AlarmList.qml and AlarmRulesField.qml on the stand-in for the Rust
 // object BookAlarms (fakes/) and checks that the tile says when it has no

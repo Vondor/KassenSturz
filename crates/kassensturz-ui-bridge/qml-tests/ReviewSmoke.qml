@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: review page
 
 // Opens AiChangeReviewPage.qml on stand-ins for the Rust objects (fakes/) with
 // a set that holds one new chart (M6a.9, D-282), one new budget (M6c.11,

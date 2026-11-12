@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: properties panel
 
 // Loads PropertiesPanel.qml (M6a.6) on a stand-in for ComponentProperties and
 // checks what a user sees and what the panel passes on: one control for every

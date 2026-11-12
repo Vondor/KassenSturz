@@ -705,7 +705,7 @@ fn the_dataset_and_its_component_are_offered_since_the_app_draws_them() {
             .datasets()
             .any(|dataset| dataset.id == BUDGET_UTILIZATION)
     );
-    for other in ComponentType::LIBRARY {
+    for &other in ComponentType::LIBRARY {
         if ![kind, ComponentType::CustomChart, ComponentType::TableRows].contains(&other) {
             assert!(
                 other

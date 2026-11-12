@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: filter bar
 
 // Opens FilterBar.qml, FilterPicker.qml and FilterNotes.qml on stand-ins for
 // DashboardLayout and CategoryGroups (fakes/) and checks the filter bar

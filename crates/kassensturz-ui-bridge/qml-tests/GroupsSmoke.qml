@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: groups pages
 
 // Opens CategoryGroupsPage.qml and CategoryGroupPage.qml on a stand-in for
 // the Rust object CategoryGroups (fakes/) and checks that the pages list the

@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: parts page
 
 // Opens PartsPage.qml, the page that breaks a transaction down into Parts, on
 // a stand-in for AccountRegister (fakes/), and checks the line that says what

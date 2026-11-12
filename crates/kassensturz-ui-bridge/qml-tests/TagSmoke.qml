@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: transaction page tags
 
 // Opens TransactionPage.qml on a stand-in for AccountRegister (fakes/) and
 // checks the Tags field (US4.8, docs/TAGS.md §1):

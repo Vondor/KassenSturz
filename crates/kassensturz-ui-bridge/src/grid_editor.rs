@@ -245,7 +245,8 @@ pub fn default_dataset(kind: ComponentType) -> &'static str {
 /// What the library offers: the type's id and the dataset a new one shows.
 pub fn library() -> Vec<(&'static str, &'static str)> {
     ComponentType::LIBRARY
-        .into_iter()
+        .iter()
+        .copied()
         .map(|kind| (kind.id(), default_dataset(kind)))
         .collect()
 }
@@ -481,9 +482,11 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_twenty_six_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_every_component_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 26);
+        // No count here: a new component would change it in every pull
+        // request that adds one (US5.10, Q-502).
+        assert_eq!(offered.len(), ComponentType::LIBRARY.len());
         assert!(offered.contains(&("chart.candlestick", "cash_flow_by_month")));
         assert!(offered.contains(&("table.transactions", "")));
         assert!(offered.contains(&("text.heading", "")));
@@ -491,7 +494,8 @@ mod tests {
         assert!(offered.contains(&("page.filters", "")));
         assert!(offered.contains(&("page.tabs", "")));
         let mut layout = Layout::open(&book(), None, OVERVIEW_NAME).unwrap();
-        for (kind, _) in offered {
+        let built_in = rows(&layout.editor, &Filters::default()).len();
+        for &(kind, _) in &offered {
             // The built-in Overview has the tabs, the period header and the
             // filter bar already; a page may hold more of each (D-532).
             let id = add(&mut layout.editor, kind).unwrap();
@@ -501,7 +505,10 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 42);
+        assert_eq!(
+            rows(&layout.editor, &Filters::default()).len(),
+            built_in + offered.len()
+        );
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

@@ -22,7 +22,7 @@ fn ids_round_trip_and_every_dataset_has_a_component() {
     for dataset in CATALOG {
         assert!(
             ComponentType::LIBRARY
-                .into_iter()
+                .iter()
                 .any(|kind| kind.datasets().any(|d| d.id == dataset.id)),
             "{} suits no component",
             dataset.id
@@ -44,7 +44,7 @@ fn every_component_has_a_title_and_unique_keys() {
 
 #[test]
 fn a_new_component_is_valid_for_every_dataset_it_suits() {
-    for kind in ComponentType::LIBRARY {
+    for &kind in ComponentType::LIBRARY {
         for dataset in kind.datasets() {
             let component = Component::new(kind, dataset.id).unwrap();
             for (property, setting) in component.settings() {
@@ -603,7 +603,7 @@ fn bars_choose_their_orientation_and_automatic_is_not_written() {
 #[test]
 fn candles_choose_their_length_and_automatic_is_not_written() {
     // Only the candle chart has the setting (Q-498).
-    for kind in ComponentType::LIBRARY {
+    for &kind in ComponentType::LIBRARY {
         let has = kind.properties().iter().any(|p| p.key == "candle");
         assert_eq!(has, kind == ComponentType::ChartCandlestick, "{kind:?}");
     }

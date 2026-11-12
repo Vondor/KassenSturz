@@ -1,5 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
+// check-panel: settings tags page
 
 // Opens TagsPage.qml (Settings › Tags, US4.8) on a stand-in for BookTags
 // (fakes/) and checks that each tag says how often it is used, that

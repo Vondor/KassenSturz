@@ -1332,6 +1332,7 @@ mod tests {
                 category,
                 date,
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )
@@ -1947,6 +1948,7 @@ mod tests {
                 category: &rent,
                 date: &edit.date,
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )
@@ -2340,6 +2342,7 @@ mod tests {
                 category: &rent,
                 date: &edit.date,
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )

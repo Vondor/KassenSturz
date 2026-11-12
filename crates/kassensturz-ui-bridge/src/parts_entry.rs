@@ -975,6 +975,7 @@ mod tests {
                 category,
                 date: "2026-10-05",
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )
@@ -1699,6 +1700,7 @@ mod tests {
                 category: &salary,
                 date: "2026-10-03",
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )

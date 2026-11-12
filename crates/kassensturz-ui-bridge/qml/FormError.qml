@@ -461,6 +461,25 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is the name of a Rule", "%1 already has this name here. Choose another one, so you can tell them apart.", result.existing);
         case "store.unknown-rule":
             return i18nContext.i18nc("@info", "This Rule isn't in the book anymore. It may have just been removed.");
+        case "store.tag-name":
+            return result.reason === "line-break"
+                ? i18nContext.i18nc("@info", "A tag's name must fit on one line. Take out the line break.")
+                : i18nContext.i18nc("@info %1 is a number", "A tag's name can have at most %1 characters. Choose a shorter name.", result.max_chars);
+        case "store.tag-too-many":
+            switch (result.limit) {
+            case "part":
+                return i18nContext.i18nc("@info %1 is a number", "A part can have at most %1 tags of its own. Take a tag away, then try again.", result.max);
+            case "book":
+                return i18nContext.i18nc("@info %1 is a number", "A book keeps at most %1 tags. Remove or merge tags you no longer need, then try again.", result.max);
+            default:
+                return i18nContext.i18nc("@info %1 is a number", "A transaction can have at most %1 tags. Take a tag away, then try again.", result.max);
+            }
+        case "store.unknown-tag":
+            return i18nContext.i18nc("@info", "One of the tags isn't in the book anymore. It may have just been removed. Take it away, then try again.");
+        case "store.duplicate-tag-name":
+            return i18nContext.i18nc("@info %1 is the name of a tag", "%1 already has this name. Choose another one, or merge the two tags.", result.existing);
+        case "store.tag-merged-into-itself":
+            return i18nContext.i18nc("@info", "A tag can't be merged into itself. Choose another tag to merge it into.");
         case "bank-check.cannot-correct":
             return i18nContext.i18nc("@info", "The starting balance is dated after this day, so it can't be corrected from here. Check a day on or after the starting balance.");
         case "store.empty-account-name":

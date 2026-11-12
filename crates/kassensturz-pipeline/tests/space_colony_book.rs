@@ -313,6 +313,7 @@ fn the_register_outlines_agree_with_the_whole_transactions_in_every_account() {
                             note: split.note.clone(),
                         })
                         .collect(),
+                    tags: transaction.all_tags(),
                 };
                 (transaction.id(), outline)
             })

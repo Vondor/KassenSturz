@@ -32,6 +32,7 @@ use crate::register::{RegisterRow, Sort, SortKey, register_view_with};
 use crate::register_columns::{Column, Columns};
 use crate::session;
 use crate::settings::Settings;
+use crate::tags::{self, TagChoice, TagInput, TagText};
 use crate::transaction_entry::{self, EntryError, EntryForm, NewEntry, RemovalNotice};
 use crate::transfer_prompt::{self, PartnerText, SideText, SuggestionText};
 use crate::variant::{error_object, list, map, text};
@@ -77,6 +78,7 @@ pub mod qobject {
         #[qproperty(i32, count, READ, NOTIFY)]
         #[qproperty(i32, unfiltered, READ, NOTIFY)]
         #[qproperty(QString, filter, READ, NOTIFY)]
+        #[qproperty(QString, tag_filter, cxx_name = "tagFilter", READ, NOTIFY)]
         #[qproperty(QString, today, READ, CONSTANT)]
         type AccountRegister = super::AccountRegisterRust;
     }
@@ -123,6 +125,19 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "setFilter"]
         fn set_filter(self: Pin<&mut AccountRegister>, text: &QString);
+
+        /// Shows only the transactions that carry the tag with `id`, on the
+        /// whole or on a part (D-713, Q-493). An empty `id` shows all.
+        #[qinvokable]
+        #[cxx_name = "setTagFilter"]
+        fn set_tag_filter(self: Pin<&mut AccountRegister>, id: &QString);
+
+        /// Every tag of the book, as a list of `id`, `name`,
+        /// `transactions` and `parts` (how many carry it), sorted by name
+        /// (D-712).
+        #[qinvokable]
+        #[cxx_name = "tagChoices"]
+        fn tag_choices(self: &AccountRegister) -> QVariant;
 
         /// The open accounts a transaction can be added to, as a list of
         /// `id` and `name`.
@@ -352,7 +367,7 @@ pub mod qobject {
 }
 
 /// The roles a row has, numbered from Qt's first user role.
-const ROLES: [(&str, i32); 15] = [
+const ROLES: [(&str, i32); 16] = [
     ("transactionId", 0x0100),
     ("date", 0x0101),
     ("otherParty", 0x0102),
@@ -368,6 +383,7 @@ const ROLES: [(&str, i32); 15] = [
     ("otherPartyIban", 0x010C),
     ("purpose", 0x010D),
     ("valueDate", 0x010E),
+    ("tags", 0x010F),
 ];
 
 /// The Rust side of [`qobject::AccountRegister`].
@@ -385,6 +401,7 @@ pub struct AccountRegisterRust {
     count: i32,
     unfiltered: i32,
     filter: QString,
+    tag_filter: QString,
     /// The account the rows were last read for.
     read_for: QString,
     today: QString,
@@ -421,6 +438,8 @@ impl qobject::AccountRegister {
         if !same {
             self.as_mut().rust_mut().filter = QString::default();
             self.as_mut().filter_changed();
+            self.as_mut().rust_mut().tag_filter = QString::default();
+            self.as_mut().tag_filter_changed();
         }
         self.refresh();
     }
@@ -478,7 +497,10 @@ impl qobject::AccountRegister {
             model.columns = QString::from(columns.text().as_str());
             model.unfiltered = i32::try_from(model.rows.len()).unwrap_or(i32::MAX);
             let query = model.filter.to_string();
-            model.rows.retain(|row| row.fits(&query));
+            let tag = model.tag_filter.to_string();
+            model
+                .rows
+                .retain(|row| row.fits(&query) && row.has_tag(&tag));
             model.count = i32::try_from(model.rows.len()).unwrap_or(i32::MAX);
         }
         self.as_mut().end_reset_model();
@@ -501,6 +523,26 @@ impl qobject::AccountRegister {
         self.as_mut().rust_mut().filter = text.clone();
         self.as_mut().filter_changed();
         self.refresh();
+    }
+
+    fn set_tag_filter(mut self: Pin<&mut Self>, id: &QString) {
+        if self.rust().tag_filter == *id {
+            return;
+        }
+        self.as_mut().rust_mut().tag_filter = id.clone();
+        self.as_mut().tag_filter_changed();
+        self.refresh();
+    }
+
+    fn tag_choices(&self) -> QVariant {
+        match session::with_book(tags::tag_choices) {
+            Some(Ok(choices)) => tag_choices_object(&choices),
+            Some(Err(error)) => {
+                eprintln!("kassensturz: couldn't read the tags: {error:?}");
+                list(Vec::new())
+            }
+            None => list(Vec::new()),
+        }
     }
 
     fn sort_by(mut self: Pin<&mut Self>, key: &QString, descending: bool) {
@@ -609,7 +651,8 @@ impl qobject::AccountRegister {
     fn add_transaction(self: Pin<&mut Self>, account_id: &QString, form: &QVariant) -> QVariant {
         let account_id = account_id.to_string();
         let form = Form::read(form);
-        let entered = form.entry(&account_id);
+        let tags = form.tag_inputs();
+        let entered = form.entry(&account_id, tags.as_deref());
         let added = session::with_book_mut(|book| {
             transaction_entry::add(book, &entered, &app_locale())
                 .map_err(|error| error_text(book, &account_id, &error))
@@ -633,7 +676,8 @@ impl qobject::AccountRegister {
     ) -> QVariant {
         let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
         let form = Form::read(form);
-        let entered = form.entry(&account_id);
+        let tags = form.tag_inputs();
+        let entered = form.entry(&account_id, tags.as_deref());
         let result = change(&account_id, |book| {
             transaction_entry::edit(book, &transaction_id, &entered, &app_locale())
         });
@@ -872,6 +916,7 @@ impl qobject::AccountRegister {
             Some(("otherPartyIban", _)) => text(&row.other_party_iban),
             Some(("purpose", _)) => text(&row.purpose),
             Some(("valueDate", _)) => text(&row.value_date),
+            Some(("tags", _)) => text(&row.tag_line()),
             _ => QVariant::default(),
         }
     }
@@ -959,6 +1004,10 @@ struct Form {
     /// The note; `None` when the form has none, e.g. an older page, so a
     /// saved transaction keeps the one it has.
     note: Option<String>,
+    /// The tags on the whole, as `{id, name}` (an empty `id` for a new
+    /// tag); `None` when the form has none, so a saved transaction keeps
+    /// the ones it has.
+    tags: Option<Vec<(String, String)>>,
 }
 
 impl Form {
@@ -976,10 +1025,21 @@ impl Form {
                 .get(&QString::from("note"))
                 .is_some()
                 .then(|| field(&map, "note")),
+            tags: map
+                .get(&QString::from("tags"))
+                .map(|value| read_tags(&value)),
         }
     }
 
-    fn entry<'a>(&'a self, account: &'a str) -> NewEntry<'a> {
+    fn tag_inputs(&self) -> Option<Vec<TagInput<'_>>> {
+        self.tags.as_ref().map(|tags| {
+            tags.iter()
+                .map(|(id, name)| TagInput { id, name })
+                .collect()
+        })
+    }
+
+    fn entry<'a>(&'a self, account: &'a str, tags: Option<&'a [TagInput<'a>]>) -> NewEntry<'a> {
         NewEntry {
             account,
             money_in: self.money_in,
@@ -988,8 +1048,56 @@ impl Form {
             category: &self.category,
             date: &self.date,
             note: self.note.as_deref(),
+            tags,
         }
     }
+}
+
+/// A list of `{id, name}` tags as QML gives it.
+pub(crate) fn read_tags(value: &QVariant) -> Vec<(String, String)> {
+    value
+        .value::<QList<QVariant>>()
+        .unwrap_or_default()
+        .iter()
+        .map(|tag| {
+            let tag = tag
+                .value::<QMap<QMapPair_QString_QVariant>>()
+                .unwrap_or_default();
+            (field(&tag, "id"), field(&tag, "name"))
+        })
+        .collect()
+}
+
+/// Tags as QML reads them: a list of `{id, name}`.
+pub(crate) fn tags_object(tags: &[TagText]) -> QVariant {
+    list(
+        tags.iter()
+            .map(|tag| map([("id", text(&tag.id)), ("name", text(&tag.name))]))
+            .collect::<Vec<_>>(),
+    )
+}
+
+/// The book's tags as `tagChoices` gives them.
+fn tag_choices_object(choices: &[TagChoice]) -> QVariant {
+    list(
+        choices
+            .iter()
+            .map(|choice| {
+                map([
+                    ("id", text(&choice.tag.id)),
+                    ("name", text(&choice.tag.name)),
+                    (
+                        "transactions",
+                        QVariant::from(&i32::try_from(choice.transactions).unwrap_or(i32::MAX)),
+                    ),
+                    (
+                        "parts",
+                        QVariant::from(&i32::try_from(choice.parts).unwrap_or(i32::MAX)),
+                    ),
+                ])
+            })
+            .collect::<Vec<_>>(),
+    )
 }
 
 /// What the Parts page's form holds, as typed; a missing field counts as
@@ -1077,6 +1185,8 @@ fn form_object(form: &EntryForm) -> QVariant {
         ("otherAccount", text(&form.other_account)),
         ("date", text(&form.date)),
         ("note", text(&form.note)),
+        ("tags", tags_object(&form.tags)),
+        ("partTags", tags_object(&form.part_tags)),
         ("imported", QVariant::from(&form.imported)),
         ("deliveredName", text(&form.delivered_name)),
     ])
@@ -1148,10 +1258,12 @@ fn error_text(book: &Book, account_id: &str, error: &EntryError) -> ErrorText {
 #[cfg(test)]
 mod tests {
     use super::{
-        column_choices_object, form_object, notice_object, partner_object, suggestion_object,
+        column_choices_object, form_object, notice_object, partner_object, read_tags,
+        suggestion_object, tag_choices_object,
     };
     use crate::register::Shown;
     use crate::register_columns::{Column, Columns};
+    use crate::tags::{TagChoice, TagText};
     use crate::transaction_entry::{EntryForm, RemovalNotice};
     use crate::transfer_prompt::{PartnerText, SideText, SuggestionText};
     use crate::variant::read_back::{elements, flag_of, keys, number_of, text_of};
@@ -1197,6 +1309,14 @@ mod tests {
             other_account: String::new(),
             date: "2026-10-08".into(),
             note: "Bought for the picnic".into(),
+            tags: vec![TagText {
+                id: "tag-1".into(),
+                name: "Holiday".into(),
+            }],
+            part_tags: vec![TagText {
+                id: "tag-2".into(),
+                name: "Tax".into(),
+            }],
             imported: true,
             delivered_name: "CORNER GROCERY".into(),
         });
@@ -1204,7 +1324,30 @@ mod tests {
         assert_eq!(text_of(&form, "deliveredName"), "CORNER GROCERY");
         assert_eq!(text_of(&form, "note"), "Bought for the picnic");
         assert!(flag_of(&form, "imported"));
-        assert_eq!(keys(&form).len(), 12);
+        assert_eq!(keys(&form).len(), 14);
+        // The tags as TagField.qml reads them (D-712), and back as the form
+        // gives them.
+        let tags = elements(&crate::variant::read_back::object_of(&form, "tags")).expect("a list");
+        assert_eq!(keys(&tags[0]), ["id", "name"]);
+        assert_eq!(text_of(&tags[0], "name"), "Holiday");
+        let part_tags =
+            elements(&crate::variant::read_back::object_of(&form, "partTags")).expect("a list");
+        assert_eq!(text_of(&part_tags[0], "id"), "tag-2");
+        assert_eq!(
+            read_tags(&crate::variant::read_back::object_of(&form, "tags")),
+            [("tag-1".to_owned(), "Holiday".to_owned())]
+        );
+        let choices = elements(&tag_choices_object(&[TagChoice {
+            tag: TagText {
+                id: "tag-1".into(),
+                name: "Holiday".into(),
+            },
+            transactions: 2,
+            parts: 3,
+        }]))
+        .expect("a list");
+        assert_eq!(keys(&choices[0]), ["id", "name", "parts", "transactions"]);
+        assert_eq!(number_of(&choices[0], "parts"), 3);
         let notice = notice_object(&RemovalNotice {
             holds_original: true,
             undo: "days",

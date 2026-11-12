@@ -35,8 +35,18 @@ QtObject {
     property var expenseChoices: []
     signal modelReset()
 
+    // TagSmoke.qml (US4.8): the stored transaction's tags, its parts' own
+    // tags and the book's tags to choose from.
+    property var tags: [{ id: "garden", name: "Garden party" }]
+    property var partTags: []
+    property var bookTags: [
+        { id: "garden", name: "Garden party", transactions: 1, parts: 0 },
+        { id: "tax", name: "Tax", transactions: 0, parts: 2 },
+    ]
+    function tagChoices() { return bookTags; }
+
     function details(accountId, transactionId) {
-        return ({ kind: "simple", moneyIn: true, amount: "530.00", otherParty: "", date: "2026-09-01", note: note, category: category });
+        return ({ kind: "simple", moneyIn: true, amount: "530.00", otherParty: "", date: "2026-09-01", note: note, category: category, tags: tags, partTags: partTags });
     }
     // As the Rust side: the categories of the direction, and `current` even
     // if it is of the other kind, when the book has it.
@@ -53,6 +63,9 @@ QtObject {
     function editTransaction(accountId, transactionId, form) {
         saved = saved.concat([form]);
         category = form.category;
+        if (form.tags !== undefined) {
+            tags = form.tags;
+        }
         if (form.note !== undefined) {
             note = form.note;
         }

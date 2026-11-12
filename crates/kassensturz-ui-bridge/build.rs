@@ -134,6 +134,7 @@ fn main() {
                 "qml/SettingsPage.qml",
                 "qml/StatisticsPage.qml",
                 "qml/TransactionPage.qml",
+                "qml/TagField.qml",
                 "qml/TransactionRow.qml",
                 "qml/TransferPrompt.qml",
                 "qml/TransferPartnerDialog.qml",

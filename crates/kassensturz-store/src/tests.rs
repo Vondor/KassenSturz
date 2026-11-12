@@ -1589,25 +1589,48 @@ fn an_account_changes_its_type_and_keeps_its_transactions() {
 }
 
 #[test]
-fn a_grouped_account_keeps_its_kind() {
+fn a_grouped_account_changes_its_kind_and_leaves_its_group() {
     let Sample {
         mut book, checking, ..
     } = sample();
-    let mut inside = book.account(checking).expect("account");
-    inside.id = AccountId::generate();
-    inside.name = "Sub-account".into();
-    inside.parent = Some(checking);
-    book.add_account(&inside).expect("added inside");
+    // As a KMyMoney book brings it: a group, an account inside it, and an
+    // account inside that one (D-132).
+    let add_inside = |book: &mut Book, name: &str, parent: AccountId| {
+        let mut inside = book.account(checking).expect("account");
+        inside.id = AccountId::generate();
+        inside.name = name.into();
+        inside.parent = Some(parent);
+        book.add_account(&inside).expect("added inside");
+        inside.id
+    };
+    let petty = add_inside(&mut book, "Petty Cash", checking);
+    let jar = add_inside(&mut book, "Coin Jar", petty);
+    let before: Vec<Account> = book.all_accounts().expect("accounts");
+    let history = book.history().expect("history").len();
 
-    // Neither the group nor the account inside it can become a debt.
-    for id in [checking, inside.id] {
-        assert!(matches!(
-            book.set_account_type(id, AccountType::CreditCard),
-            Err(StoreError::ParentKindMismatch { .. })
-        ));
-        assert_eq!(book.account(id).expect("account").kind, AccountKind::Asset);
-    }
-    // Another type of the same kind is fine.
-    book.set_account_type(inside.id, AccountType::Cash)
+    // Another type of the same kind keeps it where it is.
+    book.set_account_type(petty, AccountType::Cash)
         .expect("type changed");
+    assert_eq!(book.account(petty).expect("account").parent, Some(checking));
+
+    // A credit card leaves the group of money the user has, and the
+    // account inside it moves up into that group (#558).
+    book.set_account_type(petty, AccountType::CreditCard)
+        .expect("type changed");
+    let card = book.account(petty).expect("account");
+    assert_eq!(card.kind, AccountKind::Liability);
+    assert_eq!(card.parent, None);
+    assert_eq!(book.account(jar).expect("account").parent, Some(checking));
+    assert_eq!(book.history().expect("history").len(), history + 2);
+
+    // The group itself can become a debt too.
+    book.set_account_type(checking, AccountType::CreditCard)
+        .expect("type changed");
+    assert_eq!(book.account(jar).expect("account").parent, None);
+
+    // Undo puts every account back where it was.
+    for _ in 0..3 {
+        book.undo().expect("undone");
+    }
+    assert_eq!(book.all_accounts().expect("accounts"), before);
 }

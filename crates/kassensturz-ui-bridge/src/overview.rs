@@ -518,6 +518,7 @@ mod tests {
                 category: &category,
                 date,
                 note: None,
+                tags: None,
             },
             &TestLocale,
         )
@@ -1015,6 +1016,7 @@ mod tests {
                     category: &travel,
                     amount: "",
                     foreign_amount: "100",
+                    tags: None,
                 }],
             },
             &TestLocale,

@@ -17,12 +17,13 @@ use kassensturz_core::{
     Account, AccountId, AccountKind, Money, Report, Split, Transaction, TransactionError,
     TransactionId,
 };
-use kassensturz_store::{Book, HistoryRetention, StoreError};
+use kassensturz_store::{Action, Book, HistoryRetention, StoreError};
 
 use crate::errors::{ErrorText, amount_example, report_text};
 use crate::format::{Affixes, AmountFormat, Locale};
 use crate::parse::{AmountInputError, AmountReader};
 use crate::register::{EntryKind, kind_of};
+use crate::tags::{self, TagInput, TagText};
 
 /// Why something the user entered wasn't accepted. The UI shows a message
 /// for each code (D-034).
@@ -79,6 +80,10 @@ pub struct NewEntry<'a> {
     /// removes it); `None` leaves a transaction's note as it is, and an
     /// added one has none.
     pub note: Option<&'a str>,
+    /// The tags on the whole transaction, as chosen (D-712, Q-493). `Some`
+    /// sets them (empty removes them); `None` leaves a transaction's tags as
+    /// they are, and an added one has none.
+    pub tags: Option<&'a [TagInput<'a>]>,
 }
 
 /// A transaction as the page shows it to be changed, every amount and date
@@ -108,6 +113,11 @@ pub struct EntryForm {
     pub date: String,
     /// What the user wrote about the transaction as a whole; may be empty.
     pub note: String,
+    /// The tags on the whole transaction, in the user's order (D-712).
+    pub tags: Vec<TagText>,
+    /// The tags its parts carry of their own that the whole hasn't, each
+    /// once: shown read-only, as they are changed on the Parts page.
+    pub part_tags: Vec<TagText>,
     /// Whether the account's part came from a bank or a file, so its amount
     /// stays as delivered (D-067).
     pub imported: bool,
@@ -227,7 +237,15 @@ pub fn add(
     )
     .map_err(EntryError::Transaction)?
     .with_note(note);
-    book.add_transaction(&transaction)?;
+    // A tag typed new is made in the same user action, so one Undo takes
+    // back both (D-086).
+    book.as_one_action(Action::AddTransaction, |book| {
+        let tags = match entered.tags {
+            Some(wanted) => tags::resolve(book, wanted)?,
+            None => Vec::new(),
+        };
+        book.add_transaction(&transaction.clone().with_tags(tags))
+    })?;
     Ok(transaction.id())
 }
 
@@ -268,6 +286,7 @@ pub fn details(
         _ => String::new(),
     };
     let own_split = own.first().ok_or(EntryError::NoSuchEntry)?;
+    let names = tags::names(book)?;
     // The account's own date and payee, as the register shows them (D-108).
     let date = transaction.date_of(own_split);
     let other_party = transaction.payee_of(own_split).unwrap_or_default();
@@ -292,6 +311,15 @@ pub fn details(
         },
         date: locale.short_date(date),
         note: transaction.note().unwrap_or_default().to_owned(),
+        tags: tags::texts(&names, transaction.tags()),
+        part_tags: tags::texts(
+            &names,
+            &transaction
+                .all_tags()
+                .into_iter()
+                .filter(|tag| !transaction.tags().contains(tag))
+                .collect::<Vec<_>>(),
+        ),
         imported: own.iter().any(|split| split.imported.is_some()),
         delivered_name,
     })
@@ -363,7 +391,16 @@ pub fn edit(
         Some(note) => transaction.with_note(note),
         None => transaction,
     };
-    book.update_transaction(&transaction)?;
+    book.as_one_action(Action::EditTransaction, |book| {
+        let transaction = match entered.tags {
+            Some(wanted) => {
+                let tags = tags::resolve(book, wanted)?;
+                transaction.with_tags(tags)
+            }
+            None => transaction,
+        };
+        book.update_transaction(&transaction)
+    })?;
     Ok(())
 }
 
@@ -607,6 +644,7 @@ mod tests {
             category,
             date: "2026-10-05",
             note: None,
+            tags: None,
         }
     }
 
@@ -936,6 +974,8 @@ mod tests {
                 note: String::new(),
                 imported: false,
                 delivered_name: String::new(),
+                tags: Vec::new(),
+                part_tags: Vec::new(),
             }
         );
         // Saving the form unchanged reads the amount it wrote.
@@ -1469,6 +1509,135 @@ mod tests {
         assert_eq!(form.note, "");
         let stored = find_transaction(&book, account_id, &id).expect("stored");
         assert_eq!(stored.note(), None);
+    }
+
+    #[test]
+    fn tags_typed_new_are_made_with_the_save_and_a_part_tag_is_found_too() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        let account_id = find_account(&book, &checking).expect("account").id;
+        let wanted = [TagInput {
+            id: "",
+            name: "  Garden party  ",
+        }];
+        add(
+            &mut book,
+            &NewEntry {
+                tags: Some(&wanted),
+                ..paid(&checking, "30", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("added");
+        let id = transaction_at(&book, &checking, true);
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(
+            form.tags
+                .iter()
+                .map(|tag| tag.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Garden party"]
+        );
+        let party = form.tags[0].id.clone();
+
+        // One Undo takes back the entry and the tag made with it.
+        book.undo().expect("undone");
+        assert!(book.tags().expect("tags").is_empty());
+        book.redo().expect("redone");
+
+        // A name the book has already, in other capitals, takes that tag;
+        // saving without a tags field leaves the tags as they are.
+        let again = [
+            TagInput {
+                id: &party,
+                name: "",
+            },
+            TagInput {
+                id: "",
+                name: "garden PARTY",
+            },
+        ];
+        edit(
+            &mut book,
+            &id,
+            &NewEntry {
+                tags: Some(&again),
+                ..paid(&checking, "31", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("edited");
+        edit(
+            &mut book,
+            &id,
+            &paid(&checking, "32", "Corner Grocery", &groceries),
+            &TestLocale,
+        )
+        .expect("edited");
+        assert_eq!(book.tags().expect("tags").len(), 1);
+        let stored = find_transaction(&book, account_id, &id).expect("stored");
+        assert_eq!(stored.tags().len(), 1);
+
+        // A part's own tag shows on the form apart from the entry's, and
+        // the register row carries both, so search and the tag filter find
+        // the entry by either (Q-493).
+        let tax = kassensturz_core::Tag {
+            id: kassensturz_core::TagId::generate(),
+            name: "Tax".into(),
+        };
+        book.add_tag(&tax).expect("tag");
+        let splits = stored
+            .splits()
+            .iter()
+            .map(|split| {
+                if split.account == Some(account_id) {
+                    split.clone()
+                } else {
+                    Split {
+                        tags: vec![tax.id],
+                        ..split.clone()
+                    }
+                }
+            })
+            .collect();
+        let tagged = Transaction::new(
+            stored.id(),
+            stored.booking_date(),
+            stored.payee().map(str::to_owned),
+            splits,
+        )
+        .expect("balances")
+        .with_details_of(&stored);
+        book.update_transaction(&tagged).expect("updated");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.part_tags.len(), 1);
+        assert_eq!(form.part_tags[0].name, "Tax");
+        let view = register_view(&book, account_id, Sort::default(), &TestLocale).expect("view");
+        let row = &view.rows[0];
+        assert_eq!(row.tag_line(), "Garden party, Tax");
+        assert!(row.has_tag(&party) && row.has_tag(&tax.id.to_string()));
+        assert!(row.fits("tax") && row.fits("garden"));
+
+        // A tag ID the book doesn't have is refused and nothing changes.
+        let unknown = kassensturz_core::TagId::generate().to_string();
+        let wrong = [TagInput {
+            id: &unknown,
+            name: "",
+        }];
+        assert!(
+            edit(
+                &mut book,
+                &id,
+                &NewEntry {
+                    tags: Some(&wrong),
+                    ..paid(&checking, "99", "Corner Grocery", &groceries)
+                },
+                &TestLocale,
+            )
+            .is_err()
+        );
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!((form.amount.as_str(), form.tags.len()), ("32,00", 1));
     }
 
     #[test]

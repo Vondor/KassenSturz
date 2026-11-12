@@ -77,6 +77,7 @@ Kirigami.ScrollablePage {
         }
         categoryChoices = choices;
         categoryBox.currentIndex = categoryIndex(categoryId);
+        tagField.choices = register.tagChoices();
         amountExample = register.amountExample(chosenAccount);
     }
 
@@ -88,6 +89,8 @@ Kirigami.ScrollablePage {
         dateField.text = entry.date ?? "";
         noteField.text = entry.note ?? "";
         loadedNote = noteField.text;
+        tagField.tags = entry.tags ?? [];
+        loadedTags = tagsText();
         categoryId = entry.category ?? "";
         reload();
         loadedFields = fieldsText();
@@ -167,7 +170,15 @@ Kirigami.ScrollablePage {
     property string loadedFields: ""
 
     function fieldsText(): string {
-        return JSON.stringify([moneyIn, amountField.text, otherPartyField.text, chosenCategory(), dateField.text]);
+        return JSON.stringify([moneyIn, amountField.text, otherPartyField.text, chosenCategory(), dateField.text, tagsText()]);
+    }
+
+    // The tags as they were loaded or last saved, so a save sends them
+    // only when the user changed them (US4.8).
+    property string loadedTags: "[]"
+
+    function tagsText(): string {
+        return JSON.stringify(tagField.tags.map(tag => [tag.id, tag.name]));
     }
 
     // Whether the form holds something the user typed and didn't save.
@@ -192,6 +203,7 @@ Kirigami.ScrollablePage {
             return false;
         }
         loadedNote = noteField.text;
+        loadedTags = tagsText();
         loadedFields = fieldsText();
         return true;
     }
@@ -208,6 +220,10 @@ Kirigami.ScrollablePage {
         };
         if (noteField.text !== loadedNote) {
             typed.note = noteField.text;
+        }
+        // Without a `tags` key the Rust side leaves the tags as they are.
+        if (adding || tagsText() !== loadedTags) {
+            typed.tags = tagField.tags;
         }
         return typed;
     }
@@ -494,6 +510,28 @@ Kirigami.ScrollablePage {
             text: noteField.refused
                 ? page.i18nContext.i18nc("@info %1 is the longest a note may be", "A note may be up to %1 characters long, so the rest did not fit. Please shorten the note to add more.", page.noteLimit)
                 : page.i18nContext.i18nc("@info %1 characters typed so far, %2 the longest a note may be", "%1 of %2 characters", noteField.counted, page.noteLimit)
+        }
+
+        // The tags of the whole transaction (US4.8, docs/TAGS.md §1).
+        TagField {
+            id: tagField
+            visible: page.editable
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Tags:")
+        }
+
+        // Tags its parts have of their own, which the Parts page changes; a
+        // tag never moves between the whole and a part by itself (D-713).
+        Controls.Label {
+            visible: page.editable && (page.entry.partTags ?? []).length > 0
+            Layout.fillWidth: true
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+            text: page.i18nContext.i18nc("@info %1 is a list of tags, e.g. Tax, Gift", "Some parts also have the tags: %1", (page.entry.partTags ?? []).map(tag => tag.name).join(", "))
         }
 
         RowLayout {

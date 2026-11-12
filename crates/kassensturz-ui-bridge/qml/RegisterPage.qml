@@ -330,22 +330,58 @@ Kirigami.ScrollablePage {
         // The quick filter, like the search above a mailbox: it narrows the
         // lines to those with every typed word in them (round 2). The balance
         // below still counts all of the account.
-        Kirigami.SearchField {
-            id: quickFilter
-
+        // Next to it, the Tag chooser keeps the lines with the tag on the
+        // whole entry or on one of its parts (US4.8, Q-493).
+        RowLayout {
             Layout.fillWidth: true
             Layout.margins: Kirigami.Units.smallSpacing
             visible: page.loaded && page.register.unfiltered > 0
-            placeholderText: page.i18nContext.i18nc("@info:placeholder", "Filter these transactions")
-            Accessible.name: page.i18nContext.i18nc("@label", "Filter transactions")
-            onTextChanged: page.register.setFilter(text)
-            // A page for another account starts empty; text kept here would
-            // filter nothing.
-            Connections {
-                target: page.register
-                function onFilterChanged() {
-                    if (quickFilter.text !== page.register.filter) {
-                        quickFilter.text = page.register.filter;
+
+            Kirigami.SearchField {
+                id: quickFilter
+
+                Layout.fillWidth: true
+                placeholderText: page.i18nContext.i18nc("@info:placeholder", "Filter these transactions")
+                Accessible.name: page.i18nContext.i18nc("@label", "Filter transactions")
+                onTextChanged: page.register.setFilter(text)
+                // A page for another account starts empty; text kept here would
+                // filter nothing.
+                Connections {
+                    target: page.register
+                    function onFilterChanged() {
+                        if (quickFilter.text !== page.register.filter) {
+                            quickFilter.text = page.register.filter;
+                        }
+                    }
+                }
+            }
+
+            Controls.ComboBox {
+                id: tagFilter
+
+                // "All tags" first, then the book's tags by name; read again
+                // when the lines are, so a tag made in the form is offered.
+                property var tagChoices: []
+
+                visible: tagChoices.length > 0
+                model: [{ id: "", name: page.i18nContext.i18nc("@item:inlistbox no tag filter", "All tags") }].concat(tagChoices)
+                textRole: "name"
+                valueRole: "id"
+                Accessible.name: page.i18nContext.i18nc("@label:listbox", "Show only transactions with this tag")
+                Component.onCompleted: tagChoices = page.register.tagChoices()
+                onActivated: {
+                    ActionLog.taken("RegisterPage_tagFilter")
+                    page.register.setTagFilter(currentValue)
+                }
+
+                Connections {
+                    target: page.register
+                    function onModelReset() {
+                        tagFilter.tagChoices = page.register.tagChoices();
+                        tagFilter.currentIndex = Math.max(0, tagFilter.indexOfValue(page.register.tagFilter));
+                    }
+                    function onTagFilterChanged() {
+                        tagFilter.currentIndex = Math.max(0, tagFilter.indexOfValue(page.register.tagFilter));
                     }
                 }
             }
@@ -490,6 +526,7 @@ Kirigami.ScrollablePage {
             required property string balance
             required property string exactBalance
             required property string note
+            required property string tags
             required property string otherPartyIban
             required property string purpose
             required property string valueDate
@@ -526,6 +563,7 @@ Kirigami.ScrollablePage {
                 exactBalance: delegate.exactBalance
                 owes: page.register.owes
                 note: delegate.note
+                tags: delegate.tags
                 columns: page.register.columns
                 balanceShown: page.register.balanceShown
                 otherPartyIban: delegate.otherPartyIban

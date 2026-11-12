@@ -20082,6 +20082,132 @@ msgid ""
 "Settings › Help lists the data names a description can use, with their "
 "fields, and the examples."
 msgstr "Einstellungen › Hilfe nennt die Datennamen, die eine Beschreibung verwenden kann, mit ihren Feldern, und die Beispiele."
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:467
+msgctxt "@info"
+msgid "A tag's name must fit on one line. Take out the line break."
+msgstr ""
+"Der Name eines Schlagworts muss in eine Zeile passen. Nehmen Sie den "
+"Zeilenumbruch heraus."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:468
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "A tag's name can have at most %1 characters. Choose a shorter name."
+msgstr ""
+"Der Name eines Schlagworts darf höchstens %1 Zeichen lang sein. Wählen Sie "
+"einen kürzeren Namen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:471
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"A part can have at most %1 tags of its own. Take a tag away, then try again."
+msgstr ""
+"Ein Teilbetrag kann höchstens %1 eigene Schlagwörter haben. Nehmen Sie ein "
+"Schlagwort weg und versuchen Sie es dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:473
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"A book keeps at most %1 tags. Remove or merge tags you no longer need, then "
+"try again."
+msgstr ""
+"Ein Buch hat höchstens %1 Schlagwörter. Entfernen Sie Schlagwörter, die Sie "
+"nicht mehr brauchen, oder führen Sie sie zusammen, und versuchen Sie es dann "
+"noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:475
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"A transaction can have at most %1 tags. Take a tag away, then try again."
+msgstr ""
+"Eine Buchung kann höchstens %1 Schlagwörter haben. Nehmen Sie ein Schlagwort "
+"weg und versuchen Sie es dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:478
+msgctxt "@info"
+msgid ""
+"One of the tags isn't in the book anymore. It may have just been removed. "
+"Take it away, then try again."
+msgstr ""
+"Eines der Schlagwörter ist nicht mehr im Buch. Es wurde vielleicht gerade "
+"entfernt. Nehmen Sie es weg und versuchen Sie es dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:480
+#, kde-format
+msgctxt "@info %1 is the name of a tag"
+msgid "%1 already has this name. Choose another one, or merge the two tags."
+msgstr ""
+"%1 hat bereits diesen Namen. Wählen Sie einen anderen oder führen Sie die "
+"beiden Schlagwörter zusammen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:482
+msgctxt "@info"
+msgid "A tag can't be merged into itself. Choose another tag to merge it into."
+msgstr ""
+"Ein Schlagwort kann nicht mit sich selbst zusammengeführt werden. Wählen Sie "
+"ein anderes Schlagwort."
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:367
+msgctxt "@item:inlistbox no tag filter"
+msgid "All tags"
+msgstr "Alle Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:370
+msgctxt "@label:listbox"
+msgid "Show only transactions with this tag"
+msgstr "Nur Buchungen mit diesem Schlagwort zeigen"
+
+#: crates/kassensturz-ui-bridge/qml/TagField.qml:37
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:521
+msgctxt "@label:textbox"
+msgid "Tags:"
+msgstr "Schlagwörter:"
+
+#: crates/kassensturz-ui-bridge/qml/TagField.qml:120
+#, kde-format
+msgctxt "@action:button %1 is a tag"
+msgid "Take away the tag %1"
+msgstr "Schlagwort %1 wegnehmen"
+
+#: crates/kassensturz-ui-bridge/qml/TagField.qml:143
+msgctxt "@info:placeholder"
+msgid "Add a tag, for example Holiday"
+msgstr "Schlagwort hinzufügen, zum Beispiel Urlaub"
+
+#: crates/kassensturz-ui-bridge/qml/TagField.qml:144
+#, kde-format
+msgctxt "@info:placeholder %1 is a number"
+msgid "At most %1 tags"
+msgstr "Höchstens %1 Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/TagField.qml:146
+msgctxt "@info"
+msgid "Type to find a tag or to make a new one, then press Enter."
+msgstr ""
+"Tippen Sie, um ein Schlagwort zu finden oder ein neues anzulegen, und drücken "
+"Sie dann die Eingabetaste."
+
+#: crates/kassensturz-ui-bridge/qml/TagField.qml:206
+#, kde-format
+msgctxt "@item:inlistbox %1 is the name of a new tag"
+msgid "Create \"%1\""
+msgstr "„%1“ anlegen"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:534
+#, kde-format
+msgctxt "@info %1 is a list of tags, e.g. Tax, Gift"
+msgid "Some parts also have the tags: %1"
+msgstr "Einige Teilbeträge haben auch die Schlagwörter: %1"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:96
+#, kde-format
+msgctxt "@label %1 is a list of tags, e.g. Holiday, Tax"
+msgid "Tags: %1"
+msgstr "Schlagwörter: %1"
+
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml
 #, kde-format
 msgctxt "@info"
@@ -20440,3 +20566,137 @@ msgctxt "@label the rules of the warnings tile"
 msgid "Warnings"
 msgstr "Warnungen"
 
+
+#: crates/kassensturz-ui-bridge/qml/PartRow.qml:175
+#, kde-format
+msgctxt "@label:textbox %1 is the number of the part"
+msgid "Tags of part %1"
+msgstr "Schlagwörter von Teilbetrag %1"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:203
+msgctxt "@action:button"
+msgid "Tags"
+msgstr "Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:204
+msgctxt "@info"
+msgid "Rename, merge or remove your tags."
+msgstr "Schlagwörter umbenennen, zusammenführen oder entfernen."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:36
+msgctxt "@title"
+msgid "Tags"
+msgstr "Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:42
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 transaction"
+msgid_plural "%1 transactions"
+msgstr[0] "%1 Buchung"
+msgstr[1] "%1 Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:43
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 part"
+msgid_plural "%1 parts"
+msgstr[0] "%1 Teilbetrag"
+msgstr[1] "%1 Teilbeträgen"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:45
+#, kde-format
+msgctxt "@info %1 is how many transactions, %2 how many parts"
+msgid "Used on %1 and %2"
+msgstr "Verwendet bei %1 und %2"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:48
+#, kde-format
+msgctxt "@info %1 is how many transactions"
+msgid "Used on %1"
+msgstr "Verwendet bei %1"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:51
+#, kde-format
+msgctxt "@info %1 is how many parts"
+msgid "Used on %1"
+msgstr "Verwendet bei %1"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:53
+msgctxt "@info"
+msgid "Not used yet"
+msgstr "Noch nicht verwendet"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:74
+msgctxt "@info"
+msgid ""
+"Tags are your own labels, for example Holiday 2026 or Tax. They never change "
+"an amount or a sum. Add them on a transaction's page or on one of its parts."
+msgstr ""
+"Schlagwörter sind Ihre eigenen Kennzeichen, zum Beispiel Urlaub 2026 oder "
+"Steuer. Sie ändern nie einen Betrag oder eine Summe. Sie fügen sie auf der "
+"Seite einer Buchung oder bei einem ihrer Teilbeträge hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:81
+msgctxt "@info"
+msgid "No tags yet."
+msgstr "Noch keine Schlagwörter."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:162
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:176
+msgctxt "@label:listbox"
+msgid "Merge it into:"
+msgstr "Zusammenführen mit:"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:175
+msgctxt "@item:inlistbox no tag chosen yet"
+msgid "Choose a tag"
+msgstr "Schlagwort wählen"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:180
+msgctxt "@action:button"
+msgid "Merge"
+msgstr "Zusammenführen"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:197
+#, kde-format
+msgctxt "@info %1 and %2 are the names of tags"
+msgid ""
+"Everything tagged %1 gets %2 instead, and %1 is removed. You can undo this."
+msgstr ""
+"Alles mit dem Schlagwort %1 bekommt stattdessen %2, und %1 wird entfernt. "
+"Sie können das rückgängig machen."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:202
+msgctxt "@action:button"
+msgid "Remove this tag…"
+msgstr "Dieses Schlagwort entfernen…"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:219
+msgctxt "@title:window"
+msgid "Remove this tag?"
+msgstr "Dieses Schlagwort entfernen?"
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:221
+#, kde-format
+msgctxt "@info %1 is the name of a tag, %2 how often it is used"
+msgid ""
+"%1 is taken off everything it is on (%2) and removed from the book. The "
+"transactions and their amounts stay as they are. You can undo this."
+msgstr ""
+"%1 wird überall weggenommen (%2) und aus dem Buch entfernt. Die Buchungen "
+"und ihre Beträge bleiben, wie sie sind. Sie können das rückgängig machen."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:222
+#, kde-format
+msgctxt "@info %1 is the name of a tag"
+msgid ""
+"%1 is not used anywhere. It is removed from the book. You can undo this."
+msgstr ""
+"%1 wird nirgends verwendet. Es wird aus dem Buch entfernt. Sie können das "
+"rückgängig machen."
+
+#: crates/kassensturz-ui-bridge/qml/TagsPage.qml:226
+msgctxt "@action:button"
+msgid "Remove the tag"
+msgstr "Schlagwort entfernen"

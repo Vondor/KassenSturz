@@ -561,12 +561,25 @@ mod tests {
         let table = ask(ComponentType::TableRows, "spending_by_category");
         assert_eq!((table.shows, table.chart), ("table", "bar"));
         // Every name is one `BookCharts` and `BookCards` take.
-        for kind in ComponentType::ALL {
+        // The candles are in the library only (US4.10), not in `ALL`.
+        for kind in ComponentType::ALL
+            .into_iter()
+            .chain([ComponentType::ChartCandlestick])
+        {
             for dataset in kind.datasets() {
                 let preview = ask(kind, dataset.id);
                 assert!(
-                    ["", "line", "bar", "stacked-bar", "area", "pie", "donut"]
-                        .contains(&preview.chart)
+                    [
+                        "",
+                        "line",
+                        "bar",
+                        "stacked-bar",
+                        "area",
+                        "pie",
+                        "donut",
+                        "candlestick"
+                    ]
+                    .contains(&preview.chart)
                 );
                 assert!(["top-level", "each", "account-kind"].contains(&preview.grouping));
             }
@@ -580,7 +593,11 @@ mod tests {
 
         let book = kassensturz_store::Book::create_in_memory().unwrap();
         let locale = TestLocale;
-        for kind in ComponentType::ALL {
+        // The candles are in the library only (US4.10), not in `ALL`.
+        for kind in ComponentType::ALL
+            .into_iter()
+            .chain([ComponentType::ChartCandlestick])
+        {
             for dataset in kind.datasets() {
                 let component = component(kind, dataset.id);
                 let preview = properties::preview(&component);

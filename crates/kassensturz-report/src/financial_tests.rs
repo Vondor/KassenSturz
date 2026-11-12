@@ -42,11 +42,11 @@ fn add(book: &mut Book, day: Date, splits: Vec<Split>) -> TransactionId {
     transaction.id()
 }
 
-struct Financial {
-    book: Book,
-    checking: AccountId,
-    savings: AccountId,
-    card: AccountId,
+pub(crate) struct Financial {
+    pub(crate) book: Book,
+    pub(crate) checking: AccountId,
+    pub(crate) savings: AccountId,
+    pub(crate) card: AccountId,
 }
 
 /// The report tests' sample book (starting balance, a joined Transfer from
@@ -55,7 +55,7 @@ struct Financial {
 /// dollars as one transaction with a part in another currency, a purchase
 /// the bank booked two days after its date, an account closed after it was
 /// emptied, and exchange rates in both directions.
-fn financial() -> Financial {
+pub(crate) fn financial() -> Financial {
     let base = sample();
     let mut book = base.book;
     let card = account(&mut book, "Credit card", AccountKind::Liability, EUR, None);
@@ -144,11 +144,11 @@ fn financial() -> Financial {
     }
 }
 
-fn july_to_november() -> Period {
+pub(crate) fn july_to_november() -> Period {
     period(date(2026, 7, 1), date(2026, 11, 30))
 }
 
-fn only(accounts: &[AccountId]) -> Filter {
+pub(crate) fn only(accounts: &[AccountId]) -> Filter {
     Filter {
         accounts: Some(accounts.to_vec()),
         categories: None,
@@ -632,12 +632,15 @@ fn a_key_figure_offers_the_figures_of_its_dataset() {
             .check(&info, &Setting::Word("income".into()))
             .is_err()
     );
-    // Every component the financial datasets suit exists.
+    // Every component the financial datasets suit exists (the candles are
+    // in the library only, US4.10).
     for id in [ACCOUNT_BALANCES, NET_WORTH_OVER_TIME, CASH_FLOW_BY_MONTH] {
         let info = dataset(id).unwrap();
         for suit in info.suits {
             assert!(
-                ComponentType::ALL.iter().any(|kind| kind.suit() == *suit),
+                ComponentType::LIBRARY
+                    .iter()
+                    .any(|kind| kind.suit() == *suit),
                 "{id} {suit}"
             );
         }
@@ -668,7 +671,7 @@ fn a_figure_that_does_not_fit_is_an_error_not_a_wrong_figure() {
 }
 
 /// Two euro accounts you have, a euro credit card and a dollar account.
-fn own_accounts() -> Vec<Account> {
+pub(crate) fn own_accounts() -> Vec<Account> {
     [
         ("A", AccountKind::Asset, EUR),
         ("B", AccountKind::Asset, EUR),
@@ -694,14 +697,14 @@ fn own_accounts() -> Vec<Account> {
 /// Parts of up to 12 transactions on the days of the first four months of
 /// 2026: (day of the year 0..120, account, transaction, amount). Transaction
 /// 0 sets starting balances.
-fn movements() -> impl Strategy<Value = Vec<(i64, usize, usize, i64)>> {
+pub(crate) fn movements() -> impl Strategy<Value = Vec<(i64, usize, usize, i64)>> {
     prop::collection::vec(
         (0i64..120, 0usize..4, 0usize..12, -1_000_000i64..1_000_000),
         0..60,
     )
 }
 
-fn holdings_source(
+pub(crate) fn holdings_source(
     accounts: &[Account],
     opening: &[i64],
     entries: &[(i64, usize, usize, i64)],

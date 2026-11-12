@@ -11,12 +11,12 @@
 
 use kassensturz_core::Money;
 use kassensturz_report::{
-    ACCOUNT_BALANCES, CASH_FLOW_BY_MONTH, CashFlowByMonth, CurrencyBalances, CurrencyWorth,
-    NET_WORTH_OVER_TIME, TextFormat, TextTable,
+    ACCOUNT_BALANCES, BalanceCandles, CASH_FLOW_BY_MONTH, CashFlowByMonth, CurrencyBalances,
+    CurrencyWorth, NET_WORTH_OVER_TIME, TextFormat, TextTable,
 };
 
 use crate::datasets::{extent, major_unit, point};
-use crate::ticks::ticks;
+use crate::ticks::{ticks, ticks_between};
 use crate::{ChartError, ChartKind, ChartModel, Series, Slices};
 
 /// What you are worth at the end of each month as a line, a filled line or
@@ -233,6 +233,74 @@ pub fn account_balances(
         series,
         ticks,
         total: format.amount(data.worth.net_worth),
+        table,
+        slices: Slices::default(),
+        hidden: None,
+        overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
+    })
+}
+
+/// The balance of the chosen accounts as candles (US4.10, #699, D-718,
+/// D-719): one candle per day, week or month of the period, named by its
+/// month or its first day. The series are `start`, `highest`, `lowest` and
+/// `end`, one point per candle, so the screen reader and the table say all
+/// four. The value axis spans only the balances, not zero, so a small move
+/// of a large balance stays visible. The total is what the accounts held at
+/// the end of the period.
+pub fn balance_candles(
+    data: &BalanceCandles,
+    format: &impl TextFormat,
+) -> Result<ChartModel, ChartError> {
+    let table = data.to_text(format);
+    let figure =
+        |key: &'static str, color: u16, pick: fn(&kassensturz_report::Candle) -> Money| Series {
+            key,
+            name: None,
+            color,
+            points: data
+                .candles
+                .iter()
+                .map(|candle| point(pick(candle), format))
+                .collect(),
+        };
+    let series = vec![
+        figure("start", 0, |candle| candle.open),
+        figure("highest", 1, |candle| candle.high),
+        figure("lowest", 2, |candle| candle.low),
+        figure("end", 3, |candle| candle.close),
+    ];
+    let low = data
+        .candles
+        .iter()
+        .map(|candle| candle.low.minor_units())
+        .min()
+        .unwrap_or(0);
+    let high = data
+        .candles
+        .iter()
+        .map(|candle| candle.high.minor_units())
+        .max()
+        .unwrap_or(0);
+    let ticks = ticks_between(low, high, major_unit(data.currency), data.currency, format)?;
+    let total = data
+        .candles
+        .last()
+        .map_or_else(String::new, |candle| format.amount(candle.close));
+    Ok(ChartModel {
+        kind: ChartKind::Candlestick,
+        dataset: CASH_FLOW_BY_MONTH,
+        currency: data.currency.to_string(),
+        categories: data
+            .candles
+            .iter()
+            .map(|candle| data.name(candle, format))
+            .collect(),
+        unsorted: None,
+        series,
+        ticks,
+        total,
         table,
         slices: Slices::default(),
         hidden: None,

@@ -19959,6 +19959,85 @@ msgid "%1 of %2 characters"
 msgstr "%1 von %2 Zeichen"
 
 #, kde-format
+msgctxt ""
+"@title:column a table of a candle chart: the day, week or month of a row"
+msgid "Period"
+msgstr "Zeitraum"
+
+#, kde-format
+msgctxt ""
+"@title:column a table of a candle chart: the highest balance at the end of a "
+"day"
+msgid "Highest"
+msgstr "Höchster"
+
+#, kde-format
+msgctxt ""
+"@title:column a table of a candle chart: the lowest balance at the end of a "
+"day"
+msgid "Lowest"
+msgstr "Niedrigster"
+
+#, kde-format
+msgctxt "@label legend of a candle chart"
+msgid "Ended higher than it started"
+msgstr "Am Ende höher als am Anfang"
+
+#, kde-format
+msgctxt "@label legend of a candle chart"
+msgid "Ended lower than it started"
+msgstr "Am Ende niedriger als am Anfang"
+
+#, kde-format
+msgctxt "@label a balance of a candle: at the start of its days"
+msgid "Start"
+msgstr "Anfang"
+
+#, kde-format
+msgctxt ""
+"@label a balance of a candle: the highest at the end of one of its days"
+msgid "Highest"
+msgstr "Höchster"
+
+#, kde-format
+msgctxt ""
+"@label a balance of a candle: the lowest at the end of one of its days"
+msgid "Lowest"
+msgstr "Niedrigster"
+
+#, kde-format
+msgctxt "@label a balance of a candle: at the end of its days"
+msgid "End"
+msgstr "Ende"
+
+#, kde-format
+msgctxt ""
+"@label %1 is an amount of money: what the accounts held at the end of the "
+"period"
+msgid "Balance at the end: %1"
+msgstr "Kontostand am Ende: %1"
+
+#, kde-format
+msgctxt "@info under a candle chart"
+msgid ""
+"Each candle is one stretch of days, named below it. Its box runs from the "
+"balance at the start to the balance at the end; the thin line runs from the "
+"lowest to the highest balance at the end of a day. Several bookings on one "
+"day count only with that day's end."
+msgstr ""
+"Jede Kerze steht für einen Abschnitt von Tagen, der unter ihr steht. Ihr Kasten reicht vom Kontostand am Anfang bis zum Kontostand am Ende; die dünne Linie reicht vom niedrigsten bis zum höchsten Kontostand am Ende eines Tages. Mehrere Buchungen an einem Tag zählen nur mit dem Stand am Ende dieses Tages."
+
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: the balance per day, week or month "
+"with its start, highest, lowest and end"
+msgid "Balance candles"
+msgstr "Kontostand als Kerzen"
+
+#, kde-format
+msgctxt "@title a candle chart of the accounts' balance"
+msgid "How your balance moved"
+msgstr "So hat sich Ihr Kontostand bewegt"
 msgctxt "@item:inmenu a ready chart description"
 msgid "Balance as bars, money in and out as lines"
 msgstr "Kontostand als Balken, Ein- und Ausgänge als Linien"

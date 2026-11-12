@@ -481,9 +481,10 @@ mod tests {
     }"#;
 
     #[test]
-    fn the_library_offers_the_twenty_five_components_and_adds_each_with_its_defaults() {
+    fn the_library_offers_the_twenty_six_components_and_adds_each_with_its_defaults() {
         let offered = library();
-        assert_eq!(offered.len(), 25);
+        assert_eq!(offered.len(), 26);
+        assert!(offered.contains(&("chart.candlestick", "cash_flow_by_month")));
         assert!(offered.contains(&("table.transactions", "")));
         assert!(offered.contains(&("text.heading", "")));
         assert!(offered.contains(&("page.period", "")));
@@ -500,7 +501,7 @@ mod tests {
                 .unwrap();
             assert_eq!(row.component.unwrap().kind().id(), kind);
         }
-        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 41);
+        assert_eq!(rows(&layout.editor, &Filters::default()).len(), 42);
         assert!(add(&mut layout.editor, "chart.radar").is_err());
     }
 

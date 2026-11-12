@@ -48,8 +48,30 @@ pub(crate) fn ticks_with(
     minimum_step: i64,
     label: impl Fn(i64) -> String,
 ) -> Result<Vec<Tick>, ChartError> {
-    let low = low.min(0);
-    let high = high.max(0);
+    marks(low.min(0), high.max(0), minimum_step, label)
+}
+
+/// Marks from `low` to `high` as [`ticks`] has them, but without widening
+/// the axis to zero: candles show how a balance moved, so their axis spans
+/// only the balances (US4.10). The labels say where the axis starts.
+pub(crate) fn ticks_between(
+    low: i64,
+    high: i64,
+    minimum_step: i64,
+    currency: CurrencyCode,
+    format: &impl TextFormat,
+) -> Result<Vec<Tick>, ChartError> {
+    marks(low, high, minimum_step, |at| {
+        format.amount(Money::from_minor_units(at, currency))
+    })
+}
+
+fn marks(
+    low: i64,
+    high: i64,
+    minimum_step: i64,
+    label: impl Fn(i64) -> String,
+) -> Result<Vec<Tick>, ChartError> {
     let span = high.checked_sub(low).ok_or(ChartError::Overflow)?;
     let step = nice_step((span / WANTED).max(minimum_step).max(1)).ok_or(ChartError::Overflow)?;
     // Round down to a mark below `low`, up to one above `high`.

@@ -27,6 +27,8 @@ Verlassen Sie den Baukasten vor **Fertig**, geht nichts verloren, solange Kassen
 
 Nur das Bild ändert sich, wenn Sie die Art wechseln; die Zahlen und Summen bleiben gleich.
 
+**Kontostand als Kerzen:** Auf einem Dashboard finden Sie unter **Anordnung bearbeiten › Hinzufügen › Diagramme** auch **Kontostand als Kerzen**. Es zeigt den Kontostand der gewählten Konten (ohne Auswahl: alle Giro-, Spar- und Bargeldkonten zusammen) als eine Kerze je Tag, Woche oder Monat: bis 31 Tage eine Kerze je Tag, bis ein halbes Jahr eine je Woche (Montag bis Sonntag), sonst eine je Monat. Der Kasten reicht vom Stand am Anfang bis zum Stand am Ende, hohl, wenn der Stand gestiegen ist, gefüllt, wenn er gesunken ist; die dünne Linie reicht vom niedrigsten bis zum höchsten Stand am Ende eines Tages. Mehrere Buchungen an einem Tag zählen nur mit dem Stand am Ende des Tages. Jede Währung bekommt ihre eigenen Kerzen.
+
 **Eigene Diagramme:** Ein Dashboard kann auch ein **Eigenes Diagramm** halten, das nach einer kurzen Beschreibung in der Sprache Vega-Lite gezeichnet wird. In seinen **Eigenschaften** setzt **Beispiel einfügen** eine fertige Beschreibung in das Feld, zum Beispiel den Kontostand als Balken mit Ein- und Ausgängen als Linien; Sie können sie dort ändern, gespeichert wird sie erst mit **Diese Beschreibung verwenden**. Welche Datennamen und Felder es gibt, zeigt die Hilfeseite **Hilfe: Muster, Formeln und Diagramme** unter **Einstellungen**.
 
 **Richtung der Balken:** In den **Eigenschaften** eines Balkendiagramms steht **Balken** auf *Automatisch* (Zeilen nur, wenn die Namen zu lang für die Balken sind), *Quer (eine Zeile je Name)* oder *Aufrecht (Namen darunter)*.

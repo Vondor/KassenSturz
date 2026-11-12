@@ -36,6 +36,7 @@ Rectangle {
         case "chart.donut":
             return "office-chart-ring";
         case "chart.line":
+        case "chart.candlestick":
             return "office-chart-line";
         case "chart.area":
             return "office-chart-area";

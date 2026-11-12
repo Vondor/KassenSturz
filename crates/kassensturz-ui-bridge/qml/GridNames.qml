@@ -31,6 +31,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout", "Stacked bars");
         case "chart.custom":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a chart the user describes in a short text", "Custom chart");
+        case "chart.candlestick":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: the balance per day, week or month with its start, highest, lowest and end", "Balance candles");
         case "kpi.card":
             return i18nContext.i18nc("@item:inlistbox a part of the layout", "One figure");
         case "progress.bar":
@@ -133,6 +135,10 @@ QtObject {
         // itself, so it needs no title.
         if (dataset === "net_worth_over_time" && shows !== "card") {
             return i18nContext.i18nc("@title", "What you are worth over time");
+        }
+        // The balance as candles (US4.10).
+        if (item?.type === "chart.candlestick") {
+            return i18nContext.i18nc("@title a candle chart of the accounts' balance", "How your balance moved");
         }
         if (dataset === "cash_flow_by_month" && shows !== "card") {
             return i18nContext.i18nc("@title", "Money in and out of your accounts");

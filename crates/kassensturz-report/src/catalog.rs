@@ -161,8 +161,9 @@ pub const CATALOG: &[DatasetInfo] = &[
              one result per currency.",
         groupings: &["month"],
         // Lines, areas and stacked bars of the months and a figure of the
-        // whole period too (D-666).
-        suits: &["line", "bar", "stacked_bar", "kpi", "table"],
+        // whole period too (D-666), and the accounts' balance as candles
+        // (US4.10, D-718).
+        suits: &["line", "bar", "stacked_bar", "kpi", "table", "candlestick"],
         measures: &["net_change", "money_in", "money_out"],
         takes: Takes::NO_CATEGORIES,
         for_ai: true,

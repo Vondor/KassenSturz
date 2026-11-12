@@ -392,6 +392,7 @@ fn kinds_are_named_the_way_dashboards_spell_them() {
         ChartKind::Area,
         ChartKind::Pie,
         ChartKind::Donut,
+        ChartKind::Candlestick,
     ] {
         assert_eq!(ChartKind::from_key(kind.key()), Some(kind));
     }
@@ -418,6 +419,27 @@ proptest! {
         let step = marks[1].minor_units - marks[0].minor_units;
         prop_assert!(step >= 100);
         prop_assert!(marks.windows(2).all(|w| w[1].minor_units - w[0].minor_units == step));
+    }
+
+    /// The marks of candles cover the balances in equal steps and do not
+    /// reach to zero: a balance between 50,000 and 50,300 has an axis near
+    /// it, not one from zero (US4.10).
+    #[test]
+    fn candle_marks_cover_the_balances_only(
+        low in -1_000_000_000_i64..=1_000_000_000,
+        span in 0_i64..=1_000_000,
+    ) {
+        let high = low + span;
+        let marks = ticks::ticks_between(low, high, 100, EUR, &Words).expect("ticks");
+        let first = marks.first().expect("a mark").minor_units;
+        let last = marks.last().expect("a mark").minor_units;
+        prop_assert!(first <= low && last >= high);
+        prop_assert!(marks.len() >= 2 && marks.len() <= 12);
+        let step = marks[1].minor_units - marks[0].minor_units;
+        prop_assert!(step >= 100);
+        prop_assert!(marks.windows(2).all(|w| w[1].minor_units - w[0].minor_units == step));
+        // Never more than a step beyond the balances on either side.
+        prop_assert!(low - first < step && last - high < step.max(1) + step);
     }
 }
 
@@ -850,6 +872,69 @@ fn cash_flow_is_bars_of_money_in_and_out_and_a_table_with_start_and_end() {
             Err(ChartError::KindNotSupported(kind))
         );
     }
+}
+
+#[test]
+fn candles_are_the_four_balances_of_the_report_and_the_axis_spans_only_them() {
+    let book = with_card();
+    let source = read_with_balances(&book);
+    // Two months: a candle per week (D-719).
+    let data = kassensturz_report::balance_candles(&source, autumn(), &Filter::default())
+        .expect("dataset")
+        .remove(0);
+    let flows = kassensturz_report::cash_flow_by_month(&source, autumn(), &Filter::default())
+        .expect("dataset")
+        .remove(0);
+    let chart = balance_candles(&data, &Words).expect("chart");
+    assert_eq!(chart.kind, ChartKind::Candlestick);
+    assert_eq!(chart.dataset, "cash_flow_by_month");
+    assert_eq!(data.length, kassensturz_report::CandleLength::Week);
+    assert_eq!(chart.categories.len(), data.candles.len());
+    assert_eq!(chart.categories[0], "2026-09-01");
+    let keys: Vec<&str> = chart.series.iter().map(|series| series.key).collect();
+    assert_eq!(keys, ["start", "highest", "lowest", "end"]);
+    for (index, candle) in data.candles.iter().enumerate() {
+        let four: Vec<i64> = chart
+            .series
+            .iter()
+            .map(|series| series.points[index].minor_units)
+            .collect();
+        assert_eq!(
+            four,
+            [candle.open, candle.high, candle.low, candle.close].map(Money::minor_units)
+        );
+    }
+    // The first candle starts and the last ends where the cash flow does.
+    assert_eq!(
+        chart.series[0].points[0].minor_units,
+        flows.rows[0].start.minor_units()
+    );
+    assert_eq!(chart.total, Words.amount(flows.total.end));
+    assert_eq!(chart.table, data.to_text(&Words));
+    // The axis covers every candle (this book starts at zero; the property
+    // test below has balances far from it).
+    let low = data
+        .candles
+        .iter()
+        .map(|c| c.low.minor_units())
+        .min()
+        .unwrap();
+    let high = data
+        .candles
+        .iter()
+        .map(|c| c.high.minor_units())
+        .max()
+        .unwrap();
+    let first = chart.ticks.first().expect("a mark").minor_units;
+    let last = chart.ticks.last().expect("a mark").minor_units;
+    assert!(first <= low && last >= high, "{first} {last}");
+    let prepared = Silent.prepare(&chart).expect("prepared");
+    assert_eq!(prepared.series.len(), 4);
+    // The other financial charts don't draw candles.
+    assert_eq!(
+        cash_flow_by_month(&flows, ChartKind::Candlestick, &Words),
+        Err(ChartError::KindNotSupported(ChartKind::Candlestick))
+    );
 }
 
 #[test]

@@ -117,6 +117,12 @@ pub enum ComponentType {
     /// [`ComponentType::ALL`]: the AI does not write or see descriptions
     /// (Q-352).
     CustomChart,
+    /// `chart.candlestick`: the balance of the chosen accounts as candles,
+    /// one per day, week or month of the period: where it started, its
+    /// highest, its lowest and where it ended (US4.10, #699, D-718, D-719).
+    /// It is in [`ComponentType::LIBRARY`] and not in [`ComponentType::ALL`]:
+    /// the AI does not prepare it.
+    ChartCandlestick,
     /// `table.transactions`: single transactions of the chosen accounts,
     /// categories and period, newest first, like an account's list (US4.7,
     /// D-716). It only shows them; a click opens the transaction. Its own
@@ -150,7 +156,7 @@ impl ComponentType {
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
     /// the heading (D-312).
-    pub const LIBRARY: [Self; 25] = [
+    pub const LIBRARY: [Self; 26] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -174,6 +180,7 @@ impl ComponentType {
         Self::FilterBar,
         Self::DashboardTabs,
         Self::CustomChart,
+        Self::ChartCandlestick,
         Self::Transactions,
         Self::Alarms,
     ];
@@ -226,6 +233,7 @@ impl ComponentType {
             Self::FilterBar => "page.filters",
             Self::DashboardTabs => "page.tabs",
             Self::CustomChart => "chart.custom",
+            Self::ChartCandlestick => "chart.candlestick",
             Self::Transactions => "table.transactions",
             Self::Alarms => "notice.alarms",
         }
@@ -254,6 +262,7 @@ impl ComponentType {
             // A custom chart can show every dataset of the spec (see
             // `ComponentType::datasets`), so no dataset lists this fit.
             Self::CustomChart => "custom",
+            Self::ChartCandlestick => "candlestick",
             Self::Heading
             | Self::Separator
             | Self::FetchNotice
@@ -323,6 +332,7 @@ impl ComponentType {
             Self::BudgetProgress => &BUDGET_PROGRESS,
             Self::BankUpdateAll => &UPDATE_ALL,
             Self::CustomChart => &CUSTOM_CHART,
+            Self::ChartCandlestick => &CANDLESTICK,
             Self::Transactions => &TRANSACTIONS,
             Self::Alarms => &ALARMS,
         }
@@ -660,6 +670,9 @@ const CHART: [Property; 16] = [
     HIDE_NOTE,
     PERIOD,
 ];
+/// Candles: which accounts, the title, the legend and the period; the
+/// length of a candle follows the period (D-719).
+const CANDLESTICK: [Property; 4] = [ACCOUNTS, TITLE, LEGEND, PERIOD];
 /// Bars: a chart's properties, the comparison of spending (US3.1a) after
 /// the average, and the way the bars go (D-679) after the legend.
 const BAR_CHART: [Property; 18] = [

@@ -430,6 +430,8 @@ pub fn preview(component: &Component) -> Preview {
         // Drawn from its own description (M6e.3): `shows` is `chart`, and
         // `spec` is what tells the screen to ask for a custom chart.
         ComponentType::CustomChart => ("chart", "bar"),
+        // The balance of the chosen accounts as candles (US4.10).
+        ComponentType::ChartCandlestick => ("chart", "candlestick"),
         // Its own list, drawn by the page from `BookTransactions` (D-716).
         ComponentType::Transactions => ("transactions", ""),
         // Filled by its own `BookAlarms` from its rules (D-721).

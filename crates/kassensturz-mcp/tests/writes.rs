@@ -475,6 +475,13 @@ fn an_applied_key_figure_answers_with_the_figure_it_shows() {
     let (answer, is_error) = session.call("propose_view", checked);
     assert!(!is_error, "{answer}");
     assert_eq!(answer["computed"][0]["value"], "42.50", "{answer}");
+    // A chart that is grouped says how, the default too, both checked and
+    // while it waits (#634).
+    let bars = json!({"title": "Where it went", "data": "spending_by_category",
+        "show_as": "bar", "check_only": true});
+    let (answer, is_error) = session.call("propose_view", bars);
+    assert!(!is_error, "{answer}");
+    assert_eq!(answer["group_by"], "category", "{answer}");
     assert!(session.finish().status.success());
 }
 
@@ -652,6 +659,23 @@ fn a_custom_chart_is_offered_and_checked_only_with_chart_descriptions() {
     let (answer, is_error) = session.call("propose_view", chart.clone());
     assert!(is_error);
     assert_eq!(answer["error"], "ai-tools.unknown-argument", "{answer}");
+    // A key KassenSturz knows is named, and the answer lists what the model
+    // may send instead, without the cell that is off (#580).
+    assert_eq!(answer["argument"], "description", "{answer}");
+    let allowed = answer["allowed"].as_array().expect("a list");
+    assert!(allowed.contains(&json!("title")), "{answer}");
+    assert!(!allowed.contains(&json!("description")), "{answer}");
+    // A made-up key is never repeated, but the list is there too.
+    let (answer, is_error) = session.call(
+        "propose_view",
+        json!({"title": "Left over", "data": "spending_by_category", "show_as": "bar",
+            "foo_bar": 1, "check_only": true}),
+    );
+    assert!(is_error);
+    assert_eq!(answer["error"], "ai-tools.unknown-argument", "{answer}");
+    assert!(answer.get("argument").is_none(), "{answer}");
+    assert!(answer["allowed"].as_array().is_some(), "{answer}");
+    assert!(!answer.to_string().contains("foo_bar"), "{answer}");
     assert!(session.finish().status.success());
 
     let folder = Folder::new("writes-custom-on");

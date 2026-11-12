@@ -858,9 +858,41 @@ pub fn propose_view(
         proposal.output.figures.add_count(u64::from(early.counted));
         proposal.output.figures.add_count(u64::from(early.before));
     }
+    // How the chart is grouped, the default too, so the model sees it
+    // (#634, D-670): a fixed word of the catalog, never the call's text.
+    if let Some(group_by) = prepared_grouping(&proposal)
+        && let Value::Object(value) = &mut proposal.output.value
+    {
+        value.insert("group_by".into(), json!(group_by));
+    }
     // What a key figure or a progress bar shows (D-685).
     view_figure::add_figure(book, &mut proposal, allowed, today)?;
     Ok(proposal)
+}
+
+/// The grouping of the chart `proposal` prepares, as the chart draws it:
+/// the one the call chose or the data's default, the first of its
+/// groupings. `None` for a way of drawing that groups nothing, such as a
+/// key figure.
+fn prepared_grouping(proposal: &Proposal) -> Option<&'static str> {
+    let component = proposal
+        .changes
+        .changes()
+        .iter()
+        .find_map(|change| match change {
+            super::ProposedChange::NewView(new) => Some(new.component()),
+            super::ProposedChange::EditView(edit) => Some(edit.component()),
+            _ => None,
+        })?;
+    let Some(kassensturz_report::Setting::Word(word)) = component.get("grouping") else {
+        return None;
+    };
+    let groupings = component.dataset().groupings;
+    if word.is_empty() {
+        groupings.first().copied()
+    } else {
+        groupings.iter().copied().find(|known| known == word)
+    }
 }
 
 /// The months (quarters, years) the average of a checked `item` counts
@@ -1143,12 +1175,21 @@ fn check(
     }
     let call = arguments.as_object().ok_or(whole)?;
     // 3. No unknown key, nor one the user doesn't let the model send. A
-    // key twice (2.) was refused with the text.
-    if call
+    // key twice (2.) was refused with the text. The answer names a key
+    // KassenSturz knows by its own fixed name, never the model's text, and
+    // lists the arguments the model may send (#580, X-8).
+    if let Some(key) = call
         .keys()
-        .any(|key| !ARGUMENTS.contains(&key.as_str()) || !offered(key, allowed))
+        .find(|key| !ARGUMENTS.contains(&key.as_str()) || !offered(key, allowed))
     {
-        return Err(ToolError::UnknownArgument);
+        return Err(ToolError::UnknownArgument {
+            argument: ARGUMENTS.iter().copied().find(|known| *known == key),
+            allowed: ARGUMENTS
+                .iter()
+                .copied()
+                .filter(|argument| offered(argument, allowed))
+                .collect(),
+        });
     }
     // Null means left out: small models send it often.
     let given = |name: &str| call.get(name).filter(|value| !value.is_null());

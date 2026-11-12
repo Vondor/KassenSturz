@@ -2720,7 +2720,10 @@ fn a_chart_needs_its_own_cell_of_the_grid_and_propose_changes_has_no_list_for_it
     // their own function since M6c.8 (D-352).
     assert!(matches!(
         super::propose(&book, &call, Permissions::all()),
-        Err(ToolError::UnknownArgument)
+        Err(ToolError::UnknownArgument {
+            argument: Some("new_views"),
+            ..
+        })
     ));
     let schema: Value = serde_json::from_str(PROPOSE_CHANGES.parameters).expect("JSON");
     assert!(schema["properties"].get("new_views").is_none());

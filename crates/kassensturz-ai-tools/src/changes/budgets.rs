@@ -717,12 +717,27 @@ pub(super) fn new_budget(
     // code names the category only by its ID (M6-B216).
     // Another new budget of the same set counts the same money: the same
     // refusal, so the model learns to keep one of them (#651).
-    if budgets
+    // The answer names the category by the argument it came from and its
+    // place there, never by its name or ID (#628, X-8).
+    if let Some(category) = budgets
         .iter()
         .chain(prepared.iter())
-        .any(|budget| probe.clashes_with(budget).is_some())
+        .find_map(|budget| probe.clashes_with(budget))
     {
-        return Err(ToolError::HasBudget);
+        return Err(if one.is_some() {
+            ToolError::HasBudget {
+                argument: "category_id",
+                place: None,
+            }
+        } else {
+            ToolError::HasBudget {
+                argument: "category_ids",
+                place: categories
+                    .iter()
+                    .position(|id| *id == category)
+                    .map(|index| index + 1),
+            }
+        });
     }
     let counts = Counts {
         categories: &categories,

@@ -149,7 +149,7 @@ fn columns_are_offered_only_with_the_reading_of_categories() {
     let arguments = bars(json!([{"name": "Food", "categories": [food.to_string()]}]));
     assert_eq!(
         code(propose_view(&book, &arguments, without, today())),
-        "ai-tools.unknown-argument"
+        "ai-tools.unknown-argument argument=Keyword(\"columns\")"
     );
 }
 

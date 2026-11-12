@@ -1162,7 +1162,10 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
     for (name, value) in &report.params {
         match value {
             ErrorParam::Keyword(keyword) => {
-                wrong_id |= *name == "argument" && keyword.ends_with("id");
+                // An argument the call may not send is not a wrong ID (#580).
+                wrong_id |= *name == "argument"
+                    && keyword.ends_with("id")
+                    && report.code != "ai-tools.unknown-argument";
                 if *name == "argument" {
                     match *keyword {
                         "new_category" => hints.push(NEW_CATEGORY_HINT),
@@ -1364,9 +1367,15 @@ mod tests {
         let title = ToolError::BadArgument { argument: "title" }.report();
         assert!(view_error_json(&title).get("allowed").is_none());
         assert!(
-            view_error_json(&ToolError::UnknownArgument.report())
-                .get("allowed")
-                .is_none()
+            view_error_json(
+                &ToolError::UnknownArgument {
+                    argument: None,
+                    allowed: Vec::new(),
+                }
+                .report()
+            )
+            .get("allowed")
+            .is_none()
         );
     }
 
@@ -1478,7 +1487,14 @@ mod tests {
                 .contains("What the AI may do")
         );
         let failed = with_hint(
-            error_json(&ToolError::UnknownArgument.report(), false),
+            error_json(
+                &ToolError::UnknownArgument {
+                    argument: None,
+                    allowed: Vec::new(),
+                }
+                .report(),
+                false,
+            ),
             NOT_OPENED_HINT,
         );
         assert!(failed["hint"].as_str().unwrap().contains("NOT opened"));

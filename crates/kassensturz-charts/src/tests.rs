@@ -879,7 +879,7 @@ fn candles_are_the_four_balances_of_the_report_and_the_axis_spans_only_them() {
     let book = with_card();
     let source = read_with_balances(&book);
     // Two months: a candle per week (D-719).
-    let data = kassensturz_report::balance_candles(&source, autumn(), &Filter::default())
+    let data = kassensturz_report::balance_candles(&source, autumn(), &Filter::default(), None)
         .expect("dataset")
         .remove(0);
     let flows = kassensturz_report::cash_flow_by_month(&source, autumn(), &Filter::default())

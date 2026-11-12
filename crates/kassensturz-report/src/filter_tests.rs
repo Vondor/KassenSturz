@@ -272,6 +272,7 @@ fn asked(accounts: &[String], categories: &[String], takes: Takes) -> Asked {
         series: Vec::new(),
         average: None,
         compare: None,
+        candle: None,
     }
 }
 

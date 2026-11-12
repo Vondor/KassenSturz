@@ -49,6 +49,9 @@ pub struct Scope {
     /// What a spending chart compares each category with (US3.1a, D-687): a
     /// `params.compare` word, empty for no comparison.
     pub compare: String,
+    /// How many days a candle chart's candle covers (Q-498): a
+    /// `params.candle` word, empty for the length that follows the period.
+    pub candle: String,
 }
 
 /// The own lists of one series of a chart (D-646): empty for a dimension it
@@ -75,6 +78,7 @@ impl Default for Scope {
             series: Vec::new(),
             average: String::new(),
             compare: String::new(),
+            candle: String::new(),
         }
     }
 }
@@ -115,6 +119,10 @@ impl Scope {
             compare: asked
                 .compare
                 .map(|compare| compare.word().to_owned())
+                .unwrap_or_default(),
+            candle: asked
+                .candle
+                .map(|length| length.key().to_owned())
                 .unwrap_or_default(),
         }
     }
@@ -169,6 +177,7 @@ impl Scope {
                 .collect::<Vec<_>>(),
             "average": self.average,
             "compare": self.compare,
+            "candle": self.candle,
         })
         .to_string()
     }
@@ -234,6 +243,12 @@ impl Scope {
                 .filter(|word| kassensturz_report::CompareWith::read(word).is_some())
                 .unwrap_or_default()
                 .to_owned(),
+            candle: value
+                .get("candle")
+                .and_then(Value::as_str)
+                .filter(|word| kassensturz_report::CandleLength::read(word).is_some())
+                .unwrap_or_default()
+                .to_owned(),
         }
     }
 
@@ -261,9 +276,10 @@ impl Scope {
             takes: self.takes,
             // Each series is applied on its own (`for_series`).
             series: Vec::new(),
-            // An average and a comparison change no filter.
+            // An average, a comparison and a candle length change no filter.
             average: None,
             compare: None,
+            candle: None,
         }
         .apply(source)
     }
@@ -633,6 +649,7 @@ mod tests {
             ],
             average: "per-month".into(),
             compare: "same_last_year".into(),
+            candle: "week".into(),
         };
         assert_eq!(Scope::from_text(&scope.to_text()), scope);
     }
@@ -908,6 +925,29 @@ mod tests {
         assert!(none.to_value()["params"].get("compare").is_none());
         let asked = Asked::new(&none, None, &Filters::default()).expect("asks");
         assert_eq!(Scope::from_asked(&asked).compare, "");
+    }
+
+    #[test]
+    fn a_candle_length_goes_from_the_component_through_the_scope_text() {
+        // A seam test (Q-498): the candle chart's `candle` goes through the
+        // real Asked and the scope text to the chart.
+        let component = kassensturz_report::Component::from_value(&json!({
+            "type": "chart.candlestick", "dataset": "cash_flow_by_month",
+            "params": {"candle": "month"}
+        }))
+        .expect("component");
+        let asked = Asked::new(&component, None, &Filters::default()).expect("asks");
+        let scope = Scope::from_text(&Scope::from_asked(&asked).to_text());
+        assert_eq!(scope.candle, "month");
+        // The automatic length is the default, not written and not passed on.
+        let auto = kassensturz_report::Component::from_value(&json!({
+            "type": "chart.candlestick", "dataset": "cash_flow_by_month",
+            "params": {"candle": "auto"}
+        }))
+        .expect("component");
+        assert!(auto.to_value()["params"].get("candle").is_none());
+        let asked = Asked::new(&auto, None, &Filters::default()).expect("asks");
+        assert_eq!(Scope::from_asked(&asked).candle, "");
     }
 
     #[test]

@@ -36,7 +36,7 @@ fn month_candles_start_and_end_where_the_cash_flow_does() {
     let f = financial();
     let shown = period(date(2026, 5, 1), date(2026, 11, 30));
     let source = Source::read_with_balances(&f.book, shown).unwrap();
-    let candles = balance_candles(&source, shown, &Filter::default()).unwrap();
+    let candles = balance_candles(&source, shown, &Filter::default(), None).unwrap();
     let flows = cash_flow_by_month(&source, shown, &Filter::default()).unwrap();
     assert_eq!(
         candles.iter().map(|r| r.currency).collect::<Vec<_>>(),
@@ -81,7 +81,7 @@ fn a_chosen_account_has_candles_of_its_own() {
     let f = financial();
     let october = period(date(2026, 10, 1), date(2026, 10, 31));
     let source = Source::read_with_balances(&f.book, october).unwrap();
-    let card = balance_candles(&source, october, &only(&[f.card])).unwrap();
+    let card = balance_candles(&source, october, &only(&[f.card]), None).unwrap();
     assert_eq!(card.len(), 1);
     let days = &card[0];
     assert_eq!(days.length, CandleLength::Day);
@@ -95,7 +95,7 @@ fn a_chosen_account_has_candles_of_its_own() {
     let flows = cash_flow_by_month(&source, october, &only(&[f.card])).unwrap();
     assert_eq!(days.candles[30].close, flows[0].total.end);
     // No choice of accounts leaves the card out, as the cash flow does.
-    let all = balance_candles(&source, october, &Filter::default()).unwrap();
+    let all = balance_candles(&source, october, &Filter::default(), None).unwrap();
     assert_ne!(all[0].candles[0].open, days.candles[0].open);
     let _ = (f.checking, f.savings);
 }
@@ -106,7 +106,7 @@ fn weeks_run_from_monday_and_cut_at_the_period() {
     let (source, _) = holdings_source(&accounts, &[0, 0, 0, 0], &[]);
     // A Thursday to a Tuesday nine weeks later.
     let shown = period(date(2026, 1, 1), date(2026, 3, 3));
-    let result = balance_candles(&source, shown, &Filter::default()).unwrap();
+    let result = balance_candles(&source, shown, &Filter::default(), None).unwrap();
     let weeks = &result[0].candles;
     assert_eq!(result[0].length, CandleLength::Week);
     assert_eq!(weeks[0].first, date(2026, 1, 1));
@@ -133,7 +133,7 @@ fn bookings_inside_a_day_count_only_at_its_end() {
     ];
     let (source, _) = holdings_source(&accounts, &[10_000, 0, 0, 0], &entries);
     let shown = period(date(2026, 1, 1), date(2026, 1, 10));
-    let result = balance_candles(&source, shown, &only(&[accounts[0].id])).unwrap();
+    let result = balance_candles(&source, shown, &only(&[accounts[0].id]), None).unwrap();
     let days = &result[0].candles;
     let fifth = days[4];
     assert_eq!(
@@ -175,7 +175,7 @@ proptest! {
             .iter()
             .filter(|a| everything || a.kind == kassensturz_core::AccountKind::Asset)
             .collect();
-        let results = balance_candles(&source, shown, &filter).unwrap();
+        let results = balance_candles(&source, shown, &filter, None).unwrap();
         let flows = cash_flow_by_month(&source, shown, &filter).unwrap();
         for result in &results {
             // The balance at the end of `day` (or before the period), added
@@ -221,5 +221,58 @@ proptest! {
             let flow = flows.iter().find(|f| f.currency == result.currency).unwrap();
             prop_assert_eq!(result.candles.last().unwrap().close, flow.total.end);
         }
+    }
+}
+
+#[test]
+fn a_chosen_length_replaces_the_automatic_one() {
+    // Q-498: six whole months are 184 days, a candle per week by the period,
+    // but a person who chose a candle per month gets six of them.
+    let f = financial();
+    let shown = period(date(2026, 5, 1), date(2026, 10, 31));
+    assert_eq!(CandleLength::of(shown), CandleLength::Week);
+    let source = Source::read_with_balances(&f.book, shown).unwrap();
+    let automatic = balance_candles(&source, shown, &Filter::default(), None).unwrap();
+    assert_eq!(automatic[0].length, CandleLength::Week);
+    let months = balance_candles(
+        &source,
+        shown,
+        &Filter::default(),
+        Some(CandleLength::Month),
+    )
+    .unwrap();
+    let flows = cash_flow_by_month(&source, shown, &Filter::default()).unwrap();
+    for (result, flow) in months.iter().zip(&flows) {
+        assert_eq!(result.length, CandleLength::Month);
+        assert_eq!(result.candles.len(), 6);
+        for (candle, row) in result.candles.iter().zip(&flow.rows) {
+            assert_eq!(
+                (candle.first, candle.open, candle.close),
+                (row.month, row.start, row.end)
+            );
+        }
+    }
+    // The first opens and the last closes where the weeks do: only the
+    // grouping of the days changes, never a balance.
+    assert_eq!(months[0].candles[0].open, automatic[0].candles[0].open);
+    assert_eq!(
+        months[0].candles.last().unwrap().close,
+        automatic[0].candles.last().unwrap().close
+    );
+    // A day per candle over the same months.
+    let days =
+        balance_candles(&source, shown, &Filter::default(), Some(CandleLength::Day)).unwrap();
+    assert_eq!(days[0].candles.len(), 184);
+}
+
+#[test]
+fn the_words_of_a_length() {
+    assert_eq!(CandleLength::read("day"), Some(CandleLength::Day));
+    assert_eq!(CandleLength::read("week"), Some(CandleLength::Week));
+    assert_eq!(CandleLength::read("month"), Some(CandleLength::Month));
+    assert_eq!(CandleLength::read("auto"), None);
+    assert_eq!(CandleLength::read("year"), None);
+    for length in [CandleLength::Day, CandleLength::Week, CandleLength::Month] {
+        assert_eq!(CandleLength::read(length.key()), Some(length));
     }
 }

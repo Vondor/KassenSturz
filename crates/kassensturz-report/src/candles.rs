@@ -63,6 +63,17 @@ impl CandleLength {
         }
     }
 
+    /// The length a `params.candle` word chooses (Q-498): `None` for `auto`
+    /// and for a word it doesn't know, which both mean [`CandleLength::of`].
+    pub fn read(word: &str) -> Option<Self> {
+        match word {
+            "day" => Some(Self::Day),
+            "week" => Some(Self::Week),
+            "month" => Some(Self::Month),
+            _ => None,
+        }
+    }
+
     /// The fixed name, as QML spells it: `day`, `week` or `month`.
     pub const fn key(self) -> &'static str {
         match self {
@@ -132,11 +143,13 @@ pub struct BalanceCandles {
 /// currency in the order of their codes; amounts in different currencies are
 /// never added together. A currency is listed if one of its chosen accounts
 /// is open or a figure is not zero, as in `cash_flow_by_month`.
-/// `filter.categories` does not apply.
+/// `filter.categories` does not apply. `length` is the length the user
+/// chose (Q-498); `None` follows the period ([`CandleLength::of`]).
 pub fn balance_candles(
     source: &Source,
     period: Period,
     filter: &Filter,
+    length: Option<CandleLength>,
 ) -> Result<Vec<BalanceCandles>, ReportError> {
     source.require(period)?;
     let accounts = chosen(source, filter);
@@ -148,7 +161,7 @@ pub fn balance_candles(
         .balances_at(&[Moment::Start(period.first())])?
         .pop()
         .unwrap_or_default();
-    let length = CandleLength::of(period);
+    let length = length.unwrap_or_else(|| CandleLength::of(period));
     let starts = length.starts(period);
 
     let mut currencies: Vec<CurrencyCode> = currency_of.values().copied().collect();

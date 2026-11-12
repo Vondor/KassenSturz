@@ -409,6 +409,12 @@ impl Component {
             {
                 continue;
             }
+            // So is the automatic candle length (Q-498), for the same reason.
+            if property.key == crate::schema::CANDLE_KEY
+                && matches!(setting, Setting::Word(word) if word == "auto")
+            {
+                continue;
+            }
             match property.place {
                 Place::Params => params.insert(property.key.to_owned(), value),
                 Place::Props => props.insert(property.key.to_owned(), value),

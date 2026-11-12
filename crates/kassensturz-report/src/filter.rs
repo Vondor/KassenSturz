@@ -224,6 +224,9 @@ pub struct Asked {
     /// What a spending chart compares each category with (US3.1a, D-687);
     /// `None` for no comparison and for a key figure's own `compare`.
     pub compare: Option<crate::CompareWith>,
+    /// The length of a candle chart's candles the user chose (Q-498);
+    /// `None` for the automatic length and for every other component.
+    pub candle: Option<crate::CandleLength>,
 }
 
 /// A note under a component about its filter (D-350). The component writes
@@ -366,6 +369,10 @@ impl Asked {
                 }
                 _ => None,
             },
+            candle: match component.get(crate::schema::CANDLE_KEY) {
+                Some(Setting::Word(word)) => crate::CandleLength::read(word),
+                _ => None,
+            },
         })
     }
 
@@ -387,6 +394,7 @@ impl Asked {
             series: Vec::new(),
             average: self.average,
             compare: self.compare,
+            candle: self.candle,
         }
     }
 

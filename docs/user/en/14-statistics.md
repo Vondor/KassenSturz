@@ -27,6 +27,8 @@ If you leave the builder before **Done**, nothing is lost while KassenSturz is r
 
 When you switch the kind, only the picture changes; the figures and totals stay the same.
 
+**Balance candles:** on a dashboard, **Edit layout › Add to the page › Charts** also offers **Balance candles**. It shows the balance of the chosen accounts (without a choice: every checking, savings and cash account together) as one candle per day, week or month. In its **Properties**, **One candle per** is *Day*, *Week (Monday to Sunday)* or *Month*; *Automatic* follows the period: up to 31 days a candle per day, up to half a year one per week, otherwise one per month. The box runs from the balance at the start to the balance at the end, hollow when it went up and filled when it went down; the thin line runs from the lowest to the highest balance at the end of a day. Several bookings on one day count only with the balance at the end of that day. Each currency gets its own candles.
+
 **Custom charts:** a dashboard can also hold a **Custom chart**, drawn from a short description in the Vega-Lite language. In its **Properties**, **Insert an example** puts a ready description into the field, for example the balance as bars with money in and out as lines; you can change it there, and it is kept only when you choose **Use this description**. Which data names and fields there are is shown on the help page **Help: patterns, formulas and charts** under **Settings**.
 
 **Direction of the bars:** in a bar chart's **Properties**, **Bars** is set to **Automatic** (rows only when the names are too long for the bars), **Across (one row per name)** or **Upright (names below)**.

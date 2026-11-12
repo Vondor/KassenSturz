@@ -17435,13 +17435,20 @@ msgstr ""
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid ""
-"This money was moved between this account and %1. Changing a Transfer isn't "
-"possible yet. You can remove it and add each side again in its own account; "
-"KassenSturz then offers to join them."
+"This money was moved between this account and %1. Apart from its tags, a "
+"Transfer can't be changed yet. You can remove it and add each side again in "
+"its own account; KassenSturz then offers to join them."
 msgstr ""
-"Dieses Geld wurde zwischen diesem Konto und %1 bewegt. Eine Umbuchung zu "
-"ändern ist noch nicht möglich. Sie können sie entfernen und jede Seite im "
-"eigenen Konto neu hinzufügen; KassenSturz bietet dann an, sie zu verbinden."
+"Dieses Geld wurde zwischen diesem Konto und %1 bewegt. Außer den "
+"Schlagwörtern lässt sich eine Umbuchung noch nicht ändern. Sie können sie "
+"entfernen und jede Seite im eigenen Konto neu hinzufügen; KassenSturz bietet "
+"dann an, sie zu verbinden."
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Save tags"
+msgstr "Schlagwörter speichern"
 
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:172
 #, kde-format

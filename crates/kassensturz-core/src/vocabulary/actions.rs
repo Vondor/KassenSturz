@@ -504,6 +504,7 @@ pub const ACTIONS: &[&str] = &[
     "TransactionPage_remove",
     "TransactionPage_removeBill",
     "TransactionPage_save",
+    "TransactionPage_saveTransferTags",
     "TransactionPage_save_2",
     "TransactionPage_save_3",
     "TransactionPage_save_4",

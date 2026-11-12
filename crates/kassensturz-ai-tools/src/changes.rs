@@ -1391,8 +1391,13 @@ pub fn propose(
 /// `edit_views`: charts are prepared and changed with their own function
 /// since M6c.8 (D-352, D-681).
 fn refuse_views(arguments: &Value) -> Result<(), ToolError> {
-    if arguments.get("new_views").is_some() || arguments.get("edit_views").is_some() {
-        return Err(ToolError::UnknownArgument);
+    for argument in ["new_views", "edit_views"] {
+        if arguments.get(argument).is_some() {
+            return Err(ToolError::UnknownArgument {
+                argument: Some(argument),
+                allowed: Vec::new(),
+            });
+        }
     }
     Ok(())
 }

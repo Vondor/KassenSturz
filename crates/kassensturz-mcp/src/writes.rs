@@ -245,10 +245,11 @@ async fn propose(
 }
 
 /// The figure a prepared key figure or progress bar shows, from the answer
-/// of `propose_view` (D-685): `computed` and its note, or `not_computed`.
-/// Empty for any other call.
+/// of `propose_view` (D-685): `computed` and its note, or `not_computed`;
+/// and how the chart is grouped, `group_by` (#634). Empty for any other
+/// call.
 fn figure_of(answer: &Value) -> Map<String, Value> {
-    ["computed", "computed_note", "not_computed"]
+    ["group_by", "computed", "computed_note", "not_computed"]
         .into_iter()
         .filter_map(|key| Some((key.to_owned(), answer.get(key)?.clone())))
         .collect()

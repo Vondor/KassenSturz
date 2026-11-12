@@ -1448,3 +1448,64 @@ fn the_ai_compares_spending_by_category_as_a_second_bar() {
         "bad-argument compare"
     );
 }
+
+#[test]
+fn an_unknown_argument_lists_what_the_model_may_send_and_names_a_known_one() {
+    // #580 (US5 P3 recheck C): the refusal names an argument KassenSturz
+    // knows, never the model's own key (X-8), and lists the arguments the
+    // user lets the model send.
+    let Sample { book, food, .. } = sample();
+    let made_up = json!({
+        "title": "Food", "data": "spending_by_category", "show_as": "pie",
+        "foo_bar_secret": 1
+    });
+    let error = propose_view(&book, &made_up, Permissions::all(), today()).expect_err("refused");
+    let report = error.model_report();
+    assert_eq!(report.code, "ai-tools.unknown-argument");
+    assert_eq!(report.param("argument"), None);
+    let allowed = error.allowed_fields().expect("the arguments it takes");
+    assert!(allowed.contains(&"title") && allowed.contains(&"categories"));
+    let shown = format!("{report:?} {allowed:?}");
+    assert!(!shown.contains("foo_bar"), "{shown}");
+
+    // A known argument the user doesn't let it send is named; the list
+    // leaves out what is off (D-239).
+    let no_categories = Permissions::NONE.with(Permission::NewViews, true);
+    let off = json!({
+        "title": "Food", "data": "spending_by_category", "show_as": "pie",
+        "categories": [food.to_string()]
+    });
+    let error = propose_view(&book, &off, no_categories, today()).expect_err("refused");
+    assert_eq!(
+        error.model_report().param("argument"),
+        Some(&kassensturz_core::ErrorParam::Keyword("categories"))
+    );
+    let allowed = error.allowed_fields().expect("the arguments it takes");
+    assert!(allowed.contains(&"title") && allowed.contains(&"group_by"));
+    assert!(!allowed.contains(&"categories") && !allowed.contains(&"description"));
+}
+
+#[test]
+fn the_answer_says_how_the_chart_is_grouped_the_default_too() {
+    // #634 (US5 P3 recheck C): `group_by` is in the answer of propose_view,
+    // as it is in the read functions' results (D-670).
+    let Sample { book, .. } = sample();
+    let chosen = json!({
+        "title": "Food", "data": "spending_by_category", "show_as": "bar",
+        "group_by": "top_level_category"
+    });
+    let proposal = propose_view(&book, &chosen, Permissions::all(), today()).expect("prepared");
+    assert_eq!(
+        proposal.output.value["group_by"],
+        json!("top_level_category")
+    );
+    let default = json!({"title": "Food", "data": "spending_by_category", "show_as": "bar"});
+    let proposal = propose_view(&book, &default, Permissions::all(), today()).expect("prepared");
+    assert_eq!(proposal.output.value["group_by"], json!("category"));
+    // A key figure groups nothing.
+    let figure = json!({
+        "title": "Spent", "data": "spending_by_category", "show_as": "figure"
+    });
+    let proposal = propose_view(&book, &figure, Permissions::all(), today()).expect("prepared");
+    assert!(proposal.output.value.get("group_by").is_none());
+}

@@ -324,7 +324,7 @@ fn the_stores_own_checks_reach_the_model() {
         .expect("by hand");
     assert_eq!(
         code(propose(&small.book, &call(small.groceries, "month"))),
-        "ai-tools.has-budget edit_budgets"
+        "ai-tools.has-budget category_id"
     );
     // A budget inside one that has a budget is a separate figure (D-344).
     assert_eq!(
@@ -377,6 +377,42 @@ fn an_unknown_budget_key_lists_the_keys_a_budget_takes() {
     let shown = format!("{report:?} {allowed:?}");
     assert!(!shown.contains("Groceries"), "{shown}");
     assert!(!shown.contains("colour"), "{shown}");
+}
+
+#[test]
+fn a_second_budget_names_the_category_by_its_argument_and_place() {
+    // #628 (US5 P3 recheck C): the refusal says which category already has
+    // a budget, by the argument and its place in the list, never by the
+    // category's name or ID (X-8).
+    let small = small();
+    let food = small.food.to_string();
+    let fun = small.fun.to_string();
+    let call = json!({"new_budgets": [
+        {"category_id": fun, "every": "month", "amount": "10"},
+        {"category_ids": [food, fun], "every": "month", "amount": "10"}
+    ]});
+    let report = propose(&small.book, &call)
+        .expect_err("refused")
+        .model_report();
+    assert_eq!(report.code, "ai-tools.has-budget");
+    let keyword = |name| report.param(name).cloned();
+    use kassensturz_core::ErrorParam::{Keyword, Number};
+    assert_eq!(keyword("argument"), Some(Keyword("category_ids")));
+    assert_eq!(keyword("category"), Some(Number(2)));
+    assert_eq!(keyword("item"), Some(Number(2)));
+    assert_eq!(keyword("use_instead"), Some(Keyword("edit_budgets")));
+    let shown = format!("{report:?}");
+    assert!(!shown.contains(&fun) && !shown.contains(&food), "{shown}");
+
+    let call = json!({"new_budgets": [
+        {"category_id": fun, "every": "month", "amount": "10"},
+        {"category_id": fun, "every": "year", "amount": "10"}
+    ]});
+    let report = propose(&small.book, &call)
+        .expect_err("refused")
+        .model_report();
+    assert_eq!(report.param("argument"), Some(&Keyword("category_id")));
+    assert_eq!(report.param("category"), None);
 }
 
 #[test]
@@ -521,7 +557,7 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
                 {"category_id": food, "every": "month", "amount": "10"},
                 {"category_id": food, "every": "year", "amount": "10"}
             ]}),
-            "ai-tools.has-budget edit_budgets",
+            "ai-tools.has-budget category_id",
         ),
         // Several categories (D-641): one way to name them, as a list of
         // IDs, each once, in one currency; the accounts are the user's own.
@@ -580,7 +616,7 @@ fn malformed_budget_calls_are_refused_with_a_fixed_keyword() {
                 {"category_ids": [food, fun], "every": "month", "amount": "10"},
                 {"category_id": fun, "every": "year", "amount": "10"}
             ]}),
-            "ai-tools.has-budget edit_budgets",
+            "ai-tools.has-budget category_id",
         ),
         (
             json!({"edit_budgets": [{"amount": "10"}]}),
@@ -755,7 +791,7 @@ fn a_budget_over_several_categories_from_one_account_is_prepared_and_made() {
             &small.book,
             &json!({"new_budgets": [{"category_id": fun, "every": "month", "amount": "20"}]}),
         )),
-        "ai-tools.has-budget edit_budgets"
+        "ai-tools.has-budget category_id"
     );
 }
 
@@ -1516,7 +1552,7 @@ fn a_budget_for_a_stretch_of_days_covers_the_days_the_user_named() {
         "first_day": "2026-12-20", "last_day": "2027-01-06", "amount": "50.00"}]});
     assert_eq!(
         code(propose(&small.book, &again)),
-        "ai-tools.has-budget edit_budgets"
+        "ai-tools.has-budget category_id"
     );
     // After its last day the category is free again.
     let after = json!({"new_budgets": [{"category_id": fun, "every": "range",

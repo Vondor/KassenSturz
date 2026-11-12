@@ -115,9 +115,20 @@ pub enum ToolError {
     /// An object of a `propose_view` call has the same key twice, compared
     /// after decoding escapes (D-353).
     RepeatedKey,
-    /// A `propose_view` call has an argument the function doesn't take. The
-    /// model's key is not repeated back to it (D-353).
-    UnknownArgument,
+    /// A `propose_view` call has an argument the function doesn't take or
+    /// the user doesn't let it send, or a `propose_changes` call names
+    /// `new_views` or `edit_views`. The model's key is not repeated back to
+    /// it (D-353, X-8): a key KassenSturz knows is named by its own fixed
+    /// name, and `allowed` lists the arguments the function takes under the
+    /// user's settings, so the model can correct the call (#580).
+    UnknownArgument {
+        /// The argument by KassenSturz's fixed name, when the call's key is
+        /// one; `None` for a key KassenSturz doesn't have.
+        argument: Option<&'static str>,
+        /// The arguments the function takes as the user lets the model
+        /// send them; empty when there is no list to give.
+        allowed: Vec<&'static str>,
+    },
     /// No account of the user's has that ID.
     UnknownAccount,
     /// No category has that ID.
@@ -176,8 +187,15 @@ pub enum ToolError {
     /// accounts, in the book or as another new budget of the same set: the
     /// model can change the one in the book with `edit_budgets` instead, or
     /// keep only one of the new ones (M6-B216, #651). The store's own `store.budget-overlap` names the category
-    /// by its ID, which the answer to a model leaves out.
-    HasBudget,
+    /// by its ID, which the answer to a model leaves out: it names the
+    /// argument the category came from and, in a list, its place (#628).
+    HasBudget {
+        /// `category_id` or `category_ids`.
+        argument: &'static str,
+        /// The category's place in `category_ids`, from 1; `None` for
+        /// `category_id`.
+        place: Option<usize>,
+    },
     /// A new top-level category or a new account without `currency`, while
     /// the user's open accounts use more than one currency or there is none
     /// yet, so there is no currency to take by default. The schema can't
@@ -369,6 +387,7 @@ impl ToolError {
     pub fn allowed_fields(&self) -> Option<&[&'static str]> {
         match self.kind() {
             Self::UnknownField { allowed, .. } => Some(allowed),
+            Self::UnknownArgument { allowed, .. } if !allowed.is_empty() => Some(allowed),
             Self::NotForChart { allowed, .. } if !allowed.is_empty() => Some(allowed),
             Self::BadDescription {
                 reason: "data-not-offered",
@@ -543,7 +562,13 @@ impl Report for ToolError {
             Self::CallTooBig { max_bytes } => ErrorReport::new("ai-tools.call-too-big")
                 .with("max_bytes", ErrorParam::count(*max_bytes)),
             Self::RepeatedKey => ErrorReport::new("ai-tools.repeated-key"),
-            Self::UnknownArgument => ErrorReport::new("ai-tools.unknown-argument"),
+            Self::UnknownArgument { argument, .. } => {
+                let report = ErrorReport::new("ai-tools.unknown-argument");
+                match argument {
+                    Some(argument) => report.with("argument", ErrorParam::Keyword(argument)),
+                    None => report,
+                }
+            }
             Self::UnknownAccount => ErrorReport::new("ai-tools.unknown-account"),
             Self::UnknownCategory => ErrorReport::new("ai-tools.unknown-category"),
             // The argument names only, never the days the model sent
@@ -568,8 +593,15 @@ impl Report for ToolError {
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
             Self::NotEditable { reason } => ErrorReport::new("ai-tools.not-editable")
                 .with("reason", ErrorParam::Keyword(reason)),
-            Self::HasBudget => ErrorReport::new("ai-tools.has-budget")
-                .with("use_instead", ErrorParam::Keyword("edit_budgets")),
+            Self::HasBudget { argument, place } => {
+                let report = ErrorReport::new("ai-tools.has-budget")
+                    .with("argument", ErrorParam::Keyword(argument));
+                let report = match place {
+                    Some(place) => report.with("category", ErrorParam::count(*place)),
+                    None => report,
+                };
+                report.with("use_instead", ErrorParam::Keyword("edit_budgets"))
+            }
             Self::CurrencyNeeded => ErrorReport::new("ai-tools.currency-needed"),
             Self::NotCashAccount => ErrorReport::new("ai-tools.not-cash-account"),
             Self::NotDeletable => ErrorReport::new("ai-tools.not-deletable"),
@@ -682,7 +714,10 @@ mod tests {
                 max_bytes: crate::changes::MAX_VIEW_CALL_BYTES,
             },
             ToolError::RepeatedKey,
-            ToolError::UnknownArgument,
+            ToolError::UnknownArgument {
+                argument: None,
+                allowed: Vec::new(),
+            },
             ToolError::UnknownAccount,
             ToolError::UnknownCategory,
             ToolError::BadPeriod,
@@ -702,7 +737,14 @@ mod tests {
             ToolError::TooManyChanges,
             ToolError::NameTaken,
             ToolError::NotCategorizable,
-            ToolError::HasBudget,
+            ToolError::HasBudget {
+                argument: "category_id",
+                place: None,
+            },
+            ToolError::HasBudget {
+                argument: "category_ids",
+                place: Some(2),
+            },
             ToolError::CurrencyNeeded,
             ToolError::NotEditable { reason: "split" },
             ToolError::NotEditable { reason: "transfer" },
@@ -913,6 +955,29 @@ mod tests {
             .map(|argument| ToolError::UnknownField {
                 argument,
                 allowed: &["name"],
+            }),
+        );
+        // An argument of `propose_view` the user doesn't let the model send,
+        // or a list `propose_changes` no longer takes (#580).
+        examples.extend(
+            [
+                "view_id",
+                "categories",
+                "accounts",
+                "income_categories",
+                "income_accounts",
+                "expenses_categories",
+                "expenses_accounts",
+                "formula",
+                "target",
+                "columns",
+                "description",
+                "new_views",
+                "edit_views",
+            ]
+            .map(|argument| ToolError::UnknownArgument {
+                argument: Some(argument),
+                allowed: vec!["title"],
             }),
         );
         examples.extend(

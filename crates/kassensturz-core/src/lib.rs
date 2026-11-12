@@ -48,7 +48,10 @@ pub use category_group::{CategoryGroup, GroupId, GroupKind, GroupMember};
 pub use changeover::{Changeover, ConvertedPart};
 pub use currency::{Currency, CurrencyCode, CurrencyCodeError};
 pub use decimal::{DecimalError, ExchangeRate, MAX_DECIMAL_PLACES, MAX_DIGITS, Price, Quantity};
-pub use details::{Institution, InstitutionId, Payee, PayeeId, PayeeRecognition, Tag, TagId};
+pub use details::{
+    Institution, InstitutionId, MAX_TAG_NAME_CHARS, MAX_TAGS_IN_BOOK, MAX_TAGS_ON_PART,
+    MAX_TAGS_ON_TRANSACTION, Payee, PayeeId, PayeeRecognition, Tag, TagId,
+};
 pub use error::{ErrorParam, ErrorReport, Report, is_error_code};
 pub use money::{Money, MoneyError};
 pub use rates::{DatedRate, DatedRateId, RateSource};

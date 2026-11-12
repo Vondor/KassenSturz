@@ -201,6 +201,7 @@ pub struct Transaction {
     note: Option<String>,
     entered_on: Option<Date>,
     attachments: Vec<Attachment>,
+    tags: Vec<TagId>,
 }
 
 /// A link to a receipt or other document that belongs to a transaction
@@ -269,6 +270,7 @@ impl Transaction {
             note: None,
             entered_on: None,
             attachments: Vec::new(),
+            tags: Vec::new(),
         })
     }
 
@@ -299,14 +301,30 @@ impl Transaction {
         self
     }
 
-    /// The transaction with the note, entry date and attachments of
+    /// The transaction with `tags` as the tags on the whole of it (D-712),
+    /// in the user's order. A tag given twice is kept once, where it came
+    /// first.
+    #[must_use]
+    pub fn with_tags(mut self, tags: Vec<TagId>) -> Self {
+        let mut kept = Vec::with_capacity(tags.len());
+        for tag in tags {
+            if !kept.contains(&tag) {
+                kept.push(tag);
+            }
+        }
+        self.tags = kept;
+        self
+    }
+
+    /// The transaction with the note, entry date, attachments and tags of
     /// `stored`: what a transaction built again from a stored one, e.g.
-    /// with other parts, keeps (D-132).
+    /// with other parts, keeps (D-132, D-712).
     #[must_use]
     pub fn with_details_of(self, stored: &Transaction) -> Self {
         self.with_note(stored.note.clone())
             .with_entry_date(stored.entered_on)
             .with_attachments(stored.attachments.clone())
+            .with_tags(stored.tags.clone())
     }
 
     /// The amount the part `open` needs for all of `parts` to add up to zero:
@@ -387,6 +405,25 @@ impl Transaction {
     /// (D-132).
     pub fn attachments(&self) -> &[Attachment] {
         &self.attachments
+    }
+
+    /// The tags on the whole transaction, each once, in the user's order
+    /// (D-712). Every part counts for them too ([`Transaction::tags_of`]).
+    pub fn tags(&self) -> &[TagId] {
+        &self.tags
+    }
+
+    /// The tags `part` counts for: the whole transaction's first, then the
+    /// part's own, each once (D-713). Worked out when asked, never stored,
+    /// so a part added later counts for the transaction's tags too.
+    pub fn tags_of(&self, part: &Split) -> Vec<TagId> {
+        let mut tags = self.tags.clone();
+        for tag in &part.tags {
+            if !tags.contains(tag) {
+                tags.push(*tag);
+            }
+        }
+        tags
     }
 
     /// The currency it counts in: the one of its parts' amounts.

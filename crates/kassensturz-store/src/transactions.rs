@@ -9,8 +9,8 @@ use std::collections::HashMap;
 
 use kassensturz_core::{
     Account, AccountId, Attachment, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount,
-    ImportedDetails, Money, OriginalAmount, PartStatus, RuleId, Split, SplitId, TagId, Transaction,
-    TransactionId,
+    ImportedDetails, MAX_TAGS_ON_PART, MAX_TAGS_ON_TRANSACTION, Money, OriginalAmount, PartStatus,
+    RuleId, Split, SplitId, TagId, Transaction, TransactionId,
 };
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -141,6 +141,7 @@ impl Book {
                 ],
             )?;
             insert_splits(&book.conn, transaction)?;
+            insert_transaction_tags(&book.conn, transaction)?;
             insert_attachments(&book.conn, transaction)
         })
     }
@@ -223,6 +224,11 @@ impl Book {
                         params![split.to_bytes(), rule.map(RuleId::to_bytes)],
                     )?;
                 }
+                book.conn.execute_cached(
+                    "DELETE FROM transaction_tags WHERE transaction_id = ?1",
+                    [id],
+                )?;
+                insert_transaction_tags(&book.conn, transaction)?;
                 book.conn
                     .execute_cached("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
                 insert_attachments(&book.conn, transaction)
@@ -347,6 +353,10 @@ impl Book {
             .attachments("WHERE a.transaction_id = ?1", params![id.to_bytes()])?
             .remove(&id.to_bytes())
             .unwrap_or_default();
+        let entry_tags = self
+            .transaction_tags("WHERE g.transaction_id = ?1", params![id.to_bytes()])?
+            .remove(&id.to_bytes())
+            .unwrap_or_default();
         assemble(id, header, attachments, rows, |account| {
             let currency: Option<String> = self
                 .conn
@@ -358,6 +368,7 @@ impl Book {
                 .optional()?;
             currency.as_deref().map(currency_from_text).transpose()
         })
+        .map(|transaction| transaction.with_tags(entry_tags))
     }
 
     /// Every transaction in the book, sorted by booking date and then by ID,
@@ -435,6 +446,10 @@ impl Book {
             &format!("JOIN transactions AS t ON t.id = a.transaction_id {filter}"),
             params,
         )?;
+        let mut entry_tags = self.transaction_tags(
+            &format!("JOIN transactions AS t ON t.id = g.transaction_id {filter}"),
+            params,
+        )?;
         let mut rows = statement.query(params)?;
         while let Some(row) = rows.next()? {
             let transaction: [u8; 16] = row.get(SPLIT_ROW_COLUMNS)?;
@@ -458,6 +473,7 @@ impl Book {
             .map(|(id, header)| {
                 let own = parts.remove(&id).unwrap_or_default();
                 let linked = attachments.remove(&id).unwrap_or_default();
+                let tagged = entry_tags.remove(&id).unwrap_or_default();
                 assemble(
                     TransactionId::from_bytes(id),
                     header,
@@ -465,6 +481,7 @@ impl Book {
                     own,
                     |account| Ok(accounts.get(&account).copied()),
                 )
+                .map(|transaction| transaction.with_tags(tagged))
             })
             .collect()
     }
@@ -495,6 +512,30 @@ impl Book {
                 });
         }
         Ok(attachments)
+    }
+
+    /// The tags on the whole of the transactions `filter` (a clause over
+    /// `transaction_tags AS g`) keeps, with its `params`, by transaction ID,
+    /// each transaction's in the user's order (D-712).
+    fn transaction_tags(
+        &self,
+        filter: &str,
+        params: &[&dyn rusqlite::ToSql],
+    ) -> Result<HashMap<[u8; 16], Vec<TagId>>, StoreError> {
+        let mut statement = self.conn.prepare_cached(&format!(
+            "SELECT g.transaction_id, g.tag_id FROM transaction_tags AS g
+             {filter}
+             ORDER BY g.transaction_id, g.position"
+        ))?;
+        let mut tags: HashMap<[u8; 16], Vec<TagId>> = HashMap::new();
+        let mut rows = statement.query(params)?;
+        while let Some(row) = rows.next()? {
+            let transaction: [u8; 16] = row.get(0)?;
+            tags.entry(transaction)
+                .or_default()
+                .push(TagId::from_bytes(row.get(1)?));
+        }
+        Ok(tags)
     }
 
     /// The tags of the parts `filter` (a clause over `splits AS s`) keeps,
@@ -718,7 +759,22 @@ impl Book {
         date_to_text(transaction.booking_date())?;
         self.currency_minor_digits(transaction.currency())?;
         let mut accounts = HashMap::new();
+        if transaction.tags().len() > MAX_TAGS_ON_TRANSACTION {
+            return Err(StoreError::TooManyTags {
+                limit: "transaction",
+                max: MAX_TAGS_ON_TRANSACTION,
+            });
+        }
+        for &tag in transaction.tags() {
+            self.check_tag_known(tag)?;
+        }
         for split in transaction.splits() {
+            if split.tags.len() > MAX_TAGS_ON_PART {
+                return Err(StoreError::TooManyTags {
+                    limit: "part",
+                    max: MAX_TAGS_ON_PART,
+                });
+            }
             let dates = split.imported.iter().flat_map(|imported| {
                 [imported.booking_date, imported.value_date]
                     .into_iter()
@@ -739,17 +795,7 @@ impl Book {
                 if split.tags[..index].contains(&tag) {
                     return Err(StoreError::Corrupt(Corruption::BadSplit(split.id)));
                 }
-                let known: Option<i64> = self
-                    .conn
-                    .query_row_cached(
-                        "SELECT 1 FROM tags WHERE id = ?1",
-                        [tag.to_bytes()],
-                        |row| row.get(0),
-                    )
-                    .optional()?;
-                if known.is_none() {
-                    return Err(StoreError::UnknownTag(tag));
-                }
+                self.check_tag_known(tag)?;
             }
             let used_by: Option<[u8; 16]> = self
                 .conn
@@ -905,6 +951,30 @@ fn account_totals(transaction: &Transaction) -> Result<HashMap<AccountId, Money>
         totals.insert(account, total);
     }
     Ok(totals)
+}
+
+/// Writes the tags on the whole of `transaction` (D-712).
+pub(crate) fn insert_transaction_tags(
+    conn: &Connection,
+    transaction: &Transaction,
+) -> Result<(), StoreError> {
+    // Most transactions have none (#84).
+    if transaction.tags().is_empty() {
+        return Ok(());
+    }
+    let mut insert = conn.prepare_cached(
+        "INSERT INTO transaction_tags (id, transaction_id, tag_id, position)
+         VALUES (?1, ?2, ?3, ?4)",
+    )?;
+    for (position, tag) in (0_i64..).zip(transaction.tags()) {
+        insert.execute(params![
+            uuid::Uuid::now_v7().as_bytes(),
+            transaction.id().to_bytes(),
+            tag.to_bytes(),
+            position,
+        ])?;
+    }
+    Ok(())
 }
 
 /// Writes the parts of `transaction`, with their rates and imported details.

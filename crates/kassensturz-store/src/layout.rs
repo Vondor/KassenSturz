@@ -35,8 +35,8 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 6] = [
-    LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29,
+pub(crate) const MIGRATIONS: [&str; 7] = [
+    LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
@@ -1010,6 +1010,71 @@ UPDATE changed_budget_accounts SET from_day = coalesce(
 WHERE budget_id IS NOT NULL;
 ";
 
+/// Layout 30 (US4.8, D-712): a tag can sit on a whole transaction, and
+/// tags can be renamed, removed and merged.
+///
+/// - `transaction_tags`, built like `split_tags`: which tags a whole
+///   transaction carries, each once, in the user's order. Every part of the
+///   transaction counts for them too, worked out when read, never copied
+///   onto the parts (D-713).
+/// - `changed_transaction_tags`, its change history (D-066).
+/// - `changes` is rebuilt, as layout 27 did, with the actions `rename_tag`,
+///   `remove_tag` and `merge_tags` added to its list. Its rows stay as they
+///   were.
+///
+/// Nothing a book of layout 29 holds changes: its transactions start
+/// without tags on the whole, and the tags on parts stay where they are.
+const LAYOUT_30: &str = "
+CREATE TABLE transaction_tags (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    transaction_id BLOB NOT NULL REFERENCES transactions (id) ON DELETE CASCADE,
+    tag_id BLOB NOT NULL REFERENCES tags (id),
+    position INTEGER NOT NULL CHECK (position >= 0),
+    UNIQUE (transaction_id, tag_id)
+) STRICT;
+CREATE INDEX transaction_tags_by_tag ON transaction_tags (tag_id);
+
+CREATE TABLE changed_transaction_tags (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    transaction_id BLOB,
+    tag_id BLOB,
+    position INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes', 'remove_category',
+        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
+        'add_group', 'edit_group', 'move_group', 'remove_group',
+        'set_hidden_categories',
+        'add_budget', 'edit_budget', 'remove_budget',
+        'change_account_type',
+        'rename_tag', 'remove_tag', 'merge_tags'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -1771,6 +1836,97 @@ mod tests {
             book.budget(id).expect("budget").name.as_deref(),
             Some("Weekly shop")
         );
+    }
+
+    #[test]
+    fn layout_30_keeps_the_tags_and_history_of_layout_29_and_records_tag_changes() {
+        // A book at layout 29 with a tag the history recorded adding, as
+        // KassenSturz wrote it before tags could sit on whole transactions
+        // (US4.8, D-712).
+        let folder = TempFolder::new();
+        let path = folder.join("Household.ksz");
+        let checking = old_book(&path, 29);
+        let conn = Connection::open(&path).expect("book opened");
+        let (tag, change) = (
+            uuid::Uuid::now_v7().into_bytes(),
+            uuid::Uuid::now_v7().into_bytes(),
+        );
+        let made_at = kassensturz_core::Timestamp::from_second(
+            kassensturz_core::Timestamp::now().as_second(),
+        )
+        .expect("now");
+        conn.execute_batch("BEGIN").expect("begun");
+        for (sql, values) in [
+            (
+                "INSERT INTO tags (id, name) VALUES (?1, 'Holiday')",
+                params![tag],
+            ),
+            (
+                "INSERT INTO changes (id, sequence, action, made_at, undone, file_name)
+                 VALUES (?1, 1, 'add_tag', ?2, 0, NULL)",
+                params![change, made_at.to_string()],
+            ),
+            (
+                "INSERT INTO changed_tags (change_id, side, id, name)
+                 VALUES (?1, 'after', ?2, 'Holiday')",
+                params![change, tag],
+            ),
+        ] {
+            conn.execute(sql, values).expect("written");
+        }
+        conn.execute_batch("COMMIT").expect("committed");
+        drop(conn);
+
+        let computer = computer(&folder);
+        let mut book = Book::open(&path, &computer).expect("book updated");
+        assert_eq!(pragma(&book.conn, "user_version"), VERSION);
+        assert_eq!(files_in(&computer.backup_folder).len(), 1);
+        let holiday = kassensturz_core::TagId::from_bytes(tag);
+        assert_eq!(book.tags().expect("tags")[0].name, "Holiday");
+        // The change made before the update is undone and made again.
+        book.undo().expect("undone");
+        assert!(book.tags().expect("tags").is_empty());
+        book.redo().expect("made again");
+        assert_eq!(book.tags().expect("tags").len(), 1);
+
+        // A whole transaction can carry it now, and the new actions are
+        // recorded and undone like any other.
+        let groceries = book
+            .all_accounts()
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.name == "Groceries")
+            .expect("category")
+            .id;
+        let bought = kassensturz_core::Transaction::new(
+            kassensturz_core::TransactionId::generate(),
+            kassensturz_core::Date::constant(2026, 10, 5),
+            None,
+            vec![
+                kassensturz_core::Split::new(checking, Money::from_minor_units(-2500, EUR)),
+                kassensturz_core::Split::new(groceries, Money::from_minor_units(2500, EUR)),
+            ],
+        )
+        .expect("balanced")
+        .with_tags(vec![holiday]);
+        book.add_transaction(&bought).expect("added");
+        book.rename_tag(holiday, "Holiday 2026").expect("renamed");
+        book.remove_tag(holiday).expect("removed");
+        let action: String = book
+            .conn
+            .query_row(
+                "SELECT action FROM main.changes ORDER BY sequence DESC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .expect("newest change");
+        assert_eq!(action, "remove_tag");
+        book.undo().expect("undone");
+        assert_eq!(
+            book.transaction(bought.id()).expect("read").tags(),
+            [holiday]
+        );
+        assert_eq!(book.tags().expect("tags")[0].name, "Holiday 2026");
     }
 
     #[test]

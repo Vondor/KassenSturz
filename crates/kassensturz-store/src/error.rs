@@ -272,6 +272,25 @@ pub enum StoreError {
         /// The name as the other payee has it.
         existing: String,
     },
+    /// A tag's name can't be kept (D-712): `reason` is `too-long` (more
+    /// than `max_chars` characters after the spaces around it) or
+    /// `line-break` (it has a line break or another control character).
+    TagName {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+        /// The most characters a name may have.
+        max_chars: usize,
+    },
+    /// A transaction, a part or the book has as many tags as it keeps
+    /// (D-712).
+    TooManyTags {
+        /// What is full: `transaction`, `part` or `book`.
+        limit: &'static str,
+        /// The most it keeps.
+        max: usize,
+    },
+    /// A tag can't be merged into itself (D-712).
+    TagMergedIntoItself(TagId),
     /// Another tag already has this name, ignoring capitals (D-132).
     DuplicateTagName {
         /// The name as the other tag has it.
@@ -662,6 +681,15 @@ impl Report for StoreError {
             Self::EmptyName => new("store.empty-name"),
             Self::DuplicatePayeeName { existing } => {
                 new("store.duplicate-payee-name").with("existing", P::Text(existing.clone()))
+            }
+            Self::TagName { reason, max_chars } => new("store.tag-name")
+                .with("reason", P::Keyword(reason))
+                .with("max_chars", P::count(*max_chars)),
+            Self::TooManyTags { limit, max } => new("store.tag-too-many")
+                .with("limit", P::Keyword(limit))
+                .with("max", P::count(*max)),
+            Self::TagMergedIntoItself(tag) => {
+                new("store.tag-merged-into-itself").with("tag", P::Text(tag.to_string()))
             }
             Self::DuplicateTagName { existing } => {
                 new("store.duplicate-tag-name").with("existing", P::Text(existing.clone()))

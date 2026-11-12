@@ -271,6 +271,15 @@ Kirigami.ScrollablePage {
         return typed;
     }
 
+    // Saves the tags of a Transfer (Q-535); nothing else of it changes.
+    function saveTransferTags() {
+        const result = register.setTransferTags(chosenAccount, transactionId, { tags: tagField.tags });
+        error.result = result;
+        if (result.code === undefined) {
+            loadedTags = tagsText();
+        }
+    }
+
     function save() {
         const result = adding
             ? register.addTransaction(chosenAccount, form())
@@ -345,7 +354,7 @@ Kirigami.ScrollablePage {
             text: page.kind === "starting-balance"
                 ? page.i18nContext.i18nc("@info", "This is the starting balance: what the account held when you began. To change it, check the account against your bank, and KassenSturz offers to correct it.")
                 : page.kind === "transfer"
-                    ? page.i18nContext.i18nc("@info %1 is the name of an account", "This money was moved between this account and %1. Changing a Transfer isn't possible yet. You can remove it and add each side again in its own account; KassenSturz then offers to join them.", page.entry.otherAccount ?? "")
+                    ? page.i18nContext.i18nc("@info %1 is the name of an account", "This money was moved between this account and %1. Apart from its tags, a Transfer can't be changed yet. You can remove it and add each side again in its own account; KassenSturz then offers to join them.", page.entry.otherAccount ?? "")
                     : page.i18nContext.i18nc("@info", "This transaction is broken down into several parts, which have their own page.")
             wrapMode: Text.Wrap
         }
@@ -571,13 +580,26 @@ Kirigami.ScrollablePage {
                 : page.i18nContext.i18nc("@info %1 characters typed so far, %2 the longest a note may be", "%1 of %2 characters", noteField.counted, page.noteLimit)
         }
 
-        // The tags of the whole transaction (US4.8, docs/TAGS.md §1).
+        // The tags of the whole transaction (US4.8, docs/TAGS.md §1). A
+        // Transfer, which can't be changed here otherwise, takes tags too
+        // (Q-535), saved with their own button.
         TagField {
             id: tagField
-            visible: page.editable
+            visible: page.editable || page.kind === "transfer"
             Layout.fillWidth: true
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Tags:")
+        }
+
+        Controls.Button {
+            visible: !page.editable && page.kind === "transfer"
+            enabled: page.tagsText() !== page.loadedTags
+            text: page.i18nContext.i18nc("@action:button", "Save tags")
+            icon.name: "document-save"
+            onClicked: {
+                ActionLog.taken("TransactionPage_saveTransferTags")
+                page.saveTransferTags()
+            }
         }
 
         // Tags its parts have of their own, which the Parts page changes; a

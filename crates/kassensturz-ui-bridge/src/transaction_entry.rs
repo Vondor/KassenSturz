@@ -493,6 +493,32 @@ pub fn edit(
     Ok(())
 }
 
+/// Gives a Transfer between the user's accounts the tags the page shows
+/// (Q-535): a Transfer can't be changed here otherwise, but the AI could
+/// already tag one (`tag_transactions`), so the page can too. The tags are
+/// the whole transaction's; a Transfer counts as neither spending nor
+/// income, so a tag on it moves no figure (D-714). Any other kind of
+/// transaction keeps its own way of being changed
+/// (`input.not-editable-here`). One change in the history.
+pub fn set_transfer_tags(
+    book: &mut Book,
+    account: &str,
+    id: &str,
+    wanted: &[TagInput<'_>],
+) -> Result<(), EntryError> {
+    let account = find_account(book, account)?;
+    let stored = find_transaction(book, account.id, id)?;
+    let (kind, _) = kind_of(book, account.id, &stored)?;
+    if kind != EntryKind::Transfer {
+        return Err(EntryError::NotEditableHere);
+    }
+    book.as_one_action(Action::EditTransaction, |book| {
+        let tags = tags::resolve(book, wanted)?;
+        book.update_transaction(&stored.clone().with_tags(tags))
+    })?;
+    Ok(())
+}
+
 /// Removes the transaction with `id` (as text) from the book, whatever its
 /// kind, with what a bank or file delivered for it: the page asked first
 /// when it holds that (D-375). Undo brings it back (D-086).
@@ -1310,6 +1336,101 @@ mod tests {
         remove(&mut book, &savings, &transfer_id).expect("removed");
         assert_eq!(rows(&book, &savings, Sort::default()), []);
         assert_eq!(rows(&book, &checking, Sort::default()).len(), 2);
+    }
+
+    /// Q-535: a Transfer joined the way the page joins one gets tags from
+    /// its page; the tag counts it once, and never as spending or income.
+    #[test]
+    fn a_transfer_gets_tags_and_they_count_it_once_and_never_as_spending() {
+        use kassensturz_report::{
+            Filter, Level, Period, Source, income_expense_by_month, spending_by_category,
+        };
+        let (mut book, checking) = book_with_checking();
+        let savings = account(&mut book, "Savings", AccountType::Savings, "");
+        let out = add(&mut book, &paid(&checking, "170", "", ""), &TestLocale).expect("added");
+        let into = add(
+            &mut book,
+            &NewEntry {
+                money_in: true,
+                ..paid(&savings, "170", "", "")
+            },
+            &TestLocale,
+        )
+        .expect("added");
+        crate::transfer_prompt::join(&mut book, &out.to_string(), &into.to_string())
+            .expect("joined");
+        let transfer = book
+            .transaction(out)
+            .or_else(|_| book.transaction(into))
+            .expect("the Transfer");
+        let transfer_id = transfer.id().to_string();
+        assert_eq!(
+            details(&book, &checking, &transfer_id, &TestLocale)
+                .expect("details")
+                .kind,
+            EntryKind::Transfer.key()
+        );
+
+        // A new tag typed on the page, from the savings side.
+        let history = book.history().expect("history").len();
+        let household = [TagInput {
+            id: "",
+            name: "Household",
+        }];
+        set_transfer_tags(&mut book, &savings, &transfer_id, &household).expect("tagged");
+        assert_eq!(book.history().expect("history").len(), history + 1);
+        let tag = book.tags().expect("tags")[0].id;
+        assert_eq!(
+            book.transaction(transfer.id()).expect("stored").tags(),
+            [tag]
+        );
+        // Both sides show the same tags: they are the whole transaction's.
+        for side in [&checking, &savings] {
+            let shown = details(&book, side, &transfer_id, &TestLocale).expect("details");
+            assert_eq!(shown.tags.len(), 1, "{side}");
+        }
+
+        // Counted once: one transaction, no part, although it has two sides.
+        let uses = book.tag_uses().expect("uses").remove(&tag).expect("used");
+        assert_eq!((uses.transactions, uses.parts), (1, 0));
+        // Never spending or income.
+        let october =
+            Period::new(Date::constant(2026, 10, 1), Date::constant(2026, 10, 31)).expect("period");
+        let filter = Filter {
+            tags: Some(vec![tag]),
+            ..Filter::default()
+        };
+        let source = Source::read(&book, october).expect("read");
+        assert!(
+            spending_by_category(&source, october, &filter, Level::Each)
+                .expect("spending")
+                .is_empty()
+        );
+        let months = income_expense_by_month(&source, october, &filter).expect("months");
+        assert!(
+            months
+                .iter()
+                .all(|month| month.income.is_zero() && month.expenses.is_zero()),
+            "{months:?}"
+        );
+
+        // Taking the tag off again, by an empty list.
+        set_transfer_tags(&mut book, &checking, &transfer_id, &[]).expect("untagged");
+        assert!(
+            book.transaction(transfer.id())
+                .expect("stored")
+                .tags()
+                .is_empty()
+        );
+
+        // A simple transaction keeps its own page for its tags.
+        let simple = add(&mut book, &paid(&checking, "5", "Kiosk", ""), &TestLocale)
+            .expect("added")
+            .to_string();
+        assert!(matches!(
+            set_transfer_tags(&mut book, &checking, &simple, &household),
+            Err(EntryError::NotEditableHere)
+        ));
     }
 
     /// The register reads only an outline of each transaction (M6-B8,

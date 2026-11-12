@@ -192,6 +192,18 @@ pub mod qobject {
             form: &QVariant,
         ) -> QVariant;
 
+        /// Gives a Transfer the tags in `form`'s `tags` (Q-535), as for
+        /// `editTransaction`; a form without `tags` takes them all off.
+        /// Returns an empty map, or the error's `code`.
+        #[qinvokable]
+        #[cxx_name = "setTransferTags"]
+        fn set_transfer_tags(
+            self: Pin<&mut AccountRegister>,
+            account_id: &QString,
+            transaction_id: &QString,
+            form: &QVariant,
+        ) -> QVariant;
+
         /// What removing a transaction takes with it, for the warning before
         /// it (D-375): `holdsOriginal` (a bank or file delivered a part of
         /// it), `undo` (`days`, `forever` or `until-closed`) and `undoDays`,
@@ -692,6 +704,21 @@ impl qobject::AccountRegister {
         let entered = form.entry(&account_id, tags.as_deref());
         let result = change(&account_id, |book| {
             transaction_entry::edit(book, &transaction_id, &entered, &app_locale())
+        });
+        self.finish(result)
+    }
+
+    fn set_transfer_tags(
+        self: Pin<&mut Self>,
+        account_id: &QString,
+        transaction_id: &QString,
+        form: &QVariant,
+    ) -> QVariant {
+        let (account_id, transaction_id) = (account_id.to_string(), transaction_id.to_string());
+        let form = Form::read(form);
+        let tags = form.tag_inputs().unwrap_or_default();
+        let result = change(&account_id, |book| {
+            transaction_entry::set_transfer_tags(book, &account_id, &transaction_id, &tags)
         });
         self.finish(result)
     }

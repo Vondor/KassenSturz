@@ -25,6 +25,8 @@ mod ai_requests;
 mod ai_settings;
 mod ai_settings_model;
 mod ai_switch_model;
+mod alarms;
+mod alarms_model;
 mod app_icon_audit;
 mod bank_connection;
 mod bank_connection_model;

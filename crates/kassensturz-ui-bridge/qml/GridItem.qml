@@ -250,6 +250,7 @@ Item {
                 : cell.info?.type === "page.filters" ? filterBarBox
                 : cell.info?.type === "page.tabs" ? dashboardTabsBox
                 : cell.info?.type === "notice.unsorted" ? unsortedBox
+                : cell.info?.type === "notice.alarms" ? alarmsBox
                 : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
         }
     }
@@ -667,6 +668,50 @@ Item {
                     filter: listedFeed.view?.filter
                     hideMarks: cell.hideNote
                 }
+            }
+        }
+    }
+
+    // The warnings tile (US4.9, D-721): what its rules find today, from its
+    // own `BookAlarms`. The page's period and filters don't change it.
+    Component {
+        id: alarmsBox
+
+        Flickable {
+            id: alarms
+
+            readonly property bool failed: false
+            readonly property string rules: cell.subject?.preview?.alarms || "[]"
+
+            onRulesChanged: feed.show(rules)
+            Component.onCompleted: feed.show(rules)
+
+            Connections {
+                target: cell.board
+
+                function onBookChangesChanged() {
+                    feed.refresh();
+                }
+            }
+
+            contentHeight: alarmList.implicitHeight
+            clip: true
+
+            Controls.ScrollBar.vertical: Controls.ScrollBar {
+                policy: Controls.ScrollBar.AsNeeded
+            }
+
+            BookAlarms {
+                id: feed
+            }
+
+            AlarmList {
+                id: alarmList
+
+                width: parent.width - Kirigami.Units.gridUnit
+                shown: feed.view
+                arranging: cell.board.editing
+                onBudgetClicked: cell.board.setBudgetClicked()
             }
         }
     }

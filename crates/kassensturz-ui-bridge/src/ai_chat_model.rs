@@ -857,6 +857,22 @@ pub(crate) mod engine {
                 entries.extend(suggestion_fields(transfer));
                 entries
             }
+            ChangeView::TagTransaction {
+                date,
+                payee,
+                account,
+                amount,
+                added,
+                removed,
+            } => vec![
+                ("kind", text("tagTransaction")),
+                ("date", text(date)),
+                ("payee", text(payee)),
+                ("account", text(account)),
+                ("amount", text(amount)),
+                ("added", list(added.iter().map(|name| text(name)))),
+                ("removed", list(removed.iter().map(|name| text(name)))),
+            ],
         }
     }
 
@@ -2468,5 +2484,103 @@ mod tests {
         assert_eq!(text_of(&incoming, "account"), "Savings");
         assert_eq!(text_of(&incoming, "category"), "");
         assert_eq!(text_of(&incoming, "sortedBy"), "");
+    }
+
+    #[test]
+    fn a_tag_change_reads_back_as_qml_reads_it() {
+        // US5.2, D-744: through the real proposal and the review's rows.
+        use kassensturz_ai_tools::propose;
+        use kassensturz_core::ai_switch::Permissions;
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Tag, TagId,
+            Transaction, TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use crate::ai_chat::rows_of;
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let account = |name: &str, kind: AccountKind| Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = account("Checking", AccountKind::Asset);
+        let food = account("Food", AccountKind::Expense);
+        for account in [&checking, &food] {
+            book.add_account(account).unwrap();
+        }
+        let tag = |book: &mut Book, name: &str| {
+            let id = TagId::generate();
+            book.add_tag(&Tag {
+                id,
+                name: name.into(),
+            })
+            .unwrap();
+            id
+        };
+        let holiday = tag(&mut book, "<b>Holiday</b>");
+        let tax = tag(&mut book, "Tax");
+        let transaction = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 10, 5),
+            Some("Crater Lodge".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-2500, eur)),
+                Split::new(food.id, Money::from_minor_units(2500, eur)),
+            ],
+        )
+        .unwrap()
+        .with_tags(vec![tax]);
+        book.add_transaction(&transaction).unwrap();
+
+        let proposal = propose(
+            &book,
+            &serde_json::json!({"tag_transactions": [{
+                "transaction_id": transaction.id().to_string(),
+                "add_tag_ids": [holiday.to_string()],
+                "remove_tag_ids": [tax.to_string()],
+            }]}),
+            Permissions::all(),
+        )
+        .unwrap();
+        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 1);
+        let change = &items[0];
+        assert_eq!(
+            own_keys(change),
+            [
+                "account", "added", "amount", "date", "kind", "payee", "removed"
+            ]
+        );
+        assert_eq!(text_of(change, "kind"), "tagTransaction");
+        assert_eq!(text_of(change, "slot"), "tag_transactions/0");
+        assert_eq!(text_of(change, "account"), "Checking");
+        assert_eq!(text_of(change, "payee"), "Crater Lodge");
+        assert!(!text_of(change, "amount").is_empty());
+        assert!(!text_of(change, "date").is_empty());
+        let added = list_of(change, "added");
+        assert_eq!(added.len(), 1);
+        assert_eq!(
+            added[0].value::<QString>().unwrap().to_string(),
+            "<b>Holiday</b>"
+        );
+        let removed = list_of(change, "removed");
+        assert_eq!(removed.len(), 1);
+        assert_eq!(removed[0].value::<QString>().unwrap().to_string(), "Tax");
+        // Nothing of it can be edited, only left out.
+        assert!(list_of(change, "fields").is_empty());
     }
 }

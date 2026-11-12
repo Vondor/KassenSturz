@@ -114,6 +114,8 @@ pub enum ToolError {
     BadPeriod,
     /// No transaction has that ID.
     UnknownTransaction,
+    /// No tag of the book has that ID (US5.2, D-744).
+    UnknownTag,
     /// A change set would hold more than [`crate::MAX_CHANGES`] changes.
     TooManyChanges,
     /// A new category or Rule would have the name of one that is there
@@ -479,6 +481,7 @@ impl Report for ToolError {
                 .with("argument", ErrorParam::Keyword("to"))
                 .with("not_before", ErrorParam::Keyword("from")),
             Self::UnknownTransaction => ErrorReport::new("ai-tools.unknown-transaction"),
+            Self::UnknownTag => ErrorReport::new("ai-tools.unknown-tag"),
             Self::TooManyChanges => ErrorReport::new("ai-tools.too-many-changes"),
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
@@ -603,6 +606,7 @@ mod tests {
             ToolError::UnknownCategory,
             ToolError::BadPeriod,
             ToolError::UnknownTransaction,
+            ToolError::UnknownTag,
             ToolError::TooManyChanges,
             ToolError::NameTaken,
             ToolError::NotCategorizable,

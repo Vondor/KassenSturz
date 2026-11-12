@@ -25,7 +25,7 @@
 
 use std::collections::HashSet;
 
-use kassensturz_core::{AccountId, GroupMember, TagId};
+use kassensturz_core::{AccountId, GroupMember, Split, TagId, Transaction};
 
 use crate::{Component, ComponentType, ReportError, Setting, Source};
 
@@ -49,6 +49,19 @@ pub struct Filter {
     /// which has none, counts nothing. A part with two of the tags counts
     /// once.
     pub tags: Option<Vec<TagId>>,
+}
+
+/// Whether `part` of `transaction` counts for one of `tags` in a sum by tag
+/// (D-713, D-714): it carries one of them itself, or the whole transaction
+/// does. Whether the part counts at all (the category side only) is the
+/// caller's: [`Filter::tags`] in the datasets, and the AI's totals by tag
+/// (D-744) use this same check, so the two never differ.
+pub fn carries_tag(transaction: &Transaction, part: &Split, tags: &[TagId]) -> bool {
+    transaction
+        .tags()
+        .iter()
+        .chain(&part.tags)
+        .any(|tag| tags.contains(tag))
 }
 
 /// The most IDs in one list of a filter: the filter bar's, or a

@@ -109,7 +109,7 @@ pub use editor::{Edit, Editor, MAX_UNDO};
 pub use error::ReportError;
 pub use filter::{
     Applied, Asked, Chosen, Dimension, Filter, FilterNote, Filters, MAX_FILTER_IDS, Origin,
-    SERIES_FILTERS, SeriesAsked, SeriesFilter, Takes, is_series_filter, takes,
+    SERIES_FILTERS, SeriesAsked, SeriesFilter, Takes, carries_tag, is_series_filter, takes,
 };
 pub use formula::{
     Counted, FUNCTIONS, Formula, FormulaResult, FormulaValue, FunctionInfo, KnownName,

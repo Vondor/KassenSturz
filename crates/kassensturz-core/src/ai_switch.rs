@@ -109,11 +109,17 @@ pub enum Permission {
     /// allowed merging two transactions into one. It reads the
     /// transactions, so it switches Transactions › Read on.
     JoinTransfers,
+    /// Put tags on whole transactions and take them off (Tags on
+    /// transactions, Change; US5.2, D-744). Its own cell, off by default: a
+    /// tag is the user's own word, and a user who allowed sorting never
+    /// allowed labelling. Only tags the book already has; it reads the
+    /// transactions, so it switches Transactions › Read on.
+    TagTransactions,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 25] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -138,6 +144,7 @@ impl Permission {
         Self::NewBudgets,
         Self::EditBudgets,
         Self::JoinTransfers,
+        Self::TagTransactions,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -167,6 +174,7 @@ impl Permission {
             Self::DeleteViews => "AllowDeleteViews",
             Self::CustomCharts => "AllowCustomCharts",
             Self::JoinTransfers => "AllowJoinTransfers",
+            Self::TagTransactions => "AllowTagTransactions",
         }
     }
 
@@ -183,7 +191,8 @@ impl Permission {
             | Self::NewTransactions
             | Self::DeleteTransactions
             | Self::TransactionsRead
-            | Self::JoinTransfers => Row::Transactions,
+            | Self::JoinTransfers
+            | Self::TagTransactions => Row::Transactions,
             Self::ChartsRead
             | Self::NewViews
             | Self::EditViews
@@ -225,6 +234,7 @@ impl Permission {
                 | Self::EditViews
                 | Self::DeleteViews
                 | Self::JoinTransfers
+                | Self::TagTransactions
         )
     }
 

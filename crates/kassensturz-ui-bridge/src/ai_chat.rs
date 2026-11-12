@@ -682,6 +682,23 @@ pub enum ChangeView {
         /// The two sides and the amount, written for the user.
         transfer: SuggestionText,
     },
+    /// Tags put on a whole transaction or taken off it (US5.2, D-744),
+    /// with the transaction as the register shows it. A part's own tags
+    /// stay and aren't shown.
+    TagTransaction {
+        /// Its day, in the user's format.
+        date: String,
+        /// Who was paid or paid, empty for none.
+        payee: String,
+        /// The first of the user's own accounts it is in, empty for none.
+        account: String,
+        /// What it did to that account, exact, in the user's format.
+        amount: String,
+        /// The names of the tags put on it.
+        added: Vec<String>,
+        /// The names of the tags taken off it.
+        removed: Vec<String>,
+    },
 }
 
 /// How the amount of a prepared budget was computed, written for the user
@@ -1099,6 +1116,16 @@ fn view_of(
         },
         ProposedChange::JoinTransfer(join) => ChangeView::JoinTransfer {
             transfer: suggestion_text(book, &book.all_accounts()?, &join.transfer, locale)?,
+        },
+        ProposedChange::TagTransaction(tag) => ChangeView::TagTransaction {
+            date: locale.short_date(tag.date),
+            payee: tag.payee.clone().unwrap_or_default(),
+            account: tag.account.clone().unwrap_or_default(),
+            amount: AmountWriter::new(book, tag.amount.currency(), locale)?
+                .text(tag.amount)
+                .exact,
+            added: tag.added.clone(),
+            removed: tag.removed.clone(),
         },
     })
 }

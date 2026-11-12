@@ -21206,3 +21206,43 @@ msgid ""
 msgstr ""
 "Unter den Schlagwörtern im Filter ist etwas, das kein Schlagwort ist. Nehmen "
 "Sie es aus dem Filter oder wählen Sie die Schlagwörter neu."
+
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:97
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Tags on transactions"
+msgstr "Schlagwörter an Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:326
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Transaction that gets other tags"
+msgstr "Buchung, die andere Schlagwörter bekommt"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1211
+#, kde-format
+msgctxt "@title:group"
+msgid "Transactions that get other tags"
+msgstr "Buchungen, die andere Schlagwörter bekommen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1253
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Tags put on: %1"
+msgstr "Neue Schlagwörter: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1261
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Tags taken off: %1"
+msgstr "Entfernte Schlagwörter: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1269
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Only the tags on the whole transaction change. Tags on single parts stay. No "
+"amount changes."
+msgstr ""
+"Nur die Schlagwörter der ganzen Buchung ändern sich. Schlagwörter einzelner "
+"Teile bleiben. Kein Betrag ändert sich."

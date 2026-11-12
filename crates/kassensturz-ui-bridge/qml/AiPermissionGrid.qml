@@ -90,6 +90,20 @@ ColumnLayout {
             ]
         },
         {
+            // Its own row, so allowing sorting never allowed the AI to tag
+            // transactions (D-744). It puts on or takes off only the
+            // book's own tags on whole transactions, and reads the
+            // transactions, so it keeps Transactions › Read on.
+            name: i18nContext.i18nc("@label a part of the book", "Tags on transactions"),
+            readRow: "Transactions",
+            cells: [
+                { key: "", absent: "viaTransactions" },
+                { key: "", absent: "never" },
+                { key: "AllowTagTransactions", needsRead: true },
+                { key: "", absent: "never" }
+            ]
+        },
+        {
             name: i18nContext.i18nc("@label a part of the book", "Charts"),
             cells: [
                 { key: "AllowReadViews", read: true },

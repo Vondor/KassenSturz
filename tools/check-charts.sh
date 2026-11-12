@@ -53,6 +53,16 @@ mkdir "$work/out"
     # The average bar beside a series that is zero everywhere has the slot
     # to itself, in the middle of its name (#709, US4 P3 R3b).
     grep -q 'bar-middle 19-bar 500$' run.log || { echo "check-charts: expected the lone bar of 19-bar in the middle" >&2; exit 1; }
+    # The candle legend follows the chosen boxes (D-748).
+    for want in 'up-hollow hollow,filled' 'down-hollow filled,hollow' 'all-filled filled,filled' 'all-hollow hollow,hollow'; do
+        grep -q "candle-legend $want\$" run.log || { echo "check-charts: expected candle-legend $want" >&2; exit 1; }
+    done
+    # *Show the legend* switched off hides the legend (US5 Phase 3).
+    grep -q 'legend-shown off false$' run.log || { echo "check-charts: the legend stayed with the switch off" >&2; exit 1; }
+    grep -q 'legend-shown on true$' run.log || { echo "check-charts: the legend is missing with the switch on" >&2; exit 1; }
+    # The candles' explanation is shown only where it is asked for.
+    grep -q 'candle-help off false$' run.log || { echo "check-charts: the candle explanation stayed with explain off" >&2; exit 1; }
+    grep -q 'candle-help on true$' run.log || { echo "check-charts: the candle explanation is missing with explain on" >&2; exit 1; }
     grep -c 'name-overlaps' run.log | grep -qv '^0$' || { echo "check-charts: no name check ran" >&2; exit 1; }
 )
 

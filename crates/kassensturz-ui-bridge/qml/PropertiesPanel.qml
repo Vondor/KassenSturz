@@ -185,6 +185,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label:listbox which way the bars of a bar chart go", "Bars");
         case "candle":
             return i18nContext.i18nc("@label:listbox how many days one candle of a candle chart covers", "One candle per");
+        case "candle_fill":
+            return i18nContext.i18nc("@label:listbox which boxes of a candle chart are filled with color and which are hollow", "Candle boxes");
         case "show_hidden":
             return i18nContext.i18nc("@option:check", "Show hidden categories");
         case "hide_note":
@@ -226,6 +228,14 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox one candle of a candle chart covers a day", "Day");
         case "week":
             return i18nContext.i18nc("@item:inlistbox one candle of a candle chart covers a week, Monday to Sunday", "Week (Monday to Sunday)");
+        case "up-hollow":
+            return i18nContext.i18nc("@item:inlistbox candle boxes: a candle that ended higher is hollow, one that ended lower filled", "Rising hollow, falling filled");
+        case "down-hollow":
+            return i18nContext.i18nc("@item:inlistbox candle boxes: a candle that ended higher is filled, one that ended lower hollow", "Rising filled, falling hollow");
+        case "all-filled":
+            return i18nContext.i18nc("@item:inlistbox candle boxes: every box filled, rising and falling differ by color only", "All filled");
+        case "all-hollow":
+            return i18nContext.i18nc("@item:inlistbox candle boxes: every box hollow, rising and falling differ by color only", "All hollow");
         case "budget":
             return i18nContext.i18nc("@item:inlistbox", "Each budget");
         case "period":

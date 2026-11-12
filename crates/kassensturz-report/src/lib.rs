@@ -140,8 +140,8 @@ pub use period::{
     Rolling, first_weekday, is_period_word, range_word, read_range_word, set_first_weekday,
 };
 pub use schema::{
-    ALARMS_KEY, CANDLE_WORDS, ColumnSetting, ComponentType, FORMULA_MEASURE, Kind, MAX_IDS,
-    MAX_TEXT_CHARS, ORIENTATION_WORDS, Place, Property, Setting, dataset_for,
+    ALARMS_KEY, CANDLE_FILL_WORDS, CANDLE_WORDS, ColumnSetting, ComponentType, FORMULA_MEASURE,
+    Kind, MAX_IDS, MAX_TEXT_CHARS, ORIENTATION_WORDS, Place, Property, Setting, dataset_for,
 };
 pub use source::Source;
 pub use spending::{

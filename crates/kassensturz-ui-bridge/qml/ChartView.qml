@@ -48,6 +48,35 @@ ColumnLayout {
     // lowest and end. KQuickCharts has no candles, so they are rectangles
     // placed by the drawing values, as the overlays are.
     readonly property bool candles: chart.kind === "candlestick"
+    // Which candles have a filled box (`props.candle_fill`, D-748): by
+    // default a candle that ended higher is hollow and one that ended lower
+    // filled (D-718).
+    property string candleFill: "up-hollow"
+    // Whether the legend is shown (`props.legend`, *Show the legend*). It
+    // was stored but not read, so the switch did nothing (US5 Phase 3).
+    // The total, the explanation under candles and the text of the point
+    // in focus are not the legend and stay.
+    property bool showLegend: true
+    readonly property bool legendShown: legendFlow.visible
+    // Whether the text that says how to read the chart is shown (the
+    // candles' explanation): where a chart is made or changed, not on a
+    // dashboard tile (US5 Phase 3).
+    property bool explain: true
+    readonly property bool explained: candleHelp.visible
+
+    // Whether a candle's box is hollow: `rose` when it ended at least where
+    // it started.
+    function candleHollow(rose: bool): bool {
+        switch (candleFill) {
+        case "down-hollow":
+            return !rose;
+        case "all-filled":
+            return false;
+        case "all-hollow":
+            return true;
+        }
+        return rose;
+    }
     // The layers a custom chart puts over its own marks (M6e.2); built-in
     // charts have none.
     readonly property var overlays: chart.overlays ?? []
@@ -58,12 +87,14 @@ ColumnLayout {
     // those of its overlays. The names of overlay series are the user's own
     // text from the chart description.
     readonly property var legendEntries: {
-        // Candles tell up from down by their color and by being hollow or
-        // filled, never by the color alone (D-283).
+        // Candles tell up from down by their color and, by default, by
+        // being hollow or filled, so not by the color alone (D-283); the
+        // user may fill all or none (D-748), and the legend shows the boxes
+        // as drawn.
         if (candles) {
             return [
-                {color: 0, marker: -1, hollow: true, name: i18nContext.i18nc("@label legend of a candle chart", "Ended higher than it started")},
-                {color: 1, marker: -1, hollow: false, name: i18nContext.i18nc("@label legend of a candle chart", "Ended lower than it started")}
+                {color: 0, marker: -1, hollow: candleHollow(true), name: i18nContext.i18nc("@label legend of a candle chart", "Ended higher than it started")},
+                {color: 1, marker: -1, hollow: candleHollow(false), name: i18nContext.i18nc("@label legend of a candle chart", "Ended lower than it started")}
             ];
         }
         const found = chart.series.map(series => ({color: series.color, marker: series.marker, name: seriesName(series.key)}));
@@ -896,8 +927,10 @@ ColumnLayout {
 
     // The legend: color, second mark and name, never the color alone.
     Flow {
+        id: legendFlow
+
         Layout.fillWidth: true
-        visible: !view.showTable
+        visible: !view.showTable && view.showLegend
         spacing: Kirigami.Units.largeSpacing
 
         Repeater {
@@ -994,10 +1027,13 @@ ColumnLayout {
         font.bold: true
     }
 
-    // What a candle shows, in plain words ("Explain, don't assume").
+    // What a candle shows, in plain words ("Explain, don't assume"), where
+    // the chart is made or changed (`explain`).
     Controls.Label {
+        id: candleHelp
+
         Layout.fillWidth: true
-        visible: view.candles && !view.showTable
+        visible: view.explain && view.candles && !view.showTable
         text: i18nContext.i18nc("@info under a candle chart", "Each candle is one stretch of days, named below it. Its box runs from the balance at the start to the balance at the end; the thin line runs from the lowest to the highest balance at the end of a day. Several bookings on one day count only with that day's end.")
         textFormat: Text.PlainText
         wrapMode: Text.Wrap
@@ -1106,9 +1142,10 @@ ColumnLayout {
     }
 
     // Candles (US4.10): for each a thin line from the lowest to the highest
-    // balance and a box from the start to the end, hollow when it ended
-    // higher and filled when it ended lower, so up and down differ by more
-    // than the color. The drawing values only place them (AGENTS.md §5).
+    // balance and a box from the start to the end, by default hollow when
+    // it ended higher and filled when it ended lower, so up and down differ
+    // by more than the color; `candleFill` can change that (D-748). The
+    // drawing values only place them (AGENTS.md §5).
     Component {
         id: candle
 
@@ -1155,7 +1192,7 @@ ColumnLayout {
                         width: parent.bodyWidth
                         y: candlePlot.yOf(Math.max(parent.open, parent.close)) - (height - Math.abs(candlePlot.yOf(parent.open) - candlePlot.yOf(parent.close))) / 2
                         height: Math.max(2, Math.abs(candlePlot.yOf(parent.open) - candlePlot.yOf(parent.close)))
-                        color: parent.rose ? Kirigami.Theme.backgroundColor : parent.tint
+                        color: view.candleHollow(parent.rose) ? Kirigami.Theme.backgroundColor : parent.tint
                         border.width: 2
                         border.color: parent.tint
                     }

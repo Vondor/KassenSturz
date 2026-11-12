@@ -737,6 +737,7 @@ impl qobject::AccountRegister {
                             ("amount", text(&part.amount)),
                             ("currency", text(&part.currency)),
                             ("foreignAmount", text(&part.foreign_amount)),
+                            ("tags", tags_object(&part.tags)),
                         ])
                     })),
                 ),
@@ -1078,7 +1079,7 @@ pub(crate) fn tags_object(tags: &[TagText]) -> QVariant {
 }
 
 /// The book's tags as `tagChoices` gives them.
-fn tag_choices_object(choices: &[TagChoice]) -> QVariant {
+pub(crate) fn tag_choices_object(choices: &[TagChoice]) -> QVariant {
     list(
         choices
             .iter()
@@ -1116,6 +1117,7 @@ struct PartData {
     category: String,
     amount: String,
     foreign_amount: String,
+    tags: Option<Vec<(String, String)>>,
 }
 
 impl PartsFormData {
@@ -1143,6 +1145,9 @@ impl PartsFormData {
                         category: field(&part, "category"),
                         amount: field(&part, "amount"),
                         foreign_amount: field(&part, "foreignAmount"),
+                        tags: part
+                            .get(&QString::from("tags"))
+                            .map(|value| read_tags(&value)),
                     }
                 })
                 .collect(),
@@ -1157,6 +1162,11 @@ impl PartsFormData {
                 category: &part.category,
                 amount: &part.amount,
                 foreign_amount: &part.foreign_amount,
+                tags: part.tags.as_ref().map(|tags| {
+                    tags.iter()
+                        .map(|(id, name)| TagInput { id, name })
+                        .collect()
+                }),
             })
             .collect()
     }

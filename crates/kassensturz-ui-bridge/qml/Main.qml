@@ -154,6 +154,13 @@ Kirigami.ApplicationWindow {
         onChanged: root.screenChangedBook()
     }
 
+    // The book's tags for Settings › Tags (US4.8).
+    BookTags {
+        id: bookTags
+
+        onChanged: root.screenChangedBook()
+    }
+
     // My groups and the hide list of the charts (M6b.5c).
     CategoryGroups {
         id: categoryGroups
@@ -439,6 +446,7 @@ Kirigami.ApplicationWindow {
         bookOverview.refresh();
         accountList.refresh();
         categoryTree.refresh();
+        bookTags.refresh();
         categoryGroups.refresh();
         budgetBook.refresh();
         ruleBook.refresh();
@@ -1709,6 +1717,7 @@ Kirigami.ApplicationWindow {
             onSaveCopyClicked: root.pushPage(exportPage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
+            onTagsClicked: root.pushPage(tagsPage)
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
             onHelpClicked: root.pushPage(helpPage)
         }
@@ -1839,6 +1848,14 @@ Kirigami.ApplicationWindow {
 
         HistoryPage {
             history: changeHistory
+        }
+    }
+
+    Component {
+        id: tagsPage
+
+        TagsPage {
+            tags: bookTags
         }
     }
 }

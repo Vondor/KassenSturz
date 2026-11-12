@@ -19,12 +19,13 @@ use kassensturz_core::{
     Account, AccountKind, CurrencyCode, Date, DatedRate, ForeignAmount, Money, Report, Split,
     Transaction, TransactionError,
 };
-use kassensturz_store::{Book, StoreError};
+use kassensturz_store::{Action, Book, StoreError};
 
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
 use crate::parse::{AmountInputError, AmountReader};
 use crate::register::AmountWriter;
+use crate::tags::{self, TagInput, TagText};
 use crate::transaction_entry::{EntryError, find_account, find_transaction, payee, typed_amount};
 
 /// Why something the user entered wasn't accepted. The UI shows a message
@@ -131,6 +132,9 @@ pub struct PartInput<'a> {
     /// For a category in another currency: the amount in that currency, as
     /// typed. Empty to work it out from the book's exchange rates.
     pub foreign_amount: &'a str,
+    /// The part's own tags as the page gives them back (US4.8, D-713), or
+    /// `None` to leave them as they are; a new Part then has none.
+    pub tags: Option<Vec<TagInput<'a>>>,
 }
 
 /// A transaction as the page shows it to be broken down, every amount and
@@ -176,6 +180,9 @@ pub struct PartForm {
     /// Its amount in that currency, the way the user types it; empty when
     /// the category is in the transaction's currency.
     pub foreign_amount: String,
+    /// Its own tags, in their order; the whole transaction's tags are not
+    /// among them (D-713).
+    pub tags: Vec<TagText>,
 }
 
 /// One Part the page shows but doesn't change.
@@ -297,6 +304,7 @@ pub fn details(
     let money_in = into_account.minor_units() > 0;
     let direction = Direction::of(money_in);
     let writer = AmountWriter::new(book, account.currency, locale)?;
+    let names = tags::names(book)?;
     let mut parts = Vec::new();
     let mut fixed = Vec::new();
     for split in others {
@@ -324,6 +332,7 @@ pub fn details(
                         .map(|other| other_currency(other.currency, account.currency))
                         .unwrap_or_default(),
                     foreign_amount,
+                    tags: tags::texts(&names, &split.tags),
                 });
             }
         }
@@ -427,39 +436,49 @@ pub fn save(
             total: draft.total,
         });
     }
-    let mut splits = Vec::with_capacity(2 + draft.fixed.len() + draft.parts.len());
-    splits.push(Split {
-        amount: draft.into_account,
-        ..draft.own.clone()
-    });
-    splits.extend(draft.fixed.iter().cloned());
-    for (index, (part, amount)) in draft.parts.iter().zip(&resolved.parts).enumerate() {
-        let foreign = match draft.foreign_currency(index) {
-            Some(_) => {
-                let found = draft.foreign_of(book, index, *amount, locale)?;
-                Some(ForeignAmount {
-                    amount: found.amount,
-                    rate: found.rate,
-                })
-            }
-            None => None,
-        };
+    // A tag typed new on a Part is made in the same user action as the
+    // save, so one Undo takes back both (D-086).
+    book.as_one_action(Action::EditTransaction, |book| {
+        let mut splits = Vec::with_capacity(2 + draft.fixed.len() + draft.parts.len());
         splits.push(Split {
-            account: part.category.as_ref().map(|category| category.id),
-            amount: *amount,
-            foreign,
-            ..part.split.clone()
+            amount: draft.into_account,
+            ..draft.own.clone()
         });
-    }
-    let transaction = Transaction::new(
-        draft.stored.id(),
-        draft.date,
-        payee(entered.other_party),
-        splits,
-    )
-    .map_err(PartsError::Transaction)?
-    .with_details_of(&draft.stored);
-    book.update_transaction(&transaction)?;
+        splits.extend(draft.fixed.iter().cloned());
+        for (index, (part, amount)) in draft.parts.iter().zip(&resolved.parts).enumerate() {
+            let foreign = match draft.foreign_currency(index) {
+                Some(_) => {
+                    let found = draft.foreign_of(book, index, *amount, locale)?;
+                    Some(ForeignAmount {
+                        amount: found.amount,
+                        rate: found.rate,
+                    })
+                }
+                None => None,
+            };
+            let tags = match part.tags {
+                Some(wanted) => tags::resolve(book, wanted)?,
+                None => part.split.tags.clone(),
+            };
+            splits.push(Split {
+                account: part.category.as_ref().map(|category| category.id),
+                amount: *amount,
+                foreign,
+                tags,
+                ..part.split.clone()
+            });
+        }
+        let transaction = Transaction::new(
+            draft.stored.id(),
+            draft.date,
+            payee(entered.other_party),
+            splits,
+        )
+        .map_err(PartsError::Transaction)?
+        .with_details_of(&draft.stored);
+        book.update_transaction(&transaction)?;
+        Ok::<(), PartsError>(())
+    })?;
     Ok(())
 }
 
@@ -579,6 +598,7 @@ struct DraftPart<'a> {
     split: Split,
     category: Option<Account>,
     foreign_amount: &'a str,
+    tags: Option<&'a [TagInput<'a>]>,
 }
 
 /// The Parts' amounts once the open one is worked out.
@@ -673,6 +693,7 @@ impl<'a> Draft<'a> {
                 split,
                 category,
                 foreign_amount: part.foreign_amount,
+                tags: part.tags.as_deref(),
             });
         }
         Ok(Self {
@@ -999,6 +1020,7 @@ mod tests {
             category,
             amount,
             foreign_amount: "",
+            tags: None,
         }
     }
 
@@ -1067,6 +1089,96 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn a_part_keeps_its_own_tags_and_a_new_one_is_made_with_the_save() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        let clothes = category_id(&book, "Clothes");
+        let id = pay(&mut book, &checking, "53,20", "Corner Grocery", &groceries);
+        let first = details(&book, &checking, &id, &TestLocale)
+            .expect("details")
+            .parts[0]
+            .id
+            .clone();
+        let tax = [TagInput {
+            id: "",
+            name: "Tax",
+        }];
+        let parts = [
+            part(&first, &groceries, ""),
+            PartInput {
+                tags: Some(tax.to_vec()),
+                ..part("", &clothes, "8")
+            },
+        ];
+        save(
+            &mut book,
+            &checking,
+            &id,
+            &paid("53,20", &parts),
+            &TestLocale,
+        )
+        .expect("saved");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        let names: Vec<_> = form
+            .parts
+            .iter()
+            .map(|part| {
+                part.tags
+                    .iter()
+                    .map(|tag| tag.name.as_str())
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        assert_eq!(names, [Vec::<&str>::new(), vec!["Tax"]]);
+
+        // One Undo takes back the Parts and the tag made with them.
+        book.undo().expect("undone");
+        assert!(book.tags().expect("tags").is_empty());
+        assert_eq!(
+            details(&book, &checking, &id, &TestLocale)
+                .expect("details")
+                .parts
+                .len(),
+            1
+        );
+        book.redo().expect("redone");
+
+        // A save without tags keeps a Part's own; an empty list takes them
+        // away, and the tag stays in the book.
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        let (one, two) = (form.parts[0].id.clone(), form.parts[1].id.clone());
+        let kept = [part(&one, &groceries, ""), part(&two, &clothes, "9")];
+        save(
+            &mut book,
+            &checking,
+            &id,
+            &paid("53,20", &kept),
+            &TestLocale,
+        )
+        .expect("saved");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.parts[1].tags.len(), 1);
+        let cleared = [
+            part(&one, &groceries, ""),
+            PartInput {
+                tags: Some(Vec::new()),
+                ..part(&two, &clothes, "9")
+            },
+        ];
+        save(
+            &mut book,
+            &checking,
+            &id,
+            &paid("53,20", &cleared),
+            &TestLocale,
+        )
+        .expect("saved");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert!(form.parts[1].tags.is_empty());
+        assert_eq!(book.tags().expect("tags").len(), 1);
     }
 
     #[test]

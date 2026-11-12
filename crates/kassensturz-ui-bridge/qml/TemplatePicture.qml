@@ -53,6 +53,8 @@ Rectangle {
         case "notice.transfers":
         case "notice.unsorted":
             return "dialog-information";
+        case "notice.alarms":
+            return "dialog-warning";
         case "bank.update_all":
             return "view-refresh";
         }

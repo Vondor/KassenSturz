@@ -43,9 +43,11 @@ impl ComponentType {
             Self::KpiCard => Size { cols: 2, rows: 2 },
             Self::ProgressBar | Self::Heading => Size { cols: 3, rows: 1 },
             Self::Separator => Size { cols: 1, rows: 1 },
-            Self::PeriodBox | Self::NetWorth | Self::IncomeSources | Self::BudgetProgress => {
-                Size { cols: 3, rows: 2 }
-            }
+            Self::PeriodBox
+            | Self::NetWorth
+            | Self::IncomeSources
+            | Self::BudgetProgress
+            | Self::Alarms => Size { cols: 3, rows: 2 },
             // Only the button fits in one row; the status, the warnings and
             // the summary scroll (US1.8, #521, D-635).
             Self::BankUpdateAll => Size { cols: 3, rows: 1 },
@@ -55,7 +57,7 @@ impl ComponentType {
             // The tabs, the month header and the filter bar may be as narrow
             // as one column: the user decides (D-533).
             Self::FilterBar | Self::DashboardTabs | Self::PeriodHeader => Size { cols: 1, rows: 1 },
-            Self::TableRows => Size { cols: 4, rows: 3 },
+            Self::TableRows | Self::Transactions => Size { cols: 4, rows: 3 },
             Self::ChartLine
             | Self::ChartBar
             | Self::ChartStackedBar
@@ -85,7 +87,9 @@ impl ComponentType {
             Self::PeriodBox => Size { cols: 12, rows: 5 },
             Self::NetWorth => Size { cols: 6, rows: 2 },
             Self::IncomeSources => Size { cols: 6, rows: 4 },
-            Self::BudgetProgress | Self::BankUpdateAll => Size { cols: 6, rows: 3 },
+            // A handful of rows and the line that counts the rest (D-716).
+            Self::Transactions => Size { cols: 6, rows: 5 },
+            Self::BudgetProgress | Self::BankUpdateAll | Self::Alarms => Size { cols: 6, rows: 3 },
             Self::TableRows
             | Self::ChartLine
             | Self::ChartBar

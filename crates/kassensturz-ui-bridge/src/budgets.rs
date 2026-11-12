@@ -76,7 +76,7 @@ impl From<ChartsError> for BudgetsError {
 
 /// A budget's period word, as QML says it (the keys of D-344); a month
 /// from a salary day is `salary-month` (D-651).
-const fn every_key(every: BudgetEvery) -> &'static str {
+pub(crate) const fn every_key(every: BudgetEvery) -> &'static str {
     match every {
         BudgetEvery::Month => "month",
         BudgetEvery::SalaryMonth { .. } => "salary-month",

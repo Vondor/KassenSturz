@@ -132,7 +132,9 @@ Kirigami.ApplicationWindow {
                 window.check(page.header.visible && page.header.text.indexOf("rent CHART") >= 0 || page.header.text.length > 0, "and the message is shown");
                 window.check(page.views.length === 1, "and nothing was added");
                 // Change the type: the chart gives way to a key figure.
-                find(page, "ComboBox", []).filter(box => box.textRole === "name" && box.model.length === page.types.length)[0].activated(page.types.indexOf("kpi.card"));
+                // The type box, not a period box: those name a period `word`
+                // in each entry, and may have as many entries.
+                find(page, "ComboBox", []).filter(box => box.textRole === "name" && box.model.length === page.types.length && Array.from(box.model).every(entry => entry.word === undefined))[0].activated(page.types.indexOf("kpi.card"));
                 break;
             case 3:
                 window.check(window.shown("ChartView") === 0, "the chart is gone");
@@ -154,36 +156,43 @@ Kirigami.ApplicationWindow {
                 window.check(page.openId === "", "a deleted view is no longer the one being changed");
                 window.check(page.views.length === 0, "and the list is empty");
                 {
-                    // After the quick choices come the last months, a salary
-                    // month (D-644, D-645) and a range of dates the user
-                    // types (D-332).
+                    // After the quick choices come the last months, the last
+                    // days (D-717), a salary month (D-644, D-645) and a range
+                    // of dates the user types (D-332).
                     const choice = find(page, "PeriodChoice", []).filter(c => c.options.length === page.periods.length).pop();
                     const box = find(choice, "ComboBox", [])[0];
-                    window.check(box.count === page.periods.length + 3, "the period box has the quick choices, the rolling ones and the range");
+                    window.check(box.count === page.periods.length + 4, "the period box has the quick choices, the rolling ones and the range");
                     window.check(!find(choice, "TextField", [])[0].visible, "no field for dates at first");
                     window.check(find(choice, "SpinBox", []).every(spin => !spin.visible), "no numbers to choose at first");
                     box.activated(page.periods.length);
                     window.check(page.period === "last-3-complete-months", "the last months start as three complete ones: " + page.period);
                     window.check(box.currentIndex === page.periods.length, "and the box shows that choice");
                     const spins = find(choice, "SpinBox", []);
-                    window.check(spins[0].visible && spins[0].value === 3 && !spins[1].visible, "the number of months can be chosen");
+                    window.check(spins[0].visible && spins[0].value === 3 && !spins[1].visible && !spins[2].visible, "the number of months can be chosen");
                     const complete = find(choice, "CheckBox", [])[0];
                     window.check(complete.visible && complete.checked, "complete months only, at first");
                     complete.toggle();
                     complete.toggled();
                     window.check(page.period === "last-3-months", "this month can count too: " + page.period);
                     box.activated(page.periods.length + 1);
-                    window.check(page.period === "this-salary-month-1", "a salary month starts on day 1: " + page.period);
-                    window.check(spins[1].visible && !spins[0].visible, "and its day can be chosen");
-                    spins[1].value = 28;
+                    window.check(page.period === "last-7-days", "the last days start as a week: " + page.period);
+                    window.check(box.currentIndex === page.periods.length + 1, "and the box shows that choice");
+                    window.check(spins[1].visible && spins[1].value === 7 && !spins[0].visible, "the number of days can be chosen");
+                    spins[1].value = 30;
                     spins[1].valueModified();
+                    window.check(page.period === "last-30-days", "a number of days moves it: " + page.period);
+                    box.activated(page.periods.length + 2);
+                    window.check(page.period === "this-salary-month-1", "a salary month starts on day 1: " + page.period);
+                    window.check(spins[2].visible && !spins[0].visible && !spins[1].visible, "and its day can be chosen");
+                    spins[2].value = 28;
+                    spins[2].valueModified();
                     window.check(page.period === "this-salary-month-28", "a day moves it: " + page.period);
                     const which = find(choice, "ComboBox", [])[1];
                     which.activated(1);
                     window.check(page.period === "last-salary-month-28", "and the one before can be chosen: " + page.period);
                     box.activated(page.periods.indexOf("last-12-months"));
-                    window.check(page.period === "last-12-months" && !spins[1].visible, "a quick choice replaces it");
-                    box.activated(page.periods.length + 2);
+                    window.check(page.period === "last-12-months" && !spins[2].visible, "a quick choice replaces it");
+                    box.activated(page.periods.length + 3);
                 }
                 break;
             case 7:

@@ -319,7 +319,7 @@ fn bar_ids(ids: &[String]) -> Option<Chosen> {
 pub fn takes(component: &Component) -> Takes {
     match component.kind() {
         ComponentType::NetWorth => Takes::NO_CATEGORIES,
-        ComponentType::IncomeSources => Takes::ALL,
+        ComponentType::IncomeSources | ComponentType::Transactions => Takes::ALL,
         kind if kind.shows_no_data() => Takes::NOTHING,
         _ => component.dataset().takes,
     }

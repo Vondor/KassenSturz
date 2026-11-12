@@ -52,6 +52,7 @@ mod filter;
 mod formula;
 pub mod grid;
 mod groups;
+mod listed;
 mod metrics;
 mod monthly;
 pub mod notices;
@@ -111,6 +112,9 @@ pub use formula::{
     MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm, Term,
 };
 pub use groups::{Overlap, Shown};
+pub use listed::{
+    LISTED_ROWS, Listed, ListedTransactions, MAX_LISTED, OtherSide, listed_transactions,
+};
 pub use metrics::{
     Change, Compare, IncomeExpenseChange, Percent, compare_income_expense, comparison_span,
     savings_rate,
@@ -123,7 +127,8 @@ pub use over_time::{
     CATEGORY_OVER_TIME, CategoryOverTime, ChosenSeries, MonthTotals, category_over_time,
 };
 pub use period::{
-    MAX_MONTHS, MAX_ROLLING_MONTHS, Period, Rolling, is_period_word, range_word, read_range_word,
+    MAX_MONTHS, MAX_ROLLING_DAYS, MAX_ROLLING_MONTHS, Period, Rolling, is_period_word, range_word,
+    read_range_word,
 };
 pub use schema::{
     ColumnSetting, ComponentType, FORMULA_MEASURE, Kind, MAX_IDS, MAX_TEXT_CHARS,

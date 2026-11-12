@@ -44,9 +44,9 @@ pub mod qobject {
         /// What to show for a period word: `custom` says whether it is a
         /// typed range, `text` is the range as the user types it, in their
         /// regional date format (empty for the fixed names). `rolling` is
-        /// `months` or `salary` for a rolling period (D-644), else empty;
-        /// then `count` and `complete` (months) or `day` and `before`
-        /// (salary month) say which one.
+        /// `months`, `salary` or `days` for a rolling period (D-644,
+        /// D-717), else empty; then `count` and `complete` (months), `day`
+        /// and `before` (salary month) or `count` (days) say which one.
         #[qinvokable]
         fn describe(self: &PeriodRange, word: &QString) -> QVariant;
 
@@ -61,6 +61,11 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "salaryMonth"]
         fn salary_month(self: &PeriodRange, day: i32, before: bool) -> QString;
+
+        /// The word for the last `count` days, today included (D-717);
+        /// empty for a count that can't be kept.
+        #[qinvokable]
+        fn days(self: &PeriodRange, count: i32) -> QString;
 
         /// An example of what to type, in the regional date format.
         #[qinvokable]
@@ -92,6 +97,7 @@ fn describe_object(word: &str, locale: &impl Locale) -> QVariant {
             ("months", i32::from(count), complete, 0, false)
         }
         Some(Rolling::SalaryMonth { day, before }) => ("salary", 0, false, i32::from(day), before),
+        Some(Rolling::Days { count }) => ("days", i32::from(count), false, 0, false),
         None => ("", 0, false, 0, false),
     };
     map([
@@ -120,6 +126,10 @@ impl qobject::PeriodRange {
 
     fn salary_month(&self, day: i32, before: bool) -> QString {
         QString::from(period_range::salary_month_word(day, before).unwrap_or_default())
+    }
+
+    fn days(&self, count: i32) -> QString {
+        QString::from(period_range::days_word(count).unwrap_or_default())
     }
 
     fn example(&self) -> QString {
@@ -185,5 +195,21 @@ mod tests {
         assert_eq!(number_of(&this, "day"), 1);
         assert!(!flag_of(&this, "before"));
         assert!(!flag_of(&this, "custom"));
+        let days = describe_object("last-7-days", &TestLocale);
+        assert!(!flag_of(&days, "custom"));
+        assert_eq!(text_of(&days, "rolling"), "days");
+        assert_eq!(number_of(&days, "count"), 7);
+    }
+
+    #[test]
+    fn the_last_days_word_keeps_one_to_366_days() {
+        assert_eq!(period_range::days_word(7).as_deref(), Some("last-7-days"));
+        assert_eq!(
+            period_range::days_word(366).as_deref(),
+            Some("last-366-days")
+        );
+        assert_eq!(period_range::days_word(0), None);
+        assert_eq!(period_range::days_word(367), None);
+        assert_eq!(period_range::days_word(-1), None);
     }
 }

@@ -114,10 +114,17 @@ pub enum ToolError {
         reason: &'static str,
     },
     /// A new budget for a category that already has one for these days and
-    /// accounts: the model can change that one with `edit_budgets` instead
-    /// (M6-B216). The store's own `store.budget-overlap` names the category
+    /// accounts, in the book or as another new budget of the same set: the
+    /// model can change the one in the book with `edit_budgets` instead, or
+    /// keep only one of the new ones (M6-B216, #651). The store's own `store.budget-overlap` names the category
     /// by its ID, which the answer to a model leaves out.
     HasBudget,
+    /// A new top-level category or a new account without `currency`, while
+    /// the user's open accounts use more than one currency or there is none
+    /// yet, so there is no currency to take by default. The schema can't
+    /// say so itself: it is the same for every book, and AI tools read it
+    /// once (#652).
+    CurrencyNeeded,
     /// The account isn't a cash account: the AI adds transactions only to
     /// those (D-258).
     NotCashAccount,
@@ -420,6 +427,7 @@ impl Report for ToolError {
                 .with("reason", ErrorParam::Keyword(reason)),
             Self::HasBudget => ErrorReport::new("ai-tools.has-budget")
                 .with("use_instead", ErrorParam::Keyword("edit_budgets")),
+            Self::CurrencyNeeded => ErrorReport::new("ai-tools.currency-needed"),
             Self::NotCashAccount => ErrorReport::new("ai-tools.not-cash-account"),
             Self::NotDeletable => ErrorReport::new("ai-tools.not-deletable"),
             Self::FieldLocked { field } => {
@@ -522,6 +530,7 @@ mod tests {
             ToolError::NameTaken,
             ToolError::NotCategorizable,
             ToolError::HasBudget,
+            ToolError::CurrencyNeeded,
             ToolError::NotEditable { reason: "split" },
             ToolError::NotEditable { reason: "transfer" },
             ToolError::NotEditable {

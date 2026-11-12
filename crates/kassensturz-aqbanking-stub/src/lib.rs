@@ -48,8 +48,8 @@ mod generated;
 /// The journal file in the data folder.
 pub const JOURNAL_FILE: &str = "ks-stub-journal.txt";
 
-/// The bank the scenarios play: a made-up bank with Deutsche Bank's
-/// example bank code from SWIFT's IBAN examples.
+/// The bank the scenarios play: a made-up bank with the German
+/// example bank code from SWIFT's IBAN Registry (D-055).
 pub const BANK_CODE: &str = "37040044";
 /// The current account's IBAN (SWIFT's German example).
 pub const CURRENT_IBAN: &str = "DE89370400440532013000";

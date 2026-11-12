@@ -68,6 +68,17 @@ Kirigami.ApplicationWindow {
         viewBottom: 1
     }
 
+    function texts(item, out) {
+        for (let i = 0; i < item.children.length; ++i) {
+            const child = item.children[i];
+            if (child.visible && typeof child.text === "string") {
+                out.push(child.text);
+            }
+            texts(child, out);
+        }
+        return out;
+    }
+
     function check(ok, what) {
         if (!ok) {
             console.log("FAIL: " + what);
@@ -92,8 +103,8 @@ Kirigami.ApplicationWindow {
         onTriggered: {
             switch (window.step++) {
             case 0: {
-                window.check(grid.items.length === 12, "twelve components are given: " + grid.items.length);
-                window.check(grid.ids.length === 12, "one item for each");
+                window.check(grid.items.length === 13, "thirteen components are given: " + grid.items.length);
+                window.check(grid.ids.length === 13, "one item for each");
                 const income = grid.itemFor("income");
                 const spending = grid.itemFor("spending");
                 window.check(income !== null && spending !== null, "the items exist");
@@ -125,7 +136,14 @@ Kirigami.ApplicationWindow {
                 window.check(grid.periodFor(grid.items[0]) === "2026-09", "a component on the page's period asks for the page's month: " + grid.periodFor(grid.items[0]));
                 // The content of each widget is made one after the other once the
                 // page is shown, and only for what is in or near the view (M6-B30).
-                window.check(grid.revealed === 12 && grid.items.every(entry => grid.itemFor(entry.id).contentMade), "every widget has its content, one after the other: " + grid.revealed);
+                window.check(grid.revealed === 13 && grid.items.every(entry => grid.itemFor(entry.id).contentMade), "every widget has its content, one after the other: " + grid.revealed);
+                // The transactions tile (US4.7, D-716) lists what its object
+                // gives, names each row's account and counts the rest.
+                const listed = grid.itemFor("listed");
+                const listedTexts = window.texts(listed, []);
+                window.check(!listed.hasProblem, "the transactions tile is no problem");
+                window.check(listedTexts.some(text => text.includes("To: Corner shop")) && listedTexts.some(text => text.includes("Savings")), "the tile shows its rows with their accounts: " + listedTexts);
+                window.check(listedTexts.indexOf("Showing the newest 2 of 30.") >= 0, "the tile counts what it does not show: " + listedTexts);
                 const made = lazyGrid.items.filter(entry => lazyGrid.itemFor(entry.id).contentMade).length;
                 window.check(made > 0 && made < lazyGrid.items.length, "only the widgets near the view are made: " + made + " of " + lazyGrid.items.length);
                 const lowest = lazyGrid.items.reduce((low, entry) => entry.row > low.row ? entry : low);
@@ -207,8 +225,9 @@ Kirigami.ApplicationWindow {
                 // the dashboard tabs, the period header and the filter bar the
                 // page lacks (M6d.8, M6d.9),
                 // Update all accounts, always offered (D-497), and the custom
-                // chart (M6e.3), and the balance candles (US4.10).
-                window.check(kinds === 29, "every kind of widget is in a group: " + kinds);
+                // chart (M6e.3), the transactions tile (US4.7) and the balance
+                // candles (US4.10).
+                window.check(kinds === 30, "every kind of widget is in a group: " + kinds);
                 const withData = addMenu.groups.reduce((all, group) => all.concat(group.rows), []).filter(row => row.dataset !== undefined && row.dataset !== "").map(row => row.id).sort();
                 window.check(withData.join() === "chart.bar/cash_flow_by_month,chart.line/net_worth_over_time,kpi.card/account_balances,table.rows/account_balances,table.rows/cash_flow_by_month", "the widgets with data of their own: " + withData);
                 window.check(addMenu.count === 6, "one submenu for each group: " + addMenu.count);

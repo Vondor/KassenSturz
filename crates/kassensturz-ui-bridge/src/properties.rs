@@ -401,6 +401,8 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::CustomChart => ("chart", "bar"),
         // The balance of the chosen accounts as candles (US4.10).
         ComponentType::ChartCandlestick => ("chart", "candlestick"),
+        // Its own list, drawn by the page from `BookTransactions` (D-716).
+        ComponentType::Transactions => ("transactions", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

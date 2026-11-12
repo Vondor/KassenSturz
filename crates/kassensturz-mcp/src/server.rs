@@ -566,6 +566,7 @@ pub(crate) fn today() -> Date {
 mod tests {
     use super::*;
     use kassensturz_ai_tools::FUNCTIONS;
+    use kassensturz_core::ai_switch::Field;
 
     /// The longest tool description the server sends.
     const MAX_DESCRIPTION_CHARS: usize = 4_000;
@@ -609,16 +610,33 @@ mod tests {
     /// Some AI tools cut a long tool description short, as one did with
     /// `propose_view`'s 5,325 characters (M6-B201). The details live in the
     /// parameters' descriptions, so every description stays well under that.
+    ///
+    /// Every lock of a field is tried, unlocked too: an unlocked field adds
+    /// lines, and with every cell on and nothing locked `propose_changes`
+    /// once reached 4,201 characters (M6-B231, #711).
     #[test]
     fn every_tool_description_is_short_enough_to_arrive_whole() {
-        for tool in tools(Permissions::all(), Some(Permissions::all()), true) {
-            let length = tool
-                .description
-                .as_deref()
-                .unwrap_or_default()
-                .chars()
-                .count();
-            assert!(length <= MAX_DESCRIPTION_CHARS, "{}: {length}", tool.name);
+        assert_eq!(Field::ALL.len(), 6, "every lock is tried below");
+        for locks in 0..1u8 << Field::ALL.len() {
+            let permissions = Field::ALL.iter().enumerate().fold(
+                Permissions::all(),
+                |permissions, (index, field)| {
+                    permissions.with_lock(*field, locks & 1 << index != 0)
+                },
+            );
+            for tool in tools(permissions, Some(permissions), true) {
+                let length = tool
+                    .description
+                    .as_deref()
+                    .unwrap_or_default()
+                    .chars()
+                    .count();
+                assert!(
+                    length <= MAX_DESCRIPTION_CHARS,
+                    "{} with locks {locks:06b}: {length}",
+                    tool.name
+                );
+            }
         }
     }
 

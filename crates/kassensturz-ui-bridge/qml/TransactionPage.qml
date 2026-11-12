@@ -31,8 +31,9 @@ Kirigami.ScrollablePage {
     property bool moneyIn: false
 
     readonly property bool adding: transactionId === ""
-    // What the Rust side says about the transaction to change.
-    readonly property var entry: adding ? ({}) : register.details(accountId, transactionId)
+    // What the Rust side says about the transaction to change; read again
+    // when the book changed while the page is open (M6-B234).
+    property var entry: adding ? ({}) : register.details(accountId, transactionId)
     readonly property string kind: entry.kind ?? "simple"
     readonly property bool editable: adding || kind === "simple"
     // The accounts to choose from, when the page wasn't opened for one.
@@ -47,14 +48,67 @@ Kirigami.ScrollablePage {
     // invokables would report a loop).
     property var categoryChoices: []
     property string amountExample: ""
+    // The category shown, by ID: a new list (another direction or account,
+    // or the book read again) resets the box to its first entry, "Not
+    // sorted yet", so the page puts the category back by its ID, never by
+    // its place (M6-B234).
+    property string categoryId: ""
 
     onChosenAccountChanged: reload()
     onMoneyInChanged: reload()
 
     function reload() {
-        const found = register.categoryChoices(chosenAccount, moneyIn, entry.category ?? "");
-        categoryChoices = found.code === undefined ? found : [];
+        const stored = entry.category ?? "";
+        const found = register.categoryChoices(chosenAccount, moneyIn, stored);
+        const choices = [];
+        if (found.code === undefined) {
+            for (let i = 0; i < found.length; ++i) {
+                choices.push(found[i]);
+            }
+        }
+        // The category the transaction has, even when the list doesn't
+        // offer it (e.g. one in another currency): shown as such, and kept
+        // when the form is saved, never "Not sorted yet" in its place.
+        if (stored !== "" && !choices.some(choice => choice.id === stored)) {
+            choices.push({
+                id: stored,
+                path: i18nContext.i18nc("@item:inlistbox", "The category it has now (not in this list)"),
+            });
+        }
+        categoryChoices = choices;
+        categoryBox.currentIndex = categoryIndex(categoryId);
         amountExample = register.amountExample(chosenAccount);
+    }
+
+    // Fills the form with the stored transaction.
+    function fill() {
+        moneyIn = entry.moneyIn ?? false;
+        amountField.text = entry.amount ?? "";
+        otherPartyField.text = entry.otherParty ?? "";
+        dateField.text = entry.date ?? "";
+        noteField.text = entry.note ?? "";
+        loadedNote = noteField.text;
+        categoryId = entry.category ?? "";
+        reload();
+        loadedFields = fieldsText();
+    }
+
+    // The book changed while the page is open, e.g. the AI changed this
+    // transaction from the chat: the form shows what is stored now, unless
+    // the user typed something, which stays as typed (M6-B234).
+    Connections {
+        target: page.register
+
+        function onModelReset() {
+            if (page.adding || page.unsaved()) {
+                return;
+            }
+            const found = page.register.details(page.accountId, page.transactionId);
+            if (found.code === undefined) {
+                page.entry = found;
+                page.fill();
+            }
+        }
     }
 
     // Added, changed, removed, or skipped during the first start.
@@ -85,14 +139,7 @@ Kirigami.ScrollablePage {
     Component.onCompleted: {
         reload();
         if (!adding) {
-            moneyIn = entry.moneyIn ?? false;
-            amountField.text = entry.amount ?? "";
-            otherPartyField.text = entry.otherParty ?? "";
-            dateField.text = entry.date ?? "";
-            noteField.text = entry.note ?? "";
-            loadedNote = noteField.text;
-            categoryBox.currentIndex = page.categoryIndex(entry.category ?? "");
-            loadedFields = fieldsText();
+            fill();
         }
     }
 
@@ -346,6 +393,10 @@ Kirigami.ScrollablePage {
             model: [page.i18nContext.i18nc("@item:inlistbox the transaction gets no category yet", "Not sorted yet")]
                 .concat(page.categoryChoices.map(choice => choice.path))
             Accessible.name: page.i18nContext.i18nc("@label:listbox", "The category")
+            onActivated: {
+                ActionLog.taken("TransactionPage_chooseCategory")
+                page.categoryId = page.chosenCategory()
+            }
         }
 
         Controls.TextField {

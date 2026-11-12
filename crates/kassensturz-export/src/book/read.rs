@@ -667,6 +667,9 @@ impl Reader {
         if self.version >= 4 {
             keys.extend(["note", "entered", "attachments"]);
         }
+        if self.version >= 13 {
+            keys.push("tags");
+        }
         let transaction = Object::new(value, path, &keys)?;
         let id = TransactionId::from_bytes(transaction.id("id")?);
         let booking_date = transaction.date("date")?;
@@ -686,6 +689,18 @@ impl Reader {
                     link,
                     title: attachment.optional_text("title")?,
                 });
+            }
+        }
+        // The tags on the whole, from version 13 (D-712): each a tag of the
+        // file, once.
+        let mut entry_tags = Vec::new();
+        if self.version >= 13 && transaction.optional("tags").is_some() {
+            for (value, path) in transaction.list("tags")? {
+                let tag = TagId::from_bytes(parse_id(value, &path)?);
+                if !self.tags.contains(&tag) || entry_tags.contains(&tag) {
+                    return Err(bad(&path, Expected::Id));
+                }
+                entry_tags.push(tag);
             }
         }
         let mut splits = Vec::new();
@@ -819,6 +834,7 @@ impl Reader {
                     .with_note(note)
                     .with_entry_date(entered_on)
                     .with_attachments(attachments)
+                    .with_tags(entry_tags)
             })
             .map_err(|error| ExportError::InvalidTransaction {
                 path: path.to_owned(),

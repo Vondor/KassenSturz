@@ -411,10 +411,7 @@ fn only_simple_transactions_get_a_category() {
         {"transaction_id": s.unsorted.to_string(), "category_id": s.food.to_string()},
         {"transaction_id": s.unsorted.to_string(), "category_id": s.salary.to_string()},
     ]});
-    assert_eq!(
-        code(propose(&s.book, &twice)),
-        "bad-argument transaction_id"
-    );
+    assert_eq!(code(propose(&s.book, &twice)), "ai-tools.not-changeable");
 }
 
 #[test]
@@ -562,9 +559,18 @@ fn a_new_category_takes_the_usual_currency_or_has_to_name_one() {
         &mut s.book,
         account("Dollar account", AccountKind::Asset, USD),
     );
-    assert_eq!(code(propose(&s.book, &call)), "bad-argument currency");
+    // Its own refusal says why, as the schema can't (#652).
+    assert_eq!(code(propose(&s.book, &call)), "ai-tools.currency-needed");
     let named = json!({"new_categories": [{"key": "a", "name": "Gifts", "currency": "USD"}]});
     assert_eq!(code(propose(&s.book, &named)), "prepared");
+    // The same for a new account; one inside a category takes its parent's.
+    let account_call = json!({"new_accounts": [{"name": "Wallet", "type": "cash"}]});
+    assert_eq!(
+        code(propose(&s.book, &account_call)),
+        "ai-tools.currency-needed"
+    );
+    let inside = json!({"new_categories": [{"key": "a", "name": "Cinema", "parent_id": s.food.to_string()}]});
+    assert_eq!(code(propose(&s.book, &inside)), "prepared");
 }
 
 #[test]
@@ -2004,20 +2010,101 @@ fn the_entry_changed_after_the_review_so_the_edit_is_not_applied() {
 }
 
 #[test]
-fn the_same_transaction_cannot_be_named_twice_in_one_set() {
-    let Sample { book, bought, .. } = sample();
+fn a_category_and_other_fields_of_one_transaction_are_one_set() {
+    // #718: categorize and edit_transactions for one transaction in one
+    // call set different fields, so both are prepared and applied together.
+    let Sample {
+        mut book,
+        bought,
+        food,
+        groceries,
+        checking,
+        ..
+    } = sample();
     let id = bought.to_string();
+    let both = json!({
+        "categorize": [{"transaction_id": id, "category_id": food.to_string()}],
+        "edit_transactions": [{"transaction_id": id, "note": "weekly shop", "amount": "-60.00"}],
+    });
+    let proposal = super::propose(&book, &both, open()).expect("prepared");
     assert_eq!(
-        code(super::propose(
-            &book,
-            &json!({
-                "categorize": [{"transaction_id": id, "category_id": book_food(&book)}],
-                "edit_transactions": [{"transaction_id": id, "note": "x"}],
-            }),
-            open(),
-        )),
-        "bad-argument transaction_id"
+        proposal
+            .changes
+            .slots()
+            .iter()
+            .map(ToString::to_string)
+            .collect::<Vec<_>>(),
+        ["categorize/0", "edit_transactions/0"]
     );
+    let before = book.transaction(bought).expect("there");
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied in one go");
+    let after = book.transaction(bought).expect("there");
+    assert_eq!(after.note(), Some("weekly shop"));
+    let mut parts: Vec<_> = after
+        .splits()
+        .iter()
+        .map(|split| (split.account, split.amount))
+        .collect();
+    parts.sort_by_key(|(_, amount)| amount.minor_units());
+    assert_eq!(
+        parts,
+        [(Some(checking), eur(-6000)), (Some(food), eur(6000))]
+    );
+    // One Undo takes both back.
+    book.undo().expect("undo");
+    assert_eq!(book.transaction(bought).expect("there"), before);
+    assert!(
+        before
+            .splits()
+            .iter()
+            .any(|split| split.account == Some(groceries))
+    );
+
+    // Left out in the review, each one stands alone.
+    let set = super::propose(&book, &both, open())
+        .expect("prepared")
+        .changes;
+    for left_out in ["categorize/0", "edit_transactions/0"] {
+        let rest = set
+            .leave_out(&book, slot(left_out), open())
+            .expect("still checks");
+        assert_eq!(rest.changes().len(), 1, "{left_out}");
+        rest.apply(&mut book, Confirmed::by_the_user())
+            .expect("applies alone");
+        book.undo().expect("undo");
+    }
+
+    // The same field twice, or a removal with a change, is still refused,
+    // with the clash named (D-693).
+    let other = json!({"transaction_id": id, "category_id": book_food(&book)});
+    for clash in [
+        json!({"categorize": [other.clone(), other.clone()]}),
+        json!({
+            "categorize": [other.clone()],
+            "edit_transactions": [
+                {"transaction_id": id, "note": "a"},
+                {"transaction_id": id, "payee": "b"}
+            ],
+        }),
+    ] {
+        assert_eq!(
+            super::propose(&book, &clash, open())
+                .map_err(|error| error.without_item().report())
+                .map(|_| ())
+                .unwrap_err()
+                .params,
+            ToolError::NotChangeable {
+                argument: "transaction_id",
+                reason: "also-changed",
+            }
+            .report()
+            .params,
+            "{clash}"
+        );
+    }
 }
 
 /// The sample with a cash account, "Wallet", that has a payment of 4.50 at
@@ -2472,7 +2559,7 @@ fn the_same_transaction_cannot_be_removed_and_changed_in_one_set() {
             }),
             open(),
         )),
-        "bad-argument transaction_id"
+        "ai-tools.not-changeable"
     );
 }
 

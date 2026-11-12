@@ -23,6 +23,7 @@ mod lock;
 mod originals;
 mod reader;
 mod rules;
+mod tags;
 mod transactions;
 mod transfers;
 mod unsorted;
@@ -48,6 +49,7 @@ pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 pub use layout::{FIRST_VERSION as FIRST_LAYOUT, VERSION as LAYOUT};
 pub use lock::Lock;
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
+pub use tags::{TagUse, checked_tag_name};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};
 

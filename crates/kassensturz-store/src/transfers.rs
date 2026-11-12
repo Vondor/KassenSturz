@@ -16,7 +16,7 @@ use rusqlite::params;
 
 use crate::error::StoreError;
 use crate::originals::keeping_originals;
-use crate::transactions::{insert_attachments, insert_splits};
+use crate::transactions::{insert_attachments, insert_splits, insert_transaction_tags};
 use crate::{Action, Book};
 
 /// How many transactions [`Book::transfer_partners`] lists at most.
@@ -203,6 +203,15 @@ impl Book {
         let joined = join_transfer(&first, &second, |id| accounts.contains(&id))
             .map_err(StoreError::Transfer)?;
         let removed = if joined.id() == a { b } else { a };
+        // Both sides' tags on the whole are kept (D-713), so a join that
+        // would carry more than a transaction keeps is refused rather than
+        // losing one.
+        if joined.tags().len() > kassensturz_core::MAX_TAGS_ON_TRANSACTION {
+            return Err(StoreError::TooManyTags {
+                limit: "transaction",
+                max: kassensturz_core::MAX_TAGS_ON_TRANSACTION,
+            });
+        }
         let id = joined.id().to_bytes();
         self.as_one_action(Action::JoinTransfer, |book| {
             // Every original of both sides must be back afterwards, on the
@@ -223,6 +232,11 @@ impl Book {
                 book.conn
                     .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
                 insert_splits(&book.conn, &joined)?;
+                book.conn.execute(
+                    "DELETE FROM transaction_tags WHERE transaction_id = ?1",
+                    [id],
+                )?;
+                insert_transaction_tags(&book.conn, &joined)?;
                 book.conn
                     .execute("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
                 insert_attachments(&book.conn, &joined)

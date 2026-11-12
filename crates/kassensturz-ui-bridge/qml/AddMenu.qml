@@ -48,7 +48,7 @@ Controls.Menu {
               rows: kindRows(["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "chart.custom", "chart.candlestick"])
                   .concat(dataRows([{ kind: "chart.line", dataset: "net_worth_over_time" }, { kind: "chart.bar", dataset: "cash_flow_by_month" }])).sort((a, b) => a.name.localeCompare(b.name)) },
             { name: ctx.i18nc("@title:menu a group of widgets: single figures and tables", "Figures and tables"),
-              rows: kindRows(["kpi.card", "progress.bar", "table.rows", "table.income_sources", "card.net_worth", "budget.progress"])
+              rows: kindRows(["kpi.card", "progress.bar", "table.rows", "table.income_sources", "card.net_worth", "budget.progress", "table.transactions"])
                   .concat(dataRows([{ kind: "kpi.card", dataset: "account_balances" }, { kind: "table.rows", dataset: "account_balances" }, { kind: "table.rows", dataset: "cash_flow_by_month" }])).sort((a, b) => a.name.localeCompare(b.name)) },
             { name: ctx.i18nc("@title:menu a group of widgets: those that work with the user's banks", "Bank"),
               // Always offered (M6-B80): without a linked account the widget

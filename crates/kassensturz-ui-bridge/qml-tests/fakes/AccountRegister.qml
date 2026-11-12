@@ -26,11 +26,25 @@ QtObject {
     property int previews: 0
     property var lastForm: null
 
+    // CategorySmoke.qml (M6-B234): the stored transaction's category, the
+    // categories for money in and for money out, and the signal the real
+    // model sends when the book was read again (e.g. after the AI changed
+    // the transaction).
+    property string category: "salary"
+    property var incomeChoices: [{ id: "salary", path: "Salary" }]
+    property var expenseChoices: []
+    signal modelReset()
+
     function details(accountId, transactionId) {
-        return ({ kind: "simple", moneyIn: true, amount: "530.00", otherParty: "", date: "2026-09-01", note: note, category: "salary" });
+        return ({ kind: "simple", moneyIn: true, amount: "530.00", otherParty: "", date: "2026-09-01", note: note, category: category });
     }
+    // As the Rust side: the categories of the direction, and `current` even
+    // if it is of the other kind, when the book has it.
     function categoryChoices(accountId, moneyIn, current) {
-        return [{ id: "salary", path: "Salary" }];
+        const own = moneyIn ? incomeChoices : expenseChoices;
+        const other = moneyIn ? expenseChoices : incomeChoices;
+        const kept = other.filter(choice => choice.id === current);
+        return kept.concat(own);
     }
     function amountExample(accountId) { return "12.50"; }
     function noteLength(typed) { return typed.length; }
@@ -38,6 +52,7 @@ QtObject {
     function accountChoices() { return [{ id: "savings", name: "Savings" }]; }
     function editTransaction(accountId, transactionId, form) {
         saved = saved.concat([form]);
+        category = form.category;
         if (form.note !== undefined) {
             note = form.note;
         }

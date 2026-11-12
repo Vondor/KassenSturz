@@ -58,6 +58,11 @@ ColumnLayout {
     // in focus are not the legend and stay.
     property bool showLegend: true
     readonly property bool legendShown: legendFlow.visible
+    // Whether the text that says how to read the chart is shown (the
+    // candles' explanation): where a chart is made or changed, not on a
+    // dashboard tile (US5 Phase 3).
+    property bool explain: true
+    readonly property bool explained: candleHelp.visible
 
     // Whether a candle's box is hollow: `rose` when it ended at least where
     // it started.
@@ -1022,10 +1027,13 @@ ColumnLayout {
         font.bold: true
     }
 
-    // What a candle shows, in plain words ("Explain, don't assume").
+    // What a candle shows, in plain words ("Explain, don't assume"), where
+    // the chart is made or changed (`explain`).
     Controls.Label {
+        id: candleHelp
+
         Layout.fillWidth: true
-        visible: view.candles && !view.showTable
+        visible: view.explain && view.candles && !view.showTable
         text: i18nContext.i18nc("@info under a candle chart", "Each candle is one stretch of days, named below it. Its box runs from the balance at the start to the balance at the end; the thin line runs from the lowest to the highest balance at the end of a day. Several bookings on one day count only with that day's end.")
         textFormat: Text.PlainText
         wrapMode: Text.Wrap

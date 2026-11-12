@@ -31,6 +31,11 @@ ColumnLayout {
     // counts. The review page of the AI shows them before the user confirms
     // a formula the AI wrote (US1.17, D-650).
     property bool explainFormula: false
+    // Whether a chart shows how to read it, e.g. what a candle stands for:
+    // where a chart is made or changed (the Statistic Builder, Statistics
+    // and Properties), not on the Overview's tiles, where the person
+    // already knows their chart (US5 Phase 3).
+    property bool explainChart: false
 
     readonly property var asked: subject?.preview ?? ({})
     readonly property var charts: chartData.view?.charts ?? []
@@ -378,6 +383,7 @@ ColumnLayout {
             candleFill: (preview.subject?.fields ?? []).find(f => f.key === "candle_fill")?.word ?? "up-hollow"
             // *Show the legend*; a chart without the setting shows it.
             showLegend: (preview.subject?.fields ?? []).find(f => f.key === "legend")?.flag ?? true
+            explain: preview.explainChart
             // A custom chart's description may carry a title of its own.
             title: (chartData.view?.title ?? "") !== "" ? chartData.view.title : preview.title
         }

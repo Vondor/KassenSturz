@@ -297,6 +297,11 @@ Window {
                     console.log("legend-shown", "off", view.legendShown);
                     view.showLegend = true;
                     console.log("legend-shown", "on", view.legendShown);
+                    // The explanation of candles only where it is asked for.
+                    view.explain = false;
+                    console.log("candle-help", "off", view.explained);
+                    view.explain = true;
+                    console.log("candle-help", "on", view.explained);
                 }
             }
             view.grabToImage(function (result) {

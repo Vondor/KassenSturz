@@ -573,6 +573,7 @@ ColumnLayout {
 
                     subject: wizard.workbench.view
                     period: wizard.builder.period
+                    explainChart: true
                     // A double click on the title goes to the step with it.
                     TapHandler {
                         acceptedButtons: Qt.LeftButton

@@ -499,6 +499,7 @@ Kirigami.ScrollablePage {
             visible: !page.wizard
             subject: workbench.view
             period: page.period
+            explainChart: true
         }
 
         // The saved views stay in view in the wizard too, so a saved statistic

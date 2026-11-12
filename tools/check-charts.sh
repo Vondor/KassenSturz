@@ -60,6 +60,9 @@ mkdir "$work/out"
     # *Show the legend* switched off hides the legend (US5 Phase 3).
     grep -q 'legend-shown off false$' run.log || { echo "check-charts: the legend stayed with the switch off" >&2; exit 1; }
     grep -q 'legend-shown on true$' run.log || { echo "check-charts: the legend is missing with the switch on" >&2; exit 1; }
+    # The candles' explanation is shown only where it is asked for.
+    grep -q 'candle-help off false$' run.log || { echo "check-charts: the candle explanation stayed with explain off" >&2; exit 1; }
+    grep -q 'candle-help on true$' run.log || { echo "check-charts: the candle explanation is missing with explain on" >&2; exit 1; }
     grep -c 'name-overlaps' run.log | grep -qv '^0$' || { echo "check-charts: no name check ran" >&2; exit 1; }
 )
 

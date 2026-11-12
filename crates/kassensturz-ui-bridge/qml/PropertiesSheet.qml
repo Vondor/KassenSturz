@@ -112,6 +112,7 @@ Kirigami.Dialog {
                 sourceComponent: ComponentPreview {
                     subject: sheet.view
                     period: sheet.period
+                    explainChart: true
                 }
             }
         }

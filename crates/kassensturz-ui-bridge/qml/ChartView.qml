@@ -92,6 +92,18 @@ ColumnLayout {
                 && (longestName.advanceWidth > 2 * slotEstimate
                     || longestWord.advanceWidth > slotEstimate - Kirigami.Units.smallSpacing))
     readonly property bool stacked: chart.kind === "stacked-bar"
+    // The series drawn as upright bars side by side: a series that is zero in
+    // every category gets no slot, so the other bars sit in the middle of
+    // their names instead of beside an empty place (#709, US4 P3 R3b). It
+    // stays in the legend and the table. Every series, if all are zero.
+    readonly property var barSeries: {
+        const all = chart.series.map((series, index) => index);
+        if (stacked || chart.series.length < 2) {
+            return all;
+        }
+        const some = all.filter(index => (chart.series[index].points ?? []).some(point => point.value !== 0));
+        return some.length > 0 ? some : all;
+    }
 
     // Where `value` sits across a row of `width`, between the axis' lowest
     // and highest value. Drawing values only place marks (AGENTS.md §5).
@@ -567,7 +579,7 @@ ColumnLayout {
                         readonly property real value: series?.points[pointIndex]?.value ?? 1
                         readonly property real span: view.high - view.low
 
-                        visible: value === 0 && span > 0
+                        visible: value === 0 && span > 0 && view.barSeries.indexOf(seriesIndex) >= 0
                         width: view.barWidth(plot.width)
                         height: 2
                         x: view.barMiddle(seriesIndex, pointIndex, plot.width) - width / 2
@@ -1068,7 +1080,7 @@ ColumnLayout {
             colorSource: Charts.ArraySource {
                 array: view.chart.series.map(series => ChartPalette.color(series.color, view.extraColors))
             }
-            valueSources: view.sources(lineChart)
+            valueSources: view.sources(lineChart, null)
         }
     }
 
@@ -1087,9 +1099,9 @@ ColumnLayout {
             barWidth: view.barWidth(width)
             indexingMode: Charts.Chart.IndexEachSource
             colorSource: Charts.ArraySource {
-                array: view.chart.series.map(series => ChartPalette.color(series.color, view.extraColors))
+                array: view.barSeries.map(index => ChartPalette.color(view.chart.series[index]?.color ?? 0, view.extraColors))
             }
-            valueSources: view.sources(barChart)
+            valueSources: view.sources(barChart, view.barSeries)
         }
     }
 
@@ -1166,7 +1178,7 @@ ColumnLayout {
             colorSource: Charts.ArraySource {
                 array: view.chart.series[0].points.map(point => ChartPalette.color(point.color, view.extraColors))
             }
-            valueSources: view.sources(pieChart)
+            valueSources: view.sources(pieChart, null)
         }
     }
 
@@ -1176,7 +1188,7 @@ ColumnLayout {
     // category's slot, at most three grid units. The bar chart centres each
     // category's bars in its slot (KQuickCharts, a set `barWidth`).
     function barWidth(width: real): real {
-        const group = stacked ? 1 : Math.max(1, chart.series.length);
+        const group = stacked ? 1 : Math.max(1, barSeries.length);
         const share = width / Math.max(1, count) / group - Kirigami.Units.smallSpacing;
         return Math.max(1, Math.min(Kirigami.Units.gridUnit * 3, share));
     }
@@ -1187,11 +1199,17 @@ ColumnLayout {
         if (stacked) {
             return (point + 0.5) * slot;
         }
-        const group = Math.max(1, chart.series.length);
+        // A series left out of the drawing (`barSeries`) has no slot of its
+        // own; its place is the middle of the category's.
+        const place = barSeries.indexOf(series);
+        if (place < 0) {
+            return (point + 0.5) * slot;
+        }
+        const group = Math.max(1, barSeries.length);
         const one = barWidth(width);
         const gap = Kirigami.Units.smallSpacing;
         const all = one * group + gap * (group - 1);
-        return point * slot + slot / 2 - all / 2 + series * (one + gap) + one / 2;
+        return point * slot + slot / 2 - all / 2 + place * (one + gap) + one / 2;
     }
 
     // Where the mark of bar (`series`, `point`) goes in a picture of `width` by
@@ -1201,7 +1219,7 @@ ColumnLayout {
     function barPlace(series: int, point: int, width: real, height: real, size: real): var {
         // While the charts switch, a mark can ask for a series that is gone.
         const points = chart.series[series]?.points;
-        if (!points || points[point] === undefined) {
+        if (!points || points[point] === undefined || !stacked && barSeries.indexOf(series) < 0) {
             return null;
         }
         let from = 0;
@@ -1238,8 +1256,9 @@ ColumnLayout {
         return -1;
     }
 
-    function sources(parentItem: var): var {
-        return chart.series.map(series => sourceComponent.createObject(parentItem, {
+    // `only`, if given, are the indexes of the series to draw.
+    function sources(parentItem: var, only: var): var {
+        return chart.series.filter((series, index) => !only || only.indexOf(index) >= 0).map(series => sourceComponent.createObject(parentItem, {
             array: series.points.map(point => point.value)
         }));
     }

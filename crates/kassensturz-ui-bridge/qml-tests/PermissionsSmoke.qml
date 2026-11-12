@@ -61,6 +61,18 @@ Kirigami.ApplicationWindow {
         return null;
     }
 
+    // The labels of cells that aren't offered, as drawn.
+    function absentLabels(item, found) {
+        for (let i = 0; i < item.children.length; ++i) {
+            const child = item.children[i];
+            if (child instanceof Controls.Label && child.visible && child.wrapMode === Text.Wrap && child.horizontalAlignment === Text.AlignHCenter) {
+                found.push(child);
+            }
+            absentLabels(child, found);
+        }
+        return found;
+    }
+
     Timer {
         interval: 500
         running: true
@@ -100,7 +112,20 @@ Kirigami.ApplicationWindow {
             window.check(!grid.historyAtRisk(0), "chart descriptions don't warn about the history");
             const charts = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowReadViews"));
             window.check(!grid.readForced(charts, 0), "chart descriptions don't force reading the charts");
+            // Budgets › Add reads only the budgets, not the other rows: the
+            // grid shows what the AI is really given (US4 P3, R5).
+            settings.allowed = ({ AllowNewBudgets: true });
+            const named = name => grid.rows.find(row => row.cells.some(cell => cell.key === name));
+            window.check(grid.readForced(named("AllowReadBudgets"), 0), "adding budgets keeps the budgets readable");
+            ["AllowReadCategories", "AllowReadRules", "AllowReadAccounts", "AllowReadTransactions", "AllowReadViews"].forEach(key => window.check(!grid.readForced(named(key), 0), "adding budgets leaves " + key + " free"));
+            settings.allowed = ({ AllowEditAccounts: true });
+            window.check(!grid.readForced(named("AllowReadCategories"), 0), "changing accounts leaves the categories free");
+            window.check(grid.readForced(named("AllowReadAccounts"), 0), "changing accounts keeps the accounts readable");
             settings.allowed = ({});
+            // A cell's word stays within its own column (R8).
+            const words = window.absentLabels(grid, []);
+            window.check(words.length > 0, "the grid has cells that aren't offered");
+            words.forEach(label => window.check(label.width > 0 && label.width <= label.parent.width + 0.5 && label.contentWidth <= label.width + 0.5, "\"" + label.text + "\" fits its cell: " + label.contentWidth + " in " + label.width));
             console.log(window.failed ? "permissions: FAILED" : "permissions: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

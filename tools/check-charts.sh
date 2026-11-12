@@ -50,6 +50,9 @@ mkdir "$work/out"
     for want in '2-bar false' '4-bar true' '18-bar true' '19-bar false'; do
         grep -q "bar-rows $want\$" run.log || { echo "check-charts: expected bar-rows $want" >&2; exit 1; }
     done
+    # The average bar beside a series that is zero everywhere has the slot
+    # to itself, in the middle of its name (#709, US4 P3 R3b).
+    grep -q 'bar-middle 19-bar 500$' run.log || { echo "check-charts: expected the lone bar of 19-bar in the middle" >&2; exit 1; }
     grep -c 'name-overlaps' run.log | grep -qv '^0$' || { echo "check-charts: no name check ran" >&2; exit 1; }
 )
 
@@ -118,8 +121,9 @@ custom_thin = {
     ("15-bar", green): 100,
     ("17-bar", blue): 300,
     ("17-bar", pink): 300,
-    # A bar of zero is a thin line of its colour (M6-B229).
-    ("19-bar", blue): 40,
+    # A series that is zero everywhere has no bar, only its legend mark
+    # (US4 P3 R3b).
+    ("19-bar", blue): 20,
     # Candles (US4.10): the rising ones are hollow, only their frame and
     # line are blue.
     ("20-candlestick", blue): 300,

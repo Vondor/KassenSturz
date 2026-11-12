@@ -281,6 +281,9 @@ Window {
                 console.log("name-overlaps", name, view.nameOverlaps());
                 // tools/check-charts.sh checks which bar charts are rows.
                 console.log("bar-rows", name, view.horizontal);
+                // tools/check-charts.sh checks that a lone bar beside a series
+                // of zeros sits in the middle of its name (US4 P3 R3b).
+                console.log("bar-middle", name, Math.round(view.barMiddle(view.chart.series.length - 1, 0, 1000)));
             }
             view.grabToImage(function (result) {
                 result.saveToFile(window.outDir + "/" + name + ".png");

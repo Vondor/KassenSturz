@@ -98,7 +98,21 @@ Kirigami.ApplicationWindow {
             const dialog = field.ruleDialog;
             window.check(dialog !== null, "the field has its dialog");
             dialog.edit(-1, {});
+            // A budget rule shows the budgets to pick and can't be saved
+            // without one (US4 P3, step 7).
+            window.check(dialog.reason === "budget_over" && dialog.forBudget && !dialog.forAccount, "a new rule watches a budget");
+            window.check(dialog.budgetPicker.visible && dialog.budgetPicker.count === 1, "the budget picker shows the book's budgets");
+            window.check(!dialog.accountPicker.visible, "a budget rule has no account picker");
+            window.check(!dialog.ready, "a budget rule without its budget can't be saved");
+            dialog.budget = "b1";
+            window.check(dialog.ready, "a budget rule with its budget can be saved");
+            dialog.pick("account_reserve");
+            window.check(dialog.accountPicker.visible && dialog.budgetPicker.visible, "a reserve picks an account and a budget");
+            window.check(!dialog.ready, "a reserve without its account can't be saved");
+            dialog.edit(-1, {});
             dialog.pick("account_below");
+            window.check(dialog.accountPicker.visible && !dialog.budgetPicker.visible, "an account rule shows only the account picker");
+            window.check(!dialog.ready, "an account rule without its account can't be saved");
             dialog.account = "a1";
             dialog.typed = "five";
             window.check(!dialog.ready, "a wrong amount can't be saved");

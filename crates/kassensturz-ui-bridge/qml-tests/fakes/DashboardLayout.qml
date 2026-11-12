@@ -14,7 +14,7 @@ QtObject {
     property var calls: []
     property var view: ({
         editing: false, damaged: false, hasChanges: false, canUndo: false, canRedo: false,
-        undoEdit: "", redoEdit: "", builtIn: true, columns: 12, maxRows: 24, rows: 9,
+        undoEdit: "", redoEdit: "", builtIn: true, columns: 12, maxRows: 24, rows: 14,
         library: [],
         filters: {period: "", accounts: [], categories: [], forNow: false},
         items: [
@@ -29,6 +29,7 @@ QtObject {
             item("outer", "kpi.card", 4, 7, 3, 2),
             item("worth", "card.net_worth", 0, 8, 6, 1),
             item("sources", "table.income_sources", 6, 8, 6, 1),
+            item("listed", "table.transactions", 0, 9, 6, 5),
             Object.assign(item("future", "", 9, 0, 3, 2), {unknown: true, subject: ({})})
         ]
     })

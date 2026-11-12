@@ -19953,3 +19953,67 @@ msgstr ""
 msgctxt "@info %1 characters typed so far, %2 the longest a note may be"
 msgid "%1 of %2 characters"
 msgstr "%1 von %2 Zeichen"
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid "No transactions in these categories in this period."
+msgstr "Keine Buchungen in diesen Kategorien in diesem Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid "No transactions in this period."
+msgstr "Keine Buchungen in diesem Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The transactions can't be listed for this period. Choose another period in "
+"Properties."
+msgstr ""
+"Die Buchungen können für diesen Zeitraum nicht aufgelistet werden. Wählen "
+"Sie in den Eigenschaften einen anderen Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info %1 is how many are listed, %2 how many there are"
+msgid "Showing the newest %1 of %2."
+msgstr "Die neuesten %1 von %2 werden angezeigt."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: a list of single transactions, newest "
+"first"
+msgid "Transactions"
+msgstr "Buchungen"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml
+#, kde-format
+msgctxt "@item:inlistbox a period of days up to today, today included"
+msgid "Today"
+msgid_plural "The last %1 days"
+msgstr[0] "Heute"
+msgstr[1] "Die letzten %1 Tage"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml
+#, kde-format
+msgctxt ""
+"@item:inlistbox a period of a number of days up to today that the user "
+"chooses"
+msgid "The last days…"
+msgstr "Die letzten Tage…"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml
+#, kde-format
+msgctxt "@label:spinbox how many days a period counts back, today included"
+msgid "Days:"
+msgstr "Tage:"
+
+#: crates/kassensturz-ui-bridge/qml/PeriodChoice.qml
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "How many days"
+msgstr "Wie viele Tage"

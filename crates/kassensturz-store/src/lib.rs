@@ -827,11 +827,13 @@ impl Book {
     /// has, so a change to or from a credit card also changes the account's
     /// kind (see [`AccountType::kind`]). Its balance then counts as what is
     /// owed instead of what is had, or the other way round; what the user is
-    /// worth stays the same, since both add up the same balances. An account
-    /// grouped with others of its kind (D-132) can't change its kind
-    /// ([`StoreError::ParentKindMismatch`]). Giving an account the type it
-    /// has does nothing; a category can't have one
-    /// ([`StoreError::NotAnAccount`]).
+    /// worth stays the same, since both add up the same balances. A group of
+    /// accounts holds one kind only (D-132), and no screen shows the groups,
+    /// so a change of kind takes the account out of its group, and accounts
+    /// grouped inside it move up into its old group; nothing adds a group
+    /// up, so no figure changes (#558). It is all one change in the history.
+    /// Giving an account the type it has does nothing; a category can't have
+    /// one ([`StoreError::NotAnAccount`]).
     pub fn set_account_type(
         &mut self,
         id: AccountId,
@@ -844,31 +846,30 @@ impl Book {
         if before.account_type == Some(account_type) {
             return Ok(());
         }
+        let kind_changes = account_type.kind() != before.kind;
         let account = Account {
             kind: account_type.kind(),
             account_type: Some(account_type),
+            parent: if kind_changes { None } else { before.parent },
             ..before.clone()
         };
         self.check_account(&account)?;
-        if account.kind != before.kind
-            && let Some(inside) = self
-                .all_accounts()?
-                .into_iter()
-                .find(|other| other.parent == Some(id))
-        {
-            return Err(StoreError::ParentKindMismatch {
-                parent: id,
-                parent_kind: account.kind,
-                kind: inside.kind,
-            });
-        }
         self.as_one_action(Action::ChangeAccountType, |book| {
+            if kind_changes {
+                // The accounts inside it keep their kind, so they move up
+                // into the group it was in, of their kind (D-132).
+                book.conn.execute(
+                    "UPDATE accounts SET parent_id = ?2 WHERE parent_id = ?1",
+                    params![id.to_bytes(), before.parent.map(AccountId::to_bytes)],
+                )?;
+            }
             book.conn.execute(
-                "UPDATE accounts SET kind = ?2, account_type = ?3 WHERE id = ?1",
+                "UPDATE accounts SET kind = ?2, account_type = ?3, parent_id = ?4 WHERE id = ?1",
                 params![
                     id.to_bytes(),
                     kind_to_text(account.kind),
-                    type_to_text(account_type)
+                    type_to_text(account_type),
+                    account.parent.map(AccountId::to_bytes)
                 ],
             )?;
             Ok(())

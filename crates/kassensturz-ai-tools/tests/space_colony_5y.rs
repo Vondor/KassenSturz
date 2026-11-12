@@ -464,3 +464,39 @@ fn what_the_ai_must_leave_alone_is_in_the_book() {
     assert_eq!(unsorted["account"], "Everyday Checking");
     assert_eq!(refusal(&book, &unsorted, &health), "prepared");
 }
+
+/// #558, reopened in US5 P3: Dome Petty Cash arrives from KMyMoney inside a
+/// group of money the user has (D-132), and becoming a credit card used to
+/// fail with a message about categories. It changes now, and what the
+/// accounts add up to stays the same.
+#[test]
+fn a_grouped_account_from_kmymoney_becomes_a_credit_card() {
+    let (mut book, _) = five_years();
+    let accounts = run(&book, "list_accounts", json!({"include_closed": true}));
+    let petty = accounts["accounts"]
+        .as_array()
+        .expect("accounts")
+        .iter()
+        .find(|row| row["name"] == "Dome Petty Cash")
+        .expect("Dome Petty Cash");
+    let grouped = book
+        .all_accounts()
+        .expect("accounts")
+        .into_iter()
+        .find(|account| account.name == "Dome Petty Cash")
+        .expect("Dome Petty Cash");
+    assert!(grouped.parent.is_some(), "the file groups it");
+    let id = grouped.id;
+    book.set_account_type(id, kassensturz_core::AccountType::CreditCard)
+        .expect("type changed");
+    let after = run(&book, "list_accounts", json!({"include_closed": true}));
+    assert_eq!(after["together"], accounts["together"]);
+    let card = after["accounts"]
+        .as_array()
+        .expect("accounts")
+        .iter()
+        .find(|row| row["name"] == "Dome Petty Cash")
+        .expect("Dome Petty Cash");
+    assert_eq!(card["balance"], petty["balance"]);
+    assert_eq!(card["type"], "credit_card");
+}

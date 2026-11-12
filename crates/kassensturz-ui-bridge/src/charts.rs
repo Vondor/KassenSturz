@@ -253,7 +253,7 @@ impl ChartProvider for QuickCharts {
 
 /// The calendar month named `YYYY-MM`, which the overview passes on for the
 /// month it shows (M6a.8).
-fn month_period(key: &str) -> Option<Period> {
+pub(crate) fn month_period(key: &str) -> Option<Period> {
     let (year, month) = key.split_once('-')?;
     let digits = |text: &str| text.bytes().all(|byte| byte.is_ascii_digit());
     if year.len() != 4 || month.len() != 2 || !digits(year) || !digits(month) {

@@ -673,7 +673,9 @@ pub const ORIENTATION_WORDS: [&str; 3] = ["auto", "horizontal", "vertical"];
 /// `params.candle` (US4.10, Q-498, D-719): how many days one candle of a
 /// candle chart covers. `auto`, the default, keeps the rule of D-719 (a
 /// candle per day up to a month, per week up to half a year, else per
-/// month); `day`, `week` and `month` always use that length. It decides
+/// month; two or more whole months per month, D-747); `day`, `week` and
+/// `month` use that length when it gives at least two candles, otherwise
+/// the chart follows the period (`CandleLength::fits`). It decides
 /// which days each candle's figures come from, so it is a parameter.
 const CANDLE: Property = Property {
     key: CANDLE_KEY,

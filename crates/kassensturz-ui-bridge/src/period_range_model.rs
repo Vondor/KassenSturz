@@ -6,13 +6,14 @@
 //! only gets text (D-065).
 
 use cxx_qt_lib::{QString, QVariant};
-use kassensturz_report::{ReportError, Rolling};
+use kassensturz_core::Date;
+use kassensturz_report::{CANDLE_WORDS, CandleLength, Period, ReportError, Rolling};
 
 use crate::errors::ErrorText;
 use crate::format::Locale;
 use crate::number_format::app_locale;
 use crate::period_range::{self, RangeError};
-use crate::variant::{error_object, map, text};
+use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -70,6 +71,14 @@ pub mod qobject {
         /// An example of what to type, in the regional date format.
         #[qinvokable]
         fn example(self: &PeriodRange) -> QString;
+
+        /// The words of a candle chart's *One candle per* that fit the
+        /// period `word` (D-747): `auto`, then `day`, `week` and `month`
+        /// where they give at least two candles. Every word for a period
+        /// whose days aren't known here (an open start, an unknown word).
+        #[qinvokable]
+        #[cxx_name = "candleWords"]
+        fn candle_words(self: &PeriodRange, word: &QString) -> QVariant;
     }
 }
 
@@ -87,6 +96,27 @@ fn parse_object(input: &str, locale: &impl Locale) -> QVariant {
             RangeError::Report(_) => "report.bad-period",
         })),
     }
+}
+
+/// The candle lengths that fit the period `word`, seen from `today`, as
+/// the chart reads it (`charts::period`): `today`, a month as `YYYY-MM` or a
+/// stored period word. A typed range with an open start begins at the
+/// book's first day, which isn't known here, so it offers every length, and
+/// so does a word that is no period; the chart still draws only a length
+/// that fits (`CandleLength::fits`).
+fn candle_words_of(word: &str, today: Date) -> Vec<&'static str> {
+    let open_start =
+        kassensturz_report::read_range_word(word).is_some_and(|(first, _)| first.is_none());
+    let period = if word == "today" {
+        Period::new(today, today).ok()
+    } else if let Some(month) = crate::charts::month_period(word) {
+        Some(month)
+    } else if open_start {
+        None
+    } else {
+        Period::named(word, today, None).and_then(Result::ok)
+    };
+    period.map_or_else(|| CANDLE_WORDS.to_vec(), CandleLength::offered)
 }
 
 /// What `describe` gives QML.
@@ -135,6 +165,14 @@ impl qobject::PeriodRange {
     fn example(&self) -> QString {
         QString::from(period_range::example(&app_locale()))
     }
+
+    fn candle_words(&self, word: &QString) -> QVariant {
+        list(
+            candle_words_of(&word.to_string(), app_locale().today())
+                .into_iter()
+                .map(text),
+        )
+    }
 }
 
 #[cfg(test)]
@@ -142,6 +180,35 @@ mod tests {
     use super::*;
     use crate::register::tests::TestLocale;
     use crate::variant::read_back::{flag_of, keys, number_of, text_of};
+
+    #[test]
+    fn the_candle_lengths_fit_the_period_and_read_back_the_way_qml_reads_them() {
+        // D-747: seven days offer no week and no month, three whole months
+        // all three lengths, one day only the automatic one.
+        let today = TestLocale.today();
+        assert_eq!(candle_words_of("last-7-days", today), ["auto", "day"]);
+        assert_eq!(
+            candle_words_of("last-3-complete-months", today),
+            ["auto", "day", "week", "month"]
+        );
+        assert_eq!(candle_words_of("today", today), ["auto"]);
+        assert_eq!(candle_words_of("2026-02", today), ["auto", "day", "week"]);
+        assert_eq!(
+            candle_words_of("2026-10-01..2026-10-05", today),
+            ["auto", "day"]
+        );
+        // Days not known here: every word, as before.
+        assert_eq!(candle_words_of("..2026-10-05", today), CANDLE_WORDS);
+        assert_eq!(candle_words_of("page", today), CANDLE_WORDS);
+        // QML gets a list of texts.
+        let words = list(candle_words_of("last-7-days", today).into_iter().map(text));
+        let read: Vec<String> = crate::variant::read_back::elements(&words)
+            .expect("a list")
+            .iter()
+            .map(|word| word.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(read, ["auto", "day"]);
+    }
 
     #[test]
     fn a_typed_range_reads_back_as_a_word_or_an_error_code() {

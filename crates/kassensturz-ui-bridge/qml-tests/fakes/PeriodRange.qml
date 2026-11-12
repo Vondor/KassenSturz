@@ -45,6 +45,18 @@ QtObject {
         return day < 1 || day > 31 ? "" : (before ? "last" : "this") + "-salary-month-" + day;
     }
 
+    // The candle lengths that fit a period (D-747), for the last N days
+    // only; every word for anything else, as the Rust side does for a
+    // period it can't read.
+    function candleWords(word) {
+        const days = /^last-([1-9][0-9]*)-days$/.exec(word);
+        if (days === null) {
+            return ["auto", "day", "week", "month"];
+        }
+        const count = Number(days[1]);
+        return ["auto"].concat(count >= 2 ? ["day"] : [], count >= 8 ? ["week"] : [], count >= 32 ? ["month"] : []);
+    }
+
     function example() {
         return "01.01.2000 – 01.01.2020";
     }

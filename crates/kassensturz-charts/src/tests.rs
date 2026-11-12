@@ -878,7 +878,7 @@ fn cash_flow_is_bars_of_money_in_and_out_and_a_table_with_start_and_end() {
 fn candles_are_the_four_balances_of_the_report_and_the_axis_spans_only_them() {
     let book = with_card();
     let source = read_with_balances(&book);
-    // Two months: a candle per week (D-719).
+    // Two whole months: a candle per month (D-747).
     let data = kassensturz_report::balance_candles(&source, autumn(), &Filter::default(), None)
         .expect("dataset")
         .remove(0);
@@ -888,9 +888,10 @@ fn candles_are_the_four_balances_of_the_report_and_the_axis_spans_only_them() {
     let chart = balance_candles(&data, &Words).expect("chart");
     assert_eq!(chart.kind, ChartKind::Candlestick);
     assert_eq!(chart.dataset, "cash_flow_by_month");
-    assert_eq!(data.length, kassensturz_report::CandleLength::Week);
+    assert_eq!(data.length, kassensturz_report::CandleLength::Month);
+    assert_eq!(data.candles.len(), 2);
     assert_eq!(chart.categories.len(), data.candles.len());
-    assert_eq!(chart.categories[0], "2026-09-01");
+    assert_eq!(chart.categories[0], "2026-09");
     let keys: Vec<&str> = chart.series.iter().map(|series| series.key).collect();
     assert_eq!(keys, ["start", "highest", "lowest", "end"]);
     for (index, candle) in data.candles.iter().enumerate() {

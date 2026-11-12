@@ -13,6 +13,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
+import io.github.vondor.kassensturz
 
 ColumnLayout {
     id: panel
@@ -50,6 +51,10 @@ ColumnLayout {
     }
 
     readonly property TitleWords titleWords: TitleWords {}
+    readonly property PeriodRange periodRange: PeriodRange {}
+    // The lengths a candle chart's *One candle per* offers for the period
+    // shown (D-747): Automatic, and each length that gives two candles.
+    readonly property var candleWords: periodRange.candleWords(period)
     // How far each list of ticks was scrolled, by field key.
     property var scrolledTo: ({})
 
@@ -654,14 +659,27 @@ ColumnLayout {
                     id: choiceBox
 
                     Controls.ComboBox {
-                        model: panel.wordOptions(row.modelData.words)
+                        id: choice
+
+                        // A candle chart offers only the lengths that fit
+                        // its period (D-747). A stored length that doesn't
+                        // fit shows as Automatic, which is what the chart
+                        // draws then, and is kept for a longer period.
+                        readonly property bool candle: row.modelData.key === "candle"
+                        readonly property var words: candle
+                            ? row.modelData.words.filter(word => panel.candleWords.includes(word))
+                            : row.modelData.words
+                        model: panel.wordOptions(words)
                         textRole: "name"
                         valueRole: "word"
-                        currentIndex: row.modelData.words.indexOf(row.modelData.word)
+                        currentIndex: {
+                            const at = words.indexOf(row.modelData.word);
+                            return at < 0 && candle ? 0 : at;
+                        }
                         Accessible.name: panel.fieldLabel(row.modelData.key)
                         onActivated: index => {
                             ActionLog.taken("PropertiesPanel_setWord_2")
-                            panel.model.setWord(row.modelData.key, row.modelData.words[index])
+                            panel.model.setWord(row.modelData.key, choice.words[index])
                         }
                     }
                 }

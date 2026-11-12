@@ -11870,6 +11870,18 @@ msgctxt "@title"
 msgid "Where your money came from"
 msgstr "Woher Ihr Geld kam"
 
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info shown when no bank account needs a warning"
+msgid "No warnings: every bank account was updated recently."
+msgstr "Keine Warnungen: Alle Bankkonten wurden vor Kurzem aktualisiert."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info shown when no transaction is without a category"
+msgid "Every transaction has a category."
+msgstr "Alle Buchungen haben eine Kategorie."
+
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml:543
 #, kde-format
 msgctxt "@info"
@@ -12210,9 +12222,26 @@ msgstr "%1: %2"
 #, kde-format
 msgctxt ""
 "@info %1 is what the component is, %2 and %3 are numbers of a column and a "
-"row, %4 and %5 are how many columns wide and rows high"
-msgid "%1, column %2, row %3, %4 columns wide, %5 rows high"
-msgstr "%1, Spalte %2, Zeile %3, %4 Spalten breit, %5 Zeilen hoch"
+"row, %4 says how many columns wide (e.g. 2 columns wide), %5 how many rows "
+"high"
+msgid "%1, column %2, row %3, %4, %5"
+msgstr "%1, Spalte %2, Zeile %3, %4, %5"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:115
+#, kde-format
+msgctxt "@info how many columns of the layout a component spans"
+msgid "%1 column wide"
+msgid_plural "%1 columns wide"
+msgstr[0] "%1 Spalte breit"
+msgstr[1] "%1 Spalten breit"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:116
+#, kde-format
+msgctxt "@info how many rows of the layout a component spans"
+msgid "%1 row high"
+msgid_plural "%1 rows high"
+msgstr[0] "%1 Zeile hoch"
+msgstr[1] "%1 Zeilen hoch"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:115
 #, kde-format

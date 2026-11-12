@@ -102,12 +102,30 @@ QtObject {
         return field ? field.text : "";
     }
 
-    // What a screen reader says for a component: what it is, what it is
-    // called and where it sits (D-288).
-    function name(item: var): string {
+    // What a component is and what it is called, without where it sits.
+    function what(item: var): string {
         const title = titleOf(item);
-        const what = title !== "" ? i18nContext.i18nc("@info:tooltip %1 is a kind of component, e.g. Bars, %2 the title the user gave it", "%1: %2", typeName(item.type), title) : typeName(item.type);
-        return i18nContext.i18nc("@info %1 is what the component is, %2 and %3 are numbers of a column and a row, %4 and %5 are how many columns wide and rows high", "%1, column %2, row %3, %4 columns wide, %5 rows high", what, item.col + 1, item.row + 1, item.cols, item.rows);
+        return title !== "" ? i18nContext.i18nc("@info:tooltip %1 is a kind of component, e.g. Bars, %2 the title the user gave it", "%1: %2", typeName(item.type), title) : typeName(item.type);
+    }
+
+    // What a screen reader says for a component: what it is, what it is
+    // called and where it sits (D-288). The width and height are counted
+    // with their plural forms (#780).
+    function name(item: var): string {
+        const wide = i18nContext.i18ncp("@info how many columns of the layout a component spans", "%1 column wide", "%1 columns wide", item.cols);
+        const high = i18nContext.i18ncp("@info how many rows of the layout a component spans", "%1 row high", "%1 rows high", item.rows);
+        return i18nContext.i18nc("@info %1 is what the component is, %2 and %3 are numbers of a column and a row, %4 says how many columns wide (e.g. 2 columns wide), %5 how many rows high", "%1, column %2, row %3, %4, %5", what(item), item.col + 1, item.row + 1, wide, high);
+    }
+
+    // The title of the window that shows a whole tile (D-736): what the
+    // tile shows, never where it sits in the layout (#780).
+    function windowTitle(item: var): string {
+        const title = titleOf(item);
+        if (title !== "") {
+            return title;
+        }
+        const automatic = automaticTitle(item);
+        return automatic !== "" ? automatic : typeName(item.type);
     }
 
     // What a component is called when its user gave it no title: the

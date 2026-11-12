@@ -108,6 +108,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "Your book couldn't be read to answer the question. Make sure the book is still where it was, then ask again.");
         case "ai-changes.out-of-date":
             return i18nContext.i18nc("@info", "These changes are out of date: a transaction in them was changed or removed, or they were thrown away. Nothing was changed. Ask the AI to prepare them again.");
+        case "ai-changes.budget-out-of-date":
+            return i18nContext.i18nc("@info", "These changes are out of date: a budget in them was changed or removed, or the period they were prepared for is over. Nothing was changed. Ask the AI to prepare them again.");
         case "ai-changes.not-allowed":
             return i18nContext.i18nc("@info", "These changes hold a kind of change that you have turned off in the AI settings since the AI prepared them. Nothing was changed. Turn it on again under “What the AI may do”, or ask the AI to prepare the changes again.");
         case "ai-changes.not-applied":

@@ -2543,6 +2543,18 @@ msgstr ""
 "entfernt, oder sie wurden verworfen. Es wurde nichts geändert. Bitten Sie "
 "die KI, sie noch einmal vorzubereiten."
 
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:112
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These changes are out of date: a budget in them was changed or removed, or "
+"the period they were prepared for is over. Nothing was changed. Ask the AI "
+"to prepare them again."
+msgstr ""
+"Diese Änderungen sind veraltet: Ein Budget darin wurde geändert oder "
+"entfernt, oder der Zeitraum, für den sie vorbereitet wurden, ist vorbei. Es "
+"wurde nichts geändert. Bitten Sie die KI, sie noch einmal vorzubereiten."
+
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:106
 #, kde-format
 msgctxt "@info"

@@ -857,6 +857,10 @@ pub enum ChangeError {
     /// The book changed since the set was prepared: a transaction in it
     /// was changed or removed.
     OutOfDate,
+    /// A budget in the set was changed or removed since it was prepared,
+    /// or the period it was prepared in is over (M6-B224, #691): its own
+    /// code, so the user is told about the budget, not a transaction.
+    BudgetOutOfDate,
     /// The book refused a change, e.g. because the user added a category
     /// of the same name since.
     NotApplied(StoreError),
@@ -883,6 +887,7 @@ impl Report for ChangeError {
     fn report(&self) -> ErrorReport {
         match self {
             Self::OutOfDate => ErrorReport::new("ai-changes.out-of-date"),
+            Self::BudgetOutOfDate => ErrorReport::new("ai-changes.budget-out-of-date"),
             Self::NotAllowed => ErrorReport::new("ai-changes.not-allowed"),
             Self::NotApplied(error) => {
                 ErrorReport::new("ai-changes.not-applied").caused_by(error.report())

@@ -949,7 +949,7 @@ pub(super) fn apply_new_budget(
         && new.every.repeats()
         && new.every.period_start(today) != Some(new.first_day)
     {
-        return Err(super::ChangeError::OutOfDate);
+        return Err(super::ChangeError::BudgetOutOfDate);
     }
     book.add_named_budget(
         new.name.as_deref(),
@@ -975,7 +975,9 @@ pub(super) fn apply_edit_budget(
 ) -> Result<(), super::ChangeError> {
     match book.budget(edit.budget) {
         Ok(stored) if stored == edit.reviewed => {}
-        Ok(_) | Err(StoreError::UnknownBudget(_)) => return Err(super::ChangeError::OutOfDate),
+        Ok(_) | Err(StoreError::UnknownBudget(_)) => {
+            return Err(super::ChangeError::BudgetOutOfDate);
+        }
         Err(other) => return Err(other.into()),
     }
     let today = today.unwrap_or(edit.today);
@@ -986,7 +988,7 @@ pub(super) fn apply_edit_budget(
             .period_containing(today.max(edit.reviewed.first_day))
             .map(|(start, _)| start);
         if from_day != Some(edit.from_day) {
-            return Err(super::ChangeError::OutOfDate);
+            return Err(super::ChangeError::BudgetOutOfDate);
         }
         book.edit_budget(
             edit.budget,

@@ -1234,7 +1234,11 @@ fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
             object.insert("only_for_show_as".into(), json!(ways));
         }
     }
-    answer
+    // E.g. a ready-made tile asked for as a chart (R2-16).
+    match error.hint() {
+        Some(hint) => with_hint(answer, hint),
+        None => answer,
+    }
 }
 
 /// The dataset a refused call of `propose_view` named, when it is one the AI
@@ -1301,6 +1305,29 @@ mod tests {
         // The error's own list replaces a general one.
         let replaced = with_allowed(json!({"allowed": ["x"]}), &error);
         assert_eq!(replaced["allowed"], json!(["name", "type", "currency"]));
+    }
+
+    #[test]
+    fn a_measure_refused_on_a_chart_says_ready_made_tiles_are_not_charts() {
+        // R2-16: the model asked for "Where your money came from" as a
+        // chart and had nothing plain to tell the user.
+        let error = ToolError::NotForChart {
+            argument: "measure",
+            allowed: Vec::new(),
+            use_instead: None,
+            only_for_show_as: vec!["figure"],
+        };
+        let answer = with_allowed(error_json(&error.model_report(), false), &error);
+        assert_eq!(answer["only_for_show_as"], json!(["figure"]));
+        assert_eq!(
+            answer["hint"],
+            json!(kassensturz_ai_tools::READY_MADE_TILE_HINT)
+        );
+        // Added to the hints the answer already has.
+        let prepared = with_allowed(error_json(&error.model_report(), true), &error);
+        let hint = prepared["hint"].as_str().expect("hints");
+        assert!(hint.starts_with(NOT_PREPARED_HINT), "{hint}");
+        assert!(hint.ends_with(kassensturz_ai_tools::READY_MADE_TILE_HINT));
     }
 
     #[test]

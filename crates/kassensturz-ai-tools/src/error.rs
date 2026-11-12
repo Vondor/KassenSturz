@@ -29,6 +29,16 @@ pub(crate) mod shape {
     pub(crate) const ID: &str = "text that is an ID, as the read functions give it";
 }
 
+/// What [`ToolError::hint`] tells the model when `measure` is refused on a
+/// chart (R2-16).
+pub const READY_MADE_TILE_HINT: &str = "measure is only the one number of a key figure \
+(show_as \"figure\"); no chart takes it. The ready-made tiles of the Overview, such as \
+\"Where your money came from\", net worth and the warnings, are not charts and can't be \
+drawn as one. Call propose_view again without measure to draw this data as a chart, or tell \
+the user plainly that the ready-made tile stays as it is and that they can make a chart of \
+their own in the Statistic Builder, or change a chart there with \"Change step by step in the \
+Statistic Builder\" in its properties.";
+
 /// An error of a read function.
 #[derive(Debug)]
 pub enum ToolError {
@@ -394,6 +404,23 @@ impl ToolError {
             Self::NotForChart {
                 only_for_show_as, ..
             } if !only_for_show_as.is_empty() => Some(only_for_show_as),
+            _ => None,
+        }
+    }
+
+    /// A plain hint for the model when `measure` is refused because only a
+    /// key figure takes it (R2-16): models asked for a ready-made tile such
+    /// as "Where your money came from" as a chart and got only the list of
+    /// ways, with nothing to tell the user. Ready-made tiles aren't charts
+    /// (Q-507, D-741), so the hint says so and points to the Statistic
+    /// Builder. Fixed text, never the call's.
+    pub fn hint(&self) -> Option<&'static str> {
+        match self.kind() {
+            Self::NotForChart {
+                argument: "measure",
+                only_for_show_as,
+                ..
+            } if only_for_show_as.contains(&"figure") => Some(READY_MADE_TILE_HINT),
             _ => None,
         }
     }

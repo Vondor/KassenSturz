@@ -207,8 +207,8 @@ Kirigami.ApplicationWindow {
                 // the dashboard tabs, the period header and the filter bar the
                 // page lacks (M6d.8, M6d.9),
                 // Update all accounts, always offered (D-497), and the custom
-                // chart (M6e.3).
-                window.check(kinds === 28, "every kind of widget is in a group: " + kinds);
+                // chart (M6e.3), and the balance candles (US4.10).
+                window.check(kinds === 29, "every kind of widget is in a group: " + kinds);
                 const withData = addMenu.groups.reduce((all, group) => all.concat(group.rows), []).filter(row => row.dataset !== undefined && row.dataset !== "").map(row => row.id).sort();
                 window.check(withData.join() === "chart.bar/cash_flow_by_month,chart.line/net_worth_over_time,kpi.card/account_balances,table.rows/account_balances,table.rows/cash_flow_by_month", "the widgets with data of their own: " + withData);
                 window.check(addMenu.count === 6, "one submenu for each group: " + addMenu.count);

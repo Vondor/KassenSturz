@@ -58,6 +58,11 @@
 # - TransactionSmoke.qml opens TransactionPage.qml on a stand-in for
 #   AccountRegister and checks that a note typed but not saved is saved
 #   before "Join with the other side of a move…" (M6-B227).
+#
+# - CategorySmoke.qml opens TransactionPage.qml on the same stand-in and
+#   checks that the category box shows the stored category after the
+#   direction changes, after the book changed while the page was open, and
+#   for a category its list doesn't offer (M6-B234).
 # - PartsSmoke.qml opens PartsPage.qml on a stand-in for AccountRegister and
 #   checks the line that says what the Parts add up to and removing a Part,
 #   with no KI18n warning about a missing argument (M6-B235).
@@ -103,7 +108,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         echo "$file 1.0 $file.qml"
     done
 } > "$module/qmldir"
-cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$work"
+cp "$bridge"/qml-tests/PanelSmoke.qml "$bridge"/qml-tests/StatisticsSmoke.qml "$bridge"/qml-tests/ReviewSmoke.qml "$bridge"/qml-tests/SortSmoke.qml "$bridge"/qml-tests/ChatChartSmoke.qml "$bridge"/qml-tests/GroupsSmoke.qml "$bridge"/qml-tests/GridSmoke.qml "$bridge"/qml-tests/BudgetsSmoke.qml "$bridge"/qml-tests/FilterSmoke.qml "$bridge"/qml-tests/UpdateAllSmoke.qml "$bridge"/qml-tests/PageWidgetsSmoke.qml "$bridge"/qml-tests/SpecSmoke.qml "$bridge"/qml-tests/ColorsSmoke.qml "$bridge"/qml-tests/SheetSmoke.qml "$bridge"/qml-tests/PermissionsSmoke.qml "$bridge"/qml-tests/TransactionSmoke.qml "$bridge"/qml-tests/CategorySmoke.qml "$bridge"/qml-tests/PartsSmoke.qml "$work"
 run_smoke() {
     (
         cd "$work"
@@ -125,6 +130,8 @@ run_smoke PermissionsSmoke
 echo "AI field switches: ok"
 run_smoke TransactionSmoke
 echo "transaction page keeps a typed note: ok"
+run_smoke CategorySmoke
+echo "transaction page shows the stored category: ok"
 run_smoke PartsSmoke
 echo "parts page: ok"
 run_smoke StatisticsSmoke

@@ -37,7 +37,7 @@ Open **Settings → AI provider and privacy…**. Type the provider's **address*
 
 ### A program on another computer at home (only `http://`)
 
-LM Studio, Ollama and similar programs can also run on another computer, for example a server in your home, and then offer only an unencrypted `http://` address such as `http://192.168.0.10:1234/v1`. KassenSturz refuses such an address at first, because anyone on the way could read what is sent. If you know the computer and trust the network, tick **Allow unencrypted connections** under the address; the box appears only for an `http://` address on another computer.
+LM Studio, Ollama and similar programs can also run on another computer, for example a server in your home, and then offer only an unencrypted `http://` address such as `http://192.168.0.10:1234/v1`. KassenSturz refuses such an address at first, because anyone on the way could read what is sent. If you know the computer and trust the network, tick **Allow unencrypted connections** under the address; the box appears only for an `http://` address on another computer. Untick it and press **Save** to stop using the unencrypted connection: KassenSturz then sends nothing more to that address, even though it stays in the field, until you enter an `https://` address or tick the box again.
 
 - KassenSturz then says plainly that the connection isn't secure. For an address in a home network (such as `192.168.…`, `10.…` or a name ending in `.local`) it shows a warning; for an address that may be on the Internet it shows a stronger one. Don't use an unencrypted connection over the Internet.
 - Everything else stays the same: the computer is still another computer, so KassenSturz shows what is sent and asks for your agreement before the first question.

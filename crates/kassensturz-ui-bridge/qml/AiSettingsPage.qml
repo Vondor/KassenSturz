@@ -42,6 +42,9 @@ Kirigami.ScrollablePage {
     property bool notWritten: false
     // Whether the kept key was removed just now.
     property bool keyRemoved: false
+    // Whether a refused save turned the saved opt-in to plain http:// off
+    // (R2-4): the box shows what is in force, and a note says it changed.
+    property bool unencryptedOff: false
     // The example request of the consent dialog.
     property var sample: ({})
 
@@ -107,6 +110,7 @@ Kirigami.ScrollablePage {
         justSaved = false;
         notWritten = false;
         keyRemoved = false;
+        unencryptedOff = false;
         keyResult = ({});
         testResult = ({});
         const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text, allowUnencrypted);
@@ -132,6 +136,12 @@ Kirigami.ScrollablePage {
             testAfterSave = false;
         } else if (result.code !== undefined) {
             saveResult = result;
+            if (result.unencryptedOff === true) {
+                // Only the box was saved: read what is in force, but keep
+                // what the user typed in the fields.
+                form = settings.load();
+                unencryptedOff = true;
+            }
         } else {
             saveResult = ({});
             notWritten = true;
@@ -315,6 +325,7 @@ Kirigami.ScrollablePage {
                         page.testResult = ({});
                         page.justSaved = false;
                         page.keyRemoved = false;
+                        page.unencryptedOff = false;
                         page.settings.testConnection(keyField.text);
                     }
                 }
@@ -396,6 +407,14 @@ Kirigami.ScrollablePage {
                 textFormat: Text.PlainText
                 visible: page.keyRemoved
                 text: page.i18nContext.i18nc("@info", "The key was removed from this computer.")
+            }
+
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                visible: page.unencryptedOff
+                text: page.i18nContext.i18nc("@info", "Unencrypted connections are now off. Nothing is sent to the saved http:// address any more.")
             }
         }
 

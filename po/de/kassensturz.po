@@ -3044,6 +3044,16 @@ msgstr "Unverschlüsselte Verbindungen erlauben"
 #, kde-format
 msgctxt "@info"
 msgid ""
+"Unencrypted connections are now off. Nothing is sent to the saved http:// "
+"address any more."
+msgstr ""
+"Unverschlüsselte Verbindungen sind jetzt aus. An die gespeicherte http://-"
+"Adresse wird nichts mehr gesendet."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
 "This connection is not secure: it isn't encrypted. Anyone on the same "
 "network, for example on your Wi-Fi, could read what is sent, the provider's "
 "key included. Use it only in a home network you trust. An https:// address "

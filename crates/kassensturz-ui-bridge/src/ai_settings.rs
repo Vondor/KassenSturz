@@ -210,8 +210,18 @@ fn find_model<'a>(infos: &'a [ModelInfo], model: &str) -> Option<&'a ModelInfo> 
 /// What saving the form did.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Saved {
-    /// The settings as typed can't be used; nothing was written.
-    Refused(AiError),
+    /// The settings as typed can't be used. `unencrypted_off` is whether
+    /// the user unticked "Allow unencrypted connections" for an `http://`
+    /// address while it was saved as allowed: then only that choice was
+    /// written, so plain `http://` to another computer stops at once and
+    /// the box shows what is in force (R2-4, D-746). Otherwise nothing was
+    /// written.
+    Refused {
+        /// Why the settings as typed can't be used.
+        error: AiError,
+        /// Whether the saved opt-in to plain `http://` was turned off.
+        unencrypted_off: bool,
+    },
     /// The settings file couldn't be written; the old settings stay.
     NotWritten,
     /// Written. `key_error` is why a key couldn't be kept or an old one
@@ -434,7 +444,7 @@ impl Store {
         let provider =
             match ProviderSettings::with_options(address, model, key_use, allow_unencrypted) {
                 Ok(provider) => provider,
-                Err(error) => return Saved::Refused(error),
+                Err(error) => return self.refused(error, address, allow_unencrypted),
             };
         let earlier = self.config.read().provider().ok().cloned();
         if !provider
@@ -461,6 +471,36 @@ impl Store {
             place: provider.address.place(),
             consent_needed: consent_missing(&provider.address, self.config.read().consent()),
             key_error,
+        }
+    }
+
+    /// What a refused save does with the box: unticked for an `http://`
+    /// address while plain `http://` is saved as allowed, the box wins and
+    /// only the opt-in is turned off, since the safe choice must never
+    /// depend on the rest of the form being right (R2-4, D-746). The rest
+    /// of what was saved stays.
+    fn refused(&self, error: AiError, address: &str, allow_unencrypted: bool) -> Saved {
+        let typed_http = address
+            .trim()
+            .get(..7)
+            .is_some_and(|start| start.eq_ignore_ascii_case("http://"));
+        let saved_allowed =
+            kassensturz_ai::allowed(&self.text(kassensturz_ai::ALLOW_UNENCRYPTED_KEY));
+        if !typed_http || allow_unencrypted || !saved_allowed {
+            return Saved::Refused {
+                error,
+                unencrypted_off: false,
+            };
+        }
+        if !self.put(
+            kassensturz_ai::ALLOW_UNENCRYPTED_KEY,
+            kassensturz_ai::allow_word(false),
+        ) {
+            return Saved::NotWritten;
+        }
+        Saved::Refused {
+            error,
+            unencrypted_off: true,
         }
     }
 
@@ -712,12 +752,67 @@ mod tests {
         ] {
             assert_eq!(
                 store.save(&mut keys, address, model, KeyUse::None, None),
-                Saved::Refused(error),
+                Saved::Refused {
+                    error,
+                    unencrypted_off: false
+                },
                 "{address} {model}"
             );
         }
         let text = std::fs::read_to_string(&file).expect("settings file");
         assert!(!text.contains("ProviderAddress"), "{text}");
+    }
+
+    /// R2-4: after a refused save, the box the form shows is the choice the
+    /// client uses, and whatever the save changed it says it changed.
+    #[test]
+    fn a_refused_save_never_leaves_the_form_and_the_client_differing_unsaid() {
+        let home = "http://192.168.1.2:1234/v1";
+        // (address, box ticked, whether the saved opt-in is turned off)
+        let cases = [
+            (home, false, true),
+            (" HTTP://192.168.1.9:1234/v1 ", false, true),
+            ("http://", true, false),
+            ("ftp://192.168.1.2", false, false),
+            ("https://", false, false),
+            ("", false, false),
+        ];
+        for (address, ticked, turned_off) in cases {
+            let (_folder, file, store) = on();
+            let (_, mut keys) = keys();
+            assert!(matches!(
+                store.save_with(&mut keys, home, "m", KeyUse::None, true, None),
+                Saved::Written { .. }
+            ));
+            let before = std::fs::read_to_string(&file).expect("settings file");
+            let saved = store.save_with(&mut keys, address, "m", KeyUse::None, ticked, None);
+            let Saved::Refused {
+                unencrypted_off, ..
+            } = saved
+            else {
+                panic!("{address}: {saved:?}");
+            };
+            assert_eq!(unencrypted_off, turned_off, "{address}");
+            let after = std::fs::read_to_string(&file).expect("settings file");
+            if !unencrypted_off {
+                assert_eq!(after, before, "{address}: unsaid change");
+            }
+            // The form and the client read the same choice.
+            let form = store.form();
+            let config = store.config().read();
+            let client_allows = config
+                .connection()
+                .is_ok_and(|provider| provider.allow_unencrypted);
+            assert_eq!(form.allow_unencrypted, !turned_off, "{address}");
+            assert_eq!(client_allows, !turned_off, "{address}");
+            if turned_off {
+                // Nothing goes over plain http:// any more.
+                assert_eq!(config.connection().err(), Some(AiError::PlainHttp));
+                assert_eq!(form.address, home, "the address stays as saved");
+                assert_eq!(form.address_error, Some(AiError::PlainHttp));
+                assert!(after.contains("AllowUnencrypted=false"), "{after}");
+            }
+        }
     }
 
     #[test]

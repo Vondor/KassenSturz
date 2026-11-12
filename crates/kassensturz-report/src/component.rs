@@ -282,14 +282,15 @@ impl Component {
                         Setting::Text(text.clone())
                     }
                     (Kind::Flag { .. }, Value::Bool(flag)) => Setting::Flag(*flag),
-                    (Kind::Ids | Kind::Accounts | Kind::Budgets, Value::Array(list)) => {
-                        Setting::Ids(
-                            list.iter()
-                                .map(|id| id.as_str().map(str::to_owned))
-                                .collect::<Option<Vec<_>>>()
-                                .ok_or_else(|| invalid("wrong-type", &path))?,
-                        )
-                    }
+                    (
+                        Kind::Ids | Kind::Accounts | Kind::Budgets | Kind::Tags,
+                        Value::Array(list),
+                    ) => Setting::Ids(
+                        list.iter()
+                            .map(|id| id.as_str().map(str::to_owned))
+                            .collect::<Option<Vec<_>>>()
+                            .ok_or_else(|| invalid("wrong-type", &path))?,
+                    ),
                     (Kind::Columns, Value::Array(list)) => Setting::Columns(
                         list.iter()
                             .map(|entry| {

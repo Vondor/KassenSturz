@@ -365,6 +365,16 @@ Kirigami.InlineMessage {
         case "report.unsupported-dashboard-file-version":
             return i18nContext.i18nc("@info %1 is a version number", "This dashboard file was made by a newer KassenSturz (file version %1), so this one can't read it. Update KassenSturz, or ask for a file saved by this version.", result.version);
         case "report.filter-invalid":
+            // A component's own tags (US5.2).
+            if (result.dimension === "tags") {
+                if (result.reason === "too-many") {
+                    return i18nContext.i18nc("@info", "A filter can name at most 200 tags. Take some out of the filter, or choose none to count all money.");
+                }
+                if (result.reason === "repeated") {
+                    return i18nContext.i18nc("@info", "The filter names the same tag twice. Take it out once, then try again.");
+                }
+                return i18nContext.i18nc("@info", "The tags in the filter include something that is not a tag. Take it out of the filter, or choose the tags again.");
+            }
             if (result.reason === "too-many") {
                 return result.dimension === "accounts"
                     ? i18nContext.i18nc("@info", "A filter can name at most 200 accounts. Take some out of the filter, or choose none to count all of them.")

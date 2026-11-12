@@ -223,6 +223,7 @@ fn a_budget_inside_another_is_a_figure_of_its_own() {
         &Filter {
             accounts: None,
             categories: Some(vec![base.food]),
+            tags: None,
         },
     );
     let order: Vec<BudgetId> = chosen.iter().map(|result| result.budget).collect();
@@ -236,6 +237,7 @@ fn a_budget_inside_another_is_a_figure_of_its_own() {
         &Filter {
             accounts: Some(vec![base.savings]),
             categories: None,
+            tags: None,
         },
     );
     assert_eq!(accounts, results);

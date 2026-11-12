@@ -96,3 +96,14 @@ Done in the build, after US4.3 (both change `TransactionPage.qml`). Nothing is a
 - **Q-493, where a tag chosen in the simple form goes:** on the whole entry (R). A tag on a part is an addition to the entry's tags, so a search or filter by either the entry's tag or a part's own tag finds the transaction (§1, register filter).
 - **Q-494, Transfers in sums by tag:** left out (R), as §4 says.
 - **Q-495, removing a tag that is in use:** removed everywhere after a plain count and warning, with one Undo (R), as §5 says.
+
+## 9. Sums by tag in tiles and Statistics (US5.2, step a)
+
+The counting rule of §4 is written once, in `kassensturz-report`: `Filter::tags` is applied in `Source::parts`, which every dataset of income and spending, every formula and every Statistics column already reads (D-714).
+
+- **Where the user chooses it:** a chart, a table, a key figure card and a progress bar have *Only count these tags* in their Properties (`params.tags`, `Kind::Tags`, at most 200 IDs). Nothing ticked counts all money, as before. Ticked, the component counts only the parts that carry one of the tags, on the part or on the whole entry, so it shows the sum by tag. A part with two of the ticked tags counts once.
+- **Where it doesn't apply:** the balances and the budgets are not made of parts, so they take no tags (`Takes::tags` is false). A key figure of what the accounts hold with tags ticked says *Not filtered by tag* instead of a figure that only looks filtered. The candles, the custom chart, the transactions tile, the budget bars, *What you are worth* and *Where the money came from* have no tag list.
+- **The marks:** the grey line says *Own filter: tags* and *Filtered to tags: Holiday*. A tag removed since is noted as gone; when every ticked tag is gone the component draws nothing and says so.
+- **The filter bar has no tags** in this step: tags are a component's own choice only, so a page never narrows by a tag without showing it on the tile.
+- **A dashboard file** writes the list empty (`docs/DASHBOARD_FILE.md`), as for the budget bars.
+- **The AI** neither sees nor sets `params.tags` in this step; a chart it changes keeps the user's tags. Tags in the AI's read tools and in change sets are step b (a human gate).

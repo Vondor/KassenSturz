@@ -39,6 +39,9 @@ pub struct Scope {
     categories: Vec<String>,
     /// Whether the categories are the component's own.
     categories_own: bool,
+    /// The IDs of the tags only whose parts count (US5.2, D-714); empty for
+    /// every part. Always the component's own: the filter bar has none.
+    tags: Vec<String>,
     /// The dimensions its dataset takes.
     takes: Takes,
     /// The series with a filter of their own (US1.16, D-646).
@@ -74,6 +77,7 @@ impl Default for Scope {
             accounts_own: false,
             categories: Vec::new(),
             categories_own: false,
+            tags: Vec::new(),
             takes: Takes::ALL,
             series: Vec::new(),
             average: String::new(),
@@ -102,6 +106,7 @@ impl Scope {
             accounts_own: own(&asked.accounts),
             categories: ids(&asked.categories),
             categories_own: own(&asked.categories),
+            tags: ids(&asked.tags),
             takes: asked.takes,
             series: asked
                 .series
@@ -161,10 +166,12 @@ impl Scope {
             "accountsOwn": self.accounts_own,
             "categories": self.categories,
             "categoriesOwn": self.categories_own,
+            "tags": self.tags,
             "takes": {
                 "period": self.takes.period,
                 "accounts": self.takes.accounts,
                 "categories": self.takes.categories,
+                "tags": self.takes.tags,
             },
             "series": self
                 .series
@@ -225,10 +232,12 @@ impl Scope {
             accounts_own: flag(&value, "accountsOwn", false),
             categories: ids("categories"),
             categories_own: flag(&value, "categoriesOwn", false),
+            tags: ids("tags"),
             takes: Takes {
                 period: flag(&takes, "period", true),
                 accounts: flag(&takes, "accounts", true),
                 categories: flag(&takes, "categories", true),
+                tags: flag(&takes, "tags", true),
             },
             series,
             average: value
@@ -273,6 +282,7 @@ impl Scope {
             },
             accounts: chosen(&self.accounts, self.accounts_own),
             categories: chosen(&self.categories, self.categories_own),
+            tags: chosen(&self.tags, true),
             takes: self.takes,
             // Each series is applied on its own (`for_series`).
             series: Vec::new(),
@@ -334,6 +344,11 @@ pub struct FilterView {
     pub categories: Vec<String>,
     /// How many categories there are beyond those named.
     pub categories_more: usize,
+    /// The names of the tags only whose parts count, at most
+    /// [`NAMES_SHOWN`] (US5.2).
+    pub tags: Vec<String>,
+    /// How many tags there are beyond those named.
+    pub tags_more: usize,
     /// Whether the filter chooses nothing, so nothing is drawn.
     pub nothing: bool,
 }
@@ -389,8 +404,23 @@ impl FilterView {
         } else {
             Vec::new()
         };
+        let tag_names = if kept(Dimension::Tags) {
+            let tags = book.tags().unwrap_or_default();
+            scope
+                .tags
+                .iter()
+                .filter_map(|id| {
+                    tags.iter()
+                        .find(|tag| tag.id.to_string().eq_ignore_ascii_case(id))
+                        .map(|tag| tag.name.clone())
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
         let (accounts, accounts_more) = shown(account_names);
         let (categories, categories_more) = shown(category_names);
+        let (tags, tags_more) = shown(tag_names);
         Self {
             own: words(&applied.own),
             filtered: words(&applied.filtered),
@@ -425,6 +455,8 @@ impl FilterView {
             accounts_more,
             categories,
             categories_more,
+            tags,
+            tags_more,
             nothing: applied.chooses_nothing(),
         }
     }
@@ -435,7 +467,7 @@ impl FilterView {
     /// of both lists. Nothing is drawn only when both choose nothing; a
     /// series whose own lists choose nothing counts zero.
     pub fn merge(self, other: Self) -> Self {
-        let order = ["period", "accounts", "categories"];
+        let order = ["period", "accounts", "categories", "tags"];
         let union = |a: &[&'static str], b: &[&'static str]| -> Vec<&'static str> {
             order
                 .into_iter()
@@ -471,6 +503,7 @@ impl FilterView {
             other.categories,
             other.categories_more,
         );
+        let (tags, tags_more) = names(self.tags, self.tags_more, other.tags, other.tags_more);
         Self {
             own: union(&self.own, &other.own),
             filtered: union(&self.filtered, &other.filtered),
@@ -479,6 +512,8 @@ impl FilterView {
             accounts_more,
             categories,
             categories_more,
+            tags,
+            tags_more,
             nothing: self.nothing && other.nothing,
         }
     }
@@ -513,6 +548,8 @@ impl FilterView {
             ("accountsMore", count(self.accounts_more)),
             ("categories", names(&self.categories)),
             ("categoriesMore", count(self.categories_more)),
+            ("tags", names(&self.tags)),
+            ("tagsMore", count(self.tags_more)),
             ("nothing", QVariant::from(&self.nothing)),
         ])
     }
@@ -532,6 +569,7 @@ mod tests {
     use crate::charts::{self, Request as ChartRequest};
     use crate::formulas::{self, Outcome, Request as FormulaRequest};
     use crate::register::tests::TestLocale;
+    use crate::variant::read_back;
 
     const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
         Ok(code) => code,
@@ -634,6 +672,7 @@ mod tests {
             accounts_own: false,
             categories: vec!["c-1".into()],
             categories_own: true,
+            tags: vec!["t-1".into()],
             takes: Takes::NO_ACCOUNTS,
             series: vec![
                 SeriesScope {
@@ -675,6 +714,55 @@ mod tests {
         let (checking, view) = expenses(&f.book, scope(&[f.checking], &[]));
         assert_eq!(checking, ["800,00 €"]);
         assert_eq!(view.accounts, ["Checking account"]);
+    }
+
+    #[test]
+    fn the_tags_a_scope_names_count_only_the_tagged_parts_and_are_listed_by_their_names() {
+        let mut f = fixture();
+        let holiday = kassensturz_core::TagId::generate();
+        f.book
+            .add_tag(&kassensturz_core::Tag {
+                id: holiday,
+                name: "Holiday".into(),
+            })
+            .expect("tag added");
+        // 30,00 € of a 50,00 € bill tagged on its part, from the cash box.
+        let food = account(&mut f.book, "Food", AccountKind::Expense);
+        let transaction = Transaction::new(
+            TransactionId::generate(),
+            Date::new(2026, 9, 4).expect("a date"),
+            None,
+            vec![
+                Split::new(f.cash, Money::from_minor_units(-5_000, EUR)),
+                Split::new(food, Money::from_minor_units(2_000, EUR)),
+                Split {
+                    tags: vec![holiday],
+                    ..Split::new(f.rent, Money::from_minor_units(3_000, EUR))
+                },
+            ],
+        )
+        .expect("balanced");
+        f.book.add_transaction(&transaction).expect("added");
+        let tagged = Scope {
+            tags: vec![holiday.to_string()],
+            ..Scope::default()
+        };
+        // The text QML passes on keeps the tags.
+        let tagged = Scope::from_text(&tagged.to_text());
+        let (shown, view) = expenses(&f.book, tagged);
+        assert_eq!(shown, ["30,00 €"]);
+        assert_eq!(view.own, ["tags"]);
+        assert_eq!(view.filtered, ["tags"]);
+        assert_eq!(view.tags, ["Holiday"]);
+        // The object QML reads, read back the way QML reads it.
+        let object = view.object();
+        let names: Vec<String> = read_back::list_of(&object, "tags")
+            .iter()
+            .filter_map(|name| name.value::<cxx_qt_lib::QString>())
+            .map(|name| name.to_string())
+            .collect();
+        assert_eq!(names, ["Holiday"]);
+        assert_eq!(read_back::number_of(&object, "tagsMore"), 0);
     }
 
     #[test]

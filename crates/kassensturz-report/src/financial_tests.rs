@@ -152,6 +152,7 @@ pub(crate) fn only(accounts: &[AccountId]) -> Filter {
     Filter {
         accounts: Some(accounts.to_vec()),
         categories: None,
+        tags: None,
     }
 }
 
@@ -545,6 +546,7 @@ fn a_chosen_account_sees_the_transfer_and_the_card_its_own_payments() {
     let categories = Filter {
         accounts: None,
         categories: Some(vec![f.savings]),
+        tags: None,
     };
     assert_eq!(
         cash_flow_by_month(&source, october, &categories).unwrap(),

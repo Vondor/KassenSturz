@@ -387,6 +387,12 @@ pub enum Kind {
     /// The book decides which of them it still knows; a dashboard file
     /// leaves them out, since another book has budgets of its own.
     Budgets,
+    /// A list of up to [`MAX_FILTER_IDS`] tag IDs, written as text (US5.2,
+    /// D-714): only the parts that carry one of them count. Empty means
+    /// every part, whatever its tags. The book decides which of them it
+    /// still knows, when the filter is applied; a dashboard file leaves
+    /// them out, since another book has tags of its own.
+    Tags,
     /// A formula in the canonical form the book stores (D-295), at most
     /// [`MAX_FORMULA_CHARS`] characters on one line. Empty means the
     /// component shows what its other properties say. Only the length and
@@ -444,7 +450,8 @@ pub enum Setting {
     Flag(bool),
     /// For [`Kind::Choice`] and [`Kind::Grouping`].
     Word(String),
-    /// For [`Kind::Ids`], [`Kind::Accounts`] and [`Kind::Budgets`].
+    /// For [`Kind::Ids`], [`Kind::Accounts`], [`Kind::Budgets`] and
+    /// [`Kind::Tags`].
     Ids(Vec<String>),
     /// For [`Kind::Columns`].
     Columns(Vec<ColumnSetting>),
@@ -481,6 +488,16 @@ const ACCOUNTS: Property = Property {
     place: Place::Params,
     kind: Kind::Accounts,
 };
+/// `params.tags` (US5.2, D-714): only the parts that carry one of these
+/// tags count, so the component shows a sum by tag. Empty means every part.
+/// The filter bar has no tags, so this is the component's own only.
+const TAGS: Property = Property {
+    key: TAGS_KEY,
+    place: Place::Params,
+    kind: Kind::Tags,
+};
+/// The key of a component's own tags.
+pub(crate) const TAGS_KEY: &str = "tags";
 /// `params.budgets` (D-642): the budgets the budget bars show, their *Which
 /// budgets*. Empty means every budget.
 const BUDGETS: Property = Property {
@@ -667,12 +684,13 @@ pub(crate) const CANDLE_KEY: &str = "candle";
 /// The words of `params.candle`, the default first.
 pub const CANDLE_WORDS: [&str; 4] = ["auto", "day", "week", "month"];
 
-const CHART: [Property; 16] = [
+const CHART: [Property; 17] = [
     GROUPING,
     AVERAGE,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
+    TAGS,
     SERIES,
     INCOME_CATEGORIES,
     INCOME_ACCOUNTS,
@@ -690,13 +708,14 @@ const CHART: [Property; 16] = [
 const CANDLESTICK: [Property; 5] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE];
 /// Bars: a chart's properties, the comparison of spending (US3.1a) after
 /// the average, and the way the bars go (D-679) after the legend.
-const BAR_CHART: [Property; 18] = [
+const BAR_CHART: [Property; 19] = [
     GROUPING,
     AVERAGE,
     COMPARE_SPENDING,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
+    TAGS,
     SERIES,
     INCOME_CATEGORIES,
     INCOME_ACCOUNTS,
@@ -713,12 +732,13 @@ const BAR_CHART: [Property; 18] = [
 /// Stacked bars: the properties of bars without a comparison, since spending
 /// stacked is one bar split into its categories (D-666) and has no place for
 /// a second one.
-const STACKED_BAR: [Property; 17] = [
+const STACKED_BAR: [Property; 18] = [
     GROUPING,
     AVERAGE,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
+    TAGS,
     SERIES,
     INCOME_CATEGORIES,
     INCOME_ACCOUNTS,
@@ -732,17 +752,20 @@ const STACKED_BAR: [Property; 17] = [
     HIDE_NOTE,
     PERIOD,
 ];
-const KPI_CARD: [Property; 7] = [
-    MEASURE, ACCOUNTS, HIDE_NOTE, COMPARE, FORMULA, TITLE, PERIOD,
+const KPI_CARD: [Property; 8] = [
+    MEASURE, ACCOUNTS, TAGS, HIDE_NOTE, COMPARE, FORMULA, TITLE, PERIOD,
 ];
-const PROGRESS_BAR: [Property; 7] = [ACCOUNTS, COMPARE, FORMULA, TARGET, TITLE, HIDE_NOTE, PERIOD];
-const TABLE: [Property; 15] = [
+const PROGRESS_BAR: [Property; 8] = [
+    ACCOUNTS, TAGS, COMPARE, FORMULA, TARGET, TITLE, HIDE_NOTE, PERIOD,
+];
+const TABLE: [Property; 16] = [
     GROUPING,
     AVERAGE,
     COMPARE_SPENDING,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
+    TAGS,
     INCOME_CATEGORIES,
     INCOME_ACCOUNTS,
     EXPENSES_CATEGORIES,
@@ -828,6 +851,7 @@ impl Property {
             | Kind::Ids
             | Kind::Accounts
             | Kind::Budgets
+            | Kind::Tags
             | Kind::Formula
             | Kind::Columns
             | Kind::Spec
@@ -848,7 +872,7 @@ impl Property {
             Kind::Text | Kind::Formula => Setting::Text(String::new()),
             Kind::Spec => Setting::Text(starter_spec(dataset.id)),
             Kind::Flag { default } => Setting::Flag(default),
-            Kind::Ids | Kind::Accounts | Kind::Budgets => Setting::Ids(Vec::new()),
+            Kind::Ids | Kind::Accounts | Kind::Budgets | Kind::Tags => Setting::Ids(Vec::new()),
             Kind::Columns => Setting::Columns(Vec::new()),
             Kind::Alarms => Setting::Alarms(Vec::new()),
             Kind::Choice(_) | Kind::Grouping => Setting::Word(
@@ -912,7 +936,7 @@ impl Property {
                 Err(invalid("unknown-property", self.path()))
             }
             (Kind::Ids, Setting::Ids(ids)) => self.check_ids(ids, MAX_IDS),
-            (Kind::Accounts | Kind::Budgets, Setting::Ids(ids)) => {
+            (Kind::Accounts | Kind::Budgets | Kind::Tags, Setting::Ids(ids)) => {
                 self.check_ids(ids, MAX_FILTER_IDS)
             }
             (Kind::Columns, Setting::Columns(columns)) => {

@@ -202,8 +202,10 @@ fn map_component(refs: &mut Refs<'_>, component: &mut Value) {
             Kind::Ids => refs.map_list(value, List::Categories),
             Kind::Accounts => refs.map_list(value, List::Accounts),
             // A budget has no name another book could know it by: the
-            // bars there show every budget (D-642).
-            Kind::Budgets => {
+            // bars there show every budget (D-642). Another book's tags are
+            // its own, and a tag of the same name may mean something else
+            // there: the component counts every part (US5.2).
+            Kind::Budgets | Kind::Tags => {
                 if let Some(Value::Array(ids)) = value {
                     refs.left_out += ids.len();
                     ids.clear();

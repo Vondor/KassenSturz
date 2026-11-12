@@ -183,4 +183,6 @@ mod groups_tests;
 #[cfg(test)]
 mod page_widgets_tests;
 #[cfg(test)]
+mod tags_tests;
+#[cfg(test)]
 mod tests;

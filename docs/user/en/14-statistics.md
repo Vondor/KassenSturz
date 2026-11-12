@@ -27,6 +27,8 @@ If you leave the builder before **Done**, nothing is lost while KassenSturz is r
 
 When you switch the kind, only the picture changes; the figures and totals stay the same.
 
+**Custom charts:** a dashboard can also hold a **Custom chart**, drawn from a short description in the Vega-Lite language. In its **Properties**, **Insert an example** puts a ready description into the field, for example the balance as bars with money in and out as lines; you can change it there, and it is kept only when you choose **Use this description**. Which data names and fields there are is shown on the help page **Help: patterns, formulas and charts** under **Settings**.
+
 **Direction of the bars:** in a bar chart's **Properties**, **Bars** is set to **Automatic** (rows only when the names are too long for the bars), **Across (one row per name)** or **Upright (names below)**.
 
 ## Periods that move with today's date

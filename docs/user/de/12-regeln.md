@@ -20,7 +20,7 @@ Auf einer Buchungsseite macht **Aus dieser Buchung eine Regel erstellen…** das
 4. Bei **Dann** sagen Sie, was geschieht: in eine Kategorie sortieren. Eine Regel kann auch den **Angezeigten Namen** ersetzen, etwa durch ein klares „Supermarkt“ statt eines Wirrwarrs wie „SB-MARKT 1234 DANKE“.
 5. **Regel hinzufügen** speichert.
 
-**Muster (fortgeschritten)** erlauben genauere Bedingungen. Man braucht sie nie; wie sie funktionieren, steht auf der Hilfeseite **Hilfe: Muster und Formeln** (unter einer Muster-Bedingung: **Mehr über Muster**) und auf Seite 15.
+**Muster (fortgeschritten)** erlauben genauere Bedingungen. Man braucht sie nie; wie sie funktionieren, steht auf der Hilfeseite **Hilfe: Muster, Formeln und Diagramme** (unter einer Muster-Bedingung: **Mehr über Muster**) und auf Seite 15.
 
 ## Reihenfolge und Unterregeln
 

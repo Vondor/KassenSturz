@@ -27,6 +27,8 @@ Verlassen Sie den Baukasten vor **Fertig**, geht nichts verloren, solange Kassen
 
 Nur das Bild ändert sich, wenn Sie die Art wechseln; die Zahlen und Summen bleiben gleich.
 
+**Eigene Diagramme:** Ein Dashboard kann auch ein **Eigenes Diagramm** halten, das nach einer kurzen Beschreibung in der Sprache Vega-Lite gezeichnet wird. In seinen **Eigenschaften** setzt **Beispiel einfügen** eine fertige Beschreibung in das Feld, zum Beispiel den Kontostand als Balken mit Ein- und Ausgängen als Linien; Sie können sie dort ändern, gespeichert wird sie erst mit **Diese Beschreibung verwenden**. Welche Datennamen und Felder es gibt, zeigt die Hilfeseite **Hilfe: Muster, Formeln und Diagramme** unter **Einstellungen**.
+
 **Richtung der Balken:** In den **Eigenschaften** eines Balkendiagramms steht **Balken** auf *Automatisch* (Zeilen nur, wenn die Namen zu lang für die Balken sind), *Quer (eine Zeile je Name)* oder *Aufrecht (Namen darunter)*.
 
 ## Zeiträume, die mit dem heutigen Tag wandern

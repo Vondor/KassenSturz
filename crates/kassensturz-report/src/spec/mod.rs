@@ -14,6 +14,7 @@
 //! from a description are kept as digits and decimal places (D-506).
 
 mod color;
+mod examples;
 mod fields;
 mod limits;
 mod model;
@@ -24,6 +25,8 @@ mod unsupported;
 #[cfg(test)]
 mod color_tests;
 #[cfg(test)]
+mod examples_tests;
+#[cfg(test)]
 mod fields_tests;
 #[cfg(test)]
 mod model_tests;
@@ -33,6 +36,7 @@ mod parse_tests;
 mod rows_tests;
 
 pub use color::{ColorError, Rgb, SpecColor};
+pub use examples::{SPEC_EXAMPLES, SpecExample};
 pub use fields::{FieldValue, SPEC_DATASETS, SpecDataset, SpecField, spec_dataset};
 pub use limits::{MAX_SPEC_BYTES, MAX_SPEC_DEPTH};
 pub use model::{

@@ -19419,12 +19419,6 @@ msgstr ""
 "Das Diagramm wird aus dem Statistik-Baukasten entfernt. Die Zahlen Ihres "
 "Buchs ändern sich nicht, und Rückgängig holt das Diagramm zurück."
 
-#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:26
-#, kde-format
-msgctxt "@title"
-msgid "Help: patterns and formulas"
-msgstr "Hilfe: Muster und Formeln"
-
 #: crates/kassensturz-ui-bridge/qml/HelpPage.qml:29
 #, kde-format
 msgctxt "@title:group"
@@ -19731,20 +19725,6 @@ msgctxt "@action:button opens the help page"
 msgid "More about patterns"
 msgstr "Mehr zu Mustern"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:942
-#, kde-format
-msgctxt "@action:button opens a help page"
-msgid "Help: patterns and formulas"
-msgstr "Hilfe: Muster und Formeln"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:943
-#, kde-format
-msgctxt "@info"
-msgid "How to write a pattern in a Rule and a formula for a chart"
-msgstr ""
-"Wie Sie ein Muster in einer Regel und eine Formel für eine Grafik "
-"schreiben"
-
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml
 #, kde-format
 msgctxt "@title:column a table of a chart: spending in the period before"
@@ -19978,6 +19958,130 @@ msgctxt "@info %1 characters typed so far, %2 the longest a note may be"
 msgid "%1 of %2 characters"
 msgstr "%1 von %2 Zeichen"
 
+#, kde-format
+msgctxt "@item:inmenu a ready chart description"
+msgid "Balance as bars, money in and out as lines"
+msgstr "Kontostand als Balken, Ein- und Ausgänge als Linien"
+
+#, kde-format
+msgctxt "@item:inmenu a ready chart description"
+msgid "What is left each month"
+msgstr "Was jeden Monat übrig bleibt"
+
+#, kde-format
+msgctxt "@item:inmenu a ready chart description"
+msgid "Spending as a ring, by main category"
+msgstr "Ausgaben als Ring, nach Hauptkategorie"
+
+#, kde-format
+msgctxt "@item:inmenu a ready chart description"
+msgid "What you are worth, with its average"
+msgstr "Ihr Vermögen, mit seinem Durchschnitt"
+
+#, kde-format
+msgctxt "@title"
+msgid "Help: patterns, formulas and charts"
+msgstr "Hilfe: Muster, Formeln und Diagramme"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Custom charts"
+msgstr "Eigene Diagramme"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A custom chart is drawn from a short description in the Vega-Lite language: "
+"which data to use, the kind of mark (bar, line, area, arc, point, text or "
+"rule) and which field goes where. In the properties of a custom chart, "
+"\"Insert an example\" puts one of the examples below into the field, where "
+"you can change it. Nothing is kept until you choose \"Use this description\"."
+msgstr "Ein eigenes Diagramm wird nach einer kurzen Beschreibung in der Sprache Vega-Lite gezeichnet: welche Daten es zeigt, welche Art von Zeichen (bar, line, area, arc, point, text oder rule) und welches Feld wohin gehört. In den Eigenschaften eines eigenen Diagramms setzt „Beispiel einfügen“ eines der Beispiele unten in das Feld, wo Sie es ändern können. Gespeichert wird erst, wenn Sie „Diese Beschreibung verwenden“ wählen."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Data names and their fields"
+msgstr "Datennamen und ihre Felder"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Write the data name as \"data\": { \"name\": … }. Each name has the fields "
+"listed after it. Amounts are exact; a chart never adds up different "
+"currencies."
+msgstr "Schreiben Sie den Datennamen als \"data\": { \"name\": … }. Jeder Name hat die Felder, die hinter ihm stehen. Beträge sind genau; ein Diagramm zählt nie verschiedene Währungen zusammen."
+
+#, kde-format
+msgctxt "@info what a data name of a chart description holds"
+msgid "What you spent in the period, one row per category."
+msgstr "Was Sie im Zeitraum ausgegeben haben, eine Zeile je Kategorie."
+
+#, kde-format
+msgctxt "@info what a data name of a chart description holds"
+msgid "Money in and money out of each month, and what is left."
+msgstr "Ein- und Ausgänge jedes Monats und was übrig bleibt."
+
+#, kde-format
+msgctxt "@info what a data name of a chart description holds"
+msgid ""
+"What each account held at the end of the period, and whether it is a debt or "
+"closed."
+msgstr "Was jedes Konto am Ende des Zeitraums hatte und ob es eine Schuld ist oder geschlossen."
+
+#, kde-format
+msgctxt "@info what a data name of a chart description holds"
+msgid "What you have, owe and are worth at the end of each month."
+msgstr "Was Sie am Ende jedes Monats haben, schulden und besitzen."
+
+#, kde-format
+msgctxt "@info what a data name of a chart description holds"
+msgid ""
+"For the chosen accounts together, each month's start, money in, money out, "
+"net change and end."
+msgstr "Für die gewählten Konten zusammen: Anfang, Eingänge, Ausgänge, Veränderung und Ende jedes Monats."
+
+#, kde-format
+msgctxt "@info what a data name of a chart description holds"
+msgid ""
+"Each month's total of the categories and groups you pick in the properties, "
+"one series each."
+msgstr "Die Summe jedes Monats für die Kategorien und Gruppen, die Sie in den Eigenschaften wählen, je eine Reihe."
+
+#, kde-format
+msgctxt "@info what a data name of a chart description holds"
+msgid ""
+"Each budget's period with what was planned, carried in, available, spent and "
+"left, and the share used."
+msgstr "Jeder Zeitraum eines Budgets mit Geplantem, Übertrag, Verfügbarem, Ausgegebenem, Rest und dem verbrauchten Anteil."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Examples of chart descriptions"
+msgstr "Beispiele für Diagrammbeschreibungen"
+
+#, kde-format
+msgctxt "@action:button opens a help page"
+msgid "Help: patterns, formulas and charts"
+msgstr "Hilfe: Muster, Formeln und Diagramme"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"How to write a pattern in a Rule, a formula for a chart and the description "
+"of a custom chart"
+msgstr "Wie Sie ein Muster in einer Regel, eine Formel für ein Diagramm und die Beschreibung eines eigenen Diagramms schreiben"
+
+#, kde-format
+msgctxt "@action:button opens a list of ready chart descriptions"
+msgid "Insert an example"
+msgstr "Beispiel einfügen"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Settings › Help lists the data names a description can use, with their "
+"fields, and the examples."
+msgstr "Einstellungen › Hilfe nennt die Datennamen, die eine Beschreibung verwenden kann, mit ihren Feldern, und die Beispiele."
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:467
 msgctxt "@info"
 msgid "A tag's name must fit on one line. Take out the line break."

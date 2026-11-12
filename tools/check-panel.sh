@@ -95,7 +95,7 @@ mkdir -p "$module"
 for file in StatisticsPage AiChangeReviewPage AiChangeCorrection AiBudgetChange AiRulesSortChange AiJoinTransferChange AiChartCard ComponentPreview PropertiesPanel PropertiesSheet ChartView ChartOverlays ChartTable DataTable \
     CategoryGroupsPage CategoryGroupPage AmountLabel AmountLine KpiCard KpiGrid KpiNames ProgressMeter ChartPalette FormError Plain ActionLog \
     DashboardGrid GridItem GridNames TitleWords AddMenu FormulaField FormulaWords PeriodChoice StatisticWizard ColumnBoard \
-    BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartColorsCard AiPermissionGrid \
+    BudgetBars BudgetWords BudgetsPage BudgetPage FilterBar FilterPicker FilterNotes UpdateAllWidget PeriodHeader DashboardTabs SpecPage ChartExamples ChartColorsCard AiPermissionGrid \
     AlarmList AlarmRuleDialog AlarmRulesField AlarmWords \
     TransactionPage TagField TagsPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog PartsPage PartRow TransactionRow; do
     cp "$bridge/qml/$file.qml" "$module"
@@ -112,7 +112,7 @@ cp "$bridge"/qml-tests/fakes/*.qml "$module"
         CategoryGroupsPage CategoryGroupPage CategoryGroups DashboardGrid GridItem GridNames TitleWords DashboardLayout \
         FormulaField FormulaWords BookFormula PeriodChoice PeriodRange StatisticWizard ColumnBoard AddMenu \
         AlarmList AlarmRuleDialog AlarmRulesField AlarmWords BookAlarms \
-        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings \
+        BudgetBars BudgetWords BudgetsPage BudgetPage BudgetBook BookBudgets FilterBar FilterPicker FilterNotes DeveloperMode UpdateAllWidget PeriodHeader DashboardTabs BankConnection SpecPage ChartExamples ChartDescription ChartColorsCard ChartPaletteSettings AiPermissionGrid AiSettings \
         TransactionPage TagField TagsPage TransferPrompt TransferPartnerDialog RemoveOriginalDialog AccountRegister BookTags PartsPage PartRow TransactionRow BookTransactions; do
         echo "$file 1.0 $file.qml"
     done

@@ -55,6 +55,11 @@ Kirigami.ScrollablePage {
     readonly property bool providerChanged: addressField.text.trim() !== (form.address ?? "")
         || modelField.text.trim() !== (form.model ?? "")
         || keyUseBox.currentValue !== (form.keyUse ?? "none")
+        || allowUnencrypted !== (form.allowUnencrypted === true)
+    // Whether the user allows plain http:// to another computer (D-746):
+    // the box, counted only for an http:// address.
+    readonly property bool allowUnencrypted: allowUnencryptedBox.checked
+        && /^http:\/\//i.test(addressField.text.trim())
     // Whether a provider is saved that can be used.
     readonly property bool hasProvider: (form.address ?? "") !== "" && (form.model ?? "") !== ""
         && (form.addressError ?? "") === ""
@@ -88,7 +93,14 @@ Kirigami.ScrollablePage {
         addressField.text = form.address ?? "";
         modelField.text = form.model ?? "";
         keyUseBox.currentIndex = Math.max(0, keyUseBox.indexOfValue(form.keyUse ?? "none"));
-        addressCheck = (form.address ?? "") !== "" ? settings.check(form.address) : ({});
+        allowUnencryptedBox.checked = form.allowUnencrypted === true;
+        addressCheck = (form.address ?? "") !== "" ? settings.check(form.address, allowUnencryptedBox.checked) : ({});
+    }
+
+    // Checks the address as typed, with the "Allow unencrypted
+    // connections" box as it is now.
+    function checkAddress() {
+        addressCheck = addressField.text.trim() !== "" ? settings.check(addressField.text, allowUnencryptedBox.checked) : ({});
     }
 
     function save() {
@@ -97,7 +109,7 @@ Kirigami.ScrollablePage {
         keyRemoved = false;
         keyResult = ({});
         testResult = ({});
-        const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text);
+        const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text, allowUnencrypted);
         if (result.saved === true) {
             // Without a model there is nothing to ask yet, so the test that
             // lists the models follows at once, with the key still typed.
@@ -130,7 +142,7 @@ Kirigami.ScrollablePage {
     // and test it.
     function useV1() {
         addressField.text = addressField.text.trim().replace(/\/+$/, "") + "/v1";
-        addressCheck = settings.check(addressField.text);
+        checkAddress();
         testAfterSave = true;
         save();
     }
@@ -183,7 +195,7 @@ Kirigami.ScrollablePage {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 placeholderText: "http://localhost:11434/v1"
                 inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
-                onEditingFinished: page.addressCheck = text.trim() !== "" ? page.settings.check(text) : ({})
+                onEditingFinished: page.checkAddress()
                 onAccepted: {
                     ActionLog.taken("AiSettingsPage_forceActiveFocus")
                     modelField.forceActiveFocus()
@@ -199,6 +211,30 @@ Kirigami.ScrollablePage {
                 text: page.addressCheck.place === "this"
                     ? page.i18nContext.i18nc("@info", "This address is on this computer. What you ask never leaves it.")
                     : page.i18nContext.i18nc("@info", "This address is on another computer, even if it is at home. Before anything is sent, you read what is sent and agree.")
+            }
+
+            // Plain http:// to another computer only when the user ticks it
+            // (D-746). Shown only for such an address, so nobody who uses
+            // https:// or this computer has to think about it.
+            Controls.CheckBox {
+                id: allowUnencryptedBox
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.addressCheck.code === "ai.plain-http" || page.addressCheck.unencrypted === true
+                text: page.i18nContext.i18nc("@option:check", "Allow unencrypted connections")
+                onToggled: {
+                    ActionLog.taken("AiSettingsPage_allowUnencrypted")
+                    page.checkAddress()
+                }
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.addressCheck.unencrypted === true
+                type: page.addressCheck.network === "home" ? Kirigami.MessageType.Warning : Kirigami.MessageType.Error
+                text: page.addressCheck.network === "home"
+                    ? page.i18nContext.i18nc("@info", "This connection is not secure: it isn't encrypted. Anyone on the same network, for example on your Wi-Fi, could read what is sent, the provider's key included. Use it only in a home network you trust. An https:// address is safer.")
+                    : page.i18nContext.i18nc("@info", "Warning: this address may be on the Internet, and the connection isn't encrypted. Anyone on the way could read and change what is sent: your questions, information from your book and the provider's key. Use the provider's https:// address instead, unless you know exactly what you are doing.")
             }
 
             Controls.TextField {
@@ -298,7 +334,7 @@ Kirigami.ScrollablePage {
                     addressField.text = page.form.testAddress ?? "";
                     modelField.text = page.form.testModel ?? "";
                     keyUseBox.currentIndex = keyUseBox.indexOfValue("none");
-                    page.addressCheck = page.settings.check(addressField.text);
+                    page.checkAddress();
                 }
             }
 
@@ -764,6 +800,13 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 text: page.i18nContext.i18nc("@info %1 is a web address", "The provider at %1 is on another computer, even if that computer is in your home. When you ask the AI something, this leaves your computer and goes to it:", page.form.address ?? "")
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                visible: page.form.unencrypted === true
+                type: page.form.network === "home" ? Kirigami.MessageType.Warning : Kirigami.MessageType.Error
+                text: page.i18nContext.i18nc("@info", "You allowed an unencrypted connection, so all of this travels without encryption and others on the way could read it.")
             }
 
             Repeater {

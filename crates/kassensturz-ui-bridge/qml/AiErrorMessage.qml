@@ -53,7 +53,7 @@ ColumnLayout {
         case "ai.bad-address":
             return i18nContext.i18nc("@info %1 is an example web address", "This address can't be used. It starts with http:// or https://, has the server's name, and has no login name, password, ? or # part, for example %1.", "http://localhost:11434/v1");
         case "ai.plain-http":
-            return i18nContext.i18nc("@info", "This address is on another computer and starts with http://, which isn't encrypted, so KassenSturz won't send anything to it. Use the provider's https:// address. Only a provider on this computer may use http://.");
+            return i18nContext.i18nc("@info", "This address is on another computer and starts with http://, which isn't encrypted, so KassenSturz won't send anything to it. Use the provider's https:// address. If the provider offers only http:// and runs in a network you trust, you can tick “Allow unencrypted connections” under the address in the AI settings.");
         case "ai.no-consent":
             return i18nContext.i18nc("@info", "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Read what is sent and agree below, or use a provider on this computer.");
         case "ai.settings-changed":

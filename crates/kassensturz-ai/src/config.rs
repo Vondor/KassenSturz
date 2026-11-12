@@ -28,6 +28,9 @@ pub const ADDRESS_KEY: &str = "ProviderAddress";
 pub const MODEL_KEY: &str = "ProviderModel";
 /// The key of how the provider's key is kept ([`KeyUse::as_word`]).
 pub const KEY_USE_KEY: &str = "ProviderKey";
+/// The key of whether plain `http://` to another computer is allowed,
+/// `true` or `false` (D-746). Anything but `true` is not allowed.
+pub const ALLOW_UNENCRYPTED_KEY: &str = "AllowUnencrypted";
 /// The key of the address the user agreed to send to.
 pub const CONSENT_ADDRESS_KEY: &str = "ConsentAddress";
 /// The key of the version of the statement of what is sent that the user
@@ -123,6 +126,9 @@ pub struct ProviderSettings {
     pub model: String,
     /// How the provider's key is kept.
     pub key_use: KeyUse,
+    /// Whether the user allowed plain `http://` to another computer
+    /// (D-746). Off unless the user ticked it.
+    pub allow_unencrypted: bool,
 }
 
 impl ProviderSettings {
@@ -144,6 +150,18 @@ impl ProviderSettings {
         model: &str,
         key_use: KeyUse,
     ) -> Result<Self, AiError> {
+        Self::with_options(address, model, key_use, false)
+    }
+
+    /// Like [`ProviderSettings::with_optional_model`], with the user's
+    /// choice whether plain `http://` to another computer is allowed
+    /// (D-746).
+    pub fn with_options(
+        address: &str,
+        model: &str,
+        key_use: KeyUse,
+        allow_unencrypted: bool,
+    ) -> Result<Self, AiError> {
         let model = model.trim();
         if address.trim().is_empty() {
             return Err(AiError::NoProvider);
@@ -152,20 +170,36 @@ impl ProviderSettings {
             return Err(AiError::NoProvider);
         }
         Ok(Self {
-            address: ProviderAddress::parse(address)?,
+            address: ProviderAddress::parse_with(address, allow_unencrypted)?,
             model: model.to_owned(),
             key_use,
+            allow_unencrypted,
         })
     }
 
     /// The entries the app writes to the `[AI]` group for these settings.
-    pub fn entries(&self) -> [(&'static str, String); 3] {
+    pub fn entries(&self) -> [(&'static str, String); 4] {
         [
             (ADDRESS_KEY, self.address.as_str().to_owned()),
             (MODEL_KEY, self.model.clone()),
             (KEY_USE_KEY, self.key_use.as_word().to_owned()),
+            (
+                ALLOW_UNENCRYPTED_KEY,
+                allow_word(self.allow_unencrypted).to_owned(),
+            ),
         ]
     }
+}
+
+/// The word [`ALLOW_UNENCRYPTED_KEY`] is kept as.
+pub fn allow_word(allow: bool) -> &'static str {
+    if allow { "true" } else { "false" }
+}
+
+/// Whether the word kept under [`ALLOW_UNENCRYPTED_KEY`] allows it: only
+/// `true` does, so an odd or missing value keeps the safe default.
+pub fn allowed(word: &str) -> bool {
+    word.trim().eq_ignore_ascii_case("true")
 }
 
 /// The AI settings as one reading of the settings file found them.
@@ -187,12 +221,14 @@ impl AiConfig {
                 .and_then(unescape)
                 .unwrap_or_default()
         };
-        let saved = ProviderSettings::with_optional_model(
+        let allow_unencrypted = allowed(&value(ALLOW_UNENCRYPTED_KEY));
+        let saved = ProviderSettings::with_options(
             &value(ADDRESS_KEY),
             &value(MODEL_KEY),
             KeyUse::from_word(&value(KEY_USE_KEY)),
+            allow_unencrypted,
         );
-        let consent = ProviderAddress::parse(&value(CONSENT_ADDRESS_KEY))
+        let consent = ProviderAddress::parse_with(&value(CONSENT_ADDRESS_KEY), allow_unencrypted)
             .ok()
             .zip(value(CONSENT_STATEMENT_KEY).parse::<u32>().ok())
             .zip(value(CONSENT_DAY_KEY).parse::<Date>().ok())
@@ -351,6 +387,42 @@ mod tests {
     }
 
     #[test]
+    fn plain_http_elsewhere_only_when_the_user_allowed_it() {
+        let text = |allow: &str| {
+            format!(
+                "[AI]\nEnabled=true\nProviderAddress=http://192.168.1.2:1234/v1\n\
+                 ProviderModel=m\n{ALLOW_UNENCRYPTED_KEY}={allow}\n\
+                 ConsentAddress=http://192.168.1.2:1234/v1\nConsentStatement=1\n\
+                 ConsentDay=2026-11-12\n"
+            )
+        };
+        let allowed = AiConfig::from_text(&text("true"));
+        let provider = allowed.provider().unwrap();
+        assert!(provider.allow_unencrypted);
+        assert!(provider.address.is_unencrypted_to_another_computer());
+        assert!(allowed.consent().unwrap().covers(&provider.address));
+        // Anything but `true` keeps the safe default, consent included.
+        for odd in ["false", "", "yes", "1"] {
+            let refused = AiConfig::from_text(&text(odd));
+            assert_eq!(refused.provider(), Err(AiError::PlainHttp), "{odd:?}");
+            assert_eq!(refused.consent(), None, "{odd:?}");
+        }
+        // Allowing it changes nothing for https:// or this computer.
+        let secure =
+            ProviderSettings::with_options("https://api.example.com/v1", "m", KeyUse::None, true)
+                .unwrap();
+        assert!(secure.address.is_secure());
+    }
+
+    #[test]
+    fn allow_words_round_trip() {
+        for allow in [true, false] {
+            assert_eq!(allowed(allow_word(allow)), allow);
+        }
+        assert!(allowed(" TRUE "));
+    }
+
+    #[test]
     fn key_use_words_round_trip_and_unknown_asks() {
         for key_use in [
             KeyUse::None,
@@ -389,6 +461,18 @@ mod tests {
         assert_eq!(AiConfig::from_text(&text).provider(), Ok(&settings));
         assert_eq!(settings.address.as_str(), "http://localhost:1234/v1");
         assert_eq!(settings.model, "qwen3");
+    }
+
+    #[test]
+    fn allowed_unencrypted_entries_read_back() {
+        let settings =
+            ProviderSettings::with_options("http://192.168.1.2:1234/v1", "m", KeyUse::None, true)
+                .unwrap();
+        let mut text = String::from("[AI]\n");
+        for (key, value) in settings.entries() {
+            text.push_str(&format!("{key}={value}\n"));
+        }
+        assert_eq!(AiConfig::from_text(&text).provider(), Ok(&settings));
     }
 
     #[test]

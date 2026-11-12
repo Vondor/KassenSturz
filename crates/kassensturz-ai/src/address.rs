@@ -7,8 +7,11 @@
 //! and `::1`. Every other address, a private home network address
 //! included, is another computer, so what is sent to it has left the
 //! machine and needs the user's consent (D-035). Plain `http://` is
-//! accepted only for this computer; any other address needs `https://`
-//! (Q-125 A, threat T-30).
+//! accepted for this computer; any other address needs `https://`
+//! (Q-125 A, threat T-30) unless the user ticked "Allow unencrypted
+//! connections" (D-746): not every home server can be given a certificate,
+//! so the user may choose it, warned in plain words, more strongly when the
+//! address may be on the Internet ([`Network`]).
 
 use std::fmt;
 use std::net::IpAddr;
@@ -31,6 +34,24 @@ pub enum Place {
     AnotherComputer,
 }
 
+/// Which network the provider is on, as far as its address tells without
+/// looking anything up (D-746). It picks how strongly the settings warn
+/// about an unencrypted connection; it never decides what is sent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Network {
+    /// This computer: a loopback address.
+    ThisComputer,
+    /// A home or office network: a private, link-local or unique local IP
+    /// address (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`,
+    /// `169.254.0.0/16`, `fc00::/7`, `fe80::/10`), or a name that only a
+    /// local network gives out (one word without dots, or one ending in
+    /// `.local`, `.lan`, `.home.arpa` or `.internal`).
+    Home,
+    /// Possibly the Internet: a public IP address, or a name that could be
+    /// anywhere.
+    Internet,
+}
+
 /// The base address of an OpenAI-compatible provider, e.g.
 /// `http://localhost:11434/v1` or `https://api.example.com/v1`, checked:
 /// `http://` or `https://`, a server name, no login, query or `#` part,
@@ -47,7 +68,15 @@ pub struct ProviderAddress {
 
 impl ProviderAddress {
     /// Checks `text`, as the user typed it, with spaces around it ignored.
+    /// Plain `http://` is accepted only for this computer.
     pub fn parse(text: &str) -> Result<Self, AiError> {
+        Self::parse_with(text, false)
+    }
+
+    /// Like [`ProviderAddress::parse`], but with `allow_unencrypted` plain
+    /// `http://` is accepted for another computer too: the user's choice
+    /// "Allow unencrypted connections" (D-746).
+    pub fn parse_with(text: &str, allow_unencrypted: bool) -> Result<Self, AiError> {
         let text = text.trim();
         if text.is_empty() || text.len() > MAX_LEN || text.contains(['@', '#', '?', '\\']) {
             return Err(AiError::BadAddress);
@@ -65,7 +94,7 @@ impl ProviderAddress {
             .to_ascii_lowercase();
         let port = uri.port_u16().unwrap_or(if secure { 443 } else { 80 });
         let place = place_of(&host);
-        if !secure && place != Place::ThisComputer {
+        if !secure && place != Place::ThisComputer && !allow_unencrypted {
             return Err(AiError::PlainHttp);
         }
         Ok(Self {
@@ -90,6 +119,23 @@ impl ProviderAddress {
     /// Whether the connection is encrypted (`https://`).
     pub fn is_secure(&self) -> bool {
         self.secure
+    }
+
+    /// Which network the provider is on, as far as the address tells.
+    pub fn network(&self) -> Network {
+        if self.place == Place::ThisComputer {
+            Network::ThisComputer
+        } else if is_home_host(&self.host) {
+            Network::Home
+        } else {
+            Network::Internet
+        }
+    }
+
+    /// Whether what is sent travels unencrypted to another computer: only
+    /// possible when the user allowed it (D-746).
+    pub fn is_unencrypted_to_another_computer(&self) -> bool {
+        !self.secure && self.place == Place::AnotherComputer
     }
 
     /// The address of one of the provider's endpoints, e.g.
@@ -147,6 +193,27 @@ fn place_of(host: &str) -> Place {
     }
 }
 
+/// Whether `host` is on a home or office network ([`Network::Home`]). A
+/// name is never looked up, as in [`place_of`].
+fn is_home_host(host: &str) -> bool {
+    let bare = host.trim_start_matches('[').trim_end_matches(']');
+    match bare.parse::<IpAddr>() {
+        Ok(IpAddr::V4(ip)) => ip.is_private() || ip.is_link_local(),
+        Ok(IpAddr::V6(ip)) => {
+            let first = ip.segments()[0];
+            // Unique local fc00::/7 and link-local fe80::/10.
+            (first & 0xfe00) == 0xfc00 || (first & 0xffc0) == 0xfe80
+        }
+        Err(_) => {
+            let name = bare.trim_end_matches('.');
+            !name.contains('.')
+                || [".local", ".lan", ".home.arpa", ".internal"]
+                    .iter()
+                    .any(|end| name.ends_with(end))
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -191,6 +258,49 @@ mod tests {
         ] {
             assert_eq!(place(text), Err(AiError::PlainHttp), "{text}");
         }
+    }
+
+    #[test]
+    fn plain_http_to_another_computer_when_allowed() {
+        for (text, network) in [
+            ("http://192.168.1.20:1234/v1", Network::Home),
+            ("http://10.0.0.5/v1", Network::Home),
+            ("http://172.16.4.2/v1", Network::Home),
+            ("http://169.254.3.4/v1", Network::Home),
+            ("http://[fd12:3456::1]/v1", Network::Home),
+            ("http://[fe80::1]/v1", Network::Home),
+            ("http://homeserver:1234/v1", Network::Home),
+            ("http://homeserver.local:1234/v1", Network::Home),
+            ("http://nas.lan/v1", Network::Home),
+            ("http://llm.home.arpa/v1", Network::Home),
+            ("http://203.0.113.7:1234/v1", Network::Internet),
+            ("http://172.32.0.1/v1", Network::Internet),
+            ("http://[2001:db8::7]/v1", Network::Internet),
+            ("http://api.example.com/v1", Network::Internet),
+            ("http://0.0.0.0:11434/v1", Network::Internet),
+        ] {
+            let address = ProviderAddress::parse_with(text, true).unwrap();
+            assert_eq!(address.place(), Place::AnotherComputer, "{text}");
+            assert_eq!(address.network(), network, "{text}");
+            assert!(!address.is_secure(), "{text}");
+            assert!(address.is_unencrypted_to_another_computer(), "{text}");
+            assert_eq!(
+                ProviderAddress::parse_with(text, false),
+                Err(AiError::PlainHttp),
+                "{text}"
+            );
+        }
+        let local = ProviderAddress::parse_with("http://localhost:1234/v1", true).unwrap();
+        assert_eq!(local.network(), Network::ThisComputer);
+        assert!(!local.is_unencrypted_to_another_computer());
+        let secure = ProviderAddress::parse_with("https://203.0.113.7/v1", true).unwrap();
+        assert_eq!(secure.network(), Network::Internet);
+        assert!(!secure.is_unencrypted_to_another_computer());
+        // Allowing plain http:// never lets an odd address through.
+        assert_eq!(
+            ProviderAddress::parse_with("ftp://192.168.1.20/v1", true),
+            Err(AiError::BadAddress)
+        );
     }
 
     #[test]

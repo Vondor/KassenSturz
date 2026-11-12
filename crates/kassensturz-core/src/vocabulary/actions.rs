@@ -71,6 +71,7 @@ pub const ACTIONS: &[&str] = &[
     "AiRulesSortChange_alsoSortAgain",
     "AiSettingsEntry_aiProviderPrivacy",
     "AiSettingsPage_activated",
+    "AiSettingsPage_allowUnencrypted",
     "AiSettingsPage_billFolderChosen",
     "AiSettingsPage_chooseBillFolder",
     "AiSettingsPage_forceActiveFocus",

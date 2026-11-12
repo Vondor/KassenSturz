@@ -319,7 +319,7 @@ A request to the AI provider the user set up couldn't be sent, or its answer cou
 | `ai.off` | | | AI features are switched off, so nothing was sent. Turn them on in Settings → AI features. |
 | `ai.no-provider` | | | No AI provider is set up yet: its address or the model is missing. Enter both in Settings → AI features. |
 | `ai.bad-address` | | | This address can't be used for an AI provider. It starts with `http://` or `https://`, has the server's name, and has no login name, password, `?` or `#` part, e.g. `http://localhost:11434/v1`. |
-| `ai.plain-http` | | | This address is on another computer and starts with `http://`, which isn't encrypted, so KassenSturz won't send anything to it. Use the provider's `https://` address; a server at home needs `https://` too. Only a provider on this computer may use `http://`. |
+| `ai.plain-http` | | | This address is on another computer and starts with `http://`, which isn't encrypted, so KassenSturz won't send anything to it. Use the provider's `https://` address. If the provider offers only `http://` and runs in a network you trust, you can tick "Allow unencrypted connections" under the address in the AI settings (D-746). |
 | `ai.no-consent` | | | The AI provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it, or the provider or the list of what is sent changed since. Nothing was sent. Read what is sent and agree, or use a provider on this computer. |
 | `ai.settings-changed` | | | The AI provider's settings changed after this request was prepared, so it wasn't sent. Look at the request again and send it. |
 | `ai.request-too-large` | | | This request is too large to send at once. Ask about less at a time. |

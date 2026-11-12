@@ -122,11 +122,13 @@ fn the_lists_the_model_sees_are_the_catalogs_and_the_schemas() {
     assert_eq!(&periods[1..], PERIODS);
     // Every list is the one a refusal names (D-353).
     for argument in ["data", "show_as", "group_by", "measure", "compare"] {
-        assert_eq!(
-            Some(words(&properties[argument])),
-            view_choices(argument),
-            "{argument}"
-        );
+        let mut offered = words(&properties[argument]);
+        // `custom` is offered only with Chart descriptions, and a refusal
+        // never lists it (D-729).
+        if argument == "show_as" {
+            assert_eq!(offered.pop(), Some("custom"));
+        }
+        assert_eq!(Some(offered), view_choices(argument), "{argument}");
     }
     assert_eq!(view_choices("title"), None);
 }

@@ -288,6 +288,20 @@ pub(crate) fn hides_text(c: char) -> bool {
 /// a memo can't tell whose it holds), and anything beyond
 /// [`MAX_TEXT_CHARS`] is cut.
 pub(crate) fn for_model(text: &str) -> String {
+    let masked = cleaned_for_model(text);
+    let mut chars = masked.chars();
+    let mut shown: String = chars.by_ref().take(MAX_TEXT_CHARS).collect();
+    if chars.next().is_some() {
+        shown.push('…');
+    }
+    shown
+}
+
+/// `text` as [`for_model`] cleans it (hiding characters out, every kind of
+/// space one space, IBANs masked), but not cut: for a longer text of the
+/// user's that the model is shown whole or not at all, such as a custom
+/// chart's description (D-729).
+pub(crate) fn cleaned_for_model(text: &str) -> String {
     let cleaned: String = text
         .chars()
         .filter(|&c| !hides_text(c))
@@ -302,13 +316,7 @@ pub(crate) fn for_model(text: &str) -> String {
             }
         })
         .collect();
-    let masked = mask_ibans(cleaned.trim());
-    let mut chars = masked.chars();
-    let mut shown: String = chars.by_ref().take(MAX_TEXT_CHARS).collect();
-    if chars.next().is_some() {
-        shown.push('…');
-    }
-    shown
+    mask_ibans(cleaned.trim())
 }
 
 #[cfg(test)]

@@ -36,6 +36,7 @@ use kassensturz_report::{
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
 
+use super::custom_chart::{self, SHOW_AS_CUSTOM};
 use super::{Proposal, ProposeSpec, prepare, view_figure, views};
 use crate::error::ToolError;
 use crate::text::hides_text;
@@ -84,6 +85,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "formula",
     "target",
     "columns",
+    "description",
 ];
 
 /// The own lists of money in and money out (D-646): each list's argument,
@@ -309,6 +311,8 @@ fn offered(argument: &str, allowed: Permissions) -> bool {
         "formula" | "target" | "columns" => allowed.reads(Row::Categories),
         // Changing a saved chart is its own cell (D-681).
         "view_id" => allowed.allows(Permission::EditViews),
+        // So is writing a custom chart's description (D-729).
+        "description" => allowed.writes_chart_descriptions(),
         _ => true,
     }
 }
@@ -363,16 +367,27 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
                 name it is saved under. Never put numbers in it as facts.",
         }),
     );
+    let described = offered("description", allowed);
     properties.insert("data".into(), choice("data", &data_help()));
-    properties.insert(
-        "show_as".into(),
-        choice(
-            "show_as",
-            "How it is drawn, or auto to let KassenSturz pick what suits the data. figure is one \
-             key figure, progress a bar towards a figure. The description of data lists the ways \
-             each data can be drawn.",
-        ),
+    let mut show_as = choice(
+        "show_as",
+        "How it is drawn, or auto to let KassenSturz pick what suits the data. figure is one \
+         key figure, progress a bar towards a figure. The description of data lists the ways \
+         each data can be drawn.",
     );
+    if described {
+        // A chart drawn from a description the AI writes (D-729).
+        if let Some(Value::Array(words)) = show_as.get_mut("enum") {
+            words.push(json!(SHOW_AS_CUSTOM));
+        }
+        if let Some(Value::String(text)) = show_as.get_mut("description") {
+            text.push_str(
+                " custom draws the chart from the description you write in description; then \
+                 data is left out or the same as the description's data.name.",
+            );
+        }
+    }
+    properties.insert("show_as".into(), show_as);
     properties.insert(
         "measure".into(),
         choice(
@@ -528,10 +543,23 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
     if offered("columns", allowed) {
         properties.insert("columns".into(), columns_schema());
     }
+    if described {
+        properties.insert(
+            "description".into(),
+            json!({
+                "type": "string",
+                "minLength": 2,
+                "maxLength": custom_chart::MAX_AI_DESCRIPTION_BYTES,
+                "description": custom_chart::description_help(),
+            }),
+        );
+    }
     let parameters = json!({
         "type": "object",
         "properties": properties,
         "required": match (adds, changes) {
+            // A custom chart names its data in its description (D-729).
+            (true, false) if described => vec!["title", "show_as"],
             (true, false) => vec!["title", "data", "show_as"],
             (false, true) => vec!["view_id"],
             _ => Vec::new(),
@@ -561,6 +589,12 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
         description.push_str(
             "; a key figure or a progress bar of income_expense_by_month can show a formula \
              instead, which the user sees in plain words before confirming",
+        );
+    }
+    if described {
+        description.push_str(
+            "; or show_as custom with a chart description you write yourself, for what the \
+             lists can't draw",
         );
     }
     if offered("columns", allowed) {
@@ -910,6 +944,7 @@ fn prepare_view(
                     "chart" => "show_as",
                     "dataset" => "data",
                     "grouping" => "group_by",
+                    "spec" => "description",
                     "new_views" | "edit_views" => "arguments",
                     other => other,
                 },
@@ -1143,13 +1178,58 @@ fn check(
         )?),
     };
     let data = word("data")?;
-    let show_as = word("show_as")?;
+    // A chart drawn from a description the AI writes (D-729): `custom` is
+    // a word of `show_as` only while the user allows it.
+    let custom = offered("description", allowed)
+        && given("show_as").and_then(Value::as_str) == Some(SHOW_AS_CUSTOM);
+    let show_as = if custom {
+        Some(SHOW_AS_CUSTOM)
+    } else {
+        word("show_as")?
+    };
+    let description = match given("description") {
+        None => None,
+        Some(Value::String(text)) => Some(text.as_str()),
+        Some(_) => {
+            return Err(ToolError::BadArgument {
+                argument: "description",
+            });
+        }
+    };
+    let described = description.map(custom_chart::check).transpose()?;
+    if description.is_some() && show_as.is_some() && !custom {
+        return Err(ToolError::NotForChart {
+            argument: "description",
+            allowed: Vec::new(),
+            use_instead: None,
+            only_for_show_as: vec![SHOW_AS_CUSTOM],
+        });
+    }
+    if custom {
+        // Its data is the description's own; nothing chosen from the lists
+        // but the title and the period means anything for it.
+        if let (Some(data), Some(described)) = (data, &described)
+            && data != described.dataset
+        {
+            return Err(ToolError::BadArgument { argument: "data" });
+        }
+        if let Some(argument) = CUSTOM_REFUSES.into_iter().find(|key| given(key).is_some()) {
+            return Err(ToolError::BadArgument { argument });
+        }
+    }
     if !editing {
-        data.ok_or(ToolError::BadArgument { argument: "data" })?;
+        if custom {
+            described.as_ref().ok_or(ToolError::BadArgument {
+                argument: "description",
+            })?;
+        } else {
+            data.ok_or(ToolError::BadArgument { argument: "data" })?;
+        }
         show_as.ok_or(ToolError::BadArgument {
             argument: "show_as",
         })?;
     }
+    let data = data.or(described.as_ref().map(|checked| checked.dataset));
     // A new chart leaves a default out; a change keeps the word, so the
     // setting goes back to its default.
     let unless_new = |word, default| unless_new(word, default, editing);
@@ -1283,8 +1363,10 @@ fn check(
         return Ok(edit_item(EditItem {
             view_id,
             title,
-            data,
+            // A custom chart's data follows its description (D-504).
+            data: data.filter(|_| !custom && description.is_none()),
             show_as,
+            description,
             words: [
                 ("grouping", group_by),
                 ("measure", measure),
@@ -1320,15 +1402,13 @@ fn check(
         });
     }
     // The schema's own checks run when the set is built from this item.
-    let chart = SHOW_AS
-        .iter()
-        .find(|(word, _)| *word == show_as)
-        .and_then(|(_, kind)| *kind)
-        .map_or("auto", ComponentType::id);
     let mut item = Map::new();
     item.insert("title".into(), json!(title));
     item.insert("dataset".into(), json!(data));
-    item.insert("chart".into(), json!(chart));
+    item.insert("chart".into(), json!(chart_id(show_as)));
+    if let Some(description) = description {
+        item.insert("spec".into(), json!(description));
+    }
     for (key, value) in [
         ("grouping", group_by),
         ("measure", measure),
@@ -1388,12 +1468,44 @@ fn unless_new<'a>(word: Option<&'a str>, default: &str, editing: bool) -> Option
     word.filter(|word| editing || *word != default)
 }
 
+/// The arguments a custom chart doesn't take: it draws what its
+/// description says (D-729).
+const CUSTOM_REFUSES: [&str; 13] = [
+    "measure",
+    "group_by",
+    "compare",
+    "categories",
+    "accounts",
+    "average",
+    "orientation",
+    "income_categories",
+    "income_accounts",
+    "expenses_categories",
+    "expenses_accounts",
+    "formula",
+    "target",
+];
+
+/// The id of the kind of component a word of `show_as` stands for:
+/// `auto` while KassenSturz still picks, `chart.custom` for `custom`.
+fn chart_id(show_as: &str) -> &'static str {
+    if show_as == SHOW_AS_CUSTOM {
+        return ComponentType::CustomChart.id();
+    }
+    SHOW_AS
+        .iter()
+        .find(|(word, _)| *word == show_as)
+        .and_then(|(_, kind)| *kind)
+        .map_or("auto", ComponentType::id)
+}
+
 /// What a checked call that changes a saved chart named (D-681).
 struct EditItem<'a> {
     view_id: String,
     title: Option<String>,
     data: Option<&'a str>,
     show_as: Option<&'a str>,
+    description: Option<&'a str>,
     words: [(&'static str, Option<&'a str>); 7],
     period: Option<String>,
     columns: Option<Value>,
@@ -1412,12 +1524,10 @@ fn edit_item(edit: EditItem<'_>) -> Value {
         item.insert("dataset".into(), json!(data));
     }
     if let Some(show_as) = edit.show_as {
-        let chart = SHOW_AS
-            .iter()
-            .find(|(word, _)| *word == show_as)
-            .and_then(|(_, kind)| *kind)
-            .map_or("auto", ComponentType::id);
-        item.insert("chart".into(), json!(chart));
+        item.insert("chart".into(), json!(chart_id(show_as)));
+    }
+    if let Some(description) = edit.description {
+        item.insert("spec".into(), json!(description));
     }
     for (key, value) in edit.words {
         if let Some(value) = value {
@@ -1668,16 +1778,37 @@ pub(crate) fn list_views(
             continue;
         };
         row.insert("data".into(), json!(component.dataset().id));
-        let show_as = SHOW_AS
-            .iter()
-            .find(|(_, kind)| *kind == Some(component.kind()))
-            .map_or("other", |(word, _)| *word);
+        // A custom chart is `custom` while the AI may write descriptions
+        // (D-729), and otherwise a kind propose_view doesn't offer.
+        let custom = component.kind() == ComponentType::CustomChart
+            && allowed.allows(Permission::CustomCharts);
+        let show_as = if custom {
+            SHOW_AS_CUSTOM
+        } else {
+            SHOW_AS
+                .iter()
+                .find(|(_, kind)| *kind == Some(component.kind()))
+                .map_or("other", |(word, _)| *word)
+        };
         row.insert("show_as".into(), json!(show_as));
         row.insert(
             "period".into(),
             json!(period.unwrap_or_else(|| default_period(component.dataset().id).to_owned())),
         );
         let mut not_shown = Vec::new();
+        // The user's own description may name categories and accounts in
+        // its filters, so it is shown only with the reading of both (D-729).
+        if custom && let Some(kassensturz_report::Setting::Text(text)) = component.get("spec") {
+            let shown = (allowed.reads(Row::Categories) && allowed.reads(Row::Accounts))
+                .then(|| w.whole_text(text, custom_chart::MAX_AI_DESCRIPTION_BYTES))
+                .flatten();
+            // One too long for the AI to write again is not shown either.
+            if let Some(shown) = shown {
+                row.insert("description".into(), shown);
+            } else {
+                not_shown.push("description");
+            }
+        }
         for (key, argument) in [
             ("grouping", "group_by"),
             ("measure", "measure"),

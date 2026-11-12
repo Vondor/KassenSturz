@@ -99,6 +99,18 @@ ColumnLayout {
             ]
         },
         {
+            // Its own row, so allowing charts never allowed the AI to write
+            // a chart's description (D-729). It widens Charts › Add and
+            // Charts › Change and does nothing without them.
+            name: i18nContext.i18nc("@label a part of the book", "Chart descriptions"),
+            cells: [
+                { key: "", absent: "never" },
+                { key: "AllowCustomCharts" },
+                { key: "", absent: "never" },
+                { key: "", absent: "never" }
+            ]
+        },
+        {
             name: i18nContext.i18nc("@label a part of the book", "Budgets"),
             cells: [
                 { key: "AllowReadBudgets", read: true },
@@ -268,6 +280,16 @@ ColumnLayout {
         visible: grid.historyAtRisk(grid.revision)
         type: Kirigami.MessageType.Error
         text: grid.i18nContext.i18nc("@info", "Danger: the AI can now change your transaction history. A model can misunderstand or make things up, and a wrong entry that you confirm without noticing may stay unnoticed for a long time. You can undo your last steps, but undo does not replace a backup. Save a copy of your book first (Save a copy of my data → The whole book).")
+    }
+
+    // The plain warning of D-709: the AI writes what a custom chart draws.
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        visible: grid.isOn("AllowCustomCharts", grid.revision)
+        type: Kirigami.MessageType.Warning
+        text: grid.isOn("AllowNewViews", grid.revision) || grid.isOn("AllowEditViews", grid.revision)
+            ? grid.i18nContext.i18nc("@info", "The AI can now write chart descriptions itself, for new charts (Charts › Add) and for your own custom charts (Charts › Change). It never sees the figures: KassenSturz checks every description and draws the chart from your book, and you see each chart before it is saved.")
+            : grid.i18nContext.i18nc("@info", "Chart descriptions do nothing on their own: switch on Charts › Add for new charts or Charts › Change for your own custom charts too.")
     }
 
     Controls.Label {

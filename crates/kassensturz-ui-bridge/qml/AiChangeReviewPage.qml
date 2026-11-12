@@ -1262,7 +1262,10 @@ Kirigami.ScrollablePage {
                         wrapMode: Text.Wrap
                         opacity: 0.8
                         textFormat: Text.PlainText
-                        text: page.i18nContext.i18nc("@info", "The AI chose what this chart shows. The figures are worked out by KassenSturz from your book, not by the AI. It is saved in the Statistic Builder only when you confirm, and Undo removes it again.")
+                        // A chart the AI described itself says so (D-729).
+                        text: (JSON.parse(chartCard.modelData.component ?? "{}").type ?? "") === "chart.custom"
+                            ? page.i18nContext.i18nc("@info", "The AI wrote this chart's description itself. KassenSturz checked it and draws the figures from your book; the AI does not see them. It is saved in the Statistic Builder only when you confirm, and Undo removes it again.")
+                            : page.i18nContext.i18nc("@info", "The AI chose what this chart shows. The figures are worked out by KassenSturz from your book, not by the AI. It is saved in the Statistic Builder only when you confirm, and Undo removes it again.")
                     }
 
                     AiChangeCorrection {

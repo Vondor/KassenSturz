@@ -627,3 +627,56 @@ fn a_call_only_checked_answers_what_it_would_prepare_and_sends_nothing() {
     assert_eq!(answer, json!({"error": "mcp-writes.app-not-running"}));
     assert!(session.finish().status.success());
 }
+
+#[test]
+fn a_custom_chart_is_offered_and_checked_only_with_chart_descriptions() {
+    // #700 part B (D-729): the cell widens Charts › Add; without it the
+    // server offers no `description` and refuses one.
+    // Part A's example `left-each-month` (D-720), as the help shows it.
+    let description = r#"{
+  "title": "What is left each month",
+  "data": { "name": "income_expense_by_month" },
+  "mark": "bar",
+  "encoding": {
+    "x": { "field": "month", "type": "temporal", "timeUnit": "yearmonth" },
+    "y": { "field": "net", "type": "quantitative", "title": "Left over" }
+  }
+}
+"#;
+    let chart = json!({"title": "Left over", "show_as": "custom", "description": description});
+    let folder = Folder::new("writes-custom-off");
+    folder.allow(&["AllowNewViews=true"]);
+    let book = folder.book();
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    let (answer, is_error) = session.call("propose_view", chart.clone());
+    assert!(is_error);
+    assert_eq!(answer["error"], "ai-tools.unknown-argument", "{answer}");
+    assert!(session.finish().status.success());
+
+    let folder = Folder::new("writes-custom-on");
+    folder.allow(&["AllowNewViews=true", "AllowCustomCharts=true"]);
+    let book = folder.book();
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    let (answer, is_error) = session.call("propose_view", chart);
+    assert!(is_error, "{answer}");
+    // Checked and handed on; only the app that would show it is missing.
+    assert_eq!(answer, json!({"error": "mcp-writes.app-not-running"}));
+    // A part the subset doesn't read is refused in KassenSturz's words.
+    let calc = description.replacen(
+        "\"mark\": \"bar\"",
+        "\"transform\": [{\"calculate\": \"1\", \"as\": \"one\"}], \"mark\": \"bar\"",
+        1,
+    );
+    let (answer, is_error) = session.call(
+        "propose_view",
+        json!({"title": "Left over", "show_as": "custom", "description": calc}),
+    );
+    assert!(is_error);
+    assert_eq!(answer["error"], "ai-tools.bad-description", "{answer}");
+    assert_eq!(answer["reason"], "not-supported", "{answer}");
+    assert_eq!(answer["why"], "expression", "{answer}");
+    assert!(!answer.to_string().contains("calculate"), "{answer}");
+    assert!(session.finish().status.success());
+}

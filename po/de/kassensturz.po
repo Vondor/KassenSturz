@@ -1454,6 +1454,19 @@ msgstr ""
 "KassenSturz aus Ihrem Buch, nicht die KI. Es wird nur im Statistik-Baukasten "
 "gespeichert, wenn Sie bestätigen, und Rückgängig entfernt es wieder."
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1265
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The AI wrote this chart's description itself. KassenSturz checked it and "
+"draws the figures from your book; the AI does not see them. It is saved in "
+"the Statistic Builder only when you confirm, and Undo removes it again."
+msgstr ""
+"Die KI hat die Beschreibung dieses Diagramms selbst geschrieben. KassenSturz "
+"hat sie geprüft und berechnet die Zahlen aus Ihrem Buch; die KI sieht sie "
+"nicht. Es wird nur im Statistik-Baukasten gespeichert, wenn Sie bestätigen, "
+"und Rückgängig entfernt es wieder."
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1190
 #, kde-format
 msgctxt "@title:group"
@@ -2594,6 +2607,12 @@ msgctxt "@label a part of the book"
 msgid "Moves between your accounts"
 msgstr "Bewegungen zwischen Ihren Konten"
 
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:106
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Chart descriptions"
+msgstr "Diagrammbeschreibungen"
+
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:88
 #, kde-format
 msgctxt "@label a part of the book"
@@ -2659,6 +2678,32 @@ msgstr "nicht angeboten"
 msgctxt "@info the AI can't do this yet"
 msgid "not yet"
 msgstr "noch nicht"
+
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:270
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The AI can now write chart descriptions itself, for new charts (Charts › "
+"Add) and for your own custom charts (Charts › Change). It never sees the "
+"figures: KassenSturz checks every description and draws the chart from your "
+"book, and you see each chart before it is saved."
+msgstr ""
+"Die KI kann jetzt selbst Diagrammbeschreibungen schreiben, für neue "
+"Diagramme (Diagramme › Hinzufügen) und für Ihre eigenen Diagramme "
+"(Diagramme › Ändern). Die Zahlen sieht sie nie: KassenSturz "
+"prüft jede Beschreibung und zeichnet das Diagramm aus Ihrem Buch, und Sie "
+"sehen jedes Diagramm, bevor es gespeichert wird."
+
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:271
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Chart descriptions do nothing on their own: switch on Charts › Add for new "
+"charts or Charts › Change for your own custom charts too."
+msgstr ""
+"Diagrammbeschreibungen bewirken allein nichts: Schalten Sie dazu Diagramme › "
+"Hinzufügen für neue Diagramme oder Diagramme › Ändern für Ihre eigenen "
+"Diagramme ein."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:253
 #, kde-format

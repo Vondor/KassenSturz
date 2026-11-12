@@ -5,7 +5,7 @@
 // checks that a switch means "allowed" in the field box as in the grid
 // (#631, D-684): a locked field's switch is off, an unlocked one's on, and
 // switching a field on unlocks it; and that the cell for joining Transfers
-// keeps Transactions › Read on.
+// keeps Transactions › Read on, and that chart descriptions have a row.
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -91,6 +91,16 @@ Kirigami.ApplicationWindow {
             window.check(grid.historyAtRisk(0), "joining warns about the history");
             settings.allowed = ({});
             window.check(!grid.readForced(transactions, 0), "without it Read is free again");
+            // Chart descriptions are their own row with one cell (D-729);
+            // they read nothing and don't touch the history.
+            const descriptions = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowCustomCharts"));
+            window.check(descriptions !== undefined, "the grid has a row for chart descriptions");
+            settings.allowed = ({ AllowCustomCharts: true });
+            window.check(grid.isOn("AllowCustomCharts", 0), "the cell reads its setting");
+            window.check(!grid.historyAtRisk(0), "chart descriptions don't warn about the history");
+            const charts = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowReadViews"));
+            window.check(!grid.readForced(charts, 0), "chart descriptions don't force reading the charts");
+            settings.allowed = ({});
             console.log(window.failed ? "permissions: FAILED" : "permissions: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

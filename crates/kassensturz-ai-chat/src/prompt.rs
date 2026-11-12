@@ -246,6 +246,14 @@ fn changes(allowed: Permissions) -> String {
              call propose_view with that view_id and only the settings that change. "
         ));
     }
+    if allowed.writes_chart_descriptions() {
+        // D-729: a chart the lists can't make, from a description.
+        text.push_str(
+            "When the lists of propose_view can't make the chart the user wants, write its \
+             description yourself with show_as custom and description, as the argument's help \
+             says; KassenSturz checks it and draws it from the book, you never see its figures. ",
+        );
+    }
     text.push_str(
         "You can't do these: delete an account, delete a category that is used, merge two categories, move a Rule into or out \
          of another Rule (a sub-Rule), delete a Rule that has sub-Rules, change the category of \
@@ -491,6 +499,19 @@ mod tests {
         );
         let overview = with_overview(&build, today, &serde_json::json!({}));
         assert!(overview.contains("different currencies are never added"));
+    }
+
+    #[test]
+    fn a_chart_description_is_offered_only_with_its_cell_and_add_or_change() {
+        let build = BuildInfo::new("0.261025.1", "1775d22");
+        let today = Date::constant(2026, 10, 25);
+        let line = "write its description yourself with show_as custom";
+        let add = Permissions::NONE.with(Permission::NewViews, true);
+        assert!(!with_functions(&build, today, false, add).contains(line));
+        let described = add.with(Permission::CustomCharts, true);
+        assert!(with_functions(&build, today, false, described).contains(line));
+        let alone = Permissions::NONE.with(Permission::CustomCharts, true);
+        assert!(!with_functions(&build, today, false, alone).contains(line));
     }
 
     #[test]

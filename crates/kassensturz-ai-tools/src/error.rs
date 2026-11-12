@@ -32,6 +32,23 @@ pub(crate) mod shape {
 pub enum ToolError {
     /// The model asked for a function that isn't in the list.
     UnknownFunction,
+    /// A custom chart's description the AI wrote can't be used (D-729):
+    /// too big, not readable, hiding characters, a part that isn't
+    /// supported, or data it may not name. Every field is one of
+    /// KassenSturz's own words or a count, never the model's text (X-8).
+    BadDescription {
+        /// What is wrong, by a fixed word (`docs/ERROR_CODES.md`).
+        reason: &'static str,
+        /// Why, for `too-big` the limit and for `not-supported` the
+        /// reason word of the "not supported here" list (D-507).
+        why: Option<&'static str>,
+        /// The part of the description, by a word of the subset.
+        part: Option<&'static str>,
+        /// The layer it is in, counted from 1.
+        layer: Option<usize>,
+        /// How many parts are not supported.
+        count: Option<usize>,
+    },
     /// An argument is missing, of the wrong kind or out of range, or the
     /// call has one the function doesn't take (`arguments`).
     BadArgument {
@@ -297,6 +314,10 @@ impl ToolError {
         match self.kind() {
             Self::UnknownField { allowed, .. } => Some(allowed),
             Self::NotForChart { allowed, .. } if !allowed.is_empty() => Some(allowed),
+            Self::BadDescription {
+                reason: "data-not-offered",
+                ..
+            } => Some(&crate::changes::DESCRIPTION_DATA),
             _ => None,
         }
     }
@@ -402,6 +423,30 @@ impl Report for ToolError {
     fn report(&self) -> ErrorReport {
         match self {
             Self::UnknownFunction => ErrorReport::new("ai-tools.unknown-function"),
+            Self::BadDescription {
+                reason,
+                why,
+                part,
+                layer,
+                count,
+            } => {
+                let mut report = ErrorReport::new("ai-tools.bad-description")
+                    .with("argument", ErrorParam::Keyword("description"))
+                    .with("reason", ErrorParam::Keyword(reason));
+                if let Some(why) = why {
+                    report = report.with("why", ErrorParam::Keyword(why));
+                }
+                if let Some(part) = part {
+                    report = report.with("part", ErrorParam::Keyword(part));
+                }
+                if let Some(layer) = layer {
+                    report = report.with("layer", ErrorParam::count(*layer));
+                }
+                if let Some(count) = count {
+                    report = report.with("count", ErrorParam::count(*count));
+                }
+                report
+            }
             Self::BadArgument { argument }
             | Self::NotShaped { argument, .. }
             | Self::NotForChart { argument, .. } => ErrorReport::new("ai-tools.bad-argument")
@@ -517,6 +562,13 @@ mod tests {
     fn examples() -> Vec<ToolError> {
         let mut examples = vec![
             ToolError::UnknownFunction,
+            ToolError::BadDescription {
+                reason: "not-supported",
+                why: Some("transform"),
+                part: Some("transform"),
+                layer: Some(1),
+                count: Some(2),
+            },
             ToolError::CallTooBig {
                 max_bytes: crate::changes::MAX_VIEW_CALL_BYTES,
             },

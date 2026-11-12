@@ -1175,10 +1175,14 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
 
     // One kind alone is still a complete, valid tool.
     // Charts alone are offered as propose_view, not here (D-352).
-    for permission in Permission::ALL
-        .into_iter()
-        .filter(|p| !p.is_read() && !matches!(p, Permission::NewViews | Permission::EditViews))
-    {
+    for permission in Permission::ALL.into_iter().filter(|p| {
+        !p.is_read()
+            && !matches!(
+                p,
+                // Chart descriptions prepare nothing alone (D-729).
+                Permission::NewViews | Permission::EditViews | Permission::CustomCharts
+            )
+    }) {
         let none = Field::ALL
             .iter()
             .fold(Permissions::NONE, |p, field| p.with_lock(*field, false));
@@ -3168,6 +3172,7 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
     assert_eq!(state(&book), before, "no entry in the history either");
 }
 
+mod custom_charts;
 mod id_names;
 mod joins;
 mod rule_batches;

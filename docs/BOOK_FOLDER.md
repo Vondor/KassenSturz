@@ -1,6 +1,6 @@
 # Choosing the folder for the book
 
-**Status:** design for US5.3 (#515), decisions D-730 to D-733 (Proposed) and question Q-510 in `docs/DECISIONS.md`. Nothing here is built yet; the build is slotted before Beta (US6). Stage: Alpha, so no migration is involved (D-274): the book's own layout doesn't change at all.
+**Status:** design for US5.3 (#515), with the outside security review's findings of 2026-11-12 worked in, decisions D-730 to D-733 (Proposed) and question Q-510 in `docs/DECISIONS.md`. Nothing here is built yet; the build is slotted before Beta (US6). Stage: Alpha, so no migration is involved (D-274): the book's own layout doesn't change at all.
 
 ## 1. Today
 
@@ -41,7 +41,10 @@ Q-071 was written when the app had no network access; since D-142 the Flatpak ha
 
 - **Choosing:** Qt's folder dialog (`QFileDialog::getExistingDirectory`, through `FolderDialog` in QML). In the Flatpak, Qt uses the file chooser portal (`org.freedesktop.portal.FileChooser.OpenFile` with the option `directory`, portal interface version 3 or later). The portal exports the folder through the document portal; the app sees it at `$XDG_RUNTIME_DIR/doc/<id>/<folder name>/` and may create, change, rename and remove files **inside** it. That is what the lock file and the journal need.
 - **Keeping the grant:** the document portal remembers an export made through the file chooser across restarts, under the same `<id>`. The app remembers the book's path in `kassensturzrc` with `$XDG_RUNTIME_DIR` written as such (like `$HOME` today, D-113), so it doesn't depend on the user's number on that computer.
-- **The real path, for showing only:** the document portal's `GetHostPaths` (interface version 5 or later, over D-Bus) gives the folder's path on the computer. The app stores it next to the book's path, as **display text only**: it is shown on screens and used for the network check in D-732, never opened. If the portal is too old for it, the app shows the folder's name and says "a folder you chose".
+- **The real path, for showing only:** the document portal's `GetHostPaths` (interface version 5 or later, over D-Bus) gives the folder's path on the computer. The app stores it next to the book's path, as **display text only**: it is shown on screens and used for the network check in D-732, never opened. If the portal is too old for it, the app shows the folder's name and says "a folder you chose". It usually contains the user's name, so it is shown only as `PlainText` (never read as rich text) and is kept out of the debug log, the bank log, the AI chat transcript and every AI and MCP result.
+- **One way to read the remembered path:** the app and `kassensturz-mcp` expand `$XDG_RUNTIME_DIR` (and `$HOME`) in the remembered path through the same function, so both open the same file.
+- **No broad folders:** picking the home folder itself, `/`, or a folder that holds the home folder is refused with a plain reason ("Please choose a folder inside your home folder, e.g. one just for your book"), because that grant would reach as far as a home permission (option B).
+- **Forgetting folders:** grants stay until they are taken back. After a move, including "Move it back", the app asks the document portal to forget the folder it left (its `Delete` for an entry KassenSturz made, or `RevokePermissions` for KassenSturz; step 0 checks which applies). Settings › Your data lists "Folders KassenSturz may open" with "Forget" beside each, except the book's current folder.
 - **A shared helper** in `crates/kassensturz-ui-bridge/src/platform.rs` (later `kassensturz-platform`): `choose_folder` returns a `FolderGrant { path, shown_as }`, and `can_choose_book_place` becomes "outside the Flatpak, or a portal with folder support". US5.13's bill folder uses the same helper, so this design keeps that path open.
 - **`Drive::Sandboxed` narrows:** it now means only a single file the portal handed over, i.e. a file whose parent is the `<id>` folder itself. A file inside an exported folder (`<id>/<folder>/<file>`) is a normal book.
 - **When there is no folder portal** (a very old desktop): the row says plainly that this computer's system doesn't offer it and the book stays in KassenSturz's folder, which keeps working.
@@ -55,6 +58,8 @@ This session could not reach the portal's online documentation, so the facts abo
 3. The grant and the `<id>` survive closing the app, logging out and a restart of the computer.
 4. Taking the grant back (`flatpak permission-reset io.github.vondor.KassenSturz`, or a permissions tool) leads to `book.no-access` (D-732), never to a new book.
 5. `GetHostPaths` returns the real path.
+6. A rename that refuses to replace a file (`renameat2` with `RENAME_NOREPLACE`) works in a portal folder, and `fsync` on the folder works. If the rename isn't supported, a hard link plus removing the old name (`link` also refuses an existing name) is tried; if neither works, moving into a portal folder is refused, never done with a replacing rename.
+7. Forgetting a folder (`Delete` or `RevokePermissions`) removes the app's access to it.
 
 If 2 fails, the design falls back to asking Vondor about B or C, with the failing check named.
 
@@ -68,19 +73,29 @@ Before anything is written, the page checks and refuses with a plain reason (eac
 
 - the folder is the one the book is in already (`book-move.same-folder`);
 - a file `<name>.ksz` or `<name>.ksz.lock` is already there (`book-move.already-exists`; nothing is ever replaced, D-113);
+- a leftover `<name>.ksz-journal`, `<name>.ksz-wal` or `<name>.ksz-shm` is there (`book-move.leftover-files`): SQLite would take a leftover journal as the new book's own and "repair" the new book with another file's data;
+- a move is still noted as in progress (`book-move.in-progress`, see below);
 - the folder can't be written to: the app creates and removes `<name>.ksz.part` (`book-move.read-only`);
 - the free space, where the system tells it, is less than twice the book's size (`book-move.no-space`); where it doesn't tell, no claim is made and step 3's failure covers it.
 
-Then, while the screen allows no other change:
+Then:
 
+0. **Note and write lock.** The settings get a "move in progress" note (from, to, when). The old book takes SQLite's write lock (`BEGIN IMMEDIATE`) and holds it until step 5. Every other writer waits or is told the book is busy: the screens, a bank fetch, a scheduled booking, a write the MCP server asks for. So no change can land in the old book after the copy is taken.
 1. **Backup.** The book as it is goes into KassenSturz's backup folder through the existing backup code (D-033, D-080), named "… before moving, <date>". These backups are kept apart from the ten automatic ones: the last three moves are kept.
 2. **Copy.** SQLite's online backup copies the open book to `<name>.ksz.part` in the new folder (a name sync tools such as Nextcloud leave out by default, so a half copy never travels), then `fsync`.
-3. **Check.** The copy is opened read-only and must have KassenSturz's application ID (D-080), pass `PRAGMA integrity_check`, have the same layout version and the same number of rows in every table, and give the same balance for every account as the open book. Balances are computed by code (AGENTS.md §2.1).
-4. **Into place.** `<name>.ksz.part` is renamed to `<name>.ksz`, after checking once more that no such file appeared meanwhile.
-5. **Switch.** The new book is opened with its own lock and remembered as the book opened last; only then is the old book closed and its lock removed.
-6. **Old file.** The old file is removed. The backup from step 1 is the identical copy, so nothing is lost. If removing fails (e.g. a read-only folder), it stays and the done page says where.
+3. **Check.** The copy is opened read-only and must have KassenSturz's application ID (D-080), pass `PRAGMA integrity_check`, have the same layout version, the same checksum of every table's content (its rows in key order) and the same balance for every account as the open book. Balances are computed by code (AGENTS.md §2.1).
+4. **Into place.** `<name>.ksz.part` is renamed to `<name>.ksz` with a rename that refuses to replace a file (`RENAME_NOREPLACE`, step 0 item 6), then the folder is `fsync`ed.
+5. **Switch.** The new book is opened with its own lock and remembered as the book opened last; only then is the old book's write lock released, the old book closed and its lock removed. If opening the new book fails, it is renamed back to `<name>.ksz.part` and removed, so there are never two working books.
+6. **Old file.** The old file is removed and the "move in progress" note is cleared. The backup from step 1 is the identical copy, so nothing is lost. If removing fails (e.g. a read-only folder), it stays and the done page says where.
 
-**If any step fails**, the `.part` file is removed where possible, the old book stays open and stays the book opened last, and the page says what failed and what to do next (AGENTS.md §6 "No dead ends"). Nothing has changed for the user.
+**If any step fails**, the `.part` file is removed where possible, the old book stays open and stays the book opened last, the note is cleared, and the page says what failed and what to do next (AGENTS.md §6 "No dead ends"). Nothing has changed for the user.
+
+**If the app stops in the middle** (a crash, a power cut), the note is still there at the next start, and the app says in plain words what happened before opening anything:
+
+- before step 5 (the old book is still the remembered one): a `.part` is removed; a `<name>.ksz` already in the new folder is an unused copy, offered for removal;
+- after step 5 (the new book is remembered): the old file is offered for removal, with the backup from step 1 named.
+
+A book file is never removed without the user's yes; only a `.part` file is.
 
 ### The way back
 
@@ -108,6 +123,7 @@ Then, while the screen allows no other change:
 - **D-125:** "where the platform allows it" now includes the Flatpak whenever the portal offers folders: there the user picks the folder and types the name on the app's page, because a single file from the save dialog can't hold a book. Outside the Flatpak the save dialog stays. The empty-file case of saving a copy is unchanged.
 - **Q-071:** answered by D-730 with a fourth option, "the folder portal, no file permission", once Vondor answers Q-510. Its note "the app has no network access" is out of date since D-142.
 - **Q-081:** answer B now reaches the Flatpak too; the data folder stays the default for anyone who doesn't choose.
+- **D-080 and the MCP server:** the remembered path is read by one shared function in the app and in `kassensturz-mcp` (D-730).
 - **D-033:** backups stay in the data folder; the three "before moving" backups are kept apart from the ten automatic ones.
 - **D-038:** unchanged, plus the Flatpak's limited network detection above.
 - **The Flatpak's permission list** and CI's comparison with it don't change.
@@ -117,7 +133,7 @@ Then, while the screen allows no other change:
 Three small pull requests, standard high, each with its German strings (`tools/update-translations.sh`, `tools/check-translations.sh`):
 
 1. **Folder grant** (shared with US5.13): step 0's checks recorded in D-730; `choose_folder`, `FolderGrant`, the narrower `Drive::Sandboxed`, `can_choose_book_place`, paths kept with `$XDG_RUNTIME_DIR`. Tests: path classification (single file, file in an exported folder, normal path), the remembered path round trip.
-2. **Moving** (D-731): the page, the checks, steps 1 to 6, "Move it back". Tests with a real book in temporary folders: success, each refusal, a failure injected at each step leaves the old book open and no `.part`, the copy check catches a changed row and a changed balance, the backups kept apart from the ten.
+2. **Moving** (D-731): the page, the checks, steps 0 to 6, "Move it back", the "move in progress" note and its start-up page, forgetting folders. Tests with a real book in temporary folders: success, each refusal (also each leftover journal, WAL and SHM file), a failure injected at each step leaves the old book open and no `.part`, a crash after each step is explained at the next start, a writer (a bank fetch through the fake bank, an MCP write) waits while the move holds the lock, the copy check catches a changed row and a changed balance, the rename never replaces a file, the backups kept apart from the ten. A test reads the debug log and every AI and MCP result after a move and finds no real path.
 3. **Problems and the Flatpak paths** (D-732, D-733): the three new codes and their pages, "Open another book…", "Start a new book…" and "Start a book from a file…" through the folder in the Flatpak. Bridge objects read back the way QML does (AGENTS.md §9.4).
 
 Phase 3 then checks it by hand in the Flatpak on Plasma and GNOME: move to a folder, restart, take the grant back, pull a stick while the book is open.

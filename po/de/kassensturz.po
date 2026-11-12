@@ -20813,6 +20813,12 @@ msgctxt "@info %1 is a budget, %2 and %3 amounts, %4 when, %5 a whole percent"
 msgid "%1 used only %2 of %3 %4, less than %5 %."
 msgstr "%1 hat %4 nur %2 von %3 genutzt, weniger als %5 %."
 
+msgctxt ""
+"@info %1 is a budget, %2 and %3 amounts, %4 when, %5 an amount, %6 a whole "
+"percent"
+msgid "%1 used %2 of %3 %4: over by %5, but less than %6 %."
+msgstr "%1 hat %4 %2 von %3 genutzt: %5 darüber, aber weniger als %6 %."
+
 msgctxt "@info %1 is an account, %2 and %3 amounts, %4 a date"
 msgid "%1 went down to %2 this month (on %4), under your limit of %3."
 msgstr "%1 fiel diesen Monat auf %2 (am %4), unter Ihre Grenze von %3."

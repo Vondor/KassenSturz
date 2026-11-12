@@ -5,7 +5,8 @@
 // checks that a switch means "allowed" in the field box as in the grid
 // (#631, D-684): a locked field's switch is off, an unlocked one's on, and
 // switching a field on unlocks it; and that the cell for joining Transfers
-// keeps Transactions › Read on, and that chart descriptions have a row.
+// keeps Transactions › Read on, that chart descriptions have a row, and
+// that a cell's words wrap whole even in a narrow window (#759).
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -65,7 +66,7 @@ Kirigami.ApplicationWindow {
     function absentLabels(item, found) {
         for (let i = 0; i < item.children.length; ++i) {
             const child = item.children[i];
-            if (child instanceof Controls.Label && child.visible && child.wrapMode === Text.Wrap && child.horizontalAlignment === Text.AlignHCenter) {
+            if (child instanceof Controls.Label && child.visible && child.wrapMode === Text.WordWrap && child.horizontalAlignment === Text.AlignHCenter) {
                 found.push(child);
             }
             absentLabels(child, found);
@@ -126,6 +127,21 @@ Kirigami.ApplicationWindow {
             const words = window.absentLabels(grid, []);
             window.check(words.length > 0, "the grid has cells that aren't offered");
             words.forEach(label => window.check(label.width > 0 && label.width <= label.parent.width + 0.5 && label.contentWidth <= label.width + 0.5, "\"" + label.text + "\" fits its cell: " + label.contentWidth + " in " + label.width));
+            // In a narrow window the columns shrink, but never below the
+            // widest word, so a word wraps whole (#759).
+            window.width = 320;
+            narrow.start();
+        }
+    }
+
+    Timer {
+        id: narrow
+
+        interval: 300
+        onTriggered: {
+            const words = window.absentLabels(grid, []);
+            window.check(grid.widestWord > 2, "the grid knows its widest word, got " + grid.widestWord);
+            words.forEach(label => window.check(label.width + 0.5 >= grid.widestWord - 2 && label.contentWidth <= label.width + 0.5, "\"" + label.text + "\" keeps its words whole when narrow: " + label.contentWidth + " in " + label.width));
             console.log(window.failed ? "permissions: FAILED" : "permissions: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

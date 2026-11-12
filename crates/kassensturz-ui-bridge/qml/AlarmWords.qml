@@ -102,7 +102,11 @@ QtObject {
                 ? i18nContext.i18nc("@info %1 is a budget, %2 an amount, %3 when", "%1 is over by %2 %3.", row.budgetName, row.over, when)
                 : i18nContext.i18nc("@info %1 is a budget, %2 and %3 amounts, %4 when, %5 a whole percent", "%1 has used %2 of %3 %4, more than %5 %.", row.budgetName, row.spent, row.available, when, row.share);
         case "budget_under":
-            return i18nContext.i18nc("@info %1 is a budget, %2 and %3 amounts, %4 when, %5 a whole percent", "%1 used only %2 of %3 %4, less than %5 %.", row.budgetName, row.spent, row.available, when, row.share);
+            // A share above 100 % can trigger while the budget is over:
+            // then "only" is wrong, and the sentence says by how much (#759).
+            return row.over !== ""
+                ? i18nContext.i18nc("@info %1 is a budget, %2 and %3 amounts, %4 when, %5 an amount, %6 a whole percent", "%1 used %2 of %3 %4: over by %5, but less than %6 %.", row.budgetName, row.spent, row.available, when, row.over, row.share)
+                : i18nContext.i18nc("@info %1 is a budget, %2 and %3 amounts, %4 when, %5 a whole percent", "%1 used only %2 of %3 %4, less than %5 %.", row.budgetName, row.spent, row.available, when, row.share);
         case "account_below":
             return row.lowest
                 ? i18nContext.i18nc("@info %1 is an account, %2 and %3 amounts, %4 a date", "%1 went down to %2 this month (on %4), under your limit of %3.", row.accountName, row.balance, row.limit, row.balanceDay)

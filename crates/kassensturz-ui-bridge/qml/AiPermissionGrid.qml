@@ -192,6 +192,25 @@ ColumnLayout {
         return flat;
     }
 
+    // The widest single word of the texts in cells that aren't offered,
+    // in their small font: an action column is never narrower, so these
+    // words wrap between words and never inside one (#759).
+    FontMetrics {
+        id: smallMetrics
+
+        font.pointSize: Kirigami.Theme.smallFont.pointSize
+    }
+    readonly property real widestWord: {
+        const texts = [
+            i18nContext.i18nc("@info the AI is never offered this", "not offered"),
+            i18nContext.i18nc("@info reading this row is the reading of the transactions", "as Transactions"),
+            i18nContext.i18nc("@info the AI can't do this yet", "not yet")
+        ];
+        let widest = 0;
+        texts.forEach(text => text.split(/\s+/).forEach(word => widest = Math.max(widest, smallMetrics.advanceWidth(word))));
+        return Math.ceil(widest) + 2;
+    }
+
     GridLayout {
         Layout.fillWidth: true
         columns: 5
@@ -228,6 +247,7 @@ ColumnLayout {
 
                 Layout.fillWidth: cell.isName
                 Layout.preferredWidth: cell.isName ? Kirigami.Units.gridUnit * 8 : Kirigami.Units.gridUnit * 5
+                Layout.minimumWidth: cell.isName ? 0 : Math.max(toggle.implicitWidth, grid.widestWord)
                 implicitHeight: Math.max(nameLabel.implicitHeight, toggle.implicitHeight, absentLabel.visible ? absentLabel.implicitHeight : 0)
 
                 Controls.Label {
@@ -259,7 +279,8 @@ ColumnLayout {
                 }
 
                 // Wrapped within its own column, so a longer translation
-                // never runs into the next cell (US4 P3, R8).
+                // never runs into the next cell (US4 P3, R8), and only
+                // between words: the column is as wide as the widest word.
                 Controls.Label {
                     id: absentLabel
 
@@ -269,7 +290,7 @@ ColumnLayout {
                     visible: !cell.isName && cell.modelData.key === ""
                     enabled: false
                     horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.Wrap
+                    wrapMode: Text.WordWrap
                     font.pointSize: Kirigami.Theme.smallFont.pointSize
                     textFormat: Text.PlainText
                     text: cell.modelData.absent === "never"

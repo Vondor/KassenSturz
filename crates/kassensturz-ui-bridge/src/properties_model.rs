@@ -402,6 +402,7 @@ mod tests {
                 "average",
                 "categories",
                 "accounts",
+                "tags",
                 "title",
                 "legend",
                 "show_hidden",
@@ -438,9 +439,13 @@ mod tests {
         // The accounts it counts on its own (M6c.7).
         assert_eq!(text_of(&fields[3], "kind"), "ids");
         assert_eq!(text_of(&fields[3], "key"), "accounts");
-        assert_eq!(text_of(&fields[4], "kind"), "text");
-        assert_eq!(text_of(&fields[5], "kind"), "flag");
-        assert!(flag_of(&fields[5], "flag"));
+        // The tags only whose money counts (US5.2), as a list of IDs.
+        assert_eq!(text_of(&fields[4], "kind"), "ids");
+        assert_eq!(text_of(&fields[4], "key"), "tags");
+        assert!(list_of(&fields[4], "ids").is_empty());
+        assert_eq!(text_of(&fields[5], "kind"), "text");
+        assert_eq!(text_of(&fields[6], "kind"), "flag");
+        assert!(flag_of(&fields[6], "flag"));
         let preview = object_of(&view, "preview");
         assert_eq!(
             keys(&preview),
@@ -495,6 +500,7 @@ mod tests {
                 "groups",
                 "categories",
                 "accounts",
+                "tags",
                 "title",
                 "legend",
                 "show_hidden",
@@ -652,7 +658,14 @@ mod tests {
             .collect();
         assert_eq!(
             order,
-            ["measure", "accounts", "hide_note", "compare", "title"]
+            [
+                "measure",
+                "accounts",
+                "tags",
+                "hide_note",
+                "compare",
+                "title"
+            ]
         );
         let line = component(ComponentType::ChartLine, "income_expense_by_month");
         let order: Vec<String> = list_of(
@@ -669,6 +682,7 @@ mod tests {
             [
                 "categories",
                 "accounts",
+                "tags",
                 "income_categories",
                 "income_accounts",
                 "expenses_categories",
@@ -908,7 +922,14 @@ mod tests {
         // Not chosen yet: the formula is not offered, the comparison is.
         assert_eq!(
             keys_of_fields(&card, NumberForm::DecimalComma),
-            ["measure", "accounts", "hide_note", "compare", "title"]
+            [
+                "measure",
+                "accounts",
+                "tags",
+                "hide_note",
+                "compare",
+                "title"
+            ]
         );
         let words: Vec<String> = list_of(
             &view_object(Some(&card), None, NumberForm::DecimalComma),
@@ -931,7 +952,14 @@ mod tests {
             .unwrap();
         assert_eq!(
             keys_of_fields(&card, NumberForm::DecimalComma),
-            ["measure", "accounts", "hide_note", "formula", "title"]
+            [
+                "measure",
+                "accounts",
+                "tags",
+                "hide_note",
+                "formula",
+                "title"
+            ]
         );
         // The preview asks for the formula, not for a card of the cards.
         let preview = properties::preview(&card);
@@ -972,7 +1000,14 @@ mod tests {
         // Without a formula it shows the share you kept.
         assert_eq!(
             keys_of_fields(&bar, NumberForm::DecimalComma),
-            ["accounts", "compare", "formula", "title", "hide_note"]
+            [
+                "accounts",
+                "tags",
+                "compare",
+                "formula",
+                "title",
+                "hide_note"
+            ]
         );
         let preview = properties::preview(&bar);
         assert!(!preview.uses_formula);
@@ -982,7 +1017,14 @@ mod tests {
             .unwrap();
         assert_eq!(
             keys_of_fields(&bar, NumberForm::DecimalComma),
-            ["accounts", "formula", "target", "title", "hide_note"]
+            [
+                "accounts",
+                "tags",
+                "formula",
+                "target",
+                "title",
+                "hide_note"
+            ]
         );
         let preview = properties::preview(&bar);
         assert!(preview.uses_formula);

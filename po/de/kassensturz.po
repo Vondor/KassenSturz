@@ -21347,3 +21347,73 @@ msgstr "Die letzte Aktualisierung hat nicht geklappt. Sie können es noch einmal
 msgctxt "@info:tooltip"
 msgid "No account is updated from a bank yet, or bank connections can't be used here."
 msgstr "Noch kein Konto wird von einer Bank aktualisiert, oder Bankverbindungen können hier nicht genutzt werden."
+
+#, kde-format
+msgctxt "@item what a filter narrows: the tags"
+msgid "tags"
+msgstr "Schlagwörter"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Not filtered by tag: this counts whole accounts or budgets, not tagged money."
+msgstr ""
+"Nicht nach Schlagwort gefiltert: Hier zählen ganze Konten oder Budgets, nicht "
+"Geld mit Schlagwörtern."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "tags: %1"
+msgstr "Schlagwörter: %1"
+
+#, kde-format
+msgctxt "@label which tags the money of a chart, table or card is limited to"
+msgid "Only count these tags"
+msgstr "Nur diese Schlagwörter zählen"
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"There are no tags to pick yet. Add one to a transaction, or in Settings › "
+"Tags."
+msgstr ""
+"Es gibt noch keine Schlagwörter zur Auswahl. Fügen Sie einer Buchung eines "
+"hinzu oder legen Sie eines unter Einstellungen › Schlagwörter an."
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Nothing ticked: all money counts. Tick some to count only the money with "
+"those tags. Of a bill split into parts, only the tagged parts count. "
+"Transfers between your own accounts never count."
+msgstr ""
+"Nichts angekreuzt: Alles Geld zählt. Kreuzen Sie welche an, um nur das Geld "
+"mit diesen Schlagwörtern zu zählen. Bei einer Rechnung, die in Teilbeträge "
+"aufgeteilt ist, zählen nur die Teilbeträge mit dem Schlagwort. Umbuchungen "
+"zwischen Ihren eigenen Konten zählen nie."
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A filter can name at most 200 tags. Take some out of the filter, or choose "
+"none to count all money."
+msgstr ""
+"Ein Filter kann höchstens 200 Schlagwörter nennen. Nehmen Sie einige aus dem "
+"Filter oder wählen Sie keines, um alles Geld zu zählen."
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The filter names the same tag twice. Take it out once, then try again."
+msgstr ""
+"Der Filter nennt dasselbe Schlagwort zweimal. Nehmen Sie es einmal heraus und "
+"versuchen Sie es dann noch einmal."
+
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The tags in the filter include something that is not a tag. Take it out of "
+"the filter, or choose the tags again."
+msgstr ""
+"Unter den Schlagwörtern im Filter ist etwas, das kein Schlagwort ist. Nehmen "
+"Sie es aus dem Filter oder wählen Sie die Schlagwörter neu."

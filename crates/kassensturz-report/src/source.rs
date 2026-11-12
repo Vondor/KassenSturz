@@ -6,13 +6,14 @@
 //! (D-291), the balances of the user's own accounts with the book's
 //! exchange rates (D-348, D-365) and the budgets (D-346, D-378), read from
 //! the book in one read transaction so every figure comes from the same
-//! state (Q-036).
+//! state (Q-036). The book's tags are read too, so a tag filter can tell a
+//! tag that is gone (US5.2, D-714).
 
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Budget, CategoryGroup, Currency, CurrencyCode, Date, GroupId,
-    Money, RoundingMode, Transaction,
+    Money, RoundingMode, Tag, TagId, Transaction,
 };
 use kassensturz_store::{Book, CategoryEntry, StoreError};
 
@@ -56,6 +57,8 @@ pub struct Source {
     groups: Vec<CategoryGroup>,
     /// The hidden categories, as the book lists them.
     hidden: Vec<AccountId>,
+    /// The book's tags, sorted by name (US5.2).
+    tags: Vec<Tag>,
     /// The decimal places the book stores for each currency (D-027).
     currencies: HashMap<CurrencyCode, u8>,
     /// The book's rounding rule (D-027).
@@ -159,6 +162,7 @@ impl Source {
             book.transactions_between(period.first(), period.last())?,
         )
         .with_groups(book.category_groups()?, book.hidden_categories()?)
+        .with_tags(book.tags()?)
         .with_settings(&book.currencies()?, book.rounding_mode()?);
         Ok(match holdings {
             Some(holdings) => source.with_holdings(holdings),
@@ -182,6 +186,7 @@ impl Source {
             transactions,
             groups: Vec::new(),
             hidden: Vec::new(),
+            tags: Vec::new(),
             currencies: HashMap::new(),
             rounding: RoundingMode::default(),
             holdings: None,
@@ -298,6 +303,16 @@ impl Source {
         &self.hidden
     }
 
+    /// The same `Source` with these tags of the book.
+    pub(crate) fn with_tags(self, tags: Vec<Tag>) -> Self {
+        Self { tags, ..self }
+    }
+
+    /// The book's tags, sorted by name.
+    pub(crate) fn tags(&self) -> &[Tag] {
+        &self.tags
+    }
+
     /// Every category that is one of `roots` or inside one, with the topmost
     /// of `roots` it is in.
     pub(crate) fn inside(&self, roots: &HashSet<AccountId>) -> HashMap<AccountId, AccountId> {
@@ -347,6 +362,13 @@ impl Source {
     /// Every part of the transactions in `period` that counts as income or
     /// spending and passes `filter`. Zero amounts are left out.
     ///
+    /// With `filter.tags`, only the parts that carry one of them count: a
+    /// part's own tags or the whole transaction's (D-713). This is the sum by
+    /// tag of D-714, written here once for every tile, chart, formula and
+    /// AI tool: the parts that count are the category side only, so a tag on
+    /// the whole transaction counts each category part once and never the
+    /// account it was paid from, and a Transfer counts nothing.
+    ///
     /// Fails with [`ReportError::PeriodNotRead`] if the `Source` was read
     /// for fewer days than `period`.
     pub(crate) fn parts(&self, period: Period, filter: &Filter) -> Result<Vec<Part>, ReportError> {
@@ -363,6 +385,10 @@ impl Source {
             .accounts
             .as_ref()
             .map(|accounts| accounts.iter().copied().collect());
+        let tags: Option<HashSet<TagId>> = filter
+            .tags
+            .as_ref()
+            .map(|tags| tags.iter().copied().collect());
         let overflow = |_| StoreError::AmountOverflow;
         let mut parts = Vec::new();
         for (index, transaction) in self.transactions.iter().enumerate() {
@@ -408,6 +434,15 @@ impl Source {
                     continue;
                 }
                 if split.amount.is_zero() {
+                    continue;
+                }
+                if let Some(tags) = &tags
+                    && !transaction
+                        .tags()
+                        .iter()
+                        .chain(&split.tags)
+                        .any(|tag| tags.contains(tag))
+                {
                     continue;
                 }
                 // Income categories and money in are negative on the

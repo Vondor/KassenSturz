@@ -49,6 +49,8 @@ ColumnLayout {
             return i18nContext.i18nc("@item what a filter narrows: the accounts", "accounts");
         case "categories":
             return i18nContext.i18nc("@item what a filter narrows: the categories", "categories");
+        case "tags":
+            return i18nContext.i18nc("@item what a filter narrows: the tags", "tags");
         }
         return "";
     }
@@ -60,6 +62,9 @@ ColumnLayout {
 
     function noteText(note: var): string {
         if (note.kind === "not-applied") {
+            if (note.dimension === "tags") {
+                return i18nContext.i18nc("@info", "Not filtered by tag: this counts whole accounts or budgets, not tagged money.");
+            }
             return note.dimension === "accounts"
                 ? i18nContext.i18nc("@info", "Not filtered by account: this counts every account.")
                 : i18nContext.i18nc("@info", "Not filtered by category: this counts whole accounts.");
@@ -116,6 +121,9 @@ ColumnLayout {
             }
             if (notes.filtered.includes("categories")) {
                 parts.push(notes.i18nContext.i18nc("@info %1 is a list of category names", "categories: %1", notes.names(notes.filter.categories ?? [], notes.filter.categoriesMore ?? 0)));
+            }
+            if (notes.filtered.includes("tags")) {
+                parts.push(notes.i18nContext.i18nc("@info %1 is a list of tag names", "tags: %1", notes.names(notes.filter.tags ?? [], notes.filter.tagsMore ?? 0)));
             }
             return notes.i18nContext.i18nc("@info %1 is what the filter keeps", "Filtered to %1", parts.join("; "));
         }

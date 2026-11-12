@@ -199,6 +199,7 @@ fn a_category_filter_keeps_a_split_with_one_fitting_part_and_drops_transfers() {
     let filter = Filter {
         accounts: None,
         categories: Some(vec![food]),
+        tags: None,
     };
     let listed = list(&f, &filter, MAX_LISTED);
     assert_eq!(listed.total, 1);
@@ -209,6 +210,7 @@ fn a_category_filter_keeps_a_split_with_one_fitting_part_and_drops_transfers() {
     let nothing = Filter {
         accounts: None,
         categories: Some(Vec::new()),
+        tags: None,
     };
     assert_eq!(list(&f, &nothing, MAX_LISTED).total, 0);
 }
@@ -238,6 +240,7 @@ fn an_accounts_filter_lists_only_their_sides() {
     let filter = Filter {
         accounts: Some(vec![checking]),
         categories: None,
+        tags: None,
     };
     let listed = list(&f, &filter, MAX_LISTED);
     assert_eq!(listed.total, 2);
@@ -330,6 +333,7 @@ fn starting_balances_and_closed_accounts_are_left_out_unless_chosen() {
     let chosen = Filter {
         accounts: Some(vec![old]),
         categories: None,
+        tags: None,
     };
     assert_eq!(list(&f, &chosen, MAX_LISTED).total, 2);
 }

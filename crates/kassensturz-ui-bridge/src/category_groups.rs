@@ -79,6 +79,9 @@ pub struct GroupsView {
     pub hidden: Vec<String>,
     /// The budgets, for the budget bars' *Which budgets* (D-642).
     pub budgets: Vec<crate::budgets::BudgetChoice>,
+    /// The book's tags by name, for a component's *Only count these tags*
+    /// (US5.2, D-714): each tag's ID and name.
+    pub tags: Vec<(String, String)>,
 }
 
 /// The groups, the categories and the hide list of `book`.
@@ -145,6 +148,11 @@ pub fn view(book: &Book) -> Result<GroupsView, StoreError> {
         categories,
         hidden,
         budgets: crate::budgets::choices(book)?,
+        tags: book
+            .tags()?
+            .into_iter()
+            .map(|tag| (tag.id.to_string(), tag.name))
+            .collect(),
     })
 }
 

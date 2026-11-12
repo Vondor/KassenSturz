@@ -369,6 +369,7 @@ fn the_account_filter_keeps_whole_transactions_of_the_chosen_accounts() {
     let only = |accounts: Vec<AccountId>| Filter {
         accounts: Some(accounts),
         categories: None,
+        tags: None,
     };
     let dollars = spending_by_category(&source, autumn(), &only(vec![sample.dollars]), Level::Each)
         .expect("dataset");
@@ -400,6 +401,7 @@ fn the_category_filter_takes_subcategories_along_and_leaves_unsorted_out() {
     let only = |categories: Vec<AccountId>| Filter {
         accounts: None,
         categories: Some(categories),
+        tags: None,
     };
     let food = spending_by_category(&source, autumn(), &only(vec![sample.food]), Level::Each)
         .expect("dataset");

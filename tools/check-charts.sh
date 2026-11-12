@@ -120,6 +120,10 @@ custom_thin = {
     ("17-bar", pink): 300,
     # A bar of zero is a thin line of its colour (M6-B229).
     ("19-bar", blue): 40,
+    # Candles (US4.10): the rising ones are hollow, only their frame and
+    # line are blue.
+    ("20-candlestick", blue): 300,
+    ("20-candlestick", orange): 300,
 }
 # A lone bar is never wider than three grid units (M6-B229): far fewer
 # pixels than half the picture.
@@ -142,6 +146,8 @@ expected = {
     # Spending compared with an average (M6-B229): rows, and one lone bar.
     "18-bar": [blue, orange],
     "19-bar": [blue, orange],
+    # The balance as candles: up hollow in blue, down filled in orange.
+    "20-candlestick": [blue, orange],
 }
 failed = False
 for name, colors in expected.items():

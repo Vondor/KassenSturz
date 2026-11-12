@@ -38,6 +38,7 @@ pub const DETAILS: &[&str] = &[
     "chart_area",
     "chart_stacked_bar",
     "chart_custom",
+    "chart_candlestick",
     "kpi_card",
     "progress_bar",
     "table_rows",

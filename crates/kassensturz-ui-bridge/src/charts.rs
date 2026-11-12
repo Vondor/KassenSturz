@@ -11,19 +11,21 @@
 
 use kassensturz_charts::{
     BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, Prepared,
-    account_balances as balances_chart, cash_flow_by_month as cash_flow_chart, category_over_time,
-    income_expense_by_month, net_worth_over_time as net_worth_chart, spending_by_category,
-    spending_by_category_as, spending_by_category_compared,
+    account_balances as balances_chart, balance_candles as candles_chart,
+    cash_flow_by_month as cash_flow_chart, category_over_time, income_expense_by_month,
+    net_worth_over_time as net_worth_chart, spending_by_category, spending_by_category_as,
+    spending_by_category_compared,
 };
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
     ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, Column, CompareWith, Filter,
     INCOME_EXPENSE_BY_MONTH, Level, NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period,
     ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
-    account_balances as balances_dataset, cash_flow_by_month as cash_flow_dataset,
-    category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
-    compared_early, counted_early, income_expense_by_month as monthly_dataset,
-    income_expense_by_series, net_worth_over_time as net_worth_dataset, shared_categories,
+    account_balances as balances_dataset, balance_candles as candles_dataset,
+    cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
+    columns_over_time, columns_span, columns_spending, compared_early, counted_early,
+    income_expense_by_month as monthly_dataset, income_expense_by_series,
+    net_worth_over_time as net_worth_dataset, shared_categories,
     spending_by_category_shown as spending_dataset, spending_compared,
 };
 use kassensturz_store::Book;
@@ -40,7 +42,8 @@ pub struct Request {
     /// `category_over_time`, `account_balances`, `net_worth_over_time` or
     /// `cash_flow_by_month`.
     pub dataset: String,
-    /// `line`, `bar`, `stacked-bar`, `area`, `pie` or `donut`.
+    /// `line`, `bar`, `stacked-bar`, `area`, `pie`, `donut` or
+    /// `candlestick` (US4.10, only of `cash_flow_by_month`).
     pub kind: String,
     /// `this-month`, `last-month`, `last-12-months`, `this-year` or
     /// `last-year`.
@@ -518,6 +521,14 @@ pub fn charts(
                 .iter()
                 .map(|data| net_worth_chart(data, kind, &text))
                 .collect::<Result<Vec<_>, _>>()?,
+            // The chosen accounts' balance as candles (US4.10, D-718,
+            // D-719): the same accounts as the cash flow.
+            CASH_FLOW_BY_MONTH if kind == ChartKind::Candlestick => {
+                candles_dataset(&source, period, &filter)?
+                    .iter()
+                    .map(|data| candles_chart(data, &text))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
             CASH_FLOW_BY_MONTH => cash_flow_dataset(&source, period, &filter)?
                 .iter()
                 .map(|data| cash_flow_chart(data, kind, &text))

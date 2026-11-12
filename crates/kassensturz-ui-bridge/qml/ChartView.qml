@@ -1,10 +1,11 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// One chart (M6a.4, D-276, D-283): line, bar, stacked bar, area, pie or
-// donut, drawn by KQuickCharts from the drawing values of a chart model, with
-// every word and number around it as text from Rust (D-065): the value axis,
-// the categories, the legend and the total. KQuickCharts draws no axes, so
+// One chart (M6a.4, D-276, D-283): line, bar, stacked bar, area, pie,
+// donut or candles (US4.10), drawn by KQuickCharts (the candles by plain
+// rectangles) from the drawing values of a chart model, with every word
+// and number around it as text from Rust (D-065): the value axis, the
+// categories, the legend and the total. KQuickCharts draws no axes, so
 // they are drawn here from that text.
 //
 // It is a keyboard stop: Left and Right move between points and the text of
@@ -43,6 +44,10 @@ ColumnLayout {
     readonly property int count: chart.count
     readonly property var ticks: chart.ticks
     readonly property bool lines: chart.kind === "line" || chart.kind === "area" || chart.kind === "stacked-area"
+    // The balance as candles (US4.10, D-718): the series are start, highest,
+    // lowest and end. KQuickCharts has no candles, so they are rectangles
+    // placed by the drawing values, as the overlays are.
+    readonly property bool candles: chart.kind === "candlestick"
     // The layers a custom chart puts over its own marks (M6e.2); built-in
     // charts have none.
     readonly property var overlays: chart.overlays ?? []
@@ -53,6 +58,14 @@ ColumnLayout {
     // those of its overlays. The names of overlay series are the user's own
     // text from the chart description.
     readonly property var legendEntries: {
+        // Candles tell up from down by their color and by being hollow or
+        // filled, never by the color alone (D-283).
+        if (candles) {
+            return [
+                {color: 0, marker: -1, hollow: true, name: i18nContext.i18nc("@label legend of a candle chart", "Ended higher than it started")},
+                {color: 1, marker: -1, hollow: false, name: i18nContext.i18nc("@label legend of a candle chart", "Ended lower than it started")}
+            ];
+        }
         const found = chart.series.map(series => ({color: series.color, marker: series.marker, name: seriesName(series.key)}));
         for (const overlay of overlays) {
             for (const series of overlay.series) {
@@ -177,6 +190,15 @@ ColumnLayout {
             return i18nContext.i18nc("@label a series of a chart: what the user has less what they owe", "What you are worth");
         case "balance":
             return i18nContext.i18nc("@title:column a table of a chart", "Balance");
+        // The four balances of a candle (US4.10).
+        case "start":
+            return i18nContext.i18nc("@label a balance of a candle: at the start of its days", "Start");
+        case "highest":
+            return i18nContext.i18nc("@label a balance of a candle: the highest at the end of one of its days", "Highest");
+        case "lowest":
+            return i18nContext.i18nc("@label a balance of a candle: the lowest at the end of one of its days", "Lowest");
+        case "end":
+            return i18nContext.i18nc("@label a balance of a candle: at the end of its days", "End");
         // The smaller categories of one bar split into its categories, put
         // together as in a pie (D-666).
         case "other":
@@ -505,7 +527,7 @@ ColumnLayout {
                     id: drawing
 
                     anchors.fill: parent
-                    sourceComponent: view.round ? pie : (view.lines ? line : bar)
+                    sourceComponent: view.round ? pie : (view.candles ? candle : (view.lines ? line : bar))
                 }
 
                 // A new chart gets new sources of values; the old ones go with
@@ -534,7 +556,7 @@ ColumnLayout {
                 // its series' colour on the zero line, so the empty slot
                 // reads as "nothing" and not as a gap (M6-B229).
                 Repeater {
-                    model: !view.round && !view.lines && !view.stacked && view.chart.series.length > 1
+                    model: !view.round && !view.lines && !view.candles && !view.stacked && view.chart.series.length > 1
                         ? view.chart.series.length * view.count : 0
 
                     delegate: Rectangle {
@@ -558,7 +580,7 @@ ColumnLayout {
                 // is more than one series to tell apart: white in a tall bar,
                 // in the series' colour just above a short one (M6-B229).
                 Repeater {
-                    model: !view.round && !view.lines && view.chart.series.length > 1
+                    model: !view.round && !view.lines && !view.candles && view.chart.series.length > 1
                         ? view.chart.series.length * view.count : 0
 
                     delegate: Controls.Label {
@@ -620,6 +642,14 @@ ColumnLayout {
                 HoverHandler {
                     enabled: view.round
                     onPointChanged: view.current = view.sliceAt(point.position.x - plot.width / 2, point.position.y - plot.height / 2, Math.min(plot.width, plot.height) / 2)
+                    onHoveredChanged: if (!hovered) view.current = -1
+                }
+
+                // Pointing at a candle says its four balances, as the keys
+                // and the table do.
+                HoverHandler {
+                    enabled: view.candles && view.count > 0
+                    onPointChanged: view.current = Math.max(0, Math.min(view.count - 1, Math.floor(point.position.x / (plot.width / view.count))))
                     onHoveredChanged: if (!hovered) view.current = -1
                 }
 
@@ -870,6 +900,7 @@ ColumnLayout {
                     ? view.chart.series[0].points[index].color : series.color
                 readonly property int marker: view.round
                     ? view.chart.series[0].points[index].marker : series.marker
+                readonly property bool hollow: !view.round && series.hollow === true
 
                 spacing: Kirigami.Units.smallSpacing
 
@@ -879,9 +910,9 @@ ColumnLayout {
                     radius: entry.marker === 1 ? width / 2 : (entry.marker === 2 ? 0 : 2)
                     rotation: entry.marker === 3 ? 45 : 0
                     // A row that can't be a slice has no color of its own.
-                    color: view.undrawn(entry.index) ? "transparent" : ChartPalette.color(entry.color, view.extraColors)
-                    border.width: view.undrawn(entry.index) ? 1 : 0
-                    border.color: Kirigami.Theme.disabledTextColor
+                    color: view.undrawn(entry.index) || entry.hollow ? "transparent" : ChartPalette.color(entry.color, view.extraColors)
+                    border.width: entry.hollow ? 2 : (view.undrawn(entry.index) ? 1 : 0)
+                    border.color: entry.hollow ? ChartPalette.color(entry.color, view.extraColors) : Kirigami.Theme.disabledTextColor
 
                     Controls.Label {
                         anchors.centerIn: parent
@@ -942,11 +973,23 @@ ColumnLayout {
             ? i18nContext.i18nc("@label %1 is an amount of money", "What you are worth at the end: %1", view.chart.total)
             : view.chart.dataset === "account_balances"
             ? i18nContext.i18nc("@label %1 is an amount of money: what the user has less what they owe at the end of the period", "What you are worth: %1", view.chart.total)
+            : view.candles
+            ? i18nContext.i18nc("@label %1 is an amount of money: what the accounts held at the end of the period", "Balance at the end: %1", view.chart.total)
             : view.chart.dataset === "cash_flow_by_month"
             ? i18nContext.i18nc("@label %1 is an amount of money, the money in less the money out of the accounts", "Net change in total: %1", view.chart.total)
             : i18nContext.i18nc("@label %1 is an amount of money", "Left over in total: %1", view.chart.total)
         textFormat: Text.PlainText
         font.bold: true
+    }
+
+    // What a candle shows, in plain words ("Explain, don't assume").
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: view.candles && !view.showTable
+        text: i18nContext.i18nc("@info under a candle chart", "Each candle is one stretch of days, named below it. Its box runs from the balance at the start to the balance at the end; the thin line runs from the lowest to the highest balance at the end of a day. Several bookings on one day count only with that day's end.")
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
+        font: Kirigami.Theme.smallFont
     }
 
     // What "Other" holds, under the chart and under its table.
@@ -1047,6 +1090,65 @@ ColumnLayout {
                 array: view.chart.series.map(series => ChartPalette.color(series.color, view.extraColors))
             }
             valueSources: view.sources(barChart)
+        }
+    }
+
+    // Candles (US4.10): for each a thin line from the lowest to the highest
+    // balance and a box from the start to the end, hollow when it ended
+    // higher and filled when it ended lower, so up and down differ by more
+    // than the color. The drawing values only place them (AGENTS.md §5).
+    Component {
+        id: candle
+
+        Item {
+            id: candlePlot
+
+            readonly property real span: view.high - view.low
+            readonly property real slot: width / Math.max(1, view.count)
+
+            function yOf(value: real): real {
+                return span > 0 ? (1 - (value - view.low) / span) * height : height / 2;
+            }
+
+            Repeater {
+                model: view.chart.series.length === 4 ? view.count : 0
+
+                delegate: Item {
+                    required property int index
+                    readonly property real open: view.chart.series[0].points[index].value
+                    readonly property real highest: view.chart.series[1].points[index].value
+                    readonly property real lowest: view.chart.series[2].points[index].value
+                    readonly property real close: view.chart.series[3].points[index].value
+                    readonly property bool rose: close >= open
+                    readonly property color tint: ChartPalette.color(rose ? 0 : 1, view.extraColors)
+                    readonly property real bodyWidth: Math.max(3, Math.min(Kirigami.Units.gridUnit * 2, candlePlot.slot * 0.6))
+
+                    x: index * candlePlot.slot
+                    width: candlePlot.slot
+                    height: candlePlot.height
+
+                    // The line from the lowest to the highest balance.
+                    Rectangle {
+                        x: (parent.width - width) / 2
+                        width: 2
+                        y: candlePlot.yOf(parent.highest)
+                        height: Math.max(1, candlePlot.yOf(parent.lowest) - y)
+                        color: parent.tint
+                    }
+
+                    // The box from the start to the end; at least two
+                    // pixels high, so a candle without change still shows.
+                    Rectangle {
+                        x: (parent.width - width) / 2
+                        width: parent.bodyWidth
+                        y: candlePlot.yOf(Math.max(parent.open, parent.close)) - (height - Math.abs(candlePlot.yOf(parent.open) - candlePlot.yOf(parent.close))) / 2
+                        height: Math.max(2, Math.abs(candlePlot.yOf(parent.open) - candlePlot.yOf(parent.close)))
+                        color: parent.rose ? Kirigami.Theme.backgroundColor : parent.tint
+                        border.width: 2
+                        border.color: parent.tint
+                    }
+                }
+            }
         }
     }
 

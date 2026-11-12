@@ -62,7 +62,10 @@ pub struct CashFlowByMonth {
 /// The accounts the dataset counts: those `filter` chooses that are the
 /// user's own, or without a choice every account of kind asset (checking,
 /// savings, cash), closed ones included.
-fn chosen<'a>(source: &'a Source, filter: &Filter) -> Vec<&'a kassensturz_core::Account> {
+pub(crate) fn chosen<'a>(
+    source: &'a Source,
+    filter: &Filter,
+) -> Vec<&'a kassensturz_core::Account> {
     source
         .own_accounts(filter)
         .into_iter()

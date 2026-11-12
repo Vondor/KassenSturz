@@ -36,6 +36,7 @@
 mod average;
 mod balances;
 mod budget_utilization;
+mod candles;
 mod cash_flow;
 mod catalog;
 mod columns;
@@ -72,6 +73,7 @@ pub use budget_utilization::{
     BUDGET_UTILIZATION, BudgetGrouping, BudgetNote, BudgetPeriod, BudgetUtilization,
     budget_utilization,
 };
+pub use candles::{BalanceCandles, Candle, CandleLength, balance_candles};
 pub use cash_flow::{CASH_FLOW_BY_MONTH, CashFlowByMonth, CashFlowRow, cash_flow_by_month};
 pub use catalog::{CATALOG, DatasetInfo, GROUPS_GROUPING, dataset};
 pub use columns::{
@@ -136,6 +138,8 @@ pub use text::{TextFormat, TextTable};
 
 #[cfg(test)]
 mod budget_tests;
+#[cfg(test)]
+mod candles_tests;
 #[cfg(test)]
 mod columns_tests;
 #[cfg(test)]

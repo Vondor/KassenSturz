@@ -175,6 +175,26 @@ Window {
         return chart;
     }
 
+    // The balance as candles (US4.10): two weeks up (hollow, blue) and two
+    // down (filled, orange), on an axis that does not start at zero.
+    function candles() {
+        const open = [5000, 5200, 5600, 5300];
+        const high = [5300, 5700, 5650, 5400];
+        const low = [4900, 5100, 5200, 5000];
+        const close = [5200, 5600, 5300, 5050];
+        const chart = monthly("bar");
+        chart.kind = "candlestick";
+        chart.dataset = "cash_flow_by_month";
+        chart.total = "5050,00 €";
+        chart.categories = ["2 Mar 2026", "9 Mar 2026", "16 Mar 2026", "23 Mar 2026"];
+        const four = (key, values, color) => ({key: key, name: "", color: color, marker: color, points: values.map(v => point(v + ",00 €", v, color))});
+        chart.series = [four("start", open, 0), four("highest", high, 1), four("lowest", low, 2), four("end", close, 3)];
+        chart.ticks = [4800, 5000, 5200, 5400, 5600, 5800].map(v => ({label: v + " €", minorUnits: String(v * 100), value: v * 100}));
+        chart.table = {currency: "EUR", columns: ["period", "start", "highest", "lowest", "end"],
+                       rows: chart.categories.map((c, i) => [c, open[i] + ",00 €", high[i] + ",00 €", low[i] + ",00 €", close[i] + ",00 €"])};
+        return chart;
+    }
+
     function item(category, value, label, text, size) {
         return {category: category, hasValue: value !== null, value: value === null ? 0 : value * 100, label: label, text: text ?? "", size: size ?? 2};
     }
@@ -234,7 +254,8 @@ Window {
         customLayers(), stackedArea(), marksOnly(),
         compared(["Miscellaneous", "Subspace Communications", "Taxes and Fees", "Clothing and Gear", "Food"],
                  [40, 300, 1255, 1110, 900], [120, 280, 4020, 75, 0], "EUR"),
-        compared(["Travel"], [0], [2433], "USD")
+        compared(["Travel"], [0], [2433], "USD"),
+        candles()
     ]
     property int shown: 0
 

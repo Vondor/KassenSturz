@@ -100,6 +100,11 @@ DataTable {
         "money_in": i18nContext.i18nc("@title:column a table of a chart", "Money in"),
         "money_out": i18nContext.i18nc("@title:column a table of a chart", "Money out"),
         "starting": i18nContext.i18nc("@title:column a table of a chart: starting balances set in the month", "Starting balances"),
-        "end": i18nContext.i18nc("@title:column a table of a chart: what the accounts held at the end of the month", "At the end")
+        "end": i18nContext.i18nc("@title:column a table of a chart: what the accounts held at the end of the month", "At the end"),
+        // The candles of a balance (US4.10): each row is a day, week or
+        // month, with its start and end in the columns above.
+        "period": i18nContext.i18nc("@title:column a table of a candle chart: the day, week or month of a row", "Period"),
+        "highest": i18nContext.i18nc("@title:column a table of a candle chart: the highest balance at the end of a day", "Highest"),
+        "lowest": i18nContext.i18nc("@title:column a table of a candle chart: the lowest balance at the end of a day", "Lowest")
     })
 }

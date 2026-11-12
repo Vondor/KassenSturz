@@ -30,7 +30,9 @@ pub use datasets::{
     category_over_time, income_expense_by_month, spending_by_category, spending_by_category_as,
 };
 pub use error::ChartError;
-pub use financial::{BalancesBy, account_balances, cash_flow_by_month, net_worth_over_time};
+pub use financial::{
+    BalancesBy, account_balances, balance_candles, cash_flow_by_month, net_worth_over_time,
+};
 pub use model::{
     ANSWER_NO, ANSWER_YES, ChartKind, ChartModel, EXTRA_COLOR_BASE, HiddenNote, MAX_DOT_SIZE,
     MAX_SLICES, NAMED_FROM_TENTHS, Overlay, OverlayItem, OverlayMark, OverlaySeries, Point, Series,

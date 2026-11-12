@@ -42,6 +42,11 @@ pub enum ChartKind {
     Pie,
     /// A pie with a hole.
     Donut,
+    /// A candle per day, week or month: a box from where a balance started
+    /// to where it ended, and a thin line from its lowest to its highest
+    /// (US4.10, D-718). The series are `start`, `highest`, `lowest` and
+    /// `end`, in this order.
+    Candlestick,
 }
 
 impl ChartKind {
@@ -55,6 +60,7 @@ impl ChartKind {
             Self::StackedArea => "stacked-area",
             Self::Pie => "pie",
             Self::Donut => "donut",
+            Self::Candlestick => "candlestick",
         }
     }
 
@@ -68,6 +74,7 @@ impl ChartKind {
             Self::StackedArea,
             Self::Pie,
             Self::Donut,
+            Self::Candlestick,
         ]
         .into_iter()
         .find(|kind| kind.key() == key)

@@ -1299,6 +1299,56 @@ mod tests {
         assert!(!flag_of(&view, "empty"));
     }
 
+    /// The candles of the checking account over the last 12 months (US4.10),
+    /// read back as `ChartView.qml` reads them: a candle per month, the four
+    /// series in their order with text labels and drawing values, and value
+    /// marks around the balances.
+    #[test]
+    fn candles_read_back_the_way_qml_reads_them() {
+        let view = view_of(&request("cash_flow_by_month", "candlestick"));
+        let shown = list_of(&view, "charts");
+        assert_eq!(shown.len(), 1);
+        let chart = &shown[0];
+        assert_eq!(text_of(chart, "kind"), "candlestick");
+        assert_eq!(text_of(chart, "dataset"), "cash_flow_by_month");
+        assert!(!flag_of(chart, "round"));
+        // Twelve months touched by the last 12 months, one candle each.
+        let candles = number_of(chart, "count");
+        assert!((12..=13).contains(&candles), "{candles}");
+        let series = list_of(chart, "series");
+        let names: Vec<String> = series.iter().map(|s| text_of(s, "key")).collect();
+        assert_eq!(names, ["start", "highest", "lowest", "end"]);
+        let units = |at: usize| -> Vec<String> {
+            series
+                .iter()
+                .map(|one| text_of(&list_of(one, "points")[at], "minorUnits"))
+                .collect()
+        };
+        for one in &series {
+            let points = list_of(one, "points");
+            assert_eq!(points.len(), usize::try_from(candles).unwrap());
+            assert_eq!(
+                keys(&points[0]),
+                ["color", "label", "marker", "minorUnits", "value"]
+            );
+            assert!(!text_of(&points[0], "label").is_empty());
+        }
+        // August: 2,500.00 came in and 800.00 went out on the 3rd. Only the
+        // end of that day counts (D-718), so the highest is 1,700.00, not
+        // 2,500.00. September: more out on its 3rd, all on one day.
+        let all: Vec<Vec<String>> = (0..usize::try_from(candles).unwrap()).map(units).collect();
+        let august = all
+            .iter()
+            .position(|four| four[0] == "0" && four[3] == "170000")
+            .expect("the August candle");
+        assert_eq!(all[august], ["0", "170000", "0", "170000"]);
+        assert_eq!(all[august + 1], ["170000", "333446", "170000", "333446"]);
+        let label = text_of(&list_of(&series[1], "points")[august], "label");
+        assert_eq!(label, "1700,00 €");
+        assert_eq!(list_of(&object_of(chart, "table"), "columns").len(), 5);
+        assert!(list_of(chart, "ticks").len() >= 2);
+    }
+
     #[test]
     fn every_column_of_the_tables_of_the_accounts_has_a_name_on_screen() {
         // A column the screen has no words for would show its fixed name.
@@ -1308,6 +1358,7 @@ mod tests {
             ("account_balances", "bar", "account-kind"),
             ("net_worth_over_time", "line", "each"),
             ("cash_flow_by_month", "bar", "each"),
+            ("cash_flow_by_month", "candlestick", "each"),
         ] {
             let mut asked = request(dataset, kind);
             asked.grouping = grouping.into();

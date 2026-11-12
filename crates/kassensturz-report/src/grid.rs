@@ -62,7 +62,8 @@ impl ComponentType {
             | Self::ChartArea
             | Self::ChartPie
             | Self::ChartDonut
-            | Self::CustomChart => Size { cols: 3, rows: 3 },
+            | Self::CustomChart
+            | Self::ChartCandlestick => Size { cols: 3, rows: 3 },
         }
     }
 
@@ -93,7 +94,8 @@ impl ComponentType {
             | Self::ChartArea
             | Self::ChartPie
             | Self::ChartDonut
-            | Self::CustomChart => Size { cols: 6, rows: 4 },
+            | Self::CustomChart
+            | Self::ChartCandlestick => Size { cols: 6, rows: 4 },
         }
     }
 }

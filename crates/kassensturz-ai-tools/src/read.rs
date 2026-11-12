@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, AmountTest, BookTo, Condition, CurrencyCode,
     Date, MatchMode, Money, Report as _, RuleId, RuleNode, Split, SplitId, TagId, TextField,
-    TextOperator, Transaction,
+    TextOperator, Transaction, TransactionId,
 };
 use kassensturz_store::{Book, StoreError};
 use serde_json::{Map, Value, json};
@@ -957,6 +957,8 @@ pub(crate) fn search_transactions(
     };
     // (date, transaction, part): every entry of an account that matches.
     let mut found: Vec<(Date, &Transaction, &Split, &Account)> = Vec::new();
+    // The part, from 1, a row matched by when its own amount didn't.
+    let mut matched_parts: HashMap<(TransactionId, SplitId), usize> = HashMap::new();
     for transaction in &transactions {
         if search
             .tag
@@ -1003,16 +1005,33 @@ pub(crate) fn search_transactions(
                 continue;
             }
             if search.min_amount.is_some() || search.max_amount.is_some() {
-                let minor = part.account_amount().minor_units();
                 let decimals = w.digits(account.currency)?;
-                if search
-                    .min_amount
-                    .is_some_and(|min| min.compare(minor, decimals).is_lt())
-                    || search
-                        .max_amount
-                        .is_some_and(|max| max.compare(minor, decimals).is_gt())
-                {
-                    continue;
+                let in_range = |minor: i64| {
+                    !(search
+                        .min_amount
+                        .is_some_and(|min| min.compare(minor, decimals).is_lt())
+                        || search
+                            .max_amount
+                            .is_some_and(|max| max.compare(minor, decimals).is_gt()))
+                };
+                if !in_range(part.account_amount().minor_units()) {
+                    // A split also matches by one of its parts, as seen
+                    // from the account, so "the 7.49" finds the debit
+                    // that paid it (D-737). The row names the part.
+                    let parts = parts_of(names, transaction, part, account)?;
+                    let matched = parts.iter().position(|split| {
+                        split
+                            .amount
+                            .minor_units()
+                            .checked_neg()
+                            .is_some_and(in_range)
+                    });
+                    match matched {
+                        Some(at) => {
+                            matched_parts.insert((transaction.id(), part.id), at + 1);
+                        }
+                        None => continue,
+                    }
                 }
             }
             found.push((date, transaction, part, account));
@@ -1059,6 +1078,7 @@ pub(crate) fn search_transactions(
             marks,
             possible.contains(&transaction.id()),
             &tag_names,
+            matched_parts.get(&(transaction.id(), part.id)).copied(),
         )?);
     }
     let shown = rows.len();
@@ -1095,6 +1115,7 @@ fn search_row(
     marks: Option<&Marks>,
     possible_transfer: bool,
     tag_names: &HashMap<TagId, String>,
+    matched_part: Option<usize>,
 ) -> Result<Value, ToolError> {
     let mut row = Map::new();
     row.insert("date".into(), Value::String(date.to_string()));
@@ -1250,7 +1271,65 @@ fn search_row(
             }
         }
     }
+    // The parts of a split, so a model sees what each was for and can
+    // change them with split_transactions (D-737).
+    let parts = parts_of(names, transaction, part, account)?;
+    if !parts.is_empty() {
+        let mut list = Vec::with_capacity(parts.len());
+        for split in parts {
+            let mut item = Map::new();
+            match split.account {
+                Some(id) => {
+                    item.insert("category".into(), w.text(&names.name(id)?));
+                    item.insert("category_id".into(), Value::String(id.to_string()));
+                }
+                None => {
+                    item.insert("unsorted".into(), Value::Bool(true));
+                }
+            }
+            let amount = split
+                .amount
+                .checked_neg()
+                .map_err(|_| ToolError::BadArgument { argument: "amount" })?;
+            item.insert("amount".into(), w.amount(amount)?);
+            if let Some(name) = &split.note {
+                item.insert("name".into(), w.text(name));
+            }
+            list.push(Value::Object(item));
+        }
+        row.insert("parts".into(), Value::Array(list));
+    }
+    if let Some(at) = matched_part {
+        row.insert("matched_part".into(), w.count(at));
+    }
     Ok(Value::Object(row))
+}
+
+/// The parts of `transaction` besides `part`, the entry of `account`, when
+/// it is split: two or more of them, each in a category or in none yet, in
+/// the account's currency, in the stored order. Empty otherwise, e.g. for
+/// a plain transaction or a Transfer (D-737).
+fn parts_of<'t>(
+    names: &Names,
+    transaction: &'t Transaction,
+    part: &Split,
+    account: &Account,
+) -> Result<Vec<&'t Split>, ToolError> {
+    if account.currency != transaction.currency() {
+        return Ok(Vec::new());
+    }
+    let mut parts = Vec::new();
+    for split in transaction.splits() {
+        if core::ptr::eq(split, part) {
+            continue;
+        }
+        match split.account {
+            None => parts.push(split),
+            Some(id) if names.account(id)?.kind.is_category() => parts.push(split),
+            Some(_) => return Ok(Vec::new()),
+        }
+    }
+    Ok(if parts.len() >= 2 { parts } else { Vec::new() })
 }
 
 /// The name of the book's tag `tag`; `ai-tools.unknown-tag` for an ID the

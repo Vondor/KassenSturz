@@ -1211,6 +1211,10 @@ fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
         if let Some(argument) = error.use_instead() {
             object.insert("use_instead".into(), json!(argument));
         }
+        // A split whose parts don't add up: by how much (D-737).
+        for (name, amount) in error.amounts().into_iter().flatten() {
+            object.insert(name.into(), json!(amount));
+        }
         // Where the user can switch on what is off (D-676).
         if let Some(setting) = error.setting() {
             object.insert("setting".into(), setting.json());

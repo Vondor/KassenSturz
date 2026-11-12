@@ -534,6 +534,10 @@ fn error_result(report: &ErrorReport, error: &ToolError) -> CallToolResult {
     if let Some(argument) = error.use_instead() {
         value.insert("use_instead".into(), Value::from(argument));
     }
+    // A split whose parts don't add up: by how much (D-737).
+    for (name, amount) in error.amounts().into_iter().flatten() {
+        value.insert(name.into(), Value::from(amount));
+    }
     // Where the user can switch on what is off (D-676).
     if let Some(setting) = error.setting() {
         value.insert("setting".into(), setting.json());

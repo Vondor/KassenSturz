@@ -359,12 +359,12 @@ pub(super) fn parse_date(text: &str) -> Result<Date, ToolError> {
 }
 
 /// A payee or note a model wrote, as the book will keep it: trimmed, not
-/// too long ([`MAX_NOTE_CHARS`] for the `note`, [`MAX_PAYEE_CHARS`] for
-/// anything else), on one line, without control characters or characters
+/// too long ([`MAX_NOTE_CHARS`] for the `note` and a part's `name`, which
+/// is its note (D-737), [`MAX_PAYEE_CHARS`] for anything else), on one line, without control characters or characters
 /// that hide text (threat T-08). Empty means none.
 pub(super) fn free_text(text: &str, argument: &'static str) -> Result<Option<String>, ToolError> {
     let text = text.trim();
-    let longest = if argument == "note" {
+    let longest = if matches!(argument, "note" | "name") {
         MAX_NOTE_CHARS
     } else {
         MAX_PAYEE_CHARS

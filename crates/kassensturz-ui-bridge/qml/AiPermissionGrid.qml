@@ -104,6 +104,21 @@ ColumnLayout {
             ]
         },
         {
+            // Its own row, so allowing sorting never allowed the AI to break
+            // a payment into parts (D-737). The account's own amount stays
+            // and the parts add up to it; it reads the transactions, so it
+            // keeps Transactions › Read on. It needs the Category and Amount
+            // fields unlocked, which the hint below the locks says.
+            name: i18nContext.i18nc("@label a part of the book", "Parts of transactions"),
+            readRow: "Transactions",
+            cells: [
+                { key: "", absent: "viaTransactions" },
+                { key: "", absent: "never" },
+                { key: "AllowSplitTransactions", needsRead: true },
+                { key: "", absent: "never" }
+            ]
+        },
+        {
             name: i18nContext.i18nc("@label a part of the book", "Charts"),
             cells: [
                 { key: "AllowReadViews", read: true },
@@ -156,7 +171,7 @@ ColumnLayout {
     // delete. That is the one part that can hurt for good, so it is marked
     // with a warning while any of it is on.
     function historyAtRisk(again: int): bool {
-        return ["AllowNewTransactions", "AllowSortTransactions", "AllowDeleteTransactions", "AllowJoinTransfers"].some(key => settings.allows(key));
+        return ["AllowNewTransactions", "AllowSortTransactions", "AllowDeleteTransactions", "AllowJoinTransfers", "AllowSplitTransactions"].some(key => settings.allows(key));
     }
 
     // Whether the cell is on, as the settings say it.
@@ -365,6 +380,17 @@ ColumnLayout {
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 text: grid.i18nContext.i18nc("@info", "The AI writes only the fields switched on, as in the grid above. A field switched off is never written by the AI: not changed on a transaction you already have, and not filled in on one it adds. To add a payment, the account, day and amount must be switched on. A field switched off is still shown to the AI when reading is on.")
+            }
+
+            // Breaking a payment into parts writes new categories and
+            // amounts, so it needs both fields (D-737); a name per part is
+            // its note.
+            Controls.Label {
+                Layout.fillWidth: true
+                visible: grid.isOn("AllowSplitTransactions", grid.revision) && (grid.settings.locked("LockCategory") || grid.settings.locked("LockAmount"))
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: grid.i18nContext.i18nc("@info", "To break transactions into parts, switch on Category and Amount below. The amount the bank booked never changes; the parts must add up to it. With Note on, the AI can also name each part.")
             }
 
             Repeater {

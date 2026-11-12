@@ -46,6 +46,7 @@ pub mod qobject {
         #[qproperty(bool, network_drive, cxx_name = "networkDrive", READ, NOTIFY)]
         #[qproperty(QString, backup_folder, cxx_name = "backupFolder", READ, CONSTANT)]
         #[qproperty(QString, version, READ, CONSTANT)]
+        #[qproperty(bool, from_pull_request, cxx_name = "fromPullRequest", READ, CONSTANT)]
         #[qproperty(QVariant, problem, READ, NOTIFY)]
         type BookSession = super::BookSessionRust;
     }
@@ -113,6 +114,7 @@ pub struct BookSessionRust {
     network_drive: bool,
     backup_folder: QString,
     version: QString,
+    from_pull_request: bool,
     problem: QVariant,
     books: Option<Books>,
     /// What `problem` is about: the book to try again, the lock the user
@@ -142,6 +144,7 @@ impl cxx_qt::Initialize for qobject::BookSession {
         state.backup_folder = QString::from(backup_folder.as_str());
         state.folder_url = folder_url;
         state.version = QString::from(version_label().as_str());
+        state.from_pull_request = from_pull_request();
         state.books = Some(books);
     }
 }
@@ -333,6 +336,21 @@ fn version_label() -> String {
     }
 }
 
+/// Whether the commit in [`version_label`] is a pull request's last commit:
+/// CI built the bundle in the pull request, and main reuses it for the
+/// merge (D-427), so About says so and a tester looks for the merge of that
+/// commit on main (#758).
+fn from_pull_request() -> bool {
+    commit_from_pull_request(
+        option_env!("KASSENSTURZ_BUILD_COMMIT").unwrap_or(""),
+        option_env!("KASSENSTURZ_BUILD_COMMIT_FROM").unwrap_or(""),
+    )
+}
+
+fn commit_from_pull_request(commit: &str, from: &str) -> bool {
+    !commit.is_empty() && from == "pull-request-head"
+}
+
 fn display(path: &Path) -> String {
     path.display().to_string()
 }
@@ -364,6 +382,14 @@ mod tests {
                         .all(|c| c.is_ascii_hexdigit())),
             "{label}"
         );
+    }
+
+    #[test]
+    fn only_a_known_commit_of_a_pull_request_build_is_marked() {
+        assert!(commit_from_pull_request("abc1234", "pull-request-head"));
+        assert!(!commit_from_pull_request("abc1234", ""));
+        assert!(!commit_from_pull_request("", "pull-request-head"));
+        assert!(!commit_from_pull_request("abc1234", "main"));
     }
 
     /// The build files carry one version (D-152), and the version Settings

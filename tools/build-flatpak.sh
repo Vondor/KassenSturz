@@ -25,6 +25,8 @@ if [ -z "$version" ]; then
 fi
 printf '%s\n' "$version" > build-version
 git rev-parse --short=7 HEAD > build-commit
+# Only CI's pull request build marks its commit as a pull request's (#758).
+rm -f build-commit-from
 echo "build-flatpak: building $version ($(cat build-commit))"
 
 flatpak run org.flatpak.Builder --user --install --force-clean --disable-rofiles-fuse \

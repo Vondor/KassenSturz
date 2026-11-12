@@ -16647,6 +16647,18 @@ msgctxt "@label the version of KassenSturz that is running"
 msgid "Version"
 msgstr "Version"
 
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:973
+#, kde-format
+msgctxt ""
+"@info %1 is the version and its commit, e.g. 0.261112.15 (abc1234); the "
+"commit is the last one of a pull request"
+msgid ""
+"%1, built from a pull request's last commit (on main: the merge of that "
+"commit)"
+msgstr ""
+"%1, gebaut aus dem letzten Commit eines Pull Requests (auf main: der Merge "
+"dieses Commits)"
+
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:910
 #, kde-format
 msgctxt "@action:button opens the project's web page in the browser"

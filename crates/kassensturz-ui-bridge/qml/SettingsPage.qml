@@ -966,7 +966,11 @@ FormCard.FormCardPage {
         FormCard.FormTextDelegate {
             descriptionItem.textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@label the version of KassenSturz that is running", "Version")
-            description: page.session.version
+            // A bundle built in a pull request and reused on main shows the
+            // pull request's last commit, not main's merge (D-427, #758).
+            description: page.session.fromPullRequest
+                ? page.i18nContext.i18nc("@info %1 is the version and its commit, e.g. 0.261112.15 (abc1234); the commit is the last one of a pull request", "%1, built from a pull request's last commit (on main: the merge of that commit)", page.session.version)
+                : page.session.version
         }
 
         FormCard.FormDelegateSeparator {}

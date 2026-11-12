@@ -15,6 +15,10 @@ fn main() {
         "cargo:rustc-env=KASSENSTURZ_BUILD_COMMIT={}",
         build_commit()
     );
+    println!(
+        "cargo:rustc-env=KASSENSTURZ_BUILD_COMMIT_FROM={}",
+        build_commit_from()
+    );
 }
 
 /// The short id of the commit this build is made from, found the way the
@@ -47,6 +51,27 @@ fn build_commit() -> String {
         .take(7)
         .filter(char::is_ascii_hexdigit)
         .collect()
+}
+
+/// Where the commit of [`build_commit`] comes from, so About and the AI
+/// tools can say so plainly (#758): `pull-request-head` when CI built the
+/// bundle in a pull request, from the pull request's last commit, which
+/// main later reuses for its merge (D-427); empty otherwise. In order: the
+/// `KASSENSTURZ_COMMIT_FROM` variable and the file `build-commit-from` in
+/// the repository's top folder, which only CI's pull request build writes.
+/// Any other value counts as empty.
+fn build_commit_from() -> &'static str {
+    println!("cargo:rerun-if-env-changed=KASSENSTURZ_COMMIT_FROM");
+    println!("cargo:rerun-if-changed=../../build-commit-from");
+    let from = std::env::var("KASSENSTURZ_COMMIT_FROM")
+        .ok()
+        .or_else(|| std::fs::read_to_string("../../build-commit-from").ok())
+        .unwrap_or_default();
+    if from.trim() == "pull-request-head" {
+        "pull-request-head"
+    } else {
+        ""
+    }
 }
 
 /// The version of this build in D-152's form (D-226): the

@@ -716,16 +716,20 @@ jobs:
           path: reused/KassenSturz.flatpak
           if-no-files-found: error
       # What Settings → About shows for the bundle just published, one line
-      # such as `0.261101.6 (addd5d3)`: the build number and the commit the
-      # bundle was built from, which for a reused bundle is the pull request's
-      # last commit, not main's merge commit (D-427). In the run's summary for
-      # people and as the small artifact `flatpak-about` for scripts.
+      # such as `0.261101.6 (addd5d3), built from a pull request's last
+      # commit (on main: the merge of that commit)`: the build number and the
+      # commit the bundle was built from, which for a reused bundle is the
+      # pull request's last commit, not main's merge commit (D-427, #758). In
+      # the run's summary for people, with main's commit, and as the small
+      # artifact `flatpak-about` for scripts.
       - name: What About shows
         if: steps.reuse.outputs.reused == 'true'
+        env:
+          SHA: ${{ github.sha }}
         run: |
           about=$(cat reused/about.txt)
           echo "About shows: $about"
-          echo "**About shows:** \`$about\` (reused from the merged pull request)" >> "$GITHUB_STEP_SUMMARY"
+          echo "**About shows:** \`$about\` (reused from the merged pull request; main's commit is \`$(printf %s "$SHA" | cut -c1-7)\`)" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.reuse.outputs.reused == 'true'
         with:
@@ -751,13 +755,20 @@ jobs:
       # The Flatpak's copy of the sources has no .git, so the commit goes in a
       # file that build.rs reads; Settings then shows it next to the version.
       # In a pull request this is the branch's own last commit, which exists
-      # on GitHub, not the temporary merge commit the run is made from.
+      # on GitHub, not the temporary merge commit the run is made from; the
+      # file `build-commit-from` then makes About and the AI tools say it is
+      # a pull request's last commit, because main may reuse this bundle for
+      # the merge (D-427) and a tester looks for main's commit (#758).
       - name: Note the commit for the build
         env:
           COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          EVENT: ${{ github.event_name }}
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           echo "${COMMIT}" | cut -c1-7 > build-commit
+          if [ "$EVENT" = pull_request ]; then
+            echo pull-request-head > build-commit-from
+          fi
           sh tools/build-version.sh > build-version
       # The builder's own folder is kept between runs with the same cache
       # action as Cargo's (D-110), not with the Flatpak action's built-in

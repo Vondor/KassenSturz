@@ -79,6 +79,7 @@ pub(crate) fn period_of(range: Option<Range>, figure: Period) -> Result<Period, 
             Words::Months { count, complete } => {
                 crate::Rolling::Months { count, complete }.period(day)
             }
+            Words::Days { count } => crate::Rolling::Days { count }.period(day),
         },
     }
 }

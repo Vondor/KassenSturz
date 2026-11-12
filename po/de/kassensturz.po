@@ -19742,6 +19742,12 @@ msgstr "Die 3 ganzen Monate vor dem Monat des Diagramms"
 #: crates/kassensturz-ui-bridge/qml/HelpPage.qml:183
 #, kde-format
 msgctxt "@info an example of a period in a formula"
+msgid "The chart's last day and the 6 days before it"
+msgstr "Der letzte Tag des Diagramms und die 6 Tage davor"
+
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:183
+#, kde-format
+msgctxt "@info an example of a period in a formula"
 msgid "One year"
 msgstr "Ein Jahr"
 
@@ -19769,28 +19775,28 @@ msgctxt "@info an example of a period in a formula"
 msgid "From one month to another"
 msgstr "Von einem Monat bis zu einem anderen"
 
-#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:222
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:230
 #, kde-format
 msgctxt "@info"
 msgid ""
 "These are all the period words: \"this month\", \"last month\", \"this "
 "quarter\", \"last quarter\", \"this year\", \"last year\", \"last N months\" "
-"and \"last N complete months\", with N from 1 to 120. They stay in English, "
-"like the function names, and capital letters don't matter. A word counts "
-"from the chart's period: in a chart for November, \"last month\" is October. "
-"\"last N months\" includes the chart's month, \"last N complete months\" "
-"doesn't."
+"and \"last N complete months\", with N from 1 to 120, and \"last N days\", "
+"with N from 1 to 366. They stay in English, like the function names, and "
+"capital letters don't matter. A word counts from the chart's period: in a "
+"chart for November, \"last month\" is October. \"last N months\" includes "
+"the chart's month, \"last N complete months\" doesn't."
 msgstr ""
 "Das sind alle Zeitraumwörter: \"this month\", \"last month\", \"this "
 "quarter\", \"last quarter\", \"this year\", \"last year\", \"last N months\""
-" und \"last N complete months\", mit N von 1 bis 120. Sie bleiben englisch "
-"wie die Namen der Funktionen, ein deutsches Wort wie „letzter Monat“ geht "
-"nicht. Groß- und Kleinschreibung ist egal. Ein Wort zählt vom Zeitraum des "
-"Diagramms aus: In einem Diagramm für November ist \"last month\" der "
-"Oktober. \"last N months\" schließt den Monat des Diagramms ein, \"last N "
-"complete months\" nicht."
+" und \"last N complete months\", mit N von 1 bis 120, und \"last N days\", "
+"mit N von 1 bis 366. Sie bleiben englisch wie die Namen der Funktionen, ein "
+"deutsches Wort wie „letzter Monat“ geht nicht. Groß- und Kleinschreibung ist"
+" egal. Ein Wort zählt vom Zeitraum des Diagramms aus: In einem Diagramm für "
+"November ist \"last month\" der Oktober. \"last N months\" schließt den "
+"Monat des Diagramms ein, \"last N complete months\" nicht."
 
-#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:226
+#: crates/kassensturz-ui-bridge/qml/HelpPage.qml:234
 #, kde-format
 msgctxt "@info"
 msgid ""
@@ -19798,16 +19804,17 @@ msgid ""
 "is a year, 2026-11 a month and 2026-11-12 a day. Two of them joined by .. "
 "are a range from the first day of the first to the last day of the second, "
 "up to 100 years long. Other ways of writing a date, such as 12.11.26, and "
-"words for days or weeks don't work yet; a period like that is written with "
-"dates, for example 2026-09 for the month before last in November."
+"words such as weeks or the month before last don't work yet; a period like "
+"that is written with dates, for example 2026-09 for the month before last in "
+"November."
 msgstr ""
 "Ein Datum wird mit dem Jahr zuerst geschrieben, mit einem Minus zwischen "
 "Jahr, Monat und Tag: 2026 ist ein Jahr, 2026-11 ein Monat und 2026-11-12 ein"
 " Tag. Zwei davon, mit .. verbunden, sind ein Zeitraum vom ersten Tag des "
 "ersten bis zum letzten Tag des zweiten, bis zu 100 Jahre lang. Andere "
-"Schreibweisen wie 12.11.26 und Wörter für Tage oder Wochen gehen noch nicht;"
-" einen solchen Zeitraum schreiben Sie mit Daten, zum Beispiel 2026-09 für "
-"den vorletzten Monat in einem Diagramm für November."
+"Schreibweisen wie 12.11.26 und Wörter etwa für Wochen oder den vorletzten "
+"Monat gehen noch nicht; einen solchen Zeitraum schreiben Sie mit Daten, zum "
+"Beispiel 2026-09 für den vorletzten Monat in einem Diagramm für November."
 
 #: crates/kassensturz-ui-bridge/qml/HelpPage.qml:137
 #, kde-format

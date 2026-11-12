@@ -180,6 +180,14 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The chart's last day and the 6 days before it")
+            description: "=Groceries@\"last 7 days\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
             text: page.i18nContext.i18nc("@info an example of a period in a formula", "One year")
             description: "=Groceries@2026"
             descriptionItem.textFormat: Text.PlainText
@@ -219,11 +227,11 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormSectionText {
-        text: page.i18nContext.i18nc("@info", "These are all the period words: \"this month\", \"last month\", \"this quarter\", \"last quarter\", \"this year\", \"last year\", \"last N months\" and \"last N complete months\", with N from 1 to 120. They stay in English, like the function names, and capital letters don't matter. A word counts from the chart's period: in a chart for November, \"last month\" is October. \"last N months\" includes the chart's month, \"last N complete months\" doesn't.")
+        text: page.i18nContext.i18nc("@info", "These are all the period words: \"this month\", \"last month\", \"this quarter\", \"last quarter\", \"this year\", \"last year\", \"last N months\" and \"last N complete months\", with N from 1 to 120, and \"last N days\", with N from 1 to 366. They stay in English, like the function names, and capital letters don't matter. A word counts from the chart's period: in a chart for November, \"last month\" is October. \"last N months\" includes the chart's month, \"last N complete months\" doesn't.")
     }
 
     FormCard.FormSectionText {
-        text: page.i18nContext.i18nc("@info", "Dates are written year first, with a minus between year, month and day: 2026 is a year, 2026-11 a month and 2026-11-12 a day. Two of them joined by .. are a range from the first day of the first to the last day of the second, up to 100 years long. Other ways of writing a date, such as 12.11.26, and words for days or weeks don't work yet; a period like that is written with dates, for example 2026-09 for the month before last in November.")
+        text: page.i18nContext.i18nc("@info", "Dates are written year first, with a minus between year, month and day: 2026 is a year, 2026-11 a month and 2026-11-12 a day. Two of them joined by .. are a range from the first day of the first to the last day of the second, up to 100 years long. Other ways of writing a date, such as 12.11.26, and words such as weeks or the month before last don't work yet; a period like that is written with dates, for example 2026-09 for the month before last in November.")
     }
 
     FormCard.FormHeader {

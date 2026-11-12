@@ -34,6 +34,12 @@ pub(crate) enum Words {
         count: u16,
         complete: bool,
     },
+    /// `"last N days"`: the figure's last day and the N-1 days before it,
+    /// N from 1 to [`crate::MAX_ROLLING_DAYS`], as the period box counts
+    /// them (US4.7, D-717; added to formulas by Q-499).
+    Days {
+        count: u16,
+    },
 }
 
 impl Words {
@@ -54,22 +60,28 @@ impl Words {
         })
     }
 
-    /// `last N months` or `last N complete months`, N written without a
-    /// leading zero, so each period is written one way.
+    /// `last N months`, `last N complete months` or `last N days`, N
+    /// written without a leading zero, so each period is written one way.
     fn months(words: &str) -> Option<Self> {
         let rest = words.strip_prefix("last ")?;
+        let count = |number: &str, most: u16| -> Option<u16> {
+            if number.starts_with('0') || !number.bytes().all(|byte| byte.is_ascii_digit()) {
+                return None;
+            }
+            let count: u16 = number.parse().ok()?;
+            (1..=most).contains(&count).then_some(count)
+        };
+        if let Some(number) = rest.strip_suffix(" days") {
+            let count = count(number, crate::MAX_ROLLING_DAYS)?;
+            return Some(Self::Days { count });
+        }
         let (number, complete) = if let Some(number) = rest.strip_suffix(" complete months") {
             (number, true)
         } else {
             (rest.strip_suffix(" months")?, false)
         };
-        if number.starts_with('0') || !number.bytes().all(|byte| byte.is_ascii_digit()) {
-            return None;
-        }
-        let count: u16 = number.parse().ok()?;
-        (1..=crate::MAX_ROLLING_MONTHS)
-            .contains(&count)
-            .then_some(Self::Months { count, complete })
+        let count = count(number, crate::MAX_ROLLING_MONTHS)?;
+        Some(Self::Months { count, complete })
     }
 }
 

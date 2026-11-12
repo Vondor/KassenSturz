@@ -768,28 +768,33 @@ mod tests {
     }
     #[test]
     fn the_bill_folder_is_read_back_as_kconfig_wrote_it_and_only_while_ai_is_on() {
+        // An absolute path starts with a drive on Windows.
+        let root = if cfg!(windows) { "C:" } else { "" };
         let on = "[AI]\nEnabled=true\n";
+        let read = |value: &str| bill_folder_in(&format!("{on}BillFolder={value}\n"));
         assert_eq!(bill_folder_in(on), None);
         assert_eq!(
-            bill_folder_in(&format!("{on}BillFolder=/home/sam/Bills\n")),
-            Some(PathBuf::from("/home/sam/Bills"))
+            read(&format!("{root}/home/sam/Bills")),
+            Some(PathBuf::from(format!("{root}/home/sam/Bills")))
         );
         assert_eq!(
-            bill_folder_in(&format!("{on}BillFolder=/home/sam/My Bills\\s\n")),
-            Some(PathBuf::from("/home/sam/My Bills "))
+            read(&format!("{root}/home/sam/My Bills\\s")),
+            Some(PathBuf::from(format!("{root}/home/sam/My Bills ")))
         );
         assert_eq!(
-            bill_folder_in(&format!("{on}BillFolder=/a\\\\b\n")),
-            Some(PathBuf::from("/a\\b"))
+            read(&format!("{root}/a\\\\b")),
+            Some(PathBuf::from(format!("{root}/a\\b")))
         );
         // Off, relative, empty or with an escape KassenSturz doesn't know.
         assert_eq!(
-            bill_folder_in("[AI]\nEnabled=false\nBillFolder=/home/sam/Bills\n"),
+            bill_folder_in(&format!(
+                "[AI]\nEnabled=false\nBillFolder={root}/home/sam/Bills\n"
+            )),
             None
         );
-        assert_eq!(bill_folder_in(&format!("{on}BillFolder=Bills\n")), None);
-        assert_eq!(bill_folder_in(&format!("{on}BillFolder=\n")), None);
-        assert_eq!(bill_folder_in(&format!("{on}BillFolder=/a\\x2fb\n")), None);
-        assert_eq!(bill_folder_in(&format!("{on}BillFolder=/a\\\n")), None);
+        assert_eq!(read("Bills"), None);
+        assert_eq!(read(""), None);
+        assert_eq!(read(&format!("{root}/a\\x2fb")), None);
+        assert_eq!(read(&format!("{root}/a\\")), None);
     }
 }

@@ -119,6 +119,20 @@ ColumnLayout {
             ]
         },
         {
+            // Its own row (D-739): only the user's own AI tools link a bill
+            // from the bill folder, which the user chooses under "Your own
+            // AI tools". Only the link is kept; the file is never touched.
+            // It reads the transactions, so it keeps Transactions › Read on.
+            name: i18nContext.i18nc("@label a part of the book", "Bills linked to transactions"),
+            readRow: "Transactions",
+            cells: [
+                { key: "", absent: "viaTransactions" },
+                { key: "AllowAttachBills", needsRead: true },
+                { key: "", absent: "never" },
+                { key: "", absent: "never" }
+            ]
+        },
+        {
             name: i18nContext.i18nc("@label a part of the book", "Charts"),
             cells: [
                 { key: "AllowReadViews", read: true },

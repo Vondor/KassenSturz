@@ -13,9 +13,14 @@ fn refused(book: &Book, arguments: &Value) -> (Option<&'static str>, String, Opt
     let open = Field::ALL
         .iter()
         .fold(Permissions::all(), |p, field| p.with_lock(*field, false));
-    let error =
-        super::super::propose_with(book, arguments, open, Some(Date::constant(2026, 11, 14)))
-            .expect_err("refused");
+    let error = super::super::propose_with(
+        book,
+        arguments,
+        open,
+        Some(Date::constant(2026, 11, 14)),
+        None,
+    )
+    .expect_err("refused");
     let item = match &error {
         ToolError::InItem { item, .. } => Some(*item),
         _ => None,

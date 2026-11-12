@@ -87,6 +87,7 @@ Kirigami.ScrollablePage {
     readonly property var joins: kept.filter(change => change.kind === "joinTransfer")
     readonly property var taggings: kept.filter(change => change.kind === "tagTransaction")
     readonly property var splits: kept.filter(change => change.kind === "splitTransaction")
+    readonly property var bills: kept.filter(change => change.kind === "attachBill")
     readonly property bool shows: changes.code === undefined && !done
 
     // The name of a field of a transaction the AI changes.
@@ -325,6 +326,8 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "Transaction that gets other tags");
         case "splitTransaction":
             return i18nContext.i18nc("@info a kind of prepared change", "Transaction broken into parts");
+        case "attachBill":
+            return i18nContext.i18nc("@info a kind of prepared change", "Bill linked to a transaction");
         }
         return i18nContext.i18nc("@info a kind of prepared change", "New chart");
     }
@@ -1380,6 +1383,77 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         ai: page.ai
                         change: splitCard.modelData
+                        choices: page.choices
+                        review: page
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.bills.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Bills linked to transactions")
+            textFormat: Text.PlainText
+        }
+
+        // A bill from the bill folder (D-739): only the link is stored; the
+        // file stays where it is and KassenSturz never opens it here.
+        Repeater {
+            model: page.shows ? page.bills : []
+
+            Kirigami.AbstractCard {
+                id: billCard
+
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        font.bold: true
+                        textFormat: Text.PlainText
+                        text: billCard.modelData.payee !== "" ? billCard.modelData.payee : page.i18nContext.i18nc("@info a transaction without a name", "(no name)")
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: billCard.modelData.account !== "" ? page.i18nContext.i18nc("@info %1 is a date, %2 the name of an account", "%1 · %2", billCard.modelData.date, billCard.modelData.account) : billCard.modelData.date
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a file name", "Attach bill: %1 (from your bill folder)", billCard.modelData.file)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: billCard.modelData.title !== ""
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is what the bill is called", "Called: %1", billCard.modelData.title)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "Only a link is kept with the transaction. The file stays in your bill folder, and KassenSturz never changes it.")
+                    }
+
+                    AiChangeCorrection {
+                        Layout.fillWidth: true
+                        ai: page.ai
+                        change: billCard.modelData
                         choices: page.choices
                         review: page
                     }

@@ -14,6 +14,7 @@
 //! the model.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_core::{Date, ErrorReport, Report};
@@ -25,7 +26,7 @@ use crate::error::ToolError;
 
 /// The lists of a call in the order [`super::build`] turns their items into
 /// changes, one change for each item.
-const ORDER: [&str; 22] = [
+const ORDER: [&str; 23] = [
     "new_categories",
     "edit_categories",
     "edit_rules",
@@ -42,6 +43,7 @@ const ORDER: [&str; 22] = [
     "join_transfers",
     "tag_transactions",
     "split_transactions",
+    "attach_bills",
     "new_views",
     "edit_views",
     "delete_views",
@@ -113,6 +115,9 @@ pub(super) struct Call {
     /// The day the set was prepared on, which budgets start with (D-394):
     /// the user's edits are checked on the same day.
     today: Option<Date>,
+    /// The bill folder the set was checked with (D-739): the user's edits
+    /// are checked with the same one.
+    bill_folder: Option<PathBuf>,
 }
 
 impl Call {
@@ -121,9 +126,11 @@ impl Call {
         arguments: &Value,
         changes: &[ProposedChange],
         today: Option<Date>,
+        bill_folder: Option<PathBuf>,
     ) -> (Vec<Slot>, Self) {
         let call = Self {
             today,
+            bill_folder,
             ai: arguments.clone(),
             edits: BTreeMap::new(),
             ai_changes: Vec::new(),
@@ -395,7 +402,13 @@ impl ChangeSet {
         let Built {
             changes,
             rule_order,
-        } = build(book, &call.as_edited(), allowed, call.today)?;
+        } = build(
+            book,
+            &call.as_edited(),
+            allowed,
+            call.today,
+            call.bill_folder.as_deref(),
+        )?;
         let slots = call.slots();
         debug_assert!(
             slots
@@ -438,5 +451,6 @@ pub(super) fn list_of(change: &ProposedChange) -> &'static str {
         ProposedChange::JoinTransfer(_) => super::joins::LIST,
         ProposedChange::TagTransaction(_) => super::tags::LIST,
         ProposedChange::SplitTransaction(_) => super::splits::LIST,
+        ProposedChange::AttachBill(_) => super::bills::LIST,
     }
 }

@@ -1417,6 +1417,7 @@ name = "kassensturz-ai-tools"
 version = "0.261025.0"
 dependencies = [
  "kassensturz-core",
+ "kassensturz-export",
  "kassensturz-import",
  "kassensturz-pipeline",
  "kassensturz-report",

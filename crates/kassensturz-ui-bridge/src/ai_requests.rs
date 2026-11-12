@@ -20,7 +20,7 @@ use std::path::Path;
 
 use kassensturz_ai_tools::refusal::RefusalReasons;
 use kassensturz_ai_tools::requests::{Inbox, Reply, RequestId};
-use kassensturz_ai_tools::{ChangeError, prepare_named};
+use kassensturz_ai_tools::{ChangeError, prepare_named_with_bills};
 use kassensturz_core::Report;
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_store::Book;
@@ -39,7 +39,9 @@ pub struct Arrived {
 /// Takes the requests that arrived for the book at `path`, open as `book`,
 /// checks each call against it and keeps the sets in `sets`. Each request
 /// is answered: shown, or failed with the check's code. A request for
-/// another book is left for the app that has it open.
+/// another book is left for the app that has it open. A request may
+/// attach bills from `bill_folder`, the folder the user chose for them
+/// (D-739): the user's own AI tools may, the chat never does.
 pub fn take_requests(
     inbox: &mut dyn Inbox,
     path: &Path,
@@ -47,11 +49,18 @@ pub fn take_requests(
     sets: &mut Sets,
     allowed: Permissions,
     today: kassensturz_core::Date,
+    bill_folder: Option<&Path>,
 ) -> Vec<Arrived> {
     let mut arrived = Vec::new();
     for request in inbox.take_new(path) {
-        let reply = match prepare_named(book, request.function, &request.arguments, allowed, today)
-        {
+        let reply = match prepare_named_with_bills(
+            book,
+            request.function,
+            &request.arguments,
+            allowed,
+            today,
+            bill_folder,
+        ) {
             Ok(proposal) => {
                 let count = proposal.changes.changes().len();
                 let id = sets.add_requested(proposal.changes, request.id.clone());
@@ -214,6 +223,7 @@ mod tests {
             &mut sets,
             Permissions::all(),
             DAY,
+            None,
         );
 
         assert_eq!(arrived.len(), 1);
@@ -276,6 +286,7 @@ mod tests {
             &mut sets,
             Permissions::all(),
             DAY,
+            None,
         );
         assert_eq!(arrived.len(), 2);
 
@@ -321,7 +332,8 @@ mod tests {
                 &book,
                 &mut sets,
                 Permissions::all(),
-                DAY
+                DAY,
+                None,
             )
             .is_empty()
         );
@@ -351,7 +363,8 @@ mod tests {
                 &book,
                 &mut sets,
                 Permissions::all(),
-                DAY
+                DAY,
+                None,
             )
             .is_empty()
         );

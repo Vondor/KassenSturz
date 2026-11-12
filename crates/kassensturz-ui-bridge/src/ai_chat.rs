@@ -717,6 +717,20 @@ pub enum ChangeView {
         /// The parts it gets.
         parts: Vec<PartView>,
     },
+    /// A bill from the bill folder linked to a transaction (US5.13,
+    /// D-739), with the transaction as the register shows it.
+    AttachBill {
+        /// Its day, in the user's format.
+        date: String,
+        /// Who was paid or paid, empty for none.
+        payee: String,
+        /// The user's account it is in, empty for none.
+        account: String,
+        /// The bill's file name.
+        file: String,
+        /// What the link is called, empty for its file name.
+        title: String,
+    },
 }
 
 /// How the amount of a prepared budget was computed, written for the user
@@ -1154,6 +1168,13 @@ fn view_of(
                 .exact,
             before: part_views(book, &split.before, locale)?,
             parts: part_views(book, &split.parts, locale)?,
+        },
+        ProposedChange::AttachBill(bill) => ChangeView::AttachBill {
+            date: locale.short_date(bill.date),
+            payee: bill.payee.clone().unwrap_or_default(),
+            account: bill.account.clone(),
+            file: bill.file_name.clone(),
+            title: bill.title.clone().unwrap_or_default(),
         },
     })
 }

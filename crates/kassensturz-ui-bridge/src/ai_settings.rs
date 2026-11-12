@@ -15,8 +15,8 @@ use std::sync::Mutex;
 
 use kassensturz_ai::{
     AiClient, AiError, ConfigFile, ConsentRecord, FunctionCalling, KeyUse, MIN_CONTEXT_TOKENS,
-    ModelInfo, Place, ProviderAddress, ProviderKeys, ProviderSettings, SCRIPTED_MODEL, STATEMENT,
-    consent_missing, probe_functions, probe_request_body,
+    ModelInfo, Network, Place, ProviderAddress, ProviderKeys, ProviderSettings, SCRIPTED_MODEL,
+    STATEMENT, consent_missing, probe_functions, probe_request_body,
 };
 use kassensturz_ai_chat::{BuildInfo, DEMO_ENV, DemoModel, demo_provider, sample_request};
 use kassensturz_core::{Date, ai_switch};
@@ -94,6 +94,13 @@ pub struct Form {
     pub key_use: KeyUse,
     /// Where the address points, if it is usable.
     pub place: Option<Place>,
+    /// Which network the address is on, if it is usable (D-746).
+    pub network: Option<Network>,
+    /// Whether the user allowed plain `http://` to another computer
+    /// (D-746).
+    pub allow_unencrypted: bool,
+    /// Whether the saved address sends unencrypted to another computer.
+    pub unencrypted: bool,
     /// Why the saved address can't be used, if it is odd.
     pub address_error: Option<AiError>,
     /// The consent for the saved provider.
@@ -219,6 +226,18 @@ pub enum Saved {
     },
 }
 
+/// What an address as typed is, for the hint under the field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Checked {
+    /// Where the provider is.
+    pub place: Place,
+    /// Which network it is on (D-746).
+    pub network: Network,
+    /// Whether what is sent to it would travel unencrypted to another
+    /// computer.
+    pub unencrypted: bool,
+}
+
 /// The AI settings of a settings file: written through KConfig, read the
 /// way `kassensturz-ai` reads them.
 pub struct Store {
@@ -267,7 +286,9 @@ impl Store {
         let address = self.text(kassensturz_ai::ADDRESS_KEY);
         let model = self.text(kassensturz_ai::MODEL_KEY);
         let key_use = KeyUse::from_word(&self.text(kassensturz_ai::KEY_USE_KEY));
-        let parsed = ProviderAddress::parse(&address);
+        let allow_unencrypted =
+            kassensturz_ai::allowed(&self.text(kassensturz_ai::ALLOW_UNENCRYPTED_KEY));
+        let parsed = ProviderAddress::parse_with(&address, allow_unencrypted);
         let config = self.config.read();
         let consent = match &parsed {
             Ok(parsed) if parsed.place() == Place::AnotherComputer => match config.consent() {
@@ -276,6 +297,10 @@ impl Store {
             },
             _ => Consent::NotNeeded,
         };
+        let usable = parsed.as_ref().ok();
+        let place = usable.map(ProviderAddress::place);
+        let network = usable.map(ProviderAddress::network);
+        let unencrypted = usable.is_some_and(ProviderAddress::is_unencrypted_to_another_computer);
         let address_error = match parsed {
             Err(error) if !address.trim().is_empty() => Some(error),
             _ => None,
@@ -283,9 +308,10 @@ impl Store {
         let capability = self.kept_capability(&address, &model);
         Form {
             capability,
-            place: ProviderAddress::parse(&address)
-                .ok()
-                .map(|address| address.place()),
+            place,
+            network,
+            allow_unencrypted,
+            unencrypted,
             address,
             model,
             key_use,
@@ -357,21 +383,32 @@ impl Store {
         } else {
             // The answer limit goes only to a server on this computer
             // (D-595).
-            let place = ProviderAddress::parse(&self.text(kassensturz_ai::ADDRESS_KEY))
-                .map_or(Place::AnotherComputer, |address| address.place());
+            let place = self
+                .config
+                .read()
+                .connection()
+                .map_or(Place::AnotherComputer, |provider| provider.address.place());
             probe_request_body(&model, place)
         }
     }
 
-    /// Checks an address as typed, for the hint under the field.
-    pub fn check_address(address: &str) -> Result<Place, AiError> {
-        ProviderAddress::parse(address).map(|address| address.place())
+    /// Checks an address as typed, for the hint under the field, with the
+    /// user's choice whether plain `http://` to another computer is allowed
+    /// (D-746).
+    pub fn check_address(address: &str, allow_unencrypted: bool) -> Result<Checked, AiError> {
+        ProviderAddress::parse_with(address, allow_unencrypted).map(|address| Checked {
+            place: address.place(),
+            network: address.network(),
+            unencrypted: address.is_unencrypted_to_another_computer(),
+        })
     }
 
     /// Saves the provider as typed. A `key` typed with it is kept as
     /// `key_use` says; a key kept for an earlier address or in an earlier
     /// way is removed first (D-203), so a changed address never has the old
-    /// server's key left behind.
+    /// server's key left behind. Plain `http://` to another computer is
+    /// refused; the screen saves through [`Store::save_with`].
+    #[cfg(test)]
     pub fn save(
         &self,
         keys: &mut ProviderKeys,
@@ -380,10 +417,25 @@ impl Store {
         key_use: KeyUse,
         key: Option<Secret>,
     ) -> Saved {
-        let provider = match ProviderSettings::with_optional_model(address, model, key_use) {
-            Ok(provider) => provider,
-            Err(error) => return Saved::Refused(error),
-        };
+        self.save_with(keys, address, model, key_use, false, key)
+    }
+
+    /// Like [`Store::save`], with the user's choice whether plain `http://`
+    /// to another computer is allowed (D-746), which is saved with it.
+    pub fn save_with(
+        &self,
+        keys: &mut ProviderKeys,
+        address: &str,
+        model: &str,
+        key_use: KeyUse,
+        allow_unencrypted: bool,
+        key: Option<Secret>,
+    ) -> Saved {
+        let provider =
+            match ProviderSettings::with_options(address, model, key_use, allow_unencrypted) {
+                Ok(provider) => provider,
+                Err(error) => return Saved::Refused(error),
+            };
         let earlier = self.config.read().provider().ok().cloned();
         if !provider
             .entries()
@@ -666,6 +718,43 @@ mod tests {
         }
         let text = std::fs::read_to_string(&file).expect("settings file");
         assert!(!text.contains("ProviderAddress"), "{text}");
+    }
+
+    #[test]
+    fn plain_http_elsewhere_is_saved_only_when_allowed() {
+        let (_folder, file, store) = on();
+        let (_, mut keys) = keys();
+        let home = "http://192.168.1.2:1234/v1";
+        assert_eq!(Store::check_address(home, false), Err(AiError::PlainHttp));
+        assert_eq!(
+            Store::check_address(home, true),
+            Ok(Checked {
+                place: Place::AnotherComputer,
+                network: Network::Home,
+                unencrypted: true,
+            })
+        );
+        assert_eq!(
+            Store::check_address("http://203.0.113.7:1234/v1", true).map(|c| c.network),
+            Ok(Network::Internet)
+        );
+        assert_eq!(
+            Store::check_address("http://localhost:1234/v1", false).map(|c| c.unencrypted),
+            Ok(false)
+        );
+        assert_eq!(
+            store.save_with(&mut keys, home, "m", KeyUse::None, true, None),
+            written(Place::AnotherComputer, true)
+        );
+        let form = store.form();
+        assert!(form.allow_unencrypted && form.unencrypted);
+        assert_eq!(form.network, Some(Network::Home));
+        assert_eq!(form.consent, Consent::Missing);
+        let text = std::fs::read_to_string(&file).expect("settings file");
+        assert!(text.contains("AllowUnencrypted=true"), "{text}");
+        // The client reads the same choice.
+        let config = store.config().read();
+        assert!(config.provider().expect("a provider").allow_unencrypted);
     }
 
     #[test]

@@ -59,15 +59,20 @@ pub mod qobject {
         fn load(self: &AiSettings) -> QVariant;
 
         /// Checks an address while it is typed: an object with `place`
-        /// (`this` or `other`), or an error object.
+        /// (`this` or `other`), `network` (`this`, `home` or `internet`)
+        /// and `unencrypted` (whether it would send without encryption to
+        /// another computer), or an error object. `allow_unencrypted` is
+        /// the "Allow unencrypted connections" box (D-746).
         #[qinvokable]
-        fn check(self: &AiSettings, address: &QString) -> QVariant;
+        fn check(self: &AiSettings, address: &QString, allow_unencrypted: bool) -> QVariant;
 
         /// Saves the provider. `key` is what was typed into the key field,
         /// empty to leave the kept key as it is. Answers `saved`; with
         /// `saved` false and a `code`, the settings as typed can't be used;
         /// with `saved` true, `place`, `consentNeeded` and `keyError` (a
         /// code, empty when the key was kept as asked).
+        /// `allow_unencrypted` is the "Allow unencrypted connections" box,
+        /// saved with the provider (D-746).
         #[qinvokable]
         fn save(
             self: &AiSettings,
@@ -75,6 +80,7 @@ pub mod qobject {
             model: &QString,
             key_use: &QString,
             key: &QString,
+            allow_unencrypted: bool,
         ) -> QVariant;
 
         /// Removes the kept key of the saved provider: an object with
@@ -262,11 +268,17 @@ mod engine {
         off()
     }
 
-    pub(super) fn check(_address: &str) -> QVariant {
+    pub(super) fn check(_address: &str, _allow_unencrypted: bool) -> QVariant {
         off()
     }
 
-    pub(super) fn save(_address: &str, _model: &str, _key_use: &str, _key: &str) -> QVariant {
+    pub(super) fn save(
+        _address: &str,
+        _model: &str,
+        _key_use: &str,
+        _key: &str,
+        _allow_unencrypted: bool,
+    ) -> QVariant {
         off()
     }
 
@@ -302,7 +314,9 @@ mod engine {
 
 #[cfg(feature = "ai")]
 mod engine {
-    use kassensturz_ai::{AiError, KeyUse, Place, ProviderKeys, SCRIPTED_ADDRESS, SCRIPTED_MODEL};
+    use kassensturz_ai::{
+        AiError, KeyUse, Network, Place, ProviderKeys, SCRIPTED_ADDRESS, SCRIPTED_MODEL,
+    };
     use kassensturz_core::{Date, Report};
     use kassensturz_platform::Secret;
 
@@ -341,19 +355,57 @@ mod engine {
         }
     }
 
+    pub(super) fn network_word(network: Network) -> &'static str {
+        match network {
+            Network::ThisComputer => "this",
+            Network::Home => "home",
+            Network::Internet => "internet",
+        }
+    }
+
     pub(super) fn load() -> QVariant {
         load_in(&Store::user(), ai_settings::fake_model())
     }
 
-    pub(super) fn check(address: &str) -> QVariant {
-        match Store::check_address(address) {
-            Ok(place) => map([("place", text(place_word(place)))]),
+    pub(super) fn check(address: &str, allow_unencrypted: bool) -> QVariant {
+        match Store::check_address(address, allow_unencrypted) {
+            Ok(checked) => map([
+                ("place", text(place_word(checked.place))),
+                ("network", text(network_word(checked.network))),
+                ("unencrypted", QVariant::from(&checked.unencrypted)),
+            ]),
             Err(error) => error_object(&ai_error(&error)),
         }
     }
 
-    pub(super) fn save(address: &str, model: &str, key_use: &str, key: &str) -> QVariant {
-        with_keys(|keys| save_in(&Store::user(), keys, address, model, key_use, key))
+    pub(super) fn save(
+        address: &str,
+        model: &str,
+        key_use: &str,
+        key: &str,
+        allow_unencrypted: bool,
+    ) -> QVariant {
+        with_keys(|keys| {
+            save_in(
+                &Store::user(),
+                keys,
+                Typed {
+                    address,
+                    model,
+                    key_use,
+                    allow_unencrypted,
+                },
+                key,
+            )
+        })
+    }
+
+    /// The provider's settings as the user typed them, to save.
+    pub(super) struct Typed<'a> {
+        pub(super) address: &'a str,
+        pub(super) model: &'a str,
+        pub(super) key_use: &'a str,
+        pub(super) allow_unencrypted: bool,
     }
 
     pub(super) fn forget_key() -> QVariant {
@@ -441,6 +493,9 @@ mod engine {
             ("model", text(&form.model)),
             ("keyUse", text(form.key_use.as_word())),
             ("place", text(form.place.map_or("", place_word))),
+            ("network", text(form.network.map_or("", network_word))),
+            ("allowUnencrypted", QVariant::from(&form.allow_unencrypted)),
+            ("unencrypted", QVariant::from(&form.unencrypted)),
             (
                 "addressError",
                 text(form.address_error.as_ref().map_or("", |e| e.report().code)),
@@ -462,13 +517,18 @@ mod engine {
     pub(super) fn save_in(
         store: &Store,
         keys: &mut ProviderKeys,
-        address: &str,
-        model: &str,
-        key_use: &str,
+        typed: Typed<'_>,
         key: &str,
     ) -> QVariant {
         let key = (!key.is_empty()).then(|| Secret::new(key.to_owned()));
-        match store.save(keys, address, model, KeyUse::from_word(key_use), key) {
+        match store.save_with(
+            keys,
+            typed.address,
+            typed.model,
+            KeyUse::from_word(typed.key_use),
+            typed.allow_unencrypted,
+            key,
+        ) {
             Saved::Refused(error) => {
                 let error = ai_error(&error);
                 crate::note!(ProviderRefused, None, Some(error.code));
@@ -604,8 +664,8 @@ impl qobject::AiSettings {
         engine::load()
     }
 
-    fn check(&self, address: &QString) -> QVariant {
-        engine::check(&address.to_string())
+    fn check(&self, address: &QString, allow_unencrypted: bool) -> QVariant {
+        engine::check(&address.to_string(), allow_unencrypted)
     }
 
     fn save(
@@ -614,12 +674,14 @@ impl qobject::AiSettings {
         model: &QString,
         key_use: &QString,
         key: &QString,
+        allow_unencrypted: bool,
     ) -> QVariant {
         engine::save(
             &address.to_string(),
             &model.to_string(),
             &key_use.to_string(),
             &key.to_string(),
+            allow_unencrypted,
         )
     }
 
@@ -1119,7 +1181,9 @@ mod tests {
     use kassensturz_core::{Date, ai_switch};
     use kassensturz_platform::{Keychain, KeychainError, MemoryKeychain, Secret, SecretKey};
 
-    use super::engine::{forget_key_in, load_in, sample_in, save_in, statement, test_object};
+    use super::engine::{
+        Typed, forget_key_in, load_in, sample_in, save_in, statement, test_object,
+    };
     use crate::ai_settings::Store;
     use crate::ai_settings::{Found, Functions};
     use crate::test_folder::TestFolder;
@@ -1139,6 +1203,16 @@ mod tests {
         }
         fn delete(&self, key: &SecretKey) -> Result<(), KeychainError> {
             self.0.delete(key)
+        }
+    }
+
+    /// The settings as typed, plain `http://` elsewhere not allowed.
+    fn typed<'a>(address: &'a str, model: &'a str, key_use: &'a str) -> Typed<'a> {
+        Typed {
+            address,
+            model,
+            key_use,
+            allow_unencrypted: false,
         }
     }
 
@@ -1172,14 +1246,17 @@ mod tests {
             [
                 "address",
                 "addressError",
+                "allowUnencrypted",
                 "capability",
                 "consent",
                 "consentDay",
                 "keyUse",
                 "model",
+                "network",
                 "place",
                 "testAddress",
-                "testModel"
+                "testModel",
+                "unencrypted"
             ]
         );
         assert_eq!(text_of(&empty, "address"), "");
@@ -1191,9 +1268,7 @@ mod tests {
         save_in(
             &store,
             &mut kept,
-            "https://api.example.com/v1",
-            "big",
-            "save",
+            typed("https://api.example.com/v1", "big", "save"),
             "",
         );
         let form = load_in(&store, true);
@@ -1228,9 +1303,7 @@ mod tests {
         let done = save_in(
             &store,
             &mut kept,
-            "https://api.example.com/v1",
-            "big",
-            "save",
+            typed("https://api.example.com/v1", "big", "save"),
             key,
         );
         assert_eq!(keys(&done), ["consentNeeded", "keyError", "place", "saved"]);
@@ -1243,9 +1316,7 @@ mod tests {
         let refused = save_in(
             &store,
             &mut kept,
-            "http://192.168.1.2:1/v1",
-            "big",
-            "none",
+            typed("http://192.168.1.2:1/v1", "big", "none"),
             "",
         );
         assert_eq!(keys(&refused), ["code", "saved"]);
@@ -1256,9 +1327,7 @@ mod tests {
         let failed = save_in(
             &store,
             &mut kept,
-            "https://api.example.com/v1",
-            "big",
-            "save",
+            typed("https://api.example.com/v1", "big", "save"),
             key,
         );
         assert!(flag_of(&failed, "saved"));
@@ -1285,14 +1354,52 @@ mod tests {
     }
 
     #[test]
+    fn an_allowed_unencrypted_address_reads_back_as_qml_reads_it() {
+        let (_folder, store, _memory, mut kept) = setup();
+        let home = "http://192.168.1.2:1234/v1";
+        let allowed = Typed {
+            allow_unencrypted: true,
+            ..typed(home, "m", "none")
+        };
+        let done = save_in(&store, &mut kept, allowed, "");
+        assert!(flag_of(&done, "saved"));
+        assert!(flag_of(&done, "consentNeeded"));
+        assert_eq!(text_of(&done, "place"), "other");
+        let form = load_in(&store, false);
+        assert_eq!(text_of(&form, "address"), home);
+        assert!(flag_of(&form, "allowUnencrypted"));
+        assert!(flag_of(&form, "unencrypted"));
+        assert_eq!(text_of(&form, "network"), "home");
+        assert_eq!(text_of(&form, "addressError"), "");
+        assert_eq!(text_of(&form, "consent"), "missing");
+        assert!(store.give_consent(TODAY));
+        assert_eq!(text_of(&load_in(&store, false), "consent"), "given");
+
+        // Unticking it refuses the same address and keeps what was saved.
+        let refused = save_in(&store, &mut kept, typed(home, "m", "none"), "");
+        assert_eq!(text_of(&refused, "code"), "ai.plain-http");
+        assert!(flag_of(&load_in(&store, false), "allowUnencrypted"));
+
+        // An https:// address saves the box as unticked.
+        save_in(
+            &store,
+            &mut kept,
+            typed("https://api.example.com/v1", "m", "none"),
+            "",
+        );
+        let secure = load_in(&store, false);
+        assert!(!flag_of(&secure, "allowUnencrypted"));
+        assert!(!flag_of(&secure, "unencrypted"));
+        assert_eq!(text_of(&secure, "network"), "internet");
+    }
+
+    #[test]
     fn removing_a_key_and_the_other_answers_read_back() {
         let (_folder, store, memory, mut kept) = setup();
         save_in(
             &store,
             &mut kept,
-            "https://api.example.com/v1",
-            "big",
-            "save",
+            typed("https://api.example.com/v1", "big", "save"),
             "test-key-ui-10",
         );
         let removed = forget_key_in(&store, &mut kept);
@@ -1321,9 +1428,7 @@ mod tests {
         save_in(
             &store,
             &mut kept,
-            "https://api.example.com/v1",
-            "big",
-            "none",
+            typed("https://api.example.com/v1", "big", "none"),
             "",
         );
         let example = sample_in(&store, "", TODAY);
@@ -1424,7 +1529,7 @@ mod tests {
         assert!(store.put(ai_switch::ENABLED_KEY, ai_switch::ON));
         let scripted = kassensturz_ai::SCRIPTED_ADDRESS;
         let model = kassensturz_ai::SCRIPTED_MODEL;
-        save_in(&store, &mut kept, scripted, model, "none", "");
+        save_in(&store, &mut kept, typed(scripted, model, "none"), "");
         let none = load_in(&store, true);
         let nothing = object(&none)
             .get(&cxx_qt_lib::QString::from("capability"))

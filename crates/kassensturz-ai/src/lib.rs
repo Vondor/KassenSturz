@@ -53,15 +53,16 @@ mod scripted;
 #[cfg(test)]
 mod tls_tests;
 
-pub use address::{Place, ProviderAddress};
+pub use address::{Network, Place, ProviderAddress};
 pub use capability::{
     FunctionCalling, MIN_CONTEXT_TOKENS, PROBE_FUNCTION, PROBE_WORD, probe_functions,
     probe_request_body,
 };
 pub use chat::{Finish, FunctionSpec, Message, ModelInfo, Reply, Role, ToolCall};
 pub use config::{
-    ADDRESS_KEY, AiConfig, CONSENT_ADDRESS_KEY, CONSENT_DAY_KEY, CONSENT_STATEMENT_KEY, ConfigFile,
-    KEY_USE_KEY, KeyUse, MODEL_KEY, ProviderSettings, SLOW_ANSWER_KEY, SlowAnswer,
+    ADDRESS_KEY, ALLOW_UNENCRYPTED_KEY, AiConfig, CONSENT_ADDRESS_KEY, CONSENT_DAY_KEY,
+    CONSENT_STATEMENT_KEY, ConfigFile, KEY_USE_KEY, KeyUse, MODEL_KEY, ProviderSettings,
+    SLOW_ANSWER_KEY, SlowAnswer, allow_word, allowed,
 };
 pub use consent::{ConsentRecord, STATEMENT, STATEMENT_VERSION, SentData, consent_missing};
 pub use error::AiError;

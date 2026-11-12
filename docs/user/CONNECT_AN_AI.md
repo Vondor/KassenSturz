@@ -35,6 +35,14 @@ Open **Settings → AI provider and privacy…**. Type the provider's **address*
 - No key needed.
 - Nothing leaves your computer.
 
+### A program on another computer at home (only `http://`)
+
+LM Studio, Ollama and similar programs can also run on another computer, for example a server in your home, and then offer only an unencrypted `http://` address such as `http://192.168.0.10:1234/v1`. KassenSturz refuses such an address at first, because anyone on the way could read what is sent. If you know the computer and trust the network, tick **Allow unencrypted connections** under the address; the box appears only for an `http://` address on another computer.
+
+- KassenSturz then says plainly that the connection isn't secure. For an address in a home network (such as `192.168.…`, `10.…` or a name ending in `.local`) it shows a warning; for an address that may be on the Internet it shows a stronger one. Don't use an unencrypted connection over the Internet.
+- Everything else stays the same: the computer is still another computer, so KassenSturz shows what is sent and asks for your agreement before the first question.
+- An `https://` address is always the safer choice, and a program on this computer (`localhost`) never needs the box.
+
 **Set the context length of a local model to at least 16384; 32768 is better.** KassenSturz's request alone is about 9,500 tokens (most of it the descriptions of its functions), and it grows with the conversation. At 8192 almost every question fails with a message that the context is too small. LM Studio starts models with only 4096, which is too little for the instructions, the functions and a conversation: the model then silently loses the start or the end of it and answers an old question. In LM Studio it is the model's setting **Context Length** when you load it; in Ollama it is `num_ctx`. KassenSturz shows a warning under an answer when the provider counted far fewer tokens than it sent. A small local model may answer less well than an online one. Whatever the model says, the numbers in your book come from KassenSturz, not from the AI.
 
 ### Choosing a local model

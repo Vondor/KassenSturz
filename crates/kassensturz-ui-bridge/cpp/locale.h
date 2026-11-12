@@ -53,6 +53,10 @@ QString readShortDate(const QString &text);
 // "October 2026" or "Oktober 2026".
 QString monthAndYear(std::int32_t year, std::int32_t month);
 
+// The locale's first day of the week, 1 for Monday to 7 for Sunday, as
+// Qt::DayOfWeek numbers them (D-740).
+std::int32_t firstDayOfWeek();
+
 // Today's date on this computer, as ISO 8601.
 QString today();
 

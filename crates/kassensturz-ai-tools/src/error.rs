@@ -214,6 +214,20 @@ pub enum ToolError {
         /// Why, one of the fixed words in `docs/ERROR_CODES.md`.
         reason: &'static str,
     },
+    /// A period word in a formula the AI wrote has a number outside its
+    /// range, e.g. `"last 367 days"` (US5.6, #759 point 3). Reported as
+    /// `ai-tools.bad-formula` with reason `period-count`, the form's `unit`
+    /// and the largest number `most` it takes, so the model can correct it.
+    BadFormulaPeriodCount {
+        /// `formula` or `target`.
+        argument: &'static str,
+        /// Where the period starts, in characters from 1.
+        position: usize,
+        /// `days`, `weeks`, `months` or `years`.
+        unit: &'static str,
+        /// The largest number the form takes; the smallest is 1.
+        most: u16,
+    },
     /// The error `cause` came from one item of a list of the call, e.g. the
     /// third of `new_rules`. The report is the cause's, plus the list and
     /// the item's place, so the model knows which one to fix (M6-B191,
@@ -515,6 +529,17 @@ impl Report for ToolError {
                 };
                 report.with("reason", ErrorParam::Keyword(reason))
             }
+            Self::BadFormulaPeriodCount {
+                argument,
+                position,
+                unit,
+                most,
+            } => ErrorReport::new("ai-tools.bad-formula")
+                .with("argument", ErrorParam::Keyword(argument))
+                .with("position", ErrorParam::count(*position))
+                .with("reason", ErrorParam::Keyword("period-count"))
+                .with("unit", ErrorParam::Keyword(unit))
+                .with("most", ErrorParam::count(usize::from(*most))),
             Self::InItem { list, item, cause } => ErrorReport::new("ai-tools.in-item")
                 .with("list", ErrorParam::Keyword(list))
                 .with("item", ErrorParam::count(*item))
@@ -656,6 +681,12 @@ mod tests {
                 argument: "formula",
                 position: Some(3),
                 reason: "syntax",
+            },
+            ToolError::BadFormulaPeriodCount {
+                argument: "formula",
+                position: 11,
+                unit: "days",
+                most: 366,
             },
             ToolError::BadCondition {
                 condition: None,

@@ -208,10 +208,19 @@ impl Formula {
     /// `period`: from the first to the last day of `period` and of every
     /// period a name gives itself, so one read serves them all.
     pub fn span(&self, period: Period) -> Result<Period, ReportError> {
+        self.span_with_weeks_from(period, crate::first_weekday())
+    }
+
+    /// [`Formula::span`] with weeks starting on `week_start` (D-740).
+    pub(crate) fn span_with_weeks_from(
+        &self,
+        period: Period,
+        week_start: crate::Weekday,
+    ) -> Result<Period, ReportError> {
         let mut first = period.first();
         let mut last = period.last();
         for name in &self.tree.names {
-            let range = eval::period_of(name.range, period)?;
+            let range = eval::period_in_weeks_from(name.range, period, week_start)?;
             first = first.min(range.first());
             last = last.max(range.last());
         }

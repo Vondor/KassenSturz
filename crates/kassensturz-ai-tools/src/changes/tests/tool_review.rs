@@ -258,6 +258,14 @@ fn every_period_the_formula_help_names_after_at_is_taken() {
         "last year",
         "last N months",
         "last N complete months",
+        "this week",
+        "last week",
+        "N months ago",
+        "last N weeks",
+        "last N complete weeks",
+        "last N years",
+        "last N complete years",
+        "last N days",
     ] {
         assert!(help.contains(&format!("\"{words}\"")), "{words}");
     }
@@ -278,12 +286,52 @@ fn every_period_the_formula_help_names_after_at_is_taken() {
         "\"last year\"",
         "\"last 3 months\"",
         "\"last 120 complete months\"",
+        "\"this week\"",
+        "\"last week\"",
+        "\"2 months ago\"",
+        "\"last 520 weeks\"",
+        "\"last 4 complete weeks\"",
+        "\"last 10 years\"",
+        "\"last 3 complete years\"",
+        "\"last 366 days\"",
         "2026",
         "2026-09",
         "2026-09-15",
         "2026-01..2026-03",
     ] {
         assert_eq!(chart_code(&book, &at(period)), "prepared", "{period}");
+    }
+    // A number outside its range says the range, so the model can correct
+    // it (#759 point 3, D-740).
+    for (period, unit, most) in [
+        ("\"last 367 days\"", "days", 366),
+        ("\"last 521 weeks\"", "weeks", 520),
+        ("\"121 months ago\"", "months", 120),
+        ("\"last 11 complete years\"", "years", 10),
+    ] {
+        let refused = propose_view(&book, &at(period), Permissions::all(), today())
+            .map_err(ToolError::without_item)
+            .expect_err(period)
+            .report();
+        assert_eq!(refused.code, "ai-tools.bad-formula", "{period}");
+        let param = |name: &str| {
+            refused
+                .params
+                .iter()
+                .find(|(key, _)| *key == name)
+                .map(|(_, value)| format!("{value:?}"))
+        };
+        assert_eq!(
+            param("reason").as_deref(),
+            Some("Keyword(\"period-count\")")
+        );
+        assert_eq!(
+            param("unit"),
+            Some(format!("Keyword({unit:?})")),
+            "{period}"
+        );
+        assert_eq!(param("most"), Some(format!("Number({most})")), "{period}");
+        assert_eq!(param("position").as_deref(), Some("Number(12)"), "{period}");
     }
     // No salary month after @, as the help says.
     assert_eq!(

@@ -117,6 +117,8 @@ pub use formula::{
     MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm, Term,
 };
 pub use groups::{Overlap, Shown};
+/// The day of the week, for [`set_first_weekday`].
+pub use jiff::civil::Weekday;
 pub use listed::{
     LISTED_ROWS, Listed, ListedTransactions, MAX_LISTED, OtherSide, listed_transactions,
 };
@@ -132,8 +134,8 @@ pub use over_time::{
     CATEGORY_OVER_TIME, CategoryOverTime, ChosenSeries, MonthTotals, category_over_time,
 };
 pub use period::{
-    MAX_MONTHS, MAX_ROLLING_DAYS, MAX_ROLLING_MONTHS, Period, Rolling, is_period_word, range_word,
-    read_range_word,
+    MAX_FORMULA_WEEKS, MAX_FORMULA_YEARS, MAX_MONTHS, MAX_ROLLING_DAYS, MAX_ROLLING_MONTHS, Period,
+    Rolling, first_weekday, is_period_word, range_word, read_range_word, set_first_weekday,
 };
 pub use schema::{
     ALARMS_KEY, CANDLE_WORDS, ColumnSetting, ComponentType, FORMULA_MEASURE, Kind, MAX_IDS,

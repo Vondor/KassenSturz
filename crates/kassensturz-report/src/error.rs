@@ -88,6 +88,16 @@ pub enum ReportError {
         /// What was expected or is wrong, by a fixed word.
         reason: &'static str,
     },
+    /// A period word after `@` has a number outside the range its form
+    /// allows, e.g. `"last 367 days"` (US5.6, #759 point 3).
+    FormulaPeriodCount {
+        /// Where the period starts, in characters from 1.
+        position: usize,
+        /// The form's unit: `days`, `weeks`, `months` or `years`.
+        unit: &'static str,
+        /// The largest number the form takes; the smallest is 1.
+        most: u16,
+    },
     /// A formula's name is no category and no group.
     FormulaUnknownName {
         /// Where.
@@ -258,6 +268,14 @@ impl Report for ReportError {
             Self::FormulaSyntax { position, reason } => ErrorReport::new("report.formula-syntax")
                 .with("position", ErrorParam::count(*position))
                 .with("reason", ErrorParam::Keyword(reason)),
+            Self::FormulaPeriodCount {
+                position,
+                unit,
+                most,
+            } => ErrorReport::new("report.formula-period-count")
+                .with("position", ErrorParam::count(*position))
+                .with("unit", ErrorParam::Keyword(unit))
+                .with("most", ErrorParam::count(usize::from(*most))),
             Self::FormulaUnknownName { position, name } => {
                 ErrorReport::new("report.formula-unknown-name")
                     .with("position", ErrorParam::count(*position))
@@ -376,6 +394,11 @@ mod tests {
             ReportError::FormulaSyntax {
                 position: 5,
                 reason: "missing-close",
+            },
+            ReportError::FormulaPeriodCount {
+                position: 7,
+                unit: "days",
+                most: 366,
             },
             ReportError::FormulaUnknownName {
                 position: 1,

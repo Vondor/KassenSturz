@@ -188,6 +188,54 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The month before last: one month, counted back from the chart's month")
+            description: "=Groceries@\"2 months ago\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The chart's week, from the first day of the week")
+            description: "=Groceries@\"this week\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The whole week before the chart's week")
+            description: "=Groceries@\"last week\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The chart's week and the 3 weeks before it")
+            description: "=Groceries@\"last 4 weeks\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The chart's year and the year before it")
+            description: "=Groceries@\"last 2 years\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info an example of a period in a formula", "The 3 whole years before the chart's year")
+            description: "=Groceries@\"last 3 complete years\""
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormTextDelegate {
             text: page.i18nContext.i18nc("@info an example of a period in a formula", "One year")
             description: "=Groceries@2026"
             descriptionItem.textFormat: Text.PlainText
@@ -227,11 +275,11 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormSectionText {
-        text: page.i18nContext.i18nc("@info", "These are all the period words: \"this month\", \"last month\", \"this quarter\", \"last quarter\", \"this year\", \"last year\", \"last N months\" and \"last N complete months\", with N from 1 to 120, and \"last N days\", with N from 1 to 366. They stay in English, like the function names, and capital letters don't matter. A word counts from the chart's period: in a chart for November, \"last month\" is October. \"last N months\" includes the chart's month, \"last N complete months\" doesn't.")
+        text: page.i18nContext.i18nc("@info", "These are all the period words: \"this month\", \"last month\", \"this quarter\", \"last quarter\", \"this year\", \"last year\", \"this week\" and \"last week\"; \"last N months\", \"last N complete months\" and \"N months ago\", with N from 1 to 120; \"last N weeks\" and \"last N complete weeks\", with N from 1 to 520; \"last N years\" and \"last N complete years\", with N from 1 to 10; and \"last N days\", with N from 1 to 366. They stay in English, like the function names, and capital letters don't matter. For 1 you may also write \"last 1 month\" or \"1 month ago\". A word counts from the chart's period: in a chart for November, \"last month\" is October and \"2 months ago\" is September. \"last N months\", \"last N weeks\" and \"last N years\" include the chart's own month, week or year; the complete ones don't. A week starts on the first day of the week of your region, for example on Monday in Germany.")
     }
 
     FormCard.FormSectionText {
-        text: page.i18nContext.i18nc("@info", "Dates are written year first, with a minus between year, month and day: 2026 is a year, 2026-11 a month and 2026-11-12 a day. Two of them joined by .. are a range from the first day of the first to the last day of the second, up to 100 years long. Other ways of writing a date, such as 12.11.26, and words such as weeks or the month before last don't work yet; a period like that is written with dates, for example 2026-09 for the month before last in November.")
+        text: page.i18nContext.i18nc("@info", "Dates are written year first, with a minus between year, month and day: 2026 is a year, 2026-11 a month and 2026-11-12 a day. Two of them joined by .. are a range from the first day of the first to the last day of the second, up to 100 years long. Other ways of writing a date, such as 12.11.26, don't work in formulas.")
     }
 
     FormCard.FormHeader {

@@ -192,6 +192,20 @@ Kirigami.InlineMessage {
         return i18nContext.i18nc("@info %1 is a character position", "This isn't written the way formulas are, at character %1. Change it at that place.", result.position);
     }
 
+    // A period word with a number outside its range names the range
+    // (#759 point 3, D-740).
+    function formulaPeriodCount(result: var): string {
+        switch (result.unit) {
+        case "days":
+            return i18nContext.i18nc("@info %1 is a character position, %2 the largest number", "The number of days in the period at character %1 must be a whole number from 1 to %2, as in @\"last 7 days\".", result.position, result.most);
+        case "weeks":
+            return i18nContext.i18nc("@info %1 is a character position, %2 the largest number", "The number of weeks in the period at character %1 must be a whole number from 1 to %2, as in @\"last 4 weeks\".", result.position, result.most);
+        case "years":
+            return i18nContext.i18nc("@info %1 is a character position, %2 the largest number", "The number of years in the period at character %1 must be a whole number from 1 to %2, as in @\"last 2 years\".", result.position, result.most);
+        }
+        return i18nContext.i18nc("@info %1 is a character position, %2 the largest number", "The number of months in the period at character %1 must be a whole number from 1 to %2, as in @\"last 6 months\" or @\"2 months ago\".", result.position, result.most);
+    }
+
     function formulaArguments(result: var): string {
         switch (result.reason) {
         case "too-few":
@@ -401,6 +415,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is the name of a category, %2 and %3 are the names of two groups", "%1 is in %2 and in %3; a chart that shows parts of a whole can't count it twice. Take it out of one of them, or show them as bars or lines.", result.category, result.first, result.second);
         case "report.formula-syntax":
             return formulaSyntax(result);
+        case "report.formula-period-count":
+            return formulaPeriodCount(result);
         case "report.formula-unknown-name":
             return i18nContext.i18nc("@info %1 is a name, %2 a character position", "%1 is not a category or one of My groups (character %2). Check the spelling, or put a name with spaces in single quotes: 'Eating out'.", result.name, result.position);
         case "report.formula-ambiguous-name":

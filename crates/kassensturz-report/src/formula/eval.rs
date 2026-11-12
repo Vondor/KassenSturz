@@ -13,8 +13,9 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use jiff::ToSpan;
+use jiff::civil::Weekday;
 use kassensturz_core::{
-    AccountId, AccountKind, CurrencyCode, GroupKind, GroupMember, Money, RoundingMode,
+    AccountId, AccountKind, CurrencyCode, Date, GroupKind, GroupMember, Money, RoundingMode,
 };
 
 use super::exact::{Exact, TooLarge};
@@ -48,6 +49,15 @@ enum Counting {
 /// figure's last day: on a figure for March 2026 `"last month"` is
 /// February 2026 (D-318).
 pub(crate) fn period_of(range: Option<Range>, figure: Period) -> Result<Period, ReportError> {
+    period_in_weeks_from(range, figure, crate::first_weekday())
+}
+
+/// [`period_of`] with weeks starting on `first` (D-740).
+pub(crate) fn period_in_weeks_from(
+    range: Option<Range>,
+    figure: Period,
+    first: Weekday,
+) -> Result<Period, ReportError> {
     let bad = |_| ReportError::BadPeriod;
     let day = figure.last();
     let quarter = || {
@@ -80,8 +90,45 @@ pub(crate) fn period_of(range: Option<Range>, figure: Period) -> Result<Period, 
                 crate::Rolling::Months { count, complete }.period(day)
             }
             Words::Days { count } => crate::Rolling::Days { count }.period(day),
+            Words::MonthsAgo { count } => {
+                let month = day
+                    .first_of_month()
+                    .checked_sub(i32::from(count).months())
+                    .map_err(bad)?;
+                Period::new(month, month.last_of_month())
+            }
+            Words::ThisWeek => weeks(day, first, 1, false),
+            Words::LastWeek => weeks(day, first, 1, true),
+            Words::Weeks { count, complete } => weeks(day, first, count, complete),
+            Words::Years { count, complete } => {
+                let this = day.first_of_year();
+                let end = if complete {
+                    this.checked_sub(1.year()).map_err(bad)?
+                } else {
+                    this
+                };
+                let start = end
+                    .checked_sub((i32::from(count) - 1).years())
+                    .map_err(bad)?;
+                Period::new(start, end.last_of_year())
+            }
         },
     }
+}
+
+/// `count` whole weeks starting on `first`: the week `day` is in and the
+/// `count` - 1 before it, or with `complete` the `count` weeks before it.
+fn weeks(day: Date, first: Weekday, count: u16, complete: bool) -> Result<Period, ReportError> {
+    let bad = |_| ReportError::BadPeriod;
+    let this = crate::period::week_of(day, first)?;
+    let back = i32::from(count) - i32::from(!complete);
+    let start = this.checked_sub((back * 7).days()).map_err(bad)?;
+    let last = if complete {
+        this.yesterday().map_err(bad)?
+    } else {
+        this.checked_add(6.days()).map_err(bad)?
+    };
+    Period::new(start, last)
 }
 
 /// The categories and groups `text` fits: a group's name, a category's path

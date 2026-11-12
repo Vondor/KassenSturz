@@ -245,35 +245,11 @@ fn syntax_mistakes_say_where_and_what() {
             "=Pets@",
             "report.formula-syntax position=7 reason=bad-period",
         ),
-        // Rolling months: 1 to 120, written without a leading zero (D-649).
-        (
-            "=Pets@\"last 0 months\"",
-            "report.formula-syntax position=7 reason=bad-period",
-        ),
-        (
-            "=Pets@\"last 03 months\"",
-            "report.formula-syntax position=7 reason=bad-period",
-        ),
-        (
-            "=Pets@\"last 121 complete months\"",
-            "report.formula-syntax position=7 reason=bad-period",
-        ),
+        // Not a form formulas know, whatever the number (D-740): a singular
+        // unit only for 1, no complete days, nothing ago but months, and no
+        // signs.
         (
             "=Pets@\"last -3 months\"",
-            "report.formula-syntax position=7 reason=bad-period",
-        ),
-        // Only what the help lists (Q-499): days up to a leap year, no
-        // weeks, no other words, no dates in quotes.
-        (
-            "=Pets@\"last 0 days\"",
-            "report.formula-syntax position=7 reason=bad-period",
-        ),
-        (
-            "=Pets@\"last 07 days\"",
-            "report.formula-syntax position=7 reason=bad-period",
-        ),
-        (
-            "=Pets@\"last 367 days\"",
             "report.formula-syntax position=7 reason=bad-period",
         ),
         (
@@ -281,7 +257,23 @@ fn syntax_mistakes_say_where_and_what() {
             "report.formula-syntax position=7 reason=bad-period",
         ),
         (
-            "=Pets@\"last 6 weeks\"",
+            "=Pets@\"last 2 complete days\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"2 weeks ago\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"2 complete months ago\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"next week\"",
+            "report.formula-syntax position=7 reason=bad-period",
+        ),
+        (
+            "=Pets@\"last weeks\"",
             "report.formula-syntax position=7 reason=bad-period",
         ),
         (
@@ -324,6 +316,30 @@ fn syntax_mistakes_say_where_and_what() {
     ];
     for (text, expected) in cases {
         assert_eq!(parse_mistake(text), expected, "{text:?}");
+    }
+    // A known form with N out of its range, or with a leading zero, says
+    // the range (#759 point 3): days 1 to 366, weeks 1 to 520, months
+    // 1 to 120, years 1 to 10 (D-649, D-717, D-740).
+    for (text, expected) in [
+        ("=Pets@\"last 0 months\"", "unit=months most=120"),
+        ("=Pets@\"last 03 months\"", "unit=months most=120"),
+        ("=Pets@\"last 121 complete months\"", "unit=months most=120"),
+        ("=Pets@\"121 months ago\"", "unit=months most=120"),
+        ("=Pets@\"0 months ago\"", "unit=months most=120"),
+        ("=Pets@\"last 0 days\"", "unit=days most=366"),
+        ("=Pets@\"last 07 days\"", "unit=days most=366"),
+        ("=Pets@\"last 367 days\"", "unit=days most=366"),
+        ("=Pets@\"last 99999999 days\"", "unit=days most=366"),
+        ("=Pets@\"last 521 weeks\"", "unit=weeks most=520"),
+        ("=Pets@\"last 0 complete weeks\"", "unit=weeks most=520"),
+        ("=Pets@\"last 11 years\"", "unit=years most=10"),
+        ("=Pets@\"last 11 complete years\"", "unit=years most=10"),
+    ] {
+        assert_eq!(
+            parse_mistake(text),
+            format!("report.formula-period-count position=7 {expected}"),
+            "{text:?}"
+        );
     }
     assert_eq!(
         parse_mistake("=SUMME(1)"),
@@ -666,6 +682,131 @@ fn names_count_what_the_datasets_count_on_a_real_book() {
     assert_eq!(figure("=Food + COUNT(Travel)"), Ok(eur(8_920)));
     // A name with nothing in the period is zero in the given currency.
     assert_eq!(figure("=Food@2026-12"), Ok(eur(0)));
+}
+
+/// The days the one name of `text` counts on a figure for `figure`.
+fn counted_days(source: &Source, text: &str, figure: Period) -> Option<Period> {
+    let result = Formula::parse(text)
+        .and_then(|formula| formula.evaluate(source, figure, &Filter::default(), EUR))
+        .ok()?;
+    match result.counted.as_slice() {
+        [counted] => Some(counted.period),
+        _ => None,
+    }
+}
+
+#[test]
+fn weeks_months_ago_and_years_count_back_from_the_figure() {
+    // US5.6 (#757, D-740). The figure is October 2026; its last day,
+    // 31 October 2026, is a Saturday.
+    let sample = sample();
+    let wide = period(date(2016, 1, 1), date(2026, 12, 31));
+    let source = Source::read(&sample.book, wide).expect("read");
+    let october = period(date(2026, 10, 1), date(2026, 10, 31));
+    assert_eq!(date(2026, 10, 31).weekday(), Weekday::Saturday);
+    let days = |text: &str| counted_days(&source, text, october);
+    // Weeks start on Monday unless the app set the locale's first day.
+    for (text, first, last) in [
+        ("this week", date(2026, 10, 26), date(2026, 11, 1)),
+        ("This  Week", date(2026, 10, 26), date(2026, 11, 1)),
+        ("last week", date(2026, 10, 19), date(2026, 10, 25)),
+        ("last 1 week", date(2026, 10, 26), date(2026, 11, 1)),
+        ("last 1 weeks", date(2026, 10, 26), date(2026, 11, 1)),
+        ("last 2 weeks", date(2026, 10, 19), date(2026, 11, 1)),
+        (
+            "last 1 complete week",
+            date(2026, 10, 19),
+            date(2026, 10, 25),
+        ),
+        (
+            "last 2 complete weeks",
+            date(2026, 10, 12),
+            date(2026, 10, 25),
+        ),
+        ("last 520 weeks", date(2016, 11, 14), date(2026, 11, 1)),
+        // One calendar month, N months before the figure's month.
+        ("1 month ago", date(2026, 9, 1), date(2026, 9, 30)),
+        ("1 months ago", date(2026, 9, 1), date(2026, 9, 30)),
+        ("2 months ago", date(2026, 8, 1), date(2026, 8, 31)),
+        ("14 Months Ago", date(2025, 8, 1), date(2025, 8, 31)),
+        ("120 months ago", date(2016, 10, 1), date(2016, 10, 31)),
+        // Calendar years, as months count calendar months.
+        ("last 1 year", date(2026, 1, 1), date(2026, 12, 31)),
+        ("last 2 years", date(2025, 1, 1), date(2026, 12, 31)),
+        ("last 1 complete year", date(2025, 1, 1), date(2025, 12, 31)),
+        (
+            "last 2 complete years",
+            date(2024, 1, 1),
+            date(2025, 12, 31),
+        ),
+        (
+            "last 10 complete years",
+            date(2016, 1, 1),
+            date(2025, 12, 31),
+        ),
+        // The singular now reads for 1 in the older forms too.
+        ("last 1 month", date(2026, 10, 1), date(2026, 10, 31)),
+        ("last 1 day", date(2026, 10, 31), date(2026, 10, 31)),
+    ] {
+        assert_eq!(
+            days(&format!("=Rent@\"{text}\"")),
+            Some(period(first, last)),
+            "{text}"
+        );
+    }
+    // The money is what a fixed period of the same days gives, from the
+    // real book: the month before last is August.
+    assert_eq!(
+        worked_out(&source, "=Groceries@\"2 months ago\"", october),
+        worked_out(&source, "=Groceries@2026-08", october)
+    );
+    assert_eq!(
+        worked_out(&source, "=Groceries@\"2 months ago\"", october),
+        Ok(eur(5_320))
+    );
+    assert_eq!(
+        worked_out(&source, "=Rent@\"last 2 complete weeks\"", october),
+        worked_out(&source, "=Rent@2026-10-12..2026-10-25", october)
+    );
+    assert_eq!(
+        worked_out(&source, "=Rent@\"last 2 years\"", october),
+        worked_out(&source, "=Rent@2025..2026", october)
+    );
+}
+
+#[test]
+fn weeks_start_on_the_day_the_locale_gives() {
+    // D-740: with Sunday first, the week of Saturday 31 October 2026 is
+    // 25 to 31 October. The span also covers the figure's own days.
+    let october_31 = period(date(2026, 10, 31), date(2026, 10, 31));
+    let span = |text: &str, first: Weekday| {
+        Formula::parse(text)
+            .and_then(|formula| formula.span_with_weeks_from(october_31, first))
+            .ok()
+    };
+    assert_eq!(
+        span("=Rent@\"this week\"", Weekday::Sunday),
+        Some(period(date(2026, 10, 25), date(2026, 10, 31)))
+    );
+    assert_eq!(
+        span("=Rent@\"last 2 complete weeks\"", Weekday::Sunday),
+        Some(period(date(2026, 10, 11), date(2026, 10, 31)))
+    );
+    assert_eq!(
+        span("=Rent@\"this week\"", Weekday::Saturday),
+        Some(period(date(2026, 10, 31), date(2026, 11, 6)))
+    );
+    assert_eq!(
+        span("=Rent@\"this week\"", Weekday::Monday),
+        Some(period(date(2026, 10, 26), date(2026, 11, 1)))
+    );
+    // Without a week word the first day changes nothing.
+    assert_eq!(
+        span("=Rent@\"last month\"", Weekday::Sunday),
+        span("=Rent@\"last month\"", Weekday::Monday)
+    );
+    // Nothing in this test binary sets the day, so it is ISO's Monday.
+    assert_eq!(first_weekday(), Weekday::Monday);
 }
 
 #[test]

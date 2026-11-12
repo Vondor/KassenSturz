@@ -305,8 +305,10 @@ pub(crate) mod tests {
         let opening = account(&mut book, "Opening", AccountKind::Equity);
         let rent = account(&mut book, "Rent", AccountKind::Expense);
         let day = |d| Date::new(2026, 10, d).expect("date");
+        // The opening is in September, so the month starts at 1,000.00.
+        let september = Date::new(2026, 9, 15).expect("date");
         for (when, from, to, minor) in [
-            (day(1), opening, shared, 100_000),
+            (september, opening, shared, 100_000),
             (day(3), shared, rent, 80_000),
         ] {
             let splits = vec![

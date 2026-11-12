@@ -17,6 +17,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
+import io.github.vondor.kassensturz
 
 Kirigami.Dialog {
     id: dialog
@@ -83,9 +84,9 @@ Kirigami.Dialog {
         }
     }
 
-    title: index < 0
+    title: Plain.plain(index < 0
         ? i18nContext.i18nc("@title:window", "Add a warning")
-        : i18nContext.i18nc("@title:window", "Change a warning")
+        : i18nContext.i18nc("@title:window", "Change a warning"))
     preferredWidth: Kirigami.Units.gridUnit * 26
     standardButtons: Kirigami.Dialog.NoButton
     customFooterActions: [
@@ -133,7 +134,7 @@ Kirigami.Dialog {
                 spacing: 0
 
                 Controls.RadioButton {
-                    text: words.reasonName(choice.modelData)
+                    text: Plain.plain(words.reasonName(choice.modelData))
                     checked: dialog.reason === choice.modelData
                     onToggled: {
                         ActionLog.taken("AlarmRuleDialog_pickReason")

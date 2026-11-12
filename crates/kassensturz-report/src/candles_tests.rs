@@ -226,21 +226,14 @@ proptest! {
 
 #[test]
 fn a_chosen_length_replaces_the_automatic_one() {
-    // Q-498: six whole months are 184 days, a candle per week by the period,
-    // but a person who chose a candle per month gets six of them.
+    // Q-498, D-747: six whole months get a candle per month by the period
+    // (they are 184 days, which by length alone would be weeks), and a
+    // person who chose a candle per week gets weeks.
     let f = financial();
     let shown = period(date(2026, 5, 1), date(2026, 10, 31));
-    assert_eq!(CandleLength::of(shown), CandleLength::Week);
+    assert_eq!(CandleLength::of(shown), CandleLength::Month);
     let source = Source::read_with_balances(&f.book, shown).unwrap();
-    let automatic = balance_candles(&source, shown, &Filter::default(), None).unwrap();
-    assert_eq!(automatic[0].length, CandleLength::Week);
-    let months = balance_candles(
-        &source,
-        shown,
-        &Filter::default(),
-        Some(CandleLength::Month),
-    )
-    .unwrap();
+    let months = balance_candles(&source, shown, &Filter::default(), None).unwrap();
     let flows = cash_flow_by_month(&source, shown, &Filter::default()).unwrap();
     for (result, flow) in months.iter().zip(&flows) {
         assert_eq!(result.length, CandleLength::Month);
@@ -252,17 +245,106 @@ fn a_chosen_length_replaces_the_automatic_one() {
             );
         }
     }
-    // The first opens and the last closes where the weeks do: only the
+    let weeks =
+        balance_candles(&source, shown, &Filter::default(), Some(CandleLength::Week)).unwrap();
+    assert_eq!(weeks[0].length, CandleLength::Week);
+    assert_eq!(weeks[0].candles.len(), 27);
+    // The first opens and the last closes where the months do: only the
     // grouping of the days changes, never a balance.
-    assert_eq!(months[0].candles[0].open, automatic[0].candles[0].open);
+    assert_eq!(weeks[0].candles[0].open, months[0].candles[0].open);
     assert_eq!(
-        months[0].candles.last().unwrap().close,
-        automatic[0].candles.last().unwrap().close
+        weeks[0].candles.last().unwrap().close,
+        months[0].candles.last().unwrap().close
     );
     // A day per candle over the same months.
     let days =
         balance_candles(&source, shown, &Filter::default(), Some(CandleLength::Day)).unwrap();
     assert_eq!(days[0].candles.len(), 184);
+}
+
+#[test]
+fn whole_months_get_a_candle_each() {
+    // D-747: "the last 3 months" are three candles, with or without the
+    // month today is in, and a year of whole months is twelve.
+    let today = date(2026, 11, 12);
+    for word in [
+        "last-3-complete-months",
+        "last-3-months",
+        "last-2-complete-months",
+    ] {
+        let shown = Period::named(word, today, None).unwrap().unwrap();
+        assert_eq!(CandleLength::of(shown), CandleLength::Month, "{word}");
+    }
+    let complete = Period::named("last-3-complete-months", today, None)
+        .unwrap()
+        .unwrap();
+    assert_eq!(CandleLength::Month.starts(complete).len(), 3);
+    assert_eq!(
+        CandleLength::of(period(date(2026, 1, 1), date(2026, 12, 31))),
+        CandleLength::Month
+    );
+    // One whole month stays a candle per day, never a single candle; a
+    // period that doesn't start and end with a month follows its length.
+    assert_eq!(
+        CandleLength::of(period(date(2026, 2, 1), date(2026, 2, 28))),
+        CandleLength::Day
+    );
+    assert_eq!(
+        CandleLength::of(period(date(2026, 8, 13), date(2026, 11, 12))),
+        CandleLength::Week
+    );
+    // The last 7 or 31 days are days.
+    for word in ["last-7-days", "last-31-days"] {
+        let shown = Period::named(word, today, None).unwrap().unwrap();
+        assert_eq!(CandleLength::of(shown), CandleLength::Day, "{word}");
+    }
+}
+
+#[test]
+fn only_lengths_that_give_two_candles_are_offered_and_used() {
+    // D-747: seven days can't be drawn per month or per week; one day has
+    // no length but the automatic one.
+    let f = financial();
+    let week = period(date(2026, 10, 26), date(2026, 11, 1));
+    assert_eq!(CandleLength::offered(week), ["auto", "day"]);
+    assert_eq!(
+        CandleLength::offered(period(date(2026, 10, 1), date(2026, 10, 1))),
+        ["auto"]
+    );
+    assert_eq!(
+        CandleLength::offered(period(date(2026, 10, 1), date(2026, 10, 8))),
+        ["auto", "day", "week"]
+    );
+    assert_eq!(
+        CandleLength::offered(period(date(2026, 10, 1), date(2026, 11, 1))),
+        ["auto", "day", "week", "month"]
+    );
+    // Every length offered gives at least two candles, wherever the period
+    // starts.
+    for first in 0..40 {
+        let start = date(2026, 1, 1)
+            .checked_add(jiff::Span::new().days(first))
+            .unwrap();
+        for length in 1..70 {
+            let shown = period(
+                start,
+                start
+                    .checked_add(jiff::Span::new().days(length - 1))
+                    .unwrap(),
+            );
+            for candle in [CandleLength::Day, CandleLength::Week, CandleLength::Month] {
+                if candle.fits(shown) {
+                    assert!(candle.starts(shown).len() >= 2, "{candle:?} {shown:?}");
+                }
+            }
+        }
+    }
+    // A month chosen for seven days draws days instead of one candle.
+    let source = Source::read_with_balances(&f.book, week).unwrap();
+    let drawn =
+        balance_candles(&source, week, &Filter::default(), Some(CandleLength::Month)).unwrap();
+    assert_eq!(drawn[0].length, CandleLength::Day);
+    assert_eq!(drawn[0].candles.len(), 7);
 }
 
 #[test]

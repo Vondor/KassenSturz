@@ -36,7 +36,8 @@ pub enum CandleLength {
     /// One candle per week, Monday to Sunday (ISO 8601): for a period of up
     /// to [`CandleLength::WEEKS`] days.
     Week,
-    /// One candle per calendar month: for every longer period.
+    /// One candle per calendar month: for every longer period, and for two
+    /// or more whole calendar months (D-747).
     Month,
 }
 
@@ -47,13 +48,20 @@ impl CandleLength {
     /// year (at most 28 candles).
     pub const WEEKS: i32 = 184;
 
-    /// The length of the candles of `period`.
+    /// The length of the candles of `period` when the user chose none
+    /// (*Automatic*). A period of two or more whole calendar months, such as
+    /// "the last 3 months", gets a candle per month whatever its length, so
+    /// three months are three candles (D-747); otherwise the length of the
+    /// period decides (D-719).
     pub fn of(period: Period) -> Self {
-        // The days from the first to the last, both counted.
-        let days = period
-            .first()
-            .until(period.last())
-            .map_or(i32::MAX, |span| span.get_days().saturating_add(1));
+        let (first, last) = (period.first(), period.last());
+        if first == first.first_of_month()
+            && last == last.last_of_month()
+            && first.first_of_month() != last.first_of_month()
+        {
+            return Self::Month;
+        }
+        let days = days_of(period);
         if days <= Self::DAYS {
             Self::Day
         } else if days <= Self::WEEKS {
@@ -61,6 +69,35 @@ impl CandleLength {
         } else {
             Self::Month
         }
+    }
+
+    /// Whether a candle of this length fits `period` (D-747): the period is
+    /// longer than one such candle can be, so it always has at least two of
+    /// them. A day fits from 2 days on, a week from 8 (8 days always touch
+    /// two weeks, Monday to Sunday) and a month from 32. A chosen length that
+    /// doesn't fit is not offered and not used; the chart follows the
+    /// period instead.
+    pub fn fits(self, period: Period) -> bool {
+        let days = days_of(period);
+        match self {
+            Self::Day => days >= 2,
+            Self::Week => days >= 8,
+            Self::Month => days >= 32,
+        }
+    }
+
+    /// The `params.candle` words that make sense for `period`, as the
+    /// properties offer them: `auto` always, then each length that
+    /// [fits](Self::fits).
+    pub fn offered(period: Period) -> Vec<&'static str> {
+        std::iter::once("auto")
+            .chain(
+                [Self::Day, Self::Week, Self::Month]
+                    .into_iter()
+                    .filter(|length| length.fits(period))
+                    .map(Self::key),
+            )
+            .collect()
     }
 
     /// The length a `params.candle` word chooses (Q-498): `None` for `auto`
@@ -85,7 +122,7 @@ impl CandleLength {
 
     /// The first day of each candle of `period`, oldest first. The first
     /// and the last candle cover only the days inside the period.
-    fn starts(self, period: Period) -> Vec<Date> {
+    pub(crate) fn starts(self, period: Period) -> Vec<Date> {
         let mut starts = vec![period.first()];
         let mut day = period.first();
         loop {
@@ -107,6 +144,14 @@ impl CandleLength {
             }
         }
     }
+}
+
+/// The days of `period`, the first and the last both counted.
+fn days_of(period: Period) -> i32 {
+    period
+        .first()
+        .until(period.last())
+        .map_or(i32::MAX, |span| span.get_days().saturating_add(1))
 }
 
 /// One candle: the balance of the chosen accounts together over its days.
@@ -161,7 +206,11 @@ pub fn balance_candles(
         .balances_at(&[Moment::Start(period.first())])?
         .pop()
         .unwrap_or_default();
-    let length = length.unwrap_or_else(|| CandleLength::of(period));
+    // A chosen length that gives fewer than two candles is not used
+    // (D-747): the chart follows the period, as with *Automatic*.
+    let length = length
+        .filter(|length| length.fits(period))
+        .unwrap_or_else(|| CandleLength::of(period));
     let starts = length.starts(period);
 
     let mut currencies: Vec<CurrencyCode> = currency_of.values().copied().collect();

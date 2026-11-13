@@ -30,6 +30,7 @@ mod budgets;
 mod cash;
 mod check_only;
 mod custom_chart;
+mod danger;
 mod edits;
 mod joins;
 mod limits;
@@ -70,6 +71,7 @@ pub use cash::{DeleteTransaction, NewTransaction};
 pub use custom_chart::{
     DESCRIPTION_DATA, MAX_AI_DESCRIPTION_BYTES, SHOW_AS_CUSTOM, description_titles,
 };
+pub use danger::Danger;
 pub use edits::{EditError, Slot};
 pub use joins::JoinTransfer;
 pub use sort_rules::SortWithRules;
@@ -748,6 +750,9 @@ pub struct EditRule {
     /// `remove_conditions` takes away (US3.5): `check_only` names these
     /// conditions as `list_rules` shows them.
     pub removed_conditions: Vec<usize>,
+    /// How many transactions already in the book the changed Rule's
+    /// conditions fit, as the Rule editor counts them (B-249).
+    pub catches: usize,
 }
 
 /// A top-level Rule moved.
@@ -784,6 +789,9 @@ pub struct NewRule {
     pub parent: Option<RuleId>,
     /// That Rule's name, for the review.
     pub inside: Option<String>,
+    /// How many transactions already in the book its conditions fit, as the
+    /// Rule editor counts them (B-249).
+    pub catches: usize,
 }
 
 /// A transaction that gets a category.
@@ -1243,12 +1251,18 @@ impl ChangeSet {
                             book.rename_account(edit.id, name)?;
                         }
                     }
-                    ProposedChange::NewRule(new) => book.add_rule(&new.rule, new.parent)?,
+                    // A Rule the AI made or changed stays marked until the
+                    // user opens it (B-249).
+                    ProposedChange::NewRule(new) => {
+                        book.add_rule(&new.rule, new.parent)?;
+                        book.mark_rule_made_by_ai(new.rule.id)?;
+                    }
                     ProposedChange::EditRule(edit) => {
                         if rule_in_book(book, edit.before.id)? != Some(edit.before.clone()) {
                             return Err(ChangeError::OutOfDate);
                         }
                         book.update_rule(&edit.rule)?;
+                        book.mark_rule_made_by_ai(edit.rule.id)?;
                     }
                     ProposedChange::DeleteRule(delete) => {
                         if rule_in_book(book, delete.rule.id)? != Some(delete.rule.clone()) {
@@ -1911,8 +1925,12 @@ fn build(
             ProposedChange::EditCategory(edit) => edit.after = known.path(edit.id),
             ProposedChange::NewRule(new) => {
                 new.category = known.rule_category(&new.rule).unwrap_or_default();
+                new.catches = book.rule_preview(&new.rule)?.len();
             }
-            ProposedChange::EditRule(edit) => edit.category = known.rule_category(&edit.rule),
+            ProposedChange::EditRule(edit) => {
+                edit.category = known.rule_category(&edit.rule);
+                edit.catches = book.rule_preview(&edit.rule)?.len();
+            }
             _ => {}
         }
     }
@@ -2459,6 +2477,7 @@ impl Known {
             before,
             rule,
             removed_conditions,
+            catches: 0,
         })
     }
 
@@ -2648,6 +2667,7 @@ impl Known {
             rule,
             parent,
             inside,
+            catches: 0,
         })
     }
 

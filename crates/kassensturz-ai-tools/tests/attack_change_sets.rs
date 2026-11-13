@@ -182,3 +182,50 @@ fn b3_a_rule_condition_with_mixed_alphabets_is_refused() {
         "a Rule condition mixing Latin and Cyrillic was prepared without a word"
     );
 }
+
+#[test]
+fn b1_a_set_that_empties_notes_carries_a_danger_line() {
+    let (book, ids) = book_with_notes(100);
+    let proposal = propose(&book, &clear_notes(&ids), open()).expect("prepared");
+    let danger = proposal.changes.danger().expect("a danger line");
+    assert_eq!(danger.texts_lost, 100, "every note the user wrote counts");
+    assert_eq!(danger.touched, 100);
+    assert_eq!(danger.caught, 0);
+
+    // One emptied note is enough for the line; one note added to a
+    // transaction without one isn't.
+    let one = propose(&book, &clear_notes(&ids[..1]), open()).expect("prepared");
+    assert_eq!(one.changes.danger().map(|d| d.texts_lost), Some(1));
+}
+
+#[test]
+fn b1_a_small_set_that_takes_nothing_away_has_no_danger_line() {
+    let (book, ids) = book_with_notes(3);
+    let call = json!({"edit_transactions": ids
+        .iter()
+        .map(|id| json!({"transaction_id": id.to_string(), "date": "2026-10-28"}))
+        .collect::<Vec<_>>()});
+    let proposal = propose(&book, &call, open()).expect("prepared");
+    assert_eq!(proposal.changes.danger(), None);
+}
+
+#[test]
+fn b1_b2_a_rule_that_catches_many_transactions_carries_a_danger_line() {
+    let (book, _) = book_with_notes(30);
+    let rent = book
+        .all_accounts()
+        .expect("read")
+        .into_iter()
+        .find(|account| account.name == "Rent")
+        .expect("Rent");
+    let call = json!({"new_rules": [{
+        "name": "Everything",
+        "conditions": [{"field": "payee", "test": "contains", "text": "Shop"}],
+        "category_id": rent.id.to_string()
+    }]});
+    let proposal = propose(&book, &call, open()).expect("prepared");
+    let danger = proposal.changes.danger().expect("a danger line");
+    assert_eq!(danger.caught, 30, "the Rule catches every transaction");
+    assert_eq!(danger.touched, 1);
+    assert_eq!(danger.texts_lost, 0);
+}

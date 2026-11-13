@@ -444,7 +444,7 @@ The user's own AI tool asked `kassensturz-mcp` to prepare changes (D-216, D-217)
 | `mcp-writes.app-not-running` | | | KassenSturz didn't take the changes within 10 seconds: it isn't open, has another book open, or AI or "Let my AI tools prepare changes" is off in it. Open the book in KassenSturz and ask your AI tool again. |
 | `mcp-writes.unknown-request` | | | There are no prepared changes with that number (any more): they were decided on and already reported, or are older than an hour. Ask your AI tool to prepare them again if you still want them. |
 | `mcp-writes.bad-request` | | | KassenSturz couldn't read what arrived in its folder, so it showed nothing. Ask your AI tool again; if it keeps happening, the AI tool or another program writes into the folder by itself. |
-| `mcp-writes.dropped` | | | KassenSturz showed the changes but forgot them before you decided: you started a new conversation, opened another book, switched AI off or closed KassenSturz. Ask your AI tool again. |
+| `mcp-writes.dropped` | | | KassenSturz showed the changes but forgot them before you decided: you started a new conversation, opened another book or switched AI off. Ask your AI tool again. Closing KassenSturz doesn't forget them: the next start with the same book shows them again, for up to an hour after your AI tool sent them (B-258). |
 
 ## The AI chat (`kassensturz-ai-chat`)
 

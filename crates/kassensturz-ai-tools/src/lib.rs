@@ -70,7 +70,7 @@ mod writer;
 #[cfg(feature = "ai")]
 pub use changes::{
     AmountBasis, AttachBill, BILL_FOLDER, BILL_TYPES, CHECK_ONLY, CHECK_ONLY_SCHEMA, Categorize,
-    ChangeError, ChangeSet, Confirmed, DESCRIPTION_DATA, DeleteCategory, DeleteTransaction,
+    ChangeError, ChangeSet, Confirmed, DESCRIPTION_DATA, Danger, DeleteCategory, DeleteTransaction,
     EditAccount, EditBudget, EditError, EditTransaction, FieldEdit, FieldValue, JoinTransfer,
     MAX_AI_DESCRIPTION_BYTES, MAX_CHANGES, MAX_VIEW_ACCOUNTS, MAX_VIEW_CALL_BYTES,
     MAX_VIEW_CATEGORIES, MAX_VIEWS_PER_ANSWER, NewAccount, NewBudget, NewCategory, NewCounts,

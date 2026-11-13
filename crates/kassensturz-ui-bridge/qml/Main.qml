@@ -1801,6 +1801,7 @@ Kirigami.ApplicationWindow {
 
         RulesPage {
             rules: ruleBook
+            ai: aiSwitch
             onAddRuleClicked: root.pushPage(rulePage)
             onRuleClicked: ruleId => root.pushPage(rulePage, { ruleId: ruleId })
             onTransactionClicked: (accountId, transactionId) => root.openTransaction(accountId, transactionId)

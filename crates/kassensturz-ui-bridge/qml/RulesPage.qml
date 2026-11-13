@@ -48,6 +48,14 @@ Kirigami.Page {
 
     Component.onCompleted: if (rows.length > 0) selectedId = rows[0].id
 
+    // The AI switch: a Rule the AI made shows its mark only while AI is
+    // on (B-249, D-013).
+    required property AiSwitch ai
+
+    readonly property AiRuleMark ruleMark: AiRuleMark {
+        ai: page.ai
+    }
+
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
     }
@@ -92,7 +100,10 @@ Kirigami.Page {
         if (row.payee !== "") {
             does.push(i18nContext.i18nc("@info %1 is a name", "Shows the name %1 as From or To", row.payee));
         }
-        return does.length > 0 ? does.join(", ") : i18nContext.i18nc("@info", "Leaves it as it is");
+        const summary = does.length > 0 ? does.join(", ") : i18nContext.i18nc("@info", "Leaves it as it is");
+        // A Rule the AI made or changed says so until the user opens it
+        // (B-249).
+        return row.madeByAi ? page.ruleMark.note(summary) : summary;
     }
 
     // Rules on one side, what the selected one matches on the other: click

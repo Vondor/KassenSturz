@@ -64,7 +64,9 @@ pub use config::{
     CONSENT_STATEMENT_KEY, ConfigFile, KEY_USE_KEY, KeyUse, MODEL_KEY, ProviderSettings,
     SLOW_ANSWER_KEY, SlowAnswer, allow_word, allowed,
 };
-pub use consent::{ConsentRecord, STATEMENT, STATEMENT_VERSION, SentData, consent_missing};
+pub use consent::{
+    ConsentRecord, STATEMENT, STATEMENT_VERSION, SentData, confirmed, consent_missing,
+};
 pub use error::AiError;
 pub use http::Limits;
 pub use keys::ProviderKeys;
@@ -161,11 +163,27 @@ const QUESTION_REQUESTS: u32 = 2;
 /// How often a call that can be stopped looks at the stop button.
 const STOP_POLL: std::time::Duration = std::time::Duration::from_millis(200);
 
+/// How [`AiClient`] reads the seal of the consent for an address (B-252).
+type ConsentSealFn = dyn Fn(&ProviderAddress) -> Option<ConsentRecord> + Send + Sync;
+
+impl std::fmt::Debug for AiClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AiClient")
+            .field("config", &self.config)
+            .field("limits", &self.limits)
+            .field("seal", &self.seal.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
 /// The way to the provider set up on this computer.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct AiClient {
     config: ConfigFile,
     limits: Limits,
+    /// Where the seal of a consent is read (B-252); without one no consent
+    /// counts, so a provider on another computer gets nothing.
+    seal: Option<std::sync::Arc<ConsentSealFn>>,
     /// The last reply's bytes as text, shared by the clones (D-235).
     last_reply: std::sync::Arc<std::sync::Mutex<Option<String>>>,
 }
@@ -177,8 +195,26 @@ impl AiClient {
         Self {
             config,
             limits: Limits::default(),
+            seal: None,
             last_reply: Default::default(),
         }
+    }
+
+    /// The same client, reading the seal of a consent with `seal` (B-252):
+    /// the app reads it from the keychain ([`ProviderKeys::sealed_consent`]).
+    pub fn with_consent_seal(
+        mut self,
+        seal: impl Fn(&ProviderAddress) -> Option<ConsentRecord> + Send + Sync + 'static,
+    ) -> Self {
+        self.seal = Some(std::sync::Arc::new(seal));
+        self
+    }
+
+    /// Whether sending to `address` lacks a consent the user gave in
+    /// KassenSturz: one in `config` with its seal (B-252).
+    fn lacks_consent(&self, address: &ProviderAddress, config: &AiConfig) -> bool {
+        let sealed = self.seal.as_ref().and_then(|seal| seal(address));
+        consent_missing(address, confirmed(config.consent(), sealed.as_ref()))
     }
 
     /// The same client with other size and time limits.
@@ -222,7 +258,7 @@ impl AiClient {
         if provider.address != *request.address() || provider.model != request.model() {
             return Err(AiError::SettingsChanged);
         }
-        if consent_missing(&provider.address, config.consent()) {
+        if self.lacks_consent(&provider.address, &config) {
             return Err(AiError::NoConsent);
         }
         let key = key_to_send(provider, key)?;
@@ -319,7 +355,7 @@ impl AiClient {
         }
         // The model needn't be chosen yet: this is how the user finds it.
         let provider = config.connection()?;
-        if consent_missing(&provider.address, config.consent()) {
+        if self.lacks_consent(&provider.address, &config) {
             return Err(AiError::NoConsent);
         }
         let key = key_to_send(provider, key)?;

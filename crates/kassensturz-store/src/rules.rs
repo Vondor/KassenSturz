@@ -24,6 +24,7 @@ use kassensturz_core::{
 };
 use rusqlite::{OptionalExtension, params};
 
+use crate::cached::Cached;
 use crate::error::{Corruption, StoreError};
 use crate::transactions::{insert_split_rate, split_rate};
 use crate::{Action, Book, currency_from_text, date_from_text, date_to_text};
@@ -377,6 +378,44 @@ impl Book {
             .collect();
         marks.sort_by_key(|mark| mark.split);
         Ok(marks)
+    }
+
+    /// Marks `rule` as made or changed by the AI and not opened by the user
+    /// since (B-249, layout 32): the Rules page shows it so until
+    /// [`Book::mark_rule_checked`]. Only confirming an AI change set calls
+    /// this, inside its [`Book::as_one_action`], so the mark goes with the
+    /// change; it is not itself recorded in the history.
+    pub fn mark_rule_made_by_ai(&mut self, rule: RuleId) -> Result<(), StoreError> {
+        self.rule(rule)?;
+        self.conn.execute_cached(
+            "INSERT OR IGNORE INTO main.unchecked_ai_rules (rule_id) VALUES (?1)",
+            [rule.to_bytes()],
+        )?;
+        Ok(())
+    }
+
+    /// Takes the mark of [`Book::mark_rule_made_by_ai`] off `rule`: the user
+    /// opened it. Nothing else changes, and a Rule without the mark stays as
+    /// it is.
+    pub fn mark_rule_checked(&mut self, rule: RuleId) -> Result<(), StoreError> {
+        self.conn.execute_cached(
+            "DELETE FROM main.unchecked_ai_rules WHERE rule_id = ?1",
+            [rule.to_bytes()],
+        )?;
+        Ok(())
+    }
+
+    /// The Rules the AI made or changed that the user hasn't opened since.
+    pub fn unchecked_ai_rules(&self) -> Result<HashSet<RuleId>, StoreError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT rule_id FROM main.unchecked_ai_rules")?;
+        let rows = statement.query_map([], |row| row.get::<_, [u8; 16]>(0))?;
+        let mut rules = HashSet::new();
+        for row in rows {
+            rules.insert(RuleId::from_bytes(row?));
+        }
+        Ok(rules)
     }
 
     /// Which transactions the Rules match as the book is now, whether or not

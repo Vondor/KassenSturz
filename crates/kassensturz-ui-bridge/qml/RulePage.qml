@@ -126,6 +126,9 @@ Kirigami.ScrollablePage {
         let form = initialForm;
         if (!adding) {
             form = rules.formOf(ruleId);
+            // Opening it once takes the AI's mark off (B-249).
+            if (form.code === undefined)
+                rules.opened(ruleId);
         } else if (form.conditions === undefined) {
             form = rules.newForm(parentId);
         }

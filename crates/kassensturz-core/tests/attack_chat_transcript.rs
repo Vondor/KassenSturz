@@ -61,7 +61,7 @@ fn a6_the_transcript_is_for_the_user_only() {
 }
 
 #[test]
-#[ignore = "attack A6: the transcript stays after the developer mode is off; reported, waiting for a bug number"]
+#[ignore = "B-253 (attack A6): the transcript stays after the developer mode is off"]
 fn a6_the_transcript_is_gone_once_the_developer_mode_is_off() {
     let scratch = Scratch::new("gone");
     scratch

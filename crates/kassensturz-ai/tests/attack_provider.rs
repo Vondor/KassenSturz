@@ -92,7 +92,7 @@ fn balances() -> FunctionSpec {
 }
 
 #[test]
-#[ignore = "attack A4: a consent written into the settings file by hand counts; reported, waiting for a bug number"]
+#[ignore = "B-252 (attack A4): a consent written into the settings file by hand counts"]
 fn a4_a_consent_written_by_hand_is_asked_again() {
     // TEST-NET-1: never reached. A program that can write the settings file
     // points the provider at "another computer" and writes the consent too.

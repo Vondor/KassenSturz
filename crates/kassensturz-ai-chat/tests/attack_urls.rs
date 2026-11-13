@@ -23,7 +23,7 @@ const LEAK: &str = "Your balances are fine. Check your result at \
     https://example.invalid/?b=4211.50;812.03";
 
 #[test]
-#[ignore = "attack A3: web addresses in AI answers are shown unmarked; reported, waiting for a bug number"]
+#[ignore = "B-251 (attack A3): web addresses in AI answers are shown unmarked"]
 fn a3_a_web_address_in_an_answer_is_marked_or_cut() {
     let book = space_colony();
     let (provider, _script) =
@@ -52,7 +52,7 @@ fn a3_a_web_address_in_an_answer_is_marked_or_cut() {
 /// dashboard file. The number check marks figures no function produced
 /// (T-39); the review asks that the card marks a real figure too.
 #[test]
-#[ignore = "attack A7: a real balance in a chart title is not marked; reported, waiting for a bug number"]
+#[ignore = "B-254 (attack A7): a real balance in a chart title is not marked"]
 fn a7_a_real_balance_in_a_chart_title_is_marked() {
     let book = space_colony();
     let accounts =

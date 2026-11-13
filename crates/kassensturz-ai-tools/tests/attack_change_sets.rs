@@ -116,7 +116,7 @@ fn b1_a_set_that_empties_100_notes_waits_for_the_confirm_and_undo_restores_all()
 }
 
 #[test]
-#[ignore = "attack B1: the 100-item limit of edit_transactions is only in the schema; reported, waiting for a bug number"]
+#[ignore = "B-247 (attack B1): the 100-item limit of edit_transactions is only in the schema"]
 fn b1_more_than_100_edits_in_one_set_are_refused() {
     let (book, ids) = book_with_notes(101);
     let before = notes(&book);
@@ -140,7 +140,7 @@ fn b1_a_locked_note_cannot_be_emptied() {
 }
 
 #[test]
-#[ignore = "attack B3: look-alike names are not checked yet; reported, waiting for a bug number"]
+#[ignore = "B-250 (attack B3): look-alike names are not checked yet"]
 fn b3_a_new_category_that_looks_like_an_existing_one_is_refused() {
     let (book, _) = book_with_notes(1);
     // "Rent" with a Cyrillic "е" (U+0435).
@@ -157,7 +157,7 @@ fn b3_a_new_category_that_looks_like_an_existing_one_is_refused() {
 }
 
 #[test]
-#[ignore = "attack B3: mixed alphabets in Rule conditions are not checked yet; reported, waiting for a bug number"]
+#[ignore = "B-250 (attack B3): mixed alphabets in Rule conditions are not checked yet"]
 fn b3_a_rule_condition_with_mixed_alphabets_is_refused() {
     let (book, _) = book_with_notes(1);
     let rent = book

@@ -52,7 +52,7 @@ The project's own check (`tools/check-translations.sh`, run by CI) fails while a
 
 ## How to send it back
 
-- **Pull request** (best): change only `msgstr` lines in `po/<language code>/kassensturz.po`, with a commit message such as `i18n(<language code>): review translation`, signed off with `git commit -s` (see `CONTRIBUTING.md`, D-040). GitHub's pencil icon makes a fork for people without a clone. Say in the description that the whole file was checked and whether an AI assistant helped.
+- **Pull request** (best): change only `msgstr` lines in `po/<language code>/kassensturz.po`, with a commit message such as `i18n(<language code>): review translation`, signed off with `git commit -s` (see `CONTRIBUTING.md`, D-040). GitHub's pencil icon makes a fork for people without a clone. Say in the description that the whole file was checked and whether an AI assistant helped. Pull requests and issues about translations carry the `translation` label (a maintainer sets it if you can't).
 - **Attach the whole file** to a comment on the translation issue; a maintainer will merge it.
 
 No real personal or financial data in files, comments or screenshots (AGENTS.md §3.1 rule 2).

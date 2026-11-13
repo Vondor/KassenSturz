@@ -45,13 +45,13 @@ Neither node continues to payees. The invariant, tested as a property: **for eve
 
 ## 4. Layout (Rust, in `kassensturz-charts`)
 
-The report crate (`money_flow.rs`, dataset id `money_flow`) returns nodes and flows in exact minor units. The charts crate turns them into a `FlowLayout` of drawing values in the unit square, so QML only scales them:
+The report crate (`money_flow.rs`, dataset id `money_flow`) returns nodes and flows in exact minor units. The charts crate turns them into a `FlowModel` (`flow.rs`) whose positions are **whole millionths of the chart's height**, worked out with integers (`amount × room / total`, rounded down, so a node's bands never add up to more than it); QML divides by `WHOLE` to place marks and never reads them back:
 
 - columns left to right as in §1; inside a column the nodes go largest first, *Other (n)* and *Not sorted yet* last, the balance node last of all;
 - every column adds up to *T*, so one scale fits all: `scale = (1 − widest gaps) / T`; a column with fewer nodes is centred;
 - a node's outgoing bands are ordered by the position of their target, its incoming bands by the position of their source, so bands cross as little as simple ordering allows;
 - a band is `{ from node, to node, y at start, y at end, thickness }`. A band thinner than a hair is drawn at a minimum pixel width by QML (drawing only, the layout and the amounts don't change);
-- an amount above 2^53 minor units is refused, as for every chart (`drawing_value`).
+- no floating-point arithmetic is used in Rust at all.
 
 ## 5. Where it lives
 

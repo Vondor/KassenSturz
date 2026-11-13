@@ -56,6 +56,7 @@ pub mod grid;
 mod groups;
 mod listed;
 mod metrics;
+mod money_flow;
 mod monthly;
 pub mod notices;
 mod over_time;
@@ -128,6 +129,9 @@ pub use metrics::{
     CHANGE_STEPS, Change, Compare, IncomeExpenseChange, Percent, compare_income_expense,
     comparison_span, savings_rate,
 };
+pub use money_flow::{
+    Flow, FlowNode, FlowNodeKind, FlowOptions, MAX_PER_COLUMN, MONEY_FLOW, MoneyFlow, money_flow,
+};
 pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,
     income_expense_by_series,
@@ -183,6 +187,8 @@ mod formula_tests;
 mod grid_tests;
 #[cfg(test)]
 mod groups_tests;
+#[cfg(test)]
+mod money_flow_tests;
 #[cfg(test)]
 mod page_widgets_tests;
 #[cfg(test)]

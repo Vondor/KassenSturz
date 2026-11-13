@@ -101,7 +101,7 @@ Kirigami.ApplicationWindow {
         id: bookSession
 
         onOpened: {
-            bookMove.refresh();
+            bookMover.refresh();
             root.showBook();
         }
         onFailed: root.showProblem()
@@ -109,15 +109,17 @@ Kirigami.ApplicationWindow {
 
     // Where the book is kept, and moving it (D-731). Made before the first
     // book opens: a move that was cut short decides which book that is.
+    // Its id isn't `bookMove`: in a Component below, `bookMove: bookMove`
+    // read the page's own empty property, not this object (M6-B239).
     BookMove {
-        id: bookMove
+        id: bookMover
     }
 
     // What a move that was cut short left, said at the start (D-731).
     BookMoveInterruptedDialog {
         id: bookMoveInterrupted
 
-        bookMove: bookMove
+        bookMove: bookMover
         onSettleFailed: reason => root.showPassiveNotification(reason, 10000)
     }
 
@@ -454,8 +456,8 @@ Kirigami.ApplicationWindow {
             }
         }
         bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
-        if (bookMove.interrupted?.after !== undefined) {
-            Qt.callLater(() => bookMoveInterrupted.ask(bookMove.interrupted));
+        if (bookMover.interrupted?.after !== undefined) {
+            Qt.callLater(() => bookMoveInterrupted.ask(bookMover.interrupted));
         }
     }
 
@@ -1840,7 +1842,7 @@ Kirigami.ApplicationWindow {
             onOpenAnotherClicked: root.chooseBookToOpen()
             onExampleBookClicked: root.chooseExampleBook()
             onNewBookClicked: root.chooseNewBook()
-            bookMove: bookMove
+            bookMove: bookMover
             onSaveCopyClicked: root.pushPage(exportPage)
             onBookPlaceClicked: root.pushPage(bookMovePage)
             onBookFromFileClicked: root.chooseFileForNewBook()
@@ -1856,7 +1858,7 @@ Kirigami.ApplicationWindow {
         id: bookMovePage
 
         BookMovePage {
-            bookMove: bookMove
+            bookMove: bookMover
             // Shows the book where it is now, on the page that stays open.
             onMoved: bookSession.showMovedBook()
         }

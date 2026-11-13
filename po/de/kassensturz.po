@@ -22962,3 +22962,28 @@ msgstr[0] ""
 msgstr[1] ""
 "%1 monatliche Bewegungen wurden von selbst verbunden; „Rückgängig“ trennt "
 "sie."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:95
+#, kde-format
+msgctxt ""
+"@title:window marker that KassenSturz was started with only its log of bank "
+"connections"
+msgid "developer mode for bank connections"
+msgstr "Entwicklermodus für Bankverbindungen"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:915
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't open the folder of the bank log. It writes the log when "
+"you connect to a bank or fetch from one; try again after that."
+msgstr ""
+"KassenSturz konnte den Ordner des Bank-Protokolls nicht öffnen. Es schreibt "
+"das Protokoll, wenn Sie eine Bank verbinden oder von ihr abrufen; versuchen "
+"Sie es danach noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:103
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "Last joined %1"
+msgstr "Zuletzt verbunden am %1"

@@ -86,10 +86,13 @@ Kirigami.ApplicationWindow {
     property bool freshBook: false
 
     // The app's name, which isn't translated, and in the developer mode a
-    // marker that stays as long as it runs (D-227).
-    title: developerMode.on || developerMode.bankLogOn
+    // marker that stays as long as it runs (D-227). With only the bank log
+    // on, the marker names that mode, as its banner does (D-603, M6-B243).
+    title: developerMode.on
         ? "KassenSturz – " + i18nContext.i18nc("@title:window marker that KassenSturz was started in its developer mode", "developer mode")
-        : "KassenSturz"
+        : developerMode.bankLogOn
+            ? "KassenSturz – " + i18nContext.i18nc("@title:window marker that KassenSturz was started with only its log of bank connections", "developer mode for bank connections")
+            : "KassenSturz"
     // The size, place and maximized state of the last close come back (the
     // fallbacks are for the first start, or a settings file that can't be read).
     width: windowState.known ? windowState.width : Kirigami.Units.gridUnit * 40
@@ -907,7 +910,14 @@ Kirigami.ApplicationWindow {
                         text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
                         onTriggered: {
                             ActionLog.taken("Main_showBankLog")
-                            Qt.openUrlExternally(developerMode.bankLogFolderUrl())
+                            // The folder is made if no bank connection wrote
+                            // to it yet; if it still can't be opened, the
+                            // user is told instead of nothing happening
+                            // (M6-B243).
+                            const url = developerMode.bankLogFolderUrl();
+                            if (url === "" || !Qt.openUrlExternally(url)) {
+                                root.showPassiveNotification(root.i18nContext.i18nc("@info", "KassenSturz couldn't open the folder of the bank log. It writes the log when you connect to a bank or fetch from one; try again after that."), 10000);
+                            }
                         }
                     },
                     Kirigami.Action {

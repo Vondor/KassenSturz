@@ -27,10 +27,11 @@ Kirigami.Dialog {
         translationDomain: "kassensturz"
     }
 
-    // Reads the moves and opens.
+    // Opens and reads the moves; it opens even if reading them fails, so
+    // the button never does nothing (M6-B242).
     function show() {
-        load();
         open();
+        load();
     }
 
     function load() {
@@ -99,6 +100,15 @@ Kirigami.Dialog {
                     Controls.Label {
                         textFormat: Text.PlainText
                         Layout.fillWidth: true
+                        visible: (row.modelData.lastJoined ?? "") !== ""
+                        text: dialog.i18nContext.i18nc("@info %1 is a date", "Last joined %1", row.modelData.lastJoined ?? "")
+                        wrapMode: Text.Wrap
+                        font: Kirigami.Theme.smallFont
+                    }
+
+                    Controls.Label {
+                        textFormat: Text.PlainText
+                        Layout.fillWidth: true
                         visible: (row.modelData.party ?? "") !== ""
                         text: dialog.i18nContext.i18nc("@info %1 is the name the paying account shows for the money", "Only entries that say “%1”", row.modelData.party ?? "")
                         wrapMode: Text.Wrap
@@ -116,7 +126,12 @@ Kirigami.Dialog {
                         if (result.code !== undefined) {
                             error.result = result;
                         } else {
-                            dialog.load();
+                            // Later, not here: reading again destroys this
+                            // row, button and all, while its click is still
+                            // being handled. That is the likely cause of the
+                            // button that once did nothing afterwards
+                            // (M6-B242).
+                            Qt.callLater(dialog.load);
                         }
                     }
                 }

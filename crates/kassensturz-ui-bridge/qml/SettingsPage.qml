@@ -1101,15 +1101,24 @@ FormCard.FormCardPage {
             textItem.textFormat: Text.PlainText
             textItem.wrapMode: Text.Wrap
             Accessible.role: backupCopies.status.state === "problem" ? Accessible.AlertMessage : Accessible.StaticText
+        }
 
-            trailing: Controls.Button {
-                visible: backupCopies.status.state === "problem"
-                text: page.i18nContext.i18nc("@action:button make a copy again", "Try again")
-                icon.name: "view-refresh"
-                onClicked: {
-                    ActionLog.taken("SettingsPage_copyAgain")
-                    backupCopies.tryAgain()
-                }
+        // A row of its own: as a trailing button of the line above it didn't
+        // show in the VM, while the text tells the user to choose it
+        // (M6-B241).
+        FormCard.FormDelegateSeparator {
+            visible: copiesTryAgain.visible
+        }
+
+        FormCard.FormButtonDelegate {
+            id: copiesTryAgain
+
+            visible: backupCopies.chosen && backupCopies.status.state === "problem"
+            icon.name: "view-refresh"
+            text: page.i18nContext.i18nc("@action:button make a copy again", "Try again")
+            onClicked: {
+                ActionLog.taken("SettingsPage_copyAgain")
+                backupCopies.tryAgain()
             }
         }
 

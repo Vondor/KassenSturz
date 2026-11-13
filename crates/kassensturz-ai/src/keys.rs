@@ -16,8 +16,10 @@
 //! KassenSturz's own consent screen, filed as `ai-consent/<server>`
 //! (B-252): only a consent in the settings file that matches its seal
 //! counts, so another program can't agree for the user by writing to the
-//! file. With nowhere to save secrets, the seal is kept in memory until
-//! KassenSturz closes, and the user is asked again at the next start.
+//! file. Every seal is also kept in memory until KassenSturz closes, so
+//! with nowhere to save secrets, or a keychain that refuses to save it
+//! (B-259), the consent still counts for this run and the user is asked
+//! again at the next start.
 
 use std::collections::HashMap;
 
@@ -38,8 +40,8 @@ const CONSENT_KIND: &str = "ai-consent";
 /// and the way to the saved ones.
 pub struct ProviderKeys {
     remembered: HashMap<String, Secret>,
-    /// Consents sealed in memory, by origin, while there is nowhere to save
-    /// secrets (B-252).
+    /// Consents sealed in memory, by origin, until KassenSturz closes: every
+    /// seal, whether or not it could also be saved (B-252, B-259).
     sealed: HashMap<String, ConsentRecord>,
     store: Option<Box<dyn Keychain>>,
 }
@@ -148,13 +150,18 @@ impl ProviderKeys {
     }
 
     /// Seals the consent the user just gave in KassenSturz's consent screen
-    /// (B-252): saved where the Password storage setting says, filed as
-    /// `ai-consent/<server>`, or with nowhere to save secrets remembered
-    /// until KassenSturz closes, so the user is asked again at the next
-    /// start. Only a consent in the settings file that matches its seal
-    /// counts ([`crate::confirmed`]).
+    /// (B-252): remembered until KassenSturz closes and saved where the
+    /// Password storage setting says, filed as `ai-consent/<server>`. Only a
+    /// consent in the settings file that matches its seal counts
+    /// ([`crate::confirmed`]).
+    ///
+    /// The seal in memory always holds, so the consent counts for this run
+    /// even when the keychain refuses to save it (B-259); the error then
+    /// says why it wasn't saved, and the user is asked again at the next
+    /// start. With nowhere to save secrets there is nothing to fail.
     pub fn seal_consent(&mut self, consent: &ConsentRecord) -> Result<(), AiError> {
-        let origin = consent.address.origin();
+        self.sealed
+            .insert(consent.address.origin(), consent.clone());
         match &self.store {
             Some(store) => store
                 .store(
@@ -162,10 +169,7 @@ impl ProviderKeys {
                     &Secret::new(consent.seal_text()),
                 )
                 .map_err(keychain_error),
-            None => {
-                self.sealed.insert(origin, consent.clone());
-                Ok(())
-            }
+            None => Ok(()),
         }
     }
 
@@ -368,6 +372,34 @@ mod tests {
         keys.keep(&cloud, KeyUse::Saved, secret("test-key-7"))
             .unwrap();
         assert_eq!(second.len(), 1);
+    }
+
+    #[test]
+    fn a_seal_the_keychain_cant_save_holds_until_close() {
+        // B-259: a keychain that refuses to save the seal used to leave no
+        // seal at all, so the consent the user just gave counted for
+        // nothing. The seal now holds in memory for this run.
+        let memory = Arc::new(MemoryKeychain::new());
+        let mut keys = ProviderKeys::new(Some(Box::new(Shared(memory.clone()))));
+        let lan = address("https://192.0.2.10:1234/v1");
+        let consent = ConsentRecord::give(&lan, jiff::civil::date(2026, 11, 13));
+
+        memory.fail_with(Some(KeychainError::Unavailable));
+        assert_eq!(
+            keys.seal_consent(&consent),
+            Err(AiError::Keychain),
+            "the error still says it wasn't saved"
+        );
+        assert_eq!(keys.sealed_consent(&lan), Some(consent.clone()));
+        assert_eq!(keys.unseal_consent(&lan), Err(AiError::Keychain));
+        assert_eq!(keys.sealed_consent(&lan), None, "taken back in memory");
+
+        // A keychain that works saves it as well, under its server.
+        memory.fail_with(None);
+        keys.seal_consent(&consent).unwrap();
+        assert_eq!(memory.len(), 1);
+        let next_start = ProviderKeys::new(Some(Box::new(Shared(memory.clone()))));
+        assert_eq!(next_start.sealed_consent(&lan), Some(consent));
     }
 
     #[test]

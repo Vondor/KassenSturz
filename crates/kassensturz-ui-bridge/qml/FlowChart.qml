@@ -62,6 +62,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label a node of the money-flow chart: money with no name of who paid or was paid", "No name given");
         case "other":
             return i18nContext.i18nc("@label a node of the money-flow chart that holds the smallest ones; %1 is how many", "Other (%1)", node.holds.length);
+        case "other-accounts":
+            return i18nContext.i18nc("@label a node of the money-flow chart: the accounts you did not choose, taken together", "Your other accounts");
         case "category-itself":
             return i18nContext.i18nc("@label a node of the money-flow chart: what was booked to a category itself and not to one of its sub-categories; %1 is its name", "%1 itself", node.name);
         default:
@@ -86,7 +88,7 @@ ColumnLayout {
             members.forEach((index, place) => {
                 const kind = nodes[index].kind;
                 result[index] = kind === "middle" ? Kirigami.Theme.textColor
-                    : (kind === "left-over" || kind === "reserves" || kind === "other") ? Kirigami.Theme.disabledTextColor
+                    : (kind === "left-over" || kind === "reserves" || kind === "other" || kind === "other-accounts") ? Kirigami.Theme.disabledTextColor
                     : ChartPalette.color(place, undefined);
             });
         }

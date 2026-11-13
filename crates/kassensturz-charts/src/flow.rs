@@ -39,6 +39,9 @@ pub struct LaidNode {
     pub holds: Vec<(String, String)>,
     /// For a category, its ID as text for a click to open its transactions.
     pub category: Option<String>,
+    /// For an account node, its ID as text for a click to open its
+    /// transactions.
+    pub account: Option<String>,
 }
 
 /// A band, placed.
@@ -66,7 +69,7 @@ pub struct FlowModel {
     pub currency: String,
     /// How many columns there are.
     pub columns: usize,
-    /// The nodes, the middle one first.
+    /// The nodes, the middle one first (with accounts: no middle node).
     pub nodes: Vec<LaidNode>,
     /// The bands, largest first.
     pub bands: Vec<LaidBand>,
@@ -147,6 +150,7 @@ pub fn flow_model(flow: &MoneyFlow, elsewhere: &[MoneyFlow], text: &impl TextFor
                 .map(|(name, amount)| (name.clone(), text.amount(*amount)))
                 .collect(),
             category: node.category.map(|id| id.to_string()),
+            account: node.account.map(|id| id.to_string()),
         });
     }
 
@@ -247,6 +251,7 @@ mod tests {
             column,
             amount: Money::from_minor_units(amount, eur()),
             category: None,
+            account: None,
             holds: Vec::new(),
         }
     }

@@ -52,7 +52,7 @@ ColumnLayout {
         }
         return ["budgets", "categories", "groups", "series", "show_hidden"];
     }
-    readonly property var elementKeys: ["title", "legend", "sub_categories", "payees", "currency"]
+    readonly property var elementKeys: ["title", "legend", "sub_categories", "payees", "show_accounts", "currency"]
     // Formulas and fine tuning are one deliberate step away (Q-260).
     property bool advanced: false
     // Charts and tables are made of columns on a board (D-340).

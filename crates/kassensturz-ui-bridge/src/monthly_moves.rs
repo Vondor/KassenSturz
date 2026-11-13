@@ -177,6 +177,23 @@ pub fn offer(
     if new.from_account == new.to_account || remembered(book, &new)? {
         return Ok(None);
     }
+    // The day a move usually comes is read from every pair the book suggests
+    // for it, as "Join all" does, not from this pair alone: right after an
+    // import the first pair may be a few days off the rest.
+    let mut new = new;
+    let mut days = vec![new.day_of_month];
+    for found in book.transfer_suggestions()? {
+        let (out, into) = (found.outgoing.transaction, found.incoming.transaction);
+        if (out == a && into == b) || (out == b && into == a) {
+            continue;
+        }
+        if let Ok(other) = book.recurring_move_for(out, into, locale.today())
+            && is_same_move(&other, &new)
+        {
+            days.push(other.day_of_month);
+        }
+    }
+    new.day_of_month = usual_day(&days).unwrap_or(new.day_of_month);
     let accounts = book.all_accounts()?;
     Ok(Some(OfferText {
         amount: AmountWriter::new(book, new.amount.currency(), locale)?.text(new.amount),
@@ -591,6 +608,22 @@ mod tests {
             offer(&book, "nonsense", &arrived, &TestLocale),
             Err(MonthlyMovesError::Stale)
         ));
+    }
+
+    #[test]
+    fn the_offer_takes_the_usual_day_from_all_pairs_not_from_the_first_alone() {
+        let (mut book, checking, savings, pairs) = standing_orders(&[10, 11]);
+        // An older pair three days off the usual 1st.
+        let out = typed(&mut book, checking, false, "Standing order", "2026-08-03");
+        let arrived = typed(&mut book, savings, true, "From checking", "2026-08-03");
+        let offer_for = |out: &str, arrived: &str| {
+            offer(&book, out, arrived, &TestLocale)
+                .expect("offer")
+                .expect("one is offered")
+                .day
+        };
+        assert_eq!(offer_for(&out, &arrived), 1);
+        assert_eq!(offer_for(&pairs[0].0, &pairs[0].1), 1);
     }
 
     #[test]

@@ -524,6 +524,7 @@ fn a_rule_leaves_a_side_that_waits_for_its_other_half_alone() {
     let waiting = book.waiting_moves().expect("read");
     assert_eq!(waiting.len(), 1);
     assert_eq!(waiting[&into.id()].id, id);
+    assert_eq!(book.lonely_waiting_moves().expect("read").len(), 1);
     let run = book.run_rules().expect("Rules ran");
     assert_eq!(run.changed.len(), 1);
     assert_eq!(run.changed[0].transaction, pay.id());
@@ -549,6 +550,10 @@ fn a_rule_leaves_a_side_that_waits_for_its_other_half_alone() {
 
     // Once the move is removed, a waiting entry is an ordinary one again.
     book.undo().expect("join undone");
+    // B-256: both sides are in the book again, so neither waits for its
+    // other half, though a Rule still leaves them alone.
+    assert_eq!(book.waiting_for_moves().expect("read").len(), 2);
+    assert!(book.lonely_waiting_moves().expect("read").is_empty());
     book.remove_recurring_move(id).expect("removed");
     assert!(book.waiting_for_moves().expect("read").is_empty());
 }

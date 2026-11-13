@@ -73,7 +73,7 @@ pub struct Shown {
 /// For each transaction that waits for the other side of a monthly move the
 /// user remembered, the move as "from → to" (D-749, 3.5).
 fn waiting_texts(book: &Book) -> Result<HashMap<TransactionId, String>, StoreError> {
-    let waiting = book.waiting_moves()?;
+    let waiting = book.lonely_waiting_moves()?;
     if waiting.is_empty() {
         return Ok(HashMap::new());
     }

@@ -34,6 +34,14 @@ Kirigami.ScrollablePage {
         translationDomain: "kassensturz"
     }
 
+    // The accounts list only shows the book, which every undo reads again
+    // (`bookChanged`), so it stays open. Without this, an Undo closed the
+    // page the user was on, and the first click on "Monthly moves…" right
+    // after it hit the page that was just going away (M6-B242).
+    function survivesUndo(): bool {
+        return true;
+    }
+
     title: i18nContext.i18nc("@title", "Accounts")
 
     actions: [

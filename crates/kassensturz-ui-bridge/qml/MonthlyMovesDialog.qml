@@ -32,6 +32,13 @@ Kirigami.Dialog {
     function show() {
         open();
         load();
+        // Once more after the current event: a dialog asked to open while
+        // the page was still reacting to an Undo must not stay closed.
+        Qt.callLater(() => {
+            if (!dialog.visible) {
+                dialog.open();
+            }
+        });
     }
 
     function load() {

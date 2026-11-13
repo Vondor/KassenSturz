@@ -834,6 +834,14 @@ fn move_backup_names_are_recognized_strictly() {
             "Household 2026-11-13 03-04-05 UTC before moving 2.ksz",
             Some((stamp, 2)),
         ),
+        (
+            "Household 2026-11-13 03-04-05 UTC vor dem Verschieben.ksz",
+            Some((stamp, 1)),
+        ),
+        (
+            "Household 2026-11-13 03-04-05 UTC vor dem Verschieben 2.ksz",
+            Some((stamp, 2)),
+        ),
         // The automatic backups' names.
         ("Household 2026-11-13 03-04-05 UTC.ksz", None),
         ("Household 2026-11-13 03-04-05 UTC 2.ksz", None),

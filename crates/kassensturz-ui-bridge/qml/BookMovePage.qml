@@ -233,7 +233,7 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormTextDelegate {
-            visible: page.checked.ok ?? false
+            visible: (page.checked.size ?? "") !== ""
             text: page.i18nContext.i18nc("@label", "Size")
             description: page.checked.size ?? ""
             descriptionItem.textFormat: Text.PlainText

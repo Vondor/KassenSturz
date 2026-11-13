@@ -123,7 +123,17 @@ parts:
       qtmake=$(find /snap/kf6-core24-sdk/current/usr /snap/kde-qt6-core24-sdk/current/usr \( -name qmake6 -o -name qmake \) -type f 2>/dev/null | head -n 1)
       echo "Qt headers: $qtinc, moc: $qtmoc, qmake: $qtmake"
       export CXXFLAGS="${CXXFLAGS:-} -I$qtinc -I$qtinc/QtCore -I$qtinc/QtGui -I$qtinc/QtWidgets"
-      export QT_MOC="$qtmoc" QMAKE="$qtmake"
+      # Qt's own tools need the SDK's libraries, which the compiler must not
+      # see; so each runs through a small wrapper that sets the path itself.
+      qtlib=$(dirname "$(find /snap/kf6-core24-sdk/current/usr /snap/kde-qt6-core24-sdk/current/usr -name 'libQt6Core.so.6' 2>/dev/null | head -n 1)")
+      mkdir -p "$CRAFT_PART_BUILD/qt-wrappers"
+      for pair in "qmake:$qtmake" "moc:$qtmoc"; do
+        name=${pair%%:*}; tool=${pair#*:}
+        printf '#!/bin/sh\nLD_LIBRARY_PATH=%s exec %s "$@"\n' "$qtlib" "$tool" > "$CRAFT_PART_BUILD/qt-wrappers/$name"
+        chmod +x "$CRAFT_PART_BUILD/qt-wrappers/$name"
+      done
+      echo "Qt libraries: $qtlib"
+      export QT_MOC="$CRAFT_PART_BUILD/qt-wrappers/moc" QMAKE="$CRAFT_PART_BUILD/qt-wrappers/qmake"
       if ! ./configure --prefix=/usr --with-guis=qt6; then
         grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
         env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250

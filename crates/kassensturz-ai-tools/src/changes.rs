@@ -394,11 +394,17 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
             "tagging transactions",
         ),
         (splits_allowed(allowed), "splitting transactions"),
-        (allowed.allows(Permission::AttachBills), "attaching bills"),
-        (
+        // One entry for both, so the description stays short enough to
+        // arrive whole (M6-B231).
+        match (
+            allowed.allows(Permission::AttachBills),
             allowed.allows(Permission::FileBills),
-            "filing bills from the receipt inbox",
-        ),
+        ) {
+            (true, true) => (true, "attaching and filing bills"),
+            (true, false) => (true, "attaching bills"),
+            (false, true) => (true, "filing bills"),
+            (false, false) => (false, ""),
+        },
     ]
     .into_iter()
     .filter(|(on, _)| *on)

@@ -177,9 +177,13 @@ fn filing_is_off_until_its_own_cell_is_on_and_needs_both_folders() {
     assert!(!propose_spec(off).unwrap().parameters.contains("file_bills"));
     let on = propose_spec(unlocked()).unwrap();
     assert!(on.parameters.contains("file_bills"));
+    assert!(on.description.contains("attaching and filing bills"));
+    let file_only = unlocked().with(Permission::AttachBills, false);
     assert!(
-        on.description
-            .contains("filing bills from the receipt inbox")
+        propose_spec(file_only)
+            .unwrap()
+            .description
+            .contains("filing bills")
     );
     let call = item(id, "RE-0042.pdf", &json!({}));
     assert_eq!(

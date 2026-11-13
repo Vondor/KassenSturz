@@ -27,6 +27,8 @@ Kirigami.Dialog {
     readonly property var view: plans.view ?? ({})
     readonly property var planList: view.plans ?? []
     readonly property var toConfirm: view.toConfirm ?? []
+    // The month by month table, only when a plan counts (D-770).
+    readonly property var months: (view.forecast?.hasPlans ?? false) ? (view.forecast?.months ?? []) : []
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -258,6 +260,65 @@ Kirigami.Dialog {
                         ActionLog.taken("PlannedPaymentsDialog_remove")
                         removeDialog.ask(row.modelData);
                     }
+                }
+            }
+        }
+
+        // The months after this one (D-770, 5.2): only the balance and the
+        // plans, each month's end the next one's start. Every figure is
+        // text from Rust (D-065).
+        Kirigami.Heading {
+            Layout.fillWidth: true
+            visible: dialog.months.length > 0
+            level: 3
+            text: dialog.i18nContext.i18nc("@title:group", "Month by month")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: dialog.months.length > 0
+            textFormat: Text.PlainText
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+            text: dialog.i18nContext.i18nc("@info", "Based on your planned payments only. Spending that is not planned is not included.")
+        }
+
+        GridLayout {
+            Layout.fillWidth: true
+            visible: dialog.months.length > 0
+            columns: 5
+            columnSpacing: Kirigami.Units.largeSpacing
+            rowSpacing: Kirigami.Units.smallSpacing
+
+            Repeater {
+                model: [
+                    dialog.i18nContext.i18nc("@title:column a month", "Month"),
+                    dialog.i18nContext.i18nc("@title:column the balance a month starts with", "Start"),
+                    dialog.i18nContext.i18nc("@title:column planned income", "In"),
+                    dialog.i18nContext.i18nc("@title:column planned payments", "Out"),
+                    dialog.i18nContext.i18nc("@title:column the balance a month ends with", "End")
+                ]
+
+                delegate: Controls.Label {
+                    required property string modelData
+
+                    textFormat: Text.PlainText
+                    font.bold: true
+                    text: modelData
+                }
+            }
+
+            Repeater {
+                // Five cells per month, in reading order.
+                model: dialog.months.flatMap(month => [month.month, month.start, month.plannedIn, month.plannedOut, month.end])
+
+                delegate: Controls.Label {
+                    required property string modelData
+                    required property int index
+
+                    Layout.alignment: index % 5 === 0 ? Qt.AlignLeft : Qt.AlignRight
+                    textFormat: Text.PlainText
+                    text: modelData
                 }
             }
         }

@@ -69,6 +69,10 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a note with how many transactions have no category yet and the newest of them", "Transactions without a category");
         case "notice.alarms":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: lines that say when a budget or an account crosses a limit the user set", "Warnings");
+        case "forecast.month":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: the balance now minus the planned payments still due this month", "Left this month");
+        case "plan.coming_up":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: the planned payments of the next 30 days", "Coming up");
         }
         return i18nContext.i18nc("@item:inlistbox a part of the layout that this version doesn't know", "Unknown");
     }

@@ -39,7 +39,7 @@ impl ComponentType {
     /// ready-made tiles that have no data choices of their own (net worth,
     /// income sources and the warnings tile, Q-507). A Builder step for them
     /// would only ask questions with one answer.
-    pub const NOT_A_CHART: [Self; 13] = [
+    pub const NOT_A_CHART: [Self; 15] = [
         Self::Heading,
         Self::Separator,
         Self::FetchNotice,
@@ -53,6 +53,8 @@ impl ComponentType {
         Self::FilterBar,
         Self::DashboardTabs,
         Self::Alarms,
+        Self::ForecastMonth,
+        Self::ComingUp,
     ];
 
     /// Whether the Statistic Builder makes this component.

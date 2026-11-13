@@ -260,6 +260,8 @@ Item {
         : cell.info?.type === "page.tabs" ? dashboardTabsBox
         : cell.info?.type === "notice.unsorted" ? unsortedBox
         : cell.info?.type === "notice.alarms" ? alarmsBox
+        : cell.info?.type === "forecast.month" ? leftThisMonthBox
+        : cell.info?.type === "plan.coming_up" ? comingUpBox
         : cell.info?.type === "notice.transfers" ? transfersBox : figuresBox
 
     TileStatusWords {
@@ -283,15 +285,20 @@ Item {
             readonly property string rules: isAlarms ? (cell.subject?.preview?.alarms || "[]") : "[]"
             readonly property var pageView: cell.board.pageView ?? ({})
             readonly property var updateAll: cell.board.updateAll ?? ({})
+            readonly property var plans: cell.board.plansView ?? ({})
             readonly property string status: type === "notice.alarms" ? (alarmFeed.view?.status ?? "")
                 : type === "notice.unsorted" ? (pageView.unsortedStatus ?? "")
                 : type === "notice.fetch_gap" ? (pageView.fetchGapStatus ?? "")
                 : type === "bank.update_all" ? ((cell.board.bank?.updating ?? false) ? "running" : (cell.board.bankReady ? (updateAll.status ?? "") : "unknown"))
+                : type === "forecast.month" ? (plans.code !== undefined ? "failed" : (plans.forecast?.status ?? ""))
+                : type === "plan.coming_up" ? (plans.code !== undefined ? "failed" : (plans.comingUpStatus ?? ""))
                 : ""
             readonly property int count: type === "notice.alarms" ? (alarmFeed.view?.statusCount ?? 0)
                 : type === "notice.unsorted" ? (pageView.unsorted ?? 0)
                 : type === "notice.fetch_gap" ? (pageView.fetchGaps ?? []).length
                 : type === "bank.update_all" ? (updateAll.statusCount ?? 0)
+                : type === "forecast.month" ? (plans.forecast?.statusCount ?? 0)
+                : type === "plan.coming_up" ? (plans.comingUpCount ?? 0)
                 : 0
 
             onRulesChanged: if (isAlarms) alarmFeed.show(rules)
@@ -1033,6 +1040,31 @@ Item {
             arranging: cell.board.editing
             onTransactionClicked: (accountId, transactionId) => cell.board.transactionClicked(accountId, transactionId)
             onConnectBankClicked: cell.board.connectBankClicked()
+        }
+    }
+
+    // *Left this month* and *Coming up* (US7, D-769, D-770), filled by the
+    // app's `PlannedPayments`; both open the Planned payments window or its
+    // form through the page.
+    Component {
+        id: leftThisMonthBox
+
+        LeftThisMonthWidget {
+            view: cell.board.plansView ?? ({})
+            arranging: cell.board.editing
+            onPlanClicked: cell.board.planPaymentClicked()
+            onOpenClicked: cell.board.plannedPaymentsClicked()
+        }
+    }
+
+    Component {
+        id: comingUpBox
+
+        ComingUpWidget {
+            view: cell.board.plansView ?? ({})
+            arranging: cell.board.editing
+            onPlanClicked: cell.board.planPaymentClicked()
+            onOpenClicked: cell.board.plannedPaymentsClicked()
         }
     }
 

@@ -38,6 +38,8 @@ At 1 × 1 the state alone doesn't say which tile it is, so a tile that has an em
 | Transactions without a category (`notice.unsorted`) | a tag |
 | Warnings about old bank data (`notice.fetch_gap`) | a bank with a clock |
 | Update all accounts (`bank.update_all`) | two arrows turning in a circle |
+| Left this month (`forecast.month`) | a calendar page with a line taken off (US7) |
+| Coming up (`plan.coming_up`) | a calendar page with an arrow ahead (US7) |
 
 - The emblem is drawn by the app from 24 × 24 outlines (like the state shapes), in the theme's **text colour**, so it is dark in a light theme and light in a dark one. The badge's mark uses the theme's background colour, as before.
 - When the state is `to-do` or `failed`, the icon also gets a **frame** tinted in the state's colour, so it stands out from the side of the eye. `fine`, `running` and `unknown` have no frame.
@@ -79,6 +81,13 @@ The switch is decided **by cell count**, never by pixels, so it doesn't change w
 | Update all accounts | `bank.update_all` | 3 × 1 | `updateAllState()` and the update summary of the bank object (D-497, #521): `status` and `count` added to both | the last update worked for every account, or no update ran in this session and a last update date is known | the last update brought notices to check (`toCheck` > 0) | `bank.updating` is true | the last update failed, as a whole or for some accounts (count = failed accounts) | bank connections can't be used here, no account is linked yet, or a linked account was never updated and no update ran in this session |
 
 - *Notices* in the US5 sorting list means the **Transactions without a category** tile (#535). *Warnings about old bank data* adopts the icon in the same build because it is a warning tile of the same kind and costs one status function. The *Note about moved money* (`notice.transfers`) is a plain explanation with nothing to do, so it keeps its text form.
+- **US7 added two more** (D-769, D-770, `docs/SCHEDULES.md` 12): both are filled by the app's `PlannedPayments` object, whose view carries `forecast.status`/`forecast.statusCount` and `comingUpStatus`/`comingUpCount`; the view's error object shows as `failed`.
+
+| Tile | Type | Full size (cols × rows) | Its status comes from | `fine` | `to-do` | `running` | `failed` | `unknown` |
+|---|---|---|---|---|---|---|---|---|
+| Left this month | `forecast.month` | 3 × 2 | `status::forecast` over the forecast of the open checking and cash accounts | a plan counts and nothing passed unmatched | a planned payment passed without an entry and isn't counted (count = how many) | — | the planned payments could not be read | no plan counts, or no open checking or cash account |
+| Coming up | `plan.coming_up` | 3 × 2 | `status::coming_up` over the plans and the payments of the next 30 days | a plan exists (count = payments coming up, 0 says "Nothing coming up") | — (a payment that passed waits on *Left this month*, not counted twice) | — | the planned payments could not be read | no plan yet |
+
 - `running` is the only state QML reads directly (`bank.updating` changes while an update runs); the bridge still returns the full status word for the other cases, so the order of §1 is applied in one place: `StatusIcon` shows `running` whenever the bank object says so and the Rust word otherwise.
 - **Why "unknown" for "no rule set yet" and "no account linked":** grey with "?" says "nothing to report, nothing set up" without claiming "all fine". The hover text says what to do (*No warnings set yet. Click to add one in this tile's settings.*; *No account is linked to a bank yet.*).
 

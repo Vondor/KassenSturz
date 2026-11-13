@@ -55,6 +55,8 @@ pub const DETAILS: &[&str] = &[
     "notice_transfers",
     "notice_unsorted",
     "notice_alarms",
+    "forecast_month",
+    "plan_coming_up",
     "page_period",
     "page_filters",
     "page_tabs",

@@ -137,6 +137,21 @@ pub enum ComponentType {
     /// [`ComponentType::LIBRARY`] and never in [`ComponentType::ALL`]: the AI
     /// neither proposes it nor sees its rules.
     Alarms,
+    /// `forecast.month`: *Left this month*, the balance of the everyday
+    /// accounts once the planned payments still due this month are taken
+    /// off (US7, #725, D-770, `docs/SCHEDULES.md` 5). Only the balance and
+    /// the plans count, never a guess from past spending. It shows no
+    /// dataset; the `PlannedPayments` bridge object fills it. It is in
+    /// [`ComponentType::LIBRARY`] and never in [`ComponentType::ALL`]: the AI
+    /// neither proposes it nor sees the plans (the AI functions for plans
+    /// are a follow-up with their own human gate).
+    ForecastMonth,
+    /// `plan.coming_up`: *Coming up*, the planned payments of the next 30
+    /// days (US7, #795, D-769, `docs/SCHEDULES.md` 2.6). Like
+    /// [`ComponentType::ForecastMonth`] it shows no dataset, the
+    /// `PlannedPayments` bridge object fills it, and it is never in
+    /// [`ComponentType::ALL`].
+    ComingUp,
 }
 
 impl ComponentType {
@@ -185,6 +200,8 @@ impl ComponentType {
         Self::ChartCandlestick,
         Self::Transactions,
         Self::Alarms,
+        Self::ForecastMonth,
+        Self::ComingUp,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -206,6 +223,8 @@ impl ComponentType {
                 | Self::DashboardTabs
                 | Self::Transactions
                 | Self::Alarms
+                | Self::ForecastMonth
+                | Self::ComingUp
         )
     }
 
@@ -238,6 +257,8 @@ impl ComponentType {
             Self::ChartCandlestick => "chart.candlestick",
             Self::Transactions => "table.transactions",
             Self::Alarms => "notice.alarms",
+            Self::ForecastMonth => "forecast.month",
+            Self::ComingUp => "plan.coming_up",
         }
     }
 
@@ -278,7 +299,9 @@ impl ComponentType {
             | Self::FilterBar
             | Self::DashboardTabs
             | Self::Transactions
-            | Self::Alarms => "text",
+            | Self::Alarms
+            | Self::ForecastMonth
+            | Self::ComingUp => "text",
         }
     }
 
@@ -328,7 +351,9 @@ impl ComponentType {
             | Self::UnsortedNote
             | Self::PeriodHeader
             | Self::FilterBar
-            | Self::DashboardTabs => &[],
+            | Self::DashboardTabs
+            | Self::ForecastMonth
+            | Self::ComingUp => &[],
             Self::NetWorth | Self::IncomeSources => &NOTES_ONLY,
             Self::PeriodBox => &PERIOD_BOX,
             Self::BudgetProgress => &BUDGET_PROGRESS,

@@ -22,6 +22,8 @@ use kassensturz_core::{
 };
 use kassensturz_store::{Action, Book, NewSchedule, StoreError};
 
+use kassensturz_report::status::{self, ForecastFigures, Status};
+
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
 use crate::parse::{AmountInputError, AmountReader};
@@ -826,6 +828,152 @@ pub fn match_entry(
     let transaction = transaction_id(transaction)?;
     book.match_schedule_occurrence(plan.id, due_day(due_on)?, transaction)?;
     Ok(())
+}
+
+/// How many months after the current one the Planned payments window's
+/// month by month table shows (D-770, 5.2).
+pub const TABLE_MONTHS: usize = 3;
+
+/// One month of the look ahead, as text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MonthRow {
+    /// The month, e.g. "December 2026".
+    pub month: String,
+    /// The balance it starts with.
+    pub start: Shown,
+    /// The planned income due in it.
+    pub planned_in: Shown,
+    /// The planned payments due in it, without a sign.
+    pub planned_out: Shown,
+    /// The balance it ends with.
+    pub end: Shown,
+}
+
+/// *Left this month* (D-770, `docs/SCHEDULES.md` 5): the figures of the
+/// forecast as text, and the tile's state. Every figure comes from
+/// [`Book::forecast`], exact; nothing here adds up money.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MonthText {
+    /// The accounts it counts, by name, in the order of their IDs.
+    pub accounts: Vec<String>,
+    /// How many chosen accounts are in another currency and left out.
+    pub left_out: usize,
+    /// Whether any planned payment counts in it: without one, the figure
+    /// means nothing and the tile shows none.
+    pub has_plans: bool,
+    /// The booked balance of the accounts at the end of today.
+    pub balance_now: Shown,
+    /// The planned payments still due this month, without a sign.
+    pub out_due: Shown,
+    /// The planned income still to come this month; empty when none is.
+    pub in_due: Option<Shown>,
+    /// `balance_now − out_due`.
+    pub left: Shown,
+    /// Whether `left` is below zero.
+    pub below_zero: bool,
+    /// `left + in_due`; empty when no income is still to come.
+    pub expected_end: Option<Shown>,
+    /// How many planned payments passed without an entry: counted in no
+    /// figure, so the tile says how many.
+    pub overdue: usize,
+    /// The months after this one.
+    pub months: Vec<MonthRow>,
+    /// The tile's state (D-734).
+    pub status: Status,
+}
+
+/// The currency the look ahead counts in: the one most of `accounts` keep,
+/// and of two as common the one whose code comes first, so the choice never
+/// depends on the order the accounts were read in. Accounts in another
+/// currency are listed as left out (D-043: no conversion without a rate).
+fn forecast_currency(
+    book: &Book,
+    accounts: &[AccountId],
+) -> Result<Option<CurrencyCode>, StoreError> {
+    let mut counts: Vec<(CurrencyCode, usize)> = Vec::new();
+    for &id in accounts {
+        let currency = book.account(id)?.currency;
+        match counts.iter_mut().find(|(code, _)| *code == currency) {
+            Some((_, count)) => *count += 1,
+            None => counts.push((currency, 1)),
+        }
+    }
+    counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.as_str().cmp(b.0.as_str())));
+    Ok(counts.first().map(|(code, _)| *code))
+}
+
+/// *Left this month* for the open checking and cash accounts, today as the
+/// locale has it, with `months` months after this one (at most
+/// [`kassensturz_core::MAX_FORECAST_MONTHS`]).
+pub fn this_month(
+    book: &Book,
+    months: usize,
+    locale: &impl Locale,
+) -> Result<MonthText, PlansError> {
+    let today = locale.today();
+    let chosen = book.default_forecast_accounts()?;
+    let Some(currency) = forecast_currency(book, &chosen)? else {
+        let has_plans = !book.schedules()?.is_empty();
+        // No account to look ahead for: no figure at all, not a zero.
+        let zero = Shown {
+            text: String::new(),
+            exact: String::new(),
+        };
+        return Ok(MonthText {
+            accounts: Vec::new(),
+            left_out: 0,
+            has_plans,
+            balance_now: zero.clone(),
+            out_due: zero.clone(),
+            in_due: None,
+            left: zero,
+            below_zero: false,
+            expected_end: None,
+            overdue: 0,
+            months: Vec::new(),
+            status: status::forecast(Some(ForecastFigures {
+                accounts: false,
+                plans: has_plans,
+                overdue: 0,
+            })),
+        });
+    };
+    let found = book.forecast(&chosen, currency, today, months)?;
+    let forecast = &found.forecast;
+    let writer = AmountWriter::new(book, currency, locale)?;
+    let mut accounts = Vec::new();
+    for &id in &found.accounts {
+        accounts.push(book.account(id)?.name);
+    }
+    let income = !forecast.in_due.is_zero();
+    let mut rows = Vec::new();
+    for month in &forecast.months {
+        rows.push(MonthRow {
+            month: locale.month_and_year(month.month),
+            start: writer.text(month.start),
+            planned_in: writer.text(month.planned_in),
+            planned_out: writer.text(month.planned_out),
+            end: writer.text(month.end),
+        });
+    }
+    Ok(MonthText {
+        accounts,
+        left_out: found.left_out.len(),
+        has_plans: found.has_plans,
+        balance_now: writer.text(forecast.balance_now),
+        out_due: writer.text(forecast.out_due),
+        in_due: income.then(|| writer.text(forecast.in_due)),
+        left: writer.text(forecast.left),
+        below_zero: forecast.left.is_negative(),
+        expected_end: income.then(|| writer.text(forecast.expected_end)),
+        overdue: forecast.overdue.len(),
+        months: rows,
+        status: status::forecast(Some(ForecastFigures {
+            accounts: !found.accounts.is_empty(),
+            plans: found.has_plans,
+            overdue: forecast.overdue.len(),
+        })),
+    })
 }
 
 /// Whether `kind` is one of the user's own accounts a plan may be on.

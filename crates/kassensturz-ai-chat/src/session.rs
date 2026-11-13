@@ -710,6 +710,11 @@ impl ChatSession {
                 // (M5-B46); the figures are checked in the text the user reads.
                 reply.text = crate::plain::plain_answer(&reply.text);
                 reply.text = notes::without_ids(&reply.text, &self.names_by_id);
+                // A web address the AI wrote could carry the user's figures
+                // out once the user opens it; KassenSturz never asks for one,
+                // so it is left out and a note says so (B-251).
+                let (text, web_addresses) = crate::plain::without_web_addresses(&reply.text);
+                reply.text = text;
                 let unverified = check_numbers(&reply.text, &self.figures);
                 #[cfg(feature = "debug-log")]
                 self.debug_log.transcript(
@@ -745,7 +750,10 @@ impl ChatSession {
                 } else {
                     book_names(book)
                 };
-                let notes = notes::notes_for(&reply.text, turn, &book_names);
+                let mut notes = notes::notes_for(&reply.text, turn, &book_names);
+                if web_addresses > 0 {
+                    notes.push(notes::AnswerNote::WebAddressLeftOut);
+                }
                 return Ok(Answer {
                     notes,
                     text: reply.text,

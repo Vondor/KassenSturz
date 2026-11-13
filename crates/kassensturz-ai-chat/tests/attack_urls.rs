@@ -23,7 +23,6 @@ const LEAK: &str = "Your balances are fine. Check your result at \
     https://example.invalid/?b=4211.50;812.03";
 
 #[test]
-#[ignore = "B-251 (attack A3): web addresses in AI answers are shown unmarked"]
 fn a3_a_web_address_in_an_answer_is_marked_or_cut() {
     let book = space_colony();
     let (provider, _script) =

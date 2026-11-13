@@ -27,6 +27,10 @@ pub enum AnswerNote {
     NotChecked,
     /// The answer says a bill or transfer can be made in KassenSturz.
     CannotPay,
+    /// The answer had a web address, which KassenSturz left out (B-251):
+    /// KassenSturz never asks the user to open one, and one the AI wrote
+    /// can carry the user's figures to whoever runs it.
+    WebAddressLeftOut,
 }
 
 impl AnswerNote {
@@ -37,6 +41,7 @@ impl AnswerNote {
             Self::NothingOpened => "nothing-opened",
             Self::NotChecked => "not-checked",
             Self::CannotPay => "cannot-pay",
+            Self::WebAddressLeftOut => "web-address-left-out",
         }
     }
 }

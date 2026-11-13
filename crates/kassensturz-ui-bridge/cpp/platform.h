@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 
@@ -38,6 +40,21 @@ void setWindowIcon(const QString &name);
 // The name of the file system `path` is on, e.g. "ext4" or "cifs"; empty if
 // Qt can't tell.
 QString fileSystemType(const QString &path);
+
+// The bytes this user may still write on the drive `path` is on; -1 where the
+// system doesn't tell, e.g. a drive that reports no size at all.
+std::int64_t freeSpace(const QString &path);
+
+// `bytes` as a size in the user's language, e.g. "1.2 MB".
+QString dataSize(std::int64_t bytes);
+
+// Renames `from` to `to` in the same folder without ever replacing a file at
+// `to` (D-731): renameat2 with RENAME_NOREPLACE on Linux, renamex_np with
+// RENAME_EXCL on macOS, MoveFileEx without MOVEFILE_REPLACE_EXISTING on
+// Windows; where the first two aren't supported, a hard link (which refuses
+// an existing name too) and removing the old name. Never a replacing rename.
+// Returns 0, or the system's error number (errno, or GetLastError()).
+int renameNoReplace(const QString &from, const QString &to);
 
 // Loads KI18n's QML library on the calling thread. Qt otherwise loads it on
 // its QML loader thread, and a static object inside it then lives there while

@@ -401,8 +401,15 @@ fn a_second_budget_names_the_category_by_its_argument_and_place() {
     assert_eq!(keyword("category"), Some(Number(2)));
     assert_eq!(keyword("item"), Some(Number(2)));
     assert_eq!(keyword("use_instead"), Some(Keyword("edit_budgets")));
+    // The category is named by its ID, the one list_categories gave (#830):
+    // the one at place 2 of category_ids is `fun`, not `food`.
+    assert_eq!(
+        keyword("category_id"),
+        Some(kassensturz_core::ErrorParam::Account(small.fun))
+    );
+    // Only IDs, never a name.
     let shown = format!("{report:?}");
-    assert!(!shown.contains(&fun) && !shown.contains(&food), "{shown}");
+    assert!(!shown.contains("Fun") && !shown.contains("Food"), "{shown}");
 
     let call = json!({"new_budgets": [
         {"category_id": fun, "every": "month", "amount": "10"},

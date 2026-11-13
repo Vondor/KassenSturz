@@ -100,8 +100,25 @@ Kirigami.ApplicationWindow {
     BookSession {
         id: bookSession
 
-        onOpened: root.showBook()
+        onOpened: {
+            bookMove.refresh();
+            root.showBook();
+        }
         onFailed: root.showProblem()
+    }
+
+    // Where the book is kept, and moving it (D-731). Made before the first
+    // book opens: a move that was cut short decides which book that is.
+    BookMove {
+        id: bookMove
+    }
+
+    // What a move that was cut short left, said at the start (D-731).
+    BookMoveInterruptedDialog {
+        id: bookMoveInterrupted
+
+        bookMove: bookMove
+        onSettleFailed: reason => root.showPassiveNotification(reason, 10000)
     }
 
     // The first start (M3.4).
@@ -370,6 +387,24 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // An app left open over midnight or a month end: when the day changed,
+    // every screen reads the book again, so "today" and "this month" are not
+    // the old day's (#831). The look is cheap; once a minute is enough.
+    DayClock {
+        id: dayClock
+    }
+
+    Timer {
+        interval: 60000
+        repeat: true
+        running: root.started
+        onTriggered: {
+            if (dayClock.check()) {
+                root.bookChanged();
+            }
+        }
+    }
+
     // The app's own book is called this in the user's language, e.g.
     // Haushalt.ksz in German.
     WindowState {
@@ -419,6 +454,9 @@ Kirigami.ApplicationWindow {
             }
         }
         bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
+        if (bookMove.interrupted?.after !== undefined) {
+            Qt.callLater(() => bookMoveInterrupted.ask(bookMove.interrupted));
+        }
     }
 
     // Shows the book that was just opened: the setup wizard if it has no
@@ -830,12 +868,13 @@ Kirigami.ApplicationWindow {
             }
 
             // The bank log shows this on every screen for as long as it runs
-            // (D-603); with the full developer mode the banner above says it.
+            // (D-603), also while the full developer mode runs: that banner
+            // doesn't say a second log is written (#828).
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 position: Kirigami.InlineMessage.Position.Header
                 type: Kirigami.MessageType.Warning
-                visible: developerMode.bankLogOn && !developerMode.on
+                visible: developerMode.bankLogOn
                 text: developerMode.bankLogDetailed
                     ? root.i18nContext.i18nc("@info", "Developer mode for bank connections, detailed: KassenSturz is writing a log of how far each bank connection gets, which errors happen and the texts your bank sends with them. The texts are cut down to words, but a name written in words can remain: look through the log before you pass it on. It leaves out your account numbers, amounts, PIN, TANs and the registration number. To end it, close KassenSturz and start it the usual way.")
                     : root.i18nContext.i18nc("@info", "Developer mode for bank connections: KassenSturz is writing a short log of how far each bank connection gets and which errors happen. It leaves out your login name, account numbers, amounts, PIN, TANs and the registration number. To end it, close KassenSturz and start it the usual way.")
@@ -845,7 +884,7 @@ Kirigami.ApplicationWindow {
                         text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
                         onTriggered: {
                             ActionLog.taken("Main_showBankLog")
-                            Qt.openUrlExternally(developerMode.folderUrl())
+                            Qt.openUrlExternally(developerMode.bankLogFolderUrl())
                         }
                     },
                     Kirigami.Action {
@@ -853,7 +892,7 @@ Kirigami.ApplicationWindow {
                         text: root.i18nContext.i18nc("@action:button deletes the developer mode's log", "Delete the log")
                         onTriggered: {
                             ActionLog.taken("Main_deleteBankLog")
-                            developerMode.clearLog()
+                            developerMode.clearBankLog()
                         }
                     }
                 ]
@@ -1714,12 +1753,25 @@ Kirigami.ApplicationWindow {
             onOpenAnotherClicked: root.chooseBookToOpen()
             onExampleBookClicked: root.chooseExampleBook()
             onNewBookClicked: root.chooseNewBook()
+            bookMove: bookMove
             onSaveCopyClicked: root.pushPage(exportPage)
+            onBookPlaceClicked: root.pushPage(bookMovePage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
+            onRestoreBackupClicked: root.pushPage(restoreBackupPage)
             onTagsClicked: root.pushPage(tagsPage)
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
             onHelpClicked: root.pushPage(helpPage)
+        }
+    }
+
+    Component {
+        id: bookMovePage
+
+        BookMovePage {
+            bookMove: bookMove
+            // Shows the book where it is now, on the page that stays open.
+            onMoved: bookSession.showMovedBook()
         }
     }
 
@@ -1840,6 +1892,14 @@ Kirigami.ApplicationWindow {
                 root.showBook();
                 bookFromFileState.cancel();
             }
+        }
+    }
+
+    Component {
+        id: restoreBackupPage
+
+        RestoreBackupPage {
+            session: bookSession
         }
     }
 

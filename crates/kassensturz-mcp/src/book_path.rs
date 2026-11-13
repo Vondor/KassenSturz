@@ -7,15 +7,17 @@
 //! while the AI tool keeps this program running is the one read from then on
 //! (M6-B208).
 //!
-//! The app keeps that path with KConfig's `writePathEntry`, which writes the
-//! key as `LastBook[$e]`, puts `$HOME` in place of the user's home folder,
-//! doubles every other `$` and escapes a few characters (`\\`, `\s`, `\n`,
+//! The app keeps that path as `LastBook[$e]`, puts `$HOME` in place of the
+//! user's home folder and `$XDG_RUNTIME_DIR` in place of the runtime folder
+//! (`kassensturz_core::book_folder`, which both read it with), doubles every
+//! other `$` and escapes a few characters (`\\`, `\s`, `\n`,
 //! `\t`, `\r`, `\xNN`). This reads exactly that and refuses anything else,
 //! such as another variable or a command, rather than guess at a path.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
+use kassensturz_core::book_folder::expand_entry;
 use kassensturz_core::{ai_switch, test_profile};
 
 /// The settings group and key of the book opened last, as the app writes
@@ -105,7 +107,8 @@ fn last_book() -> Result<PathBuf, String> {
         .and_then(|file| std::fs::read_to_string(file).ok())
         .ok_or_else(none)?;
     let home = std::env::var("HOME").ok();
-    match last_book_in(&text, home.as_deref()) {
+    let runtime = std::env::var("XDG_RUNTIME_DIR").ok();
+    match last_book_in(&text, home.as_deref(), runtime.as_deref()) {
         Ok(Some(path)) => Ok(path),
         Ok(None) => Err(none()),
         Err(()) => Err(
@@ -117,28 +120,28 @@ fn last_book() -> Result<PathBuf, String> {
 }
 
 /// The book opened last in the settings file's `text`, with `home` as the
-/// user's home folder. `Ok(None)` when there is none, `Err` when the entry
-/// is there but isn't a path written as the app writes it.
-pub(crate) fn last_book_in(text: &str, home: Option<&str>) -> Result<Option<PathBuf>, ()> {
-    let expanded_key = format!("{LAST_BOOK}[$e]");
+/// user's home folder and `runtime_dir` as `$XDG_RUNTIME_DIR` (where a book
+/// in a folder the user chose in a Flatpak is, D-730). `Ok(None)` when there
+/// is none, `Err` when the entry is there but isn't a path written as the
+/// app writes it.
+pub(crate) fn last_book_in(
+    text: &str,
+    home: Option<&str>,
+    runtime_dir: Option<&str>,
+) -> Result<Option<PathBuf>, ()> {
     // KConfig reads the last entry of a key; the app writes only one of the
-    // two forms, so whichever is there is the one.
-    let (value, expand) = match ai_switch::value_in(text, BOOKS, &expanded_key) {
-        Some(value) => (value, true),
-        None => match ai_switch::value_in(text, BOOKS, LAST_BOOK) {
-            Some(value) => (value, false),
-            None => return Ok(None),
-        },
+    // two forms (`LastBook[$e]` by older builds, `LastBook` since D-730), and
+    // both are expanded the same way.
+    let expanded_key = format!("{LAST_BOOK}[$e]");
+    let Some(value) = ai_switch::value_in(text, BOOKS, &expanded_key)
+        .or_else(|| ai_switch::value_in(text, BOOKS, LAST_BOOK))
+    else {
+        return Ok(None);
     };
     if value.is_empty() {
         return Ok(None);
     }
-    let unescaped = unescape(value)?;
-    let path = if expand {
-        expand_home(&unescaped, home)?
-    } else {
-        unescaped
-    };
+    let path = expand_entry(&unescape(value)?, home, runtime_dir).ok_or(())?;
     let path = PathBuf::from(path);
     if path.is_absolute() {
         Ok(Some(path))
@@ -180,35 +183,12 @@ fn hex(digit: u8) -> Result<u8, ()> {
         .ok_or(())
 }
 
-/// Undoes KConfig's `$HOME` and `$$` in a path entry.
-fn expand_home(value: &str, home: Option<&str>) -> Result<String, ()> {
-    let (start, rest) = match value.strip_prefix("$HOME") {
-        Some(rest) if rest.is_empty() || rest.starts_with('/') => {
-            (home.filter(|home| !home.is_empty()).ok_or(())?, rest)
-        }
-        _ => ("", value),
-    };
-    let mut path = String::from(start);
-    let mut chars = rest.chars();
-    while let Some(c) = chars.next() {
-        if c == '$' {
-            // Only a doubled `$` is a `$`; anything else asks KConfig for a
-            // variable or a command, which this never does.
-            if chars.next() != Some('$') {
-                return Err(());
-            }
-        }
-        path.push(c);
-    }
-    Ok(path)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn read(text: &str) -> Result<Option<PathBuf>, ()> {
-        last_book_in(text, Some("/home/ada"))
+        last_book_in(text, Some("/home/ada"), Some("/run/user/1000"))
     }
 
     fn path(text: &str) -> PathBuf {
@@ -233,10 +213,19 @@ mod tests {
             read("[Books]\nLastBook[$e]=$HOME/\\sA\\\\B $$5\\x01.ksz\\s\n"),
             Ok(Some(path("/home/ada/ A\\B $5\u{1}.ksz ")))
         );
-        // Without the expansion flag the text is the path.
+        // Without the expansion flag it is read the same way (D-730).
         assert_eq!(
-            read("[Books]\nLastBook=/data/$HOME.ksz\n"),
+            read("[Books]\nLastBook=$XDG_RUNTIME_DIR/doc/ab/B/a.ksz\n"),
+            Ok(Some(path("/run/user/1000/doc/ab/B/a.ksz")))
+        );
+        assert_eq!(
+            read("[Books]\nLastBook=/data/$$HOME.ksz\n"),
             Ok(Some(path("/data/$HOME.ksz")))
+        );
+        // A book in a folder the user chose in a Flatpak (D-730).
+        assert_eq!(
+            read("[Books]\nLastBook[$e]=$XDG_RUNTIME_DIR/doc/ab12/Books/Household.ksz\n"),
+            Ok(Some(path("/run/user/1000/doc/ab12/Books/Household.ksz")))
         );
         // Text after the home folder's name isn't the home folder.
         assert_eq!(read("[Books]\nLastBook[$e]=$HOMEWORK/a.ksz\n"), Err(()));
@@ -258,13 +247,17 @@ mod tests {
             Err(())
         );
         assert_eq!(read("[Books]\nLastBook[$e]=$(rm -rf ~)/a.ksz\n"), Err(()));
+        assert_eq!(
+            last_book_in("[Books]\nLastBook[$e]=$XDG_RUNTIME_DIR/a.ksz\n", None, None),
+            Err(())
+        );
         assert_eq!(read("[Books]\nLastBook[$e]=/a$\n"), Err(()));
         // Bad escapes, a relative path, no home folder known.
         assert_eq!(read("[Books]\nLastBook[$e]=/a\\q.ksz\n"), Err(()));
         assert_eq!(read("[Books]\nLastBook[$e]=/a\\x4\n"), Err(()));
         assert_eq!(read("[Books]\nLastBook[$e]=a.ksz\n"), Err(()));
         assert_eq!(
-            last_book_in("[Books]\nLastBook[$e]=$HOME/a.ksz\n", None),
+            last_book_in("[Books]\nLastBook[$e]=$HOME/a.ksz\n", None, None),
             Err(())
         );
     }

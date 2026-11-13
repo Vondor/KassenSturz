@@ -17,10 +17,12 @@ pub mod ai_switch;
 mod bank_link;
 #[cfg(feature = "debug-log")]
 pub mod bank_log;
+pub mod book_folder;
 mod budget;
 mod category_group;
 mod changeover;
 mod currency;
+pub mod day_watch;
 #[cfg(feature = "debug-log")]
 pub mod debug_log;
 mod decimal;

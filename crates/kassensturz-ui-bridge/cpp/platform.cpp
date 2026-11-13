@@ -4,7 +4,9 @@
 #include "kassensturz-ui-bridge/cpp/platform.h"
 
 #include <QtCore/QCoreApplication>
+#include <QtCore/QFile>
 #include <QtCore/QLibrary>
+#include <QtCore/QLocale>
 #include <QtCore/QProcess>
 #include <QtCore/QProcessEnvironment>
 #include <QtCore/QStandardPaths>
@@ -12,6 +14,14 @@
 #include <QtCore/QSysInfo>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QIcon>
+
+#include <cerrno>
+#include <cstdio>
+
+#ifdef Q_OS_UNIX
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 #ifdef Q_OS_WIN
 #include <QtCore/QCoreApplication>
@@ -27,6 +37,11 @@
 
 #include <KColorSchemeManager>
 #include <breezeicons.h>
+
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
 #endif
 
 namespace kassensturz::platform
@@ -138,6 +153,66 @@ QString fileSystemType(const QString &path)
 {
     const QStorageInfo storage(path);
     return storage.isValid() ? QString::fromUtf8(storage.fileSystemType()) : QString();
+}
+
+std::int64_t freeSpace(const QString &path)
+{
+    QStorageInfo storage(path);
+    storage.refresh();
+    // A drive that reports no size, such as some FUSE file systems, would
+    // read as full.
+    if (!storage.isValid() || !storage.isReady() || storage.bytesTotal() <= 0) {
+        return -1;
+    }
+    return storage.bytesAvailable();
+}
+
+QString dataSize(std::int64_t bytes)
+{
+    return QLocale().formattedDataSize(bytes);
+}
+
+int renameNoReplace(const QString &from, const QString &to)
+{
+#ifdef Q_OS_WIN
+    const auto source = reinterpret_cast<const wchar_t *>(from.utf16());
+    const auto target = reinterpret_cast<const wchar_t *>(to.utf16());
+    // Without MOVEFILE_REPLACE_EXISTING, Windows refuses an existing target.
+    if (MoveFileExW(source, target, MOVEFILE_WRITE_THROUGH)) {
+        return 0;
+    }
+    return static_cast<int>(GetLastError());
+#else
+    const QByteArray source = QFile::encodeName(from);
+    const QByteArray target = QFile::encodeName(to);
+#if defined(Q_OS_LINUX)
+    if (::renameat2(AT_FDCWD, source.constData(), AT_FDCWD, target.constData(), RENAME_NOREPLACE) == 0) {
+        return 0;
+    }
+    // EINVAL: the file system doesn't take the flag, e.g. some FUSE ones.
+    if (errno != EINVAL && errno != ENOSYS) {
+        return errno;
+    }
+#elif defined(Q_OS_DARWIN)
+    if (::renamex_np(source.constData(), target.constData(), RENAME_EXCL) == 0) {
+        return 0;
+    }
+    if (errno != ENOTSUP && errno != EINVAL) {
+        return errno;
+    }
+#endif
+    // A hard link refuses an existing name too; then the old name goes. A
+    // file system without hard links refuses the move instead.
+    if (::link(source.constData(), target.constData()) != 0) {
+        return errno;
+    }
+    if (::unlink(source.constData()) != 0) {
+        const int error = errno;
+        ::unlink(target.constData());
+        return error;
+    }
+    return 0;
+#endif
 }
 
 void useBundledIcons()

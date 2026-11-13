@@ -8,6 +8,7 @@
 use std::path::{Path, PathBuf};
 
 use cxx_qt_lib::QString;
+use kassensturz_core::book_folder::{self, FolderGrant, FolderRefused, Surroundings};
 use kassensturz_store::Computer;
 
 #[cxx_qt::bridge]
@@ -36,6 +37,15 @@ mod ffi {
 
         #[cxx_name = "fileSystemType"]
         fn file_system_type(path: &QString) -> QString;
+
+        #[cxx_name = "freeSpace"]
+        fn free_space(path: &QString) -> i64;
+
+        #[cxx_name = "dataSize"]
+        fn data_size(bytes: i64) -> QString;
+
+        #[cxx_name = "renameNoReplace"]
+        fn rename_no_replace(from: &QString, to: &QString) -> i32;
 
         #[cxx_name = "loadKI18nQml"]
         fn load_ki18n_qml();
@@ -187,18 +197,87 @@ pub fn computer() -> Computer {
     }
 }
 
-/// Whether the user can choose where a new book is kept. In the Flatpak
-/// they can't: the app can't reach the user's files (D-113), and the file
-/// chooser's portal would make an empty file the book can't live in
-/// (`Drive::Sandboxed`), so a new book goes into the data folder. This
-/// changes if the Flatpak is ever allowed the user's files (Q-071).
+/// Whether the user can choose where a new book is kept with a save dialog,
+/// which hands over one file. In the Flatpak they can't: the file chooser's
+/// portal would make an empty file the book can't live in
+/// (`Drive::Sandboxed`), so a new book goes into the data folder until the
+/// pages ask for a folder instead (`can_choose_book_folder`, D-730, D-733).
 pub fn can_choose_book_place() -> bool {
     !in_flatpak(Path::new("/.flatpak-info"))
+}
+
+/// Whether the user can choose a folder for their book: always outside a
+/// sandbox, and in the Flatpak where the document portal's mount is there,
+/// through which the folder chooser exports a folder (D-730).
+pub fn can_choose_book_folder() -> bool {
+    !in_flatpak(Path::new("/.flatpak-info"))
+        || runtime_dir().is_some_and(|dir| dir.join("doc").is_dir())
+}
+
+/// The user's home folder, if the system names one.
+pub fn home_dir() -> Option<PathBuf> {
+    absolute_env("HOME")
+}
+
+/// `$XDG_RUNTIME_DIR`, where the document portal is mounted in `doc`.
+pub fn runtime_dir() -> Option<PathBuf> {
+    absolute_env("XDG_RUNTIME_DIR")
+}
+
+fn absolute_env(name: &str) -> Option<PathBuf> {
+    std::env::var_os(name)
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+}
+
+/// What the folder chooser returned (a normal path, or in the Flatpak one in
+/// the document portal's mount) as a folder the app may use, or why it
+/// isn't (D-730). The chooser itself is Qt's folder dialog, shown by QML's
+/// `FolderChooser`; US5.13's bill folder uses this too.
+pub fn choose_folder(chosen: &Path) -> Result<FolderGrant, FolderRefused> {
+    let home = home_dir();
+    let runtime = runtime_dir();
+    book_folder::grant(
+        chosen,
+        Surroundings {
+            home: home.as_deref(),
+            runtime_dir: runtime.as_deref(),
+            // The real path comes from the portal's `GetHostPaths` over
+            // D-Bus, which needs Qt's D-Bus module; until it is linked the
+            // folder is shown by its name in the Flatpak.
+            host_path: None,
+        },
+    )
 }
 
 /// Whether the app runs in a Flatpak, which puts `marker` into every sandbox.
 fn in_flatpak(marker: &Path) -> bool {
     cfg!(target_os = "linux") && marker.exists()
+}
+
+/// The bytes the user may still write in `folder`, if the system tells.
+pub fn free_space(folder: &Path) -> Option<u64> {
+    let bytes = ffi::free_space(&QString::from(folder.to_string_lossy().as_ref()));
+    u64::try_from(bytes).ok()
+}
+
+/// `bytes` as a size in the user's language, e.g. "1.2 MB".
+pub fn data_size(bytes: u64) -> String {
+    ffi::data_size(i64::try_from(bytes).unwrap_or(i64::MAX)).to_string()
+}
+
+/// Renames `from` to `to` in the same folder, failing with `AlreadyExists`
+/// instead of ever replacing a file at `to` (D-731).
+pub fn rename_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
+    let text = |path: &Path| {
+        path.to_str()
+            .map(QString::from)
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidFilename))
+    };
+    match ffi::rename_no_replace(&text(from)?, &text(to)?) {
+        0 => Ok(()),
+        error => Err(std::io::Error::from_raw_os_error(error)),
+    }
 }
 
 /// What kind of drive a book is on.
@@ -209,9 +288,10 @@ pub enum Drive {
     /// A network drive (SMB, NFS, ...), where SQLite's writes and locks
     /// aren't reliable, so the book opens with a warning (D-038).
     Network,
-    /// A file a sandbox's file chooser handed over one at a time, e.g. in
-    /// the Flatpak: the book's lock file and SQLite's journal can't be made
-    /// next to it, so the book can't be opened from there.
+    /// A single file a sandbox's file chooser handed over, e.g. in the
+    /// Flatpak: the book's lock file and SQLite's journal can't be made next
+    /// to it, so the book can't be opened from there. A file inside a folder
+    /// the user exported is a normal book (D-730).
     Sandboxed,
 }
 
@@ -224,7 +304,28 @@ pub fn drive(path: &Path) -> Drive {
         path.parent().unwrap_or(path)
     };
     let file_system = ffi::file_system_type(&QString::from(existing.to_string_lossy().as_ref()));
-    drive_of(&file_system.to_string())
+    let kind = drive_of(&file_system.to_string());
+    match runtime_dir() {
+        Some(runtime) => narrowed(kind, path, &runtime),
+        None => kind,
+    }
+}
+
+/// `kind`, a file system's drive, with the document portal's mount told
+/// apart: the sandbox sees `fuse.portal` for everything the user exported, but
+/// only a single file can't hold a book. A file in an exported folder is as
+/// local as the system lets us tell (D-730; a network drive behind the portal
+/// is D-732's check).
+fn narrowed(kind: Drive, path: &Path, runtime_dir: &Path) -> Drive {
+    // Anything the file system calls the portal stays a single file unless the
+    // path plainly lies inside an exported folder.
+    if kind == Drive::Sandboxed
+        && book_folder::portal_place(path, runtime_dir) == book_folder::PortalPlace::Inside
+    {
+        Drive::Local
+    } else {
+        kind
+    }
 }
 
 /// The kind of drive with the file system called `file_system`, as Qt names
@@ -300,6 +401,39 @@ mod tests {
         ] {
             assert_eq!(drive_of(file_system), Drive::Local, "{file_system}");
         }
+    }
+
+    #[test]
+    fn only_a_single_portal_file_is_sandboxed() {
+        let run = Path::new("/run/user/1000");
+        let single = Path::new("/run/user/1000/doc/ab12/Household.ksz");
+        let inside = Path::new("/run/user/1000/doc/ab12/Books/Household.ksz");
+        assert_eq!(narrowed(Drive::Sandboxed, single, run), Drive::Sandboxed);
+        assert_eq!(narrowed(Drive::Sandboxed, inside, run), Drive::Local);
+        // The file system's other kinds are not changed.
+        assert_eq!(narrowed(Drive::Network, inside, run), Drive::Network);
+        assert_eq!(narrowed(Drive::Local, single, run), Drive::Local);
+        // A path that only looks like one, with a `..`, stays sandboxed.
+        let tricky = Path::new("/run/user/1000/doc/ab12/../x/y/Household.ksz");
+        assert_eq!(narrowed(Drive::Sandboxed, tricky, run), Drive::Sandboxed);
+    }
+
+    #[test]
+    fn a_chosen_folder_becomes_a_grant_or_is_refused() {
+        let folder = TestFolder::new();
+        let grant = choose_folder(folder.path()).expect("granted");
+        assert_eq!(grant.path, folder.path());
+        assert_eq!(grant.shown_as, folder.path().to_string_lossy());
+        assert!(grant.shown_is_real_path);
+        // The home folder and `/` reach as far as a home permission would.
+        if let Some(home) = home_dir() {
+            assert_eq!(choose_folder(&home), Err(FolderRefused::TooBroad));
+        }
+        assert_eq!(choose_folder(Path::new("/")), Err(FolderRefused::TooBroad));
+        assert_eq!(
+            choose_folder(Path::new("relative")),
+            Err(FolderRefused::NotUsable)
+        );
     }
 
     #[test]

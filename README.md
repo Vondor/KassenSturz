@@ -154,7 +154,7 @@ The first time KassenSturz is about to contact a bank (setting up a bank login, 
 
 ### A log for trying a real bank (developer mode)
 
-For trying a real bank connection, KassenSturz can write a short bank log (D-603), apart from the debug log. It starts only when the app is started from a terminal with an environment variable, and a banner shows while it runs:
+For trying a real bank connection, KassenSturz can write a short bank log (D-603), apart from the debug log. It starts only when the app is started from a terminal with an environment variable, and a banner shows while it runs, also when the debug log runs too (each log has its own banner):
 
 ```sh
 KASSENSTURZ_BANK_LOG=1 tools/sdk.sh cargo run --bin kassensturz

@@ -390,9 +390,29 @@ impl DebugLog {
     /// [`DETAILS`] and a `code` that isn't shaped like a code are left out.
     /// The log must never get in the way, so a file that can't be written
     /// is passed over.
+    ///
+    /// [`Event::AppStarted`] while the developer mode is off also removes
+    /// the chat transcript a run in the developer mode left behind (B-253,
+    /// attack A6 of the security review): it holds the user's questions
+    /// and the book's data that was sent, and is meant only for the run
+    /// that wrote it. The event log itself holds no such text and stays.
     pub fn record(&self, event: Event, detail: Option<&'static str>, code: Option<&'static str>) {
         if self.is_on() {
             let _ = self.write(event, detail, code, None);
+        } else if event == Event::AppStarted {
+            self.forget_transcript();
+        }
+    }
+
+    /// Removes the chat transcript (D-235) and its older part, if any. A
+    /// file that can't be removed is passed over, as every write of the log
+    /// is.
+    fn forget_transcript(&self) {
+        let Some(folder) = &self.folder else {
+            return;
+        };
+        for name in [TRANSCRIPT, TRANSCRIPT_OLDER] {
+            let _ = fs::remove_file(folder.join(name));
         }
     }
 
@@ -769,6 +789,25 @@ mod tests {
         let log = scratch.log(false, "[AI]\nEnabled=true\n");
         log.transcript("asked", &[("question", "hello")]);
         assert!(!scratch.0.join("debug-log").exists());
+    }
+
+    #[test]
+    fn a_start_without_the_developer_mode_removes_the_transcript_only() {
+        let scratch = Scratch::new("transcript-gone");
+        let on = scratch.log(true, "[AI]\nEnabled=true\n");
+        on.record(Event::AppStarted, None, None);
+        on.transcript("asked", &[("question", "hello")]);
+        let folder = scratch.0.join("debug-log");
+        fs::write(folder.join(TRANSCRIPT_OLDER), "{}\n").unwrap();
+        // Another event while off leaves it; only the start removes it.
+        let off = scratch.log(false, "[AI]\nEnabled=true\n");
+        off.record(Event::ScreenShown, None, None);
+        assert!(folder.join(TRANSCRIPT).exists());
+        off.record(Event::AppStarted, None, None);
+        assert!(!folder.join(TRANSCRIPT).exists());
+        assert!(!folder.join(TRANSCRIPT_OLDER).exists());
+        // The event log has no text of the user's and stays.
+        assert!(folder.join(CURRENT).exists());
     }
 
     #[test]

@@ -31,6 +31,7 @@ mod error;
 mod id;
 mod money;
 mod rates;
+mod recurring_move;
 mod rounding;
 mod rules;
 pub mod test_profile;
@@ -57,6 +58,11 @@ pub use details::{
 pub use error::{ErrorParam, ErrorReport, Report, is_error_code};
 pub use money::{Money, MoneyError};
 pub use rates::{DatedRate, DatedRateId, RateSource};
+pub use recurring_move::{
+    MAX_WAITING_BUSINESS_DAYS, MoveCandidate, OtherParty, RecurringMatch, RecurringMatches,
+    RecurringMove, RecurringMoveError, RecurringMoveId, UnclearMatch, compact_iban, expected_date,
+    fits_recurring_move, match_recurring_moves,
+};
 pub use rounding::RoundingMode;
 pub use rules::{
     Actions, AmountTest, BookTo, Condition, MatchMode, Rule, RuleError, RuleFacts, RuleId,

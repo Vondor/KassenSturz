@@ -9,8 +9,9 @@ use std::io::ErrorKind;
 
 use kassensturz_core::{
     AccountId, AccountKind, AccountType, BudgetId, CurrencyCode, Date, DatedRateId, ErrorParam,
-    ErrorReport, GroupId, InstitutionId, Money, PayeeId, Report, RuleError, RuleId, SplitId, TagId,
-    TransactionError, TransactionId, TransferError, ViewId,
+    ErrorReport, GroupId, InstitutionId, Money, PayeeId, RecurringMoveError, RecurringMoveId,
+    Report, RuleError, RuleId, SplitId, TagId, TransactionError, TransactionId, TransferError,
+    ViewId,
 };
 
 use crate::Lock;
@@ -376,6 +377,28 @@ pub enum StoreError {
     /// one side of a Transfer, which the user decides on first (D-030,
     /// D-088).
     TransferSuggested(TransactionId),
+    /// Running the Rules left this transaction alone, since it is one side
+    /// of a monthly move the user asked to be joined by itself, whose other
+    /// side may still come (D-749).
+    FitsMonthlyMove(TransactionId),
+    /// There's no remembered monthly move with this ID (D-749).
+    UnknownRecurringMove(RecurringMoveId),
+    /// The book remembers this monthly move already: the same accounts,
+    /// amount and other party (D-749).
+    RecurringMoveExists {
+        /// The move it remembers.
+        existing: RecurringMoveId,
+    },
+    /// The monthly move can't be remembered as it is (D-749).
+    RecurringMove(RecurringMoveError),
+    /// The two transactions are not a Transfer the book suggests right
+    /// now, so "Join all" leaves them alone (D-749).
+    TransferNotSuggested {
+        /// The side the money leaves.
+        outgoing: TransactionId,
+        /// The side it arrives at.
+        incoming: TransactionId,
+    },
     /// There's no exchange rate with this ID.
     UnknownRate(DatedRateId),
     /// An exchange rate from a currency into the same currency.
@@ -761,6 +784,23 @@ impl Report for StoreError {
             Self::Rule(error) => error.report(),
             Self::TransferSuggested(transaction) => {
                 new("store.transfer-suggested").with("transaction", P::Transaction(*transaction))
+            }
+            Self::FitsMonthlyMove(transaction) => {
+                new("store.fits-monthly-move").with("transaction", P::Transaction(*transaction))
+            }
+            Self::UnknownRecurringMove(id) => {
+                new("store.recurring-move-unknown").with("move", P::Text(id.to_string()))
+            }
+            Self::RecurringMoveExists { existing } => {
+                new("store.recurring-move-exists").with("existing", P::Text(existing.to_string()))
+            }
+            Self::RecurringMove(error) => {
+                new("store.recurring-move-invalid").with("reason", P::Keyword(error.keyword()))
+            }
+            Self::TransferNotSuggested { outgoing, incoming } => {
+                new("store.transfer-not-suggested")
+                    .with("outgoing", P::Transaction(*outgoing))
+                    .with("incoming", P::Transaction(*incoming))
             }
             Self::UnknownRate(rate) => new("store.unknown-rate").with("rate", P::Rate(*rate)),
             Self::RateWithinOneCurrency(currency) => {

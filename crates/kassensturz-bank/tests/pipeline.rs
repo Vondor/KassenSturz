@@ -419,3 +419,95 @@ fn a_linked_account_is_fetched_and_imported_with_its_day_as_one_change() {
         eur(0)
     );
 }
+
+/// The IBAN the fake current account's standing order pays to (SWIFT's
+/// example for Belgium), as the fake bank delivers it.
+const FAKE_SAVINGS_IBAN: &str = "BE68539007547034";
+
+#[test]
+fn a_remembered_monthly_move_joins_the_fake_banks_standing_order() {
+    // The fake current account pays 200.00 to the user's savings on
+    // 5 October (D-749): with the move remembered, the savings account's
+    // MT940 statement first, then a fetch, the two sides join by
+    // themselves and no balance changes.
+    let mut setup = setup();
+    let savings = add_account(
+        &mut setup.book,
+        "Savings",
+        AccountKind::Asset,
+        Some(FAKE_SAVINGS_IBAN),
+    );
+    setup
+        .book
+        .add_recurring_move(&kassensturz_store::NewRecurringMove {
+            from_account: setup.checking,
+            to_account: savings,
+            amount: eur(20_000),
+            day_of_month: 5,
+            from_party_iban: Some(FAKE_SAVINGS_IBAN.into()),
+            from_party_name: Some("Own savings".into()),
+            created_on: october(1),
+        })
+        .expect("remembered");
+    let file = format!(
+        ":20:KS784\r\n:25:{}\r\n:60F:C260930EUR0,00\r\n\
+         :61:2610051005C200,00NTRFNONREF\r\n:86:166?00Dauerauftrag?20SVWZ+Monthly saving\r\n\
+         :62F:C261005EUR200,00\r\n-\r\n",
+        FAKE_SAVINGS_IBAN
+    );
+    let kassensturz_import::Imported::Statements(arrived) = kassensturz_import::import(
+        &kassensturz_import::Mt940,
+        file.as_bytes(),
+        &Limits::default(),
+    )
+    .expect("read") else {
+        panic!("statements expected");
+    };
+    let mut first = import_statements(
+        &mut setup.book,
+        savings,
+        &arrived,
+        &Choices::default(),
+        None,
+    )
+    .expect("imported");
+    kassensturz_pipeline::join_recurring_moves(&mut setup.book, &mut first).expect("ran");
+    assert!(first.joins.joined.is_empty());
+
+    let statement = setup.fetch(&setup.current.clone(), None);
+    let before = setup
+        .book
+        .balance_on(setup.checking, october(9))
+        .expect("balance");
+    let mut report = import_statements(
+        &mut setup.book,
+        setup.checking,
+        std::slice::from_ref(&statement),
+        &Choices::default(),
+        None,
+    )
+    .expect("imported");
+    kassensturz_pipeline::join_recurring_moves(&mut setup.book, &mut report).expect("joined");
+    let [join] = &report.joins.joined[..] else {
+        panic!("one join: {:?}", report.joins);
+    };
+    assert_eq!(join.outgoing.account, setup.checking);
+    assert_eq!(join.outgoing.amount, eur(-20_000));
+    assert_eq!(join.incoming.account, savings);
+    assert_eq!(join.incoming.transaction, first.imported()[0]);
+    assert!(report.transfers.is_empty());
+    // The same balances as without the join: checking as the import
+    // test above reads it, savings as its statement says.
+    assert_eq!(before, eur(0));
+    assert_eq!(
+        setup
+            .book
+            .balance_on(setup.checking, october(9))
+            .expect("balance"),
+        eur(225_477)
+    );
+    assert_eq!(
+        setup.book.balance_on(savings, october(9)).expect("balance"),
+        eur(20_000)
+    );
+}

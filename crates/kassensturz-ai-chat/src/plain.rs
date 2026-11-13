@@ -11,14 +11,88 @@
 /// `text` without bold and italic marks, code ticks and heading marks; a
 /// list stays a list with a dash. Everything else is left as written.
 pub(crate) fn plain_answer(text: &str) -> String {
-    let mut out = String::with_capacity(text.len());
-    for (index, line) in text.split('\n').enumerate() {
-        if index > 0 {
-            out.push('\n');
+    let lines: Vec<&str> = text.split('\n').collect();
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    let mut at = 0;
+    while at < lines.len() {
+        if let Some(end) = table_end(&lines, at) {
+            out.extend(plain_table(&lines[at..end]));
+            at = end;
+        } else {
+            out.push(plain_line(lines[at]));
+            at += 1;
         }
-        out.push_str(&plain_line(line));
     }
-    out
+    out.join("\n")
+}
+
+/// The cells of a table row: `| a | b |` is `a` and `b`. `None` for a line
+/// that isn't a row (it must start and end with a pipe).
+fn cells(line: &str) -> Option<Vec<&str>> {
+    let line = line.trim();
+    let inner = line.strip_prefix('|')?.strip_suffix('|')?;
+    Some(inner.split('|').map(str::trim).collect())
+}
+
+/// Whether `line` is the row under a table's header: only dashes, colons
+/// and spaces in each cell, at least one dash.
+fn is_separator(line: &str) -> bool {
+    cells(line).is_some_and(|row| {
+        row.iter()
+            .all(|cell| cell.contains('-') && cell.chars().all(|c| matches!(c, '-' | ':' | ' ')))
+    })
+}
+
+/// Where the pipe table that starts at `start` ends (the index of the first
+/// line after it), if one starts there: a header row, a separator row and
+/// any rows after them.
+fn table_end(lines: &[&str], start: usize) -> Option<usize> {
+    cells(lines.get(start)?)?;
+    if !is_separator(lines.get(start + 1)?) {
+        return None;
+    }
+    let mut end = start + 2;
+    while lines.get(end).is_some_and(|line| cells(line).is_some()) {
+        end += 1;
+    }
+    Some(end)
+}
+
+/// A pipe table as aligned lines: the separator row is dropped, the cells
+/// lose their marks, and every column is as wide as its widest cell. The
+/// chat shows plain text, so this is what is left of a table.
+fn plain_table(lines: &[&str]) -> Vec<String> {
+    let rows: Vec<Vec<String>> = lines
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| *index != 1)
+        .filter_map(|(_, line)| cells(line))
+        .map(|row| row.iter().map(|cell| plain_line(cell)).collect())
+        .collect();
+    let columns = rows.iter().map(Vec::len).max().unwrap_or(0);
+    let widths: Vec<usize> = (0..columns)
+        .map(|column| {
+            rows.iter()
+                .filter_map(|row| row.get(column))
+                .map(|cell| cell.chars().count())
+                .max()
+                .unwrap_or(0)
+        })
+        .collect();
+    rows.iter()
+        .map(|row| {
+            let mut line = String::new();
+            for (column, width) in widths.iter().enumerate() {
+                let cell = row.get(column).map_or("", String::as_str);
+                if column > 0 {
+                    line.push_str("   ");
+                }
+                line.push_str(cell);
+                line.push_str(&" ".repeat(width - cell.chars().count()));
+            }
+            line.trim_end().to_owned()
+        })
+        .collect()
 }
 
 fn plain_line(line: &str) -> String {
@@ -80,6 +154,18 @@ mod tests {
             "Summary\n- one\n  - two"
         );
         assert_eq!(plain_answer("__Total__: 5"), "Total: 5");
+    }
+
+    #[test]
+    fn a_pipe_table_becomes_aligned_lines() {
+        let table = "Spending:\n\n| Category | Amount |\n|:---|---:|\n| **Food** | 153.51 EUR |\n| Rent | 900.00 EUR |\n\nDone.";
+        assert_eq!(
+            plain_answer(table),
+            "Spending:\n\nCategory   Amount\nFood       153.51 EUR\nRent       900.00 EUR\n\nDone."
+        );
+        // A line with pipes that is no table stays.
+        assert_eq!(plain_answer("a | b | c"), "a | b | c");
+        assert_eq!(plain_answer("| only | a row |"), "| only | a row |");
     }
 
     #[test]

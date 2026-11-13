@@ -464,6 +464,14 @@ pub(crate) mod engine {
             // waits: the chat says so in its own words (D-595).
             fields.push(("noChange", QVariant::from(&true)));
         }
+        if !answer.notes.is_empty() {
+            // Fixed notes under the answer, by key; the page writes their
+            // words (#848, #849, #862).
+            fields.push((
+                "notes",
+                list(answer.notes.iter().map(|note| text(note.key()))),
+            ));
+        }
         if let Some(issue) = &answer.issue {
             fields.push(("issue", issue_object(issue)));
         }
@@ -1490,7 +1498,7 @@ impl qobject::AiChat {
 mod tests {
     use cxx_qt_lib::{QString, QVariant};
     use kassensturz_ai::Finish;
-    use kassensturz_ai_chat::{Answer, LogEntry, Mode};
+    use kassensturz_ai_chat::{Answer, AnswerNote, LogEntry, Mode};
 
     use super::engine::{
         changes_object, choices_object, entry_object, finished_object, review_object, sets_object,
@@ -1608,6 +1616,7 @@ mod tests {
             title_numbers: Vec::new(),
             chart_failed: None,
             no_change: false,
+            notes: Vec::new(),
             issue: None,
             page: None,
         };
@@ -1657,6 +1666,7 @@ mod tests {
             title_numbers: Vec::new(),
             chart_failed: None,
             no_change: false,
+            notes: Vec::new(),
             issue: None,
             page: None,
         };
@@ -1718,6 +1728,17 @@ mod tests {
         let object = finished_object(&answer, &[], &[]);
         assert!(keys(&object).contains(&"noChange".to_owned()));
         assert!(flag_of(&object, "noChange"));
+
+        // Notes under the answer reach QML as a list of keys.
+        assert!(!keys(&object).contains(&"notes".to_owned()));
+        answer.notes = vec![AnswerNote::NotChecked, AnswerNote::CannotPay];
+        let object = finished_object(&answer, &[], &[]);
+        assert!(keys(&object).contains(&"notes".to_owned()));
+        let listed: Vec<String> = list_of(&object, "notes")
+            .iter()
+            .map(|key| key.value::<QString>().expect("a text").to_string())
+            .collect();
+        assert_eq!(listed, ["not-checked", "cannot-pay"]);
     }
 
     #[test]
@@ -1739,6 +1760,7 @@ mod tests {
             title_numbers: Vec::new(),
             chart_failed: None,
             no_change: false,
+            notes: Vec::new(),
             issue: Some(issue.clone()),
             page: None,
         };
@@ -1780,6 +1802,7 @@ mod tests {
             title_numbers: Vec::new(),
             chart_failed: None,
             no_change: false,
+            notes: Vec::new(),
             issue: None,
             page: Some(page.clone()),
         };

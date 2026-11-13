@@ -486,7 +486,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Warning
             visible: page.abilities.contextSmall === true
-            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a number of tokens", "The provider says this model reads only %1 tokens at once, which is too little for the chat. In the program that runs the model, load it again with a context length of 16384 or more (32768 is better).", page.abilities.contextTokens)) : ""
+            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a number of tokens", "The provider says this model reads only %1 tokens at once, which is too little for the chat. In the program that runs the model, load it again with a context length of 16384 or more (65536 is better).", page.abilities.contextTokens)) : ""
         }
 
         Controls.Label {
@@ -502,7 +502,7 @@ Kirigami.ScrollablePage {
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             visible: page.abilities.functions !== undefined && page.abilities.functions !== "no-model" && page.abilities.contextTokens === ""
-            text: page.i18nContext.i18nc("@info", "How much this model can read at once is not known: the provider's list does not say. If the chat says its working memory is too small, load the model with a context length of 16384 or more (32768 is better).")
+            text: page.i18nContext.i18nc("@info", "How much this model can read at once is not known: the provider's list does not say. If the chat says its working memory is too small, load the model with a context length of 16384 or more (65536 is better).")
         }
 
         Kirigami.InlineMessage {

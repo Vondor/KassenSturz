@@ -2403,25 +2403,27 @@ msgctxt "@info"
 msgid ""
 "The model's context, its working memory, is too small for this question. In "
 "the program that runs the model, load it again with a larger context length "
-"(16384 or more; 32768 is better), or ask about less at a time."
+"(16384 or more; 65536 is better), or ask about less at a time."
 msgstr ""
 "Der Kontext des Modells, also sein Arbeitsgedächtnis, ist für diese Frage zu "
 "klein. Laden Sie das Modell in dem Programm, das es ausführt, mit einer "
-"größeren Kontextlänge neu (16384 oder mehr, besser 32768), oder fragen Sie "
+"größeren Kontextlänge neu (16384 oder mehr, besser 65536), oder fragen Sie "
 "weniger auf einmal."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:88
 #, kde-format
 msgctxt "@info %1 is a number"
 msgid ""
-"The provider answered with an error (HTTP %1). Try again later. If it keeps "
-"happening, check the provider's settings and the key: some providers report "
-"a wrong key this way."
+"The provider answered with an error (HTTP %1). Try again. If it keeps "
+"happening, check that the program that runs the model is still running and "
+"has finished loading the model, then check the provider's settings and the "
+"key: some providers report a wrong key this way."
 msgstr ""
 "Der Anbieter hat mit einem Fehler geantwortet (HTTP %1). Versuchen Sie es "
-"später noch einmal. Wenn es immer wieder passiert, prüfen Sie die "
-"Einstellungen des Anbieters und den Schlüssel: Manche Anbieter melden einen "
-"falschen Schlüssel auf diese Weise."
+"noch einmal. Wenn es immer wieder passiert, prüfen Sie, ob das Programm, das "
+"das Modell ausführt, noch läuft und das Modell fertig geladen hat, und "
+"prüfen Sie dann die Einstellungen des Anbieters und den Schlüssel: Manche "
+"Anbieter melden einen falschen Schlüssel auf diese Weise."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:90
 #, kde-format
@@ -3352,11 +3354,11 @@ msgctxt "@info %1 is a number of tokens"
 msgid ""
 "The provider says this model reads only %1 tokens at once, which is too "
 "little for the chat. In the program that runs the model, load it again with "
-"a context length of 16384 or more (32768 is better)."
+"a context length of 16384 or more (65536 is better)."
 msgstr ""
 "Der Anbieter gibt an, dass dieses Modell nur %1 Token auf einmal liest. Das "
 "ist für den Chat zu wenig. Laden Sie das Modell im Programm, das es "
-"ausführt, mit einer Kontextlänge von 16384 oder mehr neu (32768 ist besser)."
+"ausführt, mit einer Kontextlänge von 16384 oder mehr neu (65536 ist besser)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:441
 #, kde-format
@@ -3371,12 +3373,12 @@ msgctxt "@info"
 msgid ""
 "How much this model can read at once is not known: the provider's list does "
 "not say. If the chat says its working memory is too small, load the model "
-"with a context length of 16384 or more (32768 is better)."
+"with a context length of 16384 or more (65536 is better)."
 msgstr ""
 "Wie viel dieses Modell auf einmal lesen kann, ist nicht bekannt: Die Liste "
 "des Anbieters sagt es nicht. Wenn der Chat meldet, dass sein "
 "Arbeitsgedächtnis zu klein ist, laden Sie das Modell mit einer Kontextlänge "
-"von 16384 oder mehr (besser 32768)."
+"von 16384 oder mehr (besser 65536)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:456
 #, kde-format
@@ -6681,6 +6683,30 @@ msgstr "Ein Schlagwort entfernt"
 msgctxt "@info a change you made"
 msgid "Merged two tags"
 msgstr "Zwei Schlagwörter zusammengeführt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:114
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Chose to join a monthly move by itself"
+msgstr "Eine monatliche Umbuchung zum selbsttätigen Verbinden gewählt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:116
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Stopped joining a monthly move by itself"
+msgstr "Eine monatliche Umbuchung wird nicht mehr selbsttätig verbunden"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:118
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Joined monthly moves of your own money by themselves"
+msgstr "Monatliche Umbuchungen Ihres eigenen Geldes selbsttätig verbunden"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:120
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Joined several moves of your own money at once"
+msgstr "Mehrere Umbuchungen Ihres eigenen Geldes auf einmal verbunden"
 
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:106
 #, kde-format
@@ -22630,3 +22656,39 @@ msgstr "Dieser Name kann nicht für ein Buch verwendet werden. Verwenden Sie Buc
 msgctxt "@title:window"
 msgid "Choose the folder of your book again"
 msgstr "Ordner Ihres Buches erneut wählen"
+
+msgctxt "@info said by KassenSturz under an AI answer"
+msgid ""
+"No change was prepared, whatever the answer says. Nothing waits for your"
+" review. Ask again if you want the AI to try once more."
+msgstr ""
+"Es wurde keine Änderung vorbereitet, was auch immer die Antwort sagt. "
+"Nichts wartet auf Ihre Prüfung. Fragen Sie noch einmal, wenn die KI es "
+"noch einmal versuchen soll."
+
+msgctxt "@info said by KassenSturz under an AI answer"
+msgid ""
+"No page was opened, whatever the answer says. Ask again, or open the "
+"page yourself."
+msgstr ""
+"Es wurde keine Seite geöffnet, was auch immer die Antwort sagt. Fragen "
+"Sie noch einmal oder öffnen Sie die Seite selbst."
+
+msgctxt "@info said by KassenSturz under an AI answer"
+msgid ""
+"This answer was not checked against your book: the AI looked nothing up "
+"for it. Ask again, or look in KassenSturz yourself before you rely on "
+"it."
+msgstr ""
+"Diese Antwort wurde nicht mit Ihrem Buch abgeglichen: Die KI hat dafür "
+"nichts nachgeschlagen. Fragen Sie noch einmal oder sehen Sie selbst in "
+"KassenSturz nach, bevor Sie sich darauf verlassen."
+
+msgctxt "@info said by KassenSturz under an AI answer"
+msgid ""
+"KassenSturz can't pay bills or send money, whatever the answer says. Do "
+"that in your bank's own app or website."
+msgstr ""
+"KassenSturz kann keine Rechnungen bezahlen und kein Geld senden, was "
+"auch immer die Antwort sagt. Das erledigen Sie in der App oder auf der "
+"Website Ihrer Bank."

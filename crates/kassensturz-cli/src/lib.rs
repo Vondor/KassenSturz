@@ -153,6 +153,12 @@ Commands:
                                  Rule. Nothing is changed
   transfer join ID ID            join two transactions into one Transfer, also
                                  ones you sorted yourself; their categories go
+  transfer monthly list          the monthly moves imports join by themselves
+  transfer monthly add FROM TO AMOUNT DAY [--iban IBAN] [--name NAME]
+                                 join AMOUNT from FROM to TO around DAY (1 to
+                                 31) by itself from now on; --iban and --name
+                                 are the other party FROM's bank names
+  transfer monthly remove ID     stop joining that move by itself
   register NAME                  an account's or category's transactions
   balances [--all]               every account's balance, and the totals
   rate add --date DATE --from CODE --to CODE --rate RATE

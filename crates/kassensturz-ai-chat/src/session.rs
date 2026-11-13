@@ -4,7 +4,7 @@
 //! One conversation with the model: the loop of the read functions, the
 //! fallback to the overview, the number check and the tool-call log (D-190).
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
@@ -33,6 +33,7 @@ use serde_json::{Map, Value, json};
 
 use crate::error::ChatError;
 use crate::log::{LogEntry, MAX_ARGUMENT_CHARS, cut};
+use crate::notes::{self, AnswerNote, Turn};
 use crate::prompt::{self, BuildInfo};
 
 /// The most requests one question may take. A model that is still calling
@@ -260,6 +261,10 @@ pub struct Answer {
     /// it asked for several (D-265). Opening it changes nothing in the
     /// book; the front end opens it when the answer is shown and says so.
     pub page: Option<PageTarget>,
+    /// Fixed notes KassenSturz adds under the answer where the answer
+    /// claims something that did not happen or was not checked (#848,
+    /// #849, #862). The front end writes their text.
+    pub notes: Vec<AnswerNote>,
 }
 
 /// What the front end does while a question runs. Every method has a
@@ -355,6 +360,9 @@ pub struct ChatSession {
     /// Whether the last call of `propose_changes` or `propose_view` in the
     /// question under way was refused.
     last_change_refused: bool,
+    /// The names KassenSturz gave to IDs in the functions' results, so an
+    /// ID in an answer can be replaced by its name (#858).
+    names_by_id: HashMap<String, String>,
     /// The debug log the conversation writes to and the model may read
     /// while AI and the log are on (D-173).
     #[cfg(feature = "debug-log")]
@@ -388,6 +396,7 @@ impl ChatSession {
             view_refusals: 0,
             chart_failed: None,
             last_change_refused: false,
+            names_by_id: HashMap::new(),
             #[cfg(feature = "debug-log")]
             debug_log: DebugLog::none(),
             screen: None,
@@ -548,6 +557,8 @@ impl ChatSession {
             .question_limit()
             .map(|limit| Instant::now() + limit);
         let too_late = || deadline.is_some_and(|deadline| Instant::now() >= deadline);
+        // Named for the model with every request of this question (#851).
+        let language = prompt::question_language(question);
         let mut retried_failure = false;
         let mut overview = None;
         let mut context_cut = false;
@@ -578,11 +589,11 @@ impl ChatSession {
             let permissions = self.permissions();
             let (system, functions) = match &overview {
                 Some(overview) => (
-                    prompt::with_overview(&self.build, today, overview),
+                    prompt::with_overview(&self.build, today, overview, language),
                     Vec::new(),
                 ),
                 None => (
-                    prompt::with_functions(&self.build, today, log_readable, permissions),
+                    prompt::with_functions(&self.build, today, log_readable, permissions, language),
                     if closing {
                         Vec::new()
                     } else {
@@ -698,6 +709,7 @@ impl ChatSession {
                 // Marks like ** show as characters in the plain-text chat
                 // (M5-B46); the figures are checked in the text the user reads.
                 reply.text = crate::plain::plain_answer(&reply.text);
+                reply.text = notes::without_ids(&reply.text, &self.names_by_id);
                 let unverified = check_numbers(&reply.text, &self.figures);
                 #[cfg(feature = "debug-log")]
                 self.debug_log.transcript(
@@ -719,7 +731,23 @@ impl ChatSession {
                 let no_change =
                     self.last_change_refused && changes.is_empty() && self.chart_failed.is_none();
                 let title_numbers = changes.iter().map(|set| self.title_numbers(set)).collect();
+                let turn = Turn {
+                    prepared: !changes.is_empty()
+                        || self.issue.is_some()
+                        || self.chart_failed.is_some(),
+                    opened: self.page.is_some(),
+                    called: !made.is_empty(),
+                    overview: self.mode == Mode::Overview,
+                    no_change_said: no_change,
+                };
+                let book_names = if turn.called || turn.overview {
+                    HashSet::new()
+                } else {
+                    book_names(book)
+                };
+                let notes = notes::notes_for(&reply.text, turn, &book_names);
                 return Ok(Answer {
+                    notes,
                     text: reply.text,
                     unverified,
                     finish: reply.finish,
@@ -856,6 +884,7 @@ impl ChatSession {
         let (result, error) = match outcome {
             Ok(output) => {
                 self.figures.extend(&output.figures);
+                notes::collect_names(&output.value, &mut self.names_by_id);
                 (prompt::data_json(&output.value), None)
             }
             Err(error) => {
@@ -1049,7 +1078,13 @@ pub fn sample_request(
     let permissions = ai_switch::permissions();
     provider.prepare(
         vec![
-            Message::system(prompt::with_functions(build, today, false, permissions)),
+            Message::system(prompt::with_functions(
+                build,
+                today,
+                false,
+                permissions,
+                prompt::question_language(question),
+            )),
             Message::user(question),
         ],
         function_specs(false, permissions),
@@ -1060,6 +1095,37 @@ pub fn sample_request(
 /// user allows, and not at all when they allow none, D-239) and the one
 /// that drafts an issue, as the provider gets them, and the one that reads
 /// the debug log while the model may read it.
+/// The lower-cased names of the book's accounts, categories (whole path
+/// and each part) and payees that are at least three characters long, for
+/// the check whether an answer names book data (#849).
+fn book_names(book: &Book) -> HashSet<String> {
+    let mut names = HashSet::new();
+    let mut add = |name: &str| {
+        let name = name.trim().to_lowercase();
+        if name.chars().count() >= 3 {
+            names.insert(name);
+        }
+    };
+    if let Ok(accounts) = book.all_accounts() {
+        for account in &accounts {
+            add(&account.name);
+        }
+    }
+    if let Ok(categories) = book.categories() {
+        for entry in &categories {
+            for part in &entry.path {
+                add(part);
+            }
+        }
+    }
+    if let Ok(payees) = book.payees() {
+        for payee in &payees {
+            add(&payee.name);
+        }
+    }
+    names
+}
+
 fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionSpec> {
     let spec = |function: &Function| FunctionSpec {
         name: function.name.to_owned(),

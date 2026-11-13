@@ -65,6 +65,20 @@ impl Book {
     /// one with [`Book::join_transfer`]. One the user turns down drops out
     /// once a side gets a category by hand.
     pub fn transfer_suggestions(&self) -> Result<Vec<TransferMatch>, StoreError> {
+        let sides: Vec<TransferSide> = self
+            .joinable_sides()?
+            .into_iter()
+            .map(|(_, side)| side)
+            .collect();
+        Ok(find_transfers(&sides))
+    }
+
+    /// Every transaction that may be joined into a Transfer without the
+    /// user picking it by hand, with its side: one whose other part has no
+    /// category yet or was put in one by a Rule (D-691), never one the user
+    /// sorted (D-031). The suggestions and the remembered monthly moves
+    /// (D-749) both choose among these.
+    pub(crate) fn joinable_sides(&self) -> Result<Vec<(Transaction, TransferSide)>, StoreError> {
         let accounts = self.account_ids()?;
         let marks = self.marks()?;
         // Only transactions with two parts, none in another currency, and
@@ -80,17 +94,16 @@ impl Book {
                                         OR count(m.split_id) = 1))",
             &[],
         )?;
-        let sides: Vec<TransferSide> = candidates
-            .iter()
+        Ok(candidates
+            .into_iter()
             .filter_map(|transaction| {
-                let side = TransferSide::of(transaction, |id| accounts.contains(&id)).ok()?;
-                match sorting(transaction, &side, &marks) {
-                    SideSorting::Open | SideSorting::ByRule(_) => Some(side),
+                let side = TransferSide::of(&transaction, |id| accounts.contains(&id)).ok()?;
+                match sorting(&transaction, &side, &marks) {
+                    SideSorting::Open | SideSorting::ByRule(_) => Some((transaction, side)),
                     SideSorting::ByHand => None,
                 }
             })
-            .collect();
-        Ok(find_transfers(&sides))
+            .collect())
     }
 
     /// Who sorted the other part of `side` ([`SideSorting`]).
@@ -247,7 +260,7 @@ impl Book {
 
     /// The IDs of the user's accounts, closed ones included, as opposed to
     /// categories and internal accounts.
-    fn account_ids(&self) -> Result<HashSet<AccountId>, StoreError> {
+    pub(crate) fn account_ids(&self) -> Result<HashSet<AccountId>, StoreError> {
         Ok(self
             .accounts(true)?
             .into_iter()

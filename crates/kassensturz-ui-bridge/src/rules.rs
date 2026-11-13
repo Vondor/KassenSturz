@@ -777,7 +777,9 @@ fn applied_of(run: &RuleRun) -> Applied {
     };
     for skip in &run.skipped {
         match skip.reason {
-            StoreError::TransferSuggested(_) => applied.transfers += 1,
+            StoreError::TransferSuggested(_) | StoreError::FitsMonthlyMove(_) => {
+                applied.transfers += 1;
+            }
             StoreError::NoRate { .. } => applied.no_rate += 1,
             StoreError::AccountClosed(_) => applied.closed += 1,
             _ => applied.other += 1,

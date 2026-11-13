@@ -30,14 +30,14 @@ use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, GroupMember};
 use kassensturz_report::{
     ACCOUNT_BALANCES, AVERAGE_WORDS, BUDGET_UTILIZATION, CATALOG, ComponentType, DatasetInfo,
     FORMULA_MEASURE, FUNCTIONS, Filter, Formula, FormulaResult, GROUPS_GROUPING, Kind,
-    MAX_FORMULA_CHARS, ORIENTATION_WORDS, PERIODS, Per, Period, ReportError, Rolling,
-    SPENDING_BY_CATEGORY, Source, Term, range_word,
+    MAX_FORMULA_CHARS, NEUTRAL_WORDS, ORIENTATION_WORDS, PERIODS, Per, Period, ReportError,
+    Rolling, SPENDING_BY_CATEGORY, Source, Term, range_word,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
 
 use super::custom_chart::{self, SHOW_AS_CUSTOM};
-use super::{Proposal, ProposeSpec, prepare, view_figure, views};
+use super::{Proposal, ProposeSpec, prepare, view_figure, view_table, views};
 use crate::error::ToolError;
 use crate::text::hides_text;
 
@@ -78,6 +78,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "accounts",
     "average",
     "orientation",
+    "neutral",
     "income_categories",
     "income_accounts",
     "expenses_categories",
@@ -163,6 +164,8 @@ const TOTAL: &str = "total";
 /// Bars that go the way KassenSturz picks (D-679): the default, so it is
 /// not kept in the item.
 const AUTO: &str = "auto";
+/// The `neutral` word that colours every change of a comparison (D-761).
+const NEUTRAL_OFF: &str = "off";
 
 /// The datasets the AI may name (D-354): the catalog's entries with
 /// `for_ai`, in its order.
@@ -291,6 +294,7 @@ pub fn view_choices(argument: &str) -> Option<Vec<&'static str>> {
         }
         "average" => AVERAGE_WORDS.to_vec(),
         "orientation" => ORIENTATION_WORDS.to_vec(),
+        "neutral" => NEUTRAL_WORDS.to_vec(),
         _ => return None,
     };
     Some(words)
@@ -469,6 +473,16 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
              KassenSturz pick: rows when names are too long to stand under their bars. \
              horizontal draws one row per name, vertical upright bars. The figures stay \
              the same.",
+        ),
+    );
+    properties.insert(
+        "neutral".into(),
+        choice(
+            "neutral",
+            "Only for bar and table with a compare: the change of each category against \
+             the comparison is green when less was spent and red when more, always with an \
+             arrow. off (the default) colours every change; 2, 5, 10 or 20 leaves changes \
+             smaller than that many percent uncoloured. The figures stay the same.",
         ),
     );
     if offered("categories", allowed) {
@@ -867,6 +881,8 @@ pub fn propose_view(
     }
     // What a key figure or a progress bar shows (D-685).
     view_figure::add_figure(book, &mut proposal, allowed, today)?;
+    // What a spending table shows, row by row (D-761).
+    view_table::add_table(book, &mut proposal, allowed, today)?;
     Ok(proposal)
 }
 
@@ -1285,6 +1301,7 @@ fn check(
     let compare = unless_new(word("compare")?, NO_COMPARISON);
     let average = unless_new(word("average")?, TOTAL);
     let orientation = unless_new(word("orientation")?, AUTO);
+    let neutral = unless_new(word("neutral")?, NEUTRAL_OFF);
     let period = match given("period") {
         None => None,
         // A period that moves with today (D-644, D-645) is not in the list.
@@ -1420,6 +1437,7 @@ fn check(
                 ("compare", compare),
                 ("average", average),
                 ("orientation", orientation),
+                ("neutral", neutral),
                 ("formula", formula),
                 ("target", target),
             ],
@@ -1462,6 +1480,7 @@ fn check(
         ("compare", compare),
         ("average", average),
         ("orientation", orientation),
+        ("neutral", neutral),
         ("formula", formula),
         ("target", target),
     ] {
@@ -1517,7 +1536,7 @@ fn unless_new<'a>(word: Option<&'a str>, default: &str, editing: bool) -> Option
 
 /// The arguments a custom chart doesn't take: it draws what its
 /// description says (D-729).
-const CUSTOM_REFUSES: [&str; 13] = [
+const CUSTOM_REFUSES: [&str; 14] = [
     "measure",
     "group_by",
     "compare",
@@ -1525,6 +1544,7 @@ const CUSTOM_REFUSES: [&str; 13] = [
     "accounts",
     "average",
     "orientation",
+    "neutral",
     "income_categories",
     "income_accounts",
     "expenses_categories",
@@ -1553,7 +1573,7 @@ struct EditItem<'a> {
     data: Option<&'a str>,
     show_as: Option<&'a str>,
     description: Option<&'a str>,
-    words: [(&'static str, Option<&'a str>); 7],
+    words: [(&'static str, Option<&'a str>); 8],
     period: Option<String>,
     columns: Option<Value>,
     lists: Vec<(&'static str, &'a Vec<AccountId>)>,
@@ -1874,6 +1894,7 @@ pub(crate) fn list_views(
             ("compare", "compare"),
             ("average", "average"),
             ("orientation", "orientation"),
+            ("neutral", "neutral"),
         ] {
             if let Some(kassensturz_report::Setting::Word(word)) = component.get(key)
                 && !word.is_empty()

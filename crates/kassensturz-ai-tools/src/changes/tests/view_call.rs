@@ -1550,3 +1550,220 @@ fn the_answer_says_how_the_chart_is_grouped_the_default_too() {
     let proposal = propose_view(&book, &figure, Permissions::all(), today()).expect("prepared");
     assert!(proposal.output.value.get("group_by").is_none());
 }
+
+/// The sample book with `groceries` (in cents) bought in September too, so
+/// October's spending has a month before to compare with.
+fn with_september(groceries: i64) -> Sample {
+    let mut sample = sample();
+    let transaction = Transaction::new(
+        TransactionId::generate(),
+        Date::constant(2026, 9, 10),
+        Some("Corner Grocery".into()),
+        vec![
+            Split::new(sample.checking, eur(-groceries)),
+            Split::new(sample.groceries, eur(groceries)),
+        ],
+    )
+    .expect("balances");
+    sample.book.add_transaction(&transaction).expect("added");
+    sample
+}
+
+/// The one entry of an answer's `computed_rows`.
+fn computed_rows(proposal: &Proposal) -> &Map<String, Value> {
+    match proposal.output.value["computed_rows"]
+        .as_array()
+        .map(Vec::as_slice)
+    {
+        Some([Value::Object(entry)]) => entry,
+        other => panic!("one entry, not {other:?}"),
+    }
+}
+
+/// A row's fields, without its id.
+fn row_words<'a>(row: &'a Value, keys: &[&str]) -> Vec<&'a str> {
+    keys.iter()
+        .map(|key| row[*key].as_str().unwrap_or("-"))
+        .collect()
+}
+
+#[test]
+fn a_spending_table_answers_with_its_rows_and_their_colours() {
+    // US6.13b (#789, D-761): the rows come from the report functions the
+    // table uses, with each change's direction and the colour the table
+    // gives it (D-760).
+    let Sample { book, .. } = with_september(4000);
+    let table = |extra: Value| {
+        let mut call_text = json!({"title": "Spending", "data": "spending_by_category",
+            "show_as": "table", "period": "this-month"});
+        for (key, value) in extra.as_object().expect("an object") {
+            call_text[key] = value.clone();
+        }
+        call_text.to_string()
+    };
+    let proposal = call(&book, &table(json!({"compare": "previous_period"}))).expect("prepared");
+    let entry = computed_rows(&proposal);
+    assert_eq!(entry["currency"], "EUR");
+    assert_eq!(entry["compare"], "previous_period");
+    assert_eq!(
+        (&entry["from"], &entry["to"]),
+        (&json!("2026-10-01"), &json!("2026-10-31"))
+    );
+    // The total is the report's own: October against September.
+    let period = kassensturz_report::Period::this_month(today()).expect("a period");
+    let compare = kassensturz_report::CompareWith::read("previous_period").expect("a word");
+    let source =
+        kassensturz_report::Source::read(&book, compare.read_span(period).unwrap()).expect("read");
+    let data = kassensturz_report::spending_compared(
+        &source,
+        period,
+        &kassensturz_report::Filter::default(),
+        kassensturz_report::Level::Each,
+        &kassensturz_report::Shown::default(),
+        compare,
+    )
+    .expect("worked out");
+    let decimal = |money: Money| crate::writer::decimal_text(money.minor_units(), 2);
+    assert_eq!(entry["total"]["value"], decimal(data[0].now.total));
+    assert_eq!(entry["total"]["previous"], decimal(data[0].earlier_total));
+    let keys = [
+        "name",
+        "value",
+        "previous",
+        "change",
+        "change_percent",
+        "direction",
+        "colour",
+    ];
+    let rows: Vec<Vec<&str>> = entry["rows"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .map(|row| row_words(row, &keys))
+        .collect();
+    assert_eq!(
+        rows,
+        [
+            [
+                "Food › Groceries",
+                "73.20",
+                "40.00",
+                "33.20",
+                "83.0",
+                "more",
+                "red"
+            ],
+            // Money with no category yet has no name; nothing to compare
+            // with has no percent.
+            ["-", "19.99", "0.00", "19.99", "-", "more", "red"],
+            ["Food", "10.00", "0.00", "10.00", "-", "more", "red"],
+        ]
+    );
+    assert_eq!(entry["rows"][1]["unsorted"], true);
+    assert_eq!(
+        row_words(&entry["total"], &keys[1..]),
+        ["103.19", "40.00", "63.19", "158.0", "more", "red"]
+    );
+    assert!(
+        proposal.output.value["computed_rows_note"]
+            .as_str()
+            .is_some_and(|note| note.contains("never work out one of your own"))
+    );
+    // The model may relay them; a figure of its own is flagged (D-052).
+    let figures = &proposal.output.figures;
+    assert_eq!(
+        crate::check_numbers("Groceries: 73.20 EUR, 83.0 % more than 40.00.", figures),
+        []
+    );
+    assert_eq!(
+        crate::check_numbers("Groceries: 75.00 EUR.", figures).len(),
+        1
+    );
+    // A check only answers with them too (D-674).
+    let checked = check_only_answer(&book, &proposal, Permissions::all()).expect("checked");
+    assert_eq!(
+        checked["computed_rows"],
+        proposal.output.value["computed_rows"]
+    );
+
+    // Less spent is green, and `neutral` leaves a small change uncoloured:
+    // 73.20 against 75.00 is 2.4 % less.
+    let Sample { book, .. } = with_september(7500);
+    let groceries = |neutral: &str| {
+        let proposal = call(
+            &book,
+            &table(json!({"compare": "previous_period", "neutral": neutral})),
+        )
+        .expect("prepared");
+        let component: Value =
+            serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+        let entry = computed_rows(&proposal);
+        let row = row_words(
+            &entry["rows"][0],
+            &["change_percent", "direction", "colour"],
+        )
+        .join(" ");
+        (row, component["props"].get("neutral").cloned())
+    };
+    assert_eq!(groceries("off"), ("-2.4 less green".into(), None));
+    assert_eq!(groceries("2"), ("-2.4 less green".into(), Some(json!("2"))));
+    assert_eq!(groceries("5"), ("-2.4 less none".into(), Some(json!("5"))));
+
+    // Without a comparison a row is its name and value.
+    let proposal = call(&book, &table(json!({}))).expect("prepared");
+    let entry = computed_rows(&proposal);
+    assert_eq!(
+        row_words(&entry["rows"][0], &["name", "value", "colour"]),
+        ["Food › Groceries", "73.20", "-"]
+    );
+    assert_eq!(entry["total"], json!({"value": "103.19"}));
+    assert!(entry.get("compare").is_none());
+    // `neutral` belongs to a bar or table only.
+    assert_eq!(
+        view_code(call(
+            &book,
+            &json!({"title": "Pie", "data": "spending_by_category", "show_as": "pie",
+                "neutral": "5"})
+            .to_string()
+        )),
+        "bad-argument neutral"
+    );
+    assert_eq!(
+        view_code(call(
+            &book,
+            &table(json!({"compare": "previous_period", "neutral": "3"}))
+        )),
+        "bad-argument neutral"
+    );
+}
+
+#[test]
+fn a_table_never_tells_a_model_rows_it_may_not_read() {
+    // D-761 (as D-252): the rows reach the model only when it may read the
+    // same figures with `category_totals`; the table is still prepared.
+    let Sample { book, .. } = with_september(4000);
+    let text = json!({"title": "Spending", "data": "spending_by_category",
+        "show_as": "table", "period": "this-month", "compare": "previous_period"})
+    .to_string();
+    let charts_only = Permissions::defaults()
+        .with(Permission::NewViews, true)
+        .with(Permission::CategoriesRead, true);
+    let proposal = propose_view_text(&book, &text, charts_only, today()).expect("prepared");
+    assert!(proposal.output.value.get("computed_rows").is_none());
+    assert_eq!(proposal.output.value["not_shown"], json!(["computed_rows"]));
+    let reads = charts_only.with(Permission::TransactionsRead, true);
+    let proposal = propose_view_text(&book, &text, reads, today()).expect("prepared");
+    assert_eq!(computed_rows(&proposal)["total"]["value"], "103.19");
+    // Other tables and charts get no rows here.
+    for (data, show_as) in [
+        ("income_expense_by_month", "table"),
+        ("spending_by_category", "bar"),
+    ] {
+        let text = json!({"title": "Other", "data": data, "show_as": show_as}).to_string();
+        let proposal = call(&book, &text).expect("prepared");
+        assert!(
+            proposal.output.value.get("computed_rows").is_none(),
+            "{data} {show_as}"
+        );
+    }
+}

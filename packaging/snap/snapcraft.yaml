@@ -272,6 +272,9 @@ parts:
         [ -d "$d/usr/lib/x86_64-linux-gnu" ] && libs="$libs:$d/usr/lib/x86_64-linux-gnu"
       done
       export LD_LIBRARY_PATH="${libs#:}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+      "$sdk/usr/lib/qt6/libexec/qmlcachegen" --version || true
+      ldd "$sdk/usr/lib/qt6/libexec/qmlcachegen" | grep 'not found' || true
       cmake -S . -B "$CRAFT_PART_BUILD" -G Ninja \
         -DKASSENSTURZ_QMAKE="$qmake_path" \
         -DCMAKE_BUILD_TYPE=Release \

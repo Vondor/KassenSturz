@@ -233,7 +233,15 @@ parts:
       # cmake --install puts files under DESTDIR, which snapcraft sets to the
       # part's install folder. Never use `set -x` or `cargo -vv` here: the
       # registration number would show.
+      # The SDK's own qmake path is wrong; use the one that really exists.
+      sdk=/snap/kde-qt6-core24-sdk/current
+      qmake_path=$(find "$sdk/usr" -name 'qmake6' -o -name 'qmake' 2>/dev/null | grep -v '/qt6/qmake$' | head -1 || true)
+      echo "qmake candidates:"; find "$sdk/usr" -name 'qmake*' 2>/dev/null | head
+      echo "using qmake: ${qmake_path:-none}"
+      export LD_LIBRARY_PATH="$sdk/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      "$qmake_path" -query QT_INSTALL_HEADERS || true
       cmake -S . -B "$CRAFT_PART_BUILD" -G Ninja \
+        -DKASSENSTURZ_QMAKE="$qmake_path" \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DKASSENSTURZ_INSTALL_SVG_ICON=OFF -DKASSENSTURZ_SKIP_QML_MODULE_CHECK=ON

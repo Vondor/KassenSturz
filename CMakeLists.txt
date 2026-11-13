@@ -131,10 +131,19 @@ else()
     set(cargo_profile_dir release)
 endif()
 
+# cxx-qt asks qmake where Qt lives. The snap build's SDK reports a qmake
+# path that does not exist, so it can name a working one.
+set(KASSENSTURZ_QMAKE "" CACHE FILEPATH "qmake for the Rust build, if Qt6::qmake's path is wrong")
+if(KASSENSTURZ_QMAKE)
+    set(kassensturz_qmake "${KASSENSTURZ_QMAKE}")
+else()
+    set(kassensturz_qmake "$<TARGET_FILE:Qt6::qmake>")
+endif()
+
 # Cargo decides itself what needs rebuilding, so it runs on every build.
 add_custom_target(kassensturz ALL
     COMMAND ${CMAKE_COMMAND} -E env
-        QMAKE=$<TARGET_FILE:Qt6::qmake>
+        QMAKE=${kassensturz_qmake}
         "KASSENSTURZ_KCONFIG_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::ConfigCore,INTERFACE_INCLUDE_DIRECTORIES>"
         KASSENSTURZ_KCONFIG_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::ConfigCore>
         ${breeze_icons_env}

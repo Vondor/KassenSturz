@@ -12,6 +12,7 @@ How a KassenSturz household book is stored, so other programs can read it (D-046
 - The journal mode is the classic rollback journal (`DELETE`), never WAL, so no lasting side files sit next to the book (D-033). While the book is open, its [lock file](#the-lock-file) sits next to it.
 - Foreign keys are enforced (`PRAGMA foreign_keys = ON` on every connection).
 - Deleted content is overwritten (`PRAGMA secure_delete = ON` on every connection), so what KassenSturz deletes, such as a change history the user cleans up, is gone from the file too, though not from copies of it such as backups (D-066, D-086).
+- **The layout is checked at every open (B-245).** Before anything in the book runs, KassenSturz compares its `sqlite_schema` (every table, index, trigger and view, with its SQL) with what its own migrations build for that layout version. A book with anything more, less or different, e.g. an index or a trigger another program added, or one of the book's own triggers dropped, is refused with `store.corrupt.unexpected-layout` and left unchanged; so is reading it through `kassensturz-mcp`. Every connection also runs with `trusted_schema` off and SQLite's defensive mode on. Another program may read a book, but must not add anything to its layout.
 
 ## Conventions
 

@@ -41,6 +41,7 @@ use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, Currency, CurrencyCode, Date, DatedRate,
     DatedRateId, ExchangeRate, InstitutionId, Money, RateSource, RoundingMode,
 };
+use rusqlite::config::DbConfig;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use backup_copies::{BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of};
@@ -213,6 +214,11 @@ impl Book {
         let mut conn = connect(&path)?;
         let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
         let current = first_version - 1 + i32::try_from(migrations.len()).expect("a short list");
+        // Before the backup, a migration or any change, so SQL that another
+        // program planted in the file never runs (B-245).
+        if (first_version..=current).contains(&version) {
+            layout::check_schema(&conn, migrations, first_version, version)?;
+        }
         match version {
             same if same == current => {}
             older if (first_version..current).contains(&older) => {
@@ -250,6 +256,7 @@ impl Book {
     /// Creates a new, empty book that lives in memory only: nothing is saved.
     pub fn create_in_memory() -> Result<Self, StoreError> {
         let mut conn = Connection::open_in_memory()?;
+        harden(&conn)?;
         layout::migrate(&mut conn, 0)?;
         Self::finish(conn, None)
     }
@@ -1055,6 +1062,7 @@ fn connect(path: &Path) -> Result<Connection, StoreError> {
     // flags say. Without SQLITE_OPEN_CREATE, SQLite never creates a file.
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
     let conn = Connection::open_with_flags(path, flags)?;
+    harden(&conn)?;
     // A write waits for a reader such as `kassensturz-mcp` to finish its
     // short read instead of failing (Q-036, D-195).
     conn.busy_timeout(reader::BUSY_WAIT)?;
@@ -1066,6 +1074,19 @@ fn connect(path: &Path) -> Result<Connection, StoreError> {
         return Err(StoreError::JournalModeRefused { mode });
     }
     Ok(conn)
+}
+
+/// Sets up `conn` so that a hostile book file can do as little as possible
+/// (B-245, attack B5 of the security review), before anything in it is read:
+/// SQL functions in its layout run only if SQLite marks them harmless
+/// (`trusted_schema` off), and SQLite's defensive mode refuses statements
+/// that could damage the file's own structure, such as writing to
+/// `sqlite_schema`. The check that the layout holds only what KassenSturz
+/// made is [`layout::check_schema`].
+fn harden(conn: &Connection) -> Result<(), StoreError> {
+    conn.set_db_config(DbConfig::SQLITE_DBCONFIG_TRUSTED_SCHEMA, false)?;
+    conn.set_db_config(DbConfig::SQLITE_DBCONFIG_DEFENSIVE, true)?;
+    Ok(())
 }
 
 /// Whether the file at `path` begins like a book, read without SQLite: with

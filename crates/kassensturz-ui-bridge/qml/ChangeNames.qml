@@ -118,6 +118,24 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Joined monthly moves of your own money by themselves");
         case "join-transfers":
             return i18nContext.i18nc("@info a change you made", "Joined several moves of your own money at once");
+        case "add-schedule":
+            return i18nContext.i18nc("@info a change you made", "Planned a payment");
+        case "edit-schedule":
+            return i18nContext.i18nc("@info a change you made", "Changed a planned payment");
+        case "remove-schedule":
+            return i18nContext.i18nc("@info a change you made", "Removed a planned payment");
+        case "pause-schedule":
+            return i18nContext.i18nc("@info a change you made", "Paused or resumed a planned payment");
+        case "match-schedules":
+            return i18nContext.i18nc("@info a change you made", "Found planned payments in new entries");
+        case "match-schedule-occurrence":
+            return i18nContext.i18nc("@info a change you made", "Matched an entry to a planned payment");
+        case "skip-schedule-occurrence":
+            return i18nContext.i18nc("@info a change you made", "Skipped a planned payment this time");
+        case "unskip-schedule-occurrence":
+            return i18nContext.i18nc("@info a change you made", "Expected a skipped payment again");
+        case "book-schedule-occurrence":
+            return i18nContext.i18nc("@info a change you made", "Booked a planned payment");
         case "link-bank-account":
             return i18nContext.i18nc("@info a change you made", "Linked an account to your bank");
         case "unlink-bank-account":

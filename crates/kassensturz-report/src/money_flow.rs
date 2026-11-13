@@ -421,7 +421,7 @@ fn build(
         // With sub-categories on, a category without any still gets its node
         // in the column behind it, so that column adds up to the total like
         // the others and an *Other* of the first column passes on all of its
-        // amount.
+        // amount (B-264).
         let level_two = options.sub_categories;
         let payee_column = if options.sub_categories { 3 } else { 2 };
         let leaves: Vec<(usize, i64, Vec<Atom>)> = if level_two {

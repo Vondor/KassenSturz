@@ -136,6 +136,7 @@ fn examples() -> Vec<ErrorReport> {
         Corruption::HistoryMismatch,
         Corruption::BadRule(rule),
         Corruption::BadRuleTree(rule),
+        Corruption::BadSchedule(kassensturz_core::ScheduleId::generate()),
         Corruption::UnexpectedLayout,
     ];
     let store_errors = [
@@ -278,6 +279,25 @@ fn examples() -> Vec<ErrorReport> {
             outgoing: transaction,
             incoming: transaction,
         },
+        StoreError::UnknownSchedule(kassensturz_core::ScheduleId::generate()),
+        StoreError::Schedule(kassensturz_core::ScheduleError::Name),
+        StoreError::ScheduleAccountClosed(account),
+        StoreError::ScheduleCurrencyDiffers {
+            account,
+            currency: USD,
+        },
+        StoreError::ScheduleCategory(account),
+        StoreError::TooManySchedules { max: 200 },
+        StoreError::UnknownOccurrence {
+            schedule: kassensturz_core::ScheduleId::generate(),
+            due_on: date(),
+        },
+        StoreError::OccurrenceDecided {
+            schedule: kassensturz_core::ScheduleId::generate(),
+            due_on: date(),
+        },
+        StoreError::ScheduleEntryTaken(transaction),
+        StoreError::ScheduleEntryNotFitting(transaction),
         StoreError::UnknownRate(rate),
         StoreError::RateWithinOneCurrency(EUR),
         StoreError::ChangeoverRate,

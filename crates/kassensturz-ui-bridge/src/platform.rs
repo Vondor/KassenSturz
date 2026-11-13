@@ -44,6 +44,12 @@ mod ffi {
         #[cxx_name = "portalHostPath"]
         fn portal_host_path(document_id: &QString) -> QString;
 
+        #[cxx_name = "portalDocuments"]
+        fn portal_documents() -> QString;
+
+        #[cxx_name = "portalForget"]
+        fn portal_forget(document_id: &QString) -> bool;
+
         #[cxx_name = "dataSize"]
         fn data_size(bytes: i64) -> QString;
 
@@ -261,6 +267,25 @@ pub fn choose_folder(chosen: &Path) -> Result<FolderGrant, FolderRefused> {
             host_path: host.as_deref(),
         },
     )
+}
+
+/// What the document portal says this app may open: each document's ID and
+/// its path on the host (display text only, D-730). Empty where there is no
+/// portal, or it doesn't answer.
+pub fn portal_documents() -> Vec<(String, String)> {
+    ffi::portal_documents()
+        .to_string()
+        .split('\u{1e}')
+        .filter_map(|record| record.split_once('\u{1f}'))
+        .map(|(id, host)| (id.to_owned(), host.to_owned()))
+        .collect()
+}
+
+/// Asks the document portal to take this app's access to the document `id`
+/// back. Never touches a file. Returns whether the portal accepted it; the
+/// caller asks [`portal_documents`] again to see.
+pub fn portal_forget(id: &str) -> bool {
+    ffi::portal_forget(&QString::from(id))
 }
 
 /// Whether the app runs in a Flatpak, which puts `marker` into every sandbox.

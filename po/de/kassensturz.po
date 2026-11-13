@@ -6723,6 +6723,60 @@ msgctxt "@info a change you made"
 msgid "Joined several moves of your own money at once"
 msgstr "Mehrere Umbuchungen Ihres eigenen Geldes auf einmal verbunden"
 
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:122
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Planned a payment"
+msgstr "Zahlung geplant"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:124
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Changed a planned payment"
+msgstr "Geplante Zahlung geändert"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:126
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Removed a planned payment"
+msgstr "Geplante Zahlung entfernt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:128
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Paused or resumed a planned payment"
+msgstr "Geplante Zahlung pausiert oder fortgesetzt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:130
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Found planned payments in new entries"
+msgstr "Geplante Zahlungen in neuen Buchungen gefunden"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:132
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Matched an entry to a planned payment"
+msgstr "Buchung einer geplanten Zahlung zugeordnet"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:134
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Skipped a planned payment this time"
+msgstr "Geplante Zahlung dieses Mal übersprungen"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:136
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Expected a skipped payment again"
+msgstr "Übersprungene Zahlung wieder erwartet"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:138
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Booked a planned payment"
+msgstr "Geplante Zahlung gebucht"
+
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:106
 #, kde-format
 msgctxt "@info a change you made"
@@ -10965,6 +11019,16 @@ msgid "%1 has a budget, so it can't be deleted. Delete its budget first."
 msgstr ""
 "%1 hat ein Budget, deshalb kann sie nicht gelöscht werden. Löschen Sie "
 "zuerst ihr Budget."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:599
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid ""
+"A planned payment uses %1, so it can't be deleted. Give the planned payment "
+"another category first."
+msgstr ""
+"Eine geplante Zahlung verwendet %1, deshalb kann sie nicht gelöscht werden. "
+"Geben Sie der geplanten Zahlung zuerst eine andere Kategorie."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:515
 #, kde-format
@@ -23076,6 +23140,108 @@ msgstr[1] "Ihre Bedingungen erfassen %1 Buchungen, die schon in Ihrem Buch stehe
 msgctxt "@info %1 says what a Rule does"
 msgid "Made by the AI, not checked by you yet. %1"
 msgstr "Von der KI erstellt, von Ihnen noch nicht geprüft. %1"
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@title"
+msgid "Folders KassenSturz may open"
+msgstr "Ordner, die KassenSturz öffnen darf"
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your book is kept here and your backup copies are written here. Move them elsewhere first to forget this folder."
+msgstr "Ihr Haushaltsbuch liegt hier, und Ihre Sicherungskopien werden hier abgelegt. Legen Sie beides zuerst woanders ab, um diesen Ordner zu vergessen."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your book is kept here. Keep it in another folder first to forget this folder."
+msgstr "Ihr Haushaltsbuch liegt hier. Legen Sie es zuerst in einem anderen Ordner ab, um diesen Ordner zu vergessen."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your backup copies are written here. Choose another folder for them first to forget this folder."
+msgstr "Ihre Sicherungskopien werden hier abgelegt. Wählen Sie zuerst einen anderen Ordner dafür, um diesen Ordner zu vergessen."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your book is kept in this folder, so it wasn't forgotten. Keep your book in another folder first."
+msgstr "Ihr Haushaltsbuch liegt in diesem Ordner, deshalb wurde er nicht vergessen. Legen Sie Ihr Haushaltsbuch zuerst in einem anderen Ordner ab."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your backup copies are written to this folder, so it wasn't forgotten. Choose another folder for the copies first."
+msgstr "Ihre Sicherungskopien werden in diesen Ordner geschrieben, deshalb wurde er nicht vergessen. Wählen Sie zuerst einen anderen Ordner für die Kopien."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "This folder isn't in the list any more. Nothing was changed."
+msgstr "Dieser Ordner steht nicht mehr in der Liste. Es wurde nichts geändert."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your computer didn't take the access back. Nothing was changed and no file was touched. Try again, or take it back in your system's settings for apps."
+msgstr "Ihr Computer hat den Zugriff nicht zurückgenommen. Es wurde nichts geändert und keine Datei angerührt. Versuchen Sie es noch einmal, oder nehmen Sie ihn in den Einstellungen Ihres Systems für Apps zurück."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@title:group"
+msgid "What you gave access to"
+msgstr "Wozu Sie Zugriff gegeben haben"
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "When you choose a folder for KassenSturz, it keeps the right to open that folder until you take it back here. Forgetting a folder only ends this right: no file is deleted, moved or changed. If you need the folder again, you choose it again."
+msgstr "Wenn Sie einen Ordner für KassenSturz wählen, darf KassenSturz diesen Ordner öffnen, bis Sie das hier zurücknehmen. Wenn Sie einen Ordner vergessen, endet nur dieses Recht: Es wird keine Datei gelöscht, verschoben oder geändert. Brauchen Sie den Ordner wieder, wählen Sie ihn einfach noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz can't open that folder any more. Its files are as they were."
+msgstr "KassenSturz kann diesen Ordner nicht mehr öffnen. Seine Dateien sind unverändert."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Forget this folder"
+msgstr "Diesen Ordner vergessen"
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "No file is deleted."
+msgstr "Es wird keine Datei gelöscht."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "You have not given KassenSturz access to any folder."
+msgstr "Sie haben KassenSturz zu keinem Ordner Zugriff gegeben."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Folders you choose, for example for your book or for backup copies, appear here."
+msgstr "Ordner, die Sie wählen, zum Beispiel für Ihr Haushaltsbuch oder für Sicherungskopien, erscheinen hier."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Folders KassenSturz may open"
+msgstr "Ordner, die KassenSturz öffnen darf"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "See them and take the access back."
+msgstr "Ansehen und den Zugriff zurücknehmen."
 
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml
 #, kde-format

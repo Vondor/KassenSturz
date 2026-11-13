@@ -18,9 +18,10 @@ use std::io::Write;
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, AmountTest, BankLink, Budget, BudgetEvery,
-    CategoryGroup, Condition, Currency, CurrencyCode, DatedRate, GroupKind, GroupMember,
-    Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource, RoundingMode,
-    RuleId, RuleNode, SplitId, Tag, TextField, TextOperator, Transaction, ViewId,
+    CategoryGroup, Condition, Currency, CurrencyCode, Date, DatedRate, Decided, GroupKind,
+    GroupMember, Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource,
+    RoundingMode, RuleId, RuleNode, Schedule, ScheduleUnit, SplitId, Tag, TextField, TextOperator,
+    Transaction, ViewId,
 };
 
 use crate::data::ExportData;
@@ -51,8 +52,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// (US1.10, D-640), version 10 a monthly budget's salary day (D-651),
 /// version 11 a budget's name (M6-B203, D-664), version 12 what a budget
 /// counts from which day on (US3.2, D-690), version 13 the tags on a whole
-/// transaction (US4.8, D-712).
-pub const VERSION: u64 = 13;
+/// transaction (US4.8, D-712), version 14 the planned payments and what was
+/// decided about their occurrences (US7, D-769).
+pub const VERSION: u64 = 14;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -104,6 +106,19 @@ pub struct BookData {
     /// The budgets in the order the book lists them, each with its amounts,
     /// oldest first (D-344, D-345).
     pub budgets: Vec<Budget>,
+    /// The planned payments in the order the book lists them, each with
+    /// what was decided about its occurrences (D-769).
+    pub schedules: Vec<ScheduleData>,
+}
+
+/// A planned payment in a complete export, with the occurrences that were
+/// matched or skipped (D-769). Open occurrences are computed, never stored.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScheduleData {
+    /// The plan.
+    pub schedule: Schedule,
+    /// Its decided occurrences, each by its counted date, oldest first.
+    pub decided: Vec<(Date, Decided)>,
 }
 
 /// A saved view or dashboard in a complete export: its ID and its document
@@ -216,6 +231,15 @@ impl Exporter for BookExport {
                 ),
             ),
             (
+                "schedules",
+                Json::List(
+                    book.schedules
+                        .iter()
+                        .map(|data| writer.schedule(data))
+                        .collect::<Result<_, _>>()?,
+                ),
+            ),
+            (
                 "payees",
                 Json::List(book.payees.iter().map(payee).collect()),
             ),
@@ -271,6 +295,10 @@ impl BookData {
             for row in &budget.amounts {
                 is_listed(row.amount)?;
             }
+        }
+        for data in &self.schedules {
+            is_listed(data.schedule.amount)?;
+            is_listed(data.schedule.tolerance)?;
         }
         let mut parts = HashSet::new();
         for transaction in &self.transactions {
@@ -434,6 +462,51 @@ impl BookWriter {
             ("first_day", Json::date(budget.first_day)),
             ("last_day", budget.last_day.map_or(Json::Null, Json::date)),
             ("amounts", Json::List(amounts)),
+        ]))
+    }
+
+    /// A planned payment with its amounts as text in its currency, and
+    /// its decided occurrences (D-769).
+    fn schedule(&self, data: &ScheduleData) -> Result<Json, ExportError> {
+        let plan = &data.schedule;
+        let occurrences = data
+            .decided
+            .iter()
+            .map(|&(due_on, decided)| {
+                let (status, transaction) = match decided {
+                    Decided::Matched(transaction) => ("matched", Json::id(transaction)),
+                    Decided::Skipped => ("skipped", Json::Null),
+                };
+                Json::Object(vec![
+                    ("due_on", Json::date(due_on)),
+                    ("status", Json::text(status)),
+                    ("transaction", transaction),
+                ])
+            })
+            .collect();
+        Ok(Json::Object(vec![
+            ("id", Json::id(plan.id)),
+            ("name", Json::text(&plan.name)),
+            ("account", Json::id(plan.account)),
+            ("amount", self.amount(plan.amount)?),
+            ("currency", Json::text(plan.amount.currency().as_str())),
+            ("tolerance", self.amount(plan.tolerance)?),
+            ("category", Json::optional_id(plan.category)),
+            (
+                "party_iban",
+                Json::optional_text(plan.party_iban.as_deref()),
+            ),
+            (
+                "party_name",
+                Json::optional_text(plan.party_name.as_deref()),
+            ),
+            ("unit", Json::text(name_of(&SCHEDULE_UNITS, plan.unit))),
+            ("every", Json::Number(plan.every.into())),
+            ("anchor", Json::date(plan.anchor)),
+            ("track_from", Json::date(plan.track_from)),
+            ("ends_on", Json::optional_date(plan.ends_on)),
+            ("paused", Json::Bool(plan.paused)),
+            ("occurrences", Json::List(occurrences)),
         ]))
     }
 
@@ -787,6 +860,12 @@ const BUDGET_EVERY: [(BudgetEvery, &str); 4] = [
     (BudgetEvery::Range, "range"),
 ];
 
+const SCHEDULE_UNITS: [(ScheduleUnit, &str); 3] = [
+    (ScheduleUnit::Week, "week"),
+    (ScheduleUnit::Month, "month"),
+    (ScheduleUnit::Year, "year"),
+];
+const OCCURRENCE_STATUSES: [(bool, &str); 2] = [(true, "matched"), (false, "skipped")];
 const GROUP_KINDS: [(GroupKind, &str); 2] = [
     (GroupKind::Expense, "expense"),
     (GroupKind::Income, "income"),

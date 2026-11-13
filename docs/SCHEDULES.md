@@ -59,7 +59,7 @@ Not stored: the occurrences. They are **computed**, so a plan never goes stale a
 |---|---|---|
 | monthly, anchor 1 Oct 2026 | Mon 2 Nov | the 1st is a Sunday |
 | monthly, anchor 31 Jan 2027 | Sun 28 Feb, so Mon 1 Mar; then Wed 31 Mar | cut back, then moved; no drift |
-| yearly, anchor 29 Feb 2028 | Mon 28 Feb 2029; Tue 29 Feb 2032 | cut back in a common year |
+| yearly, anchor 29 Feb 2028 | Wed 28 Feb 2029; Sun 29 Feb 2032, so Mon 1 Mar 2032 | cut back in a common year, moved in a leap year (corrected in build 1: the weekdays were wrong) |
 | every 2 weeks, anchor Fri 6 Nov 2026 | 6 Nov, 20 Nov, 4 Dec | 14 days from the anchor |
 | monthly, anchor 28 Nov 2026 (a Saturday) | Mon 30 Nov | moved forward, may cross a month end |
 
@@ -194,3 +194,20 @@ Today is Fri 13 Nov 2026; Checking account balance 2.340,00 €. Plans: *Rent* �
 | 2 | UI: the form, *Plan this again…*, Planned payments page, import summary part, *Did this happen?*, the two tiles and their datasets, translations, glossary | standard, high |
 
 PR 1 merges before the stage Go. Neither is expected to carry a human gate beyond what the maintainer's review of the layout needs (no dependency, no keychain, no bank code, no AI data); the build threads tick the list honestly. This design pull request is docs only and carries none.
+
+## 11. What build 1 settled (PR 1)
+
+Build 1 followed this design; where the code had to decide something the design left open, or differs from it, it is listed here (D-769, D-770).
+
+- **Error codes** follow the store's convention (`store.*`, D-034) instead of the names in 3.6: `store.schedule-invalid` with the reason `name`, `amount-zero`, `every-range`, `end-before-start`, `tolerance-range`, `party` or `booked-amount`; `store.schedule-unknown`, `-account-closed`, `-currency-differs`, `-category`, `-too-many`, `-occurrence-unknown`, `-occurrence-decided`, `-entry-taken`, `-entry-not-fitting`; a category a plan uses gives the existing `store.category-in-use` with the keyword `schedules`; a broken row `store.corrupt.bad-schedule`. All are in `docs/ERROR_CODES.md`.
+- **`schedule_occurrences` has an `id` of its own** as primary key, with a unique index on `(schedule_id, due_on)` instead of that pair as key: the change history records every table by one `id` column. Nothing else changes.
+- **`due_on` is the counted date**, before a weekend moves it. The command line also takes the moved date and finds the payment.
+- **Matching after an import only matches the new entries** (the pipeline passes the import's entries): a match the user took back with Undo is not made again behind their back by the next import. All open payments from 4 years back to 3 banking days ahead are looked at, so a late file matches. An entry that fits two open payments (a weekly plan around a weekend) matches neither and is reported as needing the user; the closest entry wins only when it is the only one that close.
+- **A plan with a remembered IBAN** needs an entry with that IBAN; an entry without one (cash, typed in) is matched by hand. **A side of a suggested Transfer** is not matched until the user decides on the Transfer.
+- **Matching by hand** (`match_schedule_occurrence`) ignores amount and date (the user decides) but needs the plan's account, currency and direction.
+- **Closing an account pauses its plans** without changing them; reopening it lets them go on. **Editing a plan** keeps the payments already matched or skipped.
+- **"Plan this again…"** is `Book::plan_from_entry`: it offers no plan for an entry that no plan could match (a Transfer between own accounts, a part in another currency), and the other part's account becomes the plan's category only if it is a category. Tested on every importer's golden entries (X3).
+- **The forecast** takes the accounts and currency from the caller; without a choice, the open checking and cash accounts, and accounts in another currency are listed as left out (`AccountsForecast::left_out`). Overdue payments are listed, not counted (5.2).
+- **The complete export** is version 14 with `schedules`, each plan with its decided payments; reading a file checks that a matched payment names an entry of the file, once.
+- **Command line:** `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book` and `forecast [--months N] [--account NAME ...]`; `import` prints the matches. `schedule due` lists the payments with their state.
+- **Left for build 2 (UI):** the bridge's call to `match_schedules` after its own import and fetch actions, the import summary part, the pages, tiles and glossary rows.

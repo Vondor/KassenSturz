@@ -33,10 +33,17 @@
 //!    back the joins and leaves the imported entries. Since a Rule never
 //!    sorted those sides, this is D-030's order as D-749 amends it:
 //!    duplicates, remembered moves, suggestions, Rules.
+//! 8. The new entries that fit an occurrence of a planned payment are
+//!    matched to it ([`match_schedules`], D-769), as a user action of its
+//!    own after the joins, so one Undo takes back the matches and leaves
+//!    the entries. A match gives an entry the plan's category only where
+//!    the Rules left its part without one (D-031). D-030's order is then:
+//!    duplicates, remembered moves, suggestions, Rules, planned payments.
 //!
 //! [`preview_import`] runs exactly these steps and takes them back, so the
-//! user sees what an import would do, Rules, Transfers and joins included,
-//! before [`import_statements`] and [`join_recurring_moves`] do it. Every
+//! user sees what an import would do, Rules, Transfers, joins and plan
+//! matches included, before [`import_statements`], [`join_recurring_moves`]
+//! and [`match_schedules`] do it. Every
 //! front end calls these (the command-line tool now, the app from M3, bank
 //! connections from M4), so none of them has to repeat the order.
 //!
@@ -65,11 +72,11 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use kassensturz_core::{
-    AccountId, Changeover, Currency, CurrencyCode, DatedRateId, ImportedDetails, Money,
+    AccountId, Changeover, Currency, CurrencyCode, Date, DatedRateId, ImportedDetails, Money,
     OriginalAmount, RoundingMode, Split, Transaction, TransactionId, Withdrawn,
 };
 use kassensturz_import::{Entry, EntryStatus, ImportError, Statement};
-use kassensturz_store::{Action, Book, RecurringJoins, RuleRun, StoreError};
+use kassensturz_store::{Action, Book, RecurringJoins, RuleRun, ScheduleMatchReport, StoreError};
 
 use entries::{Decision, bank_date, decide};
 
@@ -106,16 +113,19 @@ pub struct Choices {
 /// taken back (`Book::dry_run`). Nothing is recorded in the history.
 ///
 /// The IDs of the new transactions in the report don't exist in the book
-/// afterwards; the real import gives them new ones.
+/// afterwards; the real import gives them new ones. `today` is the day the
+/// planned payments are matched for ([`match_schedules`]).
 pub fn preview_import(
     book: &mut Book,
     account: AccountId,
     statements: &[Statement],
     choices: &Choices,
+    today: Date,
 ) -> Result<ImportReport, PipelineError> {
     book.dry_run(|book| {
         let mut report = run(book, account, statements, choices)?;
         join_recurring_moves(book, &mut report)?;
+        match_schedules(book, &mut report, today)?;
         Ok(report)
     })
 }
@@ -306,6 +316,7 @@ fn run(
         balances,
         converted_from,
         joins: RecurringJoins::default(),
+        schedules: ScheduleMatchReport::default(),
     })
 }
 
@@ -340,6 +351,30 @@ pub fn join_recurring_moves(
             && !joined.contains(&found.incoming.transaction)
     });
     report.joins = joins;
+    Ok(())
+}
+
+/// The step after the joins (D-769): matches the new transactions of
+/// `report` that fit an occurrence of a planned payment, as the user action
+/// `Action::MatchSchedules` (`Book::match_schedules`), on `today`, and
+/// notes them, and the occurrences that need the user, in
+/// [`ImportReport::schedules`].
+///
+/// Run it right after [`join_recurring_moves`], outside any other action,
+/// so one Undo takes back the matches and leaves the imported entries. A
+/// match never changes an amount, a date or a part; it gives an entry the
+/// plan's category only where the Rules left its part without one.
+/// Nothing is matched, and nothing recorded, when no plan fits.
+pub fn match_schedules(
+    book: &mut Book,
+    report: &mut ImportReport,
+    today: Date,
+) -> Result<(), PipelineError> {
+    let new: HashSet<TransactionId> = report.imported().into_iter().collect();
+    if new.is_empty() {
+        return Ok(());
+    }
+    report.schedules = book.match_schedules(today, Some(&new))?;
     Ok(())
 }
 

@@ -8,7 +8,7 @@ In the command-line tool, `export FILE --format book` writes it and `create --fr
 
 ## What is in it
 
-Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the saved views and dashboards, the category groups and the hidden categories, the budgets with their dated amounts, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, the links to a transaction's documents, and which parts a Rule booked.
+Everything the book holds, with its IDs: the settings, the currencies with their decimal places, the banks, the accounts and categories, the payees, the tags, the saved views and dashboards, the category groups and the hidden categories, the budgets with their dated amounts, the planned payments with what was decided about their payments, the price table, the Rules, the transactions with all their parts, what a bank or file delivered for a part, the amount a part had in a withdrawn currency before it was converted, the date and payee a part's account shows if they aren't its transaction's, the notes, numbers, status and tags of parts, the links to a transaction's documents, and which parts a Rule booked.
 
 Left out is the **change history** (D-032, D-066). It belongs to the book file, not to its data, so a book made from the file starts with an empty history, as a new book does. How long it keeps its history is a setting and does come along.
 
@@ -48,8 +48,9 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 11 | A budget has a `name`: the name the user gave it, or `null` (M6-B203, D-664). |
 | 12 | A budget lists what it `counts`, from which day on: dated sets of `categories` and `accounts`, in place of its one `categories` and `accounts` (US3.2, D-689, D-690). |
 | 13 | A transaction has `tags` on the whole of it, besides each part's own (US4.8, D-712). |
+| 14 | The file lists the `schedules`: the planned payments, each with the occurrences that were matched to an entry or skipped (US7, D-769). |
 
-An older file is read as version 13 without what came later: a version 12 transaction has no tags on the whole, and a version 12 transaction with `tags` is refused; a version 11 budget's `categories` and `accounts` are read as one set from its `first_day`, and a version 11 budget with `counts`, or a version 12 budget with `categories` or `accounts`, is refused; a version 10 budget has no name, and a version 10 budget with `name` is refused; a version 9 budget's months are calendar months, and a version 9 budget with `salary_day` is refused; a version 8 budget's `category` is read as a list of that one category with no accounts, and a version 8 budget with `categories` or `accounts` is refused; a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories`, and so is a version 1 to 7 file with `budgets` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, a version 7 file the `groups` and `hidden_categories` lists too, and a version 8 file the `budgets` list too, even when they are empty (`export.missing-value`).
+An older file is read as version 14 without what came later: a version 13 file has no planned payments, and a version 13 file with `schedules` is refused; a version 12 transaction has no tags on the whole, and a version 12 transaction with `tags` is refused; a version 11 budget's `categories` and `accounts` are read as one set from its `first_day`, and a version 11 budget with `counts`, or a version 12 budget with `categories` or `accounts`, is refused; a version 10 budget has no name, and a version 10 budget with `name` is refused; a version 9 budget's months are calendar months, and a version 9 budget with `salary_day` is refused; a version 8 budget's `category` is read as a list of that one category with no accounts, and a version 8 budget with `categories` or `accounts` is refused; a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories`, and so is a version 1 to 7 file with `budgets` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, a version 7 file the `groups` and `hidden_categories` lists too, and a version 8 file the `budgets` list too, and a version 14 file the `schedules` list too, even when they are empty (`export.missing-value`).
 
 ## The top level
 
@@ -66,6 +67,7 @@ An older file is read as version 13 without what came later: a version 12 transa
   "groups": [...],
   "hidden_categories": [...],
   "budgets": [...],
+  "schedules": [...],
   "payees": [...],
   "tags": [...],
   "rates": [...],
@@ -77,7 +79,7 @@ An older file is read as version 13 without what came later: a version 12 transa
 | Key | Value |
 |---|---|
 | `format` | Always `"kassensturz-book"`. A JSON file without it isn't a complete export (`export.not-a-book`). |
-| `version` | The [version](#versions) of the format: `12`. |
+| `version` | The [version](#versions) of the format: `14`. |
 | `settings` | The book's [settings](#settings). |
 | `currencies` | The [currencies](#currencies) the book uses. |
 | `institutions` | The [banks](#banks) the accounts are held at. Version 4 and later. |
@@ -87,6 +89,7 @@ An older file is read as version 13 without what came later: a version 12 transa
 | `groups` | The [category groups](#category-groups-and-hidden-categories). Version 7 and later. |
 | `hidden_categories` | The IDs of the [categories hidden from charts](#category-groups-and-hidden-categories). Version 7 and later. |
 | `budgets` | The [budgets](#budgets). Version 8 and later. |
+| `schedules` | The [planned payments](#planned-payments). Version 14 and later. |
 | `payees` | The [payees](#payees) with their details. Version 4 and later. |
 | `tags` | The [tags](#tags) transactions and parts can carry. Version 4 and later. |
 | `rates` | The [price table](#rates). |
@@ -209,6 +212,37 @@ Each amount:
 | `currency` | Its currency: the categories' currency (`store.budget-amount`, `currency`). |
 | `carry_over` | `true` or `false`: whether what is left at the end of each period, or what was spent beyond the amount, goes into the next one (Q-266). Always `false` for `range` (`store.budget-period`, `carry-over-on-range`). |
 
+### Planned payments
+
+`schedules` has one object per planned payment (D-769, `docs/SCHEDULES.md`), in the order the book lists them (the order they were made). Version 14 and later. A planned payment is a payment the user expects on a day, repeating; it is only a plan, which moves no money. Its payments (occurrences) are worked out from the pattern, never stored; the file keeps only those that were decided.
+
+| Key | Value |
+|---|---|
+| `id` | The plan's ID. Unique. |
+| `name` | What it is for: 1 to 60 characters on one line, without spaces around it (`store.schedule-invalid`, `name`). |
+| `account` | The ID of the user's account it is paid from or into, in the amount's currency (`store.not-an-account`, `store.schedule-currency-differs`). |
+| `amount` | The amount, never zero: negative for money out, as text with the currency's decimal places. |
+| `currency` | The amount's currency, a listed one. |
+| `tolerance` | How much a matching entry may differ, in the same currency: `"0.00"` or more, less than the amount (`store.schedule-invalid`, `tolerance-range`). |
+| `category` | The ID of the category to give a matching entry that has none, a category in the amount's currency (`store.schedule-category`), or `null`. |
+| `party_iban`, `party_name` | The other party's IBAN and name as the bank shows them, at most 140 characters each, or `null`. When one is given, only an entry naming the same one matches (IBAN first; spaces and capitals ignored). |
+| `unit`, `every` | How it repeats: every `every` (1 to 52) `week`s, `month`s or `year`s (`every-range`). |
+| `anchor` | The first due date, the one the pattern is counted from. |
+| `track_from` | The first date a payment counts, never before `anchor` (`end-before-start`). |
+| `ends_on` | The last date a payment may have, never before `anchor`, or `null` if it keeps going. |
+| `paused` | `true` if the user paused it: it is not expected, matched or counted. |
+| `occurrences` | The payments that were decided, each an object as below, each date once. |
+
+Each occurrence:
+
+| Key | Value |
+|---|---|
+| `due_on` | The date the pattern counts for it, before it is moved off a weekend (a payment counted for Sunday 1 November is due Monday 2 November, and kept as `2026-11-01`). |
+| `status` | `matched` (an entry paid it) or `skipped` (the user skipped it this time). |
+| `transaction` | For `matched`, the ID of the entry, a transaction in the file that no other occurrence names (`store.schedule-entry-taken`); for `skipped`, `null`. |
+
+A plan is checked as the app checks a new one; an account that the file closes is still open while its plans are filled in.
+
 ### Payees
 
 One object per payee the book keeps details for, sorted by name. A transaction's `payee` is text and needs no object here; the objects hold what the user or an imported file knows about a payee beyond the name. Version 4 and later.
@@ -328,7 +362,7 @@ A book with one account, one category in one group, and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 13,
+  "version": 14,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -354,6 +388,7 @@ A book with one account, one category in one group, and one transaction:
   ],
   "hidden_categories": [],
   "budgets": [],
+  "schedules": [],
   "payees": [],
   "tags": [],
   "rates": [],

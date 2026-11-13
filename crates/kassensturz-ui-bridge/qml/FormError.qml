@@ -595,6 +595,8 @@ Kirigami.InlineMessage {
                 return i18nContext.i18nc("@info %1 is the name of a category", "A Rule books to %1 or looks at it, so it can't be deleted. Change or delete the Rule first.", result.category);
             case "budgets":
                 return i18nContext.i18nc("@info %1 is the name of a category", "%1 has a budget, so it can't be deleted. Delete its budget first.", result.category);
+            case "schedules":
+                return i18nContext.i18nc("@info %1 is the name of a category", "A planned payment uses %1, so it can't be deleted. Give the planned payment another category first.", result.category);
             default:
                 return i18nContext.i18nc("@info %1 is the name of a category", "%1 has transactions, so it can't be deleted. Put them into another category first.", result.category);
             }

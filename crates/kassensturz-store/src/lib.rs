@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 mod backup;
+mod backup_copies;
 mod bank_links;
 mod budgets;
 mod cached;
@@ -40,6 +41,7 @@ use kassensturz_core::{
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
+pub use backup_copies::{BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of};
 pub use budgets::{check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};

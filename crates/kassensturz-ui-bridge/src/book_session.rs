@@ -13,11 +13,14 @@ use std::path::{Path, PathBuf};
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
-use kassensturz_store::Lock;
+use kassensturz_store::{Lock, PreparedRestore, StoreError};
 
+use crate::backup_copies;
 use crate::books::{Books, OpenBook, Problem};
 use crate::locale::QtLocale;
 use crate::session;
+use crate::settings::Settings;
+use crate::variant;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -89,6 +92,15 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "dismissProblem"]
         fn dismiss_problem(self: Pin<&mut BookSession>);
+
+        /// Puts the backup at `path`, one `BackupCopies.backups()` lists,
+        /// in place of the open book, after the user confirmed it (#806).
+        /// The open book is backed up first, so the way back is in the
+        /// list, then the book opens again. Returns `ok`, or `code` for why
+        /// not; the book is as it was then.
+        #[qinvokable]
+        #[cxx_name = "restoreBackup"]
+        fn restore_backup(self: Pin<&mut BookSession>, path: &QString) -> QVariant;
     }
 
     extern "RustQt" {
@@ -214,6 +226,57 @@ impl qobject::BookSession {
         self.as_mut().set_problem(QVariant::default());
     }
 
+    fn restore_backup(mut self: Pin<&mut Self>, path: &QString) -> QVariant {
+        let refused = |code: &str| {
+            variant::map([
+                ("ok", QVariant::from(&false)),
+                ("code", variant::text(code)),
+            ])
+        };
+        let (Some(book), Some(backups)) = (
+            session::path(),
+            self.rust()
+                .books
+                .as_ref()
+                .map(|books| books.backup_folder().to_owned()),
+        ) else {
+            return refused("restore.no-book");
+        };
+        // Only a backup the page lists, never any file QML names.
+        let wanted = PathBuf::from(path.to_string());
+        let chosen = backup_copies::chosen(&Settings::user()).map(|chosen| chosen.path);
+        let (listed, _) = backup_copies::listed(&book, &backups, chosen.as_deref());
+        if !listed.iter().any(|listed| listed.path == wanted) {
+            return refused("restore.not-listed");
+        }
+        // Checked and copied next to the book first, so the backup below
+        // can't prune the one being restored.
+        let prepared = match PreparedRestore::new(&wanted, &book) {
+            Ok(prepared) => prepared,
+            Err(
+                StoreError::NotABook
+                | StoreError::UnsupportedLayout { .. }
+                | StoreError::DevelopmentLayout { .. },
+            ) => return refused("restore.not-usable"),
+            Err(_) => return refused("restore.failed"),
+        };
+        if !matches!(
+            session::with_book(|open| open.back_up_now(&book, &backups)),
+            Some(Ok(_))
+        ) {
+            return refused("restore.no-backup-first");
+        }
+        session::close();
+        let placed = prepared.put_in_place();
+        // The book opens again either way: restored, or as it was.
+        self.as_mut()
+            .attempt(Attempt::Open(book.clone()), |books| books.open(&book));
+        match placed {
+            Ok(()) => variant::map([("ok", QVariant::from(&true))]),
+            Err(_) => refused("restore.failed"),
+        }
+    }
+
     /// Opens a book with `open`. If that fails, the book that was open stays
     /// open, and `problem` says why.
     fn attempt(
@@ -226,7 +289,11 @@ impl qobject::BookSession {
         };
         match open(books) {
             Ok(book) => {
+                let backups = books.backup_folder().to_owned();
                 session::set(book);
+                // A copy in the folder the user chose, at most once a day;
+                // a missing or full folder never stops the book (#806).
+                backup_copies::keep_copy_of_open_book(&Settings::user(), &backups);
                 self.as_mut().rust_mut().last_attempt = None;
                 self.as_mut().set_problem(QVariant::default());
                 self.as_mut().show_open_book();

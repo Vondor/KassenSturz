@@ -6,7 +6,8 @@
 // (D-002, D-114), the colors of the charts (D-589), the language (D-127), saving a copy of the data and starting a book from a file
 // (M3.12), the bank logins on this computer and their PINs (M4.6, D-057),
 // how long the history of changes is kept (D-066, M3.8), where the
-// backups go, and which version of the app is running (D-152).
+// backups go, copies in a folder the user chose and restoring one (#806),
+// and which version of the app is running (D-152).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -36,6 +37,8 @@ FormCard.FormCardPage {
     property bool languageNotSaved: false
     // Whether the AI switch couldn't be saved.
     property bool aiNotSaved: false
+    // Why the folder for backup copies wasn't taken, or "" (#806).
+    property string copiesChoiceProblem: ""
 
     signal openAnotherClicked()
     signal exampleBookClicked()
@@ -43,6 +46,8 @@ FormCard.FormCardPage {
     signal saveCopyClicked()
     signal bookFromFileClicked()
     signal showHistoryClicked()
+    // The user wants the list of backups to restore one (#806).
+    signal restoreBackupClicked()
     // The user wants the page of the book's tags (US4.8).
     signal tagsClicked()
     // The user wants the help page on patterns and formulas.
@@ -931,8 +936,59 @@ FormCard.FormCardPage {
         ]
     }
 
+    // What the folder for copies says, from `backupCopies.status` (#806).
+    function copiesStatusText(status: var): string {
+        switch (status.state) {
+        case "kept":
+            return i18nContext.i18nc("@info %1 is when the copy was saved, e.g. 21.10.2026 14:02", "Newest copy there: %1", status.when);
+        case "problem":
+            return copiesChoiceText(status.code, i18nContext.i18nc("@info", "Your book and the backups on this computer are fine."));
+        default:
+            return i18nContext.i18nc("@info", "KassenSturz saves a copy there when it opens your book.");
+        }
+    }
+
+    // The words for a code of the folder for copies; `fine` is added where
+    // the book itself is not affected.
+    function copiesChoiceText(code: string, fine: string): string {
+        const sentences = (first, next) => fine === "" ? first + " " + next : first + " " + fine + " " + next;
+        switch (code) {
+        case "backup-copy.missing":
+            return sentences(i18nContext.i18nc("@info", "The folder isn't there right now, so no copy was saved there."), i18nContext.i18nc("@info", "If it is on a USB stick or another drive, plug it in and choose Try again, or choose another folder."));
+        case "backup-copy.full":
+            return sentences(i18nContext.i18nc("@info", "The disk with that folder is full, so no copy was saved there."), i18nContext.i18nc("@info", "Make room there and choose Try again, or choose another folder."));
+        case "backup-copy.read-only":
+            return sentences(i18nContext.i18nc("@info", "KassenSturz may not write to that folder, so no copy was saved there."), i18nContext.i18nc("@info", "Please choose another folder."));
+        case "backup-copy.same-folder":
+            return i18nContext.i18nc("@info", "That is KassenSturz's own backup folder. Please choose a folder on another drive, for example a USB stick.");
+        case "backup-copy.not-saved":
+            return i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.");
+        default:
+            return sentences(i18nContext.i18nc("@info", "KassenSturz couldn't save a copy there."), i18nContext.i18nc("@info", "Choose Try again, or choose another folder."));
+        }
+    }
+
     FormCard.FormHeader {
         title: page.i18nContext.i18nc("@title:group", "Backups")
+    }
+
+    // Copies in a folder the user chose, e.g. on a USB stick, and restoring
+    // a backup (#806). The folder belongs to this computer, not to the book.
+    BackupCopies {
+        id: backupCopies
+    }
+
+    FolderChooser {
+        id: copiesChooser
+
+        title: page.i18nContext.i18nc("@title:window", "Choose a folder for copies of your book")
+        onGranted: grant => {
+            const result = backupCopies.choose(grant.path);
+            page.copiesChoiceProblem = result.ok ? "" : page.copiesChoiceText(result.code, "");
+        }
+        onRefused: (code, reason) => {
+            page.copiesChoiceProblem = reason;
+        }
     }
 
     FormCard.FormCard {
@@ -941,10 +997,129 @@ FormCard.FormCardPage {
             description: page.session.backupFolder
             descriptionItem.textFormat: Text.PlainText
         }
+
+        FormCard.FormDelegateSeparator {
+            visible: copiesButton.visible
+        }
+
+        FormCard.FormButtonDelegate {
+            id: copiesButton
+
+            visible: copiesChooser.available || backupCopies.chosen
+            icon.name: "folder-open"
+            text: Plain.plain(backupCopies.chosen
+                ? page.i18nContext.i18nc("@action:button %1 is the folder", "Also keep copies in: %1", backupCopies.shownAs)
+                : page.i18nContext.i18nc("@action:button", "Also keep copies in another folder…"))
+            description: backupCopies.chosen
+                ? page.i18nContext.i18nc("@info", "Choose another folder")
+                : page.i18nContext.i18nc("@info", "For example on a USB stick, or in a folder your cloud app uploads")
+            // The folder's path holds the user's own names.
+            descriptionItem.textFormat: Text.PlainText
+            onClicked: {
+                ActionLog.taken("SettingsPage_chooseCopiesFolder")
+                page.copiesChoiceProblem = "";
+                copiesChooser.open();
+            }
+        }
+
+        FormCard.FormDelegateSeparator {
+            visible: backupCopies.chosen
+        }
+
+        FormCard.FormComboBoxDelegate {
+            id: copiesKeepChoice
+
+            // Shows the saved choice, also after a choice couldn't be saved.
+            function showChoice() {
+                currentIndex = indexOfValue(backupCopies.keep);
+            }
+
+            visible: backupCopies.chosen
+            text: page.i18nContext.i18nc("@label:listbox", "Copies of each book to keep there")
+            textRole: "text"
+            valueRole: "value"
+            model: [
+                { value: "3", text: page.i18nContext.i18nc("@item:inlistbox how many copies", "3") },
+                { value: "5", text: page.i18nContext.i18nc("@item:inlistbox how many copies", "5") },
+                { value: "10", text: page.i18nContext.i18nc("@item:inlistbox how many copies", "10") },
+                { value: "20", text: page.i18nContext.i18nc("@item:inlistbox how many copies", "20") },
+            ]
+            Component.onCompleted: showChoice()
+            onActivated: {
+                ActionLog.taken("SettingsPage_copiesToKeep")
+                page.copiesChoiceProblem = backupCopies.chooseKeep(currentValue)
+                    ? ""
+                    : page.copiesChoiceText("backup-copy.not-saved", "");
+                showChoice();
+            }
+        }
+
+        FormCard.FormDelegateSeparator {
+            visible: backupCopies.chosen
+        }
+
+        FormCard.FormTextDelegate {
+            visible: backupCopies.chosen
+            text: page.copiesStatusText(backupCopies.status)
+            textItem.textFormat: Text.PlainText
+            textItem.wrapMode: Text.Wrap
+            Accessible.role: backupCopies.status.state === "problem" ? Accessible.AlertMessage : Accessible.StaticText
+
+            trailing: Controls.Button {
+                visible: backupCopies.status.state === "problem"
+                text: page.i18nContext.i18nc("@action:button make a copy again", "Try again")
+                icon.name: "view-refresh"
+                onClicked: {
+                    ActionLog.taken("SettingsPage_copyAgain")
+                    backupCopies.tryAgain()
+                }
+            }
+        }
+
+        FormCard.FormDelegateSeparator {
+            visible: backupCopies.chosen
+        }
+
+        FormCard.FormButtonDelegate {
+            visible: backupCopies.chosen
+            icon.name: "edit-delete-remove"
+            text: page.i18nContext.i18nc("@action:button", "Stop keeping copies there")
+            description: page.i18nContext.i18nc("@info", "The copies already there stay")
+            onClicked: {
+                ActionLog.taken("SettingsPage_stopCopies")
+                page.copiesChoiceProblem = backupCopies.forget()
+                    ? ""
+                    : page.copiesChoiceText("backup-copy.not-saved", "");
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: "document-revert"
+            text: page.i18nContext.i18nc("@action:button", "Restore from backup…")
+            description: page.i18nContext.i18nc("@info", "Go back to an earlier copy of your book")
+            onClicked: {
+                ActionLog.taken("SettingsPage_restoreFromBackup")
+                page.restoreBackupClicked()
+            }
+        }
+    }
+
+    FormCard.FormSectionText {
+        visible: page.copiesChoiceProblem !== ""
+        textFormat: Text.PlainText
+        text: page.copiesChoiceProblem
+        Accessible.role: Accessible.AlertMessage
     }
 
     FormCard.FormSectionText {
         text: page.i18nContext.i18nc("@info", "Before KassenSturz updates a book to work with a new version, it saves a copy of it here. It keeps the last 10 copies of each book.")
+    }
+
+    FormCard.FormSectionText {
+        visible: copiesButton.visible
+        text: page.i18nContext.i18nc("@info", "These copies are on the same disk as your book. If you choose another folder, for example on a USB stick or in a folder your cloud app uploads, KassenSturz also keeps a copy there once a day when you open your book, and a copy of every backup.")
     }
 
     FormCard.FormHeader {

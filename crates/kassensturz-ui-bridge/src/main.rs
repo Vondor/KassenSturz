@@ -28,6 +28,8 @@ mod ai_switch_model;
 mod alarms;
 mod alarms_model;
 mod app_icon_audit;
+mod backup_copies;
+mod backup_copies_model;
 mod bank_connection;
 mod bank_connection_model;
 mod bank_fetch;

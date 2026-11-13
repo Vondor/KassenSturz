@@ -7,8 +7,9 @@
 //! A backup is a complete copy of the book, made by SQLite while the book is
 //! open. It is a book itself, with the same extension, so restoring one means
 //! opening it (D-037). Backups go into a folder in KassenSturz's own data
-//! folder, which keeps the last [`KEEP`] of each book. Names and retention are
-//! documented in `docs/BOOK_FORMAT.md`.
+//! folder, which keeps the last [`KEEP`] of each book. A folder the user
+//! chose gets copies too, with the same names (#806, `backup_copies.rs`).
+//! Names and retention are documented in `docs/BOOK_FORMAT.md`.
 
 use std::fs::{self, OpenOptions};
 use std::io::ErrorKind;
@@ -41,16 +42,28 @@ pub(crate) fn back_up(
     book: &Path,
     folder: &Path,
 ) -> Result<PathBuf, StoreError> {
-    let stem = book
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
     // Absolute, so SQLite never takes the copy's name for a URI.
     let folder = std::path::absolute(folder)?;
     fs::create_dir_all(&folder)?;
+    write_backup(conn, book, &folder, KEEP)
+}
+
+/// Copies the book that `conn` has open, which is at `book`, into `folder`,
+/// which must be there already, then removes that book's oldest backups
+/// beyond the last `keep`. Returns the copy's path.
+pub(crate) fn write_backup(
+    conn: &Connection,
+    book: &Path,
+    folder: &Path,
+    keep: usize,
+) -> Result<PathBuf, StoreError> {
+    let stem = stem_of(book)?;
+    // Absolute, so SQLite never takes the copy's name for a URI.
+    let folder = std::path::absolute(folder)?;
     let stamp = Timestamp::now().strftime(STAMP_FORMAT).to_string();
     // The copy is written under another name first, so a copy that was cut
-    // short, e.g. by a crash, is never taken for a backup.
+    // short, e.g. by a crash, is never taken for a backup, and a sync tool
+    // never uploads half a copy.
     let (path, partial) = claim(&folder, stem, &stamp)?;
     let copied =
         copy(conn, &partial).and_then(|()| fs::rename(&partial, &path).map_err(StoreError::from));
@@ -58,8 +71,15 @@ pub(crate) fn back_up(
         let _ = fs::remove_file(&partial);
         return Err(error);
     }
-    prune(&folder, stem, &path);
+    prune(&folder, stem, &path, keep);
     Ok(path)
+}
+
+/// The name a book's backups begin with: its file name without `.ksz`.
+pub(crate) fn stem_of(book: &Path) -> Result<&str, StoreError> {
+    book.file_stem()
+        .and_then(|stem| stem.to_str())
+        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))
 }
 
 /// Copies the database `conn` has open into `to`, the empty file claimed for
@@ -83,7 +103,11 @@ fn copy(conn: &Connection, to: &Path) -> Result<(), StoreError> {
 /// if that is taken, so a backup never replaces another. Returns it with the
 /// name the copy is written under first, which is claimed by creating an
 /// empty file, so no other backup can write there.
-fn claim(folder: &Path, stem: &str, stamp: &str) -> Result<(PathBuf, PathBuf), StoreError> {
+pub(crate) fn claim(
+    folder: &Path,
+    stem: &str,
+    stamp: &str,
+) -> Result<(PathBuf, PathBuf), StoreError> {
     for number in 1..=MAX_PER_SECOND {
         let name = if number == 1 {
             format!("{stem} {stamp}.ksz")
@@ -108,13 +132,16 @@ fn claim(folder: &Path, stem: &str, stamp: &str) -> Result<(PathBuf, PathBuf), S
     Err(StoreError::Io(ErrorKind::AlreadyExists))
 }
 
-fn partial_path(path: &Path) -> PathBuf {
+/// The name a backup is written under before it is finished: with `.part`
+/// added, which sync tools such as Nextcloud leave out by default, so a half
+/// copy never travels (#806).
+pub(crate) fn partial_path(path: &Path) -> PathBuf {
     let mut partial = path.as_os_str().to_owned();
-    partial.push(".partial");
+    partial.push(".part");
     PathBuf::from(partial)
 }
 
-fn exists(path: &Path) -> Result<bool, StoreError> {
+pub(crate) fn exists(path: &Path) -> Result<bool, StoreError> {
     match fs::symlink_metadata(path) {
         Ok(_) => Ok(true),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(false),
@@ -122,13 +149,13 @@ fn exists(path: &Path) -> Result<bool, StoreError> {
     }
 }
 
-/// Removes the oldest backups of the book `stem` until the last [`KEEP`] are
+/// Removes the oldest backups of the book `stem` until the last `keep` are
 /// left, `just_made` always among them, even if the computer's clock was put
 /// back since the others were made. Only names that [`back_up`] gives count,
 /// so other files in the folder, and the backups of other books, are left
 /// alone. Errors are ignored: a backup too many does no harm, and the next
 /// backup tries again.
-fn prune(folder: &Path, stem: &str, just_made: &Path) {
+pub(crate) fn prune(folder: &Path, stem: &str, just_made: &Path, keep: usize) {
     let Ok(entries) = fs::read_dir(folder) else {
         return;
     };
@@ -143,7 +170,7 @@ fn prune(folder: &Path, stem: &str, just_made: &Path) {
         .collect();
     // Oldest first: the stamps sort by time, the numbers within one second.
     older.sort();
-    let excess = (older.len() + 1).saturating_sub(KEEP);
+    let excess = (older.len() + 1).saturating_sub(keep.max(1));
     for (_, _, path) in older.into_iter().take(excess) {
         let _ = fs::remove_file(path);
     }
@@ -151,7 +178,7 @@ fn prune(folder: &Path, stem: &str, just_made: &Path) {
 
 /// The stamp and number of `name` if it is the name of a backup of the book
 /// `stem`; the number is 1 if the name has none.
-fn parse_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
+pub(crate) fn parse_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
     let rest = name
         .strip_prefix(stem)?
         .strip_prefix(' ')?
@@ -178,6 +205,14 @@ fn parse_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
         }
     };
     Some((stamp, number))
+}
+
+/// When a backup whose name has `stamp` (as [`parse_name`] gives it) was
+/// made.
+pub(crate) fn stamp_time(stamp: &str) -> Option<Timestamp> {
+    let time = stamp.strip_suffix(" UTC")?;
+    // The stamp names no offset, but is always UTC (D-061).
+    Timestamp::strptime("%Y-%m-%d %H-%M-%S %z", format!("{time} +0000")).ok()
 }
 
 #[cfg(test)]
@@ -216,7 +251,7 @@ mod tests {
             ("Household2026-10-19 11-04-02 UTC.ksz", None),
             ("Garden 2026-10-19 11-04-02 UTC.ksz", None),
             // Not a name back_up gives.
-            ("Household 2026-10-19 11-04-02 UTC.ksz.partial", None),
+            ("Household 2026-10-19 11-04-02 UTC.ksz.part", None),
             ("Household 2026-10-19 11-04-02 UTC 1.ksz", None),
             ("Household 2026-10-19 11-04-02 UTC 02.ksz", None),
             ("Household 2026-10-19 11-04-02 UTC 2a.ksz", None),
@@ -239,6 +274,13 @@ mod tests {
             .to_string();
         assert_eq!(stamp, "2026-10-19 11-04-02 UTC");
         assert_eq!(stamp.len(), STAMP_PATTERN.len());
+        // And it reads back as the same moment.
+        assert_eq!(
+            stamp_time(&stamp).map(|time| time.as_second()),
+            Some(1_792_407_842)
+        );
+        assert_eq!(stamp_time("2026-10-19 11-04-02 CET"), None);
+        assert_eq!(stamp_time("2026-13-19 11-04-02 UTC"), None);
     }
 
     #[test]
@@ -279,7 +321,7 @@ mod tests {
             "Household.ksz",
             "Household 2 2026-10-01 09-00-00 UTC.ksz",
             "Garden 2026-10-01 09-00-00 UTC.ksz",
-            "Household 2026-10-01 08-00-00 UTC.ksz.partial",
+            "Household 2026-10-01 08-00-00 UTC.ksz.part",
             "Notes.txt",
         ]
         .map(String::from)
@@ -301,7 +343,7 @@ mod tests {
         backups.insert(3, same_second.into());
 
         let just_made = folder.join(backups.last().expect("a backup"));
-        prune(folder.path(), "Household", &just_made);
+        prune(folder.path(), "Household", &just_made, KEEP);
 
         let mut expected: Vec<String> = backups[3..].iter().chain(&others).cloned().collect();
         expected.sort();
@@ -315,7 +357,7 @@ mod tests {
         let just_made = "Household 2026-10-01 09-00-00 UTC.ksz";
         fs::write(folder.join(just_made), "made up").expect("file written");
 
-        prune(folder.path(), "Household", &folder.join(just_made));
+        prune(folder.path(), "Household", &folder.join(just_made), KEEP);
 
         let mut expected: Vec<String> = backups[2..]
             .iter()

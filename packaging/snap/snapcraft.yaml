@@ -83,7 +83,7 @@ parts:
       - -Dlibsystemd=false
       - -Dlibudev=false
       - -Dpolkit=false
-    build-packages: [pkgconf, flex]
+    build-packages: [meson, ninja-build, pkgconf, flex]
     prime:
       - -usr/bin
       - -usr/sbin

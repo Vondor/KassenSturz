@@ -12,6 +12,8 @@ use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 
+use kassensturz_core::Date;
+use kassensturz_core::day_watch::{DayChange, DayWatch};
 use kassensturz_report::{Period, ReportError, Source};
 use kassensturz_store::Book;
 
@@ -24,6 +26,8 @@ thread_local! {
     /// under an older count is out of date (see [`cached_source`]).
     static CHANGES: Cell<u64> = const { Cell::new(0) };
     static SOURCES: RefCell<SourceCache> = const { RefCell::new(SourceCache::new()) };
+    /// The date at the last look at the clock (#831).
+    static DAY: Cell<DayWatch> = const { Cell::new(DayWatch::new()) };
 }
 
 /// How many readings of the book [`cached_source`] keeps. The Overview asks
@@ -49,6 +53,25 @@ impl SourceCache {
 
 fn changed() {
     CHANGES.with(|changes| changes.set(changes.get().wrapping_add(1)));
+}
+
+/// Notes today's date as the clock gives it. When the day has moved since
+/// the last look, what was read from the book is out of date: "today" and
+/// "this month" are part of every figure that was asked for with it. It
+/// counts as a change of the book ([`changes`]), so the screens read again
+/// (#831). Returns whether the day changed.
+pub fn note_today(today: Date) -> bool {
+    let change = DAY.with(|day| {
+        let mut watch = day.get();
+        let change = watch.note(today);
+        day.set(watch);
+        change
+    });
+    if change == DayChange::None {
+        return false;
+    }
+    changed();
+    true
 }
 
 /// The count of times the open book may have changed: a book opened or
@@ -202,6 +225,33 @@ mod tests {
             .expect("read")
         })
         .expect("a book is open")
+    }
+
+    #[test]
+    fn a_clock_moved_over_a_month_end_throws_the_readings_away() {
+        let reads = Cell::new(0);
+        open(Book::create_in_memory().expect("book"));
+        let date =
+            |year, month, day| kassensturz_core::Date::new(year, month, day).expect("a date");
+        // The first look is the one the screens were made with.
+        assert!(!note_today(date(2026, 11, 30)));
+        let first = read_count(period(), false, &reads);
+        assert!(!note_today(date(2026, 11, 30)));
+        let before = changes();
+        assert!(Rc::ptr_eq(&first, &read_count(period(), false, &reads)));
+
+        // The clock moves to December while the app stays open: the count
+        // the screens ask again by moves on and what was read is read again.
+        assert!(note_today(date(2026, 12, 1)));
+        assert_ne!(changes(), before);
+        let after = read_count(period(), false, &reads);
+        assert_eq!(reads.get(), 2);
+        assert!(!Rc::ptr_eq(&first, &after));
+
+        // The same day again changes nothing.
+        let now = changes();
+        assert!(!note_today(date(2026, 12, 1)));
+        assert_eq!(changes(), now);
     }
 
     #[test]

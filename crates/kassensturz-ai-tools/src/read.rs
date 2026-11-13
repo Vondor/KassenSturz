@@ -1576,6 +1576,14 @@ pub(crate) fn condition_row(
             // No IBAN reaches a model, not even part of one (D-186).
             if *field == TextField::OtherPartyIban {
                 row.insert("text_left_out".into(), Value::Bool(true));
+            } else if *operator == TextOperator::Matches {
+                // A pattern is shown whole up to what propose_changes
+                // takes (#825); a longer one says it is cut.
+                let (text, cut) = w.pattern_text(value, crate::changes::MAX_PATTERN_CHARS);
+                row.insert("text".into(), text);
+                if cut {
+                    row.insert("pattern_cut".into(), Value::Bool(true));
+                }
             } else {
                 row.insert("text".into(), w.text(value));
             }

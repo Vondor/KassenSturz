@@ -596,6 +596,9 @@ fn add_params(value: &mut Map<String, Value>, report: &ErrorReport) {
         let param = match param {
             ErrorParam::Keyword(keyword) => Value::from(*keyword),
             ErrorParam::Number(number) => Value::from(*number),
+            // The category a budget refusal is about, by the ID the AI has
+            // from list_categories (#830).
+            ErrorParam::Account(id) if *name == "category_id" => Value::from(id.to_string()),
             _ => continue,
         };
         value.entry(*name).or_insert(param);

@@ -1179,6 +1179,11 @@ fn error_json(report: &ErrorReport, prepares: bool) -> Value {
             ErrorParam::Number(number) => {
                 out.insert((*name).into(), json!(number));
             }
+            // The category a budget refusal is about, by the ID the model
+            // has from list_categories (#830).
+            ErrorParam::Account(id) if *name == "category_id" => {
+                out.insert((*name).into(), json!(id.to_string()));
+            }
             _ => {}
         }
     }
@@ -1351,6 +1356,31 @@ mod tests {
         let other = ToolError::UnknownRule;
         let answer = with_allowed(error_json(&other.model_report(), true), &other);
         assert!(answer.get("setting").is_none(), "{answer}");
+    }
+
+    #[test]
+    fn a_refused_budget_and_a_refused_text_carry_their_fixed_words() {
+        // #830: the category by its ID (never a name); #826: the reason.
+        let category = kassensturz_core::AccountId::generate();
+        let budget = ToolError::HasBudget {
+            argument: "category_ids",
+            place: Some(2),
+            category,
+        }
+        .report();
+        let answer = error_json(&budget, true);
+        assert_eq!(answer["category_id"], json!(category.to_string()));
+        assert_eq!(answer["category"], json!(2));
+        assert_eq!(answer["use_instead"], json!("edit_budgets"));
+        let note = ToolError::BadText {
+            argument: "note",
+            reason: "line-break",
+        }
+        .report();
+        let answer = error_json(&note, true);
+        assert_eq!(answer["error"], json!("ai-tools.bad-argument"));
+        assert_eq!(answer["argument"], json!("note"));
+        assert_eq!(answer["reason"], json!("line-break"));
     }
 
     #[test]

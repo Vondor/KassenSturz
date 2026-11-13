@@ -728,10 +728,12 @@ pub(super) fn new_budget(
             ToolError::HasBudget {
                 argument: "category_id",
                 place: None,
+                category,
             }
         } else {
             ToolError::HasBudget {
                 argument: "category_ids",
+                category,
                 place: categories
                     .iter()
                     .position(|id| *id == category)

@@ -369,12 +369,18 @@ pub(super) fn free_text(text: &str, argument: &'static str) -> Result<Option<Str
     } else {
         MAX_PAYEE_CHARS
     };
-    let bad = text.chars().count() > longest
-        || text
-            .chars()
-            .any(|c| c.is_control() || crate::text::hides_text(c));
-    if bad {
-        return Err(ToolError::BadArgument { argument });
+    // The reason, so a model knows what to change (#826).
+    let reason = if text.chars().any(char::is_control) {
+        Some("line-break")
+    } else if text.chars().any(crate::text::hides_text) {
+        Some("hidden-character")
+    } else if text.chars().count() > longest {
+        Some("too-long")
+    } else {
+        None
+    };
+    if let Some(reason) = reason {
+        return Err(ToolError::BadText { argument, reason });
     }
     Ok((!text.is_empty()).then(|| text.to_owned()))
 }
@@ -476,7 +482,13 @@ mod tests {
         );
         assert_eq!(free_text("   ", "payee").ok(), Some(None));
         assert!(free_text("a\u{202e}b", "payee").is_err());
-        assert!(free_text("a\nb", "note").is_err());
+        assert!(matches!(
+            free_text("a\nb", "note"),
+            Err(ToolError::BadText {
+                argument: "note",
+                reason: "line-break"
+            })
+        ));
         assert!(free_text(&"x".repeat(201), "payee").is_err());
         assert_eq!(
             free_text(&"x".repeat(512), "note")

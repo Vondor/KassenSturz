@@ -315,7 +315,8 @@ mod tests {
 
     /// The portal's `GetHostPaths` takes document IDs, not paths: asked with
     /// the path, it gave no answer and Settings showed the sandbox path
-    /// (M6-B240).
+    /// (M6-B240). Unix only: the portal and these paths exist only there.
+    #[cfg(unix)]
     #[test]
     fn asks_the_portal_by_document_id_and_adds_the_rest() {
         let run = Path::new(RUN);

@@ -80,6 +80,7 @@ parts:
     source-checksum: sha256/bfcfe38a20afc49849c6bf55325e38f449fc4b26d3923fdc32b969ae41a8741b
     meson-parameters:
       - --prefix=/usr
+      - --libdir=lib
       - -Dlibsystemd=false
       - -Dlibudev=false
       - -Dpolkit=false
@@ -107,6 +108,15 @@ parts:
       - libgmp-dev
       - libgpg-error-dev
       - gettext
+    # The extension points every part's library path at its SDK snaps, which
+    # breaks the host compiler's test programs; the bank libraries are
+    # plain C and need none of it. On a failure the log shows why.
+    override-build: |
+      unset LD_LIBRARY_PATH
+      if ! craftctl default; then
+        tail -n 60 config.log || true
+        exit 1
+      fi
     prime:
       - -usr/bin
       - -usr/include
@@ -120,6 +130,15 @@ parts:
     source-checksum: sha256/6c07f527417f7562074f99012da4d11eb4dbafd33f49e66b442ccd6e3b8cfd20
     autotools-configure-parameters:
       - --prefix=/usr
+    # The extension points every part's library path at its SDK snaps, which
+    # breaks the host compiler's test programs; the bank libraries are
+    # plain C and need none of it. On a failure the log shows why.
+    override-build: |
+      unset LD_LIBRARY_PATH
+      if ! craftctl default; then
+        tail -n 60 config.log || true
+        exit 1
+      fi
     prime:
       - -usr/bin
       - -usr/include
@@ -141,6 +160,15 @@ parts:
     build-packages:
       - libxmlsec1-dev
       - libxslt1-dev
+    # The extension points every part's library path at its SDK snaps, which
+    # breaks the host compiler's test programs; the bank libraries are
+    # plain C and need none of it. On a failure the log shows why.
+    override-build: |
+      unset LD_LIBRARY_PATH
+      if ! craftctl default; then
+        tail -n 60 config.log || true
+        exit 1
+      fi
     prime:
       - -usr/bin
       - -usr/include

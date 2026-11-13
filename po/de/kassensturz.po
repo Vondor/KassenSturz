@@ -23114,3 +23114,87 @@ msgstr "Bis zu diesem Tag (eingeschlossen)"
 msgctxt "@info"
 msgid "The last day is before the first. Swap them."
 msgstr "Der letzte Tag liegt vor dem ersten. Tauschen Sie die beiden."
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:55
+#, kde-format
+msgctxt "@info a flow of the money-flow chart: %1 where it comes from, %2 where it goes, %3 the amount"
+msgid "%1 to %2: %3"
+msgstr "%1 nach %2: %3"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:150
+#, kde-format
+msgctxt "@info the money-flow chart in words; %1 is how much passed through, %2 the currency"
+msgid "Where your money came from and where it went. %1 passed through. Use Left and Right to hear each flow, or show the chart as a table."
+msgstr "Woher Ihr Geld kam und wohin es ging. %1 sind durchgelaufen. Mit Links und Rechts hören Sie jeden Zufluss und Abfluss, oder zeigen Sie das Diagramm als Tabelle."
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:300
+#, kde-format
+msgctxt "@info under the money-flow chart: %1 is how much passed through it"
+msgid "Total: %1"
+msgstr "Insgesamt: %1"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:310
+#, kde-format
+msgctxt "@info under the money-flow chart: money in other currencies is not shown; %1 is a list of amounts"
+msgid "Also %1 in another currency, not shown."
+msgstr "Außerdem %1 in einer anderen Währung, nicht abgebildet."
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:40
+#, kde-format
+msgctxt "@label a node of the money-flow chart that holds the smallest ones; %1 is how many"
+msgid "Other (%1)"
+msgstr "Sonstiges (%1)"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:36
+#, kde-format
+msgctxt "@label a node of the money-flow chart: money taken from what you had saved because you spent more than you earned"
+msgid "From your reserves"
+msgstr "Aus Ihren Rücklagen"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:38
+#, kde-format
+msgctxt "@label a node of the money-flow chart: money with no category yet"
+msgid "Not sorted yet"
+msgstr "Noch nicht sortiert"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:39
+#, kde-format
+msgctxt "@label a node of the money-flow chart: money with no name of who paid or was paid"
+msgid "No name given"
+msgstr "Ohne Namen"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:34
+#, kde-format
+msgctxt "@label a node of the money-flow chart: what is left when you earned more than you spent"
+msgid "Left over"
+msgstr "Übrig"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:42
+#, kde-format
+msgctxt "@label a node of the money-flow chart: what was booked to a category itself and not to one of its sub-categories; %1 is its name"
+msgid "%1 itself"
+msgstr "%1 selbst"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:32
+#, kde-format
+msgctxt "@label the one node in the middle of the money-flow chart"
+msgid "Your money"
+msgstr "Ihr Geld"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:331
+#, kde-format
+msgctxt "@title:column a table of a chart"
+msgid "Amount"
+msgstr "Betrag"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:332
+#, kde-format
+msgctxt "@title:column a table of the money-flow chart: where a flow comes from"
+msgid "From"
+msgstr "Von"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:333
+#, kde-format
+msgctxt "@title:column a table of the money-flow chart: where a flow goes"
+msgid "To"
+msgstr "Nach"

@@ -24,10 +24,11 @@ cd "$(dirname "$0")/.."
 work=$(mktemp -d)
 trap '[ -n "${KEEP_CHARTS:-}" ] && cp -r "$work/out" "$KEEP_CHARTS"; rm -rf "$work"' EXIT
 qml=crates/kassensturz-ui-bridge/qml
+cp "$qml"/FlowChart.qml crates/kassensturz-ui-bridge/qml-tests/FlowSmoke.qml "$work"
 cp "$qml"/ChartView.qml "$qml"/ChartOverlays.qml "$qml"/ChartTable.qml "$qml"/ChartPalette.qml \
     "$qml"/DataTable.qml "$qml"/AmountLabel.qml \
     crates/kassensturz-ui-bridge/qml-tests/ChartsSmoke.qml "$work"
-printf 'singleton ChartPalette 1.0 ChartPalette.qml\nChartView 1.0 ChartView.qml\nChartOverlays 1.0 ChartOverlays.qml\nChartTable 1.0 ChartTable.qml\nDataTable 1.0 DataTable.qml\nAmountLabel 1.0 AmountLabel.qml\n' \
+printf 'singleton ChartPalette 1.0 ChartPalette.qml\nChartView 1.0 ChartView.qml\nChartOverlays 1.0 ChartOverlays.qml\nChartTable 1.0 ChartTable.qml\nDataTable 1.0 DataTable.qml\nAmountLabel 1.0 AmountLabel.qml\nFlowChart 1.0 FlowChart.qml\n' \
     > "$work/qmldir"
 mkdir "$work/out"
 
@@ -64,6 +65,25 @@ mkdir "$work/out"
     grep -q 'candle-help off false$' run.log || { echo "check-charts: the candle explanation stayed with explain off" >&2; exit 1; }
     grep -q 'candle-help on true$' run.log || { echo "check-charts: the candle explanation is missing with explain on" >&2; exit 1; }
     grep -c 'name-overlaps' run.log | grep -qv '^0$' || { echo "check-charts: no name check ran" >&2; exit 1; }
+)
+
+# The money-flow chart (US7, #821): drawn from made-up places, and a band
+# found under a point of the picture.
+(
+    cd "$work"
+    mkdir -p flow/out
+    cp FlowChart.qml ChartPalette.qml DataTable.qml AmountLabel.qml FlowSmoke.qml qmldir flow/
+    cd flow
+    LIBGL_ALWAYS_SOFTWARE=1 QSG_RHI_BACKEND=opengl QT_QPA_PLATFORM=xcb \
+        timeout 120 xvfb-run -a -s "-screen 0 1280x1024x24" qml6 FlowSmoke.qml 2>&1 | tee run.log
+    if grep -E 'recursive rearrange|Binding loop' run.log; then
+        echo "check-charts: the money-flow chart printed a layout or binding loop (above)" >&2
+        exit 1
+    fi
+    grep -q 'flow-columns 3$' run.log || { echo "check-charts: the money-flow chart has the wrong columns" >&2; exit 1; }
+    grep -q 'flow-band-at 0$' run.log || { echo "check-charts: no band under the point of the salary band" >&2; exit 1; }
+    grep -q 'flow-text Salary to Your money: ' run.log || { echo "check-charts: a band does not say where it goes" >&2; exit 1; }
+    cp out/*.png "$work/out/"
 )
 
 python3 - "$work/out" <<'PY'
@@ -163,7 +183,21 @@ expected = {
     # The balance as candles: up hollow in blue, down filled in orange.
     "20-candlestick": [blue, orange],
 }
+# The money flow (US7): the salary node and the rent node are blue, food
+# orange.
+flow_expected = {"flow-chart": [blue, orange]}
 failed = False
+for name, colors in flow_expected.items():
+    picture = pixels(os.path.join(out, name + ".png"))
+    for color in colors:
+        found = count(picture, color)
+        print(f"{name}: {found} pixels of #{color[0]:02X}{color[1]:02X}{color[2]:02X}")
+        if found < 300:
+            print("  too few: the chart was not drawn")
+            failed = True
+    if not os.path.exists(os.path.join(out, name.replace("chart", "table") + ".png")):
+        print("missing picture:", name, "as a table")
+        failed = True
 for name, colors in expected.items():
     for suffix in ("", "-table"):
         path = os.path.join(out, name + suffix + ".png")

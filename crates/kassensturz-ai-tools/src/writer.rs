@@ -50,6 +50,16 @@ impl<'a> Writer<'a> {
         Ok(Value::String(decimal_text(amount.minor_units(), digits)))
     }
 
+    /// `part` as [`Self::amount`] writes it, noted as a part of `total`
+    /// that an answer may name only next to that total, such as what is
+    /// booked to a parent category itself (#850). `total` must be written
+    /// with [`Self::amount`] too.
+    pub(crate) fn own_bookings(&mut self, part: Money, total: Money) -> Result<Value, StoreError> {
+        let digits = self.digits(part.currency())?;
+        self.figures.add_part_of(part, total, digits);
+        Ok(Value::String(decimal_text(part.minor_units(), digits)))
+    }
+
     /// A count, such as how many rows were left out.
     pub(crate) fn count(&mut self, count: usize) -> Value {
         let count = u64::try_from(count).unwrap_or(u64::MAX);

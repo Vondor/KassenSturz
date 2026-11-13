@@ -63,7 +63,7 @@ fn amounts(rows: &Value, key: &str) -> Vec<(String, String)> {
                     .and_then(Value::as_str)
                     .unwrap_or("(none)")
                     .to_owned(),
-                row["amount"].as_str().expect("an amount").to_owned(),
+                row["total"].as_str().expect("a total").to_owned(),
             )
         })
         .collect()
@@ -234,12 +234,12 @@ fn the_questionnaire_answers_of_this_book() {
         amounts(&euro["spending"], "category")[..5],
         [
             // A parent sorts by its total with the subcategories (M6-B131) and
-            // shows what is booked to itself.
-            ("Taxes and Fees", "0.00"),
+            // shows that total (#850).
+            ("Taxes and Fees", "13435.22"),
             ("Taxes and Fees › Colony Income Tax", "10230.00"),
-            ("Habitat", "0.00"),
+            ("Habitat", "9472.48"),
             ("Habitat › Rent", "7350.00"),
-            ("Food", "1786.37"),
+            ("Food", "5313.81"),
         ]
         .map(|(category, amount)| (category.to_owned(), amount.to_owned()))
     );
@@ -259,23 +259,24 @@ fn the_questionnaire_answers_of_this_book() {
     assert_eq!(
         food,
         [
-            ("Food", "1786.37"),
+            ("Food", "5313.81"),
             ("Food › Hydroponic Greens", "2822.01"),
             ("Food › Algae Bars and Nutrient Paste", "705.43"),
         ]
         .map(|(category, amount)| (category.to_owned(), amount.to_owned()))
     );
 
-    // M5-B40: the Food row itself carries the total with its subcategories,
-    // the answer Q9 expects (1786.37 + 2822.01 + 705.43).
+    // M5-B40, #850: the Food row leads with the total with its
+    // subcategories, the answer Q9 expects (1786.37 + 2822.01 + 705.43),
+    // and the night run's wrong figure is only under "own_bookings_only".
     let food_row = euro["spending"]
         .as_array()
         .expect("a list")
         .iter()
         .find(|row| row["category"] == "Food")
         .expect("the Food row");
-    assert_eq!(food_row["amount"], "1786.37");
-    assert_eq!(food_row["amount_with_subcategories"], "5313.81");
+    assert_eq!(food_row["total"], "5313.81");
+    assert_eq!(food_row["own_bookings_only"], "1786.37");
 
     // Q2: the ice deliveries come once a month for five years.
     let ice = run(

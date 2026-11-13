@@ -10,7 +10,7 @@
 //! bridge and is checked in a VM round; here are the folder and the check
 //! of every call against the app's own permission grid.
 
-#![cfg(unix)]
+#![cfg(all(feature = "ai", unix))]
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};

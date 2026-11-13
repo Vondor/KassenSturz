@@ -11,6 +11,8 @@
 //! the tests here check what exists today: nothing changes before the
 //! confirm, the limits per list, and that Undo restores everything.
 
+#![cfg(feature = "ai")]
+
 use kassensturz_ai_tools::{Confirmed, propose};
 use kassensturz_core::ai_switch::{Field, Permissions};
 use kassensturz_core::{

@@ -195,10 +195,15 @@ impl PrivateFolder {
             "kassensturz-copy-{}",
             uuid::Uuid::now_v7().hyphenated()
         ));
-        let mut builder = fs::DirBuilder::new();
         #[cfg(unix)]
-        std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
-        builder.create(&path)?;
+        {
+            let mut builder = fs::DirBuilder::new();
+            std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+            builder.create(&path)?;
+        }
+        // The user's temporary folder on Windows is theirs alone.
+        #[cfg(not(unix))]
+        fs::DirBuilder::new().create(&path)?;
         Ok(Self(path))
     }
 

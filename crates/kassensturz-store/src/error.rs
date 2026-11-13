@@ -412,6 +412,10 @@ pub enum StoreError {
     Io(ErrorKind),
     /// SQLite reported an error.
     Database(DatabaseError),
+    /// An earlier change couldn't be written because of the drive (it was
+    /// taken back: the book is as it was before that change), so no change
+    /// is written until the book is opened again (D-732).
+    WriteFailed,
 }
 
 /// What's wrong with data read from a book.
@@ -777,6 +781,7 @@ impl Report for StoreError {
             Self::Corrupt(corruption) => corruption.report(),
             Self::Io(kind) => new("store.io").with("kind", P::Keyword(io_keyword(*kind))),
             Self::Database(_) => new("store.database"),
+            Self::WriteFailed => new("store.write-failed"),
         }
     }
 }

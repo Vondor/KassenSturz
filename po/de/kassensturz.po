@@ -22503,3 +22503,130 @@ msgid ""
 "KassenSturz also keeps a copy there once a day when you open your book, and "
 "a copy of every backup."
 msgstr "Diese Kopien liegen auf demselben Laufwerk wie Ihr Haushaltsbuch. Wenn Sie einen anderen Ordner wählen, zum Beispiel auf einem USB-Stick oder in einem Ordner, den Ihre Cloud-App hochlädt, legt KassenSturz dort zusätzlich einmal am Tag eine Kopie ab, wenn Sie Ihr Haushaltsbuch öffnen, und eine Kopie jeder Sicherung."
+
+#: crates/kassensturz-ui-bridge/qml/BookNameDialog.qml:50
+#, kde-format
+msgctxt "@title:window"
+msgid "Name your book"
+msgstr "Geben Sie Ihrem Buch einen Namen"
+
+#: crates/kassensturz-ui-bridge/qml/BookNameDialog.qml:51
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz keeps the book in the folder you chose and adds \".ksz\" to its "
+"name."
+msgstr "KassenSturz legt das Buch im gewählten Ordner ab und hängt „.ksz“ an den Namen an."
+
+#: crates/kassensturz-ui-bridge/qml/BookNameDialog.qml:82
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Folder: %1"
+msgstr "Ordner: %1"
+
+#: crates/kassensturz-ui-bridge/qml/BookNameDialog.qml:89
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the book"
+msgstr "Name des Buches"
+
+#: crates/kassensturz-ui-bridge/qml/BookPickDialog.qml:36
+#, kde-format
+msgctxt "@title:window"
+msgid "Which book?"
+msgstr "Welches Buch?"
+
+#: crates/kassensturz-ui-bridge/qml/BookPickDialog.qml:37
+#, kde-format
+msgctxt "@info"
+msgid "There is more than one book in this folder."
+msgstr "In diesem Ordner liegt mehr als ein Buch."
+
+#: crates/kassensturz-ui-bridge/qml/BookPickDialog.qml:41
+#, kde-format
+msgctxt "@action:button"
+msgid "Open"
+msgstr "Öffnen"
+
+#: crates/kassensturz-ui-bridge/qml/BookPickDialog.qml:67
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Book"
+msgstr "Buch"
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:59
+#, kde-format
+msgctxt "@title"
+msgid "KassenSturz can no longer reach the book's folder"
+msgstr "KassenSturz erreicht den Ordner des Buches nicht mehr"
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:61
+#, kde-format
+msgctxt "@title"
+msgid "KassenSturz can't change files in this folder"
+msgstr "KassenSturz darf in diesem Ordner keine Dateien ändern"
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:63
+#, kde-format
+msgctxt "@title"
+msgid "KassenSturz couldn't save your latest change"
+msgstr "KassenSturz konnte Ihre letzte Änderung nicht speichern"
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:89
+#, kde-format
+msgctxt "@info"
+msgid ""
+"You gave KassenSturz access to the folder earlier, but the system has taken "
+"it back, or the folder is gone. Choose the folder again to open the book. "
+"Nothing was changed."
+msgstr "Sie hatten KassenSturz den Zugriff auf den Ordner erlaubt, aber das System hat ihn zurückgenommen, oder der Ordner ist nicht mehr da. Wählen Sie den Ordner erneut, um das Buch zu öffnen. Es wurde nichts geändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:91
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The folder was shared with KassenSturz for reading only, or the drive is "
+"read-only. Choose the folder again and allow changes, or choose a folder you "
+"can write to. The book wasn't changed."
+msgstr "Der Ordner wurde KassenSturz nur zum Lesen freigegeben, oder das Laufwerk ist schreibgeschützt. Wählen Sie den Ordner erneut und erlauben Sie Änderungen, oder wählen Sie einen Ordner, in den Sie schreiben dürfen. Das Buch wurde nicht geändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:93
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The book's folder stopped accepting changes, for example because the drive "
+"was disconnected or the access ended. Your earlier work is safe in the book. "
+"Reconnect the drive or choose the folder again, then try again."
+msgstr "Der Ordner des Buches nimmt keine Änderungen mehr an, zum Beispiel weil das Laufwerk getrennt wurde oder der Zugriff endete. Ihre bisherige Arbeit ist im Buch gesichert. Verbinden Sie das Laufwerk wieder oder wählen Sie den Ordner erneut, und versuchen Sie es dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:221
+#, kde-format
+msgctxt "@action:button"
+msgid "Choose the folder again…"
+msgstr "Ordner erneut wählen …"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:681
+#, kde-format
+msgctxt "@info"
+msgid ""
+"There is no book in this folder. Choose another folder, or start a new book."
+msgstr "In diesem Ordner liegt kein Buch. Wählen Sie einen anderen Ordner oder beginnen Sie ein neues Buch."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1307
+#, kde-format
+msgctxt "@label:textbox suggested name of a new book"
+msgid "My book"
+msgstr "Mein Buch"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1321
+#, kde-format
+msgctxt "@info"
+msgid ""
+"That name can't be used for a book. Use letters and numbers, without / or \\."
+msgstr "Dieser Name kann nicht für ein Buch verwendet werden. Verwenden Sie Buchstaben und Zahlen, ohne / oder \\."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1331
+#, kde-format
+msgctxt "@title:window"
+msgid "Choose the folder of your book again"
+msgstr "Ordner Ihres Buches erneut wählen"

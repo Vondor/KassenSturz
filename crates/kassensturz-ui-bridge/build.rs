@@ -73,6 +73,8 @@ fn main() {
                 "qml/KmyReportsImportPage.qml",
                 "qml/BookFromFilePage.qml",
                 "qml/FolderChooser.qml",
+                "qml/BookNameDialog.qml",
+                "qml/BookPickDialog.qml",
                 "qml/BookMovePage.qml",
                 "qml/BookMoveInterruptedDialog.qml",
                 "qml/BookProblemPage.qml",
@@ -225,6 +227,12 @@ fn main() {
     // Visual Studio reads a source file in the system's code page unless told
     // otherwise, and the C++ that qmlcachegen writes from the QML keeps its
     // string literals as they are, so "↑" came out as "â†‘" (M6-B141).
+    // Only Linux has a document portal to ask (docs/BOOK_FOLDER.md §3), so
+    // only there Qt's D-Bus module is linked.
+    let dbus = std::env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "linux");
+    if dbus {
+        builder = builder.qt_module("DBus");
+    }
     let msvc = std::env::var("CARGO_CFG_TARGET_ENV").is_ok_and(|env| env == "msvc");
     // SAFETY: only adds include folders for KConfig's and Breeze's headers
     // and, for Visual Studio, the flag that reads sources as UTF-8; cxx-qt-build's
@@ -233,6 +241,9 @@ fn main() {
         builder.cc_builder(|cc| {
             if msvc {
                 cc.flag("/utf-8");
+            }
+            if dbus {
+                cc.define("KASSENSTURZ_WITH_DBUS", "1");
             }
             for dir in &kconfig.include_dirs {
                 cc.include(dir);

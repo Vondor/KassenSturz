@@ -86,6 +86,11 @@ pub struct Book {
     recording: bool,
     /// Whether a new book is being filled ([`Book::fill_new`]).
     filling: bool,
+    /// Whether writing to the book's file failed because of the drive, not
+    /// because of what was changed (a drive that dropped, a full disk, a
+    /// read-only folder). From then on every change is refused, so nothing
+    /// is half written; the user opens the book again (D-732).
+    write_failed: bool,
     /// The book's lock file, removed when the book is closed. Declared after
     /// `conn`, so the database is closed first. Books in memory have none.
     _lock: Option<HeldLock>,
@@ -262,6 +267,7 @@ impl Book {
             conn,
             recording: false,
             filling: false,
+            write_failed: false,
             _lock: lock,
         };
         book.prune_history()?;
@@ -1286,3 +1292,5 @@ fn date_from_text(text: &str) -> Result<Date, StoreError> {
 mod test_folder;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod write_failure;

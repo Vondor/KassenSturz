@@ -56,6 +56,11 @@ QString dataSize(std::int64_t bytes);
 // Returns 0, or the system's error number (errno, or GetLastError()).
 int renameNoReplace(const QString &from, const QString &to);
 
+// The real path on the computer of a folder in the document portal's mount
+// (`$XDG_RUNTIME_DIR/doc/<id>/<name>`), from the portal's GetHostPaths over
+// D-Bus; empty where the portal doesn't say or on systems without one.
+QString portalHostPath(const QString &portalPath);
+
 // Loads KI18n's QML library on the calling thread. Qt otherwise loads it on
 // its QML loader thread, and a static object inside it then lives there while
 // it filters the application's events, which Qt warns about at every start.

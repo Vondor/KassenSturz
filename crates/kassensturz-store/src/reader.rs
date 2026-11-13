@@ -74,6 +74,7 @@ impl Book {
             conn,
             recording: false,
             filling: false,
+            write_failed: false,
             _lock: None,
         })
     }

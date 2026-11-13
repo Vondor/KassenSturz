@@ -1287,21 +1287,75 @@ impl Book {
     where
         E: From<StoreError>,
     {
-        self.conn
-            .execute_batch("SAVEPOINT book")
-            .map_err(StoreError::from)?;
+        if self.write_failed {
+            return Err(StoreError::WriteFailed.into());
+        }
+        if let Err(error) = self.conn.execute_batch("SAVEPOINT book") {
+            self.note_write_failure(&error);
+            return Err(StoreError::from(error).into());
+        }
         match change(self) {
             Ok(value) => match self.conn.execute_batch("RELEASE book") {
                 Ok(()) => Ok(value),
                 Err(error) => {
                     self.roll_back();
+                    self.note_write_failure(&error);
                     Err(StoreError::from(error).into())
                 }
             },
             Err(error) => {
                 self.roll_back();
+                self.probe_writing();
                 Err(error)
             }
+        }
+    }
+
+    /// Whether writing to the book's file failed because of the drive, so
+    /// no change is written anymore (D-732). The change that failed was taken
+    /// back; the book is as it was before it. Open the book again to go on.
+    #[must_use]
+    pub fn write_failed(&self) -> bool {
+        self.write_failed
+    }
+
+    /// Remembers that `error` is the drive's, not the change's.
+    fn note_write_failure(&mut self, error: &rusqlite::Error) {
+        use rusqlite::ErrorCode;
+        if matches!(
+            error.sqlite_error_code(),
+            Some(
+                ErrorCode::DiskFull
+                    | ErrorCode::ReadOnly
+                    | ErrorCode::PermissionDenied
+                    | ErrorCode::CannotOpen
+                    | ErrorCode::SystemIoFailure
+                    | ErrorCode::NotFound
+                    | ErrorCode::NoLargeFileSupport
+            )
+        ) {
+            self.write_failed = true;
+        }
+    }
+
+    /// After a change failed for a reason that doesn't say whether the
+    /// drive is fine, writes the book's own version number back to the
+    /// file: if the drive can't take even that, no further change is
+    /// written. Does nothing inside a bigger change, which writes nothing
+    /// yet, and costs one small write for a failed change (a rare event).
+    fn probe_writing(&mut self) {
+        if !self.conn.is_autocommit() {
+            return;
+        }
+        let probe = self
+            .conn
+            .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
+            .and_then(|version| {
+                self.conn
+                    .execute_batch(&format!("PRAGMA user_version = {version}"))
+            });
+        if let Err(error) = probe {
+            self.note_write_failure(&error);
         }
     }
 

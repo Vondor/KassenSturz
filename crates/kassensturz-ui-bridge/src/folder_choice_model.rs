@@ -8,16 +8,21 @@
 //! ask for their folder through it. The folder's real path is shown as plain
 //! text only, and never reaches a log or an AI or MCP result.
 
-use cxx_qt_lib::{QUrl, QVariant};
+use std::path::Path;
+
+use cxx_qt_lib::{QString, QUrl, QVariant};
 use kassensturz_core::book_folder::{FolderGrant, FolderRefused};
 
-use crate::book_session::local_path;
+use crate::book_session::{file_in, local_path};
 use crate::platform;
 use crate::variant::{map, text};
 
 #[cxx_qt::bridge]
 pub mod qobject {
     unsafe extern "C++" {
+        include!("cxx-qt-lib/qstring.h");
+        type QString = cxx_qt_lib::QString;
+
         include!("cxx-qt-lib/qurl.h");
         type QUrl = cxx_qt_lib::QUrl;
 
@@ -40,6 +45,14 @@ pub mod qobject {
         /// isn't used.
         #[qinvokable]
         fn grant(self: &FolderChoice, folder: &QUrl) -> QVariant;
+
+        /// The book called `name` in `folder` (a folder this object granted)
+        /// as a file URL for the pages that make a book there: `ok` and
+        /// `url`, or `code` `name.invalid` for a name that isn't a plain file
+        /// name. `.ksz` is added unless it is there.
+        #[qinvokable]
+        #[cxx_name = "fileIn"]
+        fn file_in(self: &FolderChoice, folder: &QString, name: &QString) -> QVariant;
     }
 
     impl cxx_qt::Initialize for FolderChoice {}
@@ -65,6 +78,31 @@ impl qobject::FolderChoice {
             Some(path) => grant_object(&platform::choose_folder(&path)),
             None => grant_object(&Err(FolderRefused::NotUsable)),
         }
+    }
+}
+
+impl qobject::FolderChoice {
+    fn file_in(&self, folder: &QString, name: &QString) -> QVariant {
+        file_in_object(Path::new(&folder.to_string()), &name.to_string())
+    }
+}
+
+/// The book called `name` in `folder` as QML reads it.
+fn file_in_object(folder: &Path, name: &str) -> QVariant {
+    match file_in(folder, name) {
+        Some(file) => map([
+            ("ok", QVariant::from(&true)),
+            (
+                "url",
+                QVariant::from(&QUrl::from_local_file(&QString::from(
+                    file.to_string_lossy().as_ref(),
+                ))),
+            ),
+        ]),
+        None => map([
+            ("ok", QVariant::from(&false)),
+            ("code", text("name.invalid")),
+        ]),
     }
 }
 
@@ -112,5 +150,15 @@ mod tests {
         assert_eq!(keys(&object), ["code", "ok"]);
         assert!(!flag_of(&object, "ok"));
         assert_eq!(text_of(&object, "code"), "folder.too-broad");
+    }
+
+    #[test]
+    fn a_named_book_reads_back_as_a_url_or_a_code() {
+        let ok = file_in_object(Path::new("/data/Books"), "Household");
+        assert_eq!(keys(&ok), ["ok", "url"]);
+        assert!(flag_of(&ok, "ok"));
+        let refused = file_in_object(Path::new("/data/Books"), "../x");
+        assert_eq!(keys(&refused), ["code", "ok"]);
+        assert_eq!(text_of(&refused, "code"), "name.invalid");
     }
 }

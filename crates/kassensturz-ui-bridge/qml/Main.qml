@@ -656,12 +656,35 @@ Kirigami.ApplicationWindow {
         return page;
     }
 
+    // In the Flatpak a file dialog hands over one file only, which can't
+    // hold a book, so the folder is chosen first (D-730, D-733).
     function chooseBookToOpen() {
-        openDialog.open();
+        if (bookSession.useFolders) {
+            openFolderChooser.open();
+        } else {
+            openDialog.open();
+        }
     }
 
     function chooseNewBook() {
-        newBookDialog.open();
+        if (bookSession.useFolders) {
+            newBookFolderChooser.open();
+        } else {
+            newBookDialog.open();
+        }
+    }
+
+    // Opens the book in `folder`: the only one there, or the one picked.
+    function openBookFromFolder(folder: string) {
+        const names = bookSession.booksIn(folder);
+        if (names.length === 0) {
+            showPassiveNotification(i18nContext.i18nc("@info", "There is no book in this folder. Choose another folder, or start a new book."), 10000);
+        } else if (names.length === 1) {
+            bookSession.openIn(folder, names[0]);
+        } else {
+            bookPick.folder = folder;
+            bookPick.ask(names);
+        }
     }
 
     function chooseFileForNewBook() {
@@ -1256,6 +1279,69 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // "Open another book…" in the Flatpak: the folder, then the book in it.
+    FolderChooser {
+        id: openFolderChooser
+
+        title: root.i18nContext.i18nc("@title:window", "Open another book")
+        onGranted: grant => root.openBookFromFolder(grant.path)
+        onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)
+    }
+
+    BookPickDialog {
+        id: bookPick
+
+        // The folder the books are in.
+        property string folder: ""
+
+        onPicked: name => bookSession.openIn(folder, name)
+    }
+
+    // "Start a new book…" in the Flatpak: the folder, then the name.
+    FolderChooser {
+        id: newBookFolderChooser
+
+        title: root.i18nContext.i18nc("@title:window", "Where to keep the new book")
+        onGranted: grant => {
+            newBookName.folder = grant.path;
+            newBookName.ask(grant.shownAs, root.i18nContext.i18nc("@label:textbox suggested name of a new book", "My book"));
+        }
+        onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)
+    }
+
+    BookNameDialog {
+        id: newBookName
+
+        // The folder the book goes into.
+        property string folder: ""
+
+        onNamed: name => {
+            const result = bookSession.createIn(folder, name);
+            if (!result.ok) {
+                root.showPassiveNotification(root.i18nContext.i18nc("@info", "That name can't be used for a book. Use letters and numbers, without / or \\."), 10000);
+            }
+        }
+    }
+
+    // "Choose the folder again…" when the Flatpak can't reach the book's
+    // folder anymore (D-732).
+    FolderChooser {
+        id: noAccessChooser
+
+        title: root.i18nContext.i18nc("@title:window", "Choose the folder of your book again")
+        onGranted: grant => bookSession.openIn(grant.path, bookSession.problem.file ?? "")
+        onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)
+    }
+
+    // A drive that stops taking writes while the book is open: the book
+    // closes and says so (D-732).
+    Timer {
+        interval: 2000
+        repeat: true
+        running: bookSession.open
+        onTriggered: bookSession.checkWriteHealth()
+    }
+
     Dialogs.FileDialog {
         id: openDialog
 
@@ -1448,6 +1534,7 @@ Kirigami.ApplicationWindow {
         BookProblemPage {
             session: bookSession
             onOpenAnotherClicked: root.chooseBookToOpen()
+            onChooseFolderAgainClicked: noAccessChooser.open()
             onNewBookClicked: root.chooseNewBook()
             onStartFromFileClicked: root.chooseFileForNewBook()
             onExampleBookClicked: root.chooseExampleBook()

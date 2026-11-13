@@ -99,6 +99,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.development-layout` | `found`, `current` | | This book was made by a test version of KassenSturz from before the Beta (D-045, D-536). Open it with that version, choose "Save the whole book" there, and start a new book from the saved file. It wasn't changed. |
 | `store.locked` | `computer?`, `since?` | | This book is open on {computer} since {since}, or wasn't closed properly there. Close it there first. If that computer crashed, you can open it here anyway. |
 | `store.backup-failed` | | | KassenSturz couldn't make a backup before updating this book, so it left the book as it was. The detail below says why. Free up space or check the backup folder, then try again. |
+| `store.write-failed` | | | The book's folder stopped accepting changes, for example because the drive was disconnected or the access ended. The change was taken back and the book isn't written to anymore. Reconnect the drive or choose the folder again, then open the book. |
 | `store.journal-mode-refused` | `mode` | | The book's file couldn't be set up safely, so KassenSturz didn't open it. Copy the book to a local folder and open it from there. |
 | `store.unlisted-currency` | `currency` | | KassenSturz doesn't know the currency {currency}. Choose a current currency. |
 | `store.withdrawn-currency` | `currency` | | {currency} isn't used any more: another currency replaced it at a fixed rate. Choose the currency that replaced it. |

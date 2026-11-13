@@ -56,12 +56,36 @@ FormCard.FormCardPage {
     // lets them (D-125); otherwise, and when the file fills the open book,
     // there is nothing to ask.
     function make() {
-        if (file.canChoosePlace) {
+        if (file.canChooseFolder) {
+            folderChooser.open();
+        } else if (file.canChoosePlace) {
             placeDialog.currentFolder = folderUrl;
             placeDialog.currentFile = folderUrl + "/" + encodeURIComponent(file.bookName ?? "");
             placeDialog.open();
         } else {
             error.result = bookFromFile.create(answers(), rulesOnlyWithText);
+        }
+    }
+
+    // In the Flatpak: the folder first, then the name (D-733).
+    FolderChooser {
+        id: folderChooser
+
+        title: page.i18nContext.i18nc("@title:window", "Where to keep the new book")
+        onGranted: grant => {
+            nameDialog.folder = grant.path;
+            nameDialog.ask(grant.shownAs, page.file.bookName ?? "");
+        }
+        onRefused: (code, reason) => applicationWindow().showPassiveNotification(reason, 10000)
+    }
+
+    BookNameDialog {
+        id: nameDialog
+
+        property string folder: ""
+
+        onNamed: name => {
+            error.result = page.bookFromFile.createIn(page.answers(), page.rulesOnlyWithText, folder, name)
         }
     }
 
@@ -144,7 +168,7 @@ FormCard.FormCardPage {
                 : page.i18nContext.i18nc("@info", "Into a new book")
             description: page.file.intoOpenBook
                 ? page.i18nContext.i18nc("@info", "Your book is still empty, so the file fills it.")
-                : page.file.canChoosePlace
+                : (page.file.canChoosePlace || page.file.canChooseFolder)
                     ? page.i18nContext.i18nc("@info", "KassenSturz makes a new book and opens it. You choose where it is kept and what it is called. Your current book isn't changed; you can open it again in Settings with \"Open another book…\".")
                     : page.i18nContext.i18nc("@info %1 is a book's name", "KassenSturz makes a new book called \"%1\" and opens it. Your current book isn't changed; you can open it again in Settings with \"Open another book…\".", page.file.bookName ?? "")
             descriptionItem.textFormat: Text.PlainText
@@ -206,7 +230,7 @@ FormCard.FormCardPage {
     FormCard.FormCard {
         FormCard.FormButtonDelegate {
             icon.name: "document-new"
-            text: Plain.plain(page.file.canChoosePlace
+            text: Plain.plain((page.file.canChoosePlace || page.file.canChooseFolder)
                 ? page.i18nContext.i18nc("@action:button", "Choose where to keep it…")
                 : page.i18nContext.i18nc("@action:button", "Make the book"))
             onClicked: {

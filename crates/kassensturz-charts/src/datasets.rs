@@ -180,6 +180,7 @@ pub fn spending_by_category_as(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        compared: None,
     })
 }
 
@@ -232,6 +233,7 @@ fn one_split_bar(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        compared: None,
     })
 }
 
@@ -430,6 +432,7 @@ pub fn income_expense_by_month(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        compared: None,
     })
 }
 
@@ -489,5 +492,6 @@ pub fn category_over_time(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        compared: None,
     })
 }

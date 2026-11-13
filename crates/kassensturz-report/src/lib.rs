@@ -125,8 +125,8 @@ pub use listed::{
     LISTED_ROWS, Listed, ListedTransactions, MAX_LISTED, OtherSide, listed_transactions,
 };
 pub use metrics::{
-    Change, Compare, IncomeExpenseChange, Percent, compare_income_expense, comparison_span,
-    savings_rate,
+    CHANGE_STEPS, Change, Compare, IncomeExpenseChange, Percent, compare_income_expense,
+    comparison_span, savings_rate,
 };
 pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,
@@ -141,7 +141,8 @@ pub use period::{
 };
 pub use schema::{
     ALARMS_KEY, CANDLE_FILL_WORDS, CANDLE_WORDS, ColumnSetting, ComponentType, FORMULA_MEASURE,
-    Kind, MAX_IDS, MAX_TEXT_CHARS, ORIENTATION_WORDS, Place, Property, Setting, dataset_for,
+    Kind, MAX_IDS, MAX_TEXT_CHARS, NEUTRAL_WORDS, ORIENTATION_WORDS, Place, Property, Setting,
+    dataset_for,
 };
 pub use source::Source;
 pub use spending::{

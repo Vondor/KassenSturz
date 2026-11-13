@@ -1064,6 +1064,34 @@ fn spending_next_to_a_comparison_is_two_series_and_a_table_with_the_change() {
     );
     // The total under the chart stays the period's own.
     assert_eq!(chart.total, "865,54 EUR");
+    // Each row and the total say how they changed (D-760): the same rent,
+    // groceries and unsorted money from nothing, which reaches every step.
+    let compared = chart.compared.as_ref().expect("a comparison has marks");
+    let marks: Vec<(&str, &str, usize)> = compared
+        .marks
+        .iter()
+        .map(|mark| (mark.direction, mark.tone, mark.reach))
+        .collect();
+    assert_eq!(
+        marks,
+        [("same", "same", 0), ("up", "bad", 4), ("up", "bad", 4)]
+    );
+    assert_eq!(compared.marks.len(), chart.table.rows.len());
+    // The total row compares the totals: 65,54 of 800,00 is 8,2 %, which
+    // reaches the steps 2 and 5.
+    assert_eq!(
+        compared.total,
+        ["", "865,54 EUR", "800,00 EUR", "65,54 EUR", "82 tenths"]
+    );
+    assert_eq!(compared.total.len(), chart.table.columns.len());
+    assert_eq!(
+        (
+            compared.total_mark.direction,
+            compared.total_mark.tone,
+            compared.total_mark.reach
+        ),
+        ("up", "bad", 2)
+    );
     // A stacked bar and a pie have no place for a second bar.
     for kind in [ChartKind::StackedBar, ChartKind::Pie] {
         assert_eq!(
@@ -1078,4 +1106,31 @@ fn spending_next_to_a_comparison_is_two_series_and_a_table_with_the_change() {
     assert_eq!(chart.series[1].points[0].minor_units, 26_667);
     assert_eq!(chart.table.rows[0][2], "266,67 EUR");
     assert_eq!(chart.table.rows[0][3], "533,33 EUR");
+    // The total compares with the average of the comparison's total.
+    let compared = chart.compared.expect("marks");
+    assert_eq!(compared.total[2], "266,67 EUR");
+    assert_eq!(compared.total[3], "598,87 EUR");
+}
+
+/// D-760: less spent is good news, more is bad, and the size of the change
+/// in percent says how many steps it reaches.
+#[test]
+fn less_spending_is_good_and_its_size_reaches_the_steps() {
+    let mark_of = |previous: i64, current: i64| {
+        let change = kassensturz_report::Change::new(money(previous), money(current)).unwrap();
+        let mark = compared::spending_mark(&change);
+        (mark.direction, mark.tone, mark.reach)
+    };
+    assert_eq!(mark_of(10_000, 9_000), ("down", "good", 3));
+    assert_eq!(mark_of(10_000, 11_000), ("up", "bad", 3));
+    assert_eq!(mark_of(10_000, 10_000), ("same", "same", 0));
+    // 1,9 % reaches no step, 2,0 % the first, 20,0 % all four.
+    assert_eq!(mark_of(10_000, 10_190), ("up", "bad", 0));
+    assert_eq!(mark_of(10_000, 10_200), ("up", "bad", 1));
+    assert_eq!(mark_of(10_000, 8_000), ("down", "good", 4));
+    // Spending from nothing reaches every step; to nothing is -100 %.
+    assert_eq!(mark_of(0, 500), ("up", "bad", 4));
+    assert_eq!(mark_of(500, 0), ("down", "good", 4));
+    // Money that came back counts as less spent.
+    assert_eq!(mark_of(-1_000, -2_000), ("down", "good", 4));
 }

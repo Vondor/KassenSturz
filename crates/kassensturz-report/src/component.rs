@@ -415,6 +415,12 @@ impl Component {
             {
                 continue;
             }
+            // So is colouring every change of a comparison (D-760).
+            if property.key == crate::schema::NEUTRAL_KEY
+                && matches!(setting, Setting::Word(word) if word == "off")
+            {
+                continue;
+            }
             // So is the automatic candle length (Q-498), for the same reason.
             if property.key == crate::schema::CANDLE_KEY
                 && matches!(setting, Setting::Word(word) if word == "auto")

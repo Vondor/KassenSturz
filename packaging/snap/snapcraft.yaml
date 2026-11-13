@@ -176,7 +176,8 @@ parts:
     # The bank libraries are plain C and need none of it.
     override-build: |
       set -eu
-      unset LD_LIBRARY_PATH
+      # Its build runs the staged tools of Gwenhywfar, which need its library.
+      export LD_LIBRARY_PATH="$CRAFT_STAGE/usr/lib"
       # The extension puts its SDK snaps' compiler tools first on PATH, whose
       # linker can't find the host's C runtime files (seen in CI).
       export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin"

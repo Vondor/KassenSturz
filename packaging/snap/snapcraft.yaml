@@ -241,6 +241,19 @@ parts:
       qt_version=$(ls "$sdk/usr/include/x86_64-linux-gnu/qt6/QtCore" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
       echo "Qt in the SDK: ${qt_version:-unknown}"
       ls "$sdk/usr/lib/qt6/libexec" "$sdk/usr/lib/qt6/bin" 2>&1 | head -40 || true
+      # Qt's tools (moc, qmlcachegen, ...) run from wrappers that give them
+      # the SDK's libraries, because the Rust build starts them without our
+      # library path.
+      wrap="$CRAFT_PART_BUILD/qt-tool-wrappers"
+      mkdir -p "$wrap/bin" "$wrap/libexec"
+      for kind in bin libexec; do
+        for tool in "$sdk/usr/lib/qt6/$kind"/*; do
+          [ -f "$tool" ] && [ -x "$tool" ] || continue
+          name=$(basename "$tool")
+          printf '#!/bin/sh\nLD_LIBRARY_PATH="%s/usr/lib/x86_64-linux-gnu:%s/usr/lib/x86_64-linux-gnu:\$LD_LIBRARY_PATH" exec "%s" "\$@"\n' "$sdk" "/snap/kf6-core24/current" "$tool" > "$wrap/$kind/$name"
+          chmod +x "$wrap/$kind/$name"
+        done
+      done
       qmake_path="$CRAFT_PART_BUILD/qmake-standin"
       mkdir -p "$CRAFT_PART_BUILD"
       cat > "$qmake_path" <<EOF
@@ -249,8 +262,8 @@ parts:
         case "\$2" in
           QT_VERSION) echo "$qt_version" ;;
           QT_INSTALL_PREFIX|QT_HOST_PREFIX) echo "$sdk/usr" ;;
-          QT_INSTALL_BINS|QT_HOST_BINS) echo "$sdk/usr/lib/qt6/bin" ;;
-          QT_INSTALL_LIBEXECS|QT_HOST_LIBEXECS) echo "$sdk/usr/lib/qt6/libexec" ;;
+          QT_INSTALL_BINS|QT_HOST_BINS) echo "$wrap/bin" ;;
+          QT_INSTALL_LIBEXECS|QT_HOST_LIBEXECS) echo "$wrap/libexec" ;;
           QT_INSTALL_LIBS|QT_HOST_LIBS) echo "$sdk/usr/lib/x86_64-linux-gnu" ;;
           QT_INSTALL_HEADERS) echo "$sdk/usr/include/x86_64-linux-gnu/qt6" ;;
           QT_INSTALL_ARCHDATA) echo "$sdk/usr/lib/x86_64-linux-gnu/qt6" ;;

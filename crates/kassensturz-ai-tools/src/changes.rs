@@ -2278,8 +2278,14 @@ impl Known {
             let mut steps = 0;
             while let Some(next) = above {
                 if next == id || steps > self.accounts.len() {
-                    return Err(ToolError::BadArgument {
+                    // Its own parent gets its own reason (#860).
+                    return Err(ToolError::BadArgumentWhy {
                         argument: "parent_id",
+                        reason: if steps == 0 {
+                            "own-parent"
+                        } else {
+                            "inside-itself"
+                        },
                     });
                 }
                 steps += 1;
@@ -2319,6 +2325,20 @@ impl Known {
         })
     }
 
+    /// The refusal for an ID that is no Rule of the book: when it is a
+    /// category's, it says so (#860).
+    fn not_a_rule(&self, id: [u8; 16]) -> ToolError {
+        if self
+            .accounts
+            .get(&AccountId::from_bytes(id))
+            .is_some_and(|account| account.kind.is_category())
+        {
+            ToolError::CategoryNotRule
+        } else {
+            ToolError::UnknownRule
+        }
+    }
+
     /// A Rule of the book that the set doesn't touch yet.
     fn rule_to_change(
         &self,
@@ -2332,7 +2352,10 @@ impl Known {
             .ok_or(ToolError::BadArgument {
                 argument: "rule_id",
             })?;
-        let info = self.rules.get(&id).ok_or(ToolError::UnknownRule)?;
+        let info = self
+            .rules
+            .get(&id)
+            .ok_or_else(|| self.not_a_rule(id.to_bytes()))?;
         touched.add(id, touch)?;
         Ok(info)
     }
@@ -2553,7 +2576,10 @@ impl Known {
                 if self.deleted_rules.contains(&id) {
                     return Err(ToolError::UnknownRule);
                 }
-                let info = self.rules.get(&id).ok_or(ToolError::UnknownRule)?;
+                let info = self
+                    .rules
+                    .get(&id)
+                    .ok_or_else(|| self.not_a_rule(id.to_bytes()))?;
                 let mut depth = 1;
                 let mut above = info.parent;
                 while let Some(rule) = above {

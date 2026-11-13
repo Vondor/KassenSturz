@@ -281,10 +281,10 @@ fn a_sub_rule_needs_a_parent_that_is_there_and_not_too_deep() {
             }),
             "ai-tools.unknown-rule",
         ),
-        // A category's ID is not a Rule's.
+        // A category's ID is not a Rule's, and the refusal says so (#860).
         (
             json!({"new_rules": [child(("parent_rule_id", json!(food.to_string())))]}),
-            "ai-tools.unknown-rule",
+            "ai-tools.category-not-a-rule",
         ),
         // Both ways to name a parent.
         (

@@ -909,6 +909,12 @@ impl ChatSession {
                     error_json(&report, prepares)
                 };
                 let answer = with_allowed(answer, &error);
+                // A fixed hint of the refusal itself, e.g. a category's ID
+                // sent as a Rule's (#860); a chart has its own (R2-16).
+                let answer = match error.hint() {
+                    Some(hint) if call.name != PROPOSE_VIEW_NAME => with_hint(answer, hint),
+                    _ => answer,
+                };
                 (prompt::data_json(&answer), Some(report.code))
             }
         };
@@ -1438,7 +1444,7 @@ mod tests {
         assert_eq!(answer["category_id"], json!(category.to_string()));
         assert_eq!(answer["category"], json!(2));
         assert_eq!(answer["use_instead"], json!("edit_budgets"));
-        let note = ToolError::BadText {
+        let note = ToolError::BadArgumentWhy {
             argument: "note",
             reason: "line-break",
         }

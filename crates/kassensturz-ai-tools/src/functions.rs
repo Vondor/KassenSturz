@@ -230,8 +230,8 @@ pub const FUNCTIONS: &[Function] = &[
 /// The name of every argument any function takes, and `arguments` for a
 /// call whose arguments as a whole are wrong. The keywords of
 /// `ai-tools.bad-argument` (`docs/ERROR_CODES.md`), which the tests check
-/// against the schemas above.
-#[cfg(test)]
+/// against the schemas above. Also the fixed names a refusal may use for a
+/// key of a call (#853).
 pub(crate) const ARGUMENTS: &[&str] = &[
     "arguments",
     "include_closed",
@@ -546,11 +546,21 @@ impl<'a> Arguments<'a> {
             })?;
         let known = schema.get("properties").and_then(Value::as_object);
         if let Some(values) = values
-            && values
+            && let Some(key) = values
                 .keys()
-                .any(|key| !known.is_some_and(|known| known.contains_key(key)))
+                .find(|key| !known.is_some_and(|known| known.contains_key(*key)))
         {
-            return Err(bad);
+            // As propose_view does (#822, #853): a key KassenSturz knows is
+            // named, the keys this function takes are listed, and a made-up
+            // key is never echoed (X-8, D-353).
+            return Err(ToolError::UnknownArgument {
+                argument: ARGUMENTS.iter().copied().find(|known| *known == key),
+                allowed: ARGUMENTS
+                    .iter()
+                    .copied()
+                    .filter(|argument| known.is_some_and(|known| known.contains_key(*argument)))
+                    .collect(),
+            });
         }
         Ok(Self { values })
     }

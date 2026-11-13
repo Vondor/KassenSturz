@@ -40,6 +40,11 @@ const PURPOSE_TAGS: [&str; 12] = [
     "IBAN+", "BIC+",
 ];
 
+/// The tags whose parts stay in the remittance information, as the bank
+/// sent them: the mandate reference and the creditor id of a direct debit
+/// (Q-544).
+const KEPT_TAGS: [&str; 2] = ["MREF+", "CRED+"];
+
 /// The tag that holds the text the payer wrote.
 const PURPOSE_TEXT: &str = "SVWZ+";
 
@@ -762,6 +767,18 @@ impl Details {
         // Without a purpose, the booking text ("Gutschrift", "Entgelt")
         // says at least what the entry is.
         let remittance = some_text(&remittance).or_else(|| some_text(&one(0)));
+        // The mandate reference and the creditor id stay as the bank sent
+        // them, after the text, so that a direct debit can be found by its
+        // mandate (Q-544).
+        let kept: Vec<String> = KEPT_TAGS
+            .iter()
+            .filter_map(|tag| some_text(&value_of(tag)).map(|value| format!("{tag}{value}")))
+            .collect();
+        let remittance = match (remittance, kept.is_empty()) {
+            (remittance, true) => remittance,
+            (Some(text), false) => Some(format!("{text} {}", kept.join(" "))),
+            (None, false) => Some(kept.join(" ")),
+        };
 
         let tagged_iban = value_of(PURPOSE_IBAN);
         let (bank, account, tagged_iban) = (bank.trim(), account.trim(), tagged_iban.trim());

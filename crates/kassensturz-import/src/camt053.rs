@@ -147,6 +147,8 @@ struct RawTransaction {
     debtor: RawParty,
     creditor: RawParty,
     remittance: Vec<String>,
+    mandate: Option<String>,
+    creditor_id: Option<String>,
 }
 
 #[derive(Debug, Default)]
@@ -201,6 +203,10 @@ enum Field {
     Party(Side, PartyField),
     /// Unstructured remittance information, or a creditor reference.
     Remittance,
+    /// The mandate reference of a direct debit (Q-544).
+    MandateReference,
+    /// The creditor id of a direct debit (Q-544).
+    CreditorId,
 }
 
 /// Which element of a statement the path leads to, if it is one the
@@ -208,9 +214,9 @@ enum Field {
 fn classify(path: &[&str]) -> Option<Field> {
     use Field::{
         AccountCurrency, AccountIban, AccountNumber, BalanceAmount, BalanceDate, BalanceIndicator,
-        BalanceKind, EntryAmount, EntryBookingDate, EntryIndicator, EntryReference, EntryReversal,
-        EntryStatus, EntryStatusProprietary, EntryValueDate, Party, Remittance,
-        TransactionReference,
+        BalanceKind, CreditorId, EntryAmount, EntryBookingDate, EntryIndicator, EntryReference,
+        EntryReversal, EntryStatus, EntryStatusProprietary, EntryValueDate, MandateReference,
+        Party, Remittance, TransactionReference,
     };
     let party = |side, rest: &[&str]| match rest {
         ["Nm"] | ["Pty", "Nm"] => Some(Party(side, PartyField::Name)),
@@ -239,6 +245,18 @@ fn classify(path: &[&str]) -> Option<Field> {
         ["Ntry", "AcctSvcrRef"] => Some(EntryReference),
         ["Ntry", "NtryDtls", "TxDtls", rest @ ..] => match rest {
             ["Refs", "AcctSvcrRef"] => Some(TransactionReference),
+            ["Refs", "MndtId"] => Some(MandateReference),
+            // The creditor id: `Id` below `Cdtr` in the older versions,
+            // below `Cdtr/Pty` in the newer.
+            [
+                "RltdPties",
+                "Cdtr",
+                "Id" | "Pty",
+                ..,
+                "OrgId" | "PrvtId",
+                "Othr",
+                "Id",
+            ] if rest.len() <= 7 => Some(CreditorId),
             ["RmtInf", "Ustrd"] | ["RmtInf", "Strd", "CdtrRefInf", "Ref"] => Some(Remittance),
             ["RltdPties", "Dbtr", rest @ ..] => party(Side::Debtor, rest),
             ["RltdPties", "Cdtr", rest @ ..] => party(Side::Creditor, rest),
@@ -607,6 +625,16 @@ impl<'a> Parser<'a> {
                     *slot = present(text);
                 }
             }
+            Field::MandateReference => {
+                if let Some(transaction) = self.transaction.as_mut() {
+                    transaction.mandate = present(text);
+                }
+            }
+            Field::CreditorId => {
+                if let Some(transaction) = self.transaction.as_mut() {
+                    transaction.creditor_id = present(text);
+                }
+            }
             Field::Remittance => {
                 if let (Some(transaction), Some(text)) = (self.transaction.as_mut(), present(text))
                 {
@@ -836,6 +864,27 @@ impl<'a> Parser<'a> {
             .transactions
             .iter()
             .flat_map(|transaction| transaction.remittance.iter().map(String::as_str))
+            .collect();
+        // The mandate reference and the creditor id of a direct debit stay,
+        // written as the German banks write them in MT940, so that one
+        // search finds a direct debit in either format (Q-544).
+        let kept: Vec<String> = raw
+            .transactions
+            .iter()
+            .flat_map(|transaction| {
+                [
+                    transaction.mandate.as_ref().map(|id| format!("MREF+{id}")),
+                    transaction
+                        .creditor_id
+                        .as_ref()
+                        .map(|id| format!("CRED+{id}")),
+                ]
+            })
+            .flatten()
+            .collect();
+        let lines: Vec<&str> = lines
+            .into_iter()
+            .chain(kept.iter().map(String::as_str))
             .collect();
         let remittance_information = (!lines.is_empty()).then(|| lines.join("\n"));
         Ok(Entry {

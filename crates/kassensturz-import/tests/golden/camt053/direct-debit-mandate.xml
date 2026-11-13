@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<c:Document xmlns:c="urn:iso:std:iso:20022:tech:xsd:camt.053.001.08">
+  <c:BkToCstmrStmt>
+    <c:GrpHdr>
+      <c:MsgId>KS-SYNTHETIC-0040</c:MsgId>
+      <c:CreDtTm>2026-10-31T23:30:00+01:00</c:CreDtTm>
+    </c:GrpHdr>
+    <c:Stmt>
+      <c:Id>DD-2026-10</c:Id>
+      <c:Acct>
+        <c:Id><c:IBAN>DE89370400440532013000</c:IBAN></c:Id>
+        <c:Ccy>EUR</c:Ccy>
+      </c:Acct>
+      <c:Bal>
+        <c:Tp><c:CdOrPrtry><c:Cd>OPBD</c:Cd></c:CdOrPrtry></c:Tp>
+        <c:Amt Ccy="EUR">100.00</c:Amt>
+        <c:CdtDbtInd>CRDT</c:CdtDbtInd>
+        <c:Dt><c:Dt>2026-09-30</c:Dt></c:Dt>
+      </c:Bal>
+      <c:Bal>
+        <c:Tp><c:CdOrPrtry><c:Cd>CLBD</c:Cd></c:CdOrPrtry></c:Tp>
+        <c:Amt Ccy="EUR">80.00</c:Amt>
+        <c:CdtDbtInd>CRDT</c:CdtDbtInd>
+        <c:Dt><c:Dt>2026-10-31</c:Dt></c:Dt>
+      </c:Bal>
+      <c:Ntry>
+        <c:Amt Ccy="EUR">20.00</c:Amt>
+        <c:CdtDbtInd>DBIT</c:CdtDbtInd>
+        <c:Sts><c:Cd>BOOK</c:Cd></c:Sts>
+        <c:BookgDt><c:Dt>2026-10-05</c:Dt></c:BookgDt>
+        <c:NtryDtls>
+          <c:TxDtls>
+            <c:Refs>
+              <c:MndtId>M-2026-0815</c:MndtId>
+            </c:Refs>
+            <c:RltdPties>
+              <c:Cdtr>
+                <c:Pty>
+                  <c:Nm>Example Gym</c:Nm>
+                  <c:Id>
+                    <c:OrgId>
+                      <c:Othr><c:Id>DE98ZZZ09999999999</c:Id></c:Othr>
+                    </c:OrgId>
+                  </c:Id>
+                </c:Pty>
+              </c:Cdtr>
+            </c:RltdPties>
+            <c:RmtInf>
+              <c:Ustrd>Membership October</c:Ustrd>
+            </c:RmtInf>
+          </c:TxDtls>
+        </c:NtryDtls>
+      </c:Ntry>
+    </c:Stmt>
+  </c:BkToCstmrStmt>
+</c:Document>

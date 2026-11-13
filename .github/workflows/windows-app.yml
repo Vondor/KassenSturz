@@ -7,17 +7,37 @@ name: Windows app
 # This file is separate from ci.yml on purpose: the run is long (20 to 30
 # minutes warm).
 #
-# For now it runs only when asked for (D-613): on a pull request with the
-# `windows` label, by hand (workflow_dispatch, also on main), and from the
-# release workflow for every pre-release tag, so no release ships without it.
-# The quick Windows lints and tests in ci.yml still run on every pull
-# request. D-613 is reversed (back to every pull request and every push to
-# main that touches the app) before Windows testers get builds.
+# It runs on every pull request and every push to main that touches more than
+# documentation, as before D-613; the reversal of D-613 (#509, US7) is made so
+# that Windows testers get builds from checked code. It is not a required
+# check. The same checks run for a pre-release tag through release.yml, so no
+# release ships without it. Craft's cache is still saved only from main.
 
 on:
   pull_request:
-    # `labeled`, so adding the `windows` label starts the build at once.
-    types: [opened, synchronize, reopened, labeled]
+    # The same files ci.yml counts as documentation don't start it.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!LICENSES/**"
+      - "!*.md"
+      - "!REUSE.toml"
+      - "!CODEOWNERS"
+      - "!.github/ISSUE_TEMPLATE/**"
+      - "!.github/PULL_REQUEST_TEMPLATE.md"
+      - "docs/ERROR_CODES.md"
+  push:
+    branches: [main]
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!LICENSES/**"
+      - "!*.md"
+      - "!REUSE.toml"
+      - "!CODEOWNERS"
+      - "!.github/ISSUE_TEMPLATE/**"
+      - "!.github/PULL_REQUEST_TEMPLATE.md"
+      - "docs/ERROR_CODES.md"
   workflow_dispatch:
   # release.yml calls this workflow for a pre-release tag and attaches what
   # it uploads as release-asset-windows (D-551, D-554).
@@ -33,11 +53,10 @@ permissions:
 
 # In a call from release.yml, github.workflow is the caller's name, so a pull
 # request's own Windows run and the release workflow's call of it don't
-# cancel each other.
-# Adding another label to a pull request starts a run that does nothing; it
-# gets a group of its own, so it doesn't cancel a Windows build in progress.
+# cancel each other. A newer push to a pull request ends the older run; main's
+# runs are never cancelled, since they fill the caches.
 concurrency:
-  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}${{ github.event.action == 'labeled' && github.event.label.name != 'windows' && format('-{0}', github.run_id) || '' }}
+  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -55,12 +74,6 @@ env:
 jobs:
   windows-app:
     name: Windows app with KDE Craft (D-554)
-    # On a pull request only with the `windows` label (D-613); a label event
-    # starts it only for that label, not again for every other label added.
-    if: >-
-      github.event_name != 'pull_request' || (
-        contains(github.event.pull_request.labels.*.name, 'windows') &&
-        (github.event.action != 'labeled' || github.event.label.name == 'windows'))
     # Craft's binary cache is built for Visual Studio 2022; windows-latest has
     # only Visual Studio 2026, which Craft's cache doesn't cover (D-214).
     runs-on: windows-2022

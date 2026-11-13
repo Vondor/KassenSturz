@@ -230,7 +230,7 @@ jobs:
           fi
 
   # The Windows app (M7a.7, D-554): the same workflow that builds Windows on
-  # request (D-613), here asked to hand its portable zip and installer to the
+  # every pull request (D-613 reversed, #509), here asked to hand its portable zip and installer to the
   # release job. It numbers the build with tools/build-version.sh, as the job
   # above does, so both files carry the tag's number. Its own run installs and
   # removes the installer and starts the app from the zip; the install sheet

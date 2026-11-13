@@ -257,13 +257,15 @@ pub const FUNCTIONS: &[Function] = &[
             does not count, so \"left\" may be too low, never too high; \"expected_end\" is \
             left plus in_due. \"did_this_happen\" lists what plans expected weeks ago that \
             has no entry: it is in no figure, and the user decides in the app under Accounts \
-            whether it happened. \"months\" has each later month's start, planned money in \
+            whether it happened. A month runs from \"month_starts_on\" to the day before it \
+            in the next month, as the user's budgets do unless the call names a day. \
+            \"months\" has each later month's first and last day, start, planned money in \
             and out, and end. \"has_plans\": false means the user has no plans for these \
             accounts, so left is just the balance; say so. Without \"account_ids\" it counts \
             the open checking and cash accounts, not credit cards or savings. Accounts in \
             another currency than most of them are in \"left_out_account_ids\", never \
             converted. Amounts are exact decimal text with a dot as the decimal mark.",
-        parameters: r#"{"type":"object","properties":{"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only these accounts, IDs from list_accounts. Leave it out for the open checking and cash accounts."},"months":{"type":"integer","minimum":0,"maximum":12,"description":"How many months after this one to show. Default 3."}},"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only these accounts, IDs from list_accounts. Leave it out for the open checking and cash accounts."},"months":{"type":"integer","minimum":0,"maximum":12,"description":"How many months after this one to show. Default 3."},"month_starts_on":{"type":"integer","minimum":1,"maximum":31,"description":"The day each month starts on, 1 for calendar months, e.g. the salary day. Leave it out for the day the user's budgets use, as the app's Left this month tile does."}},"additionalProperties":false}"#,
     },
 ];
 
@@ -294,6 +296,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "tag_id",
     "reference",
     "months",
+    "month_starts_on",
 ];
 
 /// The most accounts `account_ids` of a total names (M6-B206), as many as
@@ -483,7 +486,8 @@ fn call_with(
             let names = Names::read(book)?;
             let accounts = args.accounts(&names)?;
             let months = args.months()?;
-            plans::forecast(book, &mut w, &names, accounts, months, today)?
+            let starts_on = args.month_starts_on()?;
+            plans::forecast(book, &mut w, &names, accounts, months, starts_on, today)?
         }
         _ => return Err(ToolError::UnknownFunction),
     };
@@ -787,6 +791,23 @@ impl<'a> Arguments<'a> {
             .and_then(|months| usize::try_from(months).ok())
             .filter(|months| *months <= kassensturz_core::MAX_FORECAST_MONTHS)
             .ok_or(ToolError::BadArgument { argument: "months" })
+    }
+
+    /// `month_starts_on`: the day 1 to 31 each month of a forecast starts
+    /// on, 1 being the calendar month (#921); not given is the day the
+    /// *Left this month* tile's "like my budgets" takes.
+    fn month_starts_on(&self) -> Result<Option<i8>, ToolError> {
+        let Some(value) = self.get("month_starts_on") else {
+            return Ok(None);
+        };
+        value
+            .as_u64()
+            .filter(|day| (1..=31).contains(day))
+            .and_then(|day| i8::try_from(day).ok())
+            .map(Some)
+            .ok_or(ToolError::BadArgument {
+                argument: "month_starts_on",
+            })
     }
 
     fn limit(&self) -> Result<usize, ToolError> {

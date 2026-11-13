@@ -14,8 +14,10 @@
 
 use std::collections::HashMap;
 
-use kassensturz_core::{AccountId, CurrencyCode, Date, MAX_FORECAST_MONTHS, Schedule, ScheduleId};
-use kassensturz_store::{Book, StoreError};
+use kassensturz_core::{
+    AccountId, CurrencyCode, Date, MAX_FORECAST_MONTHS, Schedule, ScheduleId, salary_month_of,
+};
+use kassensturz_store::{Book, Corruption, StoreError};
 use serde_json::{Map, Value};
 
 use crate::error::ToolError;
@@ -133,14 +135,24 @@ fn forecast_currency(
 /// user's `chosen` accounts, or, with none chosen, the open checking and
 /// cash accounts the overview counts. Accounts in another currency than
 /// most of them are left out and named, never converted (D-043).
+///
+/// Each month starts on day `starts_on` (1 is the calendar month), or,
+/// when the call doesn't say, on the day the *Left this month* tile's
+/// default "like my budgets" takes (#921, Q-565), so the model's "this
+/// month" is the tile's.
 pub(crate) fn forecast(
     book: &Book,
     w: &mut Writer<'_>,
     names: &Names,
     chosen: Vec<AccountId>,
     months: usize,
+    starts_on: Option<i8>,
     today: Date,
 ) -> Result<Value, ToolError> {
+    let starts_on = match starts_on {
+        Some(day) => day,
+        None => book.budgets_salary_day(today)?,
+    };
     let chosen = if chosen.is_empty() {
         book.default_forecast_accounts()?
     } else {
@@ -154,7 +166,7 @@ pub(crate) fn forecast(
         return Ok(Value::Object(result));
     };
     let months = months.min(MAX_FORECAST_MONTHS);
-    let found = book.forecast(&chosen, currency, today, months)?;
+    let found = book.forecast_from_day(&chosen, currency, today, months, starts_on)?;
     let plans: HashMap<ScheduleId, Schedule> = book
         .schedules()?
         .into_iter()
@@ -169,10 +181,11 @@ pub(crate) fn forecast(
     };
     let figures = &found.forecast;
     result.insert("currency".into(), Value::from(currency.as_str()));
-    result.insert(
-        "month_ends".into(),
-        Value::String(today.last_of_month().to_string()),
-    );
+    // The store refused a day outside 1 to 31 above, as it does here.
+    let (_, month_ends) = salary_month_of(today, starts_on)
+        .ok_or_else(|| StoreError::Corrupt(Corruption::BadDate(today.to_string())))?;
+    result.insert("month_starts_on".into(), Value::from(starts_on));
+    result.insert("month_ends".into(), Value::String(month_ends.to_string()));
     result.insert("account_ids".into(), ids(&found.accounts));
     if !found.left_out.is_empty() {
         result.insert("left_out_account_ids".into(), ids(&found.left_out));
@@ -213,6 +226,8 @@ pub(crate) fn forecast(
                 month.month.month()
             )),
         );
+        row.insert("first_day".into(), Value::String(month.month.to_string()));
+        row.insert("last_day".into(), Value::String(month.last.to_string()));
         row.insert("start".into(), w.amount(month.start)?);
         row.insert("planned_in".into(), w.amount(month.planned_in)?);
         row.insert("planned_out".into(), w.amount(month.planned_out)?);

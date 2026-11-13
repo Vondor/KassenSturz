@@ -365,7 +365,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "What is left this month once the money the user's plans (list_plans) still expect to go out has gone, and the months after it. Use it for \"how much is left this month\" or \"will the money last\"; never work it out yourself. \"balance_now\" is the balance of the accounts at the end of today; \"out_due\" what plans still expect to go out until \"month_ends\" (and what they expected in the last few banking days that has no entry yet); \"left\" is balance_now minus out_due; \"in_due\" the planned income not arrived yet, which \"left\" does not count, so \"left\" may be too low, never too high; \"expected_end\" is left plus in_due. \"did_this_happen\" lists what plans expected weeks ago that has no entry: it is in no figure, and the user decides in the app under Accounts whether it happened. \"months\" has each later month's start, planned money in and out, and end. \"has_plans\": false means the user has no plans for these accounts, so left is just the balance; say so. Without \"account_ids\" it counts the open checking and cash accounts, not credit cards or savings. Accounts in another currency than most of them are in \"left_out_account_ids\", never converted. Amounts are exact decimal text with a dot as the decimal mark.",
+            "description": "What is left this month once the money the user's plans (list_plans) still expect to go out has gone, and the months after it. Use it for \"how much is left this month\" or \"will the money last\"; never work it out yourself. \"balance_now\" is the balance of the accounts at the end of today; \"out_due\" what plans still expect to go out until \"month_ends\" (and what they expected in the last few banking days that has no entry yet); \"left\" is balance_now minus out_due; \"in_due\" the planned income not arrived yet, which \"left\" does not count, so \"left\" may be too low, never too high; \"expected_end\" is left plus in_due. \"did_this_happen\" lists what plans expected weeks ago that has no entry: it is in no figure, and the user decides in the app under Accounts whether it happened. A month runs from \"month_starts_on\" to the day before it in the next month, as the user's budgets do unless the call names a day. \"months\" has each later month's first and last day, start, planned money in and out, and end. \"has_plans\": false means the user has no plans for these accounts, so left is just the balance; say so. Without \"account_ids\" it counts the open checking and cash accounts, not credit cards or savings. Accounts in another currency than most of them are in \"left_out_account_ids\", never converted. Amounts are exact decimal text with a dot as the decimal mark.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {
@@ -376,6 +376,12 @@
                   },
                   "maxItems": 20,
                   "type": "array"
+                },
+                "month_starts_on": {
+                  "description": "The day each month starts on, 1 for calendar months, e.g. the salary day. Leave it out for the day the user's budgets use, as the app's Left this month tile does.",
+                  "maximum": 31,
+                  "minimum": 1,
+                  "type": "integer"
                 },
                 "months": {
                   "description": "How many months after this one to show. Default 3.",

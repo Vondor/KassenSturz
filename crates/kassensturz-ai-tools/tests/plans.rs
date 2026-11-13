@@ -15,7 +15,9 @@ use std::path::PathBuf;
 
 use kassensturz_ai_tools::{ToolError, call, call_allowed, check_numbers, readable_functions};
 use kassensturz_core::ai_switch::{Permission, Permissions};
-use kassensturz_core::{AccountId, Date, Money, ScheduleId, ScheduleUnit};
+use kassensturz_core::{
+    AccountId, AccountKind, BudgetEvery, Date, Money, ScheduleId, ScheduleUnit,
+};
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::fill_book_from;
 use kassensturz_store::{Book, NewSchedule};
@@ -382,6 +384,92 @@ fn the_forecast_takes_chosen_accounts_and_refuses_what_is_not_one() {
         matches!(refused, Err(ToolError::UnknownArgument { .. })),
         "{refused:?}"
     );
+}
+
+/// "This month" is the Left this month tile's (#921, Q-565): without a
+/// day, the salary day the running budgets share, else the calendar
+/// month; with a day, months that start on it. The figures are the
+/// store's own for that day, to the cent.
+#[test]
+fn the_forecast_months_start_like_the_budgets_or_on_the_day_asked() {
+    let mut p = planned();
+    let accounts = p.book.default_forecast_accounts().expect("accounts");
+    let currency = p.book.account(p.account).expect("the account").currency;
+    let same = |found: &Value, book: &Book, day: i8| {
+        let expected = book
+            .forecast_from_day(&accounts, currency, TODAY, 3, day)
+            .expect("the store's forecast");
+        let f = &expected.forecast;
+        assert_eq!(found["month_starts_on"], day, "{found}");
+        for (key, amount) in [
+            ("balance_now", f.balance_now),
+            ("out_due", f.out_due),
+            ("left", f.left),
+            ("expected_end", f.expected_end),
+        ] {
+            assert_eq!(found[key], text(book, amount), "{key} on day {day}");
+        }
+        let months = found["months"].as_array().expect("months");
+        assert_eq!(months.len(), f.months.len());
+        for (row, month) in months.iter().zip(&f.months) {
+            assert_eq!(row["first_day"], month.month.to_string());
+            assert_eq!(row["last_day"], month.last.to_string());
+            assert_eq!(row["end"], text(book, month.end));
+        }
+    };
+    // No salary budget: calendar months.
+    let calendar = run(&p.book, "forecast", json!({}));
+    same(&calendar, &p.book, 1);
+    assert_eq!(calendar["month_ends"], "2026-10-31");
+    assert_eq!(calendar["months"][0]["first_day"], "2026-11-01");
+    // Asked for the 25th: the month runs from 25 October to 24 November.
+    let asked = run(&p.book, "forecast", json!({"month_starts_on": 25}));
+    same(&asked, &p.book, 25);
+    assert_eq!(asked["month_ends"], "2026-11-24");
+    assert_eq!(asked["months"][0]["first_day"], "2026-11-25");
+    assert_eq!(asked["months"][0]["last_day"], "2026-12-24");
+    // A running budget on salary months from the 25th: the default follows it.
+    let food = p
+        .book
+        .categories()
+        .expect("categories")
+        .into_iter()
+        .find(|entry| entry.category.kind == AccountKind::Expense)
+        .expect("an expense category")
+        .category
+        .id;
+    p.book
+        .add_budget(
+            &[food],
+            &[],
+            BudgetEvery::salary_month(25).expect("a salary month"),
+            Date::constant(2026, 9, 25),
+            None,
+            Money::from_minor_units(40_000, currency),
+            false,
+        )
+        .expect("budget");
+    let like_budgets = run(&p.book, "forecast", json!({}));
+    same(&like_budgets, &p.book, 25);
+    assert_eq!(like_budgets["month_ends"], "2026-11-24");
+    // Day 1 asked for still gives calendar months.
+    same(
+        &run(&p.book, "forecast", json!({"month_starts_on": 1})),
+        &p.book,
+        1,
+    );
+    for day in [json!(0), json!(32), json!(-1), json!("25"), json!(2.5)] {
+        let refused = call(&p.book, "forecast", &json!({"month_starts_on": day}), TODAY);
+        assert!(
+            matches!(
+                refused,
+                Err(ToolError::BadArgument {
+                    argument: "month_starts_on"
+                })
+            ),
+            "{day}: {refused:?}"
+        );
+    }
 }
 
 #[test]

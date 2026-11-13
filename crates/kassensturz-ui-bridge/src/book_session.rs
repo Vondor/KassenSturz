@@ -455,8 +455,9 @@ impl qobject::BookSession {
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
             .unwrap_or_default();
-        let folder = path.parent().map(display).unwrap_or_default();
-        let folder_url = folder_url(&folder);
+        let opened_at = path.parent().map(display).unwrap_or_default();
+        let folder_url = folder_url(&opened_at);
+        let folder = shown_folder_text(&path, opened_at);
         let network_drive = session::on_network_drive();
         let mut state = self.as_mut().rust_mut();
         state.open = true;
@@ -552,6 +553,18 @@ fn commit_from_pull_request(commit: &str, from: &str) -> bool {
     !commit.is_empty() && from == "pull-request-head"
 }
 
+/// The book's folder as the Settings page shows it: in the user's words, the
+/// real path rather than the sandbox's path in the Flatpak (M6-B240, D-730),
+/// or `opened_at`, where the app opens it, for KassenSturz's own folder.
+fn shown_folder_text(book: &Path, opened_at: String) -> String {
+    let shown = crate::book_move::shown_folder_of(book);
+    if shown.own || shown.text.is_empty() {
+        opened_at
+    } else {
+        shown.text
+    }
+}
+
 fn display(path: &Path) -> String {
     path.display().to_string()
 }
@@ -568,6 +581,18 @@ fn qtext(value: &str) -> QVariant {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The Settings row shows the folder as `shown_folder_of` words it, the
+    /// same as the move page, not the path the app opens (M6-B240).
+    #[test]
+    fn the_settings_folder_is_shown_in_the_users_words() {
+        let book = Path::new("/data/Books/Household.ksz");
+        assert_eq!(
+            shown_folder_text(book, "/data/Books".into()),
+            crate::book_move::shown_folder_of(book).text
+        );
+        assert_eq!(shown_folder_text(book, "/data/Books".into()), "/data/Books");
+    }
 
     #[test]
     fn the_label_names_the_version_and_the_commit_when_known() {

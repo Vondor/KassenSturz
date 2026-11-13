@@ -81,6 +81,43 @@ pub fn export_root(path: &Path, runtime_dir: &Path) -> Option<PathBuf> {
     Some(runtime_dir.join("doc").join(id).join(folder))
 }
 
+/// What to ask the document portal's `GetHostPaths` for a path in its mount
+/// (`<runtime>/doc/<id>/<name>/<rest>`): the document's `id`, which the
+/// portal knows, and the `rest` below `<name>`. `None` for a path outside the
+/// mount, one with `..`, and the mount's own folders.
+#[must_use]
+pub fn portal_document(path: &Path, runtime_dir: &Path) -> Option<(String, PathBuf)> {
+    if !matches!(
+        portal_place(path, runtime_dir),
+        PortalPlace::Export | PortalPlace::Inside
+    ) {
+        return None;
+    }
+    let rest = path.strip_prefix(runtime_dir.join("doc")).ok()?;
+    let mut parts = rest
+        .components()
+        .filter(|component| matches!(component, Component::Normal(_)));
+    let id = parts.next()?.as_os_str().to_str()?.to_owned();
+    parts.next()?;
+    Some((id, parts.collect()))
+}
+
+/// The real path of a path in the portal's mount, from what `GetHostPaths`
+/// answered for its document (`host`, the real path of `<id>/<name>`) and
+/// the `rest` below it ([`portal_document`]). `None` when the portal didn't
+/// give an absolute path.
+#[must_use]
+pub fn host_path_of(host: &Path, rest: &Path) -> Option<PathBuf> {
+    if !host.is_absolute() || has_parent_part(host) {
+        return None;
+    }
+    Some(if rest.as_os_str().is_empty() {
+        host.to_owned()
+    } else {
+        host.join(rest)
+    })
+}
+
 /// A folder the user chose, as the app may use it (D-730).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FolderGrant {
@@ -274,6 +311,39 @@ mod tests {
             runtime_dir: Some(runtime),
             host_path: host,
         }
+    }
+
+    /// The portal's `GetHostPaths` takes document IDs, not paths: asked with
+    /// the path, it gave no answer and Settings showed the sandbox path
+    /// (M6-B240). Unix only: the portal and these paths exist only there.
+    #[cfg(unix)]
+    #[test]
+    fn asks_the_portal_by_document_id_and_adds_the_rest() {
+        let run = Path::new(RUN);
+        let doc = |path: &str| portal_document(Path::new(path), run);
+        assert_eq!(
+            doc("/run/user/1000/doc/c3e9b733/Books-A"),
+            Some(("c3e9b733".to_owned(), PathBuf::new()))
+        );
+        assert_eq!(
+            doc("/run/user/1000/doc/c3e9b733/Books-A/2026/Household.ksz"),
+            Some(("c3e9b733".to_owned(), PathBuf::from("2026/Household.ksz")))
+        );
+        assert_eq!(doc("/run/user/1000/doc/c3e9b733"), None);
+        assert_eq!(doc("/run/user/1000/doc/c3e9b733/../x"), None);
+        assert_eq!(doc("/home/ada/Books"), None);
+
+        let host = Path::new("/home/ada/Books-A");
+        assert_eq!(
+            host_path_of(host, Path::new("")),
+            Some(PathBuf::from("/home/ada/Books-A"))
+        );
+        assert_eq!(
+            host_path_of(host, Path::new("2026")),
+            Some(PathBuf::from("/home/ada/Books-A/2026"))
+        );
+        assert_eq!(host_path_of(Path::new("Books-A"), Path::new("")), None);
+        assert_eq!(host_path_of(Path::new("/home/../x"), Path::new("")), None);
     }
 
     #[test]

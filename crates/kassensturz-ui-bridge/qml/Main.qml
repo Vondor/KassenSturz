@@ -370,6 +370,24 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // An app left open over midnight or a month end: when the day changed,
+    // every screen reads the book again, so "today" and "this month" are not
+    // the old day's (#831). The look is cheap; once a minute is enough.
+    DayClock {
+        id: dayClock
+    }
+
+    Timer {
+        interval: 60000
+        repeat: true
+        running: root.started
+        onTriggered: {
+            if (dayClock.check()) {
+                root.bookChanged();
+            }
+        }
+    }
+
     // The app's own book is called this in the user's language, e.g.
     // Haushalt.ksz in German.
     WindowState {

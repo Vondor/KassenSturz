@@ -16,9 +16,8 @@
 use std::collections::HashSet;
 
 use kassensturz_core::{
-    AccountId, AccountKind, CurrencyCode, Date, Decided, MAX_SCHEDULE_EVERY, Money,
-    OccurrenceState, Report, Schedule, ScheduleId, ScheduleUnit, TransactionId, compact_iban,
-    due_dates, salary_month_of,
+    AccountId, CurrencyCode, Date, Decided, MAX_SCHEDULE_EVERY, Money, OccurrenceState, Report,
+    Schedule, ScheduleId, ScheduleUnit, TransactionId, compact_iban, due_dates, salary_month_of,
 };
 use kassensturz_store::{Action, Book, NewSchedule, StoreError};
 
@@ -1025,11 +1024,6 @@ pub fn this_month(
             overdue: forecast.overdue.len(),
         })),
     })
-}
-
-/// Whether `kind` is one of the user's own accounts a plan may be on.
-pub fn takes_plans(kind: AccountKind) -> bool {
-    kind.is_account()
 }
 
 #[cfg(test)]

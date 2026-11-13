@@ -6,7 +6,7 @@
 //! example in SWIFT's IBAN Registry (D-055). Today is Monday, 19 October
 //! 2026, as [`TestLocale`] has it.
 
-use kassensturz_core::{Account, AccountType, BudgetEvery, Split, Transaction};
+use kassensturz_core::{Account, AccountKind, AccountType, BudgetEvery, Split, Transaction};
 
 use super::*;
 use crate::register::tests::TestLocale;
@@ -599,14 +599,6 @@ fn the_form_shows_the_next_three_payments_moved_to_a_banking_day() {
         next_dates(&household.book, &weekly, &TestLocale),
         ["2026-10-19", "2026-11-02", "2026-11-16"]
     );
-}
-
-#[test]
-fn only_the_users_own_accounts_take_plans() {
-    assert!(takes_plans(AccountKind::Asset));
-    assert!(takes_plans(AccountKind::Liability));
-    assert!(!takes_plans(AccountKind::Expense));
-    assert!(!takes_plans(AccountKind::Income));
 }
 
 /// A plan of `amount` on `account`, every `every` `unit` from `first_due`,

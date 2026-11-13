@@ -213,7 +213,7 @@ KassenSturz has a **native way to connect AI**, including **locally running mode
 
 ## 11. Helping a volunteer check a translation
 
-When a person asks you to help them check or improve a translation (for example from a "help wanted" issue), read `docs/TRANSLATING.md` and guide them through it. In short: the texts are in `po/<language code>/kassensturz.po`; change only `msgstr` lines; keep every placeholder (`%1`, ...), plural form and piece of markup; use plain language and the file's own terms; and the AI goes through the **whole file**, never a part of it, while the person only spot-checks in good faith that everyday speakers would understand the words.
+When a person asks you to help them check or improve a translation (for example from a "help wanted" issue), read `docs/TRANSLATING.md` and guide them through it. In short: the texts are in `po/<language code>/kassensturz.po`; change only `msgstr` lines; keep every placeholder (`%1`, ...), plural form and piece of markup; use plain language and the file's own terms; and other languages than the ones named in an issue are welcome too, and a new language is started as `docs/TRANSLATING.md` describes; the AI goes through the **whole file**, never a part of it, while the person only spot-checks in good faith that everyday speakers would understand the words.
 
 ## 10. If you are unsure
 

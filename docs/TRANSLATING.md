@@ -1,6 +1,10 @@
-# Checking a translation
+# Checking or starting a translation
 
-This page is for people who want to check one language of KassenSturz, and for the AI assistant (Claude, ChatGPT, Gemini, Qwen, ...) that helps them. If you are an AI assistant, a person has asked you to walk them through checking a translation: read this page and follow it. AGENTS.md §11 points here.
+This page is for people who want to check one language of KassenSturz, or to start a new one, and for the AI assistant (Claude, ChatGPT, Gemini, Qwen, ...) that helps them. If you are an AI assistant, a person has asked you to walk them through checking a translation: read this page and follow it. AGENTS.md §11 points here.
+
+## Which languages
+
+KassenSturz ships in English and German. Every other language is welcome too, whether or not it is named in a "help wanted" issue: if your language has no file under `po/` yet, you can start it (see below), and a language that has one can be checked.
 
 ## What the files are
 
@@ -34,6 +38,17 @@ The AI assistant goes through the **whole file**, from the first entry to the la
 
    It reports broken quoting, a wrong number of plural forms and some placeholder mistakes. The maintainers run `tools/check-translations.sh` as well (CI does); it also finds placeholders that were lost or changed.
 5. Never send half of a file. If the person cannot see it through, they say so on the issue so someone else can take over.
+
+## Starting a new language
+
+If `po/<language code>/` does not exist yet, the file is made from the German one, which holds every English text:
+
+1. Take the two-letter (or, where needed, `ll_CC`) code of the language, such as `fr`, `pt_BR` or `zh_CN`. Copy `po/de/kassensturz.po` to `po/<language code>/kassensturz.po`.
+2. In the header (the first block) set `Language`, `Language-Team`, `Last-Translator` (a name or a GitHub name is fine) and `PO-Revision-Date`, and set `Plural-Forms` to the language's rule (the gettext manual lists them). Change the first comment line to say which language it is.
+3. Replace every German `msgstr` with a translation into the new language. Every `msgstr` must be filled in: an empty one counts as missing. Give an entry with `msgid_plural` exactly as many `msgstr[n]` lines as the language has plural forms, and translate the English `msgid`, not the German text.
+4. Then follow "How to do a complete check" below, which here means the AI assistant translates the whole file piece by piece and the person spot-checks it in good faith (the rules above apply unchanged).
+
+The project's own check (`tools/check-translations.sh`, run by CI) fails while a text is missing, so a new language is merged only as a complete file. The app finds the new file by itself; nothing else has to be registered.
 
 ## How to send it back
 

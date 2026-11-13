@@ -7,6 +7,7 @@
 **Einstellungen › Ihre Daten › Eine Kopie meiner Daten speichern…** bietet zwei Wege:
 
 - **Für eine Tabelle:** die Buchungen der gewählten Konten als Datei, die jede Tabellenkalkulation öffnet, zum Beispiel LibreOffice Calc, eine Zeile je Buchung und Konto.
+  Unter den Konten können Sie einen **ersten** und einen **letzten Tag** angeben; beide Tage gehören dazu, ein leeres Feld heißt alle Tage. Die Zeilen bleiben genau, wie sie sind: Sie ergeben den Kontostand eines Kontos nur, wenn nichts vor dem ersten Tag weggelassen wird. In der Kommandozeile: `export DATEI --from 2026-01-01 --until 2026-12-31`.
 - **Das ganze Haushaltsbuch speichern…:** alles in einer Datei (Konten, Kategorien, Buchungen, Regeln, Wechselkurse, Verknüpfungen mit Bankkonten), aus der KassenSturz ein neues Buch anlegen kann, zum Beispiel als Sicherung oder auf einem anderen Computer. Der Verlauf kommt nicht mit.
 
 KassenSturz **überschreibt dabei nie** eine vorhandene Datei. In der Datei stehen **keine** Bank-Anmeldenamen und keine PIN.

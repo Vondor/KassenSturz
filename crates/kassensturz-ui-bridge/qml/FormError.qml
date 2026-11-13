@@ -612,6 +612,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
         case "input.no-accounts-chosen":
             return i18nContext.i18nc("@info", "Tick at least one account.");
+        case "input.range-reversed":
+            return i18nContext.i18nc("@info", "The last day is before the first. Swap them.");
         case "export.io":
             switch (result.kind) {
             case "not-found":

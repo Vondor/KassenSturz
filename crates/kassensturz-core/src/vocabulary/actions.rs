@@ -246,6 +246,7 @@ pub const ACTIONS: &[&str] = &[
     "FilterPicker_clicked",
     "FilterPicker_showAll",
     "FilterPicker_toggle",
+    "FolderChooser_chosen",
     "FormulaField_activated",
     "FormulaField_insertName",
     "GridItem_duplicate",

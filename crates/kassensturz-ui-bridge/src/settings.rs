@@ -9,7 +9,10 @@
 use std::path::{Path, PathBuf};
 
 use cxx_qt_lib::QString;
+use kassensturz_core::book_folder::{expand_entry, remember_entry};
 use kassensturz_platform::SecretStorage;
+
+use crate::platform;
 
 #[cxx_qt::bridge]
 mod ffi {
@@ -29,12 +32,13 @@ mod ffi {
         #[cxx_name = "writeEntry"]
         fn write_entry(file: &QString, group: &QString, key: &QString, value: &QString) -> bool;
 
-        #[cxx_name = "readPathEntry"]
-        fn read_path_entry(file: &QString, group: &QString, key: &QString) -> QString;
-
-        #[cxx_name = "writePathEntry"]
-        fn write_path_entry(file: &QString, group: &QString, key: &QString, path: &QString)
-        -> bool;
+        #[cxx_name = "writeExpandedEntry"]
+        fn write_expanded_entry(
+            file: &QString,
+            group: &QString,
+            key: &QString,
+            text: &QString,
+        ) -> bool;
     }
 }
 
@@ -99,10 +103,18 @@ impl Settings {
 
     /// The book opened last, if one was.
     pub fn last_book(&self) -> Option<PathBuf> {
-        let path =
-            ffi::read_path_entry(&self.file, &QString::from(BOOKS), &QString::from(LAST_BOOK))
-                .to_string();
-        (!path.is_empty()).then(|| PathBuf::from(path))
+        let text = ffi::read_entry(&self.file, &QString::from(BOOKS), &QString::from(LAST_BOOK))
+            .to_string();
+        if text.is_empty() {
+            return None;
+        }
+        // Read like `kassensturz-mcp` reads it, with the same function.
+        let path = expand_entry(
+            &text,
+            platform::home_dir().as_deref().and_then(Path::to_str),
+            platform::runtime_dir().as_deref().and_then(Path::to_str),
+        )?;
+        Some(PathBuf::from(path))
     }
 
     /// Remembers `path` as the book opened last. Returns whether that was
@@ -112,11 +124,16 @@ impl Settings {
         let Some(path) = path.to_str() else {
             return false;
         };
-        ffi::write_path_entry(
+        let text = remember_entry(
+            path,
+            platform::home_dir().as_deref().and_then(Path::to_str),
+            platform::runtime_dir().as_deref().and_then(Path::to_str),
+        );
+        ffi::write_expanded_entry(
             &self.file,
             &QString::from(BOOKS),
             &QString::from(LAST_BOOK),
-            &QString::from(path),
+            &QString::from(text),
         )
     }
 
@@ -294,10 +311,41 @@ mod tests {
         assert!(settings.set_last_book(&book));
         let written = std::fs::read_to_string(&file).expect("settings file written");
         assert!(
-            written.contains("LastBook[$e]=$HOME/Books/Household.ksz"),
+            written.contains("LastBook=$HOME/Books/Household.ksz"),
             "{written}"
         );
         assert_eq!(settings.last_book(), Some(book));
+    }
+
+    #[test]
+    fn keeps_the_runtime_folder_as_a_variable_and_never_twice() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        // An older entry, as `writePathEntry` wrote it.
+        std::fs::write(&file, "[Books]\nLastBook[$e]=$HOME/Old.ksz\n").expect("old file");
+        let text = "$XDG_RUNTIME_DIR/doc/ab12/Books/Household.ksz";
+        assert!(ffi::write_expanded_entry(
+            &settings.file,
+            &QString::from(BOOKS),
+            &QString::from(LAST_BOOK),
+            &QString::from(text),
+        ));
+        let written = std::fs::read_to_string(&file).expect("file");
+        assert_eq!(written.matches("LastBook").count(), 1, "{written}");
+        assert!(written.contains(&format!("LastBook={text}")), "{written}");
+        // What the MCP server reads is what the app wrote.
+        let raw = ffi::read_entry(
+            &settings.file,
+            &QString::from(BOOKS),
+            &QString::from(LAST_BOOK),
+        )
+        .to_string();
+        assert_eq!(raw, text);
+        assert_eq!(
+            expand_entry(&raw, Some("/home/ada"), Some("/run/user/1000")).as_deref(),
+            Some("/run/user/1000/doc/ab12/Books/Household.ksz")
+        );
     }
 
     #[test]

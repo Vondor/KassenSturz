@@ -366,7 +366,10 @@ mod path_audit {
         // The MCP server's `$HOME` in a `LastBook` it reads from the
         // settings file `ai_switch::settings_file` finds; while a test app
         // runs, the server moves its folders as the app does (M6-B208).
-        ("kassensturz-mcp/src/book_path.rs", 1),
+        // `$HOME` and `$XDG_RUNTIME_DIR` only expand the settings file's
+        // path entry; no folder is read from them (D-730).
+        ("kassensturz-mcp/src/book_path.rs", 2),
+        ("kassensturz-ui-bridge/src/platform.rs", 2),
         ("kassensturz-mcp/tests/refuses_to_start.rs", 2),
         ("kassensturz-mcp/tests/common/mod.rs", 3),
         // The command-line tool, a program of its own outside the app.

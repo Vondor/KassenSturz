@@ -30,15 +30,16 @@ bool writeEntry(const QString &file, const QString &group, const QString &key, c
     return entries.sync();
 }
 
-QString readPathEntry(const QString &file, const QString &group, const QString &key)
-{
-    return settings::group(file, group).readPathEntry(key, QString());
-}
-
-bool writePathEntry(const QString &file, const QString &group, const QString &key, const QString &path)
+bool writeExpandedEntry(const QString &file, const QString &group, const QString &key, const QString &text)
 {
     KConfigGroup entries = settings::group(file, group);
-    entries.writePathEntry(key, path);
+    // KConfig's own `writePathEntry` can only put `$HOME` in, and doubles every
+    // other `$`; `text` already holds the variables it should keep, so it is
+    // written as a plain entry and read back by `expand_entry`, which every
+    // reader of this entry uses. An older entry written by `writePathEntry`
+    // (`Key[$e]`) goes first, so the file never holds the key twice.
+    entries.deleteEntry(key);
+    entries.writeEntry(key, text);
     return entries.sync();
 }
 }

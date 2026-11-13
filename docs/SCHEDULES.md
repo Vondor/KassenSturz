@@ -211,3 +211,15 @@ Build 1 followed this design; where the code had to decide something the design 
 - **The complete export** is version 14 with `schedules`, each plan with its decided payments; reading a file checks that a matched payment names an entry of the file, once.
 - **Command line:** `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book` and `forecast [--months N] [--account NAME ...]`; `import` prints the matches. `schedule due` lists the payments with their state.
 - **Left for build 2 (UI):** the bridge's call to `match_schedules` after its own import and fetch actions, the import summary part, the pages, tiles and glossary rows.
+
+## 12. What build 2 settled (the screens)
+
+Build 2a (the planned payments screens) followed part 2; where it had to decide, it is listed here.
+
+- **The page is a window**, Accounts › *Planned payments…*, as *Monthly moves…* is; the action says how many payments wait ("Planned payments (2 to check)…"). "Did this happen?" is its first part. The month by month table, the tiles and their datasets come with build 2b.
+- **Dates are the locale's short dates** ("02.11.2026"), not "Mon 2 Nov": the bridge's locale has no weekday words yet. The form shows the next three dates from today, or from the first date if that is later.
+- **"Book it…"** offers the plan's amount and today, both changeable; the entry is booked on the typed day. **"Match an entry…"** offers the plan account's entries up to 31 days from the payment's day, with the money going the plan's way and not matched yet, closest first.
+- **An IBAN typed in "Paid to"** is kept without spaces and in capitals; anything else is kept as a name. A sign typed in an amount counts for nothing: the form's "Goes out / Comes in" decides.
+- **"Plan this again…"** saves the plan and matches its entry as the first payment in one change, so one Undo takes back both.
+- **The import summary** lists each match with the entry's own amount and date and whether it got the plan's category; *Undo these matches* takes back only the matches. The matches are made after the joins of monthly moves, so *Undo these joins* takes back the matches on top of them too, and says so. *Update all accounts* says how many planned payments came.
+- **Error texts**: the input code `input.plan-every` (how often isn't 1 to 52) is new; the `store.schedule-*` codes of build 1 have their texts in `FormError.qml`.

@@ -294,6 +294,8 @@ mod tests {
         ));
     }
 
+    // Unix paths: on Windows "/home/ada" isn't absolute, and the portal is Linux only.
+    #[cfg(unix)]
     #[test]
     fn a_normal_folder_is_granted_as_it_is() {
         let grant = grant(
@@ -314,6 +316,8 @@ mod tests {
         );
     }
 
+    // Unix paths: on Windows "/home/ada" isn't absolute, and the portal is Linux only.
+    #[cfg(unix)]
     #[test]
     fn a_folder_as_wide_as_the_home_folder_is_refused() {
         let home = Path::new("/home/ada");
@@ -330,6 +334,8 @@ mod tests {
         assert!(grant(Path::new("/home/ada2"), around(home, Path::new(RUN), None)).is_ok());
     }
 
+    // Unix paths: on Windows "/home/ada" isn't absolute, and the portal is Linux only.
+    #[cfg(unix)]
     #[test]
     fn a_portal_folder_is_judged_by_its_real_path() {
         let home = Path::new("/home/ada");
@@ -349,6 +355,8 @@ mod tests {
         assert!(granted.shown_is_real_path);
     }
 
+    // Unix paths: on Windows "/home/ada" isn't absolute, and the portal is Linux only.
+    #[cfg(unix)]
     #[test]
     fn a_portal_folder_without_a_real_path_is_shown_by_its_name() {
         let granted = grant(
@@ -360,6 +368,8 @@ mod tests {
         assert!(!granted.shown_is_real_path);
     }
 
+    // Unix paths: on Windows "/home/ada" isn't absolute, and the portal is Linux only.
+    #[cfg(unix)]
     #[test]
     fn paths_that_are_no_folder_for_the_book_are_refused() {
         let home = Path::new("/home/ada");

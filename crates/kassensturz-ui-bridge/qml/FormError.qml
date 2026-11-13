@@ -662,7 +662,7 @@ Kirigami.InlineMessage {
         case "bank.too-old":
             return i18nContext.i18nc("@info %1 is a program's name, %2 and %3 version numbers", "The installed %1 is version %2; KassenSturz needs %3 or newer. Update it, or import a file from your bank instead.", result.library === "gwenhywfar" ? "Gwenhywfar" : "AqBanking", result.found, result.minimum);
         case "bank.not-registered":
-            return i18nContext.i18nc("@info", "This version of KassenSturz isn't registered with the German banks' FinTS system yet, so it can't connect to a bank. Import a file from your bank instead.");
+            return i18nContext.i18nc("@info", "This copy of KassenSturz isn't registered with the German banks' FinTS system, so it can't connect to a bank. The official releases are registered. Import a file from your bank instead.");
         case "bank.malformed-registration":
             return i18nContext.i18nc("@info", "A FinTS product registration number has exactly 25 letters and digits. Check it against the registration letter and type it again.");
         case "bank.malformed-iban":

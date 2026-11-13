@@ -29,6 +29,20 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 4. **Look at the release.** On the repository's Releases page the new entry is marked *Pre-release* and can be downloaded without a GitHub account, so the install sheets' step 1 ("the newest entry marked Pre-release") is right. Check the file name and the text.
 5. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
 
+## Once: the registration number
+
+An official release carries KassenSturz's FinTS product registration number, so its users need only their bank login and PIN (D-745). The number is in no file of the repository. It is a secret in the repository's settings on GitHub, and only the maintainer sets it up, once:
+
+1. **Tag ruleset.** Settings → Rules → Rulesets → New tag ruleset: target tags `v0.*`, restrict creations, updates and deletions, and put only yourself on the bypass list.
+2. **Environment.** Settings → Environments → New environment, named `release`. Under "Deployment branches and tags" choose "Selected branches and tags" and add the tag rule `v0.*`. Under "Required reviewers" add yourself, and leave "Prevent self-review" off (otherwise you could not approve your own tag).
+3. **Secret.** In that environment: Add environment secret, name `FINTS_REGISTRATION`, value the 25 characters of the number. Type or paste it there and nowhere else.
+
+From then on the *Build the Flatpak bundle* job of a tag's run waits for your approval (Actions tab → the run → Review deployments), builds the number in, and fails if the number is in any file of the built app other than the program itself. Without the secret a release is still built, without bank access, and the run shows a warning.
+
+These settings are the protection, not the workflow file: a tag runs the `release.yml` of the commit it points to (threat T-63). They hold fully only when nobody else, and no agent, acts with the maintainer's own GitHub account.
+
+**If the number ever has to be replaced** (for example because the registration office blocked it): store the new number as the secret and tag a new release. Nothing in the repository changes.
+
 ## If something is wrong
 
 - The run is red: read the failing job. If the fault is in the code or the workflow, fix it on `main` first. A tag that did not produce a release is deleted and the number of the fixed commit is tagged instead: `git push --delete origin "$tag" && git tag -d "$tag"`.

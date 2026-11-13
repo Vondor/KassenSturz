@@ -52,6 +52,7 @@ mod keychain;
 mod linked;
 mod pin;
 mod registration;
+mod shape;
 mod statement;
 
 pub use aqbanking::AqBankingBank;

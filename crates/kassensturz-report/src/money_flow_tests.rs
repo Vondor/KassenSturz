@@ -472,8 +472,17 @@ proptest! {
 #[test]
 fn an_other_of_the_first_column_passes_on_all_it_holds() {
     let names = [
-        "Salary", "Gift", "Food", "Groceries", "Rent", "Fun", "Cinema", "Travel", "Pets",
-        "Health", "Gear",
+        "Salary",
+        "Gift",
+        "Food",
+        "Groceries",
+        "Rent",
+        "Fun",
+        "Cinema",
+        "Travel",
+        "Pets",
+        "Health",
+        "Gear",
     ];
     let w = world(&[
         ("Salary", AccountKind::Income, None),

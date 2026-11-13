@@ -153,7 +153,10 @@ fn a_plan_is_added_edited_paused_and_removed_and_each_step_undone() {
     assert_eq!(plan.name, "Rent");
     assert_eq!(plan.amount, eur(-75_000));
     assert!(!plan.paused);
-    assert_eq!(book.schedules().expect("plans"), std::slice::from_ref(&plan));
+    assert_eq!(
+        book.schedules().expect("plans"),
+        std::slice::from_ref(&plan)
+    );
     let added = contents(&book);
 
     let edited = Schedule {

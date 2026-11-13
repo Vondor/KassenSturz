@@ -1,0 +1,16 @@
+recognized: yes
+statement 1
+  account iban: "DE89370400440532013000"
+  account number: -
+  currency: EUR with 2 decimal places
+  opening balance: 100.00 EUR on 2026-09-30
+  closing balance: 80.00 EUR on 2026-10-31
+  entry 1
+    status: booked
+    bank id: -
+    booking date: 2026-10-05
+    value date: -
+    amount: -20.00 EUR
+    other party name: "Example Gym"
+    other party iban: -
+    remittance information: "Membership October\nMREF+M-2026-0815\nCRED+DE98ZZZ09999999999"

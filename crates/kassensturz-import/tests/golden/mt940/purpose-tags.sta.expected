@@ -13,7 +13,7 @@ statement 1
     amount: 10.00 EUR
     other party name: -
     other party iban: "DE89370400440532013000"
-    remittance information: "Rate 3 von 12"
+    remittance information: "Rate 3 von 12 MREF+M-1 CRED+DE98ZZZ09999999999"
   entry 2
     status: booked
     bank id: -

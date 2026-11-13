@@ -12,30 +12,48 @@
 
 use serde_json::{Map, Value};
 
-/// The text without the model's thinking: every `<think>…</think>` block,
-/// everything up to a closing `</think>` that has no opening one (some
-/// servers drop the opening tag), and an opening block that never closes
-/// (the reply was cut while thinking). The rest is trimmed.
+/// The tags models use around their thinking, as (opening, closing)
+/// pairs: `<think>` (Qwen and others), `<thinking>`, `<reasoning>`, the
+/// channel marks of Gemma models and Mistral's `[THINK]` (M6, #856).
+const THINKING_TAGS: [(&str, &str); 5] = [
+    ("<think>", "</think>"),
+    ("<thinking>", "</thinking>"),
+    ("<reasoning>", "</reasoning>"),
+    ("<|channel>thought", "<channel|>"),
+    ("[THINK]", "[/THINK]"),
+];
+
+/// The text without the model's thinking: every block in one of the
+/// [`THINKING_TAGS`] pairs, everything up to a closing tag that has no
+/// opening one (some servers drop the opening tag), and an opening block
+/// that never closes (the reply was cut while thinking). The rest is
+/// trimmed.
 pub fn without_thinking(text: &str) -> String {
-    const OPEN: &str = "<think>";
-    const CLOSE: &str = "</think>";
-    if !text.contains(OPEN) && !text.contains(CLOSE) {
+    let mut out = text.to_owned();
+    for (open, close) in THINKING_TAGS {
+        out = without_block(&out, open, close);
+    }
+    out.trim().to_owned()
+}
+
+fn without_block(text: &str, open_tag: &str, close_tag: &str) -> String {
+    if !text.contains(open_tag) && !text.contains(close_tag) {
         return text.to_owned();
     }
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
     // A closing tag before any opening one ends thinking that started
     // before the text.
-    if let Some(close) = rest.find(CLOSE)
-        && rest.find(OPEN).is_none_or(|open| close < open)
+    if let Some(close) = rest.find(close_tag)
+        && rest.find(open_tag).is_none_or(|open| close < open)
     {
-        rest = &rest[close + CLOSE.len()..];
+        rest = &rest[close + close_tag.len()..];
     }
-    while let Some(open) = rest.find(OPEN) {
+    while let Some(open) = rest.find(open_tag) {
         out.push_str(&rest[..open]);
-        let after = &rest[open + OPEN.len()..];
-        match after.find(CLOSE) {
-            Some(close) => rest = &after[close + CLOSE.len()..],
+        let after = &rest[open + open_tag.len()..];
+        match after.find(close_tag) {
+            Some(close) => rest = &after[close + close_tag.len()..],
             None => {
                 rest = "";
                 break;
@@ -43,7 +61,7 @@ pub fn without_thinking(text: &str) -> String {
         }
     }
     out.push_str(rest);
-    out.trim().to_owned()
+    out
 }
 
 /// Arguments without one Markdown code fence around them
@@ -205,6 +223,18 @@ mod tests {
             without_thinking("<think>I could write <tool_call> here</think>No."),
             "No."
         );
+    }
+
+    #[test]
+    fn other_thinking_marks_are_left_out_too() {
+        assert_eq!(
+            without_thinking("<|channel>thought\nThe user wants 12.00.<channel|>It is 12.00."),
+            "It is 12.00."
+        );
+        assert_eq!(without_thinking("<thinking>hmm</thinking>Done."), "Done.");
+        assert_eq!(without_thinking("[THINK]hmm[/THINK]Done."), "Done.");
+        assert_eq!(without_thinking("<reasoning>hmm 1,234.00"), "");
+        assert_eq!(without_thinking("hmm</reasoning>Done."), "Done.");
     }
 
     #[test]

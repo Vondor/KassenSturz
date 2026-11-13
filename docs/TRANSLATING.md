@@ -21,11 +21,11 @@ This page is for people who want to check one language of KassenSturz, and for t
 
 ## How to do a complete check
 
-The check is accepted only for the **whole file**, from the first entry to the last, because a half-checked file leaves us not knowing which texts a human has read.
+The AI assistant goes through the **whole file**, from the first entry to the last, so that no text is skipped. The person does not have to check every word. A spot check made in good faith, to the best of their knowledge, is enough: they read a sample of the suggestions and the entries around them, and ask themselves whether people in their country would understand these words as they are used in everyday speech. If yes, it is good enough. What we cannot accept is a file where only a part was gone through at all.
 
 1. Download `po/<language code>/kassensturz.po` from the repository (the "Raw" or download button on GitHub).
 2. Go through the file in pieces of about 150 to 200 whole entries (an entry runs from its `#:` lines to the empty line after the `msgstr`). Skip the header. Keep a count of the pieces done so none is skipped, and say after each piece which entries you would change and why.
-3. The person decides. Show each suggested change next to the English text and keep only those that are really better. If unsure, leave the original and note it.
+3. The person decides. Show each suggested change next to the English text and keep only those that are really better. If unsure, leave the original and note it. Point out the entries most worth a human look (everyday words on buttons and in messages, anything about money or data safety) so a spot check lands where it matters.
 4. After the last piece, put all accepted changes into the file. Check that no `%n` placeholder was lost or added (compare the `msgid` and the `msgstr` of every changed entry) and run, if `gettext` is installed:
 
    ```
@@ -33,7 +33,7 @@ The check is accepted only for the **whole file**, from the first entry to the l
    ```
 
    It reports broken quoting, a wrong number of plural forms and some placeholder mistakes. The maintainers run `tools/check-translations.sh` as well (CI does); it also finds placeholders that were lost or changed.
-5. Never send half of a file. If the person cannot finish, they say so on the issue so someone else can take over.
+5. Never send half of a file. If the person cannot see it through, they say so on the issue so someone else can take over.
 
 ## How to send it back
 

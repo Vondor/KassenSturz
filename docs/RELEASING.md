@@ -33,8 +33,8 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 
 An official release carries KassenSturz's FinTS product registration number, so its users need only their bank login and PIN (D-745). The number is in no file of the repository. It is a secret in the repository's settings on GitHub, and only the maintainer sets it up, once:
 
-1. **Tag ruleset.** Settings → Rules → Rulesets → New tag ruleset: target tags `v0.*`, restrict creations, updates and deletions, and put only yourself on the bypass list.
-2. **Environment.** Settings → Environments → New environment, named `release`. Under "Deployment branches and tags" choose "Selected branches and tags" and add the tag rule `v0.*`. Under "Required reviewers" add yourself, and leave "Prevent self-review" off (otherwise you could not approve your own tag).
+1. **Tag ruleset.** Settings → Rules → Rulesets → New tag ruleset: enforcement "Active", target tags `v*` (so later `v1.*` tags are covered too), tick "Restrict creations", "Restrict updates", "Restrict deletions" and "Block force pushes", and put only "Repository admin" on the bypass list.
+2. **Environment.** Settings → Environments → New environment, named `release`. Tick "Required reviewers" and add yourself; leave "Prevent self-review" off (otherwise you could not approve your own tag); untick "Allow administrators to bypass configured protection rules"; then "Save protection rules". Under "Deployment branches and tags" choose "Selected branches and tags" and add the tag rule `v*`.
 3. **Secret.** In that environment: Add environment secret, name `FINTS_REGISTRATION`, value the 25 characters of the number. Type or paste it there and nowhere else.
 
 From then on the *Build the Flatpak bundle* job of a tag's run waits for your approval (Actions tab → the run → Review deployments), builds the number in, and fails if the number is in any file of the built app other than the program itself. Without the secret a release is still built, without bank access, and the run shows a warning.

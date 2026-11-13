@@ -381,6 +381,8 @@ ColumnLayout {
             orientation: (preview.subject?.fields ?? []).find(f => f.key === "orientation")?.word ?? "auto"
             // Which candles have a filled box (D-748).
             candleFill: (preview.subject?.fields ?? []).find(f => f.key === "candle_fill")?.word ?? "up-hollow"
+            // Which changes of a comparison stay uncoloured (D-760).
+            neutral: (preview.subject?.fields ?? []).find(f => f.key === "neutral")?.word ?? "off"
             // *Show the legend*; a chart without the setting shows it.
             showLegend: (preview.subject?.fields ?? []).find(f => f.key === "legend")?.flag ?? true
             explain: preview.explainChart
@@ -411,6 +413,7 @@ ColumnLayout {
             ChartTable {
                 Layout.fillWidth: true
                 chart: tableBox.modelData
+                neutral: (preview.subject?.fields ?? []).find(f => f.key === "neutral")?.word ?? "off"
             }
 
             // A table of averages ends with the average of all of it, divided

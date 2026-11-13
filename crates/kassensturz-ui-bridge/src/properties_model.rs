@@ -837,6 +837,40 @@ mod tests {
     }
 
     #[test]
+    fn the_uncoloured_changes_read_back_the_way_qml_reads_them() {
+        // D-760: `ComponentPreview.qml` passes the word of `neutral` on to
+        // `ChartTable.qml`, which compares it with `NEUTRAL_WORDS`;
+        // `PropertiesPanel.qml` shows the field only while `compare` is
+        // not `none`.
+        let mut table = component(ComponentType::TableRows, "spending_by_category");
+        let field_of = |table: &Component, key: &str| {
+            list_of(
+                &view_object(Some(table), None, NumberForm::DecimalComma),
+                "fields",
+            )
+            .into_iter()
+            .find(|f| text_of(f, "key") == key)
+            .expect("the field")
+        };
+        let field = field_of(&table, "neutral");
+        assert_eq!(text_of(&field, "kind"), "choice");
+        assert_eq!(text_of(&field, "place"), "props");
+        assert_eq!(text_of(&field, "word"), "off");
+        let words: Vec<String> = list_of(&field, "words")
+            .iter()
+            .map(|word| word.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(words, ["off", "2", "5", "10", "20"]);
+        assert_eq!(text_of(&field_of(&table, "compare"), "word"), "none");
+        table.set("neutral", Setting::Word("5".into())).unwrap();
+        table
+            .set("compare", Setting::Word("average-3".into()))
+            .unwrap();
+        assert_eq!(text_of(&field_of(&table, "neutral"), "word"), "5");
+        assert_eq!(text_of(&field_of(&table, "compare"), "word"), "average-3");
+    }
+
+    #[test]
     fn json_is_the_document_part_and_reads_back_into_the_same_component() {
         let mut chart = component(ComponentType::ChartDonut, "spending_by_category");
         chart

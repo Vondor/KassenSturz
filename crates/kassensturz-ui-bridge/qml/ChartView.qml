@@ -52,6 +52,9 @@ ColumnLayout {
     // default a candle that ended higher is hollow and one that ended lower
     // filled (D-718).
     property string candleFill: "up-hollow"
+    // Which changes of a comparison stay uncoloured in its table
+    // (`props.neutral`, D-760): `off` colours every change.
+    property string neutral: "off"
     // Whether the legend is shown (`props.legend`, *Show the legend*). It
     // was stored but not read, so the switch did nothing (US5 Phase 3).
     // The total, the explanation under candles and the text of the point
@@ -1064,6 +1067,7 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: view.showTable
         chart: view.chart
+        neutral: view.neutral
     }
 
     Controls.Button {

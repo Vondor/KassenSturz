@@ -8,7 +8,7 @@
 //! a call is untrusted text (X-8), so a bad argument is named by its fixed
 //! name only.
 
-use kassensturz_core::{ErrorParam, ErrorReport, Report};
+use kassensturz_core::{AccountId, ErrorParam, ErrorReport, Report};
 use kassensturz_store::StoreError;
 
 use crate::read::MIN_REFERENCE_CHARS;
@@ -66,6 +66,18 @@ pub enum ToolError {
     BadArgument {
         /// The argument's name, from the function's fixed list.
         argument: &'static str,
+    },
+    /// A free text of a `propose_changes` call (`payee`, `note`, a part's
+    /// `name`, a bill's `title`) can't be kept, and `reason` says why: the
+    /// answer is `ai-tools.bad-argument` with the argument and the reason
+    /// (#826).
+    BadText {
+        /// The argument's name, from the function's fixed list.
+        argument: &'static str,
+        /// `line-break` (it has a line break or another control
+        /// character), `hidden-character` (a character that hides text) or
+        /// `too-long`.
+        reason: &'static str,
     },
     /// An argument of a `propose_changes` call is of the wrong kind, such as
     /// a list that is an object or an item that is a text (US3.9). It is
@@ -195,6 +207,10 @@ pub enum ToolError {
         /// The category's place in `category_ids`, from 1; `None` for
         /// `category_id`.
         place: Option<usize>,
+        /// The category that clashes, so the model passes the right one
+        /// to `edit_budgets` (#830). It is an ID the model has from
+        /// `list_categories`, never text of the call (X-8).
+        category: AccountId,
     },
     /// A new top-level category or a new account without `currency`, while
     /// the user's open accounts use more than one currency or there is none
@@ -557,6 +573,9 @@ impl Report for ToolError {
             | Self::NotShaped { argument, .. }
             | Self::NotForChart { argument, .. } => ErrorReport::new("ai-tools.bad-argument")
                 .with("argument", ErrorParam::Keyword(argument)),
+            Self::BadText { argument, reason } => ErrorReport::new("ai-tools.bad-argument")
+                .with("argument", ErrorParam::Keyword(argument))
+                .with("reason", ErrorParam::Keyword(reason)),
             Self::UnknownField { argument, .. } => ErrorReport::new("ai-tools.unknown-field")
                 .with("argument", ErrorParam::Keyword(argument)),
             Self::CallTooBig { max_bytes } => ErrorReport::new("ai-tools.call-too-big")
@@ -593,9 +612,14 @@ impl Report for ToolError {
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
             Self::NotEditable { reason } => ErrorReport::new("ai-tools.not-editable")
                 .with("reason", ErrorParam::Keyword(reason)),
-            Self::HasBudget { argument, place } => {
+            Self::HasBudget {
+                argument,
+                place,
+                category,
+            } => {
                 let report = ErrorReport::new("ai-tools.has-budget")
-                    .with("argument", ErrorParam::Keyword(argument));
+                    .with("argument", ErrorParam::Keyword(argument))
+                    .with("category_id", ErrorParam::Account(*category));
                 let report = match place {
                     Some(place) => report.with("category", ErrorParam::count(*place)),
                     None => report,
@@ -740,10 +764,12 @@ mod tests {
             ToolError::HasBudget {
                 argument: "category_id",
                 place: None,
+                category: AccountId::generate(),
             },
             ToolError::HasBudget {
                 argument: "category_ids",
                 place: Some(2),
+                category: AccountId::generate(),
             },
             ToolError::CurrencyNeeded,
             ToolError::NotEditable { reason: "split" },
@@ -992,6 +1018,13 @@ mod tests {
         // A name next to an ID that doesn't fit (D-675).
         for (id, _, _) in crate::changes::NAMED_IDS {
             examples.push(ToolError::NameMismatch { argument: id });
+        }
+        // A free text that can't be kept, with the reason (#826).
+        for reason in ["line-break", "hidden-character", "too-long"] {
+            examples.push(ToolError::BadText {
+                argument: "note",
+                reason,
+            });
         }
         // The MCP server's own argument of the two tools that prepare (D-674).
         examples.push(ToolError::BadArgument {

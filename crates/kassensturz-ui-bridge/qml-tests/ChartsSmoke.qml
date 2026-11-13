@@ -76,8 +76,33 @@ Window {
                 {key: "average_3", name: "", color: 1, marker: 1, points: average.map(v => point(v + ",00", v, 1))}
             ],
             ticks: ticks.map(v => ({label: String(v), minorUnits: String(v * 100), value: v * 100})),
-            table: {currency: currency, columns: ["category", "spending", "average_3"],
-                    rows: names.map((n, i) => [n, spent[i] + ",00", average[i] + ",00"])}
+            table: {currency: currency, columns: ["category", "total", "average_3", "change", "change_percent"],
+                    rows: names.map((n, i) => [n, spent[i] + ",00", average[i] + ",00", (spent[i] - average[i]) + ",00", percentOf(spent[i], average[i])])},
+            // How each row changed (D-760), as BookCharts gives it.
+            compared: {
+                marks: names.map((n, i) => markOf(spent[i], average[i])),
+                total: ["", sum(spent) + ",00", sum(average) + ",00", (sum(spent) - sum(average)) + ",00", percentOf(sum(spent), sum(average))],
+                totalMark: markOf(sum(spent), sum(average))
+            }
+        };
+    }
+
+    function sum(values) {
+        return values.reduce((a, b) => a + b, 0);
+    }
+
+    // Made-up text for the smoke check only; the app's come from Rust.
+    function percentOf(now, then) {
+        return then === 0 ? "" : Math.round((now - then) * 100 / then) + ",0 %";
+    }
+
+    function markOf(now, then) {
+        const steps = [2, 5, 10, 20];
+        const size = then === 0 ? 1000 : Math.abs((now - then) * 100 / then);
+        return {
+            direction: now > then ? "up" : now < then ? "down" : "same",
+            tone: now > then ? "bad" : now < then ? "good" : "same",
+            reach: now === then ? 0 : steps.filter(step => size >= step).length
         };
     }
 

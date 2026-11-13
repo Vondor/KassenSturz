@@ -48,6 +48,18 @@ pub mod qobject {
         #[cxx_name = "folderUrl"]
         fn folder_url(self: &DeveloperMode) -> QString;
 
+        /// The bank log's folder as a `file:` URL, for the bank log banner's
+        /// button, also while the debug log runs too and has a folder of
+        /// its own; empty when the bank log is off.
+        #[qinvokable]
+        #[cxx_name = "bankLogFolderUrl"]
+        fn bank_log_folder_url(self: &DeveloperMode) -> QString;
+
+        /// Deletes the bank log only. Returns whether that worked.
+        #[qinvokable]
+        #[cxx_name = "clearBankLog"]
+        fn clear_bank_log(self: &DeveloperMode) -> bool;
+
         /// Deletes everything in the log. Returns whether that worked.
         #[qinvokable]
         #[cxx_name = "clearLog"]
@@ -113,6 +125,21 @@ impl qobject::DeveloperMode {
             return QString::from(format!("file://{}", folder.display()).as_str());
         }
         QString::default()
+    }
+
+    fn bank_log_folder_url(&self) -> QString {
+        #[cfg(feature = "debug-log")]
+        if let Some(folder) = kassensturz_core::bank_log::folder().filter(|_| self.bank_log_on) {
+            return QString::from(format!("file://{}", folder.display()).as_str());
+        }
+        QString::default()
+    }
+
+    fn clear_bank_log(&self) -> bool {
+        #[cfg(feature = "debug-log")]
+        return self.bank_log_on && kassensturz_core::bank_log::clear();
+        #[cfg(not(feature = "debug-log"))]
+        false
     }
 
     fn clear_log(&self) -> bool {
@@ -317,6 +344,25 @@ mod tests {
             }
         }
         assert!(checked >= 3, "the check found only {checked} properties");
+    }
+
+    /// The bank log's banner shows whenever the bank log runs, also with
+    /// the debug log: its banner doesn't say a second log is written
+    /// (#828). Its buttons act on the bank log only.
+    #[test]
+    fn the_bank_log_banner_shows_while_the_debug_log_runs_too() {
+        let qml = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("qml/Main.qml"))
+            .expect("Main.qml");
+        let banner = qml
+            .split("visible: developerMode.bankLogOn")
+            .nth(1)
+            .expect("the bank log banner");
+        assert!(
+            banner.starts_with('\n'),
+            "the bank log banner must not depend on the debug log"
+        );
+        assert!(banner.contains("developerMode.bankLogFolderUrl()"));
+        assert!(banner.contains("developerMode.clearBankLog()"));
     }
 
     #[test]

@@ -64,6 +64,21 @@ impl<'a> Writer<'a> {
         Value::String(shown)
     }
 
+    /// A pattern of a Rule, cleaned as [`Self::text`] cleans one but kept
+    /// whole up to `max_chars` characters, the longest `propose_changes`
+    /// takes for a pattern; a longer one is cut there and the flag is
+    /// `true`, so a model never takes it for the whole (#825).
+    pub(crate) fn pattern_text(&mut self, text: &str, max_chars: usize) -> (Value, bool) {
+        let cleaned = crate::text::cleaned_for_model(text);
+        let mut shown: String = cleaned.chars().take(max_chars).collect();
+        let cut = shown.len() < cleaned.len();
+        if cut {
+            shown = shown.trim_end().to_owned();
+        }
+        self.figures.add_text(&shown);
+        (Value::String(shown), cut)
+    }
+
     /// A longer text of the user's, cleaned as [`Self::text`] cleans one,
     /// whole or not at all: `None` when it is over `max_bytes` (D-729).
     pub(crate) fn whole_text(&mut self, text: &str, max_bytes: usize) -> Option<Value> {

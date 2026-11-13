@@ -112,8 +112,9 @@ fn a_condition_is_removed_by_its_place_in_list_rules() {
 #[test]
 fn a_rule_shown_cut_keeps_what_the_model_cannot_see() {
     let (Sample { mut book, food, .. }, _) = with_rules();
-    // A pattern list_rules cuts and an IBAN it leaves out (#568, D-186).
-    let long = format!("^({})$", vec!["grocer"; 60].join("|"));
+    // A pattern list_rules cuts (over 1000 characters, #825) and an IBAN it
+    // leaves out (#568, D-186).
+    let long = format!("^({})$", vec!["grocer"; 200].join("|"));
     let iban = Condition::Text {
         field: TextField::OtherPartyIban,
         operator: TextOperator::Equals,
@@ -139,7 +140,7 @@ fn a_rule_shown_cut_keeps_what_the_model_cannot_see() {
     book.add_rule(&rule, None).expect("Rule");
     let shown = listed(&book, "Imported");
     assert_eq!(shown[0]["text_left_out"], json!(true));
-    assert!(shown[1]["text"].as_str().expect("text").ends_with('…'));
+    assert_eq!(shown[1]["pattern_cut"], json!(true));
     let call = json!({"edit_rules": [{
         "rule_id": rule.id.to_string(),
         "remove_conditions": [3],

@@ -285,7 +285,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Lists the user's Rules, which sort new transactions into categories: what each one looks for, what it books to, and its sub-Rules. \"conditions_complete\": false means some condition can't be shown or written back exactly (an IBAN, an amount, a date, an account, or a text cut short), so propose_changes can rename the Rule, change its category and add or remove single conditions, but not replace all of them. With rule_id, only that Rule (with its sub-Rules), for a look at one Rule without reading them all.",
+            "description": "Lists the user's Rules, which sort new transactions into categories: what each one looks for, what it books to, and its sub-Rules. \"conditions_complete\": false means some condition can't be shown or written back exactly (an IBAN, an amount, a date, an account, or a text cut short), so propose_changes can rename the Rule, change its category and add or remove single conditions, but not replace all of them. With rule_id, only that Rule (with its sub-Rules), for a look at one Rule without reading them all. A pattern is shown whole; one over 1000 characters is cut there and its condition has \"pattern_cut\": true.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {

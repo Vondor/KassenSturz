@@ -94,7 +94,35 @@ impl Change {
             percent: percent_of(amount, previous)?,
         })
     }
+
+    /// Which way the figure moved: more, less or the same as before.
+    pub fn moved(&self) -> core::cmp::Ordering {
+        self.amount.minor_units().cmp(&0)
+    }
+
+    /// How many of the [`CHANGE_STEPS`] the size of the change in percent
+    /// reaches (US6, #789, D-760): 0 below the first step, all of them for a
+    /// change from nothing, since that has no percent and is as large as a
+    /// change gets. No change reaches none. A step is reached at exactly its
+    /// value: 5.0 % reaches 5, 4.9 % does not.
+    pub fn reach(&self) -> usize {
+        if self.amount.is_zero() {
+            return 0;
+        }
+        self.percent.map_or(CHANGE_STEPS.len(), |percent| {
+            let tenths = percent.tenths().unsigned_abs();
+            CHANGE_STEPS
+                .iter()
+                .filter(|&&step| tenths >= step * 10)
+                .count()
+        })
+    }
 }
+
+/// The sizes of a change in whole percent below which a comparison table
+/// may leave it uncoloured (US6, #789, D-760): `props.neutral` names one
+/// of them, or `off`. Smallest first.
+pub const CHANGE_STEPS: [u64; 4] = [2, 5, 10, 20];
 
 /// Which earlier period to compare with.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -189,6 +189,7 @@ fn main() {
         "src/history_model.rs",
         "src/kmy_reports_import_model.rs",
         "src/language_model.rs",
+        "src/day_clock_model.rs",
         "src/window_state_model.rs",
         "src/locale.rs",
         "src/network_guard.rs",

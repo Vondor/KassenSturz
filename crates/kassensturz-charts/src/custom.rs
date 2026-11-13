@@ -1070,6 +1070,7 @@ impl<F: TextFormat> Renderer<'_, F> {
             overlays,
             extra_colors: palette.extras.clone(),
             slice_colors: Vec::new(),
+            compared: None,
         })))
     }
 
@@ -1165,6 +1166,7 @@ impl<F: TextFormat> Renderer<'_, F> {
             overlays: Vec::new(),
             extra_colors: palette.extras,
             slice_colors,
+            compared: None,
         })
     }
 }

@@ -563,6 +563,33 @@ fn a_chart_with_a_formula_is_checked_against_the_book_through_the_server() {
 }
 
 #[test]
+fn a_budget_refused_names_the_category_by_its_id() {
+    // #830: the refusal named `edit_budgets` and the place of the category,
+    // but not which category; it now carries the ID the AI got from
+    // list_categories, never its name.
+    let folder = Folder::new("writes-has-budget");
+    folder.allow(&["AllowNewBudgets=true"]);
+    let book = folder.book();
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    let groceries = common::GROCERIES.to_string();
+    let (answer, is_error) = session.call(
+        "propose_changes",
+        json!({"check_only": true, "new_budgets": [
+            {"category_id": groceries, "every": "month", "amount": "250.00"},
+            {"category_id": groceries, "every": "year", "amount": "900.00"},
+        ]}),
+    );
+    assert!(is_error, "{answer}");
+    assert_eq!(answer["error"], "ai-tools.has-budget", "{answer}");
+    assert_eq!(answer["argument"], "category_id", "{answer}");
+    assert_eq!(answer["category_id"], json!(groceries), "{answer}");
+    assert_eq!(answer["use_instead"], "edit_budgets", "{answer}");
+    assert!(!answer.to_string().contains("Groceries"), "{answer}");
+    assert!(session.finish().status.success());
+}
+
+#[test]
 fn a_call_only_checked_answers_what_it_would_prepare_and_sends_nothing() {
     let folder = Folder::new("writes-check-only");
     folder.allow(&["AllowNewBudgets=true", "AllowNewViews=true"]);

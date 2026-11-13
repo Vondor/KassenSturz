@@ -2172,6 +2172,34 @@ fn delete_call(
 }
 
 #[test]
+fn a_text_refused_says_why() {
+    // #826: a note with a line break was refused with `argument: note` and
+    // nothing else; the answer now has a reason, as the budget name has.
+    let WithCash { sample, wallet, .. } = with_cash();
+    let refused = |field: &str, text: &str| {
+        let result = add_call(
+            &sample.book,
+            json!({"account_id": wallet.to_string(), "date": "2026-10-20",
+                "amount": "-7.80", field: text}),
+            open(),
+        );
+        let report = result.expect_err("refused").model_report();
+        assert_eq!(report.code, "ai-tools.bad-argument");
+        let word = |name| match report.param(name) {
+            Some(kassensturz_core::ErrorParam::Keyword(word)) => *word,
+            other => panic!("{name}: {other:?}"),
+        };
+        (word("argument"), word("reason"))
+    };
+    assert_eq!(refused("note", "one\ntwo"), ("note", "line-break"));
+    assert_eq!(refused("note", "tab\there"), ("note", "line-break"));
+    assert_eq!(refused("payee", "a\r\nb"), ("payee", "line-break"));
+    assert_eq!(refused("note", "a\u{202e}b"), ("note", "hidden-character"));
+    assert_eq!(refused("note", &"x".repeat(513)), ("note", "too-long"));
+    assert_eq!(refused("payee", &"x".repeat(201)), ("payee", "too-long"));
+}
+
+#[test]
 fn a_payment_in_cash_is_written_down_and_undo_takes_it_back() {
     let WithCash {
         sample: Sample {

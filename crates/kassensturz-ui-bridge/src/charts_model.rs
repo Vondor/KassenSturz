@@ -13,7 +13,9 @@ use core::pin::Pin;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
-use kassensturz_charts::{ChartModel, HiddenNote, Prepared, Series, Slices};
+use kassensturz_charts::{
+    ChangeMark, ChartModel, ComparedTable, HiddenNote, Prepared, Series, Slices,
+};
 use kassensturz_core::ErrorParam;
 
 use crate::charts::{self, ChartSet, ChartsError, Request};
@@ -399,6 +401,7 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         .unsorted
         .map_or(-1, |index| i32::try_from(index).unwrap_or(-1));
     let overlays = overlays_object(model, prepared);
+    let compared = compared_object(model.compared.as_ref());
     map([
         ("kind", text(model.kind.key())),
         ("dataset", text(model.dataset)),
@@ -427,7 +430,35 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("overlays", overlays),
         ("ticks", list(ticks)),
         ("table", table),
+        ("compared", compared),
     ])
+}
+
+/// How the rows of a comparison table changed (US6, #789, D-760): for each
+/// row and for the total its `direction` (`up`, `down`, `same`), `tone`
+/// (`good`, `bad`, `same`) and `reach` (how many steps of
+/// `CHANGE_STEPS` the change in percent reaches), and the total row's
+/// cells. Empty lists and an empty mark for a chart that doesn't compare.
+fn compared_object(compared: Option<&ComparedTable>) -> QVariant {
+    let mark = |mark: &ChangeMark| {
+        map([
+            ("direction", text(mark.direction)),
+            ("tone", text(mark.tone)),
+            ("reach", count(mark.reach)),
+        ])
+    };
+    match compared {
+        Some(compared) => map([
+            ("marks", list(compared.marks.iter().map(mark))),
+            ("total", list(compared.total.iter().map(|cell| text(cell)))),
+            ("totalMark", mark(&compared.total_mark)),
+        ]),
+        None => map([
+            ("marks", list(core::iter::empty())),
+            ("total", list(core::iter::empty())),
+            ("totalMark", map([])),
+        ]),
+    }
 }
 
 /// The layers a custom chart puts over its own marks, as QML reads them
@@ -666,6 +697,7 @@ mod tests {
             keys(chart),
             [
                 "categories",
+                "compared",
                 "count",
                 "currency",
                 "dataset",
@@ -847,6 +879,25 @@ mod tests {
         );
         // Groceries were not bought in August: no percent of nothing.
         assert_eq!(words(&elements(&rows[1]).expect("a row"))[4], "");
+        // How each row changed and the total row, as `ChartTable.qml` reads
+        // them (D-760): one mark per row, and a total with the table's
+        // columns.
+        let compared = object_of(chart, "compared");
+        assert_eq!(keys(&compared), ["marks", "total", "totalMark"]);
+        let marks = list_of(&compared, "marks");
+        assert_eq!(marks.len(), rows.len());
+        assert_eq!(keys(&marks[0]), ["direction", "reach", "tone"]);
+        assert_eq!(text_of(&marks[0], "direction"), "same");
+        assert_eq!(text_of(&marks[0], "tone"), "same");
+        assert_eq!(number_of(&marks[0], "reach"), 0);
+        assert_eq!(text_of(&marks[1], "direction"), "up");
+        assert_eq!(text_of(&marks[1], "tone"), "bad");
+        assert_eq!(number_of(&marks[1], "reach"), 4);
+        let total = words(&list_of(&compared, "total"));
+        assert_eq!(total.len(), 5);
+        assert_eq!(total[0], "");
+        let total_mark = object_of(&compared, "totalMark");
+        assert_eq!(keys(&total_mark), ["direction", "reach", "tone"]);
         // August has transactions: nothing is before the first one.
         assert!(list_of(&object_of(&view, "filter"), "notes").is_empty());
         // The average of June to August: June and July are before the

@@ -32,6 +32,9 @@ pub(crate) enum Kind {
 pub(crate) struct Part {
     /// Which transaction of the `Source` it is a part of.
     pub(crate) transaction: usize,
+    /// Which of the transaction's splits it is, so a report can ask for the
+    /// split's own payee (`Transaction::payee_of`).
+    pub(crate) split: usize,
     pub(crate) currency: CurrencyCode,
     pub(crate) day: Date,
     pub(crate) kind: Kind,
@@ -403,7 +406,7 @@ impl Source {
                 continue;
             }
             let currency = transaction.currency();
-            for split in transaction.splits() {
+            for (split_index, split) in transaction.splits().iter().enumerate() {
                 let (kind, category) = match split.account {
                     // Not sorted yet: what came in is income, what went out
                     // spending, as the overview counts it (D-122).
@@ -445,6 +448,7 @@ impl Source {
                 };
                 parts.push(Part {
                     transaction: index,
+                    split: split_index,
                     currency,
                     day,
                     kind,

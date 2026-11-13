@@ -11,6 +11,13 @@
 //! ([`ProviderAddress::origin`]), so a key goes only to the server it was
 //! saved for: changing the address to another server never sends the old
 //! key there.
+//!
+//! The same keys hold the seal of each consent the user gave in
+//! KassenSturz's own consent screen, filed as `ai-consent/<server>`
+//! (B-252): only a consent in the settings file that matches its seal
+//! counts, so another program can't agree for the user by writing to the
+//! file. With nowhere to save secrets, the seal is kept in memory until
+//! KassenSturz closes, and the user is asked again at the next start.
 
 use std::collections::HashMap;
 
@@ -18,15 +25,22 @@ use kassensturz_platform::{Keychain, KeychainError, Secret, SecretKey};
 
 use crate::address::ProviderAddress;
 use crate::config::KeyUse;
+use crate::consent::ConsentRecord;
 use crate::error::AiError;
 
 /// The kind part of the keychain key.
 const KIND: &str = "ai-key";
 
+/// The kind part of the keychain key of a consent's seal (B-252).
+const CONSENT_KIND: &str = "ai-consent";
+
 /// The provider keys of one run of KassenSturz: those remembered in memory
 /// and the way to the saved ones.
 pub struct ProviderKeys {
     remembered: HashMap<String, Secret>,
+    /// Consents sealed in memory, by origin, while there is nowhere to save
+    /// secrets (B-252).
+    sealed: HashMap<String, ConsentRecord>,
     store: Option<Box<dyn Keychain>>,
 }
 
@@ -43,6 +57,7 @@ impl ProviderKeys {
     pub fn new(store: Option<Box<dyn Keychain>>) -> Self {
         Self {
             remembered: HashMap::new(),
+            sealed: HashMap::new(),
             store,
         }
     }
@@ -126,6 +141,55 @@ impl ProviderKeys {
             self.remembered.entry(address.origin()).or_insert(saved);
         }
         Ok(())
+    }
+
+    fn consent_key(address: &ProviderAddress) -> Result<SecretKey, AiError> {
+        SecretKey::new(CONSENT_KIND, &address.origin()).map_err(keychain_error)
+    }
+
+    /// Seals the consent the user just gave in KassenSturz's consent screen
+    /// (B-252): saved where the Password storage setting says, filed as
+    /// `ai-consent/<server>`, or with nowhere to save secrets remembered
+    /// until KassenSturz closes, so the user is asked again at the next
+    /// start. Only a consent in the settings file that matches its seal
+    /// counts ([`crate::confirmed`]).
+    pub fn seal_consent(&mut self, consent: &ConsentRecord) -> Result<(), AiError> {
+        let origin = consent.address.origin();
+        match &self.store {
+            Some(store) => store
+                .store(
+                    &Self::consent_key(&consent.address)?,
+                    &Secret::new(consent.seal_text()),
+                )
+                .map_err(keychain_error),
+            None => {
+                self.sealed.insert(origin, consent.clone());
+                Ok(())
+            }
+        }
+    }
+
+    /// The consent sealed for `address`, if any. A seal that can't be read,
+    /// e.g. a locked keychain, counts as none: the user is asked again.
+    pub fn sealed_consent(&self, address: &ProviderAddress) -> Option<ConsentRecord> {
+        if let Some(sealed) = self.sealed.get(&address.origin()) {
+            return Some(sealed.clone());
+        }
+        let store = self.store.as_ref()?;
+        let secret = store.read(&Self::consent_key(address).ok()?).ok()??;
+        ConsentRecord::from_seal_text(secret.expose())
+    }
+
+    /// Breaks the seal of the consent for `address`, in memory and where it
+    /// was saved: the user took the consent back.
+    pub fn unseal_consent(&mut self, address: &ProviderAddress) -> Result<(), AiError> {
+        self.sealed.remove(&address.origin());
+        match &self.store {
+            Some(store) => store
+                .delete(&Self::consent_key(address)?)
+                .map_err(keychain_error),
+            None => Ok(()),
+        }
     }
 
     /// Forgets the key for `address`, in memory and where it was saved.

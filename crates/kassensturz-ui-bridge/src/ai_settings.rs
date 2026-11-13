@@ -11,12 +11,12 @@
 //! screen, handed over once and never read back to it (D-169, threat T-25).
 //! This module is compiled only in a build with AI (D-039).
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use kassensturz_ai::{
-    AiClient, AiError, ConfigFile, ConsentRecord, FunctionCalling, KeyUse, MIN_CONTEXT_TOKENS,
-    ModelInfo, Network, Place, ProviderAddress, ProviderKeys, ProviderSettings, SCRIPTED_MODEL,
-    STATEMENT, consent_missing, probe_functions, probe_request_body,
+    AiClient, AiConfig, AiError, ConfigFile, ConsentRecord, FunctionCalling, KeyUse,
+    MIN_CONTEXT_TOKENS, ModelInfo, Network, Place, ProviderAddress, ProviderKeys, ProviderSettings,
+    SCRIPTED_MODEL, STATEMENT, confirmed, consent_missing, probe_functions, probe_request_body,
 };
 use kassensturz_ai_chat::{BuildInfo, DEMO_ENV, DemoModel, demo_provider, sample_request};
 use kassensturz_core::{Date, ai_switch};
@@ -39,6 +39,17 @@ static KEYS: Mutex<Option<(SecretStorage, ProviderKeys)>> = Mutex::new(None);
 /// here at once, keeping what is remembered in memory.
 pub fn with_keys<R>(f: impl FnOnce(&mut ProviderKeys) -> R) -> R {
     with_keys_in(Settings::user().pin_storage(), f)
+}
+
+/// Runs `f` with `own` keys, or with those of this run when `None`.
+fn seals_in<R>(
+    own: Option<&Arc<Mutex<ProviderKeys>>>,
+    f: impl FnOnce(&mut ProviderKeys) -> R,
+) -> R {
+    match own {
+        Some(keys) => f(&mut keys.lock().unwrap_or_else(|poisoned| poisoned.into_inner())),
+        None => with_keys(f),
+    }
 }
 
 fn with_keys_in<R>(storage: SecretStorage, f: impl FnOnce(&mut ProviderKeys) -> R) -> R {
@@ -253,6 +264,9 @@ pub struct Checked {
 pub struct Store {
     settings: Settings,
     config: ConfigFile,
+    /// Where the consent seals live (B-252): `None` for the provider keys
+    /// of this run ([`with_keys`]), else keys of the store's own (tests).
+    keys: Option<Arc<Mutex<ProviderKeys>>>,
 }
 
 impl Store {
@@ -261,6 +275,7 @@ impl Store {
         Self {
             settings: Settings::user(),
             config: ConfigFile::user(),
+            keys: None,
         }
     }
 
@@ -270,6 +285,7 @@ impl Store {
         Self {
             settings: Settings::at(path),
             config: ConfigFile::at(path),
+            keys: Some(Arc::new(Mutex::new(ProviderKeys::new(None)))),
         }
     }
 
@@ -278,9 +294,27 @@ impl Store {
         &self.config
     }
 
-    /// A client that reads the settings at every call.
+    /// A client that reads the settings at every call, and counts a
+    /// consent only with the seal KassenSturz's consent screen made for it
+    /// (B-252).
     pub fn client(&self) -> AiClient {
-        AiClient::new(self.config.clone())
+        let keys = self.keys.clone();
+        AiClient::new(self.config.clone()).with_consent_seal(move |address| {
+            seals_in(keys.as_ref(), |keys| keys.sealed_consent(address))
+        })
+    }
+
+    /// Runs `f` with the keys that hold the consent seals.
+    fn with_seals<R>(&self, f: impl FnOnce(&mut ProviderKeys) -> R) -> R {
+        seals_in(self.keys.as_ref(), f)
+    }
+
+    /// The consent in the settings file for `address`, if KassenSturz's
+    /// consent screen sealed it (B-252); a consent without the seal is no
+    /// consent.
+    fn consent_for(&self, config: &AiConfig, address: &ProviderAddress) -> Option<ConsentRecord> {
+        let sealed = self.with_seals(|keys| keys.sealed_consent(address));
+        confirmed(config.consent(), sealed.as_ref()).cloned()
     }
 
     fn text(&self, key: &str) -> String {
@@ -301,10 +335,12 @@ impl Store {
         let parsed = ProviderAddress::parse_with(&address, allow_unencrypted);
         let config = self.config.read();
         let consent = match &parsed {
-            Ok(parsed) if parsed.place() == Place::AnotherComputer => match config.consent() {
-                Some(consent) if consent.covers(parsed) => Consent::Given(consent.day),
-                _ => Consent::Missing,
-            },
+            Ok(parsed) if parsed.place() == Place::AnotherComputer => {
+                match self.consent_for(&config, parsed) {
+                    Some(consent) if consent.covers(parsed) => Consent::Given(consent.day),
+                    _ => Consent::Missing,
+                }
+            }
             _ => Consent::NotNeeded,
         };
         let usable = parsed.as_ref().ok();
@@ -469,7 +505,21 @@ impl Store {
         }
         Saved::Written {
             place: provider.address.place(),
-            consent_needed: consent_missing(&provider.address, self.config.read().consent()),
+            // `keys` are this run's keys, held already: the seal is read
+            // from them, never through the lock again.
+            consent_needed: consent_missing(
+                &provider.address,
+                confirmed(
+                    self.config.read().consent(),
+                    match &self.keys {
+                        Some(own) => {
+                            seals_in(Some(own), |own| own.sealed_consent(&provider.address))
+                        }
+                        None => keys.sealed_consent(&provider.address),
+                    }
+                    .as_ref(),
+                ),
+            ),
             key_error,
         }
     }
@@ -531,7 +581,13 @@ impl Store {
         let Ok(provider) = config.provider() else {
             return false;
         };
-        ConsentRecord::give(&provider.address, today)
+        let record = ConsentRecord::give(&provider.address, today);
+        // The seal first: a consent in the file without it counts for
+        // nothing, so a failed seal never leaves a consent that sends.
+        if self.with_seals(|keys| keys.seal_consent(&record)).is_err() {
+            return false;
+        }
+        record
             .entries()
             .iter()
             .all(|(name, value)| self.put(name, value))
@@ -541,6 +597,10 @@ impl Store {
     /// computer until the user agrees again. Returns whether it was
     /// written.
     pub fn withdraw_consent(&self) -> bool {
+        if let Ok(provider) = self.config.read().provider() {
+            // Even if this fails, the emptied file below holds no consent.
+            let _ = self.with_seals(|keys| keys.unseal_consent(&provider.address));
+        }
         [
             kassensturz_ai::CONSENT_ADDRESS_KEY,
             kassensturz_ai::CONSENT_STATEMENT_KEY,
@@ -603,7 +663,10 @@ impl Store {
             None => {
                 let client = self.client();
                 let infos = client.list_model_infos(key.as_ref())?;
-                let agreed = !consent_missing(&provider.address, config.consent());
+                let agreed = !consent_missing(
+                    &provider.address,
+                    self.consent_for(&config, &provider.address).as_ref(),
+                );
                 let functions = ask_functions(has_model, !agreed, || {
                     probe_functions(&client, key.as_ref())
                 });
@@ -931,6 +994,39 @@ mod tests {
             .prepare(vec![kassensturz_ai::Message::user("Hi")], Vec::new())
             .expect("a request");
         assert_eq!(client.send(&request, None), Err(AiError::NoConsent));
+    }
+
+    #[test]
+    fn a_consent_written_into_the_file_by_hand_is_no_consent() {
+        // B-252 (attack A4): another program writes a consent straight
+        // into the settings file. Without the seal of KassenSturz's own
+        // consent screen it counts for nothing.
+        let (_folder, _file, store) = on();
+        let (_, mut keys) = keys();
+        let address = "https://api.example.com/v1";
+        store.save(&mut keys, address, "big", KeyUse::None, None);
+        let forged = ConsentRecord::give(&ProviderAddress::parse(address).unwrap(), TODAY);
+        for (name, value) in forged.entries() {
+            assert!(store.put(name, &value));
+        }
+        assert_eq!(store.config().read().consent(), Some(&forged));
+        assert_eq!(store.form().consent, Consent::Missing);
+        let client = store.client();
+        let request = client
+            .prepare(vec![kassensturz_ai::Message::user("Hi")], Vec::new())
+            .expect("a request");
+        assert_eq!(client.send(&request, None), Err(AiError::NoConsent));
+        assert_eq!(
+            store.save(&mut keys, address, "big", KeyUse::None, None),
+            written(Place::AnotherComputer, true)
+        );
+
+        // The consent screen seals it: then it counts.
+        assert!(store.give_consent(TODAY));
+        assert_eq!(store.form().consent, Consent::Given(TODAY));
+        // A hand that changes the day in the file breaks the match.
+        assert!(store.put(kassensturz_ai::CONSENT_DAY_KEY, "2026-01-01"));
+        assert_eq!(store.form().consent, Consent::Missing);
     }
 
     #[test]

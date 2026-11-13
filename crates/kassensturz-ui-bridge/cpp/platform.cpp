@@ -327,4 +327,83 @@ QString portalHostPath(const QString &documentId)
     return QString();
 #endif
 }
+
+namespace {
+#ifdef KASSENSTURZ_WITH_DBUS
+// The ID this app has in the document portal: the Flatpak's own, else the
+// one the app is built with.
+QString portalAppId()
+{
+    const QString id = qEnvironmentVariable("FLATPAK_ID");
+    return id.isEmpty() ? QStringLiteral("io.github.vondor.KassenSturz") : id;
+}
+#endif
+}
+
+QString portalDocuments()
+{
+#ifdef KASSENSTURZ_WITH_DBUS
+    // The portal's Documents interface answers List(app_id) with what the
+    // app may open: `a{say}`, the document's ID and its path on the host as a
+    // byte string ending with a NUL. Records end with U+001E, the ID and the
+    // path are told apart by U+001F. A call that fails answers nothing.
+    QDBusMessage call = QDBusMessage::createMethodCall(
+        QStringLiteral("org.freedesktop.portal.Documents"),
+        QStringLiteral("/org/freedesktop/portal/documents"),
+        QStringLiteral("org.freedesktop.portal.Documents"),
+        QStringLiteral("List"));
+    call << portalAppId();
+
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 2000);
+    if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().isEmpty()) {
+        return QString();
+    }
+    const QDBusArgument answer = reply.arguments().constFirst().value<QDBusArgument>();
+    QString found;
+    answer.beginMap();
+    while (!answer.atEnd()) {
+        QString key;
+        QByteArray value;
+        answer.beginMapEntry();
+        answer >> key >> value;
+        answer.endMapEntry();
+        if (value.endsWith('\0')) {
+            value.chop(1);
+        }
+        found += key + QChar(0x1f) + QFile::decodeName(value) + QChar(0x1e);
+    }
+    answer.endMap();
+    return found;
+#else
+    return QString();
+#endif
+}
+
+bool portalForget(const QString &documentId)
+{
+#ifdef KASSENSTURZ_WITH_DBUS
+    // RevokePermissions(doc_id, app_id, permissions) takes this app's own
+    // access to the document back. The files of the folder are not touched:
+    // the portal only stops showing the folder to this app. The caller asks
+    // List again to see whether it worked.
+    if (documentId.isEmpty()) {
+        return false;
+    }
+    QDBusMessage call = QDBusMessage::createMethodCall(
+        QStringLiteral("org.freedesktop.portal.Documents"),
+        QStringLiteral("/org/freedesktop/portal/documents"),
+        QStringLiteral("org.freedesktop.portal.Documents"),
+        QStringLiteral("RevokePermissions"));
+    call << documentId << portalAppId()
+         << QStringList{QStringLiteral("read"),
+                        QStringLiteral("write"),
+                        QStringLiteral("grant-permissions"),
+                        QStringLiteral("delete")};
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 2000);
+    return reply.type() == QDBusMessage::ReplyMessage;
+#else
+    Q_UNUSED(documentId)
+    return false;
+#endif
+}
 }

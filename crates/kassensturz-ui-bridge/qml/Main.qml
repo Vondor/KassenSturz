@@ -1868,6 +1868,7 @@ Kirigami.ApplicationWindow {
             bookMove: bookMover
             onSaveCopyClicked: root.pushPage(exportPage)
             onBookPlaceClicked: root.pushPage(bookMovePage)
+            onGrantedFoldersClicked: root.pushPage(grantedFoldersPage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
             onRestoreBackupClicked: root.pushPage(restoreBackupPage)
@@ -1884,6 +1885,14 @@ Kirigami.ApplicationWindow {
             bookMove: bookMover
             // Shows the book where it is now, on the page that stays open.
             onMoved: bookSession.showMovedBook()
+        }
+    }
+
+    Component {
+        id: grantedFoldersPage
+
+        GrantedFoldersPage {
+            bookMove: bookMover
         }
     }
 

@@ -233,7 +233,7 @@ fn find_move(book: &Book, text: &str) -> Result<RecurringMoveId, CliError> {
 }
 
 /// Today, in UTC, the day a move is remembered on.
-fn today() -> Date {
+pub(crate) fn today() -> Date {
     Timestamp::now().to_string()[..10]
         .parse()
         .unwrap_or(Date::constant(2026, 1, 1))

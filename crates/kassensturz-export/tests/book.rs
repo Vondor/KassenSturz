@@ -18,9 +18,10 @@ use kassensturz_core::{
 };
 use kassensturz_core::{Budget, BudgetAmount, BudgetCounts, BudgetEvery, BudgetId};
 use kassensturz_core::{CategoryGroup, GroupId, GroupKind, GroupMember};
+use kassensturz_core::{Decided, Schedule, ScheduleId, ScheduleUnit};
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
-    Exporter, ExporterInfo, MAX_RULE_DEPTH, ViewData, export, export_file, read_book,
+    Exporter, ExporterInfo, MAX_RULE_DEPTH, ScheduleData, ViewData, export, export_file, read_book,
     read_book_file,
 };
 
@@ -549,6 +550,51 @@ fn sample() -> BookData {
                 }],
             },
         ],
+        // A monthly payment with a category and the other party, matched
+        // once and skipped once, and a paused yearly one that ends (D-769).
+        schedules: vec![
+            ScheduleData {
+                schedule: Schedule {
+                    id: ScheduleId::from_bytes(id(0xa1)),
+                    name: "Bakery \"Sonntag\"".into(),
+                    account: AccountId::from_bytes(id(checking)),
+                    amount: eur(-460),
+                    tolerance: eur(40),
+                    category: Some(AccountId::from_bytes(id(food))),
+                    party_iban: Some("DE89 3704 0044 0532 0130 00".into()),
+                    party_name: Some("Bäckerei".into()),
+                    unit: ScheduleUnit::Month,
+                    every: 1,
+                    anchor: date(2026, 8, 5),
+                    track_from: date(2026, 9, 1),
+                    ends_on: None,
+                    paused: false,
+                },
+                decided: vec![
+                    (date(2026, 9, 5), Decided::Skipped),
+                    (date(2026, 10, 5), Decided::Matched(TransactionId::from_bytes(id(34)))),
+                ],
+            },
+            ScheduleData {
+                schedule: Schedule {
+                    id: ScheduleId::from_bytes(id(0xa2)),
+                    name: "Insurance".into(),
+                    account: AccountId::from_bytes(id(checking)),
+                    amount: eur(-9_600),
+                    tolerance: eur(0),
+                    category: None,
+                    party_iban: None,
+                    party_name: None,
+                    unit: ScheduleUnit::Year,
+                    every: 2,
+                    anchor: date(2026, 11, 20),
+                    track_from: date(2026, 11, 20),
+                    ends_on: Some(date(2030, 12, 31)),
+                    paused: true,
+                },
+                decided: Vec::new(),
+            },
+        ],
     }
 }
 
@@ -681,8 +727,17 @@ fn values_that_may_be_empty_can_be_left_out() {
             groups: Vec::new(),
             hidden_categories: Vec::new(),
             budgets: Vec::new(),
+            schedules: Vec::new(),
         }
     );
+}
+
+/// `file`, a golden file, without its planned payments: the key a file of
+/// version 13 or older doesn't have.
+fn without_schedules(file: &str) -> String {
+    let (before, rest) = file.split_once("  \"schedules\": [").expect("schedules");
+    let (_, after) = rest.split_once("\n  ],\n").expect("their end");
+    format!("{before}{after}")
 }
 
 /// The golden file with `from` replaced by `to`, once.
@@ -711,13 +766,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 13", "\"version\": 14")),
-        Err(ExportError::NewerVersion { version: 14 })
+        read_book(&changed("\"version\": 14", "\"version\": 15")),
+        Err(ExportError::NewerVersion { version: 15 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 13",
+                "\"version\": 14",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1775,7 +1830,7 @@ fn a_transaction_has_tags_on_the_whole_from_version_13() {
     let kids = TagId::from_bytes(id(83));
     assert!(book.transactions.iter().any(|t| t.tags() == [kids]));
 
-    let older = file.replacen("\"version\": 13", "\"version\": 12", 1);
+    let older = without_schedules(&file).replacen("\"version\": 14", "\"version\": 12", 1);
     assert_eq!(
         read_book(older.as_bytes()),
         Err(ExportError::UnknownValue {
@@ -1806,5 +1861,84 @@ fn a_transaction_has_tags_on_the_whole_from_version_13() {
     assert_eq!(
         read_book(unknown.as_bytes()),
         bad("transactions[1].tags[0]", Expected::Id)
+    );
+}
+
+/// Version 14 lists the planned payments with their decided occurrences
+/// (D-769); an older file has none, and the key is refused there. A
+/// matched occurrence names its entry, a skipped one none.
+#[test]
+fn planned_payments_come_with_version_14() {
+    let file = golden();
+    let book = read_book(file.as_bytes()).expect("read");
+    assert_eq!(book.schedules.len(), 2);
+    assert_eq!(book.schedules[0].decided.len(), 2);
+
+    let older = file.replacen("\"version\": 14", "\"version\": 13", 1);
+    assert_eq!(
+        read_book(older.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "schedules".into()
+        })
+    );
+    let none = without_schedules(&older);
+    assert!(
+        read_book(none.as_bytes())
+            .expect("read")
+            .schedules
+            .is_empty()
+    );
+    assert_eq!(
+        read_book(without_schedules(&file).as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "schedules".into()
+        })
+    );
+
+    let skipped = "{\"due_on\": \"2026-09-05\", \"status\": \"skipped\", \"transaction\": null}";
+    assert!(file.contains(skipped));
+    let with_entry = file.replacen(
+        skipped,
+        "{\"due_on\": \"2026-09-05\", \"status\": \"skipped\", \"transaction\": \"019a0000-0000-7000-8000-000000000022\"}",
+        1,
+    );
+    assert_eq!(
+        read_book(with_entry.as_bytes()),
+        bad("schedules[0].occurrences[0].transaction", Expected::Null)
+    );
+    let matched_without = file.replacen(
+        skipped,
+        "{\"due_on\": \"2026-09-05\", \"status\": \"matched\", \"transaction\": null}",
+        1,
+    );
+    assert_eq!(
+        read_book(matched_without.as_bytes()),
+        bad("schedules[0].occurrences[0].transaction", Expected::Id)
+    );
+    let twice = file.replacen(
+        skipped,
+        "{\"due_on\": \"2026-10-05\", \"status\": \"skipped\", \"transaction\": null}",
+        1,
+    );
+    assert_eq!(
+        read_book(twice.as_bytes()),
+        Err(ExportError::Duplicate {
+            path: "schedules[0].occurrences[1].due_on".into()
+        })
+    );
+    assert_eq!(
+        read_book(&changed("\"unit\": \"month\"", "\"unit\": \"fortnight\"")),
+        bad("schedules[0].unit", Expected::Keyword)
+    );
+    assert_eq!(
+        read_book(&changed("\"every\": 1,", "\"every\": 300,")),
+        bad("schedules[0].every", Expected::Number)
+    );
+    assert_eq!(
+        read_book(&changed(
+            "\"tolerance\": \"0.40\"",
+            "\"tolerance\": \"0.405\""
+        )),
+        bad("schedules[0].tolerance", Expected::Amount)
     );
 }

@@ -21,6 +21,9 @@ use kassensturz_pipeline::{
 };
 use kassensturz_store::{Action, Book, StoreError};
 
+/// The day a preview matches planned payments for; these books have none.
+const PREVIEW_DAY: kassensturz_core::Date = kassensturz_core::Date::constant(2026, 11, 13);
+
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
@@ -325,8 +328,14 @@ fn entries_that_look_like_a_transaction_the_account_has_wait_for_the_user() {
         entry(14, -350, "", "Cafe"),
         entry(14, -350, "", "Cafe"),
     ])];
-    let report =
-        preview_import(&mut book, checking, &statements, &Choices::default()).expect("previewed");
+    let report = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
     let similar: Vec<(EntryRef, Vec<TransactionId>)> = report
         .entries
         .iter()
@@ -622,8 +631,14 @@ fn a_preview_shows_what_the_import_would_do_and_changes_nothing() {
         date: october(5),
     });
 
-    let preview =
-        preview_import(&mut book, checking, &statements, &Choices::default()).expect("previewed");
+    let preview = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
     assert_eq!(book.history().expect("history read"), history);
     assert_eq!(book.balance(checking).expect("balance"), balance);
     assert!(book.transaction(preview.imported()[0]).is_err());
@@ -819,8 +834,14 @@ fn a_statement_in_marks_comes_into_an_account_in_euros() {
         109_997,
     )];
 
-    let preview =
-        preview_import(&mut book, checking, &statements, &Choices::default()).expect("previewed");
+    let preview = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
     let report = import(&mut book, checking, &statements);
     assert_eq!(preview.balances, report.balances);
     let mark = DEM.withdrawn().expect("the table lists the mark");
@@ -879,8 +900,14 @@ fn a_statement_in_marks_comes_into_an_account_in_euros() {
     assert_eq!(again.summary().imported, 0);
     let kiosk = report.imported()[0];
     let later = [statement_in_marks(vec![in_marks(2, -1, "")], 99_999)];
-    let preview =
-        preview_import(&mut book, checking, &later, &Choices::default()).expect("previewed");
+    let preview = preview_import(
+        &mut book,
+        checking,
+        &later,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
     assert!(matches!(
         &preview.entries[0].outcome,
         EntryOutcome::Similar(similar) if similar.contains(&kiosk)

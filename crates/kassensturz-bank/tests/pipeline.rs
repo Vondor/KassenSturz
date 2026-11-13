@@ -16,6 +16,9 @@ use kassensturz_import::{EntryStatus, Limits, Statement};
 use kassensturz_pipeline::{Choices, Duplicate, EntryOutcome, import_statements, preview_import};
 use kassensturz_store::Book;
 
+/// The day a preview matches planned payments for; these books have none.
+const PREVIEW_DAY: kassensturz_core::Date = kassensturz_core::Date::constant(2026, 11, 13);
+
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
@@ -218,6 +221,7 @@ fn fetching_again_imports_nothing_twice() {
         setup.checking,
         &[again],
         &Choices::default(),
+        PREVIEW_DAY,
     )
     .expect("previewed");
     let outcomes: Vec<&EntryOutcome> = report
@@ -509,5 +513,111 @@ fn a_remembered_monthly_move_joins_the_fake_banks_standing_order() {
     assert_eq!(
         setup.book.balance_on(savings, october(9)).expect("balance"),
         eur(20_000)
+    );
+}
+
+#[test]
+fn the_fake_banks_payments_are_matched_to_their_plans() {
+    // The salary on 1 October, planned by the employer's name, and the
+    // 200.00 to savings on the 5th, planned by its IBAN (D-769): a fetch
+    // matches both after the import, in a change of its own.
+    let mut setup = setup();
+    let salary = add_account(&mut setup.book, "Salary", AccountKind::Income, None);
+    let plan =
+        |name: &str, amount: i64, day: i8, category, iban: Option<&str>, party: Option<&str>| {
+            kassensturz_store::NewSchedule {
+                name: name.into(),
+                account: setup.checking,
+                amount: eur(amount),
+                tolerance: eur(0),
+                category,
+                party_iban: iban.map(str::to_owned),
+                party_name: party.map(str::to_owned),
+                unit: kassensturz_core::ScheduleUnit::Month,
+                every: 1,
+                anchor: october(day),
+                track_from: october(day),
+                ends_on: None,
+            }
+        };
+    let pay = plan(
+        "Pay",
+        250_000,
+        1,
+        Some(salary),
+        None,
+        Some("Example Employer"),
+    );
+    let saving = plan("Saving", -20_000, 5, None, Some(FAKE_SAVINGS_IBAN), None);
+    for new in [&pay, &saving] {
+        setup.book.add_schedule(new).expect("planned");
+    }
+    let statement = setup.fetch(&setup.current.clone(), None);
+    let mut report = import_statements(
+        &mut setup.book,
+        setup.checking,
+        std::slice::from_ref(&statement),
+        &Choices::default(),
+        None,
+    )
+    .expect("imported");
+    kassensturz_pipeline::join_recurring_moves(&mut setup.book, &mut report).expect("joined");
+    kassensturz_pipeline::match_schedules(&mut setup.book, &mut report, october(9))
+        .expect("matched");
+    let matched: Vec<_> = report
+        .schedules
+        .matched
+        .iter()
+        .map(|done| (done.occurrence.due.counted, done.category_set))
+        .collect();
+    assert_eq!(matched, [(october(1), true), (october(5), false)]);
+    let salary_entry = report.schedules.matched[0].transaction;
+    let parts = setup.book.transaction(salary_entry).expect("entry");
+    assert!(
+        parts
+            .splits()
+            .iter()
+            .any(|split| split.account == Some(salary) && split.amount == eur(-250_000))
+    );
+    // One Undo takes the matches back and keeps what the bank delivered.
+    let balance = setup
+        .book
+        .balance_on(setup.checking, october(9))
+        .expect("balance");
+    setup.book.undo().expect("undone");
+    assert!(
+        setup
+            .book
+            .decided_occurrences()
+            .expect("decided")
+            .is_empty()
+    );
+    assert_eq!(
+        setup
+            .book
+            .balance_on(setup.checking, october(9))
+            .expect("balance"),
+        balance
+    );
+    // Fetching again brings nothing new and matches nothing behind the
+    // user's back.
+    let again = setup.fetch(&setup.current.clone(), None);
+    let mut report = import_statements(
+        &mut setup.book,
+        setup.checking,
+        std::slice::from_ref(&again),
+        &Choices::default(),
+        None,
+    )
+    .expect("imported");
+    kassensturz_pipeline::match_schedules(&mut setup.book, &mut report, october(9))
+        .expect("matched");
+    assert!(report.schedules.matched.is_empty());
+    assert!(
+        setup
+            .book
+            .decided_occurrences()
+            .expect("decided")
+            .is_empty()
     );
 }

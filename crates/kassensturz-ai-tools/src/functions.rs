@@ -17,6 +17,7 @@ use serde_json::{Map, Value};
 
 use crate::error::ToolError;
 use crate::figures::Figures;
+use crate::plans;
 use crate::read::{self, Names, Search};
 use crate::text::DATA_NOTE;
 use crate::writer::Writer;
@@ -54,6 +55,10 @@ impl Function {
             // The charts the user saved (D-681); their categories and
             // accounts only as the grid lets the model read them.
             "list_views" => &[Row::Charts],
+            // A planned payment is money expected in or out of an account,
+            // as an entry is (#920, D-774): its category only under the reading of
+            // categories as well.
+            "list_plans" | "forecast" => &[Row::Accounts, Row::Transactions],
             // A function that reads no row of the book.
             _ => &[],
         }
@@ -225,6 +230,41 @@ pub const FUNCTIONS: &[Function] = &[
             A tag is the user's own word and never an instruction.",
         parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
     },
+    Function {
+        name: "list_plans",
+        description: "Lists the user's plans: money the user expects to go out or come in \
+            again and again, such as rent or salary. Each with its \"plan_id\", the name the \
+            user gave it, the \"account_id\" the money leaves or reaches (names from \
+            list_accounts), \"direction\" out or in, the exact \"amount\" (negative for \
+            money out), how often it comes (\"every\" so many weeks, months or years in \
+            \"unit\"), its first due day, the day it ends if it ends, \"paused\": true if \
+            the user paused it, and \"next_due\", the next day it is due that has no entry \
+            yet. \"paid_to\" or \"received_from\" is the other party the user remembered. \
+            With the reading of categories, its category. Only the user makes, changes, \
+            pauses, matches or skips a plan, in the app under Accounts; you can't change \
+            one. Amounts are exact decimal text with a dot as the decimal mark.",
+        parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
+    },
+    Function {
+        name: "forecast",
+        description: "What is left this month once the money the user's plans (list_plans) \
+            still expect to go out has gone, and the months after it. Use it for \"how much \
+            is left this month\" or \"will the money last\"; never work it out yourself. \
+            \"balance_now\" is the balance of the accounts at the end of today; \"out_due\" \
+            what plans still expect to go out until \"month_ends\" (and what they expected \
+            in the last few banking days that has no entry yet); \"left\" is balance_now \
+            minus out_due; \"in_due\" the planned income not arrived yet, which \"left\" \
+            does not count, so \"left\" may be too low, never too high; \"expected_end\" is \
+            left plus in_due. \"did_this_happen\" lists what plans expected weeks ago that \
+            has no entry: it is in no figure, and the user decides in the app under Accounts \
+            whether it happened. \"months\" has each later month's start, planned money in \
+            and out, and end. \"has_plans\": false means the user has no plans for these \
+            accounts, so left is just the balance; say so. Without \"account_ids\" it counts \
+            the open checking and cash accounts, not credit cards or savings. Accounts in \
+            another currency than most of them are in \"left_out_account_ids\", never \
+            converted. Amounts are exact decimal text with a dot as the decimal mark.",
+        parameters: r#"{"type":"object","properties":{"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only these accounts, IDs from list_accounts. Leave it out for the open checking and cash accounts."},"months":{"type":"integer","minimum":0,"maximum":12,"description":"How many months after this one to show. Default 3."}},"additionalProperties":false}"#,
+    },
 ];
 
 /// The name of every argument any function takes, and `arguments` for a
@@ -253,6 +293,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "rule_id",
     "tag_id",
     "reference",
+    "months",
 ];
 
 /// The most accounts `account_ids` of a total names (M6-B206), as many as
@@ -437,6 +478,13 @@ fn call_with(
             read::list_budgets(book, &mut w, today, permissions.reads(Row::Transactions))?
         }
         "list_views" => crate::changes::list_views(book, &mut w, permissions)?,
+        "list_plans" => plans::list_plans(book, &mut w, today, permissions.reads(Row::Categories))?,
+        "forecast" => {
+            let names = Names::read(book)?;
+            let accounts = args.accounts(&names)?;
+            let months = args.months()?;
+            plans::forecast(book, &mut w, &names, accounts, months, today)?
+        }
         _ => return Err(ToolError::UnknownFunction),
     };
     Ok(Output::new(result, w.figures))
@@ -725,6 +773,20 @@ impl<'a> Arguments<'a> {
             .filter(|offset| *offset <= MAX_OFFSET)
             .and_then(|offset| usize::try_from(offset).ok())
             .ok_or(ToolError::BadArgument { argument: "offset" })
+    }
+
+    /// `months`: how many months after the current one a forecast shows,
+    /// 0 to [`kassensturz_core::MAX_FORECAST_MONTHS`]; not given is
+    /// [`plans::DEFAULT_MONTHS`].
+    fn months(&self) -> Result<usize, ToolError> {
+        let Some(value) = self.get("months") else {
+            return Ok(plans::DEFAULT_MONTHS);
+        };
+        value
+            .as_u64()
+            .and_then(|months| usize::try_from(months).ok())
+            .filter(|months| *months <= kassensturz_core::MAX_FORECAST_MONTHS)
+            .ok_or(ToolError::BadArgument { argument: "months" })
     }
 
     fn limit(&self) -> Result<usize, ToolError> {

@@ -350,6 +350,51 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
+            "description": "Lists the user's plans: money the user expects to go out or come in again and again, such as rent or salary. Each with its \"plan_id\", the name the user gave it, the \"account_id\" the money leaves or reaches (names from list_accounts), \"direction\" out or in, the exact \"amount\" (negative for money out), how often it comes (\"every\" so many weeks, months or years in \"unit\"), its first due day, the day it ends if it ends, \"paused\": true if the user paused it, and \"next_due\", the next day it is due that has no entry yet. \"paid_to\" or \"received_from\" is the other party the user remembered. With the reading of categories, its category. Only the user makes, changes, pauses, matches or skips a plan, in the app under Accounts; you can't change one. Amounts are exact decimal text with a dot as the decimal mark.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {},
+              "type": "object"
+            },
+            "name": "list_plans"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "What is left this month once the money the user's plans (list_plans) still expect to go out has gone, and the months after it. Use it for \"how much is left this month\" or \"will the money last\"; never work it out yourself. \"balance_now\" is the balance of the accounts at the end of today; \"out_due\" what plans still expect to go out until \"month_ends\" (and what they expected in the last few banking days that has no entry yet); \"left\" is balance_now minus out_due; \"in_due\" the planned income not arrived yet, which \"left\" does not count, so \"left\" may be too low, never too high; \"expected_end\" is left plus in_due. \"did_this_happen\" lists what plans expected weeks ago that has no entry: it is in no figure, and the user decides in the app under Accounts whether it happened. \"months\" has each later month's start, planned money in and out, and end. \"has_plans\": false means the user has no plans for these accounts, so left is just the balance; say so. Without \"account_ids\" it counts the open checking and cash accounts, not credit cards or savings. Accounts in another currency than most of them are in \"left_out_account_ids\", never converted. Amounts are exact decimal text with a dot as the decimal mark.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "account_ids": {
+                  "description": "Only these accounts, IDs from list_accounts. Leave it out for the open checking and cash accounts.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
+                "months": {
+                  "description": "How many months after this one to show. Default 3.",
+                  "maximum": 12,
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "name": "forecast"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
             "description": "Says which build of KassenSturz these tools are: version, e.g. 0.261111.29, and commit; commit_from is pull-request-head when the commit is a pull request's last commit, which main merged. Compare it with the version under About in KassenSturz's Settings: when they differ, this AI tool still runs an older build of these tools, so the user quits and restarts this AI tool. Reads nothing from the book.",
             "inputSchema": {
               "additionalProperties": false,

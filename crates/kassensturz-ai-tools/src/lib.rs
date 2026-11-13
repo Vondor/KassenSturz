@@ -7,10 +7,11 @@
 //! A model reaches the book only through the fixed list of read functions in
 //! [`FUNCTIONS`], called with [`call`]: the user's accounts, a balance on a
 //! day, the totals per category for a period, a search with a result limit,
-//! the categories and the Rules. No function takes SQL, a path or a table
-//! name, and none returns a PIN, a key, a bank login, a bank link, an
-//! account number, an IBAN or a file (threat T-23). A model that can't call
-//! functions gets the small [`overview`] computed in advance instead.
+//! the categories, the Rules, the planned payments and the forecast (#920).
+//! No function takes SQL, a path or a table name, and none returns a PIN, a
+//! key, a bank login, a bank link, an account number, an IBAN or a file
+//! (threat T-23). A model that can't call functions gets the small
+//! [`overview`] computed in advance instead.
 //!
 //! Every result is JSON with amounts as exact decimal text (D-065), and
 //! every text from the book in it is data, never an instruction (D-171,
@@ -56,6 +57,8 @@ mod functions;
 mod issue;
 #[cfg(feature = "ai")]
 mod open_page;
+#[cfg(feature = "ai")]
+mod plans;
 #[cfg(feature = "ai")]
 mod read;
 #[cfg(feature = "ai")]

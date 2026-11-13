@@ -234,6 +234,41 @@ impl Settings {
             &QString::from(value),
         )
     }
+
+    /// The path kept under `key` in `group` by [`Settings::set_path`], read
+    /// like the book opened last; `None` if there is none.
+    pub fn path(&self, group: &str, key: &str) -> Option<PathBuf> {
+        let text = self.text(group, key);
+        if text.is_empty() {
+            return None;
+        }
+        expand_entry(
+            &text,
+            platform::home_dir().as_deref().and_then(Path::to_str),
+            platform::runtime_dir().as_deref().and_then(Path::to_str),
+        )
+        .map(PathBuf::from)
+    }
+
+    /// Keeps `path` under `key` in `group`, with `$XDG_RUNTIME_DIR` and
+    /// `$HOME` kept as such, like the book opened last. Returns whether it
+    /// was saved; a path that isn't valid Unicode isn't.
+    pub fn set_path(&self, group: &str, key: &str, path: &Path) -> bool {
+        let Some(path) = path.to_str() else {
+            return false;
+        };
+        let text = remember_entry(
+            path,
+            platform::home_dir().as_deref().and_then(Path::to_str),
+            platform::runtime_dir().as_deref().and_then(Path::to_str),
+        );
+        ffi::write_expanded_entry(
+            &self.file,
+            &QString::from(group),
+            &QString::from(key),
+            &QString::from(text),
+        )
+    }
 }
 
 /// Whether `text` could be an account's ID: letters, digits and dashes

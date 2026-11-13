@@ -6723,6 +6723,60 @@ msgctxt "@info a change you made"
 msgid "Joined several moves of your own money at once"
 msgstr "Mehrere Umbuchungen Ihres eigenen Geldes auf einmal verbunden"
 
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:122
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Planned a payment"
+msgstr "Zahlung geplant"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:124
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Changed a planned payment"
+msgstr "Geplante Zahlung geändert"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:126
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Removed a planned payment"
+msgstr "Geplante Zahlung entfernt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:128
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Paused or resumed a planned payment"
+msgstr "Geplante Zahlung pausiert oder fortgesetzt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:130
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Found planned payments in new entries"
+msgstr "Geplante Zahlungen in neuen Buchungen gefunden"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:132
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Matched an entry to a planned payment"
+msgstr "Buchung einer geplanten Zahlung zugeordnet"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:134
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Skipped a planned payment this time"
+msgstr "Geplante Zahlung dieses Mal übersprungen"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:136
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Expected a skipped payment again"
+msgstr "Übersprungene Zahlung wieder erwartet"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:138
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Booked a planned payment"
+msgstr "Geplante Zahlung gebucht"
+
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:106
 #, kde-format
 msgctxt "@info a change you made"
@@ -10965,6 +11019,16 @@ msgid "%1 has a budget, so it can't be deleted. Delete its budget first."
 msgstr ""
 "%1 hat ein Budget, deshalb kann sie nicht gelöscht werden. Löschen Sie "
 "zuerst ihr Budget."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:599
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid ""
+"A planned payment uses %1, so it can't be deleted. Give the planned payment "
+"another category first."
+msgstr ""
+"Eine geplante Zahlung verwendet %1, deshalb kann sie nicht gelöscht werden. "
+"Geben Sie der geplanten Zahlung zuerst eine andere Kategorie."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:515
 #, kde-format

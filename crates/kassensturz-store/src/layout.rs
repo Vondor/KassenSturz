@@ -35,9 +35,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 9] = [
+pub(crate) const MIGRATIONS: [&str; 10] = [
     LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30, LAYOUT_31,
-    LAYOUT_32,
+    LAYOUT_32, LAYOUT_33,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
@@ -1179,6 +1179,144 @@ CREATE TABLE unchecked_ai_rules (
 ) STRICT;
 ";
 
+/// Layout 33 (US7, #795 and #725, D-769): planned payments.
+///
+/// - `schedules`: one row per planned payment (`docs/SCHEDULES.md` 3.1):
+///   its name (1 to 60 characters), the user's account (removing the
+///   account removes its plans), the amount in minor units (never zero,
+///   negative for money out) and its currency, the tolerance (0 or more,
+///   less than the amount), an optional category (a category a plan uses
+///   can't be removed), the other party's IBAN and name as the bank shows
+///   them (either may be NULL), how it repeats (`week`, `month` or `year`,
+///   every 1 to 52), the first due date it is counted from, the first date
+///   that counts (never before it), an optional last date (never before
+///   it), and whether it is paused.
+/// - `schedule_occurrences`: one row per occurrence the user or an import
+///   decided, matched to an entry or skipped; an occurrence without a row
+///   is open. Kept by its plan and its counted date (`due_on`, before it is
+///   moved off a weekend), once each; its own ID is what the change
+///   history keys it by. A matched one names its transaction, which no
+///   other occurrence names; removing the transaction or the plan removes
+///   the row, so the occurrence is open again.
+/// - `changed_schedules` and `changed_schedule_occurrences`, their change
+///   history (D-066).
+/// - `changes` is rebuilt, as layouts 27, 30 and 31 did, with the actions
+///   `add_schedule`, `edit_schedule`, `remove_schedule`, `pause_schedule`,
+///   `match_schedules`, `match_schedule_occurrence`,
+///   `skip_schedule_occurrence`, `unskip_schedule_occurrence` and
+///   `book_schedule_occurrence` added to its list. Its rows stay as they
+///   were.
+///
+/// Nothing a book of layout 32 holds changes: it starts without planned
+/// payments.
+const LAYOUT_33: &str = "
+CREATE TABLE schedules (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 60),
+    account_id BLOB NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    amount INTEGER NOT NULL CHECK (amount <> 0),
+    currency TEXT NOT NULL REFERENCES currencies (code),
+    tolerance INTEGER NOT NULL CHECK (tolerance >= 0 AND tolerance < abs(amount)),
+    category_id BLOB REFERENCES accounts (id) ON DELETE RESTRICT,
+    party_iban TEXT CHECK (length(party_iban) BETWEEN 1 AND 140),
+    party_name TEXT CHECK (length(party_name) BETWEEN 1 AND 140),
+    unit TEXT NOT NULL CHECK (unit IN ('week', 'month', 'year')),
+    every INTEGER NOT NULL CHECK (every BETWEEN 1 AND 52),
+    anchor TEXT NOT NULL
+        CHECK (anchor GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    track_from TEXT NOT NULL
+        CHECK (track_from GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    ends_on TEXT
+        CHECK (ends_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    paused INTEGER NOT NULL CHECK (paused IN (0, 1)),
+    CHECK (track_from >= anchor),
+    CHECK (ends_on IS NULL OR ends_on >= anchor)
+) STRICT;
+CREATE INDEX schedules_by_account ON schedules (account_id);
+CREATE INDEX schedules_by_category ON schedules (category_id);
+
+CREATE TABLE schedule_occurrences (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    schedule_id BLOB NOT NULL REFERENCES schedules (id) ON DELETE CASCADE,
+    due_on TEXT NOT NULL
+        CHECK (due_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    status TEXT NOT NULL CHECK (status IN ('matched', 'skipped')),
+    transaction_id BLOB REFERENCES transactions (id) ON DELETE CASCADE,
+    CHECK ((status = 'matched') = (transaction_id IS NOT NULL))
+) STRICT;
+CREATE UNIQUE INDEX schedule_occurrences_once ON schedule_occurrences (schedule_id, due_on);
+CREATE UNIQUE INDEX schedule_occurrences_by_transaction
+    ON schedule_occurrences (transaction_id);
+
+CREATE TABLE changed_schedules (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    name TEXT,
+    account_id BLOB,
+    amount INTEGER,
+    currency TEXT,
+    tolerance INTEGER,
+    category_id BLOB,
+    party_iban TEXT,
+    party_name TEXT,
+    unit TEXT,
+    every INTEGER,
+    anchor TEXT,
+    track_from TEXT,
+    ends_on TEXT,
+    paused INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE changed_schedule_occurrences (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    schedule_id BLOB,
+    due_on TEXT,
+    status TEXT,
+    transaction_id BLOB,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes', 'remove_category',
+        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
+        'add_group', 'edit_group', 'move_group', 'remove_group',
+        'set_hidden_categories',
+        'add_budget', 'edit_budget', 'remove_budget',
+        'change_account_type',
+        'rename_tag', 'remove_tag', 'merge_tags',
+        'add_recurring_move', 'remove_recurring_move', 'join_recurring_moves',
+        'join_transfers',
+        'add_schedule', 'edit_schedule', 'remove_schedule', 'pause_schedule',
+        'match_schedules', 'match_schedule_occurrence',
+        'skip_schedule_occurrence', 'unskip_schedule_occurrence',
+        'book_schedule_occurrence'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -2193,6 +2331,153 @@ mod tests {
         // Once, even without a party, which SQLite would count as different.
         assert!(insert(checking, savings, 100, 15, None).is_err());
         insert(checking, savings, 100, 15, Some("DE89370400440532013000")).expect("another party");
+    }
+
+    #[test]
+    fn layout_33_adds_planned_payments_and_keeps_the_history_of_every_earlier_layout() {
+        // Books of layout 24 (the first Beta's), 31 and 32, each with a
+        // change the history recorded, as an older KassenSturz wrote them
+        // (US7, #795, D-769).
+        for version in [FIRST_VERSION, 31, 32] {
+            let folder = TempFolder::new();
+            let path = folder.join("Household.ksz");
+            let checking = old_book(&path, version);
+            recorded_rename(&path, checking);
+
+            let computer = computer(&folder);
+            let mut book = Book::open(&path, &computer).expect("book updated");
+            assert_eq!(
+                pragma(&book.conn, "user_version"),
+                VERSION,
+                "from {version}"
+            );
+            // Updated after a backup, which keeps the old layout.
+            let backups = files_in(&computer.backup_folder);
+            assert_eq!(backups.len(), 1, "from {version}");
+            let backup = Connection::open(&backups[0]).expect("backup opened");
+            assert_eq!(pragma(&backup, "user_version"), version);
+            drop(backup);
+            assert_eq!(count(&book.conn, "schedules"), 0);
+            assert_eq!(count(&book.conn, "schedule_occurrences"), 0);
+            // Nothing the book held changed: the transaction is there, and
+            // the change made before the update is undone and made again.
+            assert_eq!(count(&book.conn, "transactions"), 1);
+            book.undo().expect("undone");
+            assert_eq!(
+                book.account(checking).expect("account").name,
+                "Main account"
+            );
+            book.redo().expect("made again");
+
+            // A plan is made, skipped once and recorded under its actions.
+            let day = Date::constant(2026, 11, 1);
+            let id = book
+                .add_schedule(&crate::NewSchedule {
+                    name: "Rent".into(),
+                    account: checking,
+                    amount: Money::from_minor_units(-75_000, EUR),
+                    tolerance: Money::zero(EUR),
+                    category: None,
+                    party_iban: None,
+                    party_name: None,
+                    unit: kassensturz_core::ScheduleUnit::Month,
+                    every: 1,
+                    anchor: day,
+                    track_from: day,
+                    ends_on: None,
+                })
+                .expect("planned");
+            book.skip_schedule_occurrence(id, day).expect("skipped");
+            let mut statement = book
+                .conn
+                .prepare("SELECT action FROM main.changes ORDER BY sequence DESC LIMIT 2")
+                .expect("changes read");
+            let actions: Vec<String> = statement
+                .query_map([], |row| row.get(0))
+                .expect("changes read")
+                .collect::<Result<_, _>>()
+                .expect("changes read");
+            drop(statement);
+            assert_eq!(actions, ["skip_schedule_occurrence", "add_schedule"]);
+            book.remove_schedule(id).expect("removed");
+            book.undo().expect("undone");
+            assert_eq!(book.decided_occurrences().expect("decided").len(), 1);
+        }
+    }
+
+    #[test]
+    fn layout_33_refuses_plans_and_occurrences_that_break_its_checks() {
+        let mut conn = Connection::open_in_memory().expect("database");
+        migrate(&mut conn, 0).expect("layout built");
+        conn.pragma_update(None, "foreign_keys", true)
+            .expect("checked");
+        conn.execute_batch("INSERT INTO currencies (code, minor_digits) VALUES ('EUR', 2);")
+            .expect("currency");
+        let checking = AccountId::generate();
+        conn.execute(
+            "INSERT INTO accounts (id, name, kind, currency)
+                 VALUES (?1, 'Checking account', 'asset', 'EUR')",
+            [checking.to_bytes()],
+        )
+        .expect("account");
+        let plan = |name: &str, amount: i64, tolerance: i64, unit: &str, every: i64, ends: &str| {
+            let id = uuid::Uuid::now_v7().into_bytes();
+            conn.execute(
+                &format!(
+                    "INSERT INTO schedules (id, name, account_id, amount, currency, tolerance,
+                         unit, every, anchor, track_from, ends_on, paused)
+                     VALUES (?1, ?2, ?3, ?4, 'EUR', ?5, ?6, ?7, '2026-10-01', '2026-10-01',
+                         {ends}, 0)"
+                ),
+                params![
+                    id,
+                    name,
+                    checking.to_bytes(),
+                    amount,
+                    tolerance,
+                    unit,
+                    every
+                ],
+            )
+            .map(|_| id)
+        };
+        assert!(plan("", -100, 0, "month", 1, "NULL").is_err());
+        assert!(plan(&"x".repeat(61), -100, 0, "month", 1, "NULL").is_err());
+        assert!(plan("Rent", 0, 0, "month", 1, "NULL").is_err());
+        assert!(plan("Rent", -100, -1, "month", 1, "NULL").is_err());
+        assert!(plan("Rent", -100, 0, "day", 1, "NULL").is_err());
+        assert!(plan("Rent", -100, 0, "month", 0, "NULL").is_err());
+        assert!(plan("Rent", -100, 0, "month", 53, "NULL").is_err());
+        assert!(plan("Rent", -100, 0, "month", 1, "'2026-09-30'").is_err());
+        assert!(plan("Rent", -100, 0, "month", 1, "'1 Oct 2026'").is_err());
+        let id = plan("Rent", -100, 0, "month", 1, "'2026-10-01'").expect("a plan");
+
+        let occurrence = |due_on: &str, status: &str, transaction: Option<[u8; 16]>| {
+            conn.execute(
+                "INSERT INTO schedule_occurrences (id, schedule_id, due_on, status, transaction_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![
+                    uuid::Uuid::now_v7().into_bytes(),
+                    id,
+                    due_on,
+                    status,
+                    transaction
+                ],
+            )
+        };
+        let unknown = TransactionId::generate().to_bytes();
+        // Matched needs an entry that exists; skipped has none.
+        assert!(occurrence("2026-10-01", "matched", None).is_err());
+        assert!(occurrence("2026-10-01", "matched", Some(unknown)).is_err());
+        assert!(occurrence("2026-10-01", "skipped", Some(unknown)).is_err());
+        assert!(occurrence("2026-10-01", "paid", None).is_err());
+        occurrence("2026-10-01", "skipped", None).expect("skipped");
+        // Once per date.
+        assert!(occurrence("2026-10-01", "skipped", None).is_err());
+        // Removing the plan removes what was decided about it.
+        conn.execute("DELETE FROM schedules WHERE id = ?1", [id])
+            .expect("removed");
+        assert_eq!(count(&conn, "schedule_occurrences"), 0);
     }
 
     #[test]

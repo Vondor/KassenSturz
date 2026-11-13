@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{Account, AccountId, AccountKind, RuleId, RuleNode};
-use kassensturz_export::{BookData, BookedByRule, ExportData, ViewData};
+use kassensturz_export::{BookData, BookedByRule, ExportData, ScheduleData, ViewData};
 use kassensturz_store::{Book, HistoryRetention, StoreError};
 
 /// Everything `book` holds, for the complete export (`BookExport`): its
@@ -65,6 +65,7 @@ pub fn export_book(book: &Book) -> Result<ExportData, StoreError> {
         groups: book.category_groups()?,
         hidden_categories: book.hidden_categories()?,
         budgets: book.budgets()?,
+        schedules: schedules(book)?,
         payees: book.payees()?,
         tags: book.tags()?,
     }))
@@ -125,11 +126,50 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
         for &BookedByRule { split, rule } in &data.rule_marks {
             book.restore_rule_mark(split, rule)?;
         }
+        // After the transactions, which matched occurrences name, and
+        // before the accounts are closed.
+        let plans: Vec<_> = data
+            .schedules
+            .iter()
+            .map(|data| data.schedule.clone())
+            .collect();
+        let decided: Vec<_> = data
+            .schedules
+            .iter()
+            .flat_map(|data| {
+                data.decided
+                    .iter()
+                    .map(|&(due_on, decided)| (data.schedule.id, due_on, decided))
+            })
+            .collect();
+        book.restore_schedules(&plans, &decided)?;
         for account in data.accounts.iter().filter(|account| account.closed) {
             book.close_account(account.id)?;
         }
         Ok(())
     })
+}
+
+/// The planned payments of `book`, in its order, each with its decided
+/// occurrences, oldest first (D-769).
+fn schedules(book: &Book) -> Result<Vec<ScheduleData>, StoreError> {
+    let decided = book.decided_occurrences()?;
+    Ok(book
+        .schedules()?
+        .into_iter()
+        .map(|schedule| {
+            let mut own: Vec<_> = decided
+                .iter()
+                .filter(|((id, _), _)| *id == schedule.id)
+                .map(|((_, due_on), decided)| (*due_on, *decided))
+                .collect();
+            own.sort_by_key(|(due_on, _)| *due_on);
+            ScheduleData {
+                schedule,
+                decided: own,
+            }
+        })
+        .collect())
 }
 
 /// `accounts` in an order the book can add them in: every category after

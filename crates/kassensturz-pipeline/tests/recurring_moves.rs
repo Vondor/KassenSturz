@@ -18,6 +18,9 @@ use kassensturz_pipeline::{
 };
 use kassensturz_store::{Action, Book, NewRecurringMove, StoreError};
 
+/// The day a preview matches planned payments for; these books have none.
+const PREVIEW_DAY: kassensturz_core::Date = kassensturz_core::Date::constant(2026, 11, 13);
+
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
@@ -312,6 +315,7 @@ fn the_preview_shows_the_joins_and_undo_takes_back_only_them() {
         *checking,
         statements,
         &Choices::default(),
+        PREVIEW_DAY,
     )
     .expect("previewed");
     assert_eq!(preview.joins.joined.len(), 3);

@@ -9,8 +9,10 @@
 //! Nothing here is shown as it is: problems come back as codes with their
 //! parameters as text, and the QML writes the message (D-034).
 
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
+use kassensturz_core::book_folder;
 use kassensturz_core::{ErrorParam, Report};
 use kassensturz_store::{Book, Computer, Lock, StoreError};
 
@@ -53,6 +55,27 @@ pub enum Problem {
         /// Where it was.
         path: PathBuf,
     },
+    /// The book is in a folder the user chose in the Flatpak, but the
+    /// sandbox may no longer reach that folder (the grant was taken back or
+    /// the portal's data was reset). Never a new book in its place; the user
+    /// chooses the folder again (D-732).
+    NoAccess {
+        /// Where the book was remembered.
+        path: PathBuf,
+    },
+    /// The book's folder or file can't be changed (the lock file can't be
+    /// made), so the book isn't opened (D-732).
+    ReadOnly {
+        /// The book.
+        path: PathBuf,
+    },
+    /// Writing to the open book failed because of the drive: the change in
+    /// progress was taken back, the book was closed and nothing more is
+    /// written until it is opened again (D-732).
+    WriteFailed {
+        /// The book.
+        path: PathBuf,
+    },
     /// The file came through a sandbox's file chooser, e.g. in the Flatpak,
     /// so its lock file and SQLite's journal can't be made next to it.
     Sandboxed {
@@ -92,6 +115,9 @@ impl Problem {
             Self::Locked { path, .. }
             | Self::Missing { path }
             | Self::Sandboxed { path }
+            | Self::NoAccess { path }
+            | Self::ReadOnly { path }
+            | Self::WriteFailed { path }
             | Self::OutsideTest { path }
             | Self::Store { path, .. } => Some(path),
             Self::NoAppFolder => None,
@@ -109,6 +135,9 @@ impl Problem {
             Self::Locked { .. } => ("store.locked".to_owned(), Vec::new()),
             Self::Missing { .. } => ("book.missing".to_owned(), Vec::new()),
             Self::Sandboxed { .. } => ("book.sandboxed".to_owned(), Vec::new()),
+            Self::NoAccess { .. } => ("book.no-access".to_owned(), Vec::new()),
+            Self::ReadOnly { .. } => ("book.read-only".to_owned(), Vec::new()),
+            Self::WriteFailed { .. } => ("book.write-failed".to_owned(), Vec::new()),
             Self::OutsideTest { .. } => ("book.outside-test".to_owned(), Vec::new()),
             Self::NoAppFolder => ("book.no-app-folder".to_owned(), Vec::new()),
             Self::Store { error, .. } => {
@@ -327,12 +356,19 @@ impl Books {
         if drive == Drive::Sandboxed {
             return Err(Problem::Sandboxed { path });
         }
+        if platform::runtime_dir().is_some_and(|runtime| grant_is_gone(&path, &runtime)) {
+            return Err(Problem::NoAccess { path });
+        }
         let book = open(&path).map_err(|error| match error {
             StoreError::Locked(lock) => Problem::Locked {
                 path: path.clone(),
                 lock,
             },
             StoreError::NotFound => Problem::Missing { path: path.clone() },
+            // The lock file (or the book) can't be made or changed there.
+            StoreError::Io(ErrorKind::PermissionDenied | ErrorKind::ReadOnlyFilesystem) => {
+                Problem::ReadOnly { path: path.clone() }
+            }
             error => Problem::Store {
                 path: path.clone(),
                 error,
@@ -344,6 +380,14 @@ impl Books {
             on_network_drive: drive == Drive::Network,
         })
     }
+}
+
+/// Whether `path` is in a folder the user exported through the document
+/// portal and that export is gone: the Flatpak may no longer reach it
+/// (D-732). A book that is missing from a folder that is still there is
+/// `book.missing`, not this.
+fn grant_is_gone(path: &Path, runtime_dir: &Path) -> bool {
+    book_folder::export_root(path, runtime_dir).is_some_and(|root| !root.is_dir())
 }
 
 /// Whether `previous`, the book open before `next`, is the app's own book
@@ -397,6 +441,20 @@ fn with_extension(path: &Path) -> PathBuf {
 mod tests {
     use super::*;
     use crate::test_folder::TestFolder;
+
+    #[test]
+    fn a_folder_whose_grant_is_gone_is_told_from_a_book_missing_in_it() {
+        let folder = TestFolder::new();
+        let runtime = folder.path();
+        let book = |id: &str, name: &str| runtime.join("doc").join(id).join("Books").join(name);
+        // The export is there, the book isn't: `book.missing`, not this.
+        std::fs::create_dir_all(runtime.join("doc/ab12/Books")).expect("export");
+        assert!(!grant_is_gone(&book("ab12", "Household.ksz"), runtime));
+        // The export is gone, as after `flatpak permission-reset`.
+        assert!(grant_is_gone(&book("cd34", "Household.ksz"), runtime));
+        // A book outside the portal's mount is never this.
+        assert!(!grant_is_gone(&runtime.join("Household.ksz"), runtime));
+    }
 
     struct Setup {
         folder: TestFolder,

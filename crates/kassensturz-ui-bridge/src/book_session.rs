@@ -13,11 +13,12 @@ use std::path::{Path, PathBuf};
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
-use kassensturz_store::{Lock, PreparedRestore, StoreError};
+use kassensturz_store::{Book, Lock, PreparedRestore, StoreError};
 
 use crate::backup_copies;
 use crate::books::{Books, OpenBook, Problem};
 use crate::locale::QtLocale;
+use crate::platform;
 use crate::session;
 use crate::settings::Settings;
 use crate::variant;
@@ -51,6 +52,7 @@ pub mod qobject {
         #[qproperty(QString, version, READ, CONSTANT)]
         #[qproperty(bool, from_pull_request, cxx_name = "fromPullRequest", READ, CONSTANT)]
         #[qproperty(QVariant, problem, READ, NOTIFY)]
+        #[qproperty(bool, use_folders, cxx_name = "useFolders", READ, CONSTANT)]
         type BookSession = super::BookSessionRust;
     }
 
@@ -104,6 +106,39 @@ pub mod qobject {
     }
 
     extern "RustQt" {
+        /// The names of the books (`.ksz` files) in `folder`, a folder
+        /// the folder chooser granted, sorted; empty if it can't be read.
+        /// In the Flatpak "Open another book…" asks for a folder first
+        /// (D-733).
+        #[qinvokable]
+        #[cxx_name = "booksIn"]
+        fn books_in(self: &BookSession, folder: &QString) -> QVariant;
+
+        /// Opens the book called `name` in `folder`, a folder the folder
+        /// chooser granted, as `openFile` does. A name that isn't a plain
+        /// file name is refused. Also for "Choose the folder again…" (D-732).
+        #[qinvokable]
+        #[cxx_name = "openIn"]
+        fn open_in(self: Pin<&mut BookSession>, folder: &QString, name: &QString);
+
+        /// Makes a new, empty book called `name` in `folder`, as `createFile`
+        /// does. Returns `ok`, or `code` `name.invalid` for a name that isn't
+        /// a plain file name; nothing is made then. A book that can't be made
+        /// shows as `problem`.
+        #[qinvokable]
+        #[cxx_name = "createIn"]
+        fn create_in(self: Pin<&mut BookSession>, folder: &QString, name: &QString) -> QVariant;
+
+        /// If writing to the open book failed because of the drive, closes
+        /// the book, so nothing more is written and its lock is released,
+        /// and shows `problem` (`book.write-failed`). Returns whether it did
+        /// (D-732). Cheap, so a timer may ask often.
+        #[qinvokable]
+        #[cxx_name = "checkWriteHealth"]
+        fn check_write_health(self: Pin<&mut BookSession>) -> bool;
+    }
+
+    extern "RustQt" {
         /// Shows where the open book is now, after it moved into another
         /// folder (D-731): the same book, so no screen changes.
         #[qinvokable]
@@ -136,6 +171,9 @@ pub struct BookSessionRust {
     version: QString,
     from_pull_request: bool,
     problem: QVariant,
+    /// Whether the book is chosen by its folder: in the Flatpak, where a
+    /// save or open dialog hands over one file only (D-730, D-733).
+    use_folders: bool,
     books: Option<Books>,
     /// What `problem` is about: the book to try again, the lock the user
     /// was warned about, and the name of the app's own book.
@@ -165,6 +203,7 @@ impl cxx_qt::Initialize for qobject::BookSession {
         state.folder_url = folder_url;
         state.version = QString::from(version_label().as_str());
         state.from_pull_request = from_pull_request();
+        state.use_folders = platform::in_flatpak_sandbox() && platform::can_choose_book_folder();
         state.books = Some(books);
     }
 }
@@ -227,6 +266,52 @@ impl qobject::BookSession {
             }
             None => {}
         }
+    }
+
+    fn books_in(&self, folder: &QString) -> QVariant {
+        let names = book_names_in(Path::new(&folder.to_string()));
+        variant::list(names.iter().map(|name| variant::text(name)))
+    }
+
+    fn open_in(self: Pin<&mut Self>, folder: &QString, name: &QString) {
+        let Some(path) = file_in(Path::new(&folder.to_string()), &name.to_string()) else {
+            return;
+        };
+        if session::path().as_deref() == Some(path.as_path()) {
+            return;
+        }
+        self.attempt(Attempt::Open(path.clone()), |books| books.open(&path));
+    }
+
+    fn create_in(self: Pin<&mut Self>, folder: &QString, name: &QString) -> QVariant {
+        let Some(path) = file_in(Path::new(&folder.to_string()), &name.to_string()) else {
+            return variant::map([
+                ("ok", QVariant::from(&false)),
+                ("code", variant::text("name.invalid")),
+            ]);
+        };
+        self.attempt(Attempt::Open(path.clone()), |books| books.create(&path));
+        variant::map([("ok", QVariant::from(&true))])
+    }
+
+    fn check_write_health(mut self: Pin<&mut Self>) -> bool {
+        if !session::with_book(Book::write_failed).unwrap_or(false) {
+            return false;
+        }
+        let Some(path) = session::path() else {
+            return false;
+        };
+        // Closing drops the lock; the change that failed was taken back, so
+        // the file is as it was before it.
+        session::close();
+        let shown = self.problem_map(&Problem::WriteFailed { path: path.clone() });
+        let mut state = self.as_mut().rust_mut();
+        state.open = false;
+        state.last_attempt = Some(Attempt::Open(path));
+        self.as_mut().open_changed();
+        self.as_mut().set_problem(shown);
+        self.as_mut().failed();
+        true
     }
 
     fn show_moved_book(self: Pin<&mut Self>) {
@@ -392,6 +477,43 @@ impl qobject::BookSession {
     }
 }
 
+/// The names of the books in `folder`, sorted: regular files ending in
+/// `.ksz`.
+fn book_names_in(folder: &Path) -> Vec<String> {
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = entries
+        .flatten()
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| name.to_lowercase().ends_with(".ksz"))
+        .collect();
+    names.sort();
+    names
+}
+
+/// The file called `name` in `folder`, `.ksz` added unless it is there. `None`
+/// for a name that isn't a plain file name (empty, a path, `.` or `..`, a
+/// control character), so a name can never lead out of the folder.
+pub(crate) fn file_in(folder: &Path, name: &str) -> Option<PathBuf> {
+    let name = name.trim();
+    let plain = !name.is_empty()
+        && name != "."
+        && name != ".."
+        && !name.contains(['/', '\\'])
+        && !name.chars().any(char::is_control);
+    if !plain || !folder.is_absolute() {
+        return None;
+    }
+    let file = if name.to_lowercase().ends_with(".ksz") {
+        name.to_owned()
+    } else {
+        format!("{name}.ksz")
+    };
+    Some(folder.join(file))
+}
+
 /// The local file `url` names; `None` for anything else.
 pub(crate) fn local_path(url: &QUrl) -> Option<PathBuf> {
     let path = url.to_local_file()?.to_string();
@@ -492,5 +614,35 @@ mod tests {
             "{version}"
         );
         assert_eq!(parts[1].len(), 6, "{version} has no YYMMDD date");
+    }
+
+    #[test]
+    fn a_name_becomes_a_book_in_the_folder_and_never_leads_out_of_it() {
+        let folder = Path::new("/data/Books");
+        let file = |name| file_in(folder, name);
+        assert_eq!(
+            file("Household"),
+            Some(PathBuf::from("/data/Books/Household.ksz"))
+        );
+        assert_eq!(
+            file(" Household.KSZ "),
+            Some(PathBuf::from("/data/Books/Household.KSZ"))
+        );
+        for refused in ["", "  ", ".", "..", "../x", "a/b", "a\\b", "x\u{1}y"] {
+            assert_eq!(file(refused), None, "{refused:?}");
+        }
+        // A folder that isn't a full path is no folder.
+        assert_eq!(file_in(Path::new("Books"), "a"), None);
+    }
+
+    #[test]
+    fn the_books_in_a_folder_are_its_ksz_files_by_name() {
+        let folder = crate::test_folder::TestFolder::new();
+        for name in ["b.ksz", "A.KSZ", "notes.txt", "c.ksz-journal"] {
+            std::fs::write(folder.join(name), b"").expect("file");
+        }
+        std::fs::create_dir(folder.join("d.ksz")).expect("a folder called like a book");
+        assert_eq!(book_names_in(folder.path()), ["A.KSZ", "b.ksz"]);
+        assert!(book_names_in(&folder.join("missing")).is_empty());
     }
 }

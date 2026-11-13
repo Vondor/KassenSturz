@@ -41,6 +41,9 @@ mod ffi {
         #[cxx_name = "freeSpace"]
         fn free_space(path: &QString) -> i64;
 
+        #[cxx_name = "portalHostPath"]
+        fn portal_host_path(portal_path: &QString) -> QString;
+
         #[cxx_name = "dataSize"]
         fn data_size(bytes: i64) -> QString;
 
@@ -237,15 +240,22 @@ fn absolute_env(name: &str) -> Option<PathBuf> {
 pub fn choose_folder(chosen: &Path) -> Result<FolderGrant, FolderRefused> {
     let home = home_dir();
     let runtime = runtime_dir();
+    // In the portal's mount the real path is asked from the portal; if it
+    // doesn't say, the folder is shown by its name.
+    let host = runtime
+        .as_deref()
+        .filter(|runtime| chosen.starts_with(runtime.join("doc")))
+        .map(|_| {
+            ffi::portal_host_path(&QString::from(chosen.to_string_lossy().as_ref())).to_string()
+        })
+        .filter(|text| !text.is_empty())
+        .map(PathBuf::from);
     book_folder::grant(
         chosen,
         Surroundings {
             home: home.as_deref(),
             runtime_dir: runtime.as_deref(),
-            // The real path comes from the portal's `GetHostPaths` over
-            // D-Bus, which needs Qt's D-Bus module; until it is linked the
-            // folder is shown by its name in the Flatpak.
-            host_path: None,
+            host_path: host.as_deref(),
         },
     )
 }

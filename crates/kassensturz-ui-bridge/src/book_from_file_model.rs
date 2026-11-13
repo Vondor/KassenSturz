@@ -7,7 +7,7 @@
 //! (D-065).
 
 use core::pin::Pin;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QStringList, QUrl, QVariant};
@@ -86,6 +86,20 @@ pub mod qobject {
             file: &QUrl,
         ) -> QVariant;
 
+        /// Like `create_at` for a folder the user chose and a book name they
+        /// typed, which the Flatpak needs because a save dialog hands over a
+        /// single file only (D-733). A name that isn't a plain file name
+        /// gives the error `name.invalid`.
+        #[qinvokable]
+        #[cxx_name = "createIn"]
+        fn create_in(
+            self: Pin<&mut BookFromFile>,
+            answers: &QVariant,
+            rules_only_with_text: bool,
+            folder: &QString,
+            name: &QString,
+        ) -> QVariant;
+
         /// Forgets the file.
         #[qinvokable]
         fn cancel(self: Pin<&mut BookFromFile>);
@@ -152,6 +166,21 @@ impl qobject::BookFromFile {
     ) -> QVariant {
         let Some(path) = local_path(file) else {
             return error_object(&ErrorText::plain("input.not-a-local-file"));
+        };
+        self.make(answers, rules_only_with_text, Some(path))
+    }
+
+    fn create_in(
+        self: Pin<&mut Self>,
+        answers: &QVariant,
+        rules_only_with_text: bool,
+        folder: &QString,
+        name: &QString,
+    ) -> QVariant {
+        let Some(path) =
+            crate::book_session::file_in(Path::new(&folder.to_string()), &name.to_string())
+        else {
+            return error_object(&ErrorText::plain("name.invalid"));
         };
         self.make(answers, rules_only_with_text, Some(path))
     }
@@ -280,6 +309,15 @@ fn prepared_object(view: &PreparedView, into_open: bool, stem: &str) -> QVariant
         (
             "canChoosePlace",
             QVariant::from(&(!into_open && platform::can_choose_book_place())),
+        ),
+        // In the Flatpak the folder is chosen, then the name typed (D-733).
+        (
+            "canChooseFolder",
+            QVariant::from(
+                &(!into_open
+                    && platform::in_flatpak_sandbox()
+                    && platform::can_choose_book_folder()),
+            ),
         ),
         ("bookName", text(stem)),
     ])
@@ -453,6 +491,7 @@ mod tests {
             [
                 "accounts",
                 "bookName",
+                "canChooseFolder",
                 "canChoosePlace",
                 "categories",
                 "fileName",

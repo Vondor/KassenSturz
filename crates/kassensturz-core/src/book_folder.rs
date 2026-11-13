@@ -62,6 +62,25 @@ pub fn is_single_portal_file(path: &Path, runtime_dir: &Path) -> bool {
     )
 }
 
+/// The folder the user exported through the portal that `path` lies in:
+/// `<runtime>/doc/<id>/<folder>`. `None` for a path outside the mount, one
+/// with `..`, and the mount's own folders.
+#[must_use]
+pub fn export_root(path: &Path, runtime_dir: &Path) -> Option<PathBuf> {
+    if !matches!(
+        portal_place(path, runtime_dir),
+        PortalPlace::Export | PortalPlace::Inside
+    ) {
+        return None;
+    }
+    let rest = path.strip_prefix(runtime_dir.join("doc")).ok()?;
+    let mut parts = rest
+        .components()
+        .filter(|component| matches!(component, Component::Normal(_)));
+    let (id, folder) = (parts.next()?, parts.next()?);
+    Some(runtime_dir.join("doc").join(id).join(folder))
+}
+
 /// A folder the user chose, as the app may use it (D-730).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FolderGrant {
@@ -293,6 +312,25 @@ mod tests {
             Path::new("/home/ada/Household.ksz"),
             run
         ));
+    }
+
+    // Unix paths: on Windows "/home/ada" isn't absolute, and the portal is Linux only.
+    #[cfg(unix)]
+    #[test]
+    fn the_exported_folder_is_found_from_a_path_inside_it() {
+        let run = Path::new(RUN);
+        let root = |path: &str| export_root(Path::new(path), run);
+        assert_eq!(
+            root("/run/user/1000/doc/ab12/Books/Household.ksz"),
+            Some(PathBuf::from("/run/user/1000/doc/ab12/Books"))
+        );
+        assert_eq!(
+            root("/run/user/1000/doc/ab12/Books/sub/x.ksz"),
+            Some(PathBuf::from("/run/user/1000/doc/ab12/Books"))
+        );
+        assert_eq!(root("/run/user/1000/doc/ab12"), None);
+        assert_eq!(root("/home/ada/Books/Household.ksz"), None);
+        assert_eq!(root("/run/user/1000/doc/ab12/../x/y/z"), None);
     }
 
     // Unix paths: on Windows "/home/ada" isn't absolute, and the portal is Linux only.

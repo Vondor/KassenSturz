@@ -29,6 +29,7 @@ Kirigami.Page {
     signal startFromFileClicked()
     signal exampleBookClicked()
     signal backClicked()
+    signal chooseFolderAgainClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -54,6 +55,12 @@ Kirigami.Page {
             return i18nContext.i18nc("@title", "KassenSturz can't open a book from there");
         case "book.no-app-folder":
             return i18nContext.i18nc("@title", "KassenSturz has no folder for your book");
+        case "book.no-access":
+            return i18nContext.i18nc("@title", "KassenSturz can no longer reach the book's folder");
+        case "book.read-only":
+            return i18nContext.i18nc("@title", "KassenSturz can't change files in this folder");
+        case "book.write-failed":
+            return i18nContext.i18nc("@title", "KassenSturz couldn't save your latest change");
         case "book.outside-test":
             return i18nContext.i18nc("@title", "The test mode only opens books in its own folder");
         case "store.already-exists":
@@ -78,6 +85,12 @@ Kirigami.Page {
             return i18nContext.i18nc("@info %1 is the book's file name", "It was %1. It may have been moved or renamed, or it is on a drive that isn't connected. Connect the drive and try again, or open the book where it is now. Nothing was changed.", problem.file || "");
         case "book.sandboxed":
             return i18nContext.i18nc("@info", "While a book is open, KassenSturz keeps a small file next to it, and this version of KassenSturz isn't allowed to make files in that folder. Choose a book in KassenSturz's own folder instead.");
+        case "book.no-access":
+            return i18nContext.i18nc("@info", "You gave KassenSturz access to the folder earlier, but the system has taken it back, or the folder is gone. Choose the folder again to open the book. Nothing was changed.");
+        case "book.read-only":
+            return i18nContext.i18nc("@info", "The folder was shared with KassenSturz for reading only, or the drive is read-only. Choose the folder again and allow changes, or choose a folder you can write to. The book wasn't changed.");
+        case "book.write-failed":
+            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive was disconnected or the access ended. Your earlier work is safe in the book. Reconnect the drive or choose the folder again, then try again.");
         case "book.outside-test":
             return i18nContext.i18nc("@info", "KassenSturz runs in test mode, which never opens or changes your own books. Choose a book in the test folder, or try an example book. The book wasn't touched.");
         case "book.no-app-folder":
@@ -194,12 +207,21 @@ Kirigami.Page {
                 }
             }
             Controls.Button {
-                visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database"].includes(page.code)
+                visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database", "book.write-failed"].includes(page.code)
                 icon.name: "view-refresh"
                 text: page.i18nContext.i18nc("@action:button", "Try again")
                 onClicked: {
                     ActionLog.taken("BookProblemPage_tryAgain")
                     page.session.retry()
+                }
+            }
+            Controls.Button {
+                visible: ["book.no-access", "book.read-only", "book.write-failed"].includes(page.code)
+                icon.name: "folder-open"
+                text: page.i18nContext.i18nc("@action:button", "Choose the folder again…")
+                onClicked: {
+                    ActionLog.taken("BookProblemPage_chooseFolderAgain")
+                    page.chooseFolderAgainClicked()
                 }
             }
             Controls.Button {

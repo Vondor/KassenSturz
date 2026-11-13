@@ -16,8 +16,8 @@ use kassensturz_report::status;
 use crate::errors::ErrorText;
 use crate::number_format::app_locale;
 use crate::planned_payments::{
-    self, COMING_UP_DAYS, EntryChoice, MonthRow, MonthText, PaymentText, PlanForm, PlanText,
-    PlansError, TABLE_MONTHS,
+    self, COMING_UP_DAYS, EntryChoice, MonthRow, MonthStart, MonthText, PaymentText, PlanForm,
+    PlanText, PlansError, TABLE_MONTHS,
 };
 use crate::register::Shown;
 use crate::register_model::{field, flag};
@@ -96,6 +96,14 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "nextDates"]
         fn next_dates(self: &PlannedPayments, form: &QVariant) -> QVariant;
+
+        /// *Left this month* with its months starting as the tile's "Month
+        /// starts on" word `start` says (`like-budgets` or `day-1` to
+        /// `day-31`, #921): an object like the view's `forecast`, or an
+        /// error object.
+        #[qinvokable]
+        #[cxx_name = "monthFrom"]
+        fn month_from(self: &PlannedPayments, start: &QString) -> QVariant;
 
         /// Saves the form as the plan `id`, or as a new plan when `id` is
         /// empty. Returns an object with the plan's `id`, or an error
@@ -188,7 +196,12 @@ impl qobject::PlannedPayments {
                     planned_payments::list(book, &locale)?,
                     planned_payments::did_this_happen(book, &locale)?,
                     planned_payments::coming_up(book, COMING_UP_DAYS, &locale)?,
-                    planned_payments::this_month(book, TABLE_MONTHS, &locale)?,
+                    planned_payments::this_month(
+                        book,
+                        TABLE_MONTHS,
+                        MonthStart::LikeBudgets,
+                        &locale,
+                    )?,
                 ))
             },
             |(plans, to_confirm, coming_up, month)| {
@@ -236,6 +249,15 @@ impl qobject::PlannedPayments {
         let locale = app_locale();
         session::with_book(|book| planned_payments::next_dates(book, &form, &locale))
             .map_or_else(|| list([]), |dates| list(dates.iter().map(|day| text(day))))
+    }
+
+    fn month_from(&self, start: &QString) -> QVariant {
+        let start = MonthStart::from_word(&start.to_string());
+        let locale = app_locale();
+        reading(
+            |book| planned_payments::this_month(book, TABLE_MONTHS, start, &locale),
+            |month| month_object(&month),
+        )
     }
 
     fn save(self: Pin<&mut Self>, id: &QString, form: &QVariant) -> QVariant {
@@ -417,6 +439,9 @@ fn month_object(month: &MonthText) -> QVariant {
         ("expectedEnd", text(&expected_end.text)),
         ("exactExpectedEnd", text(&expected_end.exact)),
         ("overdue", count(month.overdue)),
+        ("startsOn", QVariant::from(&i32::from(month.starts_on))),
+        ("likeBudgets", QVariant::from(&month.like_budgets)),
+        ("ends", text(&month.ends)),
         ("status", text(month.status.status.id())),
         ("statusCount", count(month.status.count)),
         ("months", list(month.months.iter().map(month_row_object))),
@@ -427,6 +452,8 @@ fn month_object(month: &MonthText) -> QVariant {
 fn month_row_object(row: &MonthRow) -> QVariant {
     map([
         ("month", text(&row.month)),
+        ("first", text(&row.first)),
+        ("last", text(&row.last)),
         ("start", text(&row.start.text)),
         ("exactStart", text(&row.start.exact)),
         ("plannedIn", text(&row.planned_in.text)),
@@ -629,11 +656,16 @@ mod tests {
             overdue: 2,
             months: vec![MonthRow {
                 month: "November 2026".into(),
+                first: "2026-11-25".into(),
+                last: "2026-12-24".into(),
                 start: exactly("4510,10 €"),
                 planned_in: exactly("2200,00 €"),
                 planned_out: exactly("779,90 €"),
                 end: exactly("5930,20 €"),
             }],
+            starts_on: 25,
+            like_budgets: true,
+            ends: "2026-11-24".into(),
             status: status::forecast(Some(ForecastFigures {
                 accounts: true,
                 plans: true,
@@ -667,7 +699,10 @@ mod tests {
         assert_eq!(text_of(&view, "comingUpStatus"), "fine");
         assert_eq!(number_of(&view, "comingUpCount"), 3);
         let forecast = super::month_object(&month());
-        assert_eq!(keys(&forecast).len(), 18);
+        assert_eq!(keys(&forecast).len(), 21);
+        assert_eq!(number_of(&forecast, "startsOn"), 25);
+        assert!(flag_of(&forecast, "likeBudgets"));
+        assert_eq!(text_of(&forecast, "ends"), "2026-11-24");
         let accounts: Vec<String> = list_of(&forecast, "accounts")
             .iter()
             .map(|name| {
@@ -696,8 +731,10 @@ mod tests {
         let months = list_of(&forecast, "months");
         assert_eq!(months.len(), 1);
         let november = &months[0];
-        assert_eq!(keys(november).len(), 9);
+        assert_eq!(keys(november).len(), 11);
         assert_eq!(text_of(november, "month"), "November 2026");
+        assert_eq!(text_of(november, "first"), "2026-11-25");
+        assert_eq!(text_of(november, "last"), "2026-12-24");
         assert_eq!(text_of(november, "start"), "4510,10 €");
         assert_eq!(text_of(november, "exactStart"), "4510,10 €");
         assert_eq!(text_of(november, "plannedIn"), "2200,00 €");

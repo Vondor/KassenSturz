@@ -1050,7 +1050,17 @@ Item {
         id: leftThisMonthBox
 
         LeftThisMonthWidget {
+            id: leftThisMonth
+
+            // The tile's "Month starts on" (#921): like the budgets, or a
+            // fixed day; asked again whenever the planned payments change.
+            readonly property string start: (cell.subject?.fields ?? []).find(field => field.key === "month_start")?.word ?? "like-budgets"
+
             view: cell.board.plansView ?? ({})
+            month: {
+                void leftThisMonth.view;
+                return cell.board.plans ? cell.board.plans.monthFrom(leftThisMonth.start) : null;
+            }
             arranging: cell.board.editing
             onPlanClicked: cell.board.planPaymentClicked()
             onOpenClicked: cell.board.plannedPaymentsClicked()

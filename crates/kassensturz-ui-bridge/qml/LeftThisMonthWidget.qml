@@ -21,11 +21,15 @@ Flickable {
 
     // `PlannedPayments.view`, or an error object.
     property var view: ({})
+    // `PlannedPayments.monthFrom()` for the tile's "Month starts on"
+    // (#921), or null for the view's own forecast (like the budgets).
+    property var month: null
     // The layout is being arranged: the buttons are pictures of themselves.
     property bool arranging: false
 
-    readonly property bool failed: view.code !== undefined
-    readonly property var forecast: view.forecast ?? ({})
+    readonly property bool failed: view.code !== undefined || (month !== null && month.code !== undefined)
+    readonly property var forecast: month ?? view.forecast ?? ({})
+    readonly property int startsOn: forecast.startsOn ?? 1
     readonly property bool hasAccounts: (forecast.accounts ?? []).length > 0
     readonly property bool hasPlans: forecast.hasPlans ?? false
     readonly property int overdue: forecast.overdue ?? 0
@@ -153,6 +157,11 @@ Flickable {
             color: Kirigami.Theme.disabledTextColor
             text: [
                 widget.i18nContext.i18nc("@info %1 lists names of accounts", "For %1.", (widget.forecast.accounts ?? []).join(", ")),
+                // A month that starts on a salary day says where it ends.
+                widget.startsOn === 1 ? ""
+                    : (widget.forecast.likeBudgets ?? false)
+                    ? widget.i18nContext.i18nc("@info %1 is a date", "This month runs until %1, like your budgets.", widget.forecast.ends ?? "")
+                    : widget.i18nContext.i18nc("@info %1 is a date", "This month runs until %1.", widget.forecast.ends ?? ""),
                 widget.i18nContext.i18nc("@info", "Based on your planned payments only. Spending that is not planned is not included."),
                 (widget.forecast.accounts ?? []).length === 1
                     ? widget.i18nContext.i18nc("@info", "Moves to your other accounts are not counted.") : "",

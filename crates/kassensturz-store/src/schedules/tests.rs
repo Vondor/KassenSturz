@@ -5,7 +5,7 @@
 //! memory. All data is made up (AGENTS.md §3.1 rule 2); the IBANs are the
 //! examples in SWIFT's IBAN Registry (D-055).
 
-use kassensturz_core::{Account, ImportedDetails, MAX_SCHEDULE_NAME_CHARS};
+use kassensturz_core::{Account, BudgetEvery, ImportedDetails, MAX_SCHEDULE_NAME_CHARS};
 
 use super::*;
 use crate::history::RECORDED;
@@ -935,4 +935,103 @@ fn a_plan_is_made_from_an_entry() {
     assert_eq!(report.matched.len(), 1);
     assert_eq!(report.matched[0].transaction, id);
     assert_eq!(report.matched[0].occurrence.schedule, plan);
+}
+
+/// "Like my budgets" (#921, Q-565): the salary day the running
+/// salary-month budgets share, else the calendar month; and the forecast
+/// over months that start on that day.
+#[test]
+fn the_forecast_months_start_on_the_day_the_salary_budgets_share() {
+    let household = household();
+    let plan = rent_plan(&household);
+    let (checking, rent) = (household.checking, household.rent);
+    let mut book = household.book;
+    let food = account(&mut book, "Food", AccountKind::Expense, EUR);
+    let fun = account(&mut book, "Fun", AccountKind::Expense, EUR);
+    let today = date(2026, 11, 13);
+    assert_eq!(
+        book.budgets_salary_day(today).expect("read"),
+        1,
+        "no budget"
+    );
+    // A calendar-month budget says nothing about a salary day.
+    book.add_budget(
+        &[rent],
+        &[],
+        BudgetEvery::Month,
+        date(2026, 9, 1),
+        None,
+        eur(80_000),
+        false,
+    )
+    .expect("budget");
+    assert_eq!(book.budgets_salary_day(today).expect("read"), 1);
+    let salary_month = |day| BudgetEvery::salary_month(day).expect("a salary month");
+    book.add_budget(
+        &[food],
+        &[],
+        salary_month(25),
+        date(2026, 9, 25),
+        None,
+        eur(40_000),
+        false,
+    )
+    .expect("budget");
+    assert_eq!(book.budgets_salary_day(today).expect("read"), 25);
+    // A salary budget on another day that ended before today doesn't count;
+    // one that runs today makes the days differ, so no day is guessed.
+    book.add_budget(
+        &[fun],
+        &[],
+        salary_month(27),
+        date(2026, 9, 27),
+        Some(date(2026, 10, 26)),
+        eur(10_000),
+        false,
+    )
+    .expect("budget");
+    assert_eq!(book.budgets_salary_day(today).expect("read"), 25);
+    let entertainment = account(&mut book, "Cinema", AccountKind::Expense, EUR);
+    book.add_budget(
+        &[entertainment],
+        &[],
+        salary_month(27),
+        date(2026, 10, 27),
+        None,
+        eur(5_000),
+        false,
+    )
+    .expect("budget");
+    assert_eq!(book.budgets_salary_day(today).expect("read"), 1);
+
+    // Months from the 25th: 25 Oct to 24 Nov is this one, so the rent of
+    // 1 Dec belongs to 25 Nov to 24 Dec.
+    book.add_schedule(&plan).expect("planned");
+    let found = book
+        .forecast_from_day(&[checking], EUR, today, 2, 25)
+        .expect("forecast");
+    let months: Vec<_> = found
+        .forecast
+        .months
+        .iter()
+        .map(|month| (month.month, month.last, month.planned_out))
+        .collect();
+    assert_eq!(
+        months,
+        [
+            (date(2026, 11, 25), date(2026, 12, 24), eur(75_000)),
+            (date(2026, 12, 25), date(2027, 1, 24), eur(75_000)),
+        ]
+    );
+    assert_eq!(
+        found.forecast.out_due,
+        eur(0),
+        "the rent of November is overdue"
+    );
+    // Day 1 is the plain forecast.
+    assert_eq!(
+        book.forecast_from_day(&[checking], EUR, today, 2, 1)
+            .expect("forecast"),
+        book.forecast(&[checking], EUR, today, 2).expect("forecast")
+    );
 }

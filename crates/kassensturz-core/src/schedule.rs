@@ -25,6 +25,7 @@ use jiff::civil::Weekday;
 
 use crate::Date;
 use crate::account::AccountId;
+use crate::budget::salary_month_of;
 use crate::currency::CurrencyCode;
 use crate::id::define_id;
 use crate::money::{Money, MoneyError};
@@ -609,11 +610,15 @@ pub fn match_schedules(
     result
 }
 
-/// One month of the forecast's projection (5.2, `months`).
+/// One month of the forecast's projection (5.2, `months`): a calendar
+/// month, or a salary month when the forecast's months start on another
+/// day (#921, D-645).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MonthPlan {
     /// The month's first day.
     pub month: Date,
+    /// The month's last day.
+    pub last: Date,
     /// The balance it starts with: the previous month's end, and for the
     /// first month after the current one, the current month's
     /// [`Forecast::expected_end`].
@@ -684,13 +689,31 @@ pub fn forecast(
     today: Date,
     months: usize,
 ) -> Result<Forecast, ForecastError> {
+    forecast_from_day(balance_now, schedules, decided, today, months, 1)
+}
+
+/// [`forecast`] for months that start on day `starts_on` (1 to 31) of the
+/// month, as a salary month does (#921, D-645): "this month" runs from the
+/// last such day to the day before the next one, and in a month shorter
+/// than `starts_on` its last day starts it. Day 1 is the calendar month.
+/// The same days as a budget or a report of that salary month, from the
+/// same function ([`salary_month_of`]).
+pub fn forecast_from_day(
+    balance_now: Money,
+    schedules: &[Schedule],
+    decided: &HashMap<(ScheduleId, Date), Decided>,
+    today: Date,
+    months: usize,
+    starts_on: i8,
+) -> Result<Forecast, ForecastError> {
+    let period = |day: Date| salary_month_of(day, starts_on).ok_or(ForecastError::Calendar);
     let currency: CurrencyCode = balance_now.currency();
     let zero = Money::zero(currency);
     let plans: Vec<&Schedule> = schedules
         .iter()
         .filter(|plan| !plan.paused && plan.amount.currency() == currency)
         .collect();
-    let month_end = today.last_of_month();
+    let (_, month_end) = period(today)?;
     let look_back = today
         .checked_sub(i64::from(LOOK_BACK_YEARS).years())
         .map_err(|_| ForecastError::Calendar)?;
@@ -724,9 +747,9 @@ pub fn forecast(
     let expected_end = left.checked_add(in_due)?;
     let mut projected = Vec::new();
     let mut start = expected_end;
-    let mut first = month_end.tomorrow().map_err(|_| ForecastError::Calendar)?;
+    let mut next = month_end.tomorrow().map_err(|_| ForecastError::Calendar)?;
     for _ in 0..months.min(MAX_FORECAST_MONTHS) {
-        let last = first.last_of_month();
+        let (first, last) = period(next)?;
         let (mut planned_in, mut planned_out) = (zero, zero);
         for plan in &plans {
             for due in due_dates(plan, first, last) {
@@ -743,13 +766,14 @@ pub fn forecast(
         let end = start.checked_add(planned_in)?.checked_sub(planned_out)?;
         projected.push(MonthPlan {
             month: first,
+            last,
             start,
             planned_in,
             planned_out,
             end,
         });
         start = end;
-        first = last.tomorrow().map_err(|_| ForecastError::Calendar)?;
+        next = last.tomorrow().map_err(|_| ForecastError::Calendar)?;
     }
     Ok(Forecast {
         balance_now,

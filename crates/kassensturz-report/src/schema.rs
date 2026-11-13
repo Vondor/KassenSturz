@@ -352,8 +352,8 @@ impl ComponentType {
             | Self::PeriodHeader
             | Self::FilterBar
             | Self::DashboardTabs
-            | Self::ForecastMonth
             | Self::ComingUp => &[],
+            Self::ForecastMonth => &FORECAST_MONTH,
             Self::NetWorth | Self::IncomeSources => &NOTES_ONLY,
             Self::PeriodBox => &PERIOD_BOX,
             Self::BudgetProgress => &BUDGET_PROGRESS,
@@ -859,6 +859,56 @@ const ALARM_RULES: Property = Property {
     kind: Kind::Alarms,
 };
 const ALARMS: [Property; 2] = [ALARM_RULES, TITLE];
+
+/// The words of *Left this month*'s "Month starts on" (#921, Q-565): like
+/// the user's budgets (the default: the day their running salary-month
+/// budgets share, else the calendar month), or a fixed day of the month,
+/// `day-1` being the calendar month (D-645).
+pub const MONTH_STARTS: [&str; 32] = [
+    "like-budgets",
+    "day-1",
+    "day-2",
+    "day-3",
+    "day-4",
+    "day-5",
+    "day-6",
+    "day-7",
+    "day-8",
+    "day-9",
+    "day-10",
+    "day-11",
+    "day-12",
+    "day-13",
+    "day-14",
+    "day-15",
+    "day-16",
+    "day-17",
+    "day-18",
+    "day-19",
+    "day-20",
+    "day-21",
+    "day-22",
+    "day-23",
+    "day-24",
+    "day-25",
+    "day-26",
+    "day-27",
+    "day-28",
+    "day-29",
+    "day-30",
+    "day-31",
+];
+
+/// The key of *Left this month*'s "Month starts on".
+pub const MONTH_START_KEY: &str = "month_start";
+
+const MONTH_START: Property = Property {
+    key: MONTH_START_KEY,
+    place: Place::Props,
+    kind: Kind::Choice(&MONTH_STARTS),
+};
+/// *Left this month* (#921): the day its month starts on.
+const FORECAST_MONTH: [Property; 1] = [MONTH_START];
 
 /// The key of the warnings tile's rules.
 pub const ALARMS_KEY: &str = "alarms";

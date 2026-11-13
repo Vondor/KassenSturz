@@ -24059,3 +24059,51 @@ msgctxt "@info:tooltip"
 msgid ""
 "Nothing planned yet. A planned payment is one you expect on a day, like rent."
 msgstr "Noch nichts geplant. Eine geplante Zahlung ist eine, die Sie an einem Tag erwarten, etwa Miete."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:163
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "This month runs until %1, like your budgets."
+msgstr "Dieser Monat läuft bis %1, wie Ihre Budgets."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:164
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "This month runs until %1."
+msgstr "Dieser Monat läuft bis %1."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:317
+#, kde-format
+msgctxt ""
+"@item a month that starts on a salary day, %1 its first and %2 its last day"
+msgid "%1 to %2"
+msgstr "%1 bis %2"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:207
+#, kde-format
+msgctxt ""
+"@label:listbox the day the month of the Left this month tile starts on"
+msgid "Month starts on"
+msgstr "Monat beginnt am"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:228
+#, kde-format
+msgctxt "@item:inlistbox the month starts on day 1"
+msgid "Day 1 (calendar month)"
+msgstr "Tag 1 (Kalendermonat)"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:229
+#, kde-format
+msgctxt ""
+"@item:inlistbox %1 is a day of the month the month starts on, e.g. the "
+"salary day"
+msgid "Day %1"
+msgstr "Tag %1"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:233
+#, kde-format
+msgctxt ""
+"@item:inlistbox the month starts on the day the user's salary-month budgets "
+"start on"
+msgid "Like my budgets"
+msgstr "Wie meine Budgets"

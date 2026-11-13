@@ -310,7 +310,12 @@ Kirigami.Dialog {
 
             Repeater {
                 // Five cells per month, in reading order.
-                model: dialog.months.flatMap(month => [month.month, month.start, month.plannedIn, month.plannedOut, month.end])
+                // A month that starts on a salary day is named by its
+                // first and last day (#921).
+                model: dialog.months.flatMap(month => [
+                    (dialog.view.forecast?.startsOn ?? 1) === 1 ? month.month
+                        : dialog.i18nContext.i18nc("@item a month that starts on a salary day, %1 its first and %2 its last day", "%1 to %2", month.first, month.last),
+                    month.start, month.plannedIn, month.plannedOut, month.end])
 
                 delegate: Controls.Label {
                     required property string modelData

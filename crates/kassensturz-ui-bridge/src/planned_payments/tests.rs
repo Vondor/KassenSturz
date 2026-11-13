@@ -6,7 +6,7 @@
 //! example in SWIFT's IBAN Registry (D-055). Today is Monday, 19 October
 //! 2026, as [`TestLocale`] has it.
 
-use kassensturz_core::{Account, AccountType, Split, Transaction};
+use kassensturz_core::{Account, AccountType, BudgetEvery, Split, Transaction};
 
 use super::*;
 use crate::register::tests::TestLocale;
@@ -695,7 +695,7 @@ fn left_this_month_takes_off_the_payments_still_due_and_counts_no_overdue_one() 
         "2026-10-30",
     );
 
-    let month = this_month(book, TABLE_MONTHS, &TestLocale).expect("read");
+    let month = this_month(book, TABLE_MONTHS, MonthStart::LikeBudgets, &TestLocale).expect("read");
     assert_eq!(month.accounts, ["Checking account"]);
     assert_eq!(month.left_out, 1, "the dollar account is left out");
     assert!(month.has_plans);
@@ -773,21 +773,27 @@ fn left_this_month_takes_off_the_payments_still_due_and_counts_no_overdue_one() 
         .find(|plan| plan.name == "Insurance")
         .expect("insurance listed");
     skip(book, &insurance.id, "2026-10-05").expect("skipped");
-    let after = this_month(book, 0, &TestLocale).expect("read");
+    let after = this_month(book, 0, MonthStart::LikeBudgets, &TestLocale).expect("read");
     assert_eq!(after.overdue, 0);
     assert_eq!(exact(&after.left), "2310,10 €");
     assert_eq!(after.status.status.id(), "fine");
     assert!(after.months.is_empty());
     // One Undo brings the payment back as overdue.
     book.undo().expect("undone");
-    assert_eq!(this_month(book, 0, &TestLocale).expect("read").overdue, 1);
+    assert_eq!(
+        this_month(book, 0, MonthStart::LikeBudgets, &TestLocale)
+            .expect("read")
+            .overdue,
+        1
+    );
 }
 
 #[test]
 fn left_this_month_shows_no_figure_without_a_plan_or_an_account() {
     // No account at all: nothing to look ahead for.
     let empty = Book::create_in_memory().expect("book created");
-    let month = this_month(&empty, TABLE_MONTHS, &TestLocale).expect("read");
+    let month =
+        this_month(&empty, TABLE_MONTHS, MonthStart::LikeBudgets, &TestLocale).expect("read");
     assert!(month.accounts.is_empty());
     assert_eq!(month.left.exact, "");
     assert_eq!(month.status.status.id(), "unknown");
@@ -801,7 +807,13 @@ fn left_this_month_shows_no_figure_without_a_plan_or_an_account() {
         day(2026, 10, 2),
         "Shop",
     );
-    let month = this_month(&household.book, TABLE_MONTHS, &TestLocale).expect("read");
+    let month = this_month(
+        &household.book,
+        TABLE_MONTHS,
+        MonthStart::LikeBudgets,
+        &TestLocale,
+    )
+    .expect("read");
     assert!(!month.has_plans);
     assert_eq!(month.status.status.id(), "unknown");
     assert!(month.below_zero, "the balance is below zero");
@@ -822,7 +834,89 @@ fn left_this_month_shows_no_figure_without_a_plan_or_an_account() {
         .id
         .clone();
     set_paused(&mut household.book, &gym, true).expect("paused");
-    let month = this_month(&household.book, TABLE_MONTHS, &TestLocale).expect("read");
+    let month = this_month(
+        &household.book,
+        TABLE_MONTHS,
+        MonthStart::LikeBudgets,
+        &TestLocale,
+    )
+    .expect("read");
     assert_eq!(month.status.status.id(), "unknown");
     assert_eq!(month.out_due.exact, "0,00 €");
+}
+
+/// "Month starts on" (#921, Q-565): a fixed day, or like the budgets.
+#[test]
+fn left_this_month_follows_the_day_the_month_starts_on() {
+    let mut household = household();
+    let (checking, rent) = (household.checking, household.rent);
+    let book = &mut household.book;
+    entry(book, checking, 100_000, day(2026, 10, 2), "Employer");
+    // The gym is due Monday 26 October.
+    plan_on(book, checking, "Gym", "29,90", true, "month", "2026-10-26");
+    // Calendar months: the gym is still to pay this month.
+    let calendar = this_month(book, 1, MonthStart::Day(1), &TestLocale).expect("read");
+    assert_eq!(calendar.out_due.exact, "29,90 €");
+    assert_eq!(calendar.ends, "2026-10-31");
+    assert_eq!((calendar.starts_on, calendar.like_budgets), (1, false));
+    // Months from the 20th: today, 19 October, is the last day of this one,
+    // so the gym belongs to 20 October to 19 November.
+    let salary = this_month(book, 1, MonthStart::Day(20), &TestLocale).expect("read");
+    assert_eq!(salary.out_due.exact, "0,00 €");
+    assert_eq!(salary.left.exact, "1000,00 €");
+    assert_eq!(salary.ends, "2026-10-19");
+    let next = &salary.months[0];
+    assert_eq!(
+        (
+            next.first.as_str(),
+            next.last.as_str(),
+            next.planned_out.exact.as_str()
+        ),
+        ("2026-10-20", "2026-11-19", "29,90 €")
+    );
+    // Like the budgets: no budget, so the calendar month ...
+    let like = this_month(book, 1, MonthStart::LikeBudgets, &TestLocale).expect("read");
+    assert_eq!((like.starts_on, like.like_budgets), (1, true));
+    assert_eq!(like.out_due.exact, "29,90 €");
+    // ... and with a budget on salary months from the 20th, that day.
+    book.add_budget(
+        &[rent],
+        &[],
+        BudgetEvery::salary_month(20).expect("a salary month"),
+        day(2026, 9, 20),
+        None,
+        eur(80_000),
+        false,
+    )
+    .expect("budget");
+    let like = this_month(book, 1, MonthStart::LikeBudgets, &TestLocale).expect("read");
+    assert_eq!((like.starts_on, like.like_budgets), (20, true));
+    assert_eq!(like.out_due, salary.out_due);
+    assert_eq!(like.months, salary.months);
+}
+
+#[test]
+fn the_month_start_words_are_read_safely() {
+    assert_eq!(
+        MonthStart::from_word("like-budgets"),
+        MonthStart::LikeBudgets
+    );
+    assert_eq!(MonthStart::from_word("day-1"), MonthStart::Day(1));
+    assert_eq!(MonthStart::from_word("day-31"), MonthStart::Day(31));
+    // Anything else is like the budgets, never a guessed day.
+    for word in ["", "day-0", "day-32", "day--5", "day-x", "25"] {
+        assert_eq!(
+            MonthStart::from_word(word),
+            MonthStart::LikeBudgets,
+            "{word}"
+        );
+    }
+    // Every word the tile offers is read as itself.
+    for (index, word) in kassensturz_report::MONTH_STARTS.iter().enumerate() {
+        let expected = match index {
+            0 => MonthStart::LikeBudgets,
+            day => MonthStart::Day(i8::try_from(day).expect("a day")),
+        };
+        assert_eq!(MonthStart::from_word(word), expected);
+    }
 }

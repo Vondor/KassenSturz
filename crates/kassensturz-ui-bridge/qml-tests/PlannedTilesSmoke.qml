@@ -7,7 +7,8 @@
 // the figure, the line under it and what it leaves out; a payment that
 // passed is named and not counted, and *Check them…* opens the window; with
 // no plan no figure is shown and *Plan a payment…* opens the form; a figure
-// below zero says so to the screen reader; and *Coming up* lists the
+// below zero says so to the screen reader; a month that starts on a
+// salary day says where it ends (#921); and *Coming up* lists the
 // payments with the words the Planned payments window uses.
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
@@ -129,6 +130,18 @@ Kirigami.ApplicationWindow {
                 window.check(all.length === 1, "one Planned payments button, got " + all.length);
                 all[0]?.clicked();
                 window.check(window.opened === 2, "Planned payments opens the window");
+
+                // A month that starts on the salary day says where it ends
+                // (#921); the tile's own month wins over the view's.
+                left.month = Object.assign({}, window.forecast, { startsOn: 25, likeBudgets: true, ends: "2026-11-24", left: "99,00 €" });
+                window.check(window.shown(left, "For Checking account.")[0]?.text.includes("This month runs until 2026-11-24, like your budgets.") ?? false, "a salary month says where it ends");
+                window.check(window.find(left, child => child instanceof Kirigami.Heading && child.visible, [])[0]?.text === "99,00 €", "the tile's own month is shown");
+                left.month = Object.assign({}, window.forecast, { startsOn: 25, likeBudgets: false, ends: "2026-11-24" });
+                window.check(window.shown(left, "For Checking account.")[0]?.text.includes("This month runs until 2026-11-24.") ?? false, "a fixed day says where it ends");
+                left.month = ({ code: "store.io" });
+                window.check(left.failed, "the tile's own month can fail too");
+                left.month = null;
+                window.check(!left.failed && window.shown(left, "For Checking account.")[0]?.text.includes("runs until") === false, "back to the calendar month");
 
                 // Below zero, and no income still to come.
                 left.view = ({ plans: [window.plan], toConfirm: [], comingUp: [], comingUpStatus: "fine", comingUpCount: 0,

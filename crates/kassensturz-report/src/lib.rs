@@ -141,8 +141,8 @@ pub use period::{
 };
 pub use schema::{
     ALARMS_KEY, CANDLE_FILL_WORDS, CANDLE_WORDS, ColumnSetting, ComponentType, FORMULA_MEASURE,
-    Kind, MAX_IDS, MAX_TEXT_CHARS, NEUTRAL_WORDS, ORIENTATION_WORDS, Place, Property, Setting,
-    dataset_for,
+    Kind, MAX_IDS, MAX_TEXT_CHARS, MONTH_START_KEY, MONTH_STARTS, NEUTRAL_WORDS, ORIENTATION_WORDS,
+    Place, Property, Setting, dataset_for,
 };
 pub use source::Source;
 pub use spending::{

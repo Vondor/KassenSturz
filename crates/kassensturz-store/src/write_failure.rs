@@ -7,9 +7,12 @@
 use kassensturz_core::{Account, AccountId, AccountKind, CurrencyCode};
 
 use crate::test_folder::TempFolder;
+#[cfg(unix)]
 use kassensturz_core::Report;
 
-use crate::{Book, Computer, StoreError};
+#[cfg(unix)]
+use crate::StoreError;
+use crate::{Book, Computer};
 
 fn account(name: &str) -> Account {
     Account {

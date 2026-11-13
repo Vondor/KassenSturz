@@ -62,6 +62,17 @@ int renameNoReplace(const QString &from, const QString &to);
 // systems without one.
 QString portalHostPath(const QString &documentId);
 
+// What this app may open through the document portal, from its List over
+// D-Bus: records ending with U+001E, each the document's ID, U+001F and the
+// path on the host. Empty where the portal doesn't answer or on systems
+// without one.
+QString portalDocuments();
+
+// Takes this app's access to the document `documentId` back, from the
+// portal's RevokePermissions over D-Bus. Never touches a file. Returns
+// whether the portal accepted it; the caller checks with `portalDocuments`.
+bool portalForget(const QString &documentId);
+
 // Loads KI18n's QML library on the calling thread. Qt otherwise loads it on
 // its QML loader thread, and a static object inside it then lives there while
 // it filters the application's events, which Qt warns about at every start.

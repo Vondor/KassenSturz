@@ -182,7 +182,9 @@ pub const FUNCTIONS: &[Function] = &[
             back exactly (an IBAN, an amount, a date, an account, or a text cut short), so \
             propose_changes can rename the Rule, change its category and add or remove single \
             conditions, but not replace all of them. With rule_id, only that Rule (with its \
-            sub-Rules), for a look at one Rule without reading them all.",
+            sub-Rules), for a look at one Rule without reading them all. A pattern is shown \
+            whole; one over 1000 characters is cut there and its condition has \
+            \"pattern_cut\": true.",
         parameters: r#"{"type":"object","properties":{"rule_id":{"type":"string","description":"Only this Rule, ID from an earlier list_rules. It can be a sub-Rule. Leave it out to list all Rules."}},"additionalProperties":false}"#,
     },
     Function {

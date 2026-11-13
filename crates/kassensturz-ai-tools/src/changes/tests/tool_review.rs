@@ -58,30 +58,47 @@ fn a_rule_shown_cut_is_marked_and_its_conditions_are_not_replaced() {
         groceries,
         ..
     } = sample();
-    // A pattern may be 1000 characters long; list_rules shows 200 of them.
+    // A pattern may be 1000 characters long; list_rules shows all of them
+    // (#825), and marks a longer one as cut.
     let long = format!("^({})$", vec!["grocer"; 60].join("|"));
     assert!(long.chars().count() > crate::MAX_TEXT_CHARS);
-    let cut = text_rule("Long pattern", &long, groceries);
+    let whole = text_rule("Long pattern", &long, groceries);
+    let huge = format!("^({})$", vec!["grocer"; 200].join("|"));
+    assert!(huge.chars().count() > crate::changes::MAX_PATTERN_CHARS);
+    let cut = text_rule("Huge pattern", &huge, groceries);
     let iban = text_rule("Names an IBAN", "DE89370400440532013000", groceries);
     let short = text_rule("Short pattern", "^grocer(y)?$", groceries);
-    for rule in [&cut, &iban, &short] {
+    for rule in [&whole, &cut, &iban, &short] {
         book.add_rule(rule, None).expect("Rule");
     }
-    assert_eq!(complete(&book, "Long pattern"), json!(false));
+    assert_eq!(complete(&book, "Long pattern"), json!(true));
+    assert_eq!(complete(&book, "Huge pattern"), json!(false));
     assert_eq!(complete(&book, "Names an IBAN"), json!(false));
     assert_eq!(complete(&book, "Short pattern"), json!(true));
 
     let shown = read(&book, "list_rules", json!({}));
-    let shown_text = shown["rules"]
-        .as_array()
-        .expect("rules")
-        .iter()
-        .find(|rule| rule["name"] == json!("Long pattern"))
-        .expect("listed")["conditions"][0]["text"]
-        .as_str()
-        .expect("text")
-        .to_owned();
-    assert!(shown_text.ends_with('…'), "{shown_text}");
+    let condition = |name: &str| {
+        shown["rules"]
+            .as_array()
+            .expect("rules")
+            .iter()
+            .find(|rule| rule["name"] == json!(name))
+            .expect("listed")["conditions"][0]
+            .clone()
+    };
+    // A pattern up to the limit comes whole and without the mark.
+    assert_eq!(condition("Long pattern")["text"], json!(long));
+    assert!(condition("Long pattern").get("pattern_cut").is_none());
+    assert!(condition("Short pattern").get("pattern_cut").is_none());
+    // A longer one is cut at the limit and says so.
+    let cut_condition = condition("Huge pattern");
+    assert_eq!(cut_condition["pattern_cut"], json!(true));
+    let shown_text = cut_condition["text"].as_str().expect("text").to_owned();
+    assert_eq!(
+        shown_text.chars().count(),
+        crate::changes::MAX_PATTERN_CHARS
+    );
+    assert!(huge.starts_with(&shown_text));
     for rule in [&cut, &iban] {
         // What a model would send back: the text as it was shown.
         let call = json!({"edit_rules": [{
@@ -109,7 +126,7 @@ fn a_rule_shown_cut_is_marked_and_its_conditions_are_not_replaced() {
         .apply(&mut book, Confirmed::by_the_user())
         .expect("applied");
     match &book.rule(cut.id).expect("Rule").conditions[0] {
-        Condition::Text { value, .. } => assert_eq!(*value, long),
+        Condition::Text { value, .. } => assert_eq!(*value, huge),
         other => panic!("{other:?}"),
     }
 }

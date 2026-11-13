@@ -546,7 +546,7 @@ const MAX_KEY_CHARS: usize = 40;
 const MAX_CONDITIONS: usize = 100;
 
 /// The most characters of a pattern, against 100 for any other text.
-const MAX_PATTERN_CHARS: usize = 1000;
+pub(crate) const MAX_PATTERN_CHARS: usize = 1000;
 
 /// The names of every argument [`PROPOSE_CHANGES`] takes, at any depth:
 /// the keywords of `ai-tools.bad-argument` for it.
@@ -2688,8 +2688,20 @@ impl Known {
 /// come back changed (M6-B200).
 pub(crate) fn writable(condition: &Condition) -> bool {
     match condition {
-        Condition::Text { field, value, .. } => {
-            *field != TextField::OtherPartyIban && for_model(value) == *value
+        Condition::Text {
+            field,
+            operator,
+            value,
+            ..
+        } => {
+            *field != TextField::OtherPartyIban
+                && if *operator == TextOperator::Matches {
+                    // A pattern is listed whole up to MAX_PATTERN_CHARS (#825).
+                    value.chars().count() <= MAX_PATTERN_CHARS
+                        && crate::text::cleaned_for_model(value) == *value
+                } else {
+                    for_model(value) == *value
+                }
         }
         Condition::Amount(test) => matches!(test, AmountTest::MoneyIn | AmountTest::MoneyOut),
         _ => false,

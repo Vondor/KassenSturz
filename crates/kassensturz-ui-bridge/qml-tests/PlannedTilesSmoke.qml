@@ -73,8 +73,14 @@ Kirigami.ApplicationWindow {
         return find(root, child => child instanceof Controls.Label && child.visible && String(child.text).startsWith(starts), []);
     }
 
+    // Any button, by what it does: `instanceof Controls.AbstractButton`
+    // is false for the styled buttons with Kubuntu's Qt.
+    function isButton(child) {
+        return typeof child.toggle === "function" && child.clicked !== undefined;
+    }
+
     function buttons(root, starts) {
-        return find(root, child => child instanceof Controls.AbstractButton && child.visible && String(child.text).startsWith(starts), []);
+        return find(root, child => isButton(child) && child.visible && String(child.text).startsWith(starts), []);
     }
 
     Column {

@@ -8,7 +8,13 @@ use crate::CATALOG;
 
 #[test]
 fn every_catalog_dataset_has_a_table_and_the_reverse() {
-    let mut catalog: Vec<_> = CATALOG.iter().map(|dataset| dataset.id).collect();
+    // The money flow is drawn by its own chart and no custom chart can read
+    // it, so it has no table of fields (it suits only `flow`).
+    let mut catalog: Vec<_> = CATALOG
+        .iter()
+        .filter(|dataset| !dataset.suits.contains(&"flow"))
+        .map(|dataset| dataset.id)
+        .collect();
     let mut tables: Vec<_> = SPEC_DATASETS.iter().map(SpecDataset::id).collect();
     catalog.sort_unstable();
     tables.sort_unstable();

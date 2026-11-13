@@ -23364,3 +23364,69 @@ msgstr "Von"
 msgctxt "@title:column a table of the money-flow chart: where a flow goes"
 msgid "To"
 msgstr "Nach"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:37
+#, kde-format
+msgctxt "@item:inlistbox a part of the layout: where money came from and where it went, as bands"
+msgid "Where my money went"
+msgstr "Wohin mein Geld ging"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:161
+#, kde-format
+msgctxt "@title a chart of where money came from and where it went"
+msgid "Where my money went"
+msgstr "Wohin mein Geld ging"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:125
+#, kde-format
+msgctxt "@item:inlistbox what a chart shows"
+msgid "Where your money came from and where it went"
+msgstr "Woher Ihr Geld kam und wohin es ging"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:145
+#, kde-format
+msgctxt "@info"
+msgid "Shows where the money of the period came from and where it went, as bands as wide as their amount. If you earned more than you spent, the rest is shown as left over; if you spent more, as taken from your reserves. Money moved between your own accounts is not counted. One currency is shown, with no conversion."
+msgstr "Zeigt, woher das Geld des Zeitraums kam und wohin es ging, als Bänder, die so breit sind wie ihr Betrag. Haben Sie mehr eingenommen als ausgegeben, wird der Rest als „Übrig“ gezeigt, haben Sie mehr ausgegeben, als „Aus Ihren Rücklagen“. Geld, das Sie zwischen Ihren eigenen Konten verschieben, wird nicht gezählt. Es wird eine Währung gezeigt, ohne Umrechnung."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:198
+#, kde-format
+msgctxt "@option:check a money-flow chart: sub-categories get a column of their own"
+msgid "Show sub-categories"
+msgstr "Unterkategorien zeigen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:200
+#, kde-format
+msgctxt "@option:check a money-flow chart: who paid and who was paid get a column at each edge"
+msgid "Show who paid and who was paid"
+msgstr "Zeigen, wer gezahlt hat und wer bezahlt wurde"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:202
+#, kde-format
+msgctxt "@label:textbox a money-flow chart: the currency it shows, as a code like EUR; empty for the one with the most money"
+msgid "Currency (a code like EUR; empty: the one with most money)"
+msgstr "Währung (ein Kürzel wie EUR; leer: die mit dem meisten Geld)"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:255
+#, kde-format
+msgctxt "@item:inlistbox the one way the money flow is shown"
+msgid "Bands from where it came to where it went"
+msgstr "Bänder von der Herkunft bis zum Ziel"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:157
+#, kde-format
+msgctxt "@item:inlistbox a kind of chart: where money came from and where it went, as bands"
+msgid "Money flow"
+msgstr "Geldfluss"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:197
+#, kde-format
+msgctxt "@info"
+msgid "Choose whose money the chart follows. With none ticked, every account and every category counts. For example: only your checking account."
+msgstr "Wählen Sie, wessen Geld das Diagramm verfolgt. Ist nichts angekreuzt, zählen alle Konten und alle Kategorien. Zum Beispiel: nur Ihr Girokonto."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:100
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures: where money came from and where it went, as bands"
+msgid "Money flow"
+msgstr "Geldfluss"

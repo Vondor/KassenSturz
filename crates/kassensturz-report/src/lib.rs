@@ -130,7 +130,8 @@ pub use metrics::{
     comparison_span, savings_rate,
 };
 pub use money_flow::{
-    Flow, FlowNode, FlowNodeKind, FlowOptions, MAX_PER_COLUMN, MONEY_FLOW, MoneyFlow, money_flow,
+    Flow, FlowChoice, FlowNode, FlowNodeKind, FlowOptions, MAX_PER_COLUMN, MONEY_FLOW, MoneyFlow,
+    money_flow,
 };
 pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,

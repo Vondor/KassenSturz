@@ -104,7 +104,13 @@ endif()
 if(KASSENSTURZ_DEBUG_LOG)
     list(APPEND cargo_features debug-log)
 endif()
-if(KASSENSTURZ_WIZARD_BANK)
+# Official tagged builds switch the offer on by writing the git-ignored file
+# `wizard-bank` before the build (release.yml, D-546, Q-562); CI builds of
+# branches and of main don't have it, so the offer stays off there.
+set(wizard_bank_file "${CMAKE_CURRENT_SOURCE_DIR}/wizard-bank")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${wizard_bank_file}")
+if(KASSENSTURZ_WIZARD_BANK OR EXISTS "${wizard_bank_file}")
+    message(STATUS "The setup wizard offers a bank connection (D-546)")
     list(APPEND cargo_features wizard-bank)
 endif()
 list(APPEND cargo_args --no-default-features)

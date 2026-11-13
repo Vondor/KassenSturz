@@ -368,8 +368,21 @@ ColumnLayout {
         }
     }
 
+    // The money-flow chart (US7, #821) has a picture of its own.
     Repeater {
-        model: preview.asked.shows === "chart" ? preview.charts : []
+        model: preview.asked.shows === "chart" ? Array.from(preview.charts).filter(c => c.kind === "flow") : []
+
+        FlowChart {
+            required property var modelData
+
+            Layout.fillWidth: true
+            chart: modelData
+            title: (chartData.view?.title ?? "") !== "" ? chartData.view.title : preview.title
+        }
+    }
+
+    Repeater {
+        model: preview.asked.shows === "chart" ? Array.from(preview.charts).filter(c => c.kind !== "flow") : []
 
         ChartView {
             required property var modelData
@@ -392,7 +405,7 @@ ColumnLayout {
     }
 
     Repeater {
-        model: preview.asked.shows === "table" ? preview.charts : []
+        model: preview.asked.shows === "table" ? Array.from(preview.charts).filter(c => c.kind !== "flow") : []
 
         ColumnLayout {
             id: tableBox

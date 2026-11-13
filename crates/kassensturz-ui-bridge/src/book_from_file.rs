@@ -1224,6 +1224,7 @@ mod tests {
             &book,
             &ids,
             &CsvForm::usual(&TestLocale),
+            &TestLocale,
             &folder.join("all.csv"),
         )
         .expect("saved");

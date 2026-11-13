@@ -786,12 +786,16 @@ jobs:
           restore-keys: flatpak-builder-state-x86_64-
       - name: "Builder cache restored from: ${{ steps.builder-cache.outputs.cache-matched-key || 'nothing' }}"
         run: ls .flatpak-builder 2>/dev/null | head || true
-      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
+      # Not the flatpak-builder action: it updated the image's SDK from
+      # Flathub, which failed now and then with "Invalid cross-device link"
+      # (#904). The script uses the pinned image's runtime and SDK as they are.
+      - name: Build the Flatpak
+        run: sh tools/ci-flatpak-build.sh KassenSturz.flatpak
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          manifest-path: packaging/flatpak/io.github.vondor.KassenSturz.yml
-          bundle: KassenSturz.flatpak
-          restore-cache: false
-          save-cache: false
+          name: KassenSturz-x86_64.flatpak
+          path: KassenSturz.flatpak
+          if-no-files-found: error
       # What this bundle was made from, so that the run after the merge can
       # tell whether it may use the bundle again (D-427).
       - name: Note what the build was made from

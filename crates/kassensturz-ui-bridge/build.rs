@@ -98,6 +98,7 @@ fn main() {
                 "qml/FormulaWords.qml",
                 "qml/ChartColorsCard.qml",
                 "qml/ChartOverlays.qml",
+                "qml/FlowChart.qml",
                 "qml/SpecPage.qml",
                 "qml/ChartTable.qml",
                 "qml/ChartView.qml",

@@ -14,16 +14,17 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_charts::{
-    ChangeMark, ChartModel, ComparedTable, HiddenNote, Prepared, Series, Slices,
+    ChangeMark, ChartModel, ComparedTable, FlowModel, HiddenNote, Prepared, Series, Slices, WHOLE,
 };
 use kassensturz_core::ErrorParam;
 
-use crate::charts::{self, ChartSet, ChartsError, Request};
+use crate::charts::{self, ChartSet, ChartsError, FlowAsk, Request};
 use crate::number_format::app_locale;
 use crate::properties;
 use crate::scope::Scope;
 use crate::session;
 use crate::variant::{list, map, text};
+use kassensturz_report::MONEY_FLOW;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -196,6 +197,7 @@ impl qobject::BookCharts {
             show_hidden,
             columns,
             scope,
+            flow: FlowAsk::default(),
             custom: None,
         });
         self.refresh();
@@ -434,6 +436,53 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
     ])
 }
 
+/// The money-flow chart as QML reads it (US7, #821, D-758): its nodes and
+/// bands with the places in whole millionths of the chart's height (`whole`
+/// is one chart height; they only place marks) and every amount as text.
+fn flow_object(model: &FlowModel) -> QVariant {
+    let index = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(0));
+    let place = |value: i64| QVariant::from(&i32::try_from(value).unwrap_or(0));
+    let nodes =
+        model.nodes.iter().map(|node| {
+            map([
+                ("kind", text(node.kind.key())),
+                ("name", text(&node.name)),
+                ("column", index(node.column)),
+                ("y", place(node.y)),
+                ("height", place(node.height)),
+                ("label", text(&node.label)),
+                ("category", text(node.category.as_deref().unwrap_or(""))),
+                (
+                    "holds",
+                    list(node.holds.iter().map(|(name, amount)| {
+                        map([("name", text(name)), ("label", text(amount))])
+                    })),
+                ),
+            ])
+        });
+    let bands = model.bands.iter().map(|band| {
+        map([
+            ("from", index(band.from)),
+            ("to", index(band.to)),
+            ("yFrom", place(band.y_from)),
+            ("yTo", place(band.y_to)),
+            ("thickness", place(band.thickness)),
+            ("label", text(&band.label)),
+        ])
+    });
+    map([
+        ("kind", text("flow")),
+        ("dataset", text(MONEY_FLOW)),
+        ("currency", text(&model.currency)),
+        ("total", text(&model.total)),
+        ("whole", place(WHOLE)),
+        ("columns", index(model.columns)),
+        ("nodes", list(nodes)),
+        ("bands", list(bands)),
+        ("elsewhere", list(model.elsewhere.iter().map(|t| text(t)))),
+    ])
+}
+
 /// How the rows of a comparison table changed (US6, #789, D-760): for each
 /// row and for the total its `direction` (`up`, `down`, `same`), `tone`
 /// (`good`, `bad`, `same`) and `reach` (how many steps of
@@ -534,7 +583,10 @@ pub(crate) fn error_object(error: &ChartsError) -> QVariant {
 fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
     match result {
         Ok(set) => map([
-            ("empty", QVariant::from(&set.charts.is_empty())),
+            (
+                "empty",
+                QVariant::from(&(set.charts.is_empty() && set.flows.is_empty())),
+            ),
             ("missing", count(set.missing)),
             (
                 "shared",
@@ -562,7 +614,8 @@ fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
                 list(
                     set.charts
                         .iter()
-                        .map(|(model, prepared)| chart_object(model, prepared)),
+                        .map(|(model, prepared)| chart_object(model, prepared))
+                        .chain(set.flows.iter().map(flow_object)),
                 ),
             ),
             ("filter", set.filter.object()),
@@ -1348,6 +1401,76 @@ mod tests {
         let view = view_of(&asked);
         assert_eq!(number_of(&view, "missing"), 0);
         assert!(!flag_of(&view, "empty"));
+    }
+
+    /// The money flow of the test book, read back as `FlowChart.qml` reads
+    /// it (US7, #821): one chart of kind `flow`, the nodes and bands placed
+    /// in whole millionths and every amount as text.
+    #[test]
+    fn the_money_flow_reads_back_the_way_qml_reads_it() {
+        let view = view_of(&request("money_flow", "flow"));
+        assert!(!flag_of(&view, "empty"));
+        let shown = list_of(&view, "charts");
+        assert_eq!(shown.len(), 1);
+        let chart = &shown[0];
+        assert_eq!(text_of(chart, "kind"), "flow");
+        assert_eq!(text_of(chart, "dataset"), "money_flow");
+        assert_eq!(
+            keys(chart),
+            [
+                "bands",
+                "columns",
+                "currency",
+                "dataset",
+                "elsewhere",
+                "kind",
+                "nodes",
+                "total",
+                "whole"
+            ]
+        );
+        assert_eq!(number_of(chart, "whole"), 1_000_000);
+        assert_eq!(number_of(chart, "columns"), 3);
+        assert_eq!(text_of(chart, "total"), "5000,00 €");
+        let nodes = list_of(chart, "nodes");
+        let kinds: Vec<String> = nodes.iter().map(|n| text_of(n, "kind")).collect();
+        assert_eq!(kinds[0], "middle");
+        for kind in ["category", "unsorted", "left-over"] {
+            assert!(kinds.iter().any(|k| k == kind), "{kinds:?}");
+        }
+        assert_eq!(nodes.len(), 6, "{kinds:?}");
+        assert_eq!(
+            keys(&nodes[0]),
+            [
+                "category", "column", "height", "holds", "kind", "label", "name", "y"
+            ]
+        );
+        let bands = list_of(chart, "bands");
+        assert_eq!(bands.len(), 5);
+        assert_eq!(
+            keys(&bands[0]),
+            ["from", "label", "thickness", "to", "yFrom", "yTo"]
+        );
+        // The largest band is the salary into the middle node: 5,000.00.
+        assert_eq!(text_of(&bands[0], "label"), "5000,00 €");
+        // Left over: 5,000.00 less 1,600.00, 53.20 and 12.34.
+        let left = nodes
+            .iter()
+            .find(|n| text_of(n, "kind") == "left-over")
+            .expect("left over");
+        assert_eq!(text_of(left, "label"), "3334,46 €");
+        // The places only place marks: inside the chart's height.
+        for node in &nodes {
+            let (y, height) = (number_of(node, "y"), number_of(node, "height"));
+            assert!(y >= 0 && y + height <= 1_000_000, "{y} {height}");
+        }
+        // Sub-categories and payees reach the chart as columns.
+        let mut asked = request("money_flow", "flow");
+        asked.flow.payees = true;
+        asked.flow.sub_categories = true;
+        let view = view_of(&asked);
+        let wide = &list_of(&view, "charts")[0];
+        assert_eq!(number_of(wide, "columns"), 7);
     }
 
     /// The candles of the checking account over the last 12 months (US4.10),

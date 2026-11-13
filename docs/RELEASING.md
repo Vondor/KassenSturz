@@ -39,6 +39,8 @@ An official release carries KassenSturz's FinTS product registration number, so 
 
 From then on the *Build the Flatpak bundle* job of a tag's run waits for your approval (Actions tab → the run → Review deployments), builds the number in, and fails if the number is in any file of the built app other than the program itself. Without the secret a release is still built, without bank access, and the run shows a warning.
 
+A tag's build also switches on the setup wizard's *Connect to my bank* choice (Q-562, D-546): the workflow writes the file `wizard-bank` before the build, and `CMakeLists.txt` turns it into the Cargo feature `wizard-bank`. A pull request's run of the workflow and CI's own builds don't write it, so they don't offer it. The file holds nothing secret and is not the registration number.
+
 These settings are the protection, not the workflow file: a tag runs the `release.yml` of the commit it points to (threat T-63). They hold fully only when nobody else, and no agent, acts with the maintainer's own GitHub account.
 
 **If the number ever has to be replaced** (for example because the registration office blocked it): store the new number as the secret and tag a new release. Nothing in the repository changes.

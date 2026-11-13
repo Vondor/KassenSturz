@@ -249,6 +249,8 @@ ColumnLayout {
                 return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "This answer was not checked against your book: the AI looked nothing up for it. Ask again, or look in KassenSturz yourself before you rely on it.");
             case "cannot-pay":
                 return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "KassenSturz can't pay bills or send money, whatever the answer says. Do that in your bank's own app or website.");
+            case "web-address-left-out":
+                return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer; […] is shown where the web address was", "The AI wrote a web address, which KassenSturz left out ([…]): KassenSturz never asks you to open one, and such an address can send your figures to someone else.");
             default:
                 return "";
             }

@@ -22693,6 +22693,18 @@ msgstr ""
 "auch immer die Antwort sagt. Das erledigen Sie in der App oder auf der "
 "Website Ihrer Bank."
 
+msgctxt ""
+"@info said by KassenSturz under an AI answer; […] is shown where the web "
+"address was"
+msgid ""
+"The AI wrote a web address, which KassenSturz left out ([…]): KassenSturz "
+"never asks you to open one, and such an address can send your figures to "
+"someone else."
+msgstr ""
+"Die KI hat eine Webadresse geschrieben, die KassenSturz weggelassen hat "
+"([…]): KassenSturz fordert Sie nie auf, eine zu öffnen, und eine solche "
+"Adresse kann Ihre Zahlen an andere schicken."
+
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:73
 #, kde-format
 msgctxt "@action:button"

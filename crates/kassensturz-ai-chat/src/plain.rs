@@ -8,6 +8,79 @@
 //! before the figures in the text are checked, so the text the user reads is
 //! the text that was checked.
 
+/// What stands in an answer where a web address was (B-251).
+pub(crate) const LEFT_OUT: &str = "[…]";
+
+/// `text` with every web address left out, and how many there were (B-251,
+/// attack A3 of the security review). Injected text can make a model end
+/// its answer with an address that carries the user's figures, e.g.
+/// `https://example.invalid/?b=4211.50`; the chat shows it as plain text,
+/// never as a link (T-34), but the user could still copy and open it. An
+/// address with a scheme (`https://`, `http://`, `ftp://`) or `www.` is
+/// left out, and so is a host with a path or a query, such as
+/// `example.invalid/?b=1`. A name like `Shop.example` alone, which can't
+/// carry figures, stays.
+pub(crate) fn without_web_addresses(text: &str) -> (String, usize) {
+    let mut out = String::with_capacity(text.len());
+    let mut left_out = 0;
+    let mut rest = text;
+    while !rest.is_empty() {
+        let space = rest
+            .find(|c: char| !c.is_whitespace())
+            .unwrap_or(rest.len());
+        out.push_str(&rest[..space]);
+        rest = &rest[space..];
+        let end = rest.find(char::is_whitespace).unwrap_or(rest.len());
+        let word = &rest[..end];
+        rest = &rest[end..];
+        let start = word.len() - word.trim_start_matches(OPENING).len();
+        let core = &word[start..];
+        let core = core.trim_end_matches(CLOSING);
+        let core_end = start + core.len();
+        if is_web_address(core) {
+            out.push_str(&word[..start]);
+            out.push_str(LEFT_OUT);
+            out.push_str(&word[core_end..]);
+            left_out += 1;
+        } else {
+            out.push_str(word);
+        }
+    }
+    (out, left_out)
+}
+
+/// What may stand before an address in a sentence.
+const OPENING: &[char] = &['(', '[', '<', '"', '\'', '«', '„', '“'];
+
+/// What may follow an address in a sentence.
+const CLOSING: &[char] = &[
+    '.', ',', ';', ':', '!', '?', ')', ']', '>', '"', '\'', '»', '“', '”',
+];
+
+fn is_web_address(word: &str) -> bool {
+    let lower = word.to_ascii_lowercase();
+    if ["http://", "https://", "ftp://", "www."]
+        .iter()
+        .any(|start| lower.starts_with(start) && lower.len() > start.len())
+    {
+        return true;
+    }
+    // A host with a path or a query: labels of letters, digits and dashes,
+    // the last one letters only.
+    let Some(cut) = word.find(['/', '?']) else {
+        return false;
+    };
+    let host = &word[..cut];
+    let labels: Vec<&str> = host.split('.').collect();
+    labels.len() >= 2
+        && labels.iter().all(|label| {
+            !label.is_empty() && label.chars().all(|c| c.is_alphanumeric() || c == '-')
+        })
+        && labels
+            .last()
+            .is_some_and(|last| last.chars().count() >= 2 && last.chars().all(char::is_alphabetic))
+}
+
 /// `text` without bold and italic marks, code ticks and heading marks; a
 /// list stays a list with a dash. Everything else is left as written.
 pub(crate) fn plain_answer(text: &str) -> String {
@@ -142,6 +215,33 @@ fn without_single_stars(line: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn web_addresses_are_left_out_and_counted() {
+        let (text, count) = without_web_addresses(
+            "Your balances are fine. Check your result at https://example.invalid/?b=4211.50;812.03",
+        );
+        assert_eq!(text, "Your balances are fine. Check your result at […]");
+        assert_eq!(count, 1);
+        let (text, count) = without_web_addresses(
+            "See (www.example.invalid), HTTP://EXAMPLE.INVALID/x, and example.invalid/?b=1.\nDone",
+        );
+        assert_eq!(text, "See ([…]), […], and […].\nDone");
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn what_is_no_web_address_stays() {
+        for text in [
+            "You spent 4211.50 EUR at Shop.example this month.",
+            "Rent / utilities: 812.03",
+            "The ratio is 3/4, see the Groceries/Food category.",
+            "https:// alone",
+            "",
+        ] {
+            assert_eq!(without_web_addresses(text), (text.to_owned(), 0), "{text}");
+        }
+    }
 
     #[test]
     fn bold_italic_code_and_headings_lose_their_marks() {

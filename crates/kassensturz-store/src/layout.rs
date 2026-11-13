@@ -35,8 +35,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 8] = [
+pub(crate) const MIGRATIONS: [&str; 9] = [
     LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30, LAYOUT_31,
+    LAYOUT_32,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
@@ -1158,6 +1159,24 @@ INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
     SELECT id, sequence, action, made_at, undone, file_name FROM changes;
 DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
+";
+
+/// Layout 32 (US6, B-249): which Rules the AI made or changed that the user
+/// hasn't opened since.
+///
+/// - `unchecked_ai_rules`: one row per such Rule. Confirming a change set
+///   that adds or changes a Rule writes its row; the user opening the Rule
+///   once removes it, and removing the Rule removes it too. It is a mark for
+///   the user's eyes, not the book's data, so the change history doesn't
+///   record it, like `originals_unlocked`: undoing the change set removes
+///   the Rule and with it the mark, and redoing it brings the Rule back
+///   without one.
+///
+/// Nothing a book of layout 31 holds changes: no Rule starts marked.
+const LAYOUT_32: &str = "
+CREATE TABLE unchecked_ai_rules (
+    rule_id BLOB PRIMARY KEY NOT NULL REFERENCES rules (id) ON DELETE CASCADE
+) STRICT;
 ";
 
 /// Brings a book from layout `from` to the current one, or a new, empty

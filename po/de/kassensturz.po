@@ -23000,3 +23000,64 @@ msgstr ""
 msgctxt "@info %1 is a date"
 msgid "Last joined %1"
 msgstr "Zuletzt verbunden am %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:498
+#, kde-format
+msgctxt "@info %1 is a number of texts"
+msgid ""
+"These changes empty or overwrite %1 text you wrote, such as a note or a name."
+msgid_plural ""
+"These changes empty or overwrite %1 texts you wrote, such as notes or names."
+msgstr[0] "Diese Änderungen leeren oder überschreiben %1 Text, den Sie geschrieben haben, etwa eine Notiz oder einen Namen."
+msgstr[1] "Diese Änderungen leeren oder überschreiben %1 Texte, die Sie geschrieben haben, etwa Notizen oder Namen."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:500
+#, kde-format
+msgctxt "@info %1 is a number of things in the book"
+msgid "They change %1 thing in your book at once."
+msgid_plural "They change %1 things in your book at once."
+msgstr[0] "Sie ändern %1 Eintrag in Ihrem Buch auf einmal."
+msgstr[1] "Sie ändern %1 Einträge in Ihrem Buch auf einmal."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:502
+#, kde-format
+msgctxt "@info %1 is a number of transactions"
+msgid ""
+"Their Rules catch %1 transaction already in your book and go on catching "
+"what you import later."
+msgid_plural ""
+"Their Rules catch %1 transactions already in your book and go on catching "
+"what you import later."
+msgstr[0] "Ihre Regeln erfassen %1 Buchung, die schon in Ihrem Buch steht, und erfassen weiter, was Sie später importieren."
+msgstr[1] "Ihre Regeln erfassen %1 Buchungen, die schon in Ihrem Buch stehen, und erfassen weiter, was Sie später importieren."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:503
+#, kde-format
+msgctxt "@info"
+msgid "Undo takes all of it back while the history still holds it."
+msgstr "Rückgängig nimmt alles zurück, solange der Verlauf es noch enthält."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:513
+#, kde-format
+msgctxt "@option:check"
+msgid "I have read what these changes take away and want them"
+msgstr "Ich habe gelesen, was diese Änderungen wegnehmen, und will sie"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:830
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:906
+#, kde-format
+msgctxt "@info %1 is a number of transactions"
+msgid ""
+"Its conditions catch %1 transaction already in your book, and every one like "
+"it you import later."
+msgid_plural ""
+"Its conditions catch %1 transactions already in your book, and every one "
+"like them you import later."
+msgstr[0] "Ihre Bedingungen erfassen %1 Buchung, die schon in Ihrem Buch steht, und jede ähnliche, die Sie später importieren."
+msgstr[1] "Ihre Bedingungen erfassen %1 Buchungen, die schon in Ihrem Buch stehen, und jede ähnliche, die Sie später importieren."
+
+#: crates/kassensturz-ui-bridge/qml/AiRuleMark.qml:26
+#, kde-format
+msgctxt "@info %1 says what a Rule does"
+msgid "Made by the AI, not checked by you yet. %1"
+msgstr "Von der KI erstellt, von Ihnen noch nicht geprüft. %1"

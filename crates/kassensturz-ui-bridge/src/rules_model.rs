@@ -156,6 +156,11 @@ pub mod qobject {
         #[cxx_name = "removeRule"]
         fn remove_rule(self: Pin<&mut RuleBook>, id: &QString) -> QVariant;
 
+        /// The user opened the Rule in the editor: a mark that the AI made
+        /// or changed it goes (B-249).
+        #[qinvokable]
+        fn opened(self: Pin<&mut RuleBook>, id: &QString);
+
         /// Moves the Rule one place up or down.
         #[qinvokable]
         #[cxx_name = "moveRule"]
@@ -313,6 +318,14 @@ impl qobject::RuleBook {
         self.finish(result.map(|()| map([])))
     }
 
+    fn opened(mut self: Pin<&mut Self>, id: &QString) {
+        let id = id.to_string();
+        if let Err(error) = change(|book, _| rules::opened(book, &id)) {
+            eprintln!("kassensturz: couldn't take the AI's mark off a Rule: {error:?}");
+        }
+        self.as_mut().refresh();
+    }
+
     fn move_rule(self: Pin<&mut Self>, id: &QString, up: bool) -> QVariant {
         let id = id.to_string();
         let result = change(|book, _| rules::move_rule(book, &id, up));
@@ -395,6 +408,7 @@ fn row_object(row: &RuleRow) -> QVariant {
         ("bookTo", text(&row.book_to)),
         ("payee", text(&row.payee)),
         ("conditions", int(row.conditions)),
+        ("madeByAi", QVariant::from(&row.made_by_ai)),
     ])
 }
 
@@ -632,7 +646,13 @@ mod tests {
 
     #[test]
     fn the_rules_and_the_suggestions_read_back_as_qml_reads_them() {
-        let (book, _) = book_with_rules();
+        let (mut book, _) = book_with_rules();
+        // The Rule inside the first one was made by the AI (B-249).
+        let bakery = book.rules().expect("rules")[0].sub_rules[0].rule.id;
+        book.as_one_action(kassensturz_store::Action::ApplyAiChanges, |book| {
+            book.mark_rule_made_by_ai(bakery)
+        })
+        .expect("marked");
         let rows = rules::view(&book).expect("view");
         let suggestions = rules::suggestions(&book, &[]).expect("suggestions");
         let view = view_object(&rows, &suggestions);
@@ -648,6 +668,7 @@ mod tests {
                 "conditions",
                 "depth",
                 "id",
+                "madeByAi",
                 "name",
                 "payee",
                 "position",
@@ -655,6 +676,8 @@ mod tests {
             ]
         );
         assert_eq!(text_of(&listed[0], "id"), rows[0].id);
+        assert!(!flag_of(&listed[0], "madeByAi"));
+        assert!(flag_of(&listed[1], "madeByAi"));
         assert_eq!(text_of(&listed[0], "name"), "Shop");
         assert_eq!(text_of(&listed[0], "bookToKind"), "category");
         assert_eq!(text_of(&listed[0], "bookTo"), "Food › Groceries");
@@ -672,6 +695,9 @@ mod tests {
         assert_eq!(text_of(&listed[1], "bookToKind"), "");
         assert_eq!(text_of(&listed[1], "payee"), "Fresh bread");
         assert_eq!(number_of(&listed[1], "depth"), 1);
+        // Opening it once takes the mark off.
+        rules::opened(&mut book, &rows[1].id).expect("opened");
+        assert!(!rules::view(&book).expect("view")[1].made_by_ai);
 
         let offered = list_of(&view, "suggestions");
         assert_eq!(offered.len(), 1);

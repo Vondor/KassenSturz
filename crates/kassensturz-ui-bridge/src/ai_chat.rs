@@ -420,6 +420,9 @@ pub enum ChangeView {
         conditions: Vec<ConditionForm>,
         /// The name of the Rule it sits inside; empty for a top-level Rule.
         inside: String,
+        /// How many transactions already in the book its conditions catch
+        /// (B-249).
+        catches: usize,
     },
     /// A category renamed, moved or both.
     EditCategory {
@@ -442,6 +445,9 @@ pub enum ChangeView {
         match_all: bool,
         /// Its conditions after the change.
         conditions: Vec<ConditionForm>,
+        /// How many transactions already in the book its conditions catch
+        /// after the change (B-249).
+        catches: usize,
     },
     /// A top-level Rule moved.
     MoveRule {
@@ -936,6 +942,7 @@ fn view_of(
             &new.rule,
             &new.category,
             new.inside.as_deref().unwrap_or_default(),
+            new.catches,
             locale,
         )?,
         ProposedChange::EditCategory(edit) => ChangeView::EditCategory {
@@ -957,6 +964,7 @@ fn view_of(
                 .unwrap_or_default(),
             match_all: edit.rule.match_mode == MatchMode::All,
             conditions: condition_forms(book, &edit.rule, locale)?,
+            catches: edit.catches,
         },
         ProposedChange::MoveRule(moved) => ChangeView::MoveRule {
             name: moved.name.clone(),
@@ -1288,6 +1296,7 @@ fn new_rule_view(
     rule: &Rule,
     category: &[String],
     inside: &str,
+    catches: usize,
     locale: &impl Locale,
 ) -> Result<ChangeView, StoreError> {
     Ok(ChangeView::NewRule {
@@ -1296,6 +1305,7 @@ fn new_rule_view(
         match_all: rule.match_mode == MatchMode::All,
         conditions: condition_forms(book, rule, locale)?,
         inside: inside.to_owned(),
+        catches,
     })
 }
 

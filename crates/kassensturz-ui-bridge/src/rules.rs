@@ -147,6 +147,9 @@ pub struct RuleRow {
     pub payee: String,
     /// How many conditions it has.
     pub conditions: usize,
+    /// Whether the AI made or changed it and the user hasn't opened it
+    /// since (B-249).
+    pub made_by_ai: bool,
 }
 
 /// A category or account the Rule can book to.
@@ -269,6 +272,7 @@ fn category_paths(book: &Book) -> Result<HashMap<AccountId, String>, StoreError>
 pub fn view(book: &Book) -> Result<Vec<RuleRow>, StoreError> {
     let tree = book.rules()?;
     let paths = category_paths(book)?;
+    let unchecked = book.unchecked_ai_rules()?;
     let accounts: HashMap<AccountId, Account> = book
         .all_accounts()?
         .into_iter()
@@ -296,6 +300,7 @@ pub fn view(book: &Book) -> Result<Vec<RuleRow>, StoreError> {
                 book_to: book_to.unwrap_or_default(),
                 payee: rule.actions.payee.clone().unwrap_or_default(),
                 conditions: rule.conditions.len(),
+                made_by_ai: unchecked.contains(&rule.id),
             }
         })
         .collect())
@@ -915,6 +920,13 @@ fn match_rows(
     }
     rows.sort_by_key(|(date, transaction, _)| core::cmp::Reverse((*date, *transaction)));
     Ok(rows.into_iter().map(|(_, _, row)| row).collect())
+}
+
+/// The user opened the Rule: a mark that the AI made or changed it goes
+/// (B-249). Nothing else changes.
+pub fn opened(book: &mut Book, id: &str) -> Result<(), RuleEditError> {
+    let id = find_rule(book, id)?;
+    Ok(book.mark_rule_checked(id)?)
 }
 
 /// Removes a Rule with its sub-Rules. What it booked keeps its booking.

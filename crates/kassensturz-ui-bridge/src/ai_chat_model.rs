@@ -105,6 +105,12 @@ pub mod qobject {
         #[qinvokable]
         fn changes(self: &AiChat, id: &QString) -> QVariant;
 
+        /// What the set `id` takes away, for the review's danger line
+        /// (B-248): an object with `textsLost`, `touched` and `caught`, or
+        /// an empty object when the set is small and takes nothing away.
+        #[qinvokable]
+        fn danger(self: &AiChat, id: &QString) -> QVariant;
+
         /// The user corrects the change `slot` of the set `id` before
         /// confirming it (D-293): `fields` is a JSON object of the fields
         /// that change, in the words of `propose_changes`. The set's changes
@@ -253,6 +259,10 @@ mod engine {
     }
 
     pub(super) fn changes(_chat: &qobject::AiChat, _id: &str) -> QVariant {
+        off()
+    }
+
+    pub(super) fn danger(_chat: &qobject::AiChat, _id: &str) -> QVariant {
         off()
     }
 
@@ -541,6 +551,18 @@ pub(crate) mod engine {
         }))
     }
 
+    /// A set's danger line as QML reads it (B-248): empty without one.
+    pub(crate) fn danger_object(danger: Option<kassensturz_ai_tools::Danger>) -> QVariant {
+        match danger {
+            Some(danger) => map([
+                ("textsLost", whole(danger.texts_lost)),
+                ("touched", whole(danger.touched)),
+                ("caught", whole(danger.caught)),
+            ]),
+            None => map([]),
+        }
+    }
+
     /// The categories a change may be given as QML reads them.
     pub(crate) fn choices_object(choices: &[CategoryChoice]) -> QVariant {
         list(choices.iter().map(|choice| {
@@ -592,6 +614,7 @@ pub(crate) mod engine {
                 match_all,
                 conditions,
                 inside,
+                catches,
             } => vec![
                 ("kind", text("newRule")),
                 ("name", text(name)),
@@ -599,6 +622,7 @@ pub(crate) mod engine {
                 ("matchAll", QVariant::from(match_all)),
                 ("conditions", list(conditions.iter().map(condition_object))),
                 ("inside", text(inside)),
+                ("catches", whole(*catches)),
             ],
             ChangeView::EditCategory { before, after } => vec![
                 ("kind", text("editCategory")),
@@ -612,6 +636,7 @@ pub(crate) mod engine {
                 book_to,
                 match_all,
                 conditions,
+                catches,
             } => vec![
                 ("kind", text("editRule")),
                 ("beforeName", text(before_name)),
@@ -620,6 +645,7 @@ pub(crate) mod engine {
                 ("bookTo", text(book_to)),
                 ("matchAll", QVariant::from(match_all)),
                 ("conditions", list(conditions.iter().map(condition_object))),
+                ("catches", whole(*catches)),
             ],
             ChangeView::MoveRule { name, from, to } => vec![
                 ("kind", text("moveRule")),
@@ -1118,6 +1144,13 @@ pub(crate) mod engine {
         id.parse().ok()
     }
 
+    pub(super) fn danger(chat: &qobject::AiChat, id: &str) -> QVariant {
+        let danger = id_of(id)
+            .and_then(|id| chat.state.sets.get(id))
+            .and_then(ChangeSet::danger);
+        danger_object(danger)
+    }
+
     pub(super) fn changes(chat: &qobject::AiChat, id: &str) -> QVariant {
         let Some(set) = id_of(id).and_then(|id| chat.state.sets.get(id)) else {
             return error(&ErrorText::plain("ai-changes.out-of-date"));
@@ -1352,6 +1385,10 @@ impl qobject::AiChat {
         engine::changes(self, &id.to_string())
     }
 
+    fn danger(&self, id: &QString) -> QVariant {
+        engine::danger(self, &id.to_string())
+    }
+
     fn confirm(self: Pin<&mut Self>, id: &QString) -> QVariant {
         engine::confirm(self, &id.to_string())
     }
@@ -1501,7 +1538,8 @@ mod tests {
     use kassensturz_ai_chat::{Answer, AnswerNote, LogEntry, Mode};
 
     use super::engine::{
-        changes_object, choices_object, entry_object, finished_object, review_object, sets_object,
+        changes_object, choices_object, danger_object, entry_object, finished_object,
+        review_object, sets_object,
     };
     use crate::ai_chat::{
         BasisView, CategoryChoice, ChangeRow, ChangeView, EditLine, FilterView, Review,
@@ -1831,6 +1869,20 @@ mod tests {
     }
 
     #[test]
+    fn a_danger_line_reads_back_as_qml_reads_it() {
+        let object = danger_object(Some(kassensturz_ai_tools::Danger {
+            texts_lost: 100,
+            touched: 120,
+            caught: 3,
+        }));
+        assert_eq!(keys(&object), ["caught", "textsLost", "touched"]);
+        assert_eq!(number_of(&object, "textsLost"), 100);
+        assert_eq!(number_of(&object, "touched"), 120);
+        assert_eq!(number_of(&object, "caught"), 3);
+        assert!(keys(&danger_object(None)).is_empty());
+    }
+
+    #[test]
     fn sets_from_ai_tools_read_back_as_qml_reads_them() {
         let object = sets_object(&[(7, 3)]);
         let sets = elements(&object).expect("an array");
@@ -1861,6 +1913,7 @@ mod tests {
                     ..ConditionForm::default()
                 }],
                 inside: "Food".into(),
+                catches: 4,
             },
             ChangeView::EditCategory {
                 before: "Food".into(),
@@ -1873,6 +1926,7 @@ mod tests {
                 book_to: "Food".into(),
                 match_all: false,
                 conditions: Vec::new(),
+                catches: 0,
             },
             ChangeView::MoveRule {
                 name: "Market".into(),
@@ -2036,6 +2090,7 @@ mod tests {
             keys(&items[1]),
             [
                 "bookTo",
+                "catches",
                 "conditions",
                 "edited",
                 "fields",
@@ -2073,9 +2128,18 @@ mod tests {
         assert!(!flag_of(&items[0], "income"));
         assert_eq!(
             own_keys(&items[1]),
-            ["bookTo", "conditions", "inside", "kind", "matchAll", "name"]
+            [
+                "bookTo",
+                "catches",
+                "conditions",
+                "inside",
+                "kind",
+                "matchAll",
+                "name"
+            ]
         );
         assert!(flag_of(&items[1], "matchAll"));
+        assert_eq!(number_of(&items[1], "catches"), 4);
         assert_eq!(text_of(&items[1], "inside"), "Food");
         let conditions = list_of(&items[1], "conditions");
         assert_eq!(text_of(&conditions[0], "operator"), "contains");
@@ -2089,6 +2153,7 @@ mod tests {
                 "beforeBookTo",
                 "beforeName",
                 "bookTo",
+                "catches",
                 "conditions",
                 "kind",
                 "matchAll",
@@ -2096,6 +2161,7 @@ mod tests {
             ]
         );
         assert_eq!(text_of(&items[3], "beforeName"), "Grocer");
+        assert_eq!(number_of(&items[3], "catches"), 0);
         assert!(!flag_of(&items[3], "matchAll"));
         assert_eq!(own_keys(&items[4]), ["from", "kind", "name", "to"]);
         assert_eq!(text_of(&items[4], "to"), "1");

@@ -1671,3 +1671,51 @@ fn sorting_again_what_rules_sorted_is_a_separate_switch() {
     assert_eq!(other_side(&book, &booked, checking), Some(groceries));
     assert_eq!(other_side(&book, &open, checking), Some(household));
 }
+
+#[test]
+fn a_rule_the_ai_made_stays_marked_until_the_user_opens_it() {
+    let Sample {
+        mut book,
+        groceries,
+        ..
+    } = sample();
+    let food = Some(BookTo::Category(groceries));
+    let made = rule("FRESHO", vec![name_contains("FRESHO")], food);
+    let by_hand = add(&mut book, "Brightmart", "Brightmart", food, None);
+    book.as_one_action(Action::ApplyAiChanges, |book| {
+        book.add_rule(&made, None)?;
+        book.mark_rule_made_by_ai(made.id)
+    })
+    .expect("applied");
+    assert_eq!(
+        book.unchecked_ai_rules().expect("read"),
+        HashSet::from([made.id])
+    );
+    // Opening a Rule without the mark changes nothing; a Rule not in the
+    // book can't be marked.
+    book.mark_rule_checked(by_hand.id)
+        .expect("nothing to take off");
+    assert!(book.mark_rule_made_by_ai(RuleId::generate()).is_err());
+    assert_eq!(book.unchecked_ai_rules().expect("read").len(), 1);
+    // Undo takes the Rule away and the mark with it; redo brings the Rule
+    // back without it.
+    book.undo().expect("undone");
+    assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    book.redo().expect("redone");
+    assert!(book.rule(made.id).is_ok());
+    assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    // Opening a marked Rule takes the mark off.
+    book.as_one_action(Action::ApplyAiChanges, |book| {
+        book.mark_rule_made_by_ai(made.id)
+    })
+    .expect("marked again");
+    book.mark_rule_checked(made.id).expect("opened");
+    assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    // Removing a marked Rule removes its mark.
+    book.as_one_action(Action::ApplyAiChanges, |book| {
+        book.mark_rule_made_by_ai(made.id)
+    })
+    .expect("marked again");
+    book.remove_rule(made.id).expect("removed");
+    assert!(book.unchecked_ai_rules().expect("read").is_empty());
+}

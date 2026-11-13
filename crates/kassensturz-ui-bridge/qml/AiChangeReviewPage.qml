@@ -49,6 +49,13 @@ Kirigami.ScrollablePage {
     // What the last correction answered when it wasn't kept.
     property var correctionResult: ({})
     property bool done: false
+    // What the set takes away (B-248): `textsLost`, `touched` and
+    // `caught`, or empty when the set is small and takes nothing away.
+    property var danger: ({})
+    readonly property bool dangerous: danger.touched !== undefined
+    // From how many touched things a set counts as big, as in
+    // kassensturz-ai-tools (changes/danger.rs, MANY).
+    readonly property int many: 20
     // The keywords of the reasons the user picked for throwing the set away
     // (D-678). Optional.
     property var reasons: []
@@ -232,6 +239,8 @@ Kirigami.ScrollablePage {
         }
         correctionResult = {};
         changes = answer;
+        danger = chat.danger(setId);
+        understood.checked = false;
         choices = chat.changeChoices(setId);
         return true;
     }
@@ -380,6 +389,7 @@ Kirigami.ScrollablePage {
     visible: ai.enabled
     Component.onCompleted: {
         changes = chat.changes(setId);
+        danger = chat.danger(setId);
         choices = chat.changeChoices(setId);
     }
 
@@ -442,7 +452,9 @@ Kirigami.ScrollablePage {
 
                 Controls.Button {
                     highlighted: true
-                    enabled: page.kept.length > 0
+                    // A big or erasing set wants the deliberate tick first
+                    // (B-248).
+                    enabled: page.kept.length > 0 && (!page.dangerous || understood.checked)
                     icon.name: "dialog-ok-apply"
                     text: page.i18nContext.i18nc("@action:button make all the changes shown", "Confirm and make these changes")
                     onClicked: {
@@ -469,6 +481,36 @@ Kirigami.ScrollablePage {
             type: Kirigami.MessageType.Information
             visible: page.shows
             text: page.i18nContext.i18nc("@info", "You can change a new category, a new Rule, the category a transaction gets and a new chart before you confirm, or leave any change out. What you change stays between you and KassenSturz: it isn't sent to the AI.")
+        }
+
+        // The one plain danger line of a big or erasing set (B-248): what
+        // is lost, in numbers from code, and a tick the user sets on
+        // purpose before the confirm button works.
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Error
+            visible: page.shows && page.dangerous
+            text: {
+                if (!page.dangerous)
+                    return "";
+                const lines = [];
+                if (page.danger.textsLost > 0)
+                    lines.push(page.i18nContext.i18ncp("@info %1 is a number of texts", "These changes empty or overwrite %1 text you wrote, such as a note or a name.", "These changes empty or overwrite %1 texts you wrote, such as notes or names.", page.danger.textsLost));
+                if (page.danger.touched >= page.many)
+                    lines.push(page.i18nContext.i18ncp("@info %1 is a number of things in the book", "They change %1 thing in your book at once.", "They change %1 things in your book at once.", page.danger.touched));
+                if (page.danger.caught >= page.many)
+                    lines.push(page.i18nContext.i18ncp("@info %1 is a number of transactions", "Their Rules catch %1 transaction already in your book and go on catching what you import later.", "Their Rules catch %1 transactions already in your book and go on catching what you import later.", page.danger.caught));
+                lines.push(page.i18nContext.i18nc("@info", "Undo takes all of it back while the history still holds it."));
+                return lines.join(" ");
+            }
+        }
+
+        Controls.CheckBox {
+            id: understood
+
+            Layout.fillWidth: true
+            visible: page.shows && page.dangerous
+            text: page.i18nContext.i18nc("@option:check", "I have read what these changes take away and want them")
         }
 
         Kirigami.InlineMessage {
@@ -784,6 +826,14 @@ Kirigami.ScrollablePage {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
+                        font.bold: modelData.catches >= page.many
+                        text: page.i18nContext.i18ncp("@info %1 is a number of transactions", "Its conditions catch %1 transaction already in your book, and every one like it you import later.", "Its conditions catch %1 transactions already in your book, and every one like them you import later.", modelData.catches)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
                         text: modelData.matchAll ? page.i18nContext.i18nc("@info", "When all of these hold:") : page.i18nContext.i18nc("@info", "When one of these holds:")
                     }
 
@@ -846,6 +896,14 @@ Kirigami.ScrollablePage {
                         text: modelData.beforeBookTo !== modelData.bookTo
                             ? page.i18nContext.i18nc("@info %1 and %2 are paths of categories", "Books matching transactions to %2 (before: %1).", modelData.beforeBookTo, modelData.bookTo)
                             : page.i18nContext.i18nc("@info %1 is the path of a category", "Books matching transactions to %1.", modelData.bookTo)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        font.bold: modelData.catches >= page.many
+                        text: page.i18nContext.i18ncp("@info %1 is a number of transactions", "Its conditions catch %1 transaction already in your book, and every one like it you import later.", "Its conditions catch %1 transactions already in your book, and every one like them you import later.", modelData.catches)
                     }
 
                     Controls.Label {

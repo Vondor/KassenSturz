@@ -1196,6 +1196,14 @@ impl Book {
             }
             Ok(())
         })?;
+        // The marks of Rules the AI made aren't recorded (layout 32): with
+        // the foreign keys off nothing removes the mark of a Rule that was
+        // taken away, so it goes here.
+        self.conn.execute_cached(
+            "DELETE FROM main.unchecked_ai_rules
+             WHERE rule_id NOT IN (SELECT id FROM main.rules)",
+            [],
+        )?;
         let broken_references: i64 = self.conn.query_row_cached(
             "SELECT count(*) FROM pragma_foreign_key_check",
             [],

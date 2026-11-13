@@ -250,7 +250,7 @@ parts:
         for tool in "$sdk/usr/lib/qt6/$kind"/*; do
           [ -f "$tool" ] && [ -x "$tool" ] || continue
           name=$(basename "$tool")
-          printf '#!/bin/sh\nLD_LIBRARY_PATH="%s/usr/lib/x86_64-linux-gnu:%s/usr/lib/x86_64-linux-gnu:\$LD_LIBRARY_PATH" exec "%s" "\$@"\n' "$sdk" "/snap/kf6-core24/current" "$tool" > "$wrap/$kind/$name"
+          printf '#!/bin/sh\nLD_LIBRARY_PATH="%s/usr/lib/x86_64-linux-gnu:%s/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH" exec "%s" "$@"\n' "$sdk" "/snap/kf6-core24/current" "$tool" > "$wrap/$kind/$name"
           chmod +x "$wrap/$kind/$name"
         done
       done

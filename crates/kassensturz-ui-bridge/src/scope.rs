@@ -55,6 +55,8 @@ pub struct Scope {
     /// How many days a candle chart's candle covers (Q-498): a
     /// `params.candle` word, empty for the length that follows the period.
     pub candle: String,
+    /// What a money-flow chart shows (US7, D-758).
+    pub flow: kassensturz_report::FlowChoice,
 }
 
 /// The own lists of one series of a chart (D-646): empty for a dimension it
@@ -83,6 +85,7 @@ impl Default for Scope {
             average: String::new(),
             compare: String::new(),
             candle: String::new(),
+            flow: kassensturz_report::FlowChoice::default(),
         }
     }
 }
@@ -129,6 +132,7 @@ impl Scope {
                 .candle
                 .map(|length| length.key().to_owned())
                 .unwrap_or_default(),
+            flow: asked.flow.clone(),
         }
     }
 
@@ -185,6 +189,11 @@ impl Scope {
             "average": self.average,
             "compare": self.compare,
             "candle": self.candle,
+            "flow": {
+                "sub_categories": self.flow.sub_categories,
+                "payees": self.flow.payees,
+                "currency": self.flow.currency,
+            },
         })
         .to_string()
     }
@@ -258,6 +267,24 @@ impl Scope {
                 .filter(|word| kassensturz_report::CandleLength::read(word).is_some())
                 .unwrap_or_default()
                 .to_owned(),
+            flow: {
+                let flow = value.get("flow");
+                let flag = |key: &str| {
+                    flow.and_then(|flow| flow.get(key))
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                };
+                kassensturz_report::FlowChoice {
+                    sub_categories: flag("sub_categories"),
+                    payees: flag("payees"),
+                    currency: flow
+                        .and_then(|flow| flow.get("currency"))
+                        .and_then(Value::as_str)
+                        .filter(|code| code.len() <= 3)
+                        .unwrap_or_default()
+                        .to_owned(),
+                }
+            },
         }
     }
 
@@ -290,6 +317,7 @@ impl Scope {
             average: None,
             compare: None,
             candle: None,
+            flow: kassensturz_report::FlowChoice::default(),
         }
         .apply(source)
     }
@@ -689,6 +717,11 @@ mod tests {
             average: "per-month".into(),
             compare: "same_last_year".into(),
             candle: "week".into(),
+            flow: kassensturz_report::FlowChoice {
+                sub_categories: true,
+                payees: true,
+                currency: "USD".into(),
+            },
         };
         assert_eq!(Scope::from_text(&scope.to_text()), scope);
     }

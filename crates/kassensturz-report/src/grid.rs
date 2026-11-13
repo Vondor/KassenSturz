@@ -55,7 +55,7 @@ impl ComponentType {
             // The tabs, the month header and the filter bar may be as narrow
             // as one column: the user decides (D-533).
             Self::FilterBar | Self::DashboardTabs | Self::PeriodHeader => Size { cols: 1, rows: 1 },
-            Self::TableRows | Self::Transactions => Size { cols: 4, rows: 3 },
+            Self::TableRows | Self::Transactions | Self::ChartFlow => Size { cols: 4, rows: 3 },
             Self::ChartLine
             | Self::ChartBar
             | Self::ChartStackedBar
@@ -122,7 +122,8 @@ impl ComponentType {
             | Self::ChartPie
             | Self::ChartDonut
             | Self::CustomChart
-            | Self::ChartCandlestick => Size { cols: 6, rows: 4 },
+            | Self::ChartCandlestick
+            | Self::ChartFlow => Size { cols: 6, rows: 4 },
         }
     }
 }

@@ -43,6 +43,8 @@ ColumnLayout {
         switch (workbench.view.type) {
         case "chart.candlestick":
             return ["accounts"];
+        case "chart.flow":
+            return ["accounts", "categories"];
         case "chart.custom":
             return ["spec", "series", "categories"];
         case "table.transactions":
@@ -50,7 +52,7 @@ ColumnLayout {
         }
         return ["budgets", "categories", "groups", "series", "show_hidden"];
     }
-    readonly property var elementKeys: ["title", "legend"]
+    readonly property var elementKeys: ["title", "legend", "sub_categories", "payees", "currency"]
     // Formulas and fine tuning are one deliberate step away (Q-260).
     property bool advanced: false
     // Charts and tables are made of columns on a board (D-340).
@@ -63,6 +65,7 @@ ColumnLayout {
         {id: "figure", types: ["kpi.card", "progress.bar"]},
         {id: "table", types: ["table.rows"]},
         {id: "candles", types: ["chart.candlestick"]},
+        {id: "flow", types: ["chart.flow"]},
         {id: "budgets", types: ["budget.progress"]},
         {id: "custom", types: ["chart.custom"]},
         {id: "list", types: ["table.transactions"]}
@@ -122,6 +125,9 @@ ColumnLayout {
         case "chart.candlestick":
         case "candles":
             return "office-chart-scatter";
+        case "chart.flow":
+        case "flow":
+            return "office-chart-area-stacked";
         case "budget.progress":
         case "budgets":
             return "office-chart-bar-percentage";
@@ -147,6 +153,8 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox a kind of display", "One figure");
         case "candles":
             return i18nContext.i18nc("@item:inlistbox a kind of chart: the balance of accounts per day, week or month", "Balance candles");
+        case "flow":
+            return i18nContext.i18nc("@item:inlistbox a kind of chart: where money came from and where it went, as bands", "Money flow");
         case "budgets":
             return i18nContext.i18nc("@item:inlistbox a kind of display: how much of each budget is spent and left", "Budgets");
         case "custom":
@@ -165,6 +173,8 @@ ColumnLayout {
             switch (workbench.view.type) {
             case "chart.candlestick":
                 return i18nContext.i18nc("@title:group a step of the wizard", "Choose accounts");
+            case "chart.flow":
+                return i18nContext.i18nc("@title:group a step of the wizard", "Choose accounts and categories");
             case "budget.progress":
                 return i18nContext.i18nc("@title:group a step of the wizard", "Choose budgets");
             case "chart.custom":
@@ -183,6 +193,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "Choose the period the figures are taken from. For example: this month, or from 01.01.2026 to 31.03.2026.");
         case 1:
             switch (workbench.view.type) {
+            case "chart.flow":
+                return i18nContext.i18nc("@info", "Choose whose money the chart follows. With none ticked, every account and every category counts. For example: only your checking account.");
             case "chart.candlestick":
                 return i18nContext.i18nc("@info", "Choose the accounts whose balance the candles show. With none ticked, your checking, savings and cash accounts count together. For example: only your checking account.");
             case "budget.progress":

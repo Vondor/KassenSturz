@@ -1,0 +1,194 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+#
+# KassenSturz as a snap (#892, D-765). Strict confinement, KDE's Qt 6 and
+# Frameworks from the `kf6-core24` content snap through the `kde-neon-6`
+# extension. docs/SNAP.md explains every choice and what is still open.
+# Built by .github/workflows/snap.yml; the build's number comes from the file
+# `build-version` that the workflow writes (D-226), and the FinTS product
+# registration number only from the file `fints-registration`, which exists
+# only for a tag (D-745, docs/RELEASING.md).
+name: kassensturz # provisional until the store name is registered (docs/SNAP.md, section 8)
+title: KassenSturz
+base: core24
+adopt-info: kassensturz
+summary: Keep track of your household's money
+description: |
+  KassenSturz is a free household book for the desktop. Record your accounts
+  and spending, see where your money goes, and trust the numbers, without
+  accounting knowledge. Your data stays on your computer.
+
+  Saving your banking PIN in your desktop's keychain needs one extra step
+  after installing: run
+  `sudo snap connect kassensturz:password-manager-service`. Chip-card logins
+  need `sudo snap connect kassensturz:pcscd`. Without them the app works, and
+  asks for the PIN each time.
+license: GPL-3.0-or-later
+website: https://github.com/Vondor/KassenSturz
+source-code: https://github.com/Vondor/KassenSturz
+issues: https://github.com/Vondor/KassenSturz/issues
+confinement: strict
+# `devel` for every build that is not an official tag; the workflow sets
+# `stable` through SNAPCRAFT_GRADE for a tag (the store refuses `devel`
+# snaps in the beta, candidate and stable channels).
+grade: devel
+compression: lzo
+platforms:
+  amd64:
+
+apps:
+  kassensturz:
+    command: usr/bin/kassensturz
+    extensions: [kde-neon-6]
+    common-id: io.github.vondor.KassenSturz
+    desktop: usr/share/applications/io.github.vondor.KassenSturz.desktop
+    environment:
+      # The bank libraries are found by their ABI names (D-138).
+      LD_LIBRARY_PATH: $SNAP/usr/lib:$LD_LIBRARY_PATH
+    plugs:
+      # Not connected by itself: the user connects them (docs/SNAP.md, 4).
+      - password-manager-service
+      - pcscd
+  # The MCP server for the user's own AI tools, stdio only (D-050). It is
+  # started by that tool, not from a menu, and shares the app's data folder.
+  mcp:
+    command: usr/bin/kassensturz-mcp
+    extensions: [kde-neon-6]
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib:$LD_LIBRARY_PATH
+
+# Where the bank libraries look for their plug-ins and data, compiled in as
+# /usr/...; the snap keeps them under $SNAP/usr.
+layout:
+  /usr/lib/gwenhywfar:
+    bind: $SNAP/usr/lib/gwenhywfar
+  /usr/lib/aqbanking:
+    bind: $SNAP/usr/lib/aqbanking
+  /usr/share/gwenhywfar:
+    bind: $SNAP/usr/share/gwenhywfar
+  /usr/share/aqbanking:
+    bind: $SNAP/usr/share/aqbanking
+  /usr/share/libchipcard:
+    bind: $SNAP/usr/share/libchipcard
+
+parts:
+  # The client library for the computer's card reader service (`pcscd`
+  # interface); the service itself is the host's.
+  pcsc-lite:
+    plugin: meson
+    source: https://pcsclite.apdu.fr/files/pcsc-lite-2.5.1.tar.xz
+    source-checksum: sha256/bfcfe38a20afc49849c6bf55325e38f449fc4b26d3923fdc32b969ae41a8741b
+    meson-parameters:
+      - --prefix=/usr
+      - -Dlibsystemd=false
+      - -Dlibudev=false
+      - -Dpolkit=false
+    build-packages: [pkgconf, flex]
+    prime:
+      - -usr/bin
+      - -usr/sbin
+      - -usr/lib/libpcscspy.so*
+      - -usr/include
+      - -usr/lib/pkgconfig
+
+  gwenhywfar:
+    after: [pcsc-lite]
+    plugin: autotools
+    source: https://www.aquamaniac.de/rdm/attachments/download/630/gwenhywfar-5.14.1.tar.gz
+    source-checksum: sha256/8916feaa99cb954f963f2cba8dd2dffe57cacf7f284daf00eab071aad6fe2ab3
+    build-environment:
+      - GPGRT_CONFIG: /usr/bin/gpgrt-config
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --with-guis=qt6
+    build-packages:
+      - libgnutls28-dev
+      - libgcrypt20-dev
+      - libgmp-dev
+      - libgpg-error-dev
+      - gettext
+    prime:
+      - -usr/bin
+      - -usr/include
+      - -usr/lib/pkgconfig
+      - -usr/lib/cmake
+
+  libchipcard:
+    after: [gwenhywfar]
+    plugin: autotools
+    source: https://www.aquamaniac.de/rdm/attachments/download/382/libchipcard-5.1.6.tar.gz
+    source-checksum: sha256/6c07f527417f7562074f99012da4d11eb4dbafd33f49e66b442ccd6e3b8cfd20
+    autotools-configure-parameters:
+      - --prefix=/usr
+    prime:
+      - -usr/bin
+      - -usr/include
+      - -usr/lib/pkgconfig
+
+  # Only the FinTS backend, as in the Flatpak (D-142); no command-line tools,
+  # because KassenSturz never sends payments (D-053).
+  aqbanking:
+    after: [gwenhywfar, libchipcard]
+    plugin: autotools
+    source: https://www.aquamaniac.de/rdm/attachments/download/654/aqbanking-6.9.2.tar.gz
+    source-checksum: sha256/244b5f7a139f829928f5cdc3f5f7488517b3e8aa63625a92741c3efc1892bb3f
+    autotools-configure-parameters:
+      - --prefix=/usr
+      - --with-backends=aqhbci aqnone
+      - --with-imexporters=csv ofx openhbci1 swift xmldb yellownet sepa ctxfile q43 camt xml
+      - --disable-cli
+      - --disable-tutorials
+    build-packages:
+      - libxmlsec1-dev
+      - libxslt1-dev
+    prime:
+      - -usr/bin
+      - -usr/include
+      - -usr/lib/pkgconfig
+      - -usr/lib/cmake
+
+  kassensturz:
+    after: [aqbanking]
+    plugin: nil
+    source: .
+    build-packages:
+      - curl
+      - cmake
+      - ninja-build
+      - pkgconf
+      - libsqlite3-dev
+    # Gwenhywfar's Qt 6 dialog library, staged by the part before, is found
+    # through pkg-config (crates/kassensturz-aqbanking-sys/gwengui).
+    build-environment:
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/pkgconfig:$PKG_CONFIG_PATH
+      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib:$LD_LIBRARY_PATH
+    override-pull: |
+      craftctl default
+      # The number and the commit, as in the Flatpak build (release.yml):
+      # the sources have no .git in the build.
+      if [ -f build-version ]; then
+        craftctl set version="$(cat build-version)"
+      else
+        craftctl set version="0.0.0-dev"
+      fi
+      craftctl set grade="${SNAPCRAFT_GRADE:-devel}"
+    override-build: |
+      set -eu
+      # The Rust the workspace asks for (rust-version in Cargo.toml) comes
+      # from rustup, as in CI's other jobs; the host's is too old.
+      if ! command -v rustup >/dev/null 2>&1; then
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+      fi
+      . "$HOME/.cargo/env"
+      # cmake --install puts files under DESTDIR, which snapcraft sets to the
+      # part's install folder. Never use `set -x` or `cargo -vv` here: the
+      # registration number would show.
+      cmake -S . -B "$CRAFT_PART_BUILD" -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKASSENSTURZ_INSTALL_SVG_ICON=OFF
+      cmake --build "$CRAFT_PART_BUILD"
+      DESTDIR="$CRAFT_PART_INSTALL" cmake --install "$CRAFT_PART_BUILD"
+      # Takes the AppStream data's summary and description for the store.
+      craftctl default
+    parse-info: [usr/share/metainfo/io.github.vondor.KassenSturz.metainfo.xml]

@@ -236,7 +236,7 @@ parts:
       cmake -S . -B "$CRAFT_PART_BUILD" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
-        -DKASSENSTURZ_INSTALL_SVG_ICON=OFF
+        -DKASSENSTURZ_INSTALL_SVG_ICON=OFF -DKASSENSTURZ_SKIP_QML_MODULE_CHECK=ON
       cmake --build "$CRAFT_PART_BUILD"
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install "$CRAFT_PART_BUILD"
       # Takes the AppStream data's summary and description for the store.

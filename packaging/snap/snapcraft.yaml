@@ -233,12 +233,38 @@ parts:
       # cmake --install puts files under DESTDIR, which snapcraft sets to the
       # part's install folder. Never use `set -x` or `cargo -vv` here: the
       # registration number would show.
-      # The SDK's own qmake path is wrong; use the one that really exists.
+      # The SDK's own qmake cannot find its Qt from here ("complete Qt
+      # installation" error), so cxx-qt gets a small stand-in that answers
+      # `qmake -query` with the SDK's real folders. Qt's own moc and tools
+      # are used from there.
       sdk=/snap/kde-qt6-core24-sdk/current
-      qmake_path="$sdk/usr/bin/qmake6"
-      echo "using qmake: ${qmake_path:-none}"
+      qt_version=$(sed -n 's/^#define QT_VERSION_STR "\(.*\)"/\1/p' "$sdk/usr/include/x86_64-linux-gnu/qt6/QtCore/qtcoreversion.h" || true)
+      echo "Qt in the SDK: ${qt_version:-unknown}"
+      ls "$sdk/usr/lib/qt6/libexec" "$sdk/usr/lib/qt6/bin" 2>&1 | head -40 || true
+      qmake_path="$CRAFT_PART_BUILD/qmake-standin"
+      mkdir -p "$CRAFT_PART_BUILD"
+      cat > "$qmake_path" <<EOF
+      #!/bin/sh
+      if [ "\$1" = "-query" ] && [ -n "\$2" ]; then
+        case "\$2" in
+          QT_VERSION) echo "$qt_version" ;;
+          QT_INSTALL_PREFIX|QT_HOST_PREFIX) echo "$sdk/usr" ;;
+          QT_INSTALL_BINS|QT_HOST_BINS) echo "$sdk/usr/lib/qt6/bin" ;;
+          QT_INSTALL_LIBEXECS|QT_HOST_LIBEXECS) echo "$sdk/usr/lib/qt6/libexec" ;;
+          QT_INSTALL_LIBS|QT_HOST_LIBS) echo "$sdk/usr/lib/x86_64-linux-gnu" ;;
+          QT_INSTALL_HEADERS) echo "$sdk/usr/include/x86_64-linux-gnu/qt6" ;;
+          QT_INSTALL_ARCHDATA) echo "$sdk/usr/lib/x86_64-linux-gnu/qt6" ;;
+          QT_INSTALL_DATA|QT_HOST_DATA) echo "$sdk/usr/share/qt6" ;;
+          QT_INSTALL_PLUGINS) echo "$sdk/usr/lib/x86_64-linux-gnu/qt6/plugins" ;;
+          QT_INSTALL_QML) echo "$sdk/usr/lib/x86_64-linux-gnu/qt6/qml" ;;
+          *) echo "" ;;
+        esac
+      else
+        exec "$sdk/usr/bin/qmake6" "\$@"
+      fi
+      EOF
+      chmod +x "$qmake_path"
       export LD_LIBRARY_PATH="$sdk/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-      "$qmake_path" -query QT_INSTALL_HEADERS || true
       cmake -S . -B "$CRAFT_PART_BUILD" -G Ninja \
         -DKASSENSTURZ_QMAKE="$qmake_path" \
         -DCMAKE_BUILD_TYPE=Release \

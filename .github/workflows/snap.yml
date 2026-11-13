@@ -8,10 +8,16 @@ name: Snap
 # explains the packaging.
 
 on:
+  # Every merge to main builds the snap and keeps it as a CI artifact, so
+  # test rounds can install the snap of a main build (nothing is uploaded to
+  # the store; only a tag does that, in release.yml).
+  push:
+    branches: [main]
   pull_request:
     paths:
       - "packaging/snap/**"
       - ".github/workflows/snap.yml"
+      - "CMakeLists.txt"
   workflow_dispatch:
   workflow_call:
     inputs:

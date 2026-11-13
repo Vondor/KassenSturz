@@ -583,10 +583,11 @@ impl Store {
         };
         let record = ConsentRecord::give(&provider.address, today);
         // The seal first: a consent in the file without it counts for
-        // nothing, so a failed seal never leaves a consent that sends.
-        if self.with_seals(|keys| keys.seal_consent(&record)).is_err() {
-            return false;
-        }
+        // nothing. The seal always holds in memory until KassenSturz
+        // closes; a keychain that refuses to save it (B-259) only means
+        // the user is asked again at the next start, so it doesn't stop
+        // the consent the user just gave.
+        let _ = self.with_seals(|keys| keys.seal_consent(&record));
         record
             .entries()
             .iter()
@@ -1027,6 +1028,36 @@ mod tests {
         // A hand that changes the day in the file breaks the match.
         assert!(store.put(kassensturz_ai::CONSENT_DAY_KEY, "2026-01-01"));
         assert_eq!(store.form().consent, Consent::Missing);
+    }
+
+    #[test]
+    fn a_consent_counts_until_close_when_the_keychain_cant_save_its_seal() {
+        // B-259: with the keychain refusing to save (e.g. a wallet that
+        // can't be opened), "I agree" used to say the settings couldn't be
+        // saved, and the chat refused the provider with `ai.no-consent`.
+        let (_folder, _file, mut store) = on();
+        let (memory, own) = keys();
+        store.keys = Some(Arc::new(Mutex::new(own)));
+        let (_, mut keys) = keys();
+        let address = "https://192.0.2.10:1234/v1";
+        store.save(&mut keys, address, "m", KeyUse::None, None);
+        assert_eq!(store.form().consent, Consent::Missing);
+
+        memory.fail_with(Some(KeychainError::Unavailable));
+        assert!(store.give_consent(TODAY), "the consent is written");
+        assert_eq!(store.form().consent, Consent::Given(TODAY));
+        let client = store.client();
+        let request = client
+            .prepare(vec![kassensturz_ai::Message::user("Hi")], Vec::new())
+            .expect("a request");
+        // TEST-NET-1 is never reached: anything but a missing consent.
+        assert_ne!(client.send(&request, None), Err(AiError::NoConsent));
+        assert_eq!(memory.len(), 0, "nothing reached the keychain");
+
+        // Taking it back still works with the keychain refusing.
+        assert!(store.withdraw_consent());
+        assert_eq!(store.form().consent, Consent::Missing);
+        assert_eq!(client.send(&request, None), Err(AiError::NoConsent));
     }
 
     #[test]

@@ -77,6 +77,7 @@ fn main() {
                 "qml/BookNameDialog.qml",
                 "qml/BookPickDialog.qml",
                 "qml/BookMovePage.qml",
+                "qml/GrantedFoldersPage.qml",
                 "qml/BookMoveInterruptedDialog.qml",
                 "qml/BookProblemPage.qml",
                 "qml/BudgetBars.qml",

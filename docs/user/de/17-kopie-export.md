@@ -11,6 +11,10 @@
 
 KassenSturz **überschreibt dabei nie** eine vorhandene Datei. In der Datei stehen **keine** Bank-Anmeldenamen und keine PIN.
 
+## Ordner, die KassenSturz öffnen darf
+
+Nur in der Flatpak-Version. Wenn Sie einen Ordner wählen (für Ihr Haushaltsbuch oder für Sicherungskopien), darf KassenSturz ihn öffnen, bis Sie das zurücknehmen: **Einstellungen › Ihre Daten › Ordner, die KassenSturz öffnen darf** listet sie auf, mit **Diesen Ordner vergessen** bei jedem. Vergessen beendet nur den Zugriff; **es wird keine Datei gelöscht, verschoben oder geändert**. Ein Ordner, den Ihr Haushaltsbuch oder Ihre Sicherungskopien noch nutzen, sagt das und kann vergessen werden, sobald Sie beides woanders ablegen.
+
 ## Ein Buch aus einer Datei anlegen
 
 Beim ersten Start (**Meine Daten aus einem anderen Programm holen**, Seite 3) oder unter **Einstellungen › Neues Haushaltsbuch anlegen…**.

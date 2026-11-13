@@ -17,11 +17,12 @@ use cxx_qt_lib::{QString, QVariant};
 use kassensturz_store::Interrupted;
 
 use crate::book_move::{self, Done, Explained, MoveProblem, ShownFolder};
+use crate::granted_folders::{self, Granted, SystemPortal};
 use crate::locale::QtLocale;
 use crate::platform;
 use crate::session;
 use crate::settings::Settings;
-use crate::variant::{map, text};
+use crate::variant::{list, map, text};
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -41,6 +42,7 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, available, READ, CONSTANT)]
+        #[qproperty(bool, grants_available, READ, CONSTANT)]
         #[qproperty(QVariant, place, READ, NOTIFY)]
         #[qproperty(QVariant, interrupted, READ, NOTIFY)]
         type BookMove = super::BookMoveRust;
@@ -76,6 +78,19 @@ pub mod qobject {
         #[cxx_name = "moveToOwnFolder"]
         fn move_to_own_folder(self: Pin<&mut BookMove>) -> QVariant;
 
+        /// The folders KassenSturz may open, each with `id`, `shownAs`
+        /// (plain text), `realPath` and `usedBy`, a list of what still uses
+        /// it: `book` or `backup-copies` (#873).
+        #[qinvokable]
+        #[cxx_name = "grantedFolders"]
+        fn granted_folders(self: &BookMove) -> QVariant;
+
+        /// Takes the access to the folder `id` back. The files stay. `ok`,
+        /// or `code`.
+        #[qinvokable]
+        #[cxx_name = "forgetFolder"]
+        fn forget_folder(self: &BookMove, id: &QString) -> QVariant;
+
         /// Ends what `interrupted` is about: removes the book it offers if
         /// `remove`, then forgets it. `ok`, or `code`.
         #[qinvokable]
@@ -89,6 +104,7 @@ pub mod qobject {
 #[derive(Default)]
 pub struct BookMoveRust {
     available: bool,
+    grants_available: bool,
     place: QVariant,
     interrupted: QVariant,
     explained: Option<Explained>,
@@ -105,6 +121,10 @@ impl cxx_qt::Initialize for qobject::BookMove {
             .unwrap_or_default();
         let mut state = self.as_mut().rust_mut();
         state.available = platform::can_choose_book_folder();
+        // Only the Flatpak has grants of its own to list and take back.
+        state.grants_available = platform::in_flatpak_sandbox()
+            && platform::can_choose_book_folder()
+            && platform::runtime_dir().is_some();
         state.interrupted = shown;
         state.explained = explained;
     }
@@ -178,6 +198,29 @@ impl qobject::BookMove {
                 code: "book-move.no-book",
                 left: None,
             }),
+        }
+    }
+
+    fn granted_folders(&self) -> QVariant {
+        let Some(runtime) = platform::runtime_dir() else {
+            return list([]);
+        };
+        let uses = granted_folders::uses_now(&Settings::user());
+        folders_object(&granted_folders::list(
+            &granted_folders::Portal::documents(&SystemPortal),
+            &runtime,
+            &uses,
+        ))
+    }
+
+    fn forget_folder(&self, id: &QString) -> QVariant {
+        let Some(runtime) = platform::runtime_dir() else {
+            return forget_problem_object(granted_folders::Problem::NotThere);
+        };
+        let uses = granted_folders::uses_now(&Settings::user());
+        match granted_folders::forget(&id.to_string(), &runtime, &uses, &mut SystemPortal) {
+            Ok(()) => map([("ok", QVariant::from(&true))]),
+            Err(problem) => forget_problem_object(problem),
         }
     }
 
@@ -284,6 +327,30 @@ fn done_object(done: &Done) -> QVariant {
     ])
 }
 
+/// The folders KassenSturz may open as QML gets them: a list of objects with
+/// `id`, `shownAs` (display text), `realPath` and `usedBy`.
+fn folders_object(folders: &[Granted]) -> QVariant {
+    list(folders.iter().map(|folder| {
+        map([
+            ("id", text(&folder.id)),
+            ("shownAs", text(&folder.shown_as)),
+            ("realPath", QVariant::from(&folder.shown_is_real_path)),
+            (
+                "usedBy",
+                list(folder.used_by.iter().map(|used| text(used.key()))),
+            ),
+        ])
+    }))
+}
+
+/// A folder that wasn't forgotten: `ok` is false, with the `code`.
+fn forget_problem_object(problem: granted_folders::Problem) -> QVariant {
+    map([
+        ("ok", QVariant::from(&false)),
+        ("code", text(problem.code())),
+    ])
+}
+
 fn problem_object(problem: &MoveProblem) -> QVariant {
     map([
         ("ok", QVariant::from(&false)),
@@ -359,6 +426,46 @@ mod tests {
             text_of(&object_of(&object, "oldLeftShownAs"), "text"),
             "/data/own"
         );
+    }
+
+    /// #873: the list and the refusal read back the way QML reads them.
+    #[test]
+    fn the_granted_folders_read_back_as_qml_reads_them() {
+        use crate::granted_folders::UsedBy;
+        use crate::variant::read_back::{elements, list_of};
+
+        let object = folders_object(&[
+            Granted {
+                id: "a1".into(),
+                shown_as: "/data/Books".into(),
+                shown_is_real_path: true,
+                used_by: vec![UsedBy::Book, UsedBy::BackupCopies],
+            },
+            Granted {
+                id: "b2".into(),
+                shown_as: "Sync".into(),
+                shown_is_real_path: false,
+                used_by: Vec::new(),
+            },
+        ]);
+        let folders = elements(&object).expect("an array");
+        assert_eq!(folders.len(), 2);
+        assert_eq!(keys(&folders[0]), ["id", "realPath", "shownAs", "usedBy"]);
+        assert_eq!(text_of(&folders[0], "id"), "a1");
+        assert_eq!(text_of(&folders[0], "shownAs"), "/data/Books");
+        assert!(flag_of(&folders[0], "realPath"));
+        let used: Vec<String> = list_of(&folders[0], "usedBy")
+            .iter()
+            .map(|word| word.value::<QString>().expect("text").to_string())
+            .collect();
+        assert_eq!(used, ["book", "backup-copies"]);
+        assert!(list_of(&folders[1], "usedBy").is_empty());
+        assert!(!flag_of(&folders[1], "realPath"));
+
+        let refused = forget_problem_object(granted_folders::Problem::InUseByBook);
+        assert_eq!(keys(&refused), ["code", "ok"]);
+        assert!(!flag_of(&refused, "ok"));
+        assert_eq!(text_of(&refused, "code"), "granted-folders.in-use-by-book");
     }
 
     #[test]

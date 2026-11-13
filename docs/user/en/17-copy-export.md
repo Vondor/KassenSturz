@@ -11,6 +11,10 @@
 
 KassenSturz **never overwrites** an existing file here. The file holds **no** bank login names and no PIN.
 
+## Folders KassenSturz may open
+
+Only in the Flatpak version. When you choose a folder (for your book or for backup copies), KassenSturz may open it until you take that back: **Settings › Your data › Folders KassenSturz may open** lists them, with **Forget this folder** for each. Forgetting only ends the access; **no file is deleted, moved or changed**. A folder your book or your backup copies still use says so, and can be forgotten once you keep them somewhere else.
+
 ## Making a book from a file
 
 At the first start (**Bring my data from another program**, page 3) or with **Settings › Start a new book…**.

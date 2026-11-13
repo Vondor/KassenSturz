@@ -264,7 +264,14 @@ parts:
       fi
       EOF
       chmod +x "$qmake_path"
-      export LD_LIBRARY_PATH="$sdk/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      # Qt's build tools need Qt's libraries; they may sit in the SDK or in
+      # the runtime snaps next to it.
+      echo "libQt6QmlCompiler:"; find /snap -name 'libQt6QmlCompiler.so*' 2>/dev/null || true
+      libs=""
+      for d in /snap/kde-qt6-core24-sdk/current /snap/kf6-core24-sdk/current /snap/kde-qt6-core24/current /snap/kf6-core24/current; do
+        [ -d "$d/usr/lib/x86_64-linux-gnu" ] && libs="$libs:$d/usr/lib/x86_64-linux-gnu"
+      done
+      export LD_LIBRARY_PATH="${libs#:}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
       cmake -S . -B "$CRAFT_PART_BUILD" -G Ninja \
         -DKASSENSTURZ_QMAKE="$qmake_path" \
         -DCMAKE_BUILD_TYPE=Release \

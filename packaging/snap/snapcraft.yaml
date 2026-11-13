@@ -99,9 +99,6 @@ parts:
     source-checksum: sha256/8916feaa99cb954f963f2cba8dd2dffe57cacf7f284daf00eab071aad6fe2ab3
     build-environment:
       - GPGRT_CONFIG: /usr/bin/gpgrt-config
-    autotools-configure-parameters:
-      - --prefix=/usr
-      - --with-guis=qt6
     build-packages:
       - libgnutls28-dev
       - libgcrypt20-dev
@@ -109,14 +106,18 @@ parts:
       - libgpg-error-dev
       - gettext
     # The extension points every part's library path at its SDK snaps, which
-    # breaks the host compiler's test programs; the bank libraries are
-    # plain C and need none of it. On a failure the log shows why.
+    # breaks the host compiler's test programs, and `craftctl default` would
+    # run in snapcraft's own environment, so the steps are written out here.
+    # The bank libraries are plain C and need none of it.
     override-build: |
+      set -eu
       unset LD_LIBRARY_PATH
-      # craftctl ends the script itself on a failure, so the log is shown
-      # by a trap.
-      trap 'echo "--- environment ---"; env | grep -E "^(PATH|CC|CXX|CFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|SNAPCRAFT|CRAFT)" | cut -c1-300; echo "--- config.log (tail) ---"; tail -n 60 config.log' EXIT
-      craftctl default
+      if ! ./configure --prefix=/usr --with-guis=qt6; then
+        tail -n 60 config.log
+        exit 1
+      fi
+      make -j"$CRAFT_PARALLEL_BUILD_COUNT"
+      make install DESTDIR="$CRAFT_PART_INSTALL"
     prime:
       - -usr/bin
       - -usr/include
@@ -128,17 +129,19 @@ parts:
     plugin: autotools
     source: https://www.aquamaniac.de/rdm/attachments/download/382/libchipcard-5.1.6.tar.gz
     source-checksum: sha256/6c07f527417f7562074f99012da4d11eb4dbafd33f49e66b442ccd6e3b8cfd20
-    autotools-configure-parameters:
-      - --prefix=/usr
     # The extension points every part's library path at its SDK snaps, which
-    # breaks the host compiler's test programs; the bank libraries are
-    # plain C and need none of it. On a failure the log shows why.
+    # breaks the host compiler's test programs, and `craftctl default` would
+    # run in snapcraft's own environment, so the steps are written out here.
+    # The bank libraries are plain C and need none of it.
     override-build: |
+      set -eu
       unset LD_LIBRARY_PATH
-      # craftctl ends the script itself on a failure, so the log is shown
-      # by a trap.
-      trap 'echo "--- environment ---"; env | grep -E "^(PATH|CC|CXX|CFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|SNAPCRAFT|CRAFT)" | cut -c1-300; echo "--- config.log (tail) ---"; tail -n 60 config.log' EXIT
-      craftctl default
+      if ! ./configure --prefix=/usr; then
+        tail -n 60 config.log
+        exit 1
+      fi
+      make -j"$CRAFT_PARALLEL_BUILD_COUNT"
+      make install DESTDIR="$CRAFT_PART_INSTALL"
     prime:
       - -usr/bin
       - -usr/include
@@ -151,24 +154,23 @@ parts:
     plugin: autotools
     source: https://www.aquamaniac.de/rdm/attachments/download/654/aqbanking-6.9.2.tar.gz
     source-checksum: sha256/244b5f7a139f829928f5cdc3f5f7488517b3e8aa63625a92741c3efc1892bb3f
-    autotools-configure-parameters:
-      - --prefix=/usr
-      - --with-backends=aqhbci aqnone
-      - --with-imexporters=csv ofx openhbci1 swift xmldb yellownet sepa ctxfile q43 camt xml
-      - --disable-cli
-      - --disable-tutorials
     build-packages:
       - libxmlsec1-dev
       - libxslt1-dev
     # The extension points every part's library path at its SDK snaps, which
-    # breaks the host compiler's test programs; the bank libraries are
-    # plain C and need none of it. On a failure the log shows why.
+    # breaks the host compiler's test programs, and `craftctl default` would
+    # run in snapcraft's own environment, so the steps are written out here.
+    # The bank libraries are plain C and need none of it.
     override-build: |
+      set -eu
       unset LD_LIBRARY_PATH
-      # craftctl ends the script itself on a failure, so the log is shown
-      # by a trap.
-      trap 'echo "--- environment ---"; env | grep -E "^(PATH|CC|CXX|CFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|SNAPCRAFT|CRAFT)" | cut -c1-300; echo "--- config.log (tail) ---"; tail -n 60 config.log' EXIT
-      craftctl default
+      if ! ./configure --prefix=/usr '--with-backends=aqhbci aqnone' '--with-imexporters=csv ofx openhbci1 swift xmldb yellownet sepa ctxfile q43 camt xml' --disable-cli --disable-tutorials; then
+        tail -n 60 config.log
+        exit 1
+      fi
+      # One job at a time, as in the Flatpak (docs/THIRD_PARTY.md).
+      make -j1
+      make install DESTDIR="$CRAFT_PART_INSTALL"
     prime:
       - -usr/bin
       - -usr/include

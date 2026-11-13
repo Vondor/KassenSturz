@@ -23141,6 +23141,112 @@ msgctxt "@info %1 says what a Rule does"
 msgid "Made by the AI, not checked by you yet. %1"
 msgstr "Von der KI erstellt, von Ihnen noch nicht geprüft. %1"
 
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:350
+#, kde-format
+msgctxt "@label a line the AI suggests for the user's notes"
+msgid "The AI suggests this line for your notes"
+msgstr "Die KI schlägt diese Zeile für Ihre Notizen vor"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:366
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Nothing is saved yet. If you add it, the line goes with every later question "
+"to your AI."
+msgstr "Noch ist nichts gespeichert. Wenn Sie die Zeile hinzufügen, geht sie mit jeder weiteren Frage an Ihre KI."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:383
+#, kde-format
+msgctxt "@action:button adds the suggested line to the notes"
+msgid "Add to my notes"
+msgstr "Zu meinen Notizen hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:392
+#, kde-format
+msgctxt "@action:button turns the suggested line down"
+msgid "No thanks"
+msgstr "Nein, danke"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:406
+#, kde-format
+msgctxt "@info"
+msgid "Added to your notes."
+msgstr "Zu Ihren Notizen hinzugefügt."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:408
+#, kde-format
+msgctxt "@info"
+msgid "This line is already in your notes."
+msgstr "Diese Zeile steht schon in Ihren Notizen."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:410
+#, kde-format
+msgctxt "@info"
+msgid "Your notes are full. Shorten them in the AI settings, then ask again."
+msgstr "Ihre Notizen sind voll. Kürzen Sie sie in den KI-Einstellungen und fragen Sie dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:412
+#, kde-format
+msgctxt "@info"
+msgid "Not added."
+msgstr "Nicht hinzugefügt."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:414
+#, kde-format
+msgctxt "@info"
+msgid "The line could not be added to your notes."
+msgstr "Die Zeile konnte nicht zu Ihren Notizen hinzugefügt werden."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:85
+#, kde-format
+msgctxt "@info what is sent"
+msgid ""
+"The notes you wrote for the AI in these settings, if you wrote any. They go "
+"with every question."
+msgstr "Die Notizen, die Sie in diesen Einstellungen für die KI geschrieben haben, falls Sie welche geschrieben haben. Sie gehen mit jeder Frage mit."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:689
+#, kde-format
+msgctxt "@title:group"
+msgid "Notes for the AI"
+msgstr "Notizen für die KI"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:696
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Write down what the AI should know about you, for example \"Salary comes on "
+"the 28th\" or \"Corner Market is groceries\". The notes stay on this "
+"computer and go with every question you ask the AI in the chat, so they are "
+"sent to your AI provider too. Write no passwords or PINs. The AI never "
+"changes them by itself: it can suggest a line, and you decide. Your AI tools "
+"outside KassenSturz do not get them."
+msgstr "Schreiben Sie auf, was die KI über Sie wissen soll, zum Beispiel „Das Gehalt kommt am 28.“ oder „Eckladen ist Lebensmittel“. Die Notizen bleiben auf diesem Computer und gehen mit jeder Frage mit, die Sie der KI im Chat stellen, werden also auch an Ihren KI-Anbieter gesendet. Schreiben Sie keine Passwörter oder PINs hinein. Die KI ändert sie nie von allein: Sie kann eine Zeile vorschlagen, und Sie entscheiden. Ihre KI-Programme außerhalb von KassenSturz bekommen sie nicht."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:707
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "One note per line"
+msgstr "Eine Notiz pro Zeile"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:708
+#, kde-format
+msgctxt "@label accessible name"
+msgid "Notes for the AI"
+msgstr "Notizen für die KI"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:716
+#, kde-format
+msgctxt "@action:button"
+msgid "Save notes"
+msgstr "Notizen speichern"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:731
+#, kde-format
+msgctxt "@info %1 characters written, %2 the most allowed"
+msgid "%1 of %2 characters"
+msgstr "%1 von %2 Zeichen"
+
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:95
 #, kde-format
 msgctxt "@action:button %1 is how many planned payments wait for the user"

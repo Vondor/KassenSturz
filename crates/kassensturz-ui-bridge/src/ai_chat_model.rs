@@ -280,7 +280,8 @@ pub(crate) mod engine {
     use kassensturz_ai_tools::refusal::RefusalReasons;
     use kassensturz_ai_tools::requests::RequestFolder;
     use kassensturz_ai_tools::{
-        ChangeError, ChangeSet, EditError, IssueDraft, PageTarget, ProposedChange, ToolError,
+        ChangeError, ChangeSet, EditError, IssueDraft, NoteSuggestion, PageTarget, ProposedChange,
+        ToolError,
     };
     use kassensturz_core::{Date, Report};
     use kassensturz_platform::Secret;
@@ -486,6 +487,9 @@ pub(crate) mod engine {
         if let Some(page) = &answer.page {
             fields.push(("page", page_object(page)));
         }
+        if let Some(note) = &answer.note {
+            fields.push(("noteSuggestion", note_object(note)));
+        }
         map(fields)
     }
 
@@ -508,6 +512,12 @@ pub(crate) mod engine {
             ("name", text(page.name())),
             ("id", text(page.id().unwrap_or_default())),
         ])
+    }
+
+    /// A line the AI suggested for the user's notes as QML reads it: its
+    /// `line`, word for word (US7, #808).
+    pub(crate) fn note_object(note: &NoteSuggestion) -> QVariant {
+        map([("line", text(&note.line))])
     }
 
     /// Charts that wait in the chat as QML reads them: each with an `id` and
@@ -1534,6 +1544,7 @@ mod tests {
     use cxx_qt_lib::{QString, QVariant};
     use kassensturz_ai::Finish;
     use kassensturz_ai_chat::{Answer, AnswerNote, LogEntry, Mode};
+    use kassensturz_ai_tools::NoteSuggestion;
 
     use super::engine::{
         changes_object, choices_object, danger_object, entry_object, finished_object,
@@ -1655,6 +1666,7 @@ mod tests {
             notes: Vec::new(),
             issue: None,
             page: None,
+            note: None,
         };
         let object = finished_object(&answer, &[(3, 2), (4, 1)], &[]);
         assert_eq!(
@@ -1705,6 +1717,7 @@ mod tests {
             notes: Vec::new(),
             issue: None,
             page: None,
+            note: None,
         };
         let charts = [
             ChartSet {
@@ -1799,6 +1812,7 @@ mod tests {
             notes: Vec::new(),
             issue: Some(issue.clone()),
             page: None,
+            note: None,
         };
         let object = finished_object(&answer, &[], &[]);
         assert_eq!(
@@ -1841,6 +1855,7 @@ mod tests {
             notes: Vec::new(),
             issue: None,
             page: Some(page.clone()),
+            note: None,
         };
         let object = finished_object(&answer, &[], &[]);
         assert_eq!(
@@ -1864,6 +1879,33 @@ mod tests {
         let read = super::engine::page_object(&PageTarget::Categories);
         assert_eq!(text_of(&read, "name"), "categories");
         assert_eq!(text_of(&read, "id"), "");
+    }
+
+    #[test]
+    fn a_suggested_note_reads_back_as_qml_reads_it() {
+        let note = NoteSuggestion {
+            line: "Corner Market is groceries.".into(),
+        };
+        let answer = Answer {
+            text: "I suggested a line.".into(),
+            unverified: Vec::new(),
+            finish: Finish::Done,
+            mode: Mode::Functions,
+            context_cut: false,
+            changes: Vec::new(),
+            title_numbers: Vec::new(),
+            chart_failed: None,
+            no_change: false,
+            notes: Vec::new(),
+            issue: None,
+            page: None,
+            note: Some(note.clone()),
+        };
+        let object = finished_object(&answer, &[], &[]);
+        assert!(keys(&object).contains(&"noteSuggestion".to_owned()));
+        let read = super::engine::note_object(&note);
+        assert_eq!(keys(&read), ["line"]);
+        assert_eq!(text_of(&read, "line"), "Corner Market is groceries.");
     }
 
     #[test]

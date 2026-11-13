@@ -29,6 +29,9 @@ pub enum SentData {
     /// their payees and memos, and Rules (D-170). Never a key, a PIN, a
     /// bank login or a bank link.
     BookData,
+    /// The user's own "Notes for the AI" (US7, #808): what the user wrote
+    /// in the AI settings, put into every chat request.
+    Notes,
     /// The descriptions of the functions the model may call, and
     /// KassenSturz's own instructions to the model.
     Instructions,
@@ -42,6 +45,7 @@ impl SentData {
         match self {
             Self::Questions => "questions",
             Self::BookData => "book-data",
+            Self::Notes => "notes",
             Self::Instructions => "instructions",
             Self::Key => "key",
         }
@@ -49,16 +53,17 @@ impl SentData {
 }
 
 /// Everything the statement of what is sent covers.
-pub const STATEMENT: [SentData; 4] = [
+pub const STATEMENT: [SentData; 5] = [
     SentData::Questions,
     SentData::BookData,
+    SentData::Notes,
     SentData::Instructions,
     SentData::Key,
 ];
 
 /// The version of [`STATEMENT`] and of the app's words for it. Raise it
 /// whenever either covers more, so every user is asked again (D-168).
-pub const STATEMENT_VERSION: u32 = 1;
+pub const STATEMENT_VERSION: u32 = 2;
 
 /// A consent the user gave: to send to `address` what version `statement`
 /// of the statement names, on `day`.
@@ -158,9 +163,12 @@ mod tests {
     fn the_statement_is_pinned_to_its_version() {
         // Changing what is sent changes this list: raise STATEMENT_VERSION
         // with it, so users are asked again, and then update this test.
-        assert_eq!(STATEMENT_VERSION, 1);
+        assert_eq!(STATEMENT_VERSION, 2);
         let words: Vec<&str> = STATEMENT.iter().map(|data| data.as_word()).collect();
-        assert_eq!(words, ["questions", "book-data", "instructions", "key"]);
+        assert_eq!(
+            words,
+            ["questions", "book-data", "notes", "instructions", "key"]
+        );
     }
 
     #[test]

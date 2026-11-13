@@ -262,6 +262,11 @@ ColumnLayout {
             if (result.noChange === true) {
                 panel.add({ kind: "noChange" });
             }
+            if (result.notes !== undefined) {
+                for (let i = 0; i < result.notes.length; i++) {
+                    panel.add({ kind: "note", note: result.notes[i] });
+                }
+            }
             if (result.page !== undefined) {
                 panel.add({ kind: "page", page: result.page.name, hasId: result.page.id !== "" });
                 panel.openPageRequested(result.page.name, result.page.id);

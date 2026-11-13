@@ -40,6 +40,7 @@ mod demo;
 mod error;
 mod features;
 mod log;
+mod notes;
 mod plain;
 mod prompt;
 mod session;
@@ -51,6 +52,7 @@ pub use demo::{
 pub use error::ChatError;
 pub use features::{AnswerLanguage, Feature};
 pub use log::{LogEntry, MAX_ARGUMENT_CHARS};
+pub use notes::AnswerNote;
 pub use prompt::{BuildInfo, DATA_END, DATA_START};
 pub use session::{
     ANSWER_NOW, Answer, CHART_NOT_PREPARED, Cancel, ChartFailed, ChatSession, EMPTY_ANSWER, Hooks,

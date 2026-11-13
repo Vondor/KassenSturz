@@ -59,11 +59,15 @@ The Snap Store terms (canonical.com) could not be read from this build environme
 
 The snap sees the user's files only through the portals (no `home`, `removable-media` or `personal-files` interface is plugged, on purpose: broad access would be a store review item and a step back from the Flatpak's rules). To check in a round on a real desktop, with the snap installed from a main build:
 
-1. First start: the book is made in the app's own folder (`~/snap/kassensturz/...`), backups next to it.
+1. First start: the book is made in the app's own folder (`~/snap/kassensturz/common/.local/share/...`, the same for every revision, B-266), backups next to it.
 2. New book: the page asks for a *folder* (no save dialog); the chosen folder, e.g. in Documents, works for the book, its lock file and SQLite's journal (D-730, D-733).
 3. Import: a file chosen with the file chooser (KMyMoney, CAMT, OFX) is read once; nothing else of the folder is reachable.
 4. Export and backup copy: the save dialog writes where the user chose; a chosen folder that the portal no longer grants (reset with `flatpak permission-reset` equivalent: `xdg-document-portal` entries removed) shows the plain "choose the folder again" message.
 5. Bill folder (D-739/D-763) and the receipt inbox's portal grants: chosen once, still there after a restart.
 6. External drive: a book on a USB stick (not mounted in the snap, only through the portal) opens or is refused with a clear message, never a silent empty book.
+
+Known limit (B-265): the snap's AppArmor profile denies file locks (`flock`, `fcntl`) in the portal's folders (`/run/user/UID/doc/...`), the Flatpak does not. A backup copy into such a folder works anyway, since the copy is made in a private folder and written as plain bytes. A *book* that lives in a portal folder needs SQLite's locks and is not expected to open in the snap; the VM round says what the app shows then.
+
+Data (B-266): `packaging/snap/launch.sh` points `XDG_DATA_HOME`, `XDG_CONFIG_HOME` and `XDG_CACHE_HOME` to `$SNAP_USER_COMMON`, which every revision shares, so an update or rollback never leaves books or settings behind. Data an earlier revision kept in its own folder is copied once, never moved. The launcher also sets `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1` so Qt offers the accessibility tree (to be confirmed by the VM round).
 
 Open point: the portal's host-path lookup (`GetHostPaths`) needs the snap to reach `org.freedesktop.portal.Documents` on D-Bus. If snapd's `desktop` interface does not allow it, the folder is shown by its name instead of its real path (the existing fallback). The round says which.

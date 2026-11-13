@@ -39,6 +39,7 @@ platforms:
 apps:
   kassensturz:
     command: usr/bin/kassensturz
+    command-chain: [usr/bin/kassensturz-snap-launch]
     extensions: [kde-neon-6]
     common-id: io.github.vondor.KassenSturz
     desktop: usr/share/applications/io.github.vondor.KassenSturz.desktop
@@ -53,6 +54,7 @@ apps:
   # started by that tool, not from a menu, and shares the app's data folder.
   mcp:
     command: usr/bin/kassensturz-mcp
+    command-chain: [usr/bin/kassensturz-snap-launch]
     extensions: [kde-neon-6]
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
@@ -295,6 +297,7 @@ parts:
         -DKASSENSTURZ_INSTALL_SVG_ICON=OFF -DKASSENSTURZ_SKIP_QML_MODULE_CHECK=ON
       cmake --build "$CRAFT_PART_BUILD"
       DESTDIR="$CRAFT_PART_INSTALL" cmake --install "$CRAFT_PART_BUILD"
+      install -Dm755 packaging/snap/launch.sh "$CRAFT_PART_INSTALL/usr/bin/kassensturz-snap-launch"
       # Takes the AppStream data's summary and description for the store.
       craftctl default
     parse-info: [usr/share/metainfo/io.github.vondor.KassenSturz.metainfo.xml]

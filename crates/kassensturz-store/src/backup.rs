@@ -139,17 +139,78 @@ pub(crate) fn stem_of(book: &Path) -> Result<&str, StoreError> {
 /// Copies the database `conn` has open into `to`, the empty file claimed for
 /// it, and makes sure the copy is on the disk.
 fn copy(conn: &Connection, to: &Path) -> Result<(), StoreError> {
-    let name = to
-        .to_str()
-        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
-    // VACUUM INTO writes into an empty file, but not into a database
-    // (sqlite.org/lang_vacuum.html).
-    conn.execute("VACUUM INTO ?1", [name])?;
+    vacuum_into(conn, to)?;
     // VACUUM INTO doesn't wait until the copy is on the disk, so it's synced
     // here, before the update changes the book. Windows syncs only files
     // opened for writing.
     OpenOptions::new().write(true).open(to)?.sync_all()?;
     Ok(())
+}
+
+/// Writes a copy of the database `conn` has open into `to`, an empty file.
+///
+/// VACUUM INTO writes into an empty file, but not into a database
+/// (sqlite.org/lang_vacuum.html). SQLite takes file locks on the copy, and
+/// some places refuse them: in a snap, the folders the portal hands out
+/// (B-265). Then the copy is made in a private folder of the app, where
+/// locks work, and put into `to` as plain bytes, which needs none.
+pub(crate) fn vacuum_into(conn: &Connection, to: &Path) -> Result<(), StoreError> {
+    let name = to
+        .to_str()
+        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
+    let Err(first) = conn.execute("VACUUM INTO ?1", [name]) else {
+        return Ok(());
+    };
+    // Only an empty file is written into: anything else is the user's, and
+    // is never replaced here.
+    if fs::metadata(to).map_or(true, |meta| meta.len() != 0) {
+        return Err(first.into());
+    }
+    via_private_folder(conn, to).map_err(|error| match error {
+        // The same trouble in the private folder is not about `to`.
+        StoreError::Database(_) => first.into(),
+        other => other,
+    })
+}
+
+/// The copy made in a private folder, then written into the empty file `to`.
+fn via_private_folder(conn: &Connection, to: &Path) -> Result<(), StoreError> {
+    let private = PrivateFolder::new()?;
+    let staged = private.path().join("copy.ksz");
+    let staged_name = staged
+        .to_str()
+        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
+    conn.execute("VACUUM INTO ?1", [staged_name])?;
+    fs::copy(&staged, to)?;
+    Ok(())
+}
+
+/// A folder only this user can read, in the computer's temporary folder,
+/// that goes away when dropped. A copy of a book is in it for a moment.
+struct PrivateFolder(PathBuf);
+
+impl PrivateFolder {
+    fn new() -> std::io::Result<Self> {
+        let path = std::env::temp_dir().join(format!(
+            "kassensturz-copy-{}",
+            uuid::Uuid::now_v7().hyphenated()
+        ));
+        let mut builder = fs::DirBuilder::new();
+        #[cfg(unix)]
+        std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+        builder.create(&path)?;
+        Ok(Self(path))
+    }
+
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for PrivateFolder {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
 }
 
 /// Picks the first free name for a backup of the book `stem` at `stamp`,
@@ -472,6 +533,36 @@ mod tests {
             .collect();
         expected.sort();
         assert_eq!(names_in(&folder), expected);
+    }
+
+    #[test]
+    fn a_copy_made_in_the_private_folder_is_a_complete_book() {
+        let folder = TempFolder::new();
+        let conn = Connection::open_in_memory().expect("database opened");
+        conn.execute_batch("CREATE TABLE t(x); INSERT INTO t VALUES (7);")
+            .expect("filled");
+        let to = folder.join("copy.ksz");
+        fs::write(&to, "").expect("claimed");
+
+        via_private_folder(&conn, &to).expect("copied");
+
+        let copy = Connection::open(&to).expect("copy opened");
+        let value: i64 = copy
+            .query_row("SELECT x FROM t", [], |row| row.get(0))
+            .expect("read back");
+        assert_eq!(value, 7);
+    }
+
+    #[test]
+    fn a_file_that_is_not_empty_is_never_replaced_by_the_fallback() {
+        let folder = TempFolder::new();
+        let conn = Connection::open_in_memory().expect("database opened");
+        conn.execute_batch("CREATE TABLE t(x);").expect("filled");
+        let to = folder.join("mine.ksz");
+        fs::write(&to, "the user's own file").expect("file written");
+
+        assert!(vacuum_into(&conn, &to).is_err());
+        assert_eq!(fs::read(&to).expect("read"), b"the user's own file");
     }
 
     #[test]

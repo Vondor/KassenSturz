@@ -148,7 +148,7 @@ pub enum ComponentType {
 impl ComponentType {
     /// Every component that shows data, in the order the app offers them.
     /// The AI may pick any of these (D-282); the heading is not among them.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -158,6 +158,7 @@ impl ComponentType {
         Self::KpiCard,
         Self::ProgressBar,
         Self::TableRows,
+        Self::ChartFlow,
     ];
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
@@ -174,6 +175,7 @@ impl ComponentType {
         Self::KpiCard,
         Self::ProgressBar,
         Self::TableRows,
+        Self::ChartFlow,
         Self::Heading,
         Self::Separator,
         Self::FetchNotice,
@@ -189,7 +191,6 @@ impl ComponentType {
         Self::DashboardTabs,
         Self::CustomChart,
         Self::ChartCandlestick,
-        Self::ChartFlow,
         Self::Transactions,
         Self::Alarms,
     ];

@@ -82,6 +82,11 @@ mkdir "$work/out"
     fi
     grep -q 'flow-columns 3$' run.log || { echo "check-charts: the money-flow chart has the wrong columns" >&2; exit 1; }
     grep -q 'flow-band-at 0$' run.log || { echo "check-charts: no band under the point of the salary band" >&2; exit 1; }
+    # A click opens the transactions of the outer category of what was hit;
+    # the middle and the balance node open everything (D-773).
+    grep -q 'flow-behind b,a,c,,$' run.log || { echo "check-charts: a click on the money flow opens the wrong category" >&2; exit 1; }
+    grep -q 'flow-scope \[\["b"\],true,\["x"\],true,true\]$' run.log || { echo "check-charts: the scope behind a click is not narrowed to its category" >&2; exit 1; }
+    grep -q 'flow-scope-all true$' run.log || { echo "check-charts: a click on no category narrows the scope" >&2; exit 1; }
     grep -q 'flow-text Salary to Your money: ' run.log || { echo "check-charts: a band does not say where it goes" >&2; exit 1; }
     cp out/*.png "$work/out/"
 )

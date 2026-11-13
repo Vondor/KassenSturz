@@ -23430,3 +23430,9 @@ msgstr "Wählen Sie, wessen Geld das Diagramm verfolgt. Ist nichts angekreuzt, z
 msgctxt "@item:inlistbox a way to show figures: where money came from and where it went, as bands"
 msgid "Money flow"
 msgstr "Geldfluss"
+
+#: crates/kassensturz-ui-bridge/qml/FlowBehind.qml:58
+#, kde-format
+msgctxt "@info"
+msgid "No transactions behind this in this period."
+msgstr "In diesem Zeitraum liegen keine Buchungen dahinter."

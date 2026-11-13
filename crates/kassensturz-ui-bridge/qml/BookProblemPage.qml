@@ -118,6 +118,8 @@ Kirigami.Page {
             default:
                 return i18nContext.i18nc("@info", "The file couldn't be read or written. Check that the drive is connected, then try again.");
             }
+        case "store.corrupt.unexpected-layout":
+            return i18nContext.i18nc("@info", "This book holds parts a KassenSturz book doesn't have, or lacks some of its own. Another program probably changed it. KassenSturz didn't open it, so nothing in it ran, and the book wasn't changed. Your backups are in KassenSturz's backup folder; open the newest one instead.");
         default:
             if (code.startsWith("store.corrupt")) {
                 return i18nContext.i18nc("@info", "The book is damaged, so KassenSturz didn't open it. Your backups are in KassenSturz's backup folder; open the newest one instead.");

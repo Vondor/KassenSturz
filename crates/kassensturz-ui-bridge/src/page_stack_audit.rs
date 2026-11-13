@@ -174,6 +174,16 @@ mod tests {
         assert!(dialog.contains("Qt.callLater(() => {\n            if (!dialog.visible)"));
     }
 
+    /// An open Monthly moves window reads its list again when the book is
+    /// read again, which an Undo does (M6-B260).
+    #[test]
+    fn the_open_monthly_moves_window_reads_again_after_an_undo() {
+        let page = qml("AccountsPage.qml");
+        assert!(page.contains(
+            "onSectionsChanged: {\n        if (monthlyMoves.visible) {\n            monthlyMoves.load();"
+        ));
+    }
+
     /// Inside a `Component { … }`, a binding such as `bookMove: bookMove`
     /// reads the made object's own property, not the object with that id
     /// outside: Qt reports a binding loop and the property stays null. The

@@ -124,6 +124,22 @@ impl Problem {
         }
     }
 
+    /// The problem's code, e.g. `book.missing` or `store.corrupt.bad-split`,
+    /// the one [`Problem::text`] gives, for the developer log.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Locked { .. } => "store.locked",
+            Self::Missing { .. } => "book.missing",
+            Self::Sandboxed { .. } => "book.sandboxed",
+            Self::NoAccess { .. } => "book.no-access",
+            Self::ReadOnly { .. } => "book.read-only",
+            Self::WriteFailed { .. } => "book.write-failed",
+            Self::OutsideTest { .. } => "book.outside-test",
+            Self::NoAppFolder => "book.no-app-folder",
+            Self::Store { error, .. } => error.report().code,
+        }
+    }
+
     /// The problem as the UI shows it. The file's name is always there as
     /// `file`, without its folder, which the UI shows separately.
     pub fn text(&self) -> ProblemText {
@@ -565,7 +581,21 @@ mod tests {
     }
 
     fn code(problem: Problem) -> String {
-        problem.text().code
+        let shown = problem.text().code;
+        assert_eq!(problem.code(), shown, "the log names what the page shows");
+        shown
+    }
+
+    #[test]
+    fn a_book_with_foreign_parts_is_refused_under_its_own_code() {
+        let refused = Problem::Store {
+            path: PathBuf::from("/data/Household.ksz"),
+            error: StoreError::Corrupt(kassensturz_store::Corruption::UnexpectedLayout),
+        };
+        // The page words it apart from other damage and the log names it
+        // (B-262).
+        assert_eq!(refused.code(), "store.corrupt.unexpected-layout");
+        assert_eq!(refused.text().code, "store.corrupt.unexpected-layout");
     }
 
     #[test]

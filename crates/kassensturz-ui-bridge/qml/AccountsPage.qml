@@ -128,6 +128,16 @@ Kirigami.ScrollablePage {
         register: page.register
     }
 
+    // Every screen reads the book again after an Undo or a Redo
+    // (`bookChanged`), and the accounts are read with it: an open Monthly
+    // moves window then reads its list again too, so it never keeps saying
+    // "No monthly moves yet" for a move that is back (M6-B260).
+    onSectionsChanged: {
+        if (monthlyMoves.visible) {
+            monthlyMoves.load();
+        }
+    }
+
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 

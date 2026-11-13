@@ -127,6 +127,9 @@ events! {
     /// A screen has its content and a frame with it was drawn; the detail
     /// names it. Only screens that load a lot (the register) say so.
     ScreenReady = "screen.ready",
+    /// A book wasn't opened; the code says why, e.g.
+    /// `store.corrupt.unexpected-layout`.
+    BookRefused = "book.refused",
     /// The user switched AI on.
     AiSwitchedOn = "ai.switched-on",
     /// The user switched AI off.

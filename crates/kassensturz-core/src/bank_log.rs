@@ -482,6 +482,43 @@ mod tests {
     }
 
     #[test]
+    fn a_notice_never_shows_the_product_field_of_a_fints_message() {
+        // #886 follow-up: the FinTS product registration number (D-058,
+        // D-260) goes only into the product field of HKVVB. Whatever a bank
+        // or AqBanking echoes back in a reply text, a bank log line never
+        // holds it, nor a long piece of it. Invented numbers of the shape
+        // of `kassensturz_bank::REGISTRATION_KEY_LENGTH` (25 letters and
+        // digits): one with digits and one of letters only.
+        let at: Timestamp = "2026-11-13T12:00:00Z".parse().unwrap();
+        for key in ["QXZ7WVK3PJT9RMB2LDF6HNC4Y", "QXZWVKPJTRMBLDFHNCYGSTQWX"] {
+            assert_eq!(key.len(), 25);
+            let echoes = [
+                format!("HKVVB:4:3+0+0+0+{key}+1.0'"),
+                format!("Segment HKVVB:4:3+0+0+0+{key}+1.0' abgelehnt"),
+                format!("Produkt {key} nicht registriert"),
+                format!("Produktbezeichnung \"{key}\" unbekannt"),
+                format!("Produkt ({key}) unbekannt"),
+                format!("Produkt: {key}."),
+                format!("{key}"),
+                format!("{} {key}", "wort ".repeat(30)),
+                format!("Produkt {}", key.to_lowercase()),
+                format!("Produkt +{key}+ falsch"),
+                format!("Produkt\t{key}\nfalsch"),
+            ];
+            for text in &echoes {
+                let line = notice_line(at, 9050, text);
+                let lower = line.to_lowercase();
+                let key_lower = key.to_lowercase();
+                // No 8 characters of the number in a row, in any case.
+                for piece in key_lower.as_bytes().windows(8) {
+                    let piece = std::str::from_utf8(piece).unwrap();
+                    assert!(!lower.contains(piece), "{text:?} gave {line}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn a_notice_line_has_no_character_that_needs_escaping() {
         let at: Timestamp = "2026-11-06T16:00:00Z".parse().unwrap();
         let text = notice_line(at, 9160, "Fehler \"x\" \\ DE89370400440532013000 \u{1F600}");

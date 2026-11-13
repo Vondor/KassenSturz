@@ -380,7 +380,7 @@ pub(super) fn free_text(text: &str, argument: &'static str) -> Result<Option<Str
         None
     };
     if let Some(reason) = reason {
-        return Err(ToolError::BadText { argument, reason });
+        return Err(ToolError::BadArgumentWhy { argument, reason });
     }
     Ok((!text.is_empty()).then(|| text.to_owned()))
 }
@@ -484,7 +484,7 @@ mod tests {
         assert!(free_text("a\u{202e}b", "payee").is_err());
         assert!(matches!(
             free_text("a\nb", "note"),
-            Err(ToolError::BadText {
+            Err(ToolError::BadArgumentWhy {
                 argument: "note",
                 reason: "line-break"
             })

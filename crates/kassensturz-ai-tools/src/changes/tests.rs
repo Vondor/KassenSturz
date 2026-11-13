@@ -730,7 +730,7 @@ fn categories_are_renamed_and_moved_with_what_is_inside_them() {
     for (call, expected) in [
         (
             json!({"edit_categories": [{"category_id": food.to_string(), "parent_id": groceries.to_string()}]}),
-            "bad-argument parent_id",
+            "ai-tools.bad-argument",
         ),
         (
             json!({"edit_categories": [{"category_id": groceries.to_string(), "parent_id": salary.to_string()}]}),
@@ -2169,6 +2169,67 @@ fn delete_call(
         &json!({"delete_transactions": [{"transaction_id": id.to_string()}]}),
         allowed,
     )
+}
+
+#[test]
+fn a_category_made_its_own_parent_and_a_category_sent_as_a_rule_say_so() {
+    // #860: the two mistakes a small model made again and again.
+    let Sample {
+        book,
+        food,
+        groceries,
+        ..
+    } = sample();
+    let reason = |call: Value| {
+        let report = propose(&book, &call).expect_err("refused").model_report();
+        let word = |name| match report.param(name) {
+            Some(kassensturz_core::ErrorParam::Keyword(word)) => Some(*word),
+            _ => None,
+        };
+        (report.code, word("argument"), word("reason"))
+    };
+    let own = json!({"edit_categories": [{"category_id": food.to_string(),
+        "parent_id": food.to_string()}]});
+    assert_eq!(
+        reason(own),
+        (
+            "ai-tools.bad-argument",
+            Some("parent_id"),
+            Some("own-parent")
+        )
+    );
+    let below = json!({"edit_categories": [{"category_id": food.to_string(),
+        "parent_id": groceries.to_string()}]});
+    assert_eq!(
+        reason(below),
+        (
+            "ai-tools.bad-argument",
+            Some("parent_id"),
+            Some("inside-itself")
+        )
+    );
+    // A category's ID where a Rule's belongs: its own code and a fixed hint.
+    for call in [
+        json!({"delete_rules": [{"rule_id": groceries.to_string()}]}),
+        json!({"edit_rules": [{"rule_id": groceries.to_string(), "name": "X"}]}),
+        json!({"move_rules": [{"rule_id": groceries.to_string(), "position": 1}]}),
+        json!({"new_rules": [{"name": "X", "parent_rule_id": groceries.to_string(),
+            "conditions": [{"field": "payee", "test": "contains", "text": "x"}],
+            "category_id": groceries.to_string()}]}),
+    ] {
+        let error = propose(&book, &call).expect_err("refused");
+        assert_eq!(error.model_report().code, "ai-tools.category-not-a-rule");
+        assert_eq!(error.hint(), Some(crate::error::CATEGORY_NOT_RULE_HINT));
+    }
+    // An ID that is nothing at all stays an unknown Rule.
+    let none = json!({"delete_rules": [{"rule_id": "00000000-0000-0000-0000-000000000009"}]});
+    assert_eq!(
+        propose(&book, &none)
+            .expect_err("refused")
+            .model_report()
+            .code,
+        "ai-tools.unknown-rule"
+    );
 }
 
 #[test]

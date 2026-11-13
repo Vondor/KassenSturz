@@ -102,7 +102,10 @@ fn a_model_that_follows_a_hostile_memo_gets_nothing_more() {
         called(&chat),
         [
             ("search_transactions".to_owned(), None),
-            ("list_accounts".to_owned(), Some("ai-tools.bad-argument")),
+            (
+                "list_accounts".to_owned(),
+                Some("ai-tools.unknown-argument")
+            ),
         ]
     );
     assert!(chat.log().contains(&LogEntry::NotOffered { calls: 1 }));

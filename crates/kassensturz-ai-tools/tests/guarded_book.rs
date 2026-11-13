@@ -294,7 +294,14 @@ fn a_call_outside_the_list_or_its_arguments_is_refused() {
         (
             "list_accounts",
             json!({ "sql": "1" }),
-            "ai-tools.bad-argument arguments",
+            "ai-tools.unknown-argument",
+        ),
+        // A key KassenSturz knows, sent to a function that doesn't take it,
+        // is named (#853).
+        (
+            "list_accounts",
+            json!({ "limit": 5 }),
+            "ai-tools.unknown-argument limit",
         ),
         (
             "list_accounts",
@@ -401,6 +408,18 @@ fn a_call_outside_the_list_or_its_arguments_is_refused() {
     ] {
         assert_eq!(code(name, arguments), expected, "{name}");
     }
+    // The answer lists what the function takes and never echoes a made-up
+    // key (#853, X-8).
+    let error = call(
+        &book,
+        "list_accounts",
+        &json!({ "sql_injection_xyz": 1 }),
+        TODAY,
+    )
+    .expect_err("refused");
+    assert_eq!(error.allowed_fields(), Some(&["include_closed"][..]));
+    assert_eq!(error.report().param("argument"), None);
+    assert!(!format!("{:?}", error.report()).contains("sql_injection_xyz"));
     assert!(matches!(
         call(&book, "list_categories", &json!(1), TODAY),
         Err(ToolError::BadArgument {

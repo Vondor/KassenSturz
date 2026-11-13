@@ -29,6 +29,11 @@ pub(crate) mod shape {
     pub(crate) const ID: &str = "text that is an ID, as the read functions give it";
 }
 
+/// What [`ToolError::hint`] tells the model when it sent a category's ID
+/// where a Rule's belongs (#860). Fixed text, never the call's.
+pub const CATEGORY_NOT_RULE_HINT: &str = "This ID is a category. Rule IDs come from \
+list_rules; call list_rules and copy the ID of the Rule.";
+
 /// What [`ToolError::hint`] tells the model when `measure` is refused on a
 /// chart (R2-16).
 pub const READY_MADE_TILE_HINT: &str = "measure is only the one number of a key figure \
@@ -67,16 +72,19 @@ pub enum ToolError {
         /// The argument's name, from the function's fixed list.
         argument: &'static str,
     },
-    /// A free text of a `propose_changes` call (`payee`, `note`, a part's
-    /// `name`, a bill's `title`) can't be kept, and `reason` says why: the
-    /// answer is `ai-tools.bad-argument` with the argument and the reason
-    /// (#826).
-    BadText {
+    /// An argument of a `propose_changes` call is refused for a reason the
+    /// answer names: a free text (`payee`, `note`, a part's `name`, a
+    /// bill's `title`) that can't be kept (#826), or a category made its
+    /// own parent (#860). The answer is `ai-tools.bad-argument` with the
+    /// argument and the reason.
+    BadArgumentWhy {
         /// The argument's name, from the function's fixed list.
         argument: &'static str,
         /// `line-break` (it has a line break or another control
         /// character), `hidden-character` (a character that hides text) or
-        /// `too-long`.
+        /// `too-long` for a text; `own-parent` (a category made its own
+        /// parent) or `inside-itself` (made a child of one of its own
+        /// subcategories) for `parent_id`.
         reason: &'static str,
     },
     /// An argument of a `propose_changes` call is of the wrong kind, such as
@@ -233,6 +241,9 @@ pub enum ToolError {
     OtherCurrency,
     /// No Rule has that ID.
     UnknownRule,
+    /// The ID sent as a Rule's is a category's: small models mix them up.
+    /// Rule IDs come from `list_rules` (#860).
+    CategoryNotRule,
     /// No chart saved under Statistics has that ID (D-681).
     UnknownView,
     /// The name an item gave next to an ID is not the name of what the ID
@@ -456,6 +467,7 @@ impl ToolError {
                 only_for_show_as,
                 ..
             } if only_for_show_as.contains(&"figure") => Some(READY_MADE_TILE_HINT),
+            Self::CategoryNotRule => Some(CATEGORY_NOT_RULE_HINT),
             _ => None,
         }
     }
@@ -573,7 +585,7 @@ impl Report for ToolError {
             | Self::NotShaped { argument, .. }
             | Self::NotForChart { argument, .. } => ErrorReport::new("ai-tools.bad-argument")
                 .with("argument", ErrorParam::Keyword(argument)),
-            Self::BadText { argument, reason } => ErrorReport::new("ai-tools.bad-argument")
+            Self::BadArgumentWhy { argument, reason } => ErrorReport::new("ai-tools.bad-argument")
                 .with("argument", ErrorParam::Keyword(argument))
                 .with("reason", ErrorParam::Keyword(reason)),
             Self::UnknownField { argument, .. } => ErrorReport::new("ai-tools.unknown-field")
@@ -634,6 +646,7 @@ impl Report for ToolError {
             }
             Self::OtherCurrency => ErrorReport::new("ai-tools.other-currency"),
             Self::UnknownRule => ErrorReport::new("ai-tools.unknown-rule"),
+            Self::CategoryNotRule => ErrorReport::new("ai-tools.category-not-a-rule"),
             Self::UnknownView => ErrorReport::new("ai-tools.unknown-view"),
             Self::NameMismatch { argument } => ErrorReport::new("ai-tools.name-mismatch")
                 .with("argument", ErrorParam::Keyword(argument)),
@@ -788,6 +801,7 @@ mod tests {
             ToolError::NotDeletable,
             ToolError::OtherCurrency,
             ToolError::UnknownRule,
+            ToolError::CategoryNotRule,
             ToolError::UnknownView,
             ToolError::NameMismatch {
                 argument: "category_id",
@@ -1019,9 +1033,16 @@ mod tests {
         for (id, _, _) in crate::changes::NAMED_IDS {
             examples.push(ToolError::NameMismatch { argument: id });
         }
+        // A category made its own parent, with the reason (#860).
+        for reason in ["own-parent", "inside-itself"] {
+            examples.push(ToolError::BadArgumentWhy {
+                argument: "parent_id",
+                reason,
+            });
+        }
         // A free text that can't be kept, with the reason (#826).
         for reason in ["line-break", "hidden-character", "too-long"] {
-            examples.push(ToolError::BadText {
+            examples.push(ToolError::BadArgumentWhy {
                 argument: "note",
                 reason,
             });

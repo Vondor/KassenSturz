@@ -56,6 +56,7 @@ What we found when we tested local models on a made-up household book, asking te
 - **Leave the model's thinking on in LM Studio.** Turning it off (`enable_thinking`, `/no_think`) did not stop the thinking there and made the answers worse.
 - **A model larger than the graphics card's memory** (for example Qwen3.6 35B A3B on an 8 GB card) runs mostly from the computer's main memory. It answered more precisely, but sometimes thought for half an hour without answering. Prefer a model that fits on the card.
 - **Gemma 4 E4B and Qwen3.5 9B** (both the Q4_K_M files in LM Studio) answered all ten questions correctly in the last round. The much larger **Qwen3.6 35B A3B** was almost as good and needs a lot of memory.
+- **Model size, in the longer night run on a 16 GB graphics card:** a model of about 9 billion parameters answered the everyday questions well, with few refused calls. A model of about 4 billion parameters could answer too, but had 29 to 36 refused calls in 73 questions: it sent a category's ID where a Rule's belongs, or made a category its own parent. KassenSturz refuses those calls and says why, so nothing wrong is saved, but the answers take longer and sometimes need a second try. If you can, pick a model of about 9 billion parameters or more that fits on your graphics card.
 - Smaller models, or models that run out of memory and answer slowly, tend to skip the functions and answer from memory. Those answers can look right and be wrong.
 - The same model can do better or worse from one run to the next, so don't treat this as a promise.
 

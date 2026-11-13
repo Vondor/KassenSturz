@@ -519,7 +519,7 @@
       "result": {
         "content": [
           {
-            "text": "{\"argument\":\"arguments\",\"error\":\"ai-tools.bad-argument\"}",
+            "text": "{\"allowed\":[\"include_closed\"],\"error\":\"ai-tools.unknown-argument\"}",
             "type": "text"
           }
         ],

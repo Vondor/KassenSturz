@@ -39,6 +39,28 @@ Kirigami.InlineMessage {
             : i18nContext.i18nc("@info %1 is the number of a part of a transaction, %2 a message about it", "Part %1: %2", result.part, message);
     }
 
+    // Why a planned payment can't be kept as it is (D-769).
+    function scheduleInvalid(reason: string): string {
+        switch (reason) {
+        case "name":
+            return i18nContext.i18nc("@info", "Give the planned payment a name of 1 to 60 characters on one line, such as Rent.");
+        case "amount-zero":
+            return i18nContext.i18nc("@info", "Type an amount other than zero.");
+        case "every-range":
+            return i18nContext.i18nc("@info", "Choose how often it comes: every 1 to 52 weeks, months or years.");
+        case "end-before-start":
+            return i18nContext.i18nc("@info", "The end is before the first payment. Choose a later end, or none.");
+        case "tolerance-range":
+            return i18nContext.i18nc("@info", "The amount may vary by less than the amount itself. Type a smaller difference, or none.");
+        case "party":
+            return i18nContext.i18nc("@info", "The name or IBAN it is paid to or received from may have at most 140 characters.");
+        case "booked-amount":
+            return i18nContext.i18nc("@info", "To book it, type an amount other than zero.");
+        default:
+            return i18nContext.i18nc("@info", "This planned payment can't be kept as it is. Check the form.");
+        }
+    }
+
     // Why a chart description can't be read, at the place it names. The
     // place is the user's own text and is shown as it is (D-034).
     function specInvalid(result: var): string {
@@ -610,6 +632,29 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "KassenSturz keeps what your bank or a file delivered exactly as it came, so this change wasn't made and nothing was lost. This is a mistake in KassenSturz or in another program that changed the book; please report it.");
         case "store.account-closed":
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
+        // Planned payments (US7.1, D-769).
+        case "input.plan-every":
+            return i18nContext.i18nc("@info", "Choose how often it comes: every 1 to 52 weeks, months or years.");
+        case "store.schedule-unknown":
+            return i18nContext.i18nc("@info", "This planned payment isn't in the book anymore. It may have just been removed.");
+        case "store.schedule-invalid":
+            return scheduleInvalid(result.reason ?? "");
+        case "store.schedule-account-closed":
+            return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed, so it gets no new planned payment and no new entry. Open it again first; its planned payments go on then.", result.account);
+        case "store.schedule-currency-differs":
+            return i18nContext.i18nc("@info %1 is the name of an account, %2 a currency code", "%1 doesn't count in %2. A planned payment is in its account's currency.", result.account, result.currency);
+        case "store.schedule-category":
+            return i18nContext.i18nc("@info %1 is the name of a category", "%1 isn't a category in the planned payment's currency. Choose another one, or none.", result.category);
+        case "store.schedule-too-many":
+            return i18nContext.i18nc("@info %1 is a number", "A book holds at most %1 planned payments. Remove one you don't need anymore first.", result.max);
+        case "store.schedule-occurrence-unknown":
+            return i18nContext.i18nc("@info", "This planned payment isn't due on that day. It may have just been changed. Look at the list again.");
+        case "store.schedule-occurrence-decided":
+            return i18nContext.i18nc("@info", "This payment was matched or skipped already, so nothing was changed. To take a match back, use Undo.");
+        case "store.schedule-entry-taken":
+            return i18nContext.i18nc("@info", "This entry is matched to a planned payment already. Each entry pays one planned payment.");
+        case "store.schedule-entry-not-fitting":
+            return i18nContext.i18nc("@info", "This entry can't pay this planned payment: it must be in the plan's account, with the money going the same way, and not a move between your own accounts.");
         case "store.corrupt.history-mismatch":
             return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
         case "input.no-accounts-chosen":

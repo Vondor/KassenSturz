@@ -97,6 +97,8 @@ mod parts_entry;
 mod period_range;
 mod period_range_model;
 mod plain_text_audit;
+mod planned_payments;
+mod planned_payments_model;
 mod platform;
 mod properties;
 mod properties_model;

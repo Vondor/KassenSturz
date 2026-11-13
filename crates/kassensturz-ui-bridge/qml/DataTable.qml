@@ -23,6 +23,22 @@ ColumnLayout {
     property var columnNames: ({})
     // What the table is about, for screen readers.
     property string title
+    // A comparison (US6, #789, D-760): for each row `good`, `bad` or "" (no
+    // colour), the columns that take it, and words for screen readers, so
+    // colour is never the only sign (D-283). Empty for other tables.
+    property var tones: []
+    property var tonedColumns: []
+    property var notes: []
+    // A total row under the others, already in words; empty for none.
+    property var totalRow: []
+    property string totalTone
+    property string totalNote
+
+    function toneColor(tone: string): color {
+        return tone === "good" ? Kirigami.Theme.positiveTextColor
+            : tone === "bad" ? Kirigami.Theme.negativeTextColor
+            : Kirigami.Theme.textColor;
+    }
 
     readonly property int columnCount: columns.length
 
@@ -60,6 +76,10 @@ ColumnLayout {
             if (row[index] !== undefined) {
                 widest = Math.max(widest, metrics.advanceWidth(row[index]));
             }
+        }
+        // The total row is bold too (D-760).
+        if (totalRow[index] !== undefined) {
+            widest = Math.max(widest, headerMetrics.advanceWidth(totalRow[index]) * 1.05);
         }
         const title = columnTitle(columns[index]);
         // A little room for hinting, so the bold header is never cut.
@@ -118,6 +138,7 @@ ColumnLayout {
         RowLayout {
             id: row
 
+            required property int index
             required property var modelData
 
             Layout.fillWidth: true
@@ -139,7 +160,45 @@ ColumnLayout {
                     elide: index === 0 ? Text.ElideNone : Text.ElideRight
                     Accessible.role: Accessible.Cell
                     horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
+                    readonly property bool toned: table.tonedColumns.indexOf(index) >= 0
+                    color: toned ? table.toneColor(table.tones[row.index] ?? "") : Kirigami.Theme.textColor
+                    Accessible.name: toned && (table.notes[row.index] ?? "") !== ""
+                        ? modelData + ", " + table.notes[row.index]
+                        : modelData
                 }
+            }
+        }
+    }
+
+    Kirigami.Separator {
+        Layout.fillWidth: true
+        visible: table.totalRow.length > 0
+    }
+
+    RowLayout {
+        Layout.fillWidth: true
+        visible: table.totalRow.length > 0
+        spacing: Kirigami.Units.largeSpacing
+
+        Repeater {
+            model: table.totalRow
+
+            AmountLabel {
+                required property int index
+                required property var modelData
+
+                Layout.fillWidth: index === 0
+                Layout.preferredWidth: table.preferredColumnWidth(index)
+                Layout.minimumWidth: table.minimumColumnWidth(index)
+                text: modelData
+                font.bold: true
+                wrapMode: index === 0 ? Text.Wrap : Text.NoWrap
+                elide: index === 0 ? Text.ElideNone : Text.ElideRight
+                Accessible.role: Accessible.Cell
+                horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
+                readonly property bool toned: table.tonedColumns.indexOf(index) >= 0
+                color: toned ? table.toneColor(table.totalTone) : Kirigami.Theme.textColor
+                Accessible.name: toned && table.totalNote !== "" ? modelData + ", " + table.totalNote : modelData
             }
         }
     }

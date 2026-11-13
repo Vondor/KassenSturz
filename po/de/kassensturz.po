@@ -21856,3 +21856,33 @@ msgid ""
 msgstr ""
 "Wenn Sie eine Verknüpfung entfernen, bleibt die Datei, wo sie ist. "
 "KassenSturz verschiebt, ändert oder löscht nie eine Rechnung."
+
+msgctxt "@info a row of a table that compares spending"
+msgid "More spent than in the comparison"
+msgstr "Mehr ausgegeben als im Vergleich"
+
+msgctxt "@info a row of a table that compares spending"
+msgid "Less spent than in the comparison"
+msgstr "Weniger ausgegeben als im Vergleich"
+
+msgctxt "@info a row of a table that compares spending"
+msgid "As much as in the comparison"
+msgstr "Genauso viel wie im Vergleich"
+
+msgctxt "@label the last row of a table: all rows together"
+msgid "Total"
+msgstr "Summe"
+
+msgctxt ""
+"@label:listbox which changes against the comparison stay without green or "
+"red"
+msgid "No colour for"
+msgstr "Keine Farbe für"
+
+msgctxt "@item:inlistbox no colour for: every change is green or red"
+msgid "Nothing, colour every change"
+msgstr "Nichts, jede Änderung einfärben"
+
+msgctxt "@item:inlistbox no colour for: %1 is a whole number of percent"
+msgid "Changes smaller than %1 %"
+msgstr "Änderungen unter %1 %"

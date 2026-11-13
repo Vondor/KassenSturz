@@ -674,3 +674,43 @@ fn candles_choose_their_filled_boxes_and_a_chart_without_the_setting_keeps_its_l
     wrong["props"]["candle_fill"] = json!("striped");
     assert!(Component::from_value(&wrong).is_err());
 }
+
+#[test]
+fn comparison_tables_choose_their_uncoloured_changes_and_off_is_not_written() {
+    // D-760: the spending table and bar chart, which compare, have it.
+    for &kind in ComponentType::LIBRARY {
+        let has = kind.properties().iter().any(|p| p.key == "neutral");
+        let compares = kind.properties().iter().any(|p| p.key == "compare")
+            && kind != ComponentType::KpiCard
+            && kind != ComponentType::ProgressBar;
+        assert_eq!(has, compares, "{kind:?}");
+    }
+    assert_eq!(NEUTRAL_WORDS, ["off", "2", "5", "10", "20"]);
+    // Each word after `off` is one of the steps, smallest first.
+    let steps: Vec<u64> = NEUTRAL_WORDS[1..]
+        .iter()
+        .map(|word| word.parse().unwrap())
+        .collect();
+    assert_eq!(steps, CHANGE_STEPS);
+    let mut table = Component::new(ComponentType::TableRows, SPENDING_BY_CATEGORY).unwrap();
+    assert_eq!(table.get("neutral"), Some(&Setting::Word("off".into())));
+    // Off is the default and is not written, so a table saved before the
+    // setting reads the same.
+    assert!(table.to_value()["props"].get("neutral").is_none());
+    let before = Asked::new(&table, None, &Filters::default()).unwrap();
+    for word in &NEUTRAL_WORDS[1..] {
+        table.set("neutral", Setting::Word((*word).into())).unwrap();
+        let value = table.to_value();
+        assert_eq!(value["props"]["neutral"], json!(word));
+        assert!(value["params"].get("neutral").is_none());
+        assert_eq!(Component::from_value(&value).unwrap(), table);
+        // Only the look changes: the figures asked for are the same.
+        assert_eq!(
+            Asked::new(&table, None, &Filters::default()).unwrap(),
+            before
+        );
+    }
+    let mut wrong = table.to_value();
+    wrong["props"]["neutral"] = json!("3");
+    assert!(Component::from_value(&wrong).is_err());
+}

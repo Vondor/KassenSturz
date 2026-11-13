@@ -17,6 +17,54 @@ DataTable {
     // List only the first rows (0 for all of them), e.g. the largest
     // categories of a spending chart, which the dataset orders largest first.
     property int limit: 0
+    // Which changes of a comparison stay uncoloured (`props.neutral`,
+    // US6, #789, D-760): `off` colours every change, a number those smaller
+    // than that many percent. The words are `NEUTRAL_WORDS` in order.
+    property string neutral: "off"
+
+    // How each row of a comparison changed, worked out in Rust from the
+    // exact amounts (D-065): direction, tone and how many steps it reaches.
+    readonly property var compared: chart.compared ?? ({ marks: [], total: [], totalMark: ({}) })
+    readonly property int neutralSteps: Math.max(0, ["off", "2", "5", "10", "20"].indexOf(neutral))
+    readonly property int percentColumn: chart.table.columns.indexOf("change_percent")
+
+    // Less spent is green, more red; a change smaller than `neutral` and no
+    // change stay uncoloured.
+    function toneOf(mark): string {
+        if (mark?.tone === undefined || mark.tone === "same" || mark.reach < neutralSteps) {
+            return "";
+        }
+        return mark.tone;
+    }
+
+    // The arrow goes before the percent whatever the colour, so colour is
+    // never the only sign (D-283), as on the key figure cards.
+    function withArrow(row, mark): var {
+        const arrow = mark?.direction === "up" ? "↑" : mark?.direction === "down" ? "↓" : "";
+        if (arrow === "" || percentColumn < 0) {
+            return row;
+        }
+        const cells = Array.from(row);
+        cells[percentColumn] = cells[percentColumn] === "" ? arrow : arrow + " " + cells[percentColumn];
+        return cells;
+    }
+
+    // The direction in words, for screen readers.
+    function noteOf(mark): string {
+        switch (mark?.direction) {
+        case "up":
+            return i18nContext.i18nc("@info a row of a table that compares spending", "More spent than in the comparison");
+        case "down":
+            return i18nContext.i18nc("@info a row of a table that compares spending", "Less spent than in the comparison");
+        case "same":
+            return i18nContext.i18nc("@info a row of a table that compares spending", "As much as in the comparison");
+        }
+        return "";
+    }
+
+    function markOf(index: int): var {
+        return compared.marks.length > index ? compared.marks[index] : undefined;
+    }
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -65,7 +113,18 @@ DataTable {
     }
 
     columns: chart.table.columns
-    rows: shownRows()
+    rows: shownRows().map((row, index) => withArrow(row, markOf(index)))
+    tones: shownRows().map((row, index) => toneOf(markOf(index)))
+    tonedColumns: compared.marks.length > 0
+        ? ["change", "change_percent"].map(name => chart.table.columns.indexOf(name)).filter(column => column >= 0)
+        : []
+    notes: shownRows().map((row, index) => noteOf(markOf(index)))
+    // The total row of a comparison; a list of the biggest few has none.
+    totalRow: compared.total.length > 0 && limit === 0
+        ? withArrow([i18nContext.i18nc("@label the last row of a table: all rows together", "Total"), ...Array.from(compared.total).slice(1)], compared.totalMark)
+        : []
+    totalTone: toneOf(compared.totalMark)
+    totalNote: noteOf(compared.totalMark)
     title: limit > 0
         ? i18nContext.i18nc("@title", "Your biggest spending")
         : i18nContext.i18nc("@label", "Values of the chart as a table")

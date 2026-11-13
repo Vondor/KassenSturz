@@ -656,6 +656,20 @@ const COMPARE_SPENDING: Property = Property {
     kind: Kind::Choice(&crate::COMPARE_WORDS),
 };
 pub(crate) const COMPARE_KEY: &str = "compare";
+/// `props.neutral` (US6, #789, D-760): a change against the comparison
+/// smaller than this many percent stays uncoloured in the table, so small
+/// ups and downs don't light up. `off`, the default, colours every change.
+/// Only the look changes, never a figure, so it is a property; it matters
+/// only when the chart compares.
+const NEUTRAL: Property = Property {
+    key: NEUTRAL_KEY,
+    place: Place::Props,
+    kind: Kind::Choice(&NEUTRAL_WORDS),
+};
+pub(crate) const NEUTRAL_KEY: &str = "neutral";
+/// The words of `props.neutral`, the default first, then each of
+/// [`crate::CHANGE_STEPS`] in whole percent.
+pub const NEUTRAL_WORDS: [&str; 5] = ["off", "2", "5", "10", "20"];
 /// `props.orientation` (US2, #563, D-679): which way the bars of a bar or
 /// stacked bar chart go. `auto`, the default, keeps the rule the chart had
 /// before: rows for one series whose names are too long to stand under
@@ -723,12 +737,13 @@ const CHART: [Property; 17] = [
 /// length of a candle follows the period (D-719); which boxes are filled
 /// (D-748).
 const CANDLESTICK: [Property; 6] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE, CANDLE_FILL];
-/// Bars: a chart's properties, the comparison of spending (US3.1a) after
-/// the average, and the way the bars go (D-679) after the legend.
-const BAR_CHART: [Property; 19] = [
+/// Bars: a chart's properties, the comparison of spending (US3.1a) and
+/// its uncoloured changes (D-760) after the average, and the way the bars go (D-679) after the legend.
+const BAR_CHART: [Property; 20] = [
     GROUPING,
     AVERAGE,
     COMPARE_SPENDING,
+    NEUTRAL,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
@@ -775,10 +790,11 @@ const KPI_CARD: [Property; 8] = [
 const PROGRESS_BAR: [Property; 8] = [
     ACCOUNTS, TAGS, COMPARE, FORMULA, TARGET, TITLE, HIDE_NOTE, PERIOD,
 ];
-const TABLE: [Property; 16] = [
+const TABLE: [Property; 17] = [
     GROUPING,
     AVERAGE,
     COMPARE_SPENDING,
+    NEUTRAL,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,

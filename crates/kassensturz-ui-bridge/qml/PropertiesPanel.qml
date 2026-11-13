@@ -193,6 +193,10 @@ ColumnLayout {
             return i18nContext.i18nc("@option:check hides the grey lines on a tile that say what it is filtered to", "Hide the grey filter notes");
         case "compare":
             return i18nContext.i18nc("@label:listbox", "Compare with");
+        // US6, #789 (D-760): small changes against the comparison stay
+        // without green or red.
+        case "neutral":
+            return i18nContext.i18nc("@label:listbox which changes against the comparison stay without green or red", "No colour for");
         case "measure":
             return i18nContext.i18nc("@label:listbox which figure a card shows", "Show");
         case "formula":
@@ -276,6 +280,14 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox", "The period before");
         case "same_last_year":
             return i18nContext.i18nc("@item:inlistbox", "The same days a year earlier");
+        // Which changes of a comparison stay uncoloured (D-760).
+        case "off":
+            return i18nContext.i18nc("@item:inlistbox no colour for: every change is green or red", "Nothing, colour every change");
+        case "2":
+        case "5":
+        case "10":
+        case "20":
+            return i18nContext.i18nc("@item:inlistbox no colour for: %1 is a whole number of percent", "Changes smaller than %1 %", word);
         // What a spending chart compares each category with (US3.1a).
         case "none":
             return i18nContext.i18nc("@item:inlistbox a chart compares its spending with nothing", "None");
@@ -409,7 +421,9 @@ ColumnLayout {
                 readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: ""})
 
                 visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
-                    && !(panel.hasColumns && ["categories", "series", "groups", "average", "compare", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
+                    // Uncoloured changes matter only while the chart compares (D-760).
+                    && !(modelData.key === "neutral" && (panel.fieldByKey["compare"]?.word ?? "none") === "none")
+                    && !(panel.hasColumns && ["categories", "series", "groups", "average", "compare", "neutral", "income_categories", "income_accounts", "expenses_categories", "expenses_accounts"].includes(modelData.key))
                 active: visible
                 Kirigami.FormData.label: panel.rowLabel(modelData)
                 Kirigami.FormData.labelAlignment: modelData.kind === "ids" || modelData.kind === "formula" || modelData.kind === "spec" || modelData.kind === "alarms" ? Qt.AlignTop : Qt.AlignVCenter

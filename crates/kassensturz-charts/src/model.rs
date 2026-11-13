@@ -289,6 +289,39 @@ pub struct ChartModel {
     /// [`categories`](Self::categories). Empty when the slices take the
     /// palette's colors by place, as the built-in round charts do.
     pub slice_colors: Vec<u16>,
+    /// What a table of spending next to its comparison adds: how each row
+    /// changed and its total row (US6, #789, D-760). `None` for every
+    /// chart that doesn't compare.
+    pub compared: Option<ComparedTable>,
+}
+
+/// How one row of a comparison changed, in fixed words the screen turns
+/// into a colour, an arrow and words (US6, #789, D-760). Worked out here
+/// from the exact amounts; the screen only reads the words (D-065).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ChangeMark {
+    /// `up`, `down` or `same`: more, less or as much as the comparison.
+    pub direction: &'static str,
+    /// `good`, `bad` or `same`: whether the direction is good news. Less
+    /// spent is good; for income it would be the other way round.
+    pub tone: &'static str,
+    /// How many of `kassensturz_report::CHANGE_STEPS` the size of the
+    /// change in percent reaches ([`kassensturz_report::Change::reach`]):
+    /// the screen leaves a change uncoloured when it reaches fewer steps
+    /// than `props.neutral` names.
+    pub reach: usize,
+}
+
+/// The marks of a table of spending next to its comparison, and its total.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ComparedTable {
+    /// One mark per row of the table, in its order.
+    pub marks: Vec<ChangeMark>,
+    /// The total row, one cell per column of the table; the first, the
+    /// name, is empty and the screen writes "Total".
+    pub total: Vec<String>,
+    /// How the total changed.
+    pub total_mark: ChangeMark,
 }
 
 impl ChartModel {

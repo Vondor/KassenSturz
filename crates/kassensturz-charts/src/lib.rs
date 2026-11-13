@@ -34,9 +34,9 @@ pub use financial::{
     BalancesBy, account_balances, balance_candles, cash_flow_by_month, net_worth_over_time,
 };
 pub use model::{
-    ANSWER_NO, ANSWER_YES, ChartKind, ChartModel, EXTRA_COLOR_BASE, HiddenNote, MAX_DOT_SIZE,
-    MAX_SLICES, NAMED_FROM_TENTHS, Overlay, OverlayItem, OverlayMark, OverlaySeries, Point, Series,
-    Slices, Tick,
+    ANSWER_NO, ANSWER_YES, ChangeMark, ChartKind, ChartModel, ComparedTable, EXTRA_COLOR_BASE,
+    HiddenNote, MAX_DOT_SIZE, MAX_SLICES, NAMED_FROM_TENTHS, Overlay, OverlayItem, OverlayMark,
+    OverlaySeries, Point, Series, Slices, Tick,
 };
 pub use palette::{
     DEFAULT_COLORS, MAX_COLORS, MIN_COLORS, Palette, PaletteWarning, STANDARD_COLORS,

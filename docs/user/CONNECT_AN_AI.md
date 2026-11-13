@@ -43,7 +43,7 @@ LM Studio, Ollama and similar programs can also run on another computer, for exa
 - Everything else stays the same: the computer is still another computer, so KassenSturz shows what is sent and asks for your agreement before the first question.
 - An `https://` address is always the safer choice, and a program on this computer (`localhost`) never needs the box.
 
-**Set the context length of a local model to at least 16384; 32768 is better.** KassenSturz's request alone is about 9,500 tokens (most of it the descriptions of its functions), and it grows with the conversation. At 8192 almost every question fails with a message that the context is too small. LM Studio starts models with only 4096, which is too little for the instructions, the functions and a conversation: the model then silently loses the start or the end of it and answers an old question. In LM Studio it is the model's setting **Context Length** when you load it; in Ollama it is `num_ctx`. KassenSturz shows a warning under an answer when the provider counted far fewer tokens than it sent. A small local model may answer less well than an online one. Whatever the model says, the numbers in your book come from KassenSturz, not from the AI.
+**Set the context length of a local model to at least 16384; 65536 is better.** KassenSturz's request alone is about 9,500 tokens (most of it the descriptions of its functions), and it grows with the conversation: a long chat, or a question that needs a figure for each month of a year, can fill 32768. At 8192 almost every question fails with a message that the context is too small. LM Studio starts models with only 4096, which is too little for the instructions, the functions and a conversation: the model then silently loses the start or the end of it and answers an old question. In LM Studio it is the model's setting **Context Length** when you load it; in Ollama it is `num_ctx`. KassenSturz shows a warning under an answer when the provider counted far fewer tokens than it sent. A small local model may answer less well than an online one. Whatever the model says, the numbers in your book come from KassenSturz, not from the AI.
 
 ### Choosing a local model
 
@@ -51,7 +51,7 @@ A local model has to be able to **call functions** ("tool use"). That is how it 
 
 What we found when we tested local models on a made-up household book, asking ten fixed questions (totals, search, a balance, categories, adding a category, the biggest expenses, a Rule, renaming a category, a German question, and one KassenSturz can't do):
 
-- **Context length 16384 or more, 32768 recommended**, and a model of **at least about 4 billion parameters**.
+- **Context length 16384 or more, 65536 recommended**, and a model of **at least about 4 billion parameters**.
 - **A graphics card with 8 GB is enough for Qwen3.5 9B** (Q4_K_M): it fits on the card completely, at any of these context lengths, and answered 12 to 13 of 13 everyday questions correctly in a longer test. A typical question takes 20 to 90 seconds on such a card.
 - **Leave the model's thinking on in LM Studio.** Turning it off (`enable_thinking`, `/no_think`) did not stop the thinking there and made the answers worse.
 - **A model larger than the graphics card's memory** (for example Qwen3.6 35B A3B on an 8 GB card) runs mostly from the computer's main memory. It answered more precisely, but sometimes thought for half an hour without answering. Prefer a model that fits on the card.

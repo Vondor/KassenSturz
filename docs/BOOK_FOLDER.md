@@ -81,7 +81,7 @@ Before anything is written, the page checks and refuses with a plain reason (eac
 Then:
 
 0. **Note and write lock.** The settings get a "move in progress" note (from, to, when). The old book takes SQLite's write lock (`BEGIN IMMEDIATE`) and holds it until step 5. Every other writer waits or is told the book is busy: the screens, a bank fetch, a scheduled booking, a write the MCP server asks for. So no change can land in the old book after the copy is taken.
-1. **Backup.** The book as it is goes into KassenSturz's backup folder through the existing backup code (D-033, D-080), named "… before moving, <date>". These backups are kept apart from the ten automatic ones: the last three moves are kept.
+1. **Backup.** The book as it is goes into KassenSturz's backup folder through the existing backup code (D-033, D-080), named "… vor dem Verschieben" with the date before it. These backups are kept apart from the ten automatic ones: the last three moves are kept.
 2. **Copy.** SQLite's online backup copies the open book to `<name>.ksz.part` in the new folder (a name sync tools such as Nextcloud leave out by default, so a half copy never travels), then `fsync`.
 3. **Check.** The copy is opened read-only and must have KassenSturz's application ID (D-080), pass `PRAGMA integrity_check`, have the same layout version, the same checksum of every table's content (its rows in key order) and the same balance for every account as the open book. Balances are computed by code (AGENTS.md §2.1).
 4. **Into place.** `<name>.ksz.part` is renamed to `<name>.ksz` with a rename that refuses to replace a file (`RENAME_NOREPLACE`, step 0 item 6), then the folder is `fsync`ed.

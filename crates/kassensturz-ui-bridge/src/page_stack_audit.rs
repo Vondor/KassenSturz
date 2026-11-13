@@ -161,6 +161,19 @@ mod tests {
         assert_eq!(page.matches("AccountGrid {").count(), 2);
     }
 
+    /// An Undo closes every page that doesn't say it survives one
+    /// (`Main.qml`'s `leaveStalePages`). The accounts page only lists the
+    /// book, so it says so: otherwise an Undo closed it, and the first click
+    /// on "Monthly moves…" right after went to a page that was going away
+    /// (M6-B242). The dialog also checks once more that it opened.
+    #[test]
+    fn the_accounts_page_survives_an_undo_and_the_monthly_moves_dialog_opens() {
+        let page = qml("AccountsPage.qml");
+        assert!(page.contains("function survivesUndo(): bool {\n        return true;"));
+        let dialog = qml("MonthlyMovesDialog.qml");
+        assert!(dialog.contains("Qt.callLater(() => {\n            if (!dialog.visible)"));
+    }
+
     /// Inside a `Component { … }`, a binding such as `bookMove: bookMove`
     /// reads the made object's own property, not the object with that id
     /// outside: Qt reports a binding loop and the property stays null. The

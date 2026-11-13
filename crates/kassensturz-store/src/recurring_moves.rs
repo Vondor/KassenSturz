@@ -395,6 +395,38 @@ impl Book {
             .collect())
     }
 
+    /// Like [`Book::waiting_moves`], but only the sides whose other half is
+    /// really missing: a side whose other half is in the book, joined by no
+    /// one (e.g. after the user took the joins back), or that can't be told
+    /// apart from another, doesn't wait for anything, so a register must
+    /// not say it does (B-256).
+    pub fn lonely_waiting_moves(
+        &self,
+    ) -> Result<HashMap<TransactionId, RecurringMove>, StoreError> {
+        let mut waiting = self.waiting_moves()?;
+        if waiting.is_empty() {
+            return Ok(waiting);
+        }
+        let moves = self.recurring_moves()?;
+        let ibans = self.own_ibans()?;
+        let sides: Vec<MoveCandidate> = self
+            .move_candidates()?
+            .into_iter()
+            .map(|(_, candidate)| candidate)
+            .collect();
+        let found = match_recurring_moves(&moves, &sides, &ibans);
+        for matched in &found.matches {
+            waiting.remove(&matched.pair.outgoing.transaction);
+            waiting.remove(&matched.pair.incoming.transaction);
+        }
+        for unclear in &found.unclear {
+            for id in &unclear.transactions {
+                waiting.remove(id);
+            }
+        }
+        Ok(waiting)
+    }
+
     /// Joins the pairs that fit remembered moves (D-749), as one user
     /// action of its own, [`Action::JoinRecurringMoves`]: one undo takes
     /// back the joins and leaves the transactions as they were before,

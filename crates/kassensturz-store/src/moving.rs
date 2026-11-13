@@ -43,7 +43,11 @@ const EXTENSION: &str = ".ksz";
 const PART: &str = ".part";
 
 /// What follows the stamp in a "before moving" backup's name.
-const BEFORE_MOVING: &str = " before moving";
+const BEFORE_MOVING: &str = " vor dem Verschieben";
+
+/// The English suffix earlier builds used; such backups are still listed
+/// and pruned, only new ones get [`BEFORE_MOVING`].
+const BEFORE_MOVING_OLD: &str = " before moving";
 
 /// When a backup was made, in UTC, as `backup.rs` writes it: without colons,
 /// which Windows doesn't allow in names.
@@ -788,7 +792,11 @@ fn move_backup_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
     if !is_stamp {
         return None;
     }
-    let number = match rest[STAMP_PATTERN.len()..].strip_prefix(BEFORE_MOVING)? {
+    let after_stamp = &rest[STAMP_PATTERN.len()..];
+    let after_suffix = after_stamp
+        .strip_prefix(BEFORE_MOVING)
+        .or_else(|| after_stamp.strip_prefix(BEFORE_MOVING_OLD))?;
+    let number = match after_suffix {
         "" => 1,
         suffix => {
             let digits = suffix.strip_prefix(' ')?;

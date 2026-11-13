@@ -175,6 +175,13 @@ pub fn plan(settings: &Settings, folder: &Path, name: &str) -> Result<MovePlan, 
     )?)
 }
 
+/// The size in bytes of the open book's file, for the page to say while a
+/// move can't start yet; `None` when no book is open or it can't be read.
+pub fn open_book_size() -> Option<u64> {
+    let path = session::path()?;
+    std::fs::metadata(path).ok().map(|metadata| metadata.len())
+}
+
 /// Moves the open book as `plan` says (D-731). The book is taken out of the
 /// session and put back, moved or, if the move failed, where it was, so it
 /// stays open either way. `computer` names the backup folder (D-033).
@@ -384,7 +391,14 @@ mod tests {
             Err(MoveProblem::code("book-move.leftover-files"))
         );
         assert_eq!(session::path(), Some(own.join("Household.ksz")));
+        // The page still says the size while the move is refused.
+        let size = open_book_size().expect("an open book has a size");
+        assert_eq!(
+            size,
+            fs::metadata(own.join("Household.ksz")).expect("read").len()
+        );
         session::close();
+        assert_eq!(open_book_size(), None);
     }
 
     #[test]

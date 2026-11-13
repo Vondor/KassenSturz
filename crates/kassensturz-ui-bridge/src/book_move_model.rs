@@ -128,7 +128,18 @@ impl qobject::BookMove {
                     shown_object(&book_move::shown_folder_of(&plan.to)),
                 ),
             ]),
-            Err(problem) => problem_object(&problem),
+            // The book's size doesn't depend on the problem, so the page
+            // keeps saying it while the name or the folder needs another
+            // choice.
+            Err(problem) => match book_move::open_book_size() {
+                Some(size) => map([
+                    ("ok", QVariant::from(&false)),
+                    ("code", text(problem.code)),
+                    ("left", QVariant::from(&problem.left.is_some())),
+                    ("size", text(&platform::data_size(size))),
+                ]),
+                None => problem_object(&problem),
+            },
         }
     }
 

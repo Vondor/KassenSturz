@@ -10,21 +10,22 @@
 //! and are never read back.
 
 use kassensturz_charts::{
-    BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, Prepared,
+    BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, FlowModel, Prepared,
     account_balances as balances_chart, balance_candles as candles_chart,
-    cash_flow_by_month as cash_flow_chart, category_over_time, income_expense_by_month,
+    cash_flow_by_month as cash_flow_chart, category_over_time, flow_model, income_expense_by_month,
     net_worth_over_time as net_worth_chart, spending_by_category, spending_by_category_as,
     spending_by_category_compared,
 };
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
     ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, CandleLength, Column,
-    CompareWith, Filter, INCOME_EXPENSE_BY_MONTH, Level, NET_WORTH_OVER_TIME, Overlap, Per,
-    Percent, Period, ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
-    account_balances as balances_dataset, balance_candles as candles_dataset,
-    cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
-    columns_over_time, columns_span, columns_spending, compared_early, counted_early,
-    income_expense_by_month as monthly_dataset, income_expense_by_series,
+    CompareWith, Filter, FlowOptions, INCOME_EXPENSE_BY_MONTH, Level, MONEY_FLOW,
+    NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period, ReportError, SPENDING_BY_CATEGORY,
+    SharedCategory, Shown, Source, TextFormat, account_balances as balances_dataset,
+    balance_candles as candles_dataset, cash_flow_by_month as cash_flow_dataset,
+    category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
+    compared_early, counted_early, income_expense_by_month as monthly_dataset,
+    income_expense_by_series, money_flow as money_flow_dataset,
     net_worth_over_time as net_worth_dataset, shared_categories,
     spending_by_category_shown as spending_dataset, spending_compared,
 };
@@ -72,11 +73,26 @@ pub struct Request {
     /// The filters the dashboard puts on the component: its own, else the
     /// filter bar's (M6c.7, D-350). The default narrows nothing.
     pub scope: Scope,
+    /// What the money-flow chart shows (US7, #821); only `money_flow` reads
+    /// it.
+    pub flow: FlowAsk,
     /// A custom chart (M6e.3): the description the chart is drawn from. Then
     /// `dataset` is the one it names, `kind` and `grouping` are not used,
     /// and `series` and `categories` are the choices of the dataset it
     /// names (Q-353).
     pub custom: Option<Custom>,
+}
+
+/// The choices of a money-flow chart (US7, #821, D-758).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FlowAsk {
+    /// Sub-categories get a column of their own.
+    pub sub_categories: bool,
+    /// Payees get a column at the edges.
+    pub payees: bool,
+    /// The currency to show: an ISO code, or empty for the one with the
+    /// most money moved.
+    pub currency: String,
 }
 
 /// The description of a custom chart and whether to draw it without the
@@ -101,6 +117,9 @@ pub struct Custom {
 pub struct ChartSet {
     /// One chart per currency; empty when there was nothing to show.
     pub charts: Vec<(ChartModel, Prepared)>,
+    /// The money-flow chart, if the request was for one: at most one, of
+    /// one currency (D-758).
+    pub flows: Vec<FlowModel>,
     /// IDs in `groups`, `series` or a column that the book doesn't have.
     pub missing: usize,
     /// The categories that more than one column counts, so the screen can
@@ -307,9 +326,17 @@ pub fn charts(
     if let Some(custom) = &request.custom {
         return crate::custom_charts::custom_charts(book, locale, request, custom);
     }
-    let kind = ChartKind::from_key(&request.kind).ok_or(ChartsError::UnknownName("kind"))?;
+    // The money flow has no kind of chart or grouping of its own: it is one
+    // picture (US7, D-758).
+    let flow = request.dataset == MONEY_FLOW;
+    let kind = if flow {
+        ChartKind::Bar
+    } else {
+        ChartKind::from_key(&request.kind).ok_or(ChartsError::UnknownName("kind"))?
+    };
     let period = period(book, &request.period, locale.today())?;
     let level = match request.grouping.as_str() {
+        _ if flow => Level::Each,
         "top-level" => Level::TopLevel,
         "each" | "groups" | "account-kind" => Level::Each,
         _ => return Err(ChartsError::UnknownName("grouping")),
@@ -358,6 +385,49 @@ pub fn charts(
     if filter_view.nothing {
         return Ok(ChartSet {
             charts: Vec::new(),
+            flows: Vec::new(),
+            missing: 0,
+            shared: Vec::new(),
+            totals: Vec::new(),
+            filter: filter_view,
+            title: String::new(),
+            description: String::new(),
+        });
+    }
+    if flow {
+        let flows = money_flow_dataset(
+            &source,
+            period,
+            &filter,
+            FlowOptions {
+                sub_categories: request.flow.sub_categories,
+                payees: request.flow.payees,
+            },
+        )?;
+        // One currency per chart, with no conversion: the one asked for, else
+        // the one with the most money moved (the first of equals).
+        let at = flows
+            .iter()
+            .position(|flow| flow.currency.to_string() == request.flow.currency)
+            .or_else(|| {
+                (0..flows.len())
+                    .max_by_key(|&i| (flows[i].volume.minor_units(), std::cmp::Reverse(i)))
+            });
+        let shown = match at {
+            Some(at) => {
+                let others: Vec<_> = flows
+                    .iter()
+                    .enumerate()
+                    .filter(|&(i, _)| i != at)
+                    .map(|(_, flow)| flow.clone())
+                    .collect();
+                vec![flow_model(&flows[at], &others, &text)]
+            }
+            None => Vec::new(),
+        };
+        return Ok(ChartSet {
+            charts: Vec::new(),
+            flows: shown,
             missing: 0,
             shared: Vec::new(),
             totals: Vec::new(),
@@ -546,6 +616,7 @@ pub fn charts(
         .collect::<Result<Vec<_>, ChartError>>()?;
     Ok(ChartSet {
         charts,
+        flows: Vec::new(),
         missing: named - known,
         shared: Vec::new(),
         totals: Vec::new(),
@@ -655,6 +726,7 @@ fn columns_charts(
         .collect::<Result<Vec<_>, ChartError>>()?;
     Ok(ChartSet {
         charts,
+        flows: Vec::new(),
         missing: named - known,
         shared: shared_categories(source, &columns),
         totals: column_totals(source, text, period, &columns, filter, fallback)?,

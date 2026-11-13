@@ -34,6 +34,7 @@ mod rates;
 mod recurring_move;
 mod rounding;
 mod rules;
+mod schedule;
 pub mod test_profile;
 mod transaction;
 mod transfer;
@@ -67,6 +68,14 @@ pub use rounding::RoundingMode;
 pub use rules::{
     Actions, AmountTest, BookTo, Condition, MatchMode, Rule, RuleError, RuleFacts, RuleId,
     RuleNode, RuleOutcome, RuleSet, TextField, TextOperator,
+};
+pub use schedule::{
+    Decided, Due, Forecast, ForecastError, LOOK_BACK_YEARS, MAX_DUE_DATES, MAX_DUE_YEARS,
+    MAX_FORECAST_MONTHS, MAX_SCHEDULE_EVERY, MAX_SCHEDULE_NAME_CHARS, MAX_SCHEDULE_PARTY_CHARS,
+    MAX_SCHEDULES, MonthPlan, OccurrenceState, OpenOccurrence, Schedule, ScheduleEntry,
+    ScheduleError, ScheduleId, ScheduleMatch, ScheduleMatches, ScheduleUnit, UnclearOccurrence,
+    add_banking_days, banking_day, cut_party, due_dates, entry_fits, forecast, match_schedules,
+    sub_banking_days,
 };
 pub use transaction::{
     Attachment, ForeignAmount, ImportedDetails, OriginalAmount, PartStatus, Split, SplitId,

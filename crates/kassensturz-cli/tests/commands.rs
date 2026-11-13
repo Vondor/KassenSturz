@@ -2228,7 +2228,7 @@ fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
     .expect("written");
     std::fs::write(
         new.0.join("busy.json"),
-        written.replace("\"version\": 13", "\"version\": 14"),
+        written.replace("\"version\": 14", "\"version\": 15"),
     )
     .expect("written");
     for (from, code) in [
@@ -2679,4 +2679,322 @@ fn a_kmymoney_file_is_read_as_one_when_asked() {
             .ok(&["create", "--from", &sample, "--format", "kmy"])
             .starts_with("Created the book from ")
     );
+}
+
+/// Today in UTC, as the command line reads it.
+fn today() -> String {
+    Timestamp::now().to_string()[..10].to_owned()
+}
+
+/// The ID `schedule list` shows for the plan called `name`.
+fn plan_id(session: &Session, name: &str) -> String {
+    let list = session.ok(&["schedule", "list"]);
+    list.lines()
+        .find(|line| line.starts_with(name))
+        .and_then(|line| line.split_whitespace().last())
+        .unwrap_or_else(|| panic!("{name} isn't planned: {list}"))
+        .to_owned()
+}
+
+/// The state `schedule due` shows for the plan's payment due on `day`.
+fn state_on(session: &Session, day: &str, plan: &str) -> String {
+    let due = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        "2040-01-01",
+        "--to",
+        "2041-12-31",
+    ]);
+    due.lines()
+        .find(|line| line.contains(day) && line.ends_with(plan))
+        .and_then(|line| line.split_whitespace().nth(5))
+        .unwrap_or_else(|| panic!("no payment due {day}: {due}"))
+        .to_owned()
+}
+
+#[test]
+fn planned_payments_are_matched_skipped_booked_and_undone() {
+    let session = household();
+    let today = today();
+    session.ok(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-750",
+        "Rent",
+        "--from",
+        &today,
+        "--category",
+        "Home/Other",
+        "--tolerance",
+        "0.50",
+    ]);
+    session.ok(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-12.99",
+        "Gym",
+        "--from",
+        "2040-01-15",
+        "--until",
+        "2040-12-31",
+    ]);
+    let rent = plan_id(&session, "Rent");
+    let gym = plan_id(&session, "Gym");
+    let list = session.ok(&["schedule", "list"]);
+    assert!(list.contains("-750.00 EUR ± 0.50"), "{list}");
+    assert!(
+        list.contains("every month from 2040-01-15 until 2040-12-31"),
+        "{list}"
+    );
+
+    // An entry 30 cents off the plan, booked today, is its payment, and
+    // gets the plan's category, as it has none.
+    let file = statement_file(
+        &session,
+        "rent.kstest",
+        &[
+            "account;DE89370400440532013000;;EUR",
+            &format!("entry;booked;{today};;-750.30;R1;Example Landlord;;Rent"),
+        ],
+    );
+    let import = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        import.contains("Matched 1 entry to planned payments:"),
+        "{import}"
+    );
+    assert!(import.contains("the plan's"), "{import}");
+    let register = session.ok(&["register", "Home/Other"]);
+    assert!(register.contains("750.30"), "{register}");
+    let paid = session.ok(&["schedule", "due", "--from", &today, "--to", &today]);
+    assert!(paid.contains("paid"), "{paid}");
+
+    // One Undo takes the match back and keeps the entry; Redo matches it
+    // again.
+    session.ok(&["undo"]);
+    let register = session.ok(&["register", "Checking account"]);
+    assert!(register.contains("-750.30"), "{register}");
+    assert!(!session.ok(&["register", "Home/Other"]).contains("750.30"));
+    let open = session.ok(&["schedule", "due", "--from", &today, "--to", &today]);
+    assert!(!open.contains("paid"), "{open}");
+    session.ok(&["redo"]);
+    assert!(session.ok(&["register", "Home/Other"]).contains("750.30"));
+
+    // A payment that won't come is skipped, and expected again.
+    session.ok(&["schedule", "skip", &gym, "2040-03-15"]);
+    assert_eq!(state_on(&session, "2040-03-15", &gym), "skipped");
+    let twice = session.cli(&["schedule", "skip", &gym, "2040-03-15"]);
+    assert_eq!(twice.status, 1);
+    assert!(
+        twice
+            .err
+            .starts_with("error: store.schedule-occurrence-decided"),
+        "{}",
+        twice.err
+    );
+    session.ok(&["schedule", "unskip", &gym, "2040-03-15"]);
+    assert_eq!(state_on(&session, "2040-03-15", &gym), "upcoming");
+    // 2040-09-15 is a Saturday: its payment is due on Monday, and either
+    // date names it.
+    let due = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        "2040-09-01",
+        "--to",
+        "2040-09-30",
+    ]);
+    assert!(due.contains("2040-09-17  2040-09-15  Gym"), "{due}");
+    session.ok(&["schedule", "skip", &gym, "2040-09-17"]);
+    assert_eq!(state_on(&session, "2040-09-15", &gym), "skipped");
+    // Not a payment of the plan.
+    let wrong = session.cli(&["schedule", "skip", &gym, "2040-03-16"]);
+    assert_eq!(wrong.status, 1);
+    assert!(
+        wrong
+            .err
+            .starts_with("error: store.schedule-occurrence-unknown"),
+        "{}",
+        wrong.err
+    );
+
+    // Booking a payment by hand makes the entry, which Undo takes away.
+    let booked = session.ok(&[
+        "schedule",
+        "book",
+        &gym,
+        "2040-01-15",
+        "--date",
+        "2040-01-16",
+        "--amount",
+        "-13.49",
+    ]);
+    assert!(
+        booked.starts_with("Booked -13.49 EUR on 2040-01-16"),
+        "{booked}"
+    );
+    assert_eq!(state_on(&session, "2040-01-15", &gym), "paid");
+    assert!(
+        session
+            .ok(&["register", "Checking account"])
+            .contains("-13.49")
+    );
+    session.ok(&["undo"]);
+    assert!(
+        !session
+            .ok(&["register", "Checking account"])
+            .contains("-13.49")
+    );
+    assert_eq!(state_on(&session, "2040-01-15", &gym), "upcoming");
+
+    // Matching by hand: the transaction must be in the plan's account.
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2040-02-14",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-12.99",
+        "--payee",
+        "Example Gym",
+    ]);
+    let transaction = last_added(&session.ok(&["register", "Checking account"]));
+    session.ok(&["schedule", "match", &gym, "2040-02-15", &transaction]);
+    assert_eq!(state_on(&session, "2040-02-15", &gym), "paid");
+    let taken = session.cli(&["schedule", "match", &gym, "2040-04-15", &transaction]);
+    assert_eq!(taken.status, 1);
+    assert!(
+        taken.err.starts_with("error: store.schedule-entry-taken"),
+        "{}",
+        taken.err
+    );
+
+    // Paused, a plan has no next payment; removing it keeps its entries.
+    session.ok(&["schedule", "pause", &rent]);
+    assert!(session.ok(&["schedule", "list"]).contains("paused"));
+    session.ok(&["schedule", "resume", &rent]);
+    session.ok(&[
+        "schedule",
+        "edit",
+        &gym,
+        "--name",
+        "Sports club",
+        "--no-end",
+    ]);
+    let list = session.ok(&["schedule", "list"]);
+    assert!(list.contains("Sports club"), "{list}");
+    assert!(list.contains("every month from 2040-01-15  "), "{list}");
+    session.ok(&["schedule", "remove", &rent]);
+    assert!(session.ok(&["register", "Home/Other"]).contains("750.30"));
+    assert!(!session.ok(&["schedule", "list"]).contains("Rent"));
+    session.ok(&["undo"]);
+    assert!(session.ok(&["schedule", "list"]).contains("Rent"));
+
+    let forecast = session.ok(&["forecast", "--months", "2"]);
+    assert!(
+        forecast.starts_with(&format!("Looking ahead for Checking account on {today}.")),
+        "{forecast}"
+    );
+    assert!(forecast.contains("Left after that"), "{forecast}");
+    assert_eq!(
+        forecast
+            .lines()
+            .filter(|line| line.starts_with("20"))
+            .count(),
+        2,
+        "{forecast}"
+    );
+}
+
+#[test]
+fn mistakes_in_a_plan_are_refused_without_changing_the_book() {
+    let session = household();
+    for (line, status, code) in [
+        (
+            &[
+                "schedule",
+                "add",
+                "Checking account",
+                "0",
+                "Nothing",
+                "--from",
+                "2040-01-01",
+            ][..],
+            1,
+            "store.schedule-invalid",
+        ),
+        (
+            &[
+                "schedule",
+                "add",
+                "Checking account",
+                "-5",
+                "Often",
+                "--from",
+                "2040-01-01",
+                "--every",
+                "53",
+            ],
+            1,
+            "store.schedule-invalid",
+        ),
+        (
+            &[
+                "schedule",
+                "add",
+                "Checking account",
+                "-5",
+                "Backwards",
+                "--from",
+                "2040-01-01",
+                "--until",
+                "2039-12-31",
+            ],
+            1,
+            "store.schedule-invalid",
+        ),
+        (
+            &[
+                "schedule",
+                "add",
+                "Checking account",
+                "-5",
+                "Odd",
+                "--from",
+                "2040-01-01",
+                "--unit",
+                "fortnight",
+            ],
+            2,
+            "",
+        ),
+        (
+            &["schedule", "add", "Checking account", "-5", "No start"],
+            2,
+            "",
+        ),
+        (&["schedule"], 2, ""),
+        (&["schedule", "plan"], 2, ""),
+        (&["schedule", "skip", "123456"], 2, ""),
+        (&["forecast", "--months", "13"], 2, ""),
+    ] {
+        let outcome = session.cli(line);
+        assert_eq!(outcome.status, status, "{line:?}: {}", outcome.err);
+        assert!(
+            outcome.err.starts_with(&format!("error: {code}")),
+            "{line:?}: {}",
+            outcome.err
+        );
+    }
+    assert_eq!(
+        session.ok(&["schedule", "list"]),
+        "No payments are planned.\n"
+    );
+    let unknown = session.cli(&["schedule", "pause", "123456"]);
+    assert_eq!(unknown.status, 1);
+    assert!(unknown.err.contains("isn't a plan's ID"), "{}", unknown.err);
 }

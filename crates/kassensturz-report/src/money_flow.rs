@@ -58,6 +58,23 @@ pub enum FlowNodeKind {
     Other,
 }
 
+impl FlowNodeKind {
+    /// The kind's fixed name, as QML spells it.
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Payee => "payee",
+            Self::NoPayee => "no-payee",
+            Self::Category => "category",
+            Self::CategoryItself => "category-itself",
+            Self::Unsorted => "unsorted",
+            Self::Middle => "middle",
+            Self::LeftOver => "left-over",
+            Self::Reserves => "reserves",
+            Self::Other => "other",
+        }
+    }
+}
+
 /// One node.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FlowNode {
@@ -360,7 +377,11 @@ fn build(
         }
         // The leaves under the top-level category.
         let real_subs = top.atoms.iter().any(|atom| atom.category != id);
-        let level_two = options.sub_categories && (real_subs || options.payees);
+        // With sub-categories on, a category without any still gets its node
+        // in the column behind it, so that column adds up to the total like
+        // the others and an *Other* of the first column passes on all of its
+        // amount (B-264).
+        let level_two = options.sub_categories;
         let payee_column = if options.sub_categories { 3 } else { 2 };
         let leaves: Vec<(usize, i64, Vec<Atom>)> = if level_two {
             let by_category = group_by(&top.atoms, |atom| Key::Category(atom.category))?;

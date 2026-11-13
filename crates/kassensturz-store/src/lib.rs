@@ -26,6 +26,7 @@ mod originals;
 mod reader;
 mod recurring_moves;
 mod rules;
+mod schedules;
 mod tags;
 mod transactions;
 mod transfers;
@@ -63,6 +64,10 @@ pub use recurring_moves::{
     RefusedJoin,
 };
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
+pub use schedules::{
+    AccountsForecast, NewSchedule, PlannedOccurrence, ScheduleMatchDone, ScheduleMatchReport,
+    ScheduleNeedsYou,
+};
 pub use tags::{TagUse, checked_tag_name};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};
@@ -703,8 +708,8 @@ impl Book {
     }
 
     /// What keeps a category from being removed: `"subcategories"`,
-    /// `"transactions"`, `"rules"` or `"budgets"`, or `None` when nothing
-    /// uses it (D-253, D-345).
+    /// `"transactions"`, `"rules"`, `"budgets"` or `"schedules"`, or `None`
+    /// when nothing uses it (D-253, D-345, D-769).
     pub fn category_use(&self, id: AccountId) -> Result<Option<&'static str>, StoreError> {
         if !self.account(id)?.kind.is_category() {
             return Err(StoreError::NotACategory(id));
@@ -725,14 +730,16 @@ impl Book {
             Ok(Some("rules"))
         } else if used("SELECT EXISTS (SELECT 1 FROM budget_categories WHERE category_id = ?1)")? {
             Ok(Some("budgets"))
+        } else if used("SELECT EXISTS (SELECT 1 FROM schedules WHERE category_id = ?1)")? {
+            Ok(Some("schedules"))
         } else {
             Ok(None)
         }
     }
 
     /// Removes a category that nothing uses: no subcategory, no transaction
-    /// part, no Rule books to it or tests it, and it has no budget (D-253,
-    /// D-345). A category that is
+    /// part, no Rule books to it or tests it, it has no budget and no
+    /// planned payment uses it (D-253, D-345, D-769). A category that is
     /// used is refused with [`StoreError::CategoryInUse`], so no transaction
     /// ever loses its category. Undo brings it back.
     pub fn remove_category(&mut self, id: AccountId) -> Result<(), StoreError> {

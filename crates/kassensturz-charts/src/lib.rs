@@ -34,7 +34,7 @@ pub use error::ChartError;
 pub use financial::{
     BalancesBy, account_balances, balance_candles, cash_flow_by_month, net_worth_over_time,
 };
-pub use flow::{FlowModel, LaidBand, LaidNode, flow_model};
+pub use flow::{FlowModel, LaidBand, LaidNode, WHOLE, flow_model};
 pub use model::{
     ANSWER_NO, ANSWER_YES, ChangeMark, ChartKind, ChartModel, ComparedTable, EXTRA_COLOR_BASE,
     HiddenNote, MAX_DOT_SIZE, MAX_SLICES, NAMED_FROM_TENTHS, Overlay, OverlayItem, OverlayMark,

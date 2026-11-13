@@ -248,6 +248,7 @@ mod tests {
         portal_place(Path::new(path), Path::new(RUN))
     }
 
+    #[cfg(unix)]
     fn around<'a>(home: &'a Path, runtime: &'a Path, host: Option<&'a Path>) -> Surroundings<'a> {
         Surroundings {
             home: Some(home),

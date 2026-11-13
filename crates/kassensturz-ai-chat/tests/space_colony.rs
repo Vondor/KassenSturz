@@ -67,10 +67,10 @@ fn a_question_goes_through_the_real_client_and_functions() {
     assert_eq!(first["stream"], false);
     // The nine read functions (list_budgets since M6c.11, payee_totals
     // since D-597, list_views since D-681, list_tags since D-744), propose_changes (M5.5), propose_view (M6c.8),
-    // draft_issue (M5.13) and open_page; the debug log isn't offered, since
+    // draft_issue (M5.13), open_page and suggest_note (#808); the debug log isn't offered, since
     // it is off.
     let tools = first["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 14);
+    assert_eq!(tools.len(), 15);
     assert_eq!(tools[3]["function"]["name"], "payee_totals");
     assert_eq!(tools[7]["function"]["name"], "list_budgets");
     assert_eq!(tools[8]["function"]["name"], "list_views");
@@ -79,6 +79,7 @@ fn a_question_goes_through_the_real_client_and_functions() {
     assert_eq!(tools[11]["function"]["name"], "propose_view");
     assert_eq!(tools[12]["function"]["name"], "draft_issue");
     assert_eq!(tools[13]["function"]["name"], "open_page");
+    assert_eq!(tools[14]["function"]["name"], "suggest_note");
     let system = first["messages"][0]["content"].as_str().unwrap();
     assert!(system.contains("KassenSturz 0.261025.0 (commit 1775d22), a pre-release build"));
     assert!(system.contains("Today is 2026-10-25."));

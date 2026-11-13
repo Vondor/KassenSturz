@@ -583,7 +583,8 @@ mod tests {
                         "area",
                         "pie",
                         "donut",
-                        "candlestick"
+                        "candlestick",
+                        "flow"
                     ]
                     .contains(&preview.chart)
                 );

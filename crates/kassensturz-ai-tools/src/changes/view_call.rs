@@ -101,7 +101,7 @@ const SERIES_LISTS: [(&str, bool, Option<AccountKind>); 4] = [
 
 /// The words of `show_as` and the kind of component each one is; `auto`
 /// lets KassenSturz pick (D-352).
-const SHOW_AS: [(&str, Option<ComponentType>); 11] = [
+const SHOW_AS: [(&str, Option<ComponentType>); 12] = [
     ("auto", None),
     ("line", Some(ComponentType::ChartLine)),
     ("area", Some(ComponentType::ChartArea)),
@@ -113,6 +113,7 @@ const SHOW_AS: [(&str, Option<ComponentType>); 11] = [
     ("progress", Some(ComponentType::ProgressBar)),
     ("table", Some(ComponentType::TableRows)),
     ("budget_bars", Some(ComponentType::BudgetProgress)),
+    ("money_flow", Some(ComponentType::ChartFlow)),
 ];
 
 /// What a rolling period word looks like (D-644, D-645), for the schema;

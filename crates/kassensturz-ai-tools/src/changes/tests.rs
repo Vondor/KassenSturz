@@ -2657,6 +2657,43 @@ fn the_same_transaction_cannot_be_removed_and_changed_in_one_set() {
 }
 
 #[test]
+fn the_money_flow_is_proposed_like_any_chart_and_reads_back_as_a_component() {
+    let Sample { book, .. } = sample();
+    // `auto` and the named way both give the money flow (US7, D-773).
+    for chart in ["auto", "chart.flow"] {
+        let proposal = propose(
+            &book,
+            &json!({"new_views": [{
+                "title": "Where my money went",
+                "dataset": "money_flow",
+                "chart": chart,
+                "period": "this-year"
+            }]}),
+        )
+        .expect("prepared");
+        let ProposedChange::NewView(new) = &proposal.changes.changes()[0] else {
+            panic!("a chart");
+        };
+        assert_eq!(
+            (new.type_id(), new.dataset_id()),
+            ("chart.flow", "money_flow")
+        );
+        let component = Component::from_json(&new.component_json()).expect("a component");
+        assert_eq!(component.kind().id(), "chart.flow");
+    }
+    // A way that is not the flow's is refused for this data.
+    assert!(
+        propose(
+            &book,
+            &json!({"new_views": [{
+                "title": "T", "dataset": "money_flow", "chart": "chart.pie"
+            }]}),
+        )
+        .is_err()
+    );
+}
+
+#[test]
 fn a_chart_is_chosen_from_lists_checked_and_saved_only_when_confirmed() {
     use kassensturz_core::ViewKind;
     let Sample { mut book, .. } = sample();

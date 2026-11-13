@@ -113,10 +113,10 @@ parts:
     # plain C and need none of it. On a failure the log shows why.
     override-build: |
       unset LD_LIBRARY_PATH
-      if ! craftctl default; then
-        tail -n 60 config.log || true
-        exit 1
-      fi
+      # craftctl ends the script itself on a failure, so the log is shown
+      # by a trap.
+      trap 'echo "--- environment ---"; env | grep -E "^(PATH|CC|CXX|CFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|SNAPCRAFT|CRAFT)" | cut -c1-300; echo "--- config.log (tail) ---"; tail -n 60 config.log' EXIT
+      craftctl default
     prime:
       - -usr/bin
       - -usr/include
@@ -135,10 +135,10 @@ parts:
     # plain C and need none of it. On a failure the log shows why.
     override-build: |
       unset LD_LIBRARY_PATH
-      if ! craftctl default; then
-        tail -n 60 config.log || true
-        exit 1
-      fi
+      # craftctl ends the script itself on a failure, so the log is shown
+      # by a trap.
+      trap 'echo "--- environment ---"; env | grep -E "^(PATH|CC|CXX|CFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|SNAPCRAFT|CRAFT)" | cut -c1-300; echo "--- config.log (tail) ---"; tail -n 60 config.log' EXIT
+      craftctl default
     prime:
       - -usr/bin
       - -usr/include
@@ -165,10 +165,10 @@ parts:
     # plain C and need none of it. On a failure the log shows why.
     override-build: |
       unset LD_LIBRARY_PATH
-      if ! craftctl default; then
-        tail -n 60 config.log || true
-        exit 1
-      fi
+      # craftctl ends the script itself on a failure, so the log is shown
+      # by a trap.
+      trap 'echo "--- environment ---"; env | grep -E "^(PATH|CC|CXX|CFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|SNAPCRAFT|CRAFT)" | cut -c1-300; echo "--- config.log (tail) ---"; tail -n 60 config.log' EXIT
+      craftctl default
     prime:
       - -usr/bin
       - -usr/include

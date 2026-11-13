@@ -223,3 +223,14 @@ Build 2a (the planned payments screens) followed part 2; where it had to decide,
 - **"Plan this again…"** saves the plan and matches its entry as the first payment in one change, so one Undo takes back both.
 - **The import summary** lists each match with the entry's own amount and date and whether it got the plan's category; *Undo these matches* takes back only the matches. The matches are made after the joins of monthly moves, so *Undo these joins* takes back the matches on top of them too, and says so. *Update all accounts* says how many planned payments came.
 - **Error texts**: the input code `input.plan-every` (how often isn't 1 to 52) is new; the `store.schedule-*` codes of build 1 have their texts in `FormError.qml`.
+
+## 13. Planned payments from a KMyMoney file (#919)
+
+The KMyMoney importer reads the file's scheduled transactions as planned payments. Built clean-room (D-044) from the synthetic golden files and the sample the maintainer approved; nothing was taken from KMyMoney's source.
+
+- **Which repeats:** only the codes the sample shows are read: weekly (4), monthly (32) and yearly (16384), with the file's own "every n" multiplier. Any other code (twice a month, every other week as its own code, once, and so on) is not guessed: it is left out and counted as "scheduled or recurring transactions that could not become planned payments" on the summary page and in `SkippedData::Schedules`.
+- **What is kept:** name (cut at 60 characters), the account, amount, category and the first due date. A plan whose last payment is behind it, or whose account is closed, is left out. A plan whose payment was already made counts from the next due date.
+- **What is not kept:** the weekend rule (plans always move forward to Monday, D-770), "enter automatically", the payee label, and a variable amount (the plan gets tolerance 0). A transfer is planned on the account the money leaves, without the other account.
+- **Never books by itself:** the import creates plans only; booking stays the user's step (D-769).
+- **Limits:** the same limits as every importer apply (at most 200 plans, repeat 1 to 52, texts within the text limit); the check at the end of the import (`check_book`) refuses a plan that doesn't fit them. The schedule's template transaction is not read as a real transaction.
+- **Where:** `kassensturz-import` (`BookSchedule`), `kassensturz-pipeline` (`Mapper::schedule`), golden files `kmy/schedules.kmy` and `kmy-sqlite/schedules.sqlite`.

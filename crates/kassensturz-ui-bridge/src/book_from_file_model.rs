@@ -373,6 +373,7 @@ fn created_object(
         ("categories", count(created.categories)),
         ("transactions", count(created.transactions)),
         ("rates", count(created.rates)),
+        ("schedules", count(created.schedules)),
         ("uncategorized", count(created.uncategorized)),
         ("completed", count(created.completed)),
         ("renamed", names(&created.renamed)),
@@ -482,6 +483,7 @@ mod tests {
             accounts: 3,
             categories: 4,
             transactions: 6,
+            schedules: Vec::new(),
             unlisted: Vec::new(),
             rules_by_name_only: 7,
         };
@@ -561,6 +563,7 @@ mod tests {
                 "renamed",
                 "reports",
                 "rules",
+                "schedules",
                 "skipped",
                 "transactions",
                 "transfers",

@@ -310,6 +310,29 @@ fn render_book(out: &mut String, book: &ImportedBook) {
             unlisted.currency.minor_digits(),
         );
     }
+    for schedule in &book.schedules {
+        let end = schedule
+            .ends_on
+            .map_or_else(|| "-".to_owned(), |end| end.to_string());
+        let last = schedule
+            .last_payment
+            .map_or_else(|| "-".to_owned(), |last| last.to_string());
+        let _ = writeln!(
+            out,
+            "  schedule {:?}: {:?}, every {} {}, first due {}, ends {end}, last payment {last}, \
+             last day of month {}, fixed amount {}, enters itself {}, weekend {:?}",
+            schedule.key,
+            schedule.name,
+            schedule.every,
+            schedule.unit.word(),
+            schedule.first_due,
+            schedule.last_day_of_month,
+            schedule.fixed_amount,
+            schedule.auto_enter,
+            schedule.weekend,
+        );
+        render_book_transaction(out, 0, &schedule.payment);
+    }
     for report in &book.reports {
         let _ = writeln!(out, "  report {:?}: {:?}", report.key, report.name);
         let settings = |settings: &[(String, String)]| {

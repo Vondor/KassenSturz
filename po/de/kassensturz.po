@@ -4832,10 +4832,10 @@ msgstr[1] "%1 Depots"
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:38
 #, kde-format
 msgctxt "@item what was left out, %1 is how many"
-msgid "%1 scheduled or recurring transaction"
-msgid_plural "%1 scheduled or recurring transactions"
-msgstr[0] "%1 geplante oder wiederkehrende Buchung"
-msgstr[1] "%1 geplante oder wiederkehrende Buchungen"
+msgid "%1 scheduled or recurring transaction that could not become a planned payment"
+msgid_plural "%1 scheduled or recurring transactions that could not become planned payments"
+msgstr[0] "%1 geplante oder wiederkehrende Buchung, die keine geplante Zahlung werden konnte"
+msgstr[1] "%1 geplante oder wiederkehrende Buchungen, die keine geplanten Zahlungen werden konnten"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:40
 #, kde-format
@@ -4970,6 +4970,12 @@ msgstr "Buchungen"
 msgctxt "@label"
 msgid "Exchange rates"
 msgstr "Wechselkurse"
+
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:134
+#, kde-format
+msgctxt "@label"
+msgid "Planned payments"
+msgstr "Geplante Zahlungen"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:131
 #, kde-format

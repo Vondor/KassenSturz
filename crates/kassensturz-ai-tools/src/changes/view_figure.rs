@@ -164,7 +164,7 @@ fn readable(component: &Component, allowed: Permissions) -> bool {
 }
 
 /// Why a figure wasn't worked out.
-enum Failure {
+pub(super) enum Failure {
     /// The book couldn't be read, or an amount not written.
     Tool(ToolError),
     /// The figures of the period don't make one (a division by zero, two
@@ -186,7 +186,7 @@ impl From<ReportError> for Failure {
 
 /// The period a saved chart's word names on `today`, as the chart counts
 /// it: an open range starts with the book's first booking.
-fn period_of(book: &Book, word: &str, today: Date) -> Result<Period, ReportError> {
+pub(super) fn period_of(book: &Book, word: &str, today: Date) -> Result<Period, ReportError> {
     let earliest = || {
         book.booking_date_range()
             .ok()
@@ -302,7 +302,10 @@ fn figures(
 
 /// The filter `asked` gives on `source`; `None` when it chooses nothing,
 /// so the chart shows no figure.
-fn filter_of(asked: Option<&Asked>, source: &Source) -> Result<Option<Filter>, ReportError> {
+pub(super) fn filter_of(
+    asked: Option<&Asked>,
+    source: &Source,
+) -> Result<Option<Filter>, ReportError> {
     let Some(asked) = asked else {
         return Ok(Some(Filter::default()));
     };
@@ -488,7 +491,7 @@ fn fallback_currency(book: &Book) -> CurrencyCode {
 
 /// The first and last day of `period` under `from` and `to`, after
 /// `prefix`.
-fn dates(entry: &mut Map<String, Value>, prefix: &str, period: Period) {
+pub(super) fn dates(entry: &mut Map<String, Value>, prefix: &str, period: Period) {
     entry.insert(format!("{prefix}from"), json!(period.first().to_string()));
     entry.insert(format!("{prefix}to"), json!(period.last().to_string()));
 }

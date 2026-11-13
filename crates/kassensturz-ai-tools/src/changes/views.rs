@@ -290,7 +290,14 @@ fn choose_columns(component: &mut Component, value: Option<&Value>) -> Result<()
 /// The settings of a chart the AI prepares besides its kind and dataset,
 /// in the order they are set: words, then lists of ids, then formulas
 /// (D-352, D-650).
-const WORDS: [&str; 5] = ["grouping", "measure", "compare", "average", "orientation"];
+const WORDS: [&str; 6] = [
+    "grouping",
+    "measure",
+    "compare",
+    "average",
+    "orientation",
+    "neutral",
+];
 const ID_LISTS: [&str; 6] = [
     "categories",
     "accounts",
@@ -328,6 +335,7 @@ pub(super) fn new_view(
             "compare",
             "average",
             "orientation",
+            "neutral",
             "period",
             "categories",
             "accounts",
@@ -528,7 +536,7 @@ fn chart_of(view: &StoredView) -> Result<(Document, Component), ToolError> {
 
 /// The keys of an item of `edit_views`: those of `new_views` and the
 /// chart's ID.
-const EDIT_KEYS: [&str; 20] = [
+const EDIT_KEYS: [&str; 21] = [
     "view_id",
     "title",
     "dataset",
@@ -538,6 +546,7 @@ const EDIT_KEYS: [&str; 20] = [
     "compare",
     "average",
     "orientation",
+    "neutral",
     "period",
     "categories",
     "accounts",

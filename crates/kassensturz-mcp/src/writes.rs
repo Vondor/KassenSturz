@@ -246,13 +246,21 @@ async fn propose(
 
 /// The figure a prepared key figure or progress bar shows, from the answer
 /// of `propose_view` (D-685): `computed` and its note, or `not_computed`;
+/// the rows a spending table shows, `computed_rows` and its note (D-761);
 /// and how the chart is grouped, `group_by` (#634). Empty for any other
 /// call.
 fn figure_of(answer: &Value) -> Map<String, Value> {
-    ["group_by", "computed", "computed_note", "not_computed"]
-        .into_iter()
-        .filter_map(|key| Some((key.to_owned(), answer.get(key)?.clone())))
-        .collect()
+    [
+        "group_by",
+        "computed",
+        "computed_note",
+        "computed_rows",
+        "computed_rows_note",
+        "not_computed",
+    ]
+    .into_iter()
+    .filter_map(|key| Some((key.to_owned(), answer.get(key)?.clone())))
+    .collect()
 }
 
 /// The request named in the arguments of `check_proposed_changes`.

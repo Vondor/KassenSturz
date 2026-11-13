@@ -173,6 +173,24 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.io` | `kind` | `not-found`, `permission-denied`, `already-exists`, `read-only`, `storage-full`, `quota-exceeded`, `file-too-large`, `other` | The file couldn't be read or written. Not found: it was moved or removed. Permission denied or read-only: choose a folder you can write to. Storage full or quota exceeded: free up space. File too large: the drive can't hold files this big. |
 | `store.database` | | | Something went wrong reading or writing the book. Try again. If it keeps happening, restore a backup. |
 
+### Backup copies and restoring a backup (`kassensturz-ui-bridge`, #806)
+
+Codes the Settings page and the restore page turn into words. None of them stops a backup in KassenSturz's own folder or the book from opening.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `backup-copy.missing` | | | The folder for copies isn't there right now, so no copy was saved there. Your book and the backups on this computer are fine. Plug in the USB stick or drive and choose Try again, or choose another folder. |
+| `backup-copy.full` | | | The disk with the folder for copies is full. Your book and the backups on this computer are fine. Make room there and try again, or choose another folder. |
+| `backup-copy.read-only` | | | KassenSturz may not write to the folder for copies. Your book and the backups on this computer are fine. Choose another folder. |
+| `backup-copy.same-folder` | | | The chosen folder is KassenSturz's own backup folder. Choose a folder on another drive, for example a USB stick. |
+| `backup-copy.not-saved` | | | The choice couldn't be saved in the settings. Check that the settings folder can be written to, then choose again. |
+| `backup-copy.failed` | | | No copy could be saved in the folder for copies. Your book and the backups on this computer are fine. Try again, or choose another folder. |
+| `restore.no-book` | | | No book is open, so there is nothing to restore. Open a book first. |
+| `restore.not-listed` | | | The backup isn't in the list any more. The book wasn't changed. Choose another one. |
+| `restore.not-usable` | | | The backup is damaged, or a newer KassenSturz made it. The book wasn't changed. Choose another backup. |
+| `restore.no-backup-first` | | | KassenSturz couldn't save the book as it is now, so it restored nothing. Make room on this computer and try again. |
+| `restore.failed` | | | The backup couldn't be put in place, so the book is as it was. Check that the book's folder can be written to, then try again. |
+
 ## Damaged books (`kassensturz-store`)
 
 Data in the book breaks one of KassenSturz's rules, for example because another program changed it (D-046). The UI can show one message for all of these: "This book is damaged. Restore a backup." It can add the detail below for support.

@@ -10,6 +10,7 @@
 #![forbid(unsafe_code)]
 
 mod backup;
+mod backup_copies;
 mod bank_links;
 mod budgets;
 mod cached;
@@ -41,6 +42,7 @@ use kassensturz_core::{
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
+pub use backup_copies::{BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of};
 pub use budgets::{check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
@@ -51,8 +53,8 @@ pub use layout::{FIRST_VERSION as FIRST_LAYOUT, VERSION as LAYOUT};
 pub use lock::Lock;
 pub use moving::{
     Difference, Interrupted, KEEP_MOVE_BACKUPS, MoveCause, MoveFailed, MoveNote, MovePlan,
-    MoveRefused, MoveStep, MoveSteps, Moved, book_file_name, move_backup_stamp, plan_move,
-    remove_left_book,
+    MoveRefused, MoveStep, MoveSteps, Moved, book_file_name, move_backup_stamp, move_backups_of,
+    plan_move, remove_left_book,
 };
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
 pub use tags::{TagUse, checked_tag_name};

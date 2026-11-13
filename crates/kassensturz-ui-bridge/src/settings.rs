@@ -110,46 +110,7 @@ impl Settings {
     /// saved. A path that isn't valid Unicode isn't, since KConfig keeps
     /// text: the app then opens its own book at the next start.
     pub fn set_last_book(&self, path: &Path) -> bool {
-        self.set_path(BOOKS, LAST_BOOK, Some(path))
-    }
-
-    /// The path kept under `key` in `group`, read like `kassensturz-mcp`
-    /// reads the book opened last, with the same function: `$HOME` and
-    /// `$XDG_RUNTIME_DIR` expanded (D-730).
-    pub fn path(&self, group: &str, key: &str) -> Option<PathBuf> {
-        let text = self.text(group, key);
-        if text.is_empty() {
-            return None;
-        }
-        let path = expand_entry(
-            &text,
-            platform::home_dir().as_deref().and_then(Path::to_str),
-            platform::runtime_dir().as_deref().and_then(Path::to_str),
-        )?;
-        Some(PathBuf::from(path))
-    }
-
-    /// Keeps `path` under `key` in `group`, with `$HOME` and
-    /// `$XDG_RUNTIME_DIR` written as such, or empties it for `None`. Returns
-    /// whether that was saved; a path that isn't valid Unicode isn't.
-    pub fn set_path(&self, group: &str, key: &str, path: Option<&Path>) -> bool {
-        let Some(path) = path else {
-            return self.set_text(group, key, "");
-        };
-        let Some(path) = path.to_str() else {
-            return false;
-        };
-        let text = remember_entry(
-            path,
-            platform::home_dir().as_deref().and_then(Path::to_str),
-            platform::runtime_dir().as_deref().and_then(Path::to_str),
-        );
-        ffi::write_expanded_entry(
-            &self.file,
-            &QString::from(group),
-            &QString::from(key),
-            &QString::from(text),
-        )
+        self.set_path(BOOKS, LAST_BOOK, path)
     }
 
     /// Where the user chose to keep saved PINs (D-163); the system
@@ -247,6 +208,41 @@ impl Settings {
             &QString::from(group),
             &QString::from(key),
             &QString::from(value),
+        )
+    }
+
+    /// The path kept under `key` in `group` by [`Settings::set_path`], read
+    /// like the book opened last; `None` if there is none.
+    pub fn path(&self, group: &str, key: &str) -> Option<PathBuf> {
+        let text = self.text(group, key);
+        if text.is_empty() {
+            return None;
+        }
+        expand_entry(
+            &text,
+            platform::home_dir().as_deref().and_then(Path::to_str),
+            platform::runtime_dir().as_deref().and_then(Path::to_str),
+        )
+        .map(PathBuf::from)
+    }
+
+    /// Keeps `path` under `key` in `group`, with `$XDG_RUNTIME_DIR` and
+    /// `$HOME` kept as such, like the book opened last. Returns whether it
+    /// was saved; a path that isn't valid Unicode isn't.
+    pub fn set_path(&self, group: &str, key: &str, path: &Path) -> bool {
+        let Some(path) = path.to_str() else {
+            return false;
+        };
+        let text = remember_entry(
+            path,
+            platform::home_dir().as_deref().and_then(Path::to_str),
+            platform::runtime_dir().as_deref().and_then(Path::to_str),
+        );
+        ffi::write_expanded_entry(
+            &self.file,
+            &QString::from(group),
+            &QString::from(key),
+            &QString::from(text),
         )
     }
 }

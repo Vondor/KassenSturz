@@ -494,7 +494,9 @@ pub enum Corruption {
 /// An error reported by SQLite. Its details are for logs, not for users.
 #[derive(Debug)]
 pub struct DatabaseError(
-    #[expect(dead_code, reason = "only read through Debug, for logs")] rusqlite::Error,
+    /// Read through Debug for logs, and for its code where a full or
+    /// read-only disk is told apart (`backup_copies.rs`).
+    pub(crate) rusqlite::Error,
 );
 
 impl From<std::io::Error> for StoreError {

@@ -863,6 +863,47 @@ fn move_backup_names_are_recognized_strictly() {
 }
 
 #[test]
+fn move_backups_are_listed_apart_from_the_automatic_ones() {
+    let folder = TempFolder::new();
+    for name in [
+        "Household 2026-11-12 09-00-00 UTC.ksz",
+        "Household 2026-11-13 03-04-05 UTC before moving.ksz",
+        "Household 2026-11-13 03-04-05 UTC before moving 2.ksz",
+        "Garden 2026-11-13 03-04-05 UTC before moving.ksz",
+    ] {
+        fs::write(folder.join(name), "made up").expect("written");
+    }
+    fs::create_dir(folder.join("Household 2026-11-14 03-04-05 UTC before moving.ksz"))
+        .expect("made");
+    let book = Path::new("/books/Household.ksz");
+    let names = |found: Vec<crate::BackupFile>| -> Vec<String> {
+        found
+            .into_iter()
+            .map(|file| {
+                file.path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect()
+    };
+    assert_eq!(
+        names(move_backups_of(book, &folder.join(".")).expect("listed")),
+        [
+            "Household 2026-11-13 03-04-05 UTC before moving 2.ksz",
+            "Household 2026-11-13 03-04-05 UTC before moving.ksz",
+        ]
+    );
+    // The copies in a chosen folder are counted by the automatic ones only.
+    assert_eq!(
+        names(crate::backups_of(book, &folder.join(".")).expect("listed")),
+        ["Household 2026-11-12 09-00-00 UTC.ksz"]
+    );
+    assert!(move_backups_of(book, &folder.join("gone")).is_err());
+}
+
+#[test]
 fn a_failed_move_says_nothing_about_where() {
     let setup = Setup::new();
     hook::set(Stage::Copied, Act::Fail);

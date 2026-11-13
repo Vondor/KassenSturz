@@ -22187,3 +22187,319 @@ msgstr "Nichts, jede Änderung einfärben"
 msgctxt "@item:inlistbox no colour for: %1 is a whole number of percent"
 msgid "Changes smaller than %1 %"
 msgstr "Änderungen unter %1 %"
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:40
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This backup can't be used: it is damaged, or a newer KassenSturz made it. "
+"Your book wasn't changed. Choose another backup."
+msgstr "Diese Sicherung kann nicht verwendet werden: Sie ist beschädigt, oder eine neuere Version von KassenSturz hat sie erstellt. Ihr Haushaltsbuch wurde nicht geändert. Wählen Sie eine andere Sicherung."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:42
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't save your book as it is now, so it didn't restore "
+"anything. Check that there is free space on this computer, then try again."
+msgstr "KassenSturz konnte Ihr Haushaltsbuch im jetzigen Stand nicht sichern und hat deshalb nichts wiederhergestellt. Prüfen Sie, ob auf diesem Computer genug Platz frei ist, und versuchen Sie es dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:44
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This backup isn't there any more. Your book wasn't changed. Choose another "
+"one from the list."
+msgstr "Diese Sicherung ist nicht mehr da. Ihr Haushaltsbuch wurde nicht geändert. Wählen Sie eine andere aus der Liste."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:46
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz couldn't put the backup in place, so your book is as it was. "
+"Check that the folder of your book can be written to, then try again."
+msgstr "KassenSturz konnte die Sicherung nicht an die Stelle Ihres Haushaltsbuchs setzen, es ist also unverändert. Prüfen Sie, ob in den Ordner Ihres Haushaltsbuchs geschrieben werden kann, und versuchen Sie es dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:55
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The folder you chose for copies isn't there right now, so its copies aren't "
+"listed. If it is on a USB stick or another drive, plug it in and open this "
+"page again."
+msgstr "Der Ordner, den Sie für Kopien gewählt haben, ist gerade nicht da, deshalb fehlen seine Kopien in der Liste. Wenn er auf einem USB-Stick oder einem anderen Laufwerk liegt, schließen Sie es an und öffnen Sie diese Seite noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:57
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz can't read the folder you chose for copies, so its copies aren't "
+"listed."
+msgstr "KassenSturz kann den Ordner, den Sie für Kopien gewählt haben, nicht lesen, deshalb fehlen seine Kopien in der Liste."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:61
+#, kde-format
+msgctxt "@title"
+msgid "Restore from backup"
+msgstr "Aus einer Sicherung wiederherstellen"
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:70
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Pick the copy of your book to go back to. Changes you made after it was "
+"saved won't be in it. Before KassenSturz restores it, it saves your book as "
+"it is now as another backup, so you can always come back."
+msgstr "Wählen Sie die Kopie Ihres Haushaltsbuchs, zu der Sie zurückkehren möchten. Was Sie danach geändert haben, ist darin nicht enthalten. Bevor KassenSturz sie wiederherstellt, sichert es Ihr Haushaltsbuch im jetzigen Stand als weitere Sicherung, sodass Sie jederzeit zurückkehren können."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:85
+#, kde-format
+msgctxt "@title:group"
+msgid "Backups of this book"
+msgstr "Sicherungen dieses Haushaltsbuchs"
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:91
+#, kde-format
+msgctxt "@info"
+msgid "There are no backups of this book yet."
+msgstr "Von diesem Haushaltsbuch gibt es noch keine Sicherungen."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:93
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz saves one before it updates your book and, in the folder you "
+"chose, once a day when you open the book."
+msgstr "KassenSturz legt eine an, bevor es Ihr Haushaltsbuch aktualisiert, und im gewählten Ordner einmal am Tag, wenn Sie das Haushaltsbuch öffnen."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:94
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz saves one before it updates your book. In Settings you can "
+"choose a folder where it also keeps a copy once a day, for example on a USB "
+"stick."
+msgstr "KassenSturz legt eine an, bevor es Ihr Haushaltsbuch aktualisiert. In den Einstellungen können Sie einen Ordner wählen, in dem es zusätzlich einmal am Tag eine Kopie ablegt, zum Beispiel auf einem USB-Stick."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:106
+#, kde-format
+msgctxt "@info where a backup is kept"
+msgid "In the folder you chose for copies"
+msgstr "Im Ordner, den Sie für Kopien gewählt haben"
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:107
+#, kde-format
+msgctxt "@info where a backup is kept"
+msgid "In KassenSturz's backup folder"
+msgstr "Im Sicherungsordner von KassenSturz"
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:122
+#, kde-format
+msgctxt "@title:window"
+msgid "Restore this backup?"
+msgstr "Diese Sicherung wiederherstellen?"
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:123
+#, kde-format
+msgctxt "@info %1 is when the backup was saved, e.g. 21.10.2026 14:02"
+msgid ""
+"Your book goes back to how it was on %1. Changes made after that won't be in "
+"it.\n"
+"\n"
+"KassenSturz first saves your book as it is now as a backup, so you can come "
+"back to it from this list."
+msgstr "Ihr Haushaltsbuch kehrt zum Stand vom %1 zurück. Was danach geändert wurde, ist darin nicht enthalten.\n\nKassenSturz sichert Ihr Haushaltsbuch vorher im jetzigen Stand, sodass Sie über diese Liste dorthin zurückkehren können."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:127
+#, kde-format
+msgctxt "@action:button"
+msgid "Restore it"
+msgstr "Wiederherstellen"
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:136
+#, kde-format
+msgctxt "@info"
+msgid "Your book was restored. The book as it was before is the newest backup."
+msgstr "Ihr Haushaltsbuch wurde wiederhergestellt. Der Stand davor ist die neueste Sicherung."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:144
+#, kde-format
+msgctxt "@action:button"
+msgid "Keep my book as it is"
+msgstr "Mein Haushaltsbuch so lassen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:943
+#, kde-format
+msgctxt "@info %1 is when the copy was saved, e.g. 21.10.2026 14:02"
+msgid "Newest copy there: %1"
+msgstr "Neueste Kopie dort: %1"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:945
+#, kde-format
+msgctxt "@info"
+msgid "Your book and the backups on this computer are fine."
+msgstr "Ihr Haushaltsbuch und die Sicherungen auf diesem Computer sind in Ordnung."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:947
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz saves a copy there when it opens your book."
+msgstr "KassenSturz legt dort eine Kopie ab, wenn es Ihr Haushaltsbuch öffnet."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:957
+#, kde-format
+msgctxt "@info"
+msgid "The folder isn't there right now, so no copy was saved there."
+msgstr "Der Ordner ist gerade nicht da, deshalb wurde dort keine Kopie abgelegt."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:957
+#, kde-format
+msgctxt "@info"
+msgid ""
+"If it is on a USB stick or another drive, plug it in and choose Try again, "
+"or choose another folder."
+msgstr "Wenn er auf einem USB-Stick oder einem anderen Laufwerk liegt, schließen Sie es an und wählen Sie „Noch einmal versuchen“, oder wählen Sie einen anderen Ordner."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:959
+#, kde-format
+msgctxt "@info"
+msgid "The disk with that folder is full, so no copy was saved there."
+msgstr "Das Laufwerk mit diesem Ordner ist voll, deshalb wurde dort keine Kopie abgelegt."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:959
+#, kde-format
+msgctxt "@info"
+msgid "Make room there and choose Try again, or choose another folder."
+msgstr "Schaffen Sie dort Platz und wählen Sie „Noch einmal versuchen“, oder wählen Sie einen anderen Ordner."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:961
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz may not write to that folder, so no copy was saved there."
+msgstr "KassenSturz darf in diesen Ordner nicht schreiben, deshalb wurde dort keine Kopie abgelegt."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:961
+#, kde-format
+msgctxt "@info"
+msgid "Please choose another folder."
+msgstr "Bitte wählen Sie einen anderen Ordner."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:963
+#, kde-format
+msgctxt "@info"
+msgid ""
+"That is KassenSturz's own backup folder. Please choose a folder on another "
+"drive, for example a USB stick."
+msgstr "Das ist der eigene Sicherungsordner von KassenSturz. Bitte wählen Sie einen Ordner auf einem anderen Laufwerk, zum Beispiel einem USB-Stick."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:967
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't save a copy there."
+msgstr "KassenSturz konnte dort keine Kopie ablegen."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:967
+#, kde-format
+msgctxt "@info"
+msgid "Choose Try again, or choose another folder."
+msgstr "Wählen Sie „Noch einmal versuchen“, oder wählen Sie einen anderen Ordner."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:984
+#, kde-format
+msgctxt "@title:window"
+msgid "Choose a folder for copies of your book"
+msgstr "Einen Ordner für Kopien Ihres Haushaltsbuchs wählen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1011
+#, kde-format
+msgctxt "@action:button %1 is the folder"
+msgid "Also keep copies in: %1"
+msgstr "Kopien auch ablegen in: %1"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1012
+#, kde-format
+msgctxt "@action:button"
+msgid "Also keep copies in another folder…"
+msgstr "Kopien auch in einem anderen Ordner ablegen …"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1014
+#, kde-format
+msgctxt "@info"
+msgid "Choose another folder"
+msgstr "Einen anderen Ordner wählen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1015
+#, kde-format
+msgctxt "@info"
+msgid "For example on a USB stick, or in a folder your cloud app uploads"
+msgstr "Zum Beispiel auf einem USB-Stick oder in einem Ordner, den Ihre Cloud-App hochlädt"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1038
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Copies of each book to keep there"
+msgstr "So viele Kopien je Haushaltsbuch dort behalten"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1042
+#, kde-format
+msgctxt "@item:inlistbox how many copies"
+msgid "3"
+msgstr "3"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1043
+#, kde-format
+msgctxt "@item:inlistbox how many copies"
+msgid "5"
+msgstr "5"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1044
+#, kde-format
+msgctxt "@item:inlistbox how many copies"
+msgid "10"
+msgstr "10"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1045
+#, kde-format
+msgctxt "@item:inlistbox how many copies"
+msgid "20"
+msgstr "20"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1069
+#, kde-format
+msgctxt "@action:button make a copy again"
+msgid "Try again"
+msgstr "Noch einmal versuchen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1085
+#, kde-format
+msgctxt "@action:button"
+msgid "Stop keeping copies there"
+msgstr "Dort keine Kopien mehr ablegen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1086
+#, kde-format
+msgctxt "@info"
+msgid "The copies already there stay"
+msgstr "Die Kopien, die schon dort sind, bleiben"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1099
+#, kde-format
+msgctxt "@action:button"
+msgid "Restore from backup…"
+msgstr "Aus einer Sicherung wiederherstellen …"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1100
+#, kde-format
+msgctxt "@info"
+msgid "Go back to an earlier copy of your book"
+msgstr "Zu einer früheren Kopie Ihres Haushaltsbuchs zurückkehren"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:1121
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These copies are on the same disk as your book. If you choose another "
+"folder, for example on a USB stick or in a folder your cloud app uploads, "
+"KassenSturz also keeps a copy there once a day when you open your book, and "
+"a copy of every backup."
+msgstr "Diese Kopien liegen auf demselben Laufwerk wie Ihr Haushaltsbuch. Wenn Sie einen anderen Ordner wählen, zum Beispiel auf einem USB-Stick oder in einem Ordner, den Ihre Cloud-App hochlädt, legt KassenSturz dort zusätzlich einmal am Tag eine Kopie ab, wenn Sie Ihr Haushaltsbuch öffnen, und eine Kopie jeder Sicherung."

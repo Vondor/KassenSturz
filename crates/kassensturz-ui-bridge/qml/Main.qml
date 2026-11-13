@@ -1758,6 +1758,7 @@ Kirigami.ApplicationWindow {
             onBookPlaceClicked: root.pushPage(bookMovePage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
+            onRestoreBackupClicked: root.pushPage(restoreBackupPage)
             onTagsClicked: root.pushPage(tagsPage)
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
             onHelpClicked: root.pushPage(helpPage)
@@ -1891,6 +1892,14 @@ Kirigami.ApplicationWindow {
                 root.showBook();
                 bookFromFileState.cancel();
             }
+        }
+    }
+
+    Component {
+        id: restoreBackupPage
+
+        RestoreBackupPage {
+            session: bookSession
         }
     }
 

@@ -127,14 +127,15 @@ impl MoveSteps for AppSteps<'_> {
         // The paths first: a note without both is no note. A note written
         // again with the backup's name is never cleared if that fails: it
         // still explains a stop.
-        self.settings.set_path(GROUP, NOTE_FROM, Some(&note.from))
-            && self.settings.set_path(GROUP, NOTE_TO, Some(&note.to))
+        self.settings.set_path(GROUP, NOTE_FROM, &note.from)
+            && self.settings.set_path(GROUP, NOTE_TO, &note.to)
             && self
                 .settings
                 .set_text(GROUP, NOTE_SINCE, &note.since.to_string())
-            && self
-                .settings
-                .set_path(GROUP, NOTE_BACKUP, note.backup.as_deref())
+            && match &note.backup {
+                Some(backup) => self.settings.set_path(GROUP, NOTE_BACKUP, backup),
+                None => self.settings.set_text(GROUP, NOTE_BACKUP, ""),
+            }
     }
 
     fn clear_note(&mut self) {
@@ -199,8 +200,8 @@ pub fn run(settings: &Settings, plan: &MovePlan, computer: &Computer) -> Result<
                 path: moved.to.clone(),
                 on_network_drive,
             });
-            settings.set_path(GROUP, LAST_FROM, Some(&path));
-            settings.set_path(GROUP, LAST_TO, Some(&moved.to));
+            settings.set_path(GROUP, LAST_FROM, &path);
+            settings.set_path(GROUP, LAST_TO, &moved.to);
             settings.set_text(GROUP, LAST_ON, &Timestamp::now().to_string());
             Ok(Done {
                 to: moved.to,

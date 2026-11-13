@@ -740,6 +740,36 @@ pub fn move_backup_stamp<'a>(name: &'a str, stem: &str) -> Option<&'a str> {
     move_backup_name(name, stem).map(|(stamp, _)| stamp)
 }
 
+/// The "before moving" backups of the book at `book` in `folder`, newest
+/// first, for the list to restore from (#806). They are listed apart from
+/// [`crate::backups_of`], which lists the automatic ones and which the
+/// copies in a chosen folder are counted by, so a move never changes
+/// which copies a chosen folder keeps.
+///
+/// # Errors
+///
+/// [`StoreError::Io`] if the folder can't be read, with
+/// [`ErrorKind::NotFound`] if it isn't there.
+pub fn move_backups_of(book: &Path, folder: &Path) -> Result<Vec<crate::BackupFile>, StoreError> {
+    let stem = crate::backup::stem_of(book)?;
+    let mut found: Vec<(Timestamp, u32, PathBuf)> = fs::read_dir(folder)?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().into_string().ok()?;
+            let (stamp, number) = move_backup_name(&name, stem)?;
+            let made = crate::backup::stamp_time(stamp)?;
+            // A folder or a link with a backup's name isn't one.
+            let is_file = entry.file_type().ok()?.is_file();
+            is_file.then(|| (made, number, entry.path()))
+        })
+        .collect();
+    found.sort_by_key(|entry| std::cmp::Reverse((entry.0, entry.1)));
+    Ok(found
+        .into_iter()
+        .map(|(made, _, path)| crate::BackupFile { path, made })
+        .collect())
+}
+
 /// The stamp and number of a "before moving" backup's name; the number is 1
 /// if the name has none.
 fn move_backup_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {

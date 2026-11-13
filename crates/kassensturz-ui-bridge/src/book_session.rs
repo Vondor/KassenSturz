@@ -406,6 +406,9 @@ impl qobject::BookSession {
                     }
                     (_, attempt) => attempt,
                 };
+                // The code in the developer log, so a refusal can be told
+                // from another though the page may word several alike.
+                crate::note!(BookRefused, None, Some(problem.code()));
                 let shown = self.problem_map(&problem);
                 self.as_mut().rust_mut().last_attempt = Some(attempt);
                 self.as_mut().set_problem(shown);

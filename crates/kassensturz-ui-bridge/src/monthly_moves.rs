@@ -159,6 +159,34 @@ fn account_name(accounts: &[Account], id: AccountId) -> String {
         .unwrap_or_default()
 }
 
+/// `new`, the move of the pair `a` and `b`, with the day it usually comes:
+/// read from every pair the book suggests for the same move, as "Join all"
+/// does, not from this pair alone, because right after an import the first
+/// pair may be a few days off the rest. The offer says this day and joining
+/// remembers it, so what the question promised is what is saved (B-261).
+fn with_usual_day(
+    book: &Book,
+    a: TransactionId,
+    b: TransactionId,
+    mut new: NewRecurringMove,
+    locale: &impl Locale,
+) -> Result<NewRecurringMove, MonthlyMovesError> {
+    let mut days = vec![new.day_of_month];
+    for found in book.transfer_suggestions()? {
+        let (out, into) = (found.outgoing.transaction, found.incoming.transaction);
+        if (out == a && into == b) || (out == b && into == a) {
+            continue;
+        }
+        if let Ok(other) = book.recurring_move_for(out, into, locale.today())
+            && is_same_move(&other, &new)
+        {
+            days.push(other.day_of_month);
+        }
+    }
+    new.day_of_month = usual_day(&days).unwrap_or(new.day_of_month);
+    Ok(new)
+}
+
 /// The move to offer for the pair `a` and `b` that the user is about to
 /// join, or `None` when none can be remembered for it (not one currency, or
 /// not two different accounts of the user) or the book remembers it already.
@@ -177,23 +205,7 @@ pub fn offer(
     if new.from_account == new.to_account || remembered(book, &new)? {
         return Ok(None);
     }
-    // The day a move usually comes is read from every pair the book suggests
-    // for it, as "Join all" does, not from this pair alone: right after an
-    // import the first pair may be a few days off the rest.
-    let mut new = new;
-    let mut days = vec![new.day_of_month];
-    for found in book.transfer_suggestions()? {
-        let (out, into) = (found.outgoing.transaction, found.incoming.transaction);
-        if (out == a && into == b) || (out == b && into == a) {
-            continue;
-        }
-        if let Ok(other) = book.recurring_move_for(out, into, locale.today())
-            && is_same_move(&other, &new)
-        {
-            days.push(other.day_of_month);
-        }
-    }
-    new.day_of_month = usual_day(&days).unwrap_or(new.day_of_month);
+    let new = with_usual_day(book, a, b, new, locale)?;
     let accounts = book.all_accounts()?;
     Ok(Some(OfferText {
         amount: AmountWriter::new(book, new.amount.currency(), locale)?.text(new.amount),
@@ -255,6 +267,7 @@ fn join_and_remember(
     // Worked out first: the join removes the receiving transaction.
     let new = book.recurring_move_for(a, b, locale.today())?;
     let known = remembered(book, &new)?;
+    let new = with_usual_day(book, a, b, new, locale)?;
     book.as_one_action(Action::JoinTransfer, |book| {
         book.join_transfer(a, b)?;
         if !known {
@@ -624,6 +637,23 @@ mod tests {
         };
         assert_eq!(offer_for(&out, &arrived), 1);
         assert_eq!(offer_for(&pairs[0].0, &pairs[0].1), 1);
+    }
+
+    #[test]
+    fn joining_remembers_the_day_the_offer_named() {
+        let (mut book, checking, savings, pairs) = standing_orders(&[10, 11]);
+        let out = typed(&mut book, checking, false, "Standing order", "2026-08-03");
+        let arrived = typed(&mut book, savings, true, "From checking", "2026-08-03");
+        let named = offer(&book, &out, &arrived, &TestLocale)
+            .expect("offer")
+            .expect("one is offered")
+            .day;
+        join_remembering(&mut book, &out, &arrived, &TestLocale).expect("joined");
+        let moves = list(&book, &TestLocale).expect("list");
+        assert_eq!(moves.len(), 1);
+        assert_eq!(moves[0].day, named);
+        assert_eq!(named, 1);
+        let _ = pairs;
     }
 
     #[test]

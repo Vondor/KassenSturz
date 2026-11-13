@@ -5616,6 +5616,21 @@ msgstr ""
 "Ihre Sicherungen liegen im Sicherungsordner von KassenSturz; öffnen Sie "
 "stattdessen die neueste."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:108
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This book holds parts a KassenSturz book doesn't have, or lacks some of its "
+"own. Another program probably changed it. KassenSturz didn't open it, so "
+"nothing in it ran, and the book wasn't changed. Your backups are in "
+"KassenSturz's backup folder; open the newest one instead."
+msgstr ""
+"Dieses Haushaltsbuch enthält Teile, die ein KassenSturz-Buch nicht hat, oder "
+"es fehlen eigene Teile. Wahrscheinlich hat ein anderes Programm es "
+"verändert. KassenSturz hat es nicht geöffnet, darum wurde darin nichts "
+"ausgeführt und das Buch wurde nicht verändert. Ihre Sicherungen liegen im "
+"Sicherungsordner von KassenSturz; öffnen Sie stattdessen die neueste."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:110
 #, kde-format
 msgctxt "@info"

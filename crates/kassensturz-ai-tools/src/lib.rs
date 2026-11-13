@@ -56,6 +56,7 @@ mod functions;
 mod issue;
 #[cfg(feature = "ai")]
 mod note;
+#[cfg(feature = "ai")]
 mod open_page;
 #[cfg(feature = "ai")]
 mod read;

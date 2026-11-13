@@ -1544,6 +1544,7 @@ mod tests {
     use cxx_qt_lib::{QString, QVariant};
     use kassensturz_ai::Finish;
     use kassensturz_ai_chat::{Answer, AnswerNote, LogEntry, Mode};
+    use kassensturz_ai_tools::NoteSuggestion;
 
     use super::engine::{
         changes_object, choices_object, danger_object, entry_object, finished_object,

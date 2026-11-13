@@ -177,6 +177,12 @@ QtObject {
         return changes(setId);
     }
 
+    // The danger line of a set (B-248): the fake sets take nothing away
+    // and touch only a few transactions, so none has one.
+    function danger(setId) {
+        return {};
+    }
+
     function confirm(setId) {
         confirmed = confirmed.concat([setId]);
         return {ok: true};

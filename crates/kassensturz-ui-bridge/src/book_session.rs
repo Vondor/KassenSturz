@@ -203,7 +203,7 @@ impl cxx_qt::Initialize for qobject::BookSession {
         state.folder_url = folder_url;
         state.version = QString::from(version_label().as_str());
         state.from_pull_request = from_pull_request();
-        state.use_folders = platform::in_flatpak_sandbox() && platform::can_choose_book_folder();
+        state.use_folders = platform::in_sandbox() && platform::can_choose_book_folder();
         state.books = Some(books);
     }
 }

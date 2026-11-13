@@ -179,6 +179,22 @@ pub fn in_flatpak_sandbox() -> bool {
     in_flatpak(Path::new("/.flatpak-info"))
 }
 
+/// Whether the app runs in a sandbox that reaches the user's files only
+/// through the desktop portals: a Flatpak, or a strict snap (D-765). Their
+/// folder rules are the same (D-730); only how each tells itself differs.
+pub fn in_sandbox() -> bool {
+    in_flatpak_sandbox() || in_snap_sandbox()
+}
+
+/// Whether the app runs as a snap, which snapd tells by `SNAP` and
+/// `SNAP_NAME`; the folder `SNAP` names must exist.
+pub fn in_snap_sandbox() -> bool {
+    in_snap(
+        std::env::var_os("SNAP").as_deref(),
+        std::env::var_os("SNAP_NAME").as_deref(),
+    )
+}
+
 /// Qt's own folder for apps' data, for the test profile's path audit.
 #[cfg(test)]
 pub fn qt_data_folder() -> PathBuf {
@@ -206,15 +222,14 @@ pub fn computer() -> Computer {
 /// (`Drive::Sandboxed`), so a new book goes into the data folder until the
 /// pages ask for a folder instead (`can_choose_book_folder`, D-730, D-733).
 pub fn can_choose_book_place() -> bool {
-    !in_flatpak(Path::new("/.flatpak-info"))
+    !in_sandbox()
 }
 
 /// Whether the user can choose a folder for their book: always outside a
 /// sandbox, and in the Flatpak where the document portal's mount is there,
 /// through which the folder chooser exports a folder (D-730).
 pub fn can_choose_book_folder() -> bool {
-    !in_flatpak(Path::new("/.flatpak-info"))
-        || runtime_dir().is_some_and(|dir| dir.join("doc").is_dir())
+    !in_sandbox() || runtime_dir().is_some_and(|dir| dir.join("doc").is_dir())
 }
 
 /// The user's home folder, if the system names one.
@@ -222,9 +237,24 @@ pub fn home_dir() -> Option<PathBuf> {
     absolute_env("HOME")
 }
 
-/// `$XDG_RUNTIME_DIR`, where the document portal is mounted in `doc`.
+/// `$XDG_RUNTIME_DIR`, where the document portal is mounted in `doc`. A snap
+/// gets its own `snap.<name>` folder below the user's runtime folder as
+/// `$XDG_RUNTIME_DIR`, while the portal's mount is in the folder above it.
 pub fn runtime_dir() -> Option<PathBuf> {
-    absolute_env("XDG_RUNTIME_DIR")
+    absolute_env("XDG_RUNTIME_DIR").map(|dir| portal_parent(&dir, in_snap_sandbox()))
+}
+
+/// `dir`, or for a snap the user's runtime folder above its own
+/// `snap.<name>` one.
+fn portal_parent(dir: &Path, snap: bool) -> PathBuf {
+    let own = dir
+        .file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.starts_with("snap."));
+    match dir.parent() {
+        Some(parent) if snap && own => parent.to_path_buf(),
+        _ => dir.to_path_buf(),
+    }
 }
 
 fn absolute_env(name: &str) -> Option<PathBuf> {
@@ -266,6 +296,14 @@ pub fn choose_folder(chosen: &Path) -> Result<FolderGrant, FolderRefused> {
 /// Whether the app runs in a Flatpak, which puts `marker` into every sandbox.
 fn in_flatpak(marker: &Path) -> bool {
     cfg!(target_os = "linux") && marker.exists()
+}
+
+/// Whether `snap` and `name` (snapd's `SNAP` and `SNAP_NAME`) name a snap
+/// that is really there.
+fn in_snap(snap: Option<&std::ffi::OsStr>, name: Option<&std::ffi::OsStr>) -> bool {
+    cfg!(target_os = "linux")
+        && name.is_some_and(|name| !name.is_empty())
+        && snap.is_some_and(|snap| Path::new(snap).is_absolute() && Path::new(snap).is_dir())
 }
 
 /// The bytes the user may still write in `folder`, if the system tells.
@@ -393,6 +431,34 @@ mod tests {
         assert!(!in_flatpak(&marker));
         std::fs::write(&marker, b"").expect("marker");
         assert_eq!(in_flatpak(&marker), cfg!(target_os = "linux"));
+    }
+
+    #[test]
+    fn a_snap_is_told_by_its_name_and_its_folder() {
+        let folder = TestFolder::new();
+        let snap = folder.path().as_os_str();
+        let name = std::ffi::OsStr::new("kassensturz");
+        assert_eq!(in_snap(Some(snap), Some(name)), cfg!(target_os = "linux"));
+        assert!(!in_snap(None, Some(name)));
+        assert!(!in_snap(Some(snap), None));
+        assert!(!in_snap(Some(snap), Some(std::ffi::OsStr::new(""))));
+        assert!(!in_snap(
+            Some(folder.path().join("missing").as_os_str()),
+            Some(name)
+        ));
+        assert!(!in_snap(Some(std::ffi::OsStr::new("relative")), Some(name)));
+    }
+
+    #[test]
+    fn a_snaps_runtime_folder_leads_to_the_portals_mount_above_it() {
+        let own = Path::new("/run/user/1000/snap.kassensturz");
+        assert_eq!(portal_parent(own, true), Path::new("/run/user/1000"));
+        // Not a snap, or no snap folder: left as it is.
+        assert_eq!(portal_parent(own, false), own);
+        assert_eq!(
+            portal_parent(Path::new("/run/user/1000"), true),
+            Path::new("/run/user/1000")
+        );
     }
 
     #[test]

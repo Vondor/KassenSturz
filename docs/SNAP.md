@@ -25,7 +25,7 @@ For a tag, `snap.yml` writes the secret `FINTS_REGISTRATION` of the environment 
 | Window, GPU, network, portals | `desktop`, `wayland`, `x11`, `opengl`, `network` (from the extension) | yes | nothing |
 | Saved banking PIN in the keychain (Secret Service, KWallet) | `password-manager-service` | **no**: the store's reviewers rarely grant auto-connection, because the interface reads every stored secret | `sudo snap connect kassensturz:password-manager-service`, or use the PIN each time. The app already works without a keychain (D-057) |
 | Chip-card login | `pcscd` | **no** | `sudo snap connect kassensturz:pcscd` |
-| Book, bill and backup folders (D-730, D-739, D-763) | none: the XDG portal, as in the Flatpak | n/a | nothing; to be checked by hand on a real desktop |
+| Book, bill and backup folders (D-730, D-739, D-763) | none: the strict snap has no `home` access, so the folder chooser goes through the XDG portal as in the Flatpak. The app treats a snap as a sandbox like the Flatpak (`SNAP` and `SNAP_NAME` tell it, `platform::in_sandbox`): a new book is chosen by folder, not by a save dialog, and the portal's mount is found above the snap's own `$XDG_RUNTIME_DIR` (`.../snap.kassensturz`). | n/a | nothing; the cases below are checked in the VM round |
 | KeePassXC as the keychain (D-164) | would need access to another app's socket folder | no | **not available in the snap**: the Flatpak's `xdg-run/app/org.keepassxc.KeePassXC` permission has no strict-snap counterpart without `system-files`/`personal-files`, which the store reviews by hand. Listed as a known limit. |
 
 Requesting auto-connection for `password-manager-service` and `pcscd` is the maintainer's choice (a forum request to the store, see section 8); the default is no request, which keeps the safest behaviour (the user decides who may read secrets).
@@ -54,3 +54,16 @@ The Snap Store terms (canonical.com) could not be read from this build environme
 2. The login as CI secret: run `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -` and store the output as the secret `SNAPCRAFT_STORE_CREDENTIALS` of the environment `release`. Until then the upload job only warns.
 3. Optionally a request to the store for auto-connection of `password-manager-service` and `pcscd` (section 4), or leave it manual.
 4. Read the terms (section 7).
+
+## Folder checks for the VM rounds
+
+The snap sees the user's files only through the portals (no `home`, `removable-media` or `personal-files` interface is plugged, on purpose: broad access would be a store review item and a step back from the Flatpak's rules). To check in a round on a real desktop, with the snap installed from a main build:
+
+1. First start: the book is made in the app's own folder (`~/snap/kassensturz/...`), backups next to it.
+2. New book: the page asks for a *folder* (no save dialog); the chosen folder, e.g. in Documents, works for the book, its lock file and SQLite's journal (D-730, D-733).
+3. Import: a file chosen with the file chooser (KMyMoney, CAMT, OFX) is read once; nothing else of the folder is reachable.
+4. Export and backup copy: the save dialog writes where the user chose; a chosen folder that the portal no longer grants (reset with `flatpak permission-reset` equivalent: `xdg-document-portal` entries removed) shows the plain "choose the folder again" message.
+5. Bill folder (D-739/D-763) and the receipt inbox's portal grants: chosen once, still there after a restart.
+6. External drive: a book on a USB stick (not mounted in the snap, only through the portal) opens or is refused with a clear message, never a silent empty book.
+
+Open point: the portal's host-path lookup (`GetHostPaths`) needs the snap to reach `org.freedesktop.portal.Documents` on D-Bus. If snapd's `desktop` interface does not allow it, the folder is shown by its name instead of its real path (the existing fallback). The round says which.

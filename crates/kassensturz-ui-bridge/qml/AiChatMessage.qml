@@ -25,7 +25,7 @@ ColumnLayout {
     required property AiSettings settings
     // What the panel keeps for this message: its `kind` (`question`,
     // `answer`, `error`, `changes`, `changesDone`, `chart`, `chartFailed`,
-    // `noChange`, `page` or `issue`) and the fields
+    // `noChange`, `note`, `page` or `issue`) and the fields
     // of it.
     required property var message
 
@@ -228,6 +228,31 @@ ColumnLayout {
         textFormat: Text.PlainText
         font.italic: true
         text: item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "No change was prepared. Nothing waits for your review.")
+    }
+
+    // A fixed note under an answer that claims something that did not
+    // happen or was not checked: KassenSturz says it in its own words
+    // (#848, #849, #862).
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: item.message.kind === "note"
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+        font.italic: true
+        text: {
+            switch (item.message.note) {
+            case "nothing-prepared":
+                return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "No change was prepared, whatever the answer says. Nothing waits for your review. Ask again if you want the AI to try once more.");
+            case "nothing-opened":
+                return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "No page was opened, whatever the answer says. Ask again, or open the page yourself.");
+            case "not-checked":
+                return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "This answer was not checked against your book: the AI looked nothing up for it. Ask again, or look in KassenSturz yourself before you rely on it.");
+            case "cannot-pay":
+                return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "KassenSturz can't pay bills or send money, whatever the answer says. Do that in your bank's own app or website.");
+            default:
+                return "";
+            }
+        }
     }
 
     // The AI could not prepare the chart, even after two corrections: said

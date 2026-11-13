@@ -48,9 +48,12 @@ impl ComponentType {
             }
             // A status tile shrinks down to one cell and shows its status
             // icon below its full size (US5.4, D-735).
-            Self::Alarms | Self::BankUpdateAll | Self::FetchNotice | Self::UnsortedNote => {
-                Size { cols: 1, rows: 1 }
-            }
+            Self::Alarms
+            | Self::BankUpdateAll
+            | Self::FetchNotice
+            | Self::UnsortedNote
+            | Self::ForecastMonth
+            | Self::ComingUp => Size { cols: 1, rows: 1 },
             Self::TransfersNote => Size { cols: 4, rows: 1 },
             // The tabs, the month header and the filter bar may be as narrow
             // as one column: the user decides (D-533).
@@ -77,6 +80,10 @@ impl ComponentType {
             // the summary scroll (US1.8, #521, D-635).
             Self::BankUpdateAll => Some(Size { cols: 3, rows: 1 }),
             Self::FetchNotice | Self::UnsortedNote => Some(Size { cols: 4, rows: 1 }),
+            // The figure, the line under it and what it leaves out.
+            Self::ForecastMonth => Some(Size { cols: 3, rows: 2 }),
+            // The next few payments, one line each.
+            Self::ComingUp => Some(Size { cols: 3, rows: 2 }),
             _ => None,
         }
     }
@@ -114,6 +121,8 @@ impl ComponentType {
             // A handful of rows and the line that counts the rest (D-716).
             Self::Transactions => Size { cols: 6, rows: 5 },
             Self::BudgetProgress | Self::BankUpdateAll | Self::Alarms => Size { cols: 6, rows: 3 },
+            // Side by side on the start screen (D-342).
+            Self::ForecastMonth | Self::ComingUp => Size { cols: 6, rows: 3 },
             Self::TableRows
             | Self::ChartLine
             | Self::ChartBar

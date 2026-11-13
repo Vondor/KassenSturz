@@ -60,6 +60,9 @@ Rectangle {
             return "dialog-warning";
         case "bank.update_all":
             return "view-refresh";
+        case "forecast.month":
+        case "plan.coming_up":
+            return "view-calendar-tasks";
         }
         return "view-grid";
     }

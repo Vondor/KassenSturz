@@ -17,9 +17,11 @@ use std::collections::HashSet;
 
 use kassensturz_core::{
     AccountId, CurrencyCode, Date, Decided, MAX_SCHEDULE_EVERY, Money, OccurrenceState, Report,
-    Schedule, ScheduleId, ScheduleUnit, TransactionId, compact_iban, due_dates,
+    Schedule, ScheduleId, ScheduleUnit, TransactionId, compact_iban, due_dates, salary_month_of,
 };
 use kassensturz_store::{Action, Book, NewSchedule, StoreError};
+
+use kassensturz_report::status::{self, ForecastFigures, Status};
 
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
@@ -825,6 +827,203 @@ pub fn match_entry(
     let transaction = transaction_id(transaction)?;
     book.match_schedule_occurrence(plan.id, due_day(due_on)?, transaction)?;
     Ok(())
+}
+
+/// How many months after the current one the Planned payments window's
+/// month by month table shows (D-770, 5.2).
+pub const TABLE_MONTHS: usize = 3;
+
+/// One month of the look ahead, as text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MonthRow {
+    /// The month, e.g. "December 2026": the month its first day is in.
+    pub month: String,
+    /// Its first day, as the locale writes it: a month that starts on a
+    /// salary day is shown by its first and last day (#921).
+    pub first: String,
+    /// Its last day, as the locale writes it.
+    pub last: String,
+    /// The balance it starts with.
+    pub start: Shown,
+    /// The planned income due in it.
+    pub planned_in: Shown,
+    /// The planned payments due in it, without a sign.
+    pub planned_out: Shown,
+    /// The balance it ends with.
+    pub end: Shown,
+}
+
+/// The day *Left this month*'s months start on (#921, Q-565), as the
+/// tile's "Month starts on" says it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MonthStart {
+    /// Like the user's budgets: the day their running salary-month budgets
+    /// share, else the calendar month ([`Book::budgets_salary_day`]).
+    LikeBudgets,
+    /// A fixed day, 1 to 31; 1 is the calendar month.
+    Day(i8),
+}
+
+impl MonthStart {
+    /// The setting for a word of [`kassensturz_report::MONTH_STARTS`]:
+    /// `day-N` is that day, anything else (the default `like-budgets`, an
+    /// empty or unknown word) is like the budgets.
+    pub fn from_word(word: &str) -> Self {
+        word.strip_prefix("day-")
+            .and_then(|day| day.parse::<i8>().ok())
+            .filter(|day| (1..=31).contains(day))
+            .map_or(Self::LikeBudgets, Self::Day)
+    }
+}
+
+/// *Left this month* (D-770, `docs/SCHEDULES.md` 5): the figures of the
+/// forecast as text, and the tile's state. Every figure comes from
+/// [`Book::forecast`], exact; nothing here adds up money.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MonthText {
+    /// The accounts it counts, by name, in the order of their IDs.
+    pub accounts: Vec<String>,
+    /// How many chosen accounts are in another currency and left out.
+    pub left_out: usize,
+    /// Whether any planned payment counts in it: without one, the figure
+    /// means nothing and the tile shows none.
+    pub has_plans: bool,
+    /// The booked balance of the accounts at the end of today.
+    pub balance_now: Shown,
+    /// The planned payments still due this month, without a sign.
+    pub out_due: Shown,
+    /// The planned income still to come this month; empty when none is.
+    pub in_due: Option<Shown>,
+    /// `balance_now − out_due`.
+    pub left: Shown,
+    /// Whether `left` is below zero.
+    pub below_zero: bool,
+    /// `left + in_due`; empty when no income is still to come.
+    pub expected_end: Option<Shown>,
+    /// How many planned payments passed without an entry: counted in no
+    /// figure, so the tile says how many.
+    pub overdue: usize,
+    /// The months after this one.
+    pub months: Vec<MonthRow>,
+    /// The day the months start on, 1 being the calendar month (#921).
+    pub starts_on: i8,
+    /// Whether that day came from the budgets ("like my budgets").
+    pub like_budgets: bool,
+    /// The last day of the month today is in, as the locale writes it.
+    pub ends: String,
+    /// The tile's state (D-734).
+    pub status: Status,
+}
+
+/// The currency the look ahead counts in: the one most of `accounts` keep,
+/// and of two as common the one whose code comes first, so the choice never
+/// depends on the order the accounts were read in. Accounts in another
+/// currency are listed as left out (D-043: no conversion without a rate).
+fn forecast_currency(
+    book: &Book,
+    accounts: &[AccountId],
+) -> Result<Option<CurrencyCode>, StoreError> {
+    let mut counts: Vec<(CurrencyCode, usize)> = Vec::new();
+    for &id in accounts {
+        let currency = book.account(id)?.currency;
+        match counts.iter_mut().find(|(code, _)| *code == currency) {
+            Some((_, count)) => *count += 1,
+            None => counts.push((currency, 1)),
+        }
+    }
+    counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.as_str().cmp(b.0.as_str())));
+    Ok(counts.first().map(|(code, _)| *code))
+}
+
+/// *Left this month* for the open checking and cash accounts, today as the
+/// locale has it, with `months` months after this one (at most
+/// [`kassensturz_core::MAX_FORECAST_MONTHS`]), each month starting as
+/// `start` says (#921).
+pub fn this_month(
+    book: &Book,
+    months: usize,
+    start: MonthStart,
+    locale: &impl Locale,
+) -> Result<MonthText, PlansError> {
+    let today = locale.today();
+    let starts_on = match start {
+        MonthStart::LikeBudgets => book.budgets_salary_day(today)?,
+        MonthStart::Day(day) => day,
+    };
+    let ends = salary_month_of(today, starts_on)
+        .map(|(_, last)| locale.short_date(last))
+        .unwrap_or_default();
+    let chosen = book.default_forecast_accounts()?;
+    let Some(currency) = forecast_currency(book, &chosen)? else {
+        let has_plans = !book.schedules()?.is_empty();
+        // No account to look ahead for: no figure at all, not a zero.
+        let zero = Shown {
+            text: String::new(),
+            exact: String::new(),
+        };
+        return Ok(MonthText {
+            accounts: Vec::new(),
+            left_out: 0,
+            has_plans,
+            balance_now: zero.clone(),
+            out_due: zero.clone(),
+            in_due: None,
+            left: zero,
+            below_zero: false,
+            expected_end: None,
+            overdue: 0,
+            months: Vec::new(),
+            starts_on,
+            like_budgets: start == MonthStart::LikeBudgets,
+            ends,
+            status: status::forecast(Some(ForecastFigures {
+                accounts: false,
+                plans: has_plans,
+                overdue: 0,
+            })),
+        });
+    };
+    let found = book.forecast_from_day(&chosen, currency, today, months, starts_on)?;
+    let forecast = &found.forecast;
+    let writer = AmountWriter::new(book, currency, locale)?;
+    let mut accounts = Vec::new();
+    for &id in &found.accounts {
+        accounts.push(book.account(id)?.name);
+    }
+    let income = !forecast.in_due.is_zero();
+    let mut rows = Vec::new();
+    for month in &forecast.months {
+        rows.push(MonthRow {
+            month: locale.month_and_year(month.month),
+            first: locale.short_date(month.month),
+            last: locale.short_date(month.last),
+            start: writer.text(month.start),
+            planned_in: writer.text(month.planned_in),
+            planned_out: writer.text(month.planned_out),
+            end: writer.text(month.end),
+        });
+    }
+    Ok(MonthText {
+        accounts,
+        left_out: found.left_out.len(),
+        has_plans: found.has_plans,
+        balance_now: writer.text(forecast.balance_now),
+        out_due: writer.text(forecast.out_due),
+        in_due: income.then(|| writer.text(forecast.in_due)),
+        left: writer.text(forecast.left),
+        below_zero: forecast.left.is_negative(),
+        expected_end: income.then(|| writer.text(forecast.expected_end)),
+        overdue: forecast.overdue.len(),
+        months: rows,
+        starts_on,
+        like_budgets: start == MonthStart::LikeBudgets,
+        ends,
+        status: status::forecast(Some(ForecastFigures {
+            accounts: !found.accounts.is_empty(),
+            plans: found.has_plans,
+            overdue: forecast.overdue.len(),
+        })),
+    })
 }
 
 #[cfg(test)]

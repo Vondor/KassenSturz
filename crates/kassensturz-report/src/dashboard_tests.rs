@@ -392,7 +392,7 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
     assert_eq!(document.kind, ViewKind::Dashboard);
     assert_eq!(document.name, OVERVIEW_NAME);
     assert_eq!(document.period, None);
-    assert_eq!(document.entries.len(), 16);
+    assert_eq!(document.entries.len(), 18);
     grid::check(&document.entries).unwrap();
     assert_eq!(Document::read(&document.to_json()).unwrap(), document);
     // Its reading order is the order the Overview shows things in.
@@ -410,6 +410,8 @@ fn the_default_overview_is_a_valid_dashboard_that_writes_back_the_same() {
             "left",
             "kept",
             "budgets",
+            "left-this-month",
+            "coming-up",
             "spending",
             "biggest",
             "trend",
@@ -499,6 +501,8 @@ fn the_default_overview_asks_for_what_the_overview_page_asks_for() {
                 String::new(),
                 "page".to_owned(),
             ),
+            notice("forecast.month"),
+            notice("plan.coming_up"),
             spending("chart.donut"),
             spending("table.rows"),
             (
@@ -627,7 +631,7 @@ fn a_session_is_saved_in_the_book_and_read_back_to_the_same_layout() {
     book.edit_view(id, &second).unwrap();
     let reread = Document::read(&book.view(id).unwrap().document).unwrap();
     assert_eq!(reread, *editor.document());
-    assert_eq!(reread.entries.len(), 17);
+    assert_eq!(reread.entries.len(), 19);
     // A new session on the saved layout starts from it, and undo works in it.
     let mut again = Editor::new(reread).unwrap();
     assert!(!again.has_changes());

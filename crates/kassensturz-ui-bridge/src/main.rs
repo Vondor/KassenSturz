@@ -35,6 +35,8 @@ mod bank_connection_model;
 mod bank_fetch;
 mod book_from_file;
 mod book_from_file_model;
+mod book_move;
+mod book_move_model;
 mod book_session;
 mod books;
 mod budget_bars_model;

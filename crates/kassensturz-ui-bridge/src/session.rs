@@ -113,6 +113,15 @@ pub fn close() {
     drop(previous);
 }
 
+/// Takes the open book out of the session, to move it (D-731); the move
+/// puts the book back with [`set`], in its new folder or, if the move
+/// failed, where it was. Nothing else may run in between: the screens find
+/// no book meanwhile.
+pub fn take() -> Option<OpenBook> {
+    changed();
+    OPEN.with(|open| open.borrow_mut().take())
+}
+
 /// Where the open book is, if one is open.
 pub fn path() -> Option<PathBuf> {
     OPEN.with(|open| open.borrow().as_ref().map(|open| open.path.clone()))

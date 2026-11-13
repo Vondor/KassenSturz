@@ -21,6 +21,7 @@ mod fill;
 mod history;
 mod layout;
 mod lock;
+mod moving;
 mod originals;
 mod reader;
 mod rules;
@@ -50,6 +51,11 @@ pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 /// them apart from the book's own layout (M6-B194).
 pub use layout::{FIRST_VERSION as FIRST_LAYOUT, VERSION as LAYOUT};
 pub use lock::Lock;
+pub use moving::{
+    Difference, Interrupted, KEEP_MOVE_BACKUPS, MoveCause, MoveFailed, MoveNote, MovePlan,
+    MoveRefused, MoveStep, MoveSteps, Moved, book_file_name, move_backup_stamp, move_backups_of,
+    plan_move, remove_left_book,
+};
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
 pub use tags::{TagUse, checked_tag_name};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};

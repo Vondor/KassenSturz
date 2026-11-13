@@ -103,38 +103,14 @@ impl Settings {
 
     /// The book opened last, if one was.
     pub fn last_book(&self) -> Option<PathBuf> {
-        let text = ffi::read_entry(&self.file, &QString::from(BOOKS), &QString::from(LAST_BOOK))
-            .to_string();
-        if text.is_empty() {
-            return None;
-        }
-        // Read like `kassensturz-mcp` reads it, with the same function.
-        let path = expand_entry(
-            &text,
-            platform::home_dir().as_deref().and_then(Path::to_str),
-            platform::runtime_dir().as_deref().and_then(Path::to_str),
-        )?;
-        Some(PathBuf::from(path))
+        self.path(BOOKS, LAST_BOOK)
     }
 
     /// Remembers `path` as the book opened last. Returns whether that was
     /// saved. A path that isn't valid Unicode isn't, since KConfig keeps
     /// text: the app then opens its own book at the next start.
     pub fn set_last_book(&self, path: &Path) -> bool {
-        let Some(path) = path.to_str() else {
-            return false;
-        };
-        let text = remember_entry(
-            path,
-            platform::home_dir().as_deref().and_then(Path::to_str),
-            platform::runtime_dir().as_deref().and_then(Path::to_str),
-        );
-        ffi::write_expanded_entry(
-            &self.file,
-            &QString::from(BOOKS),
-            &QString::from(LAST_BOOK),
-            &QString::from(text),
-        )
+        self.set_path(BOOKS, LAST_BOOK, path)
     }
 
     /// Where the user chose to keep saved PINs (D-163); the system

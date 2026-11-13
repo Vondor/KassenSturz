@@ -21875,6 +21875,289 @@ msgstr ""
 "KassenSturz kann diesen Ordner nicht verwenden. Bitte wählen Sie einen "
 "anderen."
 
+msgctxt "@info the folder KassenSturz keeps its own book in"
+msgid "KassenSturz's own folder"
+msgstr "KassenSturz' eigener Ordner"
+
+msgctxt "@info"
+msgid ""
+"The file wasn't removed: it is open in KassenSturz on another computer. "
+"Close it there and remove it yourself."
+msgstr "Die Datei wurde nicht entfernt: Sie ist in KassenSturz auf einem anderen Computer geöffnet. Schließen Sie sie dort und entfernen Sie sie selbst."
+
+msgctxt "@info"
+msgid ""
+"The file couldn't be removed. You may remove it yourself; your book is open "
+"and safe."
+msgstr "Die Datei konnte nicht entfernt werden. Sie können sie selbst entfernen; Ihr Buch ist geöffnet und sicher."
+
+msgctxt "@info %1 is a folder"
+msgid ""
+"KassenSturz stopped right after it moved your book to %1. Your book is open "
+"there, and nothing in it changed."
+msgstr "KassenSturz wurde beendet, gleich nachdem es Ihr Buch nach %1 verschoben hatte. Ihr Buch ist dort geöffnet, und darin hat sich nichts geändert."
+
+msgctxt "@info %1 is a folder, %2 a backup's file name"
+msgid ""
+"The old file is still in %1. Before moving, KassenSturz kept a copy of your "
+"book in the backup folder (%2), so nothing is lost if you remove it. Remove "
+"the old file?"
+msgstr "Die alte Datei liegt noch in %1. Vor dem Verschieben hat KassenSturz eine Kopie Ihres Buchs im Sicherungsordner aufbewahrt (%2), es geht also nichts verloren, wenn Sie sie entfernen. Die alte Datei entfernen?"
+
+msgctxt "@info"
+msgid ""
+"KassenSturz stopped while it was moving your book. Your book is still where "
+"it was, and nothing in it changed."
+msgstr "KassenSturz wurde beendet, während es Ihr Buch verschoben hat. Ihr Buch ist noch, wo es war, und darin hat sich nichts geändert."
+
+msgctxt "@info %1 is a folder"
+msgid "An unused copy of it is left in %1. Remove that copy?"
+msgstr "In %1 liegt noch eine unbenutzte Kopie davon. Diese Kopie entfernen?"
+
+msgctxt "@title:window"
+msgid "Your book was moved"
+msgstr "Ihr Buch wurde verschoben"
+
+msgctxt "@title:window"
+msgid "Your book wasn't moved"
+msgstr "Ihr Buch wurde nicht verschoben"
+
+msgctxt "@action:button"
+msgid "Remove the old file"
+msgstr "Alte Datei entfernen"
+
+msgctxt "@action:button"
+msgid "Remove the copy"
+msgstr "Kopie entfernen"
+
+msgctxt "@action:button keep a file"
+msgid "Keep it"
+msgstr "Behalten"
+
+msgctxt "@action:button"
+msgid "OK"
+msgstr "OK"
+
+msgctxt "@info"
+msgid ""
+"Please give the book a name without / \\ : * ? \" < > | that doesn't start "
+"or end with a dot."
+msgstr "Bitte geben Sie dem Buch einen Namen ohne / \\ : * ? \" < > |, der nicht mit einem Punkt beginnt oder endet."
+
+msgctxt "@info"
+msgid "This folder isn't there any more. Please choose another one."
+msgstr "Diesen Ordner gibt es nicht mehr. Bitte wählen Sie einen anderen."
+
+msgctxt "@info"
+msgid "Your book is in this folder already. Please choose another one."
+msgstr "Ihr Buch liegt schon in diesem Ordner. Bitte wählen Sie einen anderen."
+
+msgctxt "@info"
+msgid ""
+"There is already a book or a file with this name in that folder. KassenSturz "
+"never replaces a file: choose another name or another folder."
+msgstr "In diesem Ordner gibt es schon ein Buch oder eine Datei mit diesem Namen. KassenSturz ersetzt nie eine Datei: Wählen Sie einen anderen Namen oder einen anderen Ordner."
+
+msgctxt "@info"
+msgid ""
+"That folder holds files that a book with this name left behind. KassenSturz "
+"doesn't put your book next to them, so they can't be mixed up. Choose "
+"another name or another folder."
+msgstr "In diesem Ordner liegen Dateien, die ein Buch mit diesem Namen zurückgelassen hat. KassenSturz legt Ihr Buch nicht daneben, damit nichts verwechselt wird. Wählen Sie einen anderen Namen oder einen anderen Ordner."
+
+msgctxt "@info"
+msgid ""
+"An earlier move of your book hasn't ended yet. Close KassenSturz, open it "
+"again and answer its question, then try once more."
+msgstr "Ein früheres Verschieben Ihres Buchs ist noch nicht abgeschlossen. Schließen Sie KassenSturz, öffnen Sie es wieder und beantworten Sie seine Frage, dann versuchen Sie es noch einmal."
+
+msgctxt "@info"
+msgid ""
+"KassenSturz can't write to this folder. Choose a folder you may write to."
+msgstr "KassenSturz kann in diesen Ordner nicht schreiben. Wählen Sie einen Ordner, in den Sie schreiben dürfen."
+
+msgctxt "@info"
+msgid ""
+"There isn't enough free space there: moving needs at least twice your book's "
+"size. Free some space or choose another drive."
+msgstr "Dort ist nicht genug Platz frei: Zum Verschieben braucht es mindestens doppelt so viel wie die Größe Ihres Buchs. Schaffen Sie Platz oder wählen Sie ein anderes Laufwerk."
+
+msgctxt "@info"
+msgid "A book can't be kept in this place. Please choose a folder."
+msgstr "An dieser Stelle kann kein Buch liegen. Bitte wählen Sie einen Ordner."
+
+msgctxt "@info"
+msgid ""
+"In the test profile, books stay inside its test folder. Choose a folder "
+"there."
+msgstr "Im Testprofil bleiben Bücher in seinem Testordner. Wählen Sie dort einen Ordner."
+
+msgctxt "@info"
+msgid ""
+"KassenSturz doesn't know where your book was before. Choose the folder "
+"instead."
+msgstr "KassenSturz weiß nicht, wo Ihr Buch vorher war. Wählen Sie stattdessen den Ordner."
+
+msgctxt "@info"
+msgid ""
+"Your book wasn't moved: something in the folder changed since you chose it. "
+"Choose it again."
+msgstr "Ihr Buch wurde nicht verschoben: Im Ordner hat sich etwas geändert, seit Sie ihn gewählt haben. Wählen Sie ihn noch einmal."
+
+msgctxt "@info"
+msgid ""
+"Your book wasn't moved: KassenSturz couldn't save its settings, or the book "
+"was busy. Try again in a moment."
+msgstr "Ihr Buch wurde nicht verschoben: KassenSturz konnte seine Einstellungen nicht speichern, oder das Buch war gerade beschäftigt. Versuchen Sie es gleich noch einmal."
+
+msgctxt "@info"
+msgid ""
+"Your book wasn't moved: the copy before moving couldn't be kept in the "
+"backup folder. Free some space on this computer and try again."
+msgstr "Ihr Buch wurde nicht verschoben: Die Kopie vor dem Verschieben konnte nicht im Sicherungsordner aufbewahrt werden. Schaffen Sie Platz auf diesem Computer und versuchen Sie es noch einmal."
+
+msgctxt "@info"
+msgid ""
+"Your book wasn't moved: it couldn't be copied into the folder. Free some "
+"space there, or choose another folder."
+msgstr "Ihr Buch wurde nicht verschoben: Es konnte nicht in den Ordner kopiert werden. Schaffen Sie dort Platz oder wählen Sie einen anderen Ordner."
+
+msgctxt "@info"
+msgid ""
+"Your book wasn't moved: the copy in the new folder wasn't exactly the same "
+"as your book, so it was removed. The drive may have a problem; choose "
+"another folder."
+msgstr "Ihr Buch wurde nicht verschoben: Die Kopie im neuen Ordner war nicht genau gleich wie Ihr Buch und wurde deshalb entfernt. Das Laufwerk hat vielleicht ein Problem; wählen Sie einen anderen Ordner."
+
+msgctxt "@info"
+msgid ""
+"Your book wasn't moved: the copy couldn't be given its name in the new "
+"folder without the risk of replacing a file. Choose another folder."
+msgstr "Ihr Buch wurde nicht verschoben: Die Kopie konnte im neuen Ordner ihren Namen nicht bekommen, ohne dass eine Datei ersetzt werden könnte. Wählen Sie einen anderen Ordner."
+
+msgctxt "@info"
+msgid ""
+"Your book wasn't moved: the book in the new folder couldn't be opened or "
+"remembered, so it was removed again. Try again, or choose another folder."
+msgstr "Ihr Buch wurde nicht verschoben: Das Buch im neuen Ordner konnte nicht geöffnet oder gemerkt werden und wurde deshalb wieder entfernt. Versuchen Sie es noch einmal oder wählen Sie einen anderen Ordner."
+
+msgctxt "@info"
+msgid "Your book wasn't moved. Try again, or choose another folder."
+msgstr "Ihr Buch wurde nicht verschoben. Versuchen Sie es noch einmal oder wählen Sie einen anderen Ordner."
+
+msgctxt "@info"
+msgid ""
+"A file of the unfinished move couldn't be removed from the new folder; you "
+"may remove it yourself. Your book is open where it was."
+msgstr "Eine Datei des abgebrochenen Verschiebens konnte nicht aus dem neuen Ordner entfernt werden; Sie können sie selbst entfernen. Ihr Buch ist dort geöffnet, wo es war."
+
+msgctxt "@title"
+msgid "Where your book is kept"
+msgstr "Wo Ihr Buch liegt"
+
+msgctxt "@title:window"
+msgid "Choose the folder for your book"
+msgstr "Ordner für Ihr Buch wählen"
+
+msgctxt "@label"
+msgid "Your book is now in"
+msgstr "Ihr Buch liegt jetzt in"
+
+msgctxt "@action:button"
+msgid "Choose a folder…"
+msgstr "Ordner wählen…"
+
+msgctxt "@info"
+msgid "For example a sync folder or a folder on another drive."
+msgstr "Zum Beispiel ein Sync-Ordner oder ein Ordner auf einem anderen Laufwerk."
+
+msgctxt "@action:button"
+msgid "Keep it in KassenSturz's own folder"
+msgstr "In KassenSturz' eigenem Ordner aufbewahren"
+
+msgctxt "@info"
+msgid "Where KassenSturz keeps a book unless you choose another folder."
+msgstr "Dort bewahrt KassenSturz ein Buch auf, wenn Sie keinen anderen Ordner wählen."
+
+msgctxt "@info"
+msgid ""
+"This computer's system doesn't offer choosing a folder for KassenSturz, so "
+"your book stays in KassenSturz's own folder, where it keeps working."
+msgstr "Das System dieses Computers bietet KassenSturz keine Ordnerwahl an. Ihr Buch bleibt deshalb in KassenSturz' eigenem Ordner, wo es weiter funktioniert."
+
+msgctxt "@label"
+msgid "Folder"
+msgstr "Ordner"
+
+msgctxt "@label the book's file name, without its extension"
+msgid "Name of the book"
+msgstr "Name des Buchs"
+
+msgctxt "@label"
+msgid "Size"
+msgstr "Größe"
+
+msgctxt "@info"
+msgid ""
+"KassenSturz moves your book there. Before that, it keeps a copy of your book "
+"as it is now with its backups on this computer, so you can always go back. "
+"If the folder is on a network drive or in a sync folder, close the book on "
+"your other computers first."
+msgstr "KassenSturz verschiebt Ihr Buch dorthin. Vorher bewahrt es eine Kopie Ihres Buchs, wie es jetzt ist, bei seinen Sicherungen auf diesem Computer auf, damit Sie immer zurückkönnen. Liegt der Ordner auf einem Netzlaufwerk oder in einem Sync-Ordner, schließen Sie das Buch zuerst auf Ihren anderen Computern."
+
+msgctxt "@action:button"
+msgid "Move my book"
+msgstr "Mein Buch verschieben"
+
+msgctxt "@action:button"
+msgid "Choose another folder…"
+msgstr "Anderen Ordner wählen…"
+
+msgctxt "@info"
+msgid "Moving your book…"
+msgstr "Ihr Buch wird verschoben…"
+
+msgctxt "@info"
+msgid "Your book is now in"
+msgstr "Ihr Buch liegt jetzt in"
+
+msgctxt "@label"
+msgid "The copy from before moving"
+msgstr "Die Kopie von vor dem Verschieben"
+
+msgctxt "@info %1 is a backup's file name"
+msgid "In the backup folder on this computer: %1"
+msgstr "Im Sicherungsordner auf diesem Computer: %1"
+
+msgctxt "@label"
+msgid "The old file"
+msgstr "Die alte Datei"
+
+msgctxt "@info %1 is a folder"
+msgid ""
+"It couldn't be removed and is still in %1. Your book is the one in the new "
+"folder; you may remove the old file yourself."
+msgstr "Sie konnte nicht entfernt werden und liegt noch in %1. Ihr Buch ist das im neuen Ordner; Sie können die alte Datei selbst entfernen."
+
+msgctxt "@info"
+msgid ""
+"Moving isn't on the Undo list, because it doesn't change what's in your "
+"book. To go back, use \"Move it back\", or open the copy from before moving "
+"in the backup folder."
+msgstr "Das Verschieben lässt sich nicht mit „Rückgängig“ zurücknehmen, weil es nichts an dem ändert, was in Ihrem Buch steht. Um zurückzugehen, nutzen Sie „Zurückverschieben“ oder öffnen Sie die Kopie von vor dem Verschieben im Sicherungsordner."
+
+msgctxt "@action:button"
+msgid "Move it back"
+msgstr "Zurückverschieben"
+
+msgctxt "@info %1 is a date and time, %2 a folder"
+msgid "Moved on %1 from %2"
+msgstr "Am %1 verschoben aus %2"
+
+msgctxt "@action:button"
+msgid "Where your book is kept"
+msgstr "Wo Ihr Buch liegt"
+
 msgctxt "@info a row of a table that compares spending"
 msgid "More spent than in the comparison"
 msgstr "Mehr ausgegeben als im Vergleich"

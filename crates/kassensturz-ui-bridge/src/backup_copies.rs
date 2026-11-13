@@ -17,7 +17,7 @@ use std::sync::Mutex;
 
 use kassensturz_core::Timestamp;
 use kassensturz_core::book_folder::FolderGrant;
-use kassensturz_store::{CopyProblem, KeptCopy, backups_of};
+use kassensturz_store::{CopyProblem, KeptCopy, backups_of, move_backups_of};
 
 use crate::session;
 use crate::settings::Settings;
@@ -215,6 +215,18 @@ pub fn listed(
             in_chosen: false,
         })
         .collect();
+    // The backups made before a move of the book (D-731), kept apart from
+    // the ten automatic ones but restored like them.
+    found.extend(
+        move_backups_of(book, backups)
+            .unwrap_or_default()
+            .into_iter()
+            .map(|file| Listed {
+                path: file.path,
+                made: file.made,
+                in_chosen: false,
+            }),
+    );
     let mut problem = None;
     if let Some(folder) = chosen {
         match backups_of(book, folder) {
@@ -360,5 +372,42 @@ mod tests {
         let (found, problem) = listed(&book, &own, Some(&folder.join("Gone")));
         assert_eq!(found.len(), 2);
         assert_eq!(problem, Some(CopyProblem::Missing));
+    }
+
+    #[test]
+    fn lists_the_backups_made_before_a_move() {
+        let folder = TestFolder::new();
+        let own = folder.join("Backups");
+        fs::create_dir(&own).expect("made");
+        for name in [
+            "Household 2026-10-01 09-00-00 UTC.ksz",
+            "Household 2026-10-02 09-00-00 UTC before moving.ksz",
+            "Household 2026-10-02 09-00-00 UTC before moving 2.ksz",
+            "Garden 2026-10-03 09-00-00 UTC before moving.ksz",
+            "Household 2026-10-04 09-00-00 UTC before moving.ksz.part",
+        ] {
+            fs::write(own.join(name), "made up").expect("written");
+        }
+        let (found, problem) = listed(&folder.join("Household.ksz"), &own, None);
+        assert_eq!(problem, None);
+        let shown: Vec<String> = found
+            .iter()
+            .map(|listed| {
+                listed
+                    .path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                "Household 2026-10-02 09-00-00 UTC before moving.ksz",
+                "Household 2026-10-02 09-00-00 UTC before moving 2.ksz",
+                "Household 2026-10-01 09-00-00 UTC.ksz",
+            ]
+        );
     }
 }

@@ -104,6 +104,14 @@ pub mod qobject {
     }
 
     extern "RustQt" {
+        /// Shows where the open book is now, after it moved into another
+        /// folder (D-731): the same book, so no screen changes.
+        #[qinvokable]
+        #[cxx_name = "showMovedBook"]
+        fn show_moved_book(self: Pin<&mut BookSession>);
+    }
+
+    extern "RustQt" {
         /// A book was opened: every screen reads it again.
         #[qsignal]
         fn opened(self: Pin<&mut BookSession>);
@@ -219,6 +227,10 @@ impl qobject::BookSession {
             }
             None => {}
         }
+    }
+
+    fn show_moved_book(self: Pin<&mut Self>) {
+        self.show_open_book();
     }
 
     fn dismiss_problem(mut self: Pin<&mut Self>) {

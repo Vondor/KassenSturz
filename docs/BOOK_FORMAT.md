@@ -493,6 +493,8 @@ Before a migration, KassenSturz copies the whole book into a folder in its own d
 
 **Restoring.** Settings › Backups › *Restore from backup…* lists the backups of the open book in both folders, newest first, a copy with the same name in both once. Restoring one checks it (KassenSturz's application ID, a layout this KassenSturz opens, `PRAGMA quick_check`), copies it next to the book as `<book>.restore.part`, makes a backup of the book as it is now, closes the book, renames the copy over the book and opens it again. Either the old book or the whole backup is in place, never half of one, and the book as it was is the newest backup.
 
+**Before moving** a book into another folder (D-731), KassenSturz makes one more backup in the same folder, named apart from the ten above: `Household 2026-11-13 03-04-05 UTC before moving.ksz`, then `… before moving 2.ksz` in the same second. The last 3 of these are kept for each book name; the two kinds never remove each other's. *Restore from backup…* lists them with the others; they are never copied to a folder the user chose and don't count among its copies. While a move runs, its copy sits in the new folder as `<name>.ksz.part` until it is checked and renamed (`docs/BOOK_FOLDER.md` §4); a `.part` file left behind by a crash is removed at the next start.
+
 ## The lock file
 
 While a book is open, a lock file sits next to it: the book's file name plus `.lock`, e.g. `Household.ksz.lock` (D-038). Sync tools carry it to the other computers along with the book, so they can tell that the book is open. It is UTF-8 text, one `key=value` per line:

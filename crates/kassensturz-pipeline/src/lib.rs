@@ -75,7 +75,7 @@ use entries::{Decision, bank_date, decide};
 
 pub use book::{export_book, fill_book};
 pub use error::PipelineError;
-pub use export::export_transactions;
+pub use export::{DateRange, export_transactions, export_transactions_in};
 pub use imported_book::{
     BookImportReport, PatternLeftOut, RuleScope, fill_book_from, fill_book_from_on,
     fill_book_from_with,

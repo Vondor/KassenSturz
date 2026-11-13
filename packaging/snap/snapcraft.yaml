@@ -116,6 +116,14 @@ parts:
       # linker can't find the host's C runtime files (seen in CI).
       # Gwenhywfar also needs the SDK's Qt tools (qmake, moc), after the host's.
       export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin:$PATH"
+      # Qt 6 comes from the SDK snaps; configure's own probing does not give
+      # the compiler their header folders, so they are found here.
+      qtinc=$(find /snap/kf6-core24-sdk/current/usr/include /snap/kde-qt6-core24-sdk/current/usr/include -maxdepth 3 -type d -name qt6 2>/dev/null | head -n 1)
+      qtmoc=$(find /snap/kf6-core24-sdk/current/usr /snap/kde-qt6-core24-sdk/current/usr -name moc -type f 2>/dev/null | head -n 1)
+      qtmake=$(find /snap/kf6-core24-sdk/current/usr /snap/kde-qt6-core24-sdk/current/usr \( -name qmake6 -o -name qmake \) -type f 2>/dev/null | head -n 1)
+      echo "Qt headers: $qtinc, moc: $qtmoc, qmake: $qtmake"
+      export CXXFLAGS="${CXXFLAGS:-} -I$qtinc -I$qtinc/QtCore -I$qtinc/QtGui -I$qtinc/QtWidgets"
+      export QT_MOC="$qtmoc" QMAKE="$qtmake"
       if ! ./configure --prefix=/usr --with-guis=qt6; then
         grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
         env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250

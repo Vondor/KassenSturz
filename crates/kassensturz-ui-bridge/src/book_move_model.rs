@@ -42,7 +42,7 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, available, READ, CONSTANT)]
-        #[qproperty(bool, grants_available, READ, CONSTANT)]
+        #[qproperty(bool, grants_available, cxx_name = "grantsAvailable", READ, CONSTANT)]
         #[qproperty(QVariant, place, READ, NOTIFY)]
         #[qproperty(QVariant, interrupted, READ, NOTIFY)]
         type BookMove = super::BookMoveRust;

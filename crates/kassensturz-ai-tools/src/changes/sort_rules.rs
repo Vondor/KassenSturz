@@ -171,7 +171,9 @@ fn counted(run: RuleRun) -> SortWithRules {
     };
     for skip in run.skipped {
         match skip.reason {
-            StoreError::TransferSuggested(_) => sort.transfers += 1,
+            StoreError::TransferSuggested(_) | StoreError::FitsMonthlyMove(_) => {
+                sort.transfers += 1;
+            }
             StoreError::NoRate { .. } => sort.no_rate += 1,
             StoreError::AccountClosed(_) => sort.closed += 1,
             _ => sort.other += 1,

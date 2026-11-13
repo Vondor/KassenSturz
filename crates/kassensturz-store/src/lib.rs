@@ -24,6 +24,7 @@ mod lock;
 mod moving;
 mod originals;
 mod reader;
+mod recurring_moves;
 mod rules;
 mod tags;
 mod transactions;
@@ -55,6 +56,10 @@ pub use moving::{
     Difference, Interrupted, KEEP_MOVE_BACKUPS, MoveCause, MoveFailed, MoveNote, MovePlan,
     MoveRefused, MoveStep, MoveSteps, Moved, book_file_name, move_backup_stamp, move_backups_of,
     plan_move, remove_left_book,
+};
+pub use recurring_moves::{
+    JoinedTransfers, NeedsYou, NewRecurringMove, NotJoined, RecurringJoin, RecurringJoins,
+    RefusedJoin,
 };
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
 pub use tags::{TagUse, checked_tag_name};

@@ -91,7 +91,8 @@ pub struct RuleSkip {
     /// The Rule that decided.
     pub rule: RuleId,
     /// Why it stays as it is: [`StoreError::TransferSuggested`] if it looks
-    /// like one side of a Transfer, [`StoreError::NoRate`] if the category
+    /// like one side of a Transfer, [`StoreError::FitsMonthlyMove`] if it is
+    /// a side of a remembered monthly move (D-749), [`StoreError::NoRate`] if the category
     /// or account is in another currency and the book has no rate for the
     /// day, [`StoreError::AccountClosed`] if an account it would book to, or
     /// take the money from, is closed, or a [`StoreError::Transfer`] if a
@@ -601,6 +602,9 @@ impl Book {
             .into_iter()
             .flat_map(|found| [found.outgoing.transaction, found.incoming.transaction])
             .collect();
+        // Sides of a remembered monthly move: their other half comes from
+        // the other account's statement, so no Rule books them (D-749).
+        let waiting = self.waiting_for_moves()?;
         let marks = self.marks()?;
         let mut transactions = self
             .candidates(scope)?
@@ -667,6 +671,10 @@ impl Book {
                 reason,
             };
             if outcome.actions.is_empty() {
+                continue;
+            }
+            if waiting.contains(&id) {
+                run.skipped.push(skip(StoreError::FitsMonthlyMove(id)));
                 continue;
             }
             if suggested.contains(&id) {

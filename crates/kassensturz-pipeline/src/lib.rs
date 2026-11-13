@@ -22,15 +22,23 @@
 //!    can change.
 //! 4. The Transfers to suggest that involve a new transaction (D-087). They
 //!    are only suggestions: the user confirms each one.
-//! 5. The Rules, on the new transactions only (D-088).
+//! 5. The Rules, on the new transactions only (D-088). They leave alone a
+//!    side of a monthly move the user asked to be joined by itself, whose
+//!    other side may still come (D-749).
 //! 6. For each statement with a closing balance, KassenSturz's balance of
 //!    the account on that day against the bank's (D-029).
+//! 7. The pairs with a new transaction as one side that fit such a
+//!    remembered move are joined ([`join_recurring_moves`], D-749), as a
+//!    user action of its own right after the import's, so one Undo takes
+//!    back the joins and leaves the imported entries. Since a Rule never
+//!    sorted those sides, this is D-030's order as D-749 amends it:
+//!    duplicates, remembered moves, suggestions, Rules.
 //!
 //! [`preview_import`] runs exactly these steps and takes them back, so the
-//! user sees what an import would do, Rules and Transfers included, before
-//! [`import_statements`] does it. Every front end calls these two (the
-//! command-line tool now, the app from M3, bank connections from M4), so
-//! none of them has to repeat the order.
+//! user sees what an import would do, Rules, Transfers and joins included,
+//! before [`import_statements`] and [`join_recurring_moves`] do it. Every
+//! front end calls these (the command-line tool now, the app from M3, bank
+//! connections from M4), so none of them has to repeat the order.
 //!
 //! The other way round, [`export_transactions`] gathers a book's transactions
 //! for an exporter (`kassensturz-export`), so no front end has to repeat how
@@ -61,7 +69,7 @@ use kassensturz_core::{
     OriginalAmount, RoundingMode, Split, Transaction, TransactionId, Withdrawn,
 };
 use kassensturz_import::{Entry, EntryStatus, ImportError, Statement};
-use kassensturz_store::{Action, Book, RuleRun, StoreError};
+use kassensturz_store::{Action, Book, RecurringJoins, RuleRun, StoreError};
 
 use entries::{Decision, bank_date, decide};
 
@@ -105,7 +113,11 @@ pub fn preview_import(
     statements: &[Statement],
     choices: &Choices,
 ) -> Result<ImportReport, PipelineError> {
-    book.dry_run(|book| run(book, account, statements, choices))
+    book.dry_run(|book| {
+        let mut report = run(book, account, statements, choices)?;
+        join_recurring_moves(book, &mut report)?;
+        Ok(report)
+    })
 }
 
 /// Imports `statements` into `account`, as one user action that undo takes
@@ -124,6 +136,11 @@ pub fn preview_import(
 /// `file` is the file the statements were read from, if any: the history
 /// keeps its name, without the folder, so undo can say which import it
 /// takes back (`Book::note_file`, D-109).
+///
+/// The pairs that fit remembered monthly moves are not joined here: the
+/// caller runs [`join_recurring_moves`] with the report right after this
+/// action, and after any action of its own that wraps this one, such as
+/// noting a bank fetch, so the joins are an Undo of their own (D-749).
 pub fn import_statements(
     book: &mut Book,
     account: AccountId,
@@ -288,7 +305,42 @@ fn run(
         rules,
         balances,
         converted_from,
+        joins: RecurringJoins::default(),
     })
+}
+
+/// The last step of an import (D-749): joins the pairs with a new
+/// transaction of `report` as one side that fit a monthly move the user
+/// asked to be joined by itself, as the user action
+/// `Action::JoinRecurringMoves` (`Book::join_recurring_moves`), and notes
+/// them, and the sides that need the user, in [`ImportReport::joins`]. A
+/// joined pair is taken out of [`ImportReport::transfers`].
+///
+/// Run it right after [`import_statements`], outside its action and any
+/// action that wraps it, so one Undo takes back the joins and leaves the
+/// imported entries. Nothing is joined, and nothing recorded, when the book
+/// remembers no move or nothing fits; a join keeps both account parts as
+/// the banks sent them, so no balance changes.
+pub fn join_recurring_moves(
+    book: &mut Book,
+    report: &mut ImportReport,
+) -> Result<(), PipelineError> {
+    let new: HashSet<TransactionId> = report.imported().into_iter().collect();
+    if new.is_empty() {
+        return Ok(());
+    }
+    let joins = book.join_recurring_moves(Some(&new))?;
+    let joined: HashSet<TransactionId> = joins
+        .joined
+        .iter()
+        .flat_map(|join| [join.outgoing.transaction, join.incoming.transaction])
+        .collect();
+    report.transfers.retain(|found| {
+        !joined.contains(&found.outgoing.transaction)
+            && !joined.contains(&found.incoming.transaction)
+    });
+    report.joins = joins;
+    Ok(())
 }
 
 /// An entry's amount in the account's currency, and the withdrawn currency

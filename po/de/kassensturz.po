@@ -6684,6 +6684,30 @@ msgctxt "@info a change you made"
 msgid "Merged two tags"
 msgstr "Zwei Schlagwörter zusammengeführt"
 
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:114
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Chose to join a monthly move by itself"
+msgstr "Eine monatliche Umbuchung zum selbsttätigen Verbinden gewählt"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:116
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Stopped joining a monthly move by itself"
+msgstr "Eine monatliche Umbuchung wird nicht mehr selbsttätig verbunden"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:118
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Joined monthly moves of your own money by themselves"
+msgstr "Monatliche Umbuchungen Ihres eigenen Geldes selbsttätig verbunden"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:120
+#, kde-format
+msgctxt "@info a change you made"
+msgid "Joined several moves of your own money at once"
+msgstr "Mehrere Umbuchungen Ihres eigenen Geldes auf einmal verbunden"
+
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:106
 #, kde-format
 msgctxt "@info a change you made"

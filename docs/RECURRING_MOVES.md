@@ -1,6 +1,6 @@
 # Monthly moves between my own accounts
 
-**Status:** design for US6 (#784), decision D-749 (Proposed) in `docs/DECISIONS.md`. It amends D-030 ("the user confirms every Transfer match") and builds on D-087, D-088, D-691, D-692 and D-693. Docs only: nothing is built by this pull request. The maintainer decides it on the design pull request.
+**Status:** design for US6 (#784), decision D-749 in `docs/DECISIONS.md`, accepted by the maintainer with the design pull request (#836). It amends D-030 ("the user confirms every Transfer match") and builds on D-087, D-088, D-691, D-692 and D-693. **Build PR 1 (core, store, pipeline, layout 31, command line) is built**; PR 2 (the UI) follows. Where the design left a detail open, PR 1 chose the safer reading; see [7. Built in PR 1](#7-built-in-pr-1).
 
 All names, amounts and banks below are invented.
 
@@ -119,3 +119,17 @@ PR 1 is the [format] part and merges before the stage Go. Neither is expected to
 2. An entry that waits for its other side stays unsorted with no time limit; the alternative (let a Rule sort it after some days, and join it later by D-691) leaves the interim figures wrong.
 3. A remembered move needs no other party to be known, but then refuses entries that name a foreign IBAN.
 4. The AI cannot create or remove moves.
+
+## 7. Built in PR 1
+
+The core (`kassensturz-core`, `recurring_move.rs`), the store (`kassensturz-store`, `recurring_moves.rs`), layout 31, the pipeline step and the command line. What the design did not spell out, decided on the safe side:
+
+- **A receiving side that waits** (3.5) fits when it is at most **6 business days** from an expected date: the paying side may be 3 from it, and the receiving side 3 from the paying one (`MAX_WAITING_BUSINESS_DAYS`). A paying side that waits uses the window of 3.2.
+- **A move that remembers no party** (3.3 point 2) takes a paying side that names no other party at all, or one of the receiving account's own IBANs (the number the user gave it and its bank link's IBAN), whatever name comes with that. A side that names only a name, without an IBAN, is not taken: it might be anyone.
+- **A side two pairs would use**, of one move or of two moves (for example two moves that remember no party, from the same account with the same amount and day), is joined by neither; both are listed as needing the user. So the order of the moves never decides.
+- **Ties:** among the paying sides of one expected date, the closest is taken by business days, then calendar days, then the earlier date; two on the same day that are equally close are a tie. The receiving side is chosen the same way from the paying one.
+- **The join step is a pipeline function of its own**, `join_recurring_moves(book, &mut report)`, which every front end runs right after `import_statements` and after any action of its own that wraps the import (the app's import also notes the bank fetch and the bank's balance in it). So its Undo is its own and leaves the imported entries. `preview_import` runs it inside the preview. Only pairs with a side the import added are joined; an older pair the user left unjoined stays a suggestion.
+- **A pair whose join would lose a note or number** (`transfer.part-holds-more`) or carry more than 20 tags is listed as needing the user with that reason, and not joined.
+- **Join all** (`Book::join_transfers`) takes pairs in either order, joins only the pairs the book suggests at that moment, and lists every other pair with `store.transfer-not-suggested`; naming a pair twice joins it once.
+- **Remembering a move** checks what the design asks (two different accounts of the user, the amount's currency, an amount above zero, a day from 1 to 31) and refuses the same accounts, amount and other party twice (`store.recurring-move-exists`); text of nothing but spaces counts as no party. `Book::recurring_move_for(a, b, today)` works the move out of the two sides the user is joining, without changing anything, so the UI can show it before the user ticks the box.
+- **Command line:** `transfer monthly list`, `transfer monthly add FROM TO AMOUNT DAY [--iban IBAN] [--name NAME]`, `transfer monthly remove ID`; `import` joins after the import and lists the joined pairs and those that need the user. The day a move is remembered on is the day in UTC there.

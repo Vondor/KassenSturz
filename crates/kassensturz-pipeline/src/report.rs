@@ -5,7 +5,7 @@
 //! and the balance check (D-029).
 
 use kassensturz_core::{Date, Money, TransactionId, TransferMatch, Withdrawn};
-use kassensturz_store::RuleRun;
+use kassensturz_store::{RecurringJoins, RuleRun};
 
 /// One entry of the statements given to the pipeline: the statement's
 /// position in the list, then the entry's in that statement, both counted
@@ -26,8 +26,18 @@ pub struct ImportReport {
     pub entries: Vec<EntryResult>,
     /// The Transfers to suggest that have a new transaction as one side
     /// (D-087), sorted by the outgoing side's date. Nothing is joined: the
-    /// user confirms each one (`Book::join_transfer`).
+    /// user confirms each one (`Book::join_transfer`). A pair that
+    /// [`crate::join_recurring_moves`] joined is no longer among them.
     pub transfers: Vec<TransferMatch>,
+    /// The pairs with a new transaction as one side that fit a monthly move
+    /// the user asked to be joined by itself, and the sides of such moves
+    /// that need the user (D-749). Filled by [`crate::join_recurring_moves`]
+    /// and by [`crate::preview_import`]; empty after
+    /// [`crate::import_statements`] alone. A joined pair's incoming
+    /// transaction is gone: its entry's [`EntryOutcome::Imported`] names an
+    /// ID the book no longer has, and its part is in the joined Transfer,
+    /// which keeps the outgoing transaction's ID.
+    pub joins: RecurringJoins,
     /// What the Rules did to the new transactions (D-088). A transaction in
     /// a suggested Transfer waits for the user's decision on it.
     pub rules: RuleRun,

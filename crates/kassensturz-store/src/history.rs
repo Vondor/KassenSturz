@@ -139,11 +139,22 @@ pub enum Action {
     /// Gave every transaction and part with one tag another one instead,
     /// and removed the first (D-712).
     MergeTags,
+    /// Remembered a monthly move between two of the user's accounts, to be
+    /// joined by itself from then on (D-749).
+    AddRecurringMove,
+    /// Stopped joining a remembered monthly move by itself (D-749). The
+    /// moves joined before stay joined.
+    RemoveRecurringMove,
+    /// Joined, after an import, the pairs that fit remembered monthly moves
+    /// (D-749). Undo takes back the joins and leaves the imported entries.
+    JoinRecurringMoves,
+    /// Joined several suggested Transfers at once (D-749, "Join all").
+    JoinTransfers,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 47] = [
+    pub const ALL: [Self; 51] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -191,6 +202,10 @@ impl Action {
         Self::RenameTag,
         Self::RemoveTag,
         Self::MergeTags,
+        Self::AddRecurringMove,
+        Self::RemoveRecurringMove,
+        Self::JoinRecurringMoves,
+        Self::JoinTransfers,
     ];
 }
 
@@ -290,7 +305,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 26] = [
+pub(crate) const RECORDED: [Recorded; 27] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -584,6 +599,21 @@ pub(crate) const RECORDED: [Recorded; 26] = [
             ("from_day", "TEXT"),
             ("amount", "INTEGER"),
             ("carry_over", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "recurring_moves",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("from_account_id", "BLOB"),
+            ("to_account_id", "BLOB"),
+            ("amount", "INTEGER"),
+            ("currency", "TEXT"),
+            ("day_of_month", "INTEGER"),
+            ("from_party_iban", "TEXT"),
+            ("from_party_name", "TEXT"),
+            ("created_on", "TEXT"),
         ],
     },
 ];
@@ -1501,6 +1531,10 @@ fn action_to_text(action: Action) -> &'static str {
         Action::RenameTag => "rename_tag",
         Action::RemoveTag => "remove_tag",
         Action::MergeTags => "merge_tags",
+        Action::AddRecurringMove => "add_recurring_move",
+        Action::RemoveRecurringMove => "remove_recurring_move",
+        Action::JoinRecurringMoves => "join_recurring_moves",
+        Action::JoinTransfers => "join_transfers",
     }
 }
 

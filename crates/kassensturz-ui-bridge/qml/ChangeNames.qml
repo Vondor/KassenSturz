@@ -110,6 +110,14 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Removed a tag");
         case "merge-tags":
             return i18nContext.i18nc("@info a change you made", "Merged two tags");
+        case "add-recurring-move":
+            return i18nContext.i18nc("@info a change you made", "Chose to join a monthly move by itself");
+        case "remove-recurring-move":
+            return i18nContext.i18nc("@info a change you made", "Stopped joining a monthly move by itself");
+        case "join-recurring-moves":
+            return i18nContext.i18nc("@info a change you made", "Joined monthly moves of your own money by themselves");
+        case "join-transfers":
+            return i18nContext.i18nc("@info a change you made", "Joined several moves of your own money at once");
         case "link-bank-account":
             return i18nContext.i18nc("@info a change you made", "Linked an account to your bank");
         case "unlink-bank-account":

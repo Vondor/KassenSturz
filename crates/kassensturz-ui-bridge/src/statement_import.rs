@@ -26,7 +26,7 @@ use kassensturz_import::{
 };
 use kassensturz_pipeline::{
     Choices, Duplicate, EntryOutcome, EntryRef, ImportReport, PipelineError, import_statements,
-    join_recurring_moves,
+    join_recurring_moves, match_schedules,
 };
 use kassensturz_store::{Action, Book, StatedBalance, StoreError};
 
@@ -472,6 +472,28 @@ pub struct ImportView {
     /// How many remembered moves have entries among the new ones that wait
     /// for the user: two fit equally well, or a join would lose something.
     pub needs_you: usize,
+    /// The new entries matched to a planned payment (D-769), one line each,
+    /// by date.
+    pub planned: Vec<PlannedText>,
+    /// How many payments of planned payments new entries fit that wait for
+    /// the user: two entries fit equally well, or one entry fits two
+    /// payments ("Did this happen?").
+    pub planned_needs_you: usize,
+}
+
+/// A new entry matched to a planned payment after an import (D-769), as the
+/// summary lists it: the entry as the bank sent it, exactly.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PlannedText {
+    /// The planned payment's name.
+    pub name: String,
+    /// The day the payment was due.
+    pub due: String,
+    /// The entry's date and amount in the plan's account.
+    pub date: String,
+    pub amount: Shown,
+    /// Whether the entry got the plan's category, having none.
+    pub category_set: bool,
 }
 
 /// A pair joined by itself because it fits a monthly move (D-749), as the
@@ -501,6 +523,7 @@ pub fn preview(
     book.dry_run(|book| {
         let (mut report, stated) = perform(book, loaded, &statements, false)?;
         join_recurring_moves(book, &mut report)?;
+        match_schedules(book, &mut report, locale.today())?;
         describe(book, loaded, &statements, &report, stated.as_ref(), locale)
     })
 }
@@ -521,14 +544,45 @@ pub fn import(
         perform(book, loaded, &statements, true)
     })?;
     join_recurring_moves(book, &mut report)?;
+    match_schedules(book, &mut report, locale.today())?;
     describe(book, loaded, &statements, &report, stated.as_ref(), locale)
 }
 
 /// Takes back the joins [`import`] made, when they are still the newest
-/// change; anything the user did since comes first, so it is refused.
+/// change; anything the user did since comes first, so it is refused. The
+/// import matched its entries to planned payments right after joining
+/// (D-769): while those matches are the newest change, they are taken back
+/// first, since the joins lie under them.
 pub fn undo_joins(book: &mut Book) -> Result<(), StatementImportError> {
     match book.change_to_undo()? {
         Some(change) if change.action == Action::JoinRecurringMoves => {
+            book.undo()?;
+            Ok(())
+        }
+        Some(change) if change.action == Action::MatchSchedules => {
+            book.undo()?;
+            match book.change_to_undo()? {
+                Some(below) if below.action == Action::JoinRecurringMoves => {
+                    book.undo()?;
+                    Ok(())
+                }
+                _ => {
+                    // No joins under the matches: put them back as they were.
+                    book.redo()?;
+                    Err(StatementImportError::NoSuchEntry)
+                }
+            }
+        }
+        _ => Err(StatementImportError::NoSuchEntry),
+    }
+}
+
+/// Takes back the matches to planned payments [`import`] made ("Undo these
+/// matches", D-769), when they are still the newest change; the entries
+/// stay, and the payments wait again.
+pub fn undo_matches(book: &mut Book) -> Result<(), StatementImportError> {
+    match book.change_to_undo()? {
+        Some(change) if change.action == Action::MatchSchedules => {
             book.undo()?;
             Ok(())
         }
@@ -815,6 +869,31 @@ fn describe(
             to_date: locale.short_date(join.incoming.booking_date),
         });
     }
+    let plans = book.schedules()?;
+    let mut planned = Vec::with_capacity(report.schedules.matched.len());
+    for done in &report.schedules.matched {
+        let Some(plan) = plans
+            .iter()
+            .find(|plan| plan.id == done.occurrence.schedule)
+        else {
+            continue;
+        };
+        let transaction = book.transaction(done.transaction)?;
+        let Some(part) = transaction
+            .splits()
+            .iter()
+            .find(|part| part.account == Some(plan.account))
+        else {
+            continue;
+        };
+        planned.push(PlannedText {
+            name: plan.name.clone(),
+            due: locale.short_date(done.occurrence.due.date),
+            date: locale.short_date(transaction.date_of(part)),
+            amount: AmountWriter::new(book, part.amount.currency(), locale)?.text(part.amount),
+            category_set: done.category_set,
+        });
+    }
     Ok(ImportView {
         from_bank: loaded.fetched_on.is_some(),
         file_name: loaded
@@ -835,6 +914,8 @@ fn describe(
         new: report.imported(),
         joined,
         needs_you: report.joins.needs_you.len(),
+        planned,
+        planned_needs_you: report.schedules.needs_you.len(),
     })
 }
 
@@ -2165,6 +2246,180 @@ mod tests {
                 .len(),
             0
         );
+    }
+
+    /// A planned payment saved the way the screen saves it: `amount` out
+    /// (or in, for `incoming`) every month from `first_due`.
+    fn plan(
+        book: &mut Book,
+        account: AccountId,
+        name: &str,
+        amount: &str,
+        incoming: bool,
+        first_due: &str,
+    ) -> String {
+        let form = crate::planned_payments::PlanForm {
+            name: name.into(),
+            outgoing: !incoming,
+            amount: amount.into(),
+            first_due: first_due.into(),
+            ..crate::planned_payments::new_form(&account.to_string(), &TestLocale)
+        };
+        crate::planned_payments::save(book, "", &form, &TestLocale).expect("plan saved")
+    }
+
+    // US7.1 (D-769), where steps meet: the real import's output matched to
+    // a plan saved as the screen saves it; the preview shows the match
+    // without making it, and "Undo these matches" keeps the entries.
+    #[test]
+    fn the_import_matches_its_entries_to_planned_payments_and_undo_takes_only_the_matches_back() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-09-01",
+        );
+        plan(&mut book, checking, "Rent", "750,00", false, "2026-10-01");
+        let mut rent = entry(1, -75_000, "Landlord");
+        rent.other_party_iban = Some("DE89370400440532013000".into());
+        let loaded = Loaded::new(
+            checking,
+            PathBuf::from("statement.sta"),
+            vec![statement_of(vec![rent, entry(2, -1_250, "Bakery")])],
+        );
+        let open = |book: &Book| {
+            crate::planned_payments::did_this_happen(book, &TestLocale)
+                .expect("read")
+                .len()
+        };
+        assert_eq!(open(&book), 1, "the rent of 1 October is overdue");
+
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        assert_eq!(shown.planned.len(), 1);
+        assert_eq!(open(&book), 1, "a preview matches nothing");
+        assert!(book.decided_occurrences().expect("read").is_empty());
+
+        let done = import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(
+            done.planned,
+            [PlannedText {
+                name: "Rent".into(),
+                due: "2026-10-01".into(),
+                date: "2026-10-01".into(),
+                amount: Shown {
+                    text: done.planned[0].amount.text.clone(),
+                    exact: "-750,00 €".into(),
+                },
+                category_set: false,
+            }]
+        );
+        assert_eq!(done.planned_needs_you, 0);
+        assert_eq!(open(&book), 0);
+        assert_eq!(rows(&book, checking), 3);
+
+        // No joins lie under the matches: "Undo these joins" changes nothing.
+        assert!(matches!(
+            undo_joins(&mut book),
+            Err(StatementImportError::NoSuchEntry)
+        ));
+        assert_eq!(open(&book), 0);
+        assert_eq!(book.decided_occurrences().expect("read").len(), 1);
+
+        undo_matches(&mut book).expect("undone");
+        assert_eq!(open(&book), 1, "the payment waits again");
+        assert_eq!(rows(&book, checking), 3, "the entries stay");
+        // Undo now would take back the import, not matches: refused.
+        assert!(matches!(
+            undo_matches(&mut book),
+            Err(StatementImportError::NoSuchEntry)
+        ));
+        assert_eq!(rows(&book, checking), 3);
+    }
+
+    // An import that both joins a monthly move and matches a planned
+    // payment: "Undo these joins" takes back the matches lying on top of
+    // the joins too, and nothing else.
+    #[test]
+    fn undoing_the_joins_takes_back_the_matches_made_after_them() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-09-01",
+        );
+        let savings = account(
+            &mut book,
+            "Savings",
+            AccountType::Savings,
+            "1000",
+            "2026-09-01",
+        );
+        let load = |account, entries| {
+            Loaded::new(
+                account,
+                PathBuf::from("statement.sta"),
+                vec![statement_of(entries)],
+            )
+        };
+        import(
+            &mut book,
+            &load(checking, vec![standing_order(10, 1, true)]),
+            &TestLocale,
+        )
+        .expect("imported");
+        let october = import(
+            &mut book,
+            &load(savings, vec![standing_order(10, 1, false)]),
+            &TestLocale,
+        )
+        .expect("imported");
+        let found = transfer_suggestions(&book, &october.new, &TestLocale).expect("suggested");
+        crate::monthly_moves::join_remembering(
+            &mut book,
+            &found[0].outgoing.id,
+            &found[0].incoming.id,
+            &TestLocale,
+        )
+        .expect("remembered");
+        plan(&mut book, savings, "Interest", "1,00", true, "2026-10-02");
+        import(
+            &mut book,
+            &load(checking, vec![standing_order(11, 2, true)]),
+            &TestLocale,
+        )
+        .expect("imported");
+        // Matching looks at payments due up to today (19 October), so the
+        // interest is October's, late in the same statement.
+        let interest = entry(2, 100, "Example Bank");
+        let second = import(
+            &mut book,
+            &load(savings, vec![standing_order(11, 2, false), interest]),
+            &TestLocale,
+        )
+        .expect("imported");
+        assert_eq!(second.joined.len(), 1);
+        assert_eq!(second.planned.len(), 1);
+        assert_eq!(second.planned[0].name, "Interest");
+        assert_eq!(second.planned[0].amount.exact, "1,00 €");
+
+        undo_joins(&mut book).expect("undone");
+        assert!(book.decided_occurrences().expect("read").is_empty());
+        assert_eq!(
+            transfer_suggestions(&book, &second.new, &TestLocale)
+                .expect("suggested")
+                .len(),
+            1,
+            "the pair is apart again"
+        );
+        assert_eq!(rows(&book, savings), 4, "the imported entries stay");
+        assert!(matches!(
+            undo_matches(&mut book),
+            Err(StatementImportError::NoSuchEntry)
+        ));
     }
 
     #[test]

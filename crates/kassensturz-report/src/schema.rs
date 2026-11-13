@@ -123,6 +123,12 @@ pub enum ComponentType {
     /// It is in [`ComponentType::LIBRARY`] and not in [`ComponentType::ALL`]:
     /// the AI does not prepare it.
     ChartCandlestick,
+    /// `chart.flow`: where money came from and where it went in a period, as
+    /// bands of a width that is their amount (US7, #821, D-758,
+    /// `docs/MONEY_FLOW.md`). Drawn by `FlowChart.qml` from the dataset
+    /// `money_flow`. It is in [`ComponentType::LIBRARY`] and not yet in
+    /// [`ComponentType::ALL`].
+    ChartFlow,
     /// `table.transactions`: single transactions of the chosen accounts,
     /// categories and period, newest first, like an account's list (US4.7,
     /// D-716). It only shows them; a click opens the transaction. Its own
@@ -183,6 +189,7 @@ impl ComponentType {
         Self::DashboardTabs,
         Self::CustomChart,
         Self::ChartCandlestick,
+        Self::ChartFlow,
         Self::Transactions,
         Self::Alarms,
     ];
@@ -236,6 +243,7 @@ impl ComponentType {
             Self::DashboardTabs => "page.tabs",
             Self::CustomChart => "chart.custom",
             Self::ChartCandlestick => "chart.candlestick",
+            Self::ChartFlow => "chart.flow",
             Self::Transactions => "table.transactions",
             Self::Alarms => "notice.alarms",
         }
@@ -265,6 +273,7 @@ impl ComponentType {
             // `ComponentType::datasets`), so no dataset lists this fit.
             Self::CustomChart => "custom",
             Self::ChartCandlestick => "candlestick",
+            Self::ChartFlow => "flow",
             Self::Heading
             | Self::Separator
             | Self::FetchNotice
@@ -335,6 +344,7 @@ impl ComponentType {
             Self::BankUpdateAll => &UPDATE_ALL,
             Self::CustomChart => &CUSTOM_CHART,
             Self::ChartCandlestick => &CANDLESTICK,
+            Self::ChartFlow => &FLOW,
             Self::Transactions => &TRANSACTIONS,
             Self::Alarms => &ALARMS,
         }
@@ -714,6 +724,32 @@ pub const CANDLE_FILL_WORDS: [&str; 4] = ["up-hollow", "down-hollow", "all-fille
 /// The words of `params.candle`, the default first.
 pub const CANDLE_WORDS: [&str; 4] = ["auto", "day", "week", "month"];
 
+/// `params.sub_categories` (US7, D-758): the money-flow chart gives
+/// sub-categories a column of their own behind their category.
+const FLOW_SUBS: Property = Property {
+    key: FLOW_SUBS_KEY,
+    place: Place::Params,
+    kind: Kind::Flag { default: false },
+};
+pub(crate) const FLOW_SUBS_KEY: &str = "sub_categories";
+/// `params.payees` (US7, D-758): the money-flow chart shows who paid and who
+/// was paid as a column at each edge.
+const FLOW_PAYEES: Property = Property {
+    key: FLOW_PAYEES_KEY,
+    place: Place::Params,
+    kind: Kind::Flag { default: false },
+};
+pub(crate) const FLOW_PAYEES_KEY: &str = "payees";
+/// `params.currency` (US7, D-758): the currency the money-flow chart shows,
+/// by its ISO 4217 code. Empty, the default, takes the currency with the
+/// most money moved; there is no conversion.
+const FLOW_CURRENCY: Property = Property {
+    key: FLOW_CURRENCY_KEY,
+    place: Place::Params,
+    kind: Kind::Text,
+};
+pub(crate) const FLOW_CURRENCY_KEY: &str = "currency";
+
 const CHART: [Property; 17] = [
     GROUPING,
     AVERAGE,
@@ -737,6 +773,19 @@ const CHART: [Property; 17] = [
 /// length of a candle follows the period (D-719); which boxes are filled
 /// (D-748).
 const CANDLESTICK: [Property; 6] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE, CANDLE_FILL];
+/// The money flow (US7, D-758): which accounts, categories and tags count,
+/// the title, the period, and what the chart shows.
+const FLOW: [Property; 9] = [
+    ACCOUNTS,
+    CATEGORIES,
+    TAGS,
+    TITLE,
+    PERIOD,
+    FLOW_SUBS,
+    FLOW_PAYEES,
+    FLOW_CURRENCY,
+    HIDE_NOTE,
+];
 /// Bars: a chart's properties, the comparison of spending (US3.1a) and
 /// its uncoloured changes (D-760) after the average, and the way the bars go (D-679) after the legend.
 const BAR_CHART: [Property; 20] = [

@@ -688,6 +688,7 @@ fn the_worked_example_gives_the_designs_figures() {
         result.months[0],
         MonthPlan {
             month: day(2026, 12, 1),
+            last: day(2026, 12, 31),
             start: eur(437_911),
             planned_in: eur(220_000),
             planned_out: eur(91_489),
@@ -696,6 +697,47 @@ fn the_worked_example_gives_the_designs_figures() {
     );
     assert_eq!(result.months[1].start, eur(566_422));
     assert_eq!(result.months[1].month, day(2027, 1, 1));
+}
+
+/// The worked example with months that start on the salary day, the 27th
+/// (#921): "this month" is 27 Oct to 26 Nov, so the phone of the 28th and
+/// the salary of the 27th belong to the next one.
+#[test]
+fn months_that_start_on_the_salary_day_end_the_day_before_it() {
+    let (plans, decided) = worked_example();
+    let today = day(2026, 11, 13);
+    let result =
+        forecast_from_day(eur(234_000), &plans, &decided, today, 2, 27).expect("a forecast");
+    // Insurance 96,00 on the 20th and gym 29,90 on the 25th.
+    assert_eq!(result.out_due, eur(9_600 + 2_990));
+    assert_eq!(result.in_due, eur(0));
+    assert_eq!(result.left, eur(234_000 - 12_590));
+    assert_eq!(result.expected_end, result.left);
+    // 27 Nov to 26 Dec: the salary (Fri 27 Nov) comes in; rent (1 Dec),
+    // the phone (Sat 28 Nov, so Mon 30 Nov) and the gym (Fri 25 Dec) go out.
+    assert_eq!(
+        result.months[0],
+        MonthPlan {
+            month: day(2026, 11, 27),
+            last: day(2026, 12, 26),
+            start: eur(221_410),
+            planned_in: eur(220_000),
+            planned_out: eur(85_000 + 3_499 + 2_990),
+            end: eur(221_410 + 220_000 - 91_489),
+        }
+    );
+    assert_eq!(result.months[1].month, day(2026, 12, 27));
+    assert_eq!(result.months[1].last, day(2027, 1, 26));
+    // Day 1 is the calendar month: the same as the plain forecast.
+    assert_eq!(
+        forecast_from_day(eur(234_000), &plans, &decided, today, 2, 1),
+        forecast(eur(234_000), &plans, &decided, today, 2)
+    );
+    // A day that is no day of a month is refused, not guessed.
+    assert_eq!(
+        forecast_from_day(eur(234_000), &plans, &decided, today, 2, 32),
+        Err(ForecastError::Calendar)
+    );
 }
 
 #[test]
@@ -760,6 +802,7 @@ proptest! {
         days in prop::collection::vec(1i8..=28, 1..8),
         balance in -1_000_000i64..1_000_000,
         today in 1i8..=30,
+        starts_on in 1i8..=31,
     ) {
         let checking = AccountId::generate();
         let plans: Vec<Schedule> = amounts
@@ -767,15 +810,23 @@ proptest! {
             .zip(days.iter())
             .map(|(amount, on)| monthly(checking, *amount, day(2026, 11, *on)))
             .collect();
-        let result = forecast(eur(balance), &plans, &HashMap::new(), day(2026, 11, today), 3)
+        let today = day(2026, 11, today);
+        let result = forecast_from_day(eur(balance), &plans, &HashMap::new(), today, 3, starts_on)
             .expect("a forecast");
         prop_assert_eq!(result.left.checked_add(result.out_due).expect("fits"), eur(balance));
         prop_assert_eq!(result.expected_end.checked_sub(result.in_due).expect("fits"), result.left);
         prop_assert!(!result.out_due.is_negative() && !result.in_due.is_negative());
         let mut start = result.expected_end;
+        // Each month follows the one before without a gap, the first right
+        // after the one today is in.
+        let (_, mut last) = crate::salary_month_of(today, starts_on).expect("a salary month");
+        prop_assert!(last >= today);
         for month in &result.months {
             prop_assert_eq!(month.start, start);
+            prop_assert_eq!(month.month, last.tomorrow().expect("a day"));
+            prop_assert!(month.last >= month.month);
             start = month.end;
+            last = month.last;
         }
     }
 }

@@ -214,6 +214,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label:textbox a formula that works out a figure", "Formula");
         case "target":
             return i18nContext.i18nc("@label:textbox a formula for what a full progress bar stands for", "Target");
+        case "month_start":
+            return i18nContext.i18nc("@label:listbox the day the month of the Left this month tile starts on", "Month starts on");
         }
         return "";
     }
@@ -230,7 +232,16 @@ ColumnLayout {
     }
 
     function wordName(word: string): string {
+        // Left this month's "Month starts on" (#921): a day of the month.
+        if (word.startsWith("day-")) {
+            const day = Number(word.slice(4));
+            return day === 1
+                ? i18nContext.i18nc("@item:inlistbox the month starts on day 1", "Day 1 (calendar month)")
+                : i18nContext.i18nc("@item:inlistbox %1 is a day of the month the month starts on, e.g. the salary day", "Day %1", day);
+        }
         switch (word) {
+        case "like-budgets":
+            return i18nContext.i18nc("@item:inlistbox the month starts on the day the user's salary-month budgets start on", "Like my budgets");
         case "category":
             return i18nContext.i18nc("@item:inlistbox", "Each category");
         case "top_level_category":

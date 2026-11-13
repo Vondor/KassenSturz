@@ -34,6 +34,15 @@ pub const WRITE_TOOLS_KEY: &str = "McpWriteTools";
 /// it.
 pub const BILL_FOLDER_KEY: &str = "BillFolder";
 
+/// The key in [`GROUP`] of the user's own "Notes for the AI" (US7, #808):
+/// free text the user wrote, kept per computer and never in a book.
+pub const NOTES_KEY: &str = "Notes";
+
+/// How many characters the notes may have. The notes go into every chat
+/// request, so a limit keeps them from using up a small model's context
+/// (D-052); about a page of text.
+pub const MAX_NOTES_CHARS: usize = 2000;
+
 /// One row of the permission grid in the AI settings (D-252).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Row {
@@ -547,6 +556,54 @@ pub fn bill_folder_in(text: &str) -> Option<PathBuf> {
     path.is_absolute().then_some(path)
 }
 
+/// The user's "Notes for the AI" in the settings file's `text` (US7, #808):
+/// empty while AI is off or when there are none. KConfig's escapes of a
+/// written text (`\\`, `\s`, `\t`, `\n`, `\r`) are read back; an entry with
+/// any other escape counts as no notes, so a damaged file never sends
+/// something the user did not write. Control characters other than line
+/// breaks are dropped, and the text is cut at [`MAX_NOTES_CHARS`].
+pub fn notes_in(text: &str) -> String {
+    if !enabled_in(text) {
+        return String::new();
+    }
+    let Some(raw) = value_in(text, GROUP, NOTES_KEY) else {
+        return String::new();
+    };
+    let mut notes = String::with_capacity(raw.len());
+    let mut chars = raw.chars();
+    while let Some(c) = chars.next() {
+        let c = if c == '\\' {
+            match chars.next() {
+                Some('\\') => '\\',
+                Some('s') => ' ',
+                Some('t') => '\t',
+                Some('n') => '\n',
+                Some('r') => '\r',
+                _ => return String::new(),
+            }
+        } else {
+            c
+        };
+        if c == '\n' || c == '\t' || !c.is_control() {
+            notes.push(c);
+        }
+    }
+    notes
+        .chars()
+        .take(MAX_NOTES_CHARS)
+        .collect::<String>()
+        .trim()
+        .to_owned()
+}
+
+/// The user's notes in this user's settings, empty when there are none or
+/// AI is off.
+pub fn notes() -> String {
+    settings_file()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .map_or_else(String::new, |text| notes_in(&text))
+}
+
 /// The bill folder in this user's settings, if one is chosen and AI is on.
 pub fn bill_folder() -> Option<PathBuf> {
     settings_file()
@@ -796,5 +853,31 @@ mod tests {
         assert_eq!(read(""), None);
         assert_eq!(read(&format!("{root}/a\\x2fb")), None);
         assert_eq!(read(&format!("{root}/a\\")), None);
+    }
+
+    #[test]
+    fn the_notes_are_read_back_as_kconfig_wrote_them_and_only_while_ai_is_on() {
+        let on = "[AI]\nEnabled=true\n";
+        let read = |value: &str| notes_in(&format!("{on}Notes={value}\n"));
+        assert_eq!(notes_in(on), "");
+        assert_eq!(read("Salary comes on the 28th"), "Salary comes on the 28th");
+        // KConfig writes a line break as \n and a backslash as two.
+        assert_eq!(
+            read("Salary on the 28th\\nCorner Market is groceries"),
+            "Salary on the 28th\nCorner Market is groceries"
+        );
+        assert_eq!(read("a\\\\b"), "a\\b");
+        assert_eq!(read("Ümlaut and 日本"), "Ümlaut and 日本");
+        // Off, empty, an escape KassenSturz doesn't know, or a lone backslash.
+        assert_eq!(notes_in("[AI]\nEnabled=false\nNotes=hello\n"), "");
+        assert_eq!(read(""), "");
+        assert_eq!(read("a\\x41"), "");
+        assert_eq!(read("a\\"), "");
+        // Control characters go, line breaks stay, the length is limited.
+        assert_eq!(read("a\u{7}b\\nc"), "ab\nc");
+        assert_eq!(
+            read(&"x".repeat(MAX_NOTES_CHARS + 50)).chars().count(),
+            MAX_NOTES_CHARS
+        );
     }
 }

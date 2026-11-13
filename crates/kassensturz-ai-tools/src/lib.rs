@@ -56,6 +56,8 @@ mod functions;
 #[cfg(feature = "ai")]
 mod issue;
 #[cfg(feature = "ai")]
+mod note;
+#[cfg(feature = "ai")]
 mod open_page;
 #[cfg(feature = "ai")]
 mod plans;
@@ -98,6 +100,8 @@ pub use functions::{
 pub use issue::{
     DRAFT_ISSUE, ISSUE_PAGE, IssueContext, IssueDraft, MAX_LINK_BYTES, draft_issue, unique_codes,
 };
+#[cfg(feature = "ai")]
+pub use note::{MAX_NOTE_LINE_CHARS, NoteSuggestion, SUGGEST_NOTE, suggest_note};
 #[cfg(feature = "ai")]
 pub use open_page::{OPEN_PAGE, PageTarget, open_page, open_page_allowed};
 #[cfg(feature = "ai")]

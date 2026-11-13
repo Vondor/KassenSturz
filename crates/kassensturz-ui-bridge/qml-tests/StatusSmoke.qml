@@ -85,7 +85,7 @@ Kirigami.ApplicationWindow {
             window.check(icon.Accessible.name === "Warnings: 2 warnings apply", "the screen reader hears the name and the state, got " + icon.Accessible.name);
             window.check(icon.hint === "2 of your warnings apply today. Click to see the whole tile.", "the hover text says what it means, got " + icon.hint);
 
-            const types = ["notice.alarms", "notice.unsorted", "notice.fetch_gap", "bank.update_all"];
+            const types = ["notice.alarms", "notice.unsorted", "notice.fetch_gap", "bank.update_all", "forecast.month", "plan.coming_up"];
             const states = ["fine", "to-do", "running", "failed", "unknown"];
             for (const type of types) {
                 for (const state of states) {
@@ -93,6 +93,8 @@ Kirigami.ApplicationWindow {
                 }
             }
             window.check(words.sentence("bank.update_all", "failed", 1).startsWith("The last update didn't work for 1 account"), "a failed update names how many accounts");
+            window.check(words.words("forecast.month", "to-do", 2) === "2 planned payments to check", "the forecast names the payments to check, got " + words.words("forecast.month", "to-do", 2));
+            window.check(words.words("plan.coming_up", "fine", 0) === "Nothing coming up" && words.words("plan.coming_up", "fine", 3) === "3 payments coming up", "coming up counts the payments");
 
             icon.status = "something else";
             window.check(icon.shown === "unknown", "an unknown word shows as unknown");

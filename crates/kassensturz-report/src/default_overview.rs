@@ -16,7 +16,8 @@ pub const OVERVIEW_NAME: &str = "Overview";
 /// the filter bar (D-452, D-474, D-529), widgets like the others since
 /// version 4, then the warnings about accounts not updated from the
 /// bank, what the accounts are worth, four key figures in a row, the budget
-/// bars (which take no room until the book has a budget, D-357, Q-264), the
+/// bars (which take no room until the book has a budget, D-357, Q-264),
+/// *Left this month* and *Coming up* side by side (US7, D-769, D-770), the
 /// spending donut and the table of what it shows side by side, then the line
 /// of the last 12 months, where the money came from, the note about
 /// transfers and the note about the transactions without a category (US1.9,
@@ -50,21 +51,25 @@ pub const DEFAULT_OVERVIEW: &str = r#"{
      "frame": {"col": 9, "row": 6, "cols": 3, "rows": 2}},
     {"id": "budgets", "type": "budget.progress", "dataset": "budget_utilization",
      "frame": {"col": 0, "row": 8, "cols": 12, "rows": 4}},
+    {"id": "left-this-month", "type": "forecast.month",
+     "frame": {"col": 0, "row": 12, "cols": 6, "rows": 3}},
+    {"id": "coming-up", "type": "plan.coming_up",
+     "frame": {"col": 6, "row": 12, "cols": 6, "rows": 3}},
     {"id": "spending", "type": "chart.donut", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 0, "row": 12, "cols": 6, "rows": 5}},
+     "frame": {"col": 0, "row": 15, "cols": 6, "rows": 5}},
     {"id": "biggest", "type": "table.rows", "dataset": "spending_by_category",
      "params": {"grouping": "top_level_category"},
-     "frame": {"col": 6, "row": 12, "cols": 6, "rows": 5}},
+     "frame": {"col": 6, "row": 15, "cols": 6, "rows": 5}},
     {"id": "trend", "type": "chart.line", "dataset": "income_expense_by_month",
      "props": {"period": "last-12-months"},
-     "frame": {"col": 0, "row": 17, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 20, "cols": 12, "rows": 4}},
     {"id": "sources", "type": "table.income_sources",
-     "frame": {"col": 0, "row": 21, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 24, "cols": 12, "rows": 4}},
     {"id": "transfers", "type": "notice.transfers",
-     "frame": {"col": 0, "row": 25, "cols": 12, "rows": 1}},
+     "frame": {"col": 0, "row": 28, "cols": 12, "rows": 1}},
     {"id": "unsorted", "type": "notice.unsorted",
-     "frame": {"col": 0, "row": 26, "cols": 12, "rows": 2}}
+     "frame": {"col": 0, "row": 29, "cols": 12, "rows": 2}}
   ]
 }"#;
 

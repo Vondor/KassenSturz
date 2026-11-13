@@ -166,6 +166,30 @@ pub mod qobject {
         #[cxx_name = "setWriteTools"]
         fn set_write_tools(self: &AiSettings, on: bool) -> bool;
 
+        /// The user's "Notes for the AI" (US7, #808): text they wrote,
+        /// empty for none; empty in a build without AI.
+        #[qinvokable]
+        fn notes(self: &AiSettings) -> QString;
+
+        /// Saves the user's notes as typed. Returns whether that was
+        /// saved; text longer than the limit is not.
+        #[qinvokable]
+        #[cxx_name = "setNotes"]
+        fn set_notes(self: &AiSettings, text: &QString) -> bool;
+
+        /// Adds one line the AI suggested, that the user just confirmed, to
+        /// the notes (US7, #808). Returns `added`, `duplicate` (already
+        /// there), `full` (it would pass the limit), `refused` (not one
+        /// plain line) or `failed` (not saved).
+        #[qinvokable]
+        #[cxx_name = "addNote"]
+        fn add_note(self: &AiSettings, line: &QString) -> QString;
+
+        /// The most characters the notes may have.
+        #[qinvokable]
+        #[cxx_name = "notesLimit"]
+        fn notes_limit(self: &AiSettings) -> i32;
+
         /// The folder the user chose for their bills (US5.13, D-739), as
         /// the system's folder chooser returned it; empty for none, and
         /// always in a build without AI.
@@ -732,6 +756,25 @@ impl qobject::AiSettings {
         keep_write_tools(&crate::settings::Settings::user(), on)
     }
 
+    fn notes(&self) -> QString {
+        QString::from(notes_in(&crate::settings::Settings::user()).as_str())
+    }
+
+    fn set_notes(&self, text: &QString) -> bool {
+        keep_notes(&crate::settings::Settings::user(), &text.to_string())
+    }
+
+    fn add_note(&self, line: &QString) -> QString {
+        QString::from(add_note_in(
+            &crate::settings::Settings::user(),
+            &line.to_string(),
+        ))
+    }
+
+    fn notes_limit(&self) -> i32 {
+        notes_limit()
+    }
+
     fn bill_folder(&self) -> QString {
         QString::from(bill_folder_in(&crate::settings::Settings::user()).as_str())
     }
@@ -966,6 +1009,81 @@ fn keep_write_tools(_settings: &crate::settings::Settings, _on: bool) -> bool {
     false
 }
 
+/// The most characters the notes may have; none in a build without AI.
+#[cfg(feature = "ai")]
+fn notes_limit() -> i32 {
+    i32::try_from(kassensturz_core::ai_switch::MAX_NOTES_CHARS).unwrap_or(i32::MAX)
+}
+
+#[cfg(not(feature = "ai"))]
+fn notes_limit() -> i32 {
+    0
+}
+
+/// The notes in `settings` (US7, #808): what the user wrote, cut at the
+/// limit, empty for none and in a build without AI.
+#[cfg(feature = "ai")]
+fn notes_in(settings: &crate::settings::Settings) -> String {
+    use kassensturz_core::ai_switch::{GROUP, MAX_NOTES_CHARS, NOTES_KEY};
+    settings
+        .text(GROUP, NOTES_KEY)
+        .chars()
+        .take(MAX_NOTES_CHARS)
+        .collect()
+}
+
+#[cfg(not(feature = "ai"))]
+fn notes_in(_settings: &crate::settings::Settings) -> String {
+    String::new()
+}
+
+/// Keeps `text` as the notes in `settings`. Text over the limit is not
+/// kept, so nothing the user typed is cut without their knowing.
+#[cfg(feature = "ai")]
+fn keep_notes(settings: &crate::settings::Settings, text: &str) -> bool {
+    use kassensturz_core::ai_switch::{GROUP, MAX_NOTES_CHARS, NOTES_KEY};
+    text.chars().count() <= MAX_NOTES_CHARS && settings.set_text(GROUP, NOTES_KEY, text.trim())
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_notes(_settings: &crate::settings::Settings, _text: &str) -> bool {
+    false
+}
+
+/// Adds `line`, a line the AI suggested and the user confirmed, to the
+/// notes in `settings`, as the last line. The line is saved exactly as it
+/// was shown: it is refused, not changed, when it is not one plain line.
+#[cfg(feature = "ai")]
+fn add_note_in(settings: &crate::settings::Settings, line: &str) -> &'static str {
+    use kassensturz_core::ai_switch::MAX_NOTES_CHARS;
+    let line = line.trim();
+    if line.is_empty() || line.chars().any(char::is_control) {
+        return "refused";
+    }
+    let current = notes_in(settings);
+    if current.lines().any(|existing| existing.trim() == line) {
+        return "duplicate";
+    }
+    let joined = if current.is_empty() {
+        line.to_owned()
+    } else {
+        format!("{current}\n{line}")
+    };
+    if joined.chars().count() > MAX_NOTES_CHARS {
+        return "full";
+    }
+    if keep_notes(settings, &joined) {
+        "added"
+    } else {
+        "failed"
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn add_note_in(_settings: &crate::settings::Settings, _line: &str) -> &'static str {
+    "failed"
+}
+
 /// The bill folder in `settings` (D-739), empty for none; empty in a build
 /// without AI.
 #[cfg(feature = "ai")]
@@ -990,6 +1108,71 @@ fn keep_bill_folder(settings: &crate::settings::Settings, path: &str) -> bool {
 #[cfg(not(feature = "ai"))]
 fn keep_bill_folder(_settings: &crate::settings::Settings, _path: &str) -> bool {
     false
+}
+
+#[cfg(all(test, feature = "ai"))]
+mod notes_tests {
+    use super::*;
+    use crate::settings::Settings;
+    use crate::test_folder::TestFolder;
+    use kassensturz_core::ai_switch::{self, MAX_NOTES_CHARS};
+
+    #[test]
+    fn notes_are_kept_and_read_back_by_the_chat_as_the_app_wrote_them() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(settings.set_text(ai_switch::GROUP, ai_switch::ENABLED_KEY, ai_switch::ON));
+        assert_eq!(notes_in(&settings), "");
+        let text = "Salary comes on the 28th.\nCorner Market is groceries. Ümlaut \\ ok";
+        assert!(keep_notes(&settings, text));
+        assert_eq!(notes_in(&settings), text);
+        // The chat reads the very file KConfig wrote, with its escapes.
+        let written = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(ai_switch::notes_in(&written), text);
+        // Switching AI off hides them from the chat; they stay in the file.
+        assert!(settings.set_text(ai_switch::GROUP, ai_switch::ENABLED_KEY, "false"));
+        let written = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(ai_switch::notes_in(&written), "");
+        assert_eq!(notes_in(&settings), text);
+    }
+
+    #[test]
+    fn text_over_the_limit_is_not_kept_and_the_old_notes_stay() {
+        let folder = TestFolder::new();
+        let settings = Settings::at(&folder.join("kassensturzrc"));
+        assert!(keep_notes(&settings, "first"));
+        assert!(!keep_notes(&settings, &"x".repeat(MAX_NOTES_CHARS + 1)));
+        assert_eq!(notes_in(&settings), "first");
+        assert!(keep_notes(&settings, &"x".repeat(MAX_NOTES_CHARS)));
+    }
+
+    #[test]
+    fn a_confirmed_line_is_added_once_as_the_last_line() {
+        let folder = TestFolder::new();
+        let settings = Settings::at(&folder.join("kassensturzrc"));
+        assert_eq!(add_note_in(&settings, "Salary comes on the 28th."), "added");
+        assert_eq!(
+            add_note_in(&settings, "Corner Market is groceries."),
+            "added"
+        );
+        assert_eq!(
+            notes_in(&settings),
+            "Salary comes on the 28th.\nCorner Market is groceries."
+        );
+        assert_eq!(
+            add_note_in(&settings, "Salary comes on the 28th."),
+            "duplicate"
+        );
+        assert_eq!(add_note_in(&settings, "two\nlines"), "refused");
+        assert_eq!(add_note_in(&settings, "  "), "refused");
+        assert_eq!(add_note_in(&settings, &"y".repeat(MAX_NOTES_CHARS)), "full");
+        assert_eq!(
+            notes_in(&settings),
+            "Salary comes on the 28th.\nCorner Market is groceries.",
+            "a refused line changes nothing"
+        );
+    }
 }
 
 #[cfg(all(test, feature = "ai"))]
@@ -1430,7 +1613,10 @@ mod tests {
             .iter()
             .map(|word| word.value::<cxx_qt_lib::QString>().unwrap().to_string())
             .collect();
-        assert_eq!(words, ["questions", "book-data", "instructions", "key"]);
+        assert_eq!(
+            words,
+            ["questions", "book-data", "notes", "instructions", "key"]
+        );
     }
 
     #[test]

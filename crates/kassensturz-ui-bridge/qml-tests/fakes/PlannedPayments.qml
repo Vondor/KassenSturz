@@ -31,6 +31,7 @@ QtObject {
     signal changed()
 
     function refresh() {}
+    function monthFrom(start) { return view.forecast ?? ({}); }
     function form(id, accountId) {
         return ({
             name: id === "" ? "" : "Rent", accountId: id === "" ? accountId : "savings",

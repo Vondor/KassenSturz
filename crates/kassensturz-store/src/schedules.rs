@@ -18,7 +18,8 @@ use kassensturz_core::{
     AccountId, AccountKind, AccountType, CurrencyCode, Date, Decided, Due, Forecast, ForecastError,
     LOOK_BACK_YEARS, MAX_BUSINESS_DAYS, MAX_SCHEDULES, Money, OccurrenceState, OpenOccurrence,
     OtherParty, Schedule, ScheduleEntry, ScheduleError, ScheduleId, ScheduleUnit, Split,
-    Transaction, TransactionId, add_banking_days, cut_party, due_dates, forecast, match_schedules,
+    Transaction, TransactionId, add_banking_days, cut_party, due_dates, forecast_from_day,
+    match_schedules,
 };
 use rusqlite::{OptionalExtension, params};
 
@@ -1036,6 +1037,27 @@ impl Book {
         Ok(chosen)
     }
 
+    /// The day *Left this month*'s months start on when the user chose
+    /// "like my budgets" (#921, Q-565): the salary day that every budget
+    /// running `today` on salary months shares, or 1 (the calendar month)
+    /// when there is none or they differ. It never guesses between two
+    /// days.
+    pub fn budgets_salary_day(&self, today: Date) -> Result<i8, StoreError> {
+        let mut days = self
+            .budgets()?
+            .into_iter()
+            .filter(|budget| budget.period_containing(today).is_some())
+            .filter_map(|budget| budget.every.salary_day());
+        let Some(first) = days.next() else {
+            return Ok(1);
+        };
+        Ok(if days.all(|day| day == first) {
+            first
+        } else {
+            1
+        })
+    }
+
     /// The forecast for today's month and `months` months after it (D-770),
     /// over `accounts` in `currency`: their booked balance at the end of
     /// `today`, and the planned payments of those accounts that are
@@ -1048,6 +1070,20 @@ impl Book {
         currency: CurrencyCode,
         today: Date,
         months: usize,
+    ) -> Result<AccountsForecast, StoreError> {
+        self.forecast_from_day(accounts, currency, today, months, 1)
+    }
+
+    /// [`Book::forecast`] for months that start on day `starts_on` (1 to
+    /// 31), as a salary month does (#921, D-645); day 1 is the calendar
+    /// month. A day outside 1 to 31 is refused as out of the calendar.
+    pub fn forecast_from_day(
+        &self,
+        accounts: &[AccountId],
+        currency: CurrencyCode,
+        today: Date,
+        months: usize,
+        starts_on: i8,
     ) -> Result<AccountsForecast, StoreError> {
         let mut counted = Vec::new();
         let mut left_out = Vec::new();
@@ -1081,8 +1117,8 @@ impl Book {
             .filter(|plan| counted.contains(&plan.account))
             .collect();
         let decided = self.decided_occurrences()?;
-        let result =
-            forecast(balance, &plans, &decided, today, months).map_err(|error| match error {
+        let result = forecast_from_day(balance, &plans, &decided, today, months, starts_on)
+            .map_err(|error| match error {
                 ForecastError::Money(_) => StoreError::AmountOverflow,
                 ForecastError::Calendar => out_of_calendar(today),
             })?;

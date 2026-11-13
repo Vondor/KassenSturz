@@ -122,7 +122,8 @@ fn a_model_that_follows_a_hostile_memo_gets_nothing_more() {
                 || o == PROPOSE_CHANGES.name
                 || o == PROPOSE_VIEW_NAME
                 || o == DRAFT_ISSUE.name
-                || o == OPEN_PAGE.name)),
+                || o == OPEN_PAGE.name
+                || o == "suggest_note")),
         "only the read functions, propose_changes, propose_view, draft_issue and open_page are \
          ever offered"
     );

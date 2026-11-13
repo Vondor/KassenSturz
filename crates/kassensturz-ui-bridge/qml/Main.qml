@@ -848,12 +848,13 @@ Kirigami.ApplicationWindow {
             }
 
             // The bank log shows this on every screen for as long as it runs
-            // (D-603); with the full developer mode the banner above says it.
+            // (D-603), also while the full developer mode runs: that banner
+            // doesn't say a second log is written (#828).
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 position: Kirigami.InlineMessage.Position.Header
                 type: Kirigami.MessageType.Warning
-                visible: developerMode.bankLogOn && !developerMode.on
+                visible: developerMode.bankLogOn
                 text: developerMode.bankLogDetailed
                     ? root.i18nContext.i18nc("@info", "Developer mode for bank connections, detailed: KassenSturz is writing a log of how far each bank connection gets, which errors happen and the texts your bank sends with them. The texts are cut down to words, but a name written in words can remain: look through the log before you pass it on. It leaves out your account numbers, amounts, PIN, TANs and the registration number. To end it, close KassenSturz and start it the usual way.")
                     : root.i18nContext.i18nc("@info", "Developer mode for bank connections: KassenSturz is writing a short log of how far each bank connection gets and which errors happen. It leaves out your login name, account numbers, amounts, PIN, TANs and the registration number. To end it, close KassenSturz and start it the usual way.")
@@ -863,7 +864,7 @@ Kirigami.ApplicationWindow {
                         text: root.i18nContext.i18nc("@action:button opens the folder of the developer mode's log", "Show the log")
                         onTriggered: {
                             ActionLog.taken("Main_showBankLog")
-                            Qt.openUrlExternally(developerMode.folderUrl())
+                            Qt.openUrlExternally(developerMode.bankLogFolderUrl())
                         }
                     },
                     Kirigami.Action {
@@ -871,7 +872,7 @@ Kirigami.ApplicationWindow {
                         text: root.i18nContext.i18nc("@action:button deletes the developer mode's log", "Delete the log")
                         onTriggered: {
                             ActionLog.taken("Main_deleteBankLog")
-                            developerMode.clearLog()
+                            developerMode.clearBankLog()
                         }
                     }
                 ]

@@ -32,6 +32,47 @@ pub struct FlowOptions {
     pub payees: bool,
 }
 
+/// What a money-flow component asks for besides the filters, as its settings
+/// say (US7, D-758). The default is what every other component has.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FlowChoice {
+    /// `params.sub_categories`.
+    pub sub_categories: bool,
+    /// `params.payees`.
+    pub payees: bool,
+    /// `params.currency`: an ISO code, or empty for the currency with the
+    /// most money moved.
+    pub currency: String,
+}
+
+impl FlowChoice {
+    /// What `component` asks for; the default for a component that is not a
+    /// money flow.
+    pub fn of(component: &crate::Component) -> Self {
+        use crate::Setting;
+        if component.kind() != crate::ComponentType::ChartFlow {
+            return Self::default();
+        }
+        let flag = |key: &str| matches!(component.get(key), Some(Setting::Flag(true)));
+        Self {
+            sub_categories: flag(crate::schema::FLOW_SUBS_KEY),
+            payees: flag(crate::schema::FLOW_PAYEES_KEY),
+            currency: match component.get(crate::schema::FLOW_CURRENCY_KEY) {
+                Some(Setting::Text(code)) => code.trim().to_ascii_uppercase(),
+                _ => String::new(),
+            },
+        }
+    }
+
+    /// The options of the dataset.
+    pub const fn options(&self) -> FlowOptions {
+        FlowOptions {
+            sub_categories: self.sub_categories,
+            payees: self.payees,
+        }
+    }
+}
+
 /// What a node stands for. The words the screen shows for the kinds without
 /// a name are the screen's (D-034).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -86,7 +86,7 @@ fn every_type_has_the_smallest_size_of_the_design_and_a_default_that_is_not_smal
         let expected = match kind {
             ComponentType::KpiCard => Size { cols: 2, rows: 2 },
             ComponentType::ProgressBar => Size { cols: 3, rows: 1 },
-            ComponentType::TableRows => Size { cols: 4, rows: 3 },
+            ComponentType::TableRows | ComponentType::ChartFlow => Size { cols: 4, rows: 3 },
             _ => Size { cols: 3, rows: 3 },
         };
         assert_eq!(least, expected, "{}", kind.id());

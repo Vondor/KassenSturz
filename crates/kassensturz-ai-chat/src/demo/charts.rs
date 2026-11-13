@@ -66,7 +66,7 @@ const ACCOUNT_CHECKING: DescribedIds = DescribedIds {
 /// The descriptions the fake model knows, in the order the testing guide
 /// and the local-model script list them. The first is the example the
 /// *Describe a chart* button puts into the question field.
-pub const DESCRIBED_CHARTS: [DescribedChart; 10] = [
+pub const DESCRIBED_CHARTS: [DescribedChart; 11] = [
     DescribedChart {
         description: "My spending on food each month this year, as bars",
         also: &["Meine Ausgaben für Essen in jedem Monat dieses Jahres, als Balken"],
@@ -140,6 +140,13 @@ pub const DESCRIBED_CHARTS: [DescribedChart; 10] = [
         refused_first: Some(
             r#"{"title":"Income and spending each month","data":"income_expense_by_month","show_as":"pie","period":"last-12-months"}"#,
         ),
+    },
+    DescribedChart {
+        description: "Where my money came from and where it went this month",
+        also: &[],
+        call: r#"{"title":"Money in and out this month","data":"money_flow","show_as":"auto","period":"this-month"}"#,
+        ids: None,
+        refused_first: None,
     },
 ];
 

@@ -23076,3 +23076,41 @@ msgstr[1] "Ihre Bedingungen erfassen %1 Buchungen, die schon in Ihrem Buch stehe
 msgctxt "@info %1 says what a Rule does"
 msgid "Made by the AI, not checked by you yet. %1"
 msgstr "Von der KI erstellt, von Ihnen noch nicht geprüft. %1"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml
+#, kde-format
+msgctxt "@info:placeholder %1 is an example date"
+msgid "All dates, or type one like %1"
+msgstr "Alle Tage, oder geben Sie einen ein, etwa %1"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Only the days you give are included, both the first and the last day. Leave "
+"a day empty to go on from the start or up to the end. The lines are not "
+"changed: they add up to the balance only if nothing before the first day is "
+"left out."
+msgstr ""
+"Es kommen nur die Tage in die Datei, die Sie angeben, der erste und der "
+"letzte Tag eingeschlossen. Lassen Sie einen Tag leer, um vom Anfang an oder "
+"bis zum Ende zu speichern. Die Zeilen bleiben unverändert: Sie ergeben den "
+"Kontostand nur, wenn nichts vor dem ersten Tag weggelassen wird."
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml
+#, kde-format
+msgctxt "@label:textbox"
+msgid "From this day on"
+msgstr "Ab diesem Tag"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Up to and including this day"
+msgstr "Bis zu diesem Tag (eingeschlossen)"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml
+#, kde-format
+msgctxt "@info"
+msgid "The last day is before the first. Swap them."
+msgstr "Der letzte Tag liegt vor dem ersten. Tauschen Sie die beiden."

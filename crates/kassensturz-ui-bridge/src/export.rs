@@ -18,7 +18,7 @@ use kassensturz_export::{
     BookExport, CsvExport, CsvExportSettings, DecimalMark, ExportData, ExportError, Separator,
     export_file, replace_file,
 };
-use kassensturz_pipeline::{export_book, export_transactions};
+use kassensturz_pipeline::{DateRange, export_book, export_transactions_in};
 use kassensturz_report::{Document, ReportError, dashboard_file_name, write_dashboard_file};
 use kassensturz_store::{Book, StoreError};
 
@@ -35,6 +35,10 @@ pub enum SaveError {
     /// The settings contradict each other: a comma can't be both the
     /// separator and the decimal mark.
     BadSettings,
+    /// A first or last day was typed that isn't a date.
+    MalformedDate,
+    /// The last day is before the first, so nothing could be in between.
+    RangeReversed,
     /// The book refused to give its data.
     Store(StoreError),
     /// The file couldn't be written.
@@ -71,6 +75,11 @@ pub fn error_text(book: &Book, error: &SaveError, locale: &impl Locale) -> Error
         SaveError::NoAccounts => ErrorText::plain("input.no-accounts-chosen"),
         SaveError::NoSuchEntry => ErrorText::plain("input.no-such-entry"),
         SaveError::BadSettings => ErrorText::plain("export.bad-settings"),
+        SaveError::MalformedDate => ErrorText {
+            code: "input.malformed-date",
+            params: vec![("example", locale.short_date(locale.today()))],
+        },
+        SaveError::RangeReversed => ErrorText::plain("input.range-reversed"),
         SaveError::Store(error) => report_text(book, &error.report(), locale),
         SaveError::Export(error) => report_text(book, &error.report(), locale),
         SaveError::Report(error) => report_text(book, &error.report(), locale),
@@ -89,6 +98,11 @@ pub struct CsvForm {
     /// Whether the file starts with a UTF-8 byte order mark, which Excel
     /// needs to show umlauts.
     pub byte_order_mark: bool,
+    /// The first day to include, as the user typed it in their region's
+    /// format; empty for no start (all dates), #901.
+    pub from: String,
+    /// The last day to include, typed the same way; empty for no end.
+    pub until: String,
 }
 
 impl CsvForm {
@@ -102,7 +116,34 @@ impl CsvForm {
             decimal_mark: if decimal_comma { "comma" } else { "point" }.to_owned(),
             header: true,
             byte_order_mark: false,
+            from: String::new(),
+            until: String::new(),
         }
+    }
+
+    /// The days chosen, both included; an empty text leaves that end open.
+    /// What isn't a date, or a last day before the first, is refused before
+    /// anything is written.
+    fn range(&self, locale: &impl Locale) -> Result<DateRange, SaveError> {
+        let read = |text: &str| {
+            let text = text.trim();
+            if text.is_empty() {
+                Ok(None)
+            } else {
+                locale
+                    .read_date(text)
+                    .map(Some)
+                    .ok_or(SaveError::MalformedDate)
+            }
+        };
+        let range = DateRange {
+            from: read(&self.from)?,
+            until: read(&self.until)?,
+        };
+        if range.is_reversed() {
+            return Err(SaveError::RangeReversed);
+        }
+        Ok(range)
     }
 
     fn settings(&self) -> Result<CsvExportSettings, SaveError> {
@@ -164,18 +205,20 @@ pub struct Saved {
 }
 
 /// Writes the transactions of the accounts `ids` name into a new file at
-/// `path` as CSV (D-099). The file is new: an existing one is never
-/// overwritten.
+/// `path` as CSV (D-099), only the days of the form's range (#901). The file
+/// is new: an existing one is never overwritten.
 pub fn save_csv(
     book: &Book,
     ids: &[String],
     form: &CsvForm,
+    locale: &impl Locale,
     path: &Path,
 ) -> Result<Saved, SaveError> {
     if ids.is_empty() {
         return Err(SaveError::NoAccounts);
     }
     let exporter = CsvExport::new(form.settings()?)?;
+    let range = form.range(locale)?;
     let known = book.accounts(true)?;
     let accounts: Vec<AccountId> = ids
         .iter()
@@ -187,9 +230,9 @@ pub fn save_csv(
                 .ok_or(SaveError::NoSuchEntry)
         })
         .collect::<Result<_, _>>()?;
-    let data = export_transactions(book, &accounts)?;
+    let data = export_transactions_in(book, &accounts, range)?;
     let ExportData::Transactions(exported) = &data else {
-        unreachable!("export_transactions gathers transactions")
+        unreachable!("export_transactions_in gathers transactions")
     };
     let transactions = exported.iter().map(|account| account.rows.len()).sum();
     let accounts = exported.len();
@@ -360,7 +403,7 @@ mod tests {
 
     fn csv(book: &Book, ids: &[String], form: &CsvForm, folder: &TestFolder) -> (Saved, String) {
         let path = folder.join("transactions.csv");
-        let saved = save_csv(book, ids, form, &path).expect("saved");
+        let saved = save_csv(book, ids, form, &TestLocale, &path).expect("saved");
         (saved, std::fs::read_to_string(path).expect("file written"))
     }
 
@@ -513,11 +556,102 @@ mod tests {
             decimal_mark: "comma".into(),
             header: false,
             byte_order_mark: true,
+            from: String::new(),
+            until: String::new(),
         };
         let (_, text) = csv(&book, &ids, &form, &TestFolder::new());
         assert!(text.starts_with('\u{feff}'));
         assert!(!text.contains("payee"));
         assert!(text.contains(";-12,50;EUR;"));
+    }
+
+    /// The dates of the data rows of a CSV file (its first column).
+    fn dates_of(text: &str) -> Vec<&str> {
+        text.lines().skip(1).map(|line| &line[..10]).collect()
+    }
+
+    /// #901: only the days in the range are written, both ends included,
+    /// from a book filled through the real importer.
+    #[test]
+    fn only_the_days_of_the_range_are_written_and_both_ends_count() {
+        let (book, checking, card, _) = book_with_imported_statement();
+        let ids = vec![checking.to_string(), card.to_string()];
+        let (everything, all) = csv(&book, &ids, &point_form(), &TestFolder::new());
+        let days = dates_of(&all);
+        assert_eq!(days.len(), everything.transactions);
+        let range = |from: &str, until: &str| {
+            let form = CsvForm {
+                from: from.into(),
+                until: until.into(),
+                ..point_form()
+            };
+            csv(&book, &ids, &form, &TestFolder::new())
+        };
+        // The first and the last day each count. The typed entry is the
+        // only one on 2026-10-03.
+        let (one_day, text) = range("2026-10-03", "2026-10-03");
+        assert_eq!(dates_of(&text), vec!["2026-10-03"]);
+        assert!(text.contains("Corner Shop"), "{text}");
+        assert_eq!((one_day.transactions, one_day.accounts), (1, 2));
+        // The same as picking those lines out of the whole file by hand.
+        let (_, text) = range("2026-10-12", "2026-10-14");
+        let by_hand = days
+            .iter()
+            .filter(|day| **day >= "2026-10-12" && **day <= "2026-10-14")
+            .count();
+        assert!(by_hand > 0, "the statement has entries in this range");
+        assert_eq!(dates_of(&text).len(), by_hand);
+        assert!(dates_of(&text).iter().all(|day| *day >= "2026-10-12"));
+        // An open end reaches to the book's end, an open start to its start;
+        // spaces around a typed day are ignored.
+        let (_, from_only) = range(" 2026-10-12 ", "");
+        assert_eq!(
+            dates_of(&from_only).len(),
+            days.iter().filter(|day| **day >= "2026-10-12").count()
+        );
+        let (_, until_only) = range("", "2026-10-03");
+        assert_eq!(
+            dates_of(&until_only).len(),
+            days.iter().filter(|day| **day <= "2026-10-03").count()
+        );
+        let (unchanged, text) = range("", "");
+        assert_eq!(text, all);
+        assert_eq!(unchanged, everything);
+        // A range without entries is a file with only its header.
+        let (empty, text) = range("2027-01-01", "2027-12-31");
+        assert_eq!((empty.transactions, empty.accounts), (0, 2));
+        assert_eq!(text.lines().count(), 1);
+    }
+
+    /// #901: what isn't a day, or a range backwards, is refused with
+    /// something to do next, and no file is written.
+    #[test]
+    fn a_range_that_is_not_days_or_runs_backwards_is_refused() {
+        let (book, checking, ..) = book_with_imported_statement();
+        let folder = TestFolder::new();
+        let path = folder.join("transactions.csv");
+        let ids = vec![checking.to_string()];
+        let refused = |from: &str, until: &str| {
+            let form = CsvForm {
+                from: from.into(),
+                until: until.into(),
+                ..point_form()
+            };
+            let error = save_csv(&book, &ids, &form, &TestLocale, &path).expect_err("refused");
+            error_text(&book, &error, &TestLocale)
+        };
+        let malformed = refused("last spring", "");
+        assert_eq!(malformed.code, "input.malformed-date");
+        assert_eq!(
+            malformed.params,
+            vec![("example", TestLocale.short_date(TestLocale.today()))]
+        );
+        assert_eq!(refused("", "2026-13-45").code, "input.malformed-date");
+        assert_eq!(
+            refused("2026-10-09", "2026-10-01").code,
+            "input.range-reversed"
+        );
+        assert!(!path.exists());
     }
 
     #[test]
@@ -532,19 +666,22 @@ mod tests {
             decimal_mark: "comma".into(),
             header: true,
             byte_order_mark: false,
+            from: String::new(),
+            until: String::new(),
         };
-        let error = save_csv(&book, &ids, &contradicting, &path).expect_err("refused");
+        let error = save_csv(&book, &ids, &contradicting, &TestLocale, &path).expect_err("refused");
         assert_eq!(code(&error), "export.bad-settings");
-        let error = save_csv(&book, &[], &point_form(), &path).expect_err("refused");
+        let error = save_csv(&book, &[], &point_form(), &TestLocale, &path).expect_err("refused");
         assert_eq!(code(&error), "input.no-accounts-chosen");
         let missing = vec!["no-such-account".to_owned()];
-        let error = save_csv(&book, &missing, &point_form(), &path).expect_err("refused");
+        let error =
+            save_csv(&book, &missing, &point_form(), &TestLocale, &path).expect_err("refused");
         assert_eq!(code(&error), "input.no-such-entry");
         let unknown = CsvForm {
             separator: "colon".into(),
             ..point_form()
         };
-        let error = save_csv(&book, &ids, &unknown, &path).expect_err("refused");
+        let error = save_csv(&book, &ids, &unknown, &TestLocale, &path).expect_err("refused");
         assert_eq!(code(&error), "export.bad-settings");
         assert!(!path.exists());
     }
@@ -556,7 +693,7 @@ mod tests {
         let path = folder.join("transactions.csv");
         let ids = vec![checking.to_string()];
         std::fs::write(&path, "mine").expect("a file");
-        let error = save_csv(&book, &ids, &point_form(), &path).expect_err("refused");
+        let error = save_csv(&book, &ids, &point_form(), &TestLocale, &path).expect_err("refused");
         assert_eq!(
             error_text(&book, &error, &TestLocale).code,
             "export.already-exists"
@@ -564,7 +701,7 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&path).expect("kept"), "mine");
         // What a sandbox's file chooser leaves.
         std::fs::write(&path, "").expect("an empty file");
-        save_csv(&book, &ids, &point_form(), &path).expect("filled");
+        save_csv(&book, &ids, &point_form(), &TestLocale, &path).expect("filled");
         assert!(!std::fs::read_to_string(&path).expect("written").is_empty());
     }
 

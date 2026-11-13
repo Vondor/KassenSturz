@@ -29,6 +29,7 @@ pub const DETAILS: &[&str] = &[
     "bill_folder",
     "draft_issue",
     "open_page",
+    "suggest_note",
     // A call of a function that isn't offered.
     "unknown",
     // The kinds of widget the Overview editor adds (M6-B12), with the dot

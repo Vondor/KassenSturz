@@ -169,8 +169,8 @@ pub const CATALOG: &[DatasetInfo] = &[
         for_ai: true,
     },
     // Where money came from and where it went (US7, #821, D-758): drawn as
-    // bands by the money-flow chart only, so no custom chart and not the AI
-    // (it is not in `ComponentType::ALL`) reads it.
+    // bands by the money-flow chart only, so no custom chart reads it. The AI
+    // may propose the chart with its defaults (US7, D-773).
     DatasetInfo {
         id: MONEY_FLOW,
         description: "Where the money of a period came from and where it went, as bands whose \
@@ -190,7 +190,7 @@ pub const CATALOG: &[DatasetInfo] = &[
         suits: &["flow"],
         measures: &[],
         takes: Takes::ALL,
-        for_ai: false,
+        for_ai: true,
     },
     // How much of each budget is spent and left (D-346, D-347), built in
     // M6c.4 and drawn since M6c.5 (D-378, D-381). The AI sees budgets only

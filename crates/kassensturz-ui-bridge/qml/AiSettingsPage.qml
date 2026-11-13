@@ -81,6 +81,8 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info what is sent", "What you type into the chat.");
         case "book-data":
             return i18nContext.i18nc("@info what is sent", "Information from your open book that the AI asks for to answer you: the names of accounts and categories, balances and totals, transactions with the names of whoever was paid or paid you and the notes you wrote, and your Rules. Only as much as your question needs, never the whole book.");
+        case "notes":
+            return i18nContext.i18nc("@info what is sent", "The notes you wrote for the AI in these settings, if you wrote any. They go with every question.");
         case "instructions":
             return i18nContext.i18nc("@info what is sent", "KassenSturz's own instructions to the AI, and the descriptions of the functions it may use to look things up or to prepare changes for you to confirm.");
         case "key":
@@ -676,6 +678,57 @@ Kirigami.ScrollablePage {
                     page.notWritten = !page.settings.setNotice(modelData.word, checked);
                     checked = page.settings.notice(modelData.word);
                 }
+            }
+        }
+
+        // The user's own notes for the AI (US7, #808): kept on this
+        // computer, put into every chat as the user's own words. Nothing
+        // is copied into them by itself; the AI can only suggest a line.
+        Kirigami.Heading {
+            level: 2
+            text: page.i18nContext.i18nc("@title:group", "Notes for the AI")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "Write down what the AI should know about you, for example \"Salary comes on the 28th\" or \"Corner Market is groceries\". The notes stay on this computer and go with every question you ask the AI in the chat, so they are sent to your AI provider too. Write no passwords or PINs. The AI never changes them by itself: it can suggest a line, and you decide. Your AI tools outside KassenSturz do not get them.")
+        }
+
+        Controls.TextArea {
+            id: notesField
+
+            Layout.fillWidth: true
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 8
+            wrapMode: TextEdit.Wrap
+            textFormat: TextEdit.PlainText
+            text: page.settings.notes()
+            placeholderText: page.i18nContext.i18nc("@info:placeholder", "One note per line")
+            Accessible.name: page.i18nContext.i18nc("@label accessible name", "Notes for the AI")
+            onTextChanged: if (length > page.settings.notesLimit()) remove(page.settings.notesLimit(), length)
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            Controls.Button {
+                text: page.i18nContext.i18nc("@action:button", "Save notes")
+                icon.name: "document-save"
+                enabled: notesField.text.trim() !== page.settings.notes()
+                onClicked: {
+                    ActionLog.taken("AiSettingsPage_saveNotes")
+                    page.notWritten = !page.settings.setNotes(notesField.text);
+                    notesField.text = page.settings.notes();
+                }
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignRight
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                text: page.i18nContext.i18nc("@info %1 characters written, %2 the most allowed", "%1 of %2 characters", notesField.length, page.settings.notesLimit())
             }
         }
 

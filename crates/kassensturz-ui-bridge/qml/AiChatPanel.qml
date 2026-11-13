@@ -271,6 +271,9 @@ ColumnLayout {
                 panel.add({ kind: "page", page: result.page.name, hasId: result.page.id !== "" });
                 panel.openPageRequested(result.page.name, result.page.id);
             }
+            if (result.noteSuggestion !== undefined) {
+                panel.add({ kind: "noteSuggestion", line: result.noteSuggestion.line });
+            }
             if (result.issue !== undefined) {
                 panel.add({
                     kind: "issue",

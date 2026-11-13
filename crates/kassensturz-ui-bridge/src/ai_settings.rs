@@ -1272,10 +1272,10 @@ mod tests {
     }
 
     #[test]
-    fn the_statement_is_the_four_things_the_page_has_sentences_for() {
+    fn the_statement_is_the_five_things_the_page_has_sentences_for() {
         assert_eq!(
             statement_words(),
-            ["questions", "book-data", "instructions", "key"]
+            ["questions", "book-data", "notes", "instructions", "key"]
         );
     }
 

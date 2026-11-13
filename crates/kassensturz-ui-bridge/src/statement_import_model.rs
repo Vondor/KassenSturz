@@ -21,7 +21,7 @@ use crate::register_model::{field, flag, suggestion_object};
 use crate::session;
 use crate::settings::Settings;
 use crate::statement_import::{
-    self, BalanceText, CsvForm, EntryText, FileKind, ImportView, JoinedText, Loaded,
+    self, BalanceText, CsvForm, EntryText, FileKind, ImportView, JoinedText, Loaded, PlannedText,
     StatementImportError,
 };
 use crate::variant::{error_object, list, map, text};
@@ -94,6 +94,14 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "undoJoins"]
         fn undo_joins(self: Pin<&mut StatementImport>) -> QVariant;
+
+        /// Takes back the matches of new entries to planned payments the
+        /// import made (D-769); the entries stay and the payments wait
+        /// again. Refused with an error object when something else was
+        /// changed since. Returns an empty map when it worked.
+        #[qinvokable]
+        #[cxx_name = "undoMatches"]
+        fn undo_matches(self: Pin<&mut StatementImport>) -> QVariant;
 
         /// The Transfers the new transactions suggest, for `TransferPrompt`.
         #[qinvokable]
@@ -279,10 +287,21 @@ impl qobject::StatementImport {
         }
     }
 
-    fn undo_joins(mut self: Pin<&mut Self>) -> QVariant {
+    fn undo_joins(self: Pin<&mut Self>) -> QVariant {
+        self.undo_with(statement_import::undo_joins)
+    }
+
+    fn undo_matches(self: Pin<&mut Self>) -> QVariant {
+        self.undo_with(statement_import::undo_matches)
+    }
+
+    /// Runs `undo` on the open book and tells the screens.
+    fn undo_with(
+        mut self: Pin<&mut Self>,
+        undo: fn(&mut kassensturz_store::Book) -> Result<(), StatementImportError>,
+    ) -> QVariant {
         let undone = session::with_book_mut(|book| {
-            statement_import::undo_joins(book)
-                .map_err(|error| statement_import::error_text(book, &error, &app_locale()))
+            undo(book).map_err(|error| statement_import::error_text(book, &error, &app_locale()))
         })
         .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
         match undone {
@@ -480,6 +499,21 @@ fn view_object(view: &ImportView) -> QVariant {
         ("balances", list(view.balances.iter().map(balance_object))),
         ("joined", list(view.joined.iter().map(joined_object))),
         ("needsYou", count(view.needs_you)),
+        ("planned", list(view.planned.iter().map(planned_object))),
+        ("plannedNeedsYou", count(view.planned_needs_you)),
+    ])
+}
+
+/// A new entry matched to a planned payment, as `ImportDonePage.qml` lists
+/// it (D-769).
+fn planned_object(planned: &PlannedText) -> QVariant {
+    map([
+        ("name", text(&planned.name)),
+        ("due", text(&planned.due)),
+        ("date", text(&planned.date)),
+        ("amount", text(&planned.amount.text)),
+        ("exactAmount", text(&planned.amount.exact)),
+        ("categorySet", QVariant::from(&planned.category_set)),
     ])
 }
 
@@ -697,14 +731,39 @@ mod tests {
                 to_date: "2026-11-02".to_owned(),
             }],
             needs_you: 2,
+            planned: vec![PlannedText {
+                name: "Rent".to_owned(),
+                due: "2026-10-01".to_owned(),
+                date: "2026-10-02".to_owned(),
+                amount: shown("-750,00 €"),
+                category_set: true,
+            }],
+            planned_needs_you: 3,
         };
         let object = view_object(&view);
         assert_eq!(list_of(&object, "joined").len(), 1);
-        let count = object
-            .value::<QMap<QMapPair_QString_QVariant>>()
-            .and_then(|map| map.get(&QString::from("needsYou")))
-            .and_then(|value| value.value::<i32>());
-        assert_eq!(count, Some(2));
+        let count = |key: &str| {
+            object
+                .value::<QMap<QMapPair_QString_QVariant>>()
+                .and_then(|map| map.get(&QString::from(key)))
+                .and_then(|value| value.value::<i32>())
+        };
+        assert_eq!(count("needsYou"), Some(2));
+        assert_eq!(count("plannedNeedsYou"), Some(3));
+        let planned = list_of(&object, "planned");
+        assert_eq!(planned.len(), 1);
+        assert_eq!(text_of(&planned[0], "name"), "Rent");
+        assert_eq!(text_of(&planned[0], "due"), "2026-10-01");
+        assert_eq!(text_of(&planned[0], "date"), "2026-10-02");
+        assert_eq!(text_of(&planned[0], "amount"), "-750,00 €");
+        assert_eq!(text_of(&planned[0], "exactAmount"), "-750,00 €");
+        assert_eq!(
+            planned[0]
+                .value::<QMap<QMapPair_QString_QVariant>>()
+                .and_then(|map| map.get(&QString::from("categorySet")))
+                .and_then(|value| value.value::<bool>()),
+            Some(true)
+        );
     }
 
     /// The preview shows the book's side of a possible double with the

@@ -15,7 +15,7 @@ use crate::exporter::{ExportKind, Exporter, ExporterInfo};
 /// The first row, naming the columns. They are keys of the format, not
 /// text for the user, so they are the same in every language and never
 /// change: files from later versions can be read by the same scripts.
-const HEADER: [&str; 11] = [
+const HEADER: [&str; 12] = [
     "date",
     "account",
     "payee",
@@ -27,6 +27,7 @@ const HEADER: [&str; 11] = [
     "parts",
     "original_amount",
     "original_currency",
+    "note",
 ];
 
 /// UTF-8's byte order mark, which Excel needs to read UTF-8.
@@ -102,8 +103,8 @@ impl Default for CsvExportSettings {
 
 /// Writes the transactions of accounts as CSV, one row per transaction and
 /// account, with the columns `date`, `account`, `payee`, `category`,
-/// `transfer`, `memo`, `amount`, `currency`, `parts`, `original_amount` and
-/// `original_currency`.
+/// `transfer`, `memo`, `amount`, `currency`, `parts`, `original_amount`,
+/// `original_currency` and `note`.
 ///
 /// - **Rows** are an account's transactions as its register shows them,
 ///   oldest first; accounts follow each other in the order given. A Transfer
@@ -123,7 +124,9 @@ impl Default for CsvExportSettings {
 ///   amount as it was in marks, say, written like `amount` with the decimal
 ///   places that currency had, and its code. Otherwise both are empty.
 /// - **`memo`** is the purpose a bank delivered, with line breaks kept
-///   inside quotes.
+///   inside quotes. **`note`** is the note the user wrote, kept the same way
+///   and whatever its length (B-257); it is the last column, so files of
+///   earlier versions still read by column name.
 /// - **Quoting** follows RFC 4180: a field with the separator, a quote or a
 ///   line break is in double quotes, quotes doubled; rows end with CR LF.
 /// - **Formulas:** a text that starts with `=`, `+`, `-`, `@`, a tab or a
@@ -182,7 +185,7 @@ impl CsvExport {
         &self,
         account: &AccountTransactions,
         row: &TransactionRow,
-    ) -> Result<[String; 11], ExportError> {
+    ) -> Result<[String; 12], ExportError> {
         let text = |value: Option<&str>| value.map(guard_formula).unwrap_or_default();
         let (category, transfer, parts) = match &row.counterpart {
             Counterpart::Uncategorized => (None, None, None),
@@ -209,6 +212,7 @@ impl CsvExport {
             parts.unwrap_or_default(),
             original_amount,
             original_currency,
+            text(row.note.as_deref()),
         ])
     }
 

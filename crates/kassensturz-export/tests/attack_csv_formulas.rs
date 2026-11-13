@@ -40,6 +40,7 @@ fn a7_formulas_in_every_text_field_are_written_as_text() {
                 payee: Some((*hostile).to_owned()),
                 counterpart: Counterpart::Category((*hostile).to_owned()),
                 memo: Some((*hostile).to_owned()),
+                note: Some((*hostile).to_owned()),
                 amount: Money::from_minor_units(-1_250, EUR),
                 original: None,
             }],
@@ -48,10 +49,10 @@ fn a7_formulas_in_every_text_field_are_written_as_text() {
         let text = String::from_utf8(bytes).expect("UTF-8");
         let fields = fields(&text);
         let guarded = format!("'{hostile}");
-        // The account, payee, category and memo.
+        // The account, payee, category, memo and note.
         assert_eq!(
             fields.iter().filter(|field| **field == guarded).count(),
-            4,
+            5,
             "{hostile:?} in {fields:?}"
         );
         for field in &fields {

@@ -40,6 +40,7 @@ fn row(
         payee: payee.map(str::to_owned),
         counterpart,
         memo: memo.map(str::to_owned),
+        note: None,
         amount,
         original: None,
     }
@@ -56,13 +57,17 @@ fn sample() -> ExportData {
             currency: EUR,
             minor_digits: 2,
             rows: vec![
-                row(
-                    1,
-                    Some("Arbeitgeber GmbH"),
-                    Counterpart::Category("Gehalt".to_owned()),
-                    Some("Gehalt Oktober"),
-                    eur(250_000),
-                ),
+                // The user's own note goes in the last column (B-257).
+                TransactionRow {
+                    note: Some("Mit Bonus".to_owned()),
+                    ..row(
+                        1,
+                        Some("Arbeitgeber GmbH"),
+                        Counterpart::Category("Gehalt".to_owned()),
+                        Some("Gehalt Oktober"),
+                        eur(250_000),
+                    )
+                },
                 row(
                     5,
                     Some("Bäckerei \"Zum Hörnchen\""),

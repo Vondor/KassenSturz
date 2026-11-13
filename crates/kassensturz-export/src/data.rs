@@ -49,6 +49,8 @@ pub struct TransactionRow {
     /// What the bank or file delivered as the purpose, if the transaction
     /// came from one (D-067).
     pub memo: Option<String>,
+    /// The note the user wrote on the transaction, if any (B-257).
+    pub note: Option<String>,
     /// What the transaction did to the account, in the account's currency:
     /// positive amounts came in, negative ones went out. The amounts of an
     /// account's rows add up to its balance.

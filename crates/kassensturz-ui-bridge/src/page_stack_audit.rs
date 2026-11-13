@@ -161,6 +161,72 @@ mod tests {
         assert_eq!(page.matches("AccountGrid {").count(), 2);
     }
 
+    /// Inside a `Component { … }`, a binding such as `bookMove: bookMove`
+    /// reads the made object's own property, not the object with that id
+    /// outside: Qt reports a binding loop and the property stays null. The
+    /// move page then had no book, so "Move my book" stayed grey and every
+    /// folder line was empty (M6-B239). Such a binding names the id by
+    /// another name.
+    #[test]
+    fn no_binding_in_a_component_names_itself() {
+        let mut checked = 0;
+        for entry in
+            fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("qml")).expect("the qml folder")
+        {
+            let path = entry.expect("a file").path();
+            if path.extension().is_none_or(|e| e != "qml") {
+                continue;
+            }
+            let source = fs::read_to_string(&path).expect("a readable file");
+            let found = self_bindings_in_components(&source);
+            assert!(
+                found.is_empty(),
+                "{}: {found:?} in a Component binds the property to itself (M6-B239)",
+                path.display()
+            );
+            checked += 1;
+        }
+        assert!(checked > 30, "the QML files weren't found");
+    }
+
+    /// The lines (numbered from 1) inside a `Component { … }` block that bind
+    /// a property to a name equal to its own.
+    fn self_bindings_in_components(source: &str) -> Vec<(usize, String)> {
+        let mut found = Vec::new();
+        let mut depth = 0_i64;
+        // The depths at which open `Component` blocks started.
+        let mut components: Vec<i64> = Vec::new();
+        for (index, line) in source.lines().enumerate() {
+            let trimmed = line.trim();
+            if !components.is_empty()
+                && let Some((name, value)) = trimmed.split_once(": ")
+                && !name.is_empty()
+                && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                && value == name
+            {
+                found.push((index + 1, trimmed.to_owned()));
+            }
+            if trimmed.starts_with("Component {") {
+                components.push(depth);
+            }
+            depth += i64::try_from(line.matches('{').count()).unwrap_or(0);
+            depth -= i64::try_from(line.matches('}').count()).unwrap_or(0);
+            while components.last().is_some_and(|&start| depth <= start) {
+                components.pop();
+            }
+        }
+        found
+    }
+
+    #[test]
+    fn a_self_binding_is_found_only_inside_a_component() {
+        let source = "Item {\n    feed: feed\n    Component {\n        id: page\n\n        Page {\n            bookMove: bookMove\n            other: mover\n        }\n    }\n    after: after\n}\n";
+        assert_eq!(
+            self_bindings_in_components(source),
+            [(7, "bookMove: bookMove".to_owned())]
+        );
+    }
+
     /// The book's folder on the Settings page opens in the file manager
     /// (M5-F2).
     #[test]

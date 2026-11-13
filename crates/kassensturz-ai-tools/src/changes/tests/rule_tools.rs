@@ -470,3 +470,56 @@ fn the_model_is_told_what_a_rule_can_hold() {
         json!(MAX_PATTERN_CHARS)
     );
 }
+
+#[test]
+fn a_rule_card_counts_what_it_catches_and_the_rule_stays_marked_as_the_ais() {
+    let Sample {
+        mut book,
+        groceries,
+        ..
+    } = sample();
+    // "o" is in "Corner Grocery" and "Pet Shop", not in "Market".
+    let call = json!({"new_rules": [rule(
+        "Shops",
+        vec![text_condition("contains", "o")],
+        groceries
+    )]});
+    let proposal = propose(&book, &call).expect("prepared");
+    let ProposedChange::NewRule(new) = &proposal.changes.changes()[0] else {
+        panic!("a new Rule");
+    };
+    let made = new.rule.id;
+    assert_eq!(
+        new.catches,
+        book.rule_preview(&new.rule).expect("fits").len()
+    );
+    assert_eq!(new.catches, 2);
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(
+        book.unchecked_ai_rules().expect("marks"),
+        HashSet::from([made])
+    );
+    // The user opens it once: the mark goes. A change by the AI marks it
+    // again, and the card counts what the changed Rule catches.
+    book.mark_rule_checked(made).expect("opened");
+    let edit = json!({"edit_rules": [{
+        "rule_id": made.to_string(),
+        "conditions": [text_condition("contains", "Pet")]
+    }]});
+    let proposal = propose(&book, &edit).expect("prepared");
+    let ProposedChange::EditRule(changed) = &proposal.changes.changes()[0] else {
+        panic!("a changed Rule");
+    };
+    assert_eq!(changed.catches, 1);
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    assert_eq!(
+        book.unchecked_ai_rules().expect("marks"),
+        HashSet::from([made])
+    );
+}

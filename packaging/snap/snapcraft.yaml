@@ -112,6 +112,9 @@ parts:
     override-build: |
       set -eu
       unset LD_LIBRARY_PATH
+      # The extension puts its SDK snaps' compiler tools first on PATH, whose
+      # linker can't find the host's C runtime files (seen in CI).
+      export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin"
       if ! ./configure --prefix=/usr --with-guis=qt6; then
         grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
         env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250
@@ -137,6 +140,9 @@ parts:
     override-build: |
       set -eu
       unset LD_LIBRARY_PATH
+      # The extension puts its SDK snaps' compiler tools first on PATH, whose
+      # linker can't find the host's C runtime files (seen in CI).
+      export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin"
       if ! ./configure --prefix=/usr; then
         grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
         env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250
@@ -166,6 +172,9 @@ parts:
     override-build: |
       set -eu
       unset LD_LIBRARY_PATH
+      # The extension puts its SDK snaps' compiler tools first on PATH, whose
+      # linker can't find the host's C runtime files (seen in CI).
+      export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin"
       if ! ./configure --prefix=/usr '--with-backends=aqhbci aqnone' '--with-imexporters=csv ofx openhbci1 swift xmldb yellownet sepa ctxfile q43 camt xml' --disable-cli --disable-tutorials; then
         grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
         env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250
@@ -213,6 +222,8 @@ parts:
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
       fi
       . "$HOME/.cargo/env"
+      # Host compiler and linker first, the SDK's Qt tools after them.
+      export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
       # cmake --install puts files under DESTDIR, which snapcraft sets to the
       # part's install folder. Never use `set -x` or `cargo -vv` here: the
       # registration number would show.

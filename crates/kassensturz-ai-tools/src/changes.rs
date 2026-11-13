@@ -32,6 +32,7 @@ mod check_only;
 mod custom_chart;
 mod edits;
 mod joins;
+mod limits;
 mod names;
 mod sort_rules;
 mod splits;
@@ -60,7 +61,7 @@ use crate::error::{ToolError, shape};
 use crate::figures::Figures;
 use crate::functions::{Function, Output};
 use crate::read::MAX_RULE_DEPTH;
-use crate::text::{for_model, hides_text};
+use crate::text::{for_model, hides_text, mixes_alphabets};
 
 pub use accounts::{DeleteCategory, EditAccount, NewAccount};
 pub use bills::{AttachBill, BILL_FOLDER, BILL_TYPES, bill_folder_answer, bill_path};
@@ -1578,6 +1579,9 @@ fn build(
         ],
         "arguments",
     )?;
+    // The limits per list the model is told, also for a call that ignores
+    // them (B-247).
+    limits::check(arguments)?;
     let categories = call.array("new_categories")?;
     let edited_categories = call.array("edit_categories")?;
     let rules = call.array("new_rules")?;
@@ -2885,13 +2889,15 @@ fn rule_refused(error: RuleError) -> ToolError {
 }
 
 /// A name or text a model wrote, as the book will keep it: trimmed, not
-/// empty, not too long, and without control characters or characters that
-/// hide text (threat T-08).
+/// empty, not too long, without control characters or characters that
+/// hide text (threat T-08), and without a word that mixes alphabets whose
+/// letters look alike (B-250).
 fn plain_text(text: &str, argument: &'static str) -> Result<String, ToolError> {
     let text = text.trim();
     let bad = text.is_empty()
         || text.chars().count() > MAX_NAME_CHARS
-        || text.chars().any(|c| c.is_control() || hides_text(c));
+        || text.chars().any(|c| c.is_control() || hides_text(c))
+        || mixes_alphabets(text);
     if bad {
         return Err(ToolError::BadArgument { argument });
     }
@@ -2899,13 +2905,14 @@ fn plain_text(text: &str, argument: &'static str) -> Result<String, ToolError> {
 }
 
 /// A pattern a model wrote, as the book will keep it: as written, not
-/// empty, not too long, and without control characters or characters that
-/// hide text (threat T-08). It is compiled by the Rule's own check, with the
+/// empty, not too long, without control characters or characters that
+/// hide text (threat T-08), and without a word that mixes alphabets (B-250). It is compiled by the Rule's own check, with the
 /// linear-time `regex` crate (D-015), so no pattern can hang the app.
 fn pattern_text(text: &str) -> Result<String, ToolError> {
     let bad = text.trim().is_empty()
         || text.chars().count() > MAX_PATTERN_CHARS
-        || text.chars().any(|c| c.is_control() || hides_text(c));
+        || text.chars().any(|c| c.is_control() || hides_text(c))
+        || mixes_alphabets(text);
     if bad {
         return Err(ToolError::BadArgument { argument: "text" });
     }

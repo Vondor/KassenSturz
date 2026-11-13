@@ -282,6 +282,44 @@ pub(crate) fn hides_text(c: char) -> bool {
     )
 }
 
+/// The alphabets whose letters look alike: a Cyrillic "е" or "о" and a
+/// Greek "ο" can't be told from Latin ones on screen.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Alphabet {
+    Latin,
+    Greek,
+    Cyrillic,
+}
+
+fn alphabet(c: char) -> Option<Alphabet> {
+    match c {
+        'A'..='Z' | 'a'..='z' | '\u{00C0}'..='\u{024F}' | '\u{1E00}'..='\u{1EFF}' => {
+            Some(Alphabet::Latin)
+        }
+        '\u{0370}'..='\u{03FF}' | '\u{1F00}'..='\u{1FFF}' => Some(Alphabet::Greek),
+        '\u{0400}'..='\u{052F}'
+        | '\u{1C80}'..='\u{1C8F}'
+        | '\u{2DE0}'..='\u{2DFF}'
+        | '\u{A640}'..='\u{A69F}' => Some(Alphabet::Cyrillic),
+        _ => None,
+    }
+}
+
+/// Whether a word of `text` mixes letters of Latin, Greek and Cyrillic,
+/// e.g. "Rent" with a Cyrillic "е" (B-250, attack B3 of the security
+/// review). Such a name looks like another one, and such a Rule condition
+/// silently never matches what it seems to say. Words in one alphabet each,
+/// e.g. "Miete Аренда", are fine.
+pub(crate) fn mixes_alphabets(text: &str) -> bool {
+    text.split(|c: char| !c.is_alphanumeric()).any(|word| {
+        let mut found = None;
+        word.chars().filter_map(alphabet).any(|letters| {
+            let first = *found.get_or_insert(letters);
+            first != letters
+        })
+    })
+}
+
 /// `text` as a model may see it: control characters such as line breaks
 /// become spaces, characters that hide text are left out, every IBAN is
 /// replaced with [`IBAN_LEFT_OUT`] (D-170: no own IBAN reaches a model, and
@@ -322,6 +360,24 @@ pub(crate) fn cleaned_for_model(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_word_that_mixes_alphabets_is_found() {
+        // "Rent" with a Cyrillic "е", "Shop" with a Cyrillic "о", and a
+        // Greek omicron in a Latin word.
+        assert!(mixes_alphabets("R\u{0435}nt"));
+        assert!(mixes_alphabets("Corner Sh\u{043E}p"));
+        assert!(mixes_alphabets("G\u{03BF}ogle"));
+        // One alphabet per word is fine, as are digits and accents.
+        assert!(!mixes_alphabets("Rent"));
+        assert!(!mixes_alphabets(
+            "Miete \u{0410}\u{0440}\u{0435}\u{043D}\u{0434}\u{0430}"
+        ));
+        assert!(!mixes_alphabets("\u{00D6}lm\u{00FC}hle 24"));
+        assert!(!mixes_alphabets(
+            "Shop-24/\u{03A9}\u{03BC}\u{03AD}\u{03B3}\u{03B1}"
+        ));
+    }
 
     #[test]
     fn control_and_hiding_characters_are_gone() {

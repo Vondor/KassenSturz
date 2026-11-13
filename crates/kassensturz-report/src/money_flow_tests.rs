@@ -465,3 +465,54 @@ proptest! {
         }
     }
 }
+
+/// B-264: with sub-categories on, a first column's *Other* that holds a
+/// category with sub-categories and one without passes on all of its amount
+/// (found by the property test above on a random seed).
+#[test]
+fn an_other_of_the_first_column_passes_on_all_it_holds() {
+    let names = [
+        "Salary", "Gift", "Food", "Groceries", "Rent", "Fun", "Cinema", "Travel", "Pets",
+        "Health", "Gear",
+    ];
+    let w = world(&[
+        ("Salary", AccountKind::Income, None),
+        ("Gift", AccountKind::Income, None),
+        ("Food", AccountKind::Expense, None),
+        ("Groceries", AccountKind::Expense, Some("Food")),
+        ("Rent", AccountKind::Expense, None),
+        ("Fun", AccountKind::Expense, None),
+        ("Cinema", AccountKind::Expense, Some("Fun")),
+        ("Travel", AccountKind::Expense, None),
+        ("Pets", AccountKind::Expense, None),
+        ("Health", AccountKind::Expense, None),
+        ("Gear", AccountKind::Expense, None),
+    ]);
+    let entries = [
+        (3, -1),
+        (4, 1),
+        (9, 428_004),
+        (5, 428_004),
+        (0, 428_004),
+        (2, 2),
+        (8, 2),
+        (10, 2),
+        (7, 2),
+        (1, 2),
+    ];
+    let bookings: Vec<Transaction> = entries
+        .iter()
+        .map(|&(category, amount)| w.book(Some("A"), Some(names[category]), amount))
+        .collect();
+    for payees in [false, true] {
+        for flow in w.flow(
+            bookings.clone(),
+            FlowOptions {
+                sub_categories: true,
+                payees,
+            },
+        ) {
+            check(&flow);
+        }
+    }
+}

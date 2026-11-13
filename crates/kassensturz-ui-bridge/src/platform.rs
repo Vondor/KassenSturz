@@ -42,7 +42,7 @@ mod ffi {
         fn free_space(path: &QString) -> i64;
 
         #[cxx_name = "portalHostPath"]
-        fn portal_host_path(portal_path: &QString) -> QString;
+        fn portal_host_path(document_id: &QString) -> QString;
 
         #[cxx_name = "dataSize"]
         fn data_size(bytes: i64) -> QString;
@@ -240,16 +240,19 @@ fn absolute_env(name: &str) -> Option<PathBuf> {
 pub fn choose_folder(chosen: &Path) -> Result<FolderGrant, FolderRefused> {
     let home = home_dir();
     let runtime = runtime_dir();
-    // In the portal's mount the real path is asked from the portal; if it
-    // doesn't say, the folder is shown by its name.
+    // In the portal's mount the real path is asked from the portal, by the
+    // document's ID (M6-B240); if it doesn't say, the folder is shown by its
+    // name.
     let host = runtime
         .as_deref()
-        .filter(|runtime| chosen.starts_with(runtime.join("doc")))
-        .map(|_| {
-            ffi::portal_host_path(&QString::from(chosen.to_string_lossy().as_ref())).to_string()
-        })
-        .filter(|text| !text.is_empty())
-        .map(PathBuf::from);
+        .and_then(|runtime| book_folder::portal_document(chosen, runtime))
+        .and_then(|(id, rest)| {
+            let host = ffi::portal_host_path(&QString::from(id.as_str())).to_string();
+            if host.is_empty() {
+                return None;
+            }
+            book_folder::host_path_of(Path::new(&host), &rest)
+        });
     book_folder::grant(
         chosen,
         Surroundings {

@@ -11,6 +11,7 @@
 #include <QtCore/QProcessEnvironment>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QStorageInfo>
+#include <QtCore/QStringList>
 #include <QtCore/QSysInfo>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QIcon>
@@ -282,32 +283,22 @@ void startInUserFolder()
 #endif
 }
 
-QString portalHostPath(const QString &portalPath)
+QString portalHostPath(const QString &documentId)
 {
 #ifdef KASSENSTURZ_WITH_DBUS
-    // The portal's Documents interface knows a folder it exported by the
-    // path of its mount; it answers with the path on the host. Byte strings
-    // end with a NUL.
-    const QString runtime = qEnvironmentVariable("XDG_RUNTIME_DIR");
-    const QString prefix = runtime + QStringLiteral("/doc/");
-    if (runtime.isEmpty() || !portalPath.startsWith(prefix)) {
+    // The portal's Documents interface (version 5) answers GetHostPaths
+    // with the path on the host for each document ID it is asked for:
+    // `as` in, `a{say}` out, the paths as byte strings ending with a NUL.
+    // It is asked by ID, never by path: a path gets no answer (M6-B240).
+    if (documentId.isEmpty()) {
         return QString();
     }
-    // The first part after "doc/" is the id; the folder's mount is
-    // doc/<id>/<name>, and GetHostPaths is asked for that.
-    QByteArray asked = QFile::encodeName(portalPath);
-    asked.append('\0');
-
     QDBusMessage call = QDBusMessage::createMethodCall(
         QStringLiteral("org.freedesktop.portal.Documents"),
         QStringLiteral("/org/freedesktop/portal/documents"),
         QStringLiteral("org.freedesktop.portal.Documents"),
         QStringLiteral("GetHostPaths"));
-    QDBusArgument paths;
-    paths.beginArray(qMetaTypeId<QByteArray>());
-    paths << asked;
-    paths.endArray();
-    call << QVariant::fromValue(paths);
+    call << QStringList{documentId};
 
     const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 2000);
     if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().isEmpty()) {
@@ -317,12 +308,12 @@ QString portalHostPath(const QString &portalPath)
     QString found;
     answer.beginMap();
     while (!answer.atEnd()) {
-        QByteArray key;
+        QString key;
         QByteArray value;
         answer.beginMapEntry();
         answer >> key >> value;
         answer.endMapEntry();
-        if (key == asked) {
+        if (key == documentId) {
             if (value.endsWith('\0')) {
                 value.chop(1);
             }
@@ -332,7 +323,7 @@ QString portalHostPath(const QString &portalPath)
     answer.endMap();
     return found;
 #else
-    Q_UNUSED(portalPath)
+    Q_UNUSED(documentId)
     return QString();
 #endif
 }

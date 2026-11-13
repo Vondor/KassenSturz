@@ -58,6 +58,23 @@ pub enum FlowNodeKind {
     Other,
 }
 
+impl FlowNodeKind {
+    /// The kind's fixed name, as QML spells it.
+    pub const fn key(self) -> &'static str {
+        match self {
+            Self::Payee => "payee",
+            Self::NoPayee => "no-payee",
+            Self::Category => "category",
+            Self::CategoryItself => "category-itself",
+            Self::Unsorted => "unsorted",
+            Self::Middle => "middle",
+            Self::LeftOver => "left-over",
+            Self::Reserves => "reserves",
+            Self::Other => "other",
+        }
+    }
+}
+
 /// One node.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FlowNode {

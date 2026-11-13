@@ -67,6 +67,7 @@ mod fetch_gap;
 mod fetch_gap_model;
 mod first_start;
 mod first_start_model;
+mod folder_choice_model;
 mod format;
 mod formulas;
 mod formulas_model;

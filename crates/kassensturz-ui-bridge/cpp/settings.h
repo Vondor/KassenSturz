@@ -17,9 +17,9 @@ QString readEntry(const QString &file, const QString &group, const QString &key)
 
 bool writeEntry(const QString &file, const QString &group, const QString &key, const QString &value);
 
-// A path, kept with "$HOME" for the home folder, so it still fits after the
-// home folder moved.
-QString readPathEntry(const QString &file, const QString &group, const QString &key);
-
-bool writePathEntry(const QString &file, const QString &group, const QString &key, const QString &path);
+// A path as `kassensturz_core::book_folder::remember_entry` made it: with
+// "$XDG_RUNTIME_DIR" and "$HOME" for those folders and every other "$" doubled.
+// Written as a plain entry; every reader expands it with `expand_entry`.
+// Read it back with `readEntry`, then `expand_entry`.
+bool writeExpandedEntry(const QString &file, const QString &group, const QString &key, const QString &text);
 }

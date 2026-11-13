@@ -139,3 +139,13 @@ Three small pull requests, standard high, each with its German strings (`tools/u
 Phase 3 then checks it by hand in the Flatpak on Plasma and GNOME: move to a folder, restart, take the grant back, pull a stick while the book is open.
 
 **Human gates:** none expected: no new dependency (Qt's folder dialog and Qt's D-Bus module come with Qt in the KDE runtime; if the build finds it must add a CMake component, it asks first), no Flatpak permission, no keychain, bank or AI change, no change to the book's layout.
+
+### Build status
+
+**Step 1 (folder grant), built in US6.** `kassensturz-core::book_folder` (path logic, tested without Qt), `platform::choose_folder`, `platform::can_choose_book_folder`, the narrower `Drive::Sandboxed`, `FolderChoice` and `FolderChooser.qml`, and the remembered path with `$XDG_RUNTIME_DIR` read by one function in the app and in `kassensturz-mcp`. Where the build differs from the plan above:
+
+- **Step 0's seven checks in a real Flatpak are not done yet.** The cloud session that built step 1 has no Flatpak and no portal, so the code relies on the portal's specification only. The checks run in Phase 3 in the Kubuntu VM's Flatpak; their result goes into D-730. Until then nothing in the app offers the folder chooser in the Flatpak (step 2 and 3 add the pages), so there is no change for a user.
+- **`GetHostPaths` is not called yet.** It needs Qt's D-Bus module, which is a new CMake component, so it waits for the maintainer's word (see "Human gates" below). Until then a folder in the Flatpak is shown by its name ("a folder you chose"), and the check against the home folder cannot see the real path there; `book_folder::grant` already takes the real path as soon as it is known.
+- **`can_choose_book_place` keeps its meaning for now**: whether a *save dialog* works. In the Flatpak it stays false until step 3 moves the pages to the folder chooser, so no page offers the save dialog there in between. The new `can_choose_book_folder` says whether a folder can be chosen.
+- **The remembered path** is written as `LastBook=$XDG_RUNTIME_DIR/…` (or `$HOME/…`, every other `$` doubled) through `writeExpandedEntry`, because KConfig's `writePathEntry` only knows `$HOME`. Both readers expand it with `book_folder::expand_entry`, whether the key carries the older `[$e]` flag or not.
+

@@ -128,6 +128,9 @@ fn app(
                     .changes
                     .apply(&mut writable, Confirmed::by_the_user())
                     .expect("applied");
+                // Close the book before saying so, as the app does: the
+                // test opens it the moment it hears "applied".
+                drop(writable);
                 inbox.reply(&request.id, &Reply::Applied).expect("answered");
             }
             std::thread::sleep(Duration::from_millis(50));

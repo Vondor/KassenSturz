@@ -261,6 +261,7 @@ pub const ACTIONS: &[&str] = &[
     "FilterPicker_clicked",
     "FilterPicker_showAll",
     "FilterPicker_toggle",
+    "FlowChart_showTable",
     "FolderChooser_chosen",
     "FormulaField_activated",
     "FormulaField_insertName",

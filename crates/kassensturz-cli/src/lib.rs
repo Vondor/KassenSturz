@@ -266,8 +266,9 @@ Commands:
                                  how dates and amounts are written, one
                                  `key = value` per line (see D-095 in
                                  docs/DECISIONS.md)
-  export FILE [--format ID] [--account NAME ...] [--separator SEP]
-         [--decimal-mark MARK] [--no-header] [--byte-order-mark]
+  export FILE [--format ID] [--account NAME ...] [--from DAY] [--until DAY]
+         [--separator SEP] [--decimal-mark MARK] [--no-header]
+         [--byte-order-mark]
                                  write transactions into a new file; it
                                  never overwrites one. The formats are csv
                                  (the default) and book.
@@ -277,6 +278,12 @@ Commands:
                                  account's transactions follow each other,
                                  as its register shows them. Without
                                  --account, all accounts, closed ones too.
+                                 --from and --until (YYYY-MM-DD, both days
+                                 included, either can be left out) keep
+                                 only transactions in between; the rows
+                                 stay as they are, so they add up to the
+                                 balance only if nothing before --from is
+                                 left out.
                                  SEP is comma (the default), semicolon or
                                  tab, MARK is point (the default) or comma;
                                  --byte-order-mark helps Excel read umlauts.

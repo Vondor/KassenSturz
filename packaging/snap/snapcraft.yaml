@@ -114,7 +114,8 @@ parts:
       unset LD_LIBRARY_PATH
       # The extension puts its SDK snaps' compiler tools first on PATH, whose
       # linker can't find the host's C runtime files (seen in CI).
-      export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin"
+      # Gwenhywfar also needs the SDK's Qt tools (qmake, moc), after the host's.
+      export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin:$PATH"
       if ! ./configure --prefix=/usr --with-guis=qt6; then
         grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
         env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250

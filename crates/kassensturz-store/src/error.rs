@@ -516,6 +516,10 @@ pub enum Corruption {
     /// A Rule sits in the wrong place in the tree of Rules: inside a Rule
     /// that doesn't exist, or inside itself.
     BadRuleTree(RuleId),
+    /// The book holds a table, index, trigger or view its layout doesn't
+    /// have, lacks one of its own, or one was changed, e.g. by another
+    /// program (B-245). It wasn't opened, so nothing in it ran.
+    UnexpectedLayout,
 }
 
 /// An error reported by SQLite. Its details are for logs, not for users.
@@ -875,6 +879,7 @@ impl Report for Corruption {
             Self::BadRuleTree(rule) => {
                 new("store.corrupt.bad-rule-tree").with("rule", P::Rule(*rule))
             }
+            Self::UnexpectedLayout => new("store.corrupt.unexpected-layout"),
         }
     }
 }

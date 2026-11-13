@@ -18,7 +18,7 @@
 
 use std::path::Path;
 
-use kassensturz_core::{AccountId, Date, Timestamp};
+use kassensturz_core::{AccountId, Date, Timestamp, TransactionId};
 use rusqlite::{Connection, OptionalExtension, ToSql, params};
 
 use crate::cached::Cached;
@@ -1203,6 +1203,25 @@ impl Book {
         )?;
         if broken_references > 0 {
             return Err(StoreError::Corrupt(Corruption::HistoryMismatch));
+        }
+        // Every transaction the change touched must still be one KassenSturz
+        // would write itself: its parts add up and fit their accounts. A
+        // history another program planted or damaged could otherwise write
+        // back money that comes from nowhere (B-246, attack B5).
+        let touched: Vec<[u8; 16]> = {
+            let mut statement = self.conn.prepare_cached(&format!(
+                "SELECT id FROM main.transactions WHERE id IN (
+                     SELECT id FROM {schema}.changed_transactions WHERE change_id = ?1
+                     UNION SELECT transaction_id FROM {schema}.changed_splits
+                           WHERE change_id = ?1)"
+            ))?;
+            statement
+                .query_map([id], |row| row.get(0))?
+                .collect::<Result<_, _>>()?
+        };
+        for transaction in touched {
+            self.transaction(TransactionId::from_bytes(transaction))
+                .map_err(|_| StoreError::Corrupt(Corruption::HistoryMismatch))?;
         }
         self.conn.execute_cached(
             &format!("UPDATE {schema}.changes SET undone = ?2 WHERE id = ?1"),

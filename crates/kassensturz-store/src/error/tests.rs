@@ -136,6 +136,7 @@ fn examples() -> Vec<ErrorReport> {
         Corruption::HistoryMismatch,
         Corruption::BadRule(rule),
         Corruption::BadRuleTree(rule),
+        Corruption::UnexpectedLayout,
     ];
     let store_errors = [
         StoreError::AlreadyExists {

@@ -157,7 +157,6 @@ fn assert_refused_and_kept(path: &Path, computer: &Computer, filled: &Filled, wh
 }
 
 #[test]
-#[ignore = "B-245 (attack B5): no schema check at open yet"]
 fn b5_a_book_with_a_trigger_that_deletes_parts_is_refused() {
     let folder = TempFolder::new();
     let path = folder.join("Hostile.ksz");
@@ -171,7 +170,6 @@ fn b5_a_book_with_a_trigger_that_deletes_parts_is_refused() {
 }
 
 #[test]
-#[ignore = "B-245 (attack B5): no schema check at open yet"]
 fn b5_a_book_with_a_trigger_that_changes_amounts_is_refused() {
     let folder = TempFolder::new();
     let path = folder.join("Hostile.ksz");
@@ -204,7 +202,6 @@ fn b5_a_book_with_a_trigger_that_changes_amounts_is_refused() {
 }
 
 #[test]
-#[ignore = "B-245 (attack B5): no schema check at open yet"]
 fn b5_a_book_with_an_extra_view_is_refused() {
     let folder = TempFolder::new();
     let path = folder.join("Hostile.ksz");
@@ -215,7 +212,6 @@ fn b5_a_book_with_an_extra_view_is_refused() {
 }
 
 #[test]
-#[ignore = "B-245 (attack B5): no schema check at open yet"]
 fn b5_a_book_with_an_extra_index_is_refused() {
     let folder = TempFolder::new();
     let path = folder.join("Hostile.ksz");
@@ -226,7 +222,6 @@ fn b5_a_book_with_an_extra_index_is_refused() {
 }
 
 #[test]
-#[ignore = "B-245 (attack B5): no schema check at open yet"]
 fn b5_a_book_with_an_extra_table_is_refused() {
     let folder = TempFolder::new();
     let path = folder.join("Hostile.ksz");
@@ -237,7 +232,6 @@ fn b5_a_book_with_an_extra_table_is_refused() {
 }
 
 #[test]
-#[ignore = "B-245 (attack B5): no schema check at open yet"]
 fn b5_a_book_whose_own_trigger_was_dropped_is_refused() {
     // The layout's own guards (D-375) are part of what the book must hold;
     // a book without them could let an original be changed unnoticed.
@@ -315,7 +309,6 @@ fn b5_undo_refuses_a_planted_part_that_points_to_no_account() {
 }
 
 #[test]
-#[ignore = "B-246 (attack B5): Undo writes back an unbalanced planted part"]
 fn b5_undo_refuses_a_planted_unbalanced_transaction() {
     let folder = TempFolder::new();
     let path = folder.join("Planted.ksz");

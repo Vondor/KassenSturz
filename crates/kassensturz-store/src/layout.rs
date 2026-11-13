@@ -1212,6 +1212,53 @@ pub(crate) fn migrate_with(
     Ok(())
 }
 
+/// One object of a database's layout as SQLite keeps it in `sqlite_schema`:
+/// its type, name, table and the SQL that made it.
+type SchemaObject = (String, String, String, Option<String>);
+
+/// Every table, index, trigger and view of `conn`'s main database.
+fn schema_objects(conn: &Connection) -> Result<Vec<SchemaObject>, StoreError> {
+    let mut statement = conn.prepare(
+        "SELECT type, name, tbl_name, sql FROM main.sqlite_schema ORDER BY type, name, tbl_name",
+    )?;
+    let objects = statement
+        .query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?))
+        })?
+        .collect::<Result<_, _>>()?;
+    Ok(objects)
+}
+
+/// Checks that the book on `conn`, at layout `version`, holds exactly what
+/// `migrations` build for that layout: no table, index, trigger or view
+/// more, none less and none changed (B-245, attack B5 of the security
+/// review). Run when a book is opened, before anything in it can run.
+///
+/// Another program, a sync folder or a book from someone else can plant SQL
+/// of its own in the file, e.g. a trigger that deletes parts on the next
+/// change, or drop one of the book's own guards (D-375); such a book is
+/// refused with [`Corruption::UnexpectedLayout`] and left as it was. The
+/// expected objects come from running the same migrations in memory, so a
+/// new migration needs no list of its own here.
+pub(crate) fn check_schema(
+    conn: &Connection,
+    migrations: &[&str],
+    first_version: i32,
+    version: i32,
+) -> Result<(), StoreError> {
+    let count = usize::try_from(version - first_version + 1)
+        .ok()
+        .filter(|count| (1..=migrations.len()).contains(count))
+        .ok_or(StoreError::UnsupportedLayout { found: version })?;
+    let mut expected = Connection::open_in_memory()?;
+    migrate_with(&mut expected, &migrations[..count], first_version, 0)?;
+    if schema_objects(conn)? == schema_objects(&expected)? {
+        Ok(())
+    } else {
+        Err(StoreError::Corrupt(Corruption::UnexpectedLayout))
+    }
+}
+
 #[cfg(test)]
 mod development_layouts;
 

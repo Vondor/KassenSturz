@@ -53,6 +53,7 @@ impl Book {
         // without SQLITE_OPEN_CREATE it never creates a file.
         let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
         let conn = Connection::open_with_flags(&path, flags)?;
+        crate::harden(&conn)?;
         conn.busy_timeout(BUSY_WAIT)?;
         // A second guard, should a statement ever try to write anyway.
         conn.pragma_update(None, "query_only", true)?;
@@ -69,6 +70,9 @@ impl Book {
             }
             found => return Err(StoreError::UnsupportedLayout { found }),
         }
+        // A book with SQL another program planted is refused here too, so
+        // the MCP server never reads through it (B-245).
+        layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, current)?;
         conn.set_prepared_statement_cache_capacity(cached::CAPACITY);
         Ok(Self {
             conn,

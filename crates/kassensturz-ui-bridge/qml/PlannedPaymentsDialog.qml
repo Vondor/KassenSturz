@@ -24,6 +24,10 @@ Kirigami.Dialog {
     required property PlannedPayments plans
     required property AccountRegister register
 
+    // The form for a new or changed plan, for the smoke test: a dialog
+    // declared in another one is no child item anyone can find.
+    readonly property alias form: planForm
+
     readonly property var view: plans.view ?? ({})
     readonly property var planList: view.plans ?? []
     readonly property var toConfirm: view.toConfirm ?? []

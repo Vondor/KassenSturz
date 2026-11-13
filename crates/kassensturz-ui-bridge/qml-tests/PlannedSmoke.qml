@@ -70,12 +70,14 @@ Kirigami.ApplicationWindow {
         return out;
     }
 
-    function buttons(root, starts) {
-        return find(root, child => child instanceof Controls.AbstractButton && String(child.text).startsWith(starts), []);
+    // Any button, by what it does: `instanceof Controls.AbstractButton`
+    // is false for the styled buttons with Kubuntu's Qt.
+    function isButton(child) {
+        return typeof child.toggle === "function" && child.clicked !== undefined;
     }
 
-    function dialogs(type) {
-        return find(window.overlay, child => child instanceof type, []);
+    function buttons(root, starts) {
+        return find(root, child => isButton(child) && String(child.text).startsWith(starts), []);
     }
 
     Timer {
@@ -108,7 +110,9 @@ Kirigami.ApplicationWindow {
                 window.check(fields.length === 1, "the amount to book is offered as 750,00, got " + fields.length);
                 const confirm = window.buttons(window.overlay, "Book it").filter(button => String(button.text) === "Book it");
                 window.check(confirm.length === 1, "one Book it in the form, got " + confirm.length);
-                confirm[0]?.clicked();
+                // A footer button runs its Kirigami.Action; its clicked
+                // signal alone doesn't.
+                confirm[0]?.action?.trigger();
                 break;
             }
             case 5: {
@@ -129,7 +133,7 @@ Kirigami.ApplicationWindow {
                 break;
             }
             case 7: {
-                const form = window.dialogs(Kirigami.Dialog).filter(item => item.objectName === "planFormDialog" && item.visible);
+                const form = [planned.form].filter(item => item.objectName === "planFormDialog" && item.visible);
                 window.check(form.length === 1, "the form opens, got " + form.length);
                 const fields = window.find(window.overlay, child => child instanceof Controls.TextField && child.visible, []);
                 const name = fields.find(field => field.placeholderText === "e.g. Rent");
@@ -160,7 +164,7 @@ Kirigami.ApplicationWindow {
                 break;
             }
             case 9: {
-                const form = window.dialogs(Kirigami.Dialog).filter(item => item.objectName === "planFormDialog" && item.visible);
+                const form = [page.planAgainForm].filter(item => item.objectName === "planFormDialog" && item.visible);
                 window.check(form.length === 1, "Plan this again opens the form, got " + form.length);
                 window.check(form[0]?.fromEntry === "into" && form[0]?.outgoing === false && form[0]?.categoryId === "salary", "filled from the entry, got " + JSON.stringify(form[0]?.form()));
                 form[0]?.customFooterActions[0].trigger();

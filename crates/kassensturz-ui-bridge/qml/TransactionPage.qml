@@ -30,6 +30,10 @@ Kirigami.ScrollablePage {
     property string accountId: ""
     // The transaction to change, by ID; empty to add a new one.
     property string transactionId: ""
+
+    // The "Plan this again…" form, for the smoke test (a dialog is no child
+    // item anyone can find).
+    readonly property alias planAgainForm: planAgain
     property bool moneyIn: false
 
     readonly property bool adding: transactionId === ""

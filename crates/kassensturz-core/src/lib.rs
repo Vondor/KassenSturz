@@ -21,6 +21,7 @@ mod budget;
 mod category_group;
 mod changeover;
 mod currency;
+pub mod day_watch;
 #[cfg(feature = "debug-log")]
 pub mod debug_log;
 mod decimal;

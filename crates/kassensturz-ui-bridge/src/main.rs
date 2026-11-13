@@ -57,6 +57,7 @@ mod custom_charts;
 mod dashboard_file;
 mod dashboard_file_model;
 mod dashboards;
+mod day_clock_model;
 mod developer_mode;
 mod errors;
 mod example_books;

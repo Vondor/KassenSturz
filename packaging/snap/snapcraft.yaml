@@ -44,7 +44,7 @@ apps:
     desktop: usr/share/applications/io.github.vondor.KassenSturz.desktop
     environment:
       # The bank libraries are found by their ABI names (D-138).
-      LD_LIBRARY_PATH: $SNAP/usr/lib:$LD_LIBRARY_PATH
+      LD_LIBRARY_PATH: $SNAP/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     plugs:
       # Not connected by itself: the user connects them (docs/SNAP.md, 4).
       - password-manager-service
@@ -55,7 +55,7 @@ apps:
     command: usr/bin/kassensturz-mcp
     extensions: [kde-neon-6]
     environment:
-      LD_LIBRARY_PATH: $SNAP/usr/lib:$LD_LIBRARY_PATH
+      LD_LIBRARY_PATH: $SNAP/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 
 # Where the bank libraries look for their plug-ins and data, compiled in as
 # /usr/...; the snap keeps them under $SNAP/usr.
@@ -160,8 +160,8 @@ parts:
     # Gwenhywfar's Qt 6 dialog library, staged by the part before, is found
     # through pkg-config (crates/kassensturz-aqbanking-sys/gwengui).
     build-environment:
-      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/pkgconfig:$PKG_CONFIG_PATH
-      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib:$LD_LIBRARY_PATH
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     override-pull: |
       craftctl default
       # The number and the commit, as in the Flatpak build (release.yml):

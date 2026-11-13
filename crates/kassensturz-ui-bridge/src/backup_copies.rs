@@ -7,7 +7,7 @@
 //!
 //! A copy is written there each time a book opens, unless the folder has a
 //! copy of it from the last day, and every automatic backup is copied there
-//! too (Q-546, built on the recommended option while it waits). A folder that
+//! too (Q-546 = R, D-763). A folder that
 //! is missing or full never stops the book from opening: the Settings page
 //! says what happened and offers another folder. The folder's real path is
 //! display text only and never reaches a log, an AI or an MCP result (D-730).

@@ -104,6 +104,17 @@ jobs:
           restore-keys: flatpak-builder-state-x86_64-
       - name: "Builder cache restored from: ${{ steps.builder-cache.outputs.cache-matched-key || 'nothing' }}"
         run: ls .flatpak-builder 2>/dev/null | head || true
+      # Only an official build for a tag offers "Connect to my bank" in the
+      # setup wizard (D-546, Q-562); a pull request's run of this workflow
+      # builds without it, as CI's own builds do. The file is read by
+      # CMakeLists.txt; it holds nothing secret.
+      - name: Switch on the wizard's bank offer for a tag
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          if [ "$REF_TYPE" = tag ]; then
+            echo on > wizard-bank
+          fi
       # The number goes into the git-ignored file that
       # crates/kassensturz-bank/build.rs reads, right before the build, and
       # the file is deleted right after it (the step after the build). For a

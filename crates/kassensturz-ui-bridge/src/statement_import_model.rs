@@ -21,7 +21,8 @@ use crate::register_model::{field, flag, suggestion_object};
 use crate::session;
 use crate::settings::Settings;
 use crate::statement_import::{
-    self, BalanceText, CsvForm, EntryText, FileKind, ImportView, Loaded, StatementImportError,
+    self, BalanceText, CsvForm, EntryText, FileKind, ImportView, JoinedText, Loaded,
+    StatementImportError,
 };
 use crate::variant::{error_object, list, map, text};
 
@@ -85,6 +86,14 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "importNow"]
         fn import_now(self: Pin<&mut StatementImport>) -> QVariant;
+
+        /// Takes back the pairs the import joined by themselves
+        /// (D-749), the entries stay. Refused with an error object when
+        /// something else was changed since. Returns an empty map when it
+        /// worked.
+        #[qinvokable]
+        #[cxx_name = "undoJoins"]
+        fn undo_joins(self: Pin<&mut StatementImport>) -> QVariant;
 
         /// The Transfers the new transactions suggest, for `TransferPrompt`.
         #[qinvokable]
@@ -263,6 +272,21 @@ impl qobject::StatementImport {
                 let shown = view_object(&view);
                 self.as_mut().rust_mut().new = view.new;
                 self.as_mut().set_step("done", shown);
+                self.as_mut().changed();
+                map([])
+            }
+            Err(error) => error_object(&error),
+        }
+    }
+
+    fn undo_joins(mut self: Pin<&mut Self>) -> QVariant {
+        let undone = session::with_book_mut(|book| {
+            statement_import::undo_joins(book)
+                .map_err(|error| statement_import::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        match undone {
+            Ok(()) => {
                 self.as_mut().changed();
                 map([])
             }
@@ -454,6 +478,20 @@ fn view_object(view: &ImportView) -> QVariant {
         ("rules", count(view.rules)),
         ("transfers", count(view.transfers)),
         ("balances", list(view.balances.iter().map(balance_object))),
+        ("joined", list(view.joined.iter().map(joined_object))),
+        ("needsYou", count(view.needs_you)),
+    ])
+}
+
+/// A pair that was joined by itself, as `ImportDonePage.qml` lists it.
+fn joined_object(joined: &JoinedText) -> QVariant {
+    map([
+        ("amount", text(&joined.amount.text)),
+        ("exactAmount", text(&joined.amount.exact)),
+        ("from", text(&joined.from)),
+        ("fromDate", text(&joined.from_date)),
+        ("to", text(&joined.to)),
+        ("toDate", text(&joined.to_date)),
     ])
 }
 
@@ -585,7 +623,7 @@ mod tests {
 
     use super::*;
     use crate::register::Shown;
-    use crate::statement_import::{SimilarPart, SimilarText};
+    use crate::statement_import::{JoinedText, SimilarPart, SimilarText};
 
     fn object(value: &QVariant) -> QMap<QMapPair_QString_QVariant> {
         value
@@ -614,6 +652,59 @@ mod tests {
             text: exact.to_owned(),
             exact: exact.to_owned(),
         }
+    }
+
+    /// The summary lists the pairs joined by themselves with the fields
+    /// `ImportDonePage.qml` reads (US6.3, D-749).
+    #[test]
+    fn a_joined_pair_reaches_qml_with_both_accounts_and_dates() {
+        let joined = joined_object(&JoinedText {
+            amount: shown("100,00 €"),
+            from: "Checking account".to_owned(),
+            from_date: "2026-11-02".to_owned(),
+            to: "Savings".to_owned(),
+            to_date: "2026-11-03".to_owned(),
+        });
+        assert_eq!(text_of(&joined, "exactAmount"), "100,00 €");
+        assert_eq!(text_of(&joined, "from"), "Checking account");
+        assert_eq!(text_of(&joined, "fromDate"), "2026-11-02");
+        assert_eq!(text_of(&joined, "to"), "Savings");
+        assert_eq!(text_of(&joined, "toDate"), "2026-11-03");
+        assert_eq!(text_of(&joined, "amount"), "100,00 €");
+    }
+
+    #[test]
+    fn the_summary_carries_the_joins_and_the_moves_that_wait_for_the_user() {
+        let view = ImportView {
+            file_name: String::new(),
+            from_bank: false,
+            account_name: "Savings".to_owned(),
+            debt: false,
+            entries: Vec::new(),
+            imported: 1,
+            to_decide: 0,
+            duplicates: 0,
+            pending: 0,
+            rules: 0,
+            transfers: 0,
+            balances: Vec::new(),
+            new: Vec::new(),
+            joined: vec![JoinedText {
+                amount: shown("100,00 €"),
+                from: "Checking account".to_owned(),
+                from_date: "2026-11-02".to_owned(),
+                to: "Savings".to_owned(),
+                to_date: "2026-11-02".to_owned(),
+            }],
+            needs_you: 2,
+        };
+        let object = view_object(&view);
+        assert_eq!(list_of(&object, "joined").len(), 1);
+        let count = object
+            .value::<QMap<QMapPair_QString_QVariant>>()
+            .and_then(|map| map.get(&QString::from("needsYou")))
+            .and_then(|value| value.value::<i32>());
+        assert_eq!(count, Some(2));
     }
 
     /// The preview shows the book's side of a possible double with the

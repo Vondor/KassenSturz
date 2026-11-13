@@ -22,6 +22,9 @@ Kirigami.ScrollablePage {
     readonly property var view: statementImport.view ?? ({})
     readonly property var balances: view.balances ?? []
     readonly property string accountId: statementImport.accountId
+    readonly property var joined: view.joined ?? []
+    // The user took the joins back with "Undo these joins".
+    property bool joinsUndone: false
 
     // The user is finished here.
     signal done()
@@ -148,6 +151,86 @@ Kirigami.ScrollablePage {
                 icon.name: "chronometer"
                 text: page.i18nContext.i18ncp("@info", "%1 transaction isn't booked by your bank yet and was left out.", "%1 transactions aren't booked by your bank yet and were left out.", page.view.pending ?? 0)
                 description: page.i18nContext.i18nc("@info", "It comes with a later statement, once the bank has booked it.")
+            }
+        }
+
+        // Pairs that fit a monthly move the user asked to be joined by
+        // itself (US6.3, D-749): listed with the amounts as the banks sent
+        // them, with one button that takes them all back.
+        FormCard.FormHeader {
+            visible: page.joined.length > 0
+            title: page.i18nContext.i18nc("@title:group", "Joined by themselves")
+        }
+
+        FormCard.FormCard {
+            visible: page.joined.length > 0
+
+            FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
+                descriptionItem.textFormat: Text.PlainText
+                icon.name: page.joinsUndone ? "edit-undo" : "edit-link"
+                text: page.joinsUndone
+                    ? page.i18nContext.i18nc("@info", "The joins are taken back. Both entries are in their accounts again.")
+                    : page.i18nContext.i18ncp("@info", "%1 move between your accounts was joined, as you asked.", "%1 moves between your accounts were joined, as you asked.", page.joined.length)
+                description: page.joinsUndone ? "" : page.i18nContext.i18nc("@info", "They count as moving your own money around, not as spending and income. Both accounts keep their balance and the dates they show.")
+            }
+
+            Repeater {
+                model: page.joinsUndone ? [] : page.joined
+
+                delegate: ColumnLayout {
+                    id: joinedRow
+
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.FormTextDelegate {
+                        textItem.textFormat: Text.PlainText
+                        icon.name: "go-next"
+                        text: page.i18nContext.i18nc("@info %1 is an amount, %2 and %4 the names of accounts, %3 and %5 dates", "%1 from “%2” (%3) to “%4” (%5) · monthly move", joinedRow.modelData.amount, joinedRow.modelData.from, joinedRow.modelData.fromDate, joinedRow.modelData.to, joinedRow.modelData.toDate)
+                    }
+                }
+            }
+
+            FormCard.FormDelegateSeparator {
+                visible: !page.joinsUndone
+            }
+
+            FormCard.FormButtonDelegate {
+                visible: !page.joinsUndone
+                icon.name: "edit-undo"
+                text: page.i18nContext.i18nc("@action:button", "Undo these joins")
+                description: page.i18nContext.i18nc("@info", "Takes them all apart again. The imported entries stay.")
+                onClicked: {
+                    ActionLog.taken("ImportDonePage_undoJoins")
+                    const result = page.statementImport.undoJoins();
+                    error.result = result;
+                    if (result.code === undefined) {
+                        page.joinsUndone = true;
+                    }
+                }
+            }
+        }
+
+        // Sides that fit a monthly move but were left for the user.
+        FormCard.FormHeader {
+            visible: (page.view.needsYou ?? 0) > 0
+            title: page.i18nContext.i18nc("@title:group", "Waiting for you")
+        }
+
+        FormCard.FormCard {
+            visible: (page.view.needsYou ?? 0) > 0
+
+            FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
+                descriptionItem.textFormat: Text.PlainText
+                icon.name: "dialog-question"
+                text: page.i18nContext.i18ncp("@info", "%1 monthly move has entries that were not joined.", "%1 monthly moves have entries that were not joined.", page.view.needsYou ?? 0)
+                description: page.i18nContext.i18nc("@info", "Two entries fit equally well, or a join would lose something you wrote. Join them yourself: Accounts › Find moves between my accounts…")
             }
         }
 

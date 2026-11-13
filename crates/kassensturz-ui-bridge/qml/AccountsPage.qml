@@ -65,6 +65,17 @@ Kirigami.ScrollablePage {
                 page.findMoves()
             }
         },
+        // The moves KassenSturz joins by itself, to see or stop (US6.3,
+        // D-749).
+        Kirigami.Action {
+            icon.name: "view-calendar-month"
+            visible: page.sections.length > 0
+            text: page.i18nContext.i18nc("@action:button", "Monthly moves…")
+            onTriggered: {
+                ActionLog.taken("AccountsPage_monthlyMoves")
+                monthlyMoves.show()
+            }
+        },
         Kirigami.Action {
             icon.name: "view-visible"
             text: page.i18nContext.i18nc("@action:button", "Show closed accounts")
@@ -80,7 +91,10 @@ Kirigami.ScrollablePage {
 
     function findMoves() {
         const found = register.transferSuggestions("");
-        if (found?.length > 0) {
+        if (found?.length > 1) {
+            // Many at once: list them, with "Join all" (D-749).
+            joinAllDialog.show(found);
+        } else if (found?.length > 0) {
             transferPrompt.ask(found);
         } else {
             applicationWindow().showPassiveNotification(i18nContext.i18nc("@info", "No moves between your accounts to ask about. Moves you sorted yourself aren't looked for: open one of their entries and choose “Join with the other side of a move…”."), "long");
@@ -89,6 +103,19 @@ Kirigami.ScrollablePage {
 
     TransferPrompt {
         id: transferPrompt
+
+        register: page.register
+    }
+
+    JoinAllDialog {
+        id: joinAllDialog
+
+        register: page.register
+        onOneByOne: found => transferPrompt.ask(found)
+    }
+
+    MonthlyMovesDialog {
+        id: monthlyMoves
 
         register: page.register
     }

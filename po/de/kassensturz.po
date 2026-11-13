@@ -22565,3 +22565,273 @@ msgstr ""
 "KassenSturz kann keine Rechnungen bezahlen und kein Geld senden, was "
 "auch immer die Antwort sagt. Das erledigen Sie in der App oder auf der "
 "Website Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:73
+#, kde-format
+msgctxt "@action:button"
+msgid "Monthly moves…"
+msgstr "Monatliche Bewegungen…"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:162
+#, kde-format
+msgctxt "@title:group"
+msgid "Joined by themselves"
+msgstr "Von selbst verbunden"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:173
+#, kde-format
+msgctxt "@info"
+msgid "The joins are taken back. Both entries are in their accounts again."
+msgstr ""
+"Die Verbindungen sind zurückgenommen. Beide Einträge stehen wieder in ihren "
+"Konten."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:174
+#, kde-format
+msgctxt "@info"
+msgid "%1 move between your accounts was joined, as you asked."
+msgid_plural "%1 moves between your accounts were joined, as you asked."
+msgstr[0] ""
+"%1 Bewegung zwischen Ihren Konten wurde verbunden, wie Sie es wollten."
+msgstr[1] ""
+"%1 Bewegungen zwischen Ihren Konten wurden verbunden, wie Sie es wollten."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:175
+#, kde-format
+msgctxt "@info"
+msgid ""
+"They count as moving your own money around, not as spending and income. Both"
+" accounts keep their balance and the dates they show."
+msgstr ""
+"Sie zählen als Verschieben Ihres eigenen Geldes, nicht als Ausgabe und "
+"Einnahme. Beide Konten behalten ihren Kontostand und die Daten, die sie "
+"zeigen."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:194
+#, kde-format
+msgctxt ""
+"@info %1 is an amount, %2 and %4 the names of accounts, %3 and %5 dates"
+msgid "%1 from “%2” (%3) to “%4” (%5) · monthly move"
+msgstr "%1 von „%2“ (%3) nach „%4“ (%5) · monatliche Bewegung"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:206
+#, kde-format
+msgctxt "@action:button"
+msgid "Undo these joins"
+msgstr "Diese Verbindungen rückgängig machen"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:207
+#, kde-format
+msgctxt "@info"
+msgid "Takes them all apart again. The imported entries stay."
+msgstr "Trennt sie alle wieder. Die importierten Einträge bleiben."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:222
+#, kde-format
+msgctxt "@title:group"
+msgid "Waiting for you"
+msgstr "Wartet auf Sie"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:232
+#, kde-format
+msgctxt "@info"
+msgid "%1 monthly move has entries that were not joined."
+msgid_plural "%1 monthly moves have entries that were not joined."
+msgstr[0] "%1 monatliche Bewegung hat Einträge, die nicht verbunden wurden."
+msgstr[1] ""
+"%1 monatliche Bewegungen haben Einträge, die nicht verbunden wurden."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:233
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Two entries fit equally well, or a join would lose something you wrote. Join"
+" them yourself: Accounts › Find moves between my accounts…"
+msgstr ""
+"Zwei Einträge passen gleich gut, oder beim Verbinden ginge etwas verloren, "
+"das Sie geschrieben haben. Verbinden Sie sie selbst: Konten › Bewegungen "
+"zwischen meinen Konten finden…"
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:74
+#, kde-format
+msgctxt "@title:window"
+msgid "These look like monthly moves"
+msgstr "Das sieht nach monatlichen Bewegungen aus"
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:75
+#, kde-format
+msgctxt "@title:window"
+msgid "Moves between your accounts"
+msgstr "Bewegungen zwischen Ihren Konten"
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:82
+#, kde-format
+msgctxt "@action:button"
+msgid "Join them by themselves from now on"
+msgstr "Ab jetzt von selbst verbinden"
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:101
+#, kde-format
+msgctxt "@action:button %1 is how many moves"
+msgid "Join the move"
+msgid_plural "Join all %1"
+msgstr[0] "Die Bewegung verbinden"
+msgstr[1] "Alle %1 verbinden"
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:109
+#, kde-format
+msgctxt "@action:button"
+msgid "Go through them one by one"
+msgstr "Einzeln durchgehen"
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:132
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These pairs look like money moved between your own accounts. Joined, they "
+"count as moving your own money around, not as spending and income. Both "
+"accounts keep their balance and the dates they show. One Undo takes them all"
+" apart again; where a Rule had sorted a side, Undo brings its category back."
+msgstr ""
+"Diese Paare sehen aus wie Geld, das zwischen Ihren eigenen Konten bewegt "
+"wurde. Verbunden zählen sie als Verschieben Ihres eigenen Geldes, nicht als "
+"Ausgabe und Einnahme. Beide Konten behalten ihren Kontostand und die Daten, "
+"die sie zeigen. Ein „Rückgängig“ trennt sie alle wieder; wo eine Regel eine "
+"Seite einsortiert hatte, kommt ihre Kategorie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:144
+#, kde-format
+msgctxt "@info %1 is an amount, %2 and %4 names of accounts, %3 and %5 dates"
+msgid "%1 from “%2” (%3) to “%4” (%5)"
+msgstr "%1 von „%2“ (%3) nach „%4“ (%5)"
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:153
+#, kde-format
+msgctxt "@info %1 is how many were joined"
+msgid "%1 move was joined."
+msgid_plural "%1 moves were joined."
+msgstr[0] "%1 Bewegung wurde verbunden."
+msgstr[1] "%1 Bewegungen wurden verbunden."
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:153
+#, kde-format
+msgctxt "@info"
+msgid "Join them by themselves from now on? Only the ones you tick."
+msgstr "Ab jetzt von selbst verbinden? Nur die, die Sie ankreuzen."
+
+#: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:168
+#, kde-format
+msgctxt ""
+"@option:check %1 is an amount, %2 and %3 names of accounts, %4 a day of the "
+"month, %5 how many months"
+msgid "%1 from “%2” to “%3”, around day %4 of the month, seen in %5 months"
+msgstr ""
+"%1 von „%2“ nach „%3“, rund um den %4. Tag des Monats, in %5 Monaten gesehen"
+
+#: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:48
+#, kde-format
+msgctxt "@title:window"
+msgid "Monthly moves"
+msgstr "Monatliche Bewegungen"
+
+#: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:64
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz joins these moves by itself when your accounts' statements bring"
+" both sides, and lists what it joined after every import. Moves already "
+"joined stay joined. If you remove one, KassenSturz asks about that move "
+"again, one by one."
+msgstr ""
+"KassenSturz verbindet diese Bewegungen von selbst, wenn die Kontoauszüge "
+"Ihrer Konten beide Seiten bringen, und zeigt nach jedem Import, was es "
+"verbunden hat. Bereits verbundene Bewegungen bleiben verbunden. Wenn Sie "
+"eine entfernen, fragt KassenSturz nach dieser Bewegung wieder einzeln."
+
+#: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:72
+#, kde-format
+msgctxt "@info"
+msgid "No monthly moves yet"
+msgstr "Noch keine monatlichen Bewegungen"
+
+#: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:73
+#, kde-format
+msgctxt "@info"
+msgid ""
+"When you join two entries that are one move between your accounts, "
+"KassenSturz can offer to join it by itself every month. It only does so if "
+"you tick the box there."
+msgstr ""
+"Wenn Sie zwei Einträge verbinden, die eine Bewegung zwischen Ihren Konten "
+"sind, kann KassenSturz anbieten, sie jeden Monat von selbst zu verbinden. "
+"Das geschieht nur, wenn Sie dort das Kästchen ankreuzen."
+
+#: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:94
+#, kde-format
+msgctxt ""
+"@info %1 and %2 are names of accounts, %3 an amount, %4 a day of the month"
+msgid "“%1” → “%2”, %3, around day %4 of the month"
+msgstr "„%1“ → „%2“, %3, rund um den %4. Tag des Monats"
+
+#: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:103
+#, kde-format
+msgctxt "@info %1 is the name the paying account shows for the money"
+msgid "Only entries that say “%1”"
+msgstr "Nur Einträge, die „%1“ nennen"
+
+#: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:112
+#, kde-format
+msgctxt "@info %1 and %2 are names of accounts"
+msgid "Stop joining the move from “%1” to “%2” by itself"
+msgstr "Die Bewegung von „%1“ nach „%2“ nicht mehr von selbst verbinden"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:43
+#, kde-format
+msgctxt ""
+"@info %1 is a move between two accounts, such as: Checking account → Savings"
+msgid "Waits for its other side: monthly move %1"
+msgstr "Wartet auf seine andere Seite: monatliche Bewegung %1"
+
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:257
+#, kde-format
+msgctxt "@option:check"
+msgid ""
+"Next time, join this move by itself when it comes again around the same day "
+"of the month."
+msgstr ""
+"Beim nächsten Mal diese Bewegung von selbst verbinden, wenn sie um denselben"
+" Tag im Monat wiederkommt."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:267
+#, kde-format
+msgctxt ""
+"@info %1 is an amount, %2 and %3 the names of accounts, %4 a day of the "
+"month"
+msgid ""
+"KassenSturz then joins entries of exactly %1 from “%2” to “%3” without "
+"asking, around day %4 of the month. After every import it lists what it "
+"joined, and Undo takes the joins back. You can stop it any time in Accounts "
+"› Monthly moves…."
+msgstr ""
+"KassenSturz verbindet dann Einträge über genau %1 von „%2“ nach „%3“ ohne "
+"Nachfrage, rund um den %4. Tag des Monats. Nach jedem Import zeigt es, was "
+"es verbunden hat, und „Rückgängig“ nimmt die Verbindungen zurück. Sie können"
+" das jederzeit unter Konten › Monatliche Bewegungen… beenden."
+
+#: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:276
+#, kde-format
+msgctxt "@info %1 is the name the paying account shows for the money"
+msgid "Only entries that say “%1” are joined."
+msgstr "Nur Einträge, die „%1“ nennen, werden verbunden."
+
+#: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:216
+#, kde-format
+msgctxt "@info"
+msgid "%1 monthly move was joined by itself; Undo takes it apart."
+msgid_plural ""
+"%1 monthly moves were joined by themselves; Undo takes them apart."
+msgstr[0] ""
+"%1 monatliche Bewegung wurde von selbst verbunden; „Rückgängig“ trennt sie."
+msgstr[1] ""
+"%1 monatliche Bewegungen wurden von selbst verbunden; „Rückgängig“ trennt "
+"sie."

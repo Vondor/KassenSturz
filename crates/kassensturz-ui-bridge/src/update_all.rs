@@ -148,6 +148,9 @@ pub struct Summary {
     pub updated: usize,
     /// How many transactions were booked.
     pub booked: usize,
+    /// How many pairs were joined by themselves because they fit a monthly
+    /// move the user remembered (D-749).
+    pub joined: usize,
     /// One line per account, in the order they were fetched.
     pub accounts: Vec<AccountLine>,
     /// The notices, in the order the transactions were booked.
@@ -194,6 +197,7 @@ pub fn book_all(book: &mut Book, fetched: Vec<UpdateFetch>, locale: &impl Locale
                             });
                         summary.updated += 1;
                         summary.booked += view.new.len();
+                        summary.joined += view.joined.len();
                         booked_into.extend(
                             view.new
                                 .iter()

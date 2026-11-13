@@ -170,7 +170,7 @@ pub fn join_picked(book: &mut Book, chosen: &str, picked: &str) -> Result<(), Tr
 
 /// A transaction's ID as the UI hands it over, written as `Display` writes
 /// it; anything else is no entry.
-fn transaction_id(text: &str) -> Result<TransactionId, TransferPromptError> {
+pub(crate) fn transaction_id(text: &str) -> Result<TransactionId, TransferPromptError> {
     let digits: Vec<u8> = text.bytes().filter(|byte| *byte != b'-').collect();
     let mut bytes = [0_u8; 16];
     if digits.len() != 32 {

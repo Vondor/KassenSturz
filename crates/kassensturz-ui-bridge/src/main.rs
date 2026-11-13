@@ -85,6 +85,7 @@ mod kmy_reports_import_model;
 mod language;
 mod language_model;
 mod locale;
+mod monthly_moves;
 mod network_guard;
 mod number_format;
 mod number_format_model;

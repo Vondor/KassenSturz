@@ -35,6 +35,12 @@ RowLayout {
     // The tags of the entry and of its parts, each once, joined by commas
     // (US4.8, D-713); empty when it has none.
     property string tags: ""
+    // For an entry not sorted yet that waits for its other side because it
+    // fits a monthly move, the move as "from → to"; empty otherwise (D-749).
+    property string waitsFor: ""
+    readonly property string waitsText: waitsFor === ""
+        ? ""
+        : i18nContext.i18nc("@info %1 is a move between two accounts, such as: Checking account → Savings", "Waits for its other side: monthly move %1", waitsFor)
     // Wide pages show a row as the lines of a book, one column each: date,
     // from or to, category, payment, deposit and balance. `header` makes the
     // row the book's column titles instead, so that both line up.
@@ -123,7 +129,7 @@ RowLayout {
     Accessible.role: Accessible.ListItem
     Accessible.name: header
         ? ""
-        : [title, details, note, tagsText, exactAmount, exactBalanceText].filter(text => text !== "").join(", ")
+        : [title, details, note, tagsText, waitsText, exactAmount, exactBalanceText].filter(text => text !== "").join(", ")
 
     // The book's columns. In the column titles, the ones that can be sorted
     // by are buttons (US1.18).
@@ -210,6 +216,16 @@ RowLayout {
             Layout.fillWidth: true
             visible: !row.header && row.tags !== ""
             text: row.tagsText
+            elide: Text.ElideRight
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: !row.header && row.waitsFor !== ""
+            text: row.waitsText
             elide: Text.ElideRight
             font: Kirigami.Theme.smallFont
             color: Kirigami.Theme.disabledTextColor
@@ -380,6 +396,16 @@ RowLayout {
             Layout.fillWidth: true
             visible: row.tags !== ""
             text: row.tagsText
+            elide: Text.ElideRight
+            font: Kirigami.Theme.smallFont
+            color: Kirigami.Theme.disabledTextColor
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: row.waitsFor !== ""
+            text: row.waitsText
             elide: Text.ElideRight
             font: Kirigami.Theme.smallFont
             color: Kirigami.Theme.disabledTextColor

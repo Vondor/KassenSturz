@@ -70,6 +70,36 @@ pub struct Shown {
     pub exact: String,
 }
 
+/// For each transaction that waits for the other side of a monthly move the
+/// user remembered, the move as "from → to" (D-749, 3.5).
+fn waiting_texts(book: &Book) -> Result<HashMap<TransactionId, String>, StoreError> {
+    let waiting = book.waiting_moves()?;
+    if waiting.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let accounts = book.all_accounts()?;
+    let name_of = |id: AccountId| {
+        accounts
+            .iter()
+            .find(|account| account.id == id)
+            .map(|account| account.name.clone())
+            .unwrap_or_default()
+    };
+    Ok(waiting
+        .into_iter()
+        .map(|(id, moved)| {
+            (
+                id,
+                format!(
+                    "{} → {}",
+                    name_of(moved.from_account),
+                    name_of(moved.to_account)
+                ),
+            )
+        })
+        .collect())
+}
+
 /// What the transaction list shows for one account.
 #[derive(Debug, PartialEq, Eq)]
 pub struct RegisterView {
@@ -128,6 +158,10 @@ pub struct RegisterRow {
     /// Every tag it carries, on the whole or on a part, in the user's
     /// order (D-713): a search by any of them finds the line (Q-493).
     pub tags: Vec<TagText>,
+    /// For an entry that is not sorted yet and fits a monthly move the user
+    /// remembered, whose other side hasn't come: the move as "from → to"
+    /// (US6.3, D-749, 3.5); empty for every other entry.
+    pub waits_for: String,
 }
 
 impl RegisterRow {
@@ -251,6 +285,7 @@ impl Entry {
             purpose: String::new(),
             value_date: String::new(),
             tags: self.tags.clone(),
+            waits_for: String::new(),
         }
     }
 }
@@ -671,6 +706,7 @@ pub fn register_view_with(
         HashMap::new()
     };
     sort.apply_with(&mut entries, &imported);
+    let waiting = waiting_texts(book)?;
     let balance_shown = sort.key == SortKey::Date && columns.shows(Column::Balance);
     let rows = entries
         .iter()
@@ -679,6 +715,13 @@ pub fn register_view_with(
             if !balance_shown {
                 row.balance = Shown::default();
                 row.owes = false;
+            }
+            // Only an entry nobody sorted waits (a Rule skips it, a hand-made
+            // category stays).
+            if entry.category.is_empty()
+                && let Some(text) = waiting.get(&entry.transaction)
+            {
+                row.waits_for.clone_from(text);
             }
             if let Some(text) = imported.get(&(entry.transaction, entry.date)) {
                 if columns.shows(Column::OtherPartyIban) {
@@ -852,6 +895,7 @@ mod sort_tests {
                 id: "tag-1".into(),
                 name: "Holiday".into(),
             }],
+            waits_for: String::new(),
         };
         assert!(row.fits(""));
         assert!(row.fits("  "));

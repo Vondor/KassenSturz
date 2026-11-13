@@ -21,11 +21,12 @@ use cxx_qt_lib::{
     QByteArray, QHash, QHashPair_i32_QByteArray, QList, QMap, QMapPair_QString_QVariant,
     QModelIndex, QString, QVariant,
 };
-use kassensturz_store::Book;
+use kassensturz_store::{Book, NewRecurringMove};
 
 use crate::errors::ErrorText;
 use crate::format::Locale;
 use crate::locale::QtLocale;
+use crate::monthly_moves::{self, LooksMonthly, MoveText, OfferText};
 use crate::number_format::app_locale;
 use crate::parts_entry::{self, PartInput, PartsError, PartsInput};
 use crate::register::{RegisterRow, Sort, SortKey, register_view_with};
@@ -352,6 +353,62 @@ pub mod qobject {
             chosen: &QString,
             picked: &QString,
         ) -> QVariant;
+
+        /// The monthly move the user may ask to be joined by itself when
+        /// joining the pair `outgoing` and `incoming` (D-749), for the box
+        /// in the preview: an object with `amount`, `exactAmount`, `from`,
+        /// `to`, `day` and `party`; an empty object when there is none to
+        /// offer (a currency apart, or the book remembers it already); an
+        /// error object with its `code` on failure.
+        #[qinvokable]
+        #[cxx_name = "moveOffer"]
+        fn move_offer(self: &AccountRegister, outgoing: &QString, incoming: &QString) -> QVariant;
+
+        /// Joins a suggested pair as `joinTransfer` does and remembers its
+        /// monthly move in the same action, one Undo for both.
+        #[qinvokable]
+        #[cxx_name = "joinRemembering"]
+        fn join_remembering(
+            self: Pin<&mut AccountRegister>,
+            outgoing: &QString,
+            incoming: &QString,
+        ) -> QVariant;
+
+        /// The same for a pair the user picked, as `joinPicked`.
+        #[qinvokable]
+        #[cxx_name = "joinPickedRemembering"]
+        fn join_picked_remembering(
+            self: Pin<&mut AccountRegister>,
+            chosen: &QString,
+            picked: &QString,
+        ) -> QVariant;
+
+        /// The remembered monthly moves, as a list of objects with `id`,
+        /// `from`, `to`, `amount`, `exactAmount`, `day` and `party`.
+        #[qinvokable]
+        #[cxx_name = "monthlyMoves"]
+        fn monthly_moves(self: &AccountRegister) -> QVariant;
+
+        /// Stops joining the monthly move with this ID by itself. What it
+        /// joined stays joined. Returns an empty map, or the error.
+        #[qinvokable]
+        #[cxx_name = "removeMove"]
+        fn remove_move(self: Pin<&mut AccountRegister>, id: &QString) -> QVariant;
+
+        /// Joins every suggested pair at once ("Join all"), one action, if
+        /// there are still `expected` of them, the number the user saw.
+        /// Returns an object with `joined`, `left` and `looksMonthly` (a
+        /// list like `monthlyMoves`' with `months`), or the error.
+        #[qinvokable]
+        #[cxx_name = "joinAll"]
+        fn join_all(self: Pin<&mut AccountRegister>, expected: i32) -> QVariant;
+
+        /// Remembers the moves of the last `joinAll`'s `looksMonthly` the
+        /// user ticked: their positions counted from 0, joined by commas
+        /// (empty for none), one action.
+        #[qinvokable]
+        #[cxx_name = "rememberLooksMonthly"]
+        fn remember_looks_monthly(self: Pin<&mut AccountRegister>, ticked: &QString) -> QVariant;
     }
 
     extern "RustQt" {
@@ -391,7 +448,7 @@ pub mod qobject {
 }
 
 /// The roles a row has, numbered from Qt's first user role.
-const ROLES: [(&str, i32); 16] = [
+const ROLES: [(&str, i32); 17] = [
     ("transactionId", 0x0100),
     ("date", 0x0101),
     ("otherParty", 0x0102),
@@ -408,6 +465,7 @@ const ROLES: [(&str, i32); 16] = [
     ("purpose", 0x010D),
     ("valueDate", 0x010E),
     ("tags", 0x010F),
+    ("waitsFor", 0x0110),
 ];
 
 /// The Rust side of [`qobject::AccountRegister`].
@@ -431,6 +489,9 @@ pub struct AccountRegisterRust {
     today: QString,
     sort: Sort,
     rows: Vec<RegisterRow>,
+    /// The moves that looked monthly after the last "Join all", which the
+    /// user may tick (`rememberLooksMonthly`).
+    candidates: Vec<NewRecurringMove>,
 }
 
 impl cxx_qt::Initialize for qobject::AccountRegister {
@@ -946,6 +1007,108 @@ impl qobject::AccountRegister {
         self.finish(result)
     }
 
+    fn move_offer(&self, outgoing: &QString, incoming: &QString) -> QVariant {
+        let (outgoing, incoming) = (outgoing.to_string(), incoming.to_string());
+        let found = session::with_book(|book| {
+            monthly_moves::offer(book, &outgoing, &incoming, &app_locale())
+                .map_err(|error| monthly_moves::error_text(book, &error, &app_locale()))
+        });
+        match found {
+            Some(Ok(Some(offer))) => offer_object(&offer),
+            Some(Ok(None)) => map([]),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn join_remembering(self: Pin<&mut Self>, outgoing: &QString, incoming: &QString) -> QVariant {
+        let (outgoing, incoming) = (outgoing.to_string(), incoming.to_string());
+        let result = session::with_book_mut(|book| {
+            monthly_moves::join_remembering(book, &outgoing, &incoming, &app_locale())
+                .map_err(|error| monthly_moves::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        self.finish(result)
+    }
+
+    fn join_picked_remembering(
+        self: Pin<&mut Self>,
+        chosen: &QString,
+        picked: &QString,
+    ) -> QVariant {
+        let (chosen, picked) = (chosen.to_string(), picked.to_string());
+        let result = session::with_book_mut(|book| {
+            monthly_moves::join_picked_remembering(book, &chosen, &picked, &app_locale())
+                .map_err(|error| monthly_moves::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        self.finish(result)
+    }
+
+    fn monthly_moves(&self) -> QVariant {
+        let found = session::with_book(|book| {
+            monthly_moves::list(book, &app_locale())
+                .map_err(|error| monthly_moves::error_text(book, &error, &app_locale()))
+        });
+        match found {
+            Some(Ok(moves)) => list(moves.iter().map(move_object)),
+            Some(Err(error)) => error_object(&error),
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        }
+    }
+
+    fn remove_move(self: Pin<&mut Self>, id: &QString) -> QVariant {
+        let id = id.to_string();
+        let result = session::with_book_mut(|book| {
+            monthly_moves::remove(book, &id)
+                .map_err(|error| monthly_moves::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        self.finish(result)
+    }
+
+    fn join_all(mut self: Pin<&mut Self>, expected: i32) -> QVariant {
+        let expected = usize::try_from(expected).unwrap_or(usize::MAX);
+        let result = session::with_book_mut(|book| {
+            monthly_moves::join_all(book, expected, &app_locale())
+                .map_err(|error| monthly_moves::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        match result {
+            Ok((done, candidates)) => {
+                self.as_mut().rust_mut().candidates = candidates;
+                self.as_mut().refresh();
+                self.as_mut().changed();
+                let count =
+                    |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX));
+                map([
+                    ("joined", count(done.joined)),
+                    ("left", count(done.left)),
+                    (
+                        "looksMonthly",
+                        list(done.looks_monthly.iter().map(looks_monthly_object)),
+                    ),
+                ])
+            }
+            Err(error) => error_object(&error),
+        }
+    }
+
+    fn remember_looks_monthly(mut self: Pin<&mut Self>, ticked: &QString) -> QVariant {
+        let ticked: Vec<usize> = ticked
+            .to_string()
+            .split(',')
+            .filter_map(|index| index.trim().parse().ok())
+            .collect();
+        let candidates = std::mem::take(&mut self.as_mut().rust_mut().candidates);
+        let result = session::with_book_mut(|book| {
+            monthly_moves::remember_looks_monthly(book, &candidates, &ticked)
+                .map_err(|error| monthly_moves::error_text(book, &error, &app_locale()))
+        })
+        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
+        self.finish(result)
+    }
+
     fn row_count(&self, _parent: &QModelIndex) -> i32 {
         self.rust().count
     }
@@ -974,6 +1137,7 @@ impl qobject::AccountRegister {
             Some(("purpose", _)) => text(&row.purpose),
             Some(("valueDate", _)) => text(&row.value_date),
             Some(("tags", _)) => text(&row.tag_line()),
+            Some(("waitsFor", _)) => text(&row.waits_for),
             _ => QVariant::default(),
         }
     }
@@ -1016,6 +1180,48 @@ pub(crate) fn suggestion_fields(found: &SuggestionText) -> [(&'static str, QVari
             QVariant::from(&i32::try_from(found.business_days).unwrap_or(0)),
         ),
     ]
+}
+
+/// The offer in the Transfer preview as `TransferPrompt.qml` takes it.
+fn offer_object(offer: &OfferText) -> QVariant {
+    map([
+        ("amount", text(&offer.amount.text)),
+        ("exactAmount", text(&offer.amount.exact)),
+        ("from", text(&offer.from)),
+        ("to", text(&offer.to)),
+        ("day", QVariant::from(&offer.day)),
+        ("party", text(&offer.party)),
+    ])
+}
+
+/// A remembered move as `MonthlyMovesDialog.qml` lists it.
+fn move_object(moved: &MoveText) -> QVariant {
+    map([
+        ("id", text(&moved.id)),
+        ("from", text(&moved.from)),
+        ("to", text(&moved.to)),
+        ("amount", text(&moved.amount.text)),
+        ("exactAmount", text(&moved.amount.exact)),
+        ("day", QVariant::from(&moved.day)),
+        ("party", text(&moved.party)),
+    ])
+}
+
+/// A move that looks monthly after "Join all", as `JoinAllDialog.qml` asks
+/// about it.
+fn looks_monthly_object(moved: &LooksMonthly) -> QVariant {
+    map([
+        ("from", text(&moved.from)),
+        ("to", text(&moved.to)),
+        ("amount", text(&moved.amount.text)),
+        ("exactAmount", text(&moved.amount.exact)),
+        ("day", QVariant::from(&moved.day)),
+        ("party", text(&moved.party)),
+        (
+            "months",
+            QVariant::from(&i32::try_from(moved.months).unwrap_or(i32::MAX)),
+        ),
+    ])
 }
 
 /// A transaction the user may pick for a Transfer, as
@@ -1335,15 +1541,82 @@ fn error_text(book: &Book, account_id: &str, error: &EntryError) -> ErrorText {
 #[cfg(test)]
 mod tests {
     use super::{
-        column_choices_object, form_object, notice_object, partner_object, read_tags,
-        suggestion_object, tag_choices_object,
+        column_choices_object, form_object, looks_monthly_object, move_object, notice_object,
+        offer_object, partner_object, read_tags, suggestion_object, tag_choices_object,
     };
+    use crate::monthly_moves::{LooksMonthly, MoveText, OfferText};
     use crate::register::Shown;
     use crate::register_columns::{Column, Columns};
     use crate::tags::{TagChoice, TagText};
     use crate::transaction_entry::{BillText, EntryForm, RemovalNotice};
     use crate::transfer_prompt::{PartnerText, SideText, SuggestionText};
     use crate::variant::read_back::{elements, flag_of, keys, number_of, text_of};
+
+    fn exactly(text: &str) -> Shown {
+        Shown {
+            text: text.into(),
+            exact: text.into(),
+        }
+    }
+
+    /// The box in `TransferPrompt.qml`, `MonthlyMovesDialog.qml` and
+    /// `JoinAllDialog.qml` read these by name (AGENTS.md §9.4, US6.3).
+    #[test]
+    fn the_monthly_move_screens_read_back_every_field() {
+        let offer = offer_object(&OfferText {
+            amount: exactly("100,00 €"),
+            from: "Checking account".into(),
+            to: "Savings".into(),
+            day: 1,
+            party: "Standing order".into(),
+        });
+        assert_eq!(
+            keys(&offer),
+            ["amount", "day", "exactAmount", "from", "party", "to"]
+        );
+        assert_eq!(text_of(&offer, "exactAmount"), "100,00 €");
+        assert_eq!(text_of(&offer, "from"), "Checking account");
+        assert_eq!(number_of(&offer, "day"), 1);
+
+        let moved = move_object(&MoveText {
+            id: "m1".into(),
+            from: "Checking account".into(),
+            to: "Savings".into(),
+            amount: exactly("100,00 €"),
+            day: 31,
+            party: String::new(),
+        });
+        assert_eq!(
+            keys(&moved),
+            ["amount", "day", "exactAmount", "from", "id", "party", "to"]
+        );
+        assert_eq!(text_of(&moved, "id"), "m1");
+        assert_eq!(text_of(&moved, "party"), "");
+        assert_eq!(number_of(&moved, "day"), 31);
+
+        let looks = looks_monthly_object(&LooksMonthly {
+            amount: exactly("100,00 €"),
+            from: "Checking account".into(),
+            to: "Savings".into(),
+            day: 1,
+            party: "Standing order".into(),
+            months: 3,
+        });
+        assert_eq!(
+            keys(&looks),
+            [
+                "amount",
+                "day",
+                "exactAmount",
+                "from",
+                "months",
+                "party",
+                "to"
+            ]
+        );
+        assert_eq!(number_of(&looks, "months"), 3);
+        assert_eq!(text_of(&looks, "to"), "Savings");
+    }
 
     /// The Columns menu reads these by name: the key, whether the column is
     /// shown and whether it is always shown (US1.19).

@@ -96,6 +96,47 @@ impl ConsentRecord {
             (CONSENT_DAY_KEY, self.day.to_string()),
         ]
     }
+
+    /// The record as the keychain keeps it (B-252): address, statement
+    /// version and day, one per line.
+    pub fn seal_text(&self) -> String {
+        format!(
+            "{}\n{}\n{}",
+            self.address.as_str(),
+            self.statement,
+            self.day
+        )
+    }
+
+    /// A record [`ConsentRecord::seal_text`] wrote; `None` for anything else.
+    pub fn from_seal_text(text: &str) -> Option<Self> {
+        let mut lines = text.split('\n');
+        let address = ProviderAddress::parse(lines.next()?).ok()?;
+        let statement = lines.next()?.parse().ok()?;
+        let day = lines.next()?.parse().ok()?;
+        if lines.next().is_some() {
+            return None;
+        }
+        Some(Self {
+            address,
+            statement,
+            day,
+        })
+    }
+}
+
+/// The consent in the settings file, if the user gave it in KassenSturz's
+/// own consent screen (B-252): the screen seals each consent in the
+/// keychain (or, with nowhere to save secrets, in memory until KassenSturz
+/// closes), and only a consent in the file that matches the sealed one
+/// counts. A consent another program, or a hand, wrote into the settings
+/// file has no seal, so the user is asked again. `sealed` is that seal,
+/// `None` when there is none.
+pub fn confirmed<'a>(
+    file: Option<&'a ConsentRecord>,
+    sealed: Option<&ConsentRecord>,
+) -> Option<&'a ConsentRecord> {
+    file.filter(|file| sealed == Some(*file))
 }
 
 /// Whether sending to `address` needs a consent that `consent` doesn't

@@ -14,18 +14,22 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use fake::{Answer, FakeProvider};
+use kassensturz_ai::ProviderKeys;
 use kassensturz_ai::{
     AiClient, AiError, ConfigFile, ConsentRecord, Finish, FunctionSpec, KeyUse, Limits, Message,
     ProviderAddress, ProviderSettings,
 };
-use kassensturz_platform::Secret;
+use kassensturz_platform::{MemoryKeychain, Secret};
 use serde_json::json;
+use std::sync::{Arc, Mutex};
 
 const TEST_KEY: &str = "sk-test-0000-made-up-key";
 
 /// A settings file of its own for each test.
 struct Settings {
     path: PathBuf,
+    /// The keychain the consent screen seals each consent in (B-252).
+    keys: Arc<Mutex<ProviderKeys>>,
 }
 
 impl Settings {
@@ -39,6 +43,9 @@ impl Settings {
         std::fs::create_dir_all(&folder).unwrap();
         Self {
             path: folder.join("kassensturzrc"),
+            keys: Arc::new(Mutex::new(ProviderKeys::new(Some(Box::new(
+                MemoryKeychain::new(),
+            ))))),
         }
     }
 
@@ -61,11 +68,14 @@ impl Settings {
         self
     }
 
+    /// The consent as KassenSturz's consent screen gives it: in the
+    /// settings file and sealed in the keychain (B-252).
     fn add_consent(&self, address: &str) {
         let consent = ConsentRecord::give(
             &ProviderAddress::parse(address).unwrap(),
             jiff::civil::date(2026, 10, 25),
         );
+        self.keys.lock().unwrap().seal_consent(&consent).unwrap();
         let mut text = std::fs::read_to_string(&self.path).unwrap();
         for (key, value) in consent.entries() {
             text.push_str(&format!("{key}={value}\n"));
@@ -74,7 +84,9 @@ impl Settings {
     }
 
     fn client(&self) -> AiClient {
+        let keys = Arc::clone(&self.keys);
         AiClient::new(ConfigFile::at(&self.path))
+            .with_consent_seal(move |address| keys.lock().unwrap().sealed_consent(address))
     }
 }
 

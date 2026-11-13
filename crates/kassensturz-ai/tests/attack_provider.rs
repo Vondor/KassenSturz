@@ -92,7 +92,6 @@ fn balances() -> FunctionSpec {
 }
 
 #[test]
-#[ignore = "B-252 (attack A4): a consent written into the settings file by hand counts"]
 fn a4_a_consent_written_by_hand_is_asked_again() {
     // TEST-NET-1: never reached. A program that can write the settings file
     // points the provider at "another computer" and writes the consent too.
@@ -157,4 +156,75 @@ fn a5_a_reply_with_10000_calls_is_refused() {
             reply.calls.len()
         ),
     }
+}
+
+#[test]
+fn a4_only_a_consent_with_the_apps_seal_counts() {
+    // B-252: the app seals each consent the user gives in its consent screen
+    // in the keychain. A consent in the settings file counts only when it
+    // matches that seal, so one written by hand, or changed by hand after
+    // the user agreed, is asked again.
+    use std::sync::{Arc, Mutex};
+
+    use kassensturz_ai::ProviderKeys;
+    use kassensturz_platform::MemoryKeychain;
+
+    let lan = "https://192.0.2.10:11434/v1";
+    let other = "https://192.0.2.11:11434/v1";
+    let settings = Settings::new();
+    settings.write_by_hand(lan, Some(lan));
+    let keys = Arc::new(Mutex::new(ProviderKeys::new(Some(Box::new(
+        MemoryKeychain::new(),
+    )))));
+    let reading = Arc::clone(&keys);
+    let client = settings
+        .client()
+        .with_consent_seal(move |address| reading.lock().unwrap().sealed_consent(address));
+    let request = client.prepare(question(), vec![balances()]).unwrap();
+    assert_eq!(
+        client.send(&request, None),
+        Err(AiError::NoConsent),
+        "no seal"
+    );
+
+    // A seal for another address, or for another day, doesn't fit.
+    let address = |text: &str| ProviderAddress::parse(text).unwrap();
+    let day = jiff::civil::date(2026, 10, 25);
+    keys.lock()
+        .unwrap()
+        .seal_consent(&ConsentRecord::give(&address(other), day))
+        .unwrap();
+    assert_eq!(
+        client.send(&request, None),
+        Err(AiError::NoConsent),
+        "other address"
+    );
+    keys.lock()
+        .unwrap()
+        .seal_consent(&ConsentRecord::give(
+            &address(lan),
+            jiff::civil::date(2026, 10, 26),
+        ))
+        .unwrap();
+    assert_eq!(
+        client.send(&request, None),
+        Err(AiError::NoConsent),
+        "other day"
+    );
+
+    // The seal the consent screen writes: the consent counts, so the
+    // request goes out (TEST-NET-1 is never reached).
+    keys.lock()
+        .unwrap()
+        .seal_consent(&ConsentRecord::give(&address(lan), day))
+        .unwrap();
+    assert_ne!(client.send(&request, None), Err(AiError::NoConsent));
+
+    // Taking the consent back breaks the seal.
+    keys.lock().unwrap().unseal_consent(&address(lan)).unwrap();
+    assert_eq!(
+        client.send(&request, None),
+        Err(AiError::NoConsent),
+        "unsealed"
+    );
 }

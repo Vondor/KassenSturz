@@ -35,8 +35,8 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 7] = [
-    LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30,
+pub(crate) const MIGRATIONS: [&str; 8] = [
+    LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30, LAYOUT_31,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
@@ -1075,6 +1075,91 @@ DROP TABLE changes;
 ALTER TABLE new_changes RENAME TO changes;
 ";
 
+/// Layout 31 (US6, #784, D-749): monthly moves between the user's own
+/// accounts that the user asked to be joined by themselves.
+///
+/// - `recurring_moves`: one row per remembered move, the accounts the money
+///   leaves and arrives at (different ones; removing an account removes its
+///   moves), the exact amount in minor units (more than zero) and its
+///   currency, the day of the month (1 to 31), the other party the paying
+///   side named, as delivered (either may be NULL), and the day it was
+///   remembered. A move is remembered once: the unique index counts a
+///   missing party as an empty one.
+/// - `changed_recurring_moves`, its change history (D-066).
+/// - `changes` is rebuilt, as layouts 27 and 30 did, with the actions
+///   `add_recurring_move`, `remove_recurring_move`, `join_recurring_moves`
+///   and `join_transfers` added to its list. Its rows stay as they were.
+///
+/// Nothing a book of layout 30 holds changes: it starts without
+/// remembered moves.
+const LAYOUT_31: &str = "
+CREATE TABLE recurring_moves (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    from_account_id BLOB NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    to_account_id BLOB NOT NULL REFERENCES accounts (id) ON DELETE CASCADE,
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    currency TEXT NOT NULL REFERENCES currencies (code),
+    day_of_month INTEGER NOT NULL CHECK (day_of_month BETWEEN 1 AND 31),
+    from_party_iban TEXT,
+    from_party_name TEXT,
+    created_on TEXT NOT NULL
+        CHECK (created_on GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    CHECK (from_account_id <> to_account_id)
+) STRICT;
+CREATE UNIQUE INDEX recurring_moves_once ON recurring_moves (
+    from_account_id, to_account_id, amount, currency,
+    coalesce(from_party_iban, ''), coalesce(from_party_name, '')
+);
+CREATE INDEX recurring_moves_by_to_account ON recurring_moves (to_account_id);
+
+CREATE TABLE changed_recurring_moves (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    from_account_id BLOB,
+    to_account_id BLOB,
+    amount INTEGER,
+    currency TEXT,
+    day_of_month INTEGER,
+    from_party_iban TEXT,
+    from_party_name TEXT,
+    created_on TEXT,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+CREATE TABLE new_changes (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    sequence INTEGER NOT NULL UNIQUE CHECK (sequence > 0),
+    action TEXT NOT NULL CHECK (action IN (
+        'set_rounding_mode', 'use_currency', 'add_account', 'rename_account',
+        'close_account', 'reopen_account', 'add_category', 'rename_category',
+        'move_category', 'add_rate', 'remove_rate', 'add_transaction',
+        'edit_transaction', 'remove_transaction', 'join_transfer',
+        'add_rule', 'edit_rule', 'move_rule', 'remove_rule', 'run_rules',
+        'import_statement', 'correct_starting_balance',
+        'add_institution', 'add_payee', 'add_tag',
+        'link_bank_account', 'unlink_bank_account', 'fetch_statement',
+        'apply_ai_changes', 'remove_category',
+        'add_view', 'edit_view', 'rename_view', 'move_view', 'remove_view',
+        'add_group', 'edit_group', 'move_group', 'remove_group',
+        'set_hidden_categories',
+        'add_budget', 'edit_budget', 'remove_budget',
+        'change_account_type',
+        'rename_tag', 'remove_tag', 'merge_tags',
+        'add_recurring_move', 'remove_recurring_move', 'join_recurring_moves',
+        'join_transfers'
+    )),
+    made_at TEXT NOT NULL
+        CHECK (made_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z'),
+    undone INTEGER NOT NULL CHECK (undone IN (0, 1)),
+    file_name TEXT
+) STRICT;
+INSERT INTO new_changes (id, sequence, action, made_at, undone, file_name)
+    SELECT id, sequence, action, made_at, undone, file_name FROM changes;
+DROP TABLE changes;
+ALTER TABLE new_changes RENAME TO changes;
+";
+
 /// Brings a book from layout `from` to the current one, or a new, empty
 /// database (`from` = 0) to a complete book. See [`migrate_with`].
 pub(crate) fn migrate(conn: &mut Connection, from: i32) -> Result<(), StoreError> {
@@ -1927,6 +2012,121 @@ mod tests {
             [holiday]
         );
         assert_eq!(book.tags().expect("tags")[0].name, "Holiday 2026");
+    }
+
+    #[test]
+    fn layout_31_adds_monthly_moves_and_keeps_the_history_of_every_earlier_layout() {
+        // Books of layout 24 (the first Beta's), 29 and 30, each with a
+        // change the history recorded, as an older KassenSturz wrote them
+        // (US6, #784, D-749).
+        for version in [FIRST_VERSION, 29, 30] {
+            let folder = TempFolder::new();
+            let path = folder.join("Household.ksz");
+            let checking = old_book(&path, version);
+            recorded_rename(&path, checking);
+            let conn = Connection::open(&path).expect("book opened");
+            let savings = AccountId::generate();
+            conn.execute(
+                "INSERT INTO accounts (id, name, kind, currency)
+                 VALUES (?1, 'Savings', 'asset', 'EUR')",
+                [savings.to_bytes()],
+            )
+            .expect("account written");
+            drop(conn);
+
+            let computer = computer(&folder);
+            let mut book = Book::open(&path, &computer).expect("book updated");
+            assert_eq!(
+                pragma(&book.conn, "user_version"),
+                VERSION,
+                "from {version}"
+            );
+            // Updated after a backup, which keeps the old layout.
+            let backups = files_in(&computer.backup_folder);
+            assert_eq!(backups.len(), 1, "from {version}");
+            let backup = Connection::open(&backups[0]).expect("backup opened");
+            assert_eq!(pragma(&backup, "user_version"), version);
+            drop(backup);
+            assert_eq!(count(&book.conn, "recurring_moves"), 0);
+            // Nothing the book held changed: the transaction is there, and
+            // the change made before the update is undone and made again.
+            assert_eq!(count(&book.conn, "transactions"), 1);
+            book.undo().expect("undone");
+            assert_eq!(
+                book.account(checking).expect("account").name,
+                "Main account"
+            );
+            book.redo().expect("made again");
+            assert_eq!(
+                book.account(checking).expect("account").name,
+                "Checking account"
+            );
+
+            // A move is remembered and recorded under its new action.
+            let id = book
+                .add_recurring_move(&crate::NewRecurringMove {
+                    from_account: checking,
+                    to_account: savings,
+                    amount: Money::from_minor_units(10_000, EUR),
+                    day_of_month: 1,
+                    from_party_iban: None,
+                    from_party_name: None,
+                    created_on: kassensturz_core::Date::constant(2026, 11, 13),
+                })
+                .expect("remembered");
+            let action: String = book
+                .conn
+                .query_row(
+                    "SELECT action FROM main.changes ORDER BY sequence DESC LIMIT 1",
+                    [],
+                    |row| row.get(0),
+                )
+                .expect("newest change");
+            assert_eq!(action, "add_recurring_move");
+            book.remove_recurring_move(id).expect("removed");
+            book.undo().expect("undone");
+            assert_eq!(book.recurring_moves().expect("moves").len(), 1);
+        }
+    }
+
+    #[test]
+    fn layout_31_refuses_a_move_that_breaks_its_checks() {
+        let mut conn = Connection::open_in_memory().expect("database");
+        migrate(&mut conn, 0).expect("layout built");
+        conn.pragma_update(None, "foreign_keys", true)
+            .expect("checked");
+        conn.execute_batch("INSERT INTO currencies (code, minor_digits) VALUES ('EUR', 2);")
+            .expect("currency");
+        let (checking, savings) = (AccountId::generate(), AccountId::generate());
+        conn.execute(
+            "INSERT INTO accounts (id, name, kind, currency)
+                 VALUES (?1, 'Checking account', 'asset', 'EUR'), (?2, 'Savings', 'asset', 'EUR')",
+            params![checking.to_bytes(), savings.to_bytes()],
+        )
+        .expect("accounts");
+        let insert = |from: AccountId, to: AccountId, amount: i64, day: i64, iban: Option<&str>| {
+            conn.execute(
+                "INSERT INTO recurring_moves (id, from_account_id, to_account_id, amount,
+                     currency, day_of_month, from_party_iban, created_on)
+                 VALUES (?1, ?2, ?3, ?4, 'EUR', ?5, ?6, '2026-11-13')",
+                params![
+                    uuid::Uuid::now_v7().into_bytes(),
+                    from.to_bytes(),
+                    to.to_bytes(),
+                    amount,
+                    day,
+                    iban
+                ],
+            )
+        };
+        assert!(insert(checking, checking, 100, 1, None).is_err());
+        assert!(insert(checking, savings, 0, 1, None).is_err());
+        assert!(insert(checking, savings, 100, 0, None).is_err());
+        assert!(insert(checking, savings, 100, 32, None).is_err());
+        insert(checking, savings, 100, 1, None).expect("a move");
+        // Once, even without a party, which SQLite would count as different.
+        assert!(insert(checking, savings, 100, 15, None).is_err());
+        insert(checking, savings, 100, 15, Some("DE89370400440532013000")).expect("another party");
     }
 
     #[test]

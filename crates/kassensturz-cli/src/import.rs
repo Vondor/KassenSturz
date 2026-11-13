@@ -14,9 +14,10 @@ use kassensturz_import::{
     RECOGNITION_BYTES, Recognition, Statement, TestFormat, currency, import, read_file,
 };
 use kassensturz_pipeline::{
-    Choices, EntryOutcome, EntryRef, ImportReport, import_statements, preview_import,
+    Choices, EntryOutcome, EntryRef, ImportReport, import_statements, join_recurring_moves,
+    preview_import,
 };
-use kassensturz_store::Book;
+use kassensturz_store::{Book, NotJoined};
 
 use crate::amount::money_text;
 use crate::args::Arguments;
@@ -114,7 +115,12 @@ pub(crate) fn import_file(
     let report = if dry_run {
         preview_import(book, account.id, &chosen, &choices)?
     } else {
-        import_statements(book, account.id, &chosen, &choices, Some(Path::new(file)))?
+        let mut report =
+            import_statements(book, account.id, &chosen, &choices, Some(Path::new(file)))?;
+        // An action of its own, so `undo` takes back the joins first and
+        // keeps the entries (D-749).
+        join_recurring_moves(book, &mut report)?;
+        report
     };
     let shown = Shown {
         book,
@@ -311,6 +317,7 @@ impl Shown<'_> {
             )?;
         }
         self.write_similar(out)?;
+        self.write_joins(out)?;
         self.write_transfers(out)?;
         self.write_rules(out)?;
         for check in &report.balances {
@@ -376,6 +383,66 @@ impl Shown<'_> {
             rows.push(row);
         }
         write!(out, "{}", indented(&table(&rows, &[3])))?;
+        Ok(())
+    }
+
+    /// The pairs joined by themselves as monthly moves, and the sides of
+    /// such moves that need the user (D-749).
+    fn write_joins(&self, out: &mut dyn Write) -> Result<(), CliError> {
+        let joins = &self.report.joins;
+        let name = |id| {
+            self.book
+                .account(id)
+                .map_or_else(|_| short_id(id), |account| plain(&account.name))
+        };
+        if !joins.joined.is_empty() {
+            writeln!(
+                out,
+                "{} {} by themselves, as monthly moves you chose:",
+                if self.dry_run { "Would join" } else { "Joined" },
+                counted(joins.joined.len(), "pair", "pairs")
+            )?;
+            let mut rows = vec![header(&["From", "Out", "To", "In", "Amount"])];
+            for join in &joins.joined {
+                rows.push(vec![
+                    name(join.outgoing.account),
+                    join.outgoing.booking_date.to_string(),
+                    name(join.incoming.account),
+                    join.incoming.booking_date.to_string(),
+                    money_text(Some(self.book), join.incoming.amount),
+                ]);
+            }
+            write!(out, "{}", indented(&table(&rows, &[4])))?;
+            if !self.dry_run {
+                writeln!(
+                    out,
+                    "`undo` takes these joins back and keeps the imported entries."
+                )?;
+            }
+        }
+        if !joins.needs_you.is_empty() {
+            writeln!(
+                out,
+                "These fit a monthly move but weren't joined by themselves; check them:"
+            )?;
+            let mut rows = vec![header(&["Transactions", "Why"])];
+            for needs in &joins.needs_you {
+                let why = match &needs.reason {
+                    NotJoined::Unclear => "more than one fits".to_owned(),
+                    NotJoined::Refused(error) => error.report().code.to_owned(),
+                };
+                rows.push(vec![
+                    needs
+                        .transactions
+                        .iter()
+                        .map(|&id| self.describe(id))
+                        .collect::<Vec<_>>()
+                        .join("; "),
+                    why,
+                ]);
+            }
+            write!(out, "{}", indented(&table(&rows, &[])))?;
+        }
         Ok(())
     }
 

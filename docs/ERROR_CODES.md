@@ -163,6 +163,11 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.rule-inside-itself` | `rule` | | {rule} can't go inside itself or one of its own sub-Rules. Choose another place. |
 | `store.rule-needs-category` | `account` | | {account} isn't a category. Choose a category, or let the Rule make a Transfer to move the money into one of your accounts. |
 | `store.transfer-suggested` | `transaction` | | {transaction} looks like one side of a Transfer between your accounts, so the Rules left it alone. Decide on the Transfer first, then run the Rules again. |
+| `store.fits-monthly-move` | `transaction` | | {transaction} fits a monthly move you asked KassenSturz to join by itself, so the Rules left it alone: its other side comes from your other account's statement (D-749). Import that statement, sort it by hand, or remove the move in Accounts › Monthly moves. |
+| `store.recurring-move-unknown` | `move` | | This monthly move isn't remembered (any more). It may have just been removed. |
+| `store.recurring-move-exists` | `existing` | | KassenSturz already joins this move by itself: the same two accounts, the same amount and the same other party. Remove the old one first in Accounts › Monthly moves to remember it for another day. |
+| `store.recurring-move-invalid` | `reason` | `same-account`, `amount`, `day`, `currency` | This move can't be joined by itself: the money must move between two different accounts (`same-account`), by an amount of more than zero (`amount`), on a day of the month from 1 to 31 (`day`), and both accounts must be in the amount's currency (`currency`; a move between currencies stays one you confirm). |
+| `store.transfer-not-suggested` | `outgoing`, `incoming` | | {outgoing} and {incoming} are no longer a suggested move between your accounts, perhaps because one of them changed. They were left as they are; join them one by one if they belong together. |
 | `store.unknown-rate` | `rate` | | This exchange rate isn't in the book anymore. It may have just been removed. |
 | `store.rate-within-one-currency` | `currency` | | An exchange rate is between two different currencies. Choose another currency than {currency}. |
 | `store.changeover-rate` | | | This is the fixed rate a currency was replaced at. It stays with the amounts converted with it and isn't added to the exchange rates. |

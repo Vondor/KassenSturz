@@ -266,6 +266,16 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::RuleInsideItself(rule),
         StoreError::RuleNeedsCategory(account),
         StoreError::TransferSuggested(transaction),
+        StoreError::FitsMonthlyMove(transaction),
+        StoreError::UnknownRecurringMove(kassensturz_core::RecurringMoveId::generate()),
+        StoreError::RecurringMoveExists {
+            existing: kassensturz_core::RecurringMoveId::generate(),
+        },
+        StoreError::RecurringMove(kassensturz_core::RecurringMoveError::SameAccount),
+        StoreError::TransferNotSuggested {
+            outgoing: transaction,
+            incoming: transaction,
+        },
         StoreError::UnknownRate(rate),
         StoreError::RateWithinOneCurrency(EUR),
         StoreError::ChangeoverRate,

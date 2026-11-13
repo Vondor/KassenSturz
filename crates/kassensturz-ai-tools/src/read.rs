@@ -364,7 +364,9 @@ enum Bucket {
 
 /// One row of `category_totals`: the category (`None` for money not sorted
 /// yet), what is booked to it alone, and, for a parent whose subcategories
-/// hold money, the total with them (M5-B40).
+/// hold money, the total with them (M5-B40). The result shows the total
+/// with them as the row's `total` and the first figure as
+/// `own_bookings_only` (#850).
 type Row = (Option<AccountId>, Money, Option<Money>);
 
 /// What `category_totals` counts: only transactions with a part in
@@ -594,9 +596,23 @@ pub(crate) fn category_totals(
                         row.insert("unsorted".into(), Value::Bool(true));
                     }
                 }
-                row.insert("amount".into(), w.amount(total)?);
-                if let Some(below) = below {
-                    row.insert("amount_with_subcategories".into(), w.amount(below)?);
+                // The category's figure is `total`, with everything inside
+                // it (#850): two models took a parent's own bookings, then
+                // named `amount`, for its total. Those stay readable only
+                // under a name nobody quotes as the total, and the number
+                // check flags them when an answer names them without the
+                // total next to them.
+                match below {
+                    Some(with_children) => {
+                        row.insert("total".into(), w.amount(with_children)?);
+                        row.insert(
+                            "own_bookings_only".into(),
+                            w.own_bookings(total, with_children)?,
+                        );
+                    }
+                    None => {
+                        row.insert("total".into(), w.amount(total)?);
+                    }
                 }
                 rows.push(Value::Object(row));
             }

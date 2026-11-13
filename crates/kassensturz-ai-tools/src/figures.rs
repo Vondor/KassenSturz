@@ -28,8 +28,16 @@
 //! not a sign. Known limits, as D-188 records: a sign said in words ("you
 //! gained 120" for -120) isn't checked, and numbers written as words
 //! ("twelve") aren't seen.
+//!
+//! A part of a total (#850): what is booked to a parent category itself,
+//! without its subcategories, is a real figure but never the category's
+//! total, and models quoted it as that. Such a figure passes only when the
+//! same answer also names the total it is a part of ("Food: 5,313.81, of
+//! which 1,786.37 on Food itself"); named alone, it is flagged like a
+//! figure no function produced. The check can't read what the answer says
+//! about the number, only whether the total stands next to it.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use kassensturz_core::{CurrencyCode, Money};
@@ -77,6 +85,9 @@ pub struct Figures {
     /// Numbers as they were written in a text, e.g. `0.261025.1`, which
     /// pass when an answer writes them the same way.
     written: HashSet<String>,
+    /// Parts of a total (#850), with whether they are below zero as in
+    /// `signed`, each with the values of the totals they are a part of.
+    parts: HashMap<(Exact, bool), HashSet<Exact>>,
 }
 
 impl Figures {
@@ -87,7 +98,7 @@ impl Figures {
 
     /// Whether there are none.
     pub fn is_empty(&self) -> bool {
-        self.values.is_empty() && self.written.is_empty()
+        self.values.is_empty() && self.written.is_empty() && self.parts.is_empty()
     }
 
     /// `amount`, in a currency with `minor_digits` decimal places.
@@ -104,6 +115,24 @@ impl Figures {
             self.add_both_signs(value);
         } else {
             self.signed.insert((value, units < 0));
+        }
+    }
+
+    /// `part`, a part of `total` that is never quoted as the total, such as
+    /// what is booked to a parent category itself (#850), both in a
+    /// currency with `minor_digits` decimal places. It passes only in an
+    /// answer that also names `total`.
+    pub fn add_part_of(&mut self, part: Money, total: Money, minor_digits: u8) {
+        let units = part.minor_units();
+        let value = Exact::new(u128::from(units.unsigned_abs()), minor_digits);
+        let total = Exact::new(u128::from(total.minor_units().unsigned_abs()), minor_digits);
+        let signs: &[bool] = match units {
+            0 => &[false, true],
+            _ if units < 0 => &[true],
+            _ => &[false],
+        };
+        for &below in signs {
+            self.parts.entry((value, below)).or_default().insert(total);
         }
     }
 
@@ -142,14 +171,39 @@ impl Figures {
         self.values.extend(other.values.iter().copied());
         self.signed.extend(other.signed.iter().copied());
         self.written.extend(other.written.iter().cloned());
+        for (part, totals) in &other.parts {
+            self.parts
+                .entry(*part)
+                .or_default()
+                .extend(totals.iter().copied());
+        }
     }
 
-    fn knows(&self, number: &Number<'_>) -> bool {
+    /// Whether `number` is a known figure, or a part of a total (#850) of
+    /// which the answer also names the total: `named` holds every value
+    /// the answer's numbers can be read as.
+    fn knows(&self, number: &Number<'_>, named: &HashSet<Exact>) -> bool {
         number.values.iter().any(|&value| match number.sign {
             Sign::None => self.values.contains(&value),
             Sign::Minus => self.signed.contains(&(value, true)),
             Sign::Plus => self.signed.contains(&(value, false)),
         }) || self.written.contains(number.written)
+            || self.knows_as_part(number, named)
+    }
+
+    fn knows_as_part(&self, number: &Number<'_>, named: &HashSet<Exact>) -> bool {
+        let signs: &[bool] = match number.sign {
+            Sign::None => &[false, true],
+            Sign::Minus => &[true],
+            Sign::Plus => &[false],
+        };
+        number.values.iter().any(|&value| {
+            signs.iter().any(|&below| {
+                self.parts
+                    .get(&(value, below))
+                    .is_some_and(|totals| totals.iter().any(|total| named.contains(total)))
+            })
+        })
     }
 }
 
@@ -167,9 +221,14 @@ pub struct Unverified {
 /// Every number in `answer` that isn't among `known`, in the order they
 /// appear. An empty list means every figure in the answer came from code.
 pub fn check_numbers(answer: &str, known: &Figures) -> Vec<Unverified> {
-    numbers(answer)
+    let numbers = numbers(answer);
+    let named: HashSet<Exact> = numbers
+        .iter()
+        .flat_map(|number| number.values.iter().copied())
+        .collect();
+    numbers
         .into_iter()
-        .filter(|number| !known.knows(number))
+        .filter(|number| !known.knows(number, &named))
         .map(|number| Unverified {
             text: number.written.to_owned(),
             start: number.start,
@@ -458,6 +517,46 @@ mod tests {
         assert_eq!(
             flagged("100 EUR left.\n5.5 EUR more.", &known),
             ["100", "5.5"]
+        );
+    }
+
+    #[test]
+    fn a_part_of_a_total_passes_only_next_to_its_total() {
+        // #850: Food holds 5,313.81 with its subcategories, 1,786.37 of it
+        // booked to Food itself.
+        let mut figures = known(&[531_381]);
+        figures.add_part_of(eur(178_637), eur(531_381), 2);
+        assert_eq!(
+            flagged("You spent 1,786.37 EUR on Food.", &figures),
+            ["1,786.37"]
+        );
+        assert_eq!(
+            flagged(
+                "Food: 5,313.81 EUR, of which 1.786,37 EUR on Food itself.",
+                &figures
+            ),
+            Vec::<String>::new()
+        );
+        // The sign is checked as for any figure.
+        assert_eq!(
+            flagged("Food: 5313.81, and -1786.37 on Food itself.", &figures),
+            ["1786.37"]
+        );
+        // A part that is also a figure of its own passes alone, e.g. when
+        // a search listed the same amount.
+        figures.extend(&known(&[178_637]));
+        assert_eq!(
+            flagged("You spent 1,786.37 EUR.", &figures),
+            Vec::<String>::new()
+        );
+        // A parent with nothing booked to itself: its 0.00 alone is flagged.
+        let mut home = known(&[80_000]);
+        home.add_part_of(eur(0), eur(80_000), 2);
+        assert!(!home.is_empty());
+        assert_eq!(flagged("Home: 0.00 EUR.", &home), ["0.00"]);
+        assert_eq!(
+            flagged("Home: 800.00 EUR, 0.00 of it on Home itself.", &home),
+            Vec::<String>::new()
         );
     }
 

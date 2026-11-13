@@ -108,12 +108,15 @@ pub const FUNCTIONS: &[Function] = &[
             another account has the opposite entry within 3 business days); they are in the \
             totals, so tell the user they may be moves instead of leaving them out yourself. \
             Money not sorted into a category yet has \
-            \"unsorted\": true. A row's \"amount\" is what is booked to that category itself, so \
-            the rows add up to the totals. A category with subcategories also has \
-            \"amount_with_subcategories\": that category and everything below it; for \
-            \"how much on Food\" use that figure, never the sum of the rows. A row of a \
-            category inside another has \"parent_id\", the ID of the category it is in; a row \
-            without it is a top-level category or money not sorted yet. With \
+            \"unsorted\": true. A row's \"total\" is the category's total with everything \
+            inside it: for \"how much on Food\" quote Food's \"total\", never add rows up \
+            yourself. A category with subcategories also has \"own_bookings_only\", what is \
+            booked to it alone without its subcategories; it is never the category's total, so \
+            name it only next to the total. A row of a category inside another has \
+            \"parent_id\", the ID of the category it is in, and is already in its parent's \
+            \"total\"; when no row is left out, the totals of the rows without \"parent_id\" add up \
+            to money_in and money_out. A row without it is a top-level category or money not \
+            sorted yet. With \
             \"account_ids\" only transactions with a part in one of those accounts count, \
             each as a whole, and \"accounts\" names them. With \"tag_id\" only the \
             parts with that tag count (on the part or on the whole transaction; the sum by \

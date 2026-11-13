@@ -138,12 +138,16 @@ fn the_totals_of_the_whole_book_add_up_to_the_balances() {
             .checked_sub(eur(&totals["money_out"]))
             .expect("no overflow")
     );
+    // The totals of the top-level rows add up to the side's figure, as the
+    // function's description says (#850): a subcategory is already in its
+    // parent's total.
     let sum = |side: &str| {
         totals[side]
             .as_array()
             .expect("a list")
             .iter()
-            .map(|row| eur(&row["amount"]))
+            .filter(|row| row.get("parent_id").is_none())
+            .map(|row| eur(&row["total"]))
             .fold(
                 Money::zero(eur(&json!("0.00")).currency()),
                 |sum, amount| sum.checked_add(amount).expect("no overflow"),

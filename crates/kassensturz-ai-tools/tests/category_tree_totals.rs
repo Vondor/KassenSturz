@@ -1,14 +1,15 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! `category_totals` and subcategories (M5-B40): a parent's row holds what
-//! is booked to the parent itself, and the row also carries the total with
-//! everything below it, so a model never has to add rows up itself. The
-//! book is synthetic and filled through the store's own operations.
+//! `category_totals` and subcategories (M5-B40, #850): every row leads with
+//! the category's total with everything below it, so a model never has to
+//! add rows up itself, and a parent's own bookings are only under a name no
+//! model takes for the total. The book is synthetic and filled through the
+//! store's own operations.
 
 #![cfg(feature = "ai")]
 
-use kassensturz_ai_tools::{ToolError, call};
+use kassensturz_ai_tools::{ToolError, call, check_numbers};
 use kassensturz_core::{
     Account, AccountId, AccountKind, CurrencyCode, Date, Money, Split, Transaction, TransactionId,
 };
@@ -92,7 +93,10 @@ fn row<'a>(side: &'a Value, name: &str) -> &'a Value {
 }
 
 #[test]
-fn a_parent_row_also_gives_the_total_with_its_subcategories() -> Result<(), ToolError> {
+fn a_row_leads_with_the_total_and_names_the_own_bookings_apart() -> Result<(), ToolError> {
+    // #850: two models quoted a parent's own bookings, then the row's
+    // "amount", as the category's total. Every row now has "total", and a
+    // parent's own bookings are only under "own_bookings_only".
     let book = book_with_food_tree();
     let value = call(
         &book,
@@ -103,28 +107,83 @@ fn a_parent_row_also_gives_the_total_with_its_subcategories() -> Result<(), Tool
     .value;
     let totals = &value["currencies"][0];
     let spending = &totals["spending"];
+    for side in [spending, &totals["income"]] {
+        for row in side.as_array().expect("a list") {
+            assert!(row.get("amount").is_none(), "{row}");
+            assert!(row.get("amount_with_subcategories").is_none(), "{row}");
+        }
+    }
 
     let food = row(spending, "Food");
-    assert_eq!(food["amount"], json!("17.86"));
-    assert_eq!(food["amount_with_subcategories"], json!("52.26"));
-    // A subcategory is a leaf here: no second figure.
-    assert!(
-        row(spending, "Food › Groceries")
-            .get("amount_with_subcategories")
-            .is_none()
-    );
+    assert_eq!(food["total"], json!("52.26"));
+    assert_eq!(food["own_bookings_only"], json!("17.86"));
+    // A subcategory is a leaf here: only its total.
+    let groceries = row(spending, "Food › Groceries");
+    assert_eq!(groceries["total"], json!("27.35"));
+    assert!(groceries.get("own_bookings_only").is_none());
     // A parent with nothing booked to itself is still listed, with its total.
     let home = row(spending, "Home");
-    assert_eq!(home["amount"], json!("0.00"));
-    assert_eq!(home["amount_with_subcategories"], json!("800.00"));
+    assert_eq!(home["total"], json!("800.00"));
+    assert_eq!(home["own_bookings_only"], json!("0.00"));
     // Same for income.
     let salary = row(&totals["income"], "Salary");
-    assert_eq!(salary["amount"], json!("2000.00"));
-    assert_eq!(salary["amount_with_subcategories"], json!("2100.00"));
+    assert_eq!(salary["total"], json!("2100.00"));
+    assert_eq!(salary["own_bookings_only"], json!("2000.00"));
 
-    // The rows still add up to the totals: nothing is counted twice there.
+    // The totals of the top-level rows add up to money in and money out,
+    // as the function's description says: nothing is counted twice there.
     assert_eq!(totals["money_out"], json!("852.26"));
     assert_eq!(totals["money_in"], json!("2100.00"));
+    for (side, sum) in [("spending", "money_out"), ("income", "money_in")] {
+        let top: i64 = totals[side]
+            .as_array()
+            .expect("a list")
+            .iter()
+            .filter(|row| row.get("parent_id").is_none())
+            .map(|row| cents(&row["total"]))
+            .sum();
+        assert_eq!(top, cents(&totals[sum]), "{side}");
+    }
+    Ok(())
+}
+
+/// Exact decimal text such as "852.26" in cents, read without floating
+/// point.
+fn cents(text: &Value) -> i64 {
+    let text = text.as_str().expect("decimal text");
+    let (whole, fraction) = text.split_once('.').expect("two places");
+    whole.parse::<i64>().expect("digits") * 100 + fraction.parse::<i64>().expect("digits")
+}
+
+#[test]
+fn the_number_check_flags_the_own_bookings_quoted_as_the_total() -> Result<(), ToolError> {
+    // #850, where steps meet: the figures of the real result, checked as
+    // the chat checks an answer (D-052).
+    let book = book_with_food_tree();
+    let output = call(
+        &book,
+        "category_totals",
+        &json!({ "from": "2026-10-01", "to": "2026-10-31" }),
+        TODAY,
+    )?;
+    let flagged = |answer: &str| -> Vec<String> {
+        check_numbers(answer, &output.figures)
+            .into_iter()
+            .map(|number| number.text)
+            .collect()
+    };
+    assert_eq!(flagged("You spent 17.86 EUR on Food."), ["17.86"]);
+    assert_eq!(
+        flagged("You spent 52.26 EUR on Food."),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        flagged("Food: 52.26 EUR, of which 17.86 EUR on Food itself."),
+        Vec::<String>::new()
+    );
+    // A leaf's total is a figure of its own.
+    assert_eq!(flagged("Groceries: 27.35 EUR."), Vec::<String>::new());
+    assert_eq!(flagged("Salary brought 2,000.00 EUR."), ["2,000.00"]);
     Ok(())
 }
 

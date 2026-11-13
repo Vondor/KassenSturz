@@ -1207,6 +1207,7 @@ fn move_object(moved: &MoveText) -> QVariant {
         ("exactAmount", text(&moved.amount.exact)),
         ("day", QVariant::from(&moved.day)),
         ("party", text(&moved.party)),
+        ("lastJoined", text(&moved.last_joined)),
     ])
 }
 
@@ -1588,12 +1589,23 @@ mod tests {
             amount: exactly("100,00 €"),
             day: 31,
             party: String::new(),
+            last_joined: "01.10.2026".into(),
         });
         assert_eq!(
             keys(&moved),
-            ["amount", "day", "exactAmount", "from", "id", "party", "to"]
+            [
+                "amount",
+                "day",
+                "exactAmount",
+                "from",
+                "id",
+                "lastJoined",
+                "party",
+                "to"
+            ]
         );
         assert_eq!(text_of(&moved, "id"), "m1");
+        assert_eq!(text_of(&moved, "lastJoined"), "01.10.2026");
         assert_eq!(text_of(&moved, "party"), "");
         assert_eq!(number_of(&moved, "day"), 31);
 

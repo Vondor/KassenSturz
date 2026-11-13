@@ -129,7 +129,7 @@ impl qobject::DeveloperMode {
 
     fn bank_log_folder_url(&self) -> QString {
         #[cfg(feature = "debug-log")]
-        if let Some(folder) = kassensturz_core::bank_log::folder().filter(|_| self.bank_log_on) {
+        if let Some(folder) = bank_log_folder(self.bank_log_on) {
             return QString::from(format!("file://{}", folder.display()).as_str());
         }
         QString::default()
@@ -207,6 +207,22 @@ pub fn bank_log_is_on() -> bool {
     return kassensturz_core::bank_log::is_on();
     #[cfg(not(feature = "debug-log"))]
     false
+}
+
+/// The bank log's folder while the log runs, made if no bank connection
+/// wrote to it yet, so "Show the log" opens it (M6-B243). `None` while the
+/// log is off or the folder can't be made.
+#[cfg(feature = "debug-log")]
+fn bank_log_folder(on: bool) -> Option<std::path::PathBuf> {
+    made(kassensturz_core::bank_log::folder().filter(|_| on))
+}
+
+/// `folder`, made if it isn't there yet; `None` if it can't be.
+#[cfg_attr(not(feature = "debug-log"), allow(dead_code))]
+fn made(folder: Option<std::path::PathBuf>) -> Option<std::path::PathBuf> {
+    let folder = folder?;
+    std::fs::create_dir_all(&folder).ok()?;
+    Some(folder)
 }
 
 /// Whether the bank log also keeps the bank's reply texts, redacted
@@ -294,6 +310,26 @@ mod tests {
         assert_eq!(current_screen(), Some("RegisterPage"));
         set_current_screen(kassensturz_core::vocabulary::screen("Moon Base Rent"));
         assert_eq!(current_screen(), None);
+    }
+
+    /// "Show the log" of the bank log did nothing before a bank connection
+    /// had written the folder (M6-B243, US6 P3 VM round 1, A6a).
+    #[test]
+    fn the_bank_log_folder_is_made_when_it_is_asked_for() {
+        let folder = crate::test_folder::TestFolder::new();
+        let wanted = folder.join("data/bank-log");
+        assert!(!wanted.exists());
+        assert_eq!(made(Some(wanted.clone())), Some(wanted.clone()));
+        assert!(wanted.is_dir());
+        // There already: the same folder, nothing removed.
+        fs::write(wanted.join("bank-log.jsonl"), "{}\n").expect("written");
+        assert_eq!(made(Some(wanted.clone())), Some(wanted.clone()));
+        assert!(wanted.join("bank-log.jsonl").exists());
+        assert_eq!(made(None), None);
+        // A file in the way: no folder.
+        let blocked = folder.join("file");
+        fs::write(&blocked, "x").expect("written");
+        assert_eq!(made(Some(blocked.join("bank-log"))), None);
     }
 
     #[test]

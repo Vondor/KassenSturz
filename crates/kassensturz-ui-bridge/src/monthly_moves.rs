@@ -15,7 +15,7 @@
 //! see: "Join all" refuses when the suggestions changed since the list was
 //! shown.
 
-use kassensturz_core::{Account, AccountId, RecurringMove, Report, TransactionId};
+use kassensturz_core::{Account, AccountId, Date, RecurringMove, Report, TransactionId};
 use kassensturz_store::{Action, Book, NewRecurringMove, StoreError};
 
 use crate::errors::{ErrorText, report_text};
@@ -87,6 +87,9 @@ pub struct MoveText {
     pub day: i32,
     /// The other party it was remembered with; may be empty.
     pub party: String,
+    /// The date of the newest Transfer of this move, as the user's locale
+    /// writes dates; empty if there is none (M6-B242).
+    pub last_joined: String,
 }
 
 /// What "Join all" did.
@@ -262,9 +265,40 @@ pub fn list(book: &Book, locale: &impl Locale) -> Result<Vec<MoveText>, MonthlyM
                     moved.from_party_iban.as_deref(),
                     moved.from_party_name.as_deref(),
                 ),
+                last_joined: last_joined(book, moved)?
+                    .map(|date| locale.short_date(date))
+                    .unwrap_or_default(),
             })
         })
         .collect()
+}
+
+/// The date of the newest Transfer that is this move: exactly two parts, the
+/// amount leaving `from_account` and arriving in `to_account`. The book
+/// doesn't note which Transfer a move joined, so this is read from the
+/// Transfers themselves; one the user joined by hand counts too, since it is
+/// the same move (M6-B242).
+fn last_joined(book: &Book, moved: &RecurringMove) -> Result<Option<Date>, StoreError> {
+    let leaving = moved.amount.checked_neg().ok();
+    Ok(book
+        .transactions_of(moved.from_account)?
+        .iter()
+        .filter_map(|transaction| {
+            let [first, second] = transaction.splits() else {
+                return None;
+            };
+            let (paying, arriving) = if first.account == Some(moved.from_account) {
+                (first, second)
+            } else {
+                (second, first)
+            };
+            (paying.account == Some(moved.from_account)
+                && arriving.account == Some(moved.to_account)
+                && Some(paying.amount) == leaving
+                && arriving.amount == moved.amount)
+                .then(|| transaction.date_of(paying))
+        })
+        .max())
 }
 
 /// Stops joining the move `id` by itself. What it joined stays joined.
@@ -283,6 +317,22 @@ pub fn remove(book: &mut Book, id: &str) -> Result<(), MonthlyMovesError> {
 struct Seen {
     new: NewRecurringMove,
     months: Vec<(i16, i8)>,
+    /// The day of the month of each joined pair's paying side.
+    days: Vec<u8>,
+}
+
+/// The day of the month most of `days` fall on; of days seen equally often,
+/// the one seen first. A move is remembered around that day, not around the
+/// first pair's, which may be an exception (M6-B242).
+fn usual_day(days: &[u8]) -> Option<u8> {
+    let mut best: Option<(u8, usize)> = None;
+    for &day in days {
+        let count = days.iter().filter(|&&other| other == day).count();
+        if best.is_none_or(|(_, most)| count > most) {
+            best = Some((day, count));
+        }
+    }
+    best.map(|(day, _)| day)
 }
 
 /// Joins every pair the book suggests right now, as one action, after the
@@ -304,7 +354,7 @@ pub fn join_all(
     // Worked out before the join, which removes each receiving transaction.
     let mut paying: Vec<(TransactionId, Option<usize>)> = Vec::new();
     let mut moves: Vec<Seen> = Vec::new();
-    let mut months_of: Vec<(TransactionId, (i16, i8))> = Vec::new();
+    let mut months_of: Vec<(TransactionId, (i16, i8), u8)> = Vec::new();
     for found in &suggested {
         let (outgoing, incoming) = (found.outgoing, found.incoming);
         let group = match book.recurring_move_for(outgoing.transaction, incoming.transaction, today)
@@ -316,6 +366,7 @@ pub fn join_all(
                         moves.push(Seen {
                             new,
                             months: Vec::new(),
+                            days: Vec::new(),
                         });
                         moves.len() - 1
                     }
@@ -328,6 +379,7 @@ pub fn join_all(
         months_of.push((
             outgoing.transaction,
             (outgoing.booking_date.year(), outgoing.booking_date.month()),
+            u8::try_from(outgoing.booking_date.day()).unwrap_or(1),
         ));
     }
     let pairs: Vec<(TransactionId, TransactionId)> = suggested
@@ -340,10 +392,12 @@ pub fn join_all(
         if !done.joined.contains(transaction) {
             continue;
         }
-        if let Some((_, month)) = months_of.iter().find(|(id, _)| id == transaction)
-            && !moves[*group].months.contains(month)
-        {
-            moves[*group].months.push(*month);
+        if let Some((_, month, day)) = months_of.iter().find(|(id, ..)| id == transaction) {
+            let seen = &mut moves[*group];
+            seen.days.push(*day);
+            if !seen.months.contains(month) {
+                seen.months.push(*month);
+            }
         }
     }
     let accounts = book.all_accounts()?;
@@ -353,7 +407,8 @@ pub fn join_all(
         if seen.months.len() < 2 || remembered(book, &seen.new)? {
             continue;
         }
-        let new = seen.new;
+        let mut new = seen.new;
+        new.day_of_month = usual_day(&seen.days).unwrap_or(new.day_of_month);
         looks.push(LooksMonthly {
             amount: AmountWriter::new(book, new.amount.currency(), locale)?.text(new.amount),
             from: account_name(&accounts, new.from_account),
@@ -378,7 +433,8 @@ pub fn join_all(
 }
 
 /// The same move: the same accounts, amount and other party. The day of the
-/// month may differ between pairs; the first one's counts.
+/// month may differ between pairs; the most usual one counts
+/// ([`usual_day`]).
 fn is_same_move(a: &NewRecurringMove, b: &NewRecurringMove) -> bool {
     a.from_account == b.from_account
         && a.to_account == b.to_account
@@ -415,7 +471,7 @@ pub fn remember_looks_monthly(
 
 #[cfg(test)]
 mod tests {
-    use kassensturz_core::AccountType;
+    use kassensturz_core::{AccountType, Money};
 
     use super::*;
     use crate::accounts::{NewAccount, add_account};
@@ -567,6 +623,64 @@ mod tests {
         ));
         book.undo().expect("undone");
         assert_eq!(list(&book, &TestLocale).expect("list").len(), 1);
+    }
+
+    /// Three pairs, the first on the 3rd and two on the 1st: the move is
+    /// remembered around the 1st, the usual day, not the first pair's
+    /// (M6-B242, US6 P3 VM round 1, A4a).
+    #[test]
+    fn join_all_offers_the_usual_day_and_the_list_says_when_it_was_last_joined() {
+        let mut book = started();
+        let checking = account(&mut book, "Checking account", AccountType::Checking);
+        let savings = account(&mut book, "Savings", AccountType::Savings);
+        for date in ["2026-08-03", "2026-09-01", "2026-10-01"] {
+            typed(&mut book, checking, false, "Standing order", date);
+            typed(&mut book, savings, true, "From checking", date);
+        }
+        let (done, candidates) = join_all(&mut book, 3, &TestLocale).expect("joined");
+        assert_eq!(done.joined, 3);
+        assert_eq!(done.looks_monthly.len(), 1);
+        assert_eq!(done.looks_monthly[0].day, 1);
+        assert_eq!(candidates[0].day_of_month, 1);
+        remember_looks_monthly(&mut book, &candidates, &[0]).expect("remembered");
+        let moves = list(&book, &TestLocale).expect("list");
+        assert_eq!(moves[0].day, 1);
+        // The newest of the three joined Transfers.
+        assert_eq!(
+            moves[0].last_joined,
+            TestLocale.short_date(Date::constant(2026, 10, 1))
+        );
+    }
+
+    #[test]
+    fn a_move_never_joined_has_no_last_date() {
+        let mut book = started();
+        let checking = account(&mut book, "Checking account", AccountType::Checking);
+        let savings = account(&mut book, "Savings", AccountType::Savings);
+        // Entries of the same amount that aren't a Transfer don't count.
+        typed(&mut book, checking, false, "Standing order", "2026-10-01");
+        let amount = Money::from_minor_units(10_000, crate::alarms::tests::EUR);
+        book.add_recurring_move(&NewRecurringMove {
+            from_account: checking,
+            to_account: savings,
+            amount,
+            day_of_month: 1,
+            from_party_iban: None,
+            from_party_name: None,
+            created_on: Date::constant(2026, 10, 2),
+        })
+        .expect("remembered");
+        let moves = list(&book, &TestLocale).expect("list");
+        assert_eq!(moves.len(), 1);
+        assert_eq!(moves[0].last_joined, "");
+    }
+
+    #[test]
+    fn the_usual_day_is_the_most_frequent_and_the_first_seen_on_a_tie() {
+        assert_eq!(usual_day(&[3, 1, 1]), Some(1));
+        assert_eq!(usual_day(&[3, 1]), Some(3));
+        assert_eq!(usual_day(&[15]), Some(15));
+        assert_eq!(usual_day(&[]), None);
     }
 
     #[test]

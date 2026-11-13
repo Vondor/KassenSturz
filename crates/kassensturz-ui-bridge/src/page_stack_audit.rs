@@ -335,4 +335,44 @@ mod tests {
             3
         );
     }
+
+    /// The texts about the folder for copies tell the user to choose "Try
+    /// again", so that button is a row of its own on the page, shown with
+    /// the problem; as a trailing button of the problem's line it didn't
+    /// show (M6-B241, US6 P3 VM round 1, A3).
+    #[test]
+    fn the_copies_folder_offers_the_try_again_it_names() {
+        let settings = qml("SettingsPage.qml");
+        assert!(settings.contains("choose Try again"));
+        let (_, button) = settings
+            .split_once("id: copiesTryAgain")
+            .expect("the Try again row");
+        let (button, _) = button.split_once("onClicked").expect("its action");
+        assert!(button.contains("backupCopies.status.state === \"problem\""));
+        assert!(button.contains("\"Try again\")"));
+        assert!(
+            !settings
+                .contains("trailing: Controls.Button {\n                visible: backupCopies"),
+            "Try again must not be a trailing button"
+        );
+        assert!(settings.contains("FormCard.FormButtonDelegate {\n            id: copiesTryAgain"));
+    }
+
+    /// With only the bank log on, the window title names that mode, and
+    /// "Show the log" tells the user when the folder can't be opened instead
+    /// of doing nothing (M6-B243, US6 P3 VM round 1, A6a).
+    #[test]
+    fn the_bank_log_names_itself_and_never_fails_silently() {
+        let main = qml("Main.qml");
+        let (_, title) = main.split_once("    title: ").expect("the title");
+        let (title, _) = title.split_once("\n    width:").expect("its end");
+        assert!(title.starts_with("developerMode.on\n"));
+        assert!(title.contains("\"developer mode for bank connections\""));
+        let (_, show) = main
+            .split_once("ActionLog.taken(\"Main_showBankLog\")")
+            .expect("Show the log");
+        let (show, _) = show.split_once("Kirigami.Action").expect("its end");
+        assert!(show.contains("!Qt.openUrlExternally(url)"));
+        assert!(show.contains("showPassiveNotification("));
+    }
 }

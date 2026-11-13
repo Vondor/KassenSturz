@@ -71,6 +71,7 @@ pub const DETAILS: &[&str] = &[
     "BankSetupPage",
     "BookFromFileDonePage",
     "BookFromFilePage",
+    "BookMovePage",
     "BookProblemPage",
     // KMyMoney's words for the relative periods a report import turns into
     // fixed days (M6d.6a, Q-319 = A); `kassensturz-pipeline` checks that

@@ -468,6 +468,8 @@ impl Book {
             backup: None,
         };
         if !steps.note(&note) {
+            // What part of it was saved goes too.
+            steps.clear_note();
             return Err(fail(self, MoveStep::Lock, MoveCause::Settings, None));
         }
         if let Err(error) = self

@@ -489,6 +489,8 @@ Before a migration, KassenSturz copies the whole book into a folder in its own d
 - **Complete or not there:** the copy is written as `<name>.partial`, synced to the disk and then renamed. If making it fails, the book isn't updated. A `.partial` file left behind by a crash is an incomplete copy and can be deleted.
 - **Kept:** the last 10 backups of each book name. Making a new one removes the oldest beyond that, never the new one, and leaves every other file alone. Books with the same name in different folders share these 10 (D-080).
 
+**Before moving** a book into another folder (D-731), KassenSturz makes one more backup in the same folder, named apart from the ten above: `Household 2026-11-13 03-04-05 UTC before moving.ksz`, then `… before moving 2.ksz` in the same second. The last 3 of these are kept for each book name; the two kinds never remove each other's. While a move runs, its copy sits in the new folder as `<name>.ksz.part` until it is checked and renamed (`docs/BOOK_FOLDER.md` §4); a `.part` file left behind by a crash is removed at the next start.
+
 ## The lock file
 
 While a book is open, a lock file sits next to it: the book's file name plus `.lock`, e.g. `Household.ksz.lock` (D-038). Sync tools carry it to the other computers along with the book, so they can tell that the book is open. It is UTF-8 text, one `key=value` per line:

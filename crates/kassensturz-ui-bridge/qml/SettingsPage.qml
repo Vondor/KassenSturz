@@ -27,6 +27,8 @@ FormCard.FormCardPage {
     required property ChangeHistory history
     required property BankConnection bank
     required property FetchGapSettings fetchGap
+    // Where the book is kept (D-731).
+    required property BookMove bookMove
 
     // Whether a number format choice couldn't be saved for the next start.
     property bool formatNotSaved: false
@@ -41,6 +43,8 @@ FormCard.FormCardPage {
     signal exampleBookClicked()
     signal newBookClicked()
     signal saveCopyClicked()
+    // "Where your book is kept" (D-731).
+    signal bookPlaceClicked()
     signal bookFromFileClicked()
     signal showHistoryClicked()
     // The user wants the page of the book's tags (US4.8).
@@ -94,6 +98,7 @@ FormCard.FormCardPage {
     }
 
     Component.onCompleted: {
+        bookMove.refresh();
         refreshBanks();
         pinStorageChoices = Array.from(bank.pinStorageChoices().choices ?? []);
     }
@@ -160,6 +165,20 @@ FormCard.FormCardPage {
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
+    }
+
+    // Where the book is, in the user's words, and where it was before the
+    // last move.
+    function placeText(place: var): string {
+        if (!place || !place.open)
+            return "";
+        const folder = (shown) => shown && shown.own
+            ? i18nContext.i18nc("@info the folder KassenSturz keeps its own book in", "KassenSturz's own folder")
+            : (shown?.text ?? "");
+        const here = folder(place.folder);
+        if (!place.moved)
+            return here;
+        return here + "\n" + i18nContext.i18nc("@info %1 is a date and time, %2 a folder", "Moved on %1 from %2", place.movedOn, folder(place.movedFrom));
     }
 
     title: i18nContext.i18nc("@title", "Settings")
@@ -268,6 +287,24 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormCard {
+        // Where the book is kept, and moving it there (D-731). Only where a
+        // folder can be chosen (D-730).
+        FormCard.FormButtonDelegate {
+            visible: page.bookMove.available
+            icon.name: "folder-move"
+            text: page.i18nContext.i18nc("@action:button", "Where your book is kept")
+            description: page.placeText(page.bookMove.place)
+            descriptionItem.textFormat: Text.PlainText
+            onClicked: {
+                ActionLog.taken("SettingsPage_bookPlace")
+                page.bookPlaceClicked()
+            }
+        }
+
+        FormCard.FormDelegateSeparator {
+            visible: page.bookMove.available
+        }
+
         FormCard.FormButtonDelegate {
             icon.name: "document-save-as"
             text: page.i18nContext.i18nc("@action:button", "Save a copy of my data…")

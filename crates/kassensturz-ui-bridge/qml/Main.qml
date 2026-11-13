@@ -100,8 +100,25 @@ Kirigami.ApplicationWindow {
     BookSession {
         id: bookSession
 
-        onOpened: root.showBook()
+        onOpened: {
+            bookMove.refresh();
+            root.showBook();
+        }
         onFailed: root.showProblem()
+    }
+
+    // Where the book is kept, and moving it (D-731). Made before the first
+    // book opens: a move that was cut short decides which book that is.
+    BookMove {
+        id: bookMove
+    }
+
+    // What a move that was cut short left, said at the start (D-731).
+    BookMoveInterruptedDialog {
+        id: bookMoveInterrupted
+
+        bookMove: bookMove
+        onSettleFailed: reason => root.showPassiveNotification(reason, 10000)
     }
 
     // The first start (M3.4).
@@ -437,6 +454,9 @@ Kirigami.ApplicationWindow {
             }
         }
         bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
+        if (bookMove.interrupted?.after !== undefined) {
+            Qt.callLater(() => bookMoveInterrupted.ask(bookMove.interrupted));
+        }
     }
 
     // Shows the book that was just opened: the setup wizard if it has no
@@ -1733,12 +1753,24 @@ Kirigami.ApplicationWindow {
             onOpenAnotherClicked: root.chooseBookToOpen()
             onExampleBookClicked: root.chooseExampleBook()
             onNewBookClicked: root.chooseNewBook()
+            bookMove: bookMove
             onSaveCopyClicked: root.pushPage(exportPage)
+            onBookPlaceClicked: root.pushPage(bookMovePage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
             onTagsClicked: root.pushPage(tagsPage)
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
             onHelpClicked: root.pushPage(helpPage)
+        }
+    }
+
+    Component {
+        id: bookMovePage
+
+        BookMovePage {
+            bookMove: bookMove
+            // Shows the book where it is now, on the page that stays open.
+            onMoved: bookSession.showMovedBook()
         }
     }
 

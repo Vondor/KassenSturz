@@ -38,6 +38,15 @@ mod ffi {
         #[cxx_name = "fileSystemType"]
         fn file_system_type(path: &QString) -> QString;
 
+        #[cxx_name = "freeSpace"]
+        fn free_space(path: &QString) -> i64;
+
+        #[cxx_name = "dataSize"]
+        fn data_size(bytes: i64) -> QString;
+
+        #[cxx_name = "renameNoReplace"]
+        fn rename_no_replace(from: &QString, to: &QString) -> i32;
+
         #[cxx_name = "loadKI18nQml"]
         fn load_ki18n_qml();
 
@@ -244,6 +253,31 @@ pub fn choose_folder(chosen: &Path) -> Result<FolderGrant, FolderRefused> {
 /// Whether the app runs in a Flatpak, which puts `marker` into every sandbox.
 fn in_flatpak(marker: &Path) -> bool {
     cfg!(target_os = "linux") && marker.exists()
+}
+
+/// The bytes the user may still write in `folder`, if the system tells.
+pub fn free_space(folder: &Path) -> Option<u64> {
+    let bytes = ffi::free_space(&QString::from(folder.to_string_lossy().as_ref()));
+    u64::try_from(bytes).ok()
+}
+
+/// `bytes` as a size in the user's language, e.g. "1.2 MB".
+pub fn data_size(bytes: u64) -> String {
+    ffi::data_size(i64::try_from(bytes).unwrap_or(i64::MAX)).to_string()
+}
+
+/// Renames `from` to `to` in the same folder, failing with `AlreadyExists`
+/// instead of ever replacing a file at `to` (D-731).
+pub fn rename_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
+    let text = |path: &Path| {
+        path.to_str()
+            .map(QString::from)
+            .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::InvalidFilename))
+    };
+    match ffi::rename_no_replace(&text(from)?, &text(to)?) {
+        0 => Ok(()),
+        error => Err(std::io::Error::from_raw_os_error(error)),
+    }
 }
 
 /// What kind of drive a book is on.

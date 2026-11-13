@@ -17,6 +17,9 @@
 //     prompt.askPicked([partner]);
 //
 // A side that is in a category says which one goes and who put it there.
+// When the pair could be a monthly move, a box that starts unticked offers to
+// join its later months by itself (US6.3, D-749); only the user's tick
+// remembers it, and the join and the move are one Undo.
 // `finished()` follows when the last suggestion has been answered or the
 // dialog was closed.
 
@@ -42,6 +45,9 @@ Kirigami.PromptDialog {
     readonly property var suggestion: suggestions[current] ?? ({})
     readonly property var outgoing: suggestion.outgoing ?? ({})
     readonly property var incoming: suggestion.incoming ?? ({})
+    // The monthly move the box offers for the pair shown; empty if none.
+    property var offer: ({})
+    readonly property bool offered: (offer.amount ?? "") !== ""
     readonly property bool anyCategory: (outgoing.category ?? "") !== "" || (incoming.category ?? "") !== ""
 
     // Every suggestion has been answered, or the dialog was closed.
@@ -72,7 +78,17 @@ Kirigami.PromptDialog {
         picked = byHand;
         suggestions = found;
         current = 0;
+        refreshOffer();
         open();
+    }
+
+    // Asks the book whether the pair shown could be remembered as a monthly
+    // move; the box always starts unticked (AGENTS.md: defaults never lower
+    // protection).
+    function refreshOffer() {
+        rememberBox.checked = false;
+        const found = outgoing.id !== undefined ? register.moveOffer(outgoing.id, incoming.id) : ({});
+        offer = found?.code === undefined ? found : ({});
     }
 
     // Who put a side in its category, and that it goes (D-692).
@@ -92,9 +108,15 @@ Kirigami.PromptDialog {
     // Joins the pair shown, or leaves it apart, and moves on.
     function answer(join: bool) {
         if (join) {
-            const result = picked
-                ? register.joinPicked(suggestion.partnerIsIncoming ? outgoing.id : incoming.id, suggestion.partnerIsIncoming ? incoming.id : outgoing.id)
-                : register.joinTransfer(outgoing.id, incoming.id);
+            const remember = offered && rememberBox.checked;
+            const chosen = suggestion.partnerIsIncoming ? outgoing.id : incoming.id;
+            const other = suggestion.partnerIsIncoming ? incoming.id : outgoing.id;
+            let result;
+            if (picked) {
+                result = remember ? register.joinPickedRemembering(chosen, other) : register.joinPicked(chosen, other);
+            } else {
+                result = remember ? register.joinRemembering(outgoing.id, incoming.id) : register.joinTransfer(outgoing.id, incoming.id);
+            }
             error.result = result;
             if (result.code !== undefined) {
                 return;
@@ -102,6 +124,7 @@ Kirigami.PromptDialog {
         }
         if (current + 1 < suggestions.length) {
             current += 1;
+            refreshOffer();
         } else {
             close();
         }
@@ -219,6 +242,38 @@ Kirigami.PromptDialog {
             Layout.fillWidth: true
             visible: prompt.anyCategory
             text: prompt.i18nContext.i18nc("@info", "Undo also brings the categories back.")
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        // A move that comes every month: the user may let KassenSturz join
+        // it by itself from now on (D-749). Never ticked for them.
+        Controls.CheckBox {
+            id: rememberBox
+
+            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.smallSpacing
+            visible: prompt.offered
+            text: prompt.i18nContext.i18nc("@option:check", "Next time, join this move by itself when it comes again around the same day of the month.")
+            onToggled: {
+                ActionLog.taken("TransferPrompt_rememberMove")
+            }
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: prompt.offered
+            text: prompt.i18nContext.i18nc("@info %1 is an amount, %2 and %3 the names of accounts, %4 a day of the month", "KassenSturz then joins entries of exactly %1 from “%2” to “%3” without asking, around day %4 of the month. After every import it lists what it joined, and Undo takes the joins back. You can stop it any time in Accounts › Monthly moves….", prompt.offer.amount ?? "", prompt.offer.from ?? "", prompt.offer.to ?? "", prompt.offer.day ?? 0)
+            wrapMode: Text.Wrap
+            font: Kirigami.Theme.smallFont
+        }
+
+        Controls.Label {
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            visible: prompt.offered && (prompt.offer.party ?? "") !== ""
+            text: prompt.i18nContext.i18nc("@info %1 is the name the paying account shows for the money", "Only entries that say “%1” are joined.", prompt.offer.party ?? "")
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
         }

@@ -527,6 +527,7 @@ Kirigami.ScrollablePage {
             required property string exactBalance
             required property string note
             required property string tags
+            required property string waitsFor
             required property string otherPartyIban
             required property string purpose
             required property string valueDate
@@ -564,6 +565,7 @@ Kirigami.ScrollablePage {
                 owes: page.register.owes
                 note: delegate.note
                 tags: delegate.tags
+                waitsFor: delegate.waitsFor
                 columns: page.register.columns
                 balanceShown: page.register.balanceShown
                 otherPartyIban: delegate.otherPartyIban

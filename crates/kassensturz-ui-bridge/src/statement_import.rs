@@ -26,6 +26,7 @@ use kassensturz_import::{
 };
 use kassensturz_pipeline::{
     Choices, Duplicate, EntryOutcome, EntryRef, ImportReport, PipelineError, import_statements,
+    join_recurring_moves,
 };
 use kassensturz_store::{Action, Book, StatedBalance, StoreError};
 
@@ -465,41 +466,83 @@ pub struct ImportView {
     pub balances: Vec<BalanceText>,
     /// The new transactions, for the Transfer prompt.
     pub new: Vec<TransactionId>,
+    /// The pairs that were joined by themselves because they fit a monthly
+    /// move the user remembered (D-749), one line each.
+    pub joined: Vec<JoinedText>,
+    /// How many remembered moves have entries among the new ones that wait
+    /// for the user: two fit equally well, or a join would lose something.
+    pub needs_you: usize,
+}
+
+/// A pair joined by itself because it fits a monthly move (D-749), as the
+/// summary lists it: what each bank sent, exactly.
+#[derive(Debug, PartialEq, Eq)]
+pub struct JoinedText {
+    /// How much moved.
+    pub amount: Shown,
+    /// The account it left, and the date that account shows.
+    pub from: String,
+    pub from_date: String,
+    /// The account it arrived in, and the date that account shows.
+    pub to: String,
+    pub to_date: String,
 }
 
 /// What [`import`] would do with `loaded`, without changing the book: the
-/// pipeline runs, Rules and Transfers included, and is taken back
-/// (`Book::dry_run`), so even the categories the Rules would give are shown.
+/// pipeline runs, Rules, Transfers and the joins of remembered monthly moves
+/// included, and is taken back (`Book::dry_run`), so even the categories the
+/// Rules would give are shown.
 pub fn preview(
     book: &mut Book,
     loaded: &Loaded,
     locale: &impl Locale,
 ) -> Result<ImportView, StatementImportError> {
     let statements = loaded.chosen_statements();
-    book.dry_run(|book| perform(book, loaded, &statements, false, locale))
+    book.dry_run(|book| {
+        let (mut report, stated) = perform(book, loaded, &statements, false)?;
+        join_recurring_moves(book, &mut report)?;
+        describe(book, loaded, &statements, &report, stated.as_ref(), locale)
+    })
 }
 
 /// Imports the statements chosen into the account as one user action
 /// (D-086), and keeps the bank's closing balance as what the bank said
-/// when KassenSturz agrees with it (D-117, D-123).
+/// when KassenSturz agrees with it (D-117, D-123). Right after it, the pairs
+/// that fit a monthly move the user remembered are joined as an action of
+/// their own, so one Undo takes the joins back and leaves the entries
+/// (D-749).
 pub fn import(
     book: &mut Book,
     loaded: &Loaded,
     locale: &impl Locale,
 ) -> Result<ImportView, StatementImportError> {
     let statements = loaded.chosen_statements();
-    book.as_one_action(Action::ImportStatement, |book| {
-        perform(book, loaded, &statements, true, locale)
-    })
+    let (mut report, stated) = book.as_one_action(Action::ImportStatement, |book| {
+        perform(book, loaded, &statements, true)
+    })?;
+    join_recurring_moves(book, &mut report)?;
+    describe(book, loaded, &statements, &report, stated.as_ref(), locale)
 }
 
+/// Takes back the joins [`import`] made, when they are still the newest
+/// change; anything the user did since comes first, so it is refused.
+pub fn undo_joins(book: &mut Book) -> Result<(), StatementImportError> {
+    match book.change_to_undo()? {
+        Some(change) if change.action == Action::JoinRecurringMoves => {
+            book.undo()?;
+            Ok(())
+        }
+        _ => Err(StatementImportError::NoSuchEntry),
+    }
+}
+
+/// The steps that belong to the import's own action.
 fn perform(
     book: &mut Book,
     loaded: &Loaded,
     statements: &[Statement],
     for_real: bool,
-    locale: &impl Locale,
-) -> Result<ImportView, StatementImportError> {
+) -> Result<(ImportReport, Option<StatedBalance>), StatementImportError> {
     let report = import_statements(
         book,
         loaded.account,
@@ -516,7 +559,7 @@ fn perform(
     if for_real && let Some(day) = loaded.fetched_on {
         book.note_bank_fetch(loaded.account, day)?;
     }
-    describe(book, loaded, statements, &report, stated.as_ref(), locale)
+    Ok((report, stated))
 }
 
 /// The closing balance to keep as what the bank said (D-123): the latest
@@ -753,6 +796,25 @@ fn describe(
     }
 
     let summary = report.summary();
+    let accounts = book.all_accounts()?;
+    let name_of = |id: AccountId| {
+        accounts
+            .iter()
+            .find(|account| account.id == id)
+            .map(|account| account.name.clone())
+            .unwrap_or_default()
+    };
+    let mut joined = Vec::with_capacity(report.joins.joined.len());
+    for join in &report.joins.joined {
+        joined.push(JoinedText {
+            amount: AmountWriter::new(book, join.incoming.amount.currency(), locale)?
+                .text(join.incoming.amount),
+            from: name_of(join.outgoing.account),
+            from_date: locale.short_date(join.outgoing.booking_date),
+            to: name_of(join.incoming.account),
+            to_date: locale.short_date(join.incoming.booking_date),
+        });
+    }
     Ok(ImportView {
         from_bank: loaded.fetched_on.is_some(),
         file_name: loaded
@@ -771,6 +833,8 @@ fn describe(
         transfers: report.transfers.len(),
         balances,
         new: report.imported(),
+        joined,
+        needs_you: report.joins.needs_you.len(),
     })
 }
 
@@ -1891,6 +1955,216 @@ mod tests {
             .filter(|row| row.other_party_iban.is_empty())
             .count();
         assert_eq!(own, 2, "the starting balance and the entry without an IBAN");
+    }
+
+    /// A statement of `entries` in euros, as a bank's file gives one.
+    fn statement_of(entries: Vec<Entry>) -> Statement {
+        Statement {
+            account: StatementAccount::default(),
+            currency: eur(),
+            opening_balance: None,
+            closing_balance: None,
+            entries,
+        }
+    }
+
+    /// One entry of a standing order of 100 € on the 1st of a month: the
+    /// paying side names an IBAN, the receiving side does not.
+    fn standing_order(month: i8, day: i8, paying: bool) -> Entry {
+        let mut entry = Entry::booked(
+            Date::new(2026, month, day).expect("a date"),
+            Money::from_minor_units(if paying { -10_000 } else { 10_000 }, eur().code()),
+        );
+        if paying {
+            entry.other_party_name = Some("Standing order".into());
+            // The example for Germany in SWIFT's IBAN Registry (D-055).
+            entry.other_party_iban = Some("DE89370400440532013000".into());
+        } else {
+            entry.other_party_name = Some("From checking".into());
+        }
+        entry
+    }
+
+    // US6.3 (D-749), where steps meet: the real import's output, a pair the
+    // user joined and ticked the box for, and the next month's statements.
+    #[test]
+    fn a_remembered_move_joins_the_pair_the_import_brings_and_undo_takes_the_joins_back() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-09-01",
+        );
+        let savings = account(
+            &mut book,
+            "Savings",
+            AccountType::Savings,
+            "1000",
+            "2026-09-01",
+        );
+        let import_into = |book: &mut Book, account: AccountId, entry: Entry| {
+            let loaded = Loaded::new(
+                account,
+                PathBuf::from("statement.sta"),
+                vec![statement_of(vec![entry])],
+            );
+            import(book, &loaded, &TestLocale).expect("imported")
+        };
+        // October: nothing is remembered, so nothing joins by itself.
+        import_into(&mut book, checking, standing_order(10, 1, true));
+        let october = import_into(&mut book, savings, standing_order(10, 1, false));
+        assert!(october.joined.is_empty());
+        let found = transfer_suggestions(&book, &october.new, &TestLocale).expect("suggested");
+        assert_eq!(found.len(), 1);
+        crate::monthly_moves::join_remembering(
+            &mut book,
+            &found[0].outgoing.id,
+            &found[0].incoming.id,
+            &TestLocale,
+        )
+        .expect("joined and remembered");
+
+        // November: the 1st is a Sunday, the banks book on Monday the 2nd.
+        // The paying side comes first and waits for the other (D-749, 3.5).
+        let first = import_into(&mut book, checking, standing_order(11, 2, true));
+        assert!(first.joined.is_empty());
+        let register =
+            register_view(&book, checking, Sort::default(), &TestLocale).expect("register");
+        let waiting: Vec<&str> = register
+            .rows
+            .iter()
+            .filter(|row| !row.waits_for.is_empty())
+            .map(|row| row.waits_for.as_str())
+            .collect();
+        assert_eq!(waiting, ["Checking account → Savings"]);
+
+        // The other side comes with the second statement: the pair joins.
+        let second = import_into(&mut book, savings, standing_order(11, 2, false));
+        assert_eq!(second.joined.len(), 1);
+        let line = &second.joined[0];
+        assert_eq!(
+            (
+                line.amount.exact.as_str(),
+                line.from.as_str(),
+                line.to.as_str()
+            ),
+            ("100,00 €", "Checking account", "Savings")
+        );
+        assert_eq!(
+            (line.from_date.as_str(), line.to_date.as_str()),
+            ("2026-11-02", "2026-11-02")
+        );
+        assert_eq!(second.needs_you, 0);
+        assert_eq!(
+            transfer_suggestions(&book, &second.new, &TestLocale)
+                .expect("suggested")
+                .len(),
+            0
+        );
+        let balances = |book: &Book| {
+            (
+                register_view(book, checking, Sort::default(), &TestLocale)
+                    .expect("register")
+                    .balance
+                    .text,
+                register_view(book, savings, Sort::default(), &TestLocale)
+                    .expect("register")
+                    .balance
+                    .text,
+            )
+        };
+        // Each account keeps what its bank booked: 1000 - 100 - 100 and
+        // 1000 + 100 + 100.
+        assert_eq!(balances(&book), ("800,00 €".into(), "1200,00 €".into()));
+        let register =
+            register_view(&book, checking, Sort::default(), &TestLocale).expect("register");
+        assert_eq!(
+            register
+                .rows
+                .iter()
+                .filter(|row| row.kind == "transfer")
+                .count(),
+            2
+        );
+        assert!(register.rows.iter().all(|row| row.waits_for.is_empty()));
+
+        // One Undo takes the joins back and keeps the imported entries.
+        undo_joins(&mut book).expect("undone");
+        assert_eq!(balances(&book), ("800,00 €".into(), "1200,00 €".into()));
+        let again = transfer_suggestions(&book, &second.new, &TestLocale).expect("suggested");
+        assert_eq!(again.len(), 1);
+        assert_eq!(again[0].amount.exact, "100,00 €");
+        // Undo now would take back the import, not the joins: refused.
+        assert!(matches!(
+            undo_joins(&mut book),
+            Err(StatementImportError::NoSuchEntry)
+        ));
+    }
+
+    // The preview shows what the import would join, then changes nothing.
+    #[test]
+    fn the_preview_lists_the_joins_without_making_them() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-09-01",
+        );
+        let savings = account(
+            &mut book,
+            "Savings",
+            AccountType::Savings,
+            "1000",
+            "2026-09-01",
+        );
+        let load = |account, entry| {
+            Loaded::new(
+                account,
+                PathBuf::from("statement.sta"),
+                vec![statement_of(vec![entry])],
+            )
+        };
+        import(
+            &mut book,
+            &load(checking, standing_order(10, 1, true)),
+            &TestLocale,
+        )
+        .expect("imported");
+        let october = import(
+            &mut book,
+            &load(savings, standing_order(10, 1, false)),
+            &TestLocale,
+        )
+        .expect("imported");
+        let found = transfer_suggestions(&book, &october.new, &TestLocale).expect("suggested");
+        crate::monthly_moves::join_remembering(
+            &mut book,
+            &found[0].outgoing.id,
+            &found[0].incoming.id,
+            &TestLocale,
+        )
+        .expect("remembered");
+        import(
+            &mut book,
+            &load(checking, standing_order(11, 2, true)),
+            &TestLocale,
+        )
+        .expect("imported");
+        let next = load(savings, standing_order(11, 2, false));
+        let shown = preview(&mut book, &next, &TestLocale).expect("preview");
+        assert_eq!(shown.joined.len(), 1);
+        assert_eq!(shown.transfers, 0);
+        assert_eq!(rows(&book, savings), 2, "a preview changes nothing");
+        assert_eq!(
+            transfer_suggestions(&book, &[], &TestLocale)
+                .expect("none")
+                .len(),
+            0
+        );
     }
 
     #[test]

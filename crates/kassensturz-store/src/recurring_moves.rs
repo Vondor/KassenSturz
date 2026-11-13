@@ -363,25 +363,35 @@ impl Book {
     /// half may still come (D-749, 3.5): a Rule leaves them alone
     /// ([`StoreError::FitsMonthlyMove`]), so the move isn't booked twice.
     pub(crate) fn waiting_for_moves(&self) -> Result<HashSet<TransactionId>, StoreError> {
+        Ok(self.waiting_moves()?.into_keys().collect())
+    }
+
+    /// The transactions that are a side of a remembered move whose other
+    /// half may still come, each with the first remembered move it fits
+    /// (D-749, 3.5), so a register can say what an unsorted entry waits for.
+    /// Nothing is read but the moves when none is remembered.
+    pub fn waiting_moves(&self) -> Result<HashMap<TransactionId, RecurringMove>, StoreError> {
         let moves = self.recurring_moves()?;
         if moves.is_empty() {
-            return Ok(HashSet::new());
+            return Ok(HashMap::new());
         }
         let ibans = self.own_ibans()?;
         let none = Vec::new();
         Ok(self
             .move_candidates()?
             .into_iter()
-            .filter(|(_, candidate)| {
-                moves.iter().any(|moved| {
-                    fits_recurring_move(
-                        moved,
-                        candidate,
-                        ibans.get(&moved.to_account).unwrap_or(&none),
-                    )
-                })
+            .filter_map(|(transaction, candidate)| {
+                moves
+                    .iter()
+                    .find(|moved| {
+                        fits_recurring_move(
+                            moved,
+                            &candidate,
+                            ibans.get(&moved.to_account).unwrap_or(&none),
+                        )
+                    })
+                    .map(|moved| (transaction.id(), moved.clone()))
             })
-            .map(|(transaction, _)| transaction.id())
             .collect())
     }
 

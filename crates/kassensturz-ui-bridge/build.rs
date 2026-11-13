@@ -151,6 +151,8 @@ fn main() {
                 "qml/TagsPage.qml",
                 "qml/TransactionRow.qml",
                 "qml/TransferPrompt.qml",
+                "qml/JoinAllDialog.qml",
+                "qml/MonthlyMovesDialog.qml",
                 "qml/TransferPartnerDialog.qml",
                 "qml/ExampleBookChooser.qml",
                 "qml/ExampleBooksPage.qml",

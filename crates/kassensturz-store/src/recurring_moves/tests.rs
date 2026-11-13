@@ -520,6 +520,10 @@ fn a_rule_leaves_a_side_that_waits_for_its_other_half_alone() {
         book.waiting_for_moves().expect("read"),
         [into.id()].into_iter().collect()
     );
+    // A register can say which move an entry waits for (US6.3).
+    let waiting = book.waiting_moves().expect("read");
+    assert_eq!(waiting.len(), 1);
+    assert_eq!(waiting[&into.id()].id, id);
     let run = book.run_rules().expect("Rules ran");
     assert_eq!(run.changed.len(), 1);
     assert_eq!(run.changed[0].transaction, pay.id());

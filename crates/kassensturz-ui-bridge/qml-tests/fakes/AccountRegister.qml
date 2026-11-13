@@ -79,6 +79,13 @@ QtObject {
     }
     function joinPicked(a, b) { return ({}); }
     function joinTransfer(a, b) { return ({}); }
+    function moveOffer(a, b) { return ({}); }
+    function joinRemembering(a, b) { return ({}); }
+    function joinPickedRemembering(a, b) { return ({}); }
+    function monthlyMoves() { return []; }
+    function removeMove(id) { return ({}); }
+    function joinAll(expected) { return ({ joined: expected, left: 0, looksMonthly: [] }); }
+    function rememberLooksMonthly(ticked) { return ({}); }
 
     function cents(text) {
         return text === "" ? 0 : Math.round(Number(text.replace(",", ".")) * 100);

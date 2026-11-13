@@ -344,7 +344,7 @@ pub mod qobject {
         fn fetch_finished(self: Pin<&mut BankConnection>, result: QVariant);
 
         /// *Update all accounts* ended and what it fetched is booked: an
-        /// object with `updated`, `booked`, `toCheck`, `accounts` (a list
+        /// object with `updated`, `booked`, `joined`, `toCheck`, `accounts` (a list
         /// of objects with `account`, `name`, `state`, `booked`, `skipped`,
         /// `error` and `balanceOff`) and `notices` (a list of objects with
         /// `transaction`, `account`, `accountName`, `date`, `payee`,
@@ -1238,6 +1238,7 @@ fn summary_object(summary: &Summary) -> QVariant {
     map([
         ("updated", count(summary.updated)),
         ("booked", count(summary.booked)),
+        ("joined", count(summary.joined)),
         ("toCheck", count(summary.notices.len())),
         (
             "accounts",
@@ -1777,6 +1778,7 @@ mod tests {
         let booked = Summary {
             updated: 1,
             booked: 3,
+            joined: 2,
             accounts: vec![
                 AccountLine {
                     account: "a1".to_owned(),
@@ -1826,6 +1828,7 @@ mod tests {
         let summary = summary_object(&booked);
         assert_eq!(number_of(&summary, "updated"), 1);
         assert_eq!(number_of(&summary, "booked"), 3);
+        assert_eq!(number_of(&summary, "joined"), 2);
         assert_eq!(number_of(&summary, "toCheck"), 1);
         let accounts = list_of(&summary, "accounts");
         assert_eq!(accounts.len(), 2);

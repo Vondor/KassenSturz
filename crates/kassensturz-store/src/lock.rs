@@ -13,6 +13,7 @@ use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::{Mutex, PoisonError};
 
 use kassensturz_core::Timestamp;
 
@@ -93,6 +94,7 @@ impl HeldLock {
 
 impl Drop for HeldLock {
     fn drop(&mut self) {
+        held().retain(|token| *token != self.token);
         // Errors can't be reported from here; at worst the lock file stays,
         // and the next start warns about it.
         if let Ok(Some(lock)) = read(&self.path)
@@ -131,14 +133,31 @@ fn create(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
         let _ = fs::remove_file(path);
         return Err(error);
     }
+    held().push(token.clone());
     Ok(HeldLock {
         path: path.to_owned(),
         token,
     })
 }
 
+/// The tokens of the locks this program holds, so a lock file this computer
+/// left behind when the app stopped can be told apart from the lock of a book
+/// open here right now (D-731).
+static HELD: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+fn held() -> std::sync::MutexGuard<'static, Vec<String>> {
+    HELD.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Whether `lock` is one this program holds: the book is open here.
+pub(crate) fn held_here(lock: &Lock) -> bool {
+    lock.token
+        .as_ref()
+        .is_some_and(|token| held().contains(token))
+}
+
 /// The lock file at `path`, or `None` if there is none.
-fn read(path: &Path) -> Result<Option<Lock>, StoreError> {
+pub(crate) fn read(path: &Path) -> Result<Option<Lock>, StoreError> {
     let file = match fs::File::open(path) {
         Ok(file) => file,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),

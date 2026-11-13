@@ -23141,6 +23141,773 @@ msgctxt "@info %1 says what a Rule does"
 msgid "Made by the AI, not checked by you yet. %1"
 msgstr "Von der KI erstellt, von Ihnen noch nicht geprüft. %1"
 
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:95
+#, kde-format
+msgctxt "@action:button %1 is how many planned payments wait for the user"
+msgid "Planned payments (%1 to check)…"
+msgid_plural "Planned payments (%1 to check)…"
+msgstr[0] "Geplante Zahlungen (%1 zu prüfen)…"
+msgstr[1] "Geplante Zahlungen (%1 zu prüfen)…"
+
+#: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:96
+#, kde-format
+msgctxt "@action:button"
+msgid "Planned payments…"
+msgstr "Geplante Zahlungen…"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:46
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Give the planned payment a name of 1 to 60 characters on one line, such as "
+"Rent."
+msgstr "Geben Sie der geplanten Zahlung einen Namen mit 1 bis 60 Zeichen in einer Zeile, etwa Miete."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:48
+#, kde-format
+msgctxt "@info"
+msgid "Type an amount other than zero."
+msgstr "Geben Sie einen Betrag ungleich null ein."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:50
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:637
+#, kde-format
+msgctxt "@info"
+msgid "Choose how often it comes: every 1 to 52 weeks, months or years."
+msgstr "Wählen Sie, wie oft sie kommt: alle 1 bis 52 Wochen, Monate oder Jahre."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:52
+#, kde-format
+msgctxt "@info"
+msgid "The end is before the first payment. Choose a later end, or none."
+msgstr "Das Ende liegt vor der ersten Zahlung. Wählen Sie ein späteres Ende oder keines."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:54
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The amount may vary by less than the amount itself. Type a smaller "
+"difference, or none."
+msgstr "Der Betrag darf um weniger als den Betrag selbst schwanken. Geben Sie eine kleinere Abweichung ein oder keine."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:56
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The name or IBAN it is paid to or received from may have at most 140 "
+"characters."
+msgstr "Der Name oder die IBAN, an die gezahlt oder von der empfangen wird, darf höchstens 140 Zeichen haben."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:58
+#, kde-format
+msgctxt "@info"
+msgid "To book it, type an amount other than zero."
+msgstr "Geben Sie zum Buchen einen Betrag ungleich null ein."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:60
+#, kde-format
+msgctxt "@info"
+msgid "This planned payment can't be kept as it is. Check the form."
+msgstr "Diese geplante Zahlung kann so nicht gespeichert werden. Prüfen Sie das Formular."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:639
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This planned payment isn't in the book anymore. It may have just been "
+"removed."
+msgstr "Diese geplante Zahlung ist nicht mehr im Haushaltsbuch. Vielleicht wurde sie gerade entfernt."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:643
+#, kde-format
+msgctxt "@info %1 is the name of an account"
+msgid ""
+"%1 is closed, so it gets no new planned payment and no new entry. Open it "
+"again first; its planned payments go on then."
+msgstr "%1 ist geschlossen und bekommt deshalb keine neue geplante Zahlung und keine neue Buchung. Öffnen Sie es zuerst wieder; seine geplanten Zahlungen gehen dann weiter."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:645
+#, kde-format
+msgctxt "@info %1 is the name of an account, %2 a currency code"
+msgid "%1 doesn't count in %2. A planned payment is in its account's currency."
+msgstr "%1 rechnet nicht in %2. Eine geplante Zahlung ist in der Währung ihres Kontos."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:647
+#, kde-format
+msgctxt "@info %1 is the name of a category"
+msgid ""
+"%1 isn't a category in the planned payment's currency. Choose another one, "
+"or none."
+msgstr "%1 ist keine Kategorie in der Währung der geplanten Zahlung. Wählen Sie eine andere oder keine."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:649
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid ""
+"A book holds at most %1 planned payments. Remove one you don't need anymore "
+"first."
+msgstr "Ein Haushaltsbuch fasst höchstens %1 geplante Zahlungen. Entfernen Sie zuerst eine, die Sie nicht mehr brauchen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:651
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This planned payment isn't due on that day. It may have just been changed. "
+"Look at the list again."
+msgstr "Diese geplante Zahlung ist an dem Tag nicht fällig. Vielleicht wurde sie gerade geändert. Sehen Sie sich die Liste noch einmal an."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:653
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This payment was matched or skipped already, so nothing was changed. To take "
+"a match back, use Undo."
+msgstr "Diese Zahlung wurde schon zugeordnet oder übersprungen, deshalb wurde nichts geändert. Eine Zuordnung nehmen Sie mit Rückgängig zurück."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:655
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This entry is matched to a planned payment already. Each entry pays one "
+"planned payment."
+msgstr "Diese Buchung ist schon einer geplanten Zahlung zugeordnet. Jede Buchung bezahlt eine geplante Zahlung."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:657
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This entry can't pay this planned payment: it must be in the plan's account, "
+"with the money going the same way, and not a move between your own accounts."
+msgstr "Diese Buchung kann diese geplante Zahlung nicht bezahlen: Sie muss im Konto der geplanten Zahlung sein, das Geld muss in dieselbe Richtung gehen, und sie darf keine Bewegung zwischen Ihren eigenen Konten sein."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:213
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Takes them all apart again, and the planned payments found below with them. "
+"The imported entries stay."
+msgstr "Trennt sie alle wieder, und die unten gefundenen geplanten Zahlungen mit ihnen. Die importierten Einträge bleiben."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:232
+#, kde-format
+msgctxt "@title:group"
+msgid "Planned payments found"
+msgstr "Geplante Zahlungen gefunden"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:243
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The matches are taken back. The entries stay, and the planned payments wait "
+"again."
+msgstr "Die Zuordnungen sind zurückgenommen. Die Buchungen bleiben, und die geplanten Zahlungen warten wieder."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:244
+#, kde-format
+msgctxt "@info"
+msgid "%1 new entry is a payment you planned."
+msgid_plural "%1 new entries are payments you planned."
+msgstr[0] "%1 neue Buchung ist eine Zahlung, die Sie geplant haben."
+msgstr[1] "%1 neue Buchungen sind Zahlungen, die Sie geplant haben."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:245
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Nothing was booked or changed in amount or date. An entry without a category "
+"got the plan's."
+msgstr "Nichts wurde gebucht oder in Betrag oder Datum geändert. Eine Buchung ohne Kategorie hat die der geplanten Zahlung bekommen."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:265
+#, kde-format
+msgctxt "@info %1 is the name of a planned payment, %2 an amount, %3 a date"
+msgid "%1: %2 on %3, matched"
+msgstr "%1: %2 am %3, zugeordnet"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:267
+#, kde-format
+msgctxt "@info"
+msgid "It had no category and got the plan's."
+msgstr "Sie hatte keine Kategorie und hat die der geplanten Zahlung bekommen."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:280
+#, kde-format
+msgctxt "@action:button"
+msgid "Undo these matches"
+msgstr "Diese Zuordnungen rückgängig machen"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:281
+#, kde-format
+msgctxt "@info"
+msgid "The entries stay; the planned payments wait for them again."
+msgstr "Die Buchungen bleiben; die geplanten Zahlungen warten wieder auf sie."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:302
+#, kde-format
+msgctxt "@info"
+msgid "%1 planned payment has entries that were not matched."
+msgid_plural "%1 planned payments have entries that were not matched."
+msgstr[0] "%1 geplante Zahlung hat Buchungen, die nicht zugeordnet wurden."
+msgstr[1] "%1 geplante Zahlungen haben Buchungen, die nicht zugeordnet wurden."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:303
+#, kde-format
+msgctxt "@info"
+msgid ""
+"More than one entry fits, or one entry fits two payments. Choose yourself: "
+"Accounts › Planned payments…"
+msgstr "Mehr als eine Buchung passt, oder eine Buchung passt zu zwei Zahlungen. Wählen Sie selbst: Konten › Geplante Zahlungen…"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:125
+#, kde-format
+msgctxt "@title:window"
+msgid "Change a planned payment"
+msgstr "Geplante Zahlung ändern"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:126
+#, kde-format
+msgctxt "@title:window"
+msgid "New planned payment"
+msgstr "Neue geplante Zahlung"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:166
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A planned payment is only a plan: it moves no money and sends nothing. When "
+"your bank's entry comes, KassenSturz matches it to the plan."
+msgstr "Eine geplante Zahlung ist nur ein Plan: Sie bewegt kein Geld und schickt nichts. Wenn die Buchung Ihrer Bank kommt, ordnet KassenSturz sie dem Plan zu."
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:176
+#, kde-format
+msgctxt "@label:textbox"
+msgid "What is it for:"
+msgstr "Wofür ist sie:"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:177
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "e.g. Rent"
+msgstr "z. B. Miete"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:195
+#, kde-format
+msgctxt "@label"
+msgid "Money:"
+msgstr "Geld:"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:198
+#, kde-format
+msgctxt "@option:radio"
+msgid "Goes out"
+msgstr "Geht raus"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:208
+#, kde-format
+msgctxt "@option:radio"
+msgid "Comes in"
+msgstr "Kommt rein"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:229
+#, kde-format
+msgctxt "@item:inlistbox the planned payment has no category"
+msgid "None"
+msgstr "Keine"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:241
+#, kde-format
+msgctxt "@label followed by a number and weeks, months or years"
+msgid "every"
+msgstr "alle"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:250
+#, kde-format
+msgctxt "@label:spinbox"
+msgid "How many weeks, months or years apart"
+msgstr "Wie viele Wochen, Monate oder Jahre auseinander"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:260
+#, kde-format
+msgctxt "@item:inlistbox every N weeks"
+msgid "week"
+msgid_plural "weeks"
+msgstr[0] "Woche"
+msgstr[1] "Wochen"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:261
+#, kde-format
+msgctxt "@item:inlistbox every N months"
+msgid "month"
+msgid_plural "months"
+msgstr[0] "Monat"
+msgstr[1] "Monate"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:262
+#, kde-format
+msgctxt "@item:inlistbox every N years"
+msgid "year"
+msgid_plural "years"
+msgstr[0] "Jahr"
+msgstr[1] "Jahre"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:265
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Weeks, months or years"
+msgstr "Wochen, Monate oder Jahre"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:277
+#, kde-format
+msgctxt "@label:textbox"
+msgid "First due on:"
+msgstr "Zuerst fällig am:"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:282
+#, kde-format
+msgctxt "@label"
+msgid "Ends:"
+msgstr "Endet:"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:287
+#, kde-format
+msgctxt "@option:check"
+msgid "On"
+msgstr "Am"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:298
+#, kde-format
+msgctxt "@label:textbox"
+msgid "The day it ends"
+msgstr "Der Tag, an dem sie endet"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:306
+#, kde-format
+msgctxt "@label:textbox"
+msgid "The amount may vary by up to:"
+msgstr "Der Betrag darf schwanken um bis zu:"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:307
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Optional, for a bill that is not always the same"
+msgstr "Optional, für eine Rechnung, die nicht immer gleich ist"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:315
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Paid to:"
+msgstr "Gezahlt an:"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:316
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Received from:"
+msgstr "Erhalten von:"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:317
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Optional: a name or IBAN as your bank shows it"
+msgstr "Optional: ein Name oder eine IBAN, wie Ihre Bank sie zeigt"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:327
+#, kde-format
+msgctxt "@info %1 is a list of dates"
+msgid "Next: %1"
+msgstr "Nächste: %1"
+
+#: crates/kassensturz-ui-bridge/qml/PlanFormDialog.qml:328
+#, kde-format
+msgctxt "@info"
+msgid "Next: no date yet. Check how often and the first date."
+msgstr "Nächste: noch kein Datum. Prüfen Sie, wie oft, und das erste Datum."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:51
+#, kde-format
+msgctxt "@info"
+msgid "every week"
+msgid_plural "every %1 weeks"
+msgstr[0] "jede Woche"
+msgstr[1] "alle %1 Wochen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:53
+#, kde-format
+msgctxt "@info"
+msgid "every year"
+msgid_plural "every %1 years"
+msgstr[0] "jedes Jahr"
+msgstr[1] "alle %1 Jahre"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:54
+#, kde-format
+msgctxt "@info"
+msgid "every month"
+msgid_plural "every %1 months"
+msgstr[0] "jeden Monat"
+msgstr[1] "alle %1 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:56
+#, kde-format
+msgctxt ""
+"@info %1 is an amount, %2 the name of an account, %3 how often, e.g. every "
+"month"
+msgid "%1 out of %2, %3"
+msgstr "%1 raus aus %2, %3"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:57
+#, kde-format
+msgctxt ""
+"@info %1 is an amount, %2 the name of an account, %3 how often, e.g. every "
+"month"
+msgid "%1 into %2, %3"
+msgstr "%1 rein in %2, %3"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:64
+#, kde-format
+msgctxt "@title:window"
+msgid "Planned payments"
+msgstr "Geplante Zahlungen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:79
+#, kde-format
+msgctxt "@action:button"
+msgid "New planned payment…"
+msgstr "Neue geplante Zahlung…"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:90
+#, kde-format
+msgctxt "@info"
+msgid "Nothing planned yet"
+msgstr "Noch nichts geplant"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:91
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Plan the payments that come again and again, such as rent or your salary. "
+"KassenSturz then matches your bank's entries to them. The quickest way: open "
+"an entry in an account and choose “Plan this again…”."
+msgstr "Planen Sie die Zahlungen, die immer wieder kommen, etwa die Miete oder Ihr Gehalt. KassenSturz ordnet ihnen dann die Buchungen Ihrer Bank zu. Am schnellsten geht es so: Öffnen Sie eine Buchung in einem Konto und wählen Sie „Wieder einplanen…“."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:99
+#, kde-format
+msgctxt "@title:group"
+msgid "Did this happen?"
+msgstr "Ist das passiert?"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:119
+#, kde-format
+msgctxt "@info %1 is the name of a planned payment, %2 an amount, %3 a date"
+msgid "%1: %2 out, due %3"
+msgstr "%1: %2 raus, fällig am %3"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:120
+#, kde-format
+msgctxt "@info %1 is the name of a planned payment, %2 an amount, %3 a date"
+msgid "%1: %2 in, due %3"
+msgstr "%1: %2 rein, fällig am %3"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:128
+#, kde-format
+msgctxt "@info %1 is the name of an account"
+msgid "No entry in %1 fits it yet."
+msgstr "Noch keine Buchung in %1 passt dazu."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:137
+#, kde-format
+msgctxt "@action:button"
+msgid "Match an entry…"
+msgstr "Eine Buchung zuordnen…"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:146
+#, kde-format
+msgctxt "@action:button"
+msgid "Book it…"
+msgstr "Buchen…"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:155
+#, kde-format
+msgctxt "@action:button"
+msgid "Skip this time"
+msgstr "Dieses Mal überspringen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:172
+#, kde-format
+msgctxt "@title:group"
+msgid "Your planned payments"
+msgstr "Ihre geplanten Zahlungen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:211
+#, kde-format
+msgctxt "@info"
+msgid "Waits while its account is closed."
+msgstr "Wartet, solange ihr Konto geschlossen ist."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:213
+#, kde-format
+msgctxt "@info"
+msgid "Paused: not expected, matched or counted."
+msgstr "Pausiert: nicht erwartet, zugeordnet oder gezählt."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:215
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "Next: %1"
+msgstr "Nächste: %1"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:216
+#, kde-format
+msgctxt "@info"
+msgid "No more payments: it has ended."
+msgstr "Keine Zahlungen mehr: Sie ist zu Ende."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:222
+#, kde-format
+msgctxt "@action:button"
+msgid "Edit"
+msgstr "Bearbeiten"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:226
+#, kde-format
+msgctxt "@info %1 is the name of a planned payment"
+msgid "Change “%1”"
+msgstr "„%1“ ändern"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:236
+#, kde-format
+msgctxt "@action:button"
+msgid "Go on"
+msgstr "Fortsetzen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:237
+#, kde-format
+msgctxt "@action:button"
+msgid "Pause"
+msgstr "Pausieren"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:242
+#, kde-format
+msgctxt "@info %1 is the name of a planned payment"
+msgid "Pause “%1” or let it go on"
+msgstr "„%1“ pausieren oder fortsetzen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:256
+#, kde-format
+msgctxt "@info %1 is the name of a planned payment"
+msgid "Remove “%1”"
+msgstr "„%1“ entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:284
+#, kde-format
+msgctxt "@title:window %1 is the name of a planned payment"
+msgid "Remove “%1”?"
+msgstr "„%1“ entfernen?"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:285
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Entries already matched stay as they are. KassenSturz just stops expecting "
+"this payment. Undo brings it back."
+msgstr "Schon zugeordnete Buchungen bleiben, wie sie sind. KassenSturz erwartet diese Zahlung nur nicht mehr. Rückgängig holt sie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:325
+#, kde-format
+msgctxt "@title:window %1 is the name of a planned payment"
+msgid "Book “%1”"
+msgstr "„%1“ buchen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:330
+#, kde-format
+msgctxt "@action:button"
+msgid "Book it"
+msgstr "Buchen"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:362
+#, kde-format
+msgctxt "@info"
+msgid ""
+"For an account you keep by hand: this adds the entry to the account, as you "
+"typed it. Undo takes it back."
+msgstr "Für ein Konto, das Sie von Hand führen: Das fügt die Buchung so, wie Sie sie eingegeben haben, dem Konto hinzu. Rückgängig nimmt sie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:372
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Amount paid:"
+msgstr "Gezahlter Betrag:"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:373
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Amount received:"
+msgstr "Erhaltener Betrag:"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:406
+#, kde-format
+msgctxt "@title:window %1 is the name of a planned payment"
+msgid "Which entry is “%1”?"
+msgstr "Welche Buchung ist „%1“?"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:420
+#, kde-format
+msgctxt "@info"
+msgid "No entry to choose"
+msgstr "Keine Buchung zur Auswahl"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:421
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Only entries of the plan's account within a month of its day, with the money "
+"going the same way and not matched yet, are offered. If it was paid another "
+"way, choose “Book it…” or “Skip this time”."
+msgstr "Angeboten werden nur Buchungen im Konto der geplanten Zahlung, höchstens einen Monat von ihrem Tag entfernt, mit dem Geld in derselben Richtung und noch nicht zugeordnet. Wurde sie anders bezahlt, wählen Sie „Buchen…“ oder „Dieses Mal überspringen“."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:433
+#, kde-format
+msgctxt "@info %1 is a date, %2 who paid or was paid, %3 an amount"
+msgid "%1 · %2 · %3"
+msgstr "%1 · %2 · %3"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:762
+#, kde-format
+msgctxt "@action:button"
+msgid "Plan this again…"
+msgstr "Wieder einplanen…"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:770
+#, kde-format
+msgctxt "@info the name of a new planned payment when the entry names nobody"
+msgid "Planned payment"
+msgstr "Geplante Zahlung"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:774
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This entry can't be planned again: a planned payment is money going out of "
+"or into one of your accounts, not a move between two of them."
+msgstr "Diese Buchung kann nicht wieder eingeplant werden: Eine geplante Zahlung ist Geld, das aus einem Ihrer Konten geht oder hineinkommt, keine Bewegung zwischen zweien davon."
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:797
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Planned. KassenSturz now expects this payment again; see Accounts › Planned "
+"payments…"
+msgstr "Geplant. KassenSturz erwartet diese Zahlung jetzt wieder; siehe Konten › Geplante Zahlungen…"
+
+#: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:217
+#, kde-format
+msgctxt "@info"
+msgid "%1 planned payment came as expected."
+msgid_plural "%1 planned payments came as expected."
+msgstr[0] "%1 geplante Zahlung kam wie erwartet."
+msgstr[1] "%1 geplante Zahlungen kamen wie erwartet."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@title"
+msgid "Folders KassenSturz may open"
+msgstr "Ordner, die KassenSturz öffnen darf"
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your book is kept here and your backup copies are written here. Move them elsewhere first to forget this folder."
+msgstr "Ihr Haushaltsbuch liegt hier, und Ihre Sicherungskopien werden hier abgelegt. Legen Sie beides zuerst woanders ab, um diesen Ordner zu vergessen."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your book is kept here. Keep it in another folder first to forget this folder."
+msgstr "Ihr Haushaltsbuch liegt hier. Legen Sie es zuerst in einem anderen Ordner ab, um diesen Ordner zu vergessen."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your backup copies are written here. Choose another folder for them first to forget this folder."
+msgstr "Ihre Sicherungskopien werden hier abgelegt. Wählen Sie zuerst einen anderen Ordner dafür, um diesen Ordner zu vergessen."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your book is kept in this folder, so it wasn't forgotten. Keep your book in another folder first."
+msgstr "Ihr Haushaltsbuch liegt in diesem Ordner, deshalb wurde er nicht vergessen. Legen Sie Ihr Haushaltsbuch zuerst in einem anderen Ordner ab."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your backup copies are written to this folder, so it wasn't forgotten. Choose another folder for the copies first."
+msgstr "Ihre Sicherungskopien werden in diesen Ordner geschrieben, deshalb wurde er nicht vergessen. Wählen Sie zuerst einen anderen Ordner für die Kopien."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "This folder isn't in the list any more. Nothing was changed."
+msgstr "Dieser Ordner steht nicht mehr in der Liste. Es wurde nichts geändert."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your computer didn't take the access back. Nothing was changed and no file was touched. Try again, or take it back in your system's settings for apps."
+msgstr "Ihr Computer hat den Zugriff nicht zurückgenommen. Es wurde nichts geändert und keine Datei angerührt. Versuchen Sie es noch einmal, oder nehmen Sie ihn in den Einstellungen Ihres Systems für Apps zurück."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@title:group"
+msgid "What you gave access to"
+msgstr "Wozu Sie Zugriff gegeben haben"
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "When you choose a folder for KassenSturz, it keeps the right to open that folder until you take it back here. Forgetting a folder only ends this right: no file is deleted, moved or changed. If you need the folder again, you choose it again."
+msgstr "Wenn Sie einen Ordner für KassenSturz wählen, darf KassenSturz diesen Ordner öffnen, bis Sie das hier zurücknehmen. Wenn Sie einen Ordner vergessen, endet nur dieses Recht: Es wird keine Datei gelöscht, verschoben oder geändert. Brauchen Sie den Ordner wieder, wählen Sie ihn einfach noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz can't open that folder any more. Its files are as they were."
+msgstr "KassenSturz kann diesen Ordner nicht mehr öffnen. Seine Dateien sind unverändert."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Forget this folder"
+msgstr "Diesen Ordner vergessen"
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "No file is deleted."
+msgstr "Es wird keine Datei gelöscht."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "You have not given KassenSturz access to any folder."
+msgstr "Sie haben KassenSturz zu keinem Ordner Zugriff gegeben."
+
+#: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Folders you choose, for example for your book or for backup copies, appear here."
+msgstr "Ordner, die Sie wählen, zum Beispiel für Ihr Haushaltsbuch oder für Sicherungskopien, erscheinen hier."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Folders KassenSturz may open"
+msgstr "Ordner, die KassenSturz öffnen darf"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "See them and take the access back."
+msgstr "Ansehen und den Zugriff zurücknehmen."
+
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml
 #, kde-format
 msgctxt "@info:placeholder %1 is an example date"
@@ -23262,3 +24029,75 @@ msgstr "Von"
 msgctxt "@title:column a table of the money-flow chart: where a flow goes"
 msgid "To"
 msgstr "Nach"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:37
+#, kde-format
+msgctxt "@item:inlistbox a part of the layout: where money came from and where it went, as bands"
+msgid "Where my money went"
+msgstr "Wohin mein Geld ging"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:161
+#, kde-format
+msgctxt "@title a chart of where money came from and where it went"
+msgid "Where my money went"
+msgstr "Wohin mein Geld ging"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:125
+#, kde-format
+msgctxt "@item:inlistbox what a chart shows"
+msgid "Where your money came from and where it went"
+msgstr "Woher Ihr Geld kam und wohin es ging"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:145
+#, kde-format
+msgctxt "@info"
+msgid "Shows where the money of the period came from and where it went, as bands as wide as their amount. If you earned more than you spent, the rest is shown as left over; if you spent more, as taken from your reserves. Money moved between your own accounts is not counted. One currency is shown, with no conversion."
+msgstr "Zeigt, woher das Geld des Zeitraums kam und wohin es ging, als Bänder, die so breit sind wie ihr Betrag. Haben Sie mehr eingenommen als ausgegeben, wird der Rest als „Übrig“ gezeigt, haben Sie mehr ausgegeben, als „Aus Ihren Rücklagen“. Geld, das Sie zwischen Ihren eigenen Konten verschieben, wird nicht gezählt. Es wird eine Währung gezeigt, ohne Umrechnung."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:198
+#, kde-format
+msgctxt "@option:check a money-flow chart: sub-categories get a column of their own"
+msgid "Show sub-categories"
+msgstr "Unterkategorien zeigen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:200
+#, kde-format
+msgctxt "@option:check a money-flow chart: who paid and who was paid get a column at each edge"
+msgid "Show who paid and who was paid"
+msgstr "Zeigen, wer gezahlt hat und wer bezahlt wurde"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:202
+#, kde-format
+msgctxt "@label:textbox a money-flow chart: the currency it shows, as a code like EUR; empty for the one with the most money"
+msgid "Currency (a code like EUR; empty: the one with most money)"
+msgstr "Währung (ein Kürzel wie EUR; leer: die mit dem meisten Geld)"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:255
+#, kde-format
+msgctxt "@item:inlistbox the one way the money flow is shown"
+msgid "Bands from where it came to where it went"
+msgstr "Bänder von der Herkunft bis zum Ziel"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:157
+#, kde-format
+msgctxt "@item:inlistbox a kind of chart: where money came from and where it went, as bands"
+msgid "Money flow"
+msgstr "Geldfluss"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:197
+#, kde-format
+msgctxt "@info"
+msgid "Choose whose money the chart follows. With none ticked, every account and every category counts. For example: only your checking account."
+msgstr "Wählen Sie, wessen Geld das Diagramm verfolgt. Ist nichts angekreuzt, zählen alle Konten und alle Kategorien. Zum Beispiel: nur Ihr Girokonto."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:100
+#, kde-format
+msgctxt "@item:inlistbox a way to show figures: where money came from and where it went, as bands"
+msgid "Money flow"
+msgstr "Geldfluss"
+
+#: crates/kassensturz-ui-bridge/qml/FlowBehind.qml:58
+#, kde-format
+msgctxt "@info"
+msgid "No transactions behind this in this period."
+msgstr "In diesem Zeitraum liegen keine Buchungen dahinter."

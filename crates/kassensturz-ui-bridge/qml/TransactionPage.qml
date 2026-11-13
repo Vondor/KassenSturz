@@ -23,11 +23,17 @@ Kirigami.ScrollablePage {
     id: page
 
     required property AccountRegister register
+    // The planned payments, for "Plan this again…" (US7.1); none hides it.
+    property var plans: null
     // The account the transaction belongs to; empty to let the user choose
     // one, e.g. from the overview.
     property string accountId: ""
     // The transaction to change, by ID; empty to add a new one.
     property string transactionId: ""
+
+    // The "Plan this again…" form, for the smoke test (a dialog is no child
+    // item anyone can find).
+    readonly property alias planAgainForm: planAgain
     property bool moneyIn: false
 
     readonly property bool adding: transactionId === ""
@@ -753,6 +759,29 @@ Kirigami.ScrollablePage {
             }
         }
 
+        // A payment that comes again and again: a planned payment filled
+        // from this entry, which becomes its first payment (US7.1, D-769).
+        Controls.Button {
+            visible: page.plans !== null && !page.adding && page.kind === "simple"
+            text: page.i18nContext.i18nc("@action:button", "Plan this again…")
+            icon.name: "view-calendar-upcoming-events"
+            flat: true
+            onClicked: {
+                ActionLog.taken("TransactionPage_planAgain")
+                if (!page.keepTyped()) {
+                    return;
+                }
+                const form = page.plans.formFromEntry(page.transactionId, page.chosenAccount, page.i18nContext.i18nc("@info the name of a new planned payment when the entry names nobody", "Planned payment"));
+                if (form.code !== undefined) {
+                    error.result = form;
+                } else if (form.name === undefined) {
+                    applicationWindow().showPassiveNotification(page.i18nContext.i18nc("@info", "This entry can't be planned again: a planned payment is money going out of or into one of your accounts, not a move between two of them."), "long");
+                } else {
+                    planAgain.fromEntryForm(form);
+                }
+            }
+        }
+
         Controls.Label {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
             visible: !page.adding && page.kind !== "starting-balance"
@@ -760,5 +789,15 @@ Kirigami.ScrollablePage {
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
         }
+    }
+
+    // "Plan this again…" (US7.1). Without planned payments the button is
+    // hidden, so the form is never opened.
+    PlanFormDialog {
+        id: planAgain
+
+        plans: page.plans
+        register: page.register
+        onSaved: applicationWindow().showPassiveNotification(page.i18nContext.i18nc("@info", "Planned. KassenSturz now expects this payment again; see Accounts › Planned payments…"), "long")
     }
 }

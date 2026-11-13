@@ -18,7 +18,7 @@ use kassensturz_charts::{
 };
 use kassensturz_core::ErrorParam;
 
-use crate::charts::{self, ChartSet, ChartsError, FlowAsk, Request};
+use crate::charts::{self, ChartSet, ChartsError, Request};
 use crate::number_format::app_locale;
 use crate::properties;
 use crate::scope::Scope;
@@ -197,7 +197,6 @@ impl qobject::BookCharts {
             show_hidden,
             columns,
             scope,
-            flow: FlowAsk::default(),
             custom: None,
         });
         self.refresh();
@@ -1466,8 +1465,8 @@ mod tests {
         }
         // Sub-categories and payees reach the chart as columns.
         let mut asked = request("money_flow", "flow");
-        asked.flow.payees = true;
-        asked.flow.sub_categories = true;
+        asked.scope.flow.payees = true;
+        asked.scope.flow.sub_categories = true;
         let view = view_of(&asked);
         let wide = &list_of(&view, "charts")[0];
         assert_eq!(number_of(wide, "columns"), 7);

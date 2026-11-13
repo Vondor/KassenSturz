@@ -69,6 +69,14 @@ Window {
             const found = flow.bandAt(100, 300, 400, 400);
             console.log("flow-band-at " + found);
             console.log("flow-text " + flow.bandText(flow.bands[0]));
+            // What a click opens: a band takes its outer category, a band or
+            // node with none takes everything, and the scope is narrowed in
+            // text only.
+            console.log("flow-behind " + [flow.categoryBehind(0, 2), flow.categoryBehind(1, 0), flow.categoryBehind(3, -1), flow.categoryBehind(0, -1), flow.categoryBehind(0, 4)].join(","));
+            flow.scope = '{"accounts":["x"],"takes":{"period":true}}';
+            const narrowed = JSON.parse(flow.behindScope("b"));
+            console.log("flow-scope " + JSON.stringify([narrowed.categories, narrowed.categoriesOwn, narrowed.accounts, narrowed.takes.categories, narrowed.takes.period]));
+            console.log("flow-scope-all " + (JSON.parse(flow.behindScope("")).categories === undefined));
             window.save(window.contentItem, "flow-chart", function () {
                 flow.showTable = true;
                 tableTimer.start();

@@ -161,7 +161,9 @@ pub(super) fn automatic(dataset: &str, grouping: Option<&str>) -> Option<Compone
         kassensturz_report::dataset(dataset).and_then(|info| info.groupings.first().copied())
     });
     let by_category = grouping.is_some_and(|grouping| grouping.ends_with("category"));
-    let order: &[ComponentType] = if by_category {
+    let order: &[ComponentType] = if dataset == kassensturz_report::MONEY_FLOW {
+        &[ComponentType::ChartFlow]
+    } else if by_category {
         &[ComponentType::ChartPie, ComponentType::ChartBar]
     } else if kassensturz_report::dataset(dataset)
         .is_some_and(|info| info.suits.contains(&ComponentType::BudgetProgress.suit()))

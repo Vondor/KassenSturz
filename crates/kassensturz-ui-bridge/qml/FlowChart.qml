@@ -31,6 +31,15 @@ ColumnLayout {
     // A click on a band or a node: the transactions behind it open. The
     // band's two nodes by index, or a node alone (`to` is -1).
     signal flowActivated(int from, int to)
+    // What the transactions behind a click are narrowed by: the period and
+    // the scope text of the component (its accounts, tags and the filter
+    // bar's), as `BookTransactions` takes them.
+    property string period: ""
+    property string scope: ""
+    // What the open list is about: a category id ("" for everything that
+    // flows through the chart) and the words above it.
+    property string behindCategory: ""
+    property string behindTitle: ""
 
     readonly property var nodes: chart.nodes
     readonly property var bands: chart.bands
@@ -73,6 +82,47 @@ ColumnLayout {
         return i18nContext.i18nc("@info a flow of the money-flow chart: %1 where it comes from, %2 where it goes, %3 the amount", "%1 to %2: %3",
             nodeName(nodes[band.from]), nodeName(nodes[band.to]), band.label);
     }
+
+    // The scope text of the transactions behind a click: the component's own,
+    // narrowed to one category when the click was on one (text only; the
+    // amounts and the list come from Rust).
+    function behindScope(categoryId: string): string {
+        let scope = {};
+        try {
+            scope = JSON.parse(view.scope);
+        } catch (error) {
+            scope = {};
+        }
+        if (categoryId !== "") {
+            scope.categories = [categoryId];
+            scope.categoriesOwn = true;
+            scope.takes = Object.assign({}, scope.takes ?? {}, { categories: true });
+        }
+        return JSON.stringify(scope);
+    }
+
+    // The category a click is about: of a band's two ends the outer one that
+    // has a category; "" when it touches none (your money, left over), which
+    // means everything that flows through the chart.
+    function categoryBehind(from: int, to: int): string {
+        const ends = to >= 0 ? [nodes[from], nodes[to]] : [nodes[from]];
+        let outer = null;
+        for (const node of ends) {
+            if ((node.category ?? "") !== "" && (outer === null || Math.abs(node.column) > Math.abs(outer.column))) {
+                outer = node;
+            }
+        }
+        return outer?.category ?? "";
+    }
+
+    // Opens the transactions behind a band (`to` >= 0) or a node.
+    function openBehind(from: int, to: int) {
+        behindCategory = categoryBehind(from, to);
+        behindTitle = to >= 0 ? bandText(bands.find(b => b.from === from && b.to === to)) : nodeName(nodes[from]);
+        behind.open();
+    }
+
+    onFlowActivated: (from, to) => openBehind(from, to)
 
     // The places of the nodes of one column, in order, give each its color.
     readonly property var nodeColors: {
@@ -396,6 +446,31 @@ ColumnLayout {
         onClicked: {
             ActionLog.taken("FlowChart_showTable")
             view.showTable = !view.showTable
+        }
+    }
+
+    // The transactions behind a click (`FlowBehind.qml`), made when first
+    // needed so the chart stands alone.
+    Loader {
+        id: behind
+
+        active: false
+        source: "FlowBehind.qml"
+        onLoaded: show()
+
+        function show() {
+            item.period = view.period;
+            item.scopeText = view.behindScope(view.behindCategory);
+            item.heading = view.behindTitle;
+            item.open();
+        }
+
+        function open() {
+            if (active) {
+                show();
+            } else {
+                active = true;
+            }
         }
     }
 }

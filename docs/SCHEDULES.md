@@ -212,6 +212,18 @@ Build 1 followed this design; where the code had to decide something the design 
 - **Command line:** `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book` and `forecast [--months N] [--account NAME ...]`; `import` prints the matches. `schedule due` lists the payments with their state.
 - **Left for build 2 (UI):** the bridge's call to `match_schedules` after its own import and fetch actions, the import summary part, the pages, tiles and glossary rows.
 
+## 12. What build 2 settled (the screens)
+
+Build 2a (the planned payments screens) followed part 2; where it had to decide, it is listed here.
+
+- **The page is a window**, Accounts › *Planned payments…*, as *Monthly moves…* is; the action says how many payments wait ("Planned payments (2 to check)…"). "Did this happen?" is its first part. The month by month table, the tiles and their datasets come with build 2b.
+- **Dates are the locale's short dates** ("02.11.2026"), not "Mon 2 Nov": the bridge's locale has no weekday words yet. The form shows the next three dates from today, or from the first date if that is later.
+- **"Book it…"** offers the plan's amount and today, both changeable; the entry is booked on the typed day. **"Match an entry…"** offers the plan account's entries up to 31 days from the payment's day, with the money going the plan's way and not matched yet, closest first.
+- **An IBAN typed in "Paid to"** is kept without spaces and in capitals; anything else is kept as a name. A sign typed in an amount counts for nothing: the form's "Goes out / Comes in" decides.
+- **"Plan this again…"** saves the plan and matches its entry as the first payment in one change, so one Undo takes back both.
+- **The import summary** lists each match with the entry's own amount and date and whether it got the plan's category; *Undo these matches* takes back only the matches. The matches are made after the joins of monthly moves, so *Undo these joins* takes back the matches on top of them too, and says so. *Update all accounts* says how many planned payments came.
+- **Error texts**: the input code `input.plan-every` (how often isn't 1 to 52) is new; the `store.schedule-*` codes of build 1 have their texts in `FormError.qml`.
+
 ## 13. What the AI reads (#920)
 
 Two read functions in `kassensturz-ai-tools` let the chat and the MCP server answer "what is left this month" and "what is coming up". They only read: a plan is made, changed, matched, booked and skipped only by the user, in the window (AGENTS.md §3.1 rule 9, §8, D-749), and no change a model prepares reaches one.
@@ -219,4 +231,4 @@ Two read functions in `kassensturz-ai-tools` let the chat and the MCP server ans
 - `list_plans`: every plan with its ID, name, account, out or in, exact amount, how often, first due day, end, paused, the next open due day and the other party's name. Its category only when the user lets the AI read categories as well (otherwise `category_not_shown`). The IBAN a plan remembers is never in a result (T-23, D-186).
 - `forecast`: the store's own `Book::forecast` (D-770) for the chosen accounts, or the open checking and cash accounts: balance now, still to go out, still to come in, left, expected end, the months after this one (0 to 12, default 3) and the "Did this happen?" list. Accounts in another currency than most of them are left out and named, never converted (D-043). Every amount is exact decimal text, and the number check knows each one (D-052).
 - Both need the reading of **Accounts and Transactions** in the permission grid (D-774, D-252): a plan is money expected in or out of an account, as an entry is. There is no row of its own for plans. The function names avoid the word "payment", which the guard that no function sends money refuses (`tests/closure.rs`).
-- The forecast counts calendar months. Once the "Month starts on" choice of the Left this month tile (#921) is on `main`, a `starts_on` argument can follow.
+- The forecast counts calendar months. The "Month starts on" choice (#921) belongs to one Left this month tile, not to the book, so the AI's forecast doesn't follow it; a model asked about a salary-day month gets the calendar figures and the "Did this happen?" list.

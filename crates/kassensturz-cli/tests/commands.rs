@@ -1952,13 +1952,13 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
     let csv = std::fs::read_to_string(&file).expect("file written");
     assert_eq!(
         csv,
-        "date,account,payee,category,transfer,memo,amount,currency,parts,original_amount,original_currency\r\n\
-         2026-10-01,Checking account,Employer,Salary,,,2500.00,EUR,,,\r\n\
-         2026-10-05,Checking account,\"'=HYPERLINK(\"\"x\"\")\",Food/Groceries,,,-12.50,EUR,,,\r\n\
-         2026-10-06,Checking account,,,Savings,,-300.00,EUR,,,\r\n\
-         2026-10-07,Checking account,Market,,,,-40.00,EUR,2,,\r\n\
-         2026-10-08,Checking account,Kiosk,,,,-1.00,EUR,,,\r\n\
-         2026-10-06,Savings,,,Checking account,,300.00,EUR,,,\r\n"
+        "date,account,payee,category,transfer,memo,amount,currency,parts,original_amount,original_currency,note\r\n\
+         2026-10-01,Checking account,Employer,Salary,,,2500.00,EUR,,,,\r\n\
+         2026-10-05,Checking account,\"'=HYPERLINK(\"\"x\"\")\",Food/Groceries,,,-12.50,EUR,,,,\r\n\
+         2026-10-06,Checking account,,,Savings,,-300.00,EUR,,,,\r\n\
+         2026-10-07,Checking account,Market,,,,-40.00,EUR,2,,,\r\n\
+         2026-10-08,Checking account,Kiosk,,,,-1.00,EUR,,,,\r\n\
+         2026-10-06,Savings,,,Checking account,,300.00,EUR,,,,\r\n"
     );
 
     // One account, with Excel-friendly settings.
@@ -1978,7 +1978,7 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
     ]);
     assert_eq!(
         std::fs::read(&one).expect("file written"),
-        "\u{feff}2026-10-06;Savings;;;Checking account;;300,00;EUR;;;\r\n".as_bytes()
+        "\u{feff}2026-10-06;Savings;;;Checking account;;300,00;EUR;;;;\r\n".as_bytes()
     );
 
     // A file is never overwritten.

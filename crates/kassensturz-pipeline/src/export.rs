@@ -20,7 +20,7 @@ use kassensturz_store::{Book, StoreError};
 /// transaction has exactly one other part, [`Counterpart::Parts`] when it has
 /// several, and [`Counterpart::Uncategorized`] when its other part has no
 /// category yet. The memo is the purpose a bank delivered for the part
-/// booked to the account (D-067).
+/// booked to the account (D-067); the note is the user's own (B-257).
 pub fn export_transactions(book: &Book, accounts: &[AccountId]) -> Result<ExportData, StoreError> {
     let paths: HashMap<AccountId, String> = book
         .categories()?
@@ -57,6 +57,7 @@ pub fn export_transactions(book: &Book, accounts: &[AccountId]) -> Result<Export
                 payee: entry.payee,
                 counterpart,
                 memo,
+                note: transaction.note().map(str::to_owned),
                 amount: entry.amount,
                 original,
             });

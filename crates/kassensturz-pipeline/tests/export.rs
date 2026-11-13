@@ -274,3 +274,42 @@ fn an_amount_converted_from_marks_keeps_its_original_in_the_row() {
     // A transaction typed in euros has none.
     assert_eq!(rows[1].original, None);
 }
+
+#[test]
+fn a_long_note_the_user_wrote_reaches_the_csv_file_whole() {
+    // B-257: the note was never exported, so a transaction entered by hand
+    // with a long note had an empty memo and nothing else.
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let checking = add(&mut book, "Checking", AccountKind::Asset, None);
+    let food = add(&mut book, "Food", AccountKind::Expense, None);
+    let note = format!("{}\nand a second line", "Dinner with friends, ".repeat(30));
+    let transaction = Transaction::new(
+        TransactionId::generate(),
+        day(3),
+        Some("Hydro Food Market".to_owned()),
+        vec![
+            Split::new(checking, eur(-2_500)),
+            Split::new(food, eur(2_500)),
+        ],
+    )
+    .expect("balanced")
+    .with_note(Some(note.clone()));
+    book.add_transaction(&transaction).expect("added");
+
+    let data = export_transactions(&book, &[checking]).expect("exported");
+    let accounts = only(data.clone());
+    assert_eq!(accounts[0].rows[0].note.as_deref(), Some(note.as_str()));
+    assert_eq!(
+        accounts[0].rows[0].memo, None,
+        "no bank delivered a purpose"
+    );
+
+    let bytes = kassensturz_export::export(&kassensturz_export::CsvExport::default(), &data)
+        .expect("written");
+    let text = String::from_utf8(bytes).expect("UTF-8");
+    assert!(
+        text.ends_with(&format!(",-25.00,EUR,,,,\"{note}\"\r\n")),
+        "{text:?}"
+    );
+}

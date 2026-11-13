@@ -499,7 +499,7 @@ mod tests {
                 format!("Produktbezeichnung \"{key}\" unbekannt"),
                 format!("Produkt ({key}) unbekannt"),
                 format!("Produkt: {key}."),
-                format!("{key}"),
+                key.to_owned(),
                 format!("{} {key}", "wort ".repeat(30)),
                 format!("Produkt {}", key.to_lowercase()),
                 format!("Produkt +{key}+ falsch"),

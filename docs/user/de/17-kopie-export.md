@@ -7,9 +7,14 @@
 **Einstellungen › Ihre Daten › Eine Kopie meiner Daten speichern…** bietet zwei Wege:
 
 - **Für eine Tabelle:** die Buchungen der gewählten Konten als Datei, die jede Tabellenkalkulation öffnet, zum Beispiel LibreOffice Calc, eine Zeile je Buchung und Konto.
+  Unter den Konten können Sie einen **ersten** und einen **letzten Tag** angeben; beide Tage gehören dazu, ein leeres Feld heißt alle Tage. Die Zeilen bleiben genau, wie sie sind: Sie ergeben den Kontostand eines Kontos nur, wenn nichts vor dem ersten Tag weggelassen wird. In der Kommandozeile: `export DATEI --from 2026-01-01 --until 2026-12-31`.
 - **Das ganze Haushaltsbuch speichern…:** alles in einer Datei (Konten, Kategorien, Buchungen, Regeln, Wechselkurse, Verknüpfungen mit Bankkonten), aus der KassenSturz ein neues Buch anlegen kann, zum Beispiel als Sicherung oder auf einem anderen Computer. Der Verlauf kommt nicht mit.
 
 KassenSturz **überschreibt dabei nie** eine vorhandene Datei. In der Datei stehen **keine** Bank-Anmeldenamen und keine PIN.
+
+## Ordner, die KassenSturz öffnen darf
+
+Nur in der Flatpak-Version. Wenn Sie einen Ordner wählen (für Ihr Haushaltsbuch oder für Sicherungskopien), darf KassenSturz ihn öffnen, bis Sie das zurücknehmen: **Einstellungen › Ihre Daten › Ordner, die KassenSturz öffnen darf** listet sie auf, mit **Diesen Ordner vergessen** bei jedem. Vergessen beendet nur den Zugriff; **es wird keine Datei gelöscht, verschoben oder geändert**. Ein Ordner, den Ihr Haushaltsbuch oder Ihre Sicherungskopien noch nutzen, sagt das und kann vergessen werden, sobald Sie beides woanders ablegen.
 
 ## Ein Buch aus einer Datei anlegen
 

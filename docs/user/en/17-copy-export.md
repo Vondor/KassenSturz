@@ -7,9 +7,14 @@
 **Settings › Your data › Save a copy of my data…** offers two ways:
 
 - **For a spreadsheet:** the transactions of the chosen accounts as a file any spreadsheet program opens, for example LibreOffice Calc, one row per transaction and account.
+  Under the accounts you can give a **first** and a **last day**; both days are included, and an empty field means all dates. The lines stay exactly as they are, so they add up to an account's balance only if nothing before the first day is left out. On the command line: `export FILE --from 2026-01-01 --until 2026-12-31`.
 - **Save the whole book…:** everything in one file (accounts, categories, transactions, Rules, exchange rates, links to bank accounts), from which KassenSturz can make a new book, for example as a backup or on another computer. The history doesn't come along.
 
 KassenSturz **never overwrites** an existing file here. The file holds **no** bank login names and no PIN.
+
+## Folders KassenSturz may open
+
+Only in the Flatpak version. When you choose a folder (for your book or for backup copies), KassenSturz may open it until you take that back: **Settings › Your data › Folders KassenSturz may open** lists them, with **Forget this folder** for each. Forgetting only ends the access; **no file is deleted, moved or changed**. A folder your book or your backup copies still use says so, and can be forgotten once you keep them somewhere else.
 
 ## Making a book from a file
 

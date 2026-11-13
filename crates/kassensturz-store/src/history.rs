@@ -150,11 +150,32 @@ pub enum Action {
     JoinRecurringMoves,
     /// Joined several suggested Transfers at once (D-749, "Join all").
     JoinTransfers,
+    /// Made a new planned payment (D-769).
+    AddSchedule,
+    /// Changed a planned payment.
+    EditSchedule,
+    /// Removed a planned payment. The entries matched to it stay as they
+    /// are.
+    RemoveSchedule,
+    /// Paused a planned payment, or let it go on again.
+    PauseSchedule,
+    /// Matched, after an import, the new entries that fit planned payments
+    /// (D-769). Undo takes back the matches and leaves the entries.
+    MatchSchedules,
+    /// Matched an entry the user picked to a planned payment's occurrence.
+    MatchScheduleOccurrence,
+    /// Skipped one occurrence of a planned payment.
+    SkipScheduleOccurrence,
+    /// Took back the skip of an occurrence.
+    UnskipScheduleOccurrence,
+    /// Booked an occurrence of a planned payment as a new entry, on the
+    /// user's click.
+    BookScheduleOccurrence,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 51] = [
+    pub const ALL: [Self; 60] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -206,6 +227,15 @@ impl Action {
         Self::RemoveRecurringMove,
         Self::JoinRecurringMoves,
         Self::JoinTransfers,
+        Self::AddSchedule,
+        Self::EditSchedule,
+        Self::RemoveSchedule,
+        Self::PauseSchedule,
+        Self::MatchSchedules,
+        Self::MatchScheduleOccurrence,
+        Self::SkipScheduleOccurrence,
+        Self::UnskipScheduleOccurrence,
+        Self::BookScheduleOccurrence,
     ];
 }
 
@@ -305,7 +335,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 27] = [
+pub(crate) const RECORDED: [Recorded; 29] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -614,6 +644,38 @@ pub(crate) const RECORDED: [Recorded; 27] = [
             ("from_party_iban", "TEXT"),
             ("from_party_name", "TEXT"),
             ("created_on", "TEXT"),
+        ],
+    },
+    Recorded {
+        name: "schedules",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("name", "TEXT"),
+            ("account_id", "BLOB"),
+            ("amount", "INTEGER"),
+            ("currency", "TEXT"),
+            ("tolerance", "INTEGER"),
+            ("category_id", "BLOB"),
+            ("party_iban", "TEXT"),
+            ("party_name", "TEXT"),
+            ("unit", "TEXT"),
+            ("every", "INTEGER"),
+            ("anchor", "TEXT"),
+            ("track_from", "TEXT"),
+            ("ends_on", "TEXT"),
+            ("paused", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "schedule_occurrences",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("schedule_id", "BLOB"),
+            ("due_on", "TEXT"),
+            ("status", "TEXT"),
+            ("transaction_id", "BLOB"),
         ],
     },
 ];
@@ -1616,6 +1678,15 @@ fn action_to_text(action: Action) -> &'static str {
         Action::RemoveRecurringMove => "remove_recurring_move",
         Action::JoinRecurringMoves => "join_recurring_moves",
         Action::JoinTransfers => "join_transfers",
+        Action::AddSchedule => "add_schedule",
+        Action::EditSchedule => "edit_schedule",
+        Action::RemoveSchedule => "remove_schedule",
+        Action::PauseSchedule => "pause_schedule",
+        Action::MatchSchedules => "match_schedules",
+        Action::MatchScheduleOccurrence => "match_schedule_occurrence",
+        Action::SkipScheduleOccurrence => "skip_schedule_occurrence",
+        Action::UnskipScheduleOccurrence => "unskip_schedule_occurrence",
+        Action::BookScheduleOccurrence => "book_schedule_occurrence",
     }
 }
 

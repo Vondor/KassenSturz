@@ -14,6 +14,10 @@ Cargo.lock.bak
 /build-commit-from
 /build-version
 
+# Written by the release workflow for a tag: switches the setup wizard's bank
+# offer on (CMakeLists.txt, D-546)
+/wizard-bank
+
 # A FinTS product registration number for a build (crates/kassensturz-bank/build.rs,
 # D-745). Never committed: the release workflow writes it from a secret, and
 # whoever builds with their own registration writes their own.

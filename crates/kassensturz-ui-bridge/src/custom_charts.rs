@@ -184,6 +184,7 @@ pub fn custom_charts(
     }
     Ok(ChartSet {
         charts,
+        flows: Vec::new(),
         missing,
         shared: Vec::new(),
         totals: Vec::new(),

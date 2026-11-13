@@ -595,6 +595,8 @@ Kirigami.InlineMessage {
                 return i18nContext.i18nc("@info %1 is the name of a category", "A Rule books to %1 or looks at it, so it can't be deleted. Change or delete the Rule first.", result.category);
             case "budgets":
                 return i18nContext.i18nc("@info %1 is the name of a category", "%1 has a budget, so it can't be deleted. Delete its budget first.", result.category);
+            case "schedules":
+                return i18nContext.i18nc("@info %1 is the name of a category", "A planned payment uses %1, so it can't be deleted. Give the planned payment another category first.", result.category);
             default:
                 return i18nContext.i18nc("@info %1 is the name of a category", "%1 has transactions, so it can't be deleted. Put them into another category first.", result.category);
             }
@@ -612,6 +614,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
         case "input.no-accounts-chosen":
             return i18nContext.i18nc("@info", "Tick at least one account.");
+        case "input.range-reversed":
+            return i18nContext.i18nc("@info", "The last day is before the first. Swap them.");
         case "export.io":
             switch (result.kind) {
             case "not-found":

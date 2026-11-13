@@ -20,17 +20,17 @@ use std::path::Path;
 use kassensturz_core::{
     Account, AccountId, Actions, AmountTest, Attachment, BankLink, BookTo, Budget, BudgetAmount,
     BudgetCounts, BudgetEvery, BudgetId, CategoryGroup, Condition, Currency, CurrencyCode, Date,
-    DatedRate, DatedRateId, ExchangeRate, ForeignAmount, GroupId, GroupMember, ImportedDetails,
-    Institution, InstitutionId, Money, OriginalAmount, Payee, PayeeId, PayeeRecognition,
-    RateSource, Rule, RuleId, RuleNode, Split, SplitId, Tag, TagId, Transaction, TransactionId,
-    ViewId,
+    DatedRate, DatedRateId, Decided, ExchangeRate, ForeignAmount, GroupId, GroupMember,
+    ImportedDetails, Institution, InstitutionId, Money, OriginalAmount, Payee, PayeeId,
+    PayeeRecognition, RateSource, Rule, RuleId, RuleNode, Schedule, ScheduleId, Split, SplitId,
+    Tag, TagId, Transaction, TransactionId, ViewId,
 };
 use serde_json::{Map, Value};
 
 use super::{
     BUDGET_EVERY, BookData, BookedByRule, FORMAT, GROUP_KINDS, KINDS, MATCH_MODES, MAX_RULE_DEPTH,
-    RECOGNITIONS, ROUNDING_MODES, SOURCES, STATUSES, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION,
-    ViewData,
+    OCCURRENCE_STATUSES, RECOGNITIONS, ROUNDING_MODES, SCHEDULE_UNITS, SOURCES, STATUSES,
+    ScheduleData, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION, ViewData,
 };
 use crate::error::{Expected, ExportError};
 
@@ -108,6 +108,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
     }
     if version >= 8 {
         keys.push("budgets");
+    }
+    if version >= 14 {
+        keys.push("schedules");
     }
     let top = Object::new(&file, "", &keys)?;
     let mut reader = Reader {
@@ -574,6 +577,95 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         transactions.push(transaction);
     }
 
+    // Version 14: the planned payments and their decided occurrences
+    // (D-769). The book checks each plan, and that a matched entry exists,
+    // when it is filled.
+    let mut schedules = Vec::new();
+    if version >= 14 {
+        let mut ids = HashSet::new();
+        for (value, path) in top.list("schedules")? {
+            let plan = Object::new(
+                value,
+                &path,
+                &[
+                    "id",
+                    "name",
+                    "account",
+                    "amount",
+                    "currency",
+                    "tolerance",
+                    "category",
+                    "party_iban",
+                    "party_name",
+                    "unit",
+                    "every",
+                    "anchor",
+                    "track_from",
+                    "ends_on",
+                    "paused",
+                    "occurrences",
+                ],
+            )?;
+            let id = ScheduleId::from_bytes(plan.id("id")?);
+            if !ids.insert(id) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.id"),
+                });
+            }
+            let currency = plan.currency("currency")?;
+            let (amount, amount_path) = plan.required("amount")?;
+            let (tolerance, tolerance_path) = plan.required("tolerance")?;
+            let (every, every_path) = plan.required("every")?;
+            let every = every
+                .as_u64()
+                .and_then(|every| u8::try_from(every).ok())
+                .ok_or_else(|| bad(&every_path, Expected::Number))?;
+            let mut decided = Vec::new();
+            let mut days = HashSet::new();
+            for (value, path) in plan.list("occurrences")? {
+                let row = Object::new(value, &path, &["due_on", "status", "transaction"])?;
+                let due_on = row.date("due_on")?;
+                if !days.insert(due_on) {
+                    return Err(ExportError::Duplicate {
+                        path: format!("{path}.due_on"),
+                    });
+                }
+                let matched = row.keyword("status", &OCCURRENCE_STATUSES)?;
+                let transaction = row
+                    .optional_id("transaction")?
+                    .map(TransactionId::from_bytes);
+                let state = match (matched, transaction) {
+                    (true, Some(transaction)) => Decided::Matched(transaction),
+                    (false, None) => Decided::Skipped,
+                    (true, None) => return Err(bad(&join(&path, "transaction"), Expected::Id)),
+                    (false, Some(_)) => {
+                        return Err(bad(&join(&path, "transaction"), Expected::Null));
+                    }
+                };
+                decided.push((due_on, state));
+            }
+            schedules.push(ScheduleData {
+                schedule: Schedule {
+                    id,
+                    name: plan.text("name")?,
+                    account: AccountId::from_bytes(plan.id("account")?),
+                    amount: reader.amount(amount, &amount_path, currency)?,
+                    tolerance: reader.amount(tolerance, &tolerance_path, currency)?,
+                    category: plan.optional_id("category")?.map(AccountId::from_bytes),
+                    party_iban: plan.optional_text("party_iban")?,
+                    party_name: plan.optional_text("party_name")?,
+                    unit: plan.keyword("unit", &SCHEDULE_UNITS)?,
+                    every,
+                    anchor: plan.date("anchor")?,
+                    track_from: plan.date("track_from")?,
+                    ends_on: plan.optional_date("ends_on")?,
+                    paused: plan.boolean("paused")?,
+                },
+                decided,
+            });
+        }
+    }
+
     Ok(BookData {
         rounding_mode,
         history_keep_days,
@@ -591,6 +683,7 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         groups,
         hidden_categories,
         budgets,
+        schedules,
     })
 }
 

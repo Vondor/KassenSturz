@@ -48,6 +48,7 @@ FormCard.FormCardPage {
     signal saveCopyClicked()
     // "Where your book is kept" (D-731).
     signal bookPlaceClicked()
+    signal grantedFoldersClicked()
     signal bookFromFileClicked()
     signal showHistoryClicked()
     // The user wants the list of backups to restore one (#806).
@@ -308,6 +309,23 @@ FormCard.FormCardPage {
 
         FormCard.FormDelegateSeparator {
             visible: page.bookMove.available
+        }
+
+        // The folders the user gave access to, to take back (#873). Only in
+        // the Flatpak, where the access stays until it is taken back.
+        FormCard.FormButtonDelegate {
+            visible: page.bookMove.grantsAvailable
+            icon.name: "folder-locked"
+            text: page.i18nContext.i18nc("@action:button", "Folders KassenSturz may open")
+            description: page.i18nContext.i18nc("@info", "See them and take the access back.")
+            onClicked: {
+                ActionLog.taken("SettingsPage_grantedFolders")
+                page.grantedFoldersClicked()
+            }
+        }
+
+        FormCard.FormDelegateSeparator {
+            visible: page.bookMove.grantsAvailable
         }
 
         FormCard.FormButtonDelegate {

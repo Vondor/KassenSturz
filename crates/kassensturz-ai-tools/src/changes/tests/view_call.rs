@@ -1343,6 +1343,47 @@ fn a_progress_bar_answers_with_its_share_and_target() {
 }
 
 #[test]
+fn a_formula_figure_names_the_period_the_formula_counted() {
+    // #827: `computed` named the chart's period next to a figure that a
+    // name of the formula had counted for a period of its own.
+    let book = with_income();
+    let card = |formula: &str| {
+        json!({"title": "Food", "data": "income_expense_by_month",
+            "show_as": "figure", "formula": formula, "period": "this-month"})
+        .to_string()
+    };
+    let days = |formula: &str| {
+        let proposal = call(&book, &card(formula)).expect("prepared");
+        let entry = computed(&proposal);
+        (entry.get("from").cloned(), entry.get("to").cloned())
+    };
+    // No period of its own: the chart's.
+    assert_eq!(
+        days("=Food"),
+        (Some(json!("2026-10-01")), Some(json!("2026-10-31")))
+    );
+    // Its own period: that one, not the chart's.
+    assert_eq!(
+        days("=Food@\"last month\""),
+        (Some(json!("2026-09-01")), Some(json!("2026-09-30")))
+    );
+    // Names with different periods: both are listed, none is the chart's.
+    let proposal = call(&book, &card("=Food@\"last month\" + Travel")).expect("prepared");
+    let entry = computed(&proposal);
+    assert!(
+        entry.get("from").is_none() && entry.get("to").is_none(),
+        "{entry:?}"
+    );
+    assert_eq!(
+        entry["periods"],
+        json!([
+            {"from": "2026-09-01", "to": "2026-09-30"},
+            {"from": "2026-10-01", "to": "2026-10-31"}
+        ])
+    );
+}
+
+#[test]
 fn a_figure_the_period_cant_make_is_named_by_its_code() {
     // A division by zero is no mistake of the formula (D-650): the chart is
     // prepared, and the answer names the code the preview shows in words.

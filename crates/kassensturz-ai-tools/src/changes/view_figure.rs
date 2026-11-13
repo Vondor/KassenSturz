@@ -34,7 +34,9 @@ use crate::writer::{Writer, decimal_text};
 /// What the answer says about the figures, so the model relays them and
 /// never works out one of its own (AGENTS.md §8).
 const COMPUTED_NOTE: &str = "computed is what the prepared chart shows, worked out by \
-    KassenSturz for its period (from, to); with a comparison, previous is the same figure in \
+    KassenSturz for its period (from, to); for a formula that is the days it counted, which may be \
+    a period its own names give (a formula whose names give different periods lists them in \
+    periods instead of from and to); with a comparison, previous is the same figure in \
     the earlier period (previous_from, previous_to). Tell the user these figures as they are \
     and never work out one of your own. If the user changes the chart before saving it, the \
     saved chart shows the figure of the changed one. An empty list: nothing to count in the \
@@ -406,18 +408,25 @@ fn formula_entry(
     period: Period,
     writer: &mut Writer<'_>,
 ) -> Result<Option<Value>, Failure> {
-    let work = |text: &str| -> Result<Option<FormulaValue>, ReportError> {
+    let work = |text: &str| -> Result<Option<(FormulaValue, Vec<Period>)>, ReportError> {
         let formula = Formula::parse(text)?;
         let source = Source::read(book, formula.span(period)?)?;
         let Some(filter) = filter_of(asked, &source)? else {
             return Ok(None);
         };
         let currency = fallback_currency(book);
-        Ok(Some(
-            formula.evaluate(&source, period, &filter, currency)?.value,
-        ))
+        let result = formula.evaluate(&source, period, &filter, currency)?;
+        // The periods the formula really counted (#827), once each, in the
+        // order it names them: a name may give itself a period of its own.
+        let mut counted: Vec<Period> = Vec::new();
+        for each in &result.counted {
+            if !counted.contains(&each.period) {
+                counted.push(each.period);
+            }
+        }
+        Ok(Some((result.value, counted)))
     };
-    let Some(value) = work(formula)? else {
+    let Some((value, mut counted)) = work(formula)? else {
         return Ok(None);
     };
     let shown = Shown::from(value);
@@ -428,10 +437,35 @@ fn formula_entry(
         entry.insert("currency".into(), json!(money.currency().as_str()));
     }
     put(&mut entry, "value", shown, writer)?;
-    dates(&mut entry, "", period);
-    if let Some(target) = target
-        && let Some(whole) = work(target)?
-    {
+    let whole = match target {
+        Some(target) => work(target)?,
+        None => None,
+    };
+    if let Some((_, more)) = &whole {
+        for each in more {
+            if !counted.contains(each) {
+                counted.push(*each);
+            }
+        }
+    }
+    // The label names the days the figure was counted for, not the chart's
+    // period (#827). A formula without a name counts no days of its own.
+    match counted.as_slice() {
+        [] => dates(&mut entry, "", period),
+        [only] => dates(&mut entry, "", *only),
+        several => {
+            let periods = several
+                .iter()
+                .map(|each| {
+                    let mut one = Map::new();
+                    dates(&mut one, "", *each);
+                    Value::Object(one)
+                })
+                .collect();
+            entry.insert("periods".into(), Value::Array(periods));
+        }
+    }
+    if let Some((whole, _)) = whole {
         let fill = value.fill(whole)?;
         put(&mut entry, "target", Shown::from(whole), writer)?;
         put(&mut entry, "share", Shown::Percent(Some(fill)), writer)?;

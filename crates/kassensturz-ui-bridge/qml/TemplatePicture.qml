@@ -38,6 +38,8 @@ Rectangle {
         case "chart.line":
         case "chart.candlestick":
             return "office-chart-line";
+        case "chart.flow":
+            return "office-chart-area-stacked";
         case "chart.area":
             return "office-chart-area";
         case "kpi.card":

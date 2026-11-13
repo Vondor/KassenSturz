@@ -118,7 +118,7 @@ Kirigami.ScrollablePage {
     // The component the properties panel is changing, by ID.
     property string editedId: ""
     // The kinds the Statistic Builder can change step by step (M6-B164).
-    readonly property var builderTypes: ["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "kpi.card", "progress.bar", "table.rows", "chart.candlestick", "budget.progress", "chart.custom", "table.transactions"]
+    readonly property var builderTypes: ["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "kpi.card", "progress.bar", "table.rows", "chart.candlestick", "chart.flow", "budget.progress", "chart.custom", "table.transactions"]
     property bool loadingPanel: false
 
     function openProperties(id: string) {

@@ -264,6 +264,9 @@ pub struct Asked {
     /// The length of a candle chart's candles the user chose (Q-498);
     /// `None` for the automatic length and for every other component.
     pub candle: Option<crate::CandleLength>,
+    /// What a money-flow chart shows (US7, D-758); the default for every
+    /// other component.
+    pub flow: crate::FlowChoice,
 }
 
 /// A note under a component about its filter (D-350). The component writes
@@ -417,6 +420,7 @@ impl Asked {
                 Some(Setting::Word(word)) => crate::CandleLength::read(word),
                 _ => None,
             },
+            flow: crate::FlowChoice::of(component),
         })
     }
 
@@ -440,6 +444,7 @@ impl Asked {
             average: self.average,
             compare: self.compare,
             candle: self.candle,
+            flow: self.flow.clone(),
         }
     }
 

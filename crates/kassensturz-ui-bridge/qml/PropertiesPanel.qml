@@ -121,6 +121,8 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "What you are worth, month by month");
         case "cash_flow_by_month":
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in and out of your accounts, by month");
+        case "money_flow":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "Where your money came from and where it went");
         }
         return "";
     }
@@ -139,6 +141,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "Shows what each account held at the end of the period, and what you have, what you owe and what you are worth. Each currency is shown on its own; they are never added together.");
         case "net_worth_over_time":
             return i18nContext.i18nc("@info", "Shows what you have, what you owe and what you are worth at the end of each month. Each currency is shown on its own; they are never added together.");
+        case "money_flow":
+            return i18nContext.i18nc("@info", "Shows where the money of the period came from and where it went, as bands as wide as their amount. If you earned more than you spent, the rest is shown as left over; if you spent more, as taken from your reserves. Money moved between your own accounts is not counted. One currency is shown, with no conversion.");
         case "cash_flow_by_month":
             return i18nContext.i18nc("@info", "Shows the money that came into and went out of your checking, savings and cash accounts in each month, and what they held at the start and at the end. Moving money between two of them counts as neither, and starting balances are listed on their own.");
         }
@@ -189,6 +193,13 @@ ColumnLayout {
             return i18nContext.i18nc("@label:listbox which boxes of a candle chart are filled with color and which are hollow", "Candle boxes");
         case "show_hidden":
             return i18nContext.i18nc("@option:check", "Show hidden categories");
+        // The money-flow chart (US7, #821, D-758).
+        case "sub_categories":
+            return i18nContext.i18nc("@option:check a money-flow chart: sub-categories get a column of their own", "Show sub-categories");
+        case "payees":
+            return i18nContext.i18nc("@option:check a money-flow chart: who paid and who was paid get a column at each edge", "Show who paid and who was paid");
+        case "currency":
+            return i18nContext.i18nc("@label:textbox a money-flow chart: the currency it shows, as a code like EUR; empty for the one with the most money", "Currency (a code like EUR; empty: the one with most money)");
         case "hide_note":
             return i18nContext.i18nc("@option:check hides the grey lines on a tile that say what it is filtered to", "Hide the grey filter notes");
         case "compare":
@@ -251,6 +262,8 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox candle boxes: every box filled, rising and falling differ by color only", "All filled");
         case "all-hollow":
             return i18nContext.i18nc("@item:inlistbox candle boxes: every box hollow, rising and falling differ by color only", "All hollow");
+        case "flow":
+            return i18nContext.i18nc("@item:inlistbox the one way the money flow is shown", "Bands from where it came to where it went");
         case "budget":
             return i18nContext.i18nc("@item:inlistbox", "Each budget");
         case "period":

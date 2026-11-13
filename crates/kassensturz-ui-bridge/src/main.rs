@@ -76,6 +76,7 @@ mod folder_choice_model;
 mod format;
 mod formulas;
 mod formulas_model;
+mod granted_folders;
 mod grid_editor;
 mod grid_editor_model;
 mod history;

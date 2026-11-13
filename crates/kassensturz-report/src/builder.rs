@@ -17,7 +17,7 @@ impl ComponentType {
     /// "Show as" list names them. The screens' own lists
     /// (`StatisticsPage.qml`, `StatisticWizard.qml`, `OverviewPage.qml`) are
     /// checked against it by the UI bridge's `builder_audit`.
-    pub const BUILDER: [Self; 13] = [
+    pub const BUILDER: [Self; 14] = [
         Self::ChartBar,
         Self::ChartPie,
         Self::ChartDonut,
@@ -28,6 +28,7 @@ impl ComponentType {
         Self::ProgressBar,
         Self::TableRows,
         Self::ChartCandlestick,
+        Self::ChartFlow,
         Self::BudgetProgress,
         Self::CustomChart,
         Self::Transactions,

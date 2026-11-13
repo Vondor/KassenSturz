@@ -28,6 +28,12 @@ Please also read our short [code of conduct](CODE_OF_CONDUCT.md).
    — checked by `reuse lint` in CI (D-024). CMake files use `BSD-2-Clause` instead; documentation and small
    configuration files are covered by `REUSE.toml` (D-064).
 
+## Language
+
+Please write issues and pull requests in English or German. The exception is translation work (issues and pull
+requests with the `translation` label, see `docs/TRANSLATING.md`), which may be written in the language it is about.
+An issue or pull request in any other language is closed without review; you are welcome to reopen it in English or German.
+
 ## Ask first if your idea involves closed-source software
 
 If your idea integrates with or imports from software that is not open source, please contact the maintainer

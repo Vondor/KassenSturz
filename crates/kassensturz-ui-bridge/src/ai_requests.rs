@@ -93,8 +93,8 @@ pub fn tell_declined(inbox: &mut dyn Inbox, from: &RequestId, reasons: RefusalRe
 }
 
 /// Tells the request `from` that the window forgot its set before the user
-/// decided: a new conversation, another book, AI switched off, or the app
-/// closing.
+/// decided: a new conversation, another book or AI switched off. Closing
+/// the app doesn't: the set waits for the next start (B-258).
 pub fn tell_dropped(inbox: &mut dyn Inbox, from: &RequestId) {
     let _ = inbox.reply(from, &failed("mcp-writes.dropped"));
 }
@@ -268,6 +268,59 @@ mod tests {
                 .last()
                 .is_some_and(|name| name == "Sorted by my AI tool")
         }));
+    }
+
+    /// B-258: the app closed while a set from an AI tool waited. The next
+    /// start with the same book shows it again, checked anew, and the
+    /// confirm there answers the AI tool.
+    #[test]
+    fn a_set_waiting_when_the_app_closed_is_shown_again_at_the_next_start() {
+        let folder = TestFolder::new();
+        let (path, mut book) = space_colony(&folder);
+        let place = folder.join("data").join(APP_ID).join("mcp-requests");
+        let server = RequestFolder::open(place.clone()).expect("the server's folder");
+        let call = call_from_search(&book);
+        let id = server.send(&path, &call).expect("sent");
+        let count = {
+            let mut before = RequestFolder::open(place.clone()).expect("the app's folder");
+            let mut sets = Sets::default();
+            let arrived = take_requests(
+                &mut before,
+                &path,
+                &book,
+                &mut sets,
+                Permissions::all(),
+                DAY,
+                None,
+            );
+            assert_eq!(arrived.len(), 1);
+            arrived[0].count
+            // The app closes: its folder and its sets go, nothing is told.
+        };
+        assert_eq!(
+            server.standing(&id),
+            Standing::Answered(Reply::Shown { changes: count })
+        );
+
+        let mut after = RequestFolder::open(place).expect("the app's folder again");
+        let mut sets = Sets::default();
+        let arrived = take_requests(
+            &mut after,
+            &path,
+            &book,
+            &mut sets,
+            Permissions::all(),
+            DAY,
+            None,
+        );
+        assert_eq!(arrived.len(), 1, "the waiting set is back");
+        assert_eq!(arrived[0].count, count);
+        let waiting = sets.take(arrived[0].id).unwrap();
+        assert_eq!(waiting.from.as_ref(), Some(&id));
+        let result = confirm_in(&mut book, waiting.set, Permissions::all(), DAY);
+        tell_confirmed(&mut after, &id, &result);
+        assert!(result.is_ok());
+        assert_eq!(server.standing(&id), Standing::Answered(Reply::Applied));
     }
 
     #[test]

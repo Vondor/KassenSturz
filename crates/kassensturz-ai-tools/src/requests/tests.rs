@@ -331,3 +331,47 @@ fn the_default_place_is_in_the_data_folder() {
         assert_eq!(RequestFolder::default_place(), None);
     }
 }
+
+#[test]
+fn a_set_still_waiting_when_the_app_closed_is_taken_again_at_the_next_start() {
+    // B-258: the app closed while the user hadn't decided yet.
+    let scratch = Scratch::new("restart");
+    let book = scratch.book("Household.ksz");
+    let other = scratch.book("Other.ksz");
+    let server = scratch.folder();
+    let mut before = scratch.folder();
+    let waiting = server.send(&book, &call()).expect("sent");
+    let decided = server.send(&book, &call()).expect("sent");
+    let never_shown = server.send(&book, &call()).expect("sent");
+    assert_eq!(before.take_new(&book).len(), 3);
+    before
+        .reply(&waiting, &Reply::Shown { changes: 1 })
+        .expect("answered");
+    before.reply(&decided, &Reply::Applied).expect("answered");
+    // The same app doesn't take its own waiting set twice.
+    assert!(before.take_new(&book).is_empty());
+    drop(before);
+
+    // An app with another book leaves it alone.
+    let mut elsewhere = scratch.folder();
+    assert!(elsewhere.take_new(&other).is_empty());
+
+    let mut after = scratch.folder();
+    let again = after.take_new(&book);
+    assert_eq!(
+        again,
+        [Request {
+            id: waiting.clone(),
+            book: book.clone(),
+            function: "propose_changes",
+            arguments: call(),
+        }],
+        "only the set that was shown and waits"
+    );
+    assert!(after.take_new(&book).is_empty(), "once while the app runs");
+    assert_eq!(
+        server.standing(&waiting),
+        Standing::Answered(Reply::Shown { changes: 1 })
+    );
+    assert_eq!(server.standing(&never_shown), Standing::Taken);
+}

@@ -23,6 +23,11 @@
 //!   whether it withdrew a request before any app saw it;
 //! - `<id>.answer.json`: the app's latest answer ([`Reply`]).
 //!
+//! A taken request whose latest answer is "shown" still waits for the
+//! user: when the app closed or stopped before the user decided, the next
+//! app with the same book takes it again and shows the set anew, checked
+//! against the book as it is then (B-258).
+//!
 //! Each file is written to a hidden temporary file first and renamed, so a
 //! reader never sees half of one. The server removes a request's files
 //! once it has read the final answer; the app removes whatever is older
@@ -203,6 +208,9 @@ pub struct RequestFolder {
     /// The requests this app left alone because they are for another
     /// book, so it reads each only once.
     ignored: HashSet<RequestId>,
+    /// The requests this app took, so it takes each only once while it
+    /// runs (B-258).
+    held: HashSet<RequestId>,
 }
 
 impl RequestFolder {
@@ -261,6 +269,7 @@ impl RequestFolder {
         Ok(Self {
             path,
             ignored: HashSet::new(),
+            held: HashSet::new(),
         })
     }
 
@@ -386,13 +395,19 @@ impl RequestFolder {
         let ours = fs::canonicalize(book).ok();
         let mut taken = Vec::new();
         for (name, metadata) in &entries {
+            if let Some(id) = name.strip_suffix(TAKEN).and_then(RequestId::parse) {
+                if let Some(request) = self.take_again(&id, metadata, ours.as_ref()) {
+                    taken.push(request);
+                }
+                continue;
+            }
             let Some(id) = name.strip_suffix(REQUEST).and_then(RequestId::parse) else {
                 continue;
             };
             if !metadata.is_file() || self.ignored.contains(&id) {
                 continue;
             }
-            match self.read_request(&id, metadata) {
+            match self.read_request(&id, REQUEST, metadata) {
                 Some(request) => {
                     let same_book = ours.is_some()
                         && fs::canonicalize(&request.book).ok().as_ref() == ours.as_ref();
@@ -403,6 +418,7 @@ impl RequestFolder {
                         continue;
                     }
                     if self.take(&id) {
+                        self.held.insert(id);
                         taken.push(request);
                     }
                 }
@@ -421,13 +437,48 @@ impl RequestFolder {
         taken
     }
 
-    /// The request file of `id`, if it can be read: small enough, JSON of
-    /// the known layout.
-    fn read_request(&self, id: &RequestId, metadata: &fs::Metadata) -> Option<Request> {
+    /// A request an app took earlier whose set still waits for the user,
+    /// taken again by this app (B-258): the app closed or stopped before
+    /// the user decided, and its window shows the set again once it runs
+    /// with the same book. Only a request whose latest answer is "shown"
+    /// counts: one the user or the app decided on, or one the app never
+    /// showed, stays as it is. Each is taken once while this app runs, and
+    /// [`MAX_AGE`] still removes it.
+    fn take_again(
+        &mut self,
+        id: &RequestId,
+        metadata: &fs::Metadata,
+        ours: Option<&PathBuf>,
+    ) -> Option<Request> {
+        if !metadata.is_file() || self.held.contains(id) || self.ignored.contains(id) {
+            return None;
+        }
+        let waits = matches!(self.standing(id), Standing::Answered(Reply::Shown { .. }));
+        if !waits {
+            return None;
+        }
+        let request = self.read_request(id, TAKEN, metadata)?;
+        let same_book = ours.is_some() && fs::canonicalize(&request.book).ok().as_ref() == ours;
+        if !same_book {
+            self.ignored.insert(id.clone());
+            return None;
+        }
+        self.held.insert(id.clone());
+        Some(request)
+    }
+
+    /// The request file of `id` with `ending`, if it can be read: small
+    /// enough, JSON of the known layout.
+    fn read_request(
+        &self,
+        id: &RequestId,
+        ending: &str,
+        metadata: &fs::Metadata,
+    ) -> Option<Request> {
         if metadata.len() > MAX_REQUEST_BYTES {
             return None;
         }
-        let text = read_small(&self.path.join(id.file(REQUEST)))?;
+        let text = read_small(&self.path.join(id.file(ending)))?;
         let value: Value = serde_json::from_str(&text).ok()?;
         if value.get("version")?.as_u64()? != VERSION {
             return None;

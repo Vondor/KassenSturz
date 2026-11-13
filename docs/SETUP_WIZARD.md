@@ -92,7 +92,7 @@ Shown once, right after page 3b created the book; the book is already complete, 
 |---|---|
 | **I'll type them myself** (preselected) | Goes to the overview. |
 | **Import a file from my bank** | Asks which account the file is for (only when there is more than one), then the existing import pages (M3.10) unchanged. |
-| **Connect to my bank** ("For banks in Germany. KassenSturz only reads, it never sends money.") | The existing bank setup page (M4.6) unchanged; it links the bank's accounts to the ones just created. Hidden where the build has no bank support, and **hidden in every build until the maintainer has tested the bank flow in the finished app himself (Q-398)**: a build option, off by default, switches it on (section 7). |
+| **Connect to my bank** ("For banks in Germany. KassenSturz only reads, it never sends money.") | The existing bank setup page (M4.6) unchanged; it links the bank's accounts to the ones just created. Hidden where the build has no bank support, and **shown only in official tagged builds (Q-562, US7, #511)**: the release workflow writes the git-ignored file `wizard-bank` for a tag, which `CMakeLists.txt` reads to build with the Cargo feature `wizard-bank`; CI builds of branches and of main don't have the file, so they hide it. The CMake option `KASSENSTURZ_WIZARD_BANK` switches it on by hand (section 7). |
 
 ### Page 5: The first look at the overview (`5-overview.png`)
 

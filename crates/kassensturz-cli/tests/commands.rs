@@ -1961,6 +1961,59 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
          2026-10-06,Savings,,,Checking account,,300.00,EUR,,,,\r\n"
     );
 
+    // A range of days, both ends included (#901): the Transfer's two sides
+    // are both in it, an open end reaches to the end of the book, and the
+    // rows stay as they are.
+    let ranged = session.0.join("ranged.csv");
+    let ranged_text = ranged.display().to_string();
+    let said = session.ok(&[
+        "export",
+        &ranged_text,
+        "--from",
+        "2026-10-06",
+        "--until",
+        "2026-10-07",
+        "--no-header",
+    ]);
+    assert_eq!(
+        said,
+        format!("Exported 3 transactions of 2 accounts to {ranged_text} as csv.\n")
+    );
+    assert_eq!(
+        std::fs::read_to_string(&ranged).expect("file written"),
+        "2026-10-06,Checking account,,,Savings,,-300.00,EUR,,,,\r\n\
+         2026-10-07,Checking account,Market,,,,-40.00,EUR,2,,,\r\n\
+         2026-10-06,Savings,,,Checking account,,300.00,EUR,,,,\r\n"
+    );
+    let open_end = session.0.join("open-end.csv");
+    let said = session.ok(&[
+        "export",
+        &open_end.display().to_string(),
+        "--from",
+        "2026-10-08",
+        "--no-header",
+    ]);
+    assert!(
+        said.starts_with("Exported 1 transaction of 2 accounts"),
+        "{said}"
+    );
+    // An empty range is a file with nothing but the header.
+    let empty = session.0.join("empty.csv");
+    let said = session.ok(&[
+        "export",
+        &empty.display().to_string(),
+        "--from",
+        "2027-01-01",
+    ]);
+    assert!(
+        said.starts_with("Exported 0 transactions of 2 accounts"),
+        "{said}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&empty).expect("file written"),
+        "date,account,payee,category,transfer,memo,amount,currency,parts,original_amount,original_currency,note\r\n"
+    );
+
     // One account, with Excel-friendly settings.
     let one = session.0.join("savings.csv");
     let one_text = one.display().to_string();
@@ -1995,6 +2048,10 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
         (vec!["--format", "xml"], "`xml` isn't a format to export"),
         (vec!["--separator", "pipe"], "`pipe` isn't a separator"),
         (vec!["--decimal-mark", "dot"], "`dot` isn't a decimal mark"),
+        (
+            vec!["--from", "2026-10-09", "--until", "2026-10-01"],
+            "--until is before --from",
+        ),
     ] {
         let target = session.0.join("never.csv").display().to_string();
         let mut line = vec!["export", target.as_str()];
@@ -2005,6 +2062,11 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
         assert!(!session.0.join("never.csv").exists());
     }
     let target = session.0.join("never.csv").display().to_string();
+    for (option, text) in [("--from", "05.10.2026"), ("--until", "soon")] {
+        let refused = session.cli(&["export", &target, option, text]);
+        assert_eq!(refused.status, 1, "{option}");
+        assert!(refused.err.contains("isn't a date"), "{}", refused.err);
+    }
     let clash = session.cli(&["export", &target, "--decimal-mark", "comma"]);
     assert_eq!(clash.status, 1);
     assert_eq!(clash.err, "error: export.bad-settings\n");
@@ -2117,6 +2179,8 @@ fn the_whole_book_is_exported_and_read_back_into_a_new_book() {
     let target = session.0.join("never.json").display().to_string();
     for option in [
         &["--account", "Savings"][..],
+        &["--from", "2026-10-01"],
+        &["--until", "2026-10-31"],
         &["--separator", "tab"],
         &["--no-header"],
     ] {

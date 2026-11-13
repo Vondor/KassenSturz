@@ -16,9 +16,8 @@
 use std::collections::HashSet;
 
 use kassensturz_core::{
-    AccountId, AccountKind, CurrencyCode, Date, Decided, MAX_SCHEDULE_EVERY, Money,
-    OccurrenceState, Report, Schedule, ScheduleId, ScheduleUnit, TransactionId, compact_iban,
-    due_dates,
+    AccountId, CurrencyCode, Date, Decided, MAX_SCHEDULE_EVERY, Money, OccurrenceState, Report,
+    Schedule, ScheduleId, ScheduleUnit, TransactionId, compact_iban, due_dates,
 };
 use kassensturz_store::{Action, Book, NewSchedule, StoreError};
 
@@ -826,11 +825,6 @@ pub fn match_entry(
     let transaction = transaction_id(transaction)?;
     book.match_schedule_occurrence(plan.id, due_day(due_on)?, transaction)?;
     Ok(())
-}
-
-/// Whether `kind` is one of the user's own accounts a plan may be on.
-pub fn takes_plans(kind: AccountKind) -> bool {
-    kind.is_account()
 }
 
 #[cfg(test)]

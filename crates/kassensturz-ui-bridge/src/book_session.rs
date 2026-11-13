@@ -388,8 +388,11 @@ impl qobject::BookSession {
             Ok(book) => {
                 let backups = books.backup_folder().to_owned();
                 session::set(book);
-                // A copy in the folder the user chose, at most once a day;
+                // A backup in the app's own folder at least once a month
+                // (B-255), then a copy in the folder the user chose, at
+                // most once a day;
                 // a missing or full folder never stops the book (#806).
+                backup_copies::keep_monthly_backup_of_open_book(&backups);
                 backup_copies::keep_copy_of_open_book(&Settings::user(), &backups);
                 self.as_mut().rust_mut().last_attempt = None;
                 self.as_mut().set_problem(QVariant::default());

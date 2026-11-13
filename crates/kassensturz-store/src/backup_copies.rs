@@ -132,6 +132,41 @@ impl Book {
         backup::back_up(&self.conn, book, folder)
     }
 
+    /// Makes a backup of this book, which is at `book`, in `folder`, the
+    /// app's own backup folder, when the newest one there is older than
+    /// thirty days or there is none, so a month-old state of the book can
+    /// still be found (B-255, attack B7 of the security review). Called
+    /// when the book is opened. Returns the new backup, or `None` when a
+    /// recent one is there. The folder keeps the last ten and the oldest
+    /// backup of each of the last twelve months before this one.
+    ///
+    /// A backup dated in the future, e.g. after the clock was put back,
+    /// doesn't count as recent.
+    ///
+    /// # Errors
+    ///
+    /// [`StoreError::Io`] if the folder can't be made or written to.
+    pub fn keep_monthly_backup(
+        &self,
+        book: &Path,
+        folder: &Path,
+    ) -> Result<Option<BackupFile>, StoreError> {
+        let now = Timestamp::now();
+        let recent = match backups_of(book, folder) {
+            Ok(found) => found.into_iter().any(|backup| {
+                backup.made <= now
+                    && now.as_second() - backup.made.as_second() < backup::MONTHLY_SECONDS
+            }),
+            Err(StoreError::Io(ErrorKind::NotFound)) => false,
+            Err(error) => return Err(error),
+        };
+        if recent {
+            return Ok(None);
+        }
+        let path = backup::back_up(&self.conn, book, folder)?;
+        Ok(Some(BackupFile { path, made: now }))
+    }
+
     /// Keeps a copy of this book, which is at `book`, in `copies`, the
     /// folder the user chose, and removes that book's oldest copies there
     /// beyond the last `keep` (#806). If `backups`, the app's own backup
@@ -396,6 +431,38 @@ mod tests {
             .collect();
         names.sort();
         names
+    }
+
+    #[test]
+    fn opening_makes_a_backup_once_the_newest_is_a_month_old() {
+        let folder = TempFolder::new();
+        let (book, path) = book_with(&folder, "Checking");
+        let backups = computer(&folder).backup_folder;
+        // None yet: one is made, and the folder with it.
+        let first = book
+            .keep_monthly_backup(&path, &backups)
+            .expect("backed up")
+            .expect("a backup made");
+        assert_eq!(first.path.parent(), Some(backups.as_path()));
+        // Recent now: none is added.
+        assert_eq!(
+            book.keep_monthly_backup(&path, &backups).expect("checked"),
+            None
+        );
+        assert_eq!(names_in(&backups).len(), 1);
+        // A backup 31 days old only: a new one is made.
+        fs::remove_file(&first.path).expect("removed");
+        let old = Timestamp::from_second(Timestamp::now().as_second() - 31 * 24 * 60 * 60)
+            .expect("a time")
+            .strftime("%Y-%m-%d %H-%M-%S UTC")
+            .to_string();
+        fs::write(backups.join(format!("Household {old}.ksz")), "made up").expect("written");
+        assert!(
+            book.keep_monthly_backup(&path, &backups)
+                .expect("backed up")
+                .is_some()
+        );
+        assert_eq!(names_in(&backups).len(), 2);
     }
 
     fn names_in(folder: &Path) -> Vec<String> {

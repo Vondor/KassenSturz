@@ -146,6 +146,18 @@ pub fn last_outcome() -> Option<Outcome> {
     LAST.lock().ok().and_then(|last| *last)
 }
 
+/// Makes a backup of the open book in `backups`, the app's own backup
+/// folder, when its newest one there is a month old or there is none, so a
+/// month-old state can still be found (B-255). Called when a book opens,
+/// before [`keep_copy_of_open_book`], which then copies it to the chosen
+/// folder too. Never fails: a backup that can't be made doesn't stop the
+/// book, and the backup before an update still refuses to go on (D-033).
+pub fn keep_monthly_backup_of_open_book(backups: &Path) {
+    if let Some(book) = session::path() {
+        let _ = session::with_book(|open| open.keep_monthly_backup(&book, backups));
+    }
+}
+
 /// Keeps a copy of the open book in the chosen folder, after the book was
 /// opened or the folder chosen. `backups` is the app's own backup folder,
 /// whose newest backup is copied when the chosen folder lacks it. `None`

@@ -23,6 +23,17 @@ use crate::error::StoreError;
 /// How many backups of each book are kept (D-033).
 pub(crate) const KEEP: usize = 10;
 
+/// How many earlier months keep one backup each in the app's own folder, on
+/// top of the last [`KEEP`] (B-255): a harm noticed late, such as a Rule
+/// that books wrongly on every import, can outlast both the change
+/// history and ten backups, so the oldest backup of each of the last year's
+/// months stays.
+pub(crate) const KEEP_MONTHS: usize = 12;
+
+/// How old the newest backup in the app's own folder may be before opening
+/// the book makes another one (B-255): thirty days.
+pub(crate) const MONTHLY_SECONDS: i64 = 30 * 24 * 60 * 60;
+
 /// When a backup was made, in UTC: the store has no time zone data (D-061).
 /// Without colons, which Windows doesn't allow in names.
 const STAMP_FORMAT: &str = "%Y-%m-%d %H-%M-%S UTC";
@@ -45,7 +56,50 @@ pub(crate) fn back_up(
     // Absolute, so SQLite never takes the copy's name for a URI.
     let folder = std::path::absolute(folder)?;
     fs::create_dir_all(&folder)?;
-    write_backup(conn, book, &folder, KEEP)
+    let path = write_backup(conn, book, &folder, usize::MAX)?;
+    prune_own(&folder, stem_of(book)?, &path, Timestamp::now());
+    Ok(path)
+}
+
+/// Removes the oldest backups of the book `stem` in the app's own folder:
+/// the last [`KEEP`] stay, `just_made` among them, and so does the oldest
+/// one of each of the [`KEEP_MONTHS`] newest months before the month of
+/// `now` that have one (B-255). Errors are ignored, as in [`prune`].
+pub(crate) fn prune_own(folder: &Path, stem: &str, just_made: &Path, now: Timestamp) {
+    let Ok(entries) = fs::read_dir(folder) else {
+        return;
+    };
+    let mut older: Vec<(String, u32, PathBuf)> = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().into_string().ok()?;
+            let (stamp, number) = parse_name(&name, stem)?;
+            Some((stamp.to_owned(), number, entry.path()))
+        })
+        .filter(|(_, _, path)| path != just_made)
+        .collect();
+    // Oldest first: the stamps sort by time, the numbers within one second.
+    older.sort();
+    let excess = (older.len() + 1).saturating_sub(KEEP);
+    // The stamps begin with the month, e.g. `2026-11`.
+    let this_month = now.strftime("%Y-%m").to_string();
+    let mut months: Vec<&str> = older
+        .iter()
+        .take(excess)
+        .map(|(stamp, _, _)| &stamp[..7])
+        .filter(|month| *month < this_month.as_str())
+        .collect();
+    months.dedup();
+    let kept_months: Vec<&str> = months.iter().rev().take(KEEP_MONTHS).copied().collect();
+    let mut seen = Vec::new();
+    for (stamp, _, path) in older.iter().take(excess) {
+        let month = &stamp[..7];
+        if kept_months.contains(&month) && !seen.contains(&month) {
+            seen.push(month);
+            continue;
+        }
+        let _ = fs::remove_file(path);
+    }
 }
 
 /// Copies the book that `conn` has open, which is at `book`, into `folder`,
@@ -347,6 +401,57 @@ mod tests {
 
         let mut expected: Vec<String> = backups[3..].iter().chain(&others).cloned().collect();
         expected.sort();
+        assert_eq!(names_in(&folder), expected);
+    }
+
+    #[test]
+    fn the_own_folder_also_keeps_the_oldest_backup_of_each_earlier_month() {
+        let folder = TempFolder::new();
+        // Three backups in each month from 2025-09 to 2026-10, then twelve
+        // in November 2026, when the newest one is made.
+        let mut backups = Vec::new();
+        for month in 0..14 {
+            let (year, number) = if month < 4 {
+                (2025, month + 9)
+            } else {
+                (2026, month - 3)
+            };
+            for day in [3, 13, 23] {
+                backups.push(format!(
+                    "Household {year}-{number:02}-{day:02} 09-00-00 UTC.ksz"
+                ));
+            }
+        }
+        let november: Vec<String> = (1..=12)
+            .map(|day| format!("Household 2026-11-{day:02} 09-00-00 UTC.ksz"))
+            .collect();
+        backups.extend(november.iter().cloned());
+        for name in &backups {
+            fs::write(folder.join(name), "made up").expect("file written");
+        }
+        let now = Timestamp::from_second(1_794_384_000).expect("a time"); // 2026-11-12
+        assert_eq!(now.strftime("%Y-%m").to_string(), "2026-11");
+        let just_made = folder.join(november.last().expect("one"));
+
+        prune_own(folder.path(), "Household", &just_made, now);
+
+        // The last ten of November, and the 3rd of each of the twelve
+        // months before it (2025-11 to 2026-10); September and October 2025
+        // are older than a year of months and go.
+        let mut expected: Vec<String> = november[2..].to_vec();
+        for month in 2..14 {
+            let (year, number) = if month < 4 {
+                (2025, month + 9)
+            } else {
+                (2026, month - 3)
+            };
+            expected.push(format!("Household {year}-{number:02}-03 09-00-00 UTC.ksz"));
+        }
+        expected.sort();
+        assert_eq!(names_in(&folder), expected);
+
+        // Pruned again, nothing more goes: one backup per earlier month stays.
+        prune_own(folder.path(), "Household", &just_made, now);
         assert_eq!(names_in(&folder), expected);
     }
 

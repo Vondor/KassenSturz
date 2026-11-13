@@ -491,6 +491,21 @@ impl Book {
             .collect()
     }
 
+    /// The transactions that keep a link to `link` among their attachments
+    /// (D-132), such as a bill the receipt inbox filed (US7, #333): the
+    /// receipt inbox checks with it that a bill isn't filed twice, and
+    /// settles a move a crash left open by whether the book links it.
+    pub fn transactions_linking(&self, link: &str) -> Result<Vec<TransactionId>, StoreError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT DISTINCT transaction_id FROM attachments WHERE link = ?1
+             ORDER BY transaction_id",
+        )?;
+        let ids = statement
+            .query_map([link], |row| row.get::<_, [u8; 16]>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ids.into_iter().map(TransactionId::from_bytes).collect())
+    }
+
     /// The attachments of the transactions `filter` (a clause over
     /// `attachments AS a`) keeps, with its `params`, by transaction ID, each
     /// transaction's in the user's order.

@@ -333,12 +333,10 @@ pub(crate) mod engine {
         }
     }
 
-    impl Drop for State {
-        /// The app closes: a set an AI tool waits on is gone with it.
-        fn drop(&mut self) {
-            self.forget_sets();
-        }
-    }
+    // No `Drop` that tells the AI tools: when the app closes, a set an AI
+    // tool sent stays waiting in the request folder, and the next start
+    // with the same book shows it again (B-258). A new conversation,
+    // another book or AI switched off still drop it ([`State::forget_sets`]).
 
     /// The window as the thread of a question sees it: every call is queued
     /// to the window's thread, and a window that is closing has no one left

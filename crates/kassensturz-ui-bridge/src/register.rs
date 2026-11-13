@@ -155,6 +155,10 @@ pub struct RegisterRow {
     /// The day the money counts from or until, as the user's locale writes
     /// dates. Filled only while its column is chosen.
     pub value_date: String,
+    /// What a bank or file delivered with it (the other party's IBAN and the
+    /// purpose), for the quick filter only: filled while the user searches,
+    /// whether or not those columns are shown (M6-B244). Never shown.
+    pub delivered: String,
     /// Every tag it carries, on the whole or on a part, in the user's
     /// order (D-713): a search by any of them finds the line (Q-493).
     pub tags: Vec<TagText>,
@@ -199,6 +203,7 @@ impl RegisterRow {
             &self.other_party_iban,
             &self.purpose,
             &self.value_date,
+            &self.delivered,
             &self.tag_line(),
         ]
         .map(|text| text.to_lowercase())
@@ -284,6 +289,7 @@ impl Entry {
             other_party_iban: String::new(),
             purpose: String::new(),
             value_date: String::new(),
+            delivered: String::new(),
             tags: self.tags.clone(),
             waits_for: String::new(),
         }
@@ -677,16 +683,44 @@ pub fn register_view(
     register_view_with(book, account, sort, Columns::default(), locale)
 }
 
+/// Reads `account`'s register as `register_view_with` does, for the
+/// `columns` the user chose. When `searching` with the quick filter, what a
+/// bank or file delivered is read even if no column shows it, so the filter
+/// finds a purpose or an IBAN in a hidden column too (M6-B244).
+pub fn register_view_searching(
+    book: &Book,
+    account: AccountId,
+    sort: Sort,
+    columns: Columns,
+    searching: bool,
+    locale: &impl Locale,
+) -> Result<RegisterView, StoreError> {
+    view_of(book, account, sort, columns, searching, locale)
+}
+
 /// Like [`register_view`], for the `columns` the user chose for the
 /// account. What a bank or file delivered is read only if one of the
 /// columns shows it, and the balance after each entry only comes with date
 /// order (US1.18, D-656): in another order it would be a figure beside the
 /// wrong neighbours, and a wrong balance is the worst bug (AGENTS.md §2).
+/// The app uses [`register_view_searching`].
+#[cfg(test)]
 pub fn register_view_with(
     book: &Book,
     account: AccountId,
     sort: Sort,
     columns: Columns,
+    locale: &impl Locale,
+) -> Result<RegisterView, StoreError> {
+    view_of(book, account, sort, columns, false, locale)
+}
+
+fn view_of(
+    book: &Book,
+    account: AccountId,
+    sort: Sort,
+    columns: Columns,
+    searching: bool,
     locale: &impl Locale,
 ) -> Result<RegisterView, StoreError> {
     let details = book.account(account)?;
@@ -698,9 +732,9 @@ pub fn register_view_with(
         .last()
         .map_or(Money::zero(details.currency), |entry| entry.balance);
     let (balance, owes) = writer.balance(now, details.kind);
-    // What was delivered is read only if a column shows it or the order
-    // needs it.
-    let imported = if columns.needs_import() || sort.key.needs_import() {
+    // What was delivered is read only if a column shows it, the order needs
+    // it or the user searches.
+    let imported = if searching || columns.needs_import() || sort.key.needs_import() {
         imported_texts(book, account, locale)?
     } else {
         HashMap::new()
@@ -732,6 +766,9 @@ pub fn register_view_with(
                 }
                 if columns.shows(Column::ValueDate) {
                     row.value_date.clone_from(&text.value_date);
+                }
+                if searching {
+                    row.delivered = format!("{}\n{}", text.other_party_iban, text.purpose);
                 }
             }
             row
@@ -891,6 +928,7 @@ mod sort_tests {
             other_party_iban: String::new(),
             purpose: String::new(),
             value_date: String::new(),
+            delivered: String::new(),
             tags: vec![TagText {
                 id: "tag-1".into(),
                 name: "Holiday".into(),
@@ -1053,6 +1091,45 @@ mod view_tests {
         // The quick filter finds what a chosen column shows.
         assert!(shown.rows[0].fits("DE89 card"));
         assert!(!shown.rows[0].fits("DE89 rent"));
+    }
+
+    /// The quick filter finds what was delivered also while its columns are
+    /// hidden: a mandate reference in the purpose was found only with the
+    /// purpose column shown (M6-B244, US6 P3 VM round 1, A7).
+    #[test]
+    fn the_quick_filter_finds_a_hidden_purpose_and_iban() {
+        let (book, checking) = book_with_entries("Card payment MREF+MANDATE-TEST-001");
+        let hidden = Columns::default();
+        assert!(!hidden.shows(Column::Purpose));
+        let quiet = view(&book, checking, by(SortKey::Date, false), hidden);
+        assert!(quiet.rows.iter().all(|row| row.delivered.is_empty()));
+        let searched = register_view_searching(
+            &book,
+            checking,
+            by(SortKey::Date, false),
+            hidden,
+            true,
+            &TestLocale,
+        )
+        .expect("register");
+        let fitting: Vec<_> = searched
+            .rows
+            .iter()
+            .filter(|row| row.fits("mandate-test-001"))
+            .collect();
+        assert_eq!(fitting.len(), 1);
+        // Still not shown in the hidden columns.
+        assert_eq!(fitting[0].purpose, "");
+        assert_eq!(fitting[0].other_party_iban, "");
+        assert_eq!(
+            searched
+                .rows
+                .iter()
+                .filter(|row| row.fits("DE89370400440532013000"))
+                .count(),
+            1
+        );
+        assert!(!searched.rows.iter().any(|row| row.fits("MANDATE-TEST-002")));
     }
 
     #[test]

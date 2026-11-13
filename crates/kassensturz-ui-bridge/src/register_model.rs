@@ -29,7 +29,7 @@ use crate::locale::QtLocale;
 use crate::monthly_moves::{self, LooksMonthly, MoveText, OfferText};
 use crate::number_format::app_locale;
 use crate::parts_entry::{self, PartInput, PartsError, PartsInput};
-use crate::register::{RegisterRow, Sort, SortKey, register_view_with};
+use crate::register::{RegisterRow, Sort, SortKey, register_view_searching};
 use crate::register_columns::{Column, Columns};
 use crate::session;
 use crate::settings::Settings;
@@ -533,6 +533,9 @@ impl qobject::AccountRegister {
         let account_id = self.rust().account_id.to_string();
         let sort = self.rust().sort;
         let columns = columns_of(&account_id);
+        // The quick filter also looks at what the bank delivered, shown or
+        // not (M6-B244).
+        let searching = !self.rust().filter.to_string().trim().is_empty();
         let locale = app_locale();
         let view = session::with_book(|book| {
             let account = transaction_entry::account_choices(book)?
@@ -547,7 +550,7 @@ impl qobject::AccountRegister {
                 .find(|account| account.id.to_string() == choice.id)
                 .map(|account| account.id);
             found
-                .map(|id| register_view_with(book, id, sort, columns, &locale))
+                .map(|id| register_view_searching(book, id, sort, columns, searching, &locale))
                 .transpose()
         });
         let view = match view {

@@ -11229,13 +11229,14 @@ msgstr ""
 #, kde-format
 msgctxt "@info"
 msgid ""
-"This version of KassenSturz isn't registered with the German banks' FinTS "
-"system yet, so it can't connect to a bank. Import a file from your bank "
-"instead."
+"This copy of KassenSturz isn't registered with the German banks' FinTS "
+"system, so it can't connect to a bank. The official releases are registered. "
+"Import a file from your bank instead."
 msgstr ""
-"Diese Version von KassenSturz ist noch nicht beim FinTS-Verfahren der "
-"deutschen Banken registriert und kann sich deshalb nicht mit einer Bank "
-"verbinden. Importieren Sie stattdessen eine Datei von Ihrer Bank."
+"Diese Kopie von KassenSturz ist nicht beim FinTS-Verfahren der deutschen "
+"Banken registriert und kann sich deshalb nicht mit einer Bank verbinden. Die "
+"offiziellen Versionen sind registriert. Importieren Sie stattdessen eine "
+"Datei von Ihrer Bank."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:583
 #, kde-format

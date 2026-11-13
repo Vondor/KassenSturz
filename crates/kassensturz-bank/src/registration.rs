@@ -15,8 +15,8 @@ use zeroize::Zeroizing;
 
 use crate::error::BankError;
 
-/// How many characters a FinTS product registration number has.
-pub const REGISTRATION_KEY_LENGTH: usize = 25;
+pub use crate::shape::REGISTRATION_KEY_LENGTH;
+use crate::shape::is_registration_shape;
 
 /// A FinTS product registration number: exactly
 /// [`REGISTRATION_KEY_LENGTH`] ASCII letters and digits. Nothing else is
@@ -34,7 +34,7 @@ impl RegistrationKey {
     pub fn parse(typed: String) -> Result<Self, BankError> {
         let typed = Zeroizing::new(typed);
         let key = typed.trim();
-        if key.len() == REGISTRATION_KEY_LENGTH && key.bytes().all(|b| b.is_ascii_alphanumeric()) {
+        if is_registration_shape(key) {
             Ok(Self(Zeroizing::new(key.to_owned())))
         } else {
             Err(BankError::MalformedRegistration)

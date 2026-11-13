@@ -143,7 +143,7 @@ Distributions can leave the log code out with the CMake option `-DKASSENSTURZ_DE
 
 ### Typing the FinTS registration number
 
-Real banks only talk to programs registered with the German banks' FinTS system (D-058). KassenSturz builds carry no registration number: its terms don't allow the number to be passed on, so it is in no source file, build or setting (D-260). Whoever holds the number and tests against a real bank starts the app with a switch:
+Real banks only talk to programs registered with the German banks' FinTS system (D-058). KassenSturz's own registration number is built into its official releases only; it is in no source file, so a build from source, a pull request's build and `main`'s CI builds carry none (D-745, see "Bank access in your own build" below). Whoever holds a number and tests such a build against a real bank starts the app with a switch:
 
 ```sh
 KASSENSTURZ_FINTS_ASK=1 tools/sdk.sh cargo run --bin kassensturz
@@ -164,6 +164,18 @@ flatpak run --env=KASSENSTURZ_BANK_LOG=1 io.github.vondor.KassenSturz
 The log `bank-log/bank-log.jsonl` (next to the debug log's folder) holds only the time, which step a bank connection reached (setup, fetch, PIN, TAN, bank question, registration number asked and answered, whether AqBanking left a message log), an error code and a small count, and for a line about one account of a fetch that account's place in the list (1 for the first), written when that account ends; for a refusal also the bank's FinTS return code (e.g. 9931), only if it is on a fixed list of public codes (D-607). It never holds the registration number, PIN, TAN, login name, bank name, IBAN, amounts or text from the bank. To report a problem, send that file.
 
 With `KASSENSTURZ_BANK_LOG=2` (the same ways of starting) the log also holds the bank's own reply texts for those public return codes (D-619), for working out why a bank refuses. Each text is cut down to words: any word with a digit or an `@` and any very long word is replaced by `#`, everything but letters and simple punctuation is dropped, and at most 160 characters are kept. Look through the file first before you send it; use level 1 when in doubt. A login name written only in letters would not be caught.
+
+### Bank access in your own build
+
+The official releases of KassenSturz connect to banks with KassenSturz's own FinTS product registration. That number belongs to those releases alone: the registration office allows it inside the finished program, not in public source, so this repository holds only an empty place for it (D-745).
+
+A copy you build yourself, changed or not, therefore says it isn't registered. You can still import files from your bank. For live bank access in your own build, register your product with the German banks' FinTS system, free of charge: <https://www.fints.org/de/hersteller/produktregistrierung>. Put the number you receive, and nothing else, into a file named `fints-registration` in the repository's root, then build:
+
+```sh
+cargo clean -p kassensturz-bank   # so the next build reads the file
+```
+
+Git ignores that file; never commit it or paste the number anywhere public. The build checks only that it is 25 letters and digits. Never use another program's number, including KassenSturz's.
 
 ## For AI agents
 

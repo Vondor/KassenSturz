@@ -32,6 +32,14 @@ jobs:
   build:
     name: Build the Flatpak bundle
     runs-on: ubuntu-latest
+    # The FinTS product registration number (D-745) is a secret of the
+    # environment `release`, which only this job names and only for a tag.
+    # The environment's own rules (tags `v0.*` only, the maintainer as
+    # required reviewer) and the tag ruleset are set in the repository's
+    # settings, outside this file, because a tag runs whatever release.yml
+    # its commit holds (docs/RELEASING.md, threat T-63). A pull request's run
+    # gets no environment and no secret.
+    environment: ${{ github.ref_type == 'tag' && 'release' || '' }}
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
       options: --privileged
@@ -96,6 +104,31 @@ jobs:
           restore-keys: flatpak-builder-state-x86_64-
       - name: "Builder cache restored from: ${{ steps.builder-cache.outputs.cache-matched-key || 'nothing' }}"
         run: ls .flatpak-builder 2>/dev/null | head || true
+      # The number goes into the git-ignored file that
+      # crates/kassensturz-bank/build.rs reads, right before the build, and
+      # the file is deleted right after it (the step after the build). For a
+      # tag it is the secret; a tag without the secret (the environment isn't
+      # set up yet, docs/RELEASING.md) builds a release without a number, as
+      # every release before D-745 was, and says so in a warning. A pull
+      # request's run builds with a made-up number of the right shape, so the
+      # search below proves on every change where a built-in number ends up.
+      # Never add `set -x` here, and never build with `cargo -vv` in this job:
+      # both would show the number.
+      - name: Give the build its registration number
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          FINTS_REGISTRATION: ${{ secrets.FINTS_REGISTRATION }}
+        run: |
+          set -eu
+          if [ "$REF_TYPE" = tag ]; then
+            if [ -z "$FINTS_REGISTRATION" ]; then
+              echo "::warning::The environment 'release' has no secret FINTS_REGISTRATION, so this release cannot connect to a real bank (docs/RELEASING.md, 'Once: the registration number')."
+            else
+              printf '%s\n' "$FINTS_REGISTRATION" > fints-registration
+            fi
+          else
+            printf '%s\n' 0123456789ABCDEFGHIJKLMNO > fints-registration
+          fi
       - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
         with:
           manifest-path: packaging/flatpak/io.github.vondor.KassenSturz.yml
@@ -103,6 +136,29 @@ jobs:
           restore-cache: false
           save-cache: false
           upload-artifact: false
+      # The number may be in the program itself and nowhere else in what was
+      # built: not in the debug files, not in copied sources, not in the
+      # manifest or any other file of the app. This prints file names only.
+      - name: Delete the number's file and check where the number ended up
+        if: always()
+        run: |
+          set -eu
+          [ -f fints-registration ] || exit 0
+          number=$(cat fints-registration)
+          rm -f fints-registration
+          [ -d flatpak_app ] || exit 0
+          found=$(grep -rlF -- "$number" flatpak_app || true)
+          echo "Files of the app that hold the number:"
+          echo "${found:-none}"
+          if [ -z "$found" ]; then
+            echo "::error::The built app does not hold the number: bank access would not work in this build."
+            exit 1
+          fi
+          stray=$(echo "$found" | grep -vx 'flatpak_app/files/bin/kassensturz' || true)
+          if [ -n "$stray" ]; then
+            echo "::error::The number is in files other than the program itself (listed above)."
+            exit 1
+          fi
       # Every file for the release goes up as an artifact named release-asset-*,
       # and the release job attaches all of them; the Windows job below uploads
       # its zip and installer the same way.

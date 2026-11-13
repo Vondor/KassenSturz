@@ -14,6 +14,11 @@ Cargo.lock.bak
 /build-commit-from
 /build-version
 
+# A FinTS product registration number for a build (crates/kassensturz-bank/build.rs,
+# D-745). Never committed: the release workflow writes it from a secret, and
+# whoever builds with their own registration writes their own.
+/fints-registration
+
 # flatpak-builder's state
 /.flatpak-builder/
 

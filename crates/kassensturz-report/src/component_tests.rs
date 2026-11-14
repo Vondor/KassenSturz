@@ -57,6 +57,57 @@ fn a_new_component_is_valid_for_every_dataset_it_suits() {
     }
 }
 
+/// B-296: every component keeps what its `params` say through a document,
+/// also one that shows no figures of its own, like the transactions tile
+/// with its own accounts, categories and number of rows. Each setting of
+/// `params` that can differ from its default is changed first.
+#[test]
+fn every_component_keeps_its_own_params_through_a_document() {
+    let id = kassensturz_core::AccountId::generate().to_string();
+    for &kind in ComponentType::LIBRARY {
+        let datasets: Vec<&str> = if kind.shows_no_data() {
+            vec![""]
+        } else {
+            kind.datasets().map(|dataset| dataset.id).collect()
+        };
+        for dataset_id in datasets {
+            let mut component = Component::new(kind, dataset_id).unwrap();
+            let words_of = |property: &Property| match (dataset(dataset_id), property.kind) {
+                (Some(dataset), _) => property.words(dataset),
+                (None, Kind::Choice(words)) => words,
+                (None, _) => &[],
+            };
+            let mut changed = 0;
+            for property in kind.properties() {
+                if property.place != Place::Params {
+                    continue;
+                }
+                let setting = match property.kind {
+                    Kind::Choice(_) | Kind::Grouping => {
+                        let words = words_of(property);
+                        let Some(last) = words.last().filter(|_| words.len() > 1) else {
+                            continue;
+                        };
+                        Setting::Word((*last).to_owned())
+                    }
+                    Kind::Ids | Kind::Accounts | Kind::Budgets | Kind::Tags => {
+                        Setting::Ids(vec![id.clone()])
+                    }
+                    _ => continue,
+                };
+                if component.set(property.key, setting).is_ok() {
+                    changed += 1;
+                }
+            }
+            let again = Component::from_value(&component.to_value()).unwrap();
+            assert_eq!(again, component, "{} {dataset_id}", kind.id());
+            if kind == ComponentType::Transactions {
+                assert_eq!(changed, 3, "accounts, categories and rows");
+            }
+        }
+    }
+}
+
 #[test]
 fn defaults_are_the_first_choice_and_the_datasets_first_grouping() {
     let chart = Component::new(ComponentType::ChartPie, SPENDING_BY_CATEGORY).unwrap();

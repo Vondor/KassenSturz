@@ -189,6 +189,25 @@ jobs:
           Copy-Item $zip.FullName "$out\KassenSturz-$version-windows-x64.zip"
           Copy-Item $exe.FullName "$out\KassenSturz-$version-windows-x64-setup.exe"
           Get-ChildItem $out | Format-Table Name, Length
+      # Craft's build folder holds hundreds of programs nobody needs at run
+      # time (ffmpeg, openssl, sqlite3, windeployqt, ...). Only the programs
+      # in packaging/windows/allowed-executables.txt may be in the package
+      # (B-292); a new program needs a line there, made on purpose.
+      - name: Only the allowed programs are in the zip
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = (Get-ChildItem "$env:GITHUB_WORKSPACE\out\*.zip").FullName
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          try { $names = $archive.Entries | ForEach-Object { $_.FullName } } finally { $archive.Dispose() }
+          $found = $names | Where-Object { $_ -match '\.exe$' } | ForEach-Object {
+            # The path inside the package, whatever folder the zip puts it in.
+            if ($_ -match '(?i)(?:^|[\\/])(bin[\\/].*)$') { $matches[1].Replace('\', '/').ToLowerInvariant() } else { $_.Replace('\', '/').ToLowerInvariant() }
+          } | Sort-Object -Unique
+          $allowed = Get-Content "$env:GITHUB_WORKSPACE\packaging\windows\allowed-executables.txt" | Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { $_.Trim().ToLowerInvariant() }
+          Write-Output "Programs in the zip ($($found.Count)):"; $found | ForEach-Object { Write-Output "  $_" }
+          $extra = $found | Where-Object { $allowed -notcontains $_ }
+          if ($extra) { Write-Output "Not allowed:"; $extra | ForEach-Object { Write-Output "  $_" }; throw "The zip holds programs that are not in packaging/windows/allowed-executables.txt" }
+          if ($found -notcontains 'bin/kassensturz.exe') { throw "bin/kassensturz.exe is not in the zip" }
       # The program from the zip, not from Craft's folder, so a library or QML
       # module the package lacks shows up here. Without a book it opens the
       # welcome screen; a QML error ends it at once (main.rs).

@@ -1,6 +1,13 @@
 # Files Craft leaves out of the Windows packages (regular expressions on the
 # path inside the package). Only what a user never needs: build and
 # development files. Translations (bin/data/locale) and QML stay in.
+#
+# Every program but KassenSturz's own stays out (B-292): Craft's build folder
+# holds 131 of them (ffmpeg, openssl, sqlite3, windeployqt, dbus-daemon, ...),
+# none needed at run time. The allowed ones are in
+# packaging/windows/allowed-executables.txt, which the workflow checks the zip
+# against. The "^" keeps the lookahead at the start of the path.
+^(?!bin[\\/]kassensturz(-mcp)?\.exe$).*\.exe$
 manifest/.*
 .*\.exp
 .*\.pdb

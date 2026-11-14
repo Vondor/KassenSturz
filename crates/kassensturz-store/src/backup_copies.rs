@@ -364,7 +364,7 @@ fn check_backup(backup: &Path) -> Result<(), StoreError> {
     }
     // A backup that opens only to a damage message must never replace the
     // book it was made to protect, so it faces the checks of opening: the
-    // file itself, its references, its balances and its conversions (B-297).
+    // file itself, its references, its balances and its conversions (B-298).
     let damaged = |error: StoreError| match crate::integrity::damaged_if_malformed(error) {
         StoreError::Corrupt(_) => StoreError::NotABook,
         other => other,

@@ -281,6 +281,11 @@ fn parse(text: &str) -> Lock {
 /// Windows the start time is not known and counts as 0).
 fn own_process() -> Option<(u32, u64)> {
     let pid = std::process::id();
+    // This program certainly runs; on Windows, asking `tasklist` about
+    // itself would also depend on this program's file name.
+    #[cfg(windows)]
+    return Some((pid, 0));
+    #[cfg(not(windows))]
     Some((pid, process_start(pid)?))
 }
 

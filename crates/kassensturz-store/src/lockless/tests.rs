@@ -232,6 +232,103 @@ fn a_lock_a_crash_left_behind_can_be_taken_over_without_file_locks() {
 }
 
 #[test]
+fn a_lock_of_a_book_open_without_file_locks_is_not_taken_over_by_a_program_with_locks() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let first = {
+        let _no_locks = NoLocks::here();
+        Book::create(&path, &computer).expect("book made")
+    };
+    // This side's locks work (the guard is gone), as for the command line.
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    match Book::open_anyway(&path, &computer, &seen) {
+        Err(StoreError::Locked(_)) => {}
+        other => panic!("expected the lock to stay, got {:?}", other.map(|_| ())),
+    }
+    drop(first);
+}
+
+/// Rewrites the lock file's `key=` line, or adds it.
+#[cfg(target_os = "linux")]
+fn set_lock_line(path: &Path, key: &str, value: &str) {
+    let lock = crate::lock::lock_path(path);
+    let text = std::fs::read_to_string(&lock).expect("lock file read");
+    let mut lines: Vec<String> = text
+        .lines()
+        .filter(|line| !line.starts_with(&format!("{key}=")))
+        .map(str::to_owned)
+        .collect();
+    lines.push(format!("{key}={value}"));
+    std::fs::write(lock, lines.join("\n") + "\n").expect("lock file written");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_lock_from_another_process_space_is_not_taken_over_beside_a_book_without_file_locks() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    drop(Book::create(&path, &computer).expect("book made"));
+    // A running program of another PID namespace (a Flatpak seen from a
+    // snap): its process number can't be looked up, so it may still run.
+    let first = Book::open(&path, &computer).expect("opened");
+    set_lock_line(&path, "namespace", "pid:[4026539999]");
+    let _no_locks = NoLocks::here();
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    match Book::open_anyway(&path, &computer, &seen) {
+        Err(StoreError::Locked(_)) => {}
+        other => panic!("expected the lock to stay, got {:?}", other.map(|_| ())),
+    }
+    drop(first);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_lock_from_before_a_restart_is_taken_over_without_file_locks() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    drop(Book::create(&path, &computer).expect("book made"));
+    let first = Book::open(&path, &computer).expect("opened");
+    // The same process number, but another start of the computer.
+    set_lock_line(&path, "boot", "00000000-0000-0000-0000-000000000000");
+    let _no_locks = NoLocks::here();
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    assert!(Book::open_anyway(&path, &computer, &seen).is_ok());
+    drop(first);
+}
+
+#[test]
+fn a_journal_with_a_zero_header_does_not_keep_readers_waiting() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let _no_locks = NoLocks::here();
+    drop(Book::create(&path, &computer).expect("book made"));
+    // A program killed before SQLite synced the journal leaves one whose
+    // header is still zero: the book was not touched, and SQLite ignores it.
+    std::fs::write(journal_of(&path), [0u8; 512]).expect("journal made");
+    assert!(Book::open_to_read(&path).is_ok());
+    std::fs::write(journal_of(&path), []).expect("journal emptied");
+    assert!(Book::open_to_read(&path).is_ok());
+    // A journal with its header written is a write under way.
+    let mut hot = vec![0u8; 512];
+    hot[..8].copy_from_slice(&[0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7]);
+    std::fs::write(journal_of(&path), hot).expect("journal made");
+    assert!(matches!(
+        Book::open_to_read(&path),
+        Err(StoreError::Io(std::io::ErrorKind::WouldBlock))
+    ));
+}
+
+#[test]
 fn every_commit_changes_the_counter_a_copy_is_checked_against() {
     let folder = TempFolder::new();
     let path = folder.join("Household.ksz");

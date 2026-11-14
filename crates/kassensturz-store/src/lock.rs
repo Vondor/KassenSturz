@@ -47,6 +47,22 @@ pub struct Lock {
     /// lock of a program that is still running there can be told from one a
     /// crash left behind.
     process: Option<(u32, u64)>,
+    /// Which start of the computer and which process-number space the
+    /// program above lives in (Linux: the boot id and the PID namespace). A
+    /// program in another namespace, such as a Flatpak next to a snap, can't
+    /// be looked up in `/proc`, so its lock can't be called a crash's
+    /// leftover (D-776).
+    place: Option<Place>,
+    /// The program opened the book without file locks, so SQLite can't keep
+    /// a second writer out and this file is the only guard (D-776).
+    without_file_locks: bool,
+}
+
+/// Where a program runs on its computer: see [`Lock::place`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Place {
+    boot: String,
+    namespace: String,
 }
 
 /// The lock file of a book this program has open. Dropping it removes the
@@ -82,14 +98,12 @@ impl HeldLock {
     /// file changed in the meantime, it fails with [`StoreError::Locked`]
     /// and the current lock, so the user can be warned again.
     pub(crate) fn take_over(book: &Path, computer: &str, seen: &Lock) -> Result<Self, StoreError> {
-        // Where the folder refuses file locks, SQLite can't keep two
-        // writers apart: the lock of a program that is still running on
-        // this computer is never taken over (Q-570, D-776).
+        // Where either side has no file locks, SQLite can't keep two writers
+        // apart: the lock of a program that may still run on this computer
+        // is never taken over, whichever side takes it (Q-570, D-776).
         if seen.computer.as_deref() == Some(computer)
-            && seen
-                .process
-                .is_some_and(|(pid, start)| process_runs(pid, start))
-            && crate::lockless::locks_refused(book)
+            && may_still_run(seen)
+            && (seen.without_file_locks || crate::lockless::locks_refused(book))
         {
             return Err(StoreError::Locked(seen.clone()));
         }
@@ -139,8 +153,18 @@ fn create(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
     let process = own_process()
         .map(|(pid, start)| format!("pid={pid}\nstart={start}\n"))
         .unwrap_or_default();
+    let place = own_place()
+        .map(|place| format!("boot={}\nnamespace={}\n", place.boot, place.namespace))
+        .unwrap_or_default();
+    // `path` is the lock file; the book is the name without `.lock`.
+    let book = path.with_extension("");
+    let locks = if crate::lockless::locks_refused(&book) {
+        "locks=none\n"
+    } else {
+        ""
+    };
     let text = format!(
-        "computer={}\nsince={since}\ntoken={token}\n{process}",
+        "computer={}\nsince={since}\ntoken={token}\n{process}{place}{locks}",
         one_line(computer)
     );
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
@@ -196,8 +220,11 @@ fn parse(text: &str) -> Lock {
         since: None,
         token: None,
         process: None,
+        place: None,
+        without_file_locks: false,
     };
     let (mut pid, mut start) = (None, None);
+    let (mut boot, mut namespace) = (None, None);
     for line in text.lines() {
         let Some((key, value)) = line.split_once('=') else {
             continue;
@@ -209,10 +236,16 @@ fn parse(text: &str) -> Lock {
             "token" if !value.is_empty() => lock.token = Some(value.to_owned()),
             "pid" => pid = value.parse().ok(),
             "start" => start = value.parse().ok(),
+            "boot" if !value.is_empty() => boot = Some(value.to_owned()),
+            "namespace" if !value.is_empty() => namespace = Some(value.to_owned()),
+            "locks" => lock.without_file_locks = value == "none",
             _ => {}
         }
     }
     lock.process = pid.zip(start);
+    lock.place = boot
+        .zip(namespace)
+        .map(|(boot, namespace)| Place { boot, namespace });
     lock
 }
 
@@ -229,6 +262,40 @@ fn process_start(pid: u32) -> Option<u64> {
     let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
     let after_name = &stat[stat.rfind(')')? + 1..];
     after_name.split_whitespace().nth(19)?.parse().ok()
+}
+
+/// This program's place, if the system tells (Linux).
+fn own_place() -> Option<Place> {
+    let boot = fs::read_to_string("/proc/sys/kernel/random/boot_id").ok()?;
+    let namespace = fs::read_link("/proc/self/ns/pid").ok()?;
+    Some(Place {
+        boot: boot.trim().to_owned(),
+        namespace: namespace.to_string_lossy().into_owned(),
+    })
+}
+
+/// Whether the program that wrote `lock` (on this computer) may still run.
+/// It is gone for certain if the computer has restarted since, or if it
+/// shares this program's process-number space and `/proc` has no such
+/// program. In another space (a Flatpak next to a snap) it can't be looked
+/// up, so it counts as running. A lock without a number or place is taken
+/// to be a crash's leftover, as before.
+fn may_still_run(lock: &Lock) -> bool {
+    let Some((pid, start)) = lock.process else {
+        return false;
+    };
+    match (&lock.place, own_place()) {
+        (Some(theirs), Some(ours)) => {
+            if theirs.boot != ours.boot {
+                false
+            } else if theirs.namespace != ours.namespace {
+                true
+            } else {
+                process_runs(pid, start)
+            }
+        }
+        _ => process_runs(pid, start),
+    }
 }
 
 /// Whether process `pid`, which started at `start`, is still running.

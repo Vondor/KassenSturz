@@ -255,7 +255,7 @@ fn copy_once(path: &Path, flags: OpenFlags) -> Result<ReadOnly, Retry> {
     let busy = || Retry::Maybe(StoreError::Io(std::io::ErrorKind::WouldBlock));
     let never = |error: std::io::Error| Retry::Never(StoreError::Io(error.kind()));
     let journal = journal_of(path);
-    if journal.exists() {
+    if journal_is_hot(&journal) {
         return Err(busy());
     }
     let counter = change_counter(path).map_err(never)?;
@@ -266,7 +266,7 @@ fn copy_once(path: &Path, flags: OpenFlags) -> Result<ReadOnly, Retry> {
     let after = fs::metadata(path).map_err(never)?;
     // No write began or ended while the file was copied: no journal, the
     // same counter at both ends and in the copy, and the same size and time.
-    if journal.exists()
+    if journal_is_hot(&journal)
         || change_counter(path).map_err(never)? != counter
         || change_counter(&copy).map_err(never)? != counter
         || before.len() != after.len()
@@ -286,6 +286,28 @@ fn copy_once(path: &Path, flags: OpenFlags) -> Result<ReadOnly, Retry> {
         conn,
         _copy: Some(folder),
     })
+}
+
+/// Whether the rollback journal at `journal` means a write is under way, as
+/// SQLite itself decides: it has content and its header is not zero. SQLite
+/// writes the header only after the journal is on disk and before it changes
+/// any page of the book, so a journal with a zero header (a program was
+/// killed before that) leaves the book untouched and is ignored by SQLite
+/// until the next save removes it. Counting it as a write would leave readers
+/// "busy" for good with nothing running. A journal that can't be read counts
+/// as hot, the safe side.
+fn journal_is_hot(journal: &Path) -> bool {
+    use std::io::Read;
+    let mut file = match fs::File::open(journal) {
+        Ok(file) => file,
+        Err(error) => return error.kind() != std::io::ErrorKind::NotFound,
+    };
+    let mut first = [0u8; 1];
+    match file.read(&mut first) {
+        Ok(0) => false,
+        Ok(_) => first[0] != 0,
+        Err(_) => true,
+    }
 }
 
 /// SQLite's rollback journal for the book at `path`.

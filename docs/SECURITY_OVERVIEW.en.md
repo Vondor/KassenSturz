@@ -79,6 +79,8 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | The Windows package held 131 programs nobody needs (such as ffmpeg and openssl), each one more that could be misused | B-292 | #1014 |
 | When the drive was full, an import ended with a message that said neither what happened nor what to do | B-282 | #1007 |
 | A book with one changed number in its file opened with a wrong balance, and a damaged page only failed at the next save | B-291 | #1010 |
+| A part pointing to a missing account counted in no balance, and nothing said so | B-294 | #1020 |
+| An index of the book that disagreed with its table could hide entries from a balance | B-295 | #1020 |
 
 No finding revealed a PIN. Only one (B-252) could have let data leave the computer, and only if someone had first forged the settings file by hand.
 

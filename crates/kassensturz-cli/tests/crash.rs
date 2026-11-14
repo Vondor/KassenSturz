@@ -506,15 +506,10 @@ fn utf16le_with_bom(text: &str) -> Vec<u8> {
     bytes
 }
 
-/// A UTF-16 CAMT file imports like the same file in UTF-8 (B-280, #978).
-///
-/// EXPECTED FAILURE UNTIL #978: the import refuses UTF-16 today. The test
-/// passes while it does, and fails with "test did not panic" the moment the
-/// fix lands. The fix then removes `should_panic`, turning this into a
-/// required pass. It is not skipped and not ignored: it runs every time.
+/// A UTF-16 CAMT file imports like the same file in UTF-8 (B-280, #978,
+/// fixed in #996). This was an expected failure until then.
 #[test]
-#[should_panic(expected = "B-280")]
-fn utf16_camt_import_expected_failure_until_978() {
+fn a_utf16_camt_file_imports() {
     let folder = Folder::new("Utf16 test");
     let book = folder.0.join("Household.ksz");
     let backups = folder.0.join("Backups");
@@ -537,13 +532,13 @@ fn utf16_camt_import_expected_failure_until_978() {
     );
     assert_eq!(
         outcome.status, 0,
-        "B-280 (#978): a UTF-16 CAMT file is refused: {}",
+        "a UTF-16 CAMT file is refused (B-280, #978): {}",
         outcome.err
     );
     assert!(ok(&book, &backups, &["register", "Giro"]).contains("Gemüse & Früchte"));
 }
 
-/// The same file in UTF-8 imports, so the expected failure above is about
+/// The same file in UTF-8 imports, so the UTF-16 test above is about
 /// the encoding and nothing else in the test.
 #[test]
 fn the_same_camt_file_in_utf8_imports() {

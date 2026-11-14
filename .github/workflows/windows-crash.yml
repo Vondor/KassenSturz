@@ -5,8 +5,7 @@ name: Windows crash and lock tests
 # force in the middle of saving (TerminateProcess), checks that every save it
 # reported is there exactly once and every balance is the sum of its parts,
 # finds the lock a killed program leaves behind, works in folders with spaces
-# and umlauts, imports a UTF-16 CAMT file (an expected failure until #978,
-# B-280, is fixed) and checks that saves are synced to disk (B-278).
+# and umlauts, imports a UTF-16 CAMT file (B-280, #978) and checks that saves are synced to disk (B-278).
 #
 # It is separate from the long release-only Windows app build
 # (windows-app.yml) and builds only the command-line tool and the store, so it
@@ -73,10 +72,6 @@ jobs:
         run: cargo test -p kassensturz-store --lib --locked lock
         env:
           CARGO_INCREMENTAL: "0"
-      - name: Expected failure still open
-        shell: bash
-        run: |
-          echo "::notice title=Expected failure::utf16_camt_import_expected_failure_until_978 passes while UTF-16 CAMT import is refused (B-280, issue 978); the fix must remove its should_panic."
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

@@ -1,6 +1,6 @@
 # Security policy
 
-KassenSturz keeps a household's money records and, from M4 on, reads balances and statements from banks. A security problem in it can expose someone's finances, so we want to hear about it privately first. How we think about attacks is written down in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
+KassenSturz keeps a household's money records and, from M4 on, reads balances and statements from banks. A security problem in it can expose someone's finances, so we want to hear about it privately first. How we think about attacks is written down in [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md). A plain-language summary for users, with what was attacked and fixed, is [`docs/SECURITY_OVERVIEW.en.md`](docs/SECURITY_OVERVIEW.en.md) (German: [`docs/SECURITY_OVERVIEW.de.md`](docs/SECURITY_OVERVIEW.de.md)); how attack rounds are recorded is [`docs/SECURITY_LOG.md`](docs/SECURITY_LOG.md).
 
 ## Reporting a vulnerability
 
@@ -53,6 +53,7 @@ KassenSturz has no release yet. Until 1.0 (builds before it are numbered `0.YYMM
 
 ## For contributors and AI agents
 
+- Every attack round, automated or by hand, is recorded as `docs/SECURITY_LOG.md` says.
 - Read `docs/THREAT_MODEL.md` before you change code that touches the keychain, bank connections, unsafe code, network access or AI.
 - Every such change updates the threat model's table in the same pull request, and is a human gate (AGENTS.md §3.2).
 - Never paste real bank data, PINs, TANs, keychain content or bank logs into an issue, a pull request, a commit, a test or a prompt (AGENTS.md §3.1 rules 2, 3 and 7).

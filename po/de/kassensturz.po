@@ -5560,6 +5560,21 @@ msgstr ""
 "angelegt. Aktualisieren Sie KassenSturz, um es zu öffnen. Das Haushaltsbuch "
 "wurde nicht verändert."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:100
+#, kde-format
+msgctxt "@info %1 is a date and time, %2 a folder, %3 a file name"
+msgid ""
+"To keep using this version instead, open the copy that the newer "
+"KassenSturz saved before it updated the book, on %1: it is in the backup "
+"folder (%2) as %3. Choose it with \"Open another book…\". Changes made "
+"since the update are not in that copy."
+msgstr ""
+"Um diese Version weiter zu nutzen, öffnen Sie die Kopie, die die neuere "
+"KassenSturz-Version am %1 vor dem Aktualisieren des Haushaltsbuchs gesichert "
+"hat: Sie liegt im Sicherungsordner (%2) unter dem Namen %3. Wählen Sie sie "
+"mit „Anderes Haushaltsbuch öffnen…“. Änderungen seit dem Aktualisieren sind "
+"in dieser Kopie nicht enthalten."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:90
 #, kde-format
 msgctxt "@info"
@@ -10088,6 +10103,31 @@ msgstr ""
 "Die Datei enthält ein Zeichen, das es in der gewählten Zeichenkodierung "
 "nicht gibt. Wählen Sie eine andere Kodierung oder lassen Sie KassenSturz sie "
 "aus der Datei erkennen. Es wurde nichts importiert."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:341
+#, kde-format
+msgctxt "@info %1 is a text encoding such as UTF-8"
+msgid ""
+"The file says it is written in %1, but its text isn't. It may have been "
+"saved again by another program. Download it again, or save it in UTF-8. "
+"Nothing was imported."
+msgstr ""
+"Die Datei gibt an, in %1 geschrieben zu sein, ihr Text ist es aber nicht. "
+"Vielleicht wurde sie von einem anderen Programm erneut gespeichert. Laden "
+"Sie sie noch einmal herunter oder speichern Sie sie als UTF-8. Es wurde "
+"nichts importiert."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:343
+#, kde-format
+msgctxt "@info %1 is a text encoding such as UTF-32"
+msgid ""
+"The file is written in the text encoding %1, which KassenSturz doesn't read. "
+"Download it again in UTF-8, or save it in UTF-8 or UTF-16. Nothing was "
+"imported."
+msgstr ""
+"Die Datei ist in der Zeichenkodierung %1 geschrieben, die KassenSturz nicht "
+"liest. Laden Sie sie noch einmal als UTF-8 herunter oder speichern Sie sie "
+"als UTF-8 oder UTF-16. Es wurde nichts importiert."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:299
 #, kde-format

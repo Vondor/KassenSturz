@@ -9,6 +9,7 @@
 #include <QtCore/QLocale>
 #include <QtCore/QProcess>
 #include <QtCore/QProcessEnvironment>
+#include <QtCore/QSocketNotifier>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QStorageInfo>
 #include <QtCore/QStringList>
@@ -17,6 +18,7 @@
 #include <QtGui/QIcon>
 
 #include <cerrno>
+#include <csignal>
 #include <cstdio>
 
 #ifdef KASSENSTURZ_WITH_DBUS
@@ -129,6 +131,57 @@ bool startDetached(const QString &program, const QStringList &arguments, const Q
 void quitApp()
 {
     QCoreApplication::quit();
+}
+
+#ifdef Q_OS_UNIX
+namespace
+{
+// The signal handler tells the event loop through this pipe: a handler may
+// only call a few functions, and `write` is one of them.
+int signalPipe[2] = {-1, -1};
+
+void onTerminationSignal(int)
+{
+    const int savedErrno = errno;
+    const char byte = 1;
+    const ssize_t written = ::write(signalPipe[1], &byte, 1);
+    (void)written; // A full pipe already holds a wake-up.
+    errno = savedErrno;
+}
+}
+#endif
+
+void quitOnSignals()
+{
+#ifdef Q_OS_UNIX
+    if (signalPipe[0] != -1) {
+        return;
+    }
+    if (::pipe(signalPipe) != 0) {
+        signalPipe[0] = signalPipe[1] = -1;
+        return;
+    }
+    for (const int descriptor : signalPipe) {
+        ::fcntl(descriptor, F_SETFD, ::fcntl(descriptor, F_GETFD) | FD_CLOEXEC);
+        ::fcntl(descriptor, F_SETFL, ::fcntl(descriptor, F_GETFL) | O_NONBLOCK);
+    }
+    auto *notifier = new QSocketNotifier(signalPipe[0], QSocketNotifier::Read, QCoreApplication::instance());
+    QObject::connect(notifier, &QSocketNotifier::activated, notifier, [] {
+        char buffer[16];
+        while (::read(signalPipe[0], buffer, sizeof buffer) > 0) {
+        }
+        // The same way out as quitting from the menu: `main` then closes the
+        // book, which removes its lock file (B-276).
+        QCoreApplication::quit();
+    });
+    struct sigaction action;
+    sigemptyset(&action.sa_mask);
+    action.sa_handler = onTerminationSignal;
+    action.sa_flags = SA_RESTART;
+    for (const int number : {SIGTERM, SIGHUP, SIGINT}) {
+        ::sigaction(number, &action, nullptr);
+    }
+#endif
 }
 
 void useTestLocations()

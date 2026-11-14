@@ -57,6 +57,13 @@ fn examples() -> Vec<ImportError> {
             encoding: TextEncoding::Windows1252,
             line,
         },
+        ImportError::EncodingContradiction {
+            declared: text("ISO-8859-1"),
+            line,
+        },
+        ImportError::UnsupportedEncoding {
+            found: text("UTF-32"),
+        },
         ImportError::ColumnNotFound {
             column: text("Betrag"),
             line,

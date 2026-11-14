@@ -21,12 +21,19 @@ concurrency:
 # job has started; the slow jobs wait for them and then run side by side.
 # Beside the quick checks, an early-warning job repeats the lints and tests that
 # fail most often in a few minutes on the plain runner (see early-no-ai). A pull
-# request that only changes documentation skips the slow jobs: a job skipped by
+# request that changes no code (only documentation, other workflows or the snap
+# and Windows packaging, see the changes job, D-791) skips the formatting and
+# license checks and the slow jobs: a job skipped by
 # its own `if` counts as passed for branch protection, so the checks it requires
 # still report (a workflow-level `paths-ignore` would leave them pending forever).
 jobs:
-  # Decides whether the slow jobs have anything to build. Everything that isn't
-  # plainly documentation counts as code, and so does every push to main.
+  # Decides whether the slow jobs have anything to build (D-791). A file counts
+  # as code unless it is on the list of files no job below reads: the
+  # documentation, the licenses, the GitHub templates, the other workflows and
+  # the snap and Windows packaging, which have workflows of their own
+  # (snap.yml, windows-app.yml). Some of those files are read by tests or the
+  # build after all; they are listed again as code. Every push to main counts
+  # as code, so main always runs everything.
   changes:
     name: What changed
     runs-on: ubuntu-latest
@@ -43,15 +50,40 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          # Files no job of this workflow reads.
+          outside='^(docs/|LICENSES/|[^/]+\.md$|REUSE\.toml$|CODEOWNERS$|\.github/PULL_REQUEST_TEMPLATE\.md$|\.github/FUNDING\.yml$|\.github/workflows/|packaging/snap/|packaging/windows/)'
+          # Files on that list that a test or the build reads all the same: the
+          # error codes (kassensturz-store, -mcp, -ai-chat, -ui-bridge), the
+          # threat model (kassensturz-ai-tools), the regression index
+          # (kassensturz-store), the export format (kassensturz-export), this
+          # workflow and the Windows icon resource (CMakeLists.txt). The issue
+          # forms (read by kassensturz-ai-tools) are not on the list at all.
+          read_by_code='^(docs/(ERROR_CODES|THREAT_MODEL|REGRESSION_TESTS|EXPORT_FORMAT)\.md|\.github/workflows/ci\.yml|packaging/windows/kassensturz\.(rc|ico))$'
+          # Prints the lines of its input that are code.
+          is_code() {
+            local input
+            input=$(cat)
+            grep -Ev "$outside" <<< "$input" || true
+            grep -E "$read_by_code" <<< "$input" || true
+          }
+
+          # Every file outside the crates that a crate's code names as a string
+          # (an include_str!, a path joined to the repository) must count as
+          # code, or a change to it would skip the tests that read it. This
+          # fails when a new test reads such a file and the lists above don't
+          # say so yet.
+          named=$(git grep -hoE '"(\.\./)*(docs|LICENSES|\.github|packaging/(snap|windows)|[A-Za-z_]+\.md|REUSE\.toml|CODEOWNERS)(/[^"]*)?"' -- crates fuzz CMakeLists.txt cmake \
+            | tr -d '"' | sed -E 's#^(\./|\.\./)+##' | sort -u || true)
+          missed=$(comm -23 <(sort -u <<< "$named") <(is_code <<< "$named" | sort -u) | sed '/^$/d')
+          if [ -n "$missed" ]; then
+            echo "::error::The code reads these files, but the 'What changed' job counts them as documentation: add them to read_by_code in .github/workflows/ci.yml (D-791): $(tr '\n' ' ' <<< "$missed")"
+            exit 1
+          fi
+
           code=true
           if [ "$EVENT" = pull_request ]; then
             files=$(git diff --name-only "$BASE...$HEAD")
-            # docs/ERROR_CODES.md is compiled into the tests of kassensturz-store,
-            # so it's code. The other documentation, the licenses, the GitHub
-            # templates and the Markdown files in the top folder are not.
-            not_docs=$(grep -Ev '^(docs/|LICENSES/|[^/]+\.md$|REUSE\.toml$|CODEOWNERS$|\.github/ISSUE_TEMPLATE/|\.github/PULL_REQUEST_TEMPLATE\.md$)' <<< "$files" || true)
-            error_codes=$(grep -x 'docs/ERROR_CODES.md' <<< "$files" || true)
-            if [ -n "$files" ] && [ -z "$not_docs$error_codes" ]; then
+            if [ -n "$files" ] && [ -z "$(is_code <<< "$files" | sed '/^$/d')" ]; then
               code=false
             fi
           fi
@@ -105,6 +137,8 @@ jobs:
   fmt:
     name: Rust formatting
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust
@@ -706,6 +740,8 @@ jobs:
   licenses:
     name: Dependency licenses and sources (D-026)
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1

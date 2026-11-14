@@ -15,7 +15,8 @@ name: Windows app
 
 on:
   pull_request:
-    # The same files ci.yml counts as documentation don't start it.
+    # Documentation, the other workflows and the snap packaging don't start
+    # it (D-791); its own workflow file and the Windows packaging do.
     paths:
       - "**"
       - "!docs/**"
@@ -25,7 +26,11 @@ on:
       - "!CODEOWNERS"
       - "!.github/ISSUE_TEMPLATE/**"
       - "!.github/PULL_REQUEST_TEMPLATE.md"
+      - "!.github/FUNDING.yml"
+      - "!.github/workflows/**"
+      - "!packaging/snap/**"
       - "docs/ERROR_CODES.md"
+      - ".github/workflows/windows-app.yml"
   push:
     branches: [main]
     paths:
@@ -37,7 +42,11 @@ on:
       - "!CODEOWNERS"
       - "!.github/ISSUE_TEMPLATE/**"
       - "!.github/PULL_REQUEST_TEMPLATE.md"
+      - "!.github/FUNDING.yml"
+      - "!.github/workflows/**"
+      - "!packaging/snap/**"
       - "docs/ERROR_CODES.md"
+      - ".github/workflows/windows-app.yml"
   workflow_dispatch:
   # release.yml calls this workflow for a pre-release tag and attaches what
   # it uploads as release-asset-windows (D-551, D-554).

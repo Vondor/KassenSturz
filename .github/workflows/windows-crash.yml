@@ -13,10 +13,13 @@ name: Windows crash and lock tests
 # required check. The tests are in crates/kassensturz-cli/tests/crash.rs and
 # run on every platform; here they run on a Windows runner.
 
+# It runs when the crates it builds may have changed: the app's own crate
+# (kassensturz-ui-bridge) is not among them (D-791).
 on:
   pull_request:
     paths:
       - "crates/**"
+      - "!crates/kassensturz-ui-bridge/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/windows-crash.yml"
@@ -24,6 +27,7 @@ on:
     branches: [main]
     paths:
       - "crates/**"
+      - "!crates/kassensturz-ui-bridge/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - ".github/workflows/windows-crash.yml"

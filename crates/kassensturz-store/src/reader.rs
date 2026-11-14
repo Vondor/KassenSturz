@@ -76,6 +76,7 @@ impl Book {
         layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, current)?;
         // The same checks as the app makes (B-291): the MCP server and the
         // command line never read figures from a damaged book either.
+        crate::integrity::check_references(&conn)?;
         crate::integrity::check_balances(&conn)?;
         crate::integrity::check_conversions(&conn)?;
         conn.set_prepared_statement_cache_capacity(cached::CAPACITY);

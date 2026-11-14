@@ -14,13 +14,18 @@ use rusqlite::Connection;
 
 use crate::error::{Corruption, StoreError};
 
-/// Whether the file is well-formed as far as SQLite can tell without
-/// reading every index entry: `PRAGMA quick_check`. It reads each page once
-/// (a large book is a matter of milliseconds) and finds a page SQLite can't
-/// parse, which would otherwise come up only at the next save as a generic
-/// database error.
+/// Whether the file is well-formed and its indexes agree with its tables:
+/// `PRAGMA integrity_check`. `quick_check` skips the indexes, and a changed
+/// byte in one of them hides parts from every query that uses it, so a
+/// balance comes out wrong while the file looks fine (B-291, found by
+/// changing single bytes of a book). The check reads each page once and each
+/// index entry once; a book of 80 000 parts (16 MB) takes some 40 ms, and a
+/// page SQLite can't parse, which would otherwise come up only at the next
+/// save as a generic database error, is found here.
 pub(crate) fn check_file(conn: &Connection) -> Result<(), StoreError> {
-    let first = conn.query_row("PRAGMA quick_check(1)", [], |row| row.get::<_, String>(0));
+    let first = conn.query_row("PRAGMA integrity_check(1)", [], |row| {
+        row.get::<_, String>(0)
+    });
     match first {
         Ok(text) if text == "ok" => Ok(()),
         // "malformed", "not a database" and the findings themselves.
@@ -60,6 +65,25 @@ pub(crate) fn damaged_if_malformed(error: StoreError) -> StoreError {
             StoreError::Corrupt(Corruption::DamagedFile)
         }
         other => other,
+    }
+}
+
+/// Whether everything in the book that refers to something else, such as a
+/// part to its account or its transaction, refers to something that is
+/// there. SQLite checks this only when a row is written, so a changed byte
+/// in a part's account leaves a part that counts in no balance, and nothing
+/// says so (B-291, found by changing single bytes of a book).
+pub(crate) fn check_references(conn: &Connection) -> Result<(), StoreError> {
+    let broken = conn.query_row(
+        "SELECT EXISTS (SELECT 1 FROM pragma_foreign_key_check)",
+        [],
+        |row| row.get::<_, bool>(0),
+    );
+    match broken {
+        Ok(false) => Ok(()),
+        Ok(true) => Err(StoreError::Corrupt(Corruption::BrokenReferences)),
+        Err(error) if is_damage(&error) => Err(StoreError::Corrupt(Corruption::DamagedFile)),
+        Err(error) => Err(error.into()),
     }
 }
 

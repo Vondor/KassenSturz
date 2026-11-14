@@ -22,8 +22,8 @@ use kassensturz_core::{
     BudgetCounts, BudgetEvery, BudgetId, CategoryGroup, Condition, Currency, CurrencyCode, Date,
     DatedRate, DatedRateId, Decided, ExchangeRate, ForeignAmount, GroupId, GroupMember,
     ImportedDetails, Institution, InstitutionId, Money, OriginalAmount, Payee, PayeeId,
-    PayeeRecognition, RateSource, Rule, RuleId, RuleNode, Schedule, ScheduleId, Split, SplitId,
-    Tag, TagId, Transaction, TransactionId, ViewId,
+    PayeeRecognition, RateSource, RecurringMove, RecurringMoveId, Rule, RuleId, RuleNode, Schedule,
+    ScheduleId, Split, SplitId, Tag, TagId, Transaction, TransactionId, ViewId,
 };
 use serde_json::{Map, Value};
 
@@ -111,6 +111,9 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
     }
     if version >= 14 {
         keys.push("schedules");
+    }
+    if version >= 15 {
+        keys.push("recurring_moves");
     }
     let top = Object::new(&file, "", &keys)?;
     let mut reader = Reader {
@@ -666,6 +669,53 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         }
     }
 
+    // Version 15: the remembered monthly moves (B-263). The book checks the
+    // accounts and the currency when it is filled.
+    let mut recurring_moves = Vec::new();
+    if version >= 15 {
+        let mut ids = HashSet::new();
+        for (value, path) in top.list("recurring_moves")? {
+            let row = Object::new(
+                value,
+                &path,
+                &[
+                    "id",
+                    "from_account",
+                    "to_account",
+                    "amount",
+                    "currency",
+                    "day_of_month",
+                    "from_party_iban",
+                    "from_party_name",
+                    "created_on",
+                ],
+            )?;
+            let id = RecurringMoveId::from_bytes(row.id("id")?);
+            if !ids.insert(id) {
+                return Err(ExportError::Duplicate {
+                    path: format!("{path}.id"),
+                });
+            }
+            let currency = row.currency("currency")?;
+            let (amount, amount_path) = row.required("amount")?;
+            let (day, day_path) = row.required("day_of_month")?;
+            let day_of_month = day
+                .as_u64()
+                .and_then(|day| u8::try_from(day).ok())
+                .ok_or_else(|| bad(&day_path, Expected::Number))?;
+            recurring_moves.push(RecurringMove {
+                id,
+                from_account: AccountId::from_bytes(row.id("from_account")?),
+                to_account: AccountId::from_bytes(row.id("to_account")?),
+                amount: reader.amount(amount, &amount_path, currency)?,
+                day_of_month,
+                from_party_iban: row.optional_text("from_party_iban")?,
+                from_party_name: row.optional_text("from_party_name")?,
+                created_on: row.date("created_on")?,
+            });
+        }
+    }
+
     Ok(BookData {
         rounding_mode,
         history_keep_days,
@@ -684,6 +734,7 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         hidden_categories,
         budgets,
         schedules,
+        recurring_moves,
     })
 }
 

@@ -66,6 +66,7 @@ pub fn export_book(book: &Book) -> Result<ExportData, StoreError> {
         hidden_categories: book.hidden_categories()?,
         budgets: book.budgets()?,
         schedules: schedules(book)?,
+        recurring_moves: book.recurring_moves()?,
         payees: book.payees()?,
         tags: book.tags()?,
     }))
@@ -143,6 +144,7 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
             })
             .collect();
         book.restore_schedules(&plans, &decided)?;
+        book.restore_recurring_moves(&data.recurring_moves)?;
         for account in data.accounts.iter().filter(|account| account.closed) {
             book.close_account(account.id)?;
         }

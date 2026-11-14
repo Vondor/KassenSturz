@@ -77,9 +77,12 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Zu große Beträge in KI-Vorschlägen wurden erst spät und mit falscher Begründung abgelehnt | B-288 | #994 |
 | Ersetzte ein Sync-Programm das offene Buch, war die Meldung unklar | B-289 | #1000 |
 | Ein Hinweis zu sehr vielen Berichten war abgeschnitten | B-290 | #1001, #1003 |
+| Windows-Bibliotheken suchten Dateien in einem Ordner (C:\Craft), den jeder Benutzer anlegen kann | B-293 | #1015 |
 | Das Windows-Paket enthielt 131 Programme, die niemand braucht (etwa ffmpeg und openssl), jedes eines mehr, das missbraucht werden könnte | B-292 | #1014 |
 | War das Laufwerk voll, endete ein Import mit einer Meldung, die weder sagte, was passiert war, noch was zu tun ist | B-282 | #1007 |
 | Ein Buch mit einer veränderten Zahl in der Datei öffnete sich mit falschem Kontostand, eine beschädigte Seite fiel erst beim nächsten Speichern auf | B-291 | #1010 |
+| Ein Eintrag, der auf ein nicht vorhandenes Konto zeigte, zählte in keinem Kontostand, ohne dass es jemand merkte | B-294 | #1020 |
+| Ein Verzeichnis des Buchs, das nicht zu seiner Tabelle passte, konnte Einträge vor einem Kontostand verbergen | B-295 | #1020 |
 
 Kein Fund hat eine PIN verraten. Nur bei einem (B-252) hätten Daten Ihren Computer verlassen können, und auch das nur, wenn jemand vorher Ihre Einstellungsdatei von Hand gefälscht hätte.
 

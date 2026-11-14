@@ -11,7 +11,8 @@
 
 use crate::{
     ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, FORMULA_MEASURE,
-    INCOME_EXPENSE_BY_MONTH, MONEY_FLOW, NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY, Takes,
+    INCOME_EXPENSE_BY_MONTH, MACD, MONEY_FLOW, MOVING_AVERAGE, NET_WORTH_OVER_TIME,
+    SPENDING_BY_CATEGORY, TREND_SERIES, Takes,
 };
 
 /// One dataset a chart or card can show.
@@ -84,6 +85,42 @@ pub const CATALOG: &[DatasetInfo] = &[
         // (US1.16, D-647).
         suits: &["line", "bar", "stacked_bar", "kpi", "progress", "table"],
         measures: &["income", "expenses", "net", "savings-rate", FORMULA_MEASURE],
+        takes: Takes::ALL,
+        for_ai: true,
+    },
+    // Moving averages and MACD of the months above (US7, #875, D-777).
+    DatasetInfo {
+        id: MOVING_AVERAGE,
+        description: "What is left (money in less money out), money in or money out in each \
+             calendar month of a period, and next to each month the average of that month and the \
+             ones before it, over a number of months the user chooses (a moving average, which \
+             smooths out the ups and downs). The months an average needs from before the period \
+             are counted too, in full, and not shown; months before the first transaction count \
+             as zero. Each average is the exact sum divided once and rounded half away from zero \
+             to whole cents. Money moved between your own accounts and starting balances are not \
+             counted, and amounts in different currencies are never added together: there is one \
+             result per currency.",
+        groupings: &TREND_SERIES,
+        suits: &["line", "bar", "table"],
+        measures: &[],
+        takes: Takes::ALL,
+        for_ai: true,
+    },
+    DatasetInfo {
+        id: MACD,
+        description: "How the short-term trend of what is left (or of money in or money out) \
+             compares with its long-term trend, month by month (the MACD indicator). The trend \
+             line is the average of the last few months less the average of the last many months; \
+             the signal line is the average of the trend line over the last few months; the gap is \
+             the trend line less the signal line. Above zero means the recent months are better \
+             than the longer run, below zero worse. The lengths are chosen by the user. The months \
+             the averages need from before the period are counted too, in full, and not shown. \
+             Each figure is rounded once to whole cents. Money moved between your own accounts \
+             and starting balances are not counted, and amounts in different currencies are never \
+             added together: there is one result per currency.",
+        groupings: &TREND_SERIES,
+        suits: &["line", "bar", "table"],
+        measures: &[],
         takes: Takes::ALL,
         for_ai: true,
     },

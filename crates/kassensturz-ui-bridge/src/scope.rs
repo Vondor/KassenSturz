@@ -57,6 +57,8 @@ pub struct Scope {
     pub candle: String,
     /// What a money-flow chart shows (US7, D-758).
     pub flow: kassensturz_report::FlowChoice,
+    /// The months of a moving average and of MACD (US7, D-777).
+    pub trend: kassensturz_report::Trend,
 }
 
 /// The own lists of one series of a chart (D-646): empty for a dimension it
@@ -86,6 +88,7 @@ impl Default for Scope {
             compare: String::new(),
             candle: String::new(),
             flow: kassensturz_report::FlowChoice::default(),
+            trend: kassensturz_report::Trend::default(),
         }
     }
 }
@@ -133,6 +136,7 @@ impl Scope {
                 .map(|length| length.key().to_owned())
                 .unwrap_or_default(),
             flow: asked.flow.clone(),
+            trend: asked.trend,
         }
     }
 
@@ -194,6 +198,11 @@ impl Scope {
                 "payees": self.flow.payees,
                 "accounts": self.flow.accounts,
                 "currency": self.flow.currency,
+            },
+            "trend": {
+                "length": self.trend.length,
+                "slow": self.trend.slow,
+                "signal": self.trend.signal,
             },
         })
         .to_string()
@@ -287,6 +296,18 @@ impl Scope {
                         .to_owned(),
                 }
             },
+            trend: {
+                let trend = value.get("trend");
+                let word = |key: &str| {
+                    trend
+                        .and_then(|trend| trend.get(key))
+                        .and_then(Value::as_u64)
+                        .and_then(|months| u32::try_from(months).ok())
+                        .map(kassensturz_report::Trend::word)
+                        .unwrap_or_default()
+                };
+                kassensturz_report::Trend::read(&word("length"), &word("slow"), &word("signal"))
+            },
         }
     }
 
@@ -320,6 +341,7 @@ impl Scope {
             compare: None,
             candle: None,
             flow: kassensturz_report::FlowChoice::default(),
+            trend: kassensturz_report::Trend::default(),
         }
         .apply(source)
     }
@@ -724,6 +746,11 @@ mod tests {
                 payees: true,
                 accounts: true,
                 currency: "USD".into(),
+            },
+            trend: kassensturz_report::Trend {
+                length: 6,
+                slow: 12,
+                signal: 4,
             },
         };
         assert_eq!(Scope::from_text(&scope.to_text()), scope);

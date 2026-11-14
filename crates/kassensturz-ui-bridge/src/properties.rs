@@ -87,6 +87,13 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                     Some(Setting::Columns(columns)) if !columns.is_empty()
                 ),
                 "formula" => component.kind() == ComponentType::KpiCard && !uses,
+                // The months of a trend (US7, D-777): the length for both
+                // trend datasets, the long average and the signal for MACD.
+                "trend_length" => !matches!(
+                    component.dataset().id,
+                    kassensturz_report::MOVING_AVERAGE | kassensturz_report::MACD
+                ),
+                "trend_slow" | "trend_signal" => component.dataset().id != kassensturz_report::MACD,
                 "target" => !has_formula,
                 // A chart made of columns shows their totals, so it has no
                 // comparison of the dataset's own rows either (US3.1a).

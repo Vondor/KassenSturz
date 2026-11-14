@@ -1,0 +1,42 @@
+<!--
+SPDX-FileCopyrightText: 2026 KassenSturz contributors
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
+# Regression tests for the findings of the rogue rounds (D-787)
+
+For agents and developers. Every finding of the Phase 2 attack rounds that a test can express is a **regression test in the repository** that proves the app refuses it. This page lists, per finding, what was wrong, what it could do to a user, where it was fixed and which test (or CI check) keeps it fixed. Findings are written as defects: no step-by-step recipes (see `docs/SECURITY_LOG.md`, rule 6). The attack log itself stays in the team's project files.
+
+Live attacks stay for what a test can't express: a power cut, two computers on one synced folder and the real window.
+
+A test in the second-to-last column is named as it is in the code. `crates/kassensturz-store/tests/regression_index.rs` checks that every name in backticks on this page still exists as a function, so renaming or deleting a regression test fails CI until this page is updated.
+
+| Finding | What was wrong | Impact | Fixed in | Regression test or check |
+|---|---|---|---|---|
+| B-269 | Sums of very large amounts overflowed | Balances unreadable | #979 | `a_change_whose_amounts_would_add_up_too_far_is_refused`, `amounts_that_would_add_up_too_far_are_refused_and_the_book_stays_usable`, `a_plan_too_large_to_forecast_is_refused`, `a_confirmed_payment_that_would_make_the_totals_overflow_is_refused` |
+| B-270 | A transfer from an account to itself, and an entry of zero typed by hand, were accepted | Meaningless entries in the book | #1002 | `a_transfer_from_an_account_to_itself_is_refused`, `a_hand_entry_of_zero_is_refused_but_a_banks_is_kept`, `a_transaction_that_moves_nothing_is_refused`, `a_cash_payment_into_its_own_account_is_refused` |
+| B-271 | The planned-payments list looked at too short a period | "None planned" shown wrongly | #999 | `the_window_due_dates_looks_at_is_five_years_or_up_to_the_calendars_end`, `schedule_due_refuses_a_range_it_would_not_look_at_whole` |
+| B-272 | Names with invisible or look-alike characters made a second account that looked the same | Money booked to the wrong account | #1005 | `a_look_alike_or_unprintable_account_name_is_refused`, `a_look_alike_rule_name_or_payee_is_refused`, `a_look_alike_payee_name_is_refused`, `a_look_alike_account_name_from_the_ai_is_refused` |
+| B-274 | A clock set far ahead deleted the whole change history | Undo lost for good | #975 | `a_clock_far_ahead_deletes_no_history_until_the_book_was_used_that_long`, `expiring_counts_what_the_book_would_really_delete` |
+| B-275 | The MCP server in the snap read another book path than the app | A different book than the one in use | #964 | `a_snap_reads_the_book_path_with_the_runtime_folder_above_its_own` |
+| B-276, B-287 | When the system ended the app (SIGTERM, logoff), the book stayed marked as open | The next start asked "open anyway" | #989, #998 | CI check `tools/check-sigterm.sh` in `ci.yml`, session-end check in `windows-app.yml`; the lock part: `a_book_a_program_of_this_computer_was_ended_on_opens_without_asking` |
+| B-277, B-279 | On import, identical real entries counted as one, and a corrected amount was hidden | Missing entries, wrong balance | #986 | `the_same_file_imported_twice_doubles_nothing`, `an_overlapping_statement_adds_only_the_new_entries`, `a_left_out_entry_shows_every_transaction_it_looks_like`, `a_corrected_amount_is_never_silently_hidden`, `a_camt_entry_with_a_known_reference_but_another_amount_is_not_dropped` |
+| B-278 | A save shortly before a power cut could be taken back | Last change lost though it was reported saved | #983 | `every_save_to_a_book_file_is_on_the_disk_when_it_returns`, `a_program_killed_while_saving_loses_nothing_it_reported` |
+| B-280 | Statements in some character sets weren't read | Import failed | #996 | `a_utf16_camt_file_imports` |
+| B-281 | The first entry of some CSV files was taken as a header | First entry lost | #984 | `numbered_columns_without_a_header_line_read_the_first_row`, `an_old_profile_meeting_a_header_row_is_refused_not_skipped` |
+| B-282 | A full drive ended an import with a message that said neither what happened nor what to do | User stuck | #1007 | `a_full_drive_is_reported_as_such` |
+| B-283 | A KMyMoney book with two accounts of the same name couldn't be imported | Import failed | #997 | `a_kmymoney_account_renamed_says_why`, `a_look_alike_name_gets_a_clean_bank_name_after_it` |
+| B-284 | A receipt swapped in the receipt folder went unnoticed | The wrong receipt filed under a payment | #969 | `a_bill_swapped_for_one_of_the_same_size_and_time_stays`, `only_the_confirm_function_makes_a_confirmation` |
+| B-285 | After going back to an older version, the pointer to the backup was missing | User didn't know how to get the book back | #992 | `a_book_of_a_newer_version_points_to_its_backup`, `the_newest_usable_backup_passes_over_ones_this_version_cannot_open` |
+| B-286 | With AI off, an invisible remnant of the chat window still existed | AI not fully off | #991 | `the_detached_chat_window_goes_with_the_switch_and_the_main_window` |
+| B-288 | Too-large amounts in AI proposals were refused late and with the wrong reason | Misleading message | #994 | `a_budget_amount_above_the_stores_limit_is_refused_when_prepared`, `a_refusal_for_an_amounts_size_names_that_reason` |
+| B-289 | When a sync program replaced the open book, the message was unclear | User didn't know the latest change was not saved | #1000 | `a_book_replaced_by_another_file_refuses_writing_and_says_it_was_replaced`, `a_replaced_book_file_is_told_from_a_lost_drive` |
+| B-290 | A notice about very many reports was cut off | Notice not readable | #1001, #1003 | `reports_over_the_limit_are_counted_on_the_page_not_dropped` |
+| B-291 | A changed byte in a book file opened with a wrong balance, and a damaged page failed only at the next save | A wrong figure shown as right | #1010 and this page's PR | `a_changed_amount_is_found_and_the_book_stays_as_it_was`, `a_damaged_page_is_found`, `a_cut_short_file_is_a_damaged_book`, `a_changed_foreign_amount_is_found`, `a_part_whose_account_is_gone_is_found`, `one_changed_byte_never_changes_a_balance_silently` |
+| B-294 | A part pointing to an account that isn't there counted in no balance, and nothing said so (found by the changed-byte sweep) | A balance too small or too large, shown as right | #1020 | `a_part_whose_account_is_gone_is_found`, `one_changed_byte_never_changes_a_balance_silently` |
+| B-295 | An index of the book that disagrees with its table hid parts from every query that uses it (found by the changed-byte sweep) | A balance too small or too large, shown as right | #1020 | `one_changed_byte_never_changes_a_balance_silently` |
+| B-292 | The Windows package held hundreds of programs nobody needs | More programs that could be misused | #1014 | CI check "Only the allowed programs are in the zip" in `windows-app.yml` |
+
+## What the changed-byte test covers
+
+`one_changed_byte_never_changes_a_balance_silently` (`crates/kassensturz-store/tests/changed_byte.rs`) changes one bit in about 500 evenly spread bytes of a small book that holds euro and dollar accounts and a conversion with its rate. Each changed copy must be refused, or open with every account keeping its balance (a changed letter in a payee's name is no change of money), or fail visibly when a balance is read. Writing it found two more ways a changed byte hid a part from a balance, B-294 (a part pointing to an account that isn't there) and B-295 (an index that disagrees with its table); both are refused now. What it can't tell are changes the book has no second copy of: a booking date or a typed-in amount in another currency without a stored rate. Those are a design question, not a defect of the check.

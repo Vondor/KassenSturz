@@ -712,6 +712,14 @@ jobs:
         with:
           command: check
           command-arguments: licenses sources
+      # The fuzz targets have a lock file of their own (D-787); their one
+      # extra license, NCSA of libfuzzer-sys, is allowed in fuzz/deny.toml.
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          manifest-path: fuzz/Cargo.toml
+          command: check
+          arguments: --all-features --config fuzz/deny.toml
+          command-arguments: licenses sources
 
   # After a merge, the Flatpak that the pull request already built and tested
   # is used again when it was made from exactly the files now on main and has

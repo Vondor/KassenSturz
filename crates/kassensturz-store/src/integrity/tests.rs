@@ -244,3 +244,33 @@ fn a_part_without_a_stored_rate_is_not_judged() {
     change_foreign_amount(&path, 99_999);
     Book::open(&path, &computer(&folder)).expect("opens");
 }
+
+/// A part whose account is no longer there counts in no balance: refused.
+#[test]
+fn a_part_whose_account_is_gone_is_found() {
+    let folder = TempFolder::new();
+    let path = book_file(&folder);
+    let conn = rusqlite::Connection::open(&path).expect("file opened");
+    conn.execute_batch("PRAGMA foreign_keys = OFF")
+        .expect("off");
+    let changed = conn
+        .execute(
+            "UPDATE splits SET account_id = zeroblob(16) WHERE rowid = (SELECT min(rowid) FROM splits)",
+            [],
+        )
+        .expect("changed");
+    assert_eq!(changed, 1);
+    drop(conn);
+    for refused in [
+        Book::open(&path, &computer(&folder)).err(),
+        Book::open_to_read(&path).err(),
+    ] {
+        assert!(
+            matches!(
+                refused,
+                Some(StoreError::Corrupt(Corruption::BrokenReferences))
+            ),
+            "{refused:?}"
+        );
+    }
+}

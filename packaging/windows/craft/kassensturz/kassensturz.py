@@ -8,6 +8,7 @@
 # project's own CMake (which drives Cargo, D-063) and collects everything the
 # program loads into one folder for the packages.
 
+import importlib.util
 from pathlib import Path
 
 import info
@@ -54,6 +55,20 @@ class Package(CMakePackageBase):
             # Gwenhywfar's Qt dialogs need Gwenhywfar, which isn't here.
             "-DKASSENSTURZ_BANK_DIALOGS=OFF",
         ]
+
+    def preArchive(self):
+        # The libraries have Craft's build folder compiled in as a path that
+        # any user could create on another computer (B-293). Every such path
+        # in the package becomes one below the NUL device, which can't exist.
+        # tools/windows-compiled-in-paths.py explains it; the workflow checks
+        # the result.
+        script = Path(self.sourceDir()) / "tools" / "windows-compiled-in-paths.py"
+        spec = importlib.util.spec_from_file_location("windows_compiled_in_paths", script)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        CraftCore.log.info(f"Replacing the Craft folder compiled into the libraries ({self.archiveDir()})")
+        module.run("patch", Path(self.archiveDir()))
+        return super().preArchive()
 
     def createPackage(self):
         # KassenSturz's own installer: for the person who runs it, without

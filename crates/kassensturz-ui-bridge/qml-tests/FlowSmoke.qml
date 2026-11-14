@@ -74,9 +74,12 @@ Window {
             // text only.
             console.log("flow-behind " + [flow.categoryBehind(0, 2), flow.categoryBehind(1, 0), flow.categoryBehind(3, -1), flow.categoryBehind(0, -1), flow.categoryBehind(0, 4)].join(","));
             flow.scope = '{"accounts":["x"],"takes":{"period":true}}';
-            const narrowed = JSON.parse(flow.behindScope("b"));
+            const narrowed = JSON.parse(flow.behindScope("b", []));
             console.log("flow-scope " + JSON.stringify([narrowed.categories, narrowed.categoriesOwn, narrowed.accounts, narrowed.takes.categories, narrowed.takes.period]));
-            console.log("flow-scope-all " + (JSON.parse(flow.behindScope("")).categories === undefined));
+            console.log("flow-scope-all " + (JSON.parse(flow.behindScope("", [])).categories === undefined));
+            // A click on an account narrows to it, in text only.
+            const account = JSON.parse(flow.behindScope("", ["acc-1"]));
+            console.log("flow-scope-account " + JSON.stringify([account.accounts, account.accountsOwn, account.takes.accounts, account.takes.period]));
             window.save(window.contentItem, "flow-chart", function () {
                 flow.showTable = true;
                 tableTimer.start();

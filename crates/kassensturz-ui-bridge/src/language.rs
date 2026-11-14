@@ -131,7 +131,7 @@ pub fn apply_at_start() {
 ///
 /// As for `std::env::set_var`: no other thread may read or write the
 /// environment at the same time.
-unsafe fn set_for_qt(name: &str, value: &str) {
+pub(crate) unsafe fn set_for_qt(name: &str, value: &str) {
     // SAFETY: the caller guarantees that no other thread uses the environment.
     unsafe { std::env::set_var(name, value) };
     #[cfg(windows)]

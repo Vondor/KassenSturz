@@ -39,6 +39,8 @@ ColumnLayout {
     // What the open list is about: a category id ("" for everything that
     // flows through the chart) and the words above it.
     property string behindCategory: ""
+    // The accounts of the nodes a click was on, as a list of IDs.
+    property var behindAccounts: []
     property string behindTitle: ""
 
     readonly property var nodes: chart.nodes
@@ -88,12 +90,17 @@ ColumnLayout {
     // The scope text of the transactions behind a click: the component's own,
     // narrowed to one category when the click was on one (text only; the
     // amounts and the list come from Rust).
-    function behindScope(categoryId: string): string {
+    function behindScope(categoryId: string, accountIds: var): string {
         let scope = {};
         try {
             scope = JSON.parse(view.scope);
         } catch (error) {
             scope = {};
+        }
+        if (accountIds.length > 0) {
+            scope.accounts = Array.from(accountIds);
+            scope.accountsOwn = true;
+            scope.takes = Object.assign({}, scope.takes ?? {}, { accounts: true });
         }
         if (categoryId !== "") {
             scope.categories = [categoryId];
@@ -117,9 +124,17 @@ ColumnLayout {
         return outer?.category ?? "";
     }
 
+    // The accounts a click is about: those of its ends that are an account
+    // of the chart (*Show where the money was kept*); none for the rest.
+    function accountsBehind(from: int, to: int): var {
+        const ends = to >= 0 ? [nodes[from], nodes[to]] : [nodes[from]];
+        return ends.map(node => node.account ?? "").filter(id => id !== "");
+    }
+
     // Opens the transactions behind a band (`to` >= 0) or a node.
     function openBehind(from: int, to: int) {
         behindCategory = categoryBehind(from, to);
+        behindAccounts = accountsBehind(from, to);
         behindTitle = to >= 0 ? bandText(bands.find(b => b.from === from && b.to === to)) : nodeName(nodes[from]);
         behind.open();
     }
@@ -462,7 +477,7 @@ ColumnLayout {
 
         function show() {
             item.period = view.period;
-            item.scopeText = view.behindScope(view.behindCategory);
+            item.scopeText = view.behindScope(view.behindCategory, view.behindAccounts);
             item.heading = view.behindTitle;
             item.open();
         }

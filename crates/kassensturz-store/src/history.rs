@@ -1601,7 +1601,7 @@ fn prune_after_change(
 /// Deletes the changes the book no longer keeps at `now`: with 0 days every
 /// change stored in the book, otherwise those made more than the days
 /// before **and** followed by changes on at least as many other days
-/// ([`used_days_after`], B-274), so a clock far ahead deletes nothing a
+/// ([`used_days_after`], D-780), so a clock far ahead deletes nothing a
 /// day of use doesn't. It deletes from the oldest change up to the newest
 /// one that is too old, so the history has no gaps even if a computer's
 /// clock was wrong when a change was made, and the history in memory isn't
@@ -1650,7 +1650,7 @@ fn last_to_delete(
 }
 
 /// The newest change after which the book was changed on at least `days`
-/// other days, by the dates the changes were made on (B-274): only a
+/// other days, by the dates the changes were made on (D-780, B-274): only a
 /// change up to it may be deleted, whatever the clock says now. A clock
 /// that jumps years ahead then can't delete the whole history at the next
 /// change, since that change adds one day of use, not `days`; a book left

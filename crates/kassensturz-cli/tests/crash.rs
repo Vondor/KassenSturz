@@ -169,6 +169,50 @@ fn crash_worker() {
     }
 }
 
+/// The second worker: opens the book, reports `locked` and then sits there
+/// holding it, until it is ended from outside.
+#[test]
+#[ignore = "started by the lock test as a process of its own"]
+fn lock_holder() {
+    let Some(book) = std::env::var_os(WORKER_BOOK).map(PathBuf::from) else {
+        return;
+    };
+    let computer = kassensturz_store::Computer {
+        name: "Laptop".into(),
+        backup_folder: book.with_file_name("Backups"),
+    };
+    let _held = kassensturz_store::Book::open(&book, &computer).expect("opened");
+    println!("locked");
+    use std::io::Write;
+    std::io::stdout().flush().expect("flushed");
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(60));
+    }
+}
+
+/// Starts the lock holder on `book` and ends it as soon as it holds the lock.
+fn kill_lock_holder(book: &Path) {
+    let mut child = Command::new(std::env::current_exe().expect("this test program"))
+        .args(["--ignored", "--exact", "lock_holder", "--nocapture"])
+        .env(WORKER_BOOK, book)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .expect("holder started");
+    let mut reader = BufReader::new(child.stdout.take().expect("holder output"));
+    let mut line = String::new();
+    loop {
+        line.clear();
+        let read = reader.read_line(&mut line).expect("holder output read");
+        assert_ne!(read, 0, "the holder ended by itself");
+        if line.trim() == "locked" {
+            break;
+        }
+    }
+    child.kill().expect("holder ended");
+    child.wait().expect("holder reaped");
+}
+
 /// Starts the worker on `book`, waits until it has reported `reports` saves,
 /// then ends it from outside. Returns the numbers of the saves it reported.
 fn kill_worker_after(book: &Path, start: u32, reports: usize) -> Vec<u32> {
@@ -327,18 +371,8 @@ fn the_lock_of_a_killed_program_is_found_and_taken_over_on_the_next_start() {
     let lock = PathBuf::from(format!("{}.lock", book.display()));
     assert!(!lock.exists(), "the lock stayed after a normal close");
 
-    kill_worker_after(&book, 0, 3);
-    // The worker opens the book anew for every save, so it can be ended
-    // between two saves, with no lock. Go on until one was caught holding it.
-    let mut tries = 0u32;
-    while !lock.exists() {
-        tries += 1;
-        assert!(tries < 40, "the lock was never left behind");
-        kill_worker_after(&book, tries * 1000, 2);
-        if lock.exists() {
-            break;
-        }
-    }
+    kill_lock_holder(&book);
+    assert!(lock.exists(), "a killed program left no lock file");
     let refused = cli(&book, &backups, &["balances"]);
     assert_eq!(refused.status, 1);
     assert!(refused.err.contains("store.locked"), "{}", refused.err);

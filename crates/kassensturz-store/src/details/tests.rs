@@ -316,3 +316,29 @@ fn a_look_alike_payee_name_is_refused() {
     }
     assert!(book.payees().expect("payees").is_empty());
 }
+
+/// D-782: a payee or tag whose name only looks different, through an
+/// accent typed on its own or a ligature, is taken.
+#[test]
+fn a_payee_or_tag_that_only_looks_different_is_taken() {
+    let Sample { mut book, .. } = sample();
+    book.add_payee(&payee("Caf\u{E9} Corner", PayeeRecognition::ByName))
+        .expect("payee added");
+    assert!(matches!(
+        book.add_payee(&payee("Cafe\u{301} corner", PayeeRecognition::ByName)),
+        Err(StoreError::DuplicatePayeeName { existing }) if existing == "Caf\u{E9} Corner"
+    ));
+    book.add_tag(&tag("Finanz")).expect("tag added");
+    assert!(matches!(
+        book.add_tag(&tag("\u{FB01}nanz")),
+        Err(StoreError::DuplicateTagName { existing }) if existing == "Finanz"
+    ));
+    let holiday = tag("Holiday");
+    book.add_tag(&holiday).expect("tag added");
+    assert!(matches!(
+        book.rename_tag(holiday.id, "FINANZ"),
+        Err(StoreError::DuplicateTagName { existing }) if existing == "Finanz"
+    ));
+    assert_eq!(book.payees().expect("payees").len(), 1);
+    assert_eq!(book.tags().expect("tags").len(), 2);
+}

@@ -84,7 +84,7 @@ Indexes: `accounts_by_parent` on `accounts (parent_id)`, `accounts_by_institutio
 
 **Account groups** (D-132): an account's `parent_id` names an account of the same kind (`asset` under `asset`, `liability` under `liability`), in any currency, with no loops. KassenSturz checks this when it writes. A group adds nothing up and hides nothing: the account lists show every account on its own.
 
-Account names are never empty. No two accounts (kind `asset` or `liability`) share a name, ignoring capitals and spaces around it, closed ones included. KassenSturz checks this when it writes, not the database (D-081).
+Account names are never empty. No two accounts (kind `asset` or `liability`) share a name, ignoring capitals and spaces around it, closed ones included. KassenSturz checks this when it writes, not the database (D-081). Names of accounts and categories are one line without characters that show as nothing (B-272), and are stored in Unicode's composed form NFC, so "é" is always one character, never "e" with a combining accent; so are Rule names. Names of accounts, categories, Rules, payees and tags are compared in the compatibility form NFKC, ignoring capitals, so a name with a ligature such as "ﬁ" counts as the same as one with "fi" (D-782).
 
 ### `bank_links`
 

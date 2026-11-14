@@ -63,6 +63,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Eine Umbuchung von einem Konto auf dasselbe Konto wurde angenommen | B-270 | #1002 |
 | Bei sehr langen Zeiträumen sagte die Liste der geplanten Zahlungen fälschlich „keine geplant“ | B-271 | #999 |
 | Ein unsichtbares Zeichen machte aus „Giro“ ein zweites, gleich aussehendes Konto | B-272 | #1005 |
+| Ein als eigenes Zeichen getippter Akzent machte aus „Café“ ein zweites, gleich aussehendes Konto | B-272 | #1016 |
 | Eine weit vorgestellte Uhr löschte den ganzen Änderungsverlauf | B-274 | #975 |
 | Beim Beenden über das System blieb das Buch als „geöffnet“ markiert | B-276, B-287 | #989, #998 |
 | Beim Einlesen wurden zwei echte, gleiche Buchungen (zum Beispiel zwei Kaffees) als eine gezählt | B-277, B-279 | #986 |

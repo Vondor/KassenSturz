@@ -63,6 +63,7 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | A transfer from an account to the same account was accepted | B-270 | #1002 |
 | For very long periods the list of planned payments wrongly said "none planned" | B-271 | #999 |
 | An invisible character turned "Giro" into a second account that looked the same | B-272 | #1005 |
+| An accent typed as its own character turned "Café" into a second account that looked the same | B-272 | #1016 |
 | A clock set far ahead deleted the whole change history | B-274 | #975 |
 | When the system ended the app, the book stayed marked as "open" | B-276, B-287 | #989, #998 |
 | On import, two real identical entries (for example two coffees) were counted as one | B-277, B-279 | #986 |

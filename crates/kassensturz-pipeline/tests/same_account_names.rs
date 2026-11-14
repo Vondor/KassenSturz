@@ -152,3 +152,69 @@ fn a_look_alike_name_gets_a_clean_bank_name_after_it() {
     names.sort();
     assert_eq!(names, ["Daily money", "Daily money (Harbor Savings)"]);
 }
+
+/// D-782: a KMyMoney name typed with a combining accent is the same name as
+/// one with the accented letter, so the second gets its bank's name after
+/// it; a name that only had to be composed comes in composed and is not
+/// reported as renamed.
+#[test]
+fn a_name_with_a_combining_accent_is_the_same_name() {
+    let mut file = two_of_one_name(true);
+    let mut first = true;
+    for account in &mut file.accounts {
+        if account.name == "Daily money" {
+            account.name = if first {
+                "Caf\u{E9} money".into()
+            } else {
+                "Cafe\u{301} money".into()
+            };
+            first = false;
+        }
+    }
+    let mut book = Book::create_in_memory().expect("book created");
+    let report = fill_book_from(&mut book, &file, &HashMap::new()).expect("both come in");
+    let mut names: Vec<String> = account_names(&book)
+        .into_iter()
+        .filter(|name| name.starts_with("Caf"))
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        ["Caf\u{E9} money", "Caf\u{E9} money (Harbor Savings)"]
+    );
+    assert_eq!(report.renamed.len(), 1, "{:?}", report.renamed);
+
+    // Alone, it is only composed.
+    let mut file = two_of_one_name(true);
+    for account in &mut file.accounts {
+        if account.name == "Daily money" && account.parent.is_some() {
+            account.name = "Cafe\u{301} money".into();
+        }
+    }
+    let mut book = Book::create_in_memory().expect("book created");
+    let report = fill_book_from(&mut book, &file, &HashMap::new()).expect("filled");
+    assert!(account_names(&book).contains(&"Caf\u{E9} money".to_owned()));
+    assert!(report.renamed.is_empty(), "{:?}", report.renamed);
+}
+
+/// D-782 where the importer meets the store: KMyMoney's payees "ﬁnanz
+/// office" with a ligature and "Finanz office" look the same, so the book
+/// can't keep both names; the second gets a number and both come in.
+#[test]
+fn payees_that_only_look_different_both_come_in() {
+    let mut file = imported();
+    assert!(file.payees.len() >= 2, "two payees in the sample");
+    file.payees[0].name = "\u{FB01}nanz office".into();
+    file.payees[1].name = "Finanz office".into();
+    let mut book = Book::create_in_memory().expect("book created");
+    fill_book_from(&mut book, &file, &HashMap::new()).expect("both come in");
+    let mut names: Vec<String> = book
+        .payees()
+        .expect("read")
+        .into_iter()
+        .map(|payee| payee.name)
+        .filter(|name| name.ends_with("office") || name.ends_with("(2)"))
+        .collect();
+    names.sort();
+    assert_eq!(names, ["Finanz office (2)", "\u{FB01}nanz office"]);
+}

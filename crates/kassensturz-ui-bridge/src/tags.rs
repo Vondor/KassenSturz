@@ -105,10 +105,12 @@ pub fn resolve(book: &mut Book, wanted: &[TagInput<'_>]) -> Result<Vec<TagId>, S
                 Some(tags) => tags,
                 None => known.insert(book.tags()?),
             };
-            let lower = name.to_lowercase();
+            // The tag whose name looks the same, as the book compares
+            // names (D-782).
+            let key = kassensturz_store::name_key(&name);
             match tags
                 .iter()
-                .find(|tag| tag.name.trim().to_lowercase() == lower)
+                .find(|tag| kassensturz_store::name_key(&tag.name) == key)
             {
                 Some(tag) => tag.id,
                 None => {

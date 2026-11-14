@@ -1755,3 +1755,34 @@ fn a_look_alike_rule_name_or_payee_is_refused() {
         })
     ));
 }
+
+/// D-782, the rogue run's recheck: a Rule's name typed with an accent on
+/// its own, or with a ligature, is the same name, and it is kept composed.
+#[test]
+fn a_rule_name_that_only_looks_different_is_taken() {
+    let Sample { mut book, .. } = sample();
+    let composed = rule("R\u{E9}gel", vec![name_contains("shop")], None);
+    book.add_rule(&composed, None).expect("added");
+    let decomposed = rule("Re\u{301}gel", vec![name_contains("shop")], None);
+    assert!(matches!(
+        book.add_rule(&decomposed, None),
+        Err(StoreError::DuplicateRuleName { existing }) if existing == composed.id
+    ));
+    let typed = rule("Cafe\u{301}", vec![name_contains("coffee")], None);
+    book.add_rule(&typed, None).expect("added");
+    assert_eq!(book.rule(typed.id).expect("read").name, "Caf\u{E9}");
+    let fine = rule("Finanz", vec![name_contains("bank")], None);
+    book.add_rule(&fine, None).expect("added");
+    let ligature = rule("\u{FB01}nanz", vec![name_contains("bank")], None);
+    assert!(matches!(
+        book.add_rule(&ligature, None),
+        Err(StoreError::DuplicateRuleName { existing }) if existing == fine.id
+    ));
+    // Renaming one into the other is refused too.
+    let mut renamed = book.rule(typed.id).expect("read");
+    renamed.name = "R\u{C9}GEL".into();
+    assert!(matches!(
+        book.update_rule(&renamed),
+        Err(StoreError::DuplicateRuleName { existing }) if existing == composed.id
+    ));
+}

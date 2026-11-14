@@ -1,0 +1,101 @@
+name: Fuzzing
+
+# Fuzz targets for every importer and the book file (D-787, docs/FUZZING.md).
+# A short smoke run on pull requests that touch the code they exercise, and a
+# long run every night. libFuzzer with AddressSanitizer on a pinned nightly
+# Rust; a crash, a hang or an out-of-memory is a failed job, and the input
+# that caused it is kept as an artifact. The smoke run is not a required
+# check; the nightly run reports to the retro agent's list.
+
+on:
+  pull_request:
+    paths:
+      - "crates/kassensturz-import/**"
+      - "crates/kassensturz-store/**"
+      - "crates/kassensturz-core/**"
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NIGHTLY: nightly-2026-11-10
+  CARGO_FUZZ: 0.13.2
+
+jobs:
+  fuzz:
+    name: Fuzz smoke run (D-787)
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ github.event_name == 'schedule' && 240 || 30 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [camt053, mt940, ofx, csv, kmy, kmy_sqlite, book_open]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust and cargo-fuzz
+        run: |
+          rustup toolchain install "$NIGHTLY" --profile minimal
+          rustup default "$NIGHTLY"
+          cargo install cargo-fuzz --locked --version "$CARGO_FUZZ"
+      - name: Restore Cargo's cache
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            fuzz/target
+          key: cargo-fuzz-${{ env.NIGHTLY }}-${{ matrix.target }}-${{ hashFiles('fuzz/Cargo.lock') }}
+          restore-keys: cargo-fuzz-${{ env.NIGHTLY }}-${{ matrix.target }}-
+      # The seeds are the importers' own test files, made-up data
+      # (AGENTS.md §3.1 rule 2): no second copy is kept in the repository.
+      - name: Collect the seeds
+        run: |
+          mkdir -p "fuzz/corpus/${{ matrix.target }}"
+          case "${{ matrix.target }}" in
+            camt053) from=camt053 ;;
+            mt940) from=mt940 ;;
+            ofx) from=ofx ;;
+            csv) from=csv ;;
+            kmy) from=kmy ;;
+            kmy_sqlite) from=kmy-sqlite ;;
+            *) from= ;;
+          esac
+          if [ -n "$from" ]; then
+            find "crates/kassensturz-import/tests/golden/$from" -type f ! -name '*.expected' ! -name '*.settings' \
+              -size -256k -exec cp {} "fuzz/corpus/${{ matrix.target }}/" \;
+          fi
+          ls "fuzz/corpus/${{ matrix.target }}" | wc -l
+      - name: Fuzz
+        working-directory: fuzz
+        run: |
+          if [ "${{ github.event_name }}" = schedule ]; then seconds=1800; else seconds=60; fi
+          cargo fuzz run "${{ matrix.target }}" --sanitizer address -- \
+            -max_total_time="$seconds" -rss_limit_mb=2048 -timeout=20 -max_len=262144
+        env:
+          CARGO_INCREMENTAL: "0"
+      - name: Keep what made it fail
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}
+          if-no-files-found: ignore
+      - name: Save Cargo's cache
+        if: ${{ !cancelled() && github.event_name == 'schedule' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            fuzz/target
+          key: cargo-fuzz-${{ env.NIGHTLY }}-${{ matrix.target }}-${{ hashFiles('fuzz/Cargo.lock') }}

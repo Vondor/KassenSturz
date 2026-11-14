@@ -4,6 +4,9 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+# The fuzz targets need a nightly Rust and are a workspace of their own
+# (D-787, docs/FUZZING.md).
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.261025.0"

@@ -36,6 +36,7 @@ A test in the second-to-last column is named as it is in the code. `crates/kasse
 | B-294 | A part pointing to an account that isn't there counted in no balance, and nothing said so (found by the changed-byte sweep) | A balance too small or too large, shown as right | #1020 | `a_part_whose_account_is_gone_is_found`, `one_changed_byte_never_changes_a_balance_silently` |
 | B-295 | An index of the book that disagrees with its table hid parts from every query that uses it (found by the changed-byte sweep) | A balance too small or too large, shown as right | #1020 | `one_changed_byte_never_changes_a_balance_silently` |
 | B-292 | The Windows package held hundreds of programs nobody needs | More programs that could be misused | #1014 | CI check "Only the allowed programs are in the zip" in `windows-app.yml` |
+| B-297 | Two texts of the money-flow chart stayed English in the German app (a missing translation domain in two QML files) | A text the user can't read | #1033 | CI check `tools/check-translations.sh` (a `KI18nContext` without `translationDomain` fails) in `ci.yml` |
 
 ## What the changed-byte test covers
 

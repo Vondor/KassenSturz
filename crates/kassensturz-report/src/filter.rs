@@ -270,6 +270,9 @@ pub struct Asked {
     /// The months of a trend (US7, D-777); the default for every other
     /// component.
     pub trend: crate::Trend,
+    /// The days of a daily balance's averages (US7, D-794); the default
+    /// for every other component.
+    pub ema: crate::Ema,
 }
 
 /// A note under a component about its filter (D-350). The component writes
@@ -435,6 +438,17 @@ impl Asked {
                     word(crate::schema::TREND_SIGNAL_KEY),
                 )
             },
+            ema: {
+                let word = |key: &str| match component.get(key) {
+                    Some(Setting::Word(word)) => word.as_str(),
+                    _ => "",
+                };
+                crate::Ema::read(
+                    word(crate::schema::EMA_FAST_KEY),
+                    word(crate::schema::EMA_SLOW_KEY),
+                    word(crate::schema::EMA_SIGNAL_KEY),
+                )
+            },
         })
     }
 
@@ -460,6 +474,7 @@ impl Asked {
             candle: self.candle,
             flow: self.flow.clone(),
             trend: self.trend,
+            ema: self.ema,
         }
     }
 

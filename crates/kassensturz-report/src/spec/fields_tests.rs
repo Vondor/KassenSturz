@@ -11,11 +11,17 @@ fn every_catalog_dataset_has_a_table_and_the_reverse() {
     // The money flow is drawn by its own chart and no custom chart can read
     // it, so it has no table of fields (it suits only `flow`). The trend
     // datasets (US7, D-777) are averages of the months another dataset
-    // counts, and no custom chart reads them either.
+    // counts, and no custom chart reads them either; nor the daily balance
+    // (D-794).
     let mut catalog: Vec<_> = CATALOG
         .iter()
         .filter(|dataset| !dataset.suits.contains(&"flow"))
-        .filter(|dataset| !matches!(dataset.id, crate::MOVING_AVERAGE | crate::MACD))
+        .filter(|dataset| {
+            !matches!(
+                dataset.id,
+                crate::MOVING_AVERAGE | crate::MACD | crate::DAILY_BALANCE
+            )
+        })
         .map(|dataset| dataset.id)
         .collect();
     let mut tables: Vec<_> = SPEC_DATASETS.iter().map(SpecDataset::id).collect();

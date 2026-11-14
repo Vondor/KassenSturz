@@ -25319,3 +25319,146 @@ msgstr "Erweitert"
 msgctxt "@info what a group of settings holds"
 msgid "Where your book is, folder access, where PINs are saved"
 msgstr "Wo Ihr Buch liegt, Ordnerzugriff, wo PINs gespeichert werden"
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:155
+#, kde-format
+msgctxt "@title:column a table of a chart"
+msgid "Day"
+msgstr "Tag"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:156
+#, kde-format
+msgctxt "@title:column a table of a daily balance: the average over fewer days"
+msgid "Short average"
+msgstr "Kurzer Durchschnitt"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:157
+#, kde-format
+msgctxt "@title:column a table of a daily balance: the average over more days"
+msgid "Long average"
+msgstr "Langer Durchschnitt"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:158
+#, kde-format
+msgctxt "@title:column a table of a daily balance: the short average less the long one"
+msgid "MACD"
+msgstr "MACD"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:159
+#, kde-format
+msgctxt "@title:column a table of a daily balance: the average of MACD over a few days"
+msgid "Signal line"
+msgstr "Signallinie"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:160
+#, kde-format
+msgctxt "@title:column a table of a daily balance: MACD less its signal line"
+msgid "Histogram"
+msgstr "Histogramm"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:238
+#, kde-format
+msgctxt "@label a series of a chart: an average of the balance that weighs the latest days most; %1 is how many days, at least five"
+msgid "Average of the last %1 days"
+msgstr "Durchschnitt der letzten %1 Tage"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:271
+#, kde-format
+msgctxt "@label a series of a chart: an average of the balance that weighs the latest days most"
+msgid "Average of the balance"
+msgstr "Durchschnitt des Kontostands"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:273
+#, kde-format
+msgctxt "@label a series of a chart: the short average of the balance less the long one (MACD)"
+msgid "MACD (short less long average)"
+msgstr "MACD (kurzer minus langer Durchschnitt)"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:275
+#, kde-format
+msgctxt "@label a series of a chart: the average of MACD over a few days"
+msgid "Signal line"
+msgstr "Signallinie"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:277
+#, kde-format
+msgctxt "@label a series of a chart, drawn as bars: MACD less its signal line"
+msgid "Histogram (MACD less signal line)"
+msgstr "Histogramm (MACD minus Signallinie)"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:537
+#, kde-format
+msgctxt "@info above the second panel of a daily balance chart"
+msgid "Short-term against long-term trend of the balance (MACD): above zero, the balance has lately risen faster than its longer average."
+msgstr "Kurzfristiger gegen langfristigen Verlauf des Kontostands (MACD): Über null ist der Kontostand zuletzt schneller gestiegen als sein längerer Durchschnitt."
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:852
+#, kde-format
+msgctxt "@info under a daily balance chart; %1 is a day"
+msgid "The chart starts on %1, the day of the first entry; there was no balance before."
+msgstr "Das Diagramm beginnt am %1, dem Tag der ersten Buchung; davor gab es keinen Kontostand."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:131
+#, kde-format
+msgctxt "@item:inlistbox what a chart shows"
+msgid "An account's balance day by day, with averages and MACD"
+msgstr "Kontostand eines Kontos Tag für Tag, mit Durchschnitten und MACD"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:155
+#, kde-format
+msgctxt "@info"
+msgid "Shows what the account held at the end of each day, as a stepped line, up to today. Two averages follow the balance and weigh the latest days most, by default over 12 and 26 days. The panel under it shows MACD, the short average less the long one: above zero, the balance has lately risen faster than its longer average. The signal line is the average of MACD, and the bars are MACD less the signal line. The averages start well before the period, so the first day is already settled. If the account's first entry is inside the period, the chart starts on that day. Without a chosen account, your checking, savings and cash accounts are added up. Each currency is shown on its own."
+msgstr "Zeigt, was am Ende jedes Tages auf dem Konto war, als Treppenlinie bis heute. Zwei Durchschnitte folgen dem Kontostand und gewichten die letzten Tage am stärksten, standardmäßig über 12 und 26 Tage. Der Bereich darunter zeigt MACD, den kurzen Durchschnitt minus den langen: Über null ist der Kontostand zuletzt schneller gestiegen als sein längerer Durchschnitt. Die Signallinie ist der Durchschnitt von MACD, die Balken sind MACD minus die Signallinie. Die Durchschnitte beginnen lange vor dem Zeitraum, damit schon der erste Tag eingeschwungen ist. Liegt die erste Buchung des Kontos im Zeitraum, beginnt das Diagramm an diesem Tag. Ohne gewähltes Konto werden Ihre Giro-, Spar- und Bargeldkonten zusammengezählt. Jede Währung wird für sich gezeigt."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:199
+#, kde-format
+msgctxt "@label:listbox which lines and panels a daily balance chart shows"
+msgid "Show"
+msgstr "Anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:204
+#, kde-format
+msgctxt "@label:listbox the days the short average of a daily balance spans"
+msgid "Short average over"
+msgstr "Kurzer Durchschnitt über"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:206
+#, kde-format
+msgctxt "@label:listbox the days the long average of a daily balance spans"
+msgid "Long average over"
+msgstr "Langer Durchschnitt über"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:208
+#, kde-format
+msgctxt "@label:listbox the days the signal line of a daily balance's MACD spans"
+msgid "Signal line over"
+msgstr "Signallinie über"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:383
+#, kde-format
+msgctxt "@item:inlistbox a whole number of days; %1 is the number"
+msgid "%1 days"
+msgstr "%1 Tage"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:386
+#, kde-format
+msgctxt "@item:inlistbox what a daily balance chart shows"
+msgid "Balance, both averages and MACD"
+msgstr "Kontostand, beide Durchschnitte und MACD"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:388
+#, kde-format
+msgctxt "@item:inlistbox what a daily balance chart shows"
+msgid "Balance and both averages"
+msgstr "Kontostand und beide Durchschnitte"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:390
+#, kde-format
+msgctxt "@item:inlistbox what a daily balance chart shows"
+msgid "Balance only"
+msgstr "Nur Kontostand"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:392
+#, kde-format
+msgctxt "@item:inlistbox what a daily balance chart shows"
+msgid "MACD only"
+msgstr "Nur MACD"

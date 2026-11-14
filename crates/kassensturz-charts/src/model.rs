@@ -293,6 +293,30 @@ pub struct ChartModel {
     /// changed and its total row (US6, #789, D-760). `None` for every
     /// chart that doesn't compare.
     pub compared: Option<ComparedTable>,
+    /// How a daily balance is drawn (US7, #1036, D-794). `None` for every
+    /// other chart.
+    pub daily: Option<DailyLook>,
+}
+
+/// How a panel of a daily balance is drawn (D-794): KQuickCharts can't draw
+/// a stepped line, a histogram under lines or hundreds of days with a name
+/// each, so the screen draws these series itself.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DailyLook {
+    /// `balance` (the balance with its averages) or `macd` (MACD, its
+    /// signal line and the histogram).
+    pub panel: &'static str,
+    /// How each series is drawn, in the order of [`ChartModel::series`]:
+    /// `step` (a stepped line), `line`, `dashed` (a dashed line), `bars`
+    /// (bars from zero) or `none` (not drawn, only in the text of a day and
+    /// in the table, so the hover of one panel tells the other's figures).
+    pub draws: Vec<&'static str>,
+    /// The places along the axis that carry a name, with the name: the
+    /// first day of each month (or of each week in a short period).
+    pub axis: Vec<(usize, String)>,
+    /// Whether the first day is the accounts' first entry, later than the
+    /// period's first day.
+    pub starts_late: bool,
 }
 
 /// How one row of a comparison changed, in fixed words the screen turns

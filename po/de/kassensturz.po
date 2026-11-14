@@ -25066,3 +25066,35 @@ msgstr "Im Ordner zeigen"
 msgctxt "@info"
 msgid "Removing a link leaves the file where it is. KassenSturz never changes or deletes a bill; it moves one only when you confirm filing it from your inbox."
 msgstr "Wenn Sie eine Verknüpfung entfernen, bleibt die Datei, wo sie ist. KassenSturz ändert oder löscht nie eine Rechnung; es verschiebt eine nur, wenn Sie bestätigen, sie aus Ihrem Eingangsordner abzulegen."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:135
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This book is damaged: its file has a part that can't be read. KassenSturz didn't open it, so no wrong figure is shown, and the book wasn't changed."
+msgstr ""
+"Dieses Haushaltsbuch ist beschädigt: Ein Teil seiner Datei lässt sich nicht lesen. KassenSturz hat es nicht geöffnet, damit keine falsche Zahl angezeigt wird. Das Haushaltsbuch wurde nicht verändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:135
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This book is damaged: some entries no longer add up, for example because a number in the file was changed. KassenSturz didn't open it, so no wrong figure is shown, and the book wasn't changed."
+msgstr ""
+"Dieses Haushaltsbuch ist beschädigt: Einige Einträge gehen nicht mehr auf, zum Beispiel weil eine Zahl in der Datei verändert wurde. KassenSturz hat es nicht geöffnet, damit keine falsche Zahl angezeigt wird. Das Haushaltsbuch wurde nicht verändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:135
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your backups are in KassenSturz's backup folder; open the newest one instead."
+msgstr ""
+"Ihre Sicherungen liegen im Sicherungsordner von KassenSturz; öffnen Sie stattdessen die neueste."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:135
+#, kde-format
+msgctxt "@info %1 is a date and time, %2 a folder, %3 a file name"
+msgid ""
+"The newest backup was made on %1: it is in the backup folder (%2) as %3. Choose it with \"Open another book…\". Changes made since then are not in that copy."
+msgstr ""
+"Die neueste Sicherung stammt vom %1: Sie liegt im Sicherungsordner (%2) unter dem Namen %3. Wählen Sie sie mit „Anderes Haushaltsbuch öffnen…“. Änderungen seit dann sind in dieser Kopie nicht enthalten."

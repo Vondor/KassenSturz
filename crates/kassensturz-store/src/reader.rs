@@ -73,6 +73,10 @@ impl Book {
         // A book with SQL another program planted is refused here too, so
         // the MCP server never reads through it (B-245).
         layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, current)?;
+        // The same checks as the app makes (B-291): the MCP server and the
+        // command line never read figures from a damaged book either.
+        crate::integrity::check_file(&conn)?;
+        crate::integrity::check_balances(&conn)?;
         conn.set_prepared_statement_cache_capacity(cached::CAPACITY);
         Ok(Self {
             conn,

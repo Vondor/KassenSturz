@@ -14,7 +14,9 @@ use std::path::{Path, PathBuf};
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 use kassensturz_core::Timestamp;
-use kassensturz_store::{Book, Lock, PreparedRestore, StoreError, newest_usable_backup};
+use kassensturz_store::{
+    Book, Corruption, Lock, PreparedRestore, StoreError, newest_usable_backup,
+};
 
 use crate::backup_copies;
 use crate::books::{Books, OpenBook, Problem};
@@ -608,17 +610,22 @@ fn qtext(value: &str) -> QVariant {
     QVariant::from(&QString::from(value))
 }
 
-/// For a book that only a newer KassenSturz can open: the file name and time
-/// of the newest backup in `backups` that this one can open, which the newer
-/// version saved before it updated the book (B-285).
+/// For a book that only a newer KassenSturz can open, or one that is
+/// damaged (a page SQLite can't read, or transactions that don't add up,
+/// B-291): the file name and time of the newest backup in `backups` that
+/// this one can open. For the first, the copy the newer version saved
+/// before it updated the book (B-285).
 fn newer_layout_backup(problem: &Problem, backups: &Path) -> Option<(String, Timestamp)> {
-    let Problem::Store {
-        path,
-        error: StoreError::UnsupportedLayout { .. },
-    } = problem
-    else {
+    let Problem::Store { path, error } = problem else {
         return None;
     };
+    if !matches!(
+        error,
+        StoreError::UnsupportedLayout { .. }
+            | StoreError::Corrupt(Corruption::DamagedFile | Corruption::UnbalancedTransaction)
+    ) {
+        return None;
+    }
     let backup = newest_usable_backup(path, backups)?;
     let name = backup.path.file_name()?.to_string_lossy().into_owned();
     Some((name, backup.made))
@@ -672,6 +679,17 @@ mod tests {
             newer_layout_backup(&newer(&folder.join("Other.ksz")), &backups),
             None
         );
+        // A damaged book points to it too (B-291).
+        for error in [
+            StoreError::Corrupt(Corruption::DamagedFile),
+            StoreError::Corrupt(Corruption::UnbalancedTransaction),
+        ] {
+            let damaged = Problem::Store {
+                path: path.clone(),
+                error,
+            };
+            assert!(newer_layout_backup(&damaged, &backups).is_some());
+        }
         let not_a_book = Problem::Store {
             path: path.clone(),
             error: StoreError::NotABook,

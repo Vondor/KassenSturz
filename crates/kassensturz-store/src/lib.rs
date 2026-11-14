@@ -19,6 +19,7 @@ mod details;
 mod error;
 mod fill;
 mod history;
+mod integrity;
 mod layout;
 mod lock;
 mod moving;
@@ -231,6 +232,8 @@ impl Book {
         // program planted in the file never runs (B-245).
         if (first_version..=current).contains(&version) {
             layout::check_schema(&conn, migrations, first_version, version)?;
+            // Before any backup or migration writes to the file (B-291).
+            integrity::check_file(&conn)?;
         }
         match version {
             same if same == current => {}
@@ -245,6 +248,9 @@ impl Book {
             }
             found => return Err(StoreError::UnsupportedLayout { found }),
         }
+        // After the layout is the current one, so the splits are where the
+        // check looks; nothing was changed in a book that fails it (B-291).
+        integrity::check_balances(&conn)?;
         Self::finish(conn, Some(lock))
     }
 

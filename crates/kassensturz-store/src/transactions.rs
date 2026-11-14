@@ -506,6 +506,19 @@ impl Book {
         Ok(ids.into_iter().map(TransactionId::from_bytes).collect())
     }
 
+    /// Every link the book's transactions keep, once each (D-132): the
+    /// receipt inbox tells by it which filed bills an Undo unlinked on a
+    /// computer that has no journal of their moves (US7, #333).
+    pub fn attachment_links(&self) -> Result<std::collections::BTreeSet<String>, StoreError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT DISTINCT link FROM attachments")?;
+        let links = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(links)
+    }
+
     /// The attachments of the transactions `filter` (a clause over
     /// `attachments AS a`) keeps, with its `params`, by transaction ID, each
     /// transaction's in the user's order.

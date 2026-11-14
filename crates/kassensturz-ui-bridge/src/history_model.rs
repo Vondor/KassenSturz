@@ -10,6 +10,7 @@
 //! history's own settings change no data and only refresh this object.
 
 use core::pin::Pin;
+use std::collections::HashMap;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
@@ -20,6 +21,9 @@ use crate::errors::ErrorText;
 use crate::history::{self, ChangeText, HistoryError, SummaryText, View};
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
+use crate::receipt_moves::{self, Moved, StepError, Stayed};
+use kassensturz_platform::bill_files::Settled;
+use std::path::Path;
 use crate::session;
 use crate::variant::{error_object, list, map, text};
 
@@ -62,6 +66,24 @@ pub mod qobject {
         /// Makes the change undone last again. Returns like `undo`.
         #[qinvokable]
         fn redo(self: Pin<&mut ChangeHistory>) -> QVariant;
+
+        /// Takes the newest change back and leaves the bills it filed from
+        /// the receipt inbox where they are: the deliberate way out when
+        /// `undo` answered `bill.undo-blocked` (US7, #333). Returns like
+        /// `undo`.
+        #[qinvokable]
+        #[cxx_name = "undoAnyway"]
+        fn undo_anyway(self: Pin<&mut ChangeHistory>) -> QVariant;
+
+        /// Settles the receipt inbox's moves a crash left open, by the
+        /// facts and never by removing the last copy (US7, #333,
+        /// `docs/RECEIPT_INBOX.md` §6). Returns what the user should hear:
+        /// a list of objects with a `kind` (`unlinked`, `notWhereLinked`,
+        /// `bothKept`, `onlyPart` or `gone`), a shown `path` and, for
+        /// `bothKept`, the `other` path.
+        #[qinvokable]
+        #[cxx_name = "settleBills"]
+        fn settle_bills(self: &ChangeHistory) -> QVariant;
 
         /// Sets how long the book keeps its history: "forever" or a number
         /// of days. Returns an empty map, or the error's `code`.
@@ -124,29 +146,67 @@ impl qobject::ChangeHistory {
     }
 
     fn undo(self: Pin<&mut Self>) -> QVariant {
-        self.step(false)
+        self.step(false, false)
     }
 
     fn redo(self: Pin<&mut Self>) -> QVariant {
-        self.step(true)
+        self.step(true, false)
     }
 
-    /// Undoes or, with `redo`, redoes one change, and shows the new state.
-    fn step(mut self: Pin<&mut Self>, redo: bool) -> QVariant {
+    fn undo_anyway(self: Pin<&mut Self>) -> QVariant {
+        self.step(false, true)
+    }
+
+    fn settle_bills(&self) -> QVariant {
+        let Some(journal) = receipt_moves::journal() else {
+            return list(std::iter::empty());
+        };
+        let disk = receipt_moves::disk();
+        let mover = receipt_moves::Mover {
+            disk: &disk,
+            journal: &journal,
+        };
+        let settled = session::with_book(|book| mover.settle(book)).unwrap_or_default();
+        settled_object(&settled, &receipt_moves::shown)
+    }
+
+    /// Undoes or, with `redo`, redoes one change with the bills it filed
+    /// (`docs/RECEIPT_INBOX.md` §7), and shows the new state. `anyway`
+    /// leaves the bills where they are.
+    fn step(mut self: Pin<&mut Self>, redo: bool, anyway: bool) -> QVariant {
+        let journal = receipt_moves::journal();
+        let disk = receipt_moves::disk();
+        let archive = kassensturz_core::ai_switch::inbox_folders().map(|(_, archive)| archive);
         let result = change(|book, locale| {
-            if redo {
-                history::redo(book, &date_time, locale)
-            } else {
-                history::undo(book, &date_time, locale)
+            let stepped = receipt_moves::step(
+                book,
+                redo,
+                anyway,
+                journal.as_ref(),
+                &disk,
+                archive.as_deref(),
+                |book| {
+                    if redo {
+                        history::redo(book, &date_time, locale)
+                    } else {
+                        history::undo(book, &date_time, locale)
+                    }
+                },
+            );
+            match stepped {
+                Ok((done, moved)) => Ok(Ok((done, moved))),
+                Err(StepError::Blocked(stayed)) => Ok(Err(stayed)),
+                Err(StepError::Book(error)) => Err(error),
             }
         });
         match result {
-            Ok(Some(done)) => {
+            Ok(Ok((Some(done), moved))) => {
                 self.as_mut().refresh();
                 self.as_mut().changed();
-                map([("change", change_object(&done))])
+                stepped_object(&done, &moved)
             }
-            Ok(None) => map([]),
+            Ok(Ok((None, _))) => map([]),
+            Ok(Err(stayed)) => error_object(&blocked_text(redo, &stayed)),
             Err(error) => error_object(&error),
         }
     }
@@ -181,10 +241,18 @@ impl qobject::ChangeHistory {
 
     /// Shows `view`.
     fn show(mut self: Pin<&mut Self>, view: &View) {
+        let filed = filed_now();
+        let optional = |change: Option<&ChangeText>| {
+            change.map_or_else(|| map([]), |change| change_object_in(change, &filed))
+        };
         let mut state = self.as_mut().rust_mut();
         state.undo_change = optional(view.undo.as_ref());
         state.redo_change = optional(view.redo.as_ref());
-        state.changes = list(view.changes.iter().map(change_object));
+        state.changes = list(
+            view.changes
+                .iter()
+                .map(|change| change_object_in(change, &filed)),
+        );
         state.total = count(view.total);
         state.shown = count(view.changes.len());
         state.retention = QString::from(view.retention.as_str());
@@ -217,13 +285,87 @@ fn count(value: usize) -> i32 {
     i32::try_from(value).unwrap_or(i32::MAX)
 }
 
-/// The change as an object, or an empty one for none.
-fn optional(change: Option<&ChangeText>) -> QVariant {
-    change.map_or_else(|| map([]), change_object)
+/// What undo or redo did as QML reads it: the `change`, and the bills it
+/// moved (`bills`), those it left in the archive (`leftInArchive`) and the
+/// old copies it couldn't remove (`copiesLeft`), as shown paths.
+fn stepped_object(change: &ChangeText, moved: &Moved) -> QVariant {
+    let shown = |paths: &[std::path::PathBuf]| {
+        list(
+            paths
+                .iter()
+                .map(|path| text(&receipt_moves::shown(path))),
+        )
+    };
+    map([
+        ("change", change_object(change)),
+        ("bills", QVariant::from(&count(moved.moved))),
+        ("leftInArchive", shown(&moved.left_in_archive)),
+        ("copiesLeft", shown(&moved.copies_left)),
+    ])
+}
+
+/// What settling found, as QML reads it (`settleBills`), with paths as
+/// `shown` writes them.
+fn settled_object(settled: &[Settled], shown: &dyn Fn(&Path) -> String) -> QVariant {
+    list(settled.iter().filter_map(|settled| {
+        let (kind, path, other) = match settled {
+            Settled::Quiet => return None,
+            Settled::UnlinkedInArchive(path) => ("unlinked", path, None),
+            Settled::NotWhereLinked(path) => ("notWhereLinked", path, None),
+            Settled::BothKept(path, other) => ("bothKept", path, Some(other)),
+            Settled::OnlyPartLeft(path) => ("onlyPart", path, None),
+            Settled::Gone(path) => ("gone", path, None),
+        };
+        Some(map([
+            ("kind", text(kind)),
+            ("path", text(&shown(path))),
+            ("other", text(&other.map(|other| shown(other)).unwrap_or_default())),
+        ]))
+    }))
+}
+
+/// Why an undo or redo moved nothing (§7): `bill.undo-blocked` or
+/// `bill.redo-blocked`, with the bills' file names (`files`, one per line)
+/// and why the first can't move (`reason`).
+fn blocked_text(redo: bool, stayed: &[Stayed]) -> ErrorText {
+    let files: Vec<String> = stayed
+        .iter()
+        .map(|bill| receipt_moves::shown(&bill.file))
+        .collect();
+    ErrorText {
+        code: if redo {
+            "bill.redo-blocked"
+        } else {
+            "bill.undo-blocked"
+        },
+        params: vec![
+            ("files", files.join("\n")),
+            (
+                "reason",
+                stayed.first().map_or("", |bill| bill.reason).to_owned(),
+            ),
+        ],
+    }
+}
+
+/// How many bills each change filed, by its ID, from this computer's
+/// journal.
+fn filed_now() -> HashMap<String, usize> {
+    receipt_moves::journal()
+        .map(|journal| receipt_moves::filed_counts(&journal))
+        .unwrap_or_default()
 }
 
 fn change_object(change: &ChangeText) -> QVariant {
+    change_object_in(change, &filed_now())
+}
+
+/// The change as QML reads it; `filed` says how many bills it filed from
+/// the receipt inbox (`filedBills`, US7, #333).
+fn change_object_in(change: &ChangeText, filed: &HashMap<String, usize>) -> QVariant {
+    let filed = filed.get(&change.id).copied().unwrap_or(0);
     map([
+        ("filedBills", QVariant::from(&count(filed))),
         ("action", text(change.action)),
         ("madeAt", text(&change.made_at)),
         ("undone", QVariant::from(&change.undone)),

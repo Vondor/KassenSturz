@@ -45,6 +45,9 @@ impl From<StoreError> for HistoryError {
 /// One change of the history, as the screens show it.
 #[derive(Debug, PartialEq, Eq)]
 pub struct ChangeText {
+    /// The change's ID in the history, which the receipt inbox's journal
+    /// names it by (US7, #333).
+    pub id: String,
     /// What the user did, as a key `ChangeNames.qml` knows ([`action_key`]).
     pub action: &'static str,
     /// When, in the user's time zone and format.
@@ -318,6 +321,7 @@ fn change_text(
         None
     };
     Ok(ChangeText {
+        id: change.id.to_string(),
         action: action_key(change.action),
         made_at: when(change.made_at),
         undone: change.undone,

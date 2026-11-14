@@ -265,8 +265,21 @@ fn a_transaction_keeps_its_notes_numbers_status_and_tags() {
         .with_attachments(shopping.attachments()[1..].to_vec());
     book.update_transaction(&changed).expect("changed");
     assert_eq!(book.transaction(shopping.id()).expect("read"), changed);
+    // The receipt inbox (US7, #333) asks which transactions link a file,
+    // and which links the book keeps at all.
+    let receipt = "receipts/2026-10-05-grocery.pdf";
+    assert!(book.transactions_linking(receipt).expect("read").is_empty());
+    assert_eq!(
+        book.attachment_links().expect("read").into_iter().collect::<Vec<_>>(),
+        ["https://example.com/order/4711"]
+    );
     book.undo().expect("undone");
     assert_eq!(book.transaction(shopping.id()).expect("read"), shopping);
+    assert_eq!(
+        book.transactions_linking(receipt).expect("read"),
+        [shopping.id()]
+    );
+    assert_eq!(book.attachment_links().expect("read").len(), 2);
 
     // An unknown tag, or a tag twice, is refused.
     let stray = Transaction::new(

@@ -16,7 +16,7 @@
 //! only in a build with AI (D-039).
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use kassensturz_ai::PreparedRequest;
@@ -25,20 +25,23 @@ use kassensturz_ai_chat::{
 };
 use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{
-    AmountBasis, ChangeError, ChangeSet, Confirmed, EditError, FieldValue, ProposedChange, Slot,
-    SortWithRules, SplitPart, ToolError, every_word,
+    AmountBasis, BILL_TYPES, ChangeError, ChangeSet, Confirmed, EditError, FieldValue, FileBill,
+    ProposedChange, Slot, SortWithRules, SplitPart, ToolError, TotalCheck, every_word,
 };
 use kassensturz_core::ai_switch::Permissions;
+use kassensturz_core::receipt_inbox::{ArchivePlace, PlaceError, free_file_name};
 use kassensturz_core::{
     AccountKind, BudgetEvery, Date, ErrorParam, ErrorReport, MatchMode, Money, Rule,
 };
 use kassensturz_platform::Secret;
+use kassensturz_platform::bill_files::{Direction, Disk, Fingerprint, tidy_archive};
 use kassensturz_report::ComponentType;
 use kassensturz_store::{Book, StoreError};
 
 use crate::ai_settings::{Store, with_keys};
 use crate::errors::ErrorText;
 use crate::format::Locale;
+use crate::receipt_moves::{Moved, Mover, Stayed, unsorted_name};
 use crate::register::AmountWriter;
 use crate::rules::{Applied, ConditionForm, apply_examples, condition_form};
 use crate::transfer_prompt::{SuggestionText, suggestion_text};
@@ -737,6 +740,32 @@ pub enum ChangeView {
         /// What the link is called, empty for its file name.
         title: String,
     },
+    /// A bill from the receipt inbox filed into the archive and linked to
+    /// a transaction (US7, #333, D-752), with the transaction as the
+    /// register shows it and the bill's total checked against the bank's
+    /// (D-751).
+    FileBill {
+        /// Its day, in the user's format.
+        date: String,
+        /// Who was paid or paid, empty for none.
+        payee: String,
+        /// The user's account it is in.
+        account: String,
+        /// The bill's file name in the inbox.
+        file: String,
+        /// What the link is called, empty for its file name.
+        title: String,
+        /// Where it goes, from the archive's own name on:
+        /// `Archive/Checking account/Groceries/261105_RE-0042.pdf`; empty
+        /// while no archive is chosen.
+        goes_to: String,
+        /// What the bank booked, exact, without its sign.
+        booked: String,
+        /// The total the AI read on the bill, exact, empty for none.
+        bill_total: String,
+        /// `matches`, `differs` or `not-given`.
+        check: &'static str,
+    },
 }
 
 /// How the amount of a prepared budget was computed, written for the user
@@ -1184,7 +1213,86 @@ fn view_of(
             file: bill.file_name.clone(),
             title: bill.title.clone().unwrap_or_default(),
         },
+        ProposedChange::FileBill(bill) => file_bill_view(book, bill, locale)?,
     })
+}
+
+/// A bill to file as the check card shows it (`docs/RECEIPT_INBOX.md`
+/// §2): every figure written by Rust (D-065), the place as the move will
+/// choose it today.
+fn file_bill_view(
+    book: &Book,
+    bill: &FileBill,
+    locale: &impl Locale,
+) -> Result<ChangeView, StoreError> {
+    let written = |money: Money| {
+        AmountWriter::new(book, money.currency(), locale).map(|writer| writer.text(money).exact)
+    };
+    // The bank's sign is not the bill's (§4); the one amount without a
+    // positive twin is shown as it is.
+    let unsigned = |money: Money| {
+        if money.is_negative() {
+            money.checked_neg().unwrap_or(money)
+        } else {
+            money
+        }
+    };
+    let goes_to = crate::receipt_moves::archive()
+        .and_then(|archive| {
+            let disk = crate::receipt_moves::disk();
+            let to = archive_place(&archive, bill, &mut HashMap::new(), &disk).ok()?;
+            let shown = to.strip_prefix(archive.parent()?).ok()?;
+            Some(shown.to_string_lossy().into_owned())
+        })
+        .unwrap_or_default();
+    Ok(ChangeView::FileBill {
+        date: locale.short_date(bill.date),
+        payee: bill.payee.clone().unwrap_or_default(),
+        account: bill.account_name.clone(),
+        file: bill.file_name.clone(),
+        title: bill.title.clone().unwrap_or_default(),
+        goes_to,
+        booked: written(unsigned(bill.booked))?,
+        bill_total: bill.bill_total.map(written).transpose()?.unwrap_or_default(),
+        check: match bill.check {
+            TotalCheck::Matches => "matches",
+            TotalCheck::Differs => "differs",
+            TotalCheck::NotGiven => "not-given",
+        },
+    })
+}
+
+/// The place in `archive` where `bill` goes (`docs/RECEIPT_INBOX.md` §5):
+/// built by code from the book's names, under a name no file in its
+/// folder has, nor one of `taken`, the names given to the set's earlier
+/// bills, which it then holds too. Reads the folder; writes nothing.
+fn archive_place(
+    archive: &Path,
+    bill: &FileBill,
+    taken: &mut HashMap<PathBuf, Vec<String>>,
+    disk: &dyn Disk,
+) -> Result<PathBuf, &'static str> {
+    let place = ArchivePlace::new(
+        archive,
+        &bill.account_name,
+        bill.category.as_deref(),
+        &unsorted_name(),
+        bill.date,
+        &bill.name(),
+        bill.ending(),
+        &BILL_TYPES,
+    )
+    .map_err(|refused| match refused {
+        PlaceError::TooLong => "too-long",
+        PlaceError::Ending => "type",
+    })?;
+    let folder = place.folder(archive);
+    let names = taken
+        .entry(folder.clone())
+        .or_insert_with(|| disk.names_in(&folder).unwrap_or_default());
+    let name = free_file_name(&place.stem, &place.ending, names.iter().map(String::as_str));
+    names.push(name.clone());
+    Ok(folder.join(name))
 }
 
 /// One part of a split as the review shows it (D-737).
@@ -1346,7 +1454,138 @@ pub fn confirm_in(
     // The user may have turned a kind of change off since the set was
     // prepared (D-239).
     set.check_allowed(allowed)?;
+    if set.bills_to_file().next().is_some() {
+        // Bills to file need the folders and the journal: without them none
+        // is filed, and the rest of the set is made.
+        return confirm_with_bills_in(book, set, allowed, today, None).map(|_| ());
+    }
+    apply_confirmed(book, set, today)
+}
+
+/// The one place that makes a [`Confirmed`]: [`confirm_in`] and
+/// [`confirm_with_bills_in`], reached only by the confirm button, apply
+/// through it.
+fn apply_confirmed(book: &mut Book, set: ChangeSet, today: Date) -> Result<(), ChangeError> {
     set.apply_on(book, Confirmed::by_the_user(), today)
+}
+
+/// Where the bills of a confirmed set go, on this computer.
+pub struct Filing<'a> {
+    /// The inbox, as chosen.
+    pub inbox: PathBuf,
+    /// The archive, as chosen.
+    pub archive: PathBuf,
+    /// The files and the journal.
+    pub mover: Mover<'a>,
+}
+
+/// Applies `set` like [`confirm_in`] and files its bills from the inbox
+/// (US7, #333, D-752, `docs/RECEIPT_INBOX.md` §6): each is copied, checked
+/// and put in place in the archive before the book is saved, and its
+/// original is removed only after. A bill that can't be moved stays in the
+/// inbox, its change is dropped and it is reported; the rest of the set,
+/// which the user confirmed, is made. A book that can't save takes every
+/// copy back. Without `filing` (no folders or no journal on this computer)
+/// no bill is filed.
+pub fn confirm_with_bills_in(
+    book: &mut Book,
+    mut set: ChangeSet,
+    allowed: Permissions,
+    today: Date,
+    filing: Option<&Filing<'_>>,
+) -> Result<Moved, ChangeError> {
+    set.check_allowed(allowed)?;
+    let bills: Vec<FileBill> = set.bills_to_file().cloned().collect();
+    let Some(filing) = filing.filter(|_| !bills.is_empty()) else {
+        let stayed = bills
+            .into_iter()
+            .map(|bill| Stayed {
+                file: bill.file,
+                reason: "no-folders",
+            })
+            .collect();
+        set.put_bills_in_place(|_| None);
+        if !set.changes().is_empty() {
+            apply_confirmed(book, set, today)?;
+        }
+        return Ok(Moved {
+            stayed,
+            ..Moved::default()
+        });
+    };
+    let mover = &filing.mover;
+    let mut pending = Mover::start(Direction::File);
+    let mut taken = HashMap::new();
+    let inbox = std::fs::canonicalize(&filing.inbox).unwrap_or_else(|_| filing.inbox.clone());
+    let archive = std::fs::canonicalize(&filing.archive).ok();
+    for bill in &bills {
+        let to = if bill.file.parent() == Some(inbox.as_path()) {
+            archive_place(&filing.archive, bill, &mut taken, mover.disk)
+        } else {
+            // The user chose another inbox since the AI read this bill.
+            Err("other-inbox")
+        }
+        .and_then(|to| inside_archive(mover.disk, archive.as_deref(), to));
+        match to {
+            Ok(to) => {
+                let read = Fingerprint {
+                    size: bill.size,
+                    modified: bill.modified,
+                };
+                if !mover.place(&mut pending, &bill.file, &to, Some(read)) {
+                    tidy_archive(mover.disk, &to);
+                }
+            }
+            Err(reason) => pending.stayed.push(Stayed {
+                file: bill.file.clone(),
+                reason,
+            }),
+        }
+    }
+    let places: HashMap<PathBuf, String> = pending
+        .placed()
+        .filter_map(|placed| Some((placed.from.clone(), placed.to.to_str()?.to_owned())))
+        .collect();
+    set.put_bills_in_place(|bill| places.get(&bill.file).cloned());
+    if set.changes().is_empty() {
+        return Ok(Moved {
+            stayed: mover.take_back(pending),
+            ..Moved::default()
+        });
+    }
+    match apply_confirmed(book, set, today) {
+        Ok(()) => {
+            let change = book
+                .change_to_undo()
+                .ok()
+                .flatten()
+                .map(|change| change.id.to_string());
+            Ok(mover.finish(pending, change.as_deref()))
+        }
+        Err(error) => {
+            mover.take_back(pending);
+            Err(error)
+        }
+    }
+}
+
+/// `to` once its folder is made and lies inside the archive, its links
+/// resolved (§5): a link inside the archive named like an account can't
+/// lead a bill out of it.
+fn inside_archive(
+    disk: &dyn Disk,
+    archive: Option<&Path>,
+    to: PathBuf,
+) -> Result<PathBuf, &'static str> {
+    let archive = archive.ok_or("archive-gone")?;
+    let folder = to.parent().ok_or("outside")?;
+    disk.make_folders(folder).map_err(|_| "archive-gone")?;
+    let real = std::fs::canonicalize(folder).map_err(|_| "archive-gone")?;
+    if !real.starts_with(archive) || to.to_str().is_none() {
+        tidy_archive(disk, &to);
+        return Err("outside");
+    }
+    Ok(to)
 }
 
 #[cfg(test)]
@@ -2270,10 +2509,266 @@ mod tests {
         );
     }
 
+    /// US7, #333 end to end: a set from the MCP way in that splits a
+    /// transaction and files its bill is confirmed in one step, the bill
+    /// moves and is linked at its new place, and one Undo takes the split,
+    /// the link and the move back (`docs/RECEIPT_INBOX.md` §3, §6, §7).
+    #[test]
+    fn a_confirmed_bill_is_filed_with_its_split_and_one_undo_takes_both_back() {
+        use kassensturz_ai_tools::{Folders, PROPOSE_CHANGES, prepare_named_with_folders};
+        use kassensturz_platform::bill_files::{JOURNAL_FILE, Journal, RealDisk};
+
+        use crate::receipt_moves::{Mover, step};
+
+        fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
+            std::fs::hard_link(from, to)?;
+            std::fs::remove_file(from)
+        }
+
+        let mut book = space_colony();
+        // The user unlocked the amounts, as splitting needs (D-737).
+        let allowed = Permissions::all().with_lock(kassensturz_core::ai_switch::Field::Amount, false);
+        let (transaction, account) = book
+            .transactions()
+            .unwrap()
+            .into_iter()
+            .find_map(|transaction| {
+                let account = transaction.splits().iter().find_map(|split| {
+                    let id = split.account?;
+                    let account = book.account(id).ok()?;
+                    (account.kind == AccountKind::Asset
+                        && split.amount.is_negative()
+                        && transaction.splits().len() == 2)
+                        .then_some(account)
+                })?;
+                // A payment to a category, not a transfer.
+                let spent = transaction.splits().iter().any(|split| {
+                    split.account.is_some_and(|id| {
+                        book.account(id)
+                            .is_ok_and(|category| category.kind == AccountKind::Expense)
+                    })
+                });
+                if !spent {
+                    return None;
+                }
+                Some((transaction, account))
+            })
+            .expect("a payment from an account");
+        let category = book
+            .categories()
+            .unwrap()
+            .into_iter()
+            .map(|entry| entry.category)
+            .find(|category| {
+                category.kind == AccountKind::Expense && category.currency == account.currency
+            })
+            .expect("a category");
+        let total = transaction
+            .splits()
+            .iter()
+            .find(|split| split.account == Some(account.id))
+            .unwrap()
+            .amount;
+        let half = total.minor_units() / 2;
+        let digits = book.currency_minor_digits(total.currency()).unwrap();
+        // Exact decimal text of minor units, with the sign as the account
+        // sees it.
+        let figure = |minor: i64| {
+            let scale = 10_i64.pow(u32::from(digits));
+            let sign = if minor < 0 { "-" } else { "" };
+            let minor = minor.abs();
+            if digits == 0 {
+                format!("{sign}{minor}")
+            } else {
+                format!(
+                    "{sign}{}.{:0width$}",
+                    minor / scale,
+                    minor % scale,
+                    width = usize::from(digits)
+                )
+            }
+        };
+
+        let folder = TestFolder::new();
+        let inbox = folder.join("Inbox");
+        let archive = folder.join("Archive");
+        std::fs::create_dir_all(&inbox).unwrap();
+        std::fs::create_dir_all(&archive).unwrap();
+        let bill = inbox.join("RE-0042.pdf");
+        std::fs::write(&bill, b"%PDF synthetic").unwrap();
+        let folders = Folders {
+            bills: None,
+            inbox: Some(inbox.clone()),
+            archive: Some(archive.clone()),
+        };
+        let proposal = prepare_named_with_folders(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({
+                "split_transactions": [{
+                    "transaction_id": transaction.id().to_string(),
+                    "parts": [
+                        {"category_id": category.id.to_string(), "amount": figure(half)},
+                        {"category_id": category.id.to_string(), "amount": figure(total.minor_units() - half)},
+                    ],
+                }],
+                "file_bills": [{
+                    "transaction_id": transaction.id().to_string(),
+                    "file": "RE-0042.pdf",
+                    "bill_total": figure(-total.minor_units()),
+                }],
+            }),
+            allowed,
+            TODAY,
+            &folders,
+        )
+        .unwrap();
+        let history = book.history().unwrap().len();
+
+        let disk = RealDisk::new(rename);
+        let journal = Journal::at(folder.join(JOURNAL_FILE));
+        let filing = Filing {
+            inbox: inbox.clone(),
+            archive: archive.clone(),
+            mover: Mover {
+                disk: &disk,
+                journal: &journal,
+            },
+        };
+        let moved = confirm_with_bills_in(
+            &mut book,
+            proposal.changes,
+            allowed,
+            TODAY,
+            Some(&filing),
+        )
+        .unwrap();
+        assert_eq!((moved.moved, moved.stayed.len()), (1, 0), "{moved:?}");
+        assert_eq!(book.history().unwrap().len(), history + 1, "one change");
+        assert!(!bill.exists(), "the original went once the book was saved");
+        let stored = book.transaction(transaction.id()).unwrap();
+        let link = &stored.attachments()[0].link;
+        let filed = PathBuf::from(link);
+        assert!(filed.starts_with(&archive) && filed.exists(), "{link}");
+        assert!(filed.starts_with(
+            archive.join(kassensturz_core::receipt_inbox::sanitise(&account.name))
+        ));
+        assert_eq!(std::fs::read(&filed).unwrap(), b"%PDF synthetic");
+        assert_eq!(stored.splits().len(), 3, "split as well");
+
+        // One Undo: the split, the link and the move.
+        let (_, moved) = step(&mut book, false, false, Some(&journal), &disk, Some(&archive), |book| {
+            book.undo()
+        })
+        .map_err(|_| "blocked")
+        .unwrap();
+        assert_eq!(moved.moved, 1);
+        assert!(bill.exists() && !filed.exists());
+        assert_eq!(book.transaction(transaction.id()).unwrap(), transaction);
+        assert_eq!(std::fs::read_dir(&archive).unwrap().count(), 0, "tidied");
+    }
+
+    #[test]
+    fn a_bill_that_changed_stays_and_the_rest_of_the_set_is_made() {
+        // §6 step 1: the file changed after the AI read it.
+        use kassensturz_ai_tools::{Folders, PROPOSE_CHANGES, prepare_named_with_folders};
+        use kassensturz_platform::bill_files::{JOURNAL_FILE, Journal, RealDisk};
+
+        use crate::receipt_moves::Mover;
+
+        fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
+            std::fs::hard_link(from, to)?;
+            std::fs::remove_file(from)
+        }
+
+        let mut book = space_colony();
+        let transaction = book.transactions().unwrap().remove(0);
+        let folder = TestFolder::new();
+        let inbox = folder.join("Inbox");
+        let archive = folder.join("Archive");
+        std::fs::create_dir_all(&inbox).unwrap();
+        std::fs::create_dir_all(&archive).unwrap();
+        let bill = inbox.join("RE-0042.pdf");
+        std::fs::write(&bill, b"read by the AI").unwrap();
+        let proposal = prepare_named_with_folders(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({
+                "file_bills": [{"transaction_id": transaction.id().to_string(), "file": "RE-0042.pdf"}],
+                "new_categories": [{"key": "c", "name": "Filed on the side"}],
+            }),
+            Permissions::all(),
+            TODAY,
+            &Folders {
+                bills: None,
+                inbox: Some(inbox.clone()),
+                archive: Some(archive.clone()),
+            },
+        )
+        .unwrap();
+        std::fs::write(&bill, b"changed afterwards, longer").unwrap();
+        let disk = RealDisk::new(rename);
+        let journal = Journal::at(folder.join(JOURNAL_FILE));
+        let filing = Filing {
+            inbox: inbox.clone(),
+            archive: archive.clone(),
+            mover: Mover {
+                disk: &disk,
+                journal: &journal,
+            },
+        };
+        let moved = confirm_with_bills_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            TODAY,
+            Some(&filing),
+        )
+        .unwrap();
+        assert_eq!(moved.moved, 0);
+        assert_eq!(moved.stayed[0].reason, "changed");
+        assert_eq!(std::fs::read(&bill).unwrap(), b"changed afterwards, longer");
+        assert_eq!(std::fs::read_dir(&archive).unwrap().count(), 0);
+        assert!(book.transaction(transaction.id()).unwrap().attachments().is_empty());
+        assert!(
+            book.categories()
+                .unwrap()
+                .iter()
+                .any(|entry| entry.category.name == "Filed on the side"),
+            "the rest of the set is made"
+        );
+
+        // Without folders on this computer, nothing is filed either.
+        let again = prepare_named_with_folders(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({"file_bills": [{"transaction_id": transaction.id().to_string(), "file": "RE-0042.pdf"}]}),
+            Permissions::all(),
+            TODAY,
+            &Folders {
+                bills: None,
+                inbox: Some(inbox.clone()),
+                archive: Some(archive.clone()),
+            },
+        )
+        .unwrap()
+        .changes;
+        let moved = confirm_with_bills_in(
+            &mut book,
+            again,
+            Permissions::all(),
+            TODAY,
+            None,
+        )
+        .unwrap();
+        assert_eq!(moved.stayed[0].reason, "no-folders");
+        assert!(bill.exists());
+    }
+
     #[test]
     fn only_the_confirm_function_makes_a_confirmation() {
         // M5.12 holds the whole workspace to this; here the app's own
-        // sources: one call, in `confirm_in` (D-171).
+        // sources: one call, in `apply_confirmed` (D-171).
         let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let mut found = Vec::new();
         for entry in std::fs::read_dir(folder).unwrap() {

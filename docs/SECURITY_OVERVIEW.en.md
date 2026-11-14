@@ -77,6 +77,8 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | When a sync program replaced the open book, the message was unclear | B-289 | #1000 |
 | A notice about very many reports was cut off | B-290 | #1001, #1003 |
 | Windows libraries looked for files in a folder (C:\Craft) that any user can create | B-293 | #1015 |
+| The Windows package held 131 programs nobody needs (such as ffmpeg and openssl), each one more that could be misused | B-292 | #1014 |
+| When the drive was full, an import ended with a message that said neither what happened nor what to do | B-282 | #1007 |
 
 No finding revealed a PIN. Only one (B-252) could have let data leave the computer, and only if someone had first forged the settings file by hand.
 

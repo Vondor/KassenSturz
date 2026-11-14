@@ -94,7 +94,7 @@ Kirigami.Page {
         case "book.read-only":
             return i18nContext.i18nc("@info", "The folder was shared with KassenSturz for reading only, or the drive is read-only. Choose the folder again and allow changes, or choose a folder you can write to. The book wasn't changed.");
         case "book.write-failed":
-            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive was disconnected or the access ended. Your earlier work is safe in the book. Reconnect the drive or choose the folder again, then try again.");
+            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive is full or was disconnected, or the access ended. Your earlier work is safe in the book. Free up space, reconnect the drive or choose the folder again, then try again.");
         case "book.replaced":
             return i18nContext.i18nc("@info", "While KassenSturz had the book open, another program put a different file in its place, most likely a sync program such as Nextcloud or Syncthing. Your latest change was not saved, because it would have gone into the old file. Choose \"Try again\" to open the file that is in the folder now, and enter your latest change again if it is missing. If the sync program left a copy next to the book with \"conflicted copy\" in its name, that file holds the other version of the book: open it with \"Open another book…\" to compare the two.");
         case "book.outside-test":

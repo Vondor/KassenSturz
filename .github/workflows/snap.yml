@@ -117,14 +117,20 @@ jobs:
           set -u
           sudo snap install --dangerous kassensturz.snap
           sudo apt-get install -y xvfb
-          status=0
-          xvfb-run -a timeout 30 env KASSENSTURZ_DEBUG_LOG=1 QT_QUICK_BACKEND=software \
-            snap run kassensturz > start.log 2>&1 || status=$?
+          # xvfb-run's own exit status replaces the program's one when it
+          # cannot remove its temporary folder at the end ("problem while
+          # cleaning up temporary directory", seen on main twice), so the
+          # status of the program itself is written to a file (D-790).
+          rm -f start.status
+          xvfb-run -a sh -c 'timeout 30 env KASSENSTURZ_DEBUG_LOG=1 QT_QUICK_BACKEND=software snap run kassensturz; echo $? > start.status' \
+            > start.log 2>&1 || true
+          status=$(cat start.status 2>/dev/null || echo missing)
+          echo "status of the app: $status"
           echo "--- what the app printed (tail) ---"
           tail -n 30 start.log
           log="$HOME/snap/kassensturz/current/.local/share/io.github.vondor.KassenSturz/debug-log"
           ls -lR "$HOME/snap/kassensturz" | head -40 || true
-          test "$status" -eq 124
+          test "$status" = 124
       - name: The bank libraries load inside the snap
         run: |
           set -eu

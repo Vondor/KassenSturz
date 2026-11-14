@@ -7,6 +7,7 @@
 //! with a hidden character can't stand next to the real one.
 
 use crate::error::StoreError;
+use unicode_normalization::UnicodeNormalization;
 
 /// The most characters the name of an account or category may have,
 /// without the spaces around it.
@@ -64,7 +65,7 @@ pub(crate) fn check_account_name(name: &str) -> Result<(), StoreError> {
     if name.chars().any(is_invisible) {
         return Err(refused("invisible"));
     }
-    if name.chars().count() > MAX_ACCOUNT_NAME_CHARS {
+    if name.nfc().count() > MAX_ACCOUNT_NAME_CHARS {
         return Err(refused("too-long"));
     }
     Ok(())
@@ -87,29 +88,41 @@ pub(crate) fn check_hidden_text(text: &str, field: &'static str) -> Result<(), S
 
 /// What two names are compared by: without the spaces around them, with
 /// each run of spaces inside as one, without joiners, variation selectors
-/// and characters that show as nothing, and in lower case. Two names with
-/// the same key look the same.
+/// and characters that show as nothing, in Unicode's composed form (NFC,
+/// D-782), so "é" typed as "e" and a combining accent is "é", and in lower
+/// case. Two names with the same key look the same.
 pub fn account_name_key(name: &str) -> String {
     name.chars()
         .filter(|&c| {
             !is_invisible(c) && !matches!(c, '\u{200C}' | '\u{200D}' | '\u{FE00}'..='\u{FE0F}')
         })
+        .nfc()
         .collect::<String>()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
         .to_lowercase()
+        .nfc()
+        .collect()
+}
+
+/// `name` as the book stores it: in Unicode's composed form (NFC, D-782),
+/// which looks the same and is what most keyboards type.
+pub fn stored_account_name(name: &str) -> String {
+    name.nfc().collect()
 }
 
 /// `wanted` made into a name the book keeps, for a name another program
 /// wrote: control characters such as a line break become spaces, characters
-/// that show as nothing go, and a name longer than
+/// that show as nothing go, the name is composed (NFC, D-782), and a name
+/// longer than
 /// [`MAX_ACCOUNT_NAME_CHARS`] is cut. May be empty.
 pub fn fitting_account_name(wanted: &str) -> String {
     let cleaned: String = wanted
         .chars()
         .filter(|&c| !is_invisible(c))
         .map(|c| if c.is_control() { ' ' } else { c })
+        .nfc()
         .collect();
     let cleaned = cleaned.trim();
     cleaned
@@ -139,6 +152,31 @@ mod tests {
         }
         assert_eq!(account_name_key("Daily  money"), "daily money");
         assert_ne!(account_name_key("Giro 2"), giro);
+        // An accent typed as its own character is the accented letter
+        // (D-782), also in capitals.
+        assert_eq!(
+            account_name_key("Giro\u{301}"),
+            account_name_key("Gir\u{F3}")
+        );
+        assert_eq!(
+            account_name_key("Cafe\u{301}"),
+            account_name_key("CAF\u{C9}")
+        );
+        assert_ne!(account_name_key("Gir\u{F3}"), giro);
+    }
+
+    #[test]
+    fn a_name_is_stored_and_fitted_composed() {
+        assert_eq!(stored_account_name("Cafe\u{301}"), "Caf\u{E9}");
+        assert_eq!(stored_account_name("Caf\u{E9}"), "Caf\u{E9}");
+        assert_eq!(fitting_account_name("Giro\u{301}\n"), "Gir\u{F3}");
+        // 200 letters with an accent typed on its own each still fit.
+        let long = "e\u{301}".repeat(MAX_ACCOUNT_NAME_CHARS);
+        assert!(check_account_name(&long).is_ok());
+        assert_eq!(
+            fitting_account_name(&long).chars().count(),
+            MAX_ACCOUNT_NAME_CHARS
+        );
     }
 
     #[test]

@@ -63,7 +63,10 @@ pub use moving::{
     MoveRefused, MoveStep, MoveSteps, Moved, book_file_name, move_backup_stamp, move_backups_of,
     plan_move, remove_left_book,
 };
-pub use names::{MAX_ACCOUNT_NAME_CHARS, account_name_key, fitting_account_name, is_invisible};
+pub use names::{
+    MAX_ACCOUNT_NAME_CHARS, account_name_key, fitting_account_name, is_invisible,
+    stored_account_name,
+};
 pub use recurring_moves::{
     JoinedTransfers, NeedsYou, NewRecurringMove, NotJoined, RecurringJoin, RecurringJoins,
     RefusedJoin,
@@ -454,7 +457,7 @@ impl Book {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     account.id.to_bytes(),
-                    account.name,
+                    names::stored_account_name(&account.name),
                     kind_to_text(account.kind),
                     account.currency.as_str(),
                     account.account_type.map(type_to_text),
@@ -621,7 +624,7 @@ impl Book {
         self.as_one_action(action, |book| {
             book.conn.execute(
                 "UPDATE accounts SET name = ?2 WHERE id = ?1",
-                params![id.to_bytes(), name],
+                params![id.to_bytes(), names::stored_account_name(name)],
             )?;
             Ok(())
         })

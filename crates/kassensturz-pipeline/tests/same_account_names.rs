@@ -152,3 +152,47 @@ fn a_look_alike_name_gets_a_clean_bank_name_after_it() {
     names.sort();
     assert_eq!(names, ["Daily money", "Daily money (Harbor Savings)"]);
 }
+
+/// D-782: a KMyMoney name typed with a combining accent is the same name as
+/// one with the accented letter, so the second gets its bank's name after
+/// it; a name that only had to be composed comes in composed and is not
+/// reported as renamed.
+#[test]
+fn a_name_with_a_combining_accent_is_the_same_name() {
+    let mut file = two_of_one_name(true);
+    let mut first = true;
+    for account in &mut file.accounts {
+        if account.name == "Daily money" {
+            account.name = if first {
+                "Caf\u{E9} money".into()
+            } else {
+                "Cafe\u{301} money".into()
+            };
+            first = false;
+        }
+    }
+    let mut book = Book::create_in_memory().expect("book created");
+    let report = fill_book_from(&mut book, &file, &HashMap::new()).expect("both come in");
+    let mut names: Vec<String> = account_names(&book)
+        .into_iter()
+        .filter(|name| name.starts_with("Caf"))
+        .collect();
+    names.sort();
+    assert_eq!(
+        names,
+        ["Caf\u{E9} money", "Caf\u{E9} money (Harbor Savings)"]
+    );
+    assert_eq!(report.renamed.len(), 1, "{:?}", report.renamed);
+
+    // Alone, it is only composed.
+    let mut file = two_of_one_name(true);
+    for account in &mut file.accounts {
+        if account.name == "Daily money" && account.parent.is_some() {
+            account.name = "Cafe\u{301} money".into();
+        }
+    }
+    let mut book = Book::create_in_memory().expect("book created");
+    let report = fill_book_from(&mut book, &file, &HashMap::new()).expect("filled");
+    assert!(account_names(&book).contains(&"Caf\u{E9} money".to_owned()));
+    assert!(report.renamed.is_empty(), "{:?}", report.renamed);
+}

@@ -1241,6 +1241,23 @@ fn account_names_are_not_empty_and_not_shared() {
     // Categories can share names with accounts: they get their own rules
     // with the category tree (M1.5).
     account(&mut book, "Checking", AccountKind::Expense, EUR);
+
+    // An accent typed as its own character is the same name, and the book
+    // keeps the composed form (D-782).
+    let cafe = typed_account(&mut book, "Cafe\u{301}", AccountType::Cash).expect("added");
+    assert_eq!(book.account(cafe).expect("read").name, "Caf\u{E9}");
+    assert!(matches!(
+        typed_account(&mut book, "Caf\u{E9}", AccountType::Cash),
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == cafe
+    ));
+    let giro = typed_account(&mut book, "Gir\u{F3}", AccountType::Checking).expect("added");
+    assert!(matches!(
+        typed_account(&mut book, "Giro\u{301}", AccountType::Checking),
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == giro
+    ));
+    book.rename_account(cafe, "Cafe\u{301} corner")
+        .expect("renamed");
+    assert_eq!(book.account(cafe).expect("read").name, "Caf\u{E9} corner");
 }
 
 #[test]

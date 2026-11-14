@@ -23,6 +23,7 @@ use kassensturz_import::{
 };
 use kassensturz_store::{
     Book, MAX_ACCOUNT_NAME_CHARS, StoreError, account_name_key, fitting_account_name,
+    stored_account_name,
 };
 
 use crate::book::fill_book;
@@ -801,7 +802,8 @@ impl Mapper {
                 let cut: String = wanted.chars().take(room).collect();
                 name = format!("{}{suffix}", cut.trim_end());
             }
-            if name != account.name.trim() {
+            // Only composing it (NFC, D-782) changes nothing anyone sees.
+            if name != stored_account_name(account.name.trim()) {
                 self.renamed.push((id, account.name.clone()));
             }
             accounts.push(Account {

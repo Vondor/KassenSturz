@@ -3488,3 +3488,38 @@ fn a_kmymoney_account_renamed_says_why() {
     );
     assert!(!created.contains("whose name was taken"), "{created}");
 }
+
+/// D-782 (round 8): an accent typed as its own character makes no second
+/// account of the same name.
+#[test]
+fn an_account_name_with_a_combining_accent_is_the_same_name() {
+    let session = household();
+    session.ok(&[
+        "account",
+        "add",
+        "Gir\u{F3}",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    let refused = session.cli(&[
+        "account",
+        "add",
+        "Giro\u{301}",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(
+        refused
+            .err
+            .starts_with("error: store.duplicate-account-name\n"),
+        "{}",
+        refused.err
+    );
+    let accounts = session.ok(&["account", "list"]);
+    assert_eq!(accounts.matches("Gir\u{F3}").count(), 1, "{accounts}");
+}

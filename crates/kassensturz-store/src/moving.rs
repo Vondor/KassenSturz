@@ -29,7 +29,7 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::lock::{self, lock_path};
 use crate::reader::BUSY_WAIT;
-use crate::{Book, Computer, StoreError, is_book_file};
+use crate::{Book, Computer, Corruption, StoreError, is_book_file};
 
 /// How many "before moving" backups of each book are kept, apart from the
 /// ten automatic ones (D-731).
@@ -465,6 +465,12 @@ impl Book {
             let cause = MoveCause::Store(StoreError::Io(ErrorKind::ResourceBusy));
             return Err(fail(self, MoveStep::Lock, cause, None));
         }
+        // A book without file locks whose lock file was taken away must not
+        // be moved, and its old file not removed, while another program may
+        // write to it (D-776).
+        if let Err(error) = self.check_lock_is_ours() {
+            return Err(fail(self, MoveStep::Lock, MoveCause::Store(error), None));
+        }
         let mut note = MoveNote {
             from: plan.from.clone(),
             to: plan.to.clone(),
@@ -717,14 +723,26 @@ pub fn remove_left_book(path: &Path, computer: &Computer) -> Result<(), StoreErr
         return Err(StoreError::NotABook);
     }
     for leftover in ["-journal", "-wal", "-shm"] {
-        if exists(&with_suffix(path, leftover)) {
-            // A journal means the book may need it to be whole; it stays.
+        let there = with_suffix(path, leftover);
+        // A journal means the book may need it to be whole; it stays. One
+        // with a zero header (a program killed before it was synced) leaves
+        // the book whole and doesn't count, as for readers (D-776).
+        let needed = if leftover == "-journal" {
+            crate::lockless::journal_is_hot(&there)
+        } else {
+            exists(&there)
+        };
+        if needed {
             return Err(StoreError::Io(ErrorKind::ResourceBusy));
         }
     }
     let lock_file = lock_path(path);
     if let Some(found) = lock::read(&lock_file)?
-        && (lock::held_here(&found) || found.computer.as_deref() != Some(computer.name.as_str()))
+        && (lock::held_here(&found)
+            || found.computer.as_deref() != Some(computer.name.as_str())
+            // A program of this computer that may still run, in another
+            // process-number space, is not "left behind" (D-776).
+            || found.stays_locked_here(path, &computer.name))
     {
         return Err(StoreError::Locked(found));
     }
@@ -892,25 +910,24 @@ fn prune_move_backups(folder: &Path, stem: &str, just_made: &Path) {
 }
 
 /// A read-only connection to the book at `path`, beside the app's own.
-fn open_reader(path: &Path) -> Result<Connection, MoveCause> {
-    let conn = Connection::open_with_flags(
+fn open_reader(path: &Path) -> Result<crate::lockless::ReadOnly, MoveCause> {
+    // Where the folder refuses file locks this reads a private copy
+    // (Q-570, D-776).
+    let read = crate::lockless::open_read_only(
         path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )?;
-    conn.busy_timeout(BUSY_WAIT)?;
-    Ok(conn)
+    read.busy_timeout(BUSY_WAIT)?;
+    Ok(read)
 }
 
 /// Copies the database `reader` has open into `to`, the empty file claimed
 /// for it, and makes sure the copy is on the disk.
 fn copy_into(reader: &Connection, to: &Path) -> Result<(), StoreError> {
-    let name = to
-        .to_str()
-        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
     // VACUUM INTO writes into an empty file, and reads the book in one read
     // transaction, so the copy is one state of it
     // (sqlite.org/lang_vacuum.html).
-    reader.execute("VACUUM INTO ?1", [name])?;
+    crate::backup::vacuum_into(reader, to)?;
     // Windows syncs only files opened for writing.
     OpenOptions::new().write(true).open(to)?.sync_all()?;
     Ok(())
@@ -943,7 +960,15 @@ fn check_copy(reader: &Connection, book: &Book, copy: &Path) -> Result<(), MoveC
     }
     // The balances, computed by KassenSturz's own code from each file
     // (AGENTS.md §2.1).
-    let copy_book = Book::open_to_read(copy)?;
+    let copy_book = match Book::open_to_read(copy) {
+        Ok(book) => book,
+        // A copy that doesn't pass the checks of every open (B-291) is
+        // damaged, however it got that way.
+        Err(StoreError::Corrupt(Corruption::DamagedFile | Corruption::UnbalancedTransaction)) => {
+            return differs(Difference::Damaged);
+        }
+        Err(error) => return Err(error.into()),
+    };
     let accounts = book.all_accounts()?;
     if copy_book.all_accounts()? != accounts {
         return differs(Difference::Accounts);

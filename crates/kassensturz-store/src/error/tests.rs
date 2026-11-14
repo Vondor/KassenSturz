@@ -138,6 +138,8 @@ fn examples() -> Vec<ErrorReport> {
         Corruption::BadRuleTree(rule),
         Corruption::BadSchedule(kassensturz_core::ScheduleId::generate()),
         Corruption::UnexpectedLayout,
+        Corruption::DamagedFile,
+        Corruption::UnbalancedTransaction,
     ];
     let store_errors = [
         StoreError::AlreadyExists {
@@ -152,12 +154,17 @@ fn examples() -> Vec<ErrorReport> {
         locked(),
         StoreError::BackupFailed(Box::new(StoreError::Io(ErrorKind::StorageFull))),
         StoreError::WriteFailed,
+        StoreError::LockLost,
         StoreError::JournalModeRefused { mode: text("wal") },
         StoreError::UnlistedCurrency(USD),
         StoreError::WithdrawnCurrency(USD),
         StoreError::UnknownCurrency(USD),
         StoreError::UnknownAccount(account),
         StoreError::EmptyAccountName,
+        StoreError::AccountName {
+            reason: "invisible",
+            max_chars: 200,
+        },
         StoreError::IncompleteBankLink(account),
         StoreError::BankAccountAlreadyLinked { existing: account },
         StoreError::NotLinked(account),
@@ -199,7 +206,10 @@ fn examples() -> Vec<ErrorReport> {
             limit: "budgets",
             max: 1_000,
         },
-        StoreError::DuplicateAccountName { existing: account },
+        StoreError::DuplicateAccountName {
+            existing: account,
+            name: text("Daily money"),
+        },
         StoreError::AccountTypeMismatch {
             account_type: AccountType::CreditCard,
             kind: AccountKind::Asset,
@@ -211,6 +221,8 @@ fn examples() -> Vec<ErrorReport> {
             currency: CurrencyCode::new("CHF").expect("valid code"),
         },
         StoreError::AccountClosed(account),
+        StoreError::NothingMoves(account),
+        StoreError::ZeroAmount,
         StoreError::AccountNotEmpty {
             account,
             balance: money,
@@ -265,6 +277,10 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::UnknownRule(rule),
         StoreError::RuleIdInUse(rule),
         StoreError::EmptyRuleName,
+        StoreError::HiddenText {
+            field: "payee",
+            reason: "invisible",
+        },
         StoreError::DuplicateRuleName { existing: rule },
         StoreError::RuleInsideItself(rule),
         StoreError::RuleNeedsCategory(account),

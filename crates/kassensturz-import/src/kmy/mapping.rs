@@ -8,19 +8,20 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use kassensturz_core::{
-    AccountKind, AccountType, Currency, CurrencyCode, Date, ImportedDetails, MatchMode, PartStatus,
-    PayeeRecognition, TextField, TextOperator,
+    AccountKind, AccountType, Currency, CurrencyCode, Date, ImportedDetails, MAX_SCHEDULE_EVERY,
+    MatchMode, PartStatus, PayeeRecognition, ScheduleUnit, TextField, TextOperator,
 };
 
 use super::fraction::Fraction;
 use super::records::{
-    RawAccount, RawCurrency, RawPayee, RawPrice, RawSplit, RawTransaction, Records, Skips,
+    RawAccount, RawCurrency, RawPayee, RawPrice, RawSchedule, RawSplit, RawTransaction, Records,
+    Skips,
 };
 use crate::amount;
 use crate::book::{
-    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRate, BookRule, BookTag,
-    BookTransaction, ImportedBook, MAX_REPORTS, Replacement, Skipped, SkippedData,
-    UnlistedCurrency,
+    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRate, BookRule,
+    BookSchedule, BookTag, BookTransaction, BookWeekend, ImportedBook, MAX_REPORTS, Replacement,
+    Skipped, SkippedData, UnlistedCurrency,
 };
 use crate::error::ImportError;
 
@@ -107,6 +108,21 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
         transactions.push(transaction);
     }
 
+    let mut schedules = Vec::with_capacity(records.schedules.len());
+    for raw in &records.schedules {
+        match schedule(
+            raw,
+            &accounts,
+            &mut currencies,
+            &payees,
+            &tag_keys,
+            &mut skipped,
+        )? {
+            Some(schedule) => schedules.push(schedule),
+            None => skipped.add(SkippedData::Schedules),
+        }
+    }
+
     let mut rates = Vec::new();
     let mut seen = HashSet::new();
     for price in &records.prices {
@@ -146,6 +162,7 @@ pub(super) fn book(records: Records) -> Result<ImportedBook, ImportError> {
         tags,
         transactions,
         rates,
+        schedules,
         unlisted: currencies
             .unlisted
             .into_values()
@@ -432,6 +449,88 @@ fn transaction(
         note: text(&raw.memo),
         entered_on,
     })
+}
+
+/// KMyMoney's code for a schedule that repeats every so many weeks
+/// (`occurence`), as the sample of a book with one schedule of each kind
+/// shows (#919). Only the codes the samples show are read: a schedule with
+/// any other is left out and counted, never guessed at.
+const EVERY_WEEKS: &str = "4";
+/// The code for every so many months.
+const EVERY_MONTHS: &str = "32";
+/// The code for every so many years.
+const EVERY_YEARS: &str = "16384";
+
+/// The scheduled transaction `raw` as a planned payment's plan, or `None`
+/// if the book can't hold it: it repeats in a way the samples don't show
+/// or by more than a plan can, its payment is missing or has no parts, or
+/// the file's counts are out of range (#919). A value that isn't what the
+/// file always writes (a date, a fraction) is an error, as for a
+/// transaction.
+fn schedule(
+    raw: &RawSchedule,
+    accounts: &Accounts<'_>,
+    currencies: &mut Currencies<'_>,
+    payees: &HashMap<&str, &str>,
+    tags: &HashSet<&str>,
+    skipped: &mut Skips,
+) -> Result<Option<BookSchedule>, ImportError> {
+    let at_schedule = |error: ImportError| error.at(raw.line);
+    let unit = match raw.occurrence.trim() {
+        EVERY_WEEKS => ScheduleUnit::Week,
+        EVERY_MONTHS => ScheduleUnit::Month,
+        EVERY_YEARS => ScheduleUnit::Year,
+        _ => return Ok(None),
+    };
+    let every = match raw.multiplier.trim().parse::<u8>() {
+        Ok(every) if (1..=MAX_SCHEDULE_EVERY).contains(&every) => every,
+        _ => return Ok(None),
+    };
+    let last_day_of_month = flag(&raw.last_day);
+    if last_day_of_month && unit != ScheduleUnit::Month {
+        return Ok(None);
+    }
+    let weekend = match raw.weekend.trim() {
+        "0" => BookWeekend::Before,
+        "1" => BookWeekend::After,
+        "2" => BookWeekend::Unchanged,
+        _ => return Ok(None),
+    };
+    let Some(payment) = &raw.transaction else {
+        return Ok(None);
+    };
+    if payment.splits.is_empty() {
+        return Ok(None);
+    }
+    if raw.start.trim().is_empty() {
+        return Ok(None);
+    }
+    let first_due = date(raw.start.trim()).map_err(at_schedule)?;
+    let optional_date = |text: &str| match text.trim() {
+        "" => Ok(None),
+        text => date(text).map(Some).map_err(at_schedule),
+    };
+    let payment = transaction(payment, accounts, currencies, payees, tags, skipped)?;
+    Ok(Some(BookSchedule {
+        key: raw.id.clone(),
+        name: raw.name.clone(),
+        payment,
+        unit,
+        every,
+        first_due,
+        ends_on: optional_date(&raw.end)?,
+        last_day_of_month,
+        last_payment: optional_date(&raw.last_payment)?,
+        fixed_amount: flag(&raw.fixed),
+        auto_enter: flag(&raw.auto_enter),
+        weekend,
+    }))
+}
+
+/// Whether a flag of the file is set: `1` in a `.kmy` file, `Y` in its
+/// SQLite file.
+fn flag(text: &str) -> bool {
+    matches!(text.trim(), "1" | "Y" | "y")
 }
 
 /// One part of a transaction in `currency`.

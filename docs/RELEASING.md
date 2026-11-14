@@ -66,4 +66,4 @@ A pull request that changes `.github/workflows/release.yml` or `tools/build-vers
 
 ## What a tester's file is not
 
-It is not signed, and it is not on Flathub (M7b). The Windows installer is unsigned too and shows SmartScreen's warning (D-542).
+It is not signed. There is no Flathub submission (D-765); Linux users get the snap (`docs/SNAP.md`) or this Flatpak bundle as a direct download. The Windows installer is unsigned too and shows SmartScreen's warning (D-542).

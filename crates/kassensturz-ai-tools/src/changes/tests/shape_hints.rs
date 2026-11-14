@@ -18,7 +18,7 @@ fn refused(book: &Book, arguments: &Value) -> (Option<&'static str>, String, Opt
         arguments,
         open,
         Some(Date::constant(2026, 11, 14)),
-        None,
+        &super::super::Folders::default(),
     )
     .expect_err("refused");
     let item = match &error {

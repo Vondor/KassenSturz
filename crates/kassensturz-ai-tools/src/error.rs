@@ -172,6 +172,16 @@ pub enum ToolError {
     BillType,
     /// A bill to attach is not a file in the bill folder.
     BillNotFound,
+    /// No receipt inbox is chosen on this computer, so no bill can be
+    /// filed from it (US7, #333).
+    NoInbox,
+    /// No archive for the receipt inbox is chosen on this computer.
+    NoArchive,
+    /// A bill to file is larger than [`crate::MAX_BILL_BYTES`], or the
+    /// set's bills together are larger than [`crate::MAX_FILED_BYTES`].
+    BillTooBig,
+    /// A bill to file is linked to a transaction already.
+    BillAlreadyFiled,
     /// The same bill is attached to the same transaction twice.
     Duplicate,
     /// The parts of a split the AI prepared don't add up to what the
@@ -615,6 +625,12 @@ impl Report for ToolError {
             Self::BillOutsideFolder => ErrorReport::new("ai-tools.bill-outside-folder"),
             Self::BillType => ErrorReport::new("ai-tools.bill-type"),
             Self::BillNotFound => ErrorReport::new("ai-tools.bill-not-found"),
+            Self::NoInbox => ErrorReport::new("ai-tools.no-inbox"),
+            Self::NoArchive => ErrorReport::new("ai-tools.no-archive"),
+            Self::BillTooBig => ErrorReport::new("ai-tools.bill-too-big")
+                .with("max_bytes", bytes(crate::MAX_BILL_BYTES))
+                .with("max_set_bytes", bytes(crate::MAX_FILED_BYTES)),
+            Self::BillAlreadyFiled => ErrorReport::new("ai-tools.bill-already-filed"),
             Self::Duplicate => ErrorReport::new("ai-tools.duplicate"),
             // The amounts go to the model through [`Self::amounts`]: a
             // report carries keywords and counts, never text.
@@ -724,6 +740,11 @@ impl Report for ToolError {
 // The list of error codes lives in `kassensturz-store`'s source, so that the
 // crates that must not depend on each other all check their codes the same
 // way.
+/// A number of bytes as a report's parameter.
+fn bytes(count: u64) -> ErrorParam {
+    ErrorParam::Number(i64::try_from(count).unwrap_or(i64::MAX))
+}
+
 #[cfg(test)]
 #[path = "../../kassensturz-store/src/error/list.rs"]
 mod list;
@@ -765,6 +786,10 @@ mod tests {
             ToolError::BillOutsideFolder,
             ToolError::BillType,
             ToolError::BillNotFound,
+            ToolError::NoInbox,
+            ToolError::NoArchive,
+            ToolError::BillTooBig,
+            ToolError::BillAlreadyFiled,
             ToolError::Duplicate,
             ToolError::PartsDontAddUp {
                 total: "-19.99".into(),
@@ -1130,6 +1155,10 @@ mod tests {
             assert!(report.code.starts_with("ai-changes."), "{}", report.code);
             check(&report, &rows, &mut seen);
         }
+        // The app makes this code from a `not-applied` refusal whose cause is
+        // an amount's size (`kassensturz-ui-bridge`, `code_text`, B-288); it
+        // is tested there.
+        seen.insert("ai-changes.amount-too-large");
         let unused = unused(&rows, &seen, &["ai-changes"]);
         assert!(unused.is_empty(), "{unused:?}");
     }

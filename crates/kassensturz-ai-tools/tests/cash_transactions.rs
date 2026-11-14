@@ -141,6 +141,51 @@ fn a_payment_in_cash_moves_the_balance_by_exactly_its_amount_and_undo_takes_it_b
     assert_eq!(accounts(&book), before, "undo takes back all of it");
 }
 
+/// B-269 (#965): payments the user confirms one after another can't add up
+/// past what the book can total. The second one is refused as a whole, the
+/// book and its history stay as the first left them, and every balance can
+/// still be read.
+#[test]
+fn a_confirmed_payment_that_would_make_the_totals_overflow_is_refused() {
+    use kassensturz_ai_tools::ChangeError;
+    use kassensturz_store::StoreError;
+
+    let mut book = space_colony();
+    let wallet = cash_account(&book);
+    let huge = |book: &Book| {
+        propose_with(
+            book,
+            &json!({"new_transactions": [{
+                "account_id": wallet["id"],
+                "date": "2026-10-27",
+                "amount": "-7000000000000000.00",
+                "payee": "Dome Kiosk",
+            }]}),
+            open(),
+        )
+        .expect("prepared")
+    };
+    let first = huge(&book);
+    first
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("the first one still adds up");
+    let before = accounts(&book);
+    let history = book.history().expect("history").len();
+
+    let second = huge(&book);
+    let error = second
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect_err("the second one would not add up");
+    assert!(
+        matches!(error, ChangeError::NotApplied(StoreError::AmountOverflow)),
+        "{error:?}"
+    );
+    assert_eq!(accounts(&book), before, "nothing of it stays");
+    assert_eq!(book.history().expect("history").len(), history);
+}
+
 /// Balances as whole minor units, without floating point.
 mod f64_free {
     pub type Cents = i64;
@@ -197,5 +242,53 @@ fn only_a_hand_entered_cash_transaction_is_removed_never_a_transfer_or_a_bank_en
         .expect("removed");
     assert_ne!(accounts(&book), before);
     book.undo().expect("undone").expect("a change");
+    assert_eq!(accounts(&book), before);
+}
+
+/// B-270 (#966): the AI can't book a cash payment to the cash account
+/// itself, which would move nothing; the proposal is refused before the
+/// user sees it, and the book stays as it was.
+#[test]
+fn a_cash_payment_into_its_own_account_is_refused() {
+    let book = space_colony();
+    let wallet = cash_account(&book);
+    let before = accounts(&book);
+    let error = propose_with(
+        &book,
+        &json!({"new_transactions": [{
+            "account_id": wallet["id"],
+            "date": "2026-10-27",
+            "amount": "-3.00",
+            "category_id": wallet["id"],
+        }]}),
+        open(),
+    )
+    .expect_err("an account is not a category");
+    assert_eq!(error.model_report().code, "ai-tools.unknown-category");
+    assert_eq!(accounts(&book), before);
+}
+
+/// B-272 (#968): the AI can't make a look-alike of an account the user
+/// has, with a character that shows as nothing, nor rename one into it.
+#[test]
+fn a_look_alike_account_name_from_the_ai_is_refused() {
+    let book = space_colony();
+    let wallet = cash_account(&book);
+    let name = wallet["name"].as_str().expect("a name").to_owned();
+    let before = accounts(&book);
+    for change in [
+        json!({"new_accounts": [{"name": format!("{name}\u{200B}"), "type": "cash"}]}),
+        json!({"new_accounts": [{"name": format!("{name}\u{2066}"), "type": "checking"}]}),
+        json!({"edit_accounts": [{"account_id": accounts(&book)[0]["id"], "name": format!("{name}\u{200B}")}]}),
+    ] {
+        let error = propose_with(&book, &change, open()).expect_err("refused");
+        let report = error.model_report();
+        assert_eq!(report.code, "ai-tools.bad-argument");
+        assert!(
+            report.params.iter().any(|(key, value)| *key == "argument"
+                && *value == kassensturz_core::ErrorParam::Keyword("name")),
+            "{report:?}"
+        );
+    }
     assert_eq!(accounts(&book), before);
 }

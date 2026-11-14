@@ -442,11 +442,13 @@ impl ChatSession {
     /// question runs.
     /// Bills are attached only by the user's own AI tools over MCP, which
     /// read the bill themselves: the chat reads no PDF, so it is never
-    /// offered `attach_bills` (Q-506, D-739).
+    /// offered `attach_bills` (Q-506, D-739), nor `file_bills` from the
+    /// receipt inbox (D-752).
     fn permissions(&self) -> Permissions {
         self.permissions
             .unwrap_or_else(ai_switch::permissions)
             .with(ai_switch::Permission::AttachBills, false)
+            .with(ai_switch::Permission::FileBills, false)
     }
 
     /// The conversation, writing to `log` while the developer mode is on
@@ -1423,14 +1425,20 @@ mod tests {
             .with_permissions(Permissions::all());
         let permissions = session.permissions();
         assert!(!permissions.allows(ai_switch::Permission::AttachBills));
+        assert!(!permissions.allows(ai_switch::Permission::FileBills));
         assert!(permissions.allows(ai_switch::Permission::SplitTransactions));
         let specs = function_specs(false, permissions);
-        assert!(specs.iter().all(|spec| spec.name != "bill_folder"));
+        assert!(
+            specs
+                .iter()
+                .all(|spec| spec.name != "bill_folder" && spec.name != "inbox")
+        );
         let propose = specs
             .iter()
             .find(|spec| spec.name == "propose_changes")
             .expect("offered");
         assert!(!propose.parameters.to_string().contains("attach_bills"));
+        assert!(!propose.parameters.to_string().contains("file_bills"));
     }
 
     #[test]

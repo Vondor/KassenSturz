@@ -20,6 +20,8 @@ FormCard.FormCardPage {
     required property ChangeHistory history
     // Why an undo or redo that opened this page didn't work, or empty.
     property var failure: ({})
+    // What "Undo anyway" did, or empty.
+    property var stepped: ({})
 
     // Undo and redo are in the side menu; this page stays open after them
     // to show the new state.
@@ -36,8 +38,37 @@ FormCard.FormCardPage {
     }
 
     title: i18nContext.i18nc("@title", "History")
-    header: FormError {
-        result: page.failure
+    header: ColumnLayout {
+        spacing: 0
+
+        FormError {
+            Layout.fillWidth: true
+            result: page.failure
+            // The deliberate way out when a filed bill can't move back
+            // (US7, #333, docs/RECEIPT_INBOX.md §7): the link goes, the file
+            // stays where it is.
+            actions: [
+                Kirigami.Action {
+                    visible: page.failure.code === "bill.undo-blocked"
+                    icon.name: "edit-undo"
+                    text: page.i18nContext.i18nc("@action:button", "Undo anyway, and leave the bills where they are")
+                    onTriggered: {
+                        ActionLog.taken("HistoryPage_undoAnyway")
+                        const result = page.history.undoAnyway();
+                        page.failure = result.code !== undefined ? result : ({});
+                        page.stepped = result.code === undefined ? result : ({});
+                    }
+                }
+            ]
+        }
+
+        // Where the bills stay that an undo unlinked without moving them.
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Information
+            visible: (page.stepped.leftInArchive ?? []).length > 0
+            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a list of files", "The link is gone. The bills stay in your archive: %1", Array.from(page.stepped.leftInArchive).join(", "))) : ""
+        }
     }
 
     FormCard.FormHeader {

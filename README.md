@@ -8,7 +8,7 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 
 1. Download the test build from the project's [releases page](https://github.com/Vondor/KassenSturz/releases) (the newest entry marked *Pre-release*).
 2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
-3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the [user guide](docs/user/USER_GUIDE.de.md) (German) explains how to use KassenSturz.
+3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the [user guide](docs/user/USER_GUIDE.de.md) (German) explains how to use KassenSturz. [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
 
 ## Goals
 
@@ -23,7 +23,7 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 
 ## Status
 
-Pre-alpha. The core and the book file (milestones M1 and M2 in [`docs/ROADMAP.md`](docs/ROADMAP.md)) and the first usable app (M3), bank connections (M4) and the AI features (M5) are in place and being tested; no release is tagged yet. Builds are numbered `0.YYMMDD.N` (build date and a counter) until the first shippable release, 1.0. To connect an AI, see [Connect an AI](docs/user/CONNECT_AN_AI.md), which also has the command that lets Claude Desktop or Claude Code read your book.
+Alpha (the release stages are in [`AGENTS.md`](AGENTS.md#release-stages-d-274)): only the maintainer and the project's AI agents test it, with made-up books, and the book format may still change. Where the work stands is in [`docs/ROADMAP.md`](docs/ROADMAP.md). Test builds are published as pre-releases on the [releases page](https://github.com/Vondor/KassenSturz/releases); there is no stable release yet. Builds are numbered `0.YYMMDD.N` (build date and a counter) until the first stable release, 1.0. To connect an AI, see [Connect an AI](docs/user/CONNECT_AN_AI.md), which also has the command that lets Claude Desktop or Claude Code read your book.
 
 What the app does today, with all numbers worked out by the core and shown in your regional format:
 
@@ -37,7 +37,7 @@ What the app does today, with all numbers worked out by the core and shown in yo
 - **Saving.** Transactions as CSV, and "Save the whole book" in an open format that KassenSturz can read back.
 - **Languages.** English and German.
 
-The book's layout is now one starting layout (layout 16, D-045). A book made by an earlier development build is turned away with a pointer to its complete export, so save one with the old build before you install a newer one. Try the app with made-up numbers only, never your own (AGENTS.md §3.1 rule 2).
+How the book is stored, and which layout is the current one, is in [`docs/BOOK_FORMAT.md`](docs/BOOK_FORMAT.md). A newer build updates a book automatically, after a backup. A book from an early development build, from before the starting layout, is turned away with a pointer to its complete export, so save one with the old build before you install a newer one (D-045, D-536). Try the app with made-up numbers only, never your own (AGENTS.md §3.1 rule 2).
 
 ## Trying a build from CI
 
@@ -61,7 +61,7 @@ Then, for each build you want to try:
    flatpak run io.github.vondor.KassenSturz
    ```
 
-The app also appears in the app menu. Books and settings stay in `~/.var/app/io.github.vondor.KassenSturz/` when a build is replaced or removed; until 0.1, a development build may not open a book made by a later one, and a book from before layout 16 is turned away (D-045). Try builds with synthetic data only, never with your own (AGENTS.md §3.1 rule 2). To remove the build: `flatpak uninstall --user io.github.vondor.KassenSturz`.
+The app also appears in the app menu. Books and settings stay in `~/.var/app/io.github.vondor.KassenSturz/` when a build is replaced or removed; an older build doesn't open a book that a newer one has updated, and a book from an early development build is turned away (see [`docs/BOOK_FORMAT.md`](docs/BOOK_FORMAT.md), D-045). Try builds with synthetic data only, never with your own (AGENTS.md §3.1 rule 2). To remove the build: `flatpak uninstall --user io.github.vondor.KassenSturz`.
 
 ## Building
 
@@ -177,6 +177,8 @@ cargo clean -p kassensturz-bank   # so the next build reads the file
 
 Git ignores that file; never commit it or paste the number anywhere public. The build checks only that it is 25 letters and digits. Never use another program's number, including KassenSturz's.
 
+Developing another FinTS program? [`docs/FINTS_PRODUCT_ID.md`](docs/FINTS_PRODUCT_ID.md) (German: [`FINTS_PRODUCT_ID.de.md`](docs/FINTS_PRODUCT_ID.de.md)) explains how KassenSturz keeps its number out of the source, and what to avoid.
+
 ## For AI agents
 
 Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and working rules.
@@ -192,6 +194,9 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 - [`docs/ERROR_CODES.md`](docs/ERROR_CODES.md): every error code with its parameters, for the UI and translators
 - [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md): third-party dependencies, licenses and reused code
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md): what KassenSturz protects, from whom, and how
+- [`docs/FINTS_PRODUCT_ID.md`](docs/FINTS_PRODUCT_ID.md): how to handle a FinTS product registration number, for KassenSturz and other open-source programs (German: [`FINTS_PRODUCT_ID.de.md`](docs/FINTS_PRODUCT_ID.de.md))
+- [`docs/SECURITY_OVERVIEW.en.md`](docs/SECURITY_OVERVIEW.en.md): how safe KassenSturz is, in plain words, with what was attacked and fixed (German: [`SECURITY_OVERVIEW.de.md`](docs/SECURITY_OVERVIEW.de.md))
+- [`docs/SECURITY_LOG.md`](docs/SECURITY_LOG.md): how attack rounds are run and recorded (every round is logged)
 - [`SECURITY.md`](SECURITY.md): how to report a vulnerability privately
 - [`docs/proposals/`](docs/proposals/): proposals waiting for a decision
 

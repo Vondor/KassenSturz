@@ -24,8 +24,8 @@ use rusqlite::types::ValueRef;
 use rusqlite::{Connection, MAIN_DB, Row};
 
 use super::records::{
-    RawAccount, RawAddress, RawCurrency, RawInstitution, RawPayee, RawPrice, RawSplit, RawTag,
-    RawTransaction, Records,
+    RawAccount, RawAddress, RawCurrency, RawInstitution, RawPayee, RawPrice, RawSchedule, RawSplit,
+    RawTag, RawTransaction, Records,
 };
 use super::{find, mapping, reports};
 use crate::book::SkippedData;
@@ -129,14 +129,19 @@ const READ: [&str; 9] = [
 
 /// Tables whose rows are only counted, as what the book leaves out. A file
 /// may lack one.
-const COUNTED: [(&str, SkippedData); 5] = [
+const COUNTED: [(&str, SkippedData); 4] = [
     ("kmmCostCenter", SkippedData::Other),
-    ("kmmSchedules", SkippedData::Schedules),
     ("kmmBudgetConfig", SkippedData::Budgets),
     ("kmmOnlineJobs", SkippedData::OnlineBanking),
     // The IBANs and other identifiers kept with the user's accounts.
     ("kmmAccountsPayeeIdentifier", SkippedData::Other),
 ];
+
+/// The table of scheduled transactions, read if the file has it (#919).
+/// The payment each one makes is kept in `kmmTransactions` and `kmmSplits`
+/// like a transaction, under the schedule's own ID and marked `S` in
+/// `txType`; those rows are not transactions of the book.
+const SCHEDULES: &str = "kmmSchedules";
 
 /// The table of saved reports, read if the file has it (D-444): each row
 /// keeps one report's record as XML text, as a `.kmy` file writes it.
@@ -194,7 +199,15 @@ impl<'a> Reader<'a> {
         self.institutions(&mut records)?;
         self.accounts(&mut records)?;
         self.tags(&mut records)?;
-        self.transactions(&mut records)?;
+        let mut payments = self.transactions(&mut records)?;
+        if self.tables()?.contains(SCHEDULES) {
+            self.schedules(&mut records, &mut payments)?;
+        }
+        // The payment of a schedule that has no schedule row is nothing the
+        // book can use.
+        records
+            .skipped
+            .add_many(SkippedData::Schedules, payments.len());
         self.prices(&mut records)?;
         self.currencies(&mut records)?;
         self.query("SELECT id FROM kmmSecurities", |row| {
@@ -219,6 +232,7 @@ impl<'a> Reader<'a> {
                 || table == TAGS
                 || table == TAG_SPLITS
                 || table == REPORTS
+                || table == SCHEDULES
                 || IGNORED.contains(&table)
                 || COUNTED.iter().any(|(counted, _)| *counted == table)
                 || table == "kmmPayeesPayeeIdentifier"
@@ -504,26 +518,44 @@ impl<'a> Reader<'a> {
     }
 
     /// Reads the transactions and puts every split into its transaction.
-    fn transactions(&self, records: &mut Records) -> Result<(), ImportError> {
+    fn transactions(
+        &self,
+        records: &mut Records,
+    ) -> Result<HashMap<String, RawTransaction>, ImportError> {
+        // The transactions the book has, and the payments of schedules
+        // (marked `S`), each by its ID.
+        let marked = self.columns("kmmTransactions")?.contains("txType");
         let mut index: HashMap<String, usize> = HashMap::new();
-        self.query(
-            "SELECT id, postDate, memo, currencyId, entryDate FROM kmmTransactions ORDER BY id",
-            |row| {
-                let id = self.required(row, 0)?;
-                if index.insert(id, records.transactions.len()).is_some() {
+        let mut payments: HashMap<String, RawTransaction> = HashMap::new();
+        let query = if marked {
+            "SELECT id, postDate, memo, currencyId, entryDate, txType FROM kmmTransactions \
+             ORDER BY id"
+        } else {
+            "SELECT id, postDate, memo, currencyId, entryDate, NULL FROM kmmTransactions \
+             ORDER BY id"
+        };
+        self.query(query, |row| {
+            let id = self.required(row, 0)?;
+            let transaction = RawTransaction {
+                date: self.optional(row, 1)?,
+                memo: self.optional(row, 2)?,
+                currency: self.optional(row, 3)?,
+                entered: self.optional(row, 4)?,
+                splits: Vec::new(),
+                line: None,
+            };
+            if self.column(row, 5)?.as_deref() == Some("S") {
+                if payments.insert(id, transaction).is_some() {
                     return Err(malformed());
                 }
-                records.transactions.push(RawTransaction {
-                    date: self.optional(row, 1)?,
-                    memo: self.optional(row, 2)?,
-                    currency: self.optional(row, 3)?,
-                    entered: self.optional(row, 4)?,
-                    splits: Vec::new(),
-                    line: None,
-                });
-                Ok(())
-            },
-        )?;
+                return Ok(());
+            }
+            if index.insert(id, records.transactions.len()).is_some() {
+                return Err(malformed());
+            }
+            records.transactions.push(transaction);
+            Ok(())
+        })?;
         // The tags of each split, by the split's transaction and its number
         // within it, in the order the file gives them (D-132).
         let mut tags: HashMap<(String, String), Vec<String>> = HashMap::new();
@@ -544,9 +576,8 @@ impl<'a> Reader<'a> {
              ORDER BY transactionId, splitId",
             |row| {
                 let transaction_id = self.required(row, 0)?;
-                let transaction = *index.get(&transaction_id).ok_or_else(malformed)?;
                 let split_id = self.required(row, 9)?;
-                records.transactions[transaction].splits.push(RawSplit {
+                let split = RawSplit {
                     payee: self.optional(row, 1)?,
                     reconciled: self.optional(row, 2)?,
                     value: self.required(row, 3)?,
@@ -555,16 +586,61 @@ impl<'a> Reader<'a> {
                     account: self.required(row, 6)?,
                     number: self.optional(row, 7)?,
                     bank_id: self.optional(row, 8)?,
-                    tags: tags.remove(&(transaction_id, split_id)).unwrap_or_default(),
+                    tags: tags
+                        .remove(&(transaction_id.clone(), split_id))
+                        .unwrap_or_default(),
                     line: None,
-                });
+                };
+                match (
+                    index.get(&transaction_id),
+                    payments.get_mut(&transaction_id),
+                ) {
+                    (Some(&transaction), _) => records.transactions[transaction].splits.push(split),
+                    (None, Some(payment)) => payment.splits.push(split),
+                    (None, None) => return Err(malformed()),
+                }
                 Ok(())
             },
         )?;
         // A tag on a split the file doesn't have is left out.
         let stray: usize = tags.values().map(Vec::len).sum();
         records.skipped.add_many(SkippedData::Tags, stray);
-        Ok(())
+        Ok(payments)
+    }
+
+    /// Reads the scheduled transactions, each with its payment (#919). A
+    /// payment is taken out of `payments`; the ones left over belong to no
+    /// schedule.
+    fn schedules(
+        &self,
+        records: &mut Records,
+        payments: &mut HashMap<String, RawTransaction>,
+    ) -> Result<(), ImportError> {
+        self.query(
+            "SELECT id, name, occurence, occurenceMultiplier, startDate, endDate, \
+             lastDayInMonth, lastPayment, fixed, autoEnter, weekendOption \
+             FROM kmmSchedules ORDER BY id",
+            |row| {
+                let id = self.required(row, 0)?;
+                let transaction = payments.remove(&id);
+                records.schedules.push(RawSchedule {
+                    name: self.required(row, 1)?,
+                    occurrence: self.required(row, 2)?,
+                    multiplier: self.required(row, 3)?,
+                    start: self.required(row, 4)?,
+                    end: self.optional(row, 5)?,
+                    last_day: self.optional(row, 6)?,
+                    last_payment: self.optional(row, 7)?,
+                    fixed: self.optional(row, 8)?,
+                    auto_enter: self.optional(row, 9)?,
+                    weekend: self.optional(row, 10)?,
+                    id,
+                    transaction,
+                    line: None,
+                });
+                Ok(())
+            },
+        )
     }
 
     /// Reads the price table.

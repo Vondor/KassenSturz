@@ -14,8 +14,10 @@ mod common;
 
 use common::{CHECKING, EUR, Folder, GROCERIES, Session, account, transaction};
 use kassensturz_ai_tools::FUNCTIONS;
-use kassensturz_core::{AccountKind, BankLink, Date, Institution, InstitutionId};
-use kassensturz_store::Book;
+use kassensturz_core::{
+    AccountKind, BankLink, Date, Institution, InstitutionId, Money, ScheduleUnit,
+};
+use kassensturz_store::{Book, NewSchedule};
 use serde_json::json;
 
 /// Example IBANs from SWIFT's IBAN Registry (D-055) and test secrets.
@@ -65,6 +67,22 @@ fn book_with_secrets(folder: &Folder) -> std::path::PathBuf {
         last_fetched_on: None,
     })
     .expect("linked");
+    // A planned payment that remembers the other party's IBAN (#920).
+    book.add_schedule(&NewSchedule {
+        name: "Rent".to_owned(),
+        account: CHECKING,
+        amount: Money::from_minor_units(-80_000, EUR),
+        tolerance: Money::zero(EUR),
+        category: None,
+        party_iban: Some("GB82WEST12345698765432".to_owned()),
+        party_name: Some("Landlord".to_owned()),
+        unit: ScheduleUnit::Month,
+        every: 1,
+        anchor: Date::constant(2026, 10, 1),
+        track_from: Date::constant(2026, 10, 1),
+        ends_on: None,
+    })
+    .expect("planned");
     path
 }
 
@@ -109,6 +127,8 @@ fn no_tool_answer_holds_a_secret() {
         ("list_categories", json!({})),
         ("list_rules", json!({})),
         ("list_budgets", json!({})),
+        ("list_plans", json!({})),
+        ("forecast", json!({})),
     ] {
         let (answer, is_error) = session.call(name, arguments);
         assert!(!is_error, "{name}: {answer}");

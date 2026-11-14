@@ -83,6 +83,16 @@ pub enum StoreError {
     UnknownAccount(AccountId),
     /// The account's name is empty.
     EmptyAccountName,
+    /// An account's or category's name can't be kept (B-272): `reason` is
+    /// `line-break` (a line break or another control character),
+    /// `invisible` (a character that shows as nothing, such as a zero-width
+    /// space) or `too-long` (more than `max_chars` characters).
+    AccountName {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+        /// The most characters a name may have.
+        max_chars: usize,
+    },
     /// A bank link must name a bank account: an IBAN, or a bank code with an
     /// account number (D-148).
     IncompleteBankLink(AccountId),
@@ -213,6 +223,10 @@ pub enum StoreError {
     DuplicateAccountName {
         /// The account that has it.
         existing: AccountId,
+        /// The name, as the account being added or renamed has it, so the
+        /// user learns which one even when the book can't name `existing`,
+        /// e.g. after a new book from a file was taken back (B-283).
+        name: String,
     },
     /// The account's type doesn't fit its kind, e.g. a credit card that
     /// isn't money the user owes.
@@ -237,6 +251,13 @@ pub enum StoreError {
     /// A closed account takes no new transactions. The user can open it
     /// again.
     AccountClosed(AccountId),
+    /// Every part of a transaction is booked to this one account or
+    /// category, so no money moves anywhere: a Transfer from an account to
+    /// itself (B-270).
+    NothingMoves(AccountId),
+    /// Every part of a transaction typed in, not delivered by a bank, is
+    /// zero, so no money moves anywhere (B-270).
+    ZeroAmount,
     /// An account can only be closed when its balance is zero.
     AccountNotEmpty {
         /// The account.
@@ -359,6 +380,18 @@ pub enum StoreError {
     RuleIdInUse(RuleId),
     /// The Rule's name is empty.
     EmptyRuleName,
+    /// A Rule's name or a payee typed in can't be kept (B-272): `reason` is
+    /// `line-break` (a line break or another control character) or
+    /// `invisible` (a character that shows as nothing or turns the text
+    /// around, such as a zero-width space or a right-to-left override), so
+    /// it could look like another. `field` says which: `rule-name` or
+    /// `payee`.
+    HiddenText {
+        /// Which text, as a keyword.
+        field: &'static str,
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+    },
     /// Another Rule in the same place, the top level or inside the same
     /// Rule, already has this name, ignoring capitals.
     DuplicateRuleName {
@@ -483,6 +516,11 @@ pub enum StoreError {
     /// taken back: the book is as it was before that change), so no change
     /// is written until the book is opened again (D-732).
     WriteFailed,
+    /// The book is open without file locks (D-776), and its lock file is
+    /// gone or belongs to another program now, so this program may no
+    /// longer be the only writer. The change wasn't written; the book is as
+    /// it was. Close it and open it again.
+    LockLost,
 }
 
 /// What's wrong with data read from a book.
@@ -568,6 +606,14 @@ pub enum Corruption {
     /// have, lacks one of its own, or one was changed, e.g. by another
     /// program (B-245). It wasn't opened, so nothing in it ran.
     UnexpectedLayout,
+    /// SQLite finds the book's file damaged: a page it can't parse, e.g.
+    /// after a failing drive or a sync that cut a file short (B-291). It
+    /// wasn't opened and wasn't changed.
+    DamagedFile,
+    /// At least one transaction's parts don't add up to zero, so a figure
+    /// taken from the book would be wrong (B-291), e.g. because a byte of an
+    /// amount changed in the file. It wasn't opened and wasn't changed.
+    UnbalancedTransaction,
 }
 
 /// An error reported by SQLite. Its details are for logs, not for users.
@@ -656,6 +702,9 @@ impl Report for StoreError {
                 new("store.unknown-account").with("account", P::Account(*account))
             }
             Self::EmptyAccountName => new("store.empty-account-name"),
+            Self::AccountName { reason, max_chars } => new("store.account-name")
+                .with("reason", P::Keyword(reason))
+                .with("max_chars", P::count(*max_chars)),
             Self::IncompleteBankLink(account) => {
                 new("store.incomplete-bank-link").with("account", P::Account(*account))
             }
@@ -721,9 +770,9 @@ impl Report for StoreError {
             Self::TooManyBudgets { limit, max } => new("store.budget-too-many")
                 .with("limit", P::Keyword(limit))
                 .with("max", P::count(*max)),
-            Self::DuplicateAccountName { existing } => {
-                new("store.duplicate-account-name").with("existing", P::Account(*existing))
-            }
+            Self::DuplicateAccountName { existing, name } => new("store.duplicate-account-name")
+                .with("existing", P::Account(*existing))
+                .with("name", P::Text(name.clone())),
             Self::AccountTypeMismatch { account_type, kind } => new("store.account-type-mismatch")
                 .with("account_type", P::AccountType(*account_type))
                 .with("kind", P::AccountKind(*kind)),
@@ -741,6 +790,10 @@ impl Report for StoreError {
             Self::AccountClosed(account) => {
                 new("store.account-closed").with("account", P::Account(*account))
             }
+            Self::NothingMoves(account) => {
+                new("store.nothing-moves").with("account", P::Account(*account))
+            }
+            Self::ZeroAmount => new("store.zero-amount"),
             Self::AccountNotEmpty { account, balance } => new("store.account-not-empty")
                 .with("account", P::Account(*account))
                 .with("balance", P::Money(*balance)),
@@ -823,6 +876,9 @@ impl Report for StoreError {
             Self::UnknownRule(rule) => new("store.unknown-rule").with("rule", P::Rule(*rule)),
             Self::RuleIdInUse(rule) => new("store.rule-id-in-use").with("rule", P::Rule(*rule)),
             Self::EmptyRuleName => new("store.empty-rule-name"),
+            Self::HiddenText { field, reason } => new("store.hidden-text")
+                .with("field", P::Keyword(field))
+                .with("reason", P::Keyword(reason)),
             Self::DuplicateRuleName { existing } => {
                 new("store.duplicate-rule-name").with("existing", P::Rule(*existing))
             }
@@ -907,8 +963,16 @@ impl Report for StoreError {
             Self::AmountOverflow => new("store.amount-overflow"),
             Self::Corrupt(corruption) => corruption.report(),
             Self::Io(kind) => new("store.io").with("kind", P::Keyword(io_keyword(*kind))),
-            Self::Database(_) => new("store.database"),
+            // A full drive is said as such, with what to do (B-282), not
+            // as a database error the user can do nothing about.
+            Self::Database(DatabaseError(error)) => match error.sqlite_error_code() {
+                Some(rusqlite::ErrorCode::DiskFull) => {
+                    new("store.io").with("kind", P::Keyword(io_keyword(ErrorKind::StorageFull)))
+                }
+                _ => new("store.database"),
+            },
             Self::WriteFailed => new("store.write-failed"),
+            Self::LockLost => new("store.lock-lost"),
         }
     }
 }
@@ -966,6 +1030,8 @@ impl Report for Corruption {
                 new("store.corrupt.bad-schedule").with("schedule", P::Text(schedule.to_string()))
             }
             Self::UnexpectedLayout => new("store.corrupt.unexpected-layout"),
+            Self::DamagedFile => new("store.corrupt.damaged-file"),
+            Self::UnbalancedTransaction => new("store.corrupt.unbalanced-transaction"),
         }
     }
 }

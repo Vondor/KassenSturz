@@ -35,10 +35,16 @@ set_package_properties(KF6QQC2DesktopStyle PROPERTIES
 # (D-112); 1.13 is the oldest version tested, Kubuntu 26.10's. No version is
 # asked for here: checking it runs qmlplugindump, which fails on this module
 # in the KDE Flatpak SDK.
-ecm_find_qmlmodule(org.kde.kirigami REQUIRED)
-ecm_find_qmlmodule(org.kde.kirigamiaddons.formcard REQUIRED)
-ecm_find_qmlmodule(org.kde.ki18n REQUIRED)
-ecm_find_qmlmodule(QtQuick.Dialogs REQUIRED)
+# The snap build has no copy of these modules in its SDK; they come from the
+# KDE runtime snap when the program runs. It turns the check off there
+# (the install check in CI starts the program, so a missing module shows).
+option(KASSENSTURZ_SKIP_QML_MODULE_CHECK "Do not look for the QML modules while building" OFF)
+if(NOT KASSENSTURZ_SKIP_QML_MODULE_CHECK)
+    ecm_find_qmlmodule(org.kde.kirigami REQUIRED)
+    ecm_find_qmlmodule(org.kde.kirigamiaddons.formcard REQUIRED)
+    ecm_find_qmlmodule(org.kde.ki18n REQUIRED)
+    ecm_find_qmlmodule(QtQuick.Dialogs REQUIRED)
+endif()
 
 # Windows has no icon theme, so the app links Breeze's icons, which
 # breeze-icons builds into a library (D-555); Cargo gets its paths below.
@@ -125,10 +131,19 @@ else()
     set(cargo_profile_dir release)
 endif()
 
+# cxx-qt asks qmake where Qt lives. The snap build's SDK reports a qmake
+# path that does not exist, so it can name a working one.
+set(KASSENSTURZ_QMAKE "" CACHE FILEPATH "qmake for the Rust build, if Qt6::qmake's path is wrong")
+if(KASSENSTURZ_QMAKE)
+    set(kassensturz_qmake "${KASSENSTURZ_QMAKE}")
+else()
+    set(kassensturz_qmake "$<TARGET_FILE:Qt6::qmake>")
+endif()
+
 # Cargo decides itself what needs rebuilding, so it runs on every build.
 add_custom_target(kassensturz ALL
     COMMAND ${CMAKE_COMMAND} -E env
-        QMAKE=$<TARGET_FILE:Qt6::qmake>
+        QMAKE=${kassensturz_qmake}
         "KASSENSTURZ_KCONFIG_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::ConfigCore,INTERFACE_INCLUDE_DIRECTORIES>"
         KASSENSTURZ_KCONFIG_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::ConfigCore>
         ${breeze_icons_env}

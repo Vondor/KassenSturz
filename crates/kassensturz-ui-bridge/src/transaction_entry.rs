@@ -143,6 +143,9 @@ pub struct BillText {
     pub url: String,
     /// Whether it is a path whose file isn't there any more.
     pub missing: bool,
+    /// The `file://` address of the folder it is in, for *Show in folder*
+    /// (US7, #333); empty for a web address.
+    pub folder_url: String,
 }
 
 /// How the page shows each document linked to `transaction`.
@@ -173,6 +176,12 @@ fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
                     String::new()
                 },
                 missing: local && !path.is_file(),
+                folder_url: path
+                    .parent()
+                    .filter(|_| local)
+                    .and_then(|folder| folder.to_str())
+                    .map(file_url)
+                    .unwrap_or_default(),
             }
         })
         .collect()
@@ -2173,6 +2182,15 @@ mod tests {
             bills[0].url
         );
         assert!(!bills[0].missing);
+        // Show in folder opens the folder it is in (US7, #333).
+        assert!(bills[0].folder_url.starts_with("file:///"));
+        assert!(
+            bills[0]
+                .url
+                .starts_with(&format!("{}/", bills[0].folder_url))
+        );
+        assert_eq!(bills[2].folder_url, "", "a web address has no folder");
+        assert_eq!(bills[3].folder_url, "");
         assert_eq!(bills[1].name, "moved.png");
         assert!(bills[1].missing);
         assert_eq!(bills[2].url, "https://example.org/bill");

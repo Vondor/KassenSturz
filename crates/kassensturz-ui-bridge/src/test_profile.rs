@@ -377,6 +377,9 @@ mod path_audit {
         ("kassensturz-cli/tests/commands.rs", 2),
         // KeePassXC's socket in XDG_RUNTIME_DIR, not a place for data.
         ("kassensturz-platform/src/keepassxc.rs", 1),
+        // Lock-less open in a snap: the private copy for read-only access
+        // goes under the app's own runtime folder (D-776).
+        ("kassensturz-store/src/lockless.rs", 1),
         // A test of the settings file's `$HOME` paths.
         ("kassensturz-ui-bridge/src/settings.rs", 1),
         // The test profile itself, and where it is in the core, which the

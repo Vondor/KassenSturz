@@ -10,16 +10,20 @@ use std::collections::{HashMap, HashSet};
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Changeover, Condition, ConvertedPart,
     Currency, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount, Institution,
-    InstitutionId, MAX_TAG_NAME_CHARS, MAX_TAGS_IN_BOOK, MAX_TAGS_ON_PART, MatchMode, Money,
-    MoneyError, OriginalAmount, Payee, PayeeId, RateSource, RoundingMode, Rule, RuleId, RuleNode,
-    Split, Tag, TagId, Transaction, TransactionId, TransferMatch, ViewId, Withdrawn,
+    InstitutionId, MAX_SCHEDULE_NAME_CHARS, MAX_SCHEDULES, MAX_TAG_NAME_CHARS, MAX_TAGS_IN_BOOK,
+    MAX_TAGS_ON_PART, MatchMode, Money, MoneyError, OriginalAmount, Payee, PayeeId, RateSource,
+    RoundingMode, Rule, RuleId, RuleNode, Schedule, ScheduleId, Split, Tag, TagId, Transaction,
+    TransactionId, TransferMatch, ViewId, Withdrawn,
 };
-use kassensturz_export::{BookData, ViewData};
+use kassensturz_export::{BookData, ScheduleData, ViewData};
 use kassensturz_import::{
-    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRule, BookTag,
-    BookTransaction, ImportError, ImportedBook, Replacement, Skipped, SkippedData, currency,
+    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRule, BookSchedule,
+    BookTag, BookTransaction, ImportError, ImportedBook, Replacement, Skipped, SkippedData,
+    currency,
 };
-use kassensturz_store::{Book, StoreError};
+use kassensturz_store::{
+    Book, MAX_ACCOUNT_NAME_CHARS, StoreError, fitting_account_name, name_key, stored_name,
+};
 
 use crate::book::fill_book;
 use crate::error::PipelineError;
@@ -34,6 +38,10 @@ pub struct BookImportReport {
     pub categories: usize,
     /// How many transactions.
     pub transactions: usize,
+    /// How many of the file's scheduled transactions became planned
+    /// payments (#919); the others are counted in
+    /// [`SkippedData::Schedules`].
+    pub schedules: usize,
     /// How many exchange rates.
     pub rates: usize,
     /// How many transactions the file kept with only their part in one of
@@ -47,8 +55,12 @@ pub struct BookImportReport {
     /// so the user may want to look at them.
     pub completed: usize,
     /// Accounts and categories whose name another one had already, ignoring
-    /// capitals, and that got a number after it, e.g. "Savings (2)": their
-    /// new IDs and their names in the file.
+    /// capitals, and that got a number after it, e.g. "Savings (2)", or for
+    /// an account at a bank, the bank's name, e.g. "Savings (Lumen Bank)"
+    /// (B-283), or whose name the book couldn't keep as it was: a line break
+    /// became a space, a character that shows as nothing went, or it was cut
+    /// to [`MAX_ACCOUNT_NAME_CHARS`] (B-272). Their new IDs and their names
+    /// in the file.
     pub renamed: Vec<(AccountId, String)>,
     /// Categories that sat inside one in another currency, which a book
     /// can't add up (D-082), and are top-level categories now.
@@ -249,6 +261,21 @@ fn fill(
         });
     }
     let left_open = Mapper::keep_open_with_money(&mut accounts, &transactions);
+    let mut schedules = Vec::new();
+    let mut schedules_left_out = 0;
+    for imported in &imported.schedules {
+        let plan = match mapper.schedule(imported, &accounts)? {
+            Some(plan) if schedules.len() < MAX_SCHEDULES => plan,
+            _ => {
+                schedules_left_out += 1;
+                continue;
+            }
+        };
+        schedules.push(ScheduleData {
+            schedule: plan,
+            decided: Vec::new(),
+        });
+    }
     let (views, reports, reports_left_out) = match today {
         Some(today) => {
             let mapped = map_reports(&imported.reports, &mapper, today, &mut HashSet::new());
@@ -290,7 +317,7 @@ fn fill(
         groups: Vec::new(),
         hidden_categories: Vec::new(),
         budgets: Vec::new(),
-        schedules: Vec::new(),
+        schedules,
     };
     fill_book(book, &data)?;
     let count = |kind: fn(AccountKind) -> bool| {
@@ -303,6 +330,7 @@ fn fill(
         accounts: count(AccountKind::is_account),
         categories: count(AccountKind::is_category),
         transactions: data.transactions.len(),
+        schedules: data.schedules.len(),
         rates: data.rates.len(),
         uncategorized,
         completed,
@@ -315,12 +343,16 @@ fn fill(
         patterns_left_out,
         skipped: with_counted(
             &with_counted(
-                &with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
-                SkippedData::Reports,
-                reports_left_out,
+                &with_counted(
+                    &with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
+                    SkippedData::Reports,
+                    reports_left_out,
+                ),
+                SkippedData::Tags,
+                mapper.tags_left_out,
             ),
-            SkippedData::Tags,
-            mapper.tags_left_out,
+            SkippedData::Schedules,
+            schedules_left_out,
         ),
         reports,
     })
@@ -384,6 +416,9 @@ struct Mapper {
     /// whether it is a top-level one, for the series of a report (D-444).
     order: Vec<(String, AccountKind, bool)>,
     institutions: HashMap<String, InstitutionId>,
+    /// The banks' names by the file's key, to tell two accounts of one name
+    /// apart (B-283).
+    institution_names: HashMap<String, String>,
     tags: HashMap<String, TagId>,
     /// The file's tags beyond what a book keeps (D-712): their uses are left
     /// out, and counted in `tags_left_out`.
@@ -542,6 +577,8 @@ impl Mapper {
             {
                 return Err(ImportError::Malformed { line: None }.into());
             }
+            self.institution_names
+                .insert(institution.key.clone(), institution.name.trim().to_owned());
             institutions.push(Institution {
                 id,
                 name: institution.name.clone(),
@@ -723,15 +760,49 @@ impl Mapper {
                 }
                 None => None,
             };
-            let list = ((!account.kind.is_account()).then_some(account.kind), parent);
-            let wanted = account.name.trim();
+            // The user's accounts share one list whatever they are grouped
+            // under (B-283): KMyMoney allows two "Daily money" at two banks,
+            // the book doesn't. The second gets its bank's name after it,
+            // or a number, and both stay.
+            let list = if account.kind.is_account() {
+                (None, None)
+            } else {
+                (Some(account.kind), parent)
+            };
+            // One visible line the book keeps (B-272): another program's
+            // name may hold a line break or a character that shows as
+            // nothing. A name that had to change is listed like a renamed
+            // one.
+            let fitting = fitting_account_name(&account.name);
+            let wanted = fitting.as_str();
             let mut name = wanted.to_owned();
             let mut number = 1;
-            while !taken.insert((list.0, list.1, name.to_lowercase())) {
-                number += 1;
-                name = format!("{wanted} ({number})");
+            let bank = account
+                .institution
+                .as_ref()
+                .and_then(|key| self.institution_names.get(key))
+                .map(|bank| fitting_account_name(bank))
+                .filter(|bank| !bank.is_empty());
+            if let Some(bank) = bank
+                && account.kind.is_account()
+                && taken.contains(&(list.0, list.1, name_key(&name)))
+            {
+                let with_bank = format!("{wanted} ({bank})");
+                if with_bank.chars().count() <= MAX_ACCOUNT_NAME_CHARS
+                    && !taken.contains(&(list.0, list.1, name_key(&with_bank)))
+                {
+                    name = with_bank;
+                }
             }
-            if number > 1 {
+            while !taken.insert((list.0, list.1, name_key(&name))) {
+                number += 1;
+                let suffix = format!(" ({number})");
+                let room = MAX_ACCOUNT_NAME_CHARS - suffix.chars().count();
+                let cut: String = wanted.chars().take(room).collect();
+                name = format!("{}{suffix}", cut.trim_end());
+            }
+            // Only composing it (NFC, D-782) changes nothing anyone sees.
+            if name != stored_name(account.name.trim()) {
                 self.renamed.push((id, account.name.clone()));
             }
             accounts.push(Account {
@@ -809,6 +880,113 @@ impl Mapper {
             _ => Added::Difference,
         };
         Ok((splits, Some(added)))
+    }
+
+    /// The planned payment `imported` makes in the new book, or `None` if
+    /// it can't be one: its payment isn't one money moved between one of
+    /// the user's accounts and a category or another of the user's
+    /// accounts, in the account's own currency (a withdrawn one is left
+    /// out: a plan is made in what the book counts in), the account is
+    /// closed, the plan has ended, or the book's own checks refuse it
+    /// (#919). It counts from its next due date on, so what the other
+    /// program entered already stays what it was and is not expected
+    /// again.
+    fn schedule(
+        &self,
+        imported: &BookSchedule,
+        accounts: &[Account],
+    ) -> Result<Option<Schedule>, PipelineError> {
+        let payment = &imported.payment;
+        if self.withdrawn(payment.currency.code())?.is_some() {
+            return Ok(None);
+        }
+        let [first, second] = payment.parts.as_slice() else {
+            return Ok(None);
+        };
+        let user = |part: &BookPart| self.is_user_account(part.account.as_deref());
+        // The part in the user's account is what the plan is about; between
+        // two of the user's accounts it is the one the money leaves.
+        let (own, other) = match (user(first), user(second)) {
+            (true, false) => (first, second),
+            (false, true) => (second, first),
+            (true, true) if first.amount.is_negative() => (first, second),
+            (true, true) => (second, first),
+            (false, false) => return Ok(None),
+        };
+        let balanced = own
+            .amount
+            .checked_add(other.amount)
+            .is_ok_and(Money::is_zero);
+        if own.account_amount.is_some() || own.amount.is_zero() || !balanced {
+            return Ok(None);
+        }
+        let own_id = self.id(own.account.as_deref().unwrap_or_default())?;
+        let Some(account) = accounts.iter().find(|account| account.id == own_id) else {
+            return Ok(None);
+        };
+        if account.closed || account.currency != own.amount.currency() {
+            return Ok(None);
+        }
+        let category = match other.account.as_deref() {
+            Some(key) if self.is_category(key) => Some(self.id(key)?),
+            _ => None,
+        };
+        let name = [
+            Some(imported.name.as_str()),
+            payment.payee.as_deref(),
+            payment.note.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|text| {
+            let one_line = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            let cut: String = one_line.chars().take(MAX_SCHEDULE_NAME_CHARS).collect();
+            cut.trim().to_owned()
+        })
+        .find(|name| !name.is_empty());
+        let Some(name) = name else {
+            return Ok(None);
+        };
+        // The file's own day counted from each month's end is the last day
+        // of its first month, which a monthly plan cuts back to in every
+        // other month.
+        let anchor = if imported.last_day_of_month {
+            imported.first_due.last_of_month()
+        } else {
+            imported.first_due
+        };
+        let track_from = anchor.max(payment.date);
+        if imported.ends_on.is_some_and(|end| end < track_from) {
+            return Ok(None);
+        }
+        let plan = Schedule {
+            id: ScheduleId::generate(),
+            name,
+            account: own_id,
+            amount: own.amount,
+            tolerance: Money::zero(own.amount.currency()),
+            category,
+            party_iban: None,
+            // A payee of the other program is the user's own label, not
+            // what the bank shows as the other party, so remembering it
+            // would stop the plan from matching its entries. The plan
+            // matches on its amount and date until the user says more.
+            party_name: None,
+            unit: imported.unit,
+            every: imported.every,
+            anchor,
+            track_from,
+            ends_on: imported.ends_on,
+            paused: false,
+        };
+        Ok(plan.check().is_ok().then_some(plan))
+    }
+
+    /// Whether `key` is a category (income or expense) of the file.
+    fn is_category(&self, key: &str) -> bool {
+        self.order
+            .iter()
+            .any(|(of, kind, _)| of == key && kind.is_category())
     }
 
     /// Whether `key` is one of the user's accounts, as opposed to a
@@ -980,13 +1158,13 @@ impl Mapper {
 /// A calculation the conversion out of a withdrawn currency couldn't do:
 /// amounts too large for 64 bits, or, in a book handed over without the
 /// importer's checks, an account's amounts in two currencies.
-/// `wanted`, trimmed, or with a number after it if `taken` holds it
-/// already, ignoring capitals: the names a book asks to differ do.
+/// `wanted`, trimmed, or with a number after it if `taken` holds a name
+/// that looks the same ([`name_key`]): the names a book asks to differ do.
 fn unique_name(wanted: &str, taken: &mut HashSet<String>) -> String {
     let wanted = wanted.trim();
     let mut name = wanted.to_owned();
     let mut number = 1;
-    while !taken.insert(name.to_lowercase()) {
+    while !taken.insert(name_key(&name)) {
         number += 1;
         name = format!("{wanted} ({number})");
     }
@@ -1006,7 +1184,7 @@ fn fitting_tag_name(wanted: &str, taken: &mut HashSet<String>) -> String {
     let cut = |text: &str, most: usize| -> String { text.chars().take(most).collect() };
     let mut name = cut(&one_line, MAX_TAG_NAME_CHARS).trim_end().to_owned();
     let mut number = 1;
-    while !taken.insert(name.to_lowercase()) {
+    while !taken.insert(name_key(&name)) {
         number += 1;
         let suffix = format!(" ({number})");
         let room = MAX_TAG_NAME_CHARS - suffix.chars().count();

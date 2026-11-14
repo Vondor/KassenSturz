@@ -697,9 +697,24 @@ fn changed_copy(sql: &'static str) -> Box<MoveFailed> {
 
 #[test]
 fn the_check_catches_a_changed_balance() {
-    let failed = changed_copy("UPDATE splits SET amount = amount + 1 WHERE amount = 1234");
+    // Both parts of the transaction change, so it still adds up: only the
+    // balances tell. A change that doesn't add up is a damaged copy.
+    let failed = changed_copy(
+        "UPDATE splits SET amount = amount * 2 WHERE transaction_id IN \
+         (SELECT transaction_id FROM splits WHERE amount = 1234)",
+    );
     assert!(
         matches!(failed.cause, MoveCause::Differs(Difference::Balance(_))),
+        "{:?}",
+        failed.cause
+    );
+}
+
+#[test]
+fn the_check_catches_a_copy_that_no_longer_adds_up() {
+    let failed = changed_copy("UPDATE splits SET amount = amount + 1 WHERE amount = 1234");
+    assert!(
+        matches!(failed.cause, MoveCause::Differs(Difference::Damaged)),
         "{:?}",
         failed.cause
     );
@@ -921,4 +936,29 @@ fn a_failed_move_says_nothing_about_where() {
         .expect_err("failed");
     let text = format!("{failed:?}");
     assert!(!text.contains("Sync") && !text.contains("own"), "{text}");
+}
+
+#[test]
+fn a_book_without_file_locks_is_not_moved_when_its_lock_file_was_taken_away() {
+    let setup = Setup::new();
+    crate::lockless::NO_LOCKS.with(|flag| flag.set(true));
+    let book = setup.open();
+    let plan = setup.plan();
+    // An older build's "open anyway" removed the lock file (D-776).
+    fs::remove_file(lock_path(&setup.from)).expect("lock file removed");
+    let mut settings = setup.settings();
+    let failed = match book.move_to(&plan, &setup.computer, &mut settings) {
+        Err(failed) => failed,
+        Ok(_) => panic!("the move should have been refused"),
+    };
+    crate::lockless::NO_LOCKS.with(|flag| flag.set(false));
+    assert!(
+        matches!(failed.cause, MoveCause::Store(StoreError::LockLost)),
+        "{:?}",
+        failed.cause
+    );
+    // Nothing was copied or removed.
+    assert!(setup.from.exists());
+    assert!(!setup.to().exists());
+    assert_eq!(settings.note, None);
 }

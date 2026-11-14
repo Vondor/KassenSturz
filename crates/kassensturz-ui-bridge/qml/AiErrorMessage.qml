@@ -114,6 +114,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "These changes hold a kind of change that you have turned off in the AI settings since the AI prepared them. Nothing was changed. Turn it on again under “What the AI may do”, or ask the AI to prepare the changes again.");
         case "ai-changes.not-applied":
             return i18nContext.i18nc("@info", "Your book refused one of the changes, for example because a category of that name was added in the meantime. Nothing was changed. Ask the AI to prepare them again.");
+        case "ai-changes.amount-too-large":
+            return i18nContext.i18nc("@info", "An amount in these changes is too large: your book would hold more than KassenSturz can work with. Nothing was changed. Ask the AI to prepare them again with a smaller amount.");
         case "ai-changes.not-editable":
             return i18nContext.i18nc("@info", "This change can't be changed that way, so your change wasn't kept. Leave the change out, or take the AI's version.");
         case "ai-changes.edit-text":

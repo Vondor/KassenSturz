@@ -39,8 +39,8 @@ use crate::statement::{Entry, EntryStatus, Statement, StatementAccount};
 pub use settings::{
     AmountColumns, Column, CsvSettings, DateOrder, MAX_COLUMNS, StatusColumn, TextEncoding,
 };
-pub(crate) use text::decode;
 use text::{Row, Rows, without_first_lines, without_last_lines};
+pub(crate) use text::{decode, single_byte};
 use values::{parse_csv_amount, parse_date};
 
 /// The importer for CSV files, with the ID `csv`: one bank's [`CsvSettings`]

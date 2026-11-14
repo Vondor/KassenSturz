@@ -354,6 +354,15 @@ pub struct Due {
     pub date: Date,
 }
 
+/// The last day [`due_dates`] looks at when it starts on `from`:
+/// [`MAX_DUE_YEARS`] later, or the calendar's last day when that is
+/// nearer. A caller that lets the user choose a range refuses one that
+/// ends after it instead of answering for days nobody looked at (B-271).
+pub fn due_window_end(from: Date) -> Date {
+    from.checked_add(i64::from(MAX_DUE_YEARS).years())
+        .unwrap_or(Date::MAX)
+}
+
 /// The occurrences of `schedule` whose (moved) date is from `from` to `to`,
 /// both included, oldest first (3.2).
 ///
@@ -366,9 +375,7 @@ pub fn due_dates(schedule: &Schedule, from: Date, to: Date) -> Vec<Due> {
     if from > to || schedule.every == 0 {
         return found;
     }
-    let Some(limit) = from.checked_add(i64::from(MAX_DUE_YEARS).years()).ok() else {
-        return found;
-    };
+    let limit = due_window_end(from);
     // A moved date is at most two days after its counted one.
     let earliest = schedule
         .track_from

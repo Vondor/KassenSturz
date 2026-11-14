@@ -806,6 +806,118 @@ Kirigami.ScrollablePage {
                 }
             }
         }
+
+        // The receipt inbox (US7, #333, D-752): bills dropped into the
+        // inbox are moved into the archive when the user confirms what
+        // their AI tools prepared. Two folders through the system's folder
+        // chooser, shown by their real path (B-267).
+        Kirigami.Heading {
+            level: 3
+            text: page.i18nContext.i18nc("@title:group", "Inbox and archive for bills")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "Drop bills into the inbox. Your AI reads them, and when you confirm, KassenSturz moves each one into the archive, sorted by account and category. Undo puts it back. This needs \"Bills filed from the inbox\" above.")
+        }
+
+        Repeater {
+            model: [
+                {
+                    which: "inbox",
+                    label: page.i18nContext.i18nc("@label", "Inbox for new bills"),
+                    title: page.i18nContext.i18nc("@title:window", "Choose the inbox for new bills")
+                },
+                {
+                    which: "archive",
+                    label: page.i18nContext.i18nc("@label", "Archive for filed bills"),
+                    title: page.i18nContext.i18nc("@title:window", "Choose the archive for filed bills")
+                }
+            ]
+
+            ColumnLayout {
+                id: receiptRow
+
+                required property var modelData
+                property string folder: page.settings.receiptFolder(modelData.which)
+                property string refused: ""
+
+                Layout.fillWidth: true
+
+                function reasonFor(code: string): string {
+                    switch (code) {
+                    case "settings.inbox-archive-nested":
+                        return page.i18nContext.i18nc("@info", "The inbox and the archive must be two separate folders, neither inside the other, and not KassenSturz's own folder or your book's folder. Please choose another folder.");
+                    case "folder.too-broad":
+                        return page.i18nContext.i18nc("@info", "Please choose a folder inside your home folder, for example one just for your bills.");
+                    case "settings.not-written":
+                        return page.i18nContext.i18nc("@info", "The setting couldn't be saved. Check that your settings folder can be written to, then try again.");
+                    default:
+                        return page.i18nContext.i18nc("@info", "KassenSturz can't use this folder. Please choose another one.");
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    font.bold: true
+                    textFormat: Text.PlainText
+                    text: receiptRow.modelData.label
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font.italic: receiptRow.folder === ""
+                    text: receiptRow.folder !== "" ? receiptRow.folder : page.i18nContext.i18nc("@info no folder is chosen", "No folder chosen.")
+                }
+
+                Kirigami.InlineMessage {
+                    Layout.fillWidth: true
+                    type: Kirigami.MessageType.Error
+                    visible: receiptRow.refused !== ""
+                    text: receiptRow.refused !== "" ? Plain.plain(receiptRow.reasonFor(receiptRow.refused)) : ""
+                }
+
+                RowLayout {
+                    Controls.Button {
+                        text: page.i18nContext.i18nc("@action:button", "Choose folder…")
+                        icon.name: "folder-open"
+                        onClicked: {
+                            ActionLog.taken("AiSettingsPage_chooseReceiptFolder")
+                            receiptDialog.open()
+                        }
+                    }
+
+                    Controls.Button {
+                        visible: receiptRow.folder !== ""
+                        text: page.i18nContext.i18nc("@action:button", "Remove")
+                        icon.name: "edit-clear"
+                        onClicked: {
+                            ActionLog.taken("AiSettingsPage_removeReceiptFolder")
+                            page.notWritten = !page.settings.removeReceiptFolder(receiptRow.modelData.which);
+                            receiptRow.refused = "";
+                            receiptRow.folder = page.settings.receiptFolder(receiptRow.modelData.which);
+                        }
+                    }
+                }
+
+                // The system's folder chooser: in the Flatpak and the snap
+                // the file chooser portal, which grants this one folder.
+                Dialogs.FolderDialog {
+                    id: receiptDialog
+
+                    title: receiptRow.modelData.title
+                    onAccepted: {
+                        ActionLog.taken("AiSettingsPage_receiptFolderChosen")
+                        receiptRow.refused = page.settings.setReceiptFolder(receiptRow.modelData.which, selectedFolder);
+                        receiptRow.folder = page.settings.receiptFolder(receiptRow.modelData.which);
+                    }
+                }
+            }
+        }
     }
 
     // The system's folder chooser: in the Flatpak the file chooser portal,

@@ -33,6 +33,8 @@ pub(super) struct Records {
     pub payees: Vec<RawPayee>,
     pub tags: Vec<RawTag>,
     pub transactions: Vec<RawTransaction>,
+    /// The scheduled transactions, each with the payment it makes.
+    pub schedules: Vec<RawSchedule>,
     pub prices: Vec<RawPrice>,
     /// The file's list of currencies, for those KassenSturz's tables don't
     /// list (D-106).
@@ -147,6 +149,37 @@ pub(super) struct RawTransaction {
     /// The day it was entered, as written, or empty.
     pub entered: String,
     pub splits: Vec<RawSplit>,
+    pub line: Option<u64>,
+}
+
+/// A `SCHEDULED_TX`: a payment that repeats, with the transaction it makes
+/// (#919). What each attribute holds was learned from KMyMoney's own file
+/// of a test book with one schedule of each kind, written in the project's
+/// test VM (D-044); numbers are the file's own codes.
+#[derive(Debug)]
+pub(super) struct RawSchedule {
+    pub id: String,
+    pub name: String,
+    /// How it repeats: KMyMoney's code for the unit (`occurence`).
+    pub occurrence: String,
+    /// How many of the unit between two payments (`occurenceMultiplier`).
+    pub multiplier: String,
+    /// Its first date (`startDate`), as written.
+    pub start: String,
+    /// Its last date (`endDate`), or empty.
+    pub end: String,
+    /// Whether a monthly plan counts from each month's last day.
+    pub last_day: String,
+    /// The day of the last payment entered (`lastPayment`), or empty.
+    pub last_payment: String,
+    /// Whether the amount is always the same (`fixed`).
+    pub fixed: String,
+    /// Whether KMyMoney enters it by itself (`autoEnter`).
+    pub auto_enter: String,
+    /// What it does on a weekend (`weekendOption`).
+    pub weekend: String,
+    /// The payment it makes; its date is the next due date.
+    pub transaction: Option<RawTransaction>,
     pub line: Option<u64>,
 }
 
@@ -326,18 +359,7 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
             }
             [ROOT, "TRANSACTIONS", "TRANSACTION", "SPLITS"] if name == "SPLIT" => {
                 let transaction = records.transactions.last_mut().ok_or_else(malformed)?;
-                transaction.splits.push(RawSplit {
-                    account: required(element, "account")?.to_owned(),
-                    value: required(element, "value")?.to_owned(),
-                    shares: required(element, "shares")?.to_owned(),
-                    payee: element.get("payee").unwrap_or_default().to_owned(),
-                    memo: element.get("memo").unwrap_or_default().to_owned(),
-                    bank_id: element.get("bankid").unwrap_or_default().to_owned(),
-                    reconciled: element.get("reconcileflag").unwrap_or_default().to_owned(),
-                    number: element.get("number").unwrap_or_default().to_owned(),
-                    tags: Vec::new(),
-                    line: Some(element.line),
-                });
+                transaction.splits.push(split(element)?);
             }
             // A tag on a split. The samples show no tagged split (D-102),
             // so this follows how the file names other links (`ACCOUNTID`,
@@ -353,7 +375,45 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
             }
             // Each entry of these lists is one of what it holds; what is
             // inside an entry doesn't matter, since it is left out whole.
+            [ROOT, "SCHEDULES"] if name == "SCHEDULED_TX" => {
+                records.schedules.push(RawSchedule {
+                    id: required(element, "id")?.to_owned(),
+                    name: optional(element, "name"),
+                    occurrence: optional(element, "occurence"),
+                    multiplier: optional(element, "occurenceMultiplier"),
+                    start: optional(element, "startDate"),
+                    end: optional(element, "endDate"),
+                    last_day: optional(element, "lastDayInMonth"),
+                    last_payment: optional(element, "lastPayment"),
+                    fixed: optional(element, "fixed"),
+                    auto_enter: optional(element, "autoEnter"),
+                    weekend: optional(element, "weekendOption"),
+                    transaction: None,
+                    line: Some(element.line),
+                });
+            }
+            // Something else in the list of schedules is not a schedule
+            // the sample shows: counted as left out, never misread.
             [ROOT, "SCHEDULES"] => records.skipped.add(SkippedData::Schedules),
+            [ROOT, "SCHEDULES", "SCHEDULED_TX"] if name == "TRANSACTION" => {
+                let schedule = records.schedules.last_mut().ok_or_else(malformed)?;
+                schedule.transaction = Some(RawTransaction {
+                    date: required(element, "postdate")?.to_owned(),
+                    currency: required(element, "commodity")?.to_owned(),
+                    memo: element.get("memo").unwrap_or_default().to_owned(),
+                    entered: optional(element, "entrydate"),
+                    splits: Vec::new(),
+                    line: Some(element.line),
+                });
+            }
+            [ROOT, "SCHEDULES", "SCHEDULED_TX", "TRANSACTION", "SPLITS"] if name == "SPLIT" => {
+                let transaction = records
+                    .schedules
+                    .last_mut()
+                    .and_then(|schedule| schedule.transaction.as_mut())
+                    .ok_or_else(malformed)?;
+                transaction.splits.push(split(element)?);
+            }
             [ROOT, "BUDGETS"] => records.skipped.add(SkippedData::Budgets),
             [ROOT, "REPORTS"] if name == REPORT => records.reports.push(reports::report(element)?),
             // The filters of a report, and anything inside them.
@@ -405,6 +465,22 @@ pub(super) fn read(xml: &[u8], limits: &Limits) -> Result<Records, ImportError> 
         records.skipped.add(SkippedData::Owner);
     }
     Ok(records)
+}
+
+/// A `SPLIT` of a transaction or of a scheduled one.
+fn split(element: &Element) -> Result<RawSplit, ImportError> {
+    Ok(RawSplit {
+        account: required(element, "account")?.to_owned(),
+        value: required(element, "value")?.to_owned(),
+        shares: required(element, "shares")?.to_owned(),
+        payee: element.get("payee").unwrap_or_default().to_owned(),
+        memo: element.get("memo").unwrap_or_default().to_owned(),
+        bank_id: element.get("bankid").unwrap_or_default().to_owned(),
+        reconciled: element.get("reconcileflag").unwrap_or_default().to_owned(),
+        number: element.get("number").unwrap_or_default().to_owned(),
+        tags: Vec::new(),
+        line: Some(element.line),
+    })
 }
 
 /// Counts a section of the file KassenSturz doesn't know at all.

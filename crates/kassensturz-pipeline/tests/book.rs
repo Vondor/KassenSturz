@@ -15,7 +15,7 @@ use kassensturz_core::{BudgetEvery, GroupKind, GroupMember};
 use kassensturz_core::{Decided, ScheduleError, ScheduleUnit};
 use kassensturz_export::{BookData, BookExport, ExportData, export, read_book};
 use kassensturz_pipeline::{export_book, fill_book};
-use kassensturz_store::{Book, HistoryRetention, NewSchedule, StoreError};
+use kassensturz_store::{Book, HistoryRetention, MAX_CURRENCY_TOTAL, NewSchedule, StoreError};
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
@@ -797,6 +797,34 @@ fn what_a_book_would_refuse_is_refused_and_the_book_stays_empty() {
         refused(&broken),
         StoreError::Schedule(ScheduleError::EndBeforeStart)
     ));
+
+    // Amounts the book couldn't add up (B-269): the transaction balances,
+    // but its two sides together don't fit in what the book can total.
+    let mut broken = data.clone();
+    let plain = broken
+        .transactions
+        .iter_mut()
+        .find(|transaction| {
+            transaction.splits().len() == 2
+                && transaction
+                    .splits()
+                    .iter()
+                    .all(|split| split.foreign.is_none() && split.original.is_none())
+        })
+        .expect("a plain transaction");
+    let big = MAX_CURRENCY_TOTAL / 2 + 1;
+    let currency = plain.currency();
+    let mut splits = plain.splits().to_vec();
+    splits[0].amount = Money::from_minor_units(big, currency);
+    splits[1].amount = Money::from_minor_units(-big, currency);
+    *plain = Transaction::new(
+        plain.id(),
+        plain.booking_date(),
+        plain.payee().map(str::to_owned),
+        splits,
+    )
+    .expect("it balances");
+    assert!(matches!(refused(&broken), StoreError::AmountOverflow));
 
     // A part in another currency than its account.
     let mut broken = data;

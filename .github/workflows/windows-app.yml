@@ -189,6 +189,25 @@ jobs:
           Copy-Item $zip.FullName "$out\KassenSturz-$version-windows-x64.zip"
           Copy-Item $exe.FullName "$out\KassenSturz-$version-windows-x64-setup.exe"
           Get-ChildItem $out | Format-Table Name, Length
+      # Craft's build folder holds hundreds of programs nobody needs at run
+      # time (ffmpeg, openssl, sqlite3, windeployqt, ...). Only the programs
+      # in packaging/windows/allowed-executables.txt may be in the package
+      # (B-292); a new program needs a line there, made on purpose.
+      - name: Only the allowed programs are in the zip
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = (Get-ChildItem "$env:GITHUB_WORKSPACE\out\*.zip").FullName
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          try { $names = $archive.Entries | ForEach-Object { $_.FullName } } finally { $archive.Dispose() }
+          $found = $names | Where-Object { $_ -match '\.exe$' } | ForEach-Object {
+            # The path inside the package, whatever folder the zip puts it in.
+            if ($_ -match '(?i)(?:^|[\\/])(bin[\\/].*)$') { $matches[1].Replace('\', '/').ToLowerInvariant() } else { $_.Replace('\', '/').ToLowerInvariant() }
+          } | Sort-Object -Unique
+          $allowed = Get-Content "$env:GITHUB_WORKSPACE\packaging\windows\allowed-executables.txt" | Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { $_.Trim().ToLowerInvariant() }
+          Write-Output "Programs in the zip ($($found.Count)):"; $found | ForEach-Object { Write-Output "  $_" }
+          $extra = $found | Where-Object { $allowed -notcontains $_ }
+          if ($extra) { Write-Output "Not allowed:"; $extra | ForEach-Object { Write-Output "  $_" }; throw "The zip holds programs that are not in packaging/windows/allowed-executables.txt" }
+          if ($found -notcontains 'bin/kassensturz.exe') { throw "bin/kassensturz.exe is not in the zip" }
       # The program from the zip, not from Craft's folder, so a library or QML
       # module the package lacks shows up here. Without a book it opens the
       # welcome screen; a QML error ends it at once (main.rs).
@@ -208,6 +227,36 @@ jobs:
           Write-Output "--- stderr"; Get-Content "$env:RUNNER_TEMP\ks-err.txt" -ErrorAction SilentlyContinue | Select-Object -First 80
           if (-not $running) { Write-Output "The app ended with code $($p.ExitCode)"; exit 1 }
           Write-Output "The app was still running after 30 seconds."
+      # A logoff or shutdown must end the app like quitting does, so the book
+      # is closed and its lock file removed (B-287). Windows sends the
+      # window the end of the session; the app must then end by itself, with
+      # status 0, and not be left for Windows to kill. This starts the app
+      # with a real window (the runner has a desktop) and sends exactly what
+      # Windows sends. It never passes without a window to send to.
+      - name: The app ends when the Windows session ends
+        run: |
+          $dir = "$env:RUNNER_TEMP\ks-zip"
+          $exe = Get-ChildItem $dir -Recurse -Filter kassensturz.exe | Select-Object -First 1
+          $env:APPDATA = "$env:RUNNER_TEMP\ks-appdata-end"
+          $env:LOCALAPPDATA = "$env:RUNNER_TEMP\ks-localappdata-end"
+          $env:KASSENSTURZ_TEST = "1"
+          Add-Type -Namespace Ks -Name Win -MemberDefinition '[DllImport("user32.dll")] public static extern System.IntPtr SendMessageW(System.IntPtr w, uint m, System.UIntPtr wp, System.IntPtr lp);'
+          $p = Start-Process $exe.FullName -PassThru -RedirectStandardError "$env:RUNNER_TEMP\ks-err-end.txt"
+          $handle = [System.IntPtr]::Zero
+          for ($i = 0; $i -lt 30 -and $handle -eq [System.IntPtr]::Zero -and -not $p.HasExited; $i++) {
+            Start-Sleep -Seconds 1
+            $p.Refresh()
+            $handle = $p.MainWindowHandle
+          }
+          if ($p.HasExited) { Write-Output "The app ended by itself with code $($p.ExitCode)"; Get-Content "$env:RUNNER_TEMP\ks-err-end.txt" -ErrorAction SilentlyContinue | Select-Object -First 60; exit 1 }
+          if ($handle -eq [System.IntPtr]::Zero) { Stop-Process -Id $p.Id -Force; throw "The app has no window to send the end of the session to" }
+          Start-Sleep -Seconds 5
+          # WM_QUERYENDSESSION (0x11), then WM_ENDSESSION (0x16) with the session ending.
+          [void][Ks.Win]::SendMessageW($handle, 0x11, [System.UIntPtr]::Zero, [System.IntPtr]::Zero)
+          [void][Ks.Win]::SendMessageW($handle, 0x16, [System.UIntPtr]1, [System.IntPtr]::Zero)
+          if (-not $p.WaitForExit(20000)) { Stop-Process -Id $p.Id -Force; throw "The app did not end within 20 seconds of the end of the session" }
+          Write-Output "The app ended with code $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\ks-err-end.txt" -ErrorAction SilentlyContinue | Select-Object -First 60; throw "The app ended with code $($p.ExitCode), not 0" }
       # The installer as a tester runs it, but silent (/S): it must install
       # without administrator rights into the user's own folder, put an entry
       # in the Start menu, and its uninstaller must take both away again

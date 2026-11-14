@@ -55,6 +55,8 @@ The project's own check (`tools/check-translations.sh`, run by CI) fails while a
 - **Pull request** (best): change only `msgstr` lines in `po/<language code>/kassensturz.po`, with a commit message such as `i18n(<language code>): review translation`, signed off with `git commit -s` (see `CONTRIBUTING.md`, D-040). GitHub's pencil icon makes a fork for people without a clone. Say in the description that the whole file was checked and whether an AI assistant helped. Pull requests and issues about translations carry the `translation` label (a maintainer sets it if you can't).
 - **Attach the whole file** to a comment on the translation issue; a maintainer will merge it.
 
+After a pull request is opened, CI's "Translation hints" job reads the changed entries and marks the ones that look odd: a key word such as "Cancel" whose translation doesn't mean that, text left in English, letters of another writing system, one word used for many different texts, joke or rude words, links, and translations far shorter or longer than the English. These are only hints for the reviewer and never block the pull request; a good translation can get one too. To see them before sending, run `python3 tools/check-translation-sense.py po/<language code>/kassensturz.po`.
+
 No real personal or financial data in files, comments or screenshots (AGENTS.md §3.1 rule 2).
 
 ## For an AI assistant: boundaries

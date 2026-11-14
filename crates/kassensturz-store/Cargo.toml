@@ -23,6 +23,8 @@ kassensturz-core.workspace = true
 # `cache` keeps prepared statements (Q-084); it adds `hashlink`.
 rusqlite = { workspace = true, features = ["cache"] }
 uuid.workspace = true
+# NFC for account and category names (D-782).
+unicode-normalization.workspace = true
 
 [dev-dependencies]
 # `trace` lets a test count the work a change costs in SQLite's own steps

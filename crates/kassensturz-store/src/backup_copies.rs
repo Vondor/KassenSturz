@@ -362,12 +362,21 @@ fn check_backup(backup: &Path) -> Result<(), StoreError> {
     if !fs::metadata(backup)?.is_file() || !is_book_file(backup)? {
         return Err(StoreError::NotABook);
     }
+    // A backup that opens only to a damage message must never replace the
+    // book it was made to protect, so it faces the checks of opening: the
+    // file itself, its references, its balances and its conversions (B-298).
+    let damaged = |error: StoreError| match crate::integrity::damaged_if_malformed(error) {
+        StoreError::Corrupt(_) => StoreError::NotABook,
+        other => other,
+    };
     // Where the folder refuses file locks this reads a private copy
     // (Q-570, D-776).
     let conn = crate::lockless::open_read_only(
         backup,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )?;
+    )
+    .map_err(damaged)?;
+    crate::integrity::check_file(&conn).map_err(damaged)?;
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
     match version {
         known if (layout::FIRST_VERSION..=layout::VERSION).contains(&known) => {}
@@ -376,10 +385,9 @@ fn check_backup(backup: &Path) -> Result<(), StoreError> {
         }
         found => return Err(StoreError::UnsupportedLayout { found }),
     }
-    let check: String = conn.query_row("PRAGMA quick_check(1)", [], |row| row.get(0))?;
-    if check != "ok" {
-        return Err(StoreError::NotABook);
-    }
+    crate::integrity::check_references(&conn).map_err(damaged)?;
+    crate::integrity::check_balances(&conn).map_err(damaged)?;
+    crate::integrity::check_conversions(&conn).map_err(damaged)?;
     Ok(())
 }
 

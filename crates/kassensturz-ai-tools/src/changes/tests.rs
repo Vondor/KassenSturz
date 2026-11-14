@@ -3304,6 +3304,7 @@ fn a_change_can_be_left_out_and_brought_back_as_the_ai_prepared_it() {
 mod custom_charts;
 mod id_names;
 mod joins;
+mod races;
 mod rule_batches;
 mod rule_conditions;
 mod rule_tools;

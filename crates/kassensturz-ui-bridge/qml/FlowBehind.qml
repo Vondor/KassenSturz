@@ -16,7 +16,9 @@ import io.github.vondor.kassensturz
 Kirigami.Dialog {
     id: behind
 
-    readonly property KI18nContext i18nContext: KI18nContext {}
+    readonly property KI18nContext i18nContext: KI18nContext {
+        translationDomain: "kassensturz"
+    }
 
     // What `FlowChart.qml` sets before it opens: the period, the scope text
     // narrowed to what was clicked, and the words above the list.

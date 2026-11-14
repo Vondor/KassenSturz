@@ -29,6 +29,7 @@ mod recurring_moves;
 mod rules;
 mod schedules;
 mod tags;
+mod totals;
 mod transactions;
 mod transfers;
 mod unsorted;
@@ -46,8 +47,10 @@ use kassensturz_core::{
 use rusqlite::config::DbConfig;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
-pub use backup_copies::{BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of};
-pub use budgets::{check_budget_days, checked_budget_name};
+pub use backup_copies::{
+    BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of, newest_usable_backup,
+};
+pub use budgets::{check_budget_amount_size, check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 /// The oldest layout this KassenSturz updates a book from, and the layout
@@ -70,6 +73,7 @@ pub use schedules::{
     ScheduleNeedsYou,
 };
 pub use tags::{TagUse, checked_tag_name};
+pub use totals::{MAX_CURRENCY_TOTAL, MAX_PLAN_AMOUNT};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};
 
@@ -103,6 +107,8 @@ pub struct Book {
     /// read-only folder). From then on every change is refused, so nothing
     /// is half written; the user opens the book again (D-732).
     write_failed: bool,
+    /// Whether another program replaced the book's file (B-289).
+    file_replaced: bool,
     /// The book's lock file, removed when the book is closed. Declared after
     /// `conn`, so the database is closed first. Books in memory have none.
     _lock: Option<HeldLock>,
@@ -305,6 +311,7 @@ impl Book {
             recording: false,
             filling: false,
             write_failed: false,
+            file_replaced: false,
             _lock: lock,
             without_file_locks,
             _copy: None,
@@ -575,6 +582,7 @@ impl Book {
         if let Some(existing) = clash {
             return Err(StoreError::DuplicateAccountName {
                 existing: existing.id,
+                name: account.name.trim().to_owned(),
             });
         }
         Ok(())
@@ -1102,6 +1110,12 @@ fn connect(path: &Path) -> Result<(Connection, bool), StoreError> {
     if !mode.eq_ignore_ascii_case("delete") {
         return Err(StoreError::JournalModeRefused { mode });
     }
+    // A save is on the disk when it returns (B-278). In this journal mode
+    // the save is done the moment SQLite deletes the journal, and FULL syncs
+    // the book but not the folder that deletion is written to: after a power
+    // cut the journal could come back and roll the save back. EXTRA also
+    // syncs that folder (sqlite.org/pragma.html#pragma_synchronous).
+    conn.pragma_update(None, "synchronous", "EXTRA")?;
     Ok((conn, without_file_locks))
 }
 

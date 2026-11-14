@@ -33,6 +33,10 @@ pub struct Opened {
     /// Whether each report is added or its view replaced, as the user
     /// chose; the defaults first (nothing replaced).
     pub chosen: Vec<bool>,
+    /// How many reports of the file are not in the plan at all: more than
+    /// the 500 KassenSturz reads, or records that weren't a report it could
+    /// read (B-290).
+    pub not_listed: usize,
 }
 
 /// One line of the preview, as the page shows it.
@@ -67,6 +71,12 @@ pub fn open(book: &Book, path: &Path, locale: &impl Locale) -> Result<Opened, Fr
             .unwrap_or_default(),
         plan,
         chosen,
+        not_listed: file
+            .skipped
+            .iter()
+            .filter(|skipped| skipped.what == kassensturz_import::SkippedData::Reports)
+            .map(|skipped| skipped.count)
+            .sum(),
     })
 }
 

@@ -172,7 +172,7 @@ Today is Fri 13 Nov 2026; Checking account balance 2.340,00 €. Plans: *Rent* �
 - A plan that **books by itself** on the due day: only the user's click books (2.5).
 - Plans between the user's own accounts, plans in another currency than the account's, loans with interest and an amortisation plan (version 3 of #725, after Gold), amounts that follow a formula.
 - The **KMyMoney importer reading schedules** (the importer keeps skipping and counting them, D-029): a follow-up for the Issue Tracker, slot Beta or after Gold; it needs golden files and a clean-room reading (D-044).
-- **AI functions** for plans and the forecast (read-only, so the chat can answer "what is left this month"): a follow-up with its own AI-data human gate, after the chat is known to work with the new data.
+- **AI functions** for plans and the forecast (read-only, so the chat can answer "what is left this month"): a follow-up with its own AI-data human gate, after the chat is known to work with the new data. Built in #920, see [14](#14-what-the-ai-reads-920).
 - Public holidays (as D-030), salary-day months for the forecast (it uses calendar months; the budgets' `salary_day`, D-651, is a follow-up).
 
 ## 9. Defaults the maintainer may change
@@ -209,7 +209,7 @@ Build 1 followed this design; where the code had to decide something the design 
 - **"Plan this again…"** is `Book::plan_from_entry`: it offers no plan for an entry that no plan could match (a Transfer between own accounts, a part in another currency), and the other part's account becomes the plan's category only if it is a category. Tested on every importer's golden entries (X3).
 - **The forecast** takes the accounts and currency from the caller; without a choice, the open checking and cash accounts, and accounts in another currency are listed as left out (`AccountsForecast::left_out`). Overdue payments are listed, not counted (5.2).
 - **The complete export** is version 14 with `schedules`, each plan with its decided payments; reading a file checks that a matched payment names an entry of the file, once.
-- **Command line:** `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book` and `forecast [--months N] [--account NAME ...]`; `import` prints the matches. `schedule due` lists the payments with their state.
+- **Command line:** `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book` and `forecast [--months N] [--account NAME ...]`; `import` prints the matches. `schedule due` lists the payments with their state; a range that ends before it starts or is longer than the five years `due_dates` counts over is refused with the longest range it answers, never "none" for days not looked at (B-271, #967).
 - **Left for build 2 (UI):** the bridge's call to `match_schedules` after its own import and fetch actions, the import summary part, the pages, tiles and glossary rows.
 
 ## 12. What build 2 settled (the screens)
@@ -250,3 +250,12 @@ The KMyMoney importer reads the file's scheduled transactions as planned payment
 - **Never books by itself:** the import creates plans only; booking stays the user's step (D-769).
 - **Limits:** the same limits as every importer apply (at most 200 plans, repeat 1 to 52, texts within the text limit); the check at the end of the import (`check_book`) refuses a plan that doesn't fit them. The schedule's template transaction is not read as a real transaction.
 - **Where:** `kassensturz-import` (`BookSchedule`), `kassensturz-pipeline` (`Mapper::schedule`), golden files `kmy/schedules.kmy` and `kmy-sqlite/schedules.sqlite`.
+
+## 14. What the AI reads (#920)
+
+Two read functions in `kassensturz-ai-tools` let the chat and the MCP server answer "what is left this month" and "what is coming up". They only read: a plan is made, changed, matched, booked and skipped only by the user, in the window (AGENTS.md §3.1 rule 9, §8, D-749), and no change a model prepares reaches one.
+
+- `list_plans`: every plan with its ID, name, account, out or in, exact amount, how often, first due day, end, paused, the next open due day and the other party's name. Its category only when the user lets the AI read categories as well (otherwise `category_not_shown`). The IBAN a plan remembers is never in a result (T-23, D-186).
+- `forecast`: the store's own `Book::forecast` (D-770) for the chosen accounts, or the open checking and cash accounts: balance now, still to go out, still to come in, left, expected end, the months after this one (0 to 12, default 3) and the "Did this happen?" list. Accounts in another currency than most of them are left out and named, never converted (D-043). Every amount is exact decimal text, and the number check knows each one (D-052).
+- Both need the reading of **Accounts and Transactions** in the permission grid (D-774, D-252): a plan is money expected in or out of an account, as an entry is. There is no row of its own for plans. The function names avoid the word "payment", which the guard that no function sends money refuses (`tests/closure.rs`).
+- **"This month" is the tile's** (#921, Q-565): without `month_starts_on`, each month starts on the salary day the running budgets share, else on the 1st, as *Left this month* does by default; with `month_starts_on` (1 to 31), on that day. The result names the day and `month_ends`, and each later month its `first_day` and `last_day`, so a model never takes a salary month for a calendar month.

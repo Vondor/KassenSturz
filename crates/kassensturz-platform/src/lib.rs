@@ -26,10 +26,15 @@
 //! which carry the stored bytes, are turned into KassenSturz's codes before
 //! they go anywhere.
 //!
+//! [`bill_files`] moves a bill between the receipt inbox and its archive
+//! without ever losing it (US7, #333, D-752), with a journal that settles a
+//! move a crash left open.
+//!
 //! This crate depends only on `kassensturz-core` and the keychain library.
 
 #![forbid(unsafe_code)]
 
+pub mod bill_files;
 mod error;
 #[cfg(unix)]
 mod keepassxc;

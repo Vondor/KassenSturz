@@ -208,6 +208,36 @@ jobs:
           Write-Output "--- stderr"; Get-Content "$env:RUNNER_TEMP\ks-err.txt" -ErrorAction SilentlyContinue | Select-Object -First 80
           if (-not $running) { Write-Output "The app ended with code $($p.ExitCode)"; exit 1 }
           Write-Output "The app was still running after 30 seconds."
+      # A logoff or shutdown must end the app like quitting does, so the book
+      # is closed and its lock file removed (B-287). Windows sends the
+      # window the end of the session; the app must then end by itself, with
+      # status 0, and not be left for Windows to kill. This starts the app
+      # with a real window (the runner has a desktop) and sends exactly what
+      # Windows sends. It never passes without a window to send to.
+      - name: The app ends when the Windows session ends
+        run: |
+          $dir = "$env:RUNNER_TEMP\ks-zip"
+          $exe = Get-ChildItem $dir -Recurse -Filter kassensturz.exe | Select-Object -First 1
+          $env:APPDATA = "$env:RUNNER_TEMP\ks-appdata-end"
+          $env:LOCALAPPDATA = "$env:RUNNER_TEMP\ks-localappdata-end"
+          $env:KASSENSTURZ_TEST = "1"
+          Add-Type -Namespace Ks -Name Win -MemberDefinition '[DllImport("user32.dll")] public static extern System.IntPtr SendMessageW(System.IntPtr w, uint m, System.UIntPtr wp, System.IntPtr lp);'
+          $p = Start-Process $exe.FullName -PassThru -RedirectStandardError "$env:RUNNER_TEMP\ks-err-end.txt"
+          $handle = [System.IntPtr]::Zero
+          for ($i = 0; $i -lt 30 -and $handle -eq [System.IntPtr]::Zero -and -not $p.HasExited; $i++) {
+            Start-Sleep -Seconds 1
+            $p.Refresh()
+            $handle = $p.MainWindowHandle
+          }
+          if ($p.HasExited) { Write-Output "The app ended by itself with code $($p.ExitCode)"; Get-Content "$env:RUNNER_TEMP\ks-err-end.txt" -ErrorAction SilentlyContinue | Select-Object -First 60; exit 1 }
+          if ($handle -eq [System.IntPtr]::Zero) { Stop-Process -Id $p.Id -Force; throw "The app has no window to send the end of the session to" }
+          Start-Sleep -Seconds 5
+          # WM_QUERYENDSESSION (0x11), then WM_ENDSESSION (0x16) with the session ending.
+          [void][Ks.Win]::SendMessageW($handle, 0x11, [System.UIntPtr]::Zero, [System.IntPtr]::Zero)
+          [void][Ks.Win]::SendMessageW($handle, 0x16, [System.UIntPtr]1, [System.IntPtr]::Zero)
+          if (-not $p.WaitForExit(20000)) { Stop-Process -Id $p.Id -Force; throw "The app did not end within 20 seconds of the end of the session" }
+          Write-Output "The app ended with code $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\ks-err-end.txt" -ErrorAction SilentlyContinue | Select-Object -First 60; throw "The app ended with code $($p.ExitCode), not 0" }
       # The installer as a tester runs it, but silent (/S): it must install
       # without administrator rights into the user's own folder, put an entry
       # in the Start menu, and its uninstaller must take both away again

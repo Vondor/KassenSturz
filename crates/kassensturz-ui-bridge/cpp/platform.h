@@ -27,6 +27,19 @@ bool startDetached(const QString &program, const QStringList &arguments, const Q
 // Ends the event loop, so the app ends.
 void quitApp();
 
+// Makes SIGTERM, SIGHUP and SIGINT (a logout, a shutdown, `pkill`, Ctrl+C) end
+// the event loop the way quitting does, so the book is closed and its lock
+// file removed (B-276). Does nothing on Windows. Call it once the
+// application object exists.
+void quitOnSignals();
+
+// Closes the open book and ends the event loop when the desktop session ends
+// (a Windows logoff or shutdown, a session manager's logout), which Windows
+// follows by ending the process without `main` getting further, so the
+// book's lock file would stay behind (B-287). Call it once the application
+// object exists.
+void closeBookOnSessionEnd();
+
 // Switches QStandardPaths to Qt's test locations, apart from the user's real
 // ones: the test profile on Windows (M7a.9).
 void useTestLocations();

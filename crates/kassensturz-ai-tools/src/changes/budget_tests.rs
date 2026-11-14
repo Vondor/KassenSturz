@@ -1321,6 +1321,37 @@ fn the_count_moves_back_only_as_far_as_the_book_reaches() {
     assert_eq!(new_budget(&proposal.changes).amount, eur(5_000));
 }
 
+// B-288: an amount the store would refuse as too large is refused when it is
+// prepared, so a call that is only checked doesn't "work" and then fail at the
+// user's confirmation.
+#[test]
+fn a_budget_amount_above_the_stores_limit_is_refused_when_prepared() {
+    let small = small();
+    for amount in ["92233720368547758.07", "9223372036854775.00"] {
+        let call = json!({"check_only": true, "new_budgets": [{
+            "category_id": small.fun.to_string(), "every": "month", "amount": amount}]});
+        let (_, call) = take_check_only(&call).expect("taken");
+        let refused = propose(&small.book, &call).expect_err("too large");
+        // The refusal names the list and the item it is about.
+        let ToolError::InItem { cause, .. } = &refused else {
+            panic!("{amount}: {refused:?}");
+        };
+        assert!(
+            matches!(
+                **cause,
+                ToolError::BudgetRefused(StoreError::BudgetAmount {
+                    reason: "too-large"
+                })
+            ),
+            "{amount}: {refused:?}"
+        );
+    }
+    // And what the store accepts is still prepared.
+    let call = json!({"new_budgets": [{
+        "category_id": small.fun.to_string(), "every": "month", "amount": "50.00"}]});
+    propose(&small.book, &call).expect("prepared");
+}
+
 // A call only checked (US2.15, #595, D-674).
 #[test]
 fn a_check_names_the_computed_amount_and_how_it_was_computed() {

@@ -10,8 +10,10 @@ on:
   push:
     tags: ["v0.*"]
   # A pull request that changes this workflow (or the script that numbers the
-  # build) runs everything but the release itself, so the workflow is proven
-  # before the first tag is pushed, and again whenever it changes.
+  # build) runs the bundle build and install check, so the workflow is proven
+  # before the first tag is pushed. The Windows and snap jobs run only for a
+  # tag: their own workflows already run on pull requests that touch their
+  # files, and running them here too built everything twice.
   pull_request:
     paths:
       - ".github/workflows/release.yml"
@@ -243,6 +245,7 @@ jobs:
   # is proven by hand on a Windows 11 virtual machine (D-542).
   windows:
     name: Windows app
+    if: github.ref_type == 'tag'
     uses: ./.github/workflows/windows-app.yml
     with:
       release: true
@@ -250,6 +253,7 @@ jobs:
   # The snap (#892, D-765): built and installed on a fresh runner by snap.yml.
   snap:
     name: Snap
+    if: github.ref_type == 'tag'
     uses: ./.github/workflows/snap.yml
     with:
       release: ${{ github.ref_type == 'tag' }}

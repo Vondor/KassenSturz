@@ -39,6 +39,31 @@ Kirigami.InlineMessage {
             : i18nContext.i18nc("@info %1 is the number of a part of a transaction, %2 a message about it", "Part %1: %2", result.part, message);
     }
 
+    // Why a bill of the receipt inbox didn't move (US7, #333), from the
+    // reason word of `bill.move-failed` (docs/ERROR_CODES.md).
+    function billReason(reason: string): string {
+        switch (reason) {
+        case "changed":
+            return i18nContext.i18nc("@info", "The file changed after it was read.");
+        case "not-found":
+            return i18nContext.i18nc("@info", "The file isn't there any more.");
+        case "exists":
+            return i18nContext.i18nc("@info", "A file of that name is already there.");
+        case "no-space":
+            return i18nContext.i18nc("@info", "The drive is full.");
+        case "no-permission":
+            return i18nContext.i18nc("@info", "KassenSturz may not write there.");
+        case "inbox-gone":
+            return i18nContext.i18nc("@info", "The inbox folder isn't there any more.");
+        case "archive-gone":
+            return i18nContext.i18nc("@info", "The archive folder isn't there any more.");
+        case "verify":
+            return i18nContext.i18nc("@info", "The copy didn't match the original, so it was removed.");
+        default:
+            return i18nContext.i18nc("@info", "The file couldn't be copied.");
+        }
+    }
+
     // Why a planned payment can't be kept as it is (D-769).
     function scheduleInvalid(reason: string): string {
         switch (reason) {
@@ -278,6 +303,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18ncp("@info", "Amounts here have at most %1 decimal place. Leave out the extra ones; nothing is rounded for you.", "Amounts here have at most %1 decimal places. Leave out the extra ones; nothing is rounded for you.", parseInt(result.max));
         case "input.amount-too-large":
             return i18nContext.i18nc("@info", "This amount is too large. Check it for extra digits.");
+        case "store.amount-overflow":
+            return i18nContext.i18nc("@info", "This would make the amounts in your book add up to more than KassenSturz can work with. Nothing was changed. Check the amount for extra digits.");
         case "input.amount-not-positive":
             return i18nContext.i18nc("@info", "Type an amount above zero. Whether you paid or received it, you choose above.");
         case "input.negative-debt":
@@ -342,6 +369,10 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is text from the file", "\"%1\" should be a date, but KassenSturz can't read it in the order of day, month and year chosen. Check that order. Nothing was imported.", result.found);
         case "import.wrong-encoding":
             return i18nContext.i18nc("@info", "The file has a character that doesn't exist in the text encoding chosen. Choose another encoding, or let KassenSturz tell it from the file. Nothing was imported.");
+        case "import.encoding-contradiction":
+            return i18nContext.i18nc("@info %1 is a text encoding such as UTF-8", "The file says it is written in %1, but its text isn't. It may have been saved again by another program. Download it again, or save it in UTF-8. Nothing was imported.", result.declared);
+        case "import.unsupported-encoding":
+            return i18nContext.i18nc("@info %1 is a text encoding such as UTF-32", "The file is written in the text encoding %1, which KassenSturz doesn't read. Download it again in UTF-8, or save it in UTF-8 or UTF-16. Nothing was imported.", result.found);
         case "import.column-not-found":
             return i18nContext.i18nc("@info %1 is the name of a column", "The file has no column called \"%1\". Your bank may have changed its file: check which column holds what. Nothing was imported.", result.column);
         case "import.column-not-unique":
@@ -659,6 +690,12 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "Another program took this book over, so your change wasn't saved. Close the book and open it again.");
         case "store.corrupt.history-mismatch":
             return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
+        // The receipt inbox (US7, #333): a bill can't move back or again,
+        // so nothing was changed (docs/RECEIPT_INBOX.md §7).
+        case "bill.undo-blocked":
+            return i18nContext.i18nc("@info %1 is a list of files, %2 why the first can't be moved", "Nothing was undone: these bills can't be moved back into your inbox: %1. %2 Put them back, or undo anyway and leave them where they are.", result.files, billReason(result.reason));
+        case "bill.redo-blocked":
+            return i18nContext.i18nc("@info %1 is a list of files, %2 why the first can't be moved", "Nothing was made again: these bills can't be filed again: %1. %2 Put them back into your inbox, then try again.", result.files, billReason(result.reason));
         case "input.no-accounts-chosen":
             return i18nContext.i18nc("@info", "Tick at least one account.");
         case "input.range-reversed":

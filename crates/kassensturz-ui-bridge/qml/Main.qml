@@ -106,6 +106,7 @@ Kirigami.ApplicationWindow {
         onOpened: {
             bookMover.refresh();
             root.showBook();
+            root.tellSettledBills(changeHistory.settleBills());
         }
         onFailed: root.showProblem()
     }
@@ -360,6 +361,8 @@ Kirigami.ApplicationWindow {
         id: aiChat
 
         onChanged: root.bookChanged()
+        // The archive's folder for bills without a category (US7, #333).
+        Component.onCompleted: nameUnsortedFolder(root.i18nContext.i18nc("@item the name of a folder for bills whose transaction has no category", "Not sorted yet"))
     }
 
     // Closing the sidebar and forgetting the conversation when the switch
@@ -463,7 +466,9 @@ Kirigami.ApplicationWindow {
 
     onClosing: {
         // The chat window must not keep the app running.
-        chatWindow.hide();
+        if (chatWindowLoader.item) {
+            chatWindowLoader.item.hide();
+        }
         const maximized = root.visibility === Window.Maximized;
         const g = maximized ? root.normalGeometry : Qt.rect(root.x, root.y, root.width, root.height);
         windowState.save(g.width, g.height, g.x, g.y, maximized);
@@ -571,8 +576,43 @@ Kirigami.ApplicationWindow {
         afterStep(changeHistory.redo(), true);
     }
 
+    // What settling the receipt inbox's moves after a crash found (US7,
+    // #333): only what the user should know, never a guess.
+    function tellSettledBills(notes: var) {
+        for (const note of notes) {
+            let text;
+            switch (note.kind) {
+            case "unlinked":
+                text = i18nContext.i18nc("@info %1 is a path", "A bill is in your archive without a link: %1", note.path);
+                break;
+            case "notWhereLinked":
+                text = i18nContext.i18nc("@info %1 is a path", "A filed bill is back in your inbox: %1. Its link points to the archive, where it isn't.", note.path);
+                break;
+            case "bothKept":
+                text = i18nContext.i18nc("@info %1 and %2 are paths", "Two different copies of a bill were kept, so none was lost: %1 and %2", note.path, note.other);
+                break;
+            case "onlyPart":
+                text = i18nContext.i18nc("@info %1 is a path", "Only an unchecked copy of a bill was left, so it was kept: %1", note.path);
+                break;
+            default:
+                text = i18nContext.i18nc("@info %1 is a path", "A bill that was being filed isn't there any more: %1", note.path);
+            }
+            showPassiveNotification(text, "long");
+        }
+    }
+
     // Says what undo or redo did, or why it didn't work.
     function afterStep(result: var, redone: bool) {
+        if (result.code === "bill.undo-blocked" || result.code === "bill.redo-blocked") {
+            // Only the history page offers "Undo anyway" (US7, #333).
+            const shown = pageStack.currentItem;
+            if (shown && shown.stepped !== undefined) {
+                shown.failure = result;
+            } else {
+                pushPage(historyPage, { failure: result });
+            }
+            return;
+        }
         if (result.code !== undefined) {
             const page = pageStack.currentItem;
             if (page && page.failure !== undefined) {
@@ -586,6 +626,12 @@ Kirigami.ApplicationWindow {
             return;
         }
         leaveStalePages();
+        if ((result.leftInArchive ?? []).length > 0) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The link is gone. The bills stay in your archive: %1", Array.from(result.leftInArchive).join(", ")), "long");
+        }
+        if ((result.copiesLeft ?? []).length > 0) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
+        }
         const what = changeNames.describe(result.change);
         if (redone) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
@@ -1180,8 +1226,15 @@ Kirigami.ApplicationWindow {
     property bool chatDetached: false
 
     function detachChat() {
-        chatPanel.parent = chatWindowHolder;
+        // The window exists only while the chat is detached and AI is on, so
+        // with AI off no chat window is created at all (B-286): setting the
+        // flag makes the loader create it, at once.
         chatDetached = true;
+        if (!chatWindowLoader.item) {
+            chatDetached = false;
+            return;
+        }
+        chatPanel.parent = chatWindowLoader.item.holder;
         chatDrawer.close();
         showChatWindow();
     }
@@ -1191,9 +1244,9 @@ Kirigami.ApplicationWindow {
     // "Move back to the sidebar" is for; closing the chat window, or the AI
     // switch going off, leaves the sidebar closed.
     function attachChat(reopen) {
+        // The panel leaves the window first; then the loader drops the window.
         chatPanel.parent = chatHolder;
         chatDetached = false;
-        chatWindow.hide();
         if (reopen) {
             chatDrawer.open();
             root.raise();
@@ -1202,9 +1255,12 @@ Kirigami.ApplicationWindow {
     }
 
     function showChatWindow() {
-        chatWindow.show();
-        chatWindow.raise();
-        chatWindow.requestActivate();
+        if (!chatWindowLoader.item) {
+            return;
+        }
+        chatWindowLoader.item.show();
+        chatWindowLoader.item.raise();
+        chatWindowLoader.item.requestActivate();
     }
 
     function raiseMainWindow() {
@@ -1311,21 +1367,36 @@ Kirigami.ApplicationWindow {
     // unsent text and the open tab stay as they are. Closing the window puts
     // the panel back into the sidebar, which stays closed. The window opens
     // where it was left (not remembered between sessions).
-    Controls.ApplicationWindow {
-        id: chatWindow
+    Loader {
+        id: chatWindowLoader
 
-        width: Kirigami.Units.gridUnit * 26
-        height: Kirigami.Units.gridUnit * 36
-        minimumWidth: Kirigami.Units.gridUnit * 18
-        minimumHeight: Kirigami.Units.gridUnit * 20
-        visible: false
-        title: chatPanel.windowTitle
-        onClosing: root.attachChat(false)
+        // Not even an empty window object while AI is off (B-286, §8): it
+        // would show in the accessibility tree.
+        active: aiSwitch.enabled && root.chatDetached
 
-        Item {
-            id: chatWindowHolder
+        sourceComponent: Controls.ApplicationWindow {
+            id: chatWindow
 
-            anchors.fill: parent
+            property alias holder: chatWindowHolder
+
+            width: Kirigami.Units.gridUnit * 26
+            height: Kirigami.Units.gridUnit * 36
+            minimumWidth: Kirigami.Units.gridUnit * 18
+            minimumHeight: Kirigami.Units.gridUnit * 20
+            visible: false
+            title: chatPanel.windowTitle
+            onClosing: close => {
+                // The loader drops this window, which must not happen inside
+                // its own closing handler.
+                close.accepted = false;
+                Qt.callLater(() => root.attachChat(false));
+            }
+
+            Item {
+                id: chatWindowHolder
+
+                anchors.fill: parent
+            }
         }
     }
 
@@ -1953,6 +2024,7 @@ Kirigami.ApplicationWindow {
             ai: aiSwitch
             chat: aiChat
             onApplied: setId => chatPanel.markHandled(setId, true)
+            onNothingMade: setId => chatPanel.markHandled(setId, false)
             onDiscarded: setId => {
                 chatPanel.markHandled(setId, false);
                 pageStack.pop();

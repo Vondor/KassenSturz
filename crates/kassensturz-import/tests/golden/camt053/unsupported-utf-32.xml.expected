@@ -1,0 +1,3 @@
+recognized: no
+error: import.unsupported-encoding
+  found: "UTF-32"

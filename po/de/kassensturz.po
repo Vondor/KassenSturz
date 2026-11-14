@@ -2582,6 +2582,18 @@ msgstr ""
 "eine Kategorie mit diesem Namen angelegt wurde. Es wurde nichts geändert. "
 "Bitten Sie die KI, sie noch einmal vorzubereiten."
 
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:109
+#, kde-format
+msgctxt "@info"
+msgid ""
+"An amount in these changes is too large: your book would hold more than "
+"KassenSturz can work with. Nothing was changed. Ask the AI to prepare them "
+"again with a smaller amount."
+msgstr ""
+"Ein Betrag in diesen Änderungen ist zu groß: Ihr Buch würde mehr enthalten, "
+"als KassenSturz verarbeiten kann. Es wurde nichts geändert. Bitten Sie die "
+"KI, sie mit einem kleineren Betrag noch einmal vorzubereiten."
+
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:110
 #, kde-format
 msgctxt "@info"
@@ -4853,6 +4865,19 @@ msgid_plural "%1 saved reports"
 msgstr[0] "%1 gespeicherter Bericht"
 msgstr[1] "%1 gespeicherte Berichte"
 
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:43
+#, kde-format
+msgctxt "@item what was left out, %1 is how many"
+msgid "%1 more saved report was not brought in (KassenSturz takes at most 500)"
+msgid_plural ""
+"%1 more saved reports were not brought in (KassenSturz takes at most 500)"
+msgstr[0] ""
+"%1 weiterer gespeicherter Bericht wurde nicht übernommen (KassenSturz "
+"übernimmt höchstens 500)"
+msgstr[1] ""
+"%1 weitere gespeicherte Berichte wurden nicht übernommen (KassenSturz "
+"übernimmt höchstens 500)"
+
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:44
 #, kde-format
 msgctxt "@item what was left out, %1 is how many"
@@ -5562,6 +5587,21 @@ msgstr ""
 "Dieses Haushaltsbuch wurde mit einer neueren Version von KassenSturz "
 "angelegt. Aktualisieren Sie KassenSturz, um es zu öffnen. Das Haushaltsbuch "
 "wurde nicht verändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:100
+#, kde-format
+msgctxt "@info %1 is a date and time, %2 a folder, %3 a file name"
+msgid ""
+"To keep using this version instead, open the copy that the newer "
+"KassenSturz saved before it updated the book, on %1: it is in the backup "
+"folder (%2) as %3. Choose it with \"Open another book…\". Changes made "
+"since the update are not in that copy."
+msgstr ""
+"Um diese Version weiter zu nutzen, öffnen Sie die Kopie, die die neuere "
+"KassenSturz-Version am %1 vor dem Aktualisieren des Haushaltsbuchs gesichert "
+"hat: Sie liegt im Sicherungsordner (%2) unter dem Namen %3. Wählen Sie sie "
+"mit „Anderes Haushaltsbuch öffnen…“. Änderungen seit dem Aktualisieren sind "
+"in dieser Kopie nicht enthalten."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:90
 #, kde-format
@@ -9828,6 +9868,17 @@ msgstr "Dieser Betrag ist zu groß. Prüfen Sie, ob eine Ziffer zu viel ist."
 #, kde-format
 msgctxt "@info"
 msgid ""
+"This would make the amounts in your book add up to more than KassenSturz can "
+"work with. Nothing was changed. Check the amount for extra digits."
+msgstr ""
+"Damit würden die Beträge in Ihrem Buch zusammen mehr ergeben, als "
+"KassenSturz verarbeiten kann. Es wurde nichts geändert. Prüfen Sie, ob eine "
+"Ziffer zu viel ist."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:244
+#, kde-format
+msgctxt "@info"
+msgid ""
 "Type an amount above zero. Whether you paid or received it, you choose above."
 msgstr ""
 "Geben Sie einen Betrag über null ein. Ob Sie bezahlt oder erhalten haben, "
@@ -10080,6 +10131,31 @@ msgstr ""
 "Die Datei enthält ein Zeichen, das es in der gewählten Zeichenkodierung "
 "nicht gibt. Wählen Sie eine andere Kodierung oder lassen Sie KassenSturz sie "
 "aus der Datei erkennen. Es wurde nichts importiert."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:341
+#, kde-format
+msgctxt "@info %1 is a text encoding such as UTF-8"
+msgid ""
+"The file says it is written in %1, but its text isn't. It may have been "
+"saved again by another program. Download it again, or save it in UTF-8. "
+"Nothing was imported."
+msgstr ""
+"Die Datei gibt an, in %1 geschrieben zu sein, ihr Text ist es aber nicht. "
+"Vielleicht wurde sie von einem anderen Programm erneut gespeichert. Laden "
+"Sie sie noch einmal herunter oder speichern Sie sie als UTF-8. Es wurde "
+"nichts importiert."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:343
+#, kde-format
+msgctxt "@info %1 is a text encoding such as UTF-32"
+msgid ""
+"The file is written in the text encoding %1, which KassenSturz doesn't read. "
+"Download it again in UTF-8, or save it in UTF-8 or UTF-16. Nothing was "
+"imported."
+msgstr ""
+"Die Datei ist in der Zeichenkodierung %1 geschrieben, die KassenSturz nicht "
+"liest. Laden Sie sie noch einmal als UTF-8 herunter oder speichern Sie sie "
+"als UTF-8 oder UTF-16. Es wurde nichts importiert."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:299
 #, kde-format
@@ -13120,6 +13196,22 @@ msgstr "Berichte hinzufügen"
 msgctxt "@info about a report brought in before"
 msgid "you deleted its view earlier"
 msgstr "Sie haben seine Ansicht früher gelöscht"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsImportPage.qml:133
+#, kde-format
+msgctxt "@info %1 is how many"
+msgid ""
+"%1 more saved report is not listed here and will not be added: KassenSturz "
+"takes at most 500 from a file."
+msgid_plural ""
+"%1 more saved reports are not listed here and will not be added: "
+"KassenSturz takes at most 500 from a file."
+msgstr[0] ""
+"%1 weiterer gespeicherter Bericht steht nicht in dieser Liste und wird nicht "
+"hinzugefügt: KassenSturz übernimmt höchstens 500 aus einer Datei."
+msgstr[1] ""
+"%1 weitere gespeicherte Berichte stehen nicht in dieser Liste und werden "
+"nicht hinzugefügt: KassenSturz übernimmt höchstens 500 aus einer Datei."
 
 #: crates/kassensturz-ui-bridge/qml/KmyReportsImportPage.qml:121
 #, kde-format
@@ -21987,14 +22079,6 @@ msgctxt "@action:button"
 msgid "Remove link"
 msgstr "Verknüpfung entfernen"
 
-msgctxt "@info"
-msgid ""
-"Removing a link leaves the file where it is. KassenSturz never moves, "
-"changes or deletes a bill."
-msgstr ""
-"Wenn Sie eine Verknüpfung entfernen, bleibt die Datei, wo sie ist. "
-"KassenSturz verschiebt, ändert oder löscht nie eine Rechnung."
-
 msgctxt "@title:window"
 msgid "Choose a folder"
 msgstr "Ordner wählen"
@@ -22722,6 +22806,12 @@ msgctxt "@title"
 msgid "KassenSturz couldn't save your latest change"
 msgstr "KassenSturz konnte Ihre letzte Änderung nicht speichern"
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:65
+#, kde-format
+msgctxt "@title"
+msgid "Another program replaced your book"
+msgstr "Ein anderes Programm hat Ihr Haushaltsbuch ersetzt"
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:89
 #, kde-format
 msgctxt "@info"
@@ -22739,6 +22829,30 @@ msgid ""
 "read-only. Choose the folder again and allow changes, or choose a folder you "
 "can write to. The book wasn't changed."
 msgstr "Der Ordner wurde KassenSturz nur zum Lesen freigegeben, oder das Laufwerk ist schreibgeschützt. Wählen Sie den Ordner erneut und erlauben Sie Änderungen, oder wählen Sie einen Ordner, in den Sie schreiben dürfen. Das Buch wurde nicht geändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:97
+#, kde-format
+msgctxt "@info"
+msgid ""
+"While KassenSturz had the book open, another program put a different file in "
+"its place, most likely a sync program such as Nextcloud or Syncthing. Your "
+"latest change was not saved, because it would have gone into the old file. "
+"Choose \"Try again\" to open the file that is in the folder now, and enter "
+"your latest change again if it is missing. If the sync program left a copy "
+"next to the book with \"conflicted copy\" in its name, that file holds the "
+"other version of the book: open it with \"Open another book…\" to compare the "
+"two."
+msgstr ""
+"Während KassenSturz das Haushaltsbuch geöffnet hatte, hat ein anderes "
+"Programm eine andere Datei an seine Stelle gelegt, wahrscheinlich ein "
+"Synchronisierungsprogramm wie Nextcloud oder Syncthing. Ihre letzte Änderung "
+"wurde nicht gespeichert, weil sie in die alte Datei gegangen wäre. Wählen "
+"Sie „Erneut versuchen“, um die Datei zu öffnen, die jetzt im Ordner liegt, "
+"und geben Sie Ihre letzte Änderung noch einmal ein, falls sie fehlt. Wenn "
+"das Synchronisierungsprogramm neben dem Buch eine Kopie mit „conflicted "
+"copy“ im Namen hinterlassen hat, enthält diese Datei die andere Fassung des "
+"Buches: Öffnen Sie sie mit „Anderes Haushaltsbuch öffnen…“, um beide zu "
+"vergleichen."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:93
 #, kde-format
@@ -24565,3 +24679,386 @@ msgstr "Zeigen, wo das Geld lag"
 msgctxt "@info"
 msgid "No transactions behind this in this period."
 msgstr "In diesem Zeitraum liegen keine Buchungen dahinter."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:292
+#, kde-format
+msgctxt "@info %1 is a file name, %2 how its total compares with the bank's"
+msgid "%1 · %2"
+msgstr "%1 · %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:344
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Bill filed from the inbox"
+msgstr "Rechnung aus dem Eingangsordner abgelegt"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:378
+#, kde-format
+msgctxt "@info %1 is the bill's total, %2 what the bank booked"
+msgid "The bill says %1 · your bank booked %2 ✓"
+msgstr "Die Rechnung nennt %1 · Ihre Bank buchte %2 ✓"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:380
+#, kde-format
+msgctxt "@info %1 is the bill's total, %2 what the bank booked"
+msgid "The bill says %1, your bank booked %2."
+msgstr "Die Rechnung nennt %1, Ihre Bank buchte %2."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:382
+#, kde-format
+msgctxt "@info %1 is what the bank booked"
+msgid "The AI did not give the bill's total; check the bill yourself. Your bank booked %1."
+msgstr "Die KI hat den Betrag der Rechnung nicht angegeben; prüfen Sie die Rechnung selbst. Ihre Bank buchte %1."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:389
+#, kde-format
+msgctxt "@info"
+msgid "it changed after your AI read it"
+msgstr "sie wurde geändert, nachdem Ihre KI sie gelesen hat"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:391
+#, kde-format
+msgctxt "@info"
+msgid "it isn't in the inbox any more"
+msgstr "sie liegt nicht mehr im Eingangsordner"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:393
+#, kde-format
+msgctxt "@info"
+msgid "no inbox and archive are chosen under Your own AI tools"
+msgstr "unter „Ihre eigenen KI-Programme“ sind kein Eingangsordner und kein Archiv gewählt"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:395
+#, kde-format
+msgctxt "@info"
+msgid "you chose another inbox since"
+msgstr "Sie haben inzwischen einen anderen Eingangsordner gewählt"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:397
+#, kde-format
+msgctxt "@info"
+msgid "the inbox folder isn't there any more"
+msgstr "den Eingangsordner gibt es nicht mehr"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:399
+#, kde-format
+msgctxt "@info"
+msgid "the archive folder isn't there any more"
+msgstr "den Archivordner gibt es nicht mehr"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:401
+#, kde-format
+msgctxt "@info"
+msgid "the drive is full"
+msgstr "das Laufwerk ist voll"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:403
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz may not write there"
+msgstr "KassenSturz darf dort nicht schreiben"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:405
+#, kde-format
+msgctxt "@info"
+msgid "a file of that name appeared in the archive"
+msgstr "im Archiv liegt inzwischen eine Datei mit diesem Namen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:407
+#, kde-format
+msgctxt "@info"
+msgid "the archive's path is too long for a file name"
+msgstr "der Pfad des Archivs ist zu lang für einen Dateinamen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:409
+#, kde-format
+msgctxt "@info"
+msgid "the place would lie outside the archive"
+msgstr "der Ablageort läge außerhalb des Archivs"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:411
+#, kde-format
+msgctxt "@info"
+msgid "the copy didn't match, so it was removed"
+msgstr "die Kopie stimmte nicht überein und wurde entfernt"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:413
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't note the move in its settings folder"
+msgstr "KassenSturz konnte das Verschieben nicht in seinem Einstellungsordner vermerken"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:415
+#, kde-format
+msgctxt "@info"
+msgid "it couldn't be copied"
+msgstr "sie konnte nicht kopiert werden"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:610
+#, kde-format
+msgctxt "@info %1 is a file name, %2 why it stayed"
+msgid "%1 (%2)"
+msgstr "%1 (%2)"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:610
+#, kde-format
+msgctxt "@info %1 is a list of files with the reason each stayed"
+msgid "These bills stayed in your inbox and were not linked: %1. The other changes were made."
+msgstr "Diese Rechnungen sind im Eingangsordner geblieben und wurden nicht verknüpft: %1. Die übrigen Änderungen wurden vorgenommen."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:620
+#, kde-format
+msgctxt "@info %1 is a list of files with the reason each stayed"
+msgid "Nothing was changed: these bills stayed in your inbox and were not linked: %1."
+msgstr "Es wurde nichts geändert: Diese Rechnungen sind im Eingangsordner geblieben und wurden nicht verknüpft: %1."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:617
+#, kde-format
+msgctxt "@info %1 is a list of paths"
+msgid "The bills are filed. KassenSturz couldn't remove these copies in your inbox: %1"
+msgstr "Die Rechnungen sind abgelegt. KassenSturz konnte diese Kopien in Ihrem Eingangsordner nicht entfernen: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1591
+#, kde-format
+msgctxt "@title:group"
+msgid "Bills filed from the inbox"
+msgstr "Rechnungen aus dem Eingangsordner ablegen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1601
+#, kde-format
+msgctxt "@info %1 is a number of files"
+msgid "%1 file will be moved from your inbox to your archive. It is copied and checked first; the original is removed only after your book is saved. Undo puts it back."
+msgid_plural "%1 files will be moved from your inbox to your archive. Each is copied and checked first; the original is removed only after your book is saved. Undo puts them back."
+msgstr[0] "%1 Datei wird aus Ihrem Eingangsordner in Ihr Archiv verschoben. Sie wird zuerst kopiert und geprüft; das Original wird erst entfernt, wenn Ihr Buch gespeichert ist. Rückgängig legt sie zurück."
+msgstr[1] "%1 Dateien werden aus Ihrem Eingangsordner in Ihr Archiv verschoben. Jede wird zuerst kopiert und geprüft; das Original wird erst entfernt, wenn Ihr Buch gespeichert ist. Rückgängig legt sie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1638
+#, kde-format
+msgctxt "@info %1 is a file name"
+msgid "File bill: %1 (from your inbox)"
+msgstr "Rechnung ablegen: %1 (aus Ihrem Eingangsordner)"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1646
+#, kde-format
+msgctxt "@info %1 is a path inside the archive"
+msgid "Goes to: %1"
+msgstr "Kommt nach: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1672
+#, kde-format
+msgctxt "@info"
+msgid "You put this bill back on purpose, for example because of a tip or a part payment. Your transaction keeps the bank's amount."
+msgstr "Sie haben diese Rechnung bewusst wieder aufgenommen, zum Beispiel wegen eines Trinkgelds oder einer Teilzahlung. Ihre Buchung behält den Betrag der Bank."
+
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:142
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Bills filed from the inbox"
+msgstr "Rechnungen aus dem Eingangsordner ablegen"
+
+#: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:380
+#, kde-format
+msgctxt "@info"
+msgid "Your AI tools can now prepare moving bills from your inbox into your archive. Nothing moves until you confirm. Each file is copied and checked first and removed from the inbox only after your book is saved, and Undo moves it back. Choose the two folders under \"Your own AI tools\" below."
+msgstr "Ihre KI-Programme können jetzt vorbereiten, Rechnungen aus Ihrem Eingangsordner in Ihr Archiv zu verschieben. Nichts wird verschoben, bevor Sie bestätigen. Jede Datei wird zuerst kopiert und geprüft und erst aus dem Eingangsordner entfernt, wenn Ihr Buch gespeichert ist, und Rückgängig verschiebt sie zurück. Wählen Sie die beiden Ordner unten unter „Ihre eigenen KI-Programme“."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:816
+#, kde-format
+msgctxt "@title:group"
+msgid "Inbox and archive for bills"
+msgstr "Eingangsordner und Archiv für Rechnungen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:823
+#, kde-format
+msgctxt "@info"
+msgid "Drop bills into the inbox. Your AI reads them, and when you confirm, KassenSturz moves each one into the archive, sorted by account and category. Undo puts it back. This needs \"Bills filed from the inbox\" above."
+msgstr "Legen Sie Rechnungen in den Eingangsordner. Ihre KI liest sie, und wenn Sie bestätigen, verschiebt KassenSturz jede ins Archiv, sortiert nach Konto und Kategorie. Rückgängig legt sie zurück. Dafür muss oben „Rechnungen aus dem Eingangsordner ablegen“ eingeschaltet sein."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:830
+#, kde-format
+msgctxt "@label"
+msgid "Inbox for new bills"
+msgstr "Eingangsordner für neue Rechnungen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:831
+#, kde-format
+msgctxt "@title:window"
+msgid "Choose the inbox for new bills"
+msgstr "Eingangsordner für neue Rechnungen wählen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:835
+#, kde-format
+msgctxt "@label"
+msgid "Archive for filed bills"
+msgstr "Archiv für abgelegte Rechnungen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:836
+#, kde-format
+msgctxt "@title:window"
+msgid "Choose the archive for filed bills"
+msgstr "Archiv für abgelegte Rechnungen wählen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:852
+#, kde-format
+msgctxt "@info"
+msgid "The inbox and the archive must be two separate folders, neither inside the other, and not KassenSturz's own folder or your book's folder. Please choose another folder."
+msgstr "Eingangsordner und Archiv müssen zwei getrennte Ordner sein, keiner im anderen, und weder der eigene Ordner von KassenSturz noch der Ordner Ihres Buchs. Bitte wählen Sie einen anderen Ordner."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:854
+#, kde-format
+msgctxt "@info"
+msgid "Please choose a folder inside your home folder, for example one just for your bills."
+msgstr "Bitte wählen Sie einen Ordner in Ihrem persönlichen Ordner, zum Beispiel einen nur für Ihre Rechnungen."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:856
+#, kde-format
+msgctxt "@info"
+msgid "The setting couldn't be saved. Check that your settings folder can be written to, then try again."
+msgstr "Die Einstellung konnte nicht gespeichert werden. Prüfen Sie, ob in Ihren Einstellungsordner geschrieben werden kann, und versuchen Sie es erneut."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:874
+#, kde-format
+msgctxt "@info no folder is chosen"
+msgid "No folder chosen."
+msgstr "Kein Ordner gewählt."
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:164
+#, kde-format
+msgctxt "@info %1 is a number of bills, %2 what was done"
+msgid "%2, and %1 bill filed from the inbox"
+msgid_plural "%2, and %1 bills filed from the inbox"
+msgstr[0] "%2, dazu %1 Rechnung aus dem Eingangsordner abgelegt"
+msgstr[1] "%2, dazu %1 Rechnungen aus dem Eingangsordner abgelegt"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:47
+#, kde-format
+msgctxt "@info"
+msgid "The file changed after it was read."
+msgstr "Die Datei wurde geändert, nachdem sie gelesen wurde."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:49
+#, kde-format
+msgctxt "@info"
+msgid "The file isn't there any more."
+msgstr "Die Datei ist nicht mehr da."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:51
+#, kde-format
+msgctxt "@info"
+msgid "A file of that name is already there."
+msgstr "Dort liegt bereits eine Datei mit diesem Namen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:53
+#, kde-format
+msgctxt "@info"
+msgid "The drive is full."
+msgstr "Das Laufwerk ist voll."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:55
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz may not write there."
+msgstr "KassenSturz darf dort nicht schreiben."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:57
+#, kde-format
+msgctxt "@info"
+msgid "The inbox folder isn't there any more."
+msgstr "Den Eingangsordner gibt es nicht mehr."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:59
+#, kde-format
+msgctxt "@info"
+msgid "The archive folder isn't there any more."
+msgstr "Den Archivordner gibt es nicht mehr."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:61
+#, kde-format
+msgctxt "@info"
+msgid "The copy didn't match the original, so it was removed."
+msgstr "Die Kopie stimmte nicht mit dem Original überein und wurde entfernt."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:63
+#, kde-format
+msgctxt "@info"
+msgid "The file couldn't be copied."
+msgstr "Die Datei konnte nicht kopiert werden."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:688
+#, kde-format
+msgctxt "@info %1 is a list of files, %2 why the first can't be moved"
+msgid "Nothing was undone: these bills can't be moved back into your inbox: %1. %2 Put them back, or undo anyway and leave them where they are."
+msgstr "Nichts wurde rückgängig gemacht: Diese Rechnungen lassen sich nicht in Ihren Eingangsordner zurücklegen: %1. %2 Legen Sie sie zurück, oder machen Sie es trotzdem rückgängig und lassen Sie sie, wo sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:690
+#, kde-format
+msgctxt "@info %1 is a list of files, %2 why the first can't be moved"
+msgid "Nothing was made again: these bills can't be filed again: %1. %2 Put them back into your inbox, then try again."
+msgstr "Nichts wurde wiederhergestellt: Diese Rechnungen lassen sich nicht erneut ablegen: %1. %2 Legen Sie sie zurück in Ihren Eingangsordner und versuchen Sie es erneut."
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml:54
+#, kde-format
+msgctxt "@action:button"
+msgid "Undo anyway, and leave the bills where they are"
+msgstr "Trotzdem rückgängig machen, Rechnungen bleiben, wo sie sind"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml:70
+#: crates/kassensturz-ui-bridge/qml/Main.qml:611
+#, kde-format
+msgctxt "@info %1 is a list of files"
+msgid "The link is gone. The bills stay in your archive: %1"
+msgstr "Die Verknüpfung ist entfernt. Die Rechnungen bleiben in Ihrem Archiv: %1"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:348
+#, kde-format
+msgctxt "@item the name of a folder for bills whose transaction has no category"
+msgid "Not sorted yet"
+msgstr "Noch nicht zugeordnet"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:567
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "A bill is in your archive without a link: %1"
+msgstr "In Ihrem Archiv liegt eine Rechnung ohne Verknüpfung: %1"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:570
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "A filed bill is back in your inbox: %1. Its link points to the archive, where it isn't."
+msgstr "Eine abgelegte Rechnung liegt wieder in Ihrem Eingangsordner: %1. Ihre Verknüpfung zeigt ins Archiv, wo sie nicht ist."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:573
+#, kde-format
+msgctxt "@info %1 and %2 are paths"
+msgid "Two different copies of a bill were kept, so none was lost: %1 and %2"
+msgstr "Zwei verschiedene Kopien einer Rechnung wurden behalten, damit keine verloren geht: %1 und %2"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:576
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "Only an unchecked copy of a bill was left, so it was kept: %1"
+msgstr "Von einer Rechnung war nur eine ungeprüfte Kopie übrig, deshalb wurde sie behalten: %1"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:579
+#, kde-format
+msgctxt "@info %1 is a path"
+msgid "A bill that was being filed isn't there any more: %1"
+msgstr "Eine Rechnung, die gerade abgelegt wurde, ist nicht mehr da: %1"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:614
+#, kde-format
+msgctxt "@info %1 is a list of files"
+msgid "The bills moved, but KassenSturz couldn't remove their old copies: %1"
+msgstr "Die Rechnungen wurden verschoben, aber KassenSturz konnte ihre alten Kopien nicht entfernen: %1"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:676
+#, kde-format
+msgctxt "@action:button"
+msgid "Show in folder"
+msgstr "Im Ordner zeigen"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:701
+#, kde-format
+msgctxt "@info"
+msgid "Removing a link leaves the file where it is. KassenSturz never changes or deletes a bill; it moves one only when you confirm filing it from your inbox."
+msgstr "Wenn Sie eine Verknüpfung entfernen, bleibt die Datei, wo sie ist. KassenSturz ändert oder löscht nie eine Rechnung; es verschiebt eine nur, wenn Sie bestätigen, sie aus Ihrem Eingangsordner abzulegen."

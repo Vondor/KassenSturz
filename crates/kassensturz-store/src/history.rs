@@ -16,6 +16,7 @@
 //! The history is kept in the book, or only in memory if the user keeps it
 //! for 0 days (D-066). Its layout is documented in `docs/BOOK_FORMAT.md`.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use kassensturz_core::{AccountId, Date, Timestamp, TransactionId};
@@ -879,6 +880,11 @@ impl Book {
             let changed = change(book);
             book.recording = false;
             let value = changed?;
+            // No change may leave a currency's amounts too large to add up
+            // (B-269), whichever way they came in.
+            if crate::totals::splits_changed(&book.conn)? {
+                crate::totals::check_totals(&book.conn)?;
+            }
             book.record(action)?;
             Ok(value)
         })
@@ -919,7 +925,22 @@ impl Book {
                 self.recording = true;
                 let result = change(self);
                 self.recording = outer;
-                result
+                // Refused where the real action would be (B-269).
+                match result {
+                    Ok(value) if !outer => {
+                        match crate::totals::splits_changed(&self.conn).and_then(|changed| {
+                            if changed {
+                                crate::totals::check_totals(&self.conn)
+                            } else {
+                                Ok(())
+                            }
+                        }) {
+                            Ok(()) => Ok(value),
+                            Err(error) => Err(error.into()),
+                        }
+                    }
+                    other => other,
+                }
             }
             Err(error) => Err(StoreError::from(error).into()),
         };
@@ -1381,6 +1402,29 @@ impl Book {
         })
     }
 
+    /// How many changes the book would delete at `now` if it kept its
+    /// history as `keep`, by the same rule as when it deletes them (B-274),
+    /// so the user can be asked before a shorter setting. With 0 days none:
+    /// the history moves into memory and is lost when the book closes.
+    pub fn history_expiring(
+        &self,
+        keep: HistoryRetention,
+        now: Timestamp,
+    ) -> Result<usize, StoreError> {
+        if keep == HistoryRetention::Days(0) {
+            return Ok(0);
+        }
+        let Some(last) = last_to_delete(&self.conn, keep, now)? else {
+            return Ok(0);
+        };
+        let count: i64 = self.conn.query_row_cached(
+            "SELECT count(*) FROM main.changes WHERE sequence <= ?1",
+            [last],
+            |row| row.get(0),
+        )?;
+        Ok(usize::try_from(count).unwrap_or(0))
+    }
+
     /// Deletes the changes older than the book keeps them, when it is
     /// opened.
     pub(crate) fn prune_history(&mut self) -> Result<(), StoreError> {
@@ -1457,9 +1501,31 @@ impl Book {
         self.write_failed
     }
 
+    /// Whether writing failed because another program replaced the book's
+    /// file while it was open, e.g. a sync program putting another
+    /// computer's copy over it (B-289). The change that failed was not
+    /// written to the file now at the book's path.
+    #[must_use]
+    pub fn file_replaced(&self) -> bool {
+        self.file_replaced
+    }
+
     /// Remembers that `error` is the drive's, not the change's.
     fn note_write_failure(&mut self, error: &rusqlite::Error) {
         use rusqlite::ErrorCode;
+        // SQLite's own check that the file it has open is still the one at
+        // its path (`SQLITE_READONLY_DBMOVED`). It says the same for a file
+        // that is gone, so it is another file's replacing this one only if
+        // something is at the path now.
+        if let rusqlite::Error::SqliteFailure(failure, _) = error
+            && failure.extended_code == rusqlite::ffi::SQLITE_READONLY_DBMOVED
+            && self
+                .conn
+                .path()
+                .is_some_and(|path| std::path::Path::new(path).is_file())
+        {
+            self.file_replaced = true;
+        }
         if matches!(
             error.sqlite_error_code(),
             Some(
@@ -1595,11 +1661,27 @@ fn prune_after_change(
 
 /// Deletes the changes the book no longer keeps at `now`: with 0 days every
 /// change stored in the book, otherwise those made more than the days
-/// before. It deletes from the oldest change up to the newest one that is
-/// too old, so the history has no gaps even if a computer's clock was wrong
-/// when a change was made, and the history in memory isn't touched.
+/// before **and** followed by changes on at least as many other days
+/// ([`used_days_after`], D-780), so a clock far ahead deletes nothing a
+/// day of use doesn't. It deletes from the oldest change up to the newest
+/// one that is too old, so the history has no gaps even if a computer's
+/// clock was wrong when a change was made, and the history in memory isn't
+/// touched.
 fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<(), StoreError> {
-    let last: Option<i64> = match keep {
+    match last_to_delete(conn, keep, now)? {
+        Some(last) => delete_changes(conn, "main", "sequence <= ?1", &[&last]),
+        None => Ok(()),
+    }
+}
+
+/// The newest change [`prune`] deletes at `now` with the history kept as
+/// `keep`, together with every older one.
+fn last_to_delete(
+    conn: &Connection,
+    keep: HistoryRetention,
+    now: Timestamp,
+) -> Result<Option<i64>, StoreError> {
+    Ok(match keep {
         HistoryRetention::Forever => None,
         HistoryRetention::Days(0) => {
             conn.query_row_cached("SELECT max(sequence) FROM main.changes", [], |row| {
@@ -1611,7 +1693,7 @@ fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<()
                 .as_second()
                 .checked_sub(86_400 * i64::from(days))
                 .and_then(|second| Timestamp::from_second(second).ok());
-            match limit {
+            let by_clock: Option<i64> = match limit {
                 Some(limit) => conn.query_row_cached(
                     "SELECT max(sequence) FROM main.changes WHERE made_at < ?1",
                     [limit.to_string()],
@@ -1619,13 +1701,41 @@ fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<()
                 )?,
                 // Further back than any time, so nothing is that old.
                 None => None,
+            };
+            match by_clock {
+                Some(by_clock) => used_days_after(conn, days)?.map(|by_use| by_clock.min(by_use)),
+                None => None,
             }
         }
-    };
-    match last {
-        Some(last) => delete_changes(conn, "main", "sequence <= ?1", &[&last]),
-        None => Ok(()),
+    })
+}
+
+/// The newest change after which the book was changed on at least `days`
+/// other days, by the dates the changes were made on (D-780, B-274): only a
+/// change up to it may be deleted, whatever the clock says now. A clock
+/// that jumps years ahead then can't delete the whole history at the next
+/// change, since that change adds one day of use, not `days`; a book left
+/// alone for months keeps its last days of use too. It reads the changes
+/// from the newest one back only until it has seen that many days.
+fn used_days_after(conn: &Connection, days: u32) -> Result<Option<i64>, StoreError> {
+    let wanted = usize::try_from(days).unwrap_or(usize::MAX);
+    let mut statement =
+        conn.prepare_cached("SELECT sequence, made_at FROM main.changes ORDER BY sequence DESC")?;
+    let mut rows = statement.query([])?;
+    let mut seen: HashSet<String> = HashSet::new();
+    while let Some(row) = rows.next()? {
+        let sequence: i64 = row.get(0)?;
+        let made_at: String = row.get(1)?;
+        // The day of a time written as RFC 3339, e.g. `2026-11-14`; a time
+        // that can't be read counts as a day of its own.
+        let day = made_at.get(..10).unwrap_or(&made_at);
+        let other_days = seen.len() - usize::from(seen.contains(day));
+        if other_days >= wanted {
+            return Ok(Some(sequence));
+        }
+        seen.insert(day.to_owned());
     }
+    Ok(None)
 }
 
 /// `time` without the fraction of a second, which the history doesn't keep.

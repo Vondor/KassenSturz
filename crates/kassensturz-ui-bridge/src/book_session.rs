@@ -13,7 +13,8 @@ use std::path::{Path, PathBuf};
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
-use kassensturz_store::{Book, Lock, PreparedRestore, StoreError};
+use kassensturz_core::Timestamp;
+use kassensturz_store::{Book, Lock, PreparedRestore, StoreError, newest_usable_backup};
 
 use crate::backup_copies;
 use crate::books::{Books, OpenBook, Problem};
@@ -132,7 +133,7 @@ pub mod qobject {
 
         /// If writing to the open book failed because of the drive, closes
         /// the book, so nothing more is written and its lock is released,
-        /// and shows `problem` (`book.write-failed`). Returns whether it did
+        /// and shows `problem` (`book.write-failed`, or `book.replaced` when another program replaced the file). Returns whether it did
         /// (D-732). Cheap, so a timer may ask often.
         #[qinvokable]
         #[cxx_name = "checkWriteHealth"]
@@ -303,10 +304,18 @@ impl qobject::BookSession {
         let Some(path) = session::path() else {
             return false;
         };
+        // Another program's replacing of the file (a sync program) is told
+        // apart from a drive that went (B-289).
+        let replaced = session::with_book(Book::file_replaced).unwrap_or(false);
         // Closing drops the lock; the change that failed was taken back, so
         // the file is as it was before it.
         session::close();
-        let shown = self.problem_map(&Problem::WriteFailed { path: path.clone() });
+        let problem = if replaced {
+            Problem::Replaced { path: path.clone() }
+        } else {
+            Problem::WriteFailed { path: path.clone() }
+        };
+        let shown = self.problem_map(&problem);
         let mut state = self.as_mut().rust_mut();
         state.open = false;
         state.last_attempt = Some(Attempt::Open(path));
@@ -455,6 +464,21 @@ impl qobject::BookSession {
                 entries.push(("since".into(), qtext(&QtLocale::date_time(since))));
             }
         }
+        // A book made by a newer KassenSturz: the copy it saved before it
+        // updated the book, if this one can open it (B-285). The page says
+        // where the backup folder is (`backupFolder` of the session).
+        let backups = self
+            .rust()
+            .books
+            .as_ref()
+            .map(|books| books.backup_folder().to_owned());
+        if let Some((name, made)) = backups
+            .as_deref()
+            .and_then(|folder| newer_layout_backup(problem, folder))
+        {
+            entries.push(("backupName".into(), qtext(&name)));
+            entries.push(("backupWhen".into(), qtext(&QtLocale::date_time(made))));
+        }
         let mut map = QMap::<QMapPair_QString_QVariant>::default();
         for (key, value) in entries {
             map.insert(QString::from(key.as_str()), value);
@@ -597,6 +621,22 @@ fn qtext(value: &str) -> QVariant {
     QVariant::from(&QString::from(value))
 }
 
+/// For a book that only a newer KassenSturz can open: the file name and time
+/// of the newest backup in `backups` that this one can open, which the newer
+/// version saved before it updated the book (B-285).
+fn newer_layout_backup(problem: &Problem, backups: &Path) -> Option<(String, Timestamp)> {
+    let Problem::Store {
+        path,
+        error: StoreError::UnsupportedLayout { .. },
+    } = problem
+    else {
+        return None;
+    };
+    let backup = newest_usable_backup(path, backups)?;
+    let name = backup.path.file_name()?.to_string_lossy().into_owned();
+    Some((name, backup.made))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -611,6 +651,49 @@ mod tests {
             crate::book_move::shown_folder_of(book).text
         );
         assert_eq!(shown_folder_text(book, "/data/Books".into()), "/data/Books");
+    }
+
+    /// B-285: a book that only a newer KassenSturz opens points to the copy
+    /// that version saved before it updated the book, made here the way the
+    /// app makes backups; other problems and other books' backups don't.
+    #[test]
+    fn a_book_of_a_newer_version_points_to_its_backup() {
+        use crate::test_folder::TestFolder;
+        use kassensturz_store::Computer;
+
+        let folder = TestFolder::new();
+        let backups = folder.join("backups");
+        let path = folder.join("Household.ksz");
+        let computer = Computer {
+            name: "Laptop".to_owned(),
+            backup_folder: backups.clone(),
+        };
+        let book = Book::create(&path, &computer).expect("book made");
+        let backup = book.back_up_now(&path, &backups).expect("backed up");
+        let newer = |path: &Path| Problem::Store {
+            path: path.to_owned(),
+            error: StoreError::UnsupportedLayout { found: 99 },
+        };
+        let (name, made) = newer_layout_backup(&newer(&path), &backups).expect("points to it");
+        assert_eq!(
+            Some(name.as_str()),
+            backup.file_name().and_then(|n| n.to_str())
+        );
+        assert!(made.as_second() > 0);
+        // Another book's backup isn't offered, and neither for other problems.
+        assert_eq!(
+            newer_layout_backup(&newer(&folder.join("Other.ksz")), &backups),
+            None
+        );
+        let not_a_book = Problem::Store {
+            path: path.clone(),
+            error: StoreError::NotABook,
+        };
+        assert_eq!(newer_layout_backup(&not_a_book, &backups), None);
+        assert_eq!(
+            newer_layout_backup(&newer(&path), &folder.join("none")),
+            None
+        );
     }
 
     #[test]

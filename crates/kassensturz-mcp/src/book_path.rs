@@ -222,6 +222,8 @@ mod tests {
         last_book_in(text, Some("/home/ada"), Some("/run/user/1000"))
     }
 
+    // Paths like `/run/user/1000` are absolute on Linux only, where snaps run.
+    #[cfg(unix)]
     #[test]
     fn a_snap_reads_the_book_path_with_the_runtime_folder_above_its_own() {
         let snap = |runtime: &str| {

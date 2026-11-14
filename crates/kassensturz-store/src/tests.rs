@@ -998,7 +998,7 @@ fn account_names_are_not_empty_and_not_shared() {
         assert!(
             matches!(
                 typed_account(&mut book, name, AccountType::CreditCard),
-                Err(StoreError::DuplicateAccountName { existing }) if existing == checking
+                Err(StoreError::DuplicateAccountName { existing, .. }) if existing == checking
             ),
             "{name:?}"
         );
@@ -1031,7 +1031,7 @@ fn renaming_follows_the_rules_for_names() {
         .expect("renamed");
     assert!(matches!(
         book.rename_account(savings, "household checking"),
-        Err(StoreError::DuplicateAccountName { existing }) if existing == checking
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == checking
     ));
     assert!(matches!(
         book.rename_account(savings, " "),
@@ -1429,12 +1429,12 @@ fn siblings_do_not_share_a_name() {
     for name in ["other", " OTHER "] {
         assert!(matches!(
             category(&mut book, name, AccountKind::Expense, Some(food)),
-            Err(StoreError::DuplicateAccountName { existing }) if existing == other
+            Err(StoreError::DuplicateAccountName { existing, .. }) if existing == other
         ));
     }
     assert!(matches!(
         category(&mut book, "food", AccountKind::Expense, None),
-        Err(StoreError::DuplicateAccountName { existing }) if existing == food
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == food
     ));
     // The same name elsewhere, or as income, is another category.
     category(&mut book, "Other", AccountKind::Expense, Some(home)).expect("added");
@@ -1444,7 +1444,7 @@ fn siblings_do_not_share_a_name() {
     let treats = category(&mut book, "Treats", AccountKind::Expense, Some(food)).expect("added");
     assert!(matches!(
         book.rename_account(treats, "Other"),
-        Err(StoreError::DuplicateAccountName { existing }) if existing == other
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == other
     ));
     book.rename_account(treats, "Sweets").expect("renamed");
 }

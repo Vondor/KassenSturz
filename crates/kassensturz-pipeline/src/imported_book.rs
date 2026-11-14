@@ -53,8 +53,9 @@ pub struct BookImportReport {
     /// so the user may want to look at them.
     pub completed: usize,
     /// Accounts and categories whose name another one had already, ignoring
-    /// capitals, and that got a number after it, e.g. "Savings (2)": their
-    /// new IDs and their names in the file.
+    /// capitals, and that got a number after it, e.g. "Savings (2)", or for
+    /// an account at a bank, the bank's name, e.g. "Savings (Lumen Bank)"
+    /// (B-283): their new IDs and their names in the file.
     pub renamed: Vec<(AccountId, String)>,
     /// Categories that sat inside one in another currency, which a book
     /// can't add up (D-082), and are top-level categories now.
@@ -410,6 +411,9 @@ struct Mapper {
     /// whether it is a top-level one, for the series of a report (D-444).
     order: Vec<(String, AccountKind, bool)>,
     institutions: HashMap<String, InstitutionId>,
+    /// The banks' names by the file's key, to tell two accounts of one name
+    /// apart (B-283).
+    institution_names: HashMap<String, String>,
     tags: HashMap<String, TagId>,
     /// The file's tags beyond what a book keeps (D-712): their uses are left
     /// out, and counted in `tags_left_out`.
@@ -568,6 +572,8 @@ impl Mapper {
             {
                 return Err(ImportError::Malformed { line: None }.into());
             }
+            self.institution_names
+                .insert(institution.key.clone(), institution.name.trim().to_owned());
             institutions.push(Institution {
                 id,
                 name: institution.name.clone(),
@@ -749,15 +755,37 @@ impl Mapper {
                 }
                 None => None,
             };
-            let list = ((!account.kind.is_account()).then_some(account.kind), parent);
+            // The user's accounts share one list whatever they are grouped
+            // under (B-283): KMyMoney allows two "Daily money" at two banks,
+            // the book doesn't. The second gets its bank's name after it,
+            // or a number, and both stay.
+            let list = if account.kind.is_account() {
+                (None, None)
+            } else {
+                (Some(account.kind), parent)
+            };
             let wanted = account.name.trim();
             let mut name = wanted.to_owned();
             let mut number = 1;
+            let bank = account
+                .institution
+                .as_ref()
+                .and_then(|key| self.institution_names.get(key))
+                .filter(|bank| !bank.is_empty());
+            if let Some(bank) = bank
+                && account.kind.is_account()
+                && taken.contains(&(list.0, list.1, name.to_lowercase()))
+            {
+                let with_bank = format!("{wanted} ({bank})");
+                if !taken.contains(&(list.0, list.1, with_bank.to_lowercase())) {
+                    name = with_bank;
+                }
+            }
             while !taken.insert((list.0, list.1, name.to_lowercase())) {
                 number += 1;
                 name = format!("{wanted} ({number})");
             }
-            if number > 1 {
+            if name != wanted {
                 self.renamed.push((id, account.name.clone()));
             }
             accounts.push(Account {

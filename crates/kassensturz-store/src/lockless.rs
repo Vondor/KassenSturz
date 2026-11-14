@@ -296,7 +296,7 @@ fn copy_once(path: &Path, flags: OpenFlags) -> Result<ReadOnly, Retry> {
 /// until the next save removes it. Counting it as a write would leave readers
 /// "busy" for good with nothing running. A journal that can't be read counts
 /// as hot, the safe side.
-fn journal_is_hot(journal: &Path) -> bool {
+pub(crate) fn journal_is_hot(journal: &Path) -> bool {
     use std::io::Read;
     let mut file = match fs::File::open(journal) {
         Ok(file) => file,

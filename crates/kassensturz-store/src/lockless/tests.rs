@@ -331,6 +331,12 @@ fn a_book_without_file_locks_refuses_a_change_when_its_lock_file_was_taken_away(
         book.as_one_action(crate::Action::AddAccount, |_| Ok::<(), StoreError>(())),
         Err(StoreError::LockLost)
     ));
+    // A dry run writes into the book too, and rolls back over what another
+    // writer committed: it is refused the same way.
+    assert!(matches!(
+        book.dry_run(|_| Ok::<(), StoreError>(())),
+        Err(StoreError::LockLost)
+    ));
 }
 
 #[test]

@@ -114,7 +114,7 @@ impl AmountReader<'_> {
                 rest = rest.strip_prefix(symbol.as_str()).unwrap_or(rest).trim();
                 rest = rest.strip_suffix(symbol.as_str()).unwrap_or(rest).trim();
             }
-            // One sign at most: "-+5" and "++5" say two things (B-298).
+            // One sign at most: "-+5" and "++5" say two things (B-299).
             if let Some(unsigned) = rest.strip_prefix(['-', '\u{2212}']) {
                 if negative || signed {
                     return Err(AmountInputError::Malformed);

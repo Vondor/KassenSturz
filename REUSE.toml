@@ -61,7 +61,7 @@ SPDX-License-Identifier = "LicenseRef-SerpentSoftware-Logo"
 # Cargo's lock file, and the crate list for offline Flatpak builds that
 # flatpak-cargo-generator makes from it.
 [[annotations]]
-path = ["Cargo.lock", "packaging/flatpak/cargo-sources.json"]
+path = ["Cargo.lock", "fuzz/Cargo.lock", "packaging/flatpak/cargo-sources.json"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 

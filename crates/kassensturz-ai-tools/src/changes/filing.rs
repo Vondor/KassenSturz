@@ -191,6 +191,9 @@ pub struct FileBill {
     pub size: u64,
     /// Its time of last change then, in nanoseconds since 1970.
     pub modified: Option<u64>,
+    /// The checksum of its bytes then
+    /// ([`kassensturz_core::receipt_inbox::content_digest`]).
+    pub digest: Option<u64>,
     /// What the bank booked on the account, as the account shows it.
     pub booked: Money,
     /// The total the AI read on the bill, exact, if it gave one.
@@ -344,6 +347,11 @@ impl Known {
             .ok()
             .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
             .and_then(|since| u64::try_from(since.as_nanos()).ok());
+        // Its bytes as they are now, so that a file of the same size and
+        // time put in its place before the move is noticed (B-284).
+        let digest = std::fs::File::open(&file)
+            .and_then(kassensturz_core::receipt_inbox::content_digest)
+            .map_err(|_| ToolError::BillNotFound)?;
         Ok(FileBill {
             transaction: id,
             date: stored.date_of(own),
@@ -360,6 +368,7 @@ impl Known {
             title,
             size,
             modified,
+            digest: Some(digest),
             booked: booked_on_account,
             bill_total,
             check,
@@ -396,6 +405,11 @@ fn bill_total(
         Err(other) => return Err(other.into()),
     };
     let total = parse_amount(text, currency, digits).map_err(|_| bad("bill_total"))?;
+    // A total has no sign (B-284): a minus would only match through the
+    // comparison of unsigned amounts below, never on the bill.
+    if text.trim_start().starts_with('-') || total.minor_units() < 0 {
+        return Err(bad("bill_total"));
+    }
     let unsigned = |money: Money| money.minor_units().unsigned_abs();
     let matches = [amount, on_account]
         .into_iter()

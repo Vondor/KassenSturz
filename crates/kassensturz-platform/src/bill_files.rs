@@ -34,9 +34,9 @@ pub const JOURNAL_FILE: &str = "receipt-moves.jsonl";
 /// sync tools leave out by default.
 pub const PART_ENDING: &str = ".part";
 
-/// A bill's size and time of last change, read when the AI proposed it and
-/// again before it is moved: a difference means the file changed after the
-/// AI read it (`bill.changed`).
+/// A bill's size, time of last change and checksum, read when the AI
+/// proposed it and again before it is moved: a difference means the file
+/// changed after the AI read it (`bill.changed`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Fingerprint {
     /// The size in bytes.
@@ -44,6 +44,23 @@ pub struct Fingerprint {
     /// The time of the last change, in nanoseconds since 1970, if the
     /// system tells it.
     pub modified: Option<u64>,
+    /// [`kassensturz_core::receipt_inbox::content_digest`] of its bytes, so
+    /// that another file of the same size and time is noticed too (B-284).
+    /// `None` where it wasn't read, e.g. in an older journal line.
+    pub digest: Option<u64>,
+}
+
+impl Fingerprint {
+    /// Whether `now` is still the file this was read from: the same size
+    /// and time, and the same checksum where both have one.
+    pub fn matches(&self, now: &Self) -> bool {
+        self.size == now.size
+            && self.modified == now.modified
+            && match (self.digest, now.digest) {
+                (Some(then), Some(now)) => then == now,
+                _ => true,
+            }
+    }
 }
 
 /// Why a bill wasn't moved. The bill stays where it was in every case.
@@ -154,9 +171,11 @@ impl<R: Fn(&Path, &Path) -> io::Result<()>> Disk for RealDisk<R> {
             .ok()
             .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
             .and_then(|since| u64::try_from(since.as_nanos()).ok());
+        let digest = kassensturz_core::receipt_inbox::content_digest(File::open(path)?)?;
         Ok(Fingerprint {
             size: meta.len(),
             modified,
+            digest: Some(digest),
         })
     }
 
@@ -265,7 +284,7 @@ pub fn place(
         }
         Err(_) => return Err(MoveFailure::Changed),
     };
-    if expected.is_some_and(|expected| expected != now) {
+    if expected.is_some_and(|expected| !expected.matches(&now)) {
         return Err(MoveFailure::Changed);
     }
     let folder = to.parent().ok_or(MoveFailure::ArchiveGone)?;
@@ -435,6 +454,9 @@ impl Journal {
         if let Some(modified) = fingerprint.modified {
             line.insert("modified".into(), json!(modified));
         }
+        if let Some(digest) = fingerprint.digest {
+            line.insert("digest".into(), json!(digest));
+        }
         self.append(&Value::Object(line))?;
         Ok(id)
     }
@@ -510,6 +532,7 @@ impl Journal {
                     fingerprint: Fingerprint {
                         size,
                         modified: line.get("modified").and_then(Value::as_u64),
+                        digest: line.get("digest").and_then(Value::as_u64),
                     },
                     change: None,
                     closed: false,

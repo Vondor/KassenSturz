@@ -341,13 +341,18 @@ fn the_total_is_checked_against_the_bank_in_exact_minor_units() {
         assert_eq!(bill.booked.minor_units().abs(), minor);
         assert_eq!(bill.bill_total.unwrap().currency(), code_of(currency_code));
     }
-    // More places than the currency has is refused, never rounded.
+    // More places than the currency has is refused, never rounded, and so
+    // is a sign.
     for (currency_code, minor, total) in [
         ("EUR", 2_450, "24.500"),
         ("JPY", 2_450, "2450.0"),
         ("KWD", 24_505, "24.5050"),
         ("EUR", 2_450, "24,50"),
         ("EUR", 2_450, "2.45e1"),
+        // A total has no sign (B-284).
+        ("EUR", 2_450, "-24.50"),
+        ("EUR", 2_450, " -24.50"),
+        ("EUR", 2_450, "-0.00"),
     ] {
         let (book, id) = book_in(currency_code, minor);
         let call = item(id, "RE-0042.pdf", &json!({"bill_total": total}));

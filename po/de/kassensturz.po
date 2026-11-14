@@ -24646,6 +24646,12 @@ msgctxt "@info %1 is a list of files with the reason each stayed"
 msgid "These bills stayed in your inbox and were not linked: %1. The other changes were made."
 msgstr "Diese Rechnungen sind im Eingangsordner geblieben und wurden nicht verknüpft: %1. Die übrigen Änderungen wurden vorgenommen."
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:620
+#, kde-format
+msgctxt "@info %1 is a list of files with the reason each stayed"
+msgid "Nothing was changed: these bills stayed in your inbox and were not linked: %1."
+msgstr "Es wurde nichts geändert: Diese Rechnungen sind im Eingangsordner geblieben und wurden nicht verknüpft: %1."
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:617
 #, kde-format
 msgctxt "@info %1 is a list of paths"

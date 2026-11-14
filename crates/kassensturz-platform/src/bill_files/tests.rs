@@ -196,6 +196,40 @@ fn a_bill_that_changed_after_the_ai_read_it_stays() {
 }
 
 #[test]
+fn a_bill_swapped_for_one_of_the_same_size_and_time_stays() {
+    // B-284: another file of the same size, with the old time put back.
+    let s = setup();
+    let print = disk().fingerprint(&s.bill).unwrap();
+    let then = std::fs::metadata(&s.bill).unwrap().modified().unwrap();
+    let mut swapped = std::fs::read(&s.bill).unwrap();
+    swapped.reverse();
+    swapped[0] ^= 1;
+    std::fs::write(&s.bill, &swapped).unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&s.bill)
+        .unwrap()
+        .set_modified(then)
+        .unwrap();
+    let now = disk().fingerprint(&s.bill).unwrap();
+    assert_eq!((now.size, now.modified), (print.size, print.modified));
+    assert!(!print.matches(&now));
+    assert_eq!(
+        place(&disk(), &s.bill, &s.target, Some(print)),
+        Err(MoveFailure::Changed)
+    );
+    assert!(!s.target.exists());
+    assert_eq!(std::fs::read(&s.bill).unwrap(), swapped);
+    // A journal line from before the checksum still matches by size and
+    // time.
+    let older = Fingerprint {
+        digest: None,
+        ..print
+    };
+    assert!(older.matches(&print) && print.matches(&older));
+}
+
+#[test]
 fn nothing_is_ever_replaced_not_even_a_leftover_copy() {
     let s = setup();
     std::fs::create_dir_all(s.target.parent().unwrap()).unwrap();
@@ -298,6 +332,7 @@ fn the_journal_keeps_each_move_with_its_history_action() {
             Fingerprint {
                 size: 1,
                 modified: None,
+                digest: None,
             },
         )
         .unwrap();

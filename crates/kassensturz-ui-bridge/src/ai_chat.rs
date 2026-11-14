@@ -1513,11 +1513,13 @@ pub fn confirm_with_bills_in(
             })
             .collect();
         set.put_bills_in_place(|_| None);
-        if !set.changes().is_empty() {
+        let made = !set.changes().is_empty();
+        if made {
             apply_confirmed(book, set, today)?;
         }
         return Ok(Moved {
             stayed,
+            made,
             ..Moved::default()
         });
     };
@@ -1539,6 +1541,7 @@ pub fn confirm_with_bills_in(
                 let read = Fingerprint {
                     size: bill.size,
                     modified: bill.modified,
+                    digest: bill.digest,
                 };
                 if !mover.place(&mut pending, &bill.file, &to, Some(read)) {
                     tidy_archive(mover.disk, &to);
@@ -1568,7 +1571,10 @@ pub fn confirm_with_bills_in(
                 .ok()
                 .flatten()
                 .map(|change| change.id.to_string());
-            Ok(mover.finish(pending, change.as_deref()))
+            Ok(Moved {
+                made: true,
+                ..mover.finish(pending, change.as_deref())
+            })
         }
         Err(error) => {
             mover.take_back(pending);
@@ -2702,6 +2708,7 @@ mod tests {
         std::fs::create_dir_all(&archive).unwrap();
         let bill = inbox.join("RE-0042.pdf");
         std::fs::write(&bill, b"read by the AI").unwrap();
+        let then = std::fs::metadata(&bill).unwrap().modified().unwrap();
         let proposal = prepare_named_with_folders(
             &book,
             PROPOSE_CHANGES.name,
@@ -2718,7 +2725,15 @@ mod tests {
             },
         )
         .unwrap();
-        std::fs::write(&bill, b"changed afterwards, longer").unwrap();
+        // Another file of the same size, with the old time put back (B-284).
+        std::fs::write(&bill, b"swapped by you").unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&bill)
+            .unwrap()
+            .set_modified(then)
+            .unwrap();
+        assert_eq!(std::fs::metadata(&bill).unwrap().len(), 14);
         let disk = RealDisk::new(rename);
         let journal = Journal::at(folder.join(JOURNAL_FILE));
         let filing = Filing {
@@ -2739,7 +2754,8 @@ mod tests {
         .unwrap();
         assert_eq!(moved.moved, 0);
         assert_eq!(moved.stayed[0].reason, "changed");
-        assert_eq!(std::fs::read(&bill).unwrap(), b"changed afterwards, longer");
+        assert!(moved.made, "the new category was made");
+        assert_eq!(std::fs::read(&bill).unwrap(), b"swapped by you");
         assert_eq!(std::fs::read_dir(&archive).unwrap().count(), 0);
         assert!(
             book.transaction(transaction.id())
@@ -2770,10 +2786,15 @@ mod tests {
         )
         .unwrap()
         .changes;
+        let last = book.change_to_undo().unwrap().map(|change| change.id);
         let moved =
             confirm_with_bills_in(&mut book, again, Permissions::all(), TODAY, None).unwrap();
         assert_eq!(moved.stayed[0].reason, "no-folders");
         assert!(bill.exists());
+        // Every change of that set stayed, so nothing was made, and the
+        // window says so instead of "The changes were made" (B-284).
+        assert!(!moved.made);
+        assert_eq!(book.change_to_undo().unwrap().map(|change| change.id), last);
     }
 
     #[test]

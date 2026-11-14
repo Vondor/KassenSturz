@@ -1983,6 +1983,7 @@ Kirigami.ApplicationWindow {
             ai: aiSwitch
             chat: aiChat
             onApplied: setId => chatPanel.markHandled(setId, true)
+            onNothingMade: setId => chatPanel.markHandled(setId, false)
             onDiscarded: setId => {
                 chatPanel.markHandled(setId, false);
                 pageStack.pop();

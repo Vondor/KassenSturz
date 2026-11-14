@@ -12,6 +12,7 @@
 //! takes. Nothing here touches the disk: the caller lists the names a folder
 //! already holds, and moving the file is `kassensturz-platform`'s.
 
+use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 
 use crate::Date;
@@ -254,6 +255,30 @@ pub fn check_folders(inbox: &Path, archive: &Path, own: &[&Path]) -> Result<(), 
     Ok(())
 }
 
+/// A checksum of a bill's bytes, read when the AI proposes the bill and
+/// again before it moves, so that another file of the same size and time
+/// put in its place is noticed (B-284). It is the 64-bit FNV-1a hash: stable
+/// across builds, since the journal keeps it, and it finds any ordinary
+/// change. It is no protection against a file made on purpose to collide;
+/// whoever can do that can also change the inbox before the AI reads it.
+pub fn content_digest(mut reader: impl Read) -> io::Result<u64> {
+    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    let mut hash = OFFSET;
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = match reader.read(&mut buffer) {
+            Ok(0) => return Ok(hash),
+            Ok(read) => read,
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+            Err(error) => return Err(error),
+        };
+        for &byte in &buffer[..read] {
+            hash = (hash ^ u64::from(byte)).wrapping_mul(PRIME);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use proptest::prelude::*;
@@ -417,5 +442,28 @@ mod tests {
             prop_assert_eq!(full.components().count(), archive.components().count() + 3);
             prop_assert!(full.to_string_lossy().chars().count() + NUMBER_ROOM < MAX_PATH_CHARS);
         }
+    }
+
+    #[test]
+    fn the_digest_is_fnv_1a_and_tells_same_sized_files_apart() {
+        // The published FNV-1a 64 test values.
+        assert_eq!(content_digest(&b""[..]).unwrap(), 0xcbf2_9ce4_8422_2325);
+        assert_eq!(content_digest(&b"a"[..]).unwrap(), 0xaf63_dc4c_8601_ec8c);
+        assert_eq!(
+            content_digest(&b"foobar"[..]).unwrap(),
+            0x8594_4171_f739_67e8
+        );
+        // Longer than one read, and one byte apart.
+        let bill = vec![7_u8; 200 * 1024];
+        let mut other = bill.clone();
+        other[150 * 1024] = 8;
+        assert_eq!(
+            content_digest(&bill[..]).unwrap(),
+            content_digest(&bill[..]).unwrap()
+        );
+        assert_ne!(
+            content_digest(&bill[..]).unwrap(),
+            content_digest(&other[..]).unwrap()
+        );
     }
 }

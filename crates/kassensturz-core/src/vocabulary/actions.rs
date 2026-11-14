@@ -37,6 +37,7 @@ pub const ACTIONS: &[&str] = &[
     "AiChangeCorrection_useChange",
     "AiChangeCorrection_whatConditionLooks",
     "AiChangeReviewPage_close",
+    "AiChangeReviewPage_closeAfterNothing",
     "AiChangeReviewPage_confirmMakeThese",
     "AiChangeReviewPage_putBack",
     "AiChangeReviewPage_reason",

@@ -30,6 +30,9 @@ Kirigami.ScrollablePage {
     // The set was applied or thrown away.
     signal applied(string setId)
     signal discarded(string setId)
+    // Confirmed, but every change was a bill that stayed: nothing was made
+    // (B-284).
+    signal nothingMade(string setId)
     // The user wants the applied set taken back.
     signal undoClicked()
     signal doneClicked()
@@ -415,12 +418,21 @@ Kirigami.ScrollablePage {
         return i18nContext.i18nc("@info", "it couldn't be copied");
     }
 
+    // The bills that stayed after the confirm, each with why, as one text.
+    function stayedList(): string {
+        return Array.from(result.stayed ?? []).map(bill => i18nContext.i18nc("@info %1 is a file name, %2 why it stayed", "%1 (%2)", bill.file, stayedReason(bill.reason))).join(", ");
+    }
+
     // The user's yes: the only call that applies the set.
     function confirm() {
         result = chat.confirm(setId);
         if (result.ok === true) {
             done = true;
-            applied(setId);
+            if (result.made === false) {
+                nothingMade(setId);
+            } else {
+                applied(setId);
+            }
         }
     }
 
@@ -579,7 +591,8 @@ Kirigami.ScrollablePage {
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Positive
-            visible: page.done
+            // Not when every change was a bill that stayed (B-284).
+            visible: page.done && page.result.made !== false
             text: page.i18nContext.i18nc("@info", "The changes were made. You can take them back with Undo.")
             actions: [
                 Kirigami.Action {
@@ -607,7 +620,20 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Warning
             visible: page.done && (page.result.stayed ?? []).length > 0
-            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a list of files with the reason each stayed", "These bills stayed in your inbox and were not linked: %1. The other changes were made.", Array.from(page.result.stayed).map(bill => page.i18nContext.i18nc("@info %1 is a file name, %2 why it stayed", "%1 (%2)", bill.file, page.stayedReason(bill.reason))).join(", "))) : ""
+            text: visible ? Plain.plain(page.result.made === false
+                ? page.i18nContext.i18nc("@info %1 is a list of files with the reason each stayed", "Nothing was changed: these bills stayed in your inbox and were not linked: %1.", page.stayedList())
+                : page.i18nContext.i18nc("@info %1 is a list of files with the reason each stayed", "These bills stayed in your inbox and were not linked: %1. The other changes were made.", page.stayedList())) : ""
+            actions: page.result.made === false ? [closeAfterNothing] : []
+
+            Kirigami.Action {
+                id: closeAfterNothing
+                icon.name: "dialog-close"
+                text: page.i18nContext.i18nc("@action:button leave this page", "Close")
+                onTriggered: {
+                    ActionLog.taken("AiChangeReviewPage_closeAfterNothing")
+                    page.doneClicked()
+                }
+            }
         }
 
         Kirigami.InlineMessage {

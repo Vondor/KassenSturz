@@ -209,6 +209,9 @@ pub struct Moved {
     /// Bills an Undo unlinked that stay in the archive: no journal on this
     /// computer moved them (another computer, or "Undo anyway").
     pub left_in_archive: Vec<PathBuf>,
+    /// Whether a confirmed set changed the book: `false` when every change
+    /// of it was a bill that stayed, so nothing was made (B-284).
+    pub made: bool,
 }
 
 /// Moves bills on `disk`, noting each in `journal` first.
@@ -675,6 +678,7 @@ mod tests {
         let read_then = Fingerprint {
             size: 99,
             modified: None,
+            digest: None,
         };
         assert!(!mover.place(
             &mut pending,

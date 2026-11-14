@@ -1281,6 +1281,7 @@ pub(crate) mod engine {
         let count = |n: usize| QVariant::from(&i32::try_from(n).unwrap_or(i32::MAX));
         map([
             ("ok", QVariant::from(&true)),
+            ("made", QVariant::from(&moved.made)),
             ("filed", count(moved.moved)),
             (
                 "stayed",
@@ -3174,9 +3175,14 @@ mod tests {
             }],
             copies_left: vec![inbox.join("RE-0042.pdf")],
             left_in_archive: Vec::new(),
+            made: true,
         });
-        assert_eq!(keys(&answer), ["copiesLeft", "filed", "ok", "stayed"]);
+        assert_eq!(
+            keys(&answer),
+            ["copiesLeft", "filed", "made", "ok", "stayed"]
+        );
         assert!(flag_of(&answer, "ok"));
+        assert!(flag_of(&answer, "made"));
         assert_eq!(number_of(&answer, "filed"), 1);
         let stayed = list_of(&answer, "stayed");
         assert_eq!(keys(&stayed[0]), ["file", "reason"]);

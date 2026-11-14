@@ -4486,8 +4486,10 @@ msgstr "Niektóre nazwy były już zajęte"
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:167
 #, kde-format
 msgctxt "@info %1 is a list of names"
-msgid "These got a number after their name, so you can tell them apart: %1"
-msgstr "Do ich nazw dodano numer, aby można je było odróżnić: %1"
+msgid ""
+"These got a new name, so each fits on one line and can be told apart from "
+"the others: %1"
+msgstr "Te otrzymały nową nazwę, aby każda mieściła się w jednym wierszu i dała się odróżnić od pozostałych: %1"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:177
 #, kde-format
@@ -22903,3 +22905,38 @@ msgstr "Pokaż w folderze"
 msgctxt "@info"
 msgid "Removing a link leaves the file where it is. KassenSturz never changes or deletes a bill; it moves one only when you confirm filing it from your inbox."
 msgstr "Usunięcie odnośnika zostawia plik tam, gdzie jest. KassenSturz nigdy nie zmienia ani nie usuwa rachunku; przenosi go tylko wtedy, gdy potwierdzisz odłożenie go ze skrzynki."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:667
+#, kde-format
+msgctxt "@info"
+msgid "A name must fit on one line. Type it again without the line break."
+msgstr "Nazwa musi mieścić się w jednym wierszu. Wpisz ją ponownie bez podziału wiersza."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:669
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This name holds a character that can't be seen, for example a zero-width "
+"space, so it could look like another name. Type the name again instead of "
+"pasting it."
+msgstr "Ta nazwa zawiera znak, którego nie widać, na przykład spację o zerowej szerokości, więc mogłaby wyglądać jak inna nazwa. Wpisz nazwę ponownie zamiast ją wklejać."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:671
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "A name can have at most %1 characters. Choose a shorter name."
+msgstr "Nazwa może mieć najwyżej %1 znaków. Wybierz krótszą nazwę."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:676
+#, kde-format
+msgctxt "@info %1 is the name of an account or category"
+msgid ""
+"Every part of this transaction is in %1, so no money moves. Choose another "
+"account or category for one of them."
+msgstr "Każda część tej transakcji jest w %1, więc żadne pieniądze nie są przenoszone. Wybierz dla jednej z nich inne konto lub inną kategorię."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:678
+#, kde-format
+msgctxt "@info"
+msgid "This transaction is zero, so no money moves. Enter its amount."
+msgstr "Ta transakcja wynosi zero, więc żadne pieniądze nie są przenoszone. Wpisz jej kwotę."

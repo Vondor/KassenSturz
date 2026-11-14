@@ -303,3 +303,16 @@ fn a_transaction_keeps_its_notes_numbers_status_and_tags() {
         Err(StoreError::UnknownTag(_))
     ));
 }
+
+/// B-272, round 8: a payee typed in can't look like another.
+#[test]
+fn a_look_alike_payee_name_is_refused() {
+    let Sample { mut book, .. } = sample();
+    for (name, reason) in [("Shop\u{200B}", "invisible"), ("Shop\nlive", "line-break")] {
+        assert!(matches!(
+            book.add_payee(&payee(name, PayeeRecognition::ByName)),
+            Err(StoreError::HiddenText { field: "payee", reason: r }) if r == reason
+        ));
+    }
+    assert!(book.payees().expect("payees").is_empty());
+}

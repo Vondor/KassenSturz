@@ -72,6 +72,21 @@ pub enum ImportError {
         /// Where, if known.
         line: Option<u64>,
     },
+    /// A file says it is written in one text encoding, and its bytes are in
+    /// another, e.g. a declaration of ISO-8859-1 over UTF-8 text. It is not
+    /// read by guess, because a wrong guess changes what a text says.
+    EncodingContradiction {
+        /// The encoding the file's XML declaration names.
+        declared: String,
+        /// Where, if known.
+        line: Option<u64>,
+    },
+    /// A file is written in a text encoding KassenSturz doesn't read, e.g.
+    /// UTF-32.
+    UnsupportedEncoding {
+        /// The encoding, as the file names it.
+        found: String,
+    },
     /// The file's header row has no column of the name the settings give.
     ColumnNotFound {
         /// The name.
@@ -187,6 +202,7 @@ impl ImportError {
             | Self::BadAmount { line, .. }
             | Self::BadDate { line, .. }
             | Self::WrongEncoding { line, .. }
+            | Self::EncodingContradiction { line, .. }
             | Self::ColumnNotFound { line, .. }
             | Self::ColumnNotUnique { line, .. }
             | Self::BadSettings { line }
@@ -201,6 +217,7 @@ impl ImportError {
             | Self::ReplacedCurrencyDiffers { .. }
             | Self::SuccessorNeeded { .. }
             | Self::SuccessorNotCurrent { .. }
+            | Self::UnsupportedEncoding { .. }
             | Self::DecimalPlacesDiffer { .. } => {}
         }
         self
@@ -261,6 +278,13 @@ impl Report for ImportError {
                     .with("encoding", ErrorParam::Keyword(encoding.keyword())),
                 line,
             ),
+            Self::EncodingContradiction { declared, line } => with_line(
+                ErrorReport::new("import.encoding-contradiction").with("declared", text(declared)),
+                line,
+            ),
+            Self::UnsupportedEncoding { found } => {
+                ErrorReport::new("import.unsupported-encoding").with("found", text(found))
+            }
             Self::ColumnNotFound { column, line } => with_line(
                 ErrorReport::new("import.column-not-found").with("column", text(column)),
                 line,

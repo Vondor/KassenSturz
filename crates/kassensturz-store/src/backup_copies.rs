@@ -67,6 +67,18 @@ pub fn backups_of(book: &Path, folder: &Path) -> Result<Vec<BackupFile>, StoreEr
         .collect())
 }
 
+/// The newest backup of the book at `book` in `folder` that this KassenSturz
+/// can open, or `None` if there is none or the folder can't be read. It
+/// is what the page for a book made by a newer KassenSturz offers: the copy
+/// the newer version saved before it updated the book (B-285). A backup this
+/// version can't open (a newer layout, a damaged file) is passed over.
+pub fn newest_usable_backup(book: &Path, folder: &Path) -> Option<BackupFile> {
+    backups_of(book, folder)
+        .ok()?
+        .into_iter()
+        .find(|backup| check_backup(&backup.path).is_ok())
+}
+
 /// What [`Book::keep_copy`] did.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum KeptCopy {
@@ -431,6 +443,32 @@ mod tests {
             .collect();
         names.sort();
         names
+    }
+
+    /// B-285: the page for a book made by a newer KassenSturz offers the
+    /// newest backup this version can open, not a newer one's or a damaged one.
+    #[test]
+    fn the_newest_usable_backup_passes_over_ones_this_version_cannot_open() {
+        let folder = TempFolder::new();
+        let (book, path) = book_with(&folder, "Checking");
+        let backups = computer(&folder).backup_folder;
+        assert_eq!(newest_usable_backup(&path, &backups), None, "no folder");
+        let usable = book.back_up_now(&path, &backups).expect("backed up");
+        // A newer one, made by a newer layout: a copy with a higher version.
+        let newer = backups.join("Household 2099-01-01 00-00-00 UTC.ksz");
+        fs::copy(&usable, &newer).expect("copied");
+        Connection::open(&newer)
+            .expect("opened")
+            .pragma_update(None, "user_version", crate::layout::VERSION + 1)
+            .expect("version set");
+        // And a damaged one, newer still.
+        fs::write(
+            backups.join("Household 2100-01-01 00-00-00 UTC.ksz"),
+            "damaged",
+        )
+        .expect("written");
+        let found = newest_usable_backup(&path, &backups).expect("one is usable");
+        assert_eq!(found.path, usable);
     }
 
     #[test]

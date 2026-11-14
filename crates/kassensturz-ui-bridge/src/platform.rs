@@ -86,6 +86,12 @@ mod ffi {
 
         #[cxx_name = "quitApp"]
         fn quit_app();
+
+        #[cxx_name = "quitOnSignals"]
+        fn quit_on_signals();
+
+        #[cxx_name = "closeBookOnSessionEnd"]
+        fn close_book_on_session_end();
     }
 }
 
@@ -178,6 +184,28 @@ pub fn start_detached(plan: &crate::restart::Plan) -> bool {
 /// Ends the event loop, so the app ends.
 pub fn quit() {
     ffi::quit_app();
+}
+
+/// Makes the signals a logout, a shutdown or `pkill` send end the event loop
+/// like quitting does, so the book is closed and its lock file removed
+/// (B-276). Call it once the application object exists.
+pub fn quit_on_signals() {
+    ffi::quit_on_signals();
+}
+
+/// Closes the open book, and ends the event loop, when the desktop session
+/// ends: a Windows logoff or shutdown ends the process without `main`
+/// getting further, and the book's lock file would stay behind (B-287). Call
+/// it once the application object exists.
+pub fn close_book_on_session_end() {
+    ffi::close_book_on_session_end();
+}
+
+/// What the session-end handler in `platform.cpp` calls, on the thread of the
+/// event loop, where the book is open.
+#[unsafe(no_mangle)]
+pub extern "C" fn kassensturz_close_book_at_session_end() {
+    crate::session::close();
 }
 
 /// Whether the app runs in a Flatpak sandbox.

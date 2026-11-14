@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use kassensturz_ai_tools::requests::RequestFolder;
 use kassensturz_ai_tools::{
-    BILL_FOLDER, Function, ToolError, bill_folder_answer, readable_functions,
+    BILL_FOLDER, Function, INBOX, ToolError, bill_folder_answer, inbox_answer, readable_functions,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{READ_DEBUG_LOG, read_debug_log};
@@ -150,6 +150,7 @@ fn tool_list(log_readable: bool) -> String {
         write_permissions(),
         log_readable,
         ai_switch::bill_folder().is_some(),
+        ai_switch::inbox_folders().is_some(),
     ))
     .unwrap_or_default()
 }
@@ -195,6 +196,7 @@ impl ServerHandler for Server {
             write_permissions(),
             self.log_readable(),
             ai_switch::bill_folder().is_some(),
+            ai_switch::inbox_folders().is_some(),
         )))
     }
 
@@ -317,6 +319,19 @@ impl Server {
                 }
                 Some(folder) => bill_folder_answer(&folder, arguments),
                 None => Err(ToolError::NoBillFolder),
+            };
+            return outcome(result);
+        }
+        // Likewise the receipt inbox: only with both folders and its cell
+        // on (D-752).
+        if name == INBOX.name {
+            let permissions = ai_switch::permissions();
+            let result = match ai_switch::inbox_folders() {
+                _ if !permissions.allows(ai_switch::Permission::FileBills) => {
+                    Err(ToolError::UnknownFunction)
+                }
+                Some((inbox, _)) => inbox_answer(&inbox, arguments),
+                None => Err(ToolError::NoInbox),
             };
             return outcome(result);
         }
@@ -462,11 +477,15 @@ fn tools(
     write_permissions: Option<Permissions>,
     log_readable: bool,
     bill_folder: bool,
+    inbox: bool,
 ) -> Vec<Tool> {
-    let read = readable_functions(permissions).chain([&SERVER_INFO]).chain(
-        (bill_folder && permissions.allows(ai_switch::Permission::AttachBills))
-            .then_some(&BILL_FOLDER),
-    );
+    let read = readable_functions(permissions)
+        .chain([&SERVER_INFO])
+        .chain(
+            (bill_folder && permissions.allows(ai_switch::Permission::AttachBills))
+                .then_some(&BILL_FOLDER),
+        )
+        .chain((inbox && permissions.allows(ai_switch::Permission::FileBills)).then_some(&INBOX));
     #[cfg(feature = "debug-log")]
     let read = read.chain(log_readable.then_some(&READ_DEBUG_LOG));
     #[cfg(not(feature = "debug-log"))]
@@ -496,7 +515,11 @@ fn tools(
 fn write_permissions() -> Option<Permissions> {
     ai_switch::write_tools_enabled()
         .then(|| {
-            writes::with_bill_folder(ai_switch::permissions(), ai_switch::bill_folder().is_some())
+            writes::with_folders(
+                ai_switch::permissions(),
+                ai_switch::bill_folder().is_some(),
+                ai_switch::inbox_folders().is_some(),
+            )
         })
         .filter(|permissions| permissions.can_change())
 }
@@ -687,7 +710,7 @@ mod tests {
                     permissions.with_lock(*field, locks & 1 << index != 0)
                 },
             );
-            for tool in tools(permissions, Some(permissions), true, true) {
+            for tool in tools(permissions, Some(permissions), true, true, true) {
                 let length = tool
                     .description
                     .as_deref()
@@ -790,8 +813,8 @@ mod tests {
     #[test]
     fn the_bill_folder_is_offered_only_with_a_folder_and_its_cell() {
         let names = |permissions: Permissions, folder: bool| -> Vec<String> {
-            let writes = writes::with_bill_folder(permissions, folder);
-            tools(permissions, Some(writes), false, folder)
+            let writes = writes::with_folders(permissions, folder, false);
+            tools(permissions, Some(writes), false, folder, false)
                 .iter()
                 .map(|tool| tool.name.to_string())
                 .collect()
@@ -809,7 +832,7 @@ mod tests {
             );
         }
         let attach_offered = |permissions: Permissions, folder: bool| {
-            writes::tools(writes::with_bill_folder(permissions, folder))
+            writes::tools(writes::with_folders(permissions, folder, false))
                 .iter()
                 .any(|tool| {
                     serde_json::to_string(&tool.input_schema)
@@ -822,20 +845,70 @@ mod tests {
         assert!(!attach_offered(off, true));
     }
 
+    /// The receipt inbox's tool (D-752) is offered only with both folders
+    /// and its own cell on, after the bill folder's; `file_bills` likewise,
+    /// and never because Attach bills is on.
+    #[test]
+    fn the_inbox_is_offered_only_with_both_folders_and_its_cell() {
+        let names = |permissions: Permissions, inbox: bool| -> Vec<String> {
+            let writes = writes::with_folders(permissions, true, inbox);
+            tools(permissions, Some(writes), false, true, inbox)
+                .iter()
+                .map(|tool| tool.name.to_string())
+                .collect()
+        };
+        let all = Permissions::all();
+        let off = all.with(ai_switch::Permission::FileBills, false);
+        let with = names(all, true);
+        assert_eq!(with[FUNCTIONS.len() + 2], INBOX.name);
+        assert!(kassensturz_core::vocabulary::known_detail(INBOX.name).is_some());
+        for (permissions, inbox) in [(all, false), (off, true), (off, false)] {
+            assert!(
+                !names(permissions, inbox)
+                    .iter()
+                    .any(|name| name == INBOX.name)
+            );
+        }
+        let file_offered = |permissions: Permissions, inbox: bool| {
+            writes::tools(writes::with_folders(permissions, true, inbox))
+                .iter()
+                .any(|tool| {
+                    serde_json::to_string(&tool.input_schema)
+                        .unwrap()
+                        .contains("file_bills")
+                })
+        };
+        assert!(file_offered(all, true));
+        assert!(!file_offered(all, false));
+        assert!(!file_offered(off, true));
+    }
+
     #[test]
     fn every_read_function_is_a_read_only_tool() {
-        let tools = tools(Permissions::all(), None, false, false);
+        let tools = tools(Permissions::all(), None, false, false, false);
         let names: Vec<&str> = tools.iter().map(|tool| tool.name.as_ref()).collect();
         let mut functions: Vec<&str> = FUNCTIONS.iter().map(|function| function.name).collect();
         // The build's own tool comes right after the read functions (M6-B225).
         functions.push(SERVER_INFO.name);
         assert_eq!(names, functions);
-        let with_writes = super::tools(Permissions::all(), Some(Permissions::all()), false, false);
+        let with_writes = super::tools(
+            Permissions::all(),
+            Some(Permissions::all()),
+            false,
+            false,
+            false,
+        );
         assert_eq!(with_writes.len(), FUNCTIONS.len() + 4);
         assert_eq!(with_writes[..tools.len()], tools[..]);
         // In the developer mode, the debug log's tool comes after the read
         // functions (D-227).
-        let with_log = super::tools(Permissions::all(), Some(Permissions::all()), true, false);
+        let with_log = super::tools(
+            Permissions::all(),
+            Some(Permissions::all()),
+            true,
+            false,
+            false,
+        );
         #[cfg(feature = "debug-log")]
         {
             assert_eq!(with_log.len(), FUNCTIONS.len() + 5);
@@ -851,7 +924,7 @@ mod tests {
                 tool.name
             );
         }
-        let tools = super::tools(Permissions::all(), None, true, false);
+        let tools = super::tools(Permissions::all(), None, true, false, false);
         for tool in &tools {
             let annotations = tool.annotations.as_ref().expect("annotated");
             assert_eq!(annotations.read_only_hint, Some(true), "{}", tool.name);
@@ -869,7 +942,7 @@ mod tests {
     #[test]
     fn server_info_names_the_build_whatever_the_user_allows_reading() {
         // Offered even when the user allows reading nothing of the book.
-        let tools = tools(Permissions::defaults(), None, false, false);
+        let tools = tools(Permissions::defaults(), None, false, false, false);
         assert!(tools.iter().any(|tool| tool.name == SERVER_INFO.name));
         let (result, code) = server_info(&Value::Null);
         assert_eq!(code, None);

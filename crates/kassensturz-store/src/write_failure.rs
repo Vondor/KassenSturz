@@ -88,3 +88,32 @@ fn a_drive_that_drops_stops_all_writing_and_keeps_what_was_saved() {
     assert_eq!(again.report().code, "store.write-failed");
     assert_eq!(names(&book), ["Giro"]);
 }
+
+// A sync program (Nextcloud, Syncthing) puts the other computer's copy over
+// the open book by renaming it into place (B-289). The open book is then the
+// old, unlinked file: a change is not written to it, and the store says why.
+#[cfg(unix)]
+#[test]
+fn a_book_replaced_by_another_file_refuses_writing_and_says_it_was_replaced() {
+    let folder = TempFolder::new();
+    let mut book = book_on_a_stick(&folder);
+    let other = folder.join("Stick").join("Other.ksz");
+    std::fs::copy(folder.join("Stick").join("Household.ksz"), &other).expect("copy");
+    std::fs::rename(&other, folder.join("Stick").join("Household.ksz")).expect("replaced");
+    let error = book.add_account(&account("Late")).expect_err("not written");
+    assert!(matches!(error, StoreError::Database(_)), "{error:?}");
+    assert!(book.write_failed(), "{error:?}");
+    assert!(book.file_replaced(), "{error:?}");
+    assert_eq!(names(&book), ["Giro"]);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_book_whose_folder_went_is_not_called_replaced() {
+    let folder = TempFolder::new();
+    let mut book = book_on_a_stick(&folder);
+    std::fs::remove_dir_all(folder.join("Stick")).expect("stick pulled");
+    book.add_account(&account("Lost")).expect_err("not written");
+    assert!(book.write_failed());
+    assert!(!book.file_replaced());
+}

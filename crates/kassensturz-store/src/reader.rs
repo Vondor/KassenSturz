@@ -79,6 +79,7 @@ impl Book {
             recording: false,
             filling: false,
             write_failed: false,
+            file_replaced: false,
             _lock: None,
         })
     }

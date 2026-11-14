@@ -533,6 +533,10 @@ jobs:
           status=0
           timeout 10 build/stage/usr/bin/kassensturz || status=$?
           test "$status" -eq 124
+      # A logout, a shutdown or `pkill` ends the app like quitting, so the
+      # book's lock file doesn't stay behind (B-276).
+      - name: The installed app ends cleanly on SIGTERM and SIGHUP
+        run: tools/check-sigterm.sh build/stage/usr/bin/kassensturz
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

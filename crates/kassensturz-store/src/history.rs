@@ -880,6 +880,11 @@ impl Book {
             let changed = change(book);
             book.recording = false;
             let value = changed?;
+            // No change may leave a currency's amounts too large to add up
+            // (B-269), whichever way they came in.
+            if crate::totals::splits_changed(&book.conn)? {
+                crate::totals::check_totals(&book.conn)?;
+            }
             book.record(action)?;
             Ok(value)
         })
@@ -919,7 +924,22 @@ impl Book {
                 self.recording = true;
                 let result = change(self);
                 self.recording = outer;
-                result
+                // Refused where the real action would be (B-269).
+                match result {
+                    Ok(value) if !outer => {
+                        match crate::totals::splits_changed(&self.conn).and_then(|changed| {
+                            if changed {
+                                crate::totals::check_totals(&self.conn)
+                            } else {
+                                Ok(())
+                            }
+                        }) {
+                            Ok(()) => Ok(value),
+                            Err(error) => Err(error.into()),
+                        }
+                    }
+                    other => other,
+                }
             }
             Err(error) => Err(StoreError::from(error).into()),
         };
@@ -1462,9 +1482,31 @@ impl Book {
         self.write_failed
     }
 
+    /// Whether writing failed because another program replaced the book's
+    /// file while it was open, e.g. a sync program putting another
+    /// computer's copy over it (B-289). The change that failed was not
+    /// written to the file now at the book's path.
+    #[must_use]
+    pub fn file_replaced(&self) -> bool {
+        self.file_replaced
+    }
+
     /// Remembers that `error` is the drive's, not the change's.
     fn note_write_failure(&mut self, error: &rusqlite::Error) {
         use rusqlite::ErrorCode;
+        // SQLite's own check that the file it has open is still the one at
+        // its path (`SQLITE_READONLY_DBMOVED`). It says the same for a file
+        // that is gone, so it is another file's replacing this one only if
+        // something is at the path now.
+        if let rusqlite::Error::SqliteFailure(failure, _) = error
+            && failure.extended_code == rusqlite::ffi::SQLITE_READONLY_DBMOVED
+            && self
+                .conn
+                .path()
+                .is_some_and(|path| std::path::Path::new(path).is_file())
+        {
+            self.file_replaced = true;
+        }
         if matches!(
             error.sqlite_error_code(),
             Some(

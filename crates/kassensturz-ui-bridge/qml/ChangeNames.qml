@@ -158,6 +158,11 @@ QtObject {
     // read. `change` is an object of history_model.rs.
     function describe(change: var): string {
         const what = name(change.action);
+        if (change.filedBills > 0) {
+            // The bills it filed from the receipt inbox (US7, #333), so
+            // the user sees that Undo moves them back.
+            return i18nContext.i18ncp("@info %1 is a number of bills, %2 what was done", "%2, and %1 bill filed from the inbox", "%2, and %1 bills filed from the inbox", change.filedBills, what);
+        }
         return change.fileName
             ? i18nContext.i18nc("@info %1 is what was done, %2 the name of a file", "%1 (%2)", what, change.fileName)
             : what;

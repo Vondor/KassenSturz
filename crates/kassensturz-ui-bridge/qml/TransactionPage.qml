@@ -654,7 +654,7 @@ Kirigami.ScrollablePage {
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
                         color: Kirigami.Theme.negativeTextColor
-                        text: page.i18nContext.i18nc("@info %1 is where the file was", "This bill isn't where it was: %1. Put it back there, or remove the link.", billRow.modelData.link)
+                        text: page.i18nContext.i18nc("@info %1 is where the file was", "This bill isn't where it was: %1. Put it back there, or remove the link.", billRow.modelData.shownLink)
                     }
 
                     RowLayout {
@@ -665,6 +665,19 @@ Kirigami.ScrollablePage {
                             onClicked: {
                                 ActionLog.taken("TransactionPage_openBill")
                                 Qt.openUrlExternally(billRow.modelData.url)
+                            }
+                        }
+
+                        // The folder it is in, in the file manager (US7,
+                        // #333): through the portal in the Flatpak and the
+                        // snap. The user's own link, so also with AI off.
+                        Controls.Button {
+                            visible: billRow.modelData.folderUrl !== "" && !billRow.modelData.missing
+                            text: page.i18nContext.i18nc("@action:button", "Show in folder")
+                            icon.name: "folder-open"
+                            onClicked: {
+                                ActionLog.taken("TransactionPage_showBillFolder")
+                                Qt.openUrlExternally(billRow.modelData.folderUrl)
                             }
                         }
 
@@ -685,7 +698,7 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 font: Kirigami.Theme.smallFont
-                text: page.i18nContext.i18nc("@info", "Removing a link leaves the file where it is. KassenSturz never moves, changes or deletes a bill.")
+                text: page.i18nContext.i18nc("@info", "Removing a link leaves the file where it is. KassenSturz never changes or deletes a bill; it moves one only when you confirm filing it from your inbox.")
             }
         }
 

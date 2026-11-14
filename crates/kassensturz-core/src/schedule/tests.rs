@@ -269,6 +269,43 @@ fn due_dates_stop_at_five_years_and_a_thousand_dates() {
     assert!(due_dates(&many, day(2000, 1, 1), day(2099, 12, 31)).len() <= MAX_DUE_DATES);
 }
 
+/// The window a caller checks a chosen range against (B-271): five years
+/// from the start, a 29 February cut back to the 28th, and the calendar's
+/// last day near its end instead of nothing, so the last years are still
+/// counted.
+#[test]
+fn the_window_due_dates_looks_at_is_five_years_or_up_to_the_calendars_end() {
+    assert_eq!(due_window_end(day(2026, 1, 1)), day(2031, 1, 1));
+    assert_eq!(due_window_end(day(2028, 2, 29)), day(2033, 2, 28));
+    assert_eq!(due_window_end(day(9997, 6, 1)), Date::MAX);
+    let monthly = plan(
+        AccountId::generate(),
+        -100,
+        ScheduleUnit::Month,
+        1,
+        day(9998, 1, 1),
+    );
+    // 1 Jan 9998 is a Thursday; the plan is counted up to the end.
+    let dates = due_dates(&monthly, day(9997, 6, 1), Date::MAX);
+    assert!(!dates.is_empty());
+    assert_eq!(dates[0].date, day(9998, 1, 1));
+    // What lies after the window is not looked at, which is why a caller
+    // refuses a longer range: 2 February 2031 (a Sunday, so due Monday 3
+    // February) isn't found from 1 January 2026, only from a later start.
+    let now = Schedule {
+        anchor: day(2026, 1, 2),
+        track_from: day(2026, 1, 2),
+        ..monthly
+    };
+    let window = due_dates(&now, day(2026, 1, 1), day(2031, 1, 1));
+    assert_eq!(window.len(), 60);
+    let longer = due_dates(&now, day(2026, 1, 1), day(2031, 3, 1));
+    assert_eq!(window, longer);
+    let later = due_dates(&now, day(2026, 3, 1), day(2031, 3, 1));
+    assert_eq!(later.last().expect("dates").date, day(2031, 2, 3));
+    assert!(!longer.iter().any(|due| due.date == day(2031, 2, 3)));
+}
+
 proptest! {
     #[test]
     fn due_dates_increase_skip_weekends_and_respect_track_from(

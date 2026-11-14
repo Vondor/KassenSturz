@@ -9,7 +9,8 @@
 use std::io::Write;
 
 use kassensturz_core::{
-    Account, AccountId, Date, Money, OccurrenceState, Schedule, ScheduleId, ScheduleUnit,
+    Account, AccountId, Date, MAX_DUE_YEARS, Money, OccurrenceState, Schedule, ScheduleId,
+    ScheduleUnit, due_window_end,
 };
 use kassensturz_store::{Book, NewSchedule};
 
@@ -335,6 +336,11 @@ fn amount_in(book: &Book, account: &Account, text: &str) -> Result<Money, CliErr
 
 /// `schedule due [--from DATE] [--to DATE]`: the payments of the expected
 /// plans in that time, from 31 days ago to 31 days ahead if not said.
+///
+/// A range that ends before it starts, or that is longer than the
+/// [`MAX_DUE_YEARS`] the plans are counted over, is refused with the
+/// longest range that would be answered: "No payments are planned" is
+/// never said about days nobody looked at (B-271, #967).
 fn due(book: &Book, args: &[String], out: &mut dyn Write) -> Result<(), CliError> {
     let args = Arguments::parse(args, &["from", "to"], &[])?;
     args.exactly([])?;
@@ -347,6 +353,20 @@ fn due(book: &Book, args: &[String], out: &mut dyn Write) -> Result<(), CliError
         Some(to) => parse_date(to)?,
         None => days_from(today, 31),
     };
+    if to < from {
+        return Err(CliError::message(format!(
+            "the range ends on {to}, before it starts on {from}; give a --to on or \
+             after --from"
+        )));
+    }
+    let last = due_window_end(from);
+    if to > last {
+        return Err(CliError::message(format!(
+            "`schedule due` looks at most {MAX_DUE_YEARS} years ahead at once: from {from} \
+             up to {last}, not to {to}; give a shorter range, for example --from {from} \
+             --to {last}"
+        )));
+    }
     let occurrences = book.planned_occurrences(from, to, today)?;
     if occurrences.is_empty() {
         writeln!(out, "No payments are planned from {from} to {to}.")?;

@@ -209,7 +209,7 @@ Build 1 followed this design; where the code had to decide something the design 
 - **"Plan this again…"** is `Book::plan_from_entry`: it offers no plan for an entry that no plan could match (a Transfer between own accounts, a part in another currency), and the other part's account becomes the plan's category only if it is a category. Tested on every importer's golden entries (X3).
 - **The forecast** takes the accounts and currency from the caller; without a choice, the open checking and cash accounts, and accounts in another currency are listed as left out (`AccountsForecast::left_out`). Overdue payments are listed, not counted (5.2).
 - **The complete export** is version 14 with `schedules`, each plan with its decided payments; reading a file checks that a matched payment names an entry of the file, once.
-- **Command line:** `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book` and `forecast [--months N] [--account NAME ...]`; `import` prints the matches. `schedule due` lists the payments with their state.
+- **Command line:** `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book` and `forecast [--months N] [--account NAME ...]`; `import` prints the matches. `schedule due` lists the payments with their state; a range that ends before it starts or is longer than the five years `due_dates` counts over is refused with the longest range it answers, never "none" for days not looked at (B-271, #967).
 - **Left for build 2 (UI):** the bridge's call to `match_schedules` after its own import and fetch actions, the import summary part, the pages, tiles and glossary rows.
 
 ## 12. What build 2 settled (the screens)

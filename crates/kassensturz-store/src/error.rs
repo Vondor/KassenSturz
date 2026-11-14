@@ -213,6 +213,10 @@ pub enum StoreError {
     DuplicateAccountName {
         /// The account that has it.
         existing: AccountId,
+        /// The name, as the account being added or renamed has it, so the
+        /// user learns which one even when the book can't name `existing`,
+        /// e.g. after a new book from a file was taken back (B-283).
+        name: String,
     },
     /// The account's type doesn't fit its kind, e.g. a credit card that
     /// isn't money the user owes.
@@ -237,6 +241,13 @@ pub enum StoreError {
     /// A closed account takes no new transactions. The user can open it
     /// again.
     AccountClosed(AccountId),
+    /// Every part of a transaction is booked to this one account or
+    /// category, so no money moves anywhere: a Transfer from an account to
+    /// itself (B-270).
+    NothingMoves(AccountId),
+    /// Every part of a transaction typed in, not delivered by a bank, is
+    /// zero, so no money moves anywhere (B-270).
+    ZeroAmount,
     /// An account can only be closed when its balance is zero.
     AccountNotEmpty {
         /// The account.
@@ -721,9 +732,9 @@ impl Report for StoreError {
             Self::TooManyBudgets { limit, max } => new("store.budget-too-many")
                 .with("limit", P::Keyword(limit))
                 .with("max", P::count(*max)),
-            Self::DuplicateAccountName { existing } => {
-                new("store.duplicate-account-name").with("existing", P::Account(*existing))
-            }
+            Self::DuplicateAccountName { existing, name } => new("store.duplicate-account-name")
+                .with("existing", P::Account(*existing))
+                .with("name", P::Text(name.clone())),
             Self::AccountTypeMismatch { account_type, kind } => new("store.account-type-mismatch")
                 .with("account_type", P::AccountType(*account_type))
                 .with("kind", P::AccountKind(*kind)),
@@ -741,6 +752,10 @@ impl Report for StoreError {
             Self::AccountClosed(account) => {
                 new("store.account-closed").with("account", P::Account(*account))
             }
+            Self::NothingMoves(account) => {
+                new("store.nothing-moves").with("account", P::Account(*account))
+            }
+            Self::ZeroAmount => new("store.zero-amount"),
             Self::AccountNotEmpty { account, balance } => new("store.account-not-empty")
                 .with("account", P::Account(*account))
                 .with("balance", P::Money(*balance)),

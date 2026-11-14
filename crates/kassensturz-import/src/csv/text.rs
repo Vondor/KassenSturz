@@ -103,7 +103,7 @@ pub(crate) fn decode(
 }
 
 /// `input` read in a single-byte encoding.
-fn single_byte(input: &[u8], encoding: TextEncoding) -> Result<String, ImportError> {
+pub(crate) fn single_byte(input: &[u8], encoding: TextEncoding) -> Result<String, ImportError> {
     let mut text = String::with_capacity(input.len());
     for (at, &byte) in input.iter().enumerate() {
         let char = match (encoding, byte) {

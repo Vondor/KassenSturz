@@ -111,7 +111,11 @@ impl Book {
     /// converted out of a withdrawn currency, must be in a currency in use in
     /// this book too (D-104). A closed account takes no new transactions
     /// (D-081). Neither the transaction's ID nor its parts' may be in use
-    /// already.
+    /// already. Not every part may be booked to one and the same account
+    /// or category, since then no money moves ([`StoreError::NothingMoves`],
+    /// B-270), and not every part may be zero unless a bank delivered it
+    /// ([`StoreError::ZeroAmount`]), except while a new book is filled
+    /// ([`Book::fill_new`]).
     pub fn add_transaction(&mut self, transaction: &Transaction) -> Result<(), StoreError> {
         let accounts = self.check_transaction(transaction)?;
         let exists: Option<i64> = self
@@ -491,6 +495,34 @@ impl Book {
             .collect()
     }
 
+    /// The transactions that keep a link to `link` among their attachments
+    /// (D-132), such as a bill the receipt inbox filed (US7, #333): the
+    /// receipt inbox checks with it that a bill isn't filed twice, and
+    /// settles a move a crash left open by whether the book links it.
+    pub fn transactions_linking(&self, link: &str) -> Result<Vec<TransactionId>, StoreError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT DISTINCT transaction_id FROM attachments WHERE link = ?1
+             ORDER BY transaction_id",
+        )?;
+        let ids = statement
+            .query_map([link], |row| row.get::<_, [u8; 16]>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ids.into_iter().map(TransactionId::from_bytes).collect())
+    }
+
+    /// Every link the book's transactions keep, once each (D-132): the
+    /// receipt inbox tells by it which filed bills an Undo unlinked on a
+    /// computer that has no journal of their moves (US7, #333).
+    pub fn attachment_links(&self) -> Result<std::collections::BTreeSet<String>, StoreError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT DISTINCT link FROM attachments")?;
+        let links = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(links)
+    }
+
     /// The attachments of the transactions `filter` (a clause over
     /// `attachments AS a`) keeps, with its `params`, by transaction ID, each
     /// transaction's in the user's order.
@@ -847,6 +879,29 @@ impl Book {
                 });
             }
             accounts.insert(id, account);
+        }
+        // Every part in one account or category moves nothing (B-270), e.g.
+        // a Transfer from an account to itself. A book another program kept
+        // may hold such a transaction, so filling a new book still takes it.
+        if !self.filling
+            && let [first, rest @ ..] = transaction.splits()
+            && let Some(id) = first.account
+            && rest.iter().all(|split| split.account == Some(id))
+        {
+            return Err(StoreError::NothingMoves(id));
+        }
+        // A transaction of 0.00 moves nothing either. A bank may deliver
+        // one, e.g. a notice that a statement period closed, and such an
+        // entry stays as the bank delivered it, so only one typed in or
+        // prepared by hand or by the AI is refused.
+        if !self.filling
+            && transaction.splits().iter().all(|split| {
+                split.amount.is_zero()
+                    && split.account_amount().is_zero()
+                    && split.imported.is_none()
+            })
+        {
+            return Err(StoreError::ZeroAmount);
         }
         Ok(accounts)
     }

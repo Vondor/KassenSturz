@@ -76,15 +76,15 @@ mod writer;
 pub use changes::{
     AmountBasis, AttachBill, BILL_FOLDER, BILL_TYPES, CHECK_ONLY, CHECK_ONLY_SCHEMA, Categorize,
     ChangeError, ChangeSet, Confirmed, DESCRIPTION_DATA, Danger, DeleteCategory, DeleteTransaction,
-    EditAccount, EditBudget, EditError, EditTransaction, FieldEdit, FieldValue, JoinTransfer,
-    MAX_AI_DESCRIPTION_BYTES, MAX_CHANGES, MAX_VIEW_ACCOUNTS, MAX_VIEW_CALL_BYTES,
-    MAX_VIEW_CATEGORIES, MAX_VIEWS_PER_ANSWER, NewAccount, NewBudget, NewCategory, NewCounts,
-    NewRule, NewTransaction, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, Proposal, ProposeSpec,
-    ProposedChange, SHOW_AS_CUSTOM, Slot, SortWithRules, SplitPart, SplitTransaction,
-    TagTransaction, adds_allowed, bill_folder_answer, bill_path, check_only_answer,
-    description_titles, edits_allowed, every_word, prepare_named, prepare_named_with_bills,
-    propose, propose_on, propose_spec, propose_view, propose_view_spec, propose_view_text,
-    take_check_only, view_choices,
+    EditAccount, EditBudget, EditError, EditTransaction, FieldEdit, FieldValue, FileBill, Folders,
+    INBOX, JoinTransfer, MAX_AI_DESCRIPTION_BYTES, MAX_BILL_BYTES, MAX_CHANGES, MAX_FILED_BYTES,
+    MAX_VIEW_ACCOUNTS, MAX_VIEW_CALL_BYTES, MAX_VIEW_CATEGORIES, MAX_VIEWS_PER_ANSWER, NewAccount,
+    NewBudget, NewCategory, NewCounts, NewRule, NewTransaction, PROPOSE_CHANGES, PROPOSE_VIEW_NAME,
+    Proposal, ProposeSpec, ProposedChange, SHOW_AS_CUSTOM, Slot, SortWithRules, SplitPart,
+    SplitTransaction, TagTransaction, TotalCheck, adds_allowed, bill_folder_answer, bill_path,
+    check_only_answer, description_titles, edits_allowed, every_word, inbox_answer, prepare_named,
+    prepare_named_with_bills, prepare_named_with_folders, propose, propose_on, propose_spec,
+    propose_view, propose_view_spec, propose_view_text, take_check_only, view_choices,
 };
 #[cfg(all(feature = "ai", feature = "debug-log"))]
 pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};

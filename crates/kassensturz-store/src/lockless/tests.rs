@@ -91,6 +91,8 @@ fn a_second_writer_is_stopped_by_the_lock_file_without_file_locks() {
     }
 }
 
+// Lock-less open exists only in the Linux snap (D-776).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_write_cut_short_is_rolled_back_at_the_next_open() {
     let folder = TempFolder::new();
@@ -438,6 +440,8 @@ fn every_commit_changes_the_counter_a_copy_is_checked_against() {
     assert_ne!(change_counter(&path).expect("counter"), before);
 }
 
+// Lock-less open exists only in the Linux snap (D-776).
+#[cfg(target_os = "linux")]
 #[test]
 fn private_copies_a_killed_program_left_are_removed_when_old_enough() {
     let old = std::env::temp_dir().join(format!("{COPY_PREFIX}test-old-{}", uuid::Uuid::now_v7()));

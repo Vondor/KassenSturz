@@ -981,6 +981,14 @@ impl Book {
         if wanted.is_empty() {
             return Err(StoreError::EmptyRuleName);
         }
+        // A look-alike name (B-272). Another program's book keeps its
+        // names while a new book is filled.
+        if !self.filling {
+            crate::names::check_hidden_text(&rule.name, "rule-name")?;
+            if let Some(payee) = &rule.actions.payee {
+                crate::names::check_hidden_text(payee, "payee")?;
+            }
+        }
         for sibling in self.sibling_ids(parent)? {
             if sibling != rule.id && self.rule(sibling)?.name.trim().to_lowercase() == wanted {
                 return Err(StoreError::DuplicateRuleName { existing: sibling });

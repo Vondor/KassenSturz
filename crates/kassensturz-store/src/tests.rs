@@ -497,6 +497,81 @@ fn parts_must_be_booked_to_existing_accounts() {
     assert!(book.register(checking).expect("register").is_empty());
 }
 
+/// B-272, round 8: a payee typed in with a character that can't be seen or
+/// turns the text around is refused, for the transaction and for a part,
+/// added or changed. A payee a bank delivered stays as the bank wrote it.
+#[test]
+fn a_look_alike_payee_typed_in_is_refused() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let turned = transaction(
+        date(2026, 10, 5),
+        "Shop\u{202E}live",
+        &[(checking, eur(-1200)), (groceries, eur(1200))],
+    );
+    assert!(matches!(
+        book.add_transaction(&turned),
+        Err(StoreError::HiddenText {
+            field: "payee",
+            reason: "invisible"
+        })
+    ));
+    let mut splits = turned.splits().to_vec();
+    splits[1].own_payee = Some("Shop\u{200B}".into());
+    let part = Transaction::new(
+        TransactionId::generate(),
+        turned.booking_date(),
+        Some("Shop".into()),
+        splits.clone(),
+    )
+    .expect("balanced");
+    assert!(matches!(
+        book.add_transaction(&part),
+        Err(StoreError::HiddenText { field: "payee", .. })
+    ));
+    assert!(book.register(checking).expect("register").is_empty());
+
+    // Delivered by a bank: kept as it is.
+    splits[0].imported = Some(kassensturz_core::ImportedDetails {
+        bank_id: Some("shop-1".into()),
+        other_party_name: Some("Shop\u{202E}live".into()),
+        ..Default::default()
+    });
+    let delivered = Transaction::new(
+        TransactionId::generate(),
+        turned.booking_date(),
+        Some("Shop\u{202E}live".into()),
+        splits,
+    )
+    .expect("balanced");
+    book.add_transaction(&delivered)
+        .expect("a bank's payee stays");
+
+    // Changed by hand into a look-alike: refused, and it stays as it was.
+    let fine = transaction(
+        date(2026, 10, 6),
+        "Corner Grocery",
+        &[(checking, eur(-800)), (groceries, eur(800))],
+    );
+    book.add_transaction(&fine).expect("added");
+    let changed = Transaction::new(
+        fine.id(),
+        fine.booking_date(),
+        Some("Corner\u{2066}Grocery".into()),
+        fine.splits().to_vec(),
+    )
+    .expect("balanced");
+    assert!(matches!(
+        book.update_transaction(&changed),
+        Err(StoreError::HiddenText { field: "payee", .. })
+    ));
+    assert_eq!(book.transaction(fine.id()).expect("read"), fine);
+}
+
 /// B-270, round 8: a transaction of 0.00 typed in moves nothing either and
 /// is refused, added or changed. A bank's entry of 0.00, e.g. a notice that
 /// a statement period closed, comes in as the bank delivered it, and a

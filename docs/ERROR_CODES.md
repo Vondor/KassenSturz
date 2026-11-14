@@ -163,6 +163,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.unknown-rule` | `rule` | | This Rule isn't in the book anymore. It may have just been removed. |
 | `store.rule-id-in-use` | `rule` | | This Rule is in the book already. |
 | `store.empty-rule-name` | | | Give the Rule a name. |
+| `store.hidden-text` | `field`, `reason` | `rule-name`, `payee`; `line-break`, `invisible` | This Rule's name (`rule-name`) or payee (`payee`) can't be kept: it must fit on one line (`line-break`) and hold no character that can't be seen or turns the text around, such as a zero-width space or a right-to-left override (`invisible`), so it can't look like another. Type it again instead of pasting it (B-272). A payee a bank delivered is kept as it is. |
 | `store.duplicate-rule-name` | `existing` | | {existing} already has this name here. Choose another one, so you can tell them apart. |
 | `store.rule-inside-itself` | `rule` | | {rule} can't go inside itself or one of its own sub-Rules. Choose another place. |
 | `store.rule-needs-category` | `account` | | {account} isn't a category. Choose a category, or let the Rule make a Transfer to move the money into one of your accounts. |

@@ -274,6 +274,10 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::UnknownRule(rule),
         StoreError::RuleIdInUse(rule),
         StoreError::EmptyRuleName,
+        StoreError::HiddenText {
+            field: "payee",
+            reason: "invisible",
+        },
         StoreError::DuplicateRuleName { existing: rule },
         StoreError::RuleInsideItself(rule),
         StoreError::RuleNeedsCategory(account),

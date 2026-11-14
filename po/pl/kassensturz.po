@@ -4486,8 +4486,10 @@ msgstr "Niektóre nazwy były już zajęte"
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:167
 #, kde-format
 msgctxt "@info %1 is a list of names"
-msgid "These got a number after their name, so you can tell them apart: %1"
-msgstr "Do ich nazw dodano numer, aby można je było odróżnić: %1"
+msgid ""
+"These got a new name, so each fits on one line and can be told apart from "
+"the others: %1"
+msgstr "Te otrzymały nową nazwę, aby każda mieściła się w jednym wierszu i dała się odróżnić od pozostałych: %1"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:177
 #, kde-format

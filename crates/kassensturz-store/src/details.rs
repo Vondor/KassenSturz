@@ -75,6 +75,10 @@ impl Book {
         if payee.name.trim().is_empty() {
             return Err(StoreError::EmptyName);
         }
+        // A look-alike name (B-272), unless another program's book is filled.
+        if !self.filling {
+            crate::names::check_hidden_text(&payee.name, "payee")?;
+        }
         let wanted = payee.name.trim().to_lowercase();
         if let Some(existing) = self
             .payees()?

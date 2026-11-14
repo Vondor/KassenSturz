@@ -661,6 +661,7 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This transaction came from your bank or a file, so its amount stays as it was delivered. You can change the rest.");
         case "store.delivered-kept":
             return i18nContext.i18nc("@info", "KassenSturz keeps what your bank or a file delivered exactly as it came, so this change wasn't made and nothing was lost. This is a mistake in KassenSturz or in another program that changed the book; please report it.");
+        case "store.hidden-text":
         case "store.account-name":
             switch (result.reason) {
             case "line-break":

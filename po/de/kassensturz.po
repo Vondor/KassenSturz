@@ -5054,10 +5054,12 @@ msgstr "Einige Namen waren schon vergeben"
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:167
 #, kde-format
 msgctxt "@info %1 is a list of names"
-msgid "These got a number after their name, so you can tell them apart: %1"
+msgid ""
+"These got a new name, so each fits on one line and can be told apart from "
+"the others: %1"
 msgstr ""
-"Diese haben eine Nummer hinter dem Namen bekommen, damit Sie sie "
-"unterscheiden können: %1"
+"Diese haben einen neuen Namen bekommen, damit jeder in eine Zeile passt und "
+"Sie sie von den anderen unterscheiden können: %1"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:177
 #, kde-format

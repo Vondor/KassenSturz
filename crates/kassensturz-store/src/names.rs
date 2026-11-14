@@ -70,6 +70,21 @@ pub(crate) fn check_account_name(name: &str) -> Result<(), StoreError> {
     Ok(())
 }
 
+/// Refuses a Rule's name or a payee typed in that holds a line break or
+/// another control character (`line-break`), or a character that shows as
+/// nothing or turns the text around (`invisible`), as
+/// [`StoreError::HiddenText`] for `field`.
+pub(crate) fn check_hidden_text(text: &str, field: &'static str) -> Result<(), StoreError> {
+    let refused = |reason| StoreError::HiddenText { field, reason };
+    if text.chars().any(char::is_control) {
+        return Err(refused("line-break"));
+    }
+    if text.chars().any(is_invisible) {
+        return Err(refused("invisible"));
+    }
+    Ok(())
+}
+
 /// What two names are compared by: without the spaces around them, with
 /// each run of spaces inside as one, without joiners, variation selectors
 /// and characters that show as nothing, and in lower case. Two names with

@@ -1746,7 +1746,8 @@ fn help_is_shown_without_a_book() {
 #[test]
 fn text_from_the_book_cannot_move_the_terminal() {
     let session = household();
-    session.ok(&[
+    // Typed in, the book refuses it (B-272).
+    let refused = session.cli(&[
         "transaction",
         "add",
         "--date",
@@ -1757,6 +1758,28 @@ fn text_from_the_book_cannot_move_the_terminal() {
         "1",
         "--payee",
         "Sneaky \u{1b}[2J shop",
+    ]);
+    assert!(
+        refused.err.starts_with("error: store.hidden-text\n"),
+        "{}",
+        refused.err
+    );
+    // A bank's statement keeps it as delivered, and the register shows it
+    // harmless.
+    let path = session.0.join("sneaky.sta");
+    std::fs::write(
+        &path,
+        ":20:STARTUMS\n:25:DE89370400440532013000\n:60F:C261001EUR0,00\n\
+         :61:2610021002C1,00NMSCNONREF//S1\n\
+         :86:166?00Gutschrift?20SVWZ+Test?32Sneaky \u{1b}[2J shop\n\
+         :62F:C261002EUR1,00\n-\n",
+    )
+    .expect("file written");
+    session.ok(&[
+        "import",
+        &path.display().to_string(),
+        "--account",
+        "Savings",
     ]);
     let register = session.ok(&["register", "Savings"]);
     assert!(register.contains("Sneaky ?[2J shop"));
@@ -3388,4 +3411,80 @@ fn a_hand_entry_of_zero_is_refused_but_a_banks_is_kept() {
         before + 1,
         "the bank's entry is in the register"
     );
+}
+
+/// B-272, round 8: a Rule's name and a payee typed in can't hold a
+/// character that can't be seen or turns the text around, so neither can
+/// look like another, in the CLI as in the AI's path.
+#[test]
+fn a_look_alike_rule_name_or_payee_is_refused() {
+    let session = household();
+    let refused = session.cli(&["rule", "add", "Shop\u{200B}", "--if", "payee is Shop"]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(
+        refused.err.starts_with("error: store.hidden-text\n"),
+        "{}",
+        refused.err
+    );
+    assert!(refused.err.contains("rule-name"), "{}", refused.err);
+
+    let refused = session.cli(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-12.00",
+        "--category",
+        "Food/Groceries",
+        "--payee",
+        "Shop\u{202E}live",
+    ]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(
+        refused.err.starts_with("error: store.hidden-text\n"),
+        "{}",
+        refused.err
+    );
+    assert!(refused.err.contains("payee"), "{}", refused.err);
+    assert!(
+        !session
+            .ok(&["register", "Checking account"])
+            .contains("Shop"),
+        "nothing came in"
+    );
+}
+
+/// B-272 and B-283, round 8: a KMyMoney account renamed because another
+/// had its name, or because its name was cleaned, is reported with the
+/// right reason.
+#[test]
+fn a_kmymoney_account_renamed_says_why() {
+    let session = Session::new();
+    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../kassensturz-import/tests/golden/kmy/payee-rules.kmy");
+    let xml = std::fs::read_to_string(source).expect("read");
+    let card = "type=\"4\" name=\"Card\"";
+    let brokerage = "type=\"7\" name=\"Brokerage\"";
+    assert_eq!(xml.matches(card).count(), 1);
+    assert_eq!(xml.matches(brokerage).count(), 1);
+    let xml = xml
+        .replace(card, "type=\"4\" name=\"Checking\"")
+        .replace(brokerage, "type=\"7\" name=\"Broker&#x200B;age\"");
+    let file = session.0.join("renamed.kmy");
+    std::fs::write(&file, xml).expect("written");
+    let created = session.ok(&["create", "--from", &file.display().to_string()]);
+    assert!(
+        created.contains(
+            "Renamed Checking to Checking (2): another account or category had that name.\n"
+        ),
+        "{created}"
+    );
+    assert!(
+        created.contains("to Brokerage: it had a line break, a character that can't be seen"),
+        "{created}"
+    );
+    assert!(!created.contains("whose name was taken"), "{created}");
 }

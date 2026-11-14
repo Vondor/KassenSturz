@@ -279,6 +279,7 @@ fn sub_categories_get_a_column_and_the_category_itself_a_node() {
     let options = FlowOptions {
         sub_categories: true,
         payees: false,
+        accounts: false,
     };
     let flows = w.flow(bookings.clone(), options);
     let flow = &flows[0];
@@ -322,6 +323,7 @@ fn payees_are_one_node_across_categories_and_opposite_ones_fold_into_other() {
         FlowOptions {
             sub_categories: false,
             payees: true,
+            accounts: false,
         },
     );
     let flow = &flows[0];
@@ -460,7 +462,7 @@ proptest! {
                 w.book(payee_names.get(payee).copied(), category, amount)
             })
             .collect();
-        for flow in w.flow(bookings, FlowOptions { sub_categories: subs, payees }) {
+        for flow in w.flow(bookings, FlowOptions { sub_categories: subs, payees, accounts: false }) {
             check(&flow);
         }
     }
@@ -519,9 +521,322 @@ fn an_other_of_the_first_column_passes_on_all_it_holds() {
             FlowOptions {
                 sub_categories: true,
                 payees,
+                accounts: false,
             },
         ) {
             check(&flow);
+        }
+    }
+}
+
+// ---- Show accounts (US7, #821, D-758 §6) ----
+
+/// Adds an own account of the given kind to the world.
+fn add_own(w: &mut World, name: &'static str, kind: AccountKind) -> AccountId {
+    let account = Account {
+        id: AccountId::generate(),
+        name: name.into(),
+        kind,
+        currency: EUR,
+        account_type: None,
+        parent: None,
+        closed: false,
+        number: None,
+        notes: None,
+        institution: None,
+    };
+    let id = account.id;
+    w.names.insert(name, id);
+    w.accounts.push(account);
+    id
+}
+
+/// A transaction with the given parts `(account, minor units)`; positive
+/// flows into the account.
+fn parts(parts: &[(AccountId, i64)]) -> Transaction {
+    Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 5),
+        None,
+        parts
+            .iter()
+            .map(|&(account, amount)| Split::new(account, money(amount)))
+            .collect(),
+    )
+    .expect("balanced")
+}
+
+fn accounts_flow(
+    w: &World,
+    bookings: Vec<Transaction>,
+    chosen: Option<Vec<AccountId>>,
+    subs: bool,
+    payees: bool,
+) -> Vec<MoneyFlow> {
+    let whole = period(date(2026, 1, 1), date(2026, 12, 31));
+    let source = Source::from_parts(whole, w.accounts.clone(), w.tree.clone(), bookings);
+    let filter = Filter {
+        accounts: chosen,
+        ..Filter::default()
+    };
+    money_flow(
+        &source,
+        whole,
+        &filter,
+        FlowOptions {
+            sub_categories: subs,
+            payees,
+            accounts: true,
+        },
+    )
+    .expect("flow")
+}
+
+/// The rule for a chart with accounts: every node's bands in equal its bands
+/// out (a node at an edge has bands on one side only), and no column is
+/// wider than the total the layout scales to.
+fn check_accounts(flow: &MoneyFlow) {
+    let mut column_sums: HashMap<i8, i64> = HashMap::new();
+    for (index, node) in flow.nodes.iter().enumerate() {
+        let into: i64 = flow
+            .flows
+            .iter()
+            .filter(|f| f.to == index)
+            .map(|f| f.amount.minor_units())
+            .sum();
+        let out: i64 = flow
+            .flows
+            .iter()
+            .filter(|f| f.from == index)
+            .map(|f| f.amount.minor_units())
+            .sum();
+        let amount = node.amount.minor_units();
+        assert!(amount > 0, "{node:?}");
+        assert_ne!(node.kind, FlowNodeKind::Middle, "no middle node");
+        assert!(
+            (into == 0 && out == amount)
+                || (out == 0 && into == amount)
+                || (into == amount && out == amount),
+            "{node:?}: in {into}, out {out}"
+        );
+        if node.kind == FlowNodeKind::Account {
+            assert_eq!((into, out), (amount, amount), "{node:?}");
+        }
+        *column_sums.entry(node.column).or_default() += amount;
+    }
+    let widest = column_sums.values().copied().max().unwrap_or(0);
+    assert_eq!(
+        widest,
+        flow.total.minor_units(),
+        "the total is the widest column"
+    );
+    for flow in &flow.flows {
+        assert!(flow.amount.minor_units() > 0);
+    }
+}
+
+fn band_between(flow: &MoneyFlow, from: &str, to: &str) -> Option<i64> {
+    let name = |index: usize| flow.nodes[index].name.as_str();
+    flow.flows
+        .iter()
+        .find(|f| name(f.from) == from && name(f.to) == to)
+        .map(|f| f.amount.minor_units())
+}
+
+#[test]
+fn accounts_replace_your_money_and_each_keeps_its_own_balance() {
+    let mut w = world(&[
+        ("Salary", AccountKind::Income, None),
+        ("Rent", AccountKind::Expense, None),
+        ("Food", AccountKind::Expense, None),
+    ]);
+    let savings = add_own(&mut w, "Savings", AccountKind::Asset);
+    let (current, salary, rent, food) =
+        (w.own, w.names["Salary"], w.names["Rent"], w.names["Food"]);
+    let bookings = vec![
+        parts(&[(current, 300_000), (salary, -300_000)]),
+        parts(&[(current, -100_000), (rent, 100_000)]),
+        // A Transfer between two chosen accounts is a band between them.
+        parts(&[(current, -50_000), (savings, 50_000)]),
+        parts(&[(savings, -20_000), (food, 20_000)]),
+    ];
+    let flows = accounts_flow(&w, bookings, None, false, false);
+    let flow = &flows[0];
+    check_accounts(flow);
+    assert!(flow.nodes.iter().all(|n| n.kind != FlowNodeKind::Middle));
+    assert_eq!(
+        band_between(flow, "Salary", "Current account"),
+        Some(300_000)
+    );
+    assert_eq!(band_between(flow, "Current account", "Rent"), Some(100_000));
+    assert_eq!(
+        band_between(flow, "Current account", "Savings"),
+        Some(50_000)
+    );
+    assert_eq!(band_between(flow, "Savings", "Food"), Some(20_000));
+    // Current keeps 150,000; Savings keeps 30,000: one *Left over* node.
+    let left = flow
+        .nodes
+        .iter()
+        .position(|n| n.kind == FlowNodeKind::LeftOver)
+        .expect("left over");
+    assert_eq!(flow.nodes[left].amount.minor_units(), 180_000);
+    // The accounts form a chain: Current is left of Savings, which is left
+    // of what is spent.
+    let column = |name: &str| flow.nodes.iter().find(|n| n.name == name).unwrap().column;
+    assert!(column("Current account") < column("Savings"));
+    assert!(column("Savings") < column("Food"));
+    assert!(column("Salary") < column("Current account"));
+}
+
+#[test]
+fn an_account_that_spends_more_than_it_gets_draws_on_reserves() {
+    let mut w = world(&[("Rent", AccountKind::Expense, None)]);
+    let card = add_own(&mut w, "Card", AccountKind::Liability);
+    let rent = w.names["Rent"];
+    let flows = accounts_flow(
+        &w,
+        vec![parts(&[(card, -70_000), (rent, 70_000)])],
+        None,
+        false,
+        false,
+    );
+    let flow = &flows[0];
+    check_accounts(flow);
+    assert_eq!(band_between(flow, "", "Card"), Some(70_000));
+    assert!(flow.nodes.iter().any(|n| n.kind == FlowNodeKind::Reserves));
+}
+
+#[test]
+fn a_transfer_to_an_account_that_is_not_chosen_goes_to_other_accounts() {
+    let mut w = world(&[("Rent", AccountKind::Expense, None)]);
+    let savings = add_own(&mut w, "Savings", AccountKind::Asset);
+    let (current, rent) = (w.own, w.names["Rent"]);
+    let bookings = vec![
+        parts(&[(current, -100_000), (rent, 100_000)]),
+        parts(&[(current, -40_000), (savings, 40_000)]),
+        parts(&[(savings, -15_000), (current, 15_000)]),
+    ];
+    let flows = accounts_flow(&w, bookings, Some(vec![current]), false, false);
+    let flow = &flows[0];
+    check_accounts(flow);
+    let other = |column_positive: bool| {
+        flow.nodes.iter().position(|n| {
+            n.kind == FlowNodeKind::OtherAccounts && (n.column > 0) == column_positive
+        })
+    };
+    let to = other(true).expect("to other accounts");
+    let from = other(false).expect("from other accounts");
+    assert_eq!(flow.nodes[to].amount.minor_units(), 40_000);
+    assert_eq!(flow.nodes[from].amount.minor_units(), 15_000);
+    assert!(flow.nodes.iter().all(|n| n.name != "Savings"));
+}
+
+#[test]
+fn a_transfer_that_goes_back_is_a_band_that_goes_back() {
+    let mut w = world(&[("Shop", AccountKind::Expense, None)]);
+    let card = add_own(&mut w, "Card", AccountKind::Liability);
+    let (current, shop) = (w.own, w.names["Shop"]);
+    // The card is paid from the current account; the card pays the shop.
+    let bookings = vec![
+        parts(&[(card, -30_000), (shop, 30_000)]),
+        parts(&[(current, -30_000), (card, 30_000)]),
+        // And some money goes the other way.
+        parts(&[(card, -5_000), (current, 5_000)]),
+    ];
+    let flows = accounts_flow(&w, bookings, None, false, false);
+    let flow = &flows[0];
+    check_accounts(flow);
+    // The two Transfers are netted into one band, from Current to Card.
+    assert_eq!(band_between(flow, "Current account", "Card"), Some(25_000));
+    assert_eq!(band_between(flow, "Card", "Current account"), None);
+}
+
+#[test]
+fn a_refund_in_another_account_is_cancelled_against_the_larger_part() {
+    let mut w = world(&[("Shop", AccountKind::Expense, None)]);
+    let card = add_own(&mut w, "Card", AccountKind::Liability);
+    let (current, shop) = (w.own, w.names["Shop"]);
+    let bookings = vec![
+        parts(&[(current, -100_000), (shop, 100_000)]),
+        // Paid back into the card.
+        parts(&[(card, 30_000), (shop, -30_000)]),
+    ];
+    let flows = accounts_flow(&w, bookings, None, false, false);
+    let flow = &flows[0];
+    check_accounts(flow);
+    // Shop is 70,000 net, all of it from Current.
+    assert_eq!(band_between(flow, "Current account", "Shop"), Some(70_000));
+}
+
+#[test]
+fn accounts_with_sub_categories_and_payees_still_balance() {
+    let mut w = world(&[
+        ("Salary", AccountKind::Income, None),
+        ("Food", AccountKind::Expense, None),
+        ("Groceries", AccountKind::Expense, Some("Food")),
+    ]);
+    let savings = add_own(&mut w, "Savings", AccountKind::Asset);
+    let (current, salary, groceries) = (w.own, w.names["Salary"], w.names["Groceries"]);
+    let bookings = vec![
+        parts(&[(current, 200_000), (salary, -200_000)]),
+        parts(&[(current, -30_000), (groceries, 30_000)]),
+        parts(&[(current, -10_000), (savings, 10_000)]),
+    ];
+    for (subs, payees) in [(true, false), (false, true), (true, true)] {
+        let flows = accounts_flow(&w, bookings.clone(), None, subs, payees);
+        check_accounts(&flows[0]);
+    }
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig::with_cases(96))]
+
+    /// Whatever is booked across three accounts, with Transfers and refunds,
+    /// every node's bands in equal its bands out and the total is the widest
+    /// column.
+    #[test]
+    fn with_accounts_every_node_keeps_its_balance(
+        entries in prop::collection::vec(
+            (0usize..3, 0usize..8, 0usize..3, -1_000_000i64..1_000_000),
+            1..40,
+        ),
+        subs in any::<bool>(),
+        payees in any::<bool>(),
+        chosen_two in any::<bool>(),
+    ) {
+        let mut w = world(&[
+            ("Salary", AccountKind::Income, None),
+            ("Food", AccountKind::Expense, None),
+            ("Groceries", AccountKind::Expense, Some("Food")),
+            ("Rent", AccountKind::Expense, None),
+            ("Fun", AccountKind::Expense, None),
+        ]);
+        let second = add_own(&mut w, "Savings", AccountKind::Asset);
+        let third = add_own(&mut w, "Card", AccountKind::Liability);
+        let own = [w.own, second, third];
+        let cats = ["Salary", "Food", "Groceries", "Rent", "Fun"];
+        let mut bookings = Vec::new();
+        for (account, category, other, amount) in entries {
+            if amount == 0 {
+                continue;
+            }
+            let account = own[account];
+            let tx = if category < cats.len() {
+                parts(&[(account, amount), (w.names[cats[category]], -amount)])
+            } else {
+                // A Transfer to another account (the same one is no Transfer).
+                let other = own[other];
+                if other == account {
+                    continue;
+                }
+                parts(&[(account, amount), (other, -amount)])
+            };
+            bookings.push(tx);
+        }
+        let chosen = chosen_two.then(|| vec![own[0], own[1]]);
+        for flow in accounts_flow(&w, bookings, chosen, subs, payees) {
+            check_accounts(&flow);
         }
     }
 }

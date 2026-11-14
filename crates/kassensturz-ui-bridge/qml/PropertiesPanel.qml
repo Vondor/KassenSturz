@@ -198,6 +198,8 @@ ColumnLayout {
             return i18nContext.i18nc("@option:check a money-flow chart: sub-categories get a column of their own", "Show sub-categories");
         case "payees":
             return i18nContext.i18nc("@option:check a money-flow chart: who paid and who was paid get a column at each edge", "Show who paid and who was paid");
+        case "show_accounts":
+            return i18nContext.i18nc("@option:check a money-flow chart: the accounts get a column between the money that came in and the money that went out", "Show where the money was kept");
         case "currency":
             return i18nContext.i18nc("@label:textbox a money-flow chart: the currency it shows, as a code like EUR; empty for the one with the most money", "Currency (a code like EUR; empty: the one with most money)");
         case "hide_note":

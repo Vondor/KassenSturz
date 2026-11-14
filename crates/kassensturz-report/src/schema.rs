@@ -766,6 +766,14 @@ const FLOW_PAYEES: Property = Property {
     kind: Kind::Flag { default: false },
 };
 pub(crate) const FLOW_PAYEES_KEY: &str = "payees";
+/// `params.show_accounts` (US7, D-758): the money-flow chart shows the chosen
+/// accounts instead of *Your money*.
+const FLOW_ACCOUNTS: Property = Property {
+    key: FLOW_ACCOUNTS_KEY,
+    place: Place::Params,
+    kind: Kind::Flag { default: false },
+};
+pub(crate) const FLOW_ACCOUNTS_KEY: &str = "show_accounts";
 /// `params.currency` (US7, D-758): the currency the money-flow chart shows,
 /// by its ISO 4217 code. Empty, the default, takes the currency with the
 /// most money moved; there is no conversion.
@@ -801,7 +809,7 @@ const CHART: [Property; 17] = [
 const CANDLESTICK: [Property; 6] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE, CANDLE_FILL];
 /// The money flow (US7, D-758): which accounts, categories and tags count,
 /// the title, the period, and what the chart shows.
-const FLOW: [Property; 9] = [
+const FLOW: [Property; 10] = [
     ACCOUNTS,
     CATEGORIES,
     TAGS,
@@ -809,6 +817,7 @@ const FLOW: [Property; 9] = [
     PERIOD,
     FLOW_SUBS,
     FLOW_PAYEES,
+    FLOW_ACCOUNTS,
     FLOW_CURRENCY,
     HIDE_NOTE,
 ];

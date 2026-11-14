@@ -75,7 +75,8 @@ jobs:
           CARGO_INCREMENTAL: "0"
       - name: Expected failure still open
         shell: bash
-        run: echo "::notice title=Expected failure::utf16_camt_import_expected_failure_until_978 passes while UTF-16 CAMT import is refused (B-280, #978); the fix must remove its should_panic."
+        run: |
+          echo "::notice title=Expected failure::utf16_camt_import_expected_failure_until_978 passes while UTF-16 CAMT import is refused (B-280, issue 978); the fix must remove its should_panic."
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

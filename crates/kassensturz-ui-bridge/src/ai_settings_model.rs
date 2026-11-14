@@ -803,7 +803,7 @@ impl qobject::AiSettings {
     fn set_bill_folder(&self, folder: &QUrl) -> bool {
         crate::book_session::local_path(folder).is_some_and(|path| {
             // Shown by its real path where the system says it (B-267).
-            let shown = crate::platform::choose_folder(&path)
+            let shown = crate::platform::choose_folder(&path, false)
                 .map(|grant| grant.shown_as)
                 .unwrap_or_default();
             path.is_absolute()
@@ -827,7 +827,7 @@ impl qobject::AiSettings {
     fn set_receipt_folder(&self, which: &QString, folder: &QUrl) -> QString {
         let code = match crate::book_session::local_path(folder) {
             None => "folder.not-usable",
-            Some(path) => match crate::platform::choose_folder(&path) {
+            Some(path) => match crate::platform::choose_folder(&path, false) {
                 Err(refused) => refused.code(),
                 Ok(grant) => {
                     let book = crate::session::path();

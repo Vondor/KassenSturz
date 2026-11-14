@@ -5548,6 +5548,21 @@ msgstr ""
 "angelegt. Aktualisieren Sie KassenSturz, um es zu öffnen. Das Haushaltsbuch "
 "wurde nicht verändert."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:100
+#, kde-format
+msgctxt "@info %1 is a date and time, %2 a folder, %3 a file name"
+msgid ""
+"To keep using this version instead, open the copy that the newer "
+"KassenSturz saved before it updated the book, on %1: it is in the backup "
+"folder (%2) as %3. Choose it with \"Open another book…\". Changes made "
+"since the update are not in that copy."
+msgstr ""
+"Um diese Version weiter zu nutzen, öffnen Sie die Kopie, die die neuere "
+"KassenSturz-Version am %1 vor dem Aktualisieren des Haushaltsbuchs gesichert "
+"hat: Sie liegt im Sicherungsordner (%2) unter dem Namen %3. Wählen Sie sie "
+"mit „Anderes Haushaltsbuch öffnen…“. Änderungen seit dem Aktualisieren sind "
+"in dieser Kopie nicht enthalten."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:90
 #, kde-format
 msgctxt "@info"

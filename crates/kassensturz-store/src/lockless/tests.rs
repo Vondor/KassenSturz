@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use kassensturz_core::AccountKind;
+#[cfg(target_os = "linux")]
 use rusqlite::{Connection, OpenFlags};
 
 use super::*;

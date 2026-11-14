@@ -19,7 +19,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::Timestamp;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::OpenFlags;
 
 use crate::backup::{self, exists, parse_name, partial_path, stamp_time, stem_of};
 use crate::error::StoreError;
@@ -362,7 +362,9 @@ fn check_backup(backup: &Path) -> Result<(), StoreError> {
     if !fs::metadata(backup)?.is_file() || !is_book_file(backup)? {
         return Err(StoreError::NotABook);
     }
-    let conn = Connection::open_with_flags(
+    // Where the folder refuses file locks this reads a private copy
+    // (Q-570, D-776).
+    let conn = crate::lockless::open_read_only(
         backup,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )?;
@@ -396,6 +398,7 @@ fn sync_folder(path: &Path) {
 #[cfg(test)]
 mod tests {
     use kassensturz_core::{Account, AccountId, AccountKind, CurrencyCode};
+    use rusqlite::Connection;
 
     use super::*;
     use crate::Computer;

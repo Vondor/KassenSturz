@@ -516,6 +516,11 @@ pub enum StoreError {
     /// taken back: the book is as it was before that change), so no change
     /// is written until the book is opened again (D-732).
     WriteFailed,
+    /// The book is open without file locks (D-776), and its lock file is
+    /// gone or belongs to another program now, so this program may no
+    /// longer be the only writer. The change wasn't written; the book is as
+    /// it was. Close it and open it again.
+    LockLost,
 }
 
 /// What's wrong with data read from a book.
@@ -958,8 +963,16 @@ impl Report for StoreError {
             Self::AmountOverflow => new("store.amount-overflow"),
             Self::Corrupt(corruption) => corruption.report(),
             Self::Io(kind) => new("store.io").with("kind", P::Keyword(io_keyword(*kind))),
-            Self::Database(_) => new("store.database"),
+            // A full drive is said as such, with what to do (B-282), not
+            // as a database error the user can do nothing about.
+            Self::Database(DatabaseError(error)) => match error.sqlite_error_code() {
+                Some(rusqlite::ErrorCode::DiskFull) => {
+                    new("store.io").with("kind", P::Keyword(io_keyword(ErrorKind::StorageFull)))
+                }
+                _ => new("store.database"),
+            },
             Self::WriteFailed => new("store.write-failed"),
+            Self::LockLost => new("store.lock-lost"),
         }
     }
 }

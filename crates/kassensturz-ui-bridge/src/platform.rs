@@ -8,7 +8,7 @@
 use std::path::{Path, PathBuf};
 
 use cxx_qt_lib::QString;
-use kassensturz_core::book_folder::{self, FolderGrant, FolderRefused, Surroundings};
+use kassensturz_core::book_folder::{self, FolderGrant, FolderRefused, LockCheck, Surroundings};
 use kassensturz_store::Computer;
 
 #[cxx_qt::bridge]
@@ -301,8 +301,17 @@ fn absolute_env(name: &str) -> Option<PathBuf> {
 /// the document portal's mount) as a folder the app may use, or why it
 /// isn't (D-730). The chooser itself is Qt's folder dialog, shown by QML's
 /// `FolderChooser`; US5.13's bill folder uses this too.
-pub fn choose_folder(chosen: &Path) -> Result<FolderGrant, FolderRefused> {
-    let home = home_dir();
+///
+/// `for_book` is whether a book is to live in the folder, which works best
+/// with file locks: in a snap the real folder is used when it is reachable
+/// and locks work there (Q-570, D-776).
+pub fn choose_folder(chosen: &Path, for_book: bool) -> Result<FolderGrant, FolderRefused> {
+    // In a snap `$HOME` is the app's own folder; the user's is `SNAP_REAL_HOME`.
+    let home = if in_snap_sandbox() {
+        absolute_env("SNAP_REAL_HOME").or_else(home_dir)
+    } else {
+        home_dir()
+    };
     let runtime = runtime_dir();
     // In the portal's mount the real path is asked from the portal, by the
     // document's ID (M6-B240); if it doesn't say, the folder is shown by its
@@ -317,14 +326,47 @@ pub fn choose_folder(chosen: &Path) -> Result<FolderGrant, FolderRefused> {
             }
             book_folder::host_path_of(Path::new(&host), &rest)
         });
-    book_folder::grant(
+    let grant = book_folder::grant(
         chosen,
         Surroundings {
             home: home.as_deref(),
             runtime_dir: runtime.as_deref(),
             host_path: host.as_deref(),
         },
-    )
+    )?;
+    if for_book && in_sandbox() {
+        return Ok(with_locks(
+            grant,
+            host.as_deref(),
+            in_snap_sandbox(),
+            book_folder::check_locks,
+        ));
+    }
+    Ok(grant)
+}
+
+/// `grant` for a folder a book is to live in. In a snap whose home folder or
+/// removable media the user has allowed, the folder's real path is reachable
+/// and its locks work, so the book is opened there directly (Q-570). If not,
+/// the portal's path stays: the system refuses file locks there, so the book
+/// opens without them and the UI says so (D-776). `check` is what tries the
+/// locks.
+fn with_locks(
+    grant: FolderGrant,
+    host: Option<&Path>,
+    snap: bool,
+    check: impl Fn(&Path) -> LockCheck,
+) -> FolderGrant {
+    if snap
+        && let Some(host) = host.filter(|host| host.is_dir())
+        && check(host) == LockCheck::Works
+    {
+        return FolderGrant {
+            path: host.to_owned(),
+            ..grant
+        };
+    }
+    grant
 }
 
 /// What the document portal says this app may open: each document's ID and
@@ -553,18 +595,64 @@ mod tests {
     #[test]
     fn a_chosen_folder_becomes_a_grant_or_is_refused() {
         let folder = TestFolder::new();
-        let grant = choose_folder(folder.path()).expect("granted");
+        let grant = choose_folder(folder.path(), false).expect("granted");
         assert_eq!(grant.path, folder.path());
         assert_eq!(grant.shown_as, folder.path().to_string_lossy());
         assert!(grant.shown_is_real_path);
         // The home folder and `/` reach as far as a home permission would.
         if let Some(home) = home_dir() {
-            assert_eq!(choose_folder(&home), Err(FolderRefused::TooBroad));
+            assert_eq!(choose_folder(&home, false), Err(FolderRefused::TooBroad));
         }
-        assert_eq!(choose_folder(Path::new("/")), Err(FolderRefused::TooBroad));
         assert_eq!(
-            choose_folder(Path::new("relative")),
+            choose_folder(Path::new("/"), false),
+            Err(FolderRefused::TooBroad)
+        );
+        assert_eq!(
+            choose_folder(Path::new("relative"), false),
             Err(FolderRefused::NotUsable)
+        );
+    }
+
+    #[test]
+    fn a_book_folder_is_opened_where_locks_work() {
+        let grant = FolderGrant {
+            path: PathBuf::from("/run/user/1000/doc/ab12/Books"),
+            shown_as: "/home/tester/Books".into(),
+            shown_is_real_path: true,
+        };
+        let host = TestFolder::new();
+        let host_path = host.path().to_owned();
+        // Locks refused in the portal, allowed in the real folder: a snap
+        // with the home folder allowed opens the book there.
+        let by_place = |path: &Path| {
+            if path.starts_with("/run/user") {
+                LockCheck::Refused
+            } else {
+                LockCheck::Works
+            }
+        };
+        let opened = with_locks(grant.clone(), Some(&host_path), true, by_place);
+        assert_eq!(opened.path, host_path);
+        assert_eq!(opened.shown_as, "/home/tester/Books");
+        // Not a snap (the Flatpak): the real folder is not reachable.
+        assert_eq!(
+            with_locks(grant.clone(), Some(&host_path), false, by_place),
+            grant
+        );
+        // Home not allowed: the real folder isn't there for the snap, so the
+        // portal's path stays and the book opens without file locks.
+        let missing = host_path.join("not-there");
+        assert_eq!(
+            with_locks(grant.clone(), Some(&missing), true, by_place),
+            grant
+        );
+        assert_eq!(with_locks(grant.clone(), None, true, by_place), grant);
+        // The real folder is there but refuses locks too: same.
+        assert_eq!(
+            with_locks(grant.clone(), Some(&host_path), true, |_| {
+                LockCheck::Refused
+            }),
+            grant
         );
     }
 

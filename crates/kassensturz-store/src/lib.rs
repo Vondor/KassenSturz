@@ -22,6 +22,7 @@ mod history;
 mod integrity;
 mod layout;
 mod lock;
+mod lockless;
 mod moving;
 mod names;
 mod originals;
@@ -114,6 +115,13 @@ pub struct Book {
     /// The book's lock file, removed when the book is closed. Declared after
     /// `conn`, so the database is closed first. Books in memory have none.
     _lock: Option<HeldLock>,
+    /// Whether SQLite works here without file locks, because the system
+    /// refuses them in the book's folder (Q-570, D-776). The book's lock
+    /// file is then the only guard against a second writer.
+    without_file_locks: bool,
+    /// The private copy of the book a read-only book reads, where the
+    /// folder refuses locks. Declared after `conn`, so it is closed first.
+    _copy: Option<lockless::PrivateFolder>,
 }
 
 /// One category in the category tree, as [`Book::categories`] lists them.
@@ -156,9 +164,9 @@ impl Book {
 
     fn create_at(path: &Path, computer: &Computer) -> Result<Self, StoreError> {
         let lock = HeldLock::acquire(path, &computer.name)?;
-        let mut conn = connect(path)?;
+        let (mut conn, without_file_locks) = connect(path)?;
         layout::migrate(&mut conn, 0)?;
-        Self::finish(conn, Some(lock))
+        Self::finish(conn, Some(lock), without_file_locks)
     }
 
     /// Opens the existing book at `path` on `computer`.
@@ -225,7 +233,8 @@ impl Book {
             return Err(StoreError::NotABook);
         }
         let lock = lock(&path)?;
-        let mut conn = connect(&path).map_err(integrity::damaged_if_malformed)?;
+        let (mut conn, without_file_locks) =
+            connect(&path).map_err(integrity::damaged_if_malformed)?;
         // Before anything is read from the book, and before any backup or
         // migration writes to the file, so a file cut short or with a page
         // SQLite can't parse is a damaged book, not a generic database
@@ -255,7 +264,7 @@ impl Book {
         // check looks; nothing was changed in a book that fails it (B-291).
         integrity::check_balances(&conn)?;
         integrity::check_conversions(&conn)?;
-        Self::finish(conn, Some(lock))
+        Self::finish(conn, Some(lock), without_file_locks)
     }
 
     /// [`Book::open`] with the layouts `migrations`, for the tests of an
@@ -276,15 +285,27 @@ impl Book {
         )
     }
 
+    /// Whether this book works without file locks, because the system
+    /// refuses them in its folder (Q-570, D-776): the lock file is then the
+    /// only guard against a second writer, and the UI says so.
+    #[must_use]
+    pub fn without_file_locks(&self) -> bool {
+        self.without_file_locks
+    }
+
     /// Creates a new, empty book that lives in memory only: nothing is saved.
     pub fn create_in_memory() -> Result<Self, StoreError> {
         let mut conn = Connection::open_in_memory()?;
         harden(&conn)?;
         layout::migrate(&mut conn, 0)?;
-        Self::finish(conn, None)
+        Self::finish(conn, None, false)
     }
 
-    fn finish(conn: Connection, lock: Option<HeldLock>) -> Result<Self, StoreError> {
+    fn finish(
+        conn: Connection,
+        lock: Option<HeldLock>,
+        without_file_locks: bool,
+    ) -> Result<Self, StoreError> {
         conn.set_prepared_statement_cache_capacity(cached::CAPACITY);
         // SQLite checks foreign keys only if asked to, on every connection.
         conn.pragma_update(None, "foreign_keys", true)?;
@@ -305,6 +326,8 @@ impl Book {
             write_failed: false,
             file_replaced: false,
             _lock: lock,
+            without_file_locks,
+            _copy: None,
         };
         book.prune_history()?;
         Ok(book)
@@ -1082,12 +1105,12 @@ impl Book {
 }
 
 /// Opens the SQLite database of the book at `path`, which must exist.
-fn connect(path: &Path) -> Result<Connection, StoreError> {
+fn connect(path: &Path) -> Result<(Connection, bool), StoreError> {
     // `path` is absolute, so it never begins with `file:` and SQLite never
     // takes it for a URI, as the bundled SQLite otherwise would whatever the
     // flags say. Without SQLITE_OPEN_CREATE, SQLite never creates a file.
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-    let conn = Connection::open_with_flags(path, flags)?;
+    let (conn, without_file_locks) = lockless::open_writer(path, flags)?;
     harden(&conn)?;
     // A write waits for a reader such as `kassensturz-mcp` to finish its
     // short read instead of failing (Q-036, D-195).
@@ -1105,7 +1128,7 @@ fn connect(path: &Path) -> Result<Connection, StoreError> {
     // cut the journal could come back and roll the save back. EXTRA also
     // syncs that folder (sqlite.org/pragma.html#pragma_synchronous).
     conn.pragma_update(None, "synchronous", "EXTRA")?;
-    Ok(conn)
+    Ok((conn, without_file_locks))
 }
 
 /// Sets up `conn` so that a hostile book file can do as little as possible

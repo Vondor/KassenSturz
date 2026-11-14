@@ -20729,9 +20729,18 @@ msgstr "Gdy KassenSturz miał otwartą księgę, inny program umieścił na jej 
 msgctxt "@info"
 msgid ""
 "The book's folder stopped accepting changes, for example because the drive "
-"was disconnected or the access ended. Your earlier work is safe in the book. "
-"Reconnect the drive or choose the folder again, then try again."
-msgstr "Folder księgi przestał przyjmować zmiany, na przykład dlatego, że dysk został odłączony albo dostęp się skończył. Twoja wcześniejsza praca jest bezpieczna w księdze. Podłącz dysk ponownie albo wybierz folder ponownie, a potem spróbuj jeszcze raz."
+"is full or was disconnected, or the access ended. Your earlier work is safe "
+"in the book. Free up space, reconnect the drive or choose the folder again, "
+"then try again."
+msgstr "Folder księgi przestał przyjmować zmiany, na przykład dlatego, że dysk jest pełny albo został odłączony, albo dostęp się skończył. Twoja wcześniejsza praca jest bezpieczna w księdze. Zwolnij miejsce, podłącz dysk ponownie albo wybierz folder ponownie, a potem spróbuj jeszcze raz."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:669
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The drive is full, so this change wasn't saved and the book is as it was. "
+"Free up some space, for example by emptying the trash, then try again."
+msgstr "Dysk jest pełny, więc ta zmiana nie została zapisana, a księga jest taka jak przedtem. Zwolnij trochę miejsca, na przykład opróżniając kosz, a potem spróbuj ponownie."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:221
 #, kde-format
@@ -22905,6 +22914,42 @@ msgstr "Pokaż w folderze"
 msgctxt "@info"
 msgid "Removing a link leaves the file where it is. KassenSturz never changes or deletes a bill; it moves one only when you confirm filing it from your inbox."
 msgstr "Usunięcie odnośnika zostawia plik tam, gdzie jest. KassenSturz nigdy nie zmienia ani nie usuwa rachunku; przenosi go tylko wtedy, gdy potwierdzisz odłożenie go ze skrzynki."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:82
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz still has this book open in another program on this computer, "
+"for example another window or another installation of KassenSturz. Close it "
+"there, then try again. If you can't find it, restart the computer, and the "
+"book opens."
+msgstr ""
+"KassenSturz nadal ma tę księgę otwartą w innym programie na tym komputerze, "
+"na przykład w innym oknie lub w innej instalacji KassenSturz. Zamknij ją "
+"tam i spróbuj ponownie. Jeśli nie możesz jej znaleźć, uruchom komputer "
+"ponownie, a księga się otworzy."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:694
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Another program took this book over, so your change wasn't saved. Close the "
+"book and open it again."
+msgstr ""
+"Inny program przejął tę księgę, dlatego Twoja zmiana nie została zapisana. "
+"Zamknij księgę i otwórz ją ponownie."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1037
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The system doesn't let KassenSturz lock files in this folder, so this book "
+"has less protection here: open it in only one program at a time. Your "
+"automatic backups are not affected."
+msgstr ""
+"System nie pozwala KassenSturz blokować plików w tym folderze, więc ta księga "
+"jest tu słabiej chroniona: otwieraj ją tylko w jednym programie naraz. Twoje "
+"automatyczne kopie zapasowe nie są dotknięte."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:667
 #, kde-format

@@ -78,7 +78,9 @@ Kirigami.Page {
             const since = problem.since
                 ? i18nContext.i18nc("@info %1 is a date and time", "It has been open since %1.", problem.since)
                 : "";
-            const what = problem.here
+            const what = problem.stillRunning
+                ? i18nContext.i18nc("@info", "KassenSturz still has this book open in another program on this computer, for example another window or another installation of KassenSturz. Close it there, then try again. If you can't find it, restart the computer, and the book opens.")
+                : problem.here
                 ? i18nContext.i18nc("@info", "KassenSturz may be open in another window, or it didn't close properly last time. If it isn't open anymore, you can open the book anyway.")
                 : i18nContext.i18nc("@info", "Close it there first, then try again. If KassenSturz isn't running there anymore, for example because that computer crashed, you can open the book here anyway.");
             return since ? since + " " + what : what;
@@ -92,7 +94,7 @@ Kirigami.Page {
         case "book.read-only":
             return i18nContext.i18nc("@info", "The folder was shared with KassenSturz for reading only, or the drive is read-only. Choose the folder again and allow changes, or choose a folder you can write to. The book wasn't changed.");
         case "book.write-failed":
-            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive was disconnected or the access ended. Your earlier work is safe in the book. Reconnect the drive or choose the folder again, then try again.");
+            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive is full or was disconnected, or the access ended. Your earlier work is safe in the book. Free up space, reconnect the drive or choose the folder again, then try again.");
         case "book.replaced":
             return i18nContext.i18nc("@info", "While KassenSturz had the book open, another program put a different file in its place, most likely a sync program such as Nextcloud or Syncthing. Your latest change was not saved, because it would have gone into the old file. Choose \"Try again\" to open the file that is in the folder now, and enter your latest change again if it is missing. If the sync program left a copy next to the book with \"conflicted copy\" in its name, that file holds the other version of the book: open it with \"Open another book…\" to compare the two.");
         case "book.outside-test":
@@ -222,7 +224,7 @@ Kirigami.Page {
             spacing: Kirigami.Units.smallSpacing
 
             Controls.Button {
-                visible: page.code === "store.locked"
+                visible: page.code === "store.locked" && !problem.stillRunning
                 icon.name: "unlock"
                 text: page.i18nContext.i18nc("@action:button", "Open anyway")
                 onClicked: {

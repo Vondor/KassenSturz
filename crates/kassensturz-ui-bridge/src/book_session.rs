@@ -132,7 +132,7 @@ pub mod qobject {
 
         /// If writing to the open book failed because of the drive, closes
         /// the book, so nothing more is written and its lock is released,
-        /// and shows `problem` (`book.write-failed`). Returns whether it did
+        /// and shows `problem` (`book.write-failed`, or `book.replaced` when another program replaced the file). Returns whether it did
         /// (D-732). Cheap, so a timer may ask often.
         #[qinvokable]
         #[cxx_name = "checkWriteHealth"]
@@ -302,10 +302,18 @@ impl qobject::BookSession {
         let Some(path) = session::path() else {
             return false;
         };
+        // Another program's replacing of the file (a sync program) is told
+        // apart from a drive that went (B-289).
+        let replaced = session::with_book(Book::file_replaced).unwrap_or(false);
         // Closing drops the lock; the change that failed was taken back, so
         // the file is as it was before it.
         session::close();
-        let shown = self.problem_map(&Problem::WriteFailed { path: path.clone() });
+        let problem = if replaced {
+            Problem::Replaced { path: path.clone() }
+        } else {
+            Problem::WriteFailed { path: path.clone() }
+        };
+        let shown = self.problem_map(&problem);
         let mut state = self.as_mut().rust_mut();
         state.open = false;
         state.last_attempt = Some(Attempt::Open(path));

@@ -904,13 +904,10 @@ fn open_reader(path: &Path) -> Result<Connection, MoveCause> {
 /// Copies the database `reader` has open into `to`, the empty file claimed
 /// for it, and makes sure the copy is on the disk.
 fn copy_into(reader: &Connection, to: &Path) -> Result<(), StoreError> {
-    let name = to
-        .to_str()
-        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
     // VACUUM INTO writes into an empty file, and reads the book in one read
     // transaction, so the copy is one state of it
     // (sqlite.org/lang_vacuum.html).
-    reader.execute("VACUUM INTO ?1", [name])?;
+    crate::backup::vacuum_into(reader, to)?;
     // Windows syncs only files opened for writing.
     OpenOptions::new().write(true).open(to)?.sync_all()?;
     Ok(())

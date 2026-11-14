@@ -314,9 +314,7 @@ fn prepared_object(view: &PreparedView, into_open: bool, stem: &str) -> QVariant
         (
             "canChooseFolder",
             QVariant::from(
-                &(!into_open
-                    && platform::in_flatpak_sandbox()
-                    && platform::can_choose_book_folder()),
+                &(!into_open && platform::in_sandbox() && platform::can_choose_book_folder()),
             ),
         ),
         ("bookName", text(stem)),

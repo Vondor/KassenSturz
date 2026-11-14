@@ -1,0 +1,303 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+#
+# KassenSturz as a snap (#892, D-765). Strict confinement, KDE's Qt 6 and
+# Frameworks from the `kf6-core24` content snap through the `kde-neon-6`
+# extension. docs/SNAP.md explains every choice and what is still open.
+# Built by .github/workflows/snap.yml; the build's number comes from the file
+# `build-version` that the workflow writes (D-226), and the FinTS product
+# registration number only from the file `fints-registration`, which exists
+# only for a tag (D-745, docs/RELEASING.md).
+name: kassensturz # provisional until the store name is registered (docs/SNAP.md, section 8)
+title: KassenSturz
+base: core24
+adopt-info: kassensturz
+summary: Keep track of your household's money
+description: |
+  KassenSturz is a free household book for the desktop. Record your accounts
+  and spending, see where your money goes, and trust the numbers, without
+  accounting knowledge. Your data stays on your computer.
+
+  Saving your banking PIN in your desktop's keychain needs one extra step
+  after installing: run
+  `sudo snap connect kassensturz:password-manager-service`. Chip-card logins
+  need `sudo snap connect kassensturz:pcscd`. Without them the app works, and
+  asks for the PIN each time.
+license: GPL-3.0-or-later
+website: https://github.com/Vondor/KassenSturz
+source-code: https://github.com/Vondor/KassenSturz
+issues: https://github.com/Vondor/KassenSturz/issues
+confinement: strict
+# `devel` for every build that is not an official tag; the workflow sets
+# `stable` through SNAPCRAFT_GRADE for a tag (the store refuses `devel`
+# snaps in the beta, candidate and stable channels).
+grade: devel
+compression: lzo
+platforms:
+  amd64:
+
+apps:
+  kassensturz:
+    command: usr/bin/kassensturz
+    command-chain: [usr/bin/kassensturz-snap-launch]
+    extensions: [kde-neon-6]
+    common-id: io.github.vondor.KassenSturz
+    desktop: usr/share/applications/io.github.vondor.KassenSturz.desktop
+    environment:
+      # The bank libraries are found by their ABI names (D-138).
+      LD_LIBRARY_PATH: $SNAP/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    plugs:
+      # Not connected by itself: the user connects them (docs/SNAP.md, 4).
+      - password-manager-service
+      - pcscd
+  # The MCP server for the user's own AI tools, stdio only (D-050). It is
+  # started by that tool, not from a menu, and shares the app's data folder.
+  mcp:
+    command: usr/bin/kassensturz-mcp
+    command-chain: [usr/bin/kassensturz-snap-launch]
+    extensions: [kde-neon-6]
+    environment:
+      LD_LIBRARY_PATH: $SNAP/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+
+# Where the bank libraries look for their plug-ins and data, compiled in as
+# /usr/...; the snap keeps them under $SNAP/usr.
+layout:
+  /usr/lib/gwenhywfar:
+    bind: $SNAP/usr/lib/gwenhywfar
+  /usr/lib/aqbanking:
+    bind: $SNAP/usr/lib/aqbanking
+  /usr/share/gwenhywfar:
+    bind: $SNAP/usr/share/gwenhywfar
+  /usr/share/aqbanking:
+    bind: $SNAP/usr/share/aqbanking
+  /usr/share/libchipcard:
+    bind: $SNAP/usr/share/libchipcard
+
+parts:
+  # The client library for the computer's card reader service (`pcscd`
+  # interface); the service itself is the host's.
+  pcsc-lite:
+    plugin: meson
+    source: https://pcsclite.apdu.fr/files/pcsc-lite-2.5.1.tar.xz
+    source-checksum: sha256/bfcfe38a20afc49849c6bf55325e38f449fc4b26d3923fdc32b969ae41a8741b
+    meson-parameters:
+      - --prefix=/usr
+      - --libdir=lib
+      - -Dlibsystemd=false
+      - -Dlibudev=false
+      - -Dpolkit=false
+    build-packages: [meson, ninja-build, pkgconf, flex]
+    prime:
+      - -usr/bin
+      - -usr/sbin
+      - -usr/lib/libpcscspy.so*
+      - -usr/include
+      - -usr/lib/pkgconfig
+
+  gwenhywfar:
+    after: [pcsc-lite]
+    plugin: autotools
+    source: https://www.aquamaniac.de/rdm/attachments/download/630/gwenhywfar-5.14.1.tar.gz
+    source-checksum: sha256/8916feaa99cb954f963f2cba8dd2dffe57cacf7f284daf00eab071aad6fe2ab3
+    build-environment:
+      - GPGRT_CONFIG: /usr/bin/gpgrt-config
+    # Its Qt 6 dialog library is built against the distribution's Qt 6 headers
+    # (qt6-base-dev); Qt 6 keeps its binary interface across minor versions, so
+    # it runs on the newer Qt of the kf6-core24 content snap at run time.
+    build-packages:
+      - qt6-base-dev
+      - qt6-base-dev-tools
+      - libgnutls28-dev
+      - libgcrypt20-dev
+      - libgmp-dev
+      - libgpg-error-dev
+      - gettext
+    # The extension points every part's library path at its SDK snaps, which
+    # breaks the host compiler's test programs, and `craftctl default` would
+    # run in snapcraft's own environment, so the steps are written out here.
+    # The bank libraries are plain C and need none of it.
+    override-build: |
+      set -eu
+      unset LD_LIBRARY_PATH
+      # The extension puts its SDK snaps' compiler tools first on PATH, whose
+      # linker can't find the host's C runtime files (seen in CI).
+      export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin"
+      if ! ./configure --prefix=/usr --with-guis=qt6; then
+        grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
+        env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250
+        exit 1
+      fi
+      make -j"$CRAFT_PARALLEL_BUILD_COUNT"
+      make install DESTDIR="$CRAFT_PART_INSTALL"
+    prime:
+      - -usr/bin
+      - -usr/include
+      - -usr/lib/pkgconfig
+      - -usr/lib/cmake
+
+  libchipcard:
+    after: [gwenhywfar]
+    plugin: autotools
+    source: https://www.aquamaniac.de/rdm/attachments/download/382/libchipcard-5.1.6.tar.gz
+    source-checksum: sha256/6c07f527417f7562074f99012da4d11eb4dbafd33f49e66b442ccd6e3b8cfd20
+    # The extension points every part's library path at its SDK snaps, which
+    # breaks the host compiler's test programs, and `craftctl default` would
+    # run in snapcraft's own environment, so the steps are written out here.
+    # The bank libraries are plain C and need none of it.
+    override-build: |
+      set -eu
+      unset LD_LIBRARY_PATH
+      # The extension puts its SDK snaps' compiler tools first on PATH, whose
+      # linker can't find the host's C runtime files (seen in CI).
+      export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin"
+      if ! ./configure --prefix=/usr; then
+        grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
+        env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250
+        exit 1
+      fi
+      make -j"$CRAFT_PARALLEL_BUILD_COUNT"
+      make install DESTDIR="$CRAFT_PART_INSTALL"
+    prime:
+      - -usr/bin
+      - -usr/include
+      - -usr/lib/pkgconfig
+
+  # Only the FinTS backend, as in the Flatpak (D-142); no command-line tools,
+  # because KassenSturz never sends payments (D-053).
+  aqbanking:
+    after: [gwenhywfar, libchipcard]
+    plugin: autotools
+    source: https://www.aquamaniac.de/rdm/attachments/download/654/aqbanking-6.9.2.tar.gz
+    source-checksum: sha256/244b5f7a139f829928f5cdc3f5f7488517b3e8aa63625a92741c3efc1892bb3f
+    build-packages:
+      - libxmlsec1-dev
+      - libxslt1-dev
+    # The extension points every part's library path at its SDK snaps, which
+    # breaks the host compiler's test programs, and `craftctl default` would
+    # run in snapcraft's own environment, so the steps are written out here.
+    # The bank libraries are plain C and need none of it.
+    override-build: |
+      set -eu
+      # Its build runs the staged tools of Gwenhywfar, which need its library.
+      export LD_LIBRARY_PATH="$CRAFT_STAGE/usr/lib"
+      # The extension puts its SDK snaps' compiler tools first on PATH, whose
+      # linker can't find the host's C runtime files (seen in CI).
+      export PATH="/usr/local/bin:/usr/bin:/bin:$CRAFT_STAGE/usr/bin"
+      if ! ./configure --prefix=/usr '--with-backends=aqhbci aqnone' '--with-imexporters=csv ofx openhbci1 swift xmldb yellownet sepa ctxfile q43 camt xml' --disable-cli --disable-tutorials; then
+        grep -n -i -E 'ld:|error|cannot|collect2|cc1|not found|failed' config.log | head -40
+        env | grep -E '^(PATH|CC|CXX|CFLAGS|CPPFLAGS|LDFLAGS|CPATH|LIBRARY_PATH|LD_|SNAPCRAFT|CRAFT)' | cut -c1-250
+        exit 1
+      fi
+      # One job at a time, as in the Flatpak (docs/THIRD_PARTY.md).
+      make -j1
+      make install DESTDIR="$CRAFT_PART_INSTALL"
+    prime:
+      - -usr/bin
+      - -usr/include
+      - -usr/lib/pkgconfig
+      - -usr/lib/cmake
+
+  kassensturz:
+    after: [aqbanking]
+    plugin: nil
+    source: .
+    build-packages:
+      - curl
+      - cmake
+      - ninja-build
+      - pkgconf
+      - libsqlite3-dev
+    # Gwenhywfar's Qt 6 dialog library, staged by the part before, is found
+    # through pkg-config (crates/kassensturz-aqbanking-sys/gwengui).
+    build-environment:
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+    override-pull: |
+      craftctl default
+      # The number and the commit, as in the Flatpak build (release.yml):
+      # the sources have no .git in the build.
+      if [ -f build-version ]; then
+        craftctl set version="$(cat build-version)"
+      else
+        craftctl set version="0.0.0-dev"
+      fi
+      craftctl set grade="${SNAPCRAFT_GRADE:-devel}"
+    override-build: |
+      set -eu
+      # The Rust the workspace asks for (rust-version in Cargo.toml) comes
+      # from rustup, as in CI's other jobs; the host's is too old.
+      if ! command -v rustup >/dev/null 2>&1; then
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+      fi
+      . "$HOME/.cargo/env"
+      # Host compiler and linker first, the SDK's Qt tools after them.
+      export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+      # cmake --install puts files under DESTDIR, which snapcraft sets to the
+      # part's install folder. Never use `set -x` or `cargo -vv` here: the
+      # registration number would show.
+      # The SDK's own qmake cannot find its Qt from here ("complete Qt
+      # installation" error), so cxx-qt gets a small stand-in that answers
+      # `qmake -query` with the SDK's real folders. Qt's own moc and tools
+      # are used from there.
+      sdk=/snap/kde-qt6-core24-sdk/current
+      qt_version=$(ls "$sdk/usr/include/x86_64-linux-gnu/qt6/QtCore" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+      echo "Qt in the SDK: ${qt_version:-unknown}"
+      ls "$sdk/usr/lib/qt6/libexec" "$sdk/usr/lib/qt6/bin" 2>&1 | head -40 || true
+      # Qt's tools (moc, qmlcachegen, ...) run from wrappers that give them
+      # the SDK's libraries, because the Rust build starts them without our
+      # library path.
+      wrap="$CRAFT_PART_BUILD/qt-tool-wrappers"
+      mkdir -p "$wrap/bin" "$wrap/libexec"
+      for kind in bin libexec; do
+        for tool in "$sdk/usr/lib/qt6/$kind"/*; do
+          [ -f "$tool" ] && [ -x "$tool" ] || continue
+          name=$(basename "$tool")
+          printf '#!/bin/sh\nLD_LIBRARY_PATH="%s/usr/lib/x86_64-linux-gnu:%s/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH" exec "%s" "$@"\n' "$sdk" "/snap/kf6-core24/current" "$tool" > "$wrap/$kind/$name"
+          chmod +x "$wrap/$kind/$name"
+        done
+      done
+      qmake_path="$CRAFT_PART_BUILD/qmake-standin"
+      mkdir -p "$CRAFT_PART_BUILD"
+      cat > "$qmake_path" <<EOF
+      #!/bin/sh
+      if [ "\$1" = "-query" ] && [ -n "\$2" ]; then
+        case "\$2" in
+          QT_VERSION) echo "$qt_version" ;;
+          QT_INSTALL_PREFIX|QT_HOST_PREFIX) echo "$sdk/usr" ;;
+          QT_INSTALL_BINS|QT_HOST_BINS) echo "$wrap/bin" ;;
+          QT_INSTALL_LIBEXECS|QT_HOST_LIBEXECS) echo "$wrap/libexec" ;;
+          QT_INSTALL_LIBS|QT_HOST_LIBS) echo "$sdk/usr/lib/x86_64-linux-gnu" ;;
+          QT_INSTALL_HEADERS) echo "$sdk/usr/include/x86_64-linux-gnu/qt6" ;;
+          QT_INSTALL_ARCHDATA) echo "$sdk/usr/lib/x86_64-linux-gnu/qt6" ;;
+          QT_INSTALL_DATA|QT_HOST_DATA) echo "$sdk/usr/share/qt6" ;;
+          QT_INSTALL_PLUGINS) echo "$sdk/usr/lib/x86_64-linux-gnu/qt6/plugins" ;;
+          QT_INSTALL_QML) echo "$sdk/usr/lib/x86_64-linux-gnu/qt6/qml" ;;
+          *) echo "" ;;
+        esac
+      else
+        exec "$sdk/usr/bin/qmake6" "\$@"
+      fi
+      EOF
+      chmod +x "$qmake_path"
+      # Qt's build tools need Qt's libraries; they may sit in the SDK or in
+      # the runtime snaps next to it.
+      echo "libQt6QmlCompiler:"; find /snap -name 'libQt6QmlCompiler.so*' 2>/dev/null || true
+      libs=""
+      for d in /snap/kde-qt6-core24-sdk/current /snap/kf6-core24-sdk/current /snap/kde-qt6-core24/current /snap/kf6-core24/current; do
+        [ -d "$d/usr/lib/x86_64-linux-gnu" ] && libs="$libs:$d/usr/lib/x86_64-linux-gnu"
+      done
+      export LD_LIBRARY_PATH="${libs#:}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+      echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+      "$sdk/usr/lib/qt6/libexec/qmlcachegen" --version || true
+      ldd "$sdk/usr/lib/qt6/libexec/qmlcachegen" | grep 'not found' || true
+      cmake -S . -B "$CRAFT_PART_BUILD" -G Ninja \
+        -DKASSENSTURZ_QMAKE="$qmake_path" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DKASSENSTURZ_INSTALL_SVG_ICON=OFF -DKASSENSTURZ_SKIP_QML_MODULE_CHECK=ON
+      cmake --build "$CRAFT_PART_BUILD"
+      DESTDIR="$CRAFT_PART_INSTALL" cmake --install "$CRAFT_PART_BUILD"
+      install -Dm755 packaging/snap/launch.sh "$CRAFT_PART_INSTALL/usr/bin/kassensturz-snap-launch"
+      # Takes the AppStream data's summary and description for the store.
+      craftctl default
+    parse-info: [usr/share/metainfo/io.github.vondor.KassenSturz.metainfo.xml]

@@ -247,11 +247,19 @@ jobs:
     with:
       release: true
 
+  # The snap (#892, D-765): built and installed on a fresh runner by snap.yml.
+  snap:
+    name: Snap
+    uses: ./.github/workflows/snap.yml
+    with:
+      release: ${{ github.ref_type == 'tag' }}
+    secrets: inherit
+
   # Only for a tag. A published pre-release at once (D-585): the maintainer's
   # tag is the whole gate.
   release:
     name: Pre-release on GitHub
-    needs: [build, install-check, windows]
+    needs: [build, install-check, windows, snap]
     if: github.ref_type == 'tag'
     runs-on: ubuntu-latest
     permissions:
@@ -299,3 +307,33 @@ jobs:
               --prerelease --verify-tag
           fi
           echo "Pre-release for $TAG is published: https://github.com/$GH_REPO/releases/tag/$TAG" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Puts the snap in the Snap Store's beta channel (D-765: edge for main
+  # builds is not done, beta for pre-releases, stable at Gold). The tag the
+  # maintainer pushed is his decision to publish (AGENTS.md 3.2). It runs in
+  # the environment `release`, so the store login is a secret that only a
+  # `v0.*` tag run can read, and it does nothing, with a warning, until the
+  # maintainer has registered the name and stored the login (docs/SNAP.md,
+  # section 8).
+  snap-upload:
+    name: Upload the snap to the Snap Store
+    needs: [release]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    environment: release
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-asset-snap
+          path: snap
+      - name: Upload to the beta channel
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          set -eu
+          if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+            echo "::warning::The environment 'release' has no secret SNAPCRAFT_STORE_CREDENTIALS, so nothing was uploaded to the Snap Store (docs/SNAP.md, section 8)."
+            exit 0
+          fi
+          sudo snap install snapcraft --classic
+          snapcraft upload --release=beta snap/kassensturz.snap

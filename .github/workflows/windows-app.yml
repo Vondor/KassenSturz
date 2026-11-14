@@ -260,6 +260,13 @@ jobs:
           if (Test-Path "$dir\bin\kassensturz.exe") { throw "kassensturz.exe is still there after uninstalling" }
           if (Test-Path $link) { throw "The Start menu entry is still there after uninstalling" }
           Write-Output "Removed again."
+      # The libraries come from Craft's build, and some have its folder
+      # (C:\Craft...) compiled in; any user can create that folder (B-293).
+      # The app points the known ones at the install folder at start
+      # (install_paths.rs). This lists every file that still has one, so a new
+      # one is seen. It only reports.
+      - name: Files with a Craft folder compiled in (report)
+        run: python tools/windows-compiled-in-paths.py "$env:RUNNER_TEMP\ks-zip"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kassensturz-windows-${{ steps.version.outputs.version }}

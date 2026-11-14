@@ -47,7 +47,7 @@ use rusqlite::config::DbConfig;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use backup_copies::{BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of};
-pub use budgets::{check_budget_days, checked_budget_name};
+pub use budgets::{check_budget_amount_size, check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 /// The oldest layout this KassenSturz updates a book from, and the layout

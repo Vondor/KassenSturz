@@ -599,8 +599,9 @@ pub struct Created {
     /// How many didn't add up in the file and got a part without a category
     /// for the rest.
     pub completed: usize,
-    /// Accounts and categories that got a number after their name, because
-    /// it was taken: the new name.
+    /// Accounts and categories that got a new name: a number or their
+    /// bank's name after it, because the name was taken (B-283), or a
+    /// cleaned name that fits on one line (B-272): the new name.
     pub renamed: Vec<String>,
     /// Categories now at the top level, because they sat inside one in
     /// another currency.

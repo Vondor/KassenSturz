@@ -1273,13 +1273,13 @@ ColumnLayout {
                     required property int index
                     readonly property var series: view.chart.series[dailyItem.drawnBars[0]]
                     readonly property real value: series?.points[index]?.value ?? 0
-                    readonly property real top: dailyItem.yOf(Math.max(0, value))
-                    readonly property real bottom: dailyItem.yOf(Math.min(0, value))
+                    readonly property real barTop: dailyItem.yOf(Math.max(0, value))
+                    readonly property real barBottom: dailyItem.yOf(Math.min(0, value))
 
                     width: Math.max(1, dailyItem.width / Math.max(1, view.count) * 0.7)
                     x: dailyItem.xOf(index) - width / 2
-                    y: top
-                    height: Math.max(1, bottom - top)
+                    y: barTop
+                    height: Math.max(1, barBottom - barTop)
                     color: ChartPalette.color(series?.color ?? 0, view.extraColors)
                     opacity: 0.6
                     Accessible.ignored: true

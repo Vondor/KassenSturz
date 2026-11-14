@@ -11096,6 +11096,16 @@ msgstr ""
 "%1 ist geschlossen. Öffnen Sie es wieder, um Buchungen hinzuzufügen oder zu "
 "ändern."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:636
+#, kde-format
+msgctxt "@info %1 is the name of an account or category"
+msgid ""
+"Every part of this transaction is in %1, so no money moves. Choose another "
+"account or category for one of them."
+msgstr ""
+"Jeder Teil dieser Buchung liegt in %1, es wird also kein Geld bewegt. Wählen "
+"Sie für einen der Teile ein anderes Konto oder eine andere Kategorie."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:528
 #, kde-format
 msgctxt "@info"

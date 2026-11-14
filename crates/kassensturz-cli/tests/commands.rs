@@ -3021,3 +3021,64 @@ fn mistakes_in_a_plan_are_refused_without_changing_the_book() {
     assert_eq!(unknown.status, 1);
     assert!(unknown.err.contains("isn't a plan's ID"), "{}", unknown.err);
 }
+
+/// B-270 (#966): a Transfer from an account to itself, or parts that all
+/// name one account, move nothing and are refused.
+#[test]
+fn a_transfer_from_an_account_to_itself_is_refused() {
+    let session = household();
+    for line in [
+        &[
+            "transaction",
+            "add",
+            "--date",
+            "2026-10-05",
+            "--account",
+            "Checking account",
+            "--amount",
+            "-10.00",
+            "--to",
+            "Checking account",
+        ][..],
+        &[
+            "transaction",
+            "add",
+            "--date",
+            "2026-10-05",
+            "--account",
+            "Checking account",
+            "--amount",
+            "-10.00",
+            "--part",
+            "Checking account=-10",
+        ],
+    ] {
+        let refused = session.cli(line);
+        assert_eq!(refused.status, 1, "{line:?}: {}", refused.err);
+        assert!(
+            refused.err.starts_with("error: store.nothing-moves\n"),
+            "{line:?}: {}",
+            refused.err
+        );
+    }
+    assert_eq!(
+        session
+            .ok(&["register", "Checking account"])
+            .lines()
+            .count(),
+        session.ok(&["register", "Savings"]).lines().count(),
+        "nothing came in"
+    );
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-10.00",
+        "--to",
+        "Savings",
+    ]);
+}

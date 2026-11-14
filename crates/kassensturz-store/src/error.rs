@@ -237,6 +237,10 @@ pub enum StoreError {
     /// A closed account takes no new transactions. The user can open it
     /// again.
     AccountClosed(AccountId),
+    /// Every part of a transaction is booked to this one account or
+    /// category, so no money moves anywhere: a Transfer from an account to
+    /// itself (B-270).
+    NothingMoves(AccountId),
     /// An account can only be closed when its balance is zero.
     AccountNotEmpty {
         /// The account.
@@ -740,6 +744,9 @@ impl Report for StoreError {
                 .with("currency", P::Currency(*currency)),
             Self::AccountClosed(account) => {
                 new("store.account-closed").with("account", P::Account(*account))
+            }
+            Self::NothingMoves(account) => {
+                new("store.nothing-moves").with("account", P::Account(*account))
             }
             Self::AccountNotEmpty { account, balance } => new("store.account-not-empty")
                 .with("account", P::Account(*account))

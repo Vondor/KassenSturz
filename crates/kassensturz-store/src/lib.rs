@@ -28,6 +28,7 @@ mod recurring_moves;
 mod rules;
 mod schedules;
 mod tags;
+mod totals;
 mod transactions;
 mod transfers;
 mod unsorted;
@@ -69,6 +70,7 @@ pub use schedules::{
     ScheduleNeedsYou,
 };
 pub use tags::{TagUse, checked_tag_name};
+pub use totals::{MAX_CURRENCY_TOTAL, MAX_PLAN_AMOUNT};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};
 
@@ -1080,6 +1082,12 @@ fn connect(path: &Path) -> Result<Connection, StoreError> {
     if !mode.eq_ignore_ascii_case("delete") {
         return Err(StoreError::JournalModeRefused { mode });
     }
+    // A save is on the disk when it returns (B-278). In this journal mode
+    // the save is done the moment SQLite deletes the journal, and FULL syncs
+    // the book but not the folder that deletion is written to: after a power
+    // cut the journal could come back and roll the save back. EXTRA also
+    // syncs that folder (sqlite.org/pragma.html#pragma_synchronous).
+    conn.pragma_update(None, "synchronous", "EXTRA")?;
     Ok(conn)
 }
 

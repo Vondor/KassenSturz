@@ -185,7 +185,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.no-rate` | `from`, `to`, `date` | | There is no exchange rate from {from} to {to} on or before {date}. Enter one. |
 | `store.duplicate-rate` | `existing` | | There is already a rate for these currencies on this day. Change that one instead. |
 | `store.date-out-of-range` | `date` | | KassenSturz can't store {date}. Choose a date in the year 1 or later. |
-| `store.amount-overflow` | | | The amounts add up to more than KassenSturz can work with. Check them for extra digits. |
+| `store.amount-overflow` | | | The amounts add up to more than KassenSturz can work with: one amount, the amounts of a book in one currency together, or a planned payment repeated over the years a forecast looks at (B-269). Nothing was changed. Check them for extra digits. |
 | `store.io` | `kind` | `not-found`, `permission-denied`, `already-exists`, `read-only`, `storage-full`, `quota-exceeded`, `file-too-large`, `other` | The file couldn't be read or written. Not found: it was moved or removed. Permission denied or read-only: choose a folder you can write to. Storage full or quota exceeded: free up space. File too large: the drive can't hold files this big. |
 | `store.database` | | | Something went wrong reading or writing the book. Try again. If it keeps happening, restore a backup. |
 

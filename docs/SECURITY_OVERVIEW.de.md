@@ -84,6 +84,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Ein Eintrag, der auf ein nicht vorhandenes Konto zeigte, zählte in keinem Kontostand, ohne dass es jemand merkte | B-294 | #1020 |
 | Ein Verzeichnis des Buchs, das nicht zu seiner Tabelle passte, konnte Einträge vor einem Kontostand verbergen | B-295 | #1020 |
 | Eine Sicherung mit beschädigter Datei oder geändertem Betrag konnte an die Stelle eines guten Buchs gesetzt werden | B-298 | #1032 |
+| Unsichtbare Zeichen in einem Zahlungsempfänger oder Verwendungszweck konnten der KI eine verborgene Anweisung mitgeben | B-300 | diese PR |
 
 Kein Fund hat eine PIN verraten. Nur bei einem (B-252) hätten Daten Ihren Computer verlassen können, und auch das nur, wenn jemand vorher Ihre Einstellungsdatei von Hand gefälscht hätte.
 

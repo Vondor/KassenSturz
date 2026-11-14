@@ -5601,6 +5601,16 @@ msgctxt "@info"
 msgid "The drive is full. Free up some space, then try again."
 msgstr "Das Laufwerk ist voll. Schaffen Sie Platz und versuchen Sie es erneut."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:638
+msgctxt "@info"
+msgid ""
+"The drive is full, so this change wasn't saved and the book is as it was. "
+"Free up some space, for example by emptying the trash, then try again."
+msgstr ""
+"Das Laufwerk ist voll, deshalb wurde diese Änderung nicht gespeichert, und "
+"das Buch ist unverändert. Schaffen Sie Platz, zum Beispiel indem Sie den "
+"Papierkorb leeren, und versuchen Sie es dann noch einmal."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:104
 #, kde-format
 msgctxt "@info"
@@ -22707,9 +22717,15 @@ msgstr "Der Ordner wurde KassenSturz nur zum Lesen freigegeben, oder das Laufwer
 msgctxt "@info"
 msgid ""
 "The book's folder stopped accepting changes, for example because the drive "
-"was disconnected or the access ended. Your earlier work is safe in the book. "
-"Reconnect the drive or choose the folder again, then try again."
-msgstr "Der Ordner des Buches nimmt keine Änderungen mehr an, zum Beispiel weil das Laufwerk getrennt wurde oder der Zugriff endete. Ihre bisherige Arbeit ist im Buch gesichert. Verbinden Sie das Laufwerk wieder oder wählen Sie den Ordner erneut, und versuchen Sie es dann noch einmal."
+"is full or was disconnected, or the access ended. Your earlier work is safe "
+"in the book. Free up space, reconnect the drive or choose the folder again, "
+"then try again."
+msgstr ""
+"Der Ordner des Buches nimmt keine Änderungen mehr an, zum Beispiel weil das "
+"Laufwerk voll ist oder getrennt wurde, oder weil der Zugriff endete. Ihre "
+"bisherige Arbeit ist im Buch gesichert. Schaffen Sie Platz, verbinden Sie das "
+"Laufwerk wieder oder wählen Sie den Ordner erneut, und versuchen Sie es dann "
+"noch einmal."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:221
 #, kde-format

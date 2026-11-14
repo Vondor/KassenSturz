@@ -90,7 +90,7 @@ Kirigami.Page {
         case "book.read-only":
             return i18nContext.i18nc("@info", "The folder was shared with KassenSturz for reading only, or the drive is read-only. Choose the folder again and allow changes, or choose a folder you can write to. The book wasn't changed.");
         case "book.write-failed":
-            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive was disconnected or the access ended. Your earlier work is safe in the book. Reconnect the drive or choose the folder again, then try again.");
+            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive is full or was disconnected, or the access ended. Your earlier work is safe in the book. Free up space, reconnect the drive or choose the folder again, then try again.");
         case "book.outside-test":
             return i18nContext.i18nc("@info", "KassenSturz runs in test mode, which never opens or changes your own books. Choose a book in the test folder, or try an example book. The book wasn't touched.");
         case "book.no-app-folder":

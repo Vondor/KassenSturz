@@ -630,6 +630,18 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This transaction came from your bank or a file, so its amount stays as it was delivered. You can change the rest.");
         case "store.delivered-kept":
             return i18nContext.i18nc("@info", "KassenSturz keeps what your bank or a file delivered exactly as it came, so this change wasn't made and nothing was lost. This is a mistake in KassenSturz or in another program that changed the book; please report it.");
+        // The drive, not the change (B-282): the change was taken back.
+        case "store.io":
+            switch (result.kind) {
+            case "storage-full":
+            case "quota-exceeded":
+                return i18nContext.i18nc("@info", "The drive is full, so this change wasn't saved and the book is as it was. Free up some space, for example by emptying the trash, then try again.");
+            case "permission-denied":
+            case "read-only":
+                return i18nContext.i18nc("@info", "KassenSturz isn't allowed to change files in this folder. Choose a folder you can write to.");
+            default:
+                return i18nContext.i18nc("@info", "The file couldn't be read or written. Check that the drive is connected, then try again.");
+            }
         case "store.account-closed":
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
         // Planned payments (US7.1, D-769).

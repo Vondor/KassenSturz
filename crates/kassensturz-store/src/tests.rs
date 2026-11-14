@@ -1634,3 +1634,53 @@ fn a_grouped_account_changes_its_kind_and_leaves_its_group() {
     }
     assert_eq!(book.all_accounts().expect("accounts"), before);
 }
+
+/// B-282: when the drive is full, the change is taken back and the error
+/// says so, as `store.io` with the kind `storage-full`, which the app and
+/// the command line turn into "the drive is full, free up space", not the
+/// dead end `store.database`. SQLite's page limit stands in for the drive.
+#[test]
+fn a_full_drive_is_reported_as_such() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let pages: i64 = book
+        .conn
+        .pragma_query_value(None, "page_count", |row| row.get(0))
+        .expect("read");
+    book.conn
+        .pragma_update(None, "max_page_count", pages)
+        .expect("limited");
+    let error = book
+        .as_one_action(Action::ImportStatement, |book| {
+            for _ in 0..2_000 {
+                book.add_transaction(&transaction(
+                    date(2026, 10, 5),
+                    "Corner Grocery",
+                    &[(checking, eur(-100)), (groceries, eur(100))],
+                ))?;
+            }
+            Ok::<(), StoreError>(())
+        })
+        .expect_err("the drive is full");
+    let report = error.report();
+    assert_eq!(report.code, "store.io", "{error:?}");
+    assert_eq!(
+        report.param("kind"),
+        Some(&kassensturz_core::ErrorParam::Keyword("storage-full"))
+    );
+    assert!(book.register(checking).expect("register").is_empty());
+    // With space again, the same change goes through.
+    book.conn
+        .pragma_update(None, "max_page_count", 1_073_741_823)
+        .expect("space again");
+    book.add_transaction(&transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-100)), (groceries, eur(100))],
+    ))
+    .expect("saved");
+}

@@ -483,7 +483,6 @@ mod tests {
             accounts: 3,
             categories: 4,
             transactions: 6,
-            schedules: Vec::new(),
             unlisted: Vec::new(),
             rules_by_name_only: 7,
         };

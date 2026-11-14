@@ -306,7 +306,6 @@ impl Prepared {
                     .filter(|account| account.kind.is_category())
                     .count(),
                 transactions: data.transactions.len(),
-                schedules: Vec::new(),
                 unlisted: Vec::new(),
                 rules_by_name_only: 0,
             },

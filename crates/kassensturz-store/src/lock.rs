@@ -42,17 +42,25 @@ pub struct Lock {
     /// Identifies the lock, so taking it over can check that it is still the
     /// one the user was warned about.
     token: Option<String>,
-    /// The program that holds it, on the computer named above, as the
-    /// system numbers programs and when it started (Linux's `/proc`), so a
-    /// lock of a program that is still running there can be told from one a
-    /// crash left behind.
+    /// What the lock file says about the program that holds it. Boxed, so
+    /// the lock stays small enough to travel in error values.
+    holder: Box<Holder>,
+}
+
+/// The program that holds a lock, as the lock file says.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Holder {
+    /// The program's number, on the computer named above, as the system
+    /// numbers programs, and when it started (Linux's `/proc`), so a lock of
+    /// a program that is still running there can be told from one a crash
+    /// left behind.
     process: Option<(u32, u64)>,
     /// Which start of the computer and which process-number space the
-    /// program above lives in (Linux: the boot id and the PID namespace). A
-    /// program in another namespace, such as a Flatpak next to a snap, can't
-    /// be looked up in `/proc`, so its lock can't be called a crash's
-    /// leftover (D-776).
-    place: Option<Box<Place>>,
+    /// program lives in (Linux: the boot id and the PID namespace). A program
+    /// in another namespace, such as a Flatpak next to a snap, can't be
+    /// looked up in `/proc`, so its lock can't be called a crash's leftover
+    /// (D-776).
+    place: Option<Place>,
     /// The program opened the book without file locks, so SQLite can't keep
     /// a second writer out and this file is the only guard (D-776).
     without_file_locks: bool,
@@ -68,7 +76,7 @@ impl Lock {
     pub fn stays_locked_here(&self, book: &Path, computer: &str) -> bool {
         self.computer.as_deref() == Some(computer)
             && may_still_run(self)
-            && (self.without_file_locks || crate::lockless::locks_refused(book))
+            && (self.holder.without_file_locks || crate::lockless::locks_refused(book))
     }
 }
 
@@ -237,9 +245,7 @@ fn parse(text: &str) -> Lock {
         computer: None,
         since: None,
         token: None,
-        process: None,
-        place: None,
-        without_file_locks: false,
+        holder: Box::default(),
     };
     let (mut pid, mut start) = (None, None);
     let (mut boot, mut namespace) = (None, None);
@@ -256,14 +262,14 @@ fn parse(text: &str) -> Lock {
             "start" => start = value.parse().ok(),
             "boot" if !value.is_empty() => boot = Some(value.to_owned()),
             "namespace" if !value.is_empty() => namespace = Some(value.to_owned()),
-            "locks" => lock.without_file_locks = value == "none",
+            "locks" => lock.holder.without_file_locks = value == "none",
             _ => {}
         }
     }
-    lock.process = pid.zip(start);
-    lock.place = boot
+    lock.holder.process = pid.zip(start);
+    lock.holder.place = boot
         .zip(namespace)
-        .map(|(boot, namespace)| Box::new(Place { boot, namespace }));
+        .map(|(boot, namespace)| Place { boot, namespace });
     lock
 }
 
@@ -299,14 +305,14 @@ fn own_place() -> Option<Place> {
 /// up, so it counts as running. A lock without a number or place is taken
 /// to be a crash's leftover, as before.
 fn may_still_run(lock: &Lock) -> bool {
-    let Some((pid, start)) = lock.process else {
+    let Some((pid, start)) = lock.holder.process else {
         // A lock without a process number comes from a build that doesn't
         // write one (the Flatpak of before D-776) or is damaged. It can't be
         // looked up, so it counts as running unless the computer has
         // restarted since it was made; "since" says when (D-776).
         return !made_before_boot(lock.since);
     };
-    match (&lock.place, own_place()) {
+    match (&lock.holder.place, own_place()) {
         (Some(theirs), Some(ours)) => {
             if theirs.boot != ours.boot {
                 false
@@ -358,6 +364,15 @@ fn one_line(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_lock_stays_small_enough_to_travel_in_error_values() {
+        // Clippy's `result_large_err` allows 128 bytes; a book's problem
+        // holds a lock and a path (24 bytes) and a tag.
+        eprintln!("size of Lock: {}", std::mem::size_of::<Lock>());
+        assert!(std::mem::size_of::<Lock>() <= 88);
+        assert!(std::mem::size_of::<crate::StoreError>() <= 112);
+    }
 
     #[test]
     fn reads_what_it_writes() {

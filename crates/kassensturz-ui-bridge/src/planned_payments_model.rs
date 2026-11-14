@@ -11,11 +11,15 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QVariant};
 
+use kassensturz_report::status;
+
 use crate::errors::ErrorText;
 use crate::number_format::app_locale;
 use crate::planned_payments::{
-    self, COMING_UP_DAYS, EntryChoice, PaymentText, PlanForm, PlanText, PlansError,
+    self, COMING_UP_DAYS, EntryChoice, MonthRow, MonthStart, MonthText, PaymentText, PlanForm,
+    PlanText, PlansError, TABLE_MONTHS,
 };
+use crate::register::Shown;
 use crate::register_model::{field, flag};
 use crate::session;
 use crate::variant::{error_object, list, map, text};
@@ -39,7 +43,15 @@ pub mod qobject {
         /// passed without an entry, "Did this happen?") and `comingUp` (the
         /// open ones of the next 30 days), both lists of payments with
         /// `planId`, `name`, `account`, `amount`, `exactAmount`,
-        /// `outgoing`, `due`, `dueOn` and `state`; or an error object.
+        /// `outgoing`, `due`, `dueOn` and `state`; `comingUpStatus` and
+        /// `comingUpCount` (the *Coming up* tile's state, D-734); and
+        /// `forecast`, *Left this month* (D-770): `accounts` (names),
+        /// `leftOut`, `hasPlans`, `balanceNow`, `outDue`, `inDue`, `left`,
+        /// `expectedEnd` (each amount also as `exact…`; `inDue` and
+        /// `expectedEnd` empty when no income is still to come),
+        /// `belowZero`, `overdue`, `status`, `statusCount` and `months`
+        /// (each with `month`, `start`, `plannedIn`, `plannedOut` and
+        /// `end`). Or an error object.
         #[qobject]
         #[qml_element]
         #[qproperty(QVariant, view, READ, NOTIFY)]
@@ -84,6 +96,14 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "nextDates"]
         fn next_dates(self: &PlannedPayments, form: &QVariant) -> QVariant;
+
+        /// *Left this month* with its months starting as the tile's "Month
+        /// starts on" word `start` says (`like-budgets` or `day-1` to
+        /// `day-31`, #921): an object like the view's `forecast`, or an
+        /// error object.
+        #[qinvokable]
+        #[cxx_name = "monthFrom"]
+        fn month_from(self: &PlannedPayments, start: &QString) -> QVariant;
 
         /// Saves the form as the plan `id`, or as a new plan when `id` is
         /// empty. Returns an object with the plan's `id`, or an error
@@ -176,9 +196,17 @@ impl qobject::PlannedPayments {
                     planned_payments::list(book, &locale)?,
                     planned_payments::did_this_happen(book, &locale)?,
                     planned_payments::coming_up(book, COMING_UP_DAYS, &locale)?,
+                    planned_payments::this_month(
+                        book,
+                        TABLE_MONTHS,
+                        MonthStart::LikeBudgets,
+                        &locale,
+                    )?,
                 ))
             },
-            |(plans, to_confirm, coming_up)| view_object(&plans, &to_confirm, &coming_up),
+            |(plans, to_confirm, coming_up, month)| {
+                view_object(&plans, &to_confirm, &coming_up, &month)
+            },
         );
         self.as_mut().rust_mut().view = view;
         self.as_mut().view_changed();
@@ -221,6 +249,15 @@ impl qobject::PlannedPayments {
         let locale = app_locale();
         session::with_book(|book| planned_payments::next_dates(book, &form, &locale))
             .map_or_else(|| list([]), |dates| list(dates.iter().map(|day| text(day))))
+    }
+
+    fn month_from(&self, start: &QString) -> QVariant {
+        let start = MonthStart::from_word(&start.to_string());
+        let locale = app_locale();
+        reading(
+            |book| planned_payments::this_month(book, TABLE_MONTHS, start, &locale),
+            |month| month_object(&month),
+        )
     }
 
     fn save(self: Pin<&mut Self>, id: &QString, form: &QVariant) -> QVariant {
@@ -360,11 +397,71 @@ fn view_object(
     plans: &[PlanText],
     to_confirm: &[PaymentText],
     coming_up: &[PaymentText],
+    month: &MonthText,
 ) -> QVariant {
+    let soon = status::coming_up(Some(plans.len()), coming_up.len());
     map([
         ("plans", list(plans.iter().map(plan_object))),
         ("toConfirm", list(to_confirm.iter().map(payment_object))),
         ("comingUp", list(coming_up.iter().map(payment_object))),
+        ("comingUpStatus", text(soon.status.id())),
+        ("comingUpCount", count(soon.count)),
+        ("forecast", month_object(month)),
+    ])
+}
+
+/// A count for QML, which reads numbers as `int`.
+fn count(value: usize) -> QVariant {
+    QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX))
+}
+
+/// *Left this month*, as the tile and the window show it.
+fn month_object(month: &MonthText) -> QVariant {
+    let empty = Shown::default();
+    let in_due = month.in_due.as_ref().unwrap_or(&empty);
+    let expected_end = month.expected_end.as_ref().unwrap_or(&empty);
+    map([
+        (
+            "accounts",
+            list(month.accounts.iter().map(|name| text(name))),
+        ),
+        ("leftOut", count(month.left_out)),
+        ("hasPlans", QVariant::from(&month.has_plans)),
+        ("balanceNow", text(&month.balance_now.text)),
+        ("exactBalanceNow", text(&month.balance_now.exact)),
+        ("outDue", text(&month.out_due.text)),
+        ("exactOutDue", text(&month.out_due.exact)),
+        ("inDue", text(&in_due.text)),
+        ("exactInDue", text(&in_due.exact)),
+        ("left", text(&month.left.text)),
+        ("exactLeft", text(&month.left.exact)),
+        ("belowZero", QVariant::from(&month.below_zero)),
+        ("expectedEnd", text(&expected_end.text)),
+        ("exactExpectedEnd", text(&expected_end.exact)),
+        ("overdue", count(month.overdue)),
+        ("startsOn", QVariant::from(&i32::from(month.starts_on))),
+        ("likeBudgets", QVariant::from(&month.like_budgets)),
+        ("ends", text(&month.ends)),
+        ("status", text(month.status.status.id())),
+        ("statusCount", count(month.status.count)),
+        ("months", list(month.months.iter().map(month_row_object))),
+    ])
+}
+
+/// One month of the month by month table.
+fn month_row_object(row: &MonthRow) -> QVariant {
+    map([
+        ("month", text(&row.month)),
+        ("first", text(&row.first)),
+        ("last", text(&row.last)),
+        ("start", text(&row.start.text)),
+        ("exactStart", text(&row.start.exact)),
+        ("plannedIn", text(&row.planned_in.text)),
+        ("exactPlannedIn", text(&row.planned_in.exact)),
+        ("plannedOut", text(&row.planned_out.text)),
+        ("exactPlannedOut", text(&row.planned_out.exact)),
+        ("end", text(&row.end.text)),
+        ("exactEnd", text(&row.end.exact)),
     ])
 }
 
@@ -437,9 +534,12 @@ fn choice_object(choice: &EntryChoice) -> QVariant {
 #[cfg(test)]
 mod tests {
     use super::{choice_object, form_object, payment_object, plan_object, read_form, view_object};
-    use crate::planned_payments::{EntryChoice, PaymentText, PlanForm, PlanText};
+    use crate::planned_payments::{
+        EntryChoice, MonthRow, MonthText, PaymentText, PlanForm, PlanText,
+    };
     use crate::register::Shown;
     use crate::variant::read_back::{elements, flag_of, keys, list_of, number_of, text_of};
+    use kassensturz_report::status::{self, ForecastFigures};
 
     fn exactly(text: &str) -> Shown {
         Shown {
@@ -528,11 +628,130 @@ mod tests {
         assert_eq!(text_of(&choice, "amount"), "-750,00 €");
         assert_eq!(text_of(&choice, "exactAmount"), "-750,00 €");
 
-        let view = view_object(&[], &[payment()], &[payment(), payment()]);
+        let view = view_object(&[], &[payment()], &[payment(), payment()], &month());
+        assert_eq!(keys(&view).len(), 6);
         assert_eq!(list_of(&view, "plans").len(), 0);
         assert_eq!(list_of(&view, "toConfirm").len(), 1);
         assert_eq!(list_of(&view, "comingUp").len(), 2);
+        // No plan: the Coming up tile can't say anything yet (D-734).
+        assert_eq!(text_of(&view, "comingUpStatus"), "unknown");
+        assert_eq!(number_of(&view, "comingUpCount"), 0);
         assert!(elements(&view).is_none(), "an object, not a list");
+    }
+
+    fn month() -> MonthText {
+        MonthText {
+            accounts: vec!["Checking account".into(), "Cash".into()],
+            left_out: 1,
+            has_plans: true,
+            balance_now: exactly("2340,00 €"),
+            out_due: exactly("29,90 €"),
+            in_due: Some(exactly("2200,00 €")),
+            left: Shown {
+                text: "2310 €".into(),
+                exact: "2310,10 €".into(),
+            },
+            below_zero: false,
+            expected_end: Some(exactly("4510,10 €")),
+            overdue: 2,
+            months: vec![MonthRow {
+                month: "November 2026".into(),
+                first: "2026-11-25".into(),
+                last: "2026-12-24".into(),
+                start: exactly("4510,10 €"),
+                planned_in: exactly("2200,00 €"),
+                planned_out: exactly("779,90 €"),
+                end: exactly("5930,20 €"),
+            }],
+            starts_on: 25,
+            like_budgets: true,
+            ends: "2026-11-24".into(),
+            status: status::forecast(Some(ForecastFigures {
+                accounts: true,
+                plans: true,
+                overdue: 2,
+            })),
+        }
+    }
+
+    /// The *Left this month* tile and the month by month table read these
+    /// by name (AGENTS.md §9.4).
+    #[test]
+    fn the_left_this_month_tile_reads_back_every_field() {
+        let plan = PlanText {
+            id: "p1".into(),
+            name: "Gym".into(),
+            account: "Checking account".into(),
+            account_id: "a1".into(),
+            amount: exactly("29,90 €"),
+            outgoing: true,
+            unit: "month",
+            every: 1,
+            first_due: "2026-10-25".into(),
+            ends: String::new(),
+            next_due: "2026-10-26".into(),
+            paused: false,
+            account_closed: false,
+            category: String::new(),
+            party: String::new(),
+        };
+        let view = view_object(&[plan], &[], &[payment(), payment(), payment()], &month());
+        assert_eq!(text_of(&view, "comingUpStatus"), "fine");
+        assert_eq!(number_of(&view, "comingUpCount"), 3);
+        let forecast = super::month_object(&month());
+        assert_eq!(keys(&forecast).len(), 21);
+        assert_eq!(number_of(&forecast, "startsOn"), 25);
+        assert!(flag_of(&forecast, "likeBudgets"));
+        assert_eq!(text_of(&forecast, "ends"), "2026-11-24");
+        let accounts: Vec<String> = list_of(&forecast, "accounts")
+            .iter()
+            .map(|name| {
+                name.value::<cxx_qt_lib::QString>()
+                    .map(|s| s.to_string())
+                    .unwrap_or_default()
+            })
+            .collect();
+        assert_eq!(accounts, ["Checking account", "Cash"]);
+        assert_eq!(number_of(&forecast, "leftOut"), 1);
+        assert!(flag_of(&forecast, "hasPlans"));
+        assert_eq!(text_of(&forecast, "balanceNow"), "2340,00 €");
+        assert_eq!(text_of(&forecast, "exactBalanceNow"), "2340,00 €");
+        assert_eq!(text_of(&forecast, "outDue"), "29,90 €");
+        assert_eq!(text_of(&forecast, "exactOutDue"), "29,90 €");
+        assert_eq!(text_of(&forecast, "inDue"), "2200,00 €");
+        assert_eq!(text_of(&forecast, "exactInDue"), "2200,00 €");
+        assert_eq!(text_of(&forecast, "left"), "2310 €");
+        assert_eq!(text_of(&forecast, "exactLeft"), "2310,10 €");
+        assert!(!flag_of(&forecast, "belowZero"));
+        assert_eq!(text_of(&forecast, "expectedEnd"), "4510,10 €");
+        assert_eq!(text_of(&forecast, "exactExpectedEnd"), "4510,10 €");
+        assert_eq!(number_of(&forecast, "overdue"), 2);
+        assert_eq!(text_of(&forecast, "status"), "to-do");
+        assert_eq!(number_of(&forecast, "statusCount"), 2);
+        let months = list_of(&forecast, "months");
+        assert_eq!(months.len(), 1);
+        let november = &months[0];
+        assert_eq!(keys(november).len(), 11);
+        assert_eq!(text_of(november, "month"), "November 2026");
+        assert_eq!(text_of(november, "first"), "2026-11-25");
+        assert_eq!(text_of(november, "last"), "2026-12-24");
+        assert_eq!(text_of(november, "start"), "4510,10 €");
+        assert_eq!(text_of(november, "exactStart"), "4510,10 €");
+        assert_eq!(text_of(november, "plannedIn"), "2200,00 €");
+        assert_eq!(text_of(november, "exactPlannedIn"), "2200,00 €");
+        assert_eq!(text_of(november, "plannedOut"), "779,90 €");
+        assert_eq!(text_of(november, "exactPlannedOut"), "779,90 €");
+        assert_eq!(text_of(november, "end"), "5930,20 €");
+        assert_eq!(text_of(november, "exactEnd"), "5930,20 €");
+
+        // Without income still to come, both of its lines are empty.
+        let no_income = super::month_object(&MonthText {
+            in_due: None,
+            expected_end: None,
+            ..month()
+        });
+        assert_eq!(text_of(&no_income, "inDue"), "");
+        assert_eq!(text_of(&no_income, "expectedEnd"), "");
     }
 
     /// The form goes to QML and comes back unchanged, so a field QML

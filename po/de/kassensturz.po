@@ -23912,6 +23912,308 @@ msgid_plural "%1 planned payments came as expected."
 msgstr[0] "%1 geplante Zahlung kam wie erwartet."
 msgstr[1] "%1 geplante Zahlungen kamen wie erwartet."
 
+#: crates/kassensturz-ui-bridge/qml/ComingUpWidget.qml:52
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:57
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The planned payments couldn't be read. Open Planned payments under Accounts "
+"to see what went wrong."
+msgstr "Die geplanten Zahlungen konnten nicht gelesen werden. Öffnen Sie Geplante Zahlungen unter Konten, um zu sehen, was schiefging."
+
+#: crates/kassensturz-ui-bridge/qml/ComingUpWidget.qml:60
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Nothing planned yet. A planned payment is one you expect on a day, like rent "
+"or insurance. It moves no money by itself."
+msgstr "Noch nichts geplant. Eine geplante Zahlung ist eine, die Sie an einem Tag erwarten, etwa Miete oder Versicherung. Sie bewegt von selbst kein Geld."
+
+#: crates/kassensturz-ui-bridge/qml/ComingUpWidget.qml:67
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:81
+#, kde-format
+msgctxt "@action:button"
+msgid "Plan a payment…"
+msgstr "Zahlung planen…"
+
+#: crates/kassensturz-ui-bridge/qml/ComingUpWidget.qml:80
+#, kde-format
+msgctxt "@info"
+msgid "No planned payment in the next 30 days."
+msgstr "Keine geplante Zahlung in den nächsten 30 Tagen."
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:73
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: the balance now minus the planned "
+"payments still due this month"
+msgid "Left this month"
+msgstr "Übrig in diesem Monat"
+
+#: crates/kassensturz-ui-bridge/qml/GridNames.qml:75
+#, kde-format
+msgctxt ""
+"@item:inlistbox a part of the layout: the planned payments of the next 30 "
+"days"
+msgid "Coming up"
+msgstr "Demnächst"
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:66
+#, kde-format
+msgctxt "@info"
+msgid "There is no open checking or cash account to look ahead for yet."
+msgstr "Es gibt noch kein offenes Girokonto oder Bargeldkonto, für das vorausgeschaut werden kann."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:74
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Nothing planned yet. Add the payments you expect, like rent or insurance, to "
+"see what is left this month."
+msgstr "Noch nichts geplant. Fügen Sie die Zahlungen hinzu, die Sie erwarten, etwa Miete oder Versicherung, um zu sehen, was in diesem Monat übrig bleibt."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:99
+#, kde-format
+msgctxt "@info %1 is an amount below zero"
+msgid "Left this month: %1, below zero"
+msgstr "Übrig in diesem Monat: %1, unter null"
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:100
+#, kde-format
+msgctxt "@info %1 is an amount"
+msgid "Left this month: %1"
+msgstr "Übrig in diesem Monat: %1"
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:115
+#, kde-format
+msgctxt ""
+"@info %1 is the balance now, %2 the planned payments still due this month"
+msgid "%1 now, minus %2 still to pay this month"
+msgstr "%1 jetzt, minus %2, die in diesem Monat noch zu zahlen sind"
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:123
+#, kde-format
+msgctxt ""
+"@info %1 is the planned income still to come, %2 the balance expected at the "
+"month's end"
+msgid "At month end, with the %1 you expect: %2"
+msgstr "Am Monatsende, mit den erwarteten %1: %2"
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:132
+#, kde-format
+msgctxt "@info %1 is how many planned payments"
+msgid "%1 planned payment passed without an entry and is not counted."
+msgid_plural "%1 planned payments passed without an entry and are not counted."
+msgstr[0] "%1 geplante Zahlung ist ohne Buchung verstrichen und wird nicht gezählt."
+msgstr[1] "%1 geplante Zahlungen sind ohne Buchung verstrichen und werden nicht gezählt."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:139
+#, kde-format
+msgctxt "@action:button check the planned payments that passed"
+msgid "Check them…"
+msgstr "Prüfen…"
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:155
+#, kde-format
+msgctxt "@info %1 lists names of accounts"
+msgid "For %1."
+msgstr "Für %1."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:156
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:283
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Based on your planned payments only. Spending that is not planned is not "
+"included."
+msgstr "Nur aus Ihren geplanten Zahlungen. Ausgaben, die nicht geplant sind, sind nicht enthalten."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:158
+#, kde-format
+msgctxt "@info"
+msgid "Moves to your other accounts are not counted."
+msgstr "Bewegungen zu Ihren anderen Konten werden nicht gezählt."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:160
+#, kde-format
+msgctxt "@info %1 is how many accounts"
+msgid "%1 account in another currency is not included."
+msgid_plural "%1 accounts in other currencies are not included."
+msgstr[0] "%1 Konto in einer anderen Währung ist nicht enthalten."
+msgstr[1] "%1 Konten in anderen Währungen sind nicht enthalten."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:274
+#, kde-format
+msgctxt "@title:group"
+msgid "Month by month"
+msgstr "Monat für Monat"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:295
+#, kde-format
+msgctxt "@title:column a month"
+msgid "Month"
+msgstr "Monat"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:296
+#, kde-format
+msgctxt "@title:column the balance a month starts with"
+msgid "Start"
+msgstr "Anfang"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:297
+#, kde-format
+msgctxt "@title:column planned income"
+msgid "In"
+msgstr "Ein"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:298
+#, kde-format
+msgctxt "@title:column planned payments"
+msgid "Out"
+msgstr "Aus"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:299
+#, kde-format
+msgctxt "@title:column the balance a month ends with"
+msgid "End"
+msgstr "Ende"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:70
+#, kde-format
+msgctxt "@info a status icon: the planned payments of this month are all known"
+msgid "Planned payments known"
+msgstr "Geplante Zahlungen bekannt"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:72
+#, kde-format
+msgctxt "@info a status icon, %1 is how many"
+msgid "%1 planned payment to check"
+msgid_plural "%1 planned payments to check"
+msgstr[0] "%1 geplante Zahlung zu prüfen"
+msgstr[1] "%1 geplante Zahlungen zu prüfen"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:74
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:85
+#, kde-format
+msgctxt "@info a status icon"
+msgid "Planned payments can't be read"
+msgstr "Geplante Zahlungen nicht lesbar"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:76
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:87
+#, kde-format
+msgctxt "@info a status icon: no payment is planned yet"
+msgid "Nothing planned yet"
+msgstr "Noch nichts geplant"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:82
+#, kde-format
+msgctxt "@info a status icon, %1 is how many"
+msgid "%1 payment coming up"
+msgid_plural "%1 payments coming up"
+msgstr[0] "%1 Zahlung demnächst"
+msgstr[1] "%1 Zahlungen demnächst"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:83
+#, kde-format
+msgctxt "@info a status icon: no planned payment in the next 30 days"
+msgid "Nothing coming up"
+msgstr "Demnächst nichts"
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:140
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "What is left this month after the planned payments still to come."
+msgstr "Was in diesem Monat nach den noch kommenden geplanten Zahlungen übrig bleibt."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:142
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid ""
+"%1 planned payment passed without an entry. It is not counted until you "
+"check it."
+msgid_plural ""
+"%1 planned payments passed without an entry. They are not counted until you "
+"check them."
+msgstr[0] "%1 geplante Zahlung ist ohne Buchung verstrichen. Sie wird nicht gezählt, bis Sie sie prüfen."
+msgstr[1] "%1 geplante Zahlungen sind ohne Buchung verstrichen. Sie werden nicht gezählt, bis Sie sie prüfen."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:144
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:153
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "The planned payments could not be read."
+msgstr "Die geplanten Zahlungen konnten nicht gelesen werden."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:146
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Nothing planned yet, or no checking or cash account to look ahead for."
+msgstr "Noch nichts geplant, oder es gibt kein Girokonto oder Bargeldkonto, für das vorausgeschaut werden kann."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:151
+#, kde-format
+msgctxt "@info:tooltip %1 is how many"
+msgid "%1 planned payment in the next 30 days."
+msgid_plural "%1 planned payments in the next 30 days."
+msgstr[0] "%1 geplante Zahlung in den nächsten 30 Tagen."
+msgstr[1] "%1 geplante Zahlungen in den nächsten 30 Tagen."
+
+#: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:155
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Nothing planned yet. A planned payment is one you expect on a day, like rent."
+msgstr "Noch nichts geplant. Eine geplante Zahlung ist eine, die Sie an einem Tag erwarten, etwa Miete."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:163
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "This month runs until %1, like your budgets."
+msgstr "Dieser Monat läuft bis %1, wie Ihre Budgets."
+
+#: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:164
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "This month runs until %1."
+msgstr "Dieser Monat läuft bis %1."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:317
+#, kde-format
+msgctxt ""
+"@item a month that starts on a salary day, %1 its first and %2 its last day"
+msgid "%1 to %2"
+msgstr "%1 bis %2"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:207
+#, kde-format
+msgctxt ""
+"@label:listbox the day the month of the Left this month tile starts on"
+msgid "Month starts on"
+msgstr "Monat beginnt am"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:228
+#, kde-format
+msgctxt "@item:inlistbox the month starts on day 1"
+msgid "Day 1 (calendar month)"
+msgstr "Tag 1 (Kalendermonat)"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:229
+#, kde-format
+msgctxt ""
+"@item:inlistbox %1 is a day of the month the month starts on, e.g. the "
+"salary day"
+msgid "Day %1"
+msgstr "Tag %1"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:233
+#, kde-format
+msgctxt ""
+"@item:inlistbox the month starts on the day the user's salary-month budgets "
+"start on"
+msgid "Like my budgets"
+msgstr "Wie meine Budgets"
+
 #: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
 #, kde-format
 msgctxt "@title"

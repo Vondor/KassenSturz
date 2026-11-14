@@ -139,6 +139,8 @@ fn main() {
                 "qml/PartsPage.qml",
                 "qml/PlanFormDialog.qml",
                 "qml/PlannedPaymentsDialog.qml",
+                "qml/LeftThisMonthWidget.qml",
+                "qml/ComingUpWidget.qml",
                 "qml/PropertiesPanel.qml",
                 "qml/PropertiesSheet.qml",
                 "qml/RegisterPage.qml",

@@ -52,3 +52,7 @@ No defect was found, so these have no bug number; they keep it that way. `a_set_
 ## Typed amounts, lock files and the clock (D-787, section C)
 
 No defect, only kept so: `the_german_ways_to_type_an_amount_are_read`, `an_american_amount_typed_in_german_is_refused_not_read_as_another_amount`, `a_german_amount_typed_in_american_is_refused_not_read_as_another_amount`, `a_minus_zero_is_zero_not_a_negative_amount`, `too_many_decimal_places_are_refused_never_rounded`, `an_amount_too_large_is_refused_at_the_edge_and_never_wraps` and `a_pasted_amount_with_other_currency_symbols_is_not_read_as_euro` (`crates/kassensturz-ui-bridge/src/parse/hostile_tests.rs`); `a_lock_file_of_any_shape_asks_and_is_never_taken_for_permission` and `a_lock_file_that_links_to_another_file_does_not_overwrite_it` (the lock rule of D-781 with hostile lock files); `a_change_of_the_clock_moves_no_payment` (payment dates are calendar days, so no change of the clock moves one).
+
+## A backup on a full disk (D-787, section C)
+
+No defect. `a_backup_that_does_not_fit_leaves_the_others_and_no_part_file` (`crates/kassensturz-store/tests/full_disk_backup.rs`) makes the disk "full" with the system's file size limit (Linux only): a backup that can't be written is refused, no part file is left, no older backup is taken away (rotation runs only after a copy succeeded) and the book is byte for byte as it was.

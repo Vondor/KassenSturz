@@ -40,6 +40,8 @@ Dieses Handbuch gibt es auch [auf Englisch](../en/README.md).
 
 Das ältere, kürzere [Benutzerhandbuch](../USER_GUIDE.de.md) wird von diesem Handbuch abgelöst und bleibt nur als Kurzfassung stehen.
 
+Wie sicher Ihre Daten bei KassenSturz sind, was wir angegriffen und was wir behoben haben, steht auf der Seite [Wie sicher ist KassenSturz?](../../SECURITY_OVERVIEW.de.md)
+
 ## So lesen Sie dieses Handbuch
 
 - Fett gedruckt sind **Beschriftungen aus der App**, genau so, wie Sie sie auf dem Bildschirm sehen.

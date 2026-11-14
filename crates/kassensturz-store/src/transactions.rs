@@ -118,6 +118,7 @@ impl Book {
     /// ([`Book::fill_new`]).
     pub fn add_transaction(&mut self, transaction: &Transaction) -> Result<(), StoreError> {
         let accounts = self.check_transaction(transaction)?;
+        self.check_typed_payees(transaction, None)?;
         let exists: Option<i64> = self
             .conn
             .query_row_cached(
@@ -181,6 +182,7 @@ impl Book {
         let stored = self.transaction(transaction.id())?;
         let kept_marks = self.kept_rule_marks(&stored, transaction)?;
         let accounts = self.check_transaction(transaction)?;
+        self.check_typed_payees(transaction, Some(&stored))?;
         check_imported_unchanged(&stored, transaction)?;
         check_originals_unchanged(&stored, transaction)?;
         let before = account_totals(&stored)?;
@@ -810,6 +812,44 @@ impl Book {
 
     /// The checks `add_transaction` and `update_transaction` share. Returns
     /// the accounts the transaction's parts are booked to.
+    /// Refuses a payee typed in that could look like another, with a line
+    /// break or a character that shows as nothing or turns the text around
+    /// ([`StoreError::HiddenText`], B-272). A transaction a bank delivered
+    /// keeps the payee as the bank wrote it, another program's book is
+    /// filled as it is, and on a change only a payee that changed is looked
+    /// at, so one kept from before can still be edited otherwise.
+    fn check_typed_payees(
+        &self,
+        transaction: &Transaction,
+        stored: Option<&Transaction>,
+    ) -> Result<(), StoreError> {
+        if self.filling
+            || transaction
+                .splits()
+                .iter()
+                .any(|split| split.imported.is_some())
+        {
+            return Ok(());
+        }
+        if let Some(payee) = transaction.payee()
+            && stored.and_then(Transaction::payee) != Some(payee)
+        {
+            crate::names::check_hidden_text(payee, "payee")?;
+        }
+        for split in transaction.splits() {
+            let Some(payee) = split.own_payee.as_deref() else {
+                continue;
+            };
+            let before = stored
+                .and_then(|stored| stored.splits().iter().find(|old| old.id == split.id))
+                .and_then(|old| old.own_payee.as_deref());
+            if before != Some(payee) {
+                crate::names::check_hidden_text(payee, "payee")?;
+            }
+        }
+        Ok(())
+    }
+
     fn check_transaction(
         &self,
         transaction: &Transaction,

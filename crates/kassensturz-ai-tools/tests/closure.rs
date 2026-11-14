@@ -127,7 +127,7 @@ fn nothing_a_model_can_call_sends_money() {
             assert!(!text.contains(word), "{} mentions {word}", function.name);
         }
     }
-    // A change set holds twenty-three kinds of change, none of them a payment (an
+    // A change set holds twenty-four kinds of change, none of them a payment (an
     // edit of a transaction's amount moves no money between accounts, D-257; a
     // cash entry only writes down what the user paid, D-258; a budget only
     // plans and moves nothing, D-358, T-50; a saved chart changed or deleted
@@ -138,7 +138,9 @@ fn nothing_a_model_can_call_sends_money() {
     // transaction only labels it, D-744, T-60; a transaction broken into
     // parts keeps its account's amount, and the parts add up to it, D-737,
     // T-61; a bill linked to a transaction is only a link to a file in the
-    // folder the user chose, D-739, T-62); a new kind
+    // folder the user chose, D-739, T-62; a bill filed from the receipt
+    // inbox is moved between two folders the user chose and linked, and its
+    // total is only checked against the bank, D-752, T-66); a new kind
     // fails here and needs a row in the threat model first (D-236).
     let source = read(&repository().join("crates/kassensturz-ai-tools/src/changes.rs"));
     let start = source.find("pub enum ProposedChange").expect("the enum");
@@ -173,7 +175,8 @@ fn nothing_a_model_can_call_sends_money() {
             "JoinTransfer",
             "TagTransaction",
             "SplitTransaction",
-            "AttachBill"
+            "AttachBill",
+            "FileBill"
         ]
     );
 }

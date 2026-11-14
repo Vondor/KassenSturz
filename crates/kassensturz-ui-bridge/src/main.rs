@@ -103,6 +103,7 @@ mod planned_payments_model;
 mod platform;
 mod properties;
 mod properties_model;
+mod receipt_moves;
 mod register;
 mod register_columns;
 mod register_model;

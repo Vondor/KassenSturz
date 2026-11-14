@@ -132,6 +132,17 @@ Kirigami.ApplicationWindow {
             window.check(grid.readForced(transactions, 0), "linking bills keeps the transactions readable");
             window.check(!grid.historyAtRisk(0), "linking bills doesn't warn about the history");
             settings.allowed = ({});
+            // Filing is its own row with a Change cell (D-752): it keeps
+            // Transactions › Read on, and linking alone never turns it on.
+            const filing = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowFileBills"));
+            window.check(filing !== undefined && filing !== bills, "the grid has its own row for filing bills");
+            window.check(filing.cells[2].key === "AllowFileBills", "filing is a Change");
+            settings.allowed = ({ AllowAttachBills: true });
+            window.check(!grid.isOn("AllowFileBills", 0), "linking bills doesn't let them be filed");
+            settings.allowed = ({ AllowFileBills: true });
+            window.check(grid.isOn("AllowFileBills", 0), "the filing cell reads its setting");
+            window.check(grid.readForced(transactions, 0), "filing bills keeps the transactions readable");
+            settings.allowed = ({});
             // Chart descriptions are their own row with one cell (D-729);
             // they read nothing and don't touch the history.
             const descriptions = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowCustomCharts"));

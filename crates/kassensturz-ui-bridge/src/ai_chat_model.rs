@@ -185,6 +185,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "issueUsed"]
         fn issue_used(self: &AiChat, how: &QString);
+
+        /// Names the archive's folder for bills whose transaction has no
+        /// category, in the user's language (US7, #333): the window says it
+        /// once, since the bridge writes no text (D-034).
+        #[qinvokable]
+        #[cxx_name = "nameUnsortedFolder"]
+        fn name_unsorted_folder(self: &AiChat, name: &QString);
     }
 
     extern "RustQt" {
@@ -289,9 +296,9 @@ pub(crate) mod engine {
 
     use super::*;
     use crate::ai_chat::{
-        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction,
+        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction, Filing,
         FilterView, Review, Screen, Sets, Waiting, answer_from, category_choices, code_text,
-        confirm_in, corrected, hooks, outcome_of, rows_of,
+        confirm_with_bills_in, corrected, hooks, outcome_of, rows_of,
     };
     use crate::ai_requests::{Arrived, take_requests, tell_confirmed, tell_declined, tell_dropped};
     use crate::ai_settings::{self, Store};
@@ -956,6 +963,28 @@ pub(crate) mod engine {
                 ("file", text(file)),
                 ("title", text(title)),
             ],
+            ChangeView::FileBill {
+                date,
+                payee,
+                account,
+                file,
+                title,
+                goes_to,
+                booked,
+                bill_total,
+                check,
+            } => vec![
+                ("kind", text("fileBill")),
+                ("date", text(date)),
+                ("payee", text(payee)),
+                ("account", text(account)),
+                ("file", text(file)),
+                ("title", text(title)),
+                ("goesTo", text(goes_to)),
+                ("booked", text(booked)),
+                ("billTotal", text(bill_total)),
+                ("check", text(check)),
+            ],
         }
     }
 
@@ -1190,10 +1219,35 @@ pub(crate) mod engine {
         // The only call that applies a set: the confirm button's (D-200).
         // No book open any more means the set is out of date.
         let today = app_locale().today();
-        let result = session::with_book_mut(|book| {
-            confirm_in(book, set, kassensturz_core::ai_switch::permissions(), today)
+        // Bills from the receipt inbox are filed with the set (US7, #333).
+        let journal = crate::receipt_moves::journal();
+        let disk = crate::receipt_moves::disk();
+        let folders = kassensturz_core::ai_switch::inbox_folders();
+        let confirmed = session::with_book_mut(|book| {
+            let filing = journal
+                .as_ref()
+                .zip(folders)
+                .map(|(journal, (inbox, archive))| Filing {
+                    inbox,
+                    archive,
+                    mover: crate::receipt_moves::Mover {
+                        disk: &disk,
+                        journal,
+                    },
+                });
+            confirm_with_bills_in(
+                book,
+                set,
+                kassensturz_core::ai_switch::permissions(),
+                today,
+                filing.as_ref(),
+            )
         })
         .unwrap_or(Err(ChangeError::OutOfDate));
+        let (result, moved) = match confirmed {
+            Ok(moved) => (Ok(()), moved),
+            Err(error) => (Err(error), crate::receipt_moves::Moved::default()),
+        };
         if let Some(from) = &from
             && let Some(inbox) = chat.as_mut().rust_mut().state.inbox.as_mut()
         {
@@ -1208,7 +1262,7 @@ pub(crate) mod engine {
                 say("changes-applied", &[]);
                 crate::note!(ChangesApplied);
                 chat.as_mut().changed();
-                map([("ok", QVariant::from(&true))])
+                filed_object(&moved)
             }
             Err(failure) => {
                 let report = failure.report();
@@ -1217,6 +1271,40 @@ pub(crate) mod engine {
                 error(&code_text(&report))
             }
         }
+    }
+
+    /// A confirmed set as the review page reads it: `ok`, how many bills
+    /// were `filed`, the bills that `stayed` in the inbox (`file`, its name,
+    /// and `reason`), and the old copies left behind (`copiesLeft`, shown
+    /// paths) (US7, #333).
+    pub(super) fn filed_object(moved: &crate::receipt_moves::Moved) -> QVariant {
+        let count = |n: usize| QVariant::from(&i32::try_from(n).unwrap_or(i32::MAX));
+        map([
+            ("ok", QVariant::from(&true)),
+            ("made", QVariant::from(&moved.made)),
+            ("filed", count(moved.moved)),
+            (
+                "stayed",
+                list(moved.stayed.iter().map(|bill| {
+                    map([
+                        (
+                            "file",
+                            text(&bill.file.file_name().unwrap_or_default().to_string_lossy()),
+                        ),
+                        ("reason", text(bill.reason)),
+                    ])
+                })),
+            ),
+            (
+                "copiesLeft",
+                list(
+                    moved
+                        .copies_left
+                        .iter()
+                        .map(|path| text(&crate::receipt_moves::shown(path))),
+                ),
+            ),
+        ])
     }
 
     /// Corrects one change of a waiting set (D-293): the user's version is
@@ -1330,6 +1418,12 @@ pub(crate) mod engine {
             let Some(inbox) = inbox.as_mut() else {
                 return;
             };
+            let (inbox_folder, archive) = kassensturz_core::ai_switch::inbox_folders().unzip();
+            let folders = kassensturz_ai_tools::Folders {
+                bills: kassensturz_core::ai_switch::bill_folder(),
+                inbox: inbox_folder,
+                archive,
+            };
             session::with_book(|book| {
                 take_requests(
                     inbox,
@@ -1338,7 +1432,7 @@ pub(crate) mod engine {
                     sets,
                     kassensturz_core::ai_switch::permissions(),
                     app_locale().today(),
-                    kassensturz_core::ai_switch::bill_folder().as_deref(),
+                    &folders,
                 )
             })
             .unwrap_or_default()
@@ -1492,6 +1586,10 @@ impl qobject::AiChat {
             _ => {}
         }
     }
+
+    fn name_unsorted_folder(&self, name: &QString) {
+        crate::receipt_moves::set_unsorted_name(&name.to_string());
+    }
 }
 
 /// The calls that have nothing to do in a build without AI.
@@ -1537,6 +1635,8 @@ impl qobject::AiChat {
     fn check_requests(self: Pin<&mut Self>) {}
 
     fn issue_used(&self, _how: &QString) {}
+
+    fn name_unsorted_folder(&self, _name: &QString) {}
 }
 
 #[cfg(all(test, feature = "ai"))]
@@ -2923,5 +3023,175 @@ mod tests {
         assert_eq!(text_of(change, "account"), "Checking");
         assert_eq!(text_of(change, "payee"), "Papierladen Nord");
         assert!(!text_of(change, "date").is_empty());
+    }
+    /// US7, #333: a bill from the receipt inbox through the real proposal
+    /// of the MCP way in, the window's leaving out of a differing total
+    /// (D-751) and the review's rows, read back as QML reads them; then
+    /// the confirm's answer.
+    #[test]
+    fn a_bill_to_file_reads_back_with_its_place_and_its_checked_total() {
+        use kassensturz_ai_tools::{Folders, PROPOSE_CHANGES, prepare_named_with_folders};
+        use kassensturz_core::ai_switch::Permissions;
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Transaction,
+            TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use super::engine::filed_object;
+        use crate::ai_chat::rows_of;
+        use crate::receipt_moves::{Moved, Stayed};
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let checking = Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: "Checking".into(),
+            kind: AccountKind::Asset,
+            currency: eur,
+            account_type: Some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        book.add_account(&checking).unwrap();
+        let paid = |payee: &str| {
+            Transaction::new(
+                TransactionId::generate(),
+                Date::constant(2026, 11, 5),
+                Some(payee.into()),
+                vec![
+                    Split::new(checking.id, Money::from_minor_units(-2450, eur)),
+                    Split::uncategorized(Money::from_minor_units(2450, eur)),
+                ],
+            )
+            .unwrap()
+        };
+        let (right, wrong) = (paid("Papierladen Nord"), paid("Bäckerei Süd"));
+        book.add_transaction(&right).unwrap();
+        book.add_transaction(&wrong).unwrap();
+        let folder = crate::test_folder::TestFolder::new();
+        let inbox = folder.join("Inbox");
+        std::fs::create_dir_all(&inbox).unwrap();
+        std::fs::write(inbox.join("RE-0042.pdf"), b"synthetic").unwrap();
+        std::fs::write(inbox.join("RE-0043.pdf"), b"synthetic too").unwrap();
+
+        let proposal = prepare_named_with_folders(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({"file_bills": [
+                {"transaction_id": right.id().to_string(), "file": "RE-0042.pdf",
+                 "bill_total": "24.50", "bill_currency": "EUR"},
+                {"transaction_id": wrong.id().to_string(), "file": "RE-0043.pdf",
+                 "title": "Brot", "bill_total": "23.50"},
+            ]}),
+            Permissions::all(),
+            Date::constant(2026, 11, 12),
+            &Folders {
+                bills: None,
+                inbox: Some(inbox.clone()),
+                archive: Some(folder.join("Archive")),
+            },
+        )
+        .unwrap();
+        let set = proposal
+            .changes
+            .leave_out_differing_bills(&book, Permissions::all())
+            .unwrap();
+        let rows = rows_of(&book, &set, &TestLocale).unwrap();
+        let items = elements(&changes_object(&rows)).expect("an array");
+        assert_eq!(items.len(), 2);
+        let (kept, left) = (&items[0], &items[1]);
+        assert_eq!(
+            own_keys(kept),
+            [
+                "account",
+                "billTotal",
+                "booked",
+                "check",
+                "date",
+                "file",
+                "goesTo",
+                "kind",
+                "payee",
+                "title"
+            ]
+        );
+        assert_eq!(text_of(kept, "kind"), "fileBill");
+        assert_eq!(text_of(kept, "slot"), "file_bills/0");
+        assert!(!flag_of(kept, "leftOut"));
+        assert_eq!(text_of(kept, "check"), "matches");
+        assert_eq!(text_of(kept, "file"), "RE-0042.pdf");
+        assert_eq!(text_of(kept, "account"), "Checking");
+        assert_eq!(text_of(kept, "booked"), text_of(kept, "billTotal"));
+        assert!(
+            text_of(kept, "booked").contains("24"),
+            "{}",
+            text_of(kept, "booked")
+        );
+        // No archive chosen: no place to show.
+        assert_eq!(text_of(kept, "goesTo"), "");
+        crate::receipt_moves::choose_archive_for_test(Some(folder.join("Archive")));
+        let rows = rows_of(&book, &set, &TestLocale).unwrap();
+        crate::receipt_moves::choose_archive_for_test(None);
+        let items = elements(&changes_object(&rows)).expect("an array");
+        assert_eq!(
+            text_of(&items[0], "goesTo"),
+            [
+                "Archive",
+                "Checking",
+                "Not sorted yet",
+                "261105_RE-0042.pdf"
+            ]
+            .iter()
+            .collect::<std::path::PathBuf>()
+            .to_string_lossy()
+        );
+        assert_eq!(
+            text_of(&items[1], "goesTo"),
+            ["Archive", "Checking", "Not sorted yet", "261105_Brot.pdf"]
+                .iter()
+                .collect::<std::path::PathBuf>()
+                .to_string_lossy()
+        );
+        assert_eq!(text_of(left, "slot"), "file_bills/1");
+        assert!(
+            flag_of(left, "leftOut"),
+            "a differing total starts left out"
+        );
+        assert_eq!(text_of(left, "check"), "differs");
+        assert_eq!(text_of(left, "title"), "Brot");
+        assert_ne!(text_of(left, "booked"), text_of(left, "billTotal"));
+
+        let answer = filed_object(&Moved {
+            moved: 1,
+            stayed: vec![Stayed {
+                file: inbox.join("RE-0043.pdf"),
+                reason: "changed",
+            }],
+            copies_left: vec![inbox.join("RE-0042.pdf")],
+            left_in_archive: Vec::new(),
+            made: true,
+        });
+        assert_eq!(
+            keys(&answer),
+            ["copiesLeft", "filed", "made", "ok", "stayed"]
+        );
+        assert!(flag_of(&answer, "ok"));
+        assert!(flag_of(&answer, "made"));
+        assert_eq!(number_of(&answer, "filed"), 1);
+        let stayed = list_of(&answer, "stayed");
+        assert_eq!(keys(&stayed[0]), ["file", "reason"]);
+        assert_eq!(text_of(&stayed[0], "file"), "RE-0043.pdf");
+        assert_eq!(text_of(&stayed[0], "reason"), "changed");
+        let copies = list_of(&answer, "copiesLeft");
+        assert_eq!(
+            copies[0].value::<QString>().unwrap().to_string(),
+            inbox.join("RE-0042.pdf").to_string_lossy()
+        );
     }
 }

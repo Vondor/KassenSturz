@@ -1473,10 +1473,24 @@ fn form_object(form: &EntryForm) -> QVariant {
                     ("name", text(&bill.name)),
                     ("url", text(&bill.url)),
                     ("missing", QVariant::from(&bill.missing)),
+                    ("folderUrl", text(&bill.folder_url)),
+                    // Where it is as the user knows it, not the sandbox's
+                    // path (B-267).
+                    ("shownLink", text(&shown_link(&bill.link))),
                 ])
             })),
         ),
     ])
+}
+
+/// A bill's link as the user knows it (B-267); in the tests, as stored,
+/// so they never read the user's own settings.
+fn shown_link(link: &str) -> String {
+    if cfg!(test) {
+        link.to_owned()
+    } else {
+        crate::receipt_moves::shown(std::path::Path::new(link))
+    }
 }
 
 /// What removing a transaction takes with it, as the page reads it
@@ -1689,6 +1703,7 @@ mod tests {
                 name: "Invoice RE-0042".into(),
                 url: "file:///home/sam/Bills/RE%200042%231.pdf".into(),
                 missing: true,
+                folder_url: "file:///home/sam/Bills".into(),
             }],
         });
         assert_eq!(text_of(&form, "otherParty"), "Corner Grocery");
@@ -1699,7 +1714,15 @@ mod tests {
         // The bills as TransactionPage.qml reads them (D-739).
         let bills =
             elements(&crate::variant::read_back::object_of(&form, "bills")).expect("a list");
-        assert_eq!(keys(&bills[0]), ["link", "missing", "name", "url"]);
+        assert_eq!(
+            keys(&bills[0]),
+            ["folderUrl", "link", "missing", "name", "shownLink", "url"]
+        );
+        assert_eq!(text_of(&bills[0], "folderUrl"), "file:///home/sam/Bills");
+        assert_eq!(
+            text_of(&bills[0], "shownLink"),
+            "/home/sam/Bills/RE 0042#1.pdf"
+        );
         assert_eq!(text_of(&bills[0], "name"), "Invoice RE-0042");
         assert_eq!(
             text_of(&bills[0], "url"),

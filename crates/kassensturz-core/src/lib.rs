@@ -31,6 +31,7 @@ mod error;
 mod id;
 mod money;
 mod rates;
+pub mod receipt_inbox;
 mod recurring_move;
 mod rounding;
 mod rules;

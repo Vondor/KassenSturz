@@ -8,11 +8,12 @@
 //!
 //! The app is started in the test profile (`KASSENSTURZ_TEST=1`, every
 //! folder in a test folder) under Qt's `offscreen` platform. If it ends on
-//! its own before the signal (e.g. a machine without the QML modules), the
-//! test says so and passes nothing it didn't check.
+//! its own before the signal, the test fails and shows what the app said:
+//! it never passes without having sent the signal to a running app.
 
 #![cfg(unix)]
 
+use std::io::Read;
 use std::os::unix::process::ExitStatusExt;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -34,14 +35,17 @@ fn stop(signal: &str) {
         .env("XDG_STATE_HOME", home.join("state"))
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .expect("the app starts");
     // Time to load the screens and install the handler.
     std::thread::sleep(Duration::from_secs(5));
     if let Some(status) = child.try_wait().expect("the app can be asked") {
-        eprintln!("the app ended by itself before the signal ({status}); nothing to check here");
-        return;
+        let mut said = String::new();
+        if let Some(mut stderr) = child.stderr.take() {
+            let _ = stderr.read_to_string(&mut said);
+        }
+        panic!("the app ended by itself before the signal ({status}): {said}");
     }
     let sent = Command::new("kill")
         .arg(format!("-{signal}"))

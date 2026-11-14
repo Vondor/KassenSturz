@@ -1,0 +1,83 @@
+name: Windows crash and lock tests
+
+# The book's safety on Windows (US7): most Beta testers use Windows, and the
+# attack rounds so far ran only on Kubuntu. This job ends the real program by
+# force in the middle of saving (TerminateProcess), checks that every save it
+# reported is there exactly once and every balance is the sum of its parts,
+# finds the lock a killed program leaves behind, works in folders with spaces
+# and umlauts, imports a UTF-16 CAMT file (B-280, #978) and checks that saves are synced to disk (B-278).
+#
+# It is separate from the long release-only Windows app build
+# (windows-app.yml) and builds only the command-line tool and the store, so it
+# takes a few minutes and cannot hold up a merge for long. It is not a
+# required check. The tests are in crates/kassensturz-cli/tests/crash.rs and
+# run on every platform; here they run on a Windows runner.
+
+on:
+  pull_request:
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/windows-crash.yml"
+  push:
+    branches: [main]
+    paths:
+      - "crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/windows-crash.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-crash-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  crash:
+    name: Windows crash, lock and path tests (US7)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal
+          rustup default 1.98.1
+      - name: Restore Cargo's cache
+        id: cargo-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-windows-crash-1.98.1-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-windows-crash-1.98.1-
+      # Killed mid-save, stale lock, paths with spaces and umlauts, UTF-16.
+      - name: Crash, lock and path tests
+        run: cargo test -p kassensturz-cli --test crash --locked -- --test-threads=1
+        env:
+          CARGO_INCREMENTAL: "0"
+      # B-278: SQLite's synchronous EXTRA, which syncs the folder too.
+      - name: Saves are synced to disk (B-278)
+        run: cargo test -p kassensturz-store --lib --locked every_save_to_a_book_file
+        env:
+          CARGO_INCREMENTAL: "0"
+      # The book lock, as the store tests have it.
+      - name: Book lock
+        run: cargo test -p kassensturz-store --lib --locked lock
+        env:
+          CARGO_INCREMENTAL: "0"
+      - name: Save Cargo's cache
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: cargo-windows-crash-1.98.1-${{ hashFiles('Cargo.lock') }}

@@ -7,7 +7,9 @@
 //! the book as it was. The full disk is made with the system's file size
 //! limit: a child program that may write files of at most 100 blocks gets
 //! "file too large", which the program meets like "no space left". Linux
-//! only; elsewhere the test does nothing. All data is made up.
+//! only. All data is made up.
+
+#![cfg(target_os = "linux")]
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -68,7 +70,6 @@ fn full_disk_child() {
     println!("RESULT {}", if result.is_ok() { "made" } else { "refused" });
 }
 
-#[cfg(target_os = "linux")]
 #[test]
 fn a_backup_that_does_not_fit_leaves_the_others_and_no_part_file() {
     let folder = TempFolder::new();

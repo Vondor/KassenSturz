@@ -17,6 +17,7 @@
 //! in every build and with AI off; only filing from a set the AI prepared
 //! needs the AI build (`ai_chat::confirm_with_bills_in`).
 
+#[cfg(any(test, feature = "ai"))]
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::io;
@@ -24,7 +25,7 @@ use std::path::{Path, PathBuf};
 
 use kassensturz_core::receipt_inbox::free_file_name;
 use kassensturz_platform::bill_files::{
-    self, Direction, Disk, Fingerprint, JOURNAL_FILE, Journal, Placed, RealDisk, Settled,
+    self, Direction, Disk, Fingerprint, Journal, Placed, RealDisk, Settled,
 };
 use kassensturz_store::Book;
 
@@ -32,6 +33,7 @@ thread_local! {
     /// The category folder of a bill whose transaction has no category, in
     /// the user's language: `Main.qml` hands it in (D-034), since the core
     /// and the bridge return no text. Per thread, like the open book.
+    #[cfg(any(test, feature = "ai"))]
     static UNSORTED: RefCell<String> = const { RefCell::new(String::new()) };
 
     /// The archive the tests choose, in place of the user's settings.
@@ -40,14 +42,17 @@ thread_local! {
 }
 
 /// The English name until the window hands in the user's.
+#[cfg(any(test, feature = "ai"))]
 const UNSORTED_ENGLISH: &str = "Not sorted yet";
 
 /// Keeps `name` as the folder name for bills without a category.
+#[cfg(any(test, feature = "ai"))]
 pub fn set_unsorted_name(name: &str) {
     UNSORTED.with(|unsorted| name.trim().clone_into(&mut unsorted.borrow_mut()));
 }
 
 /// The folder name for bills without a category.
+#[cfg(any(test, feature = "ai"))]
 pub fn unsorted_name() -> String {
     UNSORTED.with(|unsorted| {
         let unsorted = unsorted.borrow();
@@ -71,7 +76,7 @@ pub fn archive() -> Option<PathBuf> {
     None
 }
 
-/// The archive the test chose with [`choose_archive_for_test`]: the tests
+/// The archive the test chose with `choose_archive_for_test`: the tests
 /// never read the user's own settings.
 #[cfg(test)]
 pub fn archive() -> Option<PathBuf> {
@@ -79,19 +84,22 @@ pub fn archive() -> Option<PathBuf> {
 }
 
 /// Chooses the archive [`archive`] answers on this thread.
-#[cfg(test)]
+#[cfg(all(test, feature = "ai"))]
 pub fn choose_archive_for_test(archive: Option<PathBuf>) {
     TEST_ARCHIVE.with(|chosen| *chosen.borrow_mut() = archive);
 }
 
 /// The settings key of how the bill folder is shown (B-267): its real
 /// path where the system said it, display text only (D-730).
+#[cfg(feature = "ai")]
 pub const BILL_SHOWN_KEY: &str = "BillFolderShownAs";
 
 /// The same for the receipt inbox.
+#[cfg(feature = "ai")]
 pub const INBOX_SHOWN_KEY: &str = "InboxFolderShownAs";
 
 /// The same for the archive.
+#[cfg(feature = "ai")]
 pub const ARCHIVE_SHOWN_KEY: &str = "ArchiveFolderShownAs";
 
 /// `path` as the user knows it: inside the inbox, the archive or the bill
@@ -134,7 +142,9 @@ pub fn shown_in(_settings: &crate::settings::Settings, path: &Path) -> String {
 #[cfg(feature = "ai")]
 pub fn journal() -> Option<Journal> {
     let settings = kassensturz_core::ai_switch::settings_file()?;
-    Some(Journal::at(settings.parent()?.join(JOURNAL_FILE)))
+    Some(Journal::at(
+        settings.parent()?.join(bill_files::JOURNAL_FILE),
+    ))
 }
 
 /// A build without AI never files bills (D-039), so it keeps no journal
@@ -258,6 +268,7 @@ impl Mover<'_> {
     }
 
     /// Starts moves that go `direction`.
+    #[cfg(any(test, feature = "ai"))]
     pub fn start(direction: Direction) -> Pending {
         Pending::new(direction)
     }
@@ -488,6 +499,7 @@ pub fn unlinked_in(
 mod tests {
     use super::*;
     use crate::test_folder::TestFolder;
+    use kassensturz_platform::bill_files::JOURNAL_FILE;
 
     /// A rename that never replaces, without Qt, for the tests.
     fn rename(from: &Path, to: &Path) -> io::Result<()> {

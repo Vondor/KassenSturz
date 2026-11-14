@@ -84,9 +84,18 @@ ColumnLayout {
         }
     }
 
+    // The amount of a band; one that holds moves between own accounts that
+    // only look like moves says how much of it is assumed (#1035).
+    function amountText(band: var): string {
+        if (!band.assumed) {
+            return band.label;
+        }
+        return i18nContext.i18nc("@info the amount of a flow of the money-flow chart, part of which is assumed to be a move between your own accounts: %1 the amount, %2 the assumed part", "%1 (%2 assumed)", band.label, band.assumed);
+    }
+
     function bandText(band: var): string {
         return i18nContext.i18nc("@info a flow of the money-flow chart: %1 where it comes from, %2 where it goes, %3 the amount", "%1 to %2: %3",
-            nodeName(nodes[band.from]), nodeName(nodes[band.to]), band.label);
+            nodeName(nodes[band.from]), nodeName(nodes[band.to]), amountText(band));
     }
 
     // The scope text of the transactions behind a click: the component's own,
@@ -297,7 +306,12 @@ ColumnLayout {
                     Accessible.ignored: true
 
                     ShapePath {
-                        strokeWidth: -1
+                        // A band with assumed moves in it has a dashed edge, so
+                        // colour is not the only sign (#1035).
+                        strokeWidth: band.modelData.assumed ? 2 : -1
+                        strokeColor: view.bandColor(band.modelData)
+                        strokeStyle: ShapePath.DashLine
+                        dashPattern: [3, 3]
                         fillColor: Qt.alpha(view.bandColor(band.modelData), view.current === band.index ? 0.8 : 0.45)
 
                         PathPolyline {
@@ -454,7 +468,7 @@ ColumnLayout {
             "to": i18nContext.i18nc("@title:column a table of the money-flow chart: where a flow goes", "To"),
             "amount": i18nContext.i18nc("@title:column a table of a chart", "Amount")
         })
-        rows: Array.from(view.bands).map(band => [view.nodeName(view.nodes[band.from]), view.nodeName(view.nodes[band.to]), band.label])
+        rows: Array.from(view.bands).map(band => [view.nodeName(view.nodes[band.from]), view.nodeName(view.nodes[band.to]), view.amountText(band)])
     }
 
     Controls.Button {

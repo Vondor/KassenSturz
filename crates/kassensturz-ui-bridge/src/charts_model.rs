@@ -468,6 +468,7 @@ fn flow_object(model: &FlowModel) -> QVariant {
             ("yTo", place(band.y_to)),
             ("thickness", place(band.thickness)),
             ("label", text(&band.label)),
+            ("assumed", text(&band.assumed)),
         ])
     });
     map([
@@ -1449,8 +1450,18 @@ mod tests {
         assert_eq!(bands.len(), 5);
         assert_eq!(
             keys(&bands[0]),
-            ["from", "label", "thickness", "to", "yFrom", "yTo"]
+            [
+                "assumed",
+                "from",
+                "label",
+                "thickness",
+                "to",
+                "yFrom",
+                "yTo"
+            ]
         );
+        // Nothing in this book is assumed: the text is empty (#1035).
+        assert!(bands.iter().all(|b| text_of(b, "assumed").is_empty()));
         // The largest band is the salary into the middle node: 5,000.00.
         assert_eq!(text_of(&bands[0], "label"), "5000,00 €");
         // Left over: 5,000.00 less 1,600.00, 53.20 and 12.34.

@@ -308,6 +308,32 @@ fn a_lock_from_before_a_restart_is_taken_over_without_file_locks() {
 }
 
 #[test]
+fn a_book_without_file_locks_refuses_a_change_when_its_lock_file_was_taken_away() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let _no_locks = NoLocks::here();
+    let mut book = Book::create(&path, &computer).expect("book made");
+    add(&mut book, "Checking");
+    // A program that doesn't know about file locks being off (an older
+    // build) opened it anyway and removed the lock file.
+    std::fs::remove_file(crate::lock::lock_path(&path)).expect("lock file removed");
+    let result = book.as_one_action(crate::Action::AddAccount, |_| Ok::<(), StoreError>(()));
+    assert!(matches!(result, Err(StoreError::LockLost)), "{result:?}");
+    assert_eq!(names(&book), ["Checking"]);
+    // A lock file of another program is lost too.
+    std::fs::write(
+        crate::lock::lock_path(&path),
+        "computer=Laptop\nsince=2026-10-19T11:04:02Z\ntoken=other\n",
+    )
+    .expect("lock file written");
+    assert!(matches!(
+        book.as_one_action(crate::Action::AddAccount, |_| Ok::<(), StoreError>(())),
+        Err(StoreError::LockLost)
+    ));
+}
+
+#[test]
 fn a_journal_with_a_zero_header_does_not_keep_readers_waiting() {
     let folder = TempFolder::new();
     let path = folder.join("Household.ksz");

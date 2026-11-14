@@ -11111,6 +11111,17 @@ msgstr ""
 "%1 ist geschlossen. Öffnen Sie es wieder, um Buchungen hinzuzufügen oder zu "
 "ändern."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:659
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Another program took this book over, so your change wasn't saved. Close the "
+"book and open it again."
+msgstr ""
+"Ein anderes Programm hat dieses Haushaltsbuch übernommen, deshalb wurde Ihre "
+"Änderung nicht gespeichert. Schließen Sie das Haushaltsbuch und öffnen Sie "
+"es noch einmal."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:528
 #, kde-format
 msgctxt "@info"

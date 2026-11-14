@@ -130,6 +130,16 @@ impl HeldLock {
     }
 }
 
+impl HeldLock {
+    /// Whether the lock file is still this lock: there, and with this lock's
+    /// token. A book without file locks checks it before every change, since
+    /// the file is then its only guard against a second writer (D-776): a
+    /// program that doesn't know that, or a sync tool, may have replaced it.
+    pub(crate) fn is_still_ours(&self) -> bool {
+        matches!(read(&self.path), Ok(Some(lock)) if lock.token.as_deref() == Some(self.token.as_str()))
+    }
+}
+
 impl Drop for HeldLock {
     fn drop(&mut self) {
         held().retain(|token| *token != self.token);

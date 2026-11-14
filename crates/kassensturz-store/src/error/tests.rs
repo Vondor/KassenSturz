@@ -152,6 +152,7 @@ fn examples() -> Vec<ErrorReport> {
         locked(),
         StoreError::BackupFailed(Box::new(StoreError::Io(ErrorKind::StorageFull))),
         StoreError::WriteFailed,
+        StoreError::LockLost,
         StoreError::JournalModeRefused { mode: text("wal") },
         StoreError::UnlistedCurrency(USD),
         StoreError::WithdrawnCurrency(USD),

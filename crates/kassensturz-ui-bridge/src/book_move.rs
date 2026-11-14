@@ -314,7 +314,7 @@ pub fn shown_folder_of(file: &Path) -> ShownFolder {
             text: String::new(),
         };
     }
-    let text = match platform::choose_folder(folder) {
+    let text = match platform::choose_folder(folder, false) {
         Ok(grant) => grant.shown_as,
         // The home folder itself, say: shown as it is.
         Err(_) => folder.display().to_string(),

@@ -23,6 +23,9 @@ Item {
     // Whether this computer offers choosing a folder at all.
     readonly property bool available: choice.available
 
+    // Whether a book is to live in the folder, which needs file locks.
+    property bool forBook: false
+
     signal granted(var grant)
     signal refused(string code, string reason)
 
@@ -36,6 +39,8 @@ Item {
 
     function reasonFor(code: string): string {
         switch (code) {
+        case "folder.no-locks":
+            return i18nContext.i18nc("@info", "KassenSturz is not allowed to keep a book in this folder. Allow it to use your home folder or removable media in your system's app permissions, then choose the folder again.");
         case "folder.too-broad":
             return i18nContext.i18nc("@info", "Please choose a folder inside your home folder, for example one just for your book.");
         default:
@@ -55,7 +60,7 @@ Item {
         title: chooser.title
         onAccepted: {
             ActionLog.taken("FolderChooser_chosen")
-            const grant = choice.grant(selectedFolder);
+            const grant = choice.grant(selectedFolder, chooser.forBook);
             if (grant.ok) {
                 chooser.granted(grant);
             } else {

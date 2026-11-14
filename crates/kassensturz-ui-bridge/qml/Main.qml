@@ -1322,6 +1322,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: openFolderChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Open another book")
         onGranted: grant => root.openBookFromFolder(grant.path)
         onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)
@@ -1340,6 +1341,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: newBookFolderChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Where to keep the new book")
         onGranted: grant => {
             newBookName.folder = grant.path;
@@ -1367,6 +1369,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: noAccessChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Choose the folder of your book again")
         onGranted: grant => bookSession.openIn(grant.path, bookSession.problem.file ?? "")
         onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)

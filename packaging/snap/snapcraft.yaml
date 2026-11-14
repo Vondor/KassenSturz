@@ -50,6 +50,12 @@ apps:
       # Not connected by itself: the user connects them (docs/SNAP.md, 4).
       - password-manager-service
       - pcscd
+      # The user's files, so a book can be opened where it really is, with
+      # working file locks (Q-570). `home` connects by itself on desktops;
+      # `removable-media` (USB drives) is connected by the user. Each can be
+      # switched off again (docs/SNAP.md, 4).
+      - home
+      - removable-media
   # The MCP server for the user's own AI tools, stdio only (D-050). It is
   # started by that tool, not from a menu, and shares the app's data folder.
   mcp:

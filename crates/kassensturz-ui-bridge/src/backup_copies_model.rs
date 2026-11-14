@@ -109,7 +109,7 @@ impl cxx_qt::Initialize for qobject::BackupCopies {
 impl qobject::BackupCopies {
     fn choose(mut self: Pin<&mut Self>, path: &QString) -> QVariant {
         let chosen = PathBuf::from(path.to_string());
-        let code = match platform::choose_folder(&chosen) {
+        let code = match platform::choose_folder(&chosen, false) {
             Err(refused) => Some(refused.code()),
             Ok(grant) if is_own_backup_folder(&grant.path) => Some("backup-copy.same-folder"),
             Ok(grant) => (!backup_copies::choose(&Settings::user(), &grant))

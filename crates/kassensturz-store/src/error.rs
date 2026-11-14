@@ -955,7 +955,14 @@ impl Report for StoreError {
             Self::AmountOverflow => new("store.amount-overflow"),
             Self::Corrupt(corruption) => corruption.report(),
             Self::Io(kind) => new("store.io").with("kind", P::Keyword(io_keyword(*kind))),
-            Self::Database(_) => new("store.database"),
+            // A full drive is said as such, with what to do (B-282), not
+            // as a database error the user can do nothing about.
+            Self::Database(DatabaseError(error)) => match error.sqlite_error_code() {
+                Some(rusqlite::ErrorCode::DiskFull) => {
+                    new("store.io").with("kind", P::Keyword(io_keyword(ErrorKind::StorageFull)))
+                }
+                _ => new("store.database"),
+            },
             Self::WriteFailed => new("store.write-failed"),
             Self::LockLost => new("store.lock-lost"),
         }

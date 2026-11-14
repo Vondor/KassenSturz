@@ -20729,9 +20729,18 @@ msgstr "Gdy KassenSturz miał otwartą księgę, inny program umieścił na jej 
 msgctxt "@info"
 msgid ""
 "The book's folder stopped accepting changes, for example because the drive "
-"was disconnected or the access ended. Your earlier work is safe in the book. "
-"Reconnect the drive or choose the folder again, then try again."
-msgstr "Folder księgi przestał przyjmować zmiany, na przykład dlatego, że dysk został odłączony albo dostęp się skończył. Twoja wcześniejsza praca jest bezpieczna w księdze. Podłącz dysk ponownie albo wybierz folder ponownie, a potem spróbuj jeszcze raz."
+"is full or was disconnected, or the access ended. Your earlier work is safe "
+"in the book. Free up space, reconnect the drive or choose the folder again, "
+"then try again."
+msgstr "Folder księgi przestał przyjmować zmiany, na przykład dlatego, że dysk jest pełny albo został odłączony, albo dostęp się skończył. Twoja wcześniejsza praca jest bezpieczna w księdze. Zwolnij miejsce, podłącz dysk ponownie albo wybierz folder ponownie, a potem spróbuj jeszcze raz."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:669
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The drive is full, so this change wasn't saved and the book is as it was. "
+"Free up some space, for example by emptying the trash, then try again."
+msgstr "Dysk jest pełny, więc ta zmiana nie została zapisana, a księga jest taka jak przedtem. Zwolnij trochę miejsca, na przykład opróżniając kosz, a potem spróbuj ponownie."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:221
 #, kde-format

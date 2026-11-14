@@ -1332,9 +1332,13 @@ fn a_budget_amount_above_the_stores_limit_is_refused_when_prepared() {
             "category_id": small.fun.to_string(), "every": "month", "amount": amount}]});
         let (_, call) = take_check_only(&call).expect("taken");
         let refused = propose(&small.book, &call).expect_err("too large");
+        // The refusal names the list and the item it is about.
+        let ToolError::InItem { cause, .. } = &refused else {
+            panic!("{amount}: {refused:?}");
+        };
         assert!(
             matches!(
-                refused,
+                **cause,
                 ToolError::BudgetRefused(StoreError::BudgetAmount {
                     reason: "too-large"
                 })

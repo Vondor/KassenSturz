@@ -1130,6 +1130,10 @@ mod tests {
             assert!(report.code.starts_with("ai-changes."), "{}", report.code);
             check(&report, &rows, &mut seen);
         }
+        // The app makes this code from a `not-applied` refusal whose cause is
+        // an amount's size (`kassensturz-ui-bridge`, `code_text`, B-288); it
+        // is tested there.
+        seen.insert("ai-changes.amount-too-large");
         let unused = unused(&rows, &seen, &["ai-changes"]);
         assert!(unused.is_empty(), "{unused:?}");
     }

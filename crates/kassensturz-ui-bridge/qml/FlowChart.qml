@@ -53,7 +53,9 @@ ColumnLayout {
     // Room at both ends for the names of the outermost nodes.
     readonly property real labelWidth: Math.min(Kirigami.Units.gridUnit * 9, width * 0.22)
 
-    readonly property KI18nContext i18nContext: KI18nContext {}
+    readonly property KI18nContext i18nContext: KI18nContext {
+        translationDomain: "kassensturz"
+    }
 
     spacing: Kirigami.Units.smallSpacing
 

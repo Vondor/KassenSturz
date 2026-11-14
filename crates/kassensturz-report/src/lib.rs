@@ -68,6 +68,7 @@ mod spending;
 pub mod status;
 pub mod templates;
 mod text;
+mod trend;
 
 pub use alarms::{
     AlarmReason, AlarmResult, AlarmRule, AlarmState, BudgetLook, CantCheck, MAX_ALARMS,
@@ -155,6 +156,10 @@ pub use spending::{
     spending_by_category_shown,
 };
 pub use text::{TextFormat, TextTable};
+pub use trend::{
+    AverageRow, MACD, MOVING_AVERAGE, Macd, MacdRow, MovingAverage, TREND_LENGTH_WORDS,
+    TREND_SERIES, TREND_SIGNAL_WORDS, TREND_SLOW_WORDS, Trend, TrendSeries, macd, moving_average,
+};
 
 #[cfg(test)]
 mod alarms_tests;
@@ -196,3 +201,5 @@ mod page_widgets_tests;
 mod tags_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod trend_tests;

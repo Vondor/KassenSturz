@@ -13,20 +13,22 @@ use kassensturz_charts::{
     BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, FlowModel, Prepared,
     account_balances as balances_chart, balance_candles as candles_chart,
     cash_flow_by_month as cash_flow_chart, category_over_time, flow_model, income_expense_by_month,
+    macd as macd_chart, moving_average as moving_average_chart,
     net_worth_over_time as net_worth_chart, spending_by_category, spending_by_category_as,
     spending_by_category_compared,
 };
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
     ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, CandleLength, Column,
-    CompareWith, Filter, INCOME_EXPENSE_BY_MONTH, Level, MONEY_FLOW, NET_WORTH_OVER_TIME, Overlap,
-    Per, Percent, Period, ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source,
-    TextFormat, account_balances as balances_dataset, balance_candles as candles_dataset,
-    cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
-    columns_over_time, columns_span, columns_spending, compared_early, counted_early,
-    income_expense_by_month as monthly_dataset, income_expense_by_series,
-    money_flow as money_flow_dataset, net_worth_over_time as net_worth_dataset, shared_categories,
-    spending_by_category_shown as spending_dataset, spending_compared,
+    CompareWith, Filter, INCOME_EXPENSE_BY_MONTH, Level, MACD, MONEY_FLOW, MOVING_AVERAGE,
+    NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period, ReportError, SPENDING_BY_CATEGORY,
+    SharedCategory, Shown, Source, TextFormat, TrendSeries, account_balances as balances_dataset,
+    balance_candles as candles_dataset, cash_flow_by_month as cash_flow_dataset,
+    category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
+    compared_early, counted_early, income_expense_by_month as monthly_dataset,
+    income_expense_by_series, macd as macd_dataset, money_flow as money_flow_dataset,
+    moving_average as moving_average_dataset, net_worth_over_time as net_worth_dataset,
+    shared_categories, spending_by_category_shown as spending_dataset, spending_compared,
 };
 use kassensturz_store::Book;
 
@@ -293,6 +295,12 @@ pub(crate) fn period(book: &Book, key: &str, today: Date) -> Result<Period, Char
 
 /// Whether the dataset is made from the balances of the accounts, which the
 /// `Source` reads only when asked to (D-365).
+/// Whether `dataset` is one of the trends (US7, D-777), which read the book
+/// for months before the period too.
+fn is_trend(dataset: &str) -> bool {
+    matches!(dataset, MOVING_AVERAGE | MACD)
+}
+
 pub(crate) fn is_financial(dataset: &str) -> bool {
     matches!(
         dataset,
@@ -323,6 +331,9 @@ pub fn charts(
         _ if flow => Level::Each,
         "top-level" => Level::TopLevel,
         "each" | "groups" | "account-kind" => Level::Each,
+        // A trend follows one of money in, money out and what is left
+        // (US7, D-777); the grouping word says which.
+        "net" | "income" | "expenses" if is_trend(&request.dataset) => Level::Each,
         _ => return Err(ChartsError::UnknownName("grouping")),
     };
     // A formula of a column may name periods of its own, so the book is read
@@ -338,6 +349,13 @@ pub fn charts(
     let span = match compare {
         Some(compare) => compare.read_span(period)?,
         None => span,
+    };
+    // A moving average needs the months before the period (US7, D-777).
+    let span = if is_trend(&request.dataset) {
+        let trend = request.scope.trend.read_span(&request.dataset, period)?;
+        Period::new(trend.first().min(span.first()), span.last())?
+    } else {
+        span
     };
     // The balances of the accounts take longer to read, so only the datasets
     // made from them ask for them (D-365). Columns decide what a chart shows,
@@ -550,6 +568,20 @@ pub fn charts(
             .iter()
             .map(|data| income_expense_by_month(data, kind, &text))
             .collect::<Result<Vec<_>, _>>()?,
+            MOVING_AVERAGE => {
+                let series = TrendSeries::read(&request.grouping);
+                moving_average_dataset(&source, period, &filter, series, request.scope.trend)?
+                    .iter()
+                    .map(|data| moving_average_chart(data, kind, &text))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
+            MACD => {
+                let series = TrendSeries::read(&request.grouping);
+                macd_dataset(&source, period, &filter, series, request.scope.trend)?
+                    .iter()
+                    .map(|data| macd_chart(data, kind, &text))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
             ACCOUNT_BALANCES => {
                 let by = if request.grouping == "account-kind" {
                     BalancesBy::Kind

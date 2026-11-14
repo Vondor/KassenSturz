@@ -66,7 +66,7 @@ const ACCOUNT_CHECKING: DescribedIds = DescribedIds {
 /// The descriptions the fake model knows, in the order the testing guide
 /// and the local-model script list them. The first is the example the
 /// *Describe a chart* button puts into the question field.
-pub const DESCRIBED_CHARTS: [DescribedChart; 11] = [
+pub const DESCRIBED_CHARTS: [DescribedChart; 13] = [
     DescribedChart {
         description: "My spending on food each month this year, as bars",
         also: &["Meine Ausgaben für Essen in jedem Monat dieses Jahres, als Balken"],
@@ -145,6 +145,20 @@ pub const DESCRIBED_CHARTS: [DescribedChart; 11] = [
         description: "Where my money came from and where it went this month",
         also: &[],
         call: r#"{"title":"Money in and out this month","data":"money_flow","show_as":"auto","period":"this-month"}"#,
+        ids: None,
+        refused_first: None,
+    },
+    DescribedChart {
+        description: "What is left each month with its three-month average, for the last year",
+        also: &[],
+        call: r#"{"title":"Left each month and its average","data":"moving_average","show_as":"line","period":"last-12-months"}"#,
+        ids: None,
+        refused_first: None,
+    },
+    DescribedChart {
+        description: "Is my saving getting better or worse than the longer run? Show the trend for the last year",
+        also: &[],
+        call: r#"{"title":"Saving trend against the longer run","data":"macd","show_as":"line","period":"last-12-months"}"#,
         ids: None,
         refused_first: None,
     },

@@ -371,11 +371,16 @@ fn the_lock_of_a_killed_program_is_cleared_on_the_next_start() {
     let lock = PathBuf::from(format!("{}.lock", book.display()));
     assert!(!lock.exists(), "the lock stayed after a normal close");
 
-    // The program was killed on this computer: nothing to ask (D-781).
-    kill_lock_holder(&book);
-    assert!(lock.exists(), "a killed program left no lock file");
-    ok(&book, &backups, &["balances"]);
-    assert!(!lock.exists(), "the lock of a dead program stayed");
+    // The program was killed on this computer: nothing to ask (D-781). Only
+    // where the system tells whether a program runs (Linux, Windows); on
+    // macOS the lock names no program and keeps asking.
+    #[cfg(any(target_os = "linux", windows))]
+    {
+        kill_lock_holder(&book);
+        assert!(lock.exists(), "a killed program left no lock file");
+        ok(&book, &backups, &["balances"]);
+        assert!(!lock.exists(), "the lock of a dead program stayed");
+    }
 
     // The same lock, but written by another computer, always asks.
     kill_lock_holder(&book);

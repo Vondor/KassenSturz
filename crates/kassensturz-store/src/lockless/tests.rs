@@ -248,6 +248,8 @@ fn a_lock_of_a_book_open_without_file_locks_is_not_taken_over_by_a_program_with_
         Err(StoreError::Locked(_)) => {}
         other => panic!("expected the lock to stay, got {:?}", other.map(|_| ())),
     }
+    // The page is told, so it doesn't offer "open anyway" again.
+    assert!(seen.stays_locked_here(&path, &computer.name));
     drop(first);
 }
 

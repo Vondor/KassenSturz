@@ -58,6 +58,20 @@ pub struct Lock {
     without_file_locks: bool,
 }
 
+impl Lock {
+    /// Whether opening the book at `book` anyway is refused on the computer
+    /// called `computer`, because the program that holds this lock may still
+    /// run there and either side has no file locks, so SQLite couldn't keep
+    /// two writers apart (Q-570, D-776). Closing it there, or restarting the
+    /// computer, is the way out; the UI says so instead of offering "open
+    /// anyway" again.
+    pub fn stays_locked_here(&self, book: &Path, computer: &str) -> bool {
+        self.computer.as_deref() == Some(computer)
+            && may_still_run(self)
+            && (self.without_file_locks || crate::lockless::locks_refused(book))
+    }
+}
+
 /// Where a program runs on its computer: see [`Lock::place`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Place {
@@ -98,13 +112,7 @@ impl HeldLock {
     /// file changed in the meantime, it fails with [`StoreError::Locked`]
     /// and the current lock, so the user can be warned again.
     pub(crate) fn take_over(book: &Path, computer: &str, seen: &Lock) -> Result<Self, StoreError> {
-        // Where either side has no file locks, SQLite can't keep two writers
-        // apart: the lock of a program that may still run on this computer
-        // is never taken over, whichever side takes it (Q-570, D-776).
-        if seen.computer.as_deref() == Some(computer)
-            && may_still_run(seen)
-            && (seen.without_file_locks || crate::lockless::locks_refused(book))
-        {
+        if seen.stays_locked_here(book, computer) {
             return Err(StoreError::Locked(seen.clone()));
         }
         let path = lock_path(book);

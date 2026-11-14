@@ -5440,6 +5440,21 @@ msgctxt "@info %1 is a date and time"
 msgid "It has been open since %1."
 msgstr "Es ist seit %1 geöffnet."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:70
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz still has this book open in another program on this computer, "
+"for example another window or another installation of KassenSturz. Close it "
+"there, then try again. If you can't find it, restart the computer, and the "
+"book opens."
+msgstr ""
+"KassenSturz hat dieses Haushaltsbuch noch in einem anderen Programm auf "
+"diesem Computer geöffnet, zum Beispiel in einem anderen Fenster oder in "
+"einer anderen Installation von KassenSturz. Schließen Sie es dort und "
+"versuchen Sie es dann noch einmal. Finden Sie es nicht, starten Sie den "
+"Computer neu, danach öffnet sich das Haushaltsbuch."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:71
 #, kde-format
 msgctxt "@info"

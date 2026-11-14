@@ -76,7 +76,9 @@ Kirigami.Page {
             const since = problem.since
                 ? i18nContext.i18nc("@info %1 is a date and time", "It has been open since %1.", problem.since)
                 : "";
-            const what = problem.here
+            const what = problem.stillRunning
+                ? i18nContext.i18nc("@info", "KassenSturz still has this book open in another program on this computer, for example another window or another installation of KassenSturz. Close it there, then try again. If you can't find it, restart the computer, and the book opens.")
+                : problem.here
                 ? i18nContext.i18nc("@info", "KassenSturz may be open in another window, or it didn't close properly last time. If it isn't open anymore, you can open the book anyway.")
                 : i18nContext.i18nc("@info", "Close it there first, then try again. If KassenSturz isn't running there anymore, for example because that computer crashed, you can open the book here anyway.");
             return since ? since + " " + what : what;
@@ -200,7 +202,7 @@ Kirigami.Page {
             spacing: Kirigami.Units.smallSpacing
 
             Controls.Button {
-                visible: page.code === "store.locked"
+                visible: page.code === "store.locked" && !problem.stillRunning
                 icon.name: "unlock"
                 text: page.i18nContext.i18nc("@action:button", "Open anyway")
                 onClicked: {

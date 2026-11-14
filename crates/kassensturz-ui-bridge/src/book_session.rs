@@ -433,7 +433,7 @@ impl qobject::BookSession {
         if let Some(folder) = problem.path().and_then(Path::parent) {
             entries.push(("folder".into(), qtext(&display(folder))));
         }
-        if let Problem::Locked { lock, .. } = problem {
+        if let Problem::Locked { path, lock } = problem {
             if let Some(computer) = &lock.computer {
                 entries.push(("computer".into(), qtext(computer)));
                 let here = self
@@ -442,6 +442,14 @@ impl qobject::BookSession {
                     .as_ref()
                     .is_some_and(|books| books.computer_name() == computer);
                 entries.push(("here".into(), QVariant::from(&here)));
+                // Opening it anyway is refused, so the page shows the way
+                // out (close it there, or restart) instead of the button.
+                let running = self
+                    .rust()
+                    .books
+                    .as_ref()
+                    .is_some_and(|books| lock.stays_locked_here(path, books.computer_name()));
+                entries.push(("stillRunning".into(), QVariant::from(&running)));
             }
             if let Some(since) = lock.since {
                 entries.push(("since".into(), qtext(&QtLocale::date_time(since))));

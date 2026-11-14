@@ -113,6 +113,26 @@ jobs:
           rustup default 1.98.1
       - run: cargo fmt --all --check
 
+  # Hints for whoever reviews a translation (D-778): entries that look like a
+  # joke, vandalism, filler or text never really translated (left in English,
+  # wrong writing system, a key word with the wrong meaning). It never fails:
+  # the hints show as warnings on the pull request's changed lines and as a
+  # table in the job summary. Only entries this pull request changed are read.
+  translation-sense:
+    name: Translation hints (never blocks, D-778)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: The hint script still finds what it should
+        run: python3 tools/check-translation-sense.py --self-test
+      - name: Look for translations that weren't taken seriously
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: python3 tools/check-translation-sense.py --base "$BASE"
+
   # Early warning for the checks that fail most often (CI history of 400 pull
   # request runs, 2026-10-31 to 11-09): the build without AI failed in 14 runs
   # and the KDE job in 10, but both answer only after 8 to 20 minutes, because

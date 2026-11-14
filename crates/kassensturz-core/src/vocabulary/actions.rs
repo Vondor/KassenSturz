@@ -159,6 +159,7 @@ pub const ACTIONS: &[&str] = &[
     "BookMoveInterruptedDialog_remove",
     "BookMovePage_chooseAgain",
     "BookMovePage_chooseFolder",
+    "BookMovePage_done",
     "BookMovePage_move",
     "BookMovePage_moveBack",
     "BookMovePage_ownFolder",

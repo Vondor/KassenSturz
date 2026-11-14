@@ -22985,3 +22985,35 @@ msgstr "Każda część tej transakcji jest w %1, więc żadne pieniądze nie s�
 msgctxt "@info"
 msgid "This transaction is zero, so no money moves. Enter its amount."
 msgstr "Ta transakcja wynosi zero, więc żadne pieniądze nie są przenoszone. Wpisz jej kwotę."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:135
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This book is damaged: its file has a part that can't be read. KassenSturz didn't open it, so no wrong figure is shown, and the book wasn't changed."
+msgstr ""
+"Ta księga jest uszkodzona: nie można odczytać części jej pliku. KassenSturz jej nie otworzył, aby nie pokazać błędnej liczby. Księga nie została zmieniona."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:135
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This book is damaged: some entries no longer add up, for example because a number in the file was changed. KassenSturz didn't open it, so no wrong figure is shown, and the book wasn't changed."
+msgstr ""
+"Ta księga jest uszkodzona: niektóre wpisy już się nie zgadzają, na przykład dlatego, że zmieniono liczbę w pliku. KassenSturz jej nie otworzył, aby nie pokazać błędnej liczby. Księga nie została zmieniona."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:135
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Your backups are in KassenSturz's backup folder; open the newest one instead."
+msgstr ""
+"Twoje kopie zapasowe są w folderze kopii zapasowych KassenSturz; otwórz zamiast tego najnowszą."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:135
+#, kde-format
+msgctxt "@info %1 is a date and time, %2 a folder, %3 a file name"
+msgid ""
+"The newest backup was made on %1: it is in the backup folder (%2) as %3. Choose it with \"Open another book…\". Changes made since then are not in that copy."
+msgstr ""
+"Najnowsza kopia zapasowa pochodzi z %1: jest w folderze kopii zapasowych (%2) pod nazwą %3. Wybierz ją przez „Otwórz inną księgę…”. Zmian wprowadzonych od tego czasu nie ma w tej kopii."

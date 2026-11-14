@@ -57,6 +57,7 @@ impl Book {
         conn.busy_timeout(BUSY_WAIT)?;
         // A second guard, should a statement ever try to write anyway.
         conn.pragma_update(None, "query_only", true)?;
+        crate::integrity::check_file(&conn)?;
         let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
         match version {
             same if same == current => {}
@@ -73,6 +74,10 @@ impl Book {
         // A book with SQL another program planted is refused here too, so
         // the MCP server never reads through it (B-245).
         layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, current)?;
+        // The same checks as the app makes (B-291): the MCP server and the
+        // command line never read figures from a damaged book either.
+        crate::integrity::check_balances(&conn)?;
+        crate::integrity::check_conversions(&conn)?;
         conn.set_prepared_statement_cache_capacity(cached::CAPACITY);
         Ok(Self {
             conn,

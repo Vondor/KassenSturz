@@ -138,6 +138,8 @@ fn examples() -> Vec<ErrorReport> {
         Corruption::BadRuleTree(rule),
         Corruption::BadSchedule(kassensturz_core::ScheduleId::generate()),
         Corruption::UnexpectedLayout,
+        Corruption::DamagedFile,
+        Corruption::UnbalancedTransaction,
     ];
     let store_errors = [
         StoreError::AlreadyExists {

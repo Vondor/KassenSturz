@@ -78,6 +78,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Ein Hinweis zu sehr vielen Berichten war abgeschnitten | B-290 | #1001, #1003 |
 | Das Windows-Paket enthielt 131 Programme, die niemand braucht (etwa ffmpeg und openssl), jedes eines mehr, das missbraucht werden könnte | B-292 | #1014 |
 | War das Laufwerk voll, endete ein Import mit einer Meldung, die weder sagte, was passiert war, noch was zu tun ist | B-282 | #1007 |
+| Ein Buch mit einer veränderten Zahl in der Datei öffnete sich mit falschem Kontostand, eine beschädigte Seite fiel erst beim nächsten Speichern auf | B-291 | #1010 |
 
 Kein Fund hat eine PIN verraten. Nur bei einem (B-252) hätten Daten Ihren Computer verlassen können, und auch das nur, wenn jemand vorher Ihre Einstellungsdatei von Hand gefälscht hätte.
 

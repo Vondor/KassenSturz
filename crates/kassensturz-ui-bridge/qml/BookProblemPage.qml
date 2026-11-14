@@ -130,6 +130,18 @@ Kirigami.Page {
             default:
                 return i18nContext.i18nc("@info", "The file couldn't be read or written. Check that the drive is connected, then try again.");
             }
+        case "store.corrupt.damaged-file":
+        case "store.corrupt.unbalanced-transaction": {
+            // B-291: nothing is shown from a book whose numbers can't be
+            // trusted, and nothing is saved over it.
+            const damaged = code === "store.corrupt.damaged-file"
+                ? i18nContext.i18nc("@info", "This book is damaged: its file has a part that can't be read. KassenSturz didn't open it, so no wrong figure is shown, and the book wasn't changed.")
+                : i18nContext.i18nc("@info", "This book is damaged: some entries no longer add up, for example because a number in the file was changed. KassenSturz didn't open it, so no wrong figure is shown, and the book wasn't changed.");
+            if (!problem.backupName) {
+                return damaged + " " + i18nContext.i18nc("@info", "Your backups are in KassenSturz's backup folder; open the newest one instead.");
+            }
+            return damaged + " " + i18nContext.i18nc("@info %1 is a date and time, %2 a folder, %3 a file name", "The newest backup was made on %1: it is in the backup folder (%2) as %3. Choose it with \"Open another book…\". Changes made since then are not in that copy.", problem.backupWhen, session.backupFolder, problem.backupName);
+        }
         case "store.corrupt.unexpected-layout":
             return i18nContext.i18nc("@info", "This book holds parts a KassenSturz book doesn't have, or lacks some of its own. Another program probably changed it. KassenSturz didn't open it, so nothing in it ran, and the book wasn't changed. Your backups are in KassenSturz's backup folder; open the newest one instead.");
         default:

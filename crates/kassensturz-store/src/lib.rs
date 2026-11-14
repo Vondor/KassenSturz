@@ -19,6 +19,7 @@ mod details;
 mod error;
 mod fill;
 mod history;
+mod integrity;
 mod layout;
 mod lock;
 mod lockless;
@@ -232,7 +233,13 @@ impl Book {
             return Err(StoreError::NotABook);
         }
         let lock = lock(&path)?;
-        let (mut conn, without_file_locks) = connect(&path)?;
+        let (mut conn, without_file_locks) =
+            connect(&path).map_err(integrity::damaged_if_malformed)?;
+        // Before anything is read from the book, and before any backup or
+        // migration writes to the file, so a file cut short or with a page
+        // SQLite can't parse is a damaged book, not a generic database
+        // error (B-291).
+        integrity::check_file(&conn)?;
         let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
         let current = first_version - 1 + i32::try_from(migrations.len()).expect("a short list");
         // Before the backup, a migration or any change, so SQL that another
@@ -253,6 +260,10 @@ impl Book {
             }
             found => return Err(StoreError::UnsupportedLayout { found }),
         }
+        // After the layout is the current one, so the splits are where the
+        // check looks; nothing was changed in a book that fails it (B-291).
+        integrity::check_balances(&conn)?;
+        integrity::check_conversions(&conn)?;
         Self::finish(conn, Some(lock), without_file_locks)
     }
 

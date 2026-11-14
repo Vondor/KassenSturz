@@ -606,6 +606,14 @@ pub enum Corruption {
     /// have, lacks one of its own, or one was changed, e.g. by another
     /// program (B-245). It wasn't opened, so nothing in it ran.
     UnexpectedLayout,
+    /// SQLite finds the book's file damaged: a page it can't parse, e.g.
+    /// after a failing drive or a sync that cut a file short (B-291). It
+    /// wasn't opened and wasn't changed.
+    DamagedFile,
+    /// At least one transaction's parts don't add up to zero, so a figure
+    /// taken from the book would be wrong (B-291), e.g. because a byte of an
+    /// amount changed in the file. It wasn't opened and wasn't changed.
+    UnbalancedTransaction,
 }
 
 /// An error reported by SQLite. Its details are for logs, not for users.
@@ -1022,6 +1030,8 @@ impl Report for Corruption {
                 new("store.corrupt.bad-schedule").with("schedule", P::Text(schedule.to_string()))
             }
             Self::UnexpectedLayout => new("store.corrupt.unexpected-layout"),
+            Self::DamagedFile => new("store.corrupt.damaged-file"),
+            Self::UnbalancedTransaction => new("store.corrupt.unbalanced-transaction"),
         }
     }
 }

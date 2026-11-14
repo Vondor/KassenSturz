@@ -243,6 +243,8 @@ Data in the book breaks one of KassenSturz's rules, for example because another 
 | `store.corrupt.bad-rule-tree` | `rule` | | {rule} sits in the wrong place in the list of Rules. |
 | `store.corrupt.bad-schedule` | `schedule` | | A planned payment, or what is stored about one of its payments, has values that don't fit together. |
 | `store.corrupt.unexpected-layout` | | | The book holds tables, triggers or other parts a KassenSturz book doesn't have, or lacks some of its own, probably because another program changed it. It wasn't opened, so nothing in it ran. |
+| `store.corrupt.damaged-file` | | | SQLite finds the book's file damaged, e.g. a page it can't read after a failing drive or a sync that cut the file short. The book wasn't opened or changed; the page names the newest backup (B-291). |
+| `store.corrupt.unbalanced-transaction` | | | The parts of at least one transaction don't add up to zero, or a part converted with a stored exchange rate no longer fits that rate, e.g. because a number in the file was changed, so a figure from the book would be wrong. The book wasn't opened or changed; the page names the newest backup (B-291). |
 | `store.corrupt.history-mismatch` | | | The change history doesn't fit what is in the book, e.g. because another program changed the book, so the change can't be undone or redone. Nothing was changed; Clean up history removes the history that doesn't fit. |
 
 ## Importing files (`kassensturz-import`)

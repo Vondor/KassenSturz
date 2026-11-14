@@ -28,6 +28,8 @@ use crate::importer::{ImportKind, Imported, Importer, ImporterInfo, Recognition}
 use crate::limits::Limits;
 use crate::statement::{Balance, Entry, EntryStatus, Statement, StatementAccount};
 
+mod encoding;
+
 /// What every CAMT.053 namespace starts with; a version number follows.
 const NAMESPACE: &str = "urn:iso:std:iso:20022:tech:xsd:camt.053.001.";
 
@@ -48,7 +50,9 @@ impl Importer for Camt053 {
     }
 
     fn recognize(&self, start: &[u8]) -> Recognition {
-        if find(start, NAMESPACE.as_bytes()) {
+        let found = find(start, NAMESPACE.as_bytes())
+            || encoding::utf16_start(start).is_some_and(|text| text.contains(NAMESPACE));
+        if found {
             Recognition::Yes
         } else {
             Recognition::No
@@ -56,11 +60,8 @@ impl Importer for Camt053 {
     }
 
     fn read(&self, input: &[u8], limits: &Limits) -> Result<Imported, ImportError> {
-        let text = std::str::from_utf8(input).map_err(|error| ImportError::Malformed {
-            line: Some(line_at(input, error.valid_up_to())),
-        })?;
-        let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-        Parser::new(text, limits).run()
+        let text = encoding::decode(input)?;
+        Parser::new(&text, limits).run()
     }
 }
 
@@ -368,15 +369,9 @@ impl<'a> Parser<'a> {
                 }
                 Event::Decl(declaration) => {
                     let version = declaration.version().is_ok_and(|version| version == "1.0");
-                    let encoding = match declaration.encoding() {
-                        None => true,
-                        // ISO 20022 files are UTF-8, and the bytes were
-                        // already read as such (D-091).
-                        Some(encoding) => {
-                            encoding.is_ok_and(|encoding| encoding.eq_ignore_ascii_case("utf-8"))
-                        }
-                    };
-                    if !(version && encoding) {
+                    // The encoding was read from the declaration and the
+                    // bytes before the text got here (B-280).
+                    if !version {
                         return Err(self.malformed());
                     }
                 }

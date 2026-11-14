@@ -46,7 +46,9 @@ use kassensturz_core::{
 use rusqlite::config::DbConfig;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
-pub use backup_copies::{BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of};
+pub use backup_copies::{
+    BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of, newest_usable_backup,
+};
 pub use budgets::{check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};

@@ -1,0 +1,4 @@
+recognized: yes
+error: import.encoding-contradiction
+  declared: "UTF-8"
+  line: 1

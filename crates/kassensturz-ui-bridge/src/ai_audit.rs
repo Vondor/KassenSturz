@@ -228,8 +228,16 @@ mod tests {
         assert!(main.contains("root.attachChat(true)"));
         let closing = &main[main.find("onClosing: {").expect("closing")..];
         let closing = &closing[..closing.find("const maximized").unwrap()];
-        assert!(closing.contains("chatWindow.hide()"), "{closing}");
-        assert!(main.contains("chatPanel.parent = chatWindowHolder"));
+        assert!(
+            closing.contains("chatWindowLoader.item.hide()"),
+            "{closing}"
+        );
+        assert!(main.contains("chatPanel.parent = chatWindowLoader.item.holder"));
+        // B-286: with AI off the window isn't even created, as it would show
+        // in the accessibility tree.
+        let loader = &main[main.find("id: chatWindowLoader").expect("loader")..];
+        let loader = &loader[..loader.find("sourceComponent").unwrap()];
+        assert!(loader.contains("active: aiSwitch.enabled && root.chatDetached"));
         assert!(main.contains("chatPanel.parent = chatHolder"));
     }
 

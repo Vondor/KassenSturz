@@ -286,6 +286,11 @@ FormCard.FormCardPage {
 
             delegate: FormCard.FormTextDelegate {
                 textItem.textFormat: Text.PlainText
+                // Whole sentences: "(KassenSturz takes at most 500)" must
+                // not be cut off with "…" (B-290).
+                textItem.wrapMode: Text.Wrap
+                textItem.elide: Text.ElideNone
+                textItem.maximumLineCount: 6
                 required property var modelData
 
                 text: page.skippedName(modelData.what, modelData.count)

@@ -259,3 +259,4 @@ fn private_copies_a_killed_program_left_are_removed_when_old_enough() {
     assert!(young.exists(), "one that may still be in use stays");
     std::fs::remove_dir(&young).expect("removed");
 }
+mod adversarial;

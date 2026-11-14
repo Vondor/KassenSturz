@@ -922,3 +922,19 @@ fn a_failed_move_says_nothing_about_where() {
     let text = format!("{failed:?}");
     assert!(!text.contains("Sync") && !text.contains("own"), "{text}");
 }
+
+#[test]
+fn adv_a_book_without_file_locks_moves() {
+    crate::lockless::NO_LOCKS.with(|f| f.set(true));
+    let setup = Setup::new();
+    let book = setup.open();
+    assert!(book.without_file_locks());
+    let plan = setup.plan();
+    let mut settings = setup.settings();
+    let result = book.move_to(&plan, &setup.computer, &mut settings);
+    crate::lockless::NO_LOCKS.with(|f| f.set(false));
+    match result {
+        Ok(moved) => eprintln!("ADV moved ok to {:?}", moved.to),
+        Err(failed) => panic!("ADV move failed at {:?}: {:?}", failed.step, failed.cause),
+    }
+}

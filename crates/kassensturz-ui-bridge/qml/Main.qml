@@ -1990,6 +1990,7 @@ Kirigami.ApplicationWindow {
             bookMove: bookMover
             // Shows the book where it is now, on the page that stays open.
             onMoved: bookSession.showMovedBook()
+            onDone: root.pageStack.pop()
         }
     }
 

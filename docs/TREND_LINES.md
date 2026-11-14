@@ -1,8 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2026 KassenSturz contributors
-SPDX-License-Identifier: CC0-1.0
--->
-
 # Moving averages and MACD (US7, #875, D-777)
 
 Two datasets of the Statistics Builder, shown by the line, bar and table

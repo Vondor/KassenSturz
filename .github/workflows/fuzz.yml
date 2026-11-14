@@ -45,7 +45,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [camt053, mt940, ofx, csv, kmy, kmy_sqlite, book_open]
+        target: [camt053, mt940, ofx, csv, kmy, kmy_sqlite, book_open, amount_parse]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust and cargo-fuzz

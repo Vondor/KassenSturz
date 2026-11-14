@@ -100,6 +100,9 @@ impl Book {
             book.recording = false;
             book.filling = false;
             let value = filled?;
+            // A complete export or another program's book may hold more than
+            // adds up (B-269): refused, and the book stays empty.
+            crate::totals::check_totals(&book.conn)?;
             book.conn
                 .execute("DELETE FROM temp.history_state", [])
                 .map_err(StoreError::from)?;

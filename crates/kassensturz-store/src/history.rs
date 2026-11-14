@@ -879,6 +879,11 @@ impl Book {
             let changed = change(book);
             book.recording = false;
             let value = changed?;
+            // No change may leave a currency's amounts too large to add up
+            // (B-269), whichever way they came in.
+            if crate::totals::splits_changed(&book.conn)? {
+                crate::totals::check_totals(&book.conn)?;
+            }
             book.record(action)?;
             Ok(value)
         })
@@ -918,7 +923,22 @@ impl Book {
                 self.recording = true;
                 let result = change(self);
                 self.recording = outer;
-                result
+                // Refused where the real action would be (B-269).
+                match result {
+                    Ok(value) if !outer => {
+                        match crate::totals::splits_changed(&self.conn).and_then(|changed| {
+                            if changed {
+                                crate::totals::check_totals(&self.conn)
+                            } else {
+                                Ok(())
+                            }
+                        }) {
+                            Ok(()) => Ok(value),
+                            Err(error) => Err(error.into()),
+                        }
+                    }
+                    other => other,
+                }
             }
             Err(error) => Err(StoreError::from(error).into()),
         };

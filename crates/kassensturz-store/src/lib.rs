@@ -28,6 +28,7 @@ mod recurring_moves;
 mod rules;
 mod schedules;
 mod tags;
+mod totals;
 mod transactions;
 mod transfers;
 mod unsorted;
@@ -69,6 +70,7 @@ pub use schedules::{
     ScheduleNeedsYou,
 };
 pub use tags::{TagUse, checked_tag_name};
+pub use totals::{MAX_CURRENCY_TOTAL, MAX_PLAN_AMOUNT};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};
 

@@ -534,6 +534,79 @@ fn dates_before_the_year_1_are_refused() {
     ));
 }
 
+/// Amounts that each fit but add up past 64 bits are refused as a whole,
+/// whichever change brings them (B-269, #965): the book stays as it was and
+/// every balance can still be read.
+#[test]
+fn a_change_whose_amounts_would_add_up_too_far_is_refused() {
+    let Sample {
+        mut book,
+        checking,
+        salary,
+        ..
+    } = sample();
+    // A transaction counts twice, once on each side: one minor unit past
+    // the limit is too much.
+    let half = MAX_CURRENCY_TOTAL / 2 + 1;
+    let largest = transaction(
+        date(2026, 10, 1),
+        "Example Employer",
+        &[(checking, eur(half)), (salary, eur(-half))],
+    );
+    let before = book.balance(checking).expect("balance");
+    assert!(matches!(
+        book.add_transaction(&largest),
+        Err(StoreError::AmountOverflow)
+    ));
+    let third = MAX_CURRENCY_TOTAL / 3;
+    let large = |day| {
+        transaction(
+            date(2026, 10, day),
+            "Example Employer",
+            &[(checking, eur(third)), (salary, eur(-third))],
+        )
+    };
+    book.add_transaction(&large(1)).expect("still adds up");
+    let after_one = book.balance(checking).expect("balance");
+    for day in [2, 3] {
+        assert!(matches!(
+            book.add_transaction(&large(day)),
+            Err(StoreError::AmountOverflow)
+        ));
+    }
+    // Nothing of the refused ones was kept, and the balance reads.
+    assert_eq!(book.balance(checking).expect("balance"), after_one);
+    assert_ne!(after_one, before);
+    // Several in one action are refused together; a preview says so too.
+    let both = |book: &mut Book| -> Result<(), StoreError> {
+        book.add_transaction(&large(4))?;
+        book.add_transaction(&large(5))?;
+        Ok(())
+    };
+    book.undo().expect("undone");
+    assert!(matches!(
+        book.dry_run(both),
+        Err(StoreError::AmountOverflow)
+    ));
+    assert!(matches!(
+        book.as_one_action(Action::AddTransaction, both),
+        Err(StoreError::AmountOverflow)
+    ));
+    assert_eq!(book.balance(checking).expect("balance"), before);
+    // A single part past 64 bits without its sign is refused too.
+    let extreme = transaction(
+        date(2026, 10, 6),
+        "Example Employer",
+        &[(checking, eur(i64::MAX)), (salary, eur(-i64::MAX))],
+    );
+    assert!(matches!(
+        book.add_transaction(&extreme),
+        Err(StoreError::AmountOverflow)
+    ));
+}
+
+/// A book another program changed past 64 bits still opens, and reading
+/// the balance says what is wrong instead of a wrong figure.
 #[test]
 fn a_balance_too_large_for_64_bits_is_reported() {
     let Sample {
@@ -542,14 +615,28 @@ fn a_balance_too_large_for_64_bits_is_reported() {
         salary,
         ..
     } = sample();
-    for _ in 0..2 {
-        let huge = transaction(
-            date(2026, 10, 1),
-            "Example Employer",
-            &[(checking, eur(i64::MAX)), (salary, eur(-i64::MAX))],
-        );
-        book.add_transaction(&huge).expect("each one balances");
-    }
+    let third = MAX_CURRENCY_TOTAL / 3;
+    let large = transaction(
+        date(2026, 10, 1),
+        "Example Employer",
+        &[(checking, eur(third)), (salary, eur(-third))],
+    );
+    book.add_transaction(&large).expect("added");
+    // As if another program had changed the book (D-046).
+    book.as_another_program()
+        .execute(
+            "UPDATE splits SET amount = amount * 11 WHERE abs(amount) = ?1",
+            [third],
+        )
+        .expect("changed behind KassenSturz's back");
+    book.as_another_program()
+        .execute(
+            "INSERT INTO splits (id, transaction_id, position, account_id, amount)
+             SELECT randomblob(16), transaction_id, position + 10, account_id, amount
+             FROM splits WHERE abs(amount) = ?1 * 11",
+            [third],
+        )
+        .expect("changed behind KassenSturz's back");
     assert!(matches!(
         book.balance(checking),
         Err(StoreError::AmountOverflow)

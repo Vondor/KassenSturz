@@ -460,18 +460,27 @@ fn a_total_that_does_not_fit_is_an_error_not_a_wrong_figure() {
     book.use_currency(EUR).expect("currency used");
     let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR, None);
     let rent = account(&mut book, "Rent", AccountKind::Expense, EUR, None);
-    for day in [1, 2] {
-        book.add_transaction(&transaction(
-            date(2026, 10, day),
-            &[
-                (Some(checking), money(-i64::MAX)),
-                (Some(rent), money(i64::MAX)),
-            ],
-        ))
-        .expect("transaction added");
-    }
+    // The book refuses amounts that add up this far (B-269), so they come
+    // as another program could have left them in a file.
+    let huge: Vec<Transaction> = [1, 2]
+        .into_iter()
+        .map(|day| {
+            transaction(
+                date(2026, 10, day),
+                &[
+                    (Some(checking), money(-i64::MAX)),
+                    (Some(rent), money(i64::MAX)),
+                ],
+            )
+        })
+        .collect();
     let october = period(date(2026, 10, 1), date(2026, 10, 31));
-    let source = Source::read(&book, october).expect("source");
+    let source = Source::from_parts(
+        october,
+        book.all_accounts().expect("accounts"),
+        book.categories().expect("categories"),
+        huge,
+    );
     assert!(matches!(
         spending_by_category(&source, october, &Filter::default(), Level::Each),
         Err(ReportError::Store(_))

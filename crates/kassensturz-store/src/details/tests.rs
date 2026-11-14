@@ -270,7 +270,10 @@ fn a_transaction_keeps_its_notes_numbers_status_and_tags() {
     let receipt = "receipts/2026-10-05-grocery.pdf";
     assert!(book.transactions_linking(receipt).expect("read").is_empty());
     assert_eq!(
-        book.attachment_links().expect("read").into_iter().collect::<Vec<_>>(),
+        book.attachment_links()
+            .expect("read")
+            .into_iter()
+            .collect::<Vec<_>>(),
         ["https://example.com/order/4711"]
     );
     book.undo().expect("undone");

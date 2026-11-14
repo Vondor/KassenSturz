@@ -17,10 +17,10 @@
 //! in every build and with AI off; only filing from a set the AI prepared
 //! needs the AI build (`ai_chat::confirm_with_bills_in`).
 
+use std::cell::RefCell;
 use std::collections::BTreeSet;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::cell::RefCell;
 
 use kassensturz_core::receipt_inbox::free_file_name;
 use kassensturz_platform::bill_files::{
@@ -60,9 +60,15 @@ pub fn unsorted_name() -> String {
 }
 
 /// The archive this user chose, while AI is on and the inbox is chosen too.
-#[cfg(not(test))]
+#[cfg(all(not(test), feature = "ai"))]
 pub fn archive() -> Option<PathBuf> {
     kassensturz_core::ai_switch::inbox_folders().map(|(_, archive)| archive)
+}
+
+/// A build without AI never files bills (D-039), so it has no archive.
+#[cfg(all(not(test), not(feature = "ai")))]
+pub fn archive() -> Option<PathBuf> {
+    None
 }
 
 /// The archive the test chose with [`choose_archive_for_test`]: the tests
@@ -96,8 +102,11 @@ pub fn shown(path: &Path) -> String {
 }
 
 /// [`shown`] with the folders of `settings`.
+#[cfg(feature = "ai")]
 pub fn shown_in(settings: &crate::settings::Settings, path: &Path) -> String {
-    use kassensturz_core::ai_switch::{ARCHIVE_FOLDER_KEY, BILL_FOLDER_KEY, GROUP, INBOX_FOLDER_KEY};
+    use kassensturz_core::ai_switch::{
+        ARCHIVE_FOLDER_KEY, BILL_FOLDER_KEY, GROUP, INBOX_FOLDER_KEY,
+    };
     for (key, shown_key) in [
         (INBOX_FOLDER_KEY, INBOX_SHOWN_KEY),
         (ARCHIVE_FOLDER_KEY, ARCHIVE_SHOWN_KEY),
@@ -115,10 +124,24 @@ pub fn shown_in(settings: &crate::settings::Settings, path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
+/// A build without AI keeps no inbox or archive, so a path shows as it is.
+#[cfg(not(feature = "ai"))]
+pub fn shown_in(_settings: &crate::settings::Settings, path: &Path) -> String {
+    path.to_string_lossy().into_owned()
+}
+
 /// The journal of this computer's moves, next to `kassensturzrc`.
+#[cfg(feature = "ai")]
 pub fn journal() -> Option<Journal> {
     let settings = kassensturz_core::ai_switch::settings_file()?;
     Some(Journal::at(settings.parent()?.join(JOURNAL_FILE)))
+}
+
+/// A build without AI never files bills (D-039), so it keeps no journal
+/// and Undo and Redo move no files.
+#[cfg(not(feature = "ai"))]
+pub fn journal() -> Option<Journal> {
+    None
 }
 
 /// The real files, with the platform's rename that never replaces one.
@@ -494,7 +517,10 @@ mod tests {
         std::fs::create_dir_all(&archive).unwrap();
         let bill = inbox.join("RE-0042.pdf");
         std::fs::write(&bill, b"%PDF synthetic bill").unwrap();
-        let to = archive.join("Checking").join("Groceries").join("261105_RE-0042.pdf");
+        let to = archive
+            .join("Checking")
+            .join("Groceries")
+            .join("261105_RE-0042.pdf");
         let disk = real();
         let journal = Journal::at(folder.join(JOURNAL_FILE));
         let mover = Mover {
@@ -587,13 +613,19 @@ mod tests {
             }]
         );
         assert!(archive.join("one.pdf").exists());
-        assert!(!inbox.join("one.pdf").exists(), "the first copy was taken back");
+        assert!(
+            !inbox.join("one.pdf").exists(),
+            "the first copy was taken back"
+        );
 
         // The inbox is gone: Undo can't put anything back.
         std::fs::write(archive.join("two.pdf"), "two.pdf").unwrap();
         std::fs::remove_dir(&inbox).unwrap();
         let stayed = mover.prepare_undo("c").unwrap_err();
-        assert!(stayed.iter().all(|bill| bill.reason == "inbox-gone"), "{stayed:?}");
+        assert!(
+            stayed.iter().all(|bill| bill.reason == "inbox-gone"),
+            "{stayed:?}"
+        );
         assert!(archive.join("one.pdf").exists() && archive.join("two.pdf").exists());
 
         // Redo refuses when the bill left the inbox after the Undo.
@@ -602,7 +634,10 @@ mod tests {
         std::fs::remove_file(inbox.join("one.pdf")).unwrap();
         let stayed = mover.prepare_redo("c").unwrap_err();
         assert_eq!(stayed[0].reason, "not-found");
-        assert!(inbox.join("two.pdf").exists(), "the other stays in the inbox");
+        assert!(
+            inbox.join("two.pdf").exists(),
+            "the other stays in the inbox"
+        );
         assert!(!archive.join("two.pdf").exists());
     }
 
@@ -629,7 +664,12 @@ mod tests {
             size: 99,
             modified: None,
         };
-        assert!(!mover.place(&mut pending, &changed, &to.with_file_name("c.pdf"), Some(read_then)));
+        assert!(!mover.place(
+            &mut pending,
+            &changed,
+            &to.with_file_name("c.pdf"),
+            Some(read_then)
+        ));
         let stayed = mover.take_back(pending);
         assert_eq!(stayed[0].reason, "changed");
         assert!(bill.exists() && !to.exists());
@@ -690,7 +730,10 @@ mod tests {
         let archive = folder.join("Archive");
         let bill = inbox.join("RE-0042.pdf");
         std::fs::write(&bill, "bill").unwrap();
-        let to = archive.join("Checking").join("Groceries").join("261105_RE-0042.pdf");
+        let to = archive
+            .join("Checking")
+            .join("Groceries")
+            .join("261105_RE-0042.pdf");
         let link = to.to_str().unwrap().to_owned();
         let mut book = book_linking(&link);
         let change = book.change_to_undo().unwrap().unwrap().id.to_string();
@@ -706,17 +749,33 @@ mod tests {
 
         let undo = |book: &mut Book| book.undo().map(|undone| undone.is_some());
         let redo = |book: &mut Book| book.redo().map(|redone| redone.is_some());
-        let (done, moved) = step(&mut book, false, false, Some(&journal), &disk, Some(&archive), undo)
-            .map_err(|_| "blocked")
-            .unwrap();
+        let (done, moved) = step(
+            &mut book,
+            false,
+            false,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            undo,
+        )
+        .map_err(|_| "blocked")
+        .unwrap();
         assert!(done);
         assert_eq!((moved.moved, moved.left_in_archive.len()), (1, 0));
         assert!(bill.exists() && !to.exists());
         assert!(book.attachment_links().unwrap().is_empty());
 
-        let (done, moved) = step(&mut book, true, false, Some(&journal), &disk, Some(&archive), redo)
-            .map_err(|_| "blocked")
-            .unwrap();
+        let (done, moved) = step(
+            &mut book,
+            true,
+            false,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            redo,
+        )
+        .map_err(|_| "blocked")
+        .unwrap();
         assert!(done);
         assert_eq!(moved.moved, 1);
         assert!(!bill.exists() && to.exists());
@@ -726,7 +785,15 @@ mod tests {
         // the book stays as it is.
         let elsewhere = folder.join("elsewhere.pdf");
         std::fs::rename(&to, &elsewhere).unwrap();
-        let blocked = step(&mut book, false, false, Some(&journal), &disk, Some(&archive), undo);
+        let blocked = step(
+            &mut book,
+            false,
+            false,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            undo,
+        );
         let Err(StepError::Blocked(stayed)) = blocked else {
             panic!("blocked");
         };
@@ -735,11 +802,19 @@ mod tests {
 
         // "Undo anyway": the link goes, nothing moves.
         std::fs::rename(&elsewhere, &to).unwrap();
-        let (_, moved) = step(&mut book, false, true, Some(&journal), &disk, Some(&archive), undo)
-            .map_err(|_| "blocked")
-            .unwrap();
+        let (_, moved) = step(
+            &mut book,
+            false,
+            true,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            undo,
+        )
+        .map_err(|_| "blocked")
+        .unwrap();
         assert_eq!(moved.moved, 0);
-        assert_eq!(moved.left_in_archive, [to.clone()]);
+        assert_eq!(moved.left_in_archive, std::slice::from_ref(&to));
         assert!(to.exists() && !bill.exists());
         assert!(book.attachment_links().unwrap().is_empty());
     }
@@ -748,7 +823,10 @@ mod tests {
     fn on_a_computer_without_the_journal_undo_unlinks_and_says_where_the_bill_stays() {
         let folder = TestFolder::new();
         let archive = folder.join("Archive");
-        let to = archive.join("Checking").join("Groceries").join("261105_RE-0042.pdf");
+        let to = archive
+            .join("Checking")
+            .join("Groceries")
+            .join("261105_RE-0042.pdf");
         std::fs::create_dir_all(to.parent().unwrap()).unwrap();
         std::fs::write(&to, "bill").unwrap();
         let mut book = book_linking(to.to_str().unwrap());
@@ -757,7 +835,7 @@ mod tests {
         let (_, moved) = step(&mut book, false, false, None, &disk, Some(&archive), undo)
             .map_err(|_| "blocked")
             .unwrap();
-        assert_eq!(moved.left_in_archive, [to.clone()]);
+        assert_eq!(moved.left_in_archive, std::slice::from_ref(&to));
         assert!(to.exists());
     }
 
@@ -778,11 +856,23 @@ mod tests {
         let disk = real();
         let journal = Journal::at(folder.join(JOURNAL_FILE));
         let undo = |book: &mut Book| book.undo().map(|undone| undone.is_some());
-        let (_, moved) = step(&mut book, false, false, Some(&journal), &disk, Some(&archive), undo)
-            .map_err(|_| "blocked")
-            .unwrap();
+        let (_, moved) = step(
+            &mut book,
+            false,
+            false,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            undo,
+        )
+        .map_err(|_| "blocked")
+        .unwrap();
         assert_eq!(moved.moved, 0);
-        assert!(book.attachment_links().unwrap().contains(to.to_str().unwrap()));
+        assert!(
+            book.attachment_links()
+                .unwrap()
+                .contains(to.to_str().unwrap())
+        );
     }
 
     #[test]
@@ -805,6 +895,9 @@ mod tests {
         let _stopped_here = pending;
         let book = Book::create_in_memory().unwrap();
         assert!(mover.settle(&book).is_empty(), "nothing to tell");
-        assert!(bill.exists() && !to.exists(), "the copy went, the original stays");
+        assert!(
+            bill.exists() && !to.exists(),
+            "the copy went, the original stays"
+        );
     }
 }

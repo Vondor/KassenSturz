@@ -21,11 +21,11 @@ use crate::errors::ErrorText;
 use crate::history::{self, ChangeText, HistoryError, SummaryText, View};
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
-use crate::receipt_moves::{self, Moved, StepError, Stayed};
-use kassensturz_platform::bill_files::Settled;
-use std::path::Path;
+use crate::receipt_moves::{self, Moved, Stayed, StepError};
 use crate::session;
 use crate::variant::{error_object, list, map, text};
+use kassensturz_platform::bill_files::Settled;
+use std::path::Path;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -176,7 +176,7 @@ impl qobject::ChangeHistory {
     fn step(mut self: Pin<&mut Self>, redo: bool, anyway: bool) -> QVariant {
         let journal = receipt_moves::journal();
         let disk = receipt_moves::disk();
-        let archive = kassensturz_core::ai_switch::inbox_folders().map(|(_, archive)| archive);
+        let archive = receipt_moves::archive();
         let result = change(|book, locale| {
             let stepped = receipt_moves::step(
                 book,
@@ -290,11 +290,7 @@ fn count(value: usize) -> i32 {
 /// old copies it couldn't remove (`copiesLeft`), as shown paths.
 fn stepped_object(change: &ChangeText, moved: &Moved) -> QVariant {
     let shown = |paths: &[std::path::PathBuf]| {
-        list(
-            paths
-                .iter()
-                .map(|path| text(&receipt_moves::shown(path))),
-        )
+        list(paths.iter().map(|path| text(&receipt_moves::shown(path))))
     };
     map([
         ("change", change_object(change)),
@@ -319,13 +315,16 @@ fn settled_object(settled: &[Settled], shown: &dyn Fn(&Path) -> String) -> QVari
         Some(map([
             ("kind", text(kind)),
             ("path", text(&shown(path))),
-            ("other", text(&other.map(|other| shown(other)).unwrap_or_default())),
+            (
+                "other",
+                text(&other.map(|other| shown(other)).unwrap_or_default()),
+            ),
         ]))
     }))
 }
 
 /// Why an undo or redo moved nothing (§7): `bill.undo-blocked` or
-/// `bill.redo-blocked`, with the bills' file names (`files`, one per line)
+/// `bill.redo-blocked`, with the bills' file names (`files`, by commas)
 /// and why the first can't move (`reason`).
 fn blocked_text(redo: bool, stayed: &[Stayed]) -> ErrorText {
     let files: Vec<String> = stayed
@@ -339,7 +338,7 @@ fn blocked_text(redo: bool, stayed: &[Stayed]) -> ErrorText {
             "bill.undo-blocked"
         },
         params: vec![
-            ("files", files.join("\n")),
+            ("files", files.join(", ")),
             (
                 "reason",
                 stayed.first().map_or("", |bill| bill.reason).to_owned(),

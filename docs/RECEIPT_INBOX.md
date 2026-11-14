@@ -1,6 +1,6 @@
 # The receipt inbox (US7, #333 design)
 
-**Status:** design for US7 (#333), making D-751 and D-752 Decided (rows on the `docs/us7-p2` ledger branch). Nothing here is built yet; the build is a later step (strong, high) after the steps that also change the AI chat and tool files (#808, #852) have merged. Stage: Alpha, so no migration (D-274), and nothing here changes the book's layout, so it is not [format].
+**Status:** built in US7 (#333), as designed here with the build notes of §12; D-751 and D-752 are Decided (rows on the `docs/us7-p2` ledger branch). Stage: Alpha, so no migration (D-274), and nothing here changes the book's layout, so it is not [format].
 
 Human gate: **AI data sharing** (the inbox folder's path and the file names go to the AI the user chose; the AI proposes moves). The gate was given for US5.13 (#333's comment of 2026-11-12); this design does not widen what leaves the machine (see §6).
 
@@ -147,3 +147,17 @@ Docs at build: the new codes in `docs/ERROR_CODES.md`, the keys in the settings 
 
 - **D-751 (Decided):** no OCR engine; the user's own AI reads bills and receipts; code checks every figure the AI gives against the bank transaction in exact minor units, and a mismatch is shown and never filed without the user's tick.
 - **D-752 (Decided):** the receipt inbox moves a bill from the inbox into an archive folder once its change set is confirmed. Refined here: its own tool and cell (`file_bills`, *File bills from the inbox*) so D-739's "never moves a bill" stays true for the bill folder; both folders through the folder chooser; the path built by code from the book's names; copy, verify, link saved, then remove; never overwrites; a per-computer journal settles a crash by facts and never deletes the last copy; Undo moves the files back, with "Undo anyway" as the deliberate way out.
+
+## 12. Build notes (US7, #333)
+
+What the build found and chose where this design left it open; each is marked in the code.
+
+- **Step 0** (VM, 2026-11-13): in the Flatpak, both grants read, copy, remove and rename without replacing, and `GetHostPaths` gives the real paths. In the strict snap the same works through the portal; only file locks are denied by AppArmor, which the move doesn't use (B-265 is the snap's own fix). Both showed the bill folder by its sandbox path (`/run/user/…/doc/…`); the bill folder, the inbox and the archive now keep how the folder chooser named them and are shown by that (B-267).
+- **The journal keys on the history's change ID** (`Change::id`, a UUID that the book keeps across restarts), so Undo and Redo find their moves by it. The history line names the bills a change filed ("…, and 3 bills filed from the inbox").
+- **Unicode NFC is not applied** to the names (§5): it needs a new dependency, which is a human gate (AGENTS.md §3.2). Names are still compared without regard to case, so a taken name is never overwritten.
+- **The folder for bills without a category** is named in the user's language ("Not sorted yet", German "Noch nicht zugeordnet"); the window hands the name to the bridge, since Rust writes no text (D-034).
+- **Settling** runs when a book opens. There is no inbox page in the window (the inbox is MCP only), so "whenever the inbox page opens" has no place yet.
+- **A bill whose move fails at the confirm** is dropped from the set and reported with its reason (`bill.move-failed`); the rest of the set, which the user confirmed, is made. Moving another inbox than the one the AI read from is refused (`other-inbox`).
+- **Show in folder** opens the folder the bill is in through the system's handler (the OpenURI portal in the Flatpak and the snap); highlighting the file itself needs the file manager's own interface and is left for later.
+- **Undo across computers:** without this computer's journal, Undo removes the link only and names the bills that stay in the archive.
+

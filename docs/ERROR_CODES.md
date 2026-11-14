@@ -461,6 +461,18 @@ The user's own AI tool asked `kassensturz-mcp` to prepare changes (D-216, D-217)
 | `mcp-writes.bad-request` | | | KassenSturz couldn't read what arrived in its folder, so it showed nothing. Ask your AI tool again; if it keeps happening, the AI tool or another program writes into the folder by itself. |
 | `mcp-writes.dropped` | | | KassenSturz showed the changes but forgot them before you decided: you started a new conversation, opened another book or switched AI off. Ask your AI tool again. Closing KassenSturz doesn't forget them: the next start with the same book shows them again, for up to an hour after your AI tool sent them (B-258). |
 
+### The receipt inbox (`kassensturz-ui-bridge`, US7, #333)
+
+Codes the settings, the review page and the history page turn into words (`docs/RECEIPT_INBOX.md`). A bill that can't move is never lost: it stays where it was, and the message names it.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `settings.inbox-archive-nested` | | | The inbox and the archive must be two separate folders, neither inside the other, and not KassenSturz's own folder or your book's folder. Choose another folder. |
+| `settings.not-written` | | | The setting couldn't be saved. Check that the settings folder can be written to, then try again. |
+| `bill.move-failed` | `file`, `reason` | `changed`, `not-found`, `copy`, `verify`, `exists`, `no-space`, `no-permission`, `archive-gone`, `inbox-gone`, `no-journal`, `no-folders`, `other-inbox`, `too-long`, `outside`, `type` | A bill stayed in the inbox and wasn't linked; the other changes were made. Changed: the file changed after the AI read it, ask the AI again. Not found: it left the inbox. Exists: a file of that name appeared in the archive. No space or no permission: free up space or choose a folder you can write to. Archive or inbox gone: choose the folders again. No journal: KassenSturz couldn't note the move in its settings folder. No folders: choose an inbox and an archive. Other inbox: another inbox was chosen since. Too long: choose an archive with a shorter path. Outside: a link inside the archive would lead out of it. Verify or copy: the copy didn't match or couldn't be written and was removed; try again. |
+| `bill.undo-blocked` | `files`, `reason` | the keywords of `bill.move-failed` | Nothing was undone: these bills can't be moved back into the inbox ({files}). Put them back, or choose "Undo anyway, and leave the bills where they are": the links go, the files stay in the archive. |
+| `bill.redo-blocked` | `files`, `reason` | the keywords of `bill.move-failed` | Nothing was made again: these bills can't be filed again ({files}). Put them back into the inbox, then try again. |
+
 ## The AI chat (`kassensturz-ai-chat`)
 
 A question in the chat ended without an answer (D-190, D-193). Errors of the provider keep their own `ai.` codes. The conversation is as it was before the question, and the tool-call log shows how far it got.

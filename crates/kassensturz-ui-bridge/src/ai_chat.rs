@@ -1253,7 +1253,11 @@ fn file_bill_view(
         title: bill.title.clone().unwrap_or_default(),
         goes_to,
         booked: written(unsigned(bill.booked))?,
-        bill_total: bill.bill_total.map(written).transpose()?.unwrap_or_default(),
+        bill_total: bill
+            .bill_total
+            .map(written)
+            .transpose()?
+            .unwrap_or_default(),
         check: match bill.check {
             TotalCheck::Matches => "matches",
             TotalCheck::Differs => "differs",
@@ -1440,11 +1444,11 @@ pub fn outcome_of(result: &Result<(), ChangeError>, corrected: bool) -> Outcome 
     }
 }
 
-/// Applies `set` to `book` as the user's own action on `today`: the one
-/// place in the app that makes a [`Confirmed`]. Only the confirm button of
-/// the review screen reaches it (D-171, D-200; M5.12 checks that no other
-/// code does). A budget change prepared in a period that is over by
-/// `today` is out of date (M6-B224).
+/// [`confirm_with_bills_in`] on a computer without the receipt inbox's
+/// folders: the tests' way to confirm a set as the user does. A budget
+/// change prepared in a period that is over by `today` is out of date
+/// (M6-B224).
+#[cfg(test)]
 pub fn confirm_in(
     book: &mut Book,
     set: ChangeSet,
@@ -1462,9 +1466,8 @@ pub fn confirm_in(
     apply_confirmed(book, set, today)
 }
 
-/// The one place that makes a [`Confirmed`]: [`confirm_in`] and
-/// [`confirm_with_bills_in`], reached only by the confirm button, apply
-/// through it.
+/// The one place that makes a [`Confirmed`]: [`confirm_with_bills_in`],
+/// reached only by the confirm button, applies through it.
 fn apply_confirmed(book: &mut Book, set: ChangeSet, today: Date) -> Result<(), ChangeError> {
     set.apply_on(book, Confirmed::by_the_user(), today)
 }
@@ -1479,8 +1482,13 @@ pub struct Filing<'a> {
     pub mover: Mover<'a>,
 }
 
-/// Applies `set` like [`confirm_in`] and files its bills from the inbox
-/// (US7, #333, D-752, `docs/RECEIPT_INBOX.md` §6): each is copied, checked
+/// Applies `set` to `book` as the user's own action on `today`, and files
+/// its bills from the inbox. Only the confirm button of the review screen
+/// reaches it, and through it [`apply_confirmed`], the one place in the app
+/// that makes a [`Confirmed`] (D-171, D-200; M5.12 checks that no other code
+/// does). The user may have turned a kind of change off since the set was
+/// prepared (D-239). Bills (US7, #333, D-752, `docs/RECEIPT_INBOX.md` §6):
+/// each is copied, checked
 /// and put in place in the archive before the book is saved, and its
 /// original is removed only after. A bill that can't be moved stays in the
 /// inbox, its change is dropped and it is reported; the rest of the set,
@@ -2527,7 +2535,8 @@ mod tests {
 
         let mut book = space_colony();
         // The user unlocked the amounts, as splitting needs (D-737).
-        let allowed = Permissions::all().with_lock(kassensturz_core::ai_switch::Field::Amount, false);
+        let allowed =
+            Permissions::all().with_lock(kassensturz_core::ai_switch::Field::Amount, false);
         let (transaction, account) = book
             .transactions()
             .unwrap()
@@ -2635,14 +2644,9 @@ mod tests {
                 journal: &journal,
             },
         };
-        let moved = confirm_with_bills_in(
-            &mut book,
-            proposal.changes,
-            allowed,
-            TODAY,
-            Some(&filing),
-        )
-        .unwrap();
+        let moved =
+            confirm_with_bills_in(&mut book, proposal.changes, allowed, TODAY, Some(&filing))
+                .unwrap();
         assert_eq!((moved.moved, moved.stayed.len()), (1, 0), "{moved:?}");
         assert_eq!(book.history().unwrap().len(), history + 1, "one change");
         assert!(!bill.exists(), "the original went once the book was saved");
@@ -2650,16 +2654,24 @@ mod tests {
         let link = &stored.attachments()[0].link;
         let filed = PathBuf::from(link);
         assert!(filed.starts_with(&archive) && filed.exists(), "{link}");
-        assert!(filed.starts_with(
-            archive.join(kassensturz_core::receipt_inbox::sanitise(&account.name))
-        ));
+        assert!(
+            filed.starts_with(
+                archive.join(kassensturz_core::receipt_inbox::sanitise(&account.name))
+            )
+        );
         assert_eq!(std::fs::read(&filed).unwrap(), b"%PDF synthetic");
         assert_eq!(stored.splits().len(), 3, "split as well");
 
         // One Undo: the split, the link and the move.
-        let (_, moved) = step(&mut book, false, false, Some(&journal), &disk, Some(&archive), |book| {
-            book.undo()
-        })
+        let (_, moved) = step(
+            &mut book,
+            false,
+            false,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            |book| book.undo(),
+        )
         .map_err(|_| "blocked")
         .unwrap();
         assert_eq!(moved.moved, 1);
@@ -2729,7 +2741,12 @@ mod tests {
         assert_eq!(moved.stayed[0].reason, "changed");
         assert_eq!(std::fs::read(&bill).unwrap(), b"changed afterwards, longer");
         assert_eq!(std::fs::read_dir(&archive).unwrap().count(), 0);
-        assert!(book.transaction(transaction.id()).unwrap().attachments().is_empty());
+        assert!(
+            book.transaction(transaction.id())
+                .unwrap()
+                .attachments()
+                .is_empty()
+        );
         assert!(
             book.categories()
                 .unwrap()
@@ -2753,14 +2770,8 @@ mod tests {
         )
         .unwrap()
         .changes;
-        let moved = confirm_with_bills_in(
-            &mut book,
-            again,
-            Permissions::all(),
-            TODAY,
-            None,
-        )
-        .unwrap();
+        let moved =
+            confirm_with_bills_in(&mut book, again, Permissions::all(), TODAY, None).unwrap();
         assert_eq!(moved.stayed[0].reason, "no-folders");
         assert!(bill.exists());
     }

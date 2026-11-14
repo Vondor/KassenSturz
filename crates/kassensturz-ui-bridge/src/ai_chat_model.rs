@@ -185,6 +185,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "issueUsed"]
         fn issue_used(self: &AiChat, how: &QString);
+
+        /// Names the archive's folder for bills whose transaction has no
+        /// category, in the user's language (US7, #333): the window says it
+        /// once, since the bridge writes no text (D-034).
+        #[qinvokable]
+        #[cxx_name = "nameUnsortedFolder"]
+        fn name_unsorted_folder(self: &AiChat, name: &QString);
     }
 
     extern "RustQt" {
@@ -289,9 +296,9 @@ pub(crate) mod engine {
 
     use super::*;
     use crate::ai_chat::{
-        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction,
+        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction, Filing,
         FilterView, Review, Screen, Sets, Waiting, answer_from, category_choices, code_text,
-        Filing, confirm_with_bills_in, corrected, hooks, outcome_of, rows_of,
+        confirm_with_bills_in, corrected, hooks, outcome_of, rows_of,
     };
     use crate::ai_requests::{Arrived, take_requests, tell_confirmed, tell_declined, tell_dropped};
     use crate::ai_settings::{self, Store};
@@ -1578,6 +1585,10 @@ impl qobject::AiChat {
             _ => {}
         }
     }
+
+    fn name_unsorted_folder(&self, name: &QString) {
+        crate::receipt_moves::set_unsorted_name(&name.to_string());
+    }
 }
 
 /// The calls that have nothing to do in a build without AI.
@@ -1623,6 +1634,8 @@ impl qobject::AiChat {
     fn check_requests(self: Pin<&mut Self>) {}
 
     fn issue_used(&self, _how: &QString) {}
+
+    fn name_unsorted_folder(&self, _name: &QString) {}
 }
 
 #[cfg(all(test, feature = "ai"))]
@@ -3114,7 +3127,11 @@ mod tests {
         assert_eq!(text_of(kept, "file"), "RE-0042.pdf");
         assert_eq!(text_of(kept, "account"), "Checking");
         assert_eq!(text_of(kept, "booked"), text_of(kept, "billTotal"));
-        assert!(text_of(kept, "booked").contains("24"), "{}", text_of(kept, "booked"));
+        assert!(
+            text_of(kept, "booked").contains("24"),
+            "{}",
+            text_of(kept, "booked")
+        );
         // No archive chosen: no place to show.
         assert_eq!(text_of(kept, "goesTo"), "");
         crate::receipt_moves::choose_archive_for_test(Some(folder.join("Archive")));
@@ -3123,10 +3140,15 @@ mod tests {
         let items = elements(&changes_object(&rows)).expect("an array");
         assert_eq!(
             text_of(&items[0], "goesTo"),
-            ["Archive", "Checking", "Not sorted yet", "261105_RE-0042.pdf"]
-                .iter()
-                .collect::<std::path::PathBuf>()
-                .to_string_lossy()
+            [
+                "Archive",
+                "Checking",
+                "Not sorted yet",
+                "261105_RE-0042.pdf"
+            ]
+            .iter()
+            .collect::<std::path::PathBuf>()
+            .to_string_lossy()
         );
         assert_eq!(
             text_of(&items[1], "goesTo"),
@@ -3136,7 +3158,10 @@ mod tests {
                 .to_string_lossy()
         );
         assert_eq!(text_of(left, "slot"), "file_bills/1");
-        assert!(flag_of(left, "leftOut"), "a differing total starts left out");
+        assert!(
+            flag_of(left, "leftOut"),
+            "a differing total starts left out"
+        );
         assert_eq!(text_of(left, "check"), "differs");
         assert_eq!(text_of(left, "title"), "Brot");
         assert_ne!(text_of(left, "booked"), text_of(left, "billTotal"));

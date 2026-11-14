@@ -833,7 +833,11 @@ impl qobject::AiSettings {
                     let book = crate::session::path();
                     let own: Vec<std::path::PathBuf> = crate::platform::app_folder()
                         .into_iter()
-                        .chain(book.as_deref().and_then(std::path::Path::parent).map(Into::into))
+                        .chain(
+                            book.as_deref()
+                                .and_then(std::path::Path::parent)
+                                .map(Into::into),
+                        )
                         .collect();
                     keep_receipt_folder(
                         &crate::settings::Settings::user(),
@@ -1178,7 +1182,8 @@ fn shown_or_path(settings: &crate::settings::Settings, key: &str, shown_key: &st
 fn keep_bill_folder(settings: &crate::settings::Settings, path: &str, shown: &str) -> bool {
     use crate::receipt_moves::BILL_SHOWN_KEY;
     use kassensturz_core::ai_switch::{BILL_FOLDER_KEY, GROUP};
-    settings.set_text(GROUP, BILL_FOLDER_KEY, path) && settings.set_text(GROUP, BILL_SHOWN_KEY, shown)
+    settings.set_text(GROUP, BILL_FOLDER_KEY, path)
+        && settings.set_text(GROUP, BILL_SHOWN_KEY, shown)
 }
 
 #[cfg(not(feature = "ai"))]
@@ -1246,8 +1251,7 @@ fn keep_receipt_folder(
     if nested {
         return "settings.inbox-archive-nested";
     }
-    if settings.set_text(GROUP, key, path) && settings.set_text(GROUP, shown_key, &grant.shown_as)
-    {
+    if settings.set_text(GROUP, key, path) && settings.set_text(GROUP, shown_key, &grant.shown_as) {
         ""
     } else {
         "settings.not-written"
@@ -1472,15 +1476,27 @@ mod receipt_folder_tests {
         std::fs::create_dir_all(&archive).unwrap();
         assert_eq!(receipt_folder_in(&settings, "inbox"), "");
 
-        assert_eq!(keep_receipt_folder(&settings, "inbox", &grant(&inbox, "/home/sam/Inbox"), &[]), "");
+        assert_eq!(
+            keep_receipt_folder(&settings, "inbox", &grant(&inbox, "/home/sam/Inbox"), &[]),
+            ""
+        );
         let text = std::fs::read_to_string(&file).unwrap();
         assert_eq!(inbox_folders_in(&text), None, "only both folders count");
         assert_eq!(receipt_folder_in(&settings, "inbox"), "/home/sam/Inbox");
 
-        assert_eq!(keep_receipt_folder(&settings, "archive", &grant(&archive, ""), &[]), "");
-        assert_eq!(receipt_folder_in(&settings, "archive"), archive.to_str().unwrap());
+        assert_eq!(
+            keep_receipt_folder(&settings, "archive", &grant(&archive, ""), &[]),
+            ""
+        );
+        assert_eq!(
+            receipt_folder_in(&settings, "archive"),
+            archive.to_str().unwrap()
+        );
         let text = std::fs::read_to_string(&file).unwrap();
-        assert_eq!(inbox_folders_in(&text), Some((inbox.clone(), archive.clone())));
+        assert_eq!(
+            inbox_folders_in(&text),
+            Some((inbox.clone(), archive.clone()))
+        );
 
         assert!(forget_receipt_folder(&settings, "archive"));
         assert_eq!(receipt_folder_in(&settings, "archive"), "");
@@ -1510,7 +1526,10 @@ mod receipt_folder_tests {
             keep_receipt_folder(&settings, "inbox", &grant(&own, ""), &own_folders),
             "settings.inbox-archive-nested"
         );
-        assert_eq!(keep_receipt_folder(&settings, "inbox", &grant(&inbox, ""), &own_folders), "");
+        assert_eq!(
+            keep_receipt_folder(&settings, "inbox", &grant(&inbox, ""), &own_folders),
+            ""
+        );
         let parent = folder.join("");
         for refused in [&inbox, &inside, &through_link, &parent, &own] {
             assert_eq!(
@@ -1523,7 +1542,10 @@ mod receipt_folder_tests {
         }
         let archive: PathBuf = folder.join("Archive");
         std::fs::create_dir_all(&archive).unwrap();
-        assert_eq!(keep_receipt_folder(&settings, "archive", &grant(&archive, ""), &own_folders), "");
+        assert_eq!(
+            keep_receipt_folder(&settings, "archive", &grant(&archive, ""), &own_folders),
+            ""
+        );
     }
 }
 

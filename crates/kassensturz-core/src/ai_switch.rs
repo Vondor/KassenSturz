@@ -866,15 +866,19 @@ mod tests {
 
     #[test]
     fn the_inbox_and_its_archive_are_read_like_the_bill_folder_and_only_while_ai_is_on() {
+        // An absolute path starts with a drive on Windows.
+        let root = if cfg!(windows) { "C:" } else { "" };
         let on = "[AI]\nEnabled=true\n";
-        let both = format!("{on}InboxFolder=/home/sam/In\\sbox\nArchiveFolder=/home/sam/Filed\n");
+        let both = format!(
+            "{on}InboxFolder={root}/home/sam/In\\sbox\nArchiveFolder={root}/home/sam/Filed\n"
+        );
         assert_eq!(
             inbox_folder_in(&both),
-            Some(PathBuf::from("/home/sam/In box"))
+            Some(PathBuf::from(format!("{root}/home/sam/In box")))
         );
         assert_eq!(
             archive_folder_in(&both),
-            Some(PathBuf::from("/home/sam/Filed"))
+            Some(PathBuf::from(format!("{root}/home/sam/Filed")))
         );
         assert_eq!(inbox_folder_in(on), None);
         assert_eq!(

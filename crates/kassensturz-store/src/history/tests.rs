@@ -1274,6 +1274,18 @@ fn a_clock_far_ahead_deletes_no_history_until_the_book_was_used_that_long() {
     book.rename_account(checking, "Spending account")
         .expect("renamed");
     made_on(&book, 3);
+    // What the settings ask the user with is what then goes.
+    let on_3: Timestamp = "2099-01-03T13:00:00Z".parse().expect("a time");
+    assert_eq!(
+        book.history_expiring(HistoryRetention::Days(3), on_3)
+            .expect("count"),
+        today + 1
+    );
+    assert_eq!(
+        book.history_expiring(HistoryRetention::Days(4), on_3)
+            .expect("count"),
+        0
+    );
     prune_on(&mut book, 3);
     assert_eq!(actions(&book).len(), 3, "{:?}", actions(&book));
     for name in ["Daily account", "Everyday account", "Main account"] {

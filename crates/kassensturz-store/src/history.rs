@@ -1381,6 +1381,29 @@ impl Book {
         })
     }
 
+    /// How many changes the book would delete at `now` if it kept its
+    /// history as `keep`, by the same rule as when it deletes them (B-274),
+    /// so the user can be asked before a shorter setting. With 0 days none:
+    /// the history moves into memory and is lost when the book closes.
+    pub fn history_expiring(
+        &self,
+        keep: HistoryRetention,
+        now: Timestamp,
+    ) -> Result<usize, StoreError> {
+        if keep == HistoryRetention::Days(0) {
+            return Ok(0);
+        }
+        let Some(last) = last_to_delete(&self.conn, keep, now)? else {
+            return Ok(0);
+        };
+        let count: i64 = self.conn.query_row_cached(
+            "SELECT count(*) FROM main.changes WHERE sequence <= ?1",
+            [last],
+            |row| row.get(0),
+        )?;
+        Ok(usize::try_from(count).unwrap_or(0))
+    }
+
     /// Deletes the changes older than the book keeps them, when it is
     /// opened.
     pub(crate) fn prune_history(&mut self) -> Result<(), StoreError> {
@@ -1584,7 +1607,20 @@ fn prune_after_change(
 /// clock was wrong when a change was made, and the history in memory isn't
 /// touched.
 fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<(), StoreError> {
-    let last: Option<i64> = match keep {
+    match last_to_delete(conn, keep, now)? {
+        Some(last) => delete_changes(conn, "main", "sequence <= ?1", &[&last]),
+        None => Ok(()),
+    }
+}
+
+/// The newest change [`prune`] deletes at `now` with the history kept as
+/// `keep`, together with every older one.
+fn last_to_delete(
+    conn: &Connection,
+    keep: HistoryRetention,
+    now: Timestamp,
+) -> Result<Option<i64>, StoreError> {
+    Ok(match keep {
         HistoryRetention::Forever => None,
         HistoryRetention::Days(0) => {
             conn.query_row_cached("SELECT max(sequence) FROM main.changes", [], |row| {
@@ -1610,11 +1646,7 @@ fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<()
                 None => None,
             }
         }
-    };
-    match last {
-        Some(last) => delete_changes(conn, "main", "sequence <= ?1", &[&last]),
-        None => Ok(()),
-    }
+    })
 }
 
 /// The newest change after which the book was changed on at least `days`

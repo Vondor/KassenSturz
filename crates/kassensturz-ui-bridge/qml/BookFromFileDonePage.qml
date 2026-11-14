@@ -35,7 +35,7 @@ FormCard.FormCardPage {
         case "investments":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 investment account", "%1 investment accounts", count);
         case "schedules":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 scheduled or recurring transaction", "%1 scheduled or recurring transactions", count);
+            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 scheduled or recurring transaction that could not become a planned payment", "%1 scheduled or recurring transactions that could not become planned payments", count);
         case "budgets":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 budget", "%1 budgets", count);
         case "reports":
@@ -123,6 +123,17 @@ FormCard.FormCardPage {
             visible: (page.report.rates ?? 0) > 0
             text: page.i18nContext.i18nc("@label", "Exchange rates")
             description: String(page.report.rates ?? 0)
+        }
+
+        FormCard.FormDelegateSeparator {
+            visible: (page.report.schedules ?? 0) > 0
+        }
+
+        FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
+            visible: (page.report.schedules ?? 0) > 0
+            text: page.i18nContext.i18nc("@label", "Planned payments")
+            description: String(page.report.schedules ?? 0)
         }
     }
 

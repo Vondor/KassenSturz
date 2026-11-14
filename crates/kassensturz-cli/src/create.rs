@@ -259,6 +259,9 @@ fn write_report(
         counted(report.transactions, "transaction", "transactions"),
         counted(report.rates, "rate", "rates")
     )?;
+    if report.schedules > 0 {
+        writeln!(out, "Planned payments from the file: {}.", report.schedules)?;
+    }
     if report.uncategorized > 0 {
         writeln!(
             out,

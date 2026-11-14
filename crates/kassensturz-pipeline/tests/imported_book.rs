@@ -225,6 +225,7 @@ fn household() -> ImportedBook {
             to: USD,
             rate: "1.0811".parse::<ExchangeRate>().expect("a rate"),
         }],
+        schedules: Vec::new(),
         unlisted: Vec::new(),
         reports: Vec::new(),
         skipped: vec![Skipped {
@@ -417,6 +418,7 @@ fn household_in_marks() -> ImportedBook {
         accounts,
         transactions,
         rates: Vec::new(),
+        schedules: Vec::new(),
         unlisted: Vec::new(),
         reports: Vec::new(),
         skipped: Vec::new(),
@@ -592,6 +594,7 @@ fn parts_in_other_currencies_keep_what_the_file_gave() {
         accounts,
         transactions,
         rates: Vec::new(),
+        schedules: Vec::new(),
         unlisted: Vec::new(),
         reports: Vec::new(),
         skipped: Vec::new(),
@@ -692,6 +695,7 @@ fn holiday_in_lei() -> ImportedBook {
             ),
         ],
         rates: Vec::new(),
+        schedules: Vec::new(),
         unlisted: vec![UnlistedCurrency {
             currency: currency(ROL),
             suggestion: Some(Replacement {

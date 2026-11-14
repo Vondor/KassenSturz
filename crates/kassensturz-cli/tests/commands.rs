@@ -3023,6 +3023,64 @@ fn mistakes_in_a_plan_are_refused_without_changing_the_book() {
     assert!(unknown.err.contains("isn't a plan's ID"), "{}", unknown.err);
 }
 
+/// B-279 and B-277 through a real CAMT.053 file: an entry with a known
+/// AcctSvcrRef but another amount is never dropped without a word, and one
+/// booked payment stands for one entry only.
+#[test]
+fn a_camt_entry_with_a_known_reference_but_another_amount_is_not_dropped() {
+    let session = household();
+    let entry = |day: u8, amount: &str, reference: &str| {
+        let reference = if reference.is_empty() {
+            String::new()
+        } else {
+            format!("<AcctSvcrRef>{reference}</AcctSvcrRef>")
+        };
+        format!(
+            "<Ntry><Amt Ccy=\"EUR\">{amount}</Amt><CdtDbtInd>DBIT</CdtDbtInd>\
+             <Sts>BOOK</Sts><BookgDt><Dt>2026-10-{day:02}</Dt></BookgDt>{reference}\
+             <NtryDtls><TxDtls><RltdPties><Cdtr><Nm>Kiosk</Nm></Cdtr></RltdPties>\
+             </TxDtls></NtryDtls></Ntry>"
+        )
+    };
+    let import = |name: &str, entries: &[String]| {
+        let file = camt053_file(&session, name, &entries.concat());
+        session.ok(&["import", &file, "--account", "Checking account"])
+    };
+    let balance = || {
+        session
+            .ok(&["balances"])
+            .lines()
+            .find(|line| line.starts_with("Checking account"))
+            .expect("listed")
+            .to_owned()
+    };
+
+    // One reference, two amounts in one file: both come in.
+    let imported = import(
+        "one.xml",
+        &[entry(5, "10.00", "R1"), entry(5, "12.00", "R1")],
+    );
+    assert!(
+        imported.starts_with("Imported 2 of 2 entries"),
+        "{imported}"
+    );
+    assert!(balance().ends_with("-22.00 EUR"), "{}", balance());
+
+    // The bank sends R1 again, corrected: the user is asked, nothing is
+    // skipped as a duplicate.
+    let again = import("two.xml", &[entry(5, "11.00", "R1")]);
+    assert!(again.starts_with("Imported 0 of 1 entry"), "{again}");
+    assert!(again.contains("may be in the book already"), "{again}");
+    assert!(balance().ends_with("-22.00 EUR"), "{}", balance());
+
+    // #977: one -4.50 booked on Thursday, two the next day without a
+    // reference: one is new.
+    import("three.xml", &[entry(1, "4.50", "")]);
+    let kiosk = import("four.xml", &[entry(2, "4.50", ""), entry(2, "4.50", "")]);
+    assert!(kiosk.starts_with("Imported 1 of 2 entries"), "{kiosk}");
+    assert!(balance().ends_with("-31.00 EUR"), "{}", balance());
+}
+
 /// B-269 (#965): amounts that each fit but together would make a balance
 /// the book can't add up are refused one by one, the book stays usable, and
 /// a plan too large to forecast is refused too.

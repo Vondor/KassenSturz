@@ -1634,3 +1634,33 @@ fn a_grouped_account_changes_its_kind_and_leaves_its_group() {
     }
     assert_eq!(book.all_accounts().expect("accounts"), before);
 }
+
+/// B-278: every connection to a book file syncs the folder after a save
+/// (SQLite's `synchronous` EXTRA, 3), so a save that returned is still
+/// there after a power cut; FULL (2) left the deleted journal to chance.
+/// Creating and opening a book both go through the one place that sets it.
+#[test]
+fn every_save_to_a_book_file_is_on_the_disk_when_it_returns() {
+    let folder = crate::test_folder::TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = Computer {
+        name: "Laptop".into(),
+        backup_folder: folder.join("Backups"),
+    };
+    let synchronous = |book: &Book| -> i64 {
+        book.conn
+            .pragma_query_value(None, "synchronous", |row| row.get(0))
+            .expect("read")
+    };
+    let mut book = Book::create(&path, &computer).expect("book created");
+    assert_eq!(synchronous(&book), 3);
+    book.use_currency(EUR).expect("a change saved");
+    drop(book);
+    let book = Book::open(&path, &computer).expect("book opened");
+    assert_eq!(synchronous(&book), 3);
+    let journal: String = book
+        .conn
+        .pragma_query_value(None, "journal_mode", |row| row.get(0))
+        .expect("read");
+    assert_eq!(journal, "delete");
+}

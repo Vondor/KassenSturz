@@ -42,6 +42,11 @@ pub struct Lock {
     /// Identifies the lock, so taking it over can check that it is still the
     /// one the user was warned about.
     token: Option<String>,
+    /// The program that holds it, on the computer named above, as the
+    /// system numbers programs and when it started (Linux's `/proc`), so a
+    /// lock of a program that is still running there can be told from one a
+    /// crash left behind.
+    process: Option<(u32, u64)>,
 }
 
 /// The lock file of a book this program has open. Dropping it removes the
@@ -77,6 +82,17 @@ impl HeldLock {
     /// file changed in the meantime, it fails with [`StoreError::Locked`]
     /// and the current lock, so the user can be warned again.
     pub(crate) fn take_over(book: &Path, computer: &str, seen: &Lock) -> Result<Self, StoreError> {
+        // Where the folder refuses file locks, SQLite can't keep two
+        // writers apart: the lock of a program that is still running on
+        // this computer is never taken over (Q-570, D-776).
+        if seen.computer.as_deref() == Some(computer)
+            && seen
+                .process
+                .is_some_and(|(pid, start)| process_runs(pid, start))
+            && crate::lockless::locks_refused(book)
+        {
+            return Err(StoreError::Locked(seen.clone()));
+        }
         let path = lock_path(book);
         match read(&path)? {
             Some(current) if current == *seen => match fs::remove_file(&path) {
@@ -120,8 +136,11 @@ fn create(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
     let now = Timestamp::now();
     // Whole seconds are precise enough for "open since 14:02".
     let since = Timestamp::from_second(now.as_second()).unwrap_or(now);
+    let process = own_process()
+        .map(|(pid, start)| format!("pid={pid}\nstart={start}\n"))
+        .unwrap_or_default();
     let text = format!(
-        "computer={}\nsince={since}\ntoken={token}\n",
+        "computer={}\nsince={since}\ntoken={token}\n{process}",
         one_line(computer)
     );
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
@@ -176,7 +195,9 @@ fn parse(text: &str) -> Lock {
         computer: None,
         since: None,
         token: None,
+        process: None,
     };
+    let (mut pid, mut start) = (None, None);
     for line in text.lines() {
         let Some((key, value)) = line.split_once('=') else {
             continue;
@@ -186,10 +207,33 @@ fn parse(text: &str) -> Lock {
             "computer" if !value.is_empty() => lock.computer = Some(value.to_owned()),
             "since" => lock.since = value.parse().ok(),
             "token" if !value.is_empty() => lock.token = Some(value.to_owned()),
+            "pid" => pid = value.parse().ok(),
+            "start" => start = value.parse().ok(),
             _ => {}
         }
     }
+    lock.process = pid.zip(start);
     lock
+}
+
+/// This program's number and start time, if the system tells (Linux).
+fn own_process() -> Option<(u32, u64)> {
+    let pid = std::process::id();
+    Some((pid, process_start(pid)?))
+}
+
+/// When process `pid` started, in clock ticks since boot: field 22 of
+/// `/proc/<pid>/stat`, counted after the program's name, which may hold
+/// spaces and brackets.
+fn process_start(pid: u32) -> Option<u64> {
+    let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let after_name = &stat[stat.rfind(')')? + 1..];
+    after_name.split_whitespace().nth(19)?.parse().ok()
+}
+
+/// Whether process `pid`, which started at `start`, is still running.
+fn process_runs(pid: u32, start: u64) -> bool {
+    process_start(pid) == Some(start)
 }
 
 /// `name` on one line: control characters such as line breaks become

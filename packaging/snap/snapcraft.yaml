@@ -62,6 +62,11 @@ apps:
     command: usr/bin/kassensturz-mcp
     command-chain: [usr/bin/kassensturz-snap-launch]
     extensions: [kde-neon-6]
+    # The same file access as the app, so a book in the home folder or on a
+    # drive is readable (Q-570); both can be switched off.
+    plugs:
+      - home
+      - removable-media
     environment:
       LD_LIBRARY_PATH: $SNAP/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 

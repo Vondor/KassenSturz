@@ -252,7 +252,15 @@ pub fn check_locks(folder: &Path) -> LockCheck {
         // Another process holding a lock on a file made a moment ago can't
         // be: the lock itself is what was asked for, and was not refused.
         Err(std::fs::TryLockError::WouldBlock) => LockCheck::Works,
-        Err(std::fs::TryLockError::Error(_)) => LockCheck::Refused,
+        // Only a refusal for lack of permission is what a snap's profile
+        // does; another failure (no lock service on a network drive, say)
+        // tells nothing about permission and is left to SQLite's own error.
+        Err(std::fs::TryLockError::Error(error))
+            if error.kind() == std::io::ErrorKind::PermissionDenied =>
+        {
+            LockCheck::Refused
+        }
+        Err(std::fs::TryLockError::Error(_)) => LockCheck::NotWritable,
     };
     drop(file);
     let _ = std::fs::remove_file(&path);

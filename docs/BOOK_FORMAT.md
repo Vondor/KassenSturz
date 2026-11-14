@@ -569,5 +569,6 @@ While a book is open, a lock file sits next to it: the book's file name plus `.l
 | `computer` | The name of the computer the book is open on: one line of at most 255 characters |
 | `since` | When it was opened there: ISO 8601 in UTC, in whole seconds, e.g. `2026-10-19T11:04:02Z` |
 | `token` | A UUIDv7 that tells this lock apart from any other |
+| `pid`, `start` | Optional (Linux): the program's process number and its start time in clock ticks since boot (`/proc/<pid>/stat`, field 22). A program that finds a lock with its own computer's name and a process that still runs with that start time does not take the lock over, in a folder where the system refuses file locks (D-776) |
 
 KassenSturz creates the lock file only if there is none, and removes it when it closes the book, but only while it still holds its own token. Any lock file, even an empty or damaged one, means the book is open somewhere. After a warning, the user can open the book anyway: KassenSturz then replaces the lock file, but only if it is still exactly the one the user was warned about (D-080). A program that reads books can use the lock file to tell whether a book is open somewhere.

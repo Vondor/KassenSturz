@@ -192,3 +192,70 @@ fn a_file_that_is_not_a_book_is_never_read_as_one_without_file_locks() {
     // Nothing is left of the copy.
     assert_eq!(std::fs::read(&path).expect("read"), b"not a book at all");
 }
+
+#[test]
+fn a_lock_of_a_program_that_still_runs_here_is_not_taken_over_without_file_locks() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let _no_locks = NoLocks::here();
+    let _first = Book::create(&path, &computer).expect("book made");
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    // The lock names this very program, which is running: "open anyway"
+    // would put two writers on a file nothing locks.
+    match Book::open_anyway(&path, &computer, &seen) {
+        Err(StoreError::Locked(_)) => {}
+        other => panic!("expected the lock to stay, got {:?}", other.map(|_| ())),
+    }
+}
+
+#[test]
+fn a_lock_a_crash_left_behind_can_be_taken_over_without_file_locks() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let _no_locks = NoLocks::here();
+    drop(Book::create(&path, &computer).expect("book made"));
+    // A lock file of a program that is gone: a process number that no
+    // running program has with that start time.
+    std::fs::write(
+        crate::lock::lock_path(&path),
+        "computer=Laptop\nsince=2026-10-19T11:04:02Z\ntoken=old\npid=4194000\nstart=1\n",
+    )
+    .expect("lock file written");
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    assert!(Book::open_anyway(&path, &computer, &seen).is_ok());
+}
+
+#[test]
+fn every_commit_changes_the_counter_a_copy_is_checked_against() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let mut book = Book::create(&path, &computer).expect("book made");
+    let before = change_counter(&path).expect("counter");
+    add(&mut book, "Checking");
+    assert_ne!(change_counter(&path).expect("counter"), before);
+}
+
+#[test]
+fn private_copies_a_killed_program_left_are_removed_when_old_enough() {
+    let old = std::env::temp_dir().join(format!("{COPY_PREFIX}test-old-{}", uuid::Uuid::now_v7()));
+    let young =
+        std::env::temp_dir().join(format!("{COPY_PREFIX}test-young-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir(&old).expect("folder made");
+    std::fs::create_dir(&young).expect("folder made");
+    let two_hours_ago = std::time::SystemTime::now() - Duration::from_secs(7200);
+    std::fs::File::open(&old)
+        .expect("opened")
+        .set_modified(two_hours_ago)
+        .expect("time set");
+    remove_stale();
+    assert!(!old.exists(), "the old one is removed");
+    assert!(young.exists(), "one that may still be in use stays");
+    std::fs::remove_dir(&young).expect("removed");
+}

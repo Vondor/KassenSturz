@@ -47,9 +47,11 @@ The snap's AppArmor profile denies `flock` and `fcntl` in the portal's folders (
 - opens the book with SQLite's `unix-none` VFS (no OS locks; journal mode stays DELETE, never WAL, so a cut-short write is rolled back at the next open); the book's own lock file (D-038) is the single-writer guard, and the CLI takes it too;
 - reads a book only through a **private verified copy** where it must not write: the MCP server, backups, restoring and the checks of a move. The copy is made only when no `-journal` file exists, the file's size and time are the same before and after, and `PRAGMA quick_check` passes; otherwise it is tried again, then the read says "busy";
 - writes a backup copy into such a folder through a private copy as plain bytes (B-265), never replacing an existing file;
-- shows the note above on every screen.
+- shows the note above on every screen;
+- never takes over ("Open anyway") the lock of a program that still runs on this computer: the lock file names its process and start time, and without OS locks two writers would corrupt the book. A lock a crash left behind can be taken over;
+- checks a copy against the book's file change counter (header bytes 24 to 27) before and after copying, so a commit during the copy is never read half-way, even on a file system with coarse times such as a USB stick's FAT; a book that fails the check three times with nothing changing is reported as damaged. Private copies a killed program (the MCP server) left in the temporary folder are removed at the next start when more than an hour old.
 
-It only tries locks inside a snap or a Flatpak (the app looks for `SNAP` or `/.flatpak-info`), so on a normal install no probe file ever appears in a sync folder. Known risk: a second writer that bypasses the lock file, e.g. another SQLite program on the same file or a sync tool serving a stale copy, can damage the book (D-038's situation, here also on one computer); the automatic backup before an update stays.
+It only tries a lock inside a snap, and only in the portal's `doc` folders, once per folder and run; nowhere else does a probe file (`.kassensturz-lock-check-*`, removed at once) appear in a user's folder. Only a *permission* refusal counts as "no locks"; another failure (a network drive without a lock service) is left to SQLite's own error. Known risk: a second writer that bypasses the lock file, e.g. another SQLite program on the same file or a sync tool serving a stale copy, can damage the book (D-038's situation, here also on one computer); the automatic backup before an update stays.
 
 Data outside home (e.g. `/srv/data/Nextcloud/`): choose the folder in the file chooser; it opens without locks as described. No bind mount is needed.
 

@@ -133,6 +133,19 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: python3 tools/check-translation-sense.py --base "$BASE"
 
+  # The documentation names the current book layout in one place only, the
+  # status line of docs/BOOK_FORMAT.md; this fails when that line, or any
+  # other doc that claims a current layout, differs from the code's VERSION,
+  # and when the README or a user guide names a layout at all (outside
+  # review, 2026-11-14). Seconds, Python only; runs on every pull request,
+  # documentation-only ones included.
+  doc-facts:
+    name: Docs name the code's book layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 tools/check-doc-facts.py
+
   # Early warning for the checks that fail most often (CI history of 400 pull
   # request runs, 2026-10-31 to 11-09): the build without AI failed in 14 runs
   # and the KDE job in 10, but both answer only after 8 to 20 minutes, because

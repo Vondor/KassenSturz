@@ -133,6 +133,11 @@ Kirigami.ScrollablePage {
                 visible: (page.preview.notListed ?? 0) > 0
                 text: page.i18nContext.i18ncp("@info %1 is how many", "%1 more saved report is not listed here and will not be added: KassenSturz takes at most 500 from a file.", "%1 more saved reports are not listed here and will not be added: KassenSturz takes at most 500 from a file.", page.preview.notListed ?? 0)
                 textItem.textFormat: Text.PlainText
+                // The whole sentence on screen, not cut off with "…": it
+                // names the limit of 500 (B-290).
+                textItem.wrapMode: Text.Wrap
+                textItem.elide: Text.ElideNone
+                textItem.maximumLineCount: 6
             }
         }
 

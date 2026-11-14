@@ -177,6 +177,8 @@ cargo clean -p kassensturz-bank   # so the next build reads the file
 
 Git ignores that file; never commit it or paste the number anywhere public. The build checks only that it is 25 letters and digits. Never use another program's number, including KassenSturz's.
 
+Developing another FinTS program? [`docs/FINTS_PRODUCT_ID.md`](docs/FINTS_PRODUCT_ID.md) (German: [`FINTS_PRODUCT_ID.de.md`](docs/FINTS_PRODUCT_ID.de.md)) explains how KassenSturz keeps its number out of the source, and what to avoid.
+
 ## For AI agents
 
 Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and working rules.
@@ -192,6 +194,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 - [`docs/ERROR_CODES.md`](docs/ERROR_CODES.md): every error code with its parameters, for the UI and translators
 - [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md): third-party dependencies, licenses and reused code
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md): what KassenSturz protects, from whom, and how
+- [`docs/FINTS_PRODUCT_ID.md`](docs/FINTS_PRODUCT_ID.md): how to handle a FinTS product registration number, for KassenSturz and other open-source programs (German: [`FINTS_PRODUCT_ID.de.md`](docs/FINTS_PRODUCT_ID.de.md))
 - [`docs/SECURITY_OVERVIEW.en.md`](docs/SECURITY_OVERVIEW.en.md): how safe KassenSturz is, in plain words, with what was attacked and fixed (German: [`SECURITY_OVERVIEW.de.md`](docs/SECURITY_OVERVIEW.de.md))
 - [`docs/SECURITY_LOG.md`](docs/SECURITY_LOG.md): how attack rounds are run and recorded (every round is logged)
 - [`SECURITY.md`](SECURITY.md): how to report a vulnerability privately

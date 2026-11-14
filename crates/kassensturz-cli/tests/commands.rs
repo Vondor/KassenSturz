@@ -3523,3 +3523,59 @@ fn an_account_name_with_a_combining_accent_is_the_same_name() {
     let accounts = session.ok(&["account", "list"]);
     assert_eq!(accounts.matches("Gir\u{F3}").count(), 1, "{accounts}");
 }
+
+/// D-782, the rogue run's recheck: a name typed with an accent on its own,
+/// as macOS often sends it, or in capitals, finds the account, category or
+/// Rule, and a Rule's name that only looks different is taken.
+#[test]
+fn a_name_typed_with_a_combining_accent_finds_what_it_names() {
+    let session = household();
+    session.ok(&[
+        "account",
+        "add",
+        "Gir\u{F3}",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    session.ok(&["category", "add", "Caf\u{E9}", "--inside", "Food"]);
+    for typed in ["Giro\u{301}", "GIRO\u{301}", " Gir\u{F3} "] {
+        let register = session.cli(&["register", typed]);
+        assert_eq!(register.status, 0, "{typed:?}: {}", register.err);
+    }
+    let register = session.cli(&["register", "Food/Cafe\u{301}"]);
+    assert_eq!(register.status, 0, "{}", register.err);
+    session.ok(&[
+        "rule",
+        "add",
+        "R\u{E9}gel",
+        "--if",
+        "payee contains shop",
+        "--category",
+        "Food/Cafe\u{301}",
+    ]);
+    let again = session.cli(&[
+        "rule",
+        "add",
+        "Re\u{301}gel",
+        "--if",
+        "payee contains shop",
+        "--category",
+        "Food/Groceries",
+    ]);
+    assert_eq!(again.status, 1, "{}", again.err);
+    assert!(
+        again.err.starts_with("error: store.duplicate-rule-name\n"),
+        "{}",
+        again.err
+    );
+    assert_eq!(
+        session.ok(&["rule", "remove", "RE\u{301}GEL"]),
+        "Removed the Rule R\u{E9}gel and its sub-Rules.\n"
+    );
+    // A name that isn't there still says so.
+    let missing = session.cli(&["register", "Giro\u{300}"]);
+    assert_eq!(missing.status, 1);
+    assert!(missing.err.contains("there is no"), "{}", missing.err);
+}

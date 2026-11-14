@@ -1258,6 +1258,13 @@ fn account_names_are_not_empty_and_not_shared() {
     book.rename_account(cafe, "Cafe\u{301} corner")
         .expect("renamed");
     assert_eq!(book.account(cafe).expect("read").name, "Caf\u{E9} corner");
+    // A ligature is the letters it is made of; the name is kept as typed.
+    let finance = typed_account(&mut book, "\u{FB01}nance", AccountType::Savings).expect("added");
+    assert_eq!(book.account(finance).expect("read").name, "\u{FB01}nance");
+    assert!(matches!(
+        typed_account(&mut book, "Finance", AccountType::Savings),
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == finance
+    ));
 }
 
 #[test]

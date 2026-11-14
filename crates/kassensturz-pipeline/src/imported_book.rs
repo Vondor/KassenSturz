@@ -22,8 +22,7 @@ use kassensturz_import::{
     currency,
 };
 use kassensturz_store::{
-    Book, MAX_ACCOUNT_NAME_CHARS, StoreError, account_name_key, fitting_account_name,
-    stored_account_name,
+    Book, MAX_ACCOUNT_NAME_CHARS, StoreError, fitting_account_name, name_key, stored_name,
 };
 
 use crate::book::fill_book;
@@ -786,16 +785,16 @@ impl Mapper {
                 .filter(|bank| !bank.is_empty());
             if let Some(bank) = bank
                 && account.kind.is_account()
-                && taken.contains(&(list.0, list.1, account_name_key(&name)))
+                && taken.contains(&(list.0, list.1, name_key(&name)))
             {
                 let with_bank = format!("{wanted} ({bank})");
                 if with_bank.chars().count() <= MAX_ACCOUNT_NAME_CHARS
-                    && !taken.contains(&(list.0, list.1, account_name_key(&with_bank)))
+                    && !taken.contains(&(list.0, list.1, name_key(&with_bank)))
                 {
                     name = with_bank;
                 }
             }
-            while !taken.insert((list.0, list.1, account_name_key(&name))) {
+            while !taken.insert((list.0, list.1, name_key(&name))) {
                 number += 1;
                 let suffix = format!(" ({number})");
                 let room = MAX_ACCOUNT_NAME_CHARS - suffix.chars().count();
@@ -803,7 +802,7 @@ impl Mapper {
                 name = format!("{}{suffix}", cut.trim_end());
             }
             // Only composing it (NFC, D-782) changes nothing anyone sees.
-            if name != stored_account_name(account.name.trim()) {
+            if name != stored_name(account.name.trim()) {
                 self.renamed.push((id, account.name.clone()));
             }
             accounts.push(Account {
@@ -1159,13 +1158,13 @@ impl Mapper {
 /// A calculation the conversion out of a withdrawn currency couldn't do:
 /// amounts too large for 64 bits, or, in a book handed over without the
 /// importer's checks, an account's amounts in two currencies.
-/// `wanted`, trimmed, or with a number after it if `taken` holds it
-/// already, ignoring capitals: the names a book asks to differ do.
+/// `wanted`, trimmed, or with a number after it if `taken` holds a name
+/// that looks the same ([`name_key`]): the names a book asks to differ do.
 fn unique_name(wanted: &str, taken: &mut HashSet<String>) -> String {
     let wanted = wanted.trim();
     let mut name = wanted.to_owned();
     let mut number = 1;
-    while !taken.insert(name.to_lowercase()) {
+    while !taken.insert(name_key(&name)) {
         number += 1;
         name = format!("{wanted} ({number})");
     }
@@ -1185,7 +1184,7 @@ fn fitting_tag_name(wanted: &str, taken: &mut HashSet<String>) -> String {
     let cut = |text: &str, most: usize| -> String { text.chars().take(most).collect() };
     let mut name = cut(&one_line, MAX_TAG_NAME_CHARS).trim_end().to_owned();
     let mut number = 1;
-    while !taken.insert(name.to_lowercase()) {
+    while !taken.insert(name_key(&name)) {
         number += 1;
         let suffix = format!(" ({number})");
         let room = MAX_TAG_NAME_CHARS - suffix.chars().count();

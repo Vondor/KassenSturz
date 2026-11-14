@@ -2094,9 +2094,9 @@ impl RuleTouches {
     }
 }
 
-/// A Rule's name as the book compares names: trimmed, ignoring capitals.
+/// A Rule's name as the book compares names (D-782).
 fn rule_name_key(name: &str) -> String {
-    name.trim().to_lowercase()
+    kassensturz_store::name_key(name)
 }
 
 fn collect_rules(nodes: &[RuleNode], parent: Option<RuleId>, into: &mut HashMap<RuleId, RuleInfo>) {
@@ -2280,11 +2280,11 @@ impl Known {
         let parent_id = parent.as_ref().map(|parent| parent.id);
         // Categories of one kind inside the same category have different
         // names, as the store checks when it adds one.
-        let wanted = name.to_lowercase();
+        let wanted = kassensturz_store::name_key(&name);
         if self.accounts.values().any(|other| {
             other.kind == kind
                 && other.parent == parent_id
-                && other.name.trim().to_lowercase() == wanted
+                && kassensturz_store::name_key(&other.name) == wanted
         }) {
             return Err(ToolError::NameTaken);
         }

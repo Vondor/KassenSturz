@@ -7,7 +7,7 @@
 use std::collections::BTreeSet;
 
 use kassensturz_core::{Account, TransactionId};
-use kassensturz_store::Book;
+use kassensturz_store::{Book, name_key, stored_name};
 
 use crate::error::CliError;
 use crate::text::plain;
@@ -20,26 +20,62 @@ pub(crate) fn short_id(id: impl std::fmt::Display) -> String {
     full[full.len().saturating_sub(12)..].to_owned()
 }
 
-/// What users type to find something is compared ignoring capitals and
-/// spaces around it, like KassenSturz compares account names (D-081).
-fn normalized(text: &str) -> String {
-    text.trim().to_lowercase()
+/// What users type to find something is compared as the book compares
+/// names (D-081, D-782): ignoring capitals, spaces around it, characters
+/// that show as nothing, and how an accent or a ligature was typed, so
+/// "Gir\u{F3}" typed as "Giro" and a combining accent, as macOS often
+/// sends it, finds "Gir\u{F3}".
+pub(crate) fn normalized(text: &str) -> String {
+    name_key(text)
+}
+
+/// `text` as typed, only composed and ignoring capitals: to choose between
+/// names that look the same, which a book made before D-782 may hold.
+fn as_typed(text: &str) -> String {
+    stored_name(text.trim()).to_lowercase()
+}
+
+/// Of `found`, the ones named `text` as typed if there are several.
+pub(crate) fn as_typed_if_several<'a, T>(
+    found: Vec<&'a T>,
+    text: &str,
+    name: impl Fn(&T) -> &str,
+) -> Vec<&'a T> {
+    if found.len() < 2 {
+        return found;
+    }
+    let typed = as_typed(text);
+    let exact: Vec<&T> = found
+        .iter()
+        .copied()
+        .filter(|item| as_typed(name(item)) == typed)
+        .collect();
+    if exact.is_empty() { found } else { exact }
 }
 
 /// The user's account called `name`, closed ones included.
 pub(crate) fn find_account(book: &Book, name: &str) -> Result<Account, CliError> {
     let wanted = normalized(name);
-    let mut found = book
-        .accounts(true)?
-        .into_iter()
-        .filter(|account| normalized(&account.name) == wanted);
-    match (found.next(), found.next()) {
-        (Some(account), None) => Ok(account),
-        (None, _) => Err(CliError::message(format!(
+    let accounts = book.accounts(true)?;
+    let found: Vec<&Account> = accounts
+        .iter()
+        .filter(|account| normalized(&account.name) == wanted)
+        .collect();
+    match as_typed_if_several(found, name, |account| &account.name).as_slice() {
+        [account] => Ok((*account).clone()),
+        [] => Err(CliError::message(format!(
             "there is no account called `{}`. `account list --all` shows the accounts",
             plain(name)
         ))),
-        (Some(_), Some(_)) => unreachable!("the book keeps account names apart (D-081)"),
+        several => Err(CliError::message(format!(
+            "`{}` could be several accounts: {}. Type the name exactly as `account list --all` shows it",
+            plain(name),
+            several
+                .iter()
+                .map(|account| plain(&account.name))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ))),
     }
 }
 
@@ -89,11 +125,13 @@ fn resolve(
         .iter()
         .filter(|(_, path)| normalized(path) == wanted)
         .collect();
+    matches = as_typed_if_several(matches, text, |(_, path)| path);
     if matches.is_empty() {
         matches = candidates
             .iter()
             .filter(|(account, _)| normalized(&account.name) == wanted)
             .collect();
+        matches = as_typed_if_several(matches, text, |(account, _)| &account.name);
     }
     match matches.as_slice() {
         [] => Err(CliError::message(format!(

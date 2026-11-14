@@ -4,7 +4,9 @@
 //! What an account's or category's name may hold (B-272): one line, no
 //! character that shows as nothing, and not so long that it can't be shown.
 //! Two names are the same when they look the same, so a look-alike "Giro"
-//! with a hidden character can't stand next to the real one.
+//! with a hidden character can't stand next to the real one. Names of
+//! accounts, categories and Rules are stored composed (NFC, D-782); those
+//! and the names of payees and tags are compared by [`name_key`].
 
 use crate::error::StoreError;
 use unicode_normalization::UnicodeNormalization;
@@ -20,7 +22,7 @@ pub const MAX_ACCOUNT_NAME_CHARS: usize = 200;
 ///
 /// The joiners U+200C and U+200D are left out: some scripts and emoji need
 /// them between two characters. They don't count when names are compared
-/// ([`account_name_key`]).
+/// ([`name_key`]).
 pub fn is_invisible(c: char) -> bool {
     matches!(
         c,
@@ -86,29 +88,32 @@ pub(crate) fn check_hidden_text(text: &str, field: &'static str) -> Result<(), S
     Ok(())
 }
 
-/// What two names are compared by: without the spaces around them, with
-/// each run of spaces inside as one, without joiners, variation selectors
-/// and characters that show as nothing, in Unicode's composed form (NFC,
-/// D-782), so "é" typed as "e" and a combining accent is "é", and in lower
-/// case. Two names with the same key look the same.
-pub fn account_name_key(name: &str) -> String {
+/// What two names are compared by, and what a name typed to find one is
+/// compared by: without the spaces around them, with each run of spaces
+/// inside as one, without joiners, variation selectors and characters that
+/// show as nothing, in Unicode's compatibility form (NFKC, D-782), so "é"
+/// typed as "e" and a combining accent is "é" and the ligature "\u{FB01}" is
+/// "fi", and in lower case. Two names with the same key look the same. The
+/// key is only compared, never stored: the book keeps the name itself,
+/// composed ([`stored_name`]).
+pub fn name_key(name: &str) -> String {
     name.chars()
         .filter(|&c| {
             !is_invisible(c) && !matches!(c, '\u{200C}' | '\u{200D}' | '\u{FE00}'..='\u{FE0F}')
         })
-        .nfc()
+        .nfkc()
         .collect::<String>()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
         .to_lowercase()
-        .nfc()
+        .nfkc()
         .collect()
 }
 
 /// `name` as the book stores it: in Unicode's composed form (NFC, D-782),
 /// which looks the same and is what most keyboards type.
-pub fn stored_account_name(name: &str) -> String {
+pub fn stored_name(name: &str) -> String {
     name.nfc().collect()
 }
 
@@ -139,7 +144,7 @@ mod tests {
 
     #[test]
     fn names_that_look_alike_have_one_key() {
-        let giro = account_name_key("Giro");
+        let giro = name_key("Giro");
         for look_alike in [
             "Giro\u{200B}",
             "Gi\u{200D}ro",
@@ -148,27 +153,33 @@ mod tests {
             "Gi\u{00AD}ro",
             "\u{202E}Giro",
         ] {
-            assert_eq!(account_name_key(look_alike), giro, "{look_alike:?}");
+            assert_eq!(name_key(look_alike), giro, "{look_alike:?}");
         }
-        assert_eq!(account_name_key("Daily  money"), "daily money");
-        assert_ne!(account_name_key("Giro 2"), giro);
+        assert_eq!(name_key("Daily  money"), "daily money");
+        assert_ne!(name_key("Giro 2"), giro);
         // An accent typed as its own character is the accented letter
         // (D-782), also in capitals.
-        assert_eq!(
-            account_name_key("Giro\u{301}"),
-            account_name_key("Gir\u{F3}")
-        );
-        assert_eq!(
-            account_name_key("Cafe\u{301}"),
-            account_name_key("CAF\u{C9}")
-        );
-        assert_ne!(account_name_key("Gir\u{F3}"), giro);
+        assert_eq!(name_key("Giro\u{301}"), name_key("Gir\u{F3}"));
+        assert_eq!(name_key("Cafe\u{301}"), name_key("CAF\u{C9}"));
+        assert_ne!(name_key("Gir\u{F3}"), giro);
+        // A ligature or a full-width letter is the letters it looks like.
+        assert_eq!(name_key("\u{FB01}nanz"), name_key("Finanz"));
+        assert_eq!(name_key("\u{FF27}iro"), giro);
+        // The key of a key is the key: comparing twice changes nothing.
+        for name in [
+            "\u{FB01}nanz",
+            "Cafe\u{301}",
+            "\u{130}stanbul",
+            " Gi\u{200D}ro  2 ",
+        ] {
+            assert_eq!(name_key(&name_key(name)), name_key(name), "{name:?}");
+        }
     }
 
     #[test]
     fn a_name_is_stored_and_fitted_composed() {
-        assert_eq!(stored_account_name("Cafe\u{301}"), "Caf\u{E9}");
-        assert_eq!(stored_account_name("Caf\u{E9}"), "Caf\u{E9}");
+        assert_eq!(stored_name("Cafe\u{301}"), "Caf\u{E9}");
+        assert_eq!(stored_name("Caf\u{E9}"), "Caf\u{E9}");
         assert_eq!(fitting_account_name("Giro\u{301}\n"), "Gir\u{F3}");
         // 200 letters with an accent typed on its own each still fit.
         let long = "e\u{301}".repeat(MAX_ACCOUNT_NAME_CHARS);

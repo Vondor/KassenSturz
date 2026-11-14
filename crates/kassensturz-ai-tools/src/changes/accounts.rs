@@ -96,14 +96,14 @@ fn account_type(text: &str) -> Option<AccountType> {
 }
 
 impl Known {
-    /// Whether another account has this name (accounts share one list,
-    /// ignoring capitals, closed ones included).
+    /// Whether another account has a name that looks the same (accounts
+    /// share one list, closed ones included; D-782).
     fn account_name_taken(&self, name: &str, except: Option<AccountId>) -> bool {
-        let wanted = name.trim().to_lowercase();
+        let wanted = kassensturz_store::name_key(name);
         self.accounts.values().any(|other| {
             other.kind.is_account()
                 && Some(other.id) != except
-                && other.name.trim().to_lowercase() == wanted
+                && kassensturz_store::name_key(&other.name) == wanted
         })
     }
 

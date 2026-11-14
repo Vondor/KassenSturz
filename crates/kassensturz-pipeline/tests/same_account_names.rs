@@ -196,3 +196,25 @@ fn a_name_with_a_combining_accent_is_the_same_name() {
     assert!(account_names(&book).contains(&"Caf\u{E9} money".to_owned()));
     assert!(report.renamed.is_empty(), "{:?}", report.renamed);
 }
+
+/// D-782 where the importer meets the store: KMyMoney's payees "ﬁnanz
+/// office" with a ligature and "Finanz office" look the same, so the book
+/// can't keep both names; the second gets a number and both come in.
+#[test]
+fn payees_that_only_look_different_both_come_in() {
+    let mut file = imported();
+    assert!(file.payees.len() >= 2, "two payees in the sample");
+    file.payees[0].name = "\u{FB01}nanz office".into();
+    file.payees[1].name = "Finanz office".into();
+    let mut book = Book::create_in_memory().expect("book created");
+    fill_book_from(&mut book, &file, &HashMap::new()).expect("both come in");
+    let mut names: Vec<String> = book
+        .payees()
+        .expect("read")
+        .into_iter()
+        .map(|payee| payee.name)
+        .filter(|name| name.ends_with("office") || name.ends_with("(2)"))
+        .collect();
+    names.sort();
+    assert_eq!(names, ["Finanz office (2)", "\u{FB01}nanz office"]);
+}

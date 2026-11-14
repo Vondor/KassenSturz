@@ -64,18 +64,19 @@ impl Book {
         known.map(|_| ()).ok_or(StoreError::UnknownTag(tag))
     }
 
-    /// Refuses `name` (already checked) if another tag than `own` has it,
-    /// ignoring capitals.
+    /// Refuses `name` (already checked) if another tag than `own` has a
+    /// name that looks the same ([`crate::name_key`]).
     pub(crate) fn check_tag_name_free(
         &self,
         name: &str,
         own: Option<TagId>,
     ) -> Result<(), StoreError> {
-        let wanted = name.to_lowercase();
+        // Names that look the same are the same name (B-272, D-782).
+        let wanted = crate::names::name_key(name);
         match self
             .tags()?
             .into_iter()
-            .find(|other| Some(other.id) != own && other.name.trim().to_lowercase() == wanted)
+            .find(|other| Some(other.id) != own && crate::names::name_key(&other.name) == wanted)
         {
             Some(existing) => Err(StoreError::DuplicateTagName {
                 existing: existing.name,

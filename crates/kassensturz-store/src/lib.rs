@@ -64,8 +64,7 @@ pub use moving::{
     plan_move, remove_left_book,
 };
 pub use names::{
-    MAX_ACCOUNT_NAME_CHARS, account_name_key, fitting_account_name, is_invisible,
-    stored_account_name,
+    MAX_ACCOUNT_NAME_CHARS, fitting_account_name, is_invisible, name_key, stored_name,
 };
 pub use recurring_moves::{
     JoinedTransfers, NeedsYou, NewRecurringMove, NotJoined, RecurringJoin, RecurringJoins,
@@ -457,7 +456,7 @@ impl Book {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     account.id.to_bytes(),
-                    names::stored_account_name(&account.name),
+                    names::stored_name(&account.name),
                     kind_to_text(account.kind),
                     account.currency.as_str(),
                     account.account_type.map(type_to_text),
@@ -552,14 +551,14 @@ impl Book {
         // Accounts share one list; categories share one with their siblings,
         // the categories of the same kind inside the same category.
         // Names that look the same are the same (B-272).
-        let wanted = names::account_name_key(&account.name);
+        let wanted = names::name_key(&account.name);
         let clash = others.iter().find(|other| {
             let same_list = if account.kind.is_account() {
                 other.kind.is_account()
             } else {
                 other.kind == account.kind && other.parent == account.parent
             };
-            same_list && names::account_name_key(&other.name) == wanted
+            same_list && names::name_key(&other.name) == wanted
         });
         if let Some(existing) = clash {
             return Err(StoreError::DuplicateAccountName {
@@ -624,7 +623,7 @@ impl Book {
         self.as_one_action(action, |book| {
             book.conn.execute(
                 "UPDATE accounts SET name = ?2 WHERE id = ?1",
-                params![id.to_bytes(), names::stored_account_name(name)],
+                params![id.to_bytes(), names::stored_name(name)],
             )?;
             Ok(())
         })

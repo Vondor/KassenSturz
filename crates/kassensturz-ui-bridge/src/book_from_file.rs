@@ -22,7 +22,8 @@ use kassensturz_import::{
     RECOGNITION_BYTES, Recognition, Replacement, SkippedData, UnlistedCurrency, import, read_file,
 };
 use kassensturz_pipeline::{
-    BookImportReport, Outcome, PipelineError, ReportLine, RuleScope, fill_book, fill_book_from_on,
+    BookImportReport, Outcome, PipelineError, ReportLine, RuleScope, fill_book,
+    fill_book_from_with_dashboards,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -237,6 +238,10 @@ pub struct Prepared {
     /// extension.
     pub stem: String,
     source: Source,
+    /// Dashboards a KMyMoney book gets on top of its own reports, naming
+    /// its accounts and categories (`@account:Name@`, #829, D-788): only
+    /// the example books have them.
+    dashboards: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -289,6 +294,14 @@ pub struct SuggestionView {
 }
 
 impl Prepared {
+    /// The same, with `dashboards` stored when a KMyMoney book is filled
+    /// (#829, D-788); see [`kassensturz_pipeline::fill_book_from_with_dashboards`].
+    /// A complete export keeps only its own.
+    pub fn with_dashboards(mut self, dashboards: Vec<String>) -> Self {
+        self.dashboards = dashboards;
+        self
+    }
+
     /// What the screen shows.
     pub fn view(&self, locale: &impl Locale) -> PreparedView {
         match &self.source {
@@ -417,6 +430,7 @@ pub fn read(path: &Path) -> Result<Prepared, FromFileError> {
         file_name,
         stem,
         source,
+        dashboards: Vec::new(),
     })
 }
 
@@ -440,6 +454,7 @@ pub fn read_bundled_kmy_sqlite(
         file_name: stem.to_owned(),
         stem: stem.to_owned(),
         source: Source::Other(book),
+        dashboards: Vec::new(),
     })
 }
 
@@ -453,6 +468,7 @@ pub fn read_bundled_export(stem: &str, bytes: &[u8]) -> Result<Prepared, FromFil
         file_name: stem.to_owned(),
         stem: stem.to_owned(),
         source: Source::Export(Box::new(data)),
+        dashboards: Vec::new(),
     })
 }
 
@@ -701,7 +717,14 @@ pub fn fill(
             })
         }
         Source::Other(imported) => {
-            let report = fill_book_from_on(book, imported, replaced, scope, locale.today())?;
+            let report = fill_book_from_with_dashboards(
+                book,
+                imported,
+                replaced,
+                scope,
+                locale.today(),
+                &prepared.dashboards,
+            )?;
             note_fixed_periods(&report.reports);
             created_text(book, &report, locale)
         }
@@ -837,6 +860,7 @@ mod tests {
     use crate::register::tests::TestLocale;
     use crate::register::{Sort, register_view};
     use crate::test_folder::TestFolder;
+    use kassensturz_pipeline::fill_book_from_on;
 
     fn golden(folder: &str, name: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))

@@ -62,6 +62,7 @@
 mod book;
 mod entries;
 mod error;
+mod example_dashboards;
 mod export;
 mod imported_book;
 mod kmy_reports;
@@ -82,10 +83,11 @@ use entries::{Decision, bank_date, decide};
 
 pub use book::{export_book, fill_book};
 pub use error::PipelineError;
+pub use example_dashboards::{example_dashboards, resolve_names};
 pub use export::{DateRange, export_transactions, export_transactions_in};
 pub use imported_book::{
     BookImportReport, PatternLeftOut, RuleScope, fill_book_from, fill_book_from_on,
-    fill_book_from_with,
+    fill_book_from_with, fill_book_from_with_dashboards,
 };
 pub use kmy_reports::{
     FIXED_PERIODS, FixedPeriod, Found, MappedReport, Outcome, ReportBook, ReportLine, map_report,

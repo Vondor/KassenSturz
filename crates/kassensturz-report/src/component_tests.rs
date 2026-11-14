@@ -82,6 +82,18 @@ fn every_component_keeps_its_own_params_through_a_document() {
                 if property.place != Place::Params {
                     continue;
                 }
+                // A trend's lengths belong to the datasets that have a trend
+                // and are written only for them (D-777), so another dataset
+                // reads them back as their defaults by design.
+                if matches!(
+                    property.key,
+                    crate::schema::TREND_LENGTH_KEY
+                        | crate::schema::TREND_SLOW_KEY
+                        | crate::schema::TREND_SIGNAL_KEY
+                ) && !matches!(dataset_id, crate::MOVING_AVERAGE | crate::MACD)
+                {
+                    continue;
+                }
                 let setting = match property.kind {
                     Kind::Choice(_) | Kind::Grouping => {
                         let words = words_of(property);

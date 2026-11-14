@@ -56,7 +56,7 @@ The report crate (`money_flow.rs`, dataset id `money_flow`) returns nodes and fl
 ## 5. Where it lives
 
 - **A Statistic Builder chart type** (D-741 requires one): component type `chart.flow`, kind word `flow`, in `ComponentType::BUILDER`, the Builder's three QML lists and `LIBRARY`. Settings: accounts, period, `sub_categories`, `payees`, `show_accounts`, `currency`. Default size 6 × 4, smallest 4 × 3.
-- **A ready-made tile** *Where my money went* (*Wohin mein Geld ging*) under *Add › Charts*: this month, all accounts, sub-categories off, payees off. **Not** on the built-in Overview or a template (D-342).
+- **A ready-made tile** *Where my money went* (*Wohin mein Geld ging*) under *Add › Charts*: this month, all accounts, sub-categories off, payees off. **Not** on the built-in Overview or a template (D-342). The example books show it on their *Money in and out* dashboard (D-788).
 - **AI:** in `ComponentType::ALL`; the chat proposes it through `propose_view` like any other chart, behind the existing permission cells (the Builder test "the Builder makes every component the AI may pick" covers it). It does not fit the custom chart description (D-504), so it is its own type. It gets no figures from the model: the chart is computed in Rust from the book.
 - **Drawing:** QtQuick Shapes, as `ChartOverlays.qml` already uses: rectangles for nodes, cubic-curve bands for flows (`FlowChart.qml`, shown by `ChartView` when `chart.kind` is `flow`). KQuickCharts and Qt's chart modules have no such chart.
 - **Click** a band: the transactions behind it open, as for the other charts (the category, the payee and the period as filters). A click on a node opens everything that flows through it. **Hover** shows the amount as text from Rust.

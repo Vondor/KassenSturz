@@ -8,6 +8,8 @@ use super::*;
 use crate::test_folder::TempFolder;
 use crate::tests::{EUR, account};
 use crate::{Book, Computer, StoreError};
+#[cfg(target_os = "linux")]
+use kassensturz_core::Timestamp;
 
 /// Makes this thread see every folder as one without file locks, as in a
 /// snap's portal folder, until dropped.
@@ -343,6 +345,63 @@ fn a_book_without_file_locks_refuses_a_change_when_its_lock_file_was_taken_away(
         book.dry_run(|_| Ok::<(), StoreError>(())),
         Err(StoreError::LockLost)
     ));
+}
+
+/// Writes the lock file an older build (without process, place or locks
+/// note) wrote, as `since` says.
+#[cfg(target_os = "linux")]
+fn old_format_lock(path: &Path, since: &str) {
+    std::fs::write(
+        crate::lock::lock_path(path),
+        format!("computer=Laptop\nsince={since}\ntoken=old\n"),
+    )
+    .expect("lock file written");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_lock_without_a_process_made_since_the_computer_started_is_not_taken_over_without_file_locks() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    drop(Book::create(&path, &computer).expect("book made"));
+    // The Flatpak of before D-776 holds the book: computer, since, token.
+    let now = Timestamp::from_second(Timestamp::now().as_second())
+        .expect("a time")
+        .to_string();
+    old_format_lock(&path, &now);
+    let _no_locks = NoLocks::here();
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    assert!(seen.stays_locked_here(&path, &computer.name));
+    match Book::open_anyway(&path, &computer, &seen) {
+        Err(StoreError::Locked(_)) => {}
+        other => panic!("expected the lock to stay, got {:?}", other.map(|_| ())),
+    }
+    // Where this side has file locks too, the old lock is taken over as
+    // before: SQLite's locks keep two writers apart.
+    drop(_no_locks);
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    assert!(Book::open_anyway(&path, &computer, &seen).is_ok());
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_lock_without_a_process_from_before_the_computer_started_is_taken_over_without_file_locks() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    drop(Book::create(&path, &computer).expect("book made"));
+    old_format_lock(&path, "2020-01-01T00:00:00Z");
+    let _no_locks = NoLocks::here();
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    assert!(!seen.stays_locked_here(&path, &computer.name));
+    assert!(Book::open_anyway(&path, &computer, &seen).is_ok());
 }
 
 #[test]

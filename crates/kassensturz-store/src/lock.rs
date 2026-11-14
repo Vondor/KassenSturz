@@ -300,7 +300,11 @@ fn own_place() -> Option<Place> {
 /// to be a crash's leftover, as before.
 fn may_still_run(lock: &Lock) -> bool {
     let Some((pid, start)) = lock.process else {
-        return false;
+        // A lock without a process number comes from a build that doesn't
+        // write one (the Flatpak of before D-776) or is damaged. It can't be
+        // looked up, so it counts as running unless the computer has
+        // restarted since it was made; "since" says when (D-776).
+        return !made_before_boot(lock.since);
     };
     match (&lock.place, own_place()) {
         (Some(theirs), Some(ours)) => {
@@ -314,6 +318,24 @@ fn may_still_run(lock: &Lock) -> bool {
         }
         _ => process_runs(pid, start),
     }
+}
+
+/// Whether the computer has restarted since `since`, as far as Linux tells
+/// (`/proc/uptime`). A lock without a date, or on a system that doesn't tell,
+/// is not "before boot": the safe side.
+fn made_before_boot(since: Option<Timestamp>) -> bool {
+    let (Some(since), Ok(uptime)) = (since, fs::read_to_string("/proc/uptime")) else {
+        return false;
+    };
+    let Some(seconds) = uptime
+        .split_whitespace()
+        .next()
+        .and_then(|text| text.split('.').next())
+        .and_then(|whole| whole.parse::<i64>().ok())
+    else {
+        return false;
+    };
+    since.as_second() < Timestamp::now().as_second() - seconds
 }
 
 /// Whether process `pid`, which started at `start`, is still running.

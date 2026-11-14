@@ -198,6 +198,11 @@ def parse_po(text):
             finish(n - 1)
             field = None
             continue
+        if cur is not None and cur.msgstr and not line.startswith('"') and not line.startswith("msgstr"):
+            # The next entry starts without a blank line in between, which
+            # msgfmt accepts: end this one here so neither is lost.
+            finish(n - 1)
+            field = None
         if cur is None:
             cur, start = Entry(), n
         if line.startswith("#~"):
@@ -494,6 +499,11 @@ def self_test():
         got = [f[1] for f in check_file(path, "po/de/kassensturz.po", None)]
         if got.count("filler") != 1:
             print(f"self-test filler: expected one filler hint, got {got}")
+            ok = False
+        # Two entries without a blank line between them are both read.
+        joined = parse_po('msgid "One"\nmsgstr "Eins"\n#, kde-format\nmsgid "Two"\nmsgstr "Zwei"\n')
+        if [e.msgid for e in joined] != ["One", "Two"]:
+            print(f"self-test parse: expected One and Two, got {[e.msgid for e in joined]}")
             ok = False
     print("self-test passed" if ok else "self-test FAILED")
     return 0 if ok else 1

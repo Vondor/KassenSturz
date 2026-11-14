@@ -359,11 +359,11 @@ fn last_total_width(book: &Path, backups: &Path) -> usize {
 }
 
 /// The lock of a program that was ended by force stays (nothing could remove
-/// it), and the next start says so and refuses, instead of opening the book
-/// behind its back. `--open-anyway` opens it and leaves a clean state: the
-/// lock is removed when the book is closed again.
+/// it). The next start on the same computer sees that the program is gone and
+/// clears it without asking (D-781); a lock from another computer always
+/// asks, and `--open-anyway` opens it and leaves a clean state.
 #[test]
-fn the_lock_of_a_killed_program_is_found_and_taken_over_on_the_next_start() {
+fn the_lock_of_a_killed_program_is_cleared_on_the_next_start() {
     let folder = Folder::new("Lock test");
     let book = folder.0.join("Household.ksz");
     let backups = folder.0.join("Backups");
@@ -371,15 +371,25 @@ fn the_lock_of_a_killed_program_is_found_and_taken_over_on_the_next_start() {
     let lock = PathBuf::from(format!("{}.lock", book.display()));
     assert!(!lock.exists(), "the lock stayed after a normal close");
 
+    // The program was killed on this computer: nothing to ask (D-781). Only
+    // where the system tells whether a program runs (Linux, Windows); on
+    // macOS the lock names no program and keeps asking.
+    #[cfg(any(target_os = "linux", windows))]
+    {
+        kill_lock_holder(&book);
+        assert!(lock.exists(), "a killed program left no lock file");
+        ok(&book, &backups, &["balances"]);
+        assert!(!lock.exists(), "the lock of a dead program stayed");
+    }
+
+    // The same lock, but written by another computer, always asks.
     kill_lock_holder(&book);
-    assert!(lock.exists(), "a killed program left no lock file");
+    let text = std::fs::read_to_string(&lock).expect("lock text");
+    std::fs::write(&lock, text.replace("computer=Laptop", "computer=Desktop")).expect("forged");
     let refused = cli(&book, &backups, &["balances"]);
     assert_eq!(refused.status, 1);
     assert!(refused.err.contains("store.locked"), "{}", refused.err);
-    // A kill can come between creating the lock file and writing its text,
-    // so the computer's name may be missing; the refusal is the same.
-    // Refusing changed nothing: the lock is as it was.
-    assert!(lock.exists());
+    assert!(lock.exists(), "refusing changed the lock");
 
     let opened = cli(&book, &backups, &["--open-anyway", "balances"]);
     assert_eq!(opened.status, 0, "{}", opened.err);
@@ -389,7 +399,6 @@ fn the_lock_of_a_killed_program_is_found_and_taken_over_on_the_next_start() {
         opened.err
     );
     assert!(!lock.exists(), "the lock stayed after it was taken over");
-    // And now nothing is in the way any more.
     ok(&book, &backups, &["balances"]);
 }
 

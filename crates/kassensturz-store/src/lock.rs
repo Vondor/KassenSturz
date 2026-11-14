@@ -99,14 +99,18 @@ impl HeldLock {
     /// with [`StoreError::Locked`] if it's locked already.
     pub(crate) fn acquire(book: &Path, computer: &str) -> Result<Self, StoreError> {
         let path = lock_path(book);
-        // A lock that disappears between the two steps was just released, so
-        // trying once more is enough.
-        for _ in 0..2 {
+        // A lock that disappears between the two steps was just released,
+        // and one this computer certainly left behind is cleared (D-781), so
+        // a third try is the most it takes.
+        for _ in 0..3 {
             match create(&path, computer) {
                 Ok(lock) => return Ok(lock),
                 Err(error) if error.kind() == ErrorKind::AlreadyExists => {
                     if let Some(lock) = read(&path)? {
-                        return Err(StoreError::Locked(lock));
+                        if !left_behind_here(&lock, computer) {
+                            return Err(StoreError::Locked(lock));
+                        }
+                        clear_if_unchanged(&path, &lock)?;
                     }
                 }
                 Err(error) => return Err(error.into()),
@@ -273,22 +277,74 @@ fn parse(text: &str) -> Lock {
     lock
 }
 
-/// This program's number and start time, if the system tells (Linux).
+/// This program's number and start time, if the system tells (Linux; on
+/// Windows the start time is not known and counts as 0).
 fn own_process() -> Option<(u32, u64)> {
     let pid = std::process::id();
+    // This program certainly runs; on Windows, asking `tasklist` about
+    // itself would also depend on this program's file name.
+    #[cfg(windows)]
+    return Some((pid, 0));
+    #[cfg(not(windows))]
     Some((pid, process_start(pid)?))
 }
 
 /// When process `pid` started, in clock ticks since boot: field 22 of
 /// `/proc/<pid>/stat`, counted after the program's name, which may hold
-/// spaces and brackets.
+/// spaces and brackets. Windows has no such number for a program that
+/// std can look up, so there a running program counts as started at 0.
+#[cfg(not(windows))]
 fn process_start(pid: u32) -> Option<u64> {
     let stat = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
     let after_name = &stat[stat.rfind(')')? + 1..];
     after_name.split_whitespace().nth(19)?.parse().ok()
 }
 
+/// See above: 0 for a program of KassenSturz that runs, none otherwise.
+#[cfg(windows)]
+fn process_start(pid: u32) -> Option<u64> {
+    windows_process_runs(pid).then_some(0)
+}
+
+/// Whether process `pid` runs and is a KassenSturz program (the app, the
+/// command-line tool or the MCP server, all named `kassensturz…`), as
+/// Windows' own `tasklist` says. Another program that took over the number
+/// of one that ended is thereby not mistaken for it. Slow (it starts a
+/// program), so it runs only when a lock file of this computer is found.
+#[cfg(windows)]
+fn windows_process_runs(pid: u32) -> bool {
+    use std::os::windows::process::CommandExt;
+    const NO_WINDOW: u32 = 0x0800_0000;
+    let Ok(output) = std::process::Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+        .creation_flags(NO_WINDOW)
+        .output()
+    else {
+        // Can't look: it may run.
+        return true;
+    };
+    let text = String::from_utf8_lossy(&output.stdout).to_ascii_lowercase();
+    // A line is `"image.exe","1234",…`; with no such program there is a note
+    // instead, which doesn't start with a quote.
+    text.lines()
+        .filter_map(|line| line.strip_prefix('"'))
+        .filter_map(|line| line.split('"').next())
+        .any(|image| image.starts_with("kassensturz"))
+}
+
+/// This program's place, if the system tells (Linux; on Windows a fixed
+/// place, since the start of the computer can't be told apart there and only
+/// whether the program runs decides).
+#[cfg(windows)]
+fn own_place() -> Option<Place> {
+    Some(Place {
+        boot: "windows".to_owned(),
+        namespace: "windows".to_owned(),
+    })
+}
+
 /// This program's place, if the system tells (Linux).
+#[cfg(not(windows))]
 fn own_place() -> Option<Place> {
     let boot = fs::read_to_string("/proc/sys/kernel/random/boot_id").ok()?;
     let namespace = fs::read_link("/proc/self/ns/pid").ok()?;
@@ -296,6 +352,51 @@ fn own_place() -> Option<Place> {
         boot: boot.trim().to_owned(),
         namespace: namespace.to_string_lossy().into_owned(),
     })
+}
+
+/// Whether `lock` is one this computer certainly left behind, so the book
+/// can be opened without asking (D-781, Q-580). That is so only if
+///
+/// - it names this computer, by the name the lock file carries, and the
+///   program that holds it is not this one;
+/// - it says which program wrote it and where that program ran; and
+/// - this computer has restarted since (the start of the computer differs),
+///   or the program shares this program's process-number space and no longer
+///   runs.
+///
+/// Anything else keeps the page that asks (D-731): another computer's lock,
+/// also over a synced folder, where a different start of the computer is
+/// simply another machine; a program of another process-number space (a
+/// Flatpak next to a snap) that can't be looked up; and a lock without those
+/// details. The book itself is safe either way: SQLite takes back a write a
+/// crash cut short at the next open.
+pub(crate) fn left_behind_here(lock: &Lock, computer: &str) -> bool {
+    if lock.computer.as_deref() != Some(computer) || held_here(lock) {
+        return false;
+    }
+    let (Some((pid, start)), Some(theirs), Some(ours)) =
+        (lock.holder.process, &lock.holder.place, own_place())
+    else {
+        return false;
+    };
+    if theirs.boot != ours.boot {
+        true
+    } else {
+        theirs.namespace == ours.namespace && !process_runs(pid, start)
+    }
+}
+
+/// Removes the lock file at `path` if it is still `seen`: a lock that was
+/// released or replaced in the meantime is left alone.
+fn clear_if_unchanged(path: &Path, seen: &Lock) -> Result<(), StoreError> {
+    match read(path)? {
+        Some(current) if current == *seen => match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error.into()),
+        },
+        _ => Ok(()),
+    }
 }
 
 /// Whether the program that wrote `lock` (on this computer) may still run.
@@ -345,7 +446,7 @@ fn made_before_boot(since: Option<Timestamp>) -> bool {
 }
 
 /// Whether process `pid`, which started at `start`, is still running.
-fn process_runs(pid: u32, start: u64) -> bool {
+pub(crate) fn process_runs(pid: u32, start: u64) -> bool {
     process_start(pid) == Some(start)
 }
 
@@ -360,6 +461,9 @@ fn one_line(name: &str) -> String {
         .trim()
         .to_owned()
 }
+
+#[cfg(test)]
+mod left_behind_tests;
 
 #[cfg(test)]
 mod tests {

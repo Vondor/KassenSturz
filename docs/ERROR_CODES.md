@@ -106,6 +106,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.unknown-currency` | `currency` | | The currency {currency} isn't used in this book yet. Add it first. |
 | `store.unknown-account` | `account` | | This account or category isn't in the book anymore. It may have just been removed. |
 | `store.empty-account-name` | | | Give the account a name. |
+| `store.account-name` | `reason`, `max_chars` | `line-break`, `invisible`, `too-long` | The name can't be kept: it must fit on one line (`line-break`), can't hold a character that shows as nothing, such as a zero-width space (`invisible`), and can have at most {max_chars} characters (`too-long`). Type the name again (B-272). |
 | `store.incomplete-bank-link` | `account` | | To link {account} to your bank, KassenSturz needs the bank account's IBAN, or its bank code with its account number. |
 | `store.bank-account-already-linked` | `existing` | | {existing} is already linked to this bank account. Remove that link first, or choose another bank account. |
 | `store.not-linked` | `account` | | {account} isn't linked to a bank account yet. Link it first, then fetch. |

@@ -21,7 +21,9 @@ use kassensturz_import::{
     BookTag, BookTransaction, ImportError, ImportedBook, Replacement, Skipped, SkippedData,
     currency,
 };
-use kassensturz_store::{Book, StoreError};
+use kassensturz_store::{
+    Book, MAX_ACCOUNT_NAME_CHARS, StoreError, account_name_key, fitting_account_name,
+};
 
 use crate::book::fill_book;
 use crate::error::PipelineError;
@@ -53,8 +55,11 @@ pub struct BookImportReport {
     /// so the user may want to look at them.
     pub completed: usize,
     /// Accounts and categories whose name another one had already, ignoring
-    /// capitals, and that got a number after it, e.g. "Savings (2)": their
-    /// new IDs and their names in the file.
+    /// capitals, and that got a number after it, e.g. "Savings (2)", or
+    /// whose name the book couldn't keep as it was: a line break became a
+    /// space, a character that shows as nothing went, or it was cut to
+    /// [`MAX_ACCOUNT_NAME_CHARS`] (B-272). Their new IDs and their names in
+    /// the file.
     pub renamed: Vec<(AccountId, String)>,
     /// Categories that sat inside one in another currency, which a book
     /// can't add up (D-082), and are top-level categories now.
@@ -750,14 +755,22 @@ impl Mapper {
                 None => None,
             };
             let list = ((!account.kind.is_account()).then_some(account.kind), parent);
-            let wanted = account.name.trim();
+            // One visible line the book keeps (B-272): another program's
+            // name may hold a line break or a character that shows as
+            // nothing. A name that had to change is listed like a renamed
+            // one.
+            let fitting = fitting_account_name(&account.name);
+            let wanted = fitting.as_str();
             let mut name = wanted.to_owned();
             let mut number = 1;
-            while !taken.insert((list.0, list.1, name.to_lowercase())) {
+            while !taken.insert((list.0, list.1, account_name_key(&name))) {
                 number += 1;
-                name = format!("{wanted} ({number})");
+                let suffix = format!(" ({number})");
+                let room = MAX_ACCOUNT_NAME_CHARS - suffix.chars().count();
+                let cut: String = wanted.chars().take(room).collect();
+                name = format!("{}{suffix}", cut.trim_end());
             }
-            if number > 1 {
+            if number > 1 || wanted != account.name.trim() {
                 self.renamed.push((id, account.name.clone()));
             }
             accounts.push(Account {

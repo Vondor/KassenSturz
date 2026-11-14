@@ -11088,6 +11088,31 @@ msgstr ""
 "Das ist ein Fehler in KassenSturz oder in einem anderen Programm, das das "
 "Buch geändert hat; bitte melden Sie ihn."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:636
+msgctxt "@info"
+msgid "A name must fit on one line. Type it again without the line break."
+msgstr ""
+"Ein Name muss in eine Zeile passen. Geben Sie ihn ohne den Zeilenumbruch "
+"noch einmal ein."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:638
+msgctxt "@info"
+msgid ""
+"This name holds a character that can't be seen, for example a zero-width "
+"space, so it could look like another name. Type the name again instead of "
+"pasting it."
+msgstr ""
+"Dieser Name enthält ein unsichtbares Zeichen, zum Beispiel ein Leerzeichen "
+"ohne Breite, und könnte deshalb wie ein anderer Name aussehen. Tippen Sie den "
+"Namen neu ein, statt ihn einzufügen."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:640
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "A name can have at most %1 characters. Choose a shorter name."
+msgstr ""
+"Ein Name kann höchstens %1 Zeichen haben. Wählen Sie einen kürzeren Namen."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:526
 #, kde-format
 msgctxt "@info %1 is the name of an account"

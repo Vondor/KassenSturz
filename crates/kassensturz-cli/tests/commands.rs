@@ -3021,3 +3021,55 @@ fn mistakes_in_a_plan_are_refused_without_changing_the_book() {
     assert_eq!(unknown.status, 1);
     assert!(unknown.err.contains("isn't a plan's ID"), "{}", unknown.err);
 }
+
+/// B-272 (#968): a name with a character that shows as nothing, a line
+/// break or 5,000 characters is refused, so no look-alike "Checking
+/// account" can stand next to the real one.
+#[test]
+fn a_look_alike_or_unprintable_account_name_is_refused() {
+    let session = household();
+    let long = "x".repeat(5000);
+    for (name, reason) in [
+        ("Checking account\u{200B}", "invisible"),
+        ("\u{202E}tnuocca gnikcehC", "invisible"),
+        ("Line\nBreak", "line-break"),
+        (long.as_str(), "too-long"),
+    ] {
+        let refused = session.cli(&[
+            "account",
+            "add",
+            name,
+            "--type",
+            "checking",
+            "--currency",
+            "EUR",
+        ]);
+        assert_eq!(refused.status, 1, "{name:?}: {}", refused.err);
+        assert!(
+            refused
+                .err
+                .starts_with("error: store.account-name\n  reason: "),
+            "{name:?}: {}",
+            refused.err
+        );
+        assert!(refused.err.contains(reason), "{name:?}: {}", refused.err);
+    }
+    // A name that only differs in spaces inside is the same name.
+    let twin = session.cli(&[
+        "account",
+        "add",
+        "Checking  account",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    assert_eq!(twin.status, 1, "{}", twin.err);
+    assert!(
+        twin.err.starts_with("error: store.duplicate-account-name"),
+        "{}",
+        twin.err
+    );
+    let accounts = session.ok(&["account", "list"]);
+    assert_eq!(accounts.matches("Checking").count(), 1, "{accounts}");
+}

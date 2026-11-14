@@ -158,6 +158,10 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::UnknownCurrency(USD),
         StoreError::UnknownAccount(account),
         StoreError::EmptyAccountName,
+        StoreError::AccountName {
+            reason: "invisible",
+            max_chars: 200,
+        },
         StoreError::IncompleteBankLink(account),
         StoreError::BankAccountAlreadyLinked { existing: account },
         StoreError::NotLinked(account),

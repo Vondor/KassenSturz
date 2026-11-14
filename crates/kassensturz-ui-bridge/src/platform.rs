@@ -274,10 +274,9 @@ fn absolute_env(name: &str) -> Option<PathBuf> {
 /// isn't (D-730). The chooser itself is Qt's folder dialog, shown by QML's
 /// `FolderChooser`; US5.13's bill folder uses this too.
 ///
-/// `for_book` is whether a book is to live in the folder, which needs file
-/// locks. In a sandbox that is tried at once: a folder where the system
-/// refuses locks is [`FolderRefused::NoLocks`], never a book that fails later
-/// (Q-570).
+/// `for_book` is whether a book is to live in the folder, which works best
+/// with file locks: in a snap the real folder is used when it is reachable
+/// and locks work there (Q-570, D-776).
 pub fn choose_folder(chosen: &Path, for_book: bool) -> Result<FolderGrant, FolderRefused> {
     // In a snap `$HOME` is the app's own folder; the user's is `SNAP_REAL_HOME`.
     let home = if in_snap_sandbox() {
@@ -308,41 +307,38 @@ pub fn choose_folder(chosen: &Path, for_book: bool) -> Result<FolderGrant, Folde
         },
     )?;
     if for_book && in_sandbox() {
-        return with_locks(
+        return Ok(with_locks(
             grant,
             host.as_deref(),
             in_snap_sandbox(),
             book_folder::check_locks,
-        );
+        ));
     }
     Ok(grant)
 }
 
-/// `grant` for a folder a book is to live in, or why not. In a snap whose
-/// home folder or removable media the user has allowed, the folder's real
-/// path is reachable and its locks work, so the book is opened there
-/// directly (Q-570); otherwise the portal's path is used if the system lets
-/// the app lock files in it, and if not the folder is refused. `check` is
-/// what tries the locks.
+/// `grant` for a folder a book is to live in. In a snap whose home folder or
+/// removable media the user has allowed, the folder's real path is reachable
+/// and its locks work, so the book is opened there directly (Q-570). If not,
+/// the portal's path stays: the system refuses file locks there, so the book
+/// opens without them and the UI says so (D-776). `check` is what tries the
+/// locks.
 fn with_locks(
     grant: FolderGrant,
     host: Option<&Path>,
     snap: bool,
     check: impl Fn(&Path) -> LockCheck,
-) -> Result<FolderGrant, FolderRefused> {
+) -> FolderGrant {
     if snap
         && let Some(host) = host.filter(|host| host.is_dir())
         && check(host) == LockCheck::Works
     {
-        return Ok(FolderGrant {
+        return FolderGrant {
             path: host.to_owned(),
             ..grant
-        });
+        };
     }
-    match check(&grant.path) {
-        LockCheck::Refused => Err(FolderRefused::NoLocks),
-        LockCheck::Works | LockCheck::NotWritable => Ok(grant),
-    }
+    grant
 }
 
 /// What the document portal says this app may open: each document's ID and
@@ -607,35 +603,28 @@ mod tests {
                 LockCheck::Works
             }
         };
-        let opened = with_locks(grant.clone(), Some(&host_path), true, by_place).expect("granted");
+        let opened = with_locks(grant.clone(), Some(&host_path), true, by_place);
         assert_eq!(opened.path, host_path);
         assert_eq!(opened.shown_as, "/home/tester/Books");
-        // Not a snap (the Flatpak): the real folder is not reachable, and the
-        // portal's path is checked.
+        // Not a snap (the Flatpak): the real folder is not reachable.
         assert_eq!(
             with_locks(grant.clone(), Some(&host_path), false, by_place),
-            Err(FolderRefused::NoLocks)
+            grant
         );
-        // Home not allowed: the real folder isn't there for the snap, and
-        // the portal refuses locks.
+        // Home not allowed: the real folder isn't there for the snap, so the
+        // portal's path stays and the book opens without file locks.
         let missing = host_path.join("not-there");
         assert_eq!(
             with_locks(grant.clone(), Some(&missing), true, by_place),
-            Err(FolderRefused::NoLocks)
+            grant
         );
+        assert_eq!(with_locks(grant.clone(), None, true, by_place), grant);
+        // The real folder is there but refuses locks too: same.
         assert_eq!(
-            with_locks(grant.clone(), None, true, by_place),
-            Err(FolderRefused::NoLocks)
-        );
-        // Locks work in the portal's path (Flatpak) or nothing is learnt:
-        // the grant stays as it was.
-        assert_eq!(
-            with_locks(grant.clone(), None, false, |_| LockCheck::Works),
-            Ok(grant.clone())
-        );
-        assert_eq!(
-            with_locks(grant.clone(), None, false, |_| LockCheck::NotWritable),
-            Ok(grant)
+            with_locks(grant.clone(), Some(&host_path), true, |_| {
+                LockCheck::Refused
+            }),
+            grant
         );
     }
 

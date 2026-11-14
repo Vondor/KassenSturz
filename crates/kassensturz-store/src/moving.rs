@@ -892,13 +892,15 @@ fn prune_move_backups(folder: &Path, stem: &str, just_made: &Path) {
 }
 
 /// A read-only connection to the book at `path`, beside the app's own.
-fn open_reader(path: &Path) -> Result<Connection, MoveCause> {
-    let conn = Connection::open_with_flags(
+fn open_reader(path: &Path) -> Result<crate::lockless::ReadOnly, MoveCause> {
+    // Where the folder refuses file locks this reads a private copy
+    // (Q-570, D-776).
+    let read = crate::lockless::open_read_only(
         path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )?;
-    conn.busy_timeout(BUSY_WAIT)?;
-    Ok(conn)
+    read.busy_timeout(BUSY_WAIT)?;
+    Ok(read)
 }
 
 /// Copies the database `reader` has open into `to`, the empty file claimed

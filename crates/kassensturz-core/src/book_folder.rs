@@ -144,11 +144,6 @@ pub enum FolderRefused {
     /// Not a folder the app can use: not absolute, named with `..`, or the
     /// portal's own folders.
     NotUsable,
-    /// The system doesn't let the app lock files in the folder, which a book
-    /// needs (SQLite's locks, D-038's lock file): in a snap, the places the
-    /// portal hands out, until the user allows the home folder or removable
-    /// media for the app (Q-570).
-    NoLocks,
 }
 
 impl FolderRefused {
@@ -158,7 +153,6 @@ impl FolderRefused {
         match self {
             Self::TooBroad => "folder.too-broad",
             Self::NotUsable => "folder.not-usable",
-            Self::NoLocks => "folder.no-locks",
         }
     }
 }
@@ -355,11 +349,6 @@ mod tests {
         let missing = folder.join("missing");
         assert_eq!(check_locks(&missing), LockCheck::NotWritable);
         std::fs::remove_dir(&folder).expect("folder removed");
-    }
-
-    #[test]
-    fn the_no_locks_refusal_has_its_code() {
-        assert_eq!(FolderRefused::NoLocks.code(), "folder.no-locks");
     }
 
     const RUN: &str = "/run/user/1000";

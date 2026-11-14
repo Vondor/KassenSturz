@@ -39,8 +39,6 @@ Item {
 
     function reasonFor(code: string): string {
         switch (code) {
-        case "folder.no-locks":
-            return i18nContext.i18nc("@info", "KassenSturz is not allowed to keep a book in this folder. Allow it to use your home folder or removable media in your system's app permissions, then choose the folder again.");
         case "folder.too-broad":
             return i18nContext.i18nc("@info", "Please choose a folder inside your home folder, for example one just for your book.");
         default:

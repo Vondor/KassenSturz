@@ -21967,17 +21967,17 @@ msgctxt "@title:window"
 msgid "Choose a folder"
 msgstr "Ordner wählen"
 
-#: crates/kassensturz-ui-bridge/qml/FolderChooser.qml:42
+#: crates/kassensturz-ui-bridge/qml/Main.qml:965
 #, kde-format
 msgctxt "@info"
 msgid ""
-"KassenSturz is not allowed to keep a book in this folder. Allow it to use "
-"your home folder or removable media in your system's app permissions, then "
-"choose the folder again."
+"The system doesn't let KassenSturz lock files in this folder, so this book "
+"has less protection here: open it in only one program at a time. Your "
+"automatic backups are not affected."
 msgstr ""
-"KassenSturz darf in diesem Ordner kein Buch aufbewahren. Erlauben Sie in den "
-"App-Berechtigungen Ihres Systems den Zugriff auf Ihren Benutzerordner oder "
-"auf Wechseldatenträger und wählen Sie den Ordner dann noch einmal."
+"Das System erlaubt KassenSturz nicht, in diesem Ordner Dateien zu sperren. "
+"Dieses Buch ist hier deshalb weniger geschützt: Öffnen Sie es immer nur in "
+"einem Programm. Ihre automatischen Sicherungen sind davon nicht betroffen."
 
 msgctxt "@info"
 msgid ""

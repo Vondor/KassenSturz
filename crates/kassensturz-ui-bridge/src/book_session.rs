@@ -48,6 +48,7 @@ pub mod qobject {
         #[qproperty(QString, folder, READ, NOTIFY)]
         #[qproperty(QString, folder_url, cxx_name = "folderUrl", READ, NOTIFY)]
         #[qproperty(bool, network_drive, cxx_name = "networkDrive", READ, NOTIFY)]
+        #[qproperty(bool, without_file_locks, cxx_name = "withoutFileLocks", READ, NOTIFY)]
         #[qproperty(QString, backup_folder, cxx_name = "backupFolder", READ, CONSTANT)]
         #[qproperty(QString, version, READ, CONSTANT)]
         #[qproperty(bool, from_pull_request, cxx_name = "fromPullRequest", READ, CONSTANT)]
@@ -167,6 +168,7 @@ pub struct BookSessionRust {
     folder: QString,
     folder_url: QString,
     network_drive: bool,
+    without_file_locks: bool,
     backup_folder: QString,
     version: QString,
     from_pull_request: bool,
@@ -465,17 +467,20 @@ impl qobject::BookSession {
         let folder_url = folder_url(&opened_at);
         let folder = shown_folder_text(&path, opened_at);
         let network_drive = session::on_network_drive();
+        let without_file_locks = session::without_file_locks();
         let mut state = self.as_mut().rust_mut();
         state.open = true;
         state.file_name = QString::from(file_name.as_str());
         state.folder = QString::from(folder.as_str());
         state.folder_url = folder_url;
         state.network_drive = network_drive;
+        state.without_file_locks = without_file_locks;
         self.as_mut().open_changed();
         self.as_mut().file_name_changed();
         self.as_mut().folder_changed();
         self.as_mut().folder_url_changed();
         self.as_mut().network_drive_changed();
+        self.as_mut().without_file_locks_changed();
     }
 
     fn set_problem(mut self: Pin<&mut Self>, problem: QVariant) {

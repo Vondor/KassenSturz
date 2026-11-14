@@ -16,7 +16,7 @@
 use std::path::Path;
 use std::time::Duration;
 
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::OpenFlags;
 
 use crate::{Book, StoreError, cached, is_book_file, layout};
 
@@ -52,7 +52,7 @@ impl Book {
         // `path` is absolute, so SQLite never takes it for a URI, and
         // without SQLITE_OPEN_CREATE it never creates a file.
         let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-        let conn = Connection::open_with_flags(&path, flags)?;
+        let (conn, copy) = crate::lockless::open_read_only(&path, flags)?.into_parts();
         crate::harden(&conn)?;
         conn.busy_timeout(BUSY_WAIT)?;
         // A second guard, should a statement ever try to write anyway.
@@ -80,6 +80,8 @@ impl Book {
             filling: false,
             write_failed: false,
             _lock: None,
+            without_file_locks: copy.is_some(),
+            _copy: copy,
         })
     }
 
@@ -116,6 +118,7 @@ impl Book {
 
 #[cfg(test)]
 mod tests {
+    use rusqlite::Connection;
     use std::sync::mpsc;
     use std::thread;
 

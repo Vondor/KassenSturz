@@ -659,3 +659,27 @@ fn numbered_columns_without_a_header_line_read_the_first_row() {
                  booking-date = \"Date\"\namount = \"Sum\"\n";
     assert!(CsvSettings::from_text(named).expect("settings").header);
 }
+
+/// A profile that relied on the old default (numbered columns, a header
+/// row, no `header` line) now meets the header row as data. That must
+/// refuse the file, naming the text and its line, never skip it or read a
+/// wrong amount (B-281).
+#[test]
+fn an_old_profile_meeting_a_header_row_is_refused_not_skipped() {
+    let base = "delimiter = \";\"\ndecimal-mark = comma\ndate-order = day-month-year\n\
+                booking-date = 1\namount = 2\n";
+    let settings = CsvSettings::from_text(base).expect("settings");
+    let refused = read(settings, "Datum;Betrag\n05.10.2026;-12,50\n").expect_err("refused");
+    assert_eq!(
+        refused,
+        ImportError::BadDate {
+            found: "Datum".to_owned(),
+            line: Some(1)
+        }
+    );
+    // And with `header = yes`, as the profile is saved by this version, it
+    // reads as before.
+    let settings = CsvSettings::from_text(&format!("{base}header = yes\n")).expect("settings");
+    let read = read(settings, "Datum;Betrag\n05.10.2026;-12,50\n").expect("read");
+    assert_eq!(read[0].entries.len(), 1);
+}

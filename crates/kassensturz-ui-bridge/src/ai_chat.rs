@@ -220,6 +220,13 @@ pub fn answer(
 /// An error report as the screens get it: its code and its parameters as
 /// text.
 pub fn code_text(report: &ErrorReport) -> ErrorText {
+    // The book refused a change because an amount is too large: say that,
+    // not the general "for example a category was added" (B-288).
+    if report.code == "ai-changes.not-applied"
+        && report.cause.as_deref().is_some_and(is_amount_too_large)
+    {
+        return ErrorText::plain("ai-changes.amount-too-large");
+    }
     ErrorText {
         code: report.code,
         params: report
@@ -235,6 +242,17 @@ pub fn code_text(report: &ErrorReport) -> ErrorText {
             })
             .collect(),
     }
+}
+
+/// Whether `cause` is the book's refusal of an amount for its size: the
+/// limit on what the amounts add up to (`store.amount-overflow`), or on one
+/// budget's amount (`store.budget-amount`, `too-large`).
+fn is_amount_too_large(cause: &ErrorReport) -> bool {
+    cause.code == "store.amount-overflow"
+        || (cause.code == "store.budget-amount"
+            && cause.params.iter().any(|(name, param)| {
+                *name == "reason" && matches!(param, ErrorParam::Keyword("too-large"))
+            }))
 }
 
 /// The change sets a model prepared that the user has not yet confirmed or
@@ -1363,6 +1381,27 @@ mod tests {
     use crate::test_folder::TestFolder;
 
     const TODAY: Date = Date::constant(2026, 10, 25);
+
+    /// B-288: a change the book refused for an amount's size says so, with the
+    /// real reason; any other refusal keeps the general sentence's code.
+    #[test]
+    fn a_refusal_for_an_amounts_size_names_that_reason() {
+        let refused = |error| code_text(&ChangeError::NotApplied(error).report()).code;
+        assert_eq!(
+            refused(StoreError::BudgetAmount {
+                reason: "too-large"
+            }),
+            "ai-changes.amount-too-large"
+        );
+        assert_eq!(
+            refused(StoreError::AmountOverflow),
+            "ai-changes.amount-too-large"
+        );
+        assert_eq!(
+            refused(StoreError::BudgetAmount { reason: "zero" }),
+            "ai-changes.not-applied"
+        );
+    }
 
     /// Records what the question tells the window.
     #[derive(Clone, Default)]

@@ -2582,6 +2582,18 @@ msgstr ""
 "eine Kategorie mit diesem Namen angelegt wurde. Es wurde nichts geändert. "
 "Bitten Sie die KI, sie noch einmal vorzubereiten."
 
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:109
+#, kde-format
+msgctxt "@info"
+msgid ""
+"An amount in these changes is too large: your book would hold more than "
+"KassenSturz can work with. Nothing was changed. Ask the AI to prepare them "
+"again with a smaller amount."
+msgstr ""
+"Ein Betrag in diesen Änderungen ist zu groß: Ihr Buch würde mehr enthalten, "
+"als KassenSturz verarbeiten kann. Es wurde nichts geändert. Bitten Sie die "
+"KI, sie mit einem kleineren Betrag noch einmal vorzubereiten."
+
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:110
 #, kde-format
 msgctxt "@info"

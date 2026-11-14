@@ -445,6 +445,7 @@ The user confirmed a change set (D-199), and it couldn't be applied. Nothing of 
 | `ai-changes.edit-in-use` | | | The user left out a new category that another change of the set uses (a Rule or a transaction booked to it), so it stays. Change or leave out that change first. |
 | `ai-changes.edit-refused` | | | The checks refused the user's edit, e.g. a parent of the other kind or currency, a chart kind that doesn't suit its figures, or a condition the Rule can't hold; the detail is the AI tools' code. Nothing was kept; choose something else, or take the AI's version. |
 | `ai-changes.not-applied` | | | The book refused one of the changes, e.g. because a category of that name was added in the meantime, so nothing was changed. The detail says why; ask the AI to prepare them again. |
+| `ai-changes.amount-too-large` | | | The book refused a change because an amount is too large (the amounts would add up to more than it can work with, or one budget's amount is above the limit), so nothing was changed. Shown instead of `ai-changes.not-applied` for these causes (B-288). Ask the AI to prepare them again with a smaller amount. |
 
 ## Your own AI tools' changes (`kassensturz-mcp`, `kassensturz-ai-tools`)
 

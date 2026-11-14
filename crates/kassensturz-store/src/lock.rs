@@ -52,7 +52,7 @@ pub struct Lock {
     /// program in another namespace, such as a Flatpak next to a snap, can't
     /// be looked up in `/proc`, so its lock can't be called a crash's
     /// leftover (D-776).
-    place: Option<Place>,
+    place: Option<Box<Place>>,
     /// The program opened the book without file locks, so SQLite can't keep
     /// a second writer out and this file is the only guard (D-776).
     without_file_locks: bool,
@@ -245,7 +245,7 @@ fn parse(text: &str) -> Lock {
     lock.process = pid.zip(start);
     lock.place = boot
         .zip(namespace)
-        .map(|(boot, namespace)| Place { boot, namespace });
+        .map(|(boot, namespace)| Box::new(Place { boot, namespace }));
     lock
 }
 

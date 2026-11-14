@@ -100,20 +100,38 @@ pub(crate) fn decide(
             decided.push((at, entry, decision));
         }
     }
+    // What each undecided entry looks like in the book.
+    let lookalikes: Vec<Vec<(&AccountPart, u32)>> = decided
+        .iter()
+        .map(|(_, entry, decision)| {
+            if decision.is_some() {
+                Vec::new()
+            } else {
+                similar_to(entry, &by_amount)
+            }
+        })
+        .collect();
     // The closest pairs first: an entry on the very day of a part takes it
     // before one a business day away, and so on; on the same distance, the
-    // earlier entry of the statements.
+    // earlier entry of the statements. An entry left out shows the user
+    // every transaction it looks like, not only the one it stands for.
     for distance in 0..=MAX_BUSINESS_DAYS {
-        for (at, entry, decision) in &mut decided {
+        for ((at, _, decision), candidates) in decided.iter_mut().zip(&lookalikes) {
             if decision.is_some() {
                 continue;
             }
-            let found = similar_to(entry, &by_amount)
-                .into_iter()
+            let found = candidates
+                .iter()
                 .find(|(part, apart)| *apart == distance && !claimed.contains(&part.split));
             if let Some((part, _)) = found {
                 claimed.insert(part.split);
-                *decision = Some(similar(*at, vec![part.transaction], choices));
+                let mut like: Vec<TransactionId> = Vec::new();
+                for (part, _) in candidates {
+                    if !like.contains(&part.transaction) {
+                        like.push(part.transaction);
+                    }
+                }
+                *decision = Some(similar(*at, like, choices));
             }
         }
     }

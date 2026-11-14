@@ -925,6 +925,33 @@ fn register_total(book: &Book, account: AccountId) -> (usize, i64) {
 /// genuinely identical payments both stay: in a new book, next to one the
 /// book has, and when the same two come again.
 #[test]
+fn a_left_out_entry_shows_every_transaction_it_looks_like() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    // Two lookalikes in the book, one entry in the statement: it stands for
+    // one of them, but the user sees both to decide.
+    let monday = typed(&mut book, checking, groceries, 1, -450);
+    let tuesday = typed(&mut book, checking, groceries, 2, -450);
+    let statements = [statement(vec![entry(2, -450, "", "Kiosk")])];
+    let report = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
+    assert_eq!(
+        report.entries[0].outcome,
+        EntryOutcome::Similar(vec![monday, tuesday])
+    );
+}
+
+#[test]
 fn two_identical_payments_both_stay() {
     let Sample {
         mut book,
@@ -984,7 +1011,9 @@ fn two_identical_payments_both_stay() {
     let EntryOutcome::Similar(second) = &report.entries[1].outcome else {
         panic!("{:?}", report.entries[1]);
     };
-    assert_ne!(first, second, "each coffee in the book is one of them");
+    // Each entry shows the user both coffees in the book to choose from.
+    assert_eq!(first.len(), 2, "{first:?}");
+    assert_eq!(first, second);
     assert_eq!(register_total(&book, checking), (4, -1600));
 }
 

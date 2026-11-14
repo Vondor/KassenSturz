@@ -222,3 +222,70 @@ fn adv_leftover_cold_journal_blocks_readers() {
     }
     panic!("no cold journal produced");
 }
+
+/// Child: adds numbered accounts and reports each one saved or refused.
+#[test]
+fn adv_child_numbered() {
+    let Some(path) = std::env::var_os("KS_ADV_BOOK").map(PathBuf::from) else { return };
+    let tag = std::env::var("KS_ADV_TAG").unwrap();
+    let _nl = (std::env::var_os("KS_ADV_LOCKS").is_none()).then(NoLocks::here);
+    let mut book = if std::env::var_os("KS_ADV_OLD").is_some() {
+        // An old build's "open anyway": the lock file is simply replaced.
+        std::fs::write(crate::lock::lock_path(&path), "computer=Laptop\nsince=2026-11-14T02:00:00Z\ntoken=old-build\n").unwrap();
+        let c = comp(&path);
+        let Err(StoreError::Locked(seen)) = Book::open(&path, &c) else { panic!() };
+        // Old builds take over without the D-776 checks: emulate by removing it.
+        std::fs::remove_file(crate::lock::lock_path(&path)).unwrap();
+        let _ = seen;
+        Book::open(&path, &c).expect("old build opens")
+    } else {
+        open_taking_over(&path)
+    };
+    book.use_currency(EUR).ok();
+    for n in 0..100000 {
+        let name = format!("{tag}-{n}");
+        let r = book.as_one_action(crate::history::Action::AddAccount, |b| {
+            account(b, &name, AccountKind::Asset, EUR);
+            Ok::<(), StoreError>(())
+        });
+        match r {
+            Ok(()) => println!("ADV saved {name}"),
+            Err(e) => { println!("ADV refused {name} {e:?}"); return; }
+        }
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
+#[test]
+fn adv_two_writer_numbered_loop() {
+    if std::env::var_os("KS_ADV_BOOK").is_some() { return; }
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    { let _nl = NoLocks::here(); drop(Book::create(&path, &comp(&path)).unwrap()); }
+    let mut a = spawn("lockless::tests::adversarial::adv_child_numbered", &path, &[("KS_ADV_TAG", "A")]);
+    let la = collect(&mut a);
+    std::thread::sleep(Duration::from_millis(1500));
+    let mut b = spawn("lockless::tests::adversarial::adv_child_numbered", &path, &[("KS_ADV_TAG", "B"), ("KS_ADV_LOCKS", "1"), ("KS_ADV_OLD", "1")]);
+    let lb = collect(&mut b);
+    std::thread::sleep(Duration::from_millis(1500));
+    a.kill().ok(); b.kill().ok(); a.wait().ok(); b.wait().ok();
+    std::thread::sleep(Duration::from_millis(200));
+    let (la, lb) = (la.lock().unwrap().clone(), lb.lock().unwrap().clone());
+    let saved: Vec<String> = la.iter().chain(lb.iter()).filter_map(|l| l.strip_prefix("ADV saved ").map(str::to_owned)).collect();
+    let refused: Vec<&String> = la.iter().chain(lb.iter()).filter(|l| l.starts_with("ADV refused")).collect();
+    let _ = std::fs::remove_file(crate::lock::lock_path(&path));
+    let book = Book::open(&path, &comp(&path)).expect("reopen with locks");
+    let ic: String = book.conn.query_row("PRAGMA integrity_check(1)", [], |r| r.get(0)).unwrap();
+    let mut in_book: Vec<String> = names(&book);
+    in_book.sort();
+    let mut want = saved.clone();
+    want.sort();
+    let missing: Vec<&String> = want.iter().filter(|n| in_book.binary_search(n).is_err()).collect();
+    let mut dup = in_book.clone(); dup.dedup();
+    eprintln!("integrity={ic} saved A={} B={} in_book={} missing={missing:?} dup={} refused={refused:?}",
+        la.iter().filter(|l| l.starts_with("ADV saved")).count(),
+        lb.iter().filter(|l| l.starts_with("ADV saved")).count(), in_book.len(), in_book.len() - dup.len());
+    assert_eq!(ic, "ok");
+    assert!(missing.is_empty(), "lost updates: {missing:?}");
+    assert!(refused.iter().any(|l| l.contains("A-") && l.contains("LockLost")), "A must stop with LockLost");
+}

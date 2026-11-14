@@ -39,6 +39,17 @@ if grep -v '^#' "$work/kassensturz.pot" | grep -v '^msgctxt' \
     failed=1
 fi
 
+# Every KI18nContext needs `translationDomain: "kassensturz"`: without it the
+# texts are looked up in no catalog and stay English (B-297).
+for qml in $(grep -rl 'KI18nContext {' crates --include='*.qml'); do
+    contexts=$(grep -c 'KI18nContext {' "$qml")
+    domains=$(grep -c 'translationDomain: "kassensturz"' "$qml")
+    if [ "$contexts" -ne "$domains" ]; then
+        echo "check-translations: $qml has $contexts KI18nContext but $domains translationDomain." >&2
+        failed=1
+    fi
+done
+
 for po in po/*/kassensturz.po; do
     [ -e "$po" ] || continue
     copy="$work/$(basename "$(dirname "$po")").po"

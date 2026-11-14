@@ -76,6 +76,7 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | Too-large amounts in AI proposals were refused late and with the wrong reason | B-288 | #994 |
 | When a sync program replaced the open book, the message was unclear | B-289 | #1000 |
 | A notice about very many reports was cut off | B-290 | #1001, #1003 |
+| The Windows package held 131 programs nobody needs (such as ffmpeg and openssl), each one more that could be misused | B-292 | #1014 |
 
 No finding revealed a PIN. Only one (B-252) could have let data leave the computer, and only if someone had first forged the settings file by hand.
 

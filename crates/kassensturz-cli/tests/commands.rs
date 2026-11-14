@@ -475,6 +475,7 @@ fn mistakes_in_a_transaction_are_refused_without_changing_the_book() {
 
     assert_eq!(session.ok(&["register", "Savings"]).lines().count(), 2);
     let balances = session.ok(&["balances"]);
+    println!("{balances}");
     let total = balances.lines().last().expect("a total line");
     assert_eq!(
         total.split_whitespace().collect::<Vec<_>>(),
@@ -3072,4 +3073,134 @@ fn a_look_alike_or_unprintable_account_name_is_refused() {
     );
     let accounts = session.ok(&["account", "list"]);
     assert_eq!(accounts.matches("Checking").count(), 1, "{accounts}");
+}
+
+/// B-279 and B-277 through a real CAMT.053 file: an entry with a known
+/// AcctSvcrRef but another amount is never dropped without a word, and one
+/// booked payment stands for one entry only.
+#[test]
+fn a_camt_entry_with_a_known_reference_but_another_amount_is_not_dropped() {
+    let session = household();
+    let entry = |day: u8, amount: &str, reference: &str| {
+        let reference = if reference.is_empty() {
+            String::new()
+        } else {
+            format!("<AcctSvcrRef>{reference}</AcctSvcrRef>")
+        };
+        format!(
+            "<Ntry><Amt Ccy=\"EUR\">{amount}</Amt><CdtDbtInd>DBIT</CdtDbtInd>\
+             <Sts>BOOK</Sts><BookgDt><Dt>2026-10-{day:02}</Dt></BookgDt>{reference}\
+             <NtryDtls><TxDtls><RltdPties><Cdtr><Nm>Kiosk</Nm></Cdtr></RltdPties>\
+             </TxDtls></NtryDtls></Ntry>"
+        )
+    };
+    let import = |name: &str, entries: &[String]| {
+        let file = camt053_file(&session, name, &entries.concat());
+        session.ok(&["import", &file, "--account", "Checking account"])
+    };
+    let balance = || {
+        session
+            .ok(&["balances"])
+            .lines()
+            .find(|line| line.starts_with("Checking account"))
+            .expect("listed")
+            .to_owned()
+    };
+
+    // One reference, two amounts in one file: both come in.
+    let imported = import(
+        "one.xml",
+        &[entry(5, "10.00", "R1"), entry(5, "12.00", "R1")],
+    );
+    assert!(
+        imported.starts_with("Imported 2 of 2 entries"),
+        "{imported}"
+    );
+    assert!(balance().ends_with("-22.00 EUR"), "{}", balance());
+
+    // The bank sends R1 again, corrected: the user is asked, nothing is
+    // skipped as a duplicate.
+    let again = import("two.xml", &[entry(5, "11.00", "R1")]);
+    assert!(again.starts_with("Imported 0 of 1 entry"), "{again}");
+    assert!(again.contains("may be in the book already"), "{again}");
+    assert!(balance().ends_with("-22.00 EUR"), "{}", balance());
+
+    // #977: one -4.50 booked on Thursday, two the next day without a
+    // reference: one is new.
+    import("three.xml", &[entry(1, "4.50", "")]);
+    let kiosk = import("four.xml", &[entry(2, "4.50", ""), entry(2, "4.50", "")]);
+    assert!(kiosk.starts_with("Imported 1 of 2 entries"), "{kiosk}");
+    assert!(balance().ends_with("-31.00 EUR"), "{}", balance());
+}
+
+/// B-269 (#965): amounts that each fit but together would make a balance
+/// the book can't add up are refused one by one, the book stays usable, and
+/// a plan too large to forecast is refused too.
+#[test]
+fn amounts_that_would_add_up_too_far_are_refused_and_the_book_stays_usable() {
+    let session = household();
+    let add = [
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "7000000000000000.00",
+        "--category",
+        "Salary",
+    ];
+    session.ok(&add);
+    let refused = session.cli(&add);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert_eq!(refused.err, "error: store.amount-overflow\n");
+    let balances = session.ok(&["balances"]);
+    assert!(
+        balances.contains("Checking account  7000000000000000.00 EUR"),
+        "{balances}"
+    );
+    let history = session.ok(&["history", "list"]);
+    assert_eq!(
+        history.matches("added a transaction").count(),
+        1,
+        "only the first one is in the book: {history}"
+    );
+    session.ok(&["forecast"]);
+
+    let plan = session.cli(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-1000000000000.00",
+        "Too much",
+        "--from",
+        "2026-11-01",
+    ]);
+    assert_eq!(plan.status, 1, "{}", plan.err);
+    assert_eq!(plan.err, "error: store.amount-overflow\n");
+    session.ok(&["forecast"]);
+
+    // A bank statement whose two entries fit on their own but not together
+    // is refused as a whole.
+    let session = household();
+    let statement = session.0.join("too-much.sta");
+    std::fs::write(
+        &statement,
+        ":20:X\n:25:DE89370400440532013000\n:60F:C261001EUR0,00\n\
+         :61:261002C6000000000000000,00NMSCNONREF\n\
+         :61:261003C6000000000000000,00NMSCNONREF\n\
+         :62F:C261003EUR12000000000000000,00\n-\n",
+    )
+    .expect("file written");
+    let statement = statement.display().to_string();
+    let imported = session.cli(&["import", &statement, "--account", "Checking account"]);
+    assert_eq!(imported.status, 1, "{}", imported.err);
+    assert_eq!(imported.err, "error: store.amount-overflow\n");
+    assert!(
+        session
+            .ok(&["balances"])
+            .contains("Checking account  0.00 EUR"),
+        "nothing of it stays"
+    );
 }

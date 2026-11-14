@@ -86,6 +86,9 @@ mod ffi {
 
         #[cxx_name = "quitApp"]
         fn quit_app();
+
+        #[cxx_name = "quitOnSignals"]
+        fn quit_on_signals();
     }
 }
 
@@ -178,6 +181,13 @@ pub fn start_detached(plan: &crate::restart::Plan) -> bool {
 /// Ends the event loop, so the app ends.
 pub fn quit() {
     ffi::quit_app();
+}
+
+/// Makes the signals a logout, a shutdown or `pkill` send end the event loop
+/// like quitting does, so the book is closed and its lock file removed
+/// (B-276). Call it once the application object exists.
+pub fn quit_on_signals() {
+    ffi::quit_on_signals();
 }
 
 /// Whether the app runs in a Flatpak sandbox.

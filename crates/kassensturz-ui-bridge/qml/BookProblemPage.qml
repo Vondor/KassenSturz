@@ -99,8 +99,14 @@ Kirigami.Page {
             return i18nContext.i18nc("@info %1 is a file name", "KassenSturz never replaces a file with a new book, so %1 wasn't changed. Choose another name or another folder.", page.where);
         case "store.not-a-book":
             return i18nContext.i18nc("@info %1 is a file name", "%1 isn't a KassenSturz book. It wasn't changed. Choose another file.", page.where);
-        case "store.unsupported-layout":
-            return i18nContext.i18nc("@info", "This book was made by a newer KassenSturz. Update KassenSturz to open it. The book wasn't changed.");
+        case "store.unsupported-layout": {
+            const update = i18nContext.i18nc("@info", "This book was made by a newer KassenSturz. Update KassenSturz to open it. The book wasn't changed.");
+            if (!problem.backupName) {
+                return update;
+            }
+            // B-285: no dead end for someone who went back to an older version.
+            return update + " " + i18nContext.i18nc("@info %1 is a date and time, %2 a folder, %3 a file name", "To keep using this version instead, open the copy that the newer KassenSturz saved before it updated the book, on %1: it is in the backup folder (%2) as %3. Choose it with \"Open another book…\". Changes made since the update are not in that copy.", problem.backupWhen, session.backupFolder, problem.backupName);
+        }
         case "store.development-layout":
             return i18nContext.i18nc("@info", "This book was made by a test version of KassenSturz from before the Beta. Open it with that version, choose \"Save the whole book\" there, and start a new book from the saved file. The book wasn't changed.");
         case "store.backup-failed":

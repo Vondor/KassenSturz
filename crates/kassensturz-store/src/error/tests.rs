@@ -203,7 +203,10 @@ fn examples() -> Vec<ErrorReport> {
             limit: "budgets",
             max: 1_000,
         },
-        StoreError::DuplicateAccountName { existing: account },
+        StoreError::DuplicateAccountName {
+            existing: account,
+            name: text("Daily money"),
+        },
         StoreError::AccountTypeMismatch {
             account_type: AccountType::CreditCard,
             kind: AccountKind::Asset,

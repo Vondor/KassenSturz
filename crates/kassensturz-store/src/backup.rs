@@ -119,8 +119,9 @@ pub(crate) fn write_backup(
     // short, e.g. by a crash, is never taken for a backup, and a sync tool
     // never uploads half a copy.
     let (path, partial) = claim(&folder, stem, &stamp)?;
-    let copied =
-        copy(conn, &partial).and_then(|()| fs::rename(&partial, &path).map_err(StoreError::from));
+    let copied = copy(conn, &partial)
+        .and_then(|()| fs::rename(&partial, &path).map_err(StoreError::from))
+        .and_then(|()| sync_folder(&folder));
     if let Err(error) = copied {
         let _ = fs::remove_file(&partial);
         return Err(error);
@@ -134,6 +135,18 @@ pub(crate) fn stem_of(book: &Path) -> Result<&str, StoreError> {
     book.file_stem()
         .and_then(|stem| stem.to_str())
         .ok_or(StoreError::Io(ErrorKind::InvalidFilename))
+}
+
+/// Makes sure the backup's new name in `folder` is on the disk before the
+/// book changes (B-278), so after a power cut the backup is there under its
+/// name, not only as a `.part` file. Only Unix systems can open a folder for
+/// that; elsewhere the rename is as durable as the system makes it.
+fn sync_folder(folder: &Path) -> Result<(), StoreError> {
+    #[cfg(unix)]
+    fs::File::open(folder)?.sync_all()?;
+    #[cfg(not(unix))]
+    let _ = folder;
+    Ok(())
 }
 
 /// Copies the database `conn` has open into `to`, the empty file claimed for

@@ -177,7 +177,7 @@ FormCard.FormCardPage {
         FormCard.FormTextDelegate {
             visible: (page.report.renamed ?? []).length > 0
             text: page.i18nContext.i18nc("@info", "Some names were taken")
-            description: page.i18nContext.i18nc("@info %1 is a list of names", "These got a number after their name, so you can tell them apart: %1", page.joined(page.report.renamed ?? []))
+            description: page.i18nContext.i18nc("@info %1 is a list of names", "These got a new name, so each fits on one line and can be told apart from the others: %1", page.joined(page.report.renamed ?? []))
             descriptionItem.textFormat: Text.PlainText
         }
 

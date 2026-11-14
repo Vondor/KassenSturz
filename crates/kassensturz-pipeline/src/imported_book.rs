@@ -27,6 +27,7 @@ use kassensturz_store::{
 
 use crate::book::fill_book;
 use crate::error::PipelineError;
+use crate::example_dashboards::resolve_names;
 use crate::kmy_reports::{Found, ReportBook, ReportLine, map_reports};
 
 /// What [`fill_book_from`] put into the new book, and what it couldn't.
@@ -174,7 +175,7 @@ pub fn fill_book_from_with(
     replaced: &HashMap<CurrencyCode, Replacement>,
     scope: RuleScope,
 ) -> Result<BookImportReport, PipelineError> {
-    fill(book, imported, replaced, scope, None)
+    fill(book, imported, replaced, scope, None, &[])
 }
 
 /// [`fill_book_from_with`] on the import day `today`, which also turns the
@@ -191,7 +192,24 @@ pub fn fill_book_from_on(
     scope: RuleScope,
     today: Date,
 ) -> Result<BookImportReport, PipelineError> {
-    fill(book, imported, replaced, scope, Some(today))
+    fill(book, imported, replaced, scope, Some(today), &[])
+}
+
+/// [`fill_book_from_on`] with `dashboards` stored before the file's saved
+/// reports: dashboard documents that name the book's accounts and
+/// categories as `@account:Name@` and `@category:Name@`, as
+/// [`crate::example_dashboards`] gives them for an example book (#829,
+/// D-788). Each gets the IDs this import gives those accounts; one naming
+/// an account or category the book doesn't have is left out.
+pub fn fill_book_from_with_dashboards(
+    book: &mut Book,
+    imported: &ImportedBook,
+    replaced: &HashMap<CurrencyCode, Replacement>,
+    scope: RuleScope,
+    today: Date,
+    dashboards: &[String],
+) -> Result<BookImportReport, PipelineError> {
+    fill(book, imported, replaced, scope, Some(today), dashboards)
 }
 
 fn fill(
@@ -200,6 +218,7 @@ fn fill(
     replaced: &HashMap<CurrencyCode, Replacement>,
     scope: RuleScope,
     today: Option<Date>,
+    dashboards: &[String],
 ) -> Result<BookImportReport, PipelineError> {
     let rounding = book.rounding_mode()?;
     let mut mapper = Mapper {
@@ -297,6 +316,15 @@ fn fill(
         }
         None => (Vec::new(), Vec::new(), imported.reports.len()),
     };
+    let views: Vec<ViewData> = dashboards
+        .iter()
+        .filter_map(|text| resolve_names(text, &accounts))
+        .map(|document| ViewData {
+            id: ViewId::generate(),
+            document,
+        })
+        .chain(views)
+        .collect();
     let data = BookData {
         rounding_mode: book.rounding_mode()?,
         history_keep_days: match book.history_retention()? {

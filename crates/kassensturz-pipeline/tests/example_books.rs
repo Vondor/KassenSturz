@@ -36,7 +36,8 @@ use kassensturz_import::{
     Camt053, Csv, CsvSettings, Imported, KmySqlite, Limits, currency, import,
 };
 use kassensturz_pipeline::{
-    Choices, EntryOutcome, ImportReport, export_book, fill_book, fill_book_from, import_statements,
+    Choices, EntryOutcome, ImportReport, RuleScope, example_dashboards, export_book, fill_book,
+    fill_book_from, fill_book_from_with_dashboards, import_statements, resolve_names,
 };
 use kassensturz_report::{
     Filter, Level, Period, Source, income_expense_by_month, spending_by_category,
@@ -461,47 +462,6 @@ const BUDGETS: [(&str, i64); 5] = [
     ("Geräte und Werkzeug", 3_500),
 ];
 
-/// The Overview Flower Utopia is saved with: a first look for a garden
-/// club's treasurer. Like the Space Colony Overview, it starts on last month.
-const OVERVIEW: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 1, "kind": "dashboard",
-  "name": "Übersicht",
-  "filters": {"period": "last-month"},
-  "components": [
-    {"id": "welcome", "type": "text.heading",
-     "props": {"text": "Willkommen in der Blumenwiese! So steht es um die Gemeinschaftskasse."},
-     "frame": {"col": 0, "row": 0, "cols": 12, "rows": 1}},
-    {"id": "worth", "type": "card.net_worth",
-     "frame": {"col": 0, "row": 1, "cols": 12, "rows": 2}},
-    {"id": "income", "type": "kpi.card", "dataset": "income_expense_by_month",
-     "params": {"measure": "income", "compare": "previous_period"},
-     "frame": {"col": 0, "row": 3, "cols": 3, "rows": 2}},
-    {"id": "expenses", "type": "kpi.card", "dataset": "income_expense_by_month",
-     "params": {"measure": "expenses", "compare": "previous_period"},
-     "frame": {"col": 3, "row": 3, "cols": 3, "rows": 2}},
-    {"id": "left", "type": "kpi.card", "dataset": "income_expense_by_month",
-     "params": {"measure": "net", "compare": "previous_period"},
-     "frame": {"col": 6, "row": 3, "cols": 3, "rows": 2}},
-    {"id": "kept", "type": "kpi.card", "dataset": "income_expense_by_month",
-     "params": {"measure": "savings-rate", "compare": "previous_period"},
-     "frame": {"col": 9, "row": 3, "cols": 3, "rows": 2}},
-    {"id": "budgets", "type": "budget.progress", "dataset": "budget_utilization",
-     "props": {"title": "Ihre Budgets"},
-     "frame": {"col": 0, "row": 5, "cols": 12, "rows": 4}},
-    {"id": "spending", "type": "chart.donut", "dataset": "spending_by_category",
-     "params": {"grouping": "top_level_category"},
-     "props": {"title": "Wofür das Geld ausgegeben wurde"},
-     "frame": {"col": 0, "row": 9, "cols": 6, "rows": 5}},
-    {"id": "biggest", "type": "table.rows", "dataset": "spending_by_category",
-     "params": {"grouping": "top_level_category"},
-     "props": {"title": "Die größten Ausgaben"},
-     "frame": {"col": 6, "row": 9, "cols": 6, "rows": 5}},
-    {"id": "trend", "type": "chart.line", "dataset": "income_expense_by_month",
-     "props": {"period": "last-12-months", "title": "Einnahmen und Ausgaben, Monat für Monat"},
-     "frame": {"col": 0, "row": 14, "cols": 12, "rows": 4}}
-  ]
-}"#;
-
 fn flower_utopia_with_budgets() -> Book {
     let example = &EXAMPLES[1];
     let mut book = the_book(example);
@@ -528,7 +488,13 @@ fn flower_utopia_with_budgets() -> Book {
         )
         .unwrap_or_else(|error| panic!("{name}: {error:?}"));
     }
-    book.add_view(OVERVIEW).expect("the Overview");
+    // Its dashboards (#829, D-788), which the KMyMoney books get when the
+    // app fills them and Flower Utopia keeps in its export.
+    let accounts = book.all_accounts().expect("accounts");
+    for text in example_dashboards(example.slug) {
+        let document = resolve_names(&text, &accounts).expect("every name is in the book");
+        book.add_view(&document).expect("a dashboard");
+    }
     book
 }
 
@@ -568,7 +534,7 @@ fn is_id(bytes: &[u8]) -> bool {
 }
 
 /// Flower Utopia as a complete export: the book plus its budgets and its
-/// saved Overview, which a KMyMoney file cannot hold. This is the file the
+/// saved dashboards, which a KMyMoney file cannot hold. This is the file the
 /// chooser opens for it.
 #[test]
 fn flower_utopia_export_is_the_committed_file() {
@@ -579,8 +545,8 @@ fn flower_utopia_export_is_the_committed_file() {
     );
 }
 
-/// The saved Overview reads, starts on last month, and the budgets have
-/// figures for last month.
+/// The saved dashboards read, the Overview first and marked as the one the
+/// book opens at, and the budgets have figures for last month.
 #[test]
 fn flower_utopia_budgets_have_figures_for_last_month() {
     use kassensturz_report::{BudgetGrouping, Document, budget_utilization};
@@ -590,10 +556,13 @@ fn flower_utopia_budgets_have_figures_for_last_month() {
     let mut book = Book::create_in_memory().expect("a book in memory");
     fill_book(&mut book, &data).expect("filled");
     let views = book.views(None).expect("views");
-    assert_eq!(views.len(), 1);
+    assert_eq!(views.len(), 4);
     let document = Document::read(&views[0].document).expect("a valid dashboard");
     assert_eq!(document.name, "Übersicht");
-    assert_eq!(document.filters().period.as_deref(), Some("last-month"));
+    assert!(document.default);
+    for view in &views[1..] {
+        assert!(!Document::read(&view.document).expect("valid").default);
+    }
 
     let (year, month) = reference();
     let today = Date::constant(year, month, 1);
@@ -614,4 +583,112 @@ fn flower_utopia_budgets_have_figures_for_last_month() {
         .filter(|row| row.periods[0].spent.minor_units() > 0)
         .count();
     assert!(spent >= 3, "{spent} budgets with spending last month");
+}
+
+/// #829, D-788: each KMyMoney example, filled with its dashboards as the
+/// app fills it, has four readable dashboards in its own language, the
+/// Overview first and marked; every account and category they name is the
+/// book's; the warning finds its account, and the food goal counts the
+/// food category's spending.
+#[test]
+fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
+    use kassensturz_core::ViewKind;
+    use kassensturz_report::{
+        AlarmState, Document, Formula, FormulaValue, Item, Setting, evaluate_alarms, templates,
+    };
+
+    let (year, month) = reference();
+    let today = Date::constant(year, month, 1);
+    for example in &EXAMPLES {
+        let bytes = fs::read(books().join(example.file)).expect("the KMyMoney book");
+        let Imported::Book(imported) =
+            import(&KmySqlite, &bytes, &Limits::default()).expect("the file reads")
+        else {
+            panic!("a book");
+        };
+        let mut book = Book::create_in_memory().expect("a book in memory");
+        let dashboards = example_dashboards(example.slug);
+        assert_eq!(dashboards.len(), 4, "{}", example.slug);
+        fill_book_from_with_dashboards(
+            &mut book,
+            &imported,
+            &HashMap::new(),
+            RuleScope::default(),
+            today,
+            &dashboards,
+        )
+        .expect("filled");
+        let views = book.views(Some(ViewKind::Dashboard)).expect("views");
+        assert_eq!(views.len(), 4, "{}: none left out", example.slug);
+        let ids: Vec<String> = book
+            .all_accounts()
+            .expect("accounts")
+            .into_iter()
+            .map(|account| account.id.to_string())
+            .collect();
+        let overview_name = if example.slug == "space-colony" {
+            "Overview"
+        } else {
+            "Übersicht"
+        };
+        let currency = code(example.currency);
+        let period = Period::last_month(today).expect("last month");
+        let source = Source::read_with_budgets(&book, period, today).expect("read");
+        let (mut alarms, mut goals) = (0, 0);
+        for (index, view) in views.iter().enumerate() {
+            let document = Document::read(&view.document)
+                .unwrap_or_else(|error| panic!("{}: {error:?}", example.slug));
+            assert_eq!(document.default, index == 0, "{}", example.slug);
+            if index == 0 {
+                assert_eq!(document.name, overview_name);
+                assert_eq!(document.template.as_deref(), Some(templates::OVERVIEW));
+            }
+            for entry in &document.entries {
+                let Item::Component(component) = &entry.item else {
+                    panic!("{}: {} is of a known type", example.slug, entry.id);
+                };
+                for (_, setting) in component.settings() {
+                    if let Setting::Ids(named) = setting {
+                        for id in named {
+                            assert!(ids.contains(id), "{}: {}", example.slug, entry.id);
+                        }
+                    }
+                }
+                if let Some(Setting::Alarms(rules)) = component.get("alarms") {
+                    for result in evaluate_alarms(&book, rules, today).expect("checked") {
+                        alarms += 1;
+                        assert!(
+                            matches!(result.state, AlarmState::Fine | AlarmState::Triggered),
+                            "{}: {:?}",
+                            example.slug,
+                            result.state
+                        );
+                    }
+                }
+                if let Some(Setting::Text(text)) = component.get("formula")
+                    && !text.is_empty()
+                {
+                    goals += 1;
+                    let result = Formula::parse(text)
+                        .expect("a formula")
+                        .evaluate(&source, period, &Filter::default(), currency)
+                        .expect("a figure");
+                    let FormulaValue::Amount(amount) = result.value else {
+                        panic!("{}: an amount", example.slug);
+                    };
+                    assert_ne!(amount.minor_units(), 0, "{}", example.slug);
+                    assert!(
+                        result
+                            .counted
+                            .iter()
+                            .any(|counted| counted.path == [example.food]),
+                        "{}: {:?}",
+                        example.slug,
+                        result.counted
+                    );
+                }
+            }
+        }
+        assert_eq!((alarms, goals), (1, 1), "{}", example.slug);
+    }
 }

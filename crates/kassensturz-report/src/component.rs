@@ -348,7 +348,8 @@ impl Component {
     }
 
     /// The component as a document writes it: `type`, `dataset`, `params`
-    /// and `props` with every property. A custom chart writes the `series` and
+    /// and `props` with every property. A component that shows no figures
+    /// writes no `dataset`, and `params` only if it has some (B-296). A custom chart writes the `series` and
     /// `categories` of its dataset only (D-504); the series' own filters are
     /// written only when they have a list (D-646).
     pub fn to_value(&self) -> Value {
@@ -436,6 +437,11 @@ impl Component {
         object.insert("type".into(), self.kind.id().into());
         if !self.kind.shows_no_data() {
             object.insert("dataset".into(), self.dataset.id.into());
+            object.insert("params".into(), Value::Object(params));
+        } else if !params.is_empty() {
+            // A component without a dataset can still ask for something of
+            // its own, like the transactions tile's accounts, categories and
+            // rows (B-296): without them it would lose them on every save.
             object.insert("params".into(), Value::Object(params));
         }
         object.insert("props".into(), Value::Object(props));

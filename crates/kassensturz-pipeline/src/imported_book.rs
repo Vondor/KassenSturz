@@ -346,6 +346,7 @@ fn fill(
         hidden_categories: Vec::new(),
         budgets: Vec::new(),
         schedules,
+        recurring_moves: Vec::new(),
     };
     fill_book(book, &data)?;
     let count = |kind: fn(AccountKind) -> bool| {

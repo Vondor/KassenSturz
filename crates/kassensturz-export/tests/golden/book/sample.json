@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 14,
+  "version": 15,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -133,6 +133,10 @@
       ]
     },
     {"id": "019a0000-0000-7000-8000-0000000000a2", "name": "Insurance", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-96.00", "currency": "EUR", "tolerance": "0.00", "category": null, "party_iban": null, "party_name": null, "unit": "year", "every": 2, "anchor": "2026-11-20", "track_from": "2026-11-20", "ends_on": "2030-12-31", "paused": true, "occurrences": []}
+  ],
+  "recurring_moves": [
+    {"id": "019a0000-0000-7000-8000-0000000000b1", "from_account": "019a0000-0000-7000-8000-000000000001", "to_account": "019a0000-0000-7000-8000-000000000007", "amount": "200.00", "currency": "EUR", "day_of_month": 5, "from_party_iban": "DE89 3704 0044 0532 0130 00", "from_party_name": "Alex Example", "created_on": "2026-09-01"},
+    {"id": "019a0000-0000-7000-8000-0000000000b2", "from_account": "019a0000-0000-7000-8000-000000000007", "to_account": "019a0000-0000-7000-8000-000000000001", "amount": "15.50", "currency": "EUR", "day_of_month": 31, "from_party_iban": null, "from_party_name": null, "created_on": "2026-09-02"}
   ],
   "payees": [
     {

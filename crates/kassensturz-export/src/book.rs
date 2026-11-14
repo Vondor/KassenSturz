@@ -20,8 +20,8 @@ use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, AmountTest, BankLink, Budget, BudgetEvery,
     CategoryGroup, Condition, Currency, CurrencyCode, Date, DatedRate, Decided, GroupKind,
     GroupMember, Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource,
-    RoundingMode, RuleId, RuleNode, Schedule, ScheduleUnit, SplitId, Tag, TextField, TextOperator,
-    Transaction, ViewId,
+    RecurringMove, RoundingMode, RuleId, RuleNode, Schedule, ScheduleUnit, SplitId, Tag, TextField,
+    TextOperator, Transaction, ViewId,
 };
 
 use crate::data::ExportData;
@@ -53,8 +53,9 @@ pub const FORMAT: &str = "kassensturz-book";
 /// version 11 a budget's name (M6-B203, D-664), version 12 what a budget
 /// counts from which day on (US3.2, D-690), version 13 the tags on a whole
 /// transaction (US4.8, D-712), version 14 the planned payments and what was
-/// decided about their occurrences (US7, D-769).
-pub const VERSION: u64 = 14;
+/// decided about their occurrences (US7, D-769), version 15 the remembered
+/// monthly moves (US7, B-263).
+pub const VERSION: u64 = 15;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -109,6 +110,9 @@ pub struct BookData {
     /// The planned payments in the order the book lists them, each with
     /// what was decided about its occurrences (D-769).
     pub schedules: Vec<ScheduleData>,
+    /// The monthly moves between the user's own accounts that the book
+    /// remembers to join by themselves, in the order of their IDs (D-749).
+    pub recurring_moves: Vec<RecurringMove>,
 }
 
 /// A planned payment in a complete export, with the occurrences that were
@@ -240,6 +244,15 @@ impl Exporter for BookExport {
                 ),
             ),
             (
+                "recurring_moves",
+                Json::List(
+                    book.recurring_moves
+                        .iter()
+                        .map(|moved| writer.recurring_move(moved))
+                        .collect::<Result<_, _>>()?,
+                ),
+            ),
+            (
                 "payees",
                 Json::List(book.payees.iter().map(payee).collect()),
             ),
@@ -299,6 +312,9 @@ impl BookData {
         for data in &self.schedules {
             is_listed(data.schedule.amount)?;
             is_listed(data.schedule.tolerance)?;
+        }
+        for moved in &self.recurring_moves {
+            is_listed(moved.amount)?;
         }
         let mut parts = HashSet::new();
         for transaction in &self.transactions {
@@ -507,6 +523,27 @@ impl BookWriter {
             ("ends_on", Json::optional_date(plan.ends_on)),
             ("paused", Json::Bool(plan.paused)),
             ("occurrences", Json::List(occurrences)),
+        ]))
+    }
+
+    /// A remembered monthly move with its amount as text (D-749).
+    fn recurring_move(&self, moved: &RecurringMove) -> Result<Json, ExportError> {
+        Ok(Json::Object(vec![
+            ("id", Json::id(moved.id)),
+            ("from_account", Json::id(moved.from_account)),
+            ("to_account", Json::id(moved.to_account)),
+            ("amount", self.amount(moved.amount)?),
+            ("currency", Json::text(moved.amount.currency().as_str())),
+            ("day_of_month", Json::Number(moved.day_of_month.into())),
+            (
+                "from_party_iban",
+                Json::optional_text(moved.from_party_iban.as_deref()),
+            ),
+            (
+                "from_party_name",
+                Json::optional_text(moved.from_party_name.as_deref()),
+            ),
+            ("created_on", Json::date(moved.created_on)),
         ]))
     }
 

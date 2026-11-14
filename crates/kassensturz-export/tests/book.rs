@@ -18,7 +18,9 @@ use kassensturz_core::{
 };
 use kassensturz_core::{Budget, BudgetAmount, BudgetCounts, BudgetEvery, BudgetId};
 use kassensturz_core::{CategoryGroup, GroupId, GroupKind, GroupMember};
-use kassensturz_core::{Decided, Schedule, ScheduleId, ScheduleUnit};
+use kassensturz_core::{
+    Decided, RecurringMove, RecurringMoveId, Schedule, ScheduleId, ScheduleUnit,
+};
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
     Exporter, ExporterInfo, MAX_RULE_DEPTH, ScheduleData, ViewData, export, export_file, read_book,
@@ -595,6 +597,30 @@ fn sample() -> BookData {
                 decided: Vec::new(),
             },
         ],
+        // A monthly move with the other party its paying side named, and one
+        // without any, on the last possible day (D-749, B-263).
+        recurring_moves: vec![
+            RecurringMove {
+                id: RecurringMoveId::from_bytes(id(0xb1)),
+                from_account: AccountId::from_bytes(id(checking)),
+                to_account: AccountId::from_bytes(id(7)),
+                amount: eur(20_000),
+                day_of_month: 5,
+                from_party_iban: Some("DE89 3704 0044 0532 0130 00".into()),
+                from_party_name: Some("Alex Example".into()),
+                created_on: date(2026, 9, 1),
+            },
+            RecurringMove {
+                id: RecurringMoveId::from_bytes(id(0xb2)),
+                from_account: AccountId::from_bytes(id(7)),
+                to_account: AccountId::from_bytes(id(checking)),
+                amount: eur(1_550),
+                day_of_month: 31,
+                from_party_iban: None,
+                from_party_name: None,
+                created_on: date(2026, 9, 2),
+            },
+        ],
     }
 }
 
@@ -728,6 +754,7 @@ fn values_that_may_be_empty_can_be_left_out() {
             hidden_categories: Vec::new(),
             budgets: Vec::new(),
             schedules: Vec::new(),
+            recurring_moves: Vec::new(),
         }
     );
 }
@@ -736,6 +763,16 @@ fn values_that_may_be_empty_can_be_left_out() {
 /// version 13 or older doesn't have.
 fn without_schedules(file: &str) -> String {
     let (before, rest) = file.split_once("  \"schedules\": [").expect("schedules");
+    let (_, after) = rest.split_once("\n  ],\n").expect("their end");
+    format!("{before}{after}")
+}
+
+/// `file`, a golden file, without its remembered monthly moves: the key a
+/// file of version 14 or older doesn't have.
+fn without_recurring_moves(file: &str) -> String {
+    let (before, rest) = file
+        .split_once("  \"recurring_moves\": [")
+        .expect("recurring_moves");
     let (_, after) = rest.split_once("\n  ],\n").expect("their end");
     format!("{before}{after}")
 }
@@ -766,13 +803,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 14", "\"version\": 15")),
-        Err(ExportError::NewerVersion { version: 15 })
+        read_book(&changed("\"version\": 15", "\"version\": 16")),
+        Err(ExportError::NewerVersion { version: 16 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 14",
+                "\"version\": 15",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1830,7 +1867,11 @@ fn a_transaction_has_tags_on_the_whole_from_version_13() {
     let kids = TagId::from_bytes(id(83));
     assert!(book.transactions.iter().any(|t| t.tags() == [kids]));
 
-    let older = without_schedules(&file).replacen("\"version\": 14", "\"version\": 12", 1);
+    let older = without_recurring_moves(&without_schedules(&file)).replacen(
+        "\"version\": 15",
+        "\"version\": 12",
+        1,
+    );
     assert_eq!(
         read_book(older.as_bytes()),
         Err(ExportError::UnknownValue {
@@ -1874,7 +1915,7 @@ fn planned_payments_come_with_version_14() {
     assert_eq!(book.schedules.len(), 2);
     assert_eq!(book.schedules[0].decided.len(), 2);
 
-    let older = file.replacen("\"version\": 14", "\"version\": 13", 1);
+    let older = without_recurring_moves(&file).replacen("\"version\": 15", "\"version\": 13", 1);
     assert_eq!(
         read_book(older.as_bytes()),
         Err(ExportError::UnknownValue {
@@ -1940,5 +1981,65 @@ fn planned_payments_come_with_version_14() {
             "\"tolerance\": \"0.405\""
         )),
         bad("schedules[0].tolerance", Expected::Amount)
+    );
+}
+
+/// Version 15 lists the remembered monthly moves (B-263); an older file has
+/// none, and the key is refused there. A move's day, amount and accounts
+/// are checked when the book is filled, but a day that is no number, an ID
+/// given twice or an amount with too many decimals is refused on reading.
+#[test]
+fn monthly_moves_come_with_version_15() {
+    let file = golden();
+    let book = read_book(file.as_bytes()).expect("read");
+    assert_eq!(book.recurring_moves, sample().recurring_moves);
+    assert_eq!(book.recurring_moves.len(), 2);
+
+    let older = file.replacen("\"version\": 15", "\"version\": 14", 1);
+    assert_eq!(
+        read_book(older.as_bytes()),
+        Err(ExportError::UnknownValue {
+            path: "recurring_moves".into()
+        })
+    );
+    let none = without_recurring_moves(&older);
+    assert!(
+        read_book(none.as_bytes())
+            .expect("read")
+            .recurring_moves
+            .is_empty()
+    );
+    assert_eq!(
+        read_book(without_recurring_moves(&file).as_bytes()),
+        Err(ExportError::MissingValue {
+            path: "recurring_moves".into()
+        })
+    );
+
+    assert_eq!(
+        read_book(&changed("\"day_of_month\": 5", "\"day_of_month\": \"5\"")),
+        bad("recurring_moves[0].day_of_month", Expected::Number)
+    );
+    assert_eq!(
+        read_book(&changed("\"day_of_month\": 5", "\"day_of_month\": 300")),
+        bad("recurring_moves[0].day_of_month", Expected::Number)
+    );
+    assert_eq!(
+        read_book(&changed(
+            "\"amount\": \"200.00\"",
+            "\"amount\": \"200.001\""
+        )),
+        bad("recurring_moves[0].amount", Expected::Amount)
+    );
+    let twice = golden().replacen(
+        "019a0000-0000-7000-8000-0000000000b2",
+        "019a0000-0000-7000-8000-0000000000b1",
+        1,
+    );
+    assert_eq!(
+        read_book(twice.as_bytes()),
+        Err(ExportError::Duplicate {
+            path: "recurring_moves[1].id".into()
+        })
     );
 }

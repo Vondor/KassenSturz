@@ -42,6 +42,9 @@ Kirigami.ScrollablePage {
     // for the Update all accounts widget (M6d.7).
     property var bank: null
     property bool bankReady: false
+    // The app's `PlannedPayments`, for the *Left this month* and *Coming up*
+    // tiles (US7, D-769, D-770).
+    property var plans: null
     // The book was just created in the setup wizard (M7a.9): a one-time
     // message says what this page is and what to do next.
     property bool justSetUp: false
@@ -53,6 +56,10 @@ Kirigami.ScrollablePage {
     signal addTransactionClicked()
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
+    // A planned payments tile asked for the form of a new plan, or for the
+    // Planned payments window (US7, D-769).
+    signal planPaymentClicked()
+    signal plannedPaymentsClicked()
     // The user chose a dashboard file to add (M6d.4): the app shows what it
     // holds before anything is added.
     signal dashboardFileChosen(url file)
@@ -739,6 +746,9 @@ Kirigami.ScrollablePage {
             choices: page.groupsSource
             bank: page.bank
             bankReady: page.bankReady
+            plans: page.plans
+            onPlanPaymentClicked: page.planPaymentClicked()
+            onPlannedPaymentsClicked: page.plannedPaymentsClicked()
             onGetTransactionsClicked: accountId => page.getTransactionsClicked(accountId)
             onTransactionClicked: (accountId, transactionId) => page.transactionClicked(accountId, transactionId)
             onConnectBankClicked: page.connectBankClicked()

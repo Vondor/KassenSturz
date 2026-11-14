@@ -223,6 +223,23 @@ Kirigami.ApplicationWindow {
         onChanged: root.screenChangedBook()
     }
 
+    // The Planned payments window and the form for a new plan, as the start
+    // screen's *Left this month* and *Coming up* tiles open them (US7,
+    // D-769, D-770). The Accounts page has the same window of its own.
+    PlannedPaymentsDialog {
+        id: overviewPlans
+
+        plans: plannedPayments
+        register: accountRegister
+    }
+
+    PlanFormDialog {
+        id: overviewPlanForm
+
+        plans: plannedPayments
+        register: accountRegister
+    }
+
     // Importing a file from the bank into an account (M3.10): one file at a
     // time, from the file dialog to the summary.
     // Named differently from the pages' `statementImport` property, which
@@ -1646,6 +1663,7 @@ Kirigami.ApplicationWindow {
             savedSource: savedViews
             groupsSource: categoryGroups
             bank: bankConnection
+            plans: plannedPayments
             folderUrl: bookSession.folderUrl
             justSetUp: root.freshBook
             onFirstLookClosed: root.freshBook = false
@@ -1654,6 +1672,8 @@ Kirigami.ApplicationWindow {
             onAddTransactionClicked: root.addTransaction("")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
+            onPlanPaymentClicked: overviewPlanForm.create("")
+            onPlannedPaymentsClicked: overviewPlans.show()
             onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
             onConnectBankClicked: root.pushPage(bankSetupPage)
             onStatisticBuilderRequested: (id, component, period) => root.pushPage(statisticsPage, {

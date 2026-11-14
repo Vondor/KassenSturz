@@ -1,0 +1,138 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+name: Snap
+
+# Builds KassenSturz as a snap (#892, D-765) and installs it on a fresh
+# runner as a user would. release.yml calls it for a tag and uploads the file
+# afterwards in its own job; here nothing is ever uploaded. docs/SNAP.md
+# explains the packaging.
+
+on:
+  # Every merge to main builds the snap and keeps it as a CI artifact, so
+  # test rounds can install the snap of a main build (nothing is uploaded to
+  # the store; only a tag does that, in release.yml).
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "packaging/snap/**"
+      - ".github/workflows/snap.yml"
+      - "CMakeLists.txt"
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      release:
+        description: Build for an official tag (stable grade, registration number)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: snap-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build and install the snap
+    runs-on: ubuntu-24.04
+    # The registration number is the secret of the environment `release`,
+    # named only for a tag, as in release.yml (D-745, threat T-63).
+    environment: ${{ inputs.release && 'release' || '' }}
+    steps:
+      # The whole history, since the build's number counts merges (D-226).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Number the build
+        run: |
+          set -eu
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          version=$(sh tools/build-version.sh)
+          test -n "$version"
+          echo "$version" > build-version
+          git rev-parse HEAD | cut -c1-7 > build-commit
+          echo "Build $version"
+      - name: Switch on the wizard's bank offer for a tag
+        if: inputs.release
+        run: echo on > wizard-bank
+      # Never add `set -x` here or in the steps below: the number would show.
+      - name: Give the build its registration number
+        env:
+          RELEASE: ${{ inputs.release }}
+          FINTS_REGISTRATION: ${{ secrets.FINTS_REGISTRATION }}
+        run: |
+          set -eu
+          if [ "$RELEASE" = true ]; then
+            if [ -z "$FINTS_REGISTRATION" ]; then
+              echo "::warning::The environment 'release' has no secret FINTS_REGISTRATION, so this snap cannot connect to a real bank."
+            else
+              printf '%s\n' "$FINTS_REGISTRATION" > fints-registration
+            fi
+          else
+            printf '%s\n' 0123456789ABCDEFGHIJKLMNO > fints-registration
+          fi
+      - name: Install Snapcraft
+        run: |
+          sudo snap install snapcraft --classic
+          snapcraft --version
+      - name: Build the snap
+        env:
+          SNAPCRAFT_GRADE: ${{ inputs.release && 'stable' || 'devel' }}
+        run: |
+          set -eu
+          mkdir -p snap
+          cp packaging/snap/snapcraft.yaml snap/snapcraft.yaml
+          # The runner is Ubuntu 24.04, the snap's base, so it builds in place
+          # instead of in a container.
+          sudo --preserve-env=SNAPCRAFT_GRADE snapcraft pack --destructive-mode --output kassensturz.snap
+          ls -l kassensturz.snap
+      # The number may be in the program and nowhere else in the snap.
+      - name: Delete the number's file and check where the number ended up
+        if: always()
+        run: |
+          set -eu
+          [ -f fints-registration ] || exit 0
+          number=$(cat fints-registration)
+          rm -f fints-registration
+          [ -f kassensturz.snap ] || exit 0
+          sudo unsquashfs -d squashed kassensturz.snap > /dev/null
+          found=$(sudo grep -rlF -- "$number" squashed || true)
+          echo "Files of the snap that hold the number:"
+          echo "${found:-none}"
+          if [ -z "$found" ]; then
+            echo "::error::The built snap does not hold the number: bank access would not work."
+            exit 1
+          fi
+          stray=$(echo "$found" | grep -vx 'squashed/usr/bin/kassensturz' || true)
+          if [ -n "$stray" ]; then
+            echo "::error::The number is in files other than the program itself (listed above)."
+            exit 1
+          fi
+      # What a user does: install the file, start the app, and see it reach
+      # its first screen (the developer mode's log), then remove it.
+      - name: Install the snap and start the app
+        run: |
+          set -u
+          sudo snap install --dangerous kassensturz.snap
+          sudo apt-get install -y xvfb
+          status=0
+          xvfb-run -a timeout 30 env KASSENSTURZ_DEBUG_LOG=1 QT_QUICK_BACKEND=software \
+            snap run kassensturz > start.log 2>&1 || status=$?
+          echo "--- what the app printed (tail) ---"
+          tail -n 30 start.log
+          log="$HOME/snap/kassensturz/current/.local/share/io.github.vondor.KassenSturz/debug-log"
+          ls -lR "$HOME/snap/kassensturz" | head -40 || true
+          test "$status" -eq 124
+      - name: The bank libraries load inside the snap
+        run: |
+          set -eu
+          snap run --shell kassensturz.kassensturz -c 'ls $SNAP/usr/lib | grep -E "gwenhywfar|aqbanking|chipcard|pcsclite"'
+      - name: Remove it again
+        run: sudo snap remove kassensturz
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ inputs.release && 'release-asset-snap' || 'snap' }}
+          path: kassensturz.snap
+          if-no-files-found: error

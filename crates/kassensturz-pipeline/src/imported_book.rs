@@ -10,14 +10,16 @@ use std::collections::{HashMap, HashSet};
 use kassensturz_core::{
     Account, AccountId, AccountKind, Actions, BookTo, Changeover, Condition, ConvertedPart,
     Currency, CurrencyCode, Date, DatedRate, DatedRateId, ForeignAmount, Institution,
-    InstitutionId, MAX_TAG_NAME_CHARS, MAX_TAGS_IN_BOOK, MAX_TAGS_ON_PART, MatchMode, Money,
-    MoneyError, OriginalAmount, Payee, PayeeId, RateSource, RoundingMode, Rule, RuleId, RuleNode,
-    Split, Tag, TagId, Transaction, TransactionId, TransferMatch, ViewId, Withdrawn,
+    InstitutionId, MAX_SCHEDULE_NAME_CHARS, MAX_SCHEDULES, MAX_TAG_NAME_CHARS, MAX_TAGS_IN_BOOK,
+    MAX_TAGS_ON_PART, MatchMode, Money, MoneyError, OriginalAmount, Payee, PayeeId, RateSource,
+    RoundingMode, Rule, RuleId, RuleNode, Schedule, ScheduleId, Split, Tag, TagId, Transaction,
+    TransactionId, TransferMatch, ViewId, Withdrawn,
 };
-use kassensturz_export::{BookData, ViewData};
+use kassensturz_export::{BookData, ScheduleData, ViewData};
 use kassensturz_import::{
-    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRule, BookTag,
-    BookTransaction, ImportError, ImportedBook, Replacement, Skipped, SkippedData, currency,
+    BookAccount, BookCondition, BookInstitution, BookPart, BookPayee, BookRule, BookSchedule,
+    BookTag, BookTransaction, ImportError, ImportedBook, Replacement, Skipped, SkippedData,
+    currency,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -34,6 +36,10 @@ pub struct BookImportReport {
     pub categories: usize,
     /// How many transactions.
     pub transactions: usize,
+    /// How many of the file's scheduled transactions became planned
+    /// payments (#919); the others are counted in
+    /// [`SkippedData::Schedules`].
+    pub schedules: usize,
     /// How many exchange rates.
     pub rates: usize,
     /// How many transactions the file kept with only their part in one of
@@ -249,6 +255,21 @@ fn fill(
         });
     }
     let left_open = Mapper::keep_open_with_money(&mut accounts, &transactions);
+    let mut schedules = Vec::new();
+    let mut schedules_left_out = 0;
+    for imported in &imported.schedules {
+        let plan = match mapper.schedule(imported, &accounts)? {
+            Some(plan) if schedules.len() < MAX_SCHEDULES => plan,
+            _ => {
+                schedules_left_out += 1;
+                continue;
+            }
+        };
+        schedules.push(ScheduleData {
+            schedule: plan,
+            decided: Vec::new(),
+        });
+    }
     let (views, reports, reports_left_out) = match today {
         Some(today) => {
             let mapped = map_reports(&imported.reports, &mapper, today, &mut HashSet::new());
@@ -290,7 +311,7 @@ fn fill(
         groups: Vec::new(),
         hidden_categories: Vec::new(),
         budgets: Vec::new(),
-        schedules: Vec::new(),
+        schedules,
     };
     fill_book(book, &data)?;
     let count = |kind: fn(AccountKind) -> bool| {
@@ -303,6 +324,7 @@ fn fill(
         accounts: count(AccountKind::is_account),
         categories: count(AccountKind::is_category),
         transactions: data.transactions.len(),
+        schedules: data.schedules.len(),
         rates: data.rates.len(),
         uncategorized,
         completed,
@@ -315,12 +337,16 @@ fn fill(
         patterns_left_out,
         skipped: with_counted(
             &with_counted(
-                &with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
-                SkippedData::Reports,
-                reports_left_out,
+                &with_counted(
+                    &with_counted(&imported.skipped, SkippedData::PayeeRules, without_text),
+                    SkippedData::Reports,
+                    reports_left_out,
+                ),
+                SkippedData::Tags,
+                mapper.tags_left_out,
             ),
-            SkippedData::Tags,
-            mapper.tags_left_out,
+            SkippedData::Schedules,
+            schedules_left_out,
         ),
         reports,
     })
@@ -809,6 +835,113 @@ impl Mapper {
             _ => Added::Difference,
         };
         Ok((splits, Some(added)))
+    }
+
+    /// The planned payment `imported` makes in the new book, or `None` if
+    /// it can't be one: its payment isn't one money moved between one of
+    /// the user's accounts and a category or another of the user's
+    /// accounts, in the account's own currency (a withdrawn one is left
+    /// out: a plan is made in what the book counts in), the account is
+    /// closed, the plan has ended, or the book's own checks refuse it
+    /// (#919). It counts from its next due date on, so what the other
+    /// program entered already stays what it was and is not expected
+    /// again.
+    fn schedule(
+        &self,
+        imported: &BookSchedule,
+        accounts: &[Account],
+    ) -> Result<Option<Schedule>, PipelineError> {
+        let payment = &imported.payment;
+        if self.withdrawn(payment.currency.code())?.is_some() {
+            return Ok(None);
+        }
+        let [first, second] = payment.parts.as_slice() else {
+            return Ok(None);
+        };
+        let user = |part: &BookPart| self.is_user_account(part.account.as_deref());
+        // The part in the user's account is what the plan is about; between
+        // two of the user's accounts it is the one the money leaves.
+        let (own, other) = match (user(first), user(second)) {
+            (true, false) => (first, second),
+            (false, true) => (second, first),
+            (true, true) if first.amount.is_negative() => (first, second),
+            (true, true) => (second, first),
+            (false, false) => return Ok(None),
+        };
+        let balanced = own
+            .amount
+            .checked_add(other.amount)
+            .is_ok_and(Money::is_zero);
+        if own.account_amount.is_some() || own.amount.is_zero() || !balanced {
+            return Ok(None);
+        }
+        let own_id = self.id(own.account.as_deref().unwrap_or_default())?;
+        let Some(account) = accounts.iter().find(|account| account.id == own_id) else {
+            return Ok(None);
+        };
+        if account.closed || account.currency != own.amount.currency() {
+            return Ok(None);
+        }
+        let category = match other.account.as_deref() {
+            Some(key) if self.is_category(key) => Some(self.id(key)?),
+            _ => None,
+        };
+        let name = [
+            Some(imported.name.as_str()),
+            payment.payee.as_deref(),
+            payment.note.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|text| {
+            let one_line = text.split_whitespace().collect::<Vec<_>>().join(" ");
+            let cut: String = one_line.chars().take(MAX_SCHEDULE_NAME_CHARS).collect();
+            cut.trim().to_owned()
+        })
+        .find(|name| !name.is_empty());
+        let Some(name) = name else {
+            return Ok(None);
+        };
+        // The file's own day counted from each month's end is the last day
+        // of its first month, which a monthly plan cuts back to in every
+        // other month.
+        let anchor = if imported.last_day_of_month {
+            imported.first_due.last_of_month()
+        } else {
+            imported.first_due
+        };
+        let track_from = anchor.max(payment.date);
+        if imported.ends_on.is_some_and(|end| end < track_from) {
+            return Ok(None);
+        }
+        let plan = Schedule {
+            id: ScheduleId::generate(),
+            name,
+            account: own_id,
+            amount: own.amount,
+            tolerance: Money::zero(own.amount.currency()),
+            category,
+            party_iban: None,
+            // A payee of the other program is the user's own label, not
+            // what the bank shows as the other party, so remembering it
+            // would stop the plan from matching its entries. The plan
+            // matches on its amount and date until the user says more.
+            party_name: None,
+            unit: imported.unit,
+            every: imported.every,
+            anchor,
+            track_from,
+            ends_on: imported.ends_on,
+            paused: false,
+        };
+        Ok(plan.check().is_ok().then_some(plan))
+    }
+
+    /// Whether `key` is a category (income or expense) of the file.
+    fn is_category(&self, key: &str) -> bool {
+        self.order
+            .iter()
+            .any(|(of, kind, _)| of == key && kind.is_category())
     }
 
     /// Whether `key` is one of the user's accounts, as opposed to a

@@ -1190,7 +1190,7 @@ mod tests {
         assert!(!flag_of(&view, "hasChanges"));
         assert_eq!(text_of(&view, "undoEdit"), "");
         let items = list_of(&view, "items");
-        assert_eq!(items.len(), 16);
+        assert_eq!(items.len(), 18);
         // The first card, after the tabs, the period header, the filter bar,
         // the bank warnings and the net worth card.
         let first = &items[5];

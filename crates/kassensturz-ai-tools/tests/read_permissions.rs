@@ -82,7 +82,8 @@ fn each_row_opens_only_the_functions_that_read_it() {
             "payee_totals",
             "search_transactions",
             "list_categories",
-            "list_tags"
+            "list_tags",
+            "monthly_totals"
         ]
     );
     assert_eq!(names(Permissions::all()).len(), FUNCTIONS.len());

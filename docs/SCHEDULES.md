@@ -223,3 +223,30 @@ Build 2a (the planned payments screens) followed part 2; where it had to decide,
 - **"Plan this again…"** saves the plan and matches its entry as the first payment in one change, so one Undo takes back both.
 - **The import summary** lists each match with the entry's own amount and date and whether it got the plan's category; *Undo these matches* takes back only the matches. The matches are made after the joins of monthly moves, so *Undo these joins* takes back the matches on top of them too, and says so. *Update all accounts* says how many planned payments came.
 - **Error texts**: the input code `input.plan-every` (how often isn't 1 to 52) is new; the `store.schedule-*` codes of build 1 have their texts in `FormError.qml`.
+
+Build 2b (the start-screen tiles) followed parts 5 and 2.6:
+
+- **Both tiles are page widgets**, not data widgets: `forecast.month` (*Left this month*) and `plan.coming_up` (*Coming up*) name no dataset; the app's `PlannedPayments` object fills both from its `view` (`forecast`, `comingUp`, `comingUpStatus`). Both are in the Add menu's *Notes* group and in `LIBRARY`, never in `ComponentType::ALL`: the AI neither proposes them nor sees the plans (the AI functions of 9 are a follow-up with their own human gate). Both are status tiles (STATUS_TILES 5): full size 3 × 2, down to 1 × 1, each with its own emblem.
+- **The built-in Overview** gets both side by side below the budgets (6 × 3 each). A book whose Overview the user changed keeps its saved layout; the built-in one is not stored, so a book still on it shows the tiles (Alpha, D-274).
+- **The accounts** are always the open checking and cash accounts; the tile has no setting to choose others yet. The **currency** is the one most of them keep, and of two as common the one whose code comes first; the others are counted as left out and the tile says how many. Choosing accounts in the tile's settings is a follow-up.
+- **With no plan** (or a paused one only), or with no open checking or cash account, the tile shows no figure, only *Plan a payment…* or a line that says why (`unknown`, D-734). A figure below zero is drawn in the negative colour and also says "below zero" to the screen reader.
+- **Coming up** lists the open payments from 5 days back to 30 days ahead, with the window's own words ("Rent: 750,00 € out, due …"); its state is `unknown` with no plan and `fine` otherwise. A payment that passed is counted on *Left this month* only, so the two icons don't both ask for the same thing.
+- **The month by month table** is in the Planned payments window: the next 3 months (start, planned in, planned out, end), only while a plan counts. The catalog dataset `forecast.months` (a chart of it) is **not** in this build: a dataset reads the book through the report layer's source, which knows no plans yet; it is a follow-up step of its own.
+
+#921 (months that start on the salary day, Q-565 = R):
+
+- **The Left this month tile has one setting, "Month starts on"** (`props.month_start`): *Like my budgets* (the default, `like-budgets`) or a fixed day, `day-1` (the calendar month) to `day-31`. *Like my budgets* takes the salary day that every budget running today on salary months shares (`Book::budgets_salary_day`); with none, or with two different days, it is the calendar month, so it never guesses between two days.
+- **The days come from the same function as budgets and reports** (`salary_month_of`, D-645): "this month" runs from the last such day to the day before the next one, and in a month shorter than the day its last day starts it. `kassensturz_core::forecast_from_day` and `Book::forecast_from_day` take the day; `forecast` is day 1. Each projected month carries its last day (`MonthPlan::last`).
+- **The tile says where a salary month ends** ("This month runs until 24.11.2026, like your budgets."), and the Planned payments window names such months by their first and last day. The window and the tile's state use *Like my budgets*; a tile with a fixed day asks `PlannedPayments.monthFrom` for its own figures. Overdue payments and the state don't depend on the day.
+- **Public holidays** still don't move a due day (D-030); the CLI's `forecast` keeps calendar months.
+
+## 13. Planned payments from a KMyMoney file (#919)
+
+The KMyMoney importer reads the file's scheduled transactions as planned payments. Built clean-room (D-044) from the synthetic golden files and the sample the maintainer approved; nothing was taken from KMyMoney's source.
+
+- **Which repeats:** only the codes the sample shows are read: weekly (4), monthly (32) and yearly (16384), with the file's own "every n" multiplier. Any other code (twice a month, every other week as its own code, once, and so on) is not guessed: it is left out and counted as "scheduled or recurring transactions that could not become planned payments" on the summary page and in `SkippedData::Schedules`.
+- **What is kept:** name (cut at 60 characters), the account, amount, category and the first due date. A plan whose last payment is behind it, or whose account is closed, is left out. A plan whose payment was already made counts from the next due date.
+- **What is not kept:** the weekend rule (plans always move forward to Monday, D-770), "enter automatically", the payee label, and a variable amount (the plan gets tolerance 0). A transfer is planned on the account the money leaves, without the other account.
+- **Never books by itself:** the import creates plans only; booking stays the user's step (D-769).
+- **Limits:** the same limits as every importer apply (at most 200 plans, repeat 1 to 52, texts within the text limit); the check at the end of the import (`check_book`) refuses a plan that doesn't fit them. The schedule's template transaction is not read as a real transaction.
+- **Where:** `kassensturz-import` (`BookSchedule`), `kassensturz-pipeline` (`Mapper::schedule`), golden files `kmy/schedules.kmy` and `kmy-sqlite/schedules.sqlite`.

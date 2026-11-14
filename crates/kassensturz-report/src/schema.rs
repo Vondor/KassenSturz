@@ -143,6 +143,21 @@ pub enum ComponentType {
     /// [`ComponentType::LIBRARY`] and never in [`ComponentType::ALL`]: the AI
     /// neither proposes it nor sees its rules.
     Alarms,
+    /// `forecast.month`: *Left this month*, the balance of the everyday
+    /// accounts once the planned payments still due this month are taken
+    /// off (US7, #725, D-770, `docs/SCHEDULES.md` 5). Only the balance and
+    /// the plans count, never a guess from past spending. It shows no
+    /// dataset; the `PlannedPayments` bridge object fills it. It is in
+    /// [`ComponentType::LIBRARY`] and never in [`ComponentType::ALL`]: the AI
+    /// neither proposes it nor sees the plans (the AI functions for plans
+    /// are a follow-up with their own human gate).
+    ForecastMonth,
+    /// `plan.coming_up`: *Coming up*, the planned payments of the next 30
+    /// days (US7, #795, D-769, `docs/SCHEDULES.md` 2.6). Like
+    /// [`ComponentType::ForecastMonth`] it shows no dataset, the
+    /// `PlannedPayments` bridge object fills it, and it is never in
+    /// [`ComponentType::ALL`].
+    ComingUp,
 }
 
 impl ComponentType {
@@ -193,6 +208,8 @@ impl ComponentType {
         Self::ChartCandlestick,
         Self::Transactions,
         Self::Alarms,
+        Self::ForecastMonth,
+        Self::ComingUp,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -214,6 +231,8 @@ impl ComponentType {
                 | Self::DashboardTabs
                 | Self::Transactions
                 | Self::Alarms
+                | Self::ForecastMonth
+                | Self::ComingUp
         )
     }
 
@@ -247,6 +266,8 @@ impl ComponentType {
             Self::ChartFlow => "chart.flow",
             Self::Transactions => "table.transactions",
             Self::Alarms => "notice.alarms",
+            Self::ForecastMonth => "forecast.month",
+            Self::ComingUp => "plan.coming_up",
         }
     }
 
@@ -288,7 +309,9 @@ impl ComponentType {
             | Self::FilterBar
             | Self::DashboardTabs
             | Self::Transactions
-            | Self::Alarms => "text",
+            | Self::Alarms
+            | Self::ForecastMonth
+            | Self::ComingUp => "text",
         }
     }
 
@@ -338,7 +361,9 @@ impl ComponentType {
             | Self::UnsortedNote
             | Self::PeriodHeader
             | Self::FilterBar
-            | Self::DashboardTabs => &[],
+            | Self::DashboardTabs
+            | Self::ComingUp => &[],
+            Self::ForecastMonth => &FORECAST_MONTH,
             Self::NetWorth | Self::IncomeSources => &NOTES_ONLY,
             Self::PeriodBox => &PERIOD_BOX,
             Self::BudgetProgress => &BUDGET_PROGRESS,
@@ -741,6 +766,14 @@ const FLOW_PAYEES: Property = Property {
     kind: Kind::Flag { default: false },
 };
 pub(crate) const FLOW_PAYEES_KEY: &str = "payees";
+/// `params.show_accounts` (US7, D-758): the money-flow chart shows the chosen
+/// accounts instead of *Your money*.
+const FLOW_ACCOUNTS: Property = Property {
+    key: FLOW_ACCOUNTS_KEY,
+    place: Place::Params,
+    kind: Kind::Flag { default: false },
+};
+pub(crate) const FLOW_ACCOUNTS_KEY: &str = "show_accounts";
 /// `params.currency` (US7, D-758): the currency the money-flow chart shows,
 /// by its ISO 4217 code. Empty, the default, takes the currency with the
 /// most money moved; there is no conversion.
@@ -776,7 +809,7 @@ const CHART: [Property; 17] = [
 const CANDLESTICK: [Property; 6] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE, CANDLE_FILL];
 /// The money flow (US7, D-758): which accounts, categories and tags count,
 /// the title, the period, and what the chart shows.
-const FLOW: [Property; 9] = [
+const FLOW: [Property; 10] = [
     ACCOUNTS,
     CATEGORIES,
     TAGS,
@@ -784,6 +817,7 @@ const FLOW: [Property; 9] = [
     PERIOD,
     FLOW_SUBS,
     FLOW_PAYEES,
+    FLOW_ACCOUNTS,
     FLOW_CURRENCY,
     HIDE_NOTE,
 ];
@@ -884,6 +918,56 @@ const ALARM_RULES: Property = Property {
     kind: Kind::Alarms,
 };
 const ALARMS: [Property; 2] = [ALARM_RULES, TITLE];
+
+/// The words of *Left this month*'s "Month starts on" (#921, Q-565): like
+/// the user's budgets (the default: the day their running salary-month
+/// budgets share, else the calendar month), or a fixed day of the month,
+/// `day-1` being the calendar month (D-645).
+pub const MONTH_STARTS: [&str; 32] = [
+    "like-budgets",
+    "day-1",
+    "day-2",
+    "day-3",
+    "day-4",
+    "day-5",
+    "day-6",
+    "day-7",
+    "day-8",
+    "day-9",
+    "day-10",
+    "day-11",
+    "day-12",
+    "day-13",
+    "day-14",
+    "day-15",
+    "day-16",
+    "day-17",
+    "day-18",
+    "day-19",
+    "day-20",
+    "day-21",
+    "day-22",
+    "day-23",
+    "day-24",
+    "day-25",
+    "day-26",
+    "day-27",
+    "day-28",
+    "day-29",
+    "day-30",
+    "day-31",
+];
+
+/// The key of *Left this month*'s "Month starts on".
+pub const MONTH_START_KEY: &str = "month_start";
+
+const MONTH_START: Property = Property {
+    key: MONTH_START_KEY,
+    place: Place::Props,
+    kind: Kind::Choice(&MONTH_STARTS),
+};
+/// *Left this month* (#921): the day its month starts on.
+const FORECAST_MONTH: [Property; 1] = [MONTH_START];
 
 /// The key of the warnings tile's rules.
 pub const ALARMS_KEY: &str = "alarms";

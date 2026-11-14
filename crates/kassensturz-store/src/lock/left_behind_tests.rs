@@ -100,6 +100,9 @@ fn a_book_a_program_of_this_computer_still_holds_always_asks() {
     end(child);
 }
 
+// Only where the system tells whether a program runs; on macOS the lock names
+// no program and keeps asking.
+#[cfg(any(target_os = "linux", windows))]
 #[test]
 fn a_book_a_program_of_this_computer_was_ended_on_opens_without_asking() {
     let folder = TempFolder::new();

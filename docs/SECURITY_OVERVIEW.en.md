@@ -84,7 +84,7 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | A part pointing to a missing account counted in no balance, and nothing said so | B-294 | #1020 |
 | An index of the book that disagreed with its table could hide entries from a balance | B-295 | #1020 |
 | A backup with a damaged file or a changed amount could be put in place of a good book | B-298 | #1032 |
-| Invisible characters in a payee or memo could carry a hidden instruction to the AI | B-300 | this PR |
+| Invisible characters in a payee or memo could carry a hidden instruction to the AI | B-300 | #1039 |
 
 No finding revealed a PIN. Only one (B-252) could have let data leave the computer, and only if someone had first forged the settings file by hand.
 

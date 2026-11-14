@@ -28,7 +28,8 @@ mod ticks;
 pub use compared::{compare_key, spending_by_category_compared};
 pub use custom::{CustomChart, CustomError, MAX_ROWS, MAX_SERIES, custom_chart};
 pub use datasets::{
-    category_over_time, income_expense_by_month, spending_by_category, spending_by_category_as,
+    category_over_time, income_expense_by_month, macd, moving_average, spending_by_category,
+    spending_by_category_as,
 };
 pub use error::ChartError;
 pub use financial::{

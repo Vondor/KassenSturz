@@ -222,6 +222,9 @@ ColumnLayout {
                 return series.name;
             }
         }
+        if (key.startsWith("trend_average_")) {
+            return i18nContext.i18nc("@label a series of a chart: the average of a month and the ones before it; %1 is how many months, at least two", "Average of the last %1 months", key.substring("trend_average_".length));
+        }
         switch (key) {
         case "spending":
             return i18nContext.i18nc("@label a series of a chart", "Spending");
@@ -234,6 +237,18 @@ ColumnLayout {
             return i18nContext.i18nc("@label a series of a chart", "Money in");
         case "net_worth":
             return i18nContext.i18nc("@label a series of a chart: what the user has less what they owe", "What you are worth");
+        case "net":
+            return i18nContext.i18nc("@label a series of a chart: money in less money out", "Left over");
+        // The trends (US7, #875): the average of the last N months, and
+        // MACD's three lines.
+        case "trend_average":
+            return i18nContext.i18nc("@label a series of a chart: the average of a month and the ones before it", "Moving average");
+        case "macd_line":
+            return i18nContext.i18nc("@label a series of a chart: the average of the last few months less the average of the last many months", "Trend (short-term less long-term)");
+        case "macd_signal":
+            return i18nContext.i18nc("@label a series of a chart: the average of the trend over the last few months", "Signal line");
+        case "macd_gap":
+            return i18nContext.i18nc("@label a series of a chart: the trend less the signal line", "Gap between them");
         case "balance":
             return i18nContext.i18nc("@title:column a table of a chart", "Balance");
         // The four balances of a candle (US4.10).

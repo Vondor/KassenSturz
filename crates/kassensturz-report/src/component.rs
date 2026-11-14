@@ -395,6 +395,17 @@ impl Component {
             {
                 continue;
             }
+            // The lengths of a trend are written only for the datasets that
+            // have one (US7, D-777), so no other chart carries them.
+            if matches!(
+                property.key,
+                crate::schema::TREND_LENGTH_KEY
+                    | crate::schema::TREND_SLOW_KEY
+                    | crate::schema::TREND_SIGNAL_KEY
+            ) && !matches!(self.dataset.id, crate::MOVING_AVERAGE | crate::MACD)
+            {
+                continue;
+            }
             // The total is the default and is not written (D-648).
             if property.key == crate::schema::AVERAGE_KEY
                 && matches!(setting, Setting::Word(word) if word == "total")

@@ -18,6 +18,7 @@ use crate::catalog::{CATALOG, DatasetInfo, NO_DATASET};
 use crate::columns::MAX_COLUMNS;
 use crate::filter::MAX_FILTER_IDS;
 use crate::formula::MAX_FORMULA_CHARS;
+use crate::trend::{TREND_LENGTH_WORDS, TREND_SIGNAL_WORDS, TREND_SLOW_WORDS};
 
 /// The `measure` of a key figure that shows the result of its formula.
 pub const FORMULA_MEASURE: &str = "formula";
@@ -776,9 +777,36 @@ const FLOW_CURRENCY: Property = Property {
 };
 pub(crate) const FLOW_CURRENCY_KEY: &str = "currency";
 
-const CHART: [Property; 17] = [
+/// `params.trend_length` (US7, #875, D-777): how many months a moving
+/// average spans, and MACD's short-term average. Only the trend datasets
+/// (`moving_average`, `macd`) read it.
+const TREND_LENGTH: Property = Property {
+    key: TREND_LENGTH_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&TREND_LENGTH_WORDS),
+};
+pub(crate) const TREND_LENGTH_KEY: &str = "trend_length";
+/// `params.trend_slow`: how many months MACD's long-term average spans.
+const TREND_SLOW: Property = Property {
+    key: TREND_SLOW_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&TREND_SLOW_WORDS),
+};
+pub(crate) const TREND_SLOW_KEY: &str = "trend_slow";
+/// `params.trend_signal`: how many months MACD's signal line spans.
+const TREND_SIGNAL: Property = Property {
+    key: TREND_SIGNAL_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&TREND_SIGNAL_WORDS),
+};
+pub(crate) const TREND_SIGNAL_KEY: &str = "trend_signal";
+
+const CHART: [Property; 20] = [
     GROUPING,
     AVERAGE,
+    TREND_LENGTH,
+    TREND_SLOW,
+    TREND_SIGNAL,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
@@ -814,9 +842,12 @@ const FLOW: [Property; 9] = [
 ];
 /// Bars: a chart's properties, the comparison of spending (US3.1a) and
 /// its uncoloured changes (D-760) after the average, and the way the bars go (D-679) after the legend.
-const BAR_CHART: [Property; 20] = [
+const BAR_CHART: [Property; 23] = [
     GROUPING,
     AVERAGE,
+    TREND_LENGTH,
+    TREND_SLOW,
+    TREND_SIGNAL,
     COMPARE_SPENDING,
     NEUTRAL,
     GROUPS,
@@ -865,9 +896,12 @@ const KPI_CARD: [Property; 8] = [
 const PROGRESS_BAR: [Property; 8] = [
     ACCOUNTS, TAGS, COMPARE, FORMULA, TARGET, TITLE, HIDE_NOTE, PERIOD,
 ];
-const TABLE: [Property; 17] = [
+const TABLE: [Property; 20] = [
     GROUPING,
     AVERAGE,
+    TREND_LENGTH,
+    TREND_SLOW,
+    TREND_SIGNAL,
     COMPARE_SPENDING,
     NEUTRAL,
     GROUPS,

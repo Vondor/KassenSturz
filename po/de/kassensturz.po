@@ -24509,3 +24509,111 @@ msgstr "Geldfluss"
 msgctxt "@info"
 msgid "No transactions behind this in this period."
 msgstr "In diesem Zeitraum liegen keine Buchungen dahinter."
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:150
+#, kde-format
+msgctxt "@title:column a table of a chart: the average of this month and the ones before it"
+msgid "Moving average"
+msgstr "Gleitender Durchschnitt"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:151
+#, kde-format
+msgctxt "@title:column a table of a chart: the average of the last few months less the average of the last many months"
+msgid "Trend"
+msgstr "Trend"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:152
+#, kde-format
+msgctxt "@title:column a table of a chart: the average of the trend over the last few months"
+msgid "Signal line"
+msgstr "Signallinie"
+
+#: crates/kassensturz-ui-bridge/qml/ChartTable.qml:153
+#, kde-format
+msgctxt "@title:column a table of a chart: the trend less the signal line"
+msgid "Gap"
+msgstr "Abstand"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:226
+#, kde-format
+msgctxt "@label a series of a chart: the average of a month and the ones before it; %1 is how many months, at least two"
+msgid "Average of the last %1 months"
+msgstr "Durchschnitt der letzten %1 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:241
+#, kde-format
+msgctxt "@label a series of a chart: money in less money out"
+msgid "Left over"
+msgstr "Übrig"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:245
+#, kde-format
+msgctxt "@label a series of a chart: the average of a month and the ones before it"
+msgid "Moving average"
+msgstr "Gleitender Durchschnitt"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:247
+#, kde-format
+msgctxt "@label a series of a chart: the average of the last few months less the average of the last many months"
+msgid "Trend (short-term less long-term)"
+msgstr "Trend (kurzfristig minus langfristig)"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:249
+#, kde-format
+msgctxt "@label a series of a chart: the average of the trend over the last few months"
+msgid "Signal line"
+msgstr "Signallinie"
+
+#: crates/kassensturz-ui-bridge/qml/ChartView.qml:251
+#, kde-format
+msgctxt "@label a series of a chart: the trend less the signal line"
+msgid "Gap between them"
+msgstr "Abstand zwischen beiden"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:127
+#, kde-format
+msgctxt "@item:inlistbox what a chart shows"
+msgid "Money in, money out or what is left, with its moving average"
+msgstr "Einnahmen, Ausgaben oder was übrig bleibt, mit gleitendem Durchschnitt"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:129
+#, kde-format
+msgctxt "@item:inlistbox what a chart shows"
+msgid "Short-term against long-term trend (MACD)"
+msgstr "Kurzfristiger gegen langfristigen Trend (MACD)"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:149
+#, kde-format
+msgctxt "@info"
+msgid "Shows what is left, or money in, or money out, in each month, and next to it a moving average: the average of that month and the ones before it, which smooths out the ups and downs so you can see where things are heading. You choose how many months it spans. Months from before the period are used for the first averages but not shown. Each currency is shown on its own; they are never added together."
+msgstr "Zeigt für jeden Monat, was übrig bleibt, oder die Einnahmen oder die Ausgaben, und daneben einen gleitenden Durchschnitt: den Durchschnitt dieses Monats und der Monate davor. Er glättet das Auf und Ab, damit man sieht, wohin es geht. Sie wählen, wie viele Monate er umfasst. Monate vor dem Zeitraum fließen in die ersten Durchschnitte ein, werden aber nicht angezeigt. Jede Währung wird für sich gezeigt; sie werden nie zusammengerechnet."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:151
+#, kde-format
+msgctxt "@info"
+msgid "Shows whether the recent months are doing better or worse than the longer run. The trend line is the average of the last few months less the average of the last many months; above zero means the recent months are better. The signal line is the average of the trend line over a few months, and the gap is the trend line less the signal line. You choose the lengths. Each currency is shown on its own; they are never added together."
+msgstr "Zeigt, ob die letzten Monate besser oder schlechter laufen als der längere Verlauf. Die Trendlinie ist der Durchschnitt der letzten wenigen Monate minus der Durchschnitt der letzten vielen Monate; über null heißt, die jüngsten Monate sind besser. Die Signallinie ist der Durchschnitt der Trendlinie über einige Monate, der Abstand ist die Trendlinie minus die Signallinie. Sie wählen die Längen. Jede Währung wird für sich gezeigt; sie werden nie zusammengerechnet."
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:213
+#, kde-format
+msgctxt "@label:listbox the months a moving average, or MACD's short-term average, spans"
+msgid "Average over"
+msgstr "Durchschnitt über"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:215
+#, kde-format
+msgctxt "@label:listbox the months MACD's long-term average spans"
+msgid "Long-term average over"
+msgstr "Langfristiger Durchschnitt über"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:217
+#, kde-format
+msgctxt "@label:listbox the months MACD's signal line spans"
+msgid "Signal line over"
+msgstr "Signallinie über"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:350
+#, kde-format
+msgctxt "@item:inlistbox a whole number of months; %1 is the number"
+msgid "%1 months"
+msgstr "%1 Monate"

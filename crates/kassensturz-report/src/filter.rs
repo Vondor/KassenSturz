@@ -267,6 +267,9 @@ pub struct Asked {
     /// What a money-flow chart shows (US7, D-758); the default for every
     /// other component.
     pub flow: crate::FlowChoice,
+    /// The months of a trend (US7, D-777); the default for every other
+    /// component.
+    pub trend: crate::Trend,
 }
 
 /// A note under a component about its filter (D-350). The component writes
@@ -421,6 +424,17 @@ impl Asked {
                 _ => None,
             },
             flow: crate::FlowChoice::of(component),
+            trend: {
+                let word = |key: &str| match component.get(key) {
+                    Some(Setting::Word(word)) => word.as_str(),
+                    _ => "",
+                };
+                crate::Trend::read(
+                    word(crate::schema::TREND_LENGTH_KEY),
+                    word(crate::schema::TREND_SLOW_KEY),
+                    word(crate::schema::TREND_SIGNAL_KEY),
+                )
+            },
         })
     }
 
@@ -445,6 +459,7 @@ impl Asked {
             compare: self.compare,
             candle: self.candle,
             flow: self.flow.clone(),
+            trend: self.trend,
         }
     }
 

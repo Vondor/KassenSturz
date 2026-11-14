@@ -123,6 +123,10 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in and out of your accounts, by month");
         case "money_flow":
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Where your money came from and where it went");
+        case "moving_average":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in, money out or what is left, with its moving average");
+        case "macd":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "Short-term against long-term trend (MACD)");
         }
         return "";
     }
@@ -141,6 +145,10 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "Shows what each account held at the end of the period, and what you have, what you owe and what you are worth. Each currency is shown on its own; they are never added together.");
         case "net_worth_over_time":
             return i18nContext.i18nc("@info", "Shows what you have, what you owe and what you are worth at the end of each month. Each currency is shown on its own; they are never added together.");
+        case "moving_average":
+            return i18nContext.i18nc("@info", "Shows what is left, or money in, or money out, in each month, and next to it a moving average: the average of that month and the ones before it, which smooths out the ups and downs so you can see where things are heading. You choose how many months it spans. Months from before the period are used for the first averages but not shown. Each currency is shown on its own; they are never added together.");
+        case "macd":
+            return i18nContext.i18nc("@info", "Shows whether the recent months are doing better or worse than the longer run. The trend line is the average of the last few months less the average of the last many months; above zero means the recent months are better. The signal line is the average of the trend line over a few months, and the gap is the trend line less the signal line. You choose the lengths. Each currency is shown on its own; they are never added together.");
         case "money_flow":
             return i18nContext.i18nc("@info", "Shows where the money of the period came from and where it went, as bands as wide as their amount. If you earned more than you spent, the rest is shown as left over; if you spent more, as taken from your reserves. Money moved between your own accounts is not counted. One currency is shown, with no conversion.");
         case "cash_flow_by_month":
@@ -200,6 +208,13 @@ ColumnLayout {
             return i18nContext.i18nc("@option:check a money-flow chart: who paid and who was paid get a column at each edge", "Show who paid and who was paid");
         case "currency":
             return i18nContext.i18nc("@label:textbox a money-flow chart: the currency it shows, as a code like EUR; empty for the one with the most money", "Currency (a code like EUR; empty: the one with most money)");
+        // The months of a trend (US7, #875).
+        case "trend_length":
+            return i18nContext.i18nc("@label:listbox the months a moving average, or MACD's short-term average, spans", "Average over");
+        case "trend_slow":
+            return i18nContext.i18nc("@label:listbox the months MACD's long-term average spans", "Long-term average over");
+        case "trend_signal":
+            return i18nContext.i18nc("@label:listbox the months MACD's signal line spans", "Signal line over");
         case "hide_note":
             return i18nContext.i18nc("@option:check hides the grey lines on a tile that say what it is filtered to", "Hide the grey filter notes");
         case "compare":
@@ -321,6 +336,18 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox a chart compares its spending with the average of earlier periods", "The average of the 6 periods before");
         case "average-12":
             return i18nContext.i18nc("@item:inlistbox a chart compares its spending with the average of earlier periods", "The average of the 12 periods before");
+        // The months of a trend (US7, #875).
+        case "2-months":
+        case "3-months":
+        case "4-months":
+        case "5-months":
+        case "6-months":
+        case "9-months":
+        case "12-months":
+        case "18-months":
+        case "24-months":
+        case "36-months":
+            return i18nContext.i18nc("@item:inlistbox a whole number of months; %1 is the number", "%1 months", word.split("-")[0]);
         case "income":
         case "money_in":
             return i18nContext.i18nc("@item:inlistbox", "Money in");

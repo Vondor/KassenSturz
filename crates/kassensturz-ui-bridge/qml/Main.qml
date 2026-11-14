@@ -106,6 +106,7 @@ Kirigami.ApplicationWindow {
         onOpened: {
             bookMover.refresh();
             root.showBook();
+            root.tellSettledBills(changeHistory.settleBills());
         }
         onFailed: root.showProblem()
     }
@@ -360,6 +361,8 @@ Kirigami.ApplicationWindow {
         id: aiChat
 
         onChanged: root.bookChanged()
+        // The archive's folder for bills without a category (US7, #333).
+        Component.onCompleted: nameUnsortedFolder(root.i18nContext.i18nc("@item the name of a folder for bills whose transaction has no category", "Not sorted yet"))
     }
 
     // Closing the sidebar and forgetting the conversation when the switch
@@ -573,8 +576,43 @@ Kirigami.ApplicationWindow {
         afterStep(changeHistory.redo(), true);
     }
 
+    // What settling the receipt inbox's moves after a crash found (US7,
+    // #333): only what the user should know, never a guess.
+    function tellSettledBills(notes: var) {
+        for (const note of notes) {
+            let text;
+            switch (note.kind) {
+            case "unlinked":
+                text = i18nContext.i18nc("@info %1 is a path", "A bill is in your archive without a link: %1", note.path);
+                break;
+            case "notWhereLinked":
+                text = i18nContext.i18nc("@info %1 is a path", "A filed bill is back in your inbox: %1. Its link points to the archive, where it isn't.", note.path);
+                break;
+            case "bothKept":
+                text = i18nContext.i18nc("@info %1 and %2 are paths", "Two different copies of a bill were kept, so none was lost: %1 and %2", note.path, note.other);
+                break;
+            case "onlyPart":
+                text = i18nContext.i18nc("@info %1 is a path", "Only an unchecked copy of a bill was left, so it was kept: %1", note.path);
+                break;
+            default:
+                text = i18nContext.i18nc("@info %1 is a path", "A bill that was being filed isn't there any more: %1", note.path);
+            }
+            showPassiveNotification(text, "long");
+        }
+    }
+
     // Says what undo or redo did, or why it didn't work.
     function afterStep(result: var, redone: bool) {
+        if (result.code === "bill.undo-blocked" || result.code === "bill.redo-blocked") {
+            // Only the history page offers "Undo anyway" (US7, #333).
+            const shown = pageStack.currentItem;
+            if (shown && shown.stepped !== undefined) {
+                shown.failure = result;
+            } else {
+                pushPage(historyPage, { failure: result });
+            }
+            return;
+        }
         if (result.code !== undefined) {
             const page = pageStack.currentItem;
             if (page && page.failure !== undefined) {
@@ -588,6 +626,12 @@ Kirigami.ApplicationWindow {
             return;
         }
         leaveStalePages();
+        if ((result.leftInArchive ?? []).length > 0) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The link is gone. The bills stay in your archive: %1", Array.from(result.leftInArchive).join(", ")), "long");
+        }
+        if ((result.copiesLeft ?? []).length > 0) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
+        }
         const what = changeNames.describe(result.change);
         if (redone) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
@@ -1966,6 +2010,7 @@ Kirigami.ApplicationWindow {
             ai: aiSwitch
             chat: aiChat
             onApplied: setId => chatPanel.markHandled(setId, true)
+            onNothingMade: setId => chatPanel.markHandled(setId, false)
             onDiscarded: setId => {
                 chatPanel.markHandled(setId, false);
                 pageStack.pop();

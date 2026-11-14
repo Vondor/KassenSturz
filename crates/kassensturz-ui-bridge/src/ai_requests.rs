@@ -20,7 +20,7 @@ use std::path::Path;
 
 use kassensturz_ai_tools::refusal::RefusalReasons;
 use kassensturz_ai_tools::requests::{Inbox, Reply, RequestId};
-use kassensturz_ai_tools::{ChangeError, prepare_named_with_bills};
+use kassensturz_ai_tools::{ChangeError, Folders, prepare_named_with_folders};
 use kassensturz_core::Report;
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_store::Book;
@@ -40,8 +40,11 @@ pub struct Arrived {
 /// checks each call against it and keeps the sets in `sets`. Each request
 /// is answered: shown, or failed with the check's code. A request for
 /// another book is left for the app that has it open. A request may
-/// attach bills from `bill_folder`, the folder the user chose for them
-/// (D-739): the user's own AI tools may, the chat never does.
+/// attach bills from the bill folder the user chose for them (D-739), and
+/// file bills from the receipt inbox into its archive (US7, #333), the
+/// `folders` of this computer: the user's own AI tools may, the chat never
+/// does. A bill whose total differs from the bank's starts left out, for
+/// the user to tick on purpose (D-751).
 pub fn take_requests(
     inbox: &mut dyn Inbox,
     path: &Path,
@@ -49,21 +52,35 @@ pub fn take_requests(
     sets: &mut Sets,
     allowed: Permissions,
     today: kassensturz_core::Date,
-    bill_folder: Option<&Path>,
+    folders: &Folders,
 ) -> Vec<Arrived> {
     let mut arrived = Vec::new();
     for request in inbox.take_new(path) {
-        let reply = match prepare_named_with_bills(
+        let prepared = prepare_named_with_folders(
             book,
             request.function,
             &request.arguments,
             allowed,
             today,
-            bill_folder,
-        ) {
-            Ok(proposal) => {
-                let count = proposal.changes.changes().len();
-                let id = sets.add_requested(proposal.changes, request.id.clone());
+            folders,
+        )
+        .and_then(|proposal| {
+            proposal
+                .changes
+                .leave_out_differing_bills(book, allowed)
+                // Leaving a bill out can't touch another change; should it
+                // fail, the set isn't shown with a differing bill ticked.
+                .map_err(|error| match error {
+                    kassensturz_ai_tools::EditError::Refused(error) => error,
+                    _ => kassensturz_ai_tools::ToolError::BadArgument {
+                        argument: "file_bills",
+                    },
+                })
+        });
+        let reply = match prepared {
+            Ok(changes) => {
+                let count = changes.changes().len();
+                let id = sets.add_requested(changes, request.id.clone());
                 arrived.push(Arrived { id, count });
                 Reply::Shown { changes: count }
             }
@@ -223,7 +240,7 @@ mod tests {
             &mut sets,
             Permissions::all(),
             DAY,
-            None,
+            &Folders::default(),
         );
 
         assert_eq!(arrived.len(), 1);
@@ -291,7 +308,7 @@ mod tests {
                 &mut sets,
                 Permissions::all(),
                 DAY,
-                None,
+                &Folders::default(),
             );
             assert_eq!(arrived.len(), 1);
             arrived[0].count
@@ -311,7 +328,7 @@ mod tests {
             &mut sets,
             Permissions::all(),
             DAY,
-            None,
+            &Folders::default(),
         );
         assert_eq!(arrived.len(), 1, "the waiting set is back");
         assert_eq!(arrived[0].count, count);
@@ -339,7 +356,7 @@ mod tests {
             &mut sets,
             Permissions::all(),
             DAY,
-            None,
+            &Folders::default(),
         );
         assert_eq!(arrived.len(), 2);
 
@@ -386,7 +403,7 @@ mod tests {
                 &mut sets,
                 Permissions::all(),
                 DAY,
-                None,
+                &Folders::default(),
             )
             .is_empty()
         );
@@ -417,7 +434,7 @@ mod tests {
                 &mut sets,
                 Permissions::all(),
                 DAY,
-                None,
+                &Folders::default(),
             )
             .is_empty()
         );

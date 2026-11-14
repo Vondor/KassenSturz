@@ -39,6 +39,31 @@ Kirigami.InlineMessage {
             : i18nContext.i18nc("@info %1 is the number of a part of a transaction, %2 a message about it", "Part %1: %2", result.part, message);
     }
 
+    // Why a bill of the receipt inbox didn't move (US7, #333), from the
+    // reason word of `bill.move-failed` (docs/ERROR_CODES.md).
+    function billReason(reason: string): string {
+        switch (reason) {
+        case "changed":
+            return i18nContext.i18nc("@info", "The file changed after it was read.");
+        case "not-found":
+            return i18nContext.i18nc("@info", "The file isn't there any more.");
+        case "exists":
+            return i18nContext.i18nc("@info", "A file of that name is already there.");
+        case "no-space":
+            return i18nContext.i18nc("@info", "The drive is full.");
+        case "no-permission":
+            return i18nContext.i18nc("@info", "KassenSturz may not write there.");
+        case "inbox-gone":
+            return i18nContext.i18nc("@info", "The inbox folder isn't there any more.");
+        case "archive-gone":
+            return i18nContext.i18nc("@info", "The archive folder isn't there any more.");
+        case "verify":
+            return i18nContext.i18nc("@info", "The copy didn't match the original, so it was removed.");
+        default:
+            return i18nContext.i18nc("@info", "The file couldn't be copied.");
+        }
+    }
+
     // Why a planned payment can't be kept as it is (D-769).
     function scheduleInvalid(reason: string): string {
         switch (reason) {
@@ -647,6 +672,10 @@ Kirigami.InlineMessage {
             }
         case "store.account-closed":
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
+        case "store.nothing-moves":
+            return i18nContext.i18nc("@info %1 is the name of an account or category", "Every part of this transaction is in %1, so no money moves. Choose another account or category for one of them.", result.account);
+        case "store.zero-amount":
+            return i18nContext.i18nc("@info", "This transaction is zero, so no money moves. Enter its amount.");
         // Planned payments (US7.1, D-769).
         case "input.plan-every":
             return i18nContext.i18nc("@info", "Choose how often it comes: every 1 to 52 weeks, months or years.");
@@ -672,6 +701,12 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This entry can't pay this planned payment: it must be in the plan's account, with the money going the same way, and not a move between your own accounts.");
         case "store.corrupt.history-mismatch":
             return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
+        // The receipt inbox (US7, #333): a bill can't move back or again,
+        // so nothing was changed (docs/RECEIPT_INBOX.md §7).
+        case "bill.undo-blocked":
+            return i18nContext.i18nc("@info %1 is a list of files, %2 why the first can't be moved", "Nothing was undone: these bills can't be moved back into your inbox: %1. %2 Put them back, or undo anyway and leave them where they are.", result.files, billReason(result.reason));
+        case "bill.redo-blocked":
+            return i18nContext.i18nc("@info %1 is a list of files, %2 why the first can't be moved", "Nothing was made again: these bills can't be filed again: %1. %2 Put them back into your inbox, then try again.", result.files, billReason(result.reason));
         case "input.no-accounts-chosen":
             return i18nContext.i18nc("@info", "Tick at least one account.");
         case "input.range-reversed":

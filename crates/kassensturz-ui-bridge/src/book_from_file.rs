@@ -22,7 +22,7 @@ use kassensturz_import::{
     RECOGNITION_BYTES, Recognition, Replacement, SkippedData, UnlistedCurrency, import, read_file,
 };
 use kassensturz_pipeline::{
-    BookImportReport, PipelineError, ReportLine, RuleScope, fill_book, fill_book_from_on,
+    BookImportReport, Outcome, PipelineError, ReportLine, RuleScope, fill_book, fill_book_from_on,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -725,6 +725,18 @@ pub(crate) fn note_fixed_periods<'a>(lines: impl IntoIterator<Item = &'a ReportL
     let _ = lines;
 }
 
+/// How many reports of the file got no line in the summary: the file's count
+/// of reports left out, less the ones that have a line saying `not-kept`
+/// (B-290). They are over the limit of 500 (`MAX_REPORTS`), or records of the
+/// file that weren't a report KassenSturz could read.
+pub(crate) fn reports_not_listed(left_out: usize, lines: &[ReportLine]) -> usize {
+    let listed = lines
+        .iter()
+        .filter(|line| line.outcome == Outcome::NotKept)
+        .count();
+    left_out.saturating_sub(listed)
+}
+
 /// The summary lines of the reports, in the user's date format.
 pub(crate) fn report_texts(lines: &[ReportLine], locale: &impl Locale) -> Vec<ReportText> {
     let day = |day: Option<Date>| day.map(|day| locale.short_date(day)).unwrap_or_default();
@@ -785,12 +797,19 @@ fn created_text(
             })
             .collect(),
         // The reports not kept are listed under *Reports* with why, so
-        // *Left out* doesn't count them again (M6d.6b).
+        // *Left out* doesn't count them again (M6d.6b). The ones that never
+        // got a line, because the file has more than `MAX_REPORTS` (B-290),
+        // are counted here instead: nothing is dropped without being said.
         skipped: report
             .skipped
             .iter()
-            .filter(|skipped| skipped.what != SkippedData::Reports || report.reports.is_empty())
-            .map(|skipped| (skipped.what.keyword(), skipped.count))
+            .filter_map(|skipped| {
+                if skipped.what != SkippedData::Reports || report.reports.is_empty() {
+                    return Some((skipped.what.keyword(), skipped.count));
+                }
+                let not_listed = reports_not_listed(skipped.count, &report.reports);
+                (not_listed > 0).then_some(("reports-not-listed", not_listed))
+            })
             .collect(),
         transfers: report.transfers.len(),
         rules: report.rules,
@@ -827,6 +846,61 @@ mod tests {
 
     fn empty() -> Book {
         Book::create_in_memory().expect("book in memory")
+    }
+
+    // B-290: reports beyond the limit of 500 have no line in the summary, so
+    // the page says how many there were instead of dropping them silently.
+    // The sample's own reports and a file that had 12 more than were read.
+    #[test]
+    fn reports_over_the_limit_are_counted_on_the_page_not_dropped() {
+        let bytes = std::fs::read(golden("kmy", "reports-anon.kmy")).expect("the sample");
+        let Imported::Book(mut imported) = import(&Kmy, &bytes, &Limits::default()).expect("read")
+        else {
+            panic!("a book");
+        };
+        imported.skipped.push(kassensturz_import::Skipped {
+            what: SkippedData::Reports,
+            count: 12,
+        });
+        imported.skipped.sort_by_key(|skipped| skipped.what);
+        let mut book = empty();
+        let report = fill_book_from_on(
+            &mut book,
+            &imported,
+            &HashMap::new(),
+            RuleScope::default(),
+            TestLocale.today(),
+        )
+        .expect("filled");
+        let created = created_text(&book, &report, &TestLocale).expect("text");
+        let not_listed: Vec<usize> = created
+            .skipped
+            .iter()
+            .filter(|(what, _)| *what == "reports-not-listed")
+            .map(|(_, count)| *count)
+            .collect();
+        assert_eq!(not_listed, [12]);
+        // Without the extra ones nothing is said.
+        let mut plain = empty();
+        let Imported::Book(imported) = import(&Kmy, &bytes, &Limits::default()).expect("read")
+        else {
+            panic!("a book");
+        };
+        let report = fill_book_from_on(
+            &mut plain,
+            &imported,
+            &HashMap::new(),
+            RuleScope::default(),
+            TestLocale.today(),
+        )
+        .expect("filled");
+        let created = created_text(&plain, &report, &TestLocale).expect("text");
+        assert!(
+            !created
+                .skipped
+                .iter()
+                .any(|(what, _)| what.starts_with("reports"))
+        );
     }
 
     fn code(book: &Book, error: &FromFileError) -> String {

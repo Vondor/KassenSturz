@@ -76,6 +76,14 @@ pub enum Problem {
         /// The book.
         path: PathBuf,
     },
+    /// Another program replaced the book's file while it was open, e.g. a
+    /// sync program putting another computer's copy over it: the change in
+    /// progress was not written to the file now in the folder, the book was
+    /// closed, and nothing more is written until it is opened again (B-289).
+    Replaced {
+        /// The book.
+        path: PathBuf,
+    },
     /// The file came through a sandbox's file chooser, e.g. in the Flatpak,
     /// so its lock file and SQLite's journal can't be made next to it.
     Sandboxed {
@@ -118,6 +126,7 @@ impl Problem {
             | Self::NoAccess { path }
             | Self::ReadOnly { path }
             | Self::WriteFailed { path }
+            | Self::Replaced { path }
             | Self::OutsideTest { path }
             | Self::Store { path, .. } => Some(path),
             Self::NoAppFolder => None,
@@ -134,6 +143,7 @@ impl Problem {
             Self::NoAccess { .. } => "book.no-access",
             Self::ReadOnly { .. } => "book.read-only",
             Self::WriteFailed { .. } => "book.write-failed",
+            Self::Replaced { .. } => "book.replaced",
             Self::OutsideTest { .. } => "book.outside-test",
             Self::NoAppFolder => "book.no-app-folder",
             Self::Store { error, .. } => error.report().code,
@@ -154,6 +164,7 @@ impl Problem {
             Self::NoAccess { .. } => ("book.no-access".to_owned(), Vec::new()),
             Self::ReadOnly { .. } => ("book.read-only".to_owned(), Vec::new()),
             Self::WriteFailed { .. } => ("book.write-failed".to_owned(), Vec::new()),
+            Self::Replaced { .. } => ("book.replaced".to_owned(), Vec::new()),
             Self::OutsideTest { .. } => ("book.outside-test".to_owned(), Vec::new()),
             Self::NoAppFolder => ("book.no-app-folder".to_owned(), Vec::new()),
             Self::Store { error, .. } => {
@@ -584,6 +595,26 @@ mod tests {
         let shown = problem.text().code;
         assert_eq!(problem.code(), shown, "the log names what the page shows");
         shown
+    }
+
+    // B-289: a replaced book file has a page of its own, not the drive's.
+    #[test]
+    fn a_replaced_book_file_is_told_from_a_lost_drive() {
+        let path = PathBuf::from("/data/Household.ksz");
+        assert_eq!(
+            code(Problem::Replaced { path: path.clone() }),
+            "book.replaced"
+        );
+        assert_eq!(
+            code(Problem::WriteFailed { path: path.clone() }),
+            "book.write-failed"
+        );
+        let shown = Problem::Replaced { path }.text();
+        assert!(
+            shown
+                .params
+                .contains(&("file".to_owned(), "Household.ksz".to_owned()))
+        );
     }
 
     #[test]

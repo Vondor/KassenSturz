@@ -40,6 +40,8 @@ FormCard.FormCardPage {
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 budget", "%1 budgets", count);
         case "reports":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 saved report", "%1 saved reports", count);
+        case "reports-not-listed":
+            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 more saved report was not brought in (KassenSturz takes at most 500)", "%1 more saved reports were not brought in (KassenSturz takes at most 500)", count);
         case "tags":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 tag that no transaction could be given", "%1 tags that no transaction could be given", count);
         case "rates":
@@ -284,6 +286,11 @@ FormCard.FormCardPage {
 
             delegate: FormCard.FormTextDelegate {
                 textItem.textFormat: Text.PlainText
+                // Whole sentences: "(KassenSturz takes at most 500)" must
+                // not be cut off with "…" (B-290).
+                textItem.wrapMode: Text.Wrap
+                textItem.elide: Text.ElideNone
+                textItem.maximumLineCount: 6
                 required property var modelData
 
                 text: page.skippedName(modelData.what, modelData.count)

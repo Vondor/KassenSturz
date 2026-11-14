@@ -152,6 +152,21 @@ fn check_amount(amount: Money, currency: CurrencyCode) -> Result<(), StoreError>
     }
 }
 
+/// Refuses an amount above what one budget amount may be (D-360), with the
+/// reason of [`Book::add_budget`] (`too-large`), so a caller that prepares a
+/// budget before it is made, such as the AI tools' proposals and their
+/// `check_only` answer, says so at once, not only when the book refuses it
+/// at the user's confirmation (B-288).
+pub fn check_budget_amount_size(amount: Money) -> Result<(), StoreError> {
+    if amount.minor_units() > MAX_AMOUNT {
+        Err(StoreError::BudgetAmount {
+            reason: "too-large",
+        })
+    } else {
+        Ok(())
+    }
+}
+
 /// Refuses an amount row whose day is not the start of one of the budget's
 /// periods, or that would carry over in a range.
 fn check_row(

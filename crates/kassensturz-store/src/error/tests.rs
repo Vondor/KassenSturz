@@ -218,6 +218,8 @@ fn examples() -> Vec<ErrorReport> {
             currency: CurrencyCode::new("CHF").expect("valid code"),
         },
         StoreError::AccountClosed(account),
+        StoreError::NothingMoves(account),
+        StoreError::ZeroAmount,
         StoreError::AccountNotEmpty {
             account,
             balance: money,

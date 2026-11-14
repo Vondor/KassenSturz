@@ -83,8 +83,7 @@ pub(super) fn utf16_start(start: &[u8]) -> Option<String> {
 }
 
 fn units(body: &[u8], little: bool) -> impl Iterator<Item = Result<char, ()>> + '_ {
-    let words = body.chunks_exact(2).map(move |pair| {
-        let pair = [pair[0], pair[1]];
+    let words = body.as_chunks::<2>().0.iter().map(move |&pair| {
         if little {
             u16::from_le_bytes(pair)
         } else {

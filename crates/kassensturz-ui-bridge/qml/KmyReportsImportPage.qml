@@ -128,6 +128,12 @@ Kirigami.ScrollablePage {
                 visible: page.reports.length === 0
                 text: page.i18nContext.i18nc("@info", "This file has no saved reports.")
             }
+
+            FormCard.FormTextDelegate {
+                visible: (page.preview.notListed ?? 0) > 0
+                text: page.i18nContext.i18ncp("@info %1 is how many", "%1 more saved report is not listed here and will not be added: KassenSturz takes at most 500 from a file.", "%1 more saved reports are not listed here and will not be added: KassenSturz takes at most 500 from a file.", page.preview.notListed ?? 0)
+                textItem.textFormat: Text.PlainText
+            }
         }
 
         Repeater {

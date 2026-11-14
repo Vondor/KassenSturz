@@ -4865,6 +4865,19 @@ msgid_plural "%1 saved reports"
 msgstr[0] "%1 gespeicherter Bericht"
 msgstr[1] "%1 gespeicherte Berichte"
 
+#: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:43
+#, kde-format
+msgctxt "@item what was left out, %1 is how many"
+msgid "%1 more saved report was not brought in (KassenSturz takes at most 500)"
+msgid_plural ""
+"%1 more saved reports were not brought in (KassenSturz takes at most 500)"
+msgstr[0] ""
+"%1 weiterer gespeicherter Bericht wurde nicht übernommen (KassenSturz "
+"übernimmt höchstens 500)"
+msgstr[1] ""
+"%1 weitere gespeicherte Berichte wurden nicht übernommen (KassenSturz "
+"übernimmt höchstens 500)"
+
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:44
 #, kde-format
 msgctxt "@item what was left out, %1 is how many"
@@ -13157,6 +13170,22 @@ msgstr "Berichte hinzufügen"
 msgctxt "@info about a report brought in before"
 msgid "you deleted its view earlier"
 msgstr "Sie haben seine Ansicht früher gelöscht"
+
+#: crates/kassensturz-ui-bridge/qml/KmyReportsImportPage.qml:133
+#, kde-format
+msgctxt "@info %1 is how many"
+msgid ""
+"%1 more saved report is not listed here and will not be added: KassenSturz "
+"takes at most 500 from a file."
+msgid_plural ""
+"%1 more saved reports are not listed here and will not be added: "
+"KassenSturz takes at most 500 from a file."
+msgstr[0] ""
+"%1 weiterer gespeicherter Bericht steht nicht in dieser Liste und wird nicht "
+"hinzugefügt: KassenSturz übernimmt höchstens 500 aus einer Datei."
+msgstr[1] ""
+"%1 weitere gespeicherte Berichte stehen nicht in dieser Liste und werden "
+"nicht hinzugefügt: KassenSturz übernimmt höchstens 500 aus einer Datei."
 
 #: crates/kassensturz-ui-bridge/qml/KmyReportsImportPage.qml:121
 #, kde-format

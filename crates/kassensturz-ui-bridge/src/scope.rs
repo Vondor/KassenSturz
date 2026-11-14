@@ -196,6 +196,7 @@ impl Scope {
             "flow": {
                 "sub_categories": self.flow.sub_categories,
                 "payees": self.flow.payees,
+                "accounts": self.flow.accounts,
                 "currency": self.flow.currency,
             },
             "trend": {
@@ -286,6 +287,7 @@ impl Scope {
                 kassensturz_report::FlowChoice {
                     sub_categories: flag("sub_categories"),
                     payees: flag("payees"),
+                    accounts: flag("accounts"),
                     currency: flow
                         .and_then(|flow| flow.get("currency"))
                         .and_then(Value::as_str)
@@ -742,6 +744,7 @@ mod tests {
             flow: kassensturz_report::FlowChoice {
                 sub_categories: true,
                 payees: true,
+                accounts: true,
                 currency: "USD".into(),
             },
             trend: kassensturz_report::Trend {

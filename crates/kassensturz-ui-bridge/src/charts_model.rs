@@ -450,6 +450,7 @@ fn flow_object(model: &FlowModel) -> QVariant {
                 ("y", place(node.y)),
                 ("height", place(node.height)),
                 ("label", text(&node.label)),
+                ("account", text(node.account.as_deref().unwrap_or(""))),
                 ("category", text(node.category.as_deref().unwrap_or(""))),
                 (
                     "holds",
@@ -1441,7 +1442,7 @@ mod tests {
         assert_eq!(
             keys(&nodes[0]),
             [
-                "category", "column", "height", "holds", "kind", "label", "name", "y"
+                "account", "category", "column", "height", "holds", "kind", "label", "name", "y"
             ]
         );
         let bands = list_of(chart, "bands");
@@ -1470,6 +1471,21 @@ mod tests {
         let view = view_of(&asked);
         let wide = &list_of(&view, "charts")[0];
         assert_eq!(number_of(wide, "columns"), 7);
+        // The accounts get a column between the middle and the sides, each
+        // account node says which account it is.
+        let mut asked = request("money_flow", "flow");
+        asked.scope.flow.accounts = true;
+        let view = view_of(&asked);
+        let accounts = &list_of(&view, "charts")[0];
+        let nodes = list_of(accounts, "nodes");
+        let named: Vec<String> = nodes
+            .iter()
+            .filter(|node| text_of(node, "kind") == "account")
+            .map(|node| text_of(node, "account"))
+            .collect();
+        assert!(!named.is_empty(), "no account node");
+        assert!(named.iter().all(|id| !id.is_empty()), "{named:?}");
+        assert!(number_of(accounts, "columns") >= 3);
     }
 
     /// The candles of the checking account over the last 12 months (US4.10),

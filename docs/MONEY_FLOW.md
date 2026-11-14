@@ -71,6 +71,8 @@ Off by default. With it on, the chosen accounts replace *Your money*:
 - each account node has its own *Left over* or *From your reserves* band, so per account the bands in equal the bands out exactly;
 - account columns may form chains (A → B → C). The layout orders accounts so most Transfer bands go left to right; a band going back (a card paid from the current account) is drawn as a curved return band under the nodes.
 
+**As built (US7 step 4):** the setting is `show_accounts` (*Show where the money was kept*). Own accounts are Assets and Liabilities; Equity transactions are skipped. Each transaction's own-account parts are paired (money in with money out) into Transfers, and Transfers between two chosen accounts are netted per pair. A part that goes through an account that is not chosen is routed through the first chosen account of the transaction, with a Transfer to or from *Your other accounts*. Accounts are ordered by balance (givers first) to give them columns, and a band that goes back is a return band. *Left over* and *From your reserves* are shared nodes with one band per account. Account columns are not capped at eight nodes (a household has few accounts). The click on an account node opens the transactions of that account (`accounts` filter).
+
 Here the Transfers are *not* left out, which is why this layer needs the own-account side of each transaction and is built after the basic chart works.
 
 ## 7. Build steps

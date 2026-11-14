@@ -196,6 +196,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md): what KassenSturz protects, from whom, and how
 - [`docs/FINTS_PRODUCT_ID.md`](docs/FINTS_PRODUCT_ID.md): how to handle a FinTS product registration number, for KassenSturz and other open-source programs (German: [`FINTS_PRODUCT_ID.de.md`](docs/FINTS_PRODUCT_ID.de.md))
 - [`docs/SECURITY_OVERVIEW.en.md`](docs/SECURITY_OVERVIEW.en.md): how safe KassenSturz is, in plain words, with what was attacked and fixed (German: [`SECURITY_OVERVIEW.de.md`](docs/SECURITY_OVERVIEW.de.md))
+- [`docs/WINDOWS.md`](docs/WINDOWS.md): the Windows packages, the Microsoft Store package and the steps to sign the installer
 - [`docs/CODE_SIGNING_POLICY.md`](docs/CODE_SIGNING_POLICY.md): which files are signed, who approves it and how (free code signing provided by SignPath.io, certificate by SignPath Foundation)
 - [`docs/SECURITY_LOG.md`](docs/SECURITY_LOG.md): how attack rounds are run and recorded (every round is logged)
 - [`SECURITY.md`](SECURITY.md): how to report a vulnerability privately

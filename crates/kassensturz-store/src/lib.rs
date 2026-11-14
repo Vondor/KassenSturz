@@ -262,6 +262,7 @@ impl Book {
         }
         // After the layout is the current one, so the splits are where the
         // check looks; nothing was changed in a book that fails it (B-291).
+        integrity::check_references(&conn)?;
         integrity::check_balances(&conn)?;
         integrity::check_conversions(&conn)?;
         Self::finish(conn, Some(lock), without_file_locks)

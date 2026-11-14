@@ -1957,29 +1957,75 @@ Kirigami.ApplicationWindow {
 
         SettingsPage {
             session: bookSession
-            numberFormat: numberFormatSettings
-            chartPalette: chartPaletteSettings
-            language: languageSettings
             ai: aiSwitch
-            history: changeHistory
+            onSaveCopyClicked: root.pushPage(exportPage)
+            onGroupClicked: group => root.pushPage({
+                book: settingsBookPage,
+                bank: settingsBankPage,
+                look: settingsLookPage,
+                backups: settingsBackupPage,
+                advanced: settingsAdvancedPage,
+            }[group])
+            onAiSettingsClicked: root.pushPage(aiSettingsPage)
+            onHelpClicked: root.pushPage(helpPage)
+        }
+    }
+
+    // The groups of the settings, each a page of its own (D-795).
+    Component {
+        id: settingsBookPage
+
+        SettingsBookPage {
+            session: bookSession
+            onOpenAnotherClicked: root.chooseBookToOpen()
+            onExampleBookClicked: root.chooseExampleBook()
+            onNewBookClicked: root.chooseNewBook()
+            onBookFromFileClicked: root.chooseFileForNewBook()
+            onTagsClicked: root.pushPage(tagsPage)
+        }
+    }
+
+    Component {
+        id: settingsBankPage
+
+        SettingsBankPage {
             bank: bankConnection
             fetchGap: fetchGapSettings
             onConnectBankClicked: root.pushPage(bankSetupPage)
             onChangeBankClicked: login => root.pushPage(bankLoginPage, { login: login })
             onLinkAccountClicked: login => root.pushPage(bankSetupPage, { refreshLogin: login.id })
-            onOpenAnotherClicked: root.chooseBookToOpen()
-            onExampleBookClicked: root.chooseExampleBook()
-            onNewBookClicked: root.chooseNewBook()
-            bookMove: bookMover
-            onSaveCopyClicked: root.pushPage(exportPage)
-            onBookPlaceClicked: root.pushPage(bookMovePage)
-            onGrantedFoldersClicked: root.pushPage(grantedFoldersPage)
-            onBookFromFileClicked: root.chooseFileForNewBook()
+        }
+    }
+
+    Component {
+        id: settingsLookPage
+
+        SettingsLookPage {
+            numberFormat: numberFormatSettings
+            chartPalette: chartPaletteSettings
+            language: languageSettings
+        }
+    }
+
+    Component {
+        id: settingsBackupPage
+
+        SettingsBackupPage {
+            session: bookSession
+            history: changeHistory
             onShowHistoryClicked: root.pushPage(historyPage)
             onRestoreBackupClicked: root.pushPage(restoreBackupPage)
-            onTagsClicked: root.pushPage(tagsPage)
-            onAiSettingsClicked: root.pushPage(aiSettingsPage)
-            onHelpClicked: root.pushPage(helpPage)
+        }
+    }
+
+    Component {
+        id: settingsAdvancedPage
+
+        SettingsAdvancedPage {
+            bank: bankConnection
+            bookMove: bookMover
+            onBookPlaceClicked: root.pushPage(bookMovePage)
+            onGrantedFoldersClicked: root.pushPage(grantedFoldersPage)
         }
     }
 
@@ -1990,6 +2036,7 @@ Kirigami.ApplicationWindow {
             bookMove: bookMover
             // Shows the book where it is now, on the page that stays open.
             onMoved: bookSession.showMovedBook()
+            onDone: root.pageStack.pop()
         }
     }
 

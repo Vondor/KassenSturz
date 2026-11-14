@@ -16200,12 +16200,6 @@ msgstr ""
 "Schließen Sie KassenSturz und öffnen Sie es wieder, um es in der neuen "
 "Sprache zu sehen."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:181
-#, kde-format
-msgctxt "@title:group"
-msgid "Your book"
-msgstr "Ihr Haushaltsbuch"
-
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:186
 #, kde-format
 msgctxt "@label"
@@ -16256,24 +16250,6 @@ msgid "An empty book in a folder you choose, for example to try something out."
 msgstr ""
 "Ein leeres Haushaltsbuch in einem Ordner Ihrer Wahl, zum Beispiel zum "
 "Ausprobieren."
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:248
-#, kde-format
-msgctxt "@title:group"
-msgid "Your data"
-msgstr "Ihre Daten"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:254
-#, kde-format
-msgctxt "@action:button"
-msgid "Save a copy of my data…"
-msgstr "Eine Kopie meiner Daten speichern…"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:255
-#, kde-format
-msgctxt "@info"
-msgid "For a spreadsheet, or the whole book as a backup."
-msgstr "Für eine Tabelle oder das ganze Haushaltsbuch als Sicherung."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:267
 #, kde-format
@@ -16483,18 +16459,6 @@ msgstr ""
 msgctxt "@action:button"
 msgid "Connect to KeePassXC again"
 msgstr "Erneut mit KeePassXC verbinden"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:466
-#, kde-format
-msgctxt "@action:button"
-msgid "Hide advanced choices"
-msgstr "Erweiterte Möglichkeiten ausblenden"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:467
-#, kde-format
-msgctxt "@action:button"
-msgid "Show advanced choices"
-msgstr "Erweiterte Möglichkeiten anzeigen"
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:479
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:598
@@ -25266,3 +25230,97 @@ msgstr ""
 msgctxt "@info the amount of a flow of the money-flow chart, part of which is assumed to be a move between your own accounts: %1 the amount, %2 the assumed part"
 msgid "%1 (%2 assumed)"
 msgstr "%1 (davon %2 angenommen)"
+#, kde-format
+msgctxt "@info"
+msgid "Most households never need to change anything here."
+msgstr "Die meisten Haushalte müssen hier nie etwas ändern."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Where your book is"
+msgstr "Wo Ihr Buch liegt"
+
+#, kde-format
+msgctxt "@title"
+msgid "Advanced"
+msgstr "Erweitert"
+
+#, kde-format
+msgctxt "@title"
+msgid "Backups and undo"
+msgstr "Sicherungen und Rückgängig"
+
+#, kde-format
+msgctxt "@title"
+msgid "Bank"
+msgstr "Bank"
+
+#, kde-format
+msgctxt "@title"
+msgid "My book"
+msgstr "Mein Buch"
+
+#, kde-format
+msgctxt "@title"
+msgid "Look and language"
+msgstr "Aussehen und Sprache"
+
+#, kde-format
+msgctxt "@action:button the main action of the settings"
+msgid "Save a backup now…"
+msgstr "Sicherung jetzt speichern …"
+
+#, kde-format
+msgctxt "@info"
+msgid "The whole book as a copy, for example on a USB stick, or your data for a spreadsheet."
+msgstr "Das ganze Buch als Kopie, zum Beispiel auf einem USB-Stick, oder Ihre Daten für eine Tabelle."
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "My book"
+msgstr "Mein Buch"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Which book is open, tags, an example book"
+msgstr "Welches Buch offen ist, Schlagwörter, ein Beispielbuch"
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Bank"
+msgstr "Bank"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Bank logins, reminder to get new transactions"
+msgstr "Bankzugänge, Erinnerung an neue Buchungen"
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Look and language"
+msgstr "Aussehen und Sprache"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Language, how amounts look, chart colors"
+msgstr "Sprache, wie Beträge aussehen, Diagrammfarben"
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Backups and undo"
+msgstr "Sicherungen und Rückgängig"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Copies of your book, restoring one, the history"
+msgstr "Kopien Ihres Buchs, eine zurückholen, der Verlauf"
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Advanced"
+msgstr "Erweitert"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Where your book is, folder access, where PINs are saved"
+msgstr "Wo Ihr Buch liegt, Ordnerzugriff, wo PINs gespeichert werden"

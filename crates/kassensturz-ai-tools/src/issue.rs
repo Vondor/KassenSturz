@@ -180,11 +180,7 @@ fn read(arguments: &Value) -> Result<Words, ToolError> {
 fn one_line_breaks(text: &str) -> String {
     text.replace("\r\n", "\n")
         .chars()
-        .filter(|c| {
-            *c == '\n'
-                || !(c.is_control()
-                    || matches!(c, '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}' | '\u{feff}'))
-        })
+        .filter(|c| *c == '\n' || !(c.is_control() || crate::text::hides_text(*c)))
         .collect()
 }
 

@@ -250,11 +250,40 @@ mod tests {
         );
     }
 
-    /// The book's folder on the Settings page opens in the file manager
-    /// (M5-F2).
+    /// Every group on the first level of the settings opens its own page,
+    /// and each page is a Component of `Main.qml` (D-795).
+    #[test]
+    fn every_settings_group_opens_its_page() {
+        let settings = qml("SettingsPage.qml");
+        let main = qml("Main.qml");
+        for (group, page) in [
+            ("book", "SettingsBookPage"),
+            ("bank", "SettingsBankPage"),
+            ("look", "SettingsLookPage"),
+            ("backups", "SettingsBackupPage"),
+            ("advanced", "SettingsAdvancedPage"),
+        ] {
+            assert!(
+                settings.contains(&format!("page.groupClicked(\"{group}\")")),
+                "no row opens {group}"
+            );
+            let id = format!("settings{}", &page["Settings".len()..]);
+            assert!(
+                main.contains(&format!("{group}: {id},")),
+                "{group} must open {id}"
+            );
+            assert!(
+                main.contains(&format!("id: {id}\n\n        {page} {{")),
+                "{id} must make a {page}"
+            );
+        }
+    }
+
+    /// The book's folder on the settings page "My book" opens in the file
+    /// manager (M5-F2, D-795).
     #[test]
     fn the_settings_folder_row_opens_the_folder() {
-        let settings = qml("SettingsPage.qml");
+        let settings = qml("SettingsBookPage.qml");
         assert!(
             settings.contains("Qt.openUrlExternally(page.session.folderUrl)"),
             "the folder row must open the folder"
@@ -365,7 +394,7 @@ mod tests {
     /// show (M6-B241, US6 P3 VM round 1, A3).
     #[test]
     fn the_copies_folder_offers_the_try_again_it_names() {
-        let settings = qml("SettingsPage.qml");
+        let settings = qml("SettingsBackupPage.qml");
         assert!(settings.contains("choose Try again"));
         let (_, button) = settings
             .split_once("id: copiesTryAgain")

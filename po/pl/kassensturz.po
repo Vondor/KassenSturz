@@ -14463,12 +14463,6 @@ msgctxt "@info"
 msgid "Close KassenSturz and open it again to see it in the new language."
 msgstr "Zamknij KassenSturz i otwórz go ponownie, aby zobaczyć go w nowym języku."
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:181
-#, kde-format
-msgctxt "@title:group"
-msgid "Your book"
-msgstr "Twoja księga"
-
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:186
 #, kde-format
 msgctxt "@label"
@@ -14513,24 +14507,6 @@ msgstr "Rozejrzyj się w wymyślonym gospodarstwie domowym. KassenSturz tworzy d
 msgctxt "@info"
 msgid "An empty book in a folder you choose, for example to try something out."
 msgstr "Pusta księga w wybranym przez Ciebie folderze, na przykład do wypróbowania czegoś."
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:248
-#, kde-format
-msgctxt "@title:group"
-msgid "Your data"
-msgstr "Twoje dane"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:254
-#, kde-format
-msgctxt "@action:button"
-msgid "Save a copy of my data…"
-msgstr "Zapisz kopię moich danych…"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:255
-#, kde-format
-msgctxt "@info"
-msgid "For a spreadsheet, or the whole book as a backup."
-msgstr "Do arkusza kalkulacyjnego albo cała księga jako kopia zapasowa."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:267
 #, kde-format
@@ -14705,18 +14681,6 @@ msgstr "Plik bazy danych przechowuje KeePassXC: tam wybierasz, gdzie jest zapisa
 msgctxt "@action:button"
 msgid "Connect to KeePassXC again"
 msgstr "Połącz ponownie z KeePassXC"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:466
-#, kde-format
-msgctxt "@action:button"
-msgid "Hide advanced choices"
-msgstr "Ukryj opcje zaawansowane"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:467
-#, kde-format
-msgctxt "@action:button"
-msgid "Show advanced choices"
-msgstr "Pokaż opcje zaawansowane"
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:479
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:598
@@ -23131,3 +23095,97 @@ msgstr "%1 mies."
 msgctxt "@info the amount of a flow of the money-flow chart, part of which is assumed to be a move between your own accounts: %1 the amount, %2 the assumed part"
 msgid "%1 (%2 assumed)"
 msgstr "%1 (w tym %2 przyjęte)"
+#, kde-format
+msgctxt "@info"
+msgid "Most households never need to change anything here."
+msgstr "Większość gospodarstw domowych nigdy nie musi tu niczego zmieniać."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Where your book is"
+msgstr "Gdzie jest Twoja księga"
+
+#, kde-format
+msgctxt "@title"
+msgid "Advanced"
+msgstr "Zaawansowane"
+
+#, kde-format
+msgctxt "@title"
+msgid "Backups and undo"
+msgstr "Kopie zapasowe i cofanie"
+
+#, kde-format
+msgctxt "@title"
+msgid "Bank"
+msgstr "Bank"
+
+#, kde-format
+msgctxt "@title"
+msgid "My book"
+msgstr "Moja księga"
+
+#, kde-format
+msgctxt "@title"
+msgid "Look and language"
+msgstr "Wygląd i język"
+
+#, kde-format
+msgctxt "@action:button the main action of the settings"
+msgid "Save a backup now…"
+msgstr "Zapisz teraz kopię zapasową…"
+
+#, kde-format
+msgctxt "@info"
+msgid "The whole book as a copy, for example on a USB stick, or your data for a spreadsheet."
+msgstr "Cała księga jako kopia, na przykład na pendrive, albo Twoje dane do arkusza kalkulacyjnego."
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "My book"
+msgstr "Moja księga"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Which book is open, tags, an example book"
+msgstr "Która księga jest otwarta, tagi, przykładowa księga"
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Bank"
+msgstr "Bank"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Bank logins, reminder to get new transactions"
+msgstr "Logowania do banku, przypomnienie o nowych transakcjach"
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Look and language"
+msgstr "Wygląd i język"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Language, how amounts look, chart colors"
+msgstr "Język, wygląd kwot, kolory wykresów"
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Backups and undo"
+msgstr "Kopie zapasowe i cofanie"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Copies of your book, restoring one, the history"
+msgstr "Kopie Twojej księgi, przywracanie kopii, historia"
+
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Advanced"
+msgstr "Zaawansowane"
+
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Where your book is, folder access, where PINs are saved"
+msgstr "Gdzie jest Twoja księga, dostęp do folderów, gdzie zapisywane są PIN-y"

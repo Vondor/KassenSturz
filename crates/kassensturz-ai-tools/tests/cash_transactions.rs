@@ -244,3 +244,26 @@ fn only_a_hand_entered_cash_transaction_is_removed_never_a_transfer_or_a_bank_en
     book.undo().expect("undone").expect("a change");
     assert_eq!(accounts(&book), before);
 }
+
+/// B-270 (#966): the AI can't book a cash payment to the cash account
+/// itself, which would move nothing; the proposal is refused before the
+/// user sees it, and the book stays as it was.
+#[test]
+fn a_cash_payment_into_its_own_account_is_refused() {
+    let book = space_colony();
+    let wallet = cash_account(&book);
+    let before = accounts(&book);
+    let error = propose_with(
+        &book,
+        &json!({"new_transactions": [{
+            "account_id": wallet["id"],
+            "date": "2026-10-27",
+            "amount": "-3.00",
+            "category_id": wallet["id"],
+        }]}),
+        open(),
+    )
+    .expect_err("an account is not a category");
+    assert_eq!(error.model_report().code, "ai-tools.unknown-category");
+    assert_eq!(accounts(&book), before);
+}

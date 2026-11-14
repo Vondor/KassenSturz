@@ -443,6 +443,9 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::Transactions => ("transactions", ""),
         // Filled by its own `BookAlarms` from its rules (D-721).
         ComponentType::Alarms => ("alarms", ""),
+        // Filled by `PlannedPayments` (US7, D-769, D-770).
+        ComponentType::ForecastMonth => ("forecast-month", ""),
+        ComponentType::ComingUp => ("coming-up", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

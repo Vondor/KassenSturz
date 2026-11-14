@@ -290,7 +290,9 @@ pub(crate) fn hides_text(c: char) -> bool {
             | '\u{FE00}'..='\u{FE0F}'
             | '\u{FEFF}'
             | '\u{FFA0}'
-            | '\u{FFF9}'..='\u{FFFB}'
+            | '\u{FFF0}'..='\u{FFFB}'
+            | '\u{1BCA0}'..='\u{1BCA3}'
+            | '\u{1D173}'..='\u{1D17A}'
             | '\u{E0000}'..='\u{E0FFF}'
     )
 }

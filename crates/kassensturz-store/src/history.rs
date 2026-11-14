@@ -907,6 +907,7 @@ impl Book {
     where
         E: From<StoreError>,
     {
+        self.check_lock_is_ours()?;
         self.conn
             .execute_batch("SAVEPOINT book")
             .map_err(StoreError::from)?;
@@ -1440,6 +1441,23 @@ impl Book {
         })
     }
 
+    /// Without file locks, the lock file is the only guard against a second
+    /// writer: checks it is still ours before a change starts (outside a
+    /// bigger change, which checked already; D-776). A change can still slip
+    /// in between this check and the commit, which takes milliseconds.
+    pub(crate) fn check_lock_is_ours(&self) -> Result<(), StoreError> {
+        if self.without_file_locks
+            && self.conn.is_autocommit()
+            && self
+                ._lock
+                .as_ref()
+                .is_some_and(|lock| !lock.is_still_ours())
+        {
+            return Err(StoreError::LockLost);
+        }
+        Ok(())
+    }
+
     /// Runs `change` in a savepoint: if it fails, everything it changed is
     /// taken back. Outside a transaction, the savepoint starts one, which
     /// ends with it.
@@ -1453,6 +1471,7 @@ impl Book {
         if self.write_failed {
             return Err(StoreError::WriteFailed.into());
         }
+        self.check_lock_is_ours()?;
         if let Err(error) = self.conn.execute_batch("SAVEPOINT book") {
             self.note_write_failure(&error);
             return Err(StoreError::from(error).into());

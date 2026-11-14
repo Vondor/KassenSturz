@@ -188,7 +188,7 @@ pub(crate) fn vacuum_into(conn: &Connection, to: &Path) -> Result<(), StoreError
 
 /// The copy made in a private folder, then written into the empty file `to`.
 fn via_private_folder(conn: &Connection, to: &Path) -> Result<(), StoreError> {
-    let private = PrivateFolder::new()?;
+    let private = crate::lockless::PrivateFolder::new()?;
     let staged = private.path().join("copy.ksz");
     let staged_name = staged
         .to_str()
@@ -196,39 +196,6 @@ fn via_private_folder(conn: &Connection, to: &Path) -> Result<(), StoreError> {
     conn.execute("VACUUM INTO ?1", [staged_name])?;
     fs::copy(&staged, to)?;
     Ok(())
-}
-
-/// A folder only this user can read, in the computer's temporary folder,
-/// that goes away when dropped. A copy of a book is in it for a moment.
-struct PrivateFolder(PathBuf);
-
-impl PrivateFolder {
-    fn new() -> std::io::Result<Self> {
-        let path = std::env::temp_dir().join(format!(
-            "kassensturz-copy-{}",
-            uuid::Uuid::now_v7().hyphenated()
-        ));
-        #[cfg(unix)]
-        {
-            let mut builder = fs::DirBuilder::new();
-            std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
-            builder.create(&path)?;
-        }
-        // The user's temporary folder on Windows is theirs alone.
-        #[cfg(not(unix))]
-        fs::DirBuilder::new().create(&path)?;
-        Ok(Self(path))
-    }
-
-    fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for PrivateFolder {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
 }
 
 /// Picks the first free name for a backup of the book `stem` at `stamp`,

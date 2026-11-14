@@ -23,6 +23,9 @@ Item {
     // Whether this computer offers choosing a folder at all.
     readonly property bool available: choice.available
 
+    // Whether a book is to live in the folder, which needs file locks.
+    property bool forBook: false
+
     signal granted(var grant)
     signal refused(string code, string reason)
 
@@ -55,7 +58,7 @@ Item {
         title: chooser.title
         onAccepted: {
             ActionLog.taken("FolderChooser_chosen")
-            const grant = choice.grant(selectedFolder);
+            const grant = choice.grant(selectedFolder, chooser.forBook);
             if (grant.ok) {
                 chooser.granted(grant);
             } else {

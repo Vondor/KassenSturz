@@ -5471,6 +5471,21 @@ msgctxt "@info %1 is a date and time"
 msgid "It has been open since %1."
 msgstr "Es ist seit %1 geöffnet."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:70
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz still has this book open in another program on this computer, "
+"for example another window or another installation of KassenSturz. Close it "
+"there, then try again. If you can't find it, restart the computer, and the "
+"book opens."
+msgstr ""
+"KassenSturz hat dieses Haushaltsbuch noch in einem anderen Programm auf "
+"diesem Computer geöffnet, zum Beispiel in einem anderen Fenster oder in "
+"einer anderen Installation von KassenSturz. Schließen Sie es dort und "
+"versuchen Sie es dann noch einmal. Finden Sie es nicht, starten Sie den "
+"Computer neu, danach öffnet sich das Haushaltsbuch."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:71
 #, kde-format
 msgctxt "@info"
@@ -11171,6 +11186,17 @@ msgid "%1 is closed. Open it again to add or change its transactions."
 msgstr ""
 "%1 ist geschlossen. Öffnen Sie es wieder, um Buchungen hinzuzufügen oder zu "
 "ändern."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:659
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Another program took this book over, so your change wasn't saved. Close the "
+"book and open it again."
+msgstr ""
+"Ein anderes Programm hat dieses Haushaltsbuch übernommen, deshalb wurde Ihre "
+"Änderung nicht gespeichert. Schließen Sie das Haushaltsbuch und öffnen Sie "
+"es noch einmal."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:636
 #, kde-format
@@ -22071,6 +22097,18 @@ msgstr "Verknüpfung entfernen"
 msgctxt "@title:window"
 msgid "Choose a folder"
 msgstr "Ordner wählen"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:965
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The system doesn't let KassenSturz lock files in this folder, so this book "
+"has less protection here: open it in only one program at a time. Your "
+"automatic backups are not affected."
+msgstr ""
+"Das System erlaubt KassenSturz nicht, in diesem Ordner Dateien zu sperren. "
+"Dieses Buch ist hier deshalb weniger geschützt: Öffnen Sie es immer nur in "
+"einem Programm. Ihre automatischen Sicherungen sind davon nicht betroffen."
 
 msgctxt "@info"
 msgid ""

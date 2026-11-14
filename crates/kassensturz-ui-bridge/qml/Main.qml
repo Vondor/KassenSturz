@@ -1026,6 +1026,17 @@ Kirigami.ApplicationWindow {
                 ]
             }
 
+            // A book in a folder where the system refuses file locks opens
+            // with weaker protection: only the book's own lock file keeps
+            // two programs from writing at once (Q-570, D-776).
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                position: Kirigami.InlineMessage.Position.Header
+                type: Kirigami.MessageType.Information
+                visible: bookSession.open && bookSession.withoutFileLocks
+                text: root.i18nContext.i18nc("@info", "The system doesn't let KassenSturz lock files in this folder, so this book has less protection here: open it in only one program at a time. Your automatic backups are not affected.")
+            }
+
             // A book on a network drive opens, with this warning on every
             // screen (D-038).
             Kirigami.InlineMessage {
@@ -1393,6 +1404,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: openFolderChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Open another book")
         onGranted: grant => root.openBookFromFolder(grant.path)
         onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)
@@ -1411,6 +1423,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: newBookFolderChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Where to keep the new book")
         onGranted: grant => {
             newBookName.folder = grant.path;
@@ -1438,6 +1451,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: noAccessChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Choose the folder of your book again")
         onGranted: grant => bookSession.openIn(grant.path, bookSession.problem.file ?? "")
         onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)

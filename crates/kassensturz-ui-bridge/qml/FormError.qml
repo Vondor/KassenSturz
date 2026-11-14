@@ -690,6 +690,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This entry is matched to a planned payment already. Each entry pays one planned payment.");
         case "store.schedule-entry-not-fitting":
             return i18nContext.i18nc("@info", "This entry can't pay this planned payment: it must be in the plan's account, with the money going the same way, and not a move between your own accounts.");
+        case "store.lock-lost":
+            return i18nContext.i18nc("@info", "Another program took this book over, so your change wasn't saved. Close the book and open it again.");
         case "store.corrupt.history-mismatch":
             return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
         // The receipt inbox (US7, #333): a bill can't move back or again,

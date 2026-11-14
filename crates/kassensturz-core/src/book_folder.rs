@@ -219,6 +219,54 @@ pub fn grant(chosen: &Path, around: Surroundings<'_>) -> Result<FolderGrant, Fol
     })
 }
 
+/// What trying to lock a file in a folder showed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LockCheck {
+    /// A file was made and locked.
+    Works,
+    /// The system refused the lock (or has no locks there).
+    Refused,
+    /// No file could be made there at all (not there, read-only, no
+    /// permission): nothing was learnt about locks.
+    NotWritable,
+}
+
+/// Tries what a book needs of a folder: makes a small file with a name of its
+/// own, locks it, and removes it again. Nothing of the user's is touched.
+#[must_use]
+pub fn check_locks(folder: &Path) -> LockCheck {
+    let name = format!(".kassensturz-lock-check-{}", uuid::Uuid::now_v7().simple());
+    let path = folder.join(name);
+    let Ok(file) = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+    else {
+        return LockCheck::NotWritable;
+    };
+    let result = match file.try_lock() {
+        Ok(()) => {
+            let _ = file.unlock();
+            LockCheck::Works
+        }
+        // Another process holding a lock on a file made a moment ago can't
+        // be: the lock itself is what was asked for, and was not refused.
+        Err(std::fs::TryLockError::WouldBlock) => LockCheck::Works,
+        // Only a refusal for lack of permission is what a snap's profile
+        // does; another failure (no lock service on a network drive, say)
+        // tells nothing about permission and is left to SQLite's own error.
+        Err(std::fs::TryLockError::Error(error))
+            if error.kind() == std::io::ErrorKind::PermissionDenied =>
+        {
+            LockCheck::Refused
+        }
+        Err(std::fs::TryLockError::Error(_)) => LockCheck::NotWritable,
+    };
+    drop(file);
+    let _ = std::fs::remove_file(&path);
+    result
+}
+
 fn has_parent_part(path: &Path) -> bool {
     path.components()
         .any(|component| component == Component::ParentDir)
@@ -297,6 +345,19 @@ pub fn expand_entry(value: &str, home: Option<&str>, runtime_dir: Option<&str>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn locks_are_checked_with_a_file_that_is_removed_again() {
+        let folder =
+            std::env::temp_dir().join(format!("ks-lock-{}", uuid::Uuid::now_v7().simple()));
+        std::fs::create_dir(&folder).expect("folder made");
+        assert_eq!(check_locks(&folder), LockCheck::Works);
+        assert_eq!(std::fs::read_dir(&folder).expect("listed").count(), 0);
+        // A folder that isn't there says nothing about locks.
+        let missing = folder.join("missing");
+        assert_eq!(check_locks(&missing), LockCheck::NotWritable);
+        std::fs::remove_dir(&folder).expect("folder removed");
+    }
 
     const RUN: &str = "/run/user/1000";
 

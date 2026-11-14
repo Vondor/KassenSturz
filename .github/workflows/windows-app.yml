@@ -164,6 +164,8 @@ jobs:
             !C:\CraftRoot\download
             !C:\CraftRoot\tmp
           key: craft-msvc2022-v2-${{ env.CRAFT_COMMIT }}-${{ env.CRAFT_BLUEPRINTS_COMMIT }}-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+      - name: The Craft path patching still works on made-up bytes
+        run: python tools/windows-compiled-in-paths.py self-test
       - name: Name the build
         id: version
         shell: bash
@@ -279,6 +281,28 @@ jobs:
           if (Test-Path "$dir\bin\kassensturz.exe") { throw "kassensturz.exe is still there after uninstalling" }
           if (Test-Path $link) { throw "The Start menu entry is still there after uninstalling" }
           Write-Output "Removed again."
+      # The libraries come from Craft's build and have its folder (C:\Craft...)
+      # compiled in as a path; any user can create that folder on another
+      # computer (B-293, CWE-427). The recipe turns each such path into one
+      # below the NUL device before packing (tools/windows-compiled-in-paths.py)
+      # and the app points the OpenSSL and libxml2 variables at its install
+      # folder at start (install_paths.rs). Nothing may be left in the zip.
+      # The patching must not have touched what the app reads at run time: the
+      # German catalog is in the package and holds German text. This checks the
+      # file, not the loading (that needs a window to look at); the start
+      # step above shows that the app starts from the same package.
+      - name: The German catalog is in the package
+        run: |
+          $found = $null
+          foreach ($mo in (Get-ChildItem "$env:RUNNER_TEMP\ks-zip" -Recurse -Filter *.mo | Where-Object { $_.FullName -match '[\\/]de[\\/]' })) {
+            $text = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes($mo.FullName))
+            if ($text -match 'Haushaltsbuch') { $found = $mo; break }
+          }
+          if (-not $found) { throw "No German catalog with German text (.mo under a de folder) in the package" }
+          $mo = $found
+          Write-Output "German catalog: $($mo.FullName) ($($mo.Length) bytes)"
+      - name: No Craft folder is compiled into the package
+        run: python tools/windows-compiled-in-paths.py check "$env:RUNNER_TEMP\ks-zip"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kassensturz-windows-${{ steps.version.outputs.version }}

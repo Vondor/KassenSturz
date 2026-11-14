@@ -81,6 +81,7 @@ mod grid_editor;
 mod grid_editor_model;
 mod history;
 mod history_model;
+mod install_paths;
 mod kmy_reports_import;
 mod kmy_reports_import_model;
 mod language;
@@ -141,6 +142,9 @@ fn main() {
     // Before anything changes the environment: a restart in another language
     // starts the app the way it was started (Q-395).
     restart::remember_at_start();
+    // Then, before any library starts: none looks in a folder compiled in
+    // that a user could create (B-293).
+    install_paths::apply_at_start();
     // Then: in a test, every folder the app uses moves to the test
     // folder before anything reads one (Q-399).
     if test_profile::apply_at_start() && cfg!(windows) {

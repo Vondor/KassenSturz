@@ -553,6 +553,7 @@ impl Book {
         if let Some(existing) = clash {
             return Err(StoreError::DuplicateAccountName {
                 existing: existing.id,
+                name: account.name.trim().to_owned(),
             });
         }
         Ok(())

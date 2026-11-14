@@ -130,7 +130,8 @@ pub use metrics::{
     comparison_span, savings_rate,
 };
 pub use money_flow::{
-    Flow, FlowNode, FlowNodeKind, FlowOptions, MAX_PER_COLUMN, MONEY_FLOW, MoneyFlow, money_flow,
+    Flow, FlowChoice, FlowNode, FlowNodeKind, FlowOptions, MAX_PER_COLUMN, MONEY_FLOW, MoneyFlow,
+    money_flow,
 };
 pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,
@@ -145,8 +146,8 @@ pub use period::{
 };
 pub use schema::{
     ALARMS_KEY, CANDLE_FILL_WORDS, CANDLE_WORDS, ColumnSetting, ComponentType, FORMULA_MEASURE,
-    Kind, MAX_IDS, MAX_TEXT_CHARS, NEUTRAL_WORDS, ORIENTATION_WORDS, Place, Property, Setting,
-    dataset_for,
+    Kind, MAX_IDS, MAX_TEXT_CHARS, MONTH_START_KEY, MONTH_STARTS, NEUTRAL_WORDS, ORIENTATION_WORDS,
+    Place, Property, Setting, dataset_for,
 };
 pub use source::Source;
 pub use spending::{

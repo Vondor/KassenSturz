@@ -437,10 +437,15 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::CustomChart => ("chart", "bar"),
         // The balance of the chosen accounts as candles (US4.10).
         ComponentType::ChartCandlestick => ("chart", "candlestick"),
+        // The money flow has one picture and no kind of chart to choose (US7).
+        ComponentType::ChartFlow => ("chart", "flow"),
         // Its own list, drawn by the page from `BookTransactions` (D-716).
         ComponentType::Transactions => ("transactions", ""),
         // Filled by its own `BookAlarms` from its rules (D-721).
         ComponentType::Alarms => ("alarms", ""),
+        // Filled by `PlannedPayments` (US7, D-769, D-770).
+        ComponentType::ForecastMonth => ("forecast-month", ""),
+        ComponentType::ComingUp => ("coming-up", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

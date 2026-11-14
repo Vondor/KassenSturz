@@ -160,7 +160,7 @@ fn every_result(book: &Book, ids: &Ids) -> Vec<(String, Value)> {
         let arguments = match function.name {
             "list_accounts" => json!({ "include_closed": true }),
             "account_balance" => json!({ "account_id": ids.checking.to_string() }),
-            "category_totals" | "payee_totals" => {
+            "category_totals" | "payee_totals" | "monthly_totals" => {
                 json!({ "from": "2026-01-01", "to": "2026-12-31" })
             }
             "search_transactions" => json!({ "category_id": ids.groceries.to_string() }),

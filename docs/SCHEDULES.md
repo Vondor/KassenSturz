@@ -59,7 +59,7 @@ Not stored: the occurrences. They are **computed**, so a plan never goes stale a
 |---|---|---|
 | monthly, anchor 1 Oct 2026 | Mon 2 Nov | the 1st is a Sunday |
 | monthly, anchor 31 Jan 2027 | Sun 28 Feb, so Mon 1 Mar; then Wed 31 Mar | cut back, then moved; no drift |
-| yearly, anchor 29 Feb 2028 | Mon 28 Feb 2029; Tue 29 Feb 2032 | cut back in a common year |
+| yearly, anchor 29 Feb 2028 | Wed 28 Feb 2029; Sun 29 Feb 2032, so Mon 1 Mar 2032 | cut back in a common year, moved in a leap year (corrected in build 1: the weekdays were wrong) |
 | every 2 weeks, anchor Fri 6 Nov 2026 | 6 Nov, 20 Nov, 4 Dec | 14 days from the anchor |
 | monthly, anchor 28 Nov 2026 (a Saturday) | Mon 30 Nov | moved forward, may cross a month end |
 
@@ -194,3 +194,48 @@ Today is Fri 13 Nov 2026; Checking account balance 2.340,00 €. Plans: *Rent* �
 | 2 | UI: the form, *Plan this again…*, Planned payments page, import summary part, *Did this happen?*, the two tiles and their datasets, translations, glossary | standard, high |
 
 PR 1 merges before the stage Go. Neither is expected to carry a human gate beyond what the maintainer's review of the layout needs (no dependency, no keychain, no bank code, no AI data); the build threads tick the list honestly. This design pull request is docs only and carries none.
+
+## 11. What build 1 settled (PR 1)
+
+Build 1 followed this design; where the code had to decide something the design left open, or differs from it, it is listed here (D-769, D-770).
+
+- **Error codes** follow the store's convention (`store.*`, D-034) instead of the names in 3.6: `store.schedule-invalid` with the reason `name`, `amount-zero`, `every-range`, `end-before-start`, `tolerance-range`, `party` or `booked-amount`; `store.schedule-unknown`, `-account-closed`, `-currency-differs`, `-category`, `-too-many`, `-occurrence-unknown`, `-occurrence-decided`, `-entry-taken`, `-entry-not-fitting`; a category a plan uses gives the existing `store.category-in-use` with the keyword `schedules`; a broken row `store.corrupt.bad-schedule`. All are in `docs/ERROR_CODES.md`.
+- **`schedule_occurrences` has an `id` of its own** as primary key, with a unique index on `(schedule_id, due_on)` instead of that pair as key: the change history records every table by one `id` column. Nothing else changes.
+- **`due_on` is the counted date**, before a weekend moves it. The command line also takes the moved date and finds the payment.
+- **Matching after an import only matches the new entries** (the pipeline passes the import's entries): a match the user took back with Undo is not made again behind their back by the next import. All open payments from 4 years back to 3 banking days ahead are looked at, so a late file matches. An entry that fits two open payments (a weekly plan around a weekend) matches neither and is reported as needing the user; the closest entry wins only when it is the only one that close.
+- **A plan with a remembered IBAN** needs an entry with that IBAN; an entry without one (cash, typed in) is matched by hand. **A side of a suggested Transfer** is not matched until the user decides on the Transfer.
+- **Matching by hand** (`match_schedule_occurrence`) ignores amount and date (the user decides) but needs the plan's account, currency and direction.
+- **Closing an account pauses its plans** without changing them; reopening it lets them go on. **Editing a plan** keeps the payments already matched or skipped.
+- **"Plan this again…"** is `Book::plan_from_entry`: it offers no plan for an entry that no plan could match (a Transfer between own accounts, a part in another currency), and the other part's account becomes the plan's category only if it is a category. Tested on every importer's golden entries (X3).
+- **The forecast** takes the accounts and currency from the caller; without a choice, the open checking and cash accounts, and accounts in another currency are listed as left out (`AccountsForecast::left_out`). Overdue payments are listed, not counted (5.2).
+- **The complete export** is version 14 with `schedules`, each plan with its decided payments; reading a file checks that a matched payment names an entry of the file, once.
+- **Command line:** `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book` and `forecast [--months N] [--account NAME ...]`; `import` prints the matches. `schedule due` lists the payments with their state.
+- **Left for build 2 (UI):** the bridge's call to `match_schedules` after its own import and fetch actions, the import summary part, the pages, tiles and glossary rows.
+
+## 12. What build 2 settled (the screens)
+
+Build 2a (the planned payments screens) followed part 2; where it had to decide, it is listed here.
+
+- **The page is a window**, Accounts › *Planned payments…*, as *Monthly moves…* is; the action says how many payments wait ("Planned payments (2 to check)…"). "Did this happen?" is its first part. The month by month table, the tiles and their datasets come with build 2b.
+- **Dates are the locale's short dates** ("02.11.2026"), not "Mon 2 Nov": the bridge's locale has no weekday words yet. The form shows the next three dates from today, or from the first date if that is later.
+- **"Book it…"** offers the plan's amount and today, both changeable; the entry is booked on the typed day. **"Match an entry…"** offers the plan account's entries up to 31 days from the payment's day, with the money going the plan's way and not matched yet, closest first.
+- **An IBAN typed in "Paid to"** is kept without spaces and in capitals; anything else is kept as a name. A sign typed in an amount counts for nothing: the form's "Goes out / Comes in" decides.
+- **"Plan this again…"** saves the plan and matches its entry as the first payment in one change, so one Undo takes back both.
+- **The import summary** lists each match with the entry's own amount and date and whether it got the plan's category; *Undo these matches* takes back only the matches. The matches are made after the joins of monthly moves, so *Undo these joins* takes back the matches on top of them too, and says so. *Update all accounts* says how many planned payments came.
+- **Error texts**: the input code `input.plan-every` (how often isn't 1 to 52) is new; the `store.schedule-*` codes of build 1 have their texts in `FormError.qml`.
+
+Build 2b (the start-screen tiles) followed parts 5 and 2.6:
+
+- **Both tiles are page widgets**, not data widgets: `forecast.month` (*Left this month*) and `plan.coming_up` (*Coming up*) name no dataset; the app's `PlannedPayments` object fills both from its `view` (`forecast`, `comingUp`, `comingUpStatus`). Both are in the Add menu's *Notes* group and in `LIBRARY`, never in `ComponentType::ALL`: the AI neither proposes them nor sees the plans (the AI functions of 9 are a follow-up with their own human gate). Both are status tiles (STATUS_TILES 5): full size 3 × 2, down to 1 × 1, each with its own emblem.
+- **The built-in Overview** gets both side by side below the budgets (6 × 3 each). A book whose Overview the user changed keeps its saved layout; the built-in one is not stored, so a book still on it shows the tiles (Alpha, D-274).
+- **The accounts** are always the open checking and cash accounts; the tile has no setting to choose others yet. The **currency** is the one most of them keep, and of two as common the one whose code comes first; the others are counted as left out and the tile says how many. Choosing accounts in the tile's settings is a follow-up.
+- **With no plan** (or a paused one only), or with no open checking or cash account, the tile shows no figure, only *Plan a payment…* or a line that says why (`unknown`, D-734). A figure below zero is drawn in the negative colour and also says "below zero" to the screen reader.
+- **Coming up** lists the open payments from 5 days back to 30 days ahead, with the window's own words ("Rent: 750,00 € out, due …"); its state is `unknown` with no plan and `fine` otherwise. A payment that passed is counted on *Left this month* only, so the two icons don't both ask for the same thing.
+- **The month by month table** is in the Planned payments window: the next 3 months (start, planned in, planned out, end), only while a plan counts. The catalog dataset `forecast.months` (a chart of it) is **not** in this build: a dataset reads the book through the report layer's source, which knows no plans yet; it is a follow-up step of its own.
+
+#921 (months that start on the salary day, Q-565 = R):
+
+- **The Left this month tile has one setting, "Month starts on"** (`props.month_start`): *Like my budgets* (the default, `like-budgets`) or a fixed day, `day-1` (the calendar month) to `day-31`. *Like my budgets* takes the salary day that every budget running today on salary months shares (`Book::budgets_salary_day`); with none, or with two different days, it is the calendar month, so it never guesses between two days.
+- **The days come from the same function as budgets and reports** (`salary_month_of`, D-645): "this month" runs from the last such day to the day before the next one, and in a month shorter than the day its last day starts it. `kassensturz_core::forecast_from_day` and `Book::forecast_from_day` take the day; `forecast` is day 1. Each projected month carries its last day (`MonthPlan::last`).
+- **The tile says where a salary month ends** ("This month runs until 24.11.2026, like your budgets."), and the Planned payments window names such months by their first and last day. The window and the tile's state use *Like my budgets*; a tile with a fixed day asks `PlannedPayments.monthFrom` for its own figures. Overdue payments and the state don't depend on the day.
+- **Public holidays** still don't move a due day (D-030); the CLI's `forecast` keeps calendar months.

@@ -19,14 +19,13 @@ use kassensturz_charts::{
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
     ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, CandleLength, Column,
-    CompareWith, Filter, FlowOptions, INCOME_EXPENSE_BY_MONTH, Level, MONEY_FLOW,
-    NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period, ReportError, SPENDING_BY_CATEGORY,
-    SharedCategory, Shown, Source, TextFormat, account_balances as balances_dataset,
-    balance_candles as candles_dataset, cash_flow_by_month as cash_flow_dataset,
-    category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
-    compared_early, counted_early, income_expense_by_month as monthly_dataset,
-    income_expense_by_series, money_flow as money_flow_dataset,
-    net_worth_over_time as net_worth_dataset, shared_categories,
+    CompareWith, Filter, INCOME_EXPENSE_BY_MONTH, Level, MONEY_FLOW, NET_WORTH_OVER_TIME, Overlap,
+    Per, Percent, Period, ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source,
+    TextFormat, account_balances as balances_dataset, balance_candles as candles_dataset,
+    cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
+    columns_over_time, columns_span, columns_spending, compared_early, counted_early,
+    income_expense_by_month as monthly_dataset, income_expense_by_series,
+    money_flow as money_flow_dataset, net_worth_over_time as net_worth_dataset, shared_categories,
     spending_by_category_shown as spending_dataset, spending_compared,
 };
 use kassensturz_store::Book;
@@ -73,26 +72,11 @@ pub struct Request {
     /// The filters the dashboard puts on the component: its own, else the
     /// filter bar's (M6c.7, D-350). The default narrows nothing.
     pub scope: Scope,
-    /// What the money-flow chart shows (US7, #821); only `money_flow` reads
-    /// it.
-    pub flow: FlowAsk,
     /// A custom chart (M6e.3): the description the chart is drawn from. Then
     /// `dataset` is the one it names, `kind` and `grouping` are not used,
     /// and `series` and `categories` are the choices of the dataset it
     /// names (Q-353).
     pub custom: Option<Custom>,
-}
-
-/// The choices of a money-flow chart (US7, #821, D-758).
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct FlowAsk {
-    /// Sub-categories get a column of their own.
-    pub sub_categories: bool,
-    /// Payees get a column at the edges.
-    pub payees: bool,
-    /// The currency to show: an ISO code, or empty for the one with the
-    /// most money moved.
-    pub currency: String,
 }
 
 /// The description of a custom chart and whether to draw it without the
@@ -395,20 +379,12 @@ pub fn charts(
         });
     }
     if flow {
-        let flows = money_flow_dataset(
-            &source,
-            period,
-            &filter,
-            FlowOptions {
-                sub_categories: request.flow.sub_categories,
-                payees: request.flow.payees,
-            },
-        )?;
+        let flows = money_flow_dataset(&source, period, &filter, request.scope.flow.options())?;
         // One currency per chart, with no conversion: the one asked for, else
         // the one with the most money moved (the first of equals).
         let at = flows
             .iter()
-            .position(|flow| flow.currency.to_string() == request.flow.currency)
+            .position(|flow| flow.currency.to_string() == request.scope.flow.currency)
             .or_else(|| {
                 (0..flows.len())
                     .max_by_key(|&i| (flows[i].volume.minor_units(), std::cmp::Reverse(i)))

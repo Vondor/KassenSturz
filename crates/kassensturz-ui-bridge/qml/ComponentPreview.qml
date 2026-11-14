@@ -378,6 +378,8 @@ ColumnLayout {
             Layout.fillWidth: true
             chart: modelData
             title: (chartData.view?.title ?? "") !== "" ? chartData.view.title : preview.title
+            period: preview.period
+            scope: preview.scope ?? preview.asked.scope ?? ""
         }
     }
 

@@ -213,6 +213,32 @@ Kirigami.ApplicationWindow {
         onChanged: root.screenChangedBook()
     }
 
+    // The planned payments (US7.1, D-769): the Accounts page, "Plan this
+    // again…" and the start screen read them. A change made here is one the
+    // user can undo from the notice.
+    PlannedPayments {
+        id: plannedPayments
+
+        onChanged: root.screenChangedBook()
+    }
+
+    // The Planned payments window and the form for a new plan, as the start
+    // screen's *Left this month* and *Coming up* tiles open them (US7,
+    // D-769, D-770). The Accounts page has the same window of its own.
+    PlannedPaymentsDialog {
+        id: overviewPlans
+
+        plans: plannedPayments
+        register: accountRegister
+    }
+
+    PlanFormDialog {
+        id: overviewPlanForm
+
+        plans: plannedPayments
+        register: accountRegister
+    }
+
     // Importing a file from the bank into an account (M3.10): one file at a
     // time, from the file dialog to the summary.
     // Named differently from the pages' `statementImport` property, which
@@ -494,6 +520,7 @@ Kirigami.ApplicationWindow {
         budgetBook.refresh();
         ruleBook.refresh();
         accountRegister.refresh();
+        plannedPayments.refresh();
         savedViews.refresh();
         dashboardLayout.refresh();
         changeHistory.refresh();
@@ -1562,6 +1589,7 @@ Kirigami.ApplicationWindow {
 
         TransactionPage {
             register: accountRegister
+            plans: plannedPayments
             onDone: root.pageStack.pop()
             onCheckAgainstBankClicked: accountId => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: "", initialDate: "" })
             // The Parts page takes this page's place, so saving goes back
@@ -1591,6 +1619,7 @@ Kirigami.ApplicationWindow {
             savedSource: savedViews
             groupsSource: categoryGroups
             bank: bankConnection
+            plans: plannedPayments
             folderUrl: bookSession.folderUrl
             justSetUp: root.freshBook
             onFirstLookClosed: root.freshBook = false
@@ -1599,6 +1628,8 @@ Kirigami.ApplicationWindow {
             onAddTransactionClicked: root.addTransaction("")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
+            onPlanPaymentClicked: overviewPlanForm.create("")
+            onPlannedPaymentsClicked: overviewPlans.show()
             onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
             onConnectBankClicked: root.pushPage(bankSetupPage)
             onStatisticBuilderRequested: (id, component, period) => root.pushPage(statisticsPage, {
@@ -1685,6 +1716,7 @@ Kirigami.ApplicationWindow {
         AccountsPage {
             accounts: accountList
             register: accountRegister
+            plans: plannedPayments
             onAddAccountClicked: root.addAccount()
             onAccountClicked: accountId => root.showRegister(accountId)
             onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })
@@ -1856,6 +1888,7 @@ Kirigami.ApplicationWindow {
             bookMove: bookMover
             onSaveCopyClicked: root.pushPage(exportPage)
             onBookPlaceClicked: root.pushPage(bookMovePage)
+            onGrantedFoldersClicked: root.pushPage(grantedFoldersPage)
             onBookFromFileClicked: root.chooseFileForNewBook()
             onShowHistoryClicked: root.pushPage(historyPage)
             onRestoreBackupClicked: root.pushPage(restoreBackupPage)
@@ -1872,6 +1905,14 @@ Kirigami.ApplicationWindow {
             bookMove: bookMover
             // Shows the book where it is now, on the page that stays open.
             onMoved: bookSession.showMovedBook()
+        }
+    }
+
+    Component {
+        id: grantedFoldersPage
+
+        GrantedFoldersPage {
+            bookMove: bookMover
         }
     }
 

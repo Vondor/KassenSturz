@@ -342,9 +342,9 @@ mod tests {
         assert!(!layout.damaged);
         assert!(!layout.editor.has_changes());
         let shown = rows(&layout.editor, &Filters::default());
-        assert_eq!(shown.len(), 16);
+        assert_eq!(shown.len(), 18);
         // Reading order: the tabs, the period header and the filter bar, the bank warnings, the four cards, the budget bars,
-        // then the donut and the table, the line, and the note about
+        // Left this month and Coming up, then the donut and the table, the line, and the note about
         // transfers.
         let ids: Vec<&str> = shown.iter().map(|row| row.id.as_str()).collect();
         assert_eq!(
@@ -360,6 +360,8 @@ mod tests {
                 "left",
                 "kept",
                 "budgets",
+                "left-this-month",
+                "coming-up",
                 "spending",
                 "biggest",
                 "trend",
@@ -368,7 +370,7 @@ mod tests {
                 "unsorted"
             ]
         );
-        assert_eq!(total_rows(&layout.editor), 28);
+        assert_eq!(total_rows(&layout.editor), 31);
     }
 
     #[test]

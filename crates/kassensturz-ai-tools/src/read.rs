@@ -67,7 +67,7 @@ impl Names {
         })
     }
 
-    fn account(&self, id: AccountId) -> Result<&Account, StoreError> {
+    pub(crate) fn account(&self, id: AccountId) -> Result<&Account, StoreError> {
         self.accounts.get(&id).ok_or(StoreError::UnknownAccount(id))
     }
 
@@ -646,6 +646,129 @@ pub(crate) fn category_totals(
     }
     result.insert("currencies".into(), Value::Array(per_currency));
     result.insert("transfers".into(), w.count(transfers));
+    Ok(Value::Object(result))
+}
+
+/// The most months `monthly_totals` answers in one call (US7, #852): the
+/// month-by-month question of a whole year or two, in one result.
+pub(crate) const MAX_MONTHS: usize = 24;
+/// The most categories per side and month `monthly_totals` names beside the
+/// totals when asked.
+pub(crate) const MAX_MONTHLY_TOP: usize = 5;
+
+/// What `monthly_totals` adds to each month's totals (US7, #852).
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum MonthlyRows {
+    /// Only the totals.
+    None,
+    /// The largest `n` categories per side.
+    Top(usize),
+    /// One category's row, with everything inside it.
+    Category(AccountId),
+}
+
+/// `monthly_totals`: money in, money out and what is left for each calendar
+/// month from `period.from` to `period.to`, per currency, so one call
+/// answers a question about each month. Each month is `category_totals` for
+/// that month, and a month's figures are exactly those of asking for it
+/// alone; this only leaves out what a month-by-month answer doesn't need,
+/// which keeps the result small enough for a small model's context. The
+/// first and last month are cut to the period and say `partial`. A month
+/// with nothing in it is listed with no currencies.
+pub(crate) fn monthly_totals(
+    book: &Book,
+    w: &mut Writer<'_>,
+    names: &Names,
+    period: Period,
+    only: Only<'_>,
+    rows: MonthlyRows,
+    possible: &HashSet<kassensturz_core::TransactionId>,
+) -> Result<Value, ToolError> {
+    let Period { from, to } = period;
+    let mut months = Vec::new();
+    let mut first = from.first_of_month();
+    while first <= to {
+        if months.len() == MAX_MONTHS {
+            return Err(ToolError::BadArgument { argument: "to" });
+        }
+        let last = first.last_of_month();
+        let start = first.max(from);
+        let end = last.min(to);
+        let limit = match rows {
+            MonthlyRows::None => 0,
+            MonthlyRows::Top(n) => n,
+            MonthlyRows::Category(_) => MAX_TOTALS,
+        };
+        let mut month = category_totals(
+            book,
+            w,
+            names,
+            Period {
+                from: start,
+                to: end,
+            },
+            only,
+            limit,
+            possible,
+        )?;
+        let mut entry = Map::new();
+        entry.insert(
+            "month".into(),
+            Value::String(format!("{:04}-{:02}", first.year(), first.month())),
+        );
+        if start != first || end != last {
+            entry.insert("partial".into(), Value::Bool(true));
+            entry.insert("from".into(), Value::String(start.to_string()));
+            entry.insert("to".into(), Value::String(end.to_string()));
+        }
+        let mut currencies = Vec::new();
+        if let Some(Value::Array(found)) = month.get_mut("currencies").map(Value::take) {
+            for mut currency in found {
+                let Value::Object(fields) = &mut currency else {
+                    continue;
+                };
+                for side in ["income", "spending"] {
+                    fields.remove(&format!("{side}_left_out"));
+                    match (rows, fields.get_mut(side)) {
+                        (MonthlyRows::None, _) => {
+                            fields.remove(side);
+                        }
+                        (MonthlyRows::Category(id), Some(Value::Array(side_rows))) => {
+                            let id = id.to_string();
+                            side_rows.retain(|row| {
+                                row.get("category_id").and_then(Value::as_str) == Some(id.as_str())
+                            });
+                            if side_rows.is_empty() {
+                                fields.remove(side);
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                currencies.push(currency);
+            }
+        }
+        entry.insert("currencies".into(), Value::Array(currencies));
+        if let Some(transfers) = month.get("transfers") {
+            entry.insert("transfers".into(), transfers.clone());
+        }
+        months.push(Value::Object(entry));
+        let Ok(next) = last.tomorrow() else { break };
+        first = next;
+    }
+    let mut result = Map::new();
+    result.insert("from".into(), Value::String(from.to_string()));
+    result.insert("to".into(), Value::String(to.to_string()));
+    if !only.accounts.is_empty() {
+        result.insert("accounts".into(), account_names(w, names, only.accounts)?);
+    }
+    if let Some(tag) = only.tag {
+        result.insert("tag".into(), w.text(&tag_name(book, tag)?));
+    }
+    if let MonthlyRows::Category(id) = rows {
+        result.insert("category".into(), w.text(&names.name(id)?));
+    }
+    result.insert("months".into(), Value::Array(months));
     Ok(Value::Object(result))
 }
 

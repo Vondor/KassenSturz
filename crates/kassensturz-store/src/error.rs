@@ -10,8 +10,8 @@ use std::io::ErrorKind;
 use kassensturz_core::{
     AccountId, AccountKind, AccountType, BudgetId, CurrencyCode, Date, DatedRateId, ErrorParam,
     ErrorReport, GroupId, InstitutionId, Money, PayeeId, RecurringMoveError, RecurringMoveId,
-    Report, RuleError, RuleId, SplitId, TagId, TransactionError, TransactionId, TransferError,
-    ViewId,
+    Report, RuleError, RuleId, ScheduleError, ScheduleId, SplitId, TagId, TransactionError,
+    TransactionId, TransferError, ViewId,
 };
 
 use crate::Lock;
@@ -250,8 +250,8 @@ pub enum StoreError {
     CategoryInUse {
         /// The category.
         category: AccountId,
-        /// What uses it: `subcategories`, `transactions`, `rules` or
-        /// `budgets`.
+        /// What uses it: `subcategories`, `transactions`, `rules`,
+        /// `budgets` or `schedules`.
         used_by: &'static str,
     },
     /// Only a category can sit inside another one; an account can't.
@@ -399,6 +399,50 @@ pub enum StoreError {
         /// The side it arrives at.
         incoming: TransactionId,
     },
+    /// There's no planned payment with this ID (D-769).
+    UnknownSchedule(ScheduleId),
+    /// The planned payment can't be kept as it is (D-769).
+    Schedule(ScheduleError),
+    /// A planned payment's account is closed, so it can't get a new plan or
+    /// a booked entry (D-769).
+    ScheduleAccountClosed(AccountId),
+    /// A planned payment's amount isn't in its account's currency (D-027,
+    /// D-769).
+    ScheduleCurrencyDiffers {
+        /// The account.
+        account: AccountId,
+        /// The amount's currency.
+        currency: CurrencyCode,
+    },
+    /// A planned payment's category isn't a category in the plan's
+    /// currency (D-769).
+    ScheduleCategory(AccountId),
+    /// The book holds the most planned payments it may (D-769).
+    TooManySchedules {
+        /// The most it holds.
+        max: usize,
+    },
+    /// The planned payment has no occurrence counted on this date (D-769).
+    UnknownOccurrence {
+        /// The planned payment.
+        schedule: ScheduleId,
+        /// The counted date asked for.
+        due_on: Date,
+    },
+    /// The occurrence is matched or skipped already, or, to take a skip
+    /// back, not skipped (D-769).
+    OccurrenceDecided {
+        /// The planned payment.
+        schedule: ScheduleId,
+        /// Its counted date.
+        due_on: Date,
+    },
+    /// The entry is matched to an occurrence already (D-769).
+    ScheduleEntryTaken(TransactionId),
+    /// The entry can't be matched to the planned payment: it has no part in
+    /// the plan's account in its currency with money going the same way,
+    /// or it is a side of a Transfer (D-769).
+    ScheduleEntryNotFitting(TransactionId),
     /// There's no exchange rate with this ID.
     UnknownRate(DatedRateId),
     /// An exchange rate from a currency into the same currency.
@@ -516,6 +560,10 @@ pub enum Corruption {
     /// A Rule sits in the wrong place in the tree of Rules: inside a Rule
     /// that doesn't exist, or inside itself.
     BadRuleTree(RuleId),
+    /// A planned payment, or what is stored about one of its occurrences,
+    /// has values that don't fit together, e.g. a unit or a status that
+    /// doesn't exist (D-769).
+    BadSchedule(ScheduleId),
     /// The book holds a table, index, trigger or view its layout doesn't
     /// have, lacks one of its own, or one was changed, e.g. by another
     /// program (B-245). It wasn't opened, so nothing in it ran.
@@ -806,6 +854,41 @@ impl Report for StoreError {
                     .with("outgoing", P::Transaction(*outgoing))
                     .with("incoming", P::Transaction(*incoming))
             }
+            Self::UnknownSchedule(id) => {
+                new("store.schedule-unknown").with("schedule", P::Text(id.to_string()))
+            }
+            Self::Schedule(error) => {
+                new("store.schedule-invalid").with("reason", P::Keyword(error.keyword()))
+            }
+            Self::ScheduleAccountClosed(account) => {
+                new("store.schedule-account-closed").with("account", P::Account(*account))
+            }
+            Self::ScheduleCurrencyDiffers { account, currency } => {
+                new("store.schedule-currency-differs")
+                    .with("account", P::Account(*account))
+                    .with("currency", P::Currency(*currency))
+            }
+            Self::ScheduleCategory(category) => {
+                new("store.schedule-category").with("category", P::Account(*category))
+            }
+            Self::TooManySchedules { max } => {
+                new("store.schedule-too-many").with("max", P::count(*max))
+            }
+            Self::UnknownOccurrence { schedule, due_on } => {
+                new("store.schedule-occurrence-unknown")
+                    .with("schedule", P::Text(schedule.to_string()))
+                    .with("due_on", P::Date(*due_on))
+            }
+            Self::OccurrenceDecided { schedule, due_on } => {
+                new("store.schedule-occurrence-decided")
+                    .with("schedule", P::Text(schedule.to_string()))
+                    .with("due_on", P::Date(*due_on))
+            }
+            Self::ScheduleEntryTaken(transaction) => {
+                new("store.schedule-entry-taken").with("transaction", P::Transaction(*transaction))
+            }
+            Self::ScheduleEntryNotFitting(transaction) => new("store.schedule-entry-not-fitting")
+                .with("transaction", P::Transaction(*transaction)),
             Self::UnknownRate(rate) => new("store.unknown-rate").with("rate", P::Rate(*rate)),
             Self::RateWithinOneCurrency(currency) => {
                 new("store.rate-within-one-currency").with("currency", P::Currency(*currency))
@@ -878,6 +961,9 @@ impl Report for Corruption {
             Self::BadRule(rule) => new("store.corrupt.bad-rule").with("rule", P::Rule(*rule)),
             Self::BadRuleTree(rule) => {
                 new("store.corrupt.bad-rule-tree").with("rule", P::Rule(*rule))
+            }
+            Self::BadSchedule(schedule) => {
+                new("store.corrupt.bad-schedule").with("schedule", P::Text(schedule.to_string()))
             }
             Self::UnexpectedLayout => new("store.corrupt.unexpected-layout"),
         }

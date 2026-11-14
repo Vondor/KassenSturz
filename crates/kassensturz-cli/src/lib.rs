@@ -31,6 +31,7 @@ mod input;
 mod lookup;
 mod rate;
 mod rule;
+mod schedule;
 mod text;
 mod transaction;
 mod transfer;
@@ -159,6 +160,49 @@ Commands:
                                  31) by itself from now on; --iban and --name
                                  are the other party FROM's bank names
   transfer monthly remove ID     stop joining that move by itself
+  schedule list                  the planned payments, with the next one due
+  schedule add ACCOUNT AMOUNT NAME --from DATE [--every N]
+               [--unit week|month|year] [--until DATE] [--category NAME]
+               [--tolerance AMOUNT] [--iban IBAN] [--party NAME]
+               [--track-from DATE]
+                                 plan a payment that repeats every N units
+                                 (1 if not said) of months (if not said),
+                                 weeks or years from DATE. Imports match an
+                                 entry to it when it is in ACCOUNT, at most
+                                 3 business days from a due date, with the
+                                 amount give or take the tolerance and, if
+                                 given, the other party's IBAN or name; a
+                                 matched entry without a category gets the
+                                 plan's. --track-from DATE: earlier payments
+                                 are not expected. Nothing is ever paid
+  schedule edit ID [--name NAME] [--amount AMOUNT] [--no-category]
+                   [--no-end] [options of schedule add]
+                                 change a plan; what is matched or skipped
+                                 stays so
+  schedule pause ID              not expected for now: imports don't match it
+                                 and the forecast leaves it out
+  schedule resume ID
+  schedule remove ID             the entries it matched stay as they are
+  schedule due [--from DATE] [--to DATE]
+                                 the payments planned in that time (31 days
+                                 back and ahead if not said, at most 5
+                                 years from the first day) and whether
+                                 they are paid, skipped or still to come
+  schedule match ID DUE TRANSACTION
+                                 that transaction is the payment due on DUE,
+                                 as `schedule due` shows it
+  schedule skip ID DUE           that payment won't come
+  schedule unskip ID DUE         it is expected again
+  schedule book ID DUE [--date DATE] [--amount AMOUNT]
+                                 book that payment yourself, in the plan's
+                                 account and category, on DATE (today if not
+                                 said) with AMOUNT (the plan's if not said)
+  forecast [--months N] [--account NAME ...]
+                                 what is left this month after the planned
+                                 payments, and N more months (3 if not said,
+                                 at most 12). Without --account, the open
+                                 checking and cash accounts in the first
+                                 one's currency
   register NAME                  an account's or category's transactions
   balances [--all]               every account's balance, and the totals
   rate add --date DATE --from CODE --to CODE --rate RATE
@@ -360,7 +404,7 @@ impl<'a> CommandLine<'a> {
             }
             Some(
                 "account" | "category" | "transaction" | "transfer" | "rate" | "rule" | "balances"
-                | "register" | "history" | "import" | "export",
+                | "register" | "history" | "import" | "export" | "schedule" | "forecast",
             ) => Ok(()),
             Some(other) => Err(CliError::usage(format!("`{other}` isn't a command"))),
             None => Ok(()),
@@ -424,6 +468,8 @@ impl<'a> CommandLine<'a> {
             Some("rule") => rule::rule(book, rest, out),
             Some("import") => import::import_file(book, rest, out),
             Some("export") => export::export(book, rest, out),
+            Some("schedule") => schedule::schedule(book, rest, out),
+            Some("forecast") => schedule::forecast(book, rest, out),
             Some("balances") => accounts::balances(book, rest, out),
             Some("register") => accounts::register(book, rest, out),
             Some("undo") => history::undo(book, out),

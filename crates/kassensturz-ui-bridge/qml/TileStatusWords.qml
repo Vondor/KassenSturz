@@ -64,6 +64,28 @@ QtObject {
             default:
                 return i18nContext.i18nc("@info a status icon: no account can be updated from a bank yet", "Not set up yet");
             }
+        case "forecast.month":
+            switch (status) {
+            case "fine":
+                return i18nContext.i18nc("@info a status icon: the planned payments of this month are all known", "Planned payments known");
+            case "to-do":
+                return i18nContext.i18ncp("@info a status icon, %1 is how many", "%1 planned payment to check", "%1 planned payments to check", count);
+            case "failed":
+                return i18nContext.i18nc("@info a status icon", "Planned payments can't be read");
+            default:
+                return i18nContext.i18nc("@info a status icon: no payment is planned yet", "Nothing planned yet");
+            }
+        case "plan.coming_up":
+            switch (status) {
+            case "fine":
+                return count > 0
+                    ? i18nContext.i18ncp("@info a status icon, %1 is how many", "%1 payment coming up", "%1 payments coming up", count)
+                    : i18nContext.i18nc("@info a status icon: no planned payment in the next 30 days", "Nothing coming up");
+            case "failed":
+                return i18nContext.i18nc("@info a status icon", "Planned payments can't be read");
+            default:
+                return i18nContext.i18nc("@info a status icon: no payment is planned yet", "Nothing planned yet");
+            }
         }
         return "";
     }
@@ -111,6 +133,26 @@ QtObject {
                     : i18nContext.i18nc("@info:tooltip", "The last update didn't work. You can try again.");
             default:
                 return i18nContext.i18nc("@info:tooltip", "No account is updated from a bank yet, or bank connections can't be used here.");
+            }
+        case "forecast.month":
+            switch (status) {
+            case "fine":
+                return i18nContext.i18nc("@info:tooltip", "What is left this month after the planned payments still to come.");
+            case "to-do":
+                return i18nContext.i18ncp("@info:tooltip %1 is how many", "%1 planned payment passed without an entry. It is not counted until you check it.", "%1 planned payments passed without an entry. They are not counted until you check them.", count);
+            case "failed":
+                return i18nContext.i18nc("@info:tooltip", "The planned payments could not be read.");
+            default:
+                return i18nContext.i18nc("@info:tooltip", "Nothing planned yet, or no checking or cash account to look ahead for.");
+            }
+        case "plan.coming_up":
+            switch (status) {
+            case "fine":
+                return i18nContext.i18ncp("@info:tooltip %1 is how many", "%1 planned payment in the next 30 days.", "%1 planned payments in the next 30 days.", count);
+            case "failed":
+                return i18nContext.i18nc("@info:tooltip", "The planned payments could not be read.");
+            default:
+                return i18nContext.i18nc("@info:tooltip", "Nothing planned yet. A planned payment is one you expect on a day, like rent.");
             }
         }
         return "";

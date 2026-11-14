@@ -583,7 +583,8 @@ mod tests {
                         "area",
                         "pie",
                         "donut",
-                        "candlestick"
+                        "candlestick",
+                        "flow"
                     ]
                     .contains(&preview.chart)
                 );
@@ -632,7 +633,6 @@ mod tests {
                         show_hidden: preview.show_hidden,
                         columns: Vec::new(),
                         scope: crate::scope::Scope::from_text(&preview.scope),
-                        flow: charts::FlowAsk::default(),
                         // A custom chart is drawn from its own description.
                         custom: (!preview.spec.is_empty()).then(|| charts::Custom {
                             spec: preview.spec.clone(),

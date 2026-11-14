@@ -11,7 +11,7 @@
 
 use crate::{
     ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, FORMULA_MEASURE,
-    INCOME_EXPENSE_BY_MONTH, NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY, Takes,
+    INCOME_EXPENSE_BY_MONTH, MONEY_FLOW, NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY, Takes,
 };
 
 /// One dataset a chart or card can show.
@@ -166,6 +166,30 @@ pub const CATALOG: &[DatasetInfo] = &[
         suits: &["line", "bar", "stacked_bar", "kpi", "table", "candlestick"],
         measures: &["net_change", "money_in", "money_out"],
         takes: Takes::NO_CATEGORIES,
+        for_ai: true,
+    },
+    // Where money came from and where it went (US7, #821, D-758): drawn as
+    // bands by the money-flow chart only, so no custom chart reads it. The AI
+    // may propose the chart with its defaults (US7, D-773).
+    DatasetInfo {
+        id: MONEY_FLOW,
+        description: "Where the money of a period came from and where it went, as bands whose \
+             width is their amount: income categories flow into one node, your money, and out \
+             into spending categories. If you earned more than you spent, the difference flows \
+             on to a node of what is left; if you spent more, a node of your reserves makes up \
+             the gap, so both sides always add up to the same total. A refund reduces the \
+             category it came back to, and a category whose net is money coming back is shown on \
+             the income side. Money you have not sorted into a category yet has a node of its \
+             own. Sub-categories and the payees can be shown as further columns. At most 8 nodes \
+             stand in a column; the smallest are grouped as Other. Money that moves through \
+             several accounts counts once. One currency is shown. \
+             Money moved between your own accounts and starting balances are not counted, \
+             and amounts in different currencies are never added together: there is one result \
+             per currency.",
+        groupings: &["flow"],
+        suits: &["flow"],
+        measures: &[],
+        takes: Takes::ALL,
         for_ai: true,
     },
     // How much of each budget is spent and left (D-346, D-347), built in

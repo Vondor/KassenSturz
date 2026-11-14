@@ -122,7 +122,8 @@ fn a_model_that_follows_a_hostile_memo_gets_nothing_more() {
                 || o == PROPOSE_CHANGES.name
                 || o == PROPOSE_VIEW_NAME
                 || o == DRAFT_ISSUE.name
-                || o == OPEN_PAGE.name)),
+                || o == OPEN_PAGE.name
+                || o == "suggest_note")),
         "only the read functions, propose_changes, propose_view, draft_issue and open_page are \
          ever offered"
     );
@@ -375,7 +376,7 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     let book = hostile_book();
     let (provider, _) = Script::provider(
         on(),
-        vec![says_counting("A", 11_000), says_counting("B", 8_000)],
+        vec![says_counting("A", 12_000), says_counting("B", 8_000)],
     );
     let mut chat = session();
     // A request of about 8 KB of question plus the prompt and the functions
@@ -384,7 +385,7 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     // and the structured descriptions of M6-B200, the paging and IDs of
     // US2.13, list_views and the changes of saved charts of D-681, the
     // single Rule conditions of #570, the names next to IDs of #598 and the
-    // chart description help with its example of D-729) for 11,000 tokens
+    // chart description help with its example of D-729, monthly_totals of US7.5) for 12,000 tokens
     // is what an uncut request comes to.
     let long = "word ".repeat(1_600);
     let answer = chat

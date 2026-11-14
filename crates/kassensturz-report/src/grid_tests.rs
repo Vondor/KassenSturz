@@ -86,7 +86,7 @@ fn every_type_has_the_smallest_size_of_the_design_and_a_default_that_is_not_smal
         let expected = match kind {
             ComponentType::KpiCard => Size { cols: 2, rows: 2 },
             ComponentType::ProgressBar => Size { cols: 3, rows: 1 },
-            ComponentType::TableRows => Size { cols: 4, rows: 3 },
+            ComponentType::TableRows | ComponentType::ChartFlow => Size { cols: 4, rows: 3 },
             _ => Size { cols: 3, rows: 3 },
         };
         assert_eq!(least, expected, "{}", kind.id());
@@ -706,7 +706,7 @@ fn a_new_period_box_lands_where_no_widget_is() {
     assert_eq!(frame_of(&editor, &added), frame(0, 4, 12, 5));
 }
 
-/// The four status tiles go down to one cell and show their icon below
+/// The six status tiles go down to one cell and show their icon below
 /// their full size, in either direction (US5.4, D-735); every other type
 /// keeps its smallest size and never shows an icon.
 #[test]
@@ -716,6 +716,8 @@ fn status_tiles_shrink_to_one_cell_and_show_their_icon_below_full_size() {
         ("bank.update_all", Size { cols: 3, rows: 1 }),
         ("notice.fetch_gap", Size { cols: 4, rows: 1 }),
         ("notice.unsorted", Size { cols: 4, rows: 1 }),
+        ("forecast.month", Size { cols: 3, rows: 2 }),
+        ("plan.coming_up", Size { cols: 3, rows: 2 }),
     ];
     for (id, full) in status {
         let kind = ComponentType::from_id(id).unwrap();

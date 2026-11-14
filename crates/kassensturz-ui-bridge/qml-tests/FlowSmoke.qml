@@ -31,10 +31,10 @@ Window {
             {kind: "left-over", name: "", column: 2, y: 520000, height: 480000, label: "1.500,00 €", category: "", holds: []}
         ],
         bands: [
-            {from: 1, to: 0, yFrom: 20000, yTo: 20000, thickness: 960000, label: "3.000,00 €"},
-            {from: 0, to: 4, yFrom: 500000, yTo: 520000, thickness: 480000, label: "1.500,00 €"},
-            {from: 0, to: 2, yFrom: 20000, yTo: 0, thickness: 320000, label: "1.000,00 €"},
-            {from: 0, to: 3, yFrom: 340000, yTo: 340000, thickness: 160000, label: "500,00 €"}
+            {from: 1, to: 0, yFrom: 20000, yTo: 20000, thickness: 960000, label: "3.000,00 €", assumed: ""},
+            {from: 0, to: 4, yFrom: 500000, yTo: 520000, thickness: 480000, label: "1.500,00 €", assumed: ""},
+            {from: 0, to: 2, yFrom: 20000, yTo: 0, thickness: 320000, label: "1.000,00 €", assumed: "400,00 €"},
+            {from: 0, to: 3, yFrom: 340000, yTo: 340000, thickness: 160000, label: "500,00 €", assumed: ""}
         ]
     })
 
@@ -69,6 +69,7 @@ Window {
             const found = flow.bandAt(100, 300, 400, 400);
             console.log("flow-band-at " + found);
             console.log("flow-text " + flow.bandText(flow.bands[0]));
+            console.log("flow-assumed " + flow.bandText(flow.bands[2]));
             // What a click opens: a band takes its outer category, a band or
             // node with none takes everything, and the scope is narrowed in
             // text only.

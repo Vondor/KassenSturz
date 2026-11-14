@@ -23090,6 +23090,11 @@ msgctxt "@item:inlistbox a whole number of months; %1 is the number"
 msgid "%1 months"
 msgstr "%1 mies."
 
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:1
+#, kde-format
+msgctxt "@info the amount of a flow of the money-flow chart, part of which is assumed to be a move between your own accounts: %1 the amount, %2 the assumed part"
+msgid "%1 (%2 assumed)"
+msgstr "%1 (w tym %2 przyjęte)"
 #, kde-format
 msgctxt "@info"
 msgid "Most households never need to change anything here."

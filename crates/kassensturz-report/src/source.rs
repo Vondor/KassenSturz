@@ -13,7 +13,7 @@ use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, AccountKind, Budget, CategoryGroup, Currency, CurrencyCode, Date, GroupId,
-    Money, RoundingMode, Tag, Transaction,
+    Money, RoundingMode, Tag, Transaction, TransferMatch,
 };
 use kassensturz_store::{Book, CategoryEntry, StoreError};
 
@@ -71,6 +71,9 @@ pub struct Source {
     holdings: Option<Holdings>,
     /// The book's budgets, if they were read (D-378).
     budgets: Option<Vec<Budget>>,
+    /// The pairs of transactions that look like moves between the user's own
+    /// accounts, if they were read (US7, #1035).
+    moves: Option<Vec<TransferMatch>>,
 }
 
 impl Source {
@@ -83,6 +86,27 @@ impl Source {
     /// [`Source::read_with_balances`] for those.
     pub fn read(book: &Book, period: Period) -> Result<Self, ReportError> {
         book.reading(|book| Self::read_now(book, period, false))
+    }
+
+    /// Reads what [`Source::read`] reads and, in the same read transaction,
+    /// the pairs of transactions that look like moves between the user's own
+    /// accounts and are not joined as Transfers ([`Book::transfer_suggestions`]):
+    /// the money-flow chart with accounts draws them as moves, marked as
+    /// assumed (US7, #1035).
+    pub fn read_with_moves(book: &Book, period: Period) -> Result<Self, ReportError> {
+        book.reading(|book| {
+            let source = Self::read_now(book, period, false)?;
+            Ok(Self {
+                moves: Some(book.transfer_suggestions()?),
+                ..source
+            })
+        })
+    }
+
+    /// The pairs that look like moves between own accounts, if they were
+    /// read ([`Source::read_with_moves`]); none otherwise.
+    pub(crate) fn moves(&self) -> &[TransferMatch] {
+        self.moves.as_deref().unwrap_or(&[])
     }
 
     /// Reads what [`Source::read`] reads and, in the same read transaction,
@@ -194,6 +218,7 @@ impl Source {
             rounding: RoundingMode::default(),
             holdings: None,
             budgets: None,
+            moves: None,
         }
     }
 
@@ -201,6 +226,15 @@ impl Source {
     pub(crate) fn with_holdings(self, holdings: Holdings) -> Self {
         Self {
             holdings: Some(holdings),
+            ..self
+        }
+    }
+
+    /// The same `Source` with these pairs that look like moves (tests).
+    #[cfg(test)]
+    pub(crate) fn with_moves(self, moves: Vec<TransferMatch>) -> Self {
+        Self {
+            moves: Some(moves),
             ..self
         }
     }

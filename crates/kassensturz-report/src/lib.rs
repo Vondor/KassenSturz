@@ -194,6 +194,8 @@ mod grid_tests;
 #[cfg(test)]
 mod groups_tests;
 #[cfg(test)]
+mod money_flow_moves_tests;
+#[cfg(test)]
 mod money_flow_tests;
 #[cfg(test)]
 mod page_widgets_tests;

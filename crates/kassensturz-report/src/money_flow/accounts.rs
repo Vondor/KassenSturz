@@ -12,10 +12,10 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use kassensturz_core::{AccountId, AccountKind, Transaction};
+use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Transaction, TransactionId};
 
 use super::{Atom, Builder, FlowNodeKind, add, drop_unused, overflow};
-use crate::{ReportError, Source};
+use crate::{Period, ReportError, Source};
 
 /// A Transfer: from an account (`None`: one that is not chosen), to an
 /// account, an amount above zero.
@@ -38,6 +38,67 @@ pub(super) struct Piece {
 pub(super) struct Moved {
     pub(super) pieces: Vec<Piece>,
     pub(super) transfers: Vec<Transfer>,
+}
+
+/// The moves between chosen accounts that are not joined as Transfers but
+/// look like them (#1035): two transactions, one taking an amount out of a
+/// chosen account and one putting the same amount into another, a few
+/// business days apart, whose other parts have no category or were sorted by
+/// a Rule ([`Source::read_with_moves`]).
+#[derive(Default)]
+pub(super) struct AssumedMoves {
+    /// The transactions of the pairs (indexes in the `Source`): their
+    /// category parts are not counted, the move replaces them.
+    pub(super) skip: HashSet<usize>,
+    /// The moves, by currency.
+    pub(super) moves: Vec<(CurrencyCode, Transfer)>,
+}
+
+/// The assumed moves of `source` in `period` between accounts in `chosen`:
+/// both transactions must be booked in the period.
+pub(super) fn assumed_moves(
+    source: &Source,
+    period: Period,
+    chosen: &HashSet<AccountId>,
+) -> AssumedMoves {
+    let mut found = AssumedMoves::default();
+    let index: HashMap<TransactionId, usize> = source
+        .transactions()
+        .iter()
+        .enumerate()
+        .map(|(at, transaction)| (transaction.id(), at))
+        .collect();
+    for pair in source.moves() {
+        let (Some(&out), Some(&into)) = (
+            index.get(&pair.outgoing.transaction),
+            index.get(&pair.incoming.transaction),
+        ) else {
+            continue;
+        };
+        let inside = |at: usize| period.contains(source.transactions()[at].booking_date());
+        if !chosen.contains(&pair.outgoing.account)
+            || !chosen.contains(&pair.incoming.account)
+            || !inside(out)
+            || !inside(into)
+        {
+            continue;
+        }
+        let amount = pair.incoming.amount;
+        if amount.minor_units() <= 0 {
+            continue;
+        }
+        found.skip.insert(out);
+        found.skip.insert(into);
+        found.moves.push((
+            amount.currency(),
+            (
+                Some(pair.outgoing.account),
+                Some(pair.incoming.account),
+                amount.minor_units(),
+            ),
+        ));
+    }
+    found
 }
 
 fn is_own(kind: AccountKind) -> bool {
@@ -230,12 +291,20 @@ pub(super) fn finish(
     b: &mut Builder<'_>,
     middle: usize,
     transfers: &[Transfer],
+    assumed: &[Transfer],
 ) -> Result<(), ReportError> {
-    // Net Transfers between two chosen accounts, and add up the others.
+    // Net Transfers between two chosen accounts, and add up the others. A
+    // move that is only assumed (#1035) counts like any other, and is also
+    // kept apart, so its band can say how much of it is assumed.
     let mut pairs: BTreeMap<(AccountId, AccountId), i64> = BTreeMap::new();
+    let mut guessed: BTreeMap<(AccountId, AccountId), i64> = BTreeMap::new();
     let mut from_other: BTreeMap<AccountId, i64> = BTreeMap::new();
     let mut to_other: BTreeMap<AccountId, i64> = BTreeMap::new();
-    for &(from, to, amount) in transfers {
+    for (&(from, to, amount), is_assumed) in transfers
+        .iter()
+        .map(|t| (t, false))
+        .chain(assumed.iter().map(|t| (t, true)))
+    {
         match (from, to) {
             (Some(from), Some(to)) if from != to => {
                 let (key, signed) = if from < to {
@@ -245,6 +314,10 @@ pub(super) fn finish(
                 };
                 let entry = pairs.entry(key).or_insert(0);
                 *entry = add(*entry, signed)?;
+                if is_assumed {
+                    let entry = guessed.entry(key).or_insert(0);
+                    *entry = add(*entry, signed)?;
+                }
             }
             (None, Some(to)) => {
                 let entry = from_other.entry(to).or_insert(0);
@@ -258,10 +331,21 @@ pub(super) fn finish(
         }
     }
     let edges: Vec<(AccountId, AccountId, i64)> = pairs
-        .into_iter()
-        .filter(|&(_, net)| net != 0)
-        .map(|((a, c), net)| if net > 0 { (a, c, net) } else { (c, a, -net) })
+        .iter()
+        .filter(|&(_, &net)| net != 0)
+        .map(|(&(a, c), &net)| if net > 0 { (a, c, net) } else { (c, a, -net) })
         .collect();
+    // How much of each edge is assumed: what the assumed moves add in its
+    // direction, never more than the edge.
+    let assumed_part = |from: AccountId, to: AccountId, net: i64| -> i64 {
+        let (key, sign) = if from < to {
+            ((from, to), 1)
+        } else {
+            ((to, from), -1)
+        };
+        let signed = guessed.get(&key).copied().unwrap_or(0).saturating_mul(sign);
+        signed.clamp(0, net)
+    };
     for &(from, to, _) in &edges {
         account_node(b, from);
         account_node(b, to);
@@ -310,8 +394,12 @@ pub(super) fn finish(
         b.nodes[node].column = depth[&account];
     }
     for &(from, to, amount) in &edges {
+        let guess = assumed_part(from, to, amount);
         let (from, to) = (b.accounts[&from], b.accounts[&to]);
         b.flows.push((from, to, amount));
+        if guess > 0 {
+            b.assumed.push((from, to, guess));
+        }
     }
     for (side, list) in [(-1_i8, &from_other), (1, &to_other)] {
         if list.is_empty() {

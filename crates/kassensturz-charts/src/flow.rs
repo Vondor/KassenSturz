@@ -60,6 +60,9 @@ pub struct LaidBand {
     pub thickness: i64,
     /// Its amount written for the user's locale, with the currency.
     pub label: String,
+    /// How much of it is assumed (a move between own accounts that is not
+    /// joined as a Transfer, #1035), written the same way; empty when none.
+    pub assumed: String,
 }
 
 /// The money-flow chart: what to draw and the text to say about it.
@@ -191,6 +194,11 @@ pub fn flow_model(flow: &MoneyFlow, elsewhere: &[MoneyFlow], text: &impl TextFor
             y_to: y_to[band],
             thickness: size(f.amount.minor_units()),
             label: text.amount(f.amount),
+            assumed: if f.assumed.is_zero() {
+                String::new()
+            } else {
+                text.amount(f.assumed)
+            },
         })
         .collect();
     // Largest first, so the screen reader and the table start with the
@@ -261,6 +269,7 @@ mod tests {
             from,
             to,
             amount: Money::from_minor_units(amount, eur()),
+            assumed: Money::from_minor_units(0, eur()),
         }
     }
 

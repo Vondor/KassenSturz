@@ -25225,6 +25225,11 @@ msgid ""
 msgstr ""
 "Die neueste Sicherung stammt vom %1: Sie liegt im Sicherungsordner (%2) unter dem Namen %3. Wählen Sie sie mit „Anderes Haushaltsbuch öffnen…“. Änderungen seit dann sind in dieser Kopie nicht enthalten."
 
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:1
+#, kde-format
+msgctxt "@info the amount of a flow of the money-flow chart, part of which is assumed to be a move between your own accounts: %1 the amount, %2 the assumed part"
+msgid "%1 (%2 assumed)"
+msgstr "%1 (davon %2 angenommen)"
 #, kde-format
 msgctxt "@info"
 msgid "Most households never need to change anything here."

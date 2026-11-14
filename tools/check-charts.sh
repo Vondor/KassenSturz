@@ -88,6 +88,7 @@ mkdir "$work/out"
     grep -q 'flow-scope \[\["b"\],true,\["x"\],true,true\]$' run.log || { echo "check-charts: the scope behind a click is not narrowed to its category" >&2; exit 1; }
     grep -q 'flow-scope-account \[\["acc-1"\],true,true,true\]$' run.log || { echo "check-charts: the scope behind a click on an account is not narrowed to it" >&2; exit 1; }
     grep -q 'flow-scope-all true$' run.log || { echo "check-charts: a click on no category narrows the scope" >&2; exit 1; }
+    grep -q 'flow-assumed Your money to Rent: 1.000,00 € (400,00 € assumed)$' run.log || { echo "check-charts: a band does not say how much of it is assumed" >&2; exit 1; }
     grep -q 'flow-text Salary to Your money: ' run.log || { echo "check-charts: a band does not say where it goes" >&2; exit 1; }
     cp out/*.png "$work/out/"
 )

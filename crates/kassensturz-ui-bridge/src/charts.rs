@@ -360,7 +360,11 @@ pub fn charts(
     // The balances of the accounts take longer to read, so only the datasets
     // made from them ask for them (D-365). Columns decide what a chart shows,
     // whatever its dataset says, and they are made of spending.
-    let source = if request.columns.is_empty() && is_financial(&request.dataset) {
+    let source = if flow && request.scope.flow.accounts {
+        // The pairs that look like moves between own accounts are drawn as
+        // assumed moves (US7, #1035); a read with them is not kept.
+        std::rc::Rc::new(Source::read_with_moves(book, span)?)
+    } else if request.columns.is_empty() && is_financial(&request.dataset) {
         session::cached_source(book, span, true, || Source::read_with_balances(book, span))?
     } else {
         session::cached_source(book, span, false, || Source::read(book, span))?

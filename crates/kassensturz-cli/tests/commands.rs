@@ -475,6 +475,7 @@ fn mistakes_in_a_transaction_are_refused_without_changing_the_book() {
 
     assert_eq!(session.ok(&["register", "Savings"]).lines().count(), 2);
     let balances = session.ok(&["balances"]);
+    println!("{balances}");
     let total = balances.lines().last().expect("a total line");
     assert_eq!(
         total.split_whitespace().collect::<Vec<_>>(),
@@ -3020,4 +3021,76 @@ fn mistakes_in_a_plan_are_refused_without_changing_the_book() {
     let unknown = session.cli(&["schedule", "pause", "123456"]);
     assert_eq!(unknown.status, 1);
     assert!(unknown.err.contains("isn't a plan's ID"), "{}", unknown.err);
+}
+
+/// B-269 (#965): amounts that each fit but together would make a balance
+/// the book can't add up are refused one by one, the book stays usable, and
+/// a plan too large to forecast is refused too.
+#[test]
+fn amounts_that_would_add_up_too_far_are_refused_and_the_book_stays_usable() {
+    let session = household();
+    let add = [
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "7000000000000000.00",
+        "--category",
+        "Salary",
+    ];
+    session.ok(&add);
+    let refused = session.cli(&add);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert_eq!(refused.err, "error: store.amount-overflow\n");
+    let balances = session.ok(&["balances"]);
+    assert!(
+        balances.contains("Checking account  7000000000000000.00 EUR"),
+        "{balances}"
+    );
+    let history = session.ok(&["history", "list"]);
+    assert_eq!(
+        history.matches("added a transaction").count(),
+        1,
+        "only the first one is in the book: {history}"
+    );
+    session.ok(&["forecast"]);
+
+    let plan = session.cli(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-1000000000000.00",
+        "Too much",
+        "--from",
+        "2026-11-01",
+    ]);
+    assert_eq!(plan.status, 1, "{}", plan.err);
+    assert_eq!(plan.err, "error: store.amount-overflow\n");
+    session.ok(&["forecast"]);
+
+    // A bank statement whose two entries fit on their own but not together
+    // is refused as a whole.
+    let session = household();
+    let statement = session.0.join("too-much.sta");
+    std::fs::write(
+        &statement,
+        ":20:X\n:25:DE89370400440532013000\n:60F:C261001EUR0,00\n\
+         :61:261002C6000000000000000,00NMSCNONREF\n\
+         :61:261003C6000000000000000,00NMSCNONREF\n\
+         :62F:C261003EUR12000000000000000,00\n-\n",
+    )
+    .expect("file written");
+    let statement = statement.display().to_string();
+    let imported = session.cli(&["import", &statement, "--account", "Checking account"]);
+    assert_eq!(imported.status, 1, "{}", imported.err);
+    assert_eq!(imported.err, "error: store.amount-overflow\n");
+    assert!(
+        session
+            .ok(&["balances"])
+            .contains("Checking account  0.00 EUR"),
+        "nothing of it stays"
+    );
 }

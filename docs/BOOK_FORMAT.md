@@ -436,7 +436,7 @@ From layout 33: the planned payments, money the user expects to leave or arrive 
 | `id` | BLOB (16 bytes), primary key | UUIDv7 |
 | `name` | TEXT, 1 to 60 characters | What the user calls it; KassenSturz writes it without spaces around it |
 | `account_id` | BLOB → `accounts.id` | The user's own account the money leaves or arrives in; deleting it deletes this row. While the account is closed, the plan is expected nowhere |
-| `amount` | INTEGER, not 0 | The expected amount in minor units of `currency`: negative when money leaves, positive when it arrives |
+| `amount` | INTEGER, not 0 | The expected amount in minor units of `currency`: negative when money leaves, positive when it arrives. Its size is at most 43,506,471,871,956 minor units: the limit for sums in [Reading a book](#reading-a-book) shared by 200 plans, each due every week for the 5 years a forecast looks at (B-269) |
 | `currency` | TEXT → `currencies.code` | The account's currency; KassenSturz checks this when it writes |
 | `tolerance` | INTEGER, 0 or more and less than the amount's size | How far an entry's amount may be from `amount`, in minor units, and still be a payment of the plan |
 | `category_id` | BLOB → `accounts.id`, may be NULL | The category in the same currency that a matched entry gets where its part has none yet; a category a plan uses can't be removed (`store.category-in-use`, `schedules`) |
@@ -530,7 +530,7 @@ A row the change added has only an `after` copy, a row it removed only a `before
 
 ## Reading a book
 
-An account's balance is the sum of its parts' amounts in its currency, `coalesce(foreign_amount, amount)` for its `account_id`. Its register joins `splits` with `transactions` and shows each part with `coalesce(own_date, booking_date)` and `coalesce(own_payee, payee)`, ordered by that date, then the transaction's `id` (D-108). Add amounts in 64-bit integers or wider, never as floating point. Parts with a NULL `account_id` count in no account's balance; they are the amounts that have no category yet. The rate from one currency into another on a day is the row with the latest `date` on or before that day.
+An account's balance is the sum of its parts' amounts in its currency, `coalesce(foreign_amount, amount)` for its `account_id`. Its register joins `splits` with `transactions` and shows each part with `coalesce(own_date, booking_date)` and `coalesce(own_payee, payee)`, ordered by that date, then the transaction's `id` (D-108). Add amounts in 64-bit integers or wider, never as floating point. KassenSturz keeps every sum in 64 bits: it refuses a change, an import or a book whose parts in one currency, taken without their signs (`amount`, `foreign_amount` and `original_amount` each in its own currency), would add up to more than a quarter of the largest 64-bit integer, i.e. 2,305,843,009,213,693,951 minor units (B-269). No account, category or report total can then leave 64 bits. Parts with a NULL `account_id` count in no account's balance; they are the amounts that have no category yet. The rate from one currency into another on a day is the row with the latest `date` on or before that day.
 
 ## The change history
 

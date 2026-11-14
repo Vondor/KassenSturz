@@ -9813,6 +9813,17 @@ msgstr "Dieser Betrag ist zu groß. Prüfen Sie, ob eine Ziffer zu viel ist."
 #, kde-format
 msgctxt "@info"
 msgid ""
+"This would make the amounts in your book add up to more than KassenSturz can "
+"work with. Nothing was changed. Check the amount for extra digits."
+msgstr ""
+"Damit würden die Beträge in Ihrem Buch zusammen mehr ergeben, als "
+"KassenSturz verarbeiten kann. Es wurde nichts geändert. Prüfen Sie, ob eine "
+"Ziffer zu viel ist."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:244
+#, kde-format
+msgctxt "@info"
+msgid ""
 "Type an amount above zero. Whether you paid or received it, you choose above."
 msgstr ""
 "Geben Sie einen Betrag über null ein. Ob Sie bezahlt oder erhalten haben, "

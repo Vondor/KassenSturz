@@ -67,7 +67,7 @@ ANCHORS = {
     "Delete": {
         "de": ["lösch", "entfern"], "fr": ["supprim", "effac"], "es": ["elimin", "borrar", "suprim"],
         "pt": ["exclu", "apagar", "elimin", "remov"], "it": ["elimin", "cancella"],
-        "nl": ["verwijder", "wis"], "pl": ["usuń", "usun", "skasuj"], "ru": ["удал"],
+        "nl": ["verwijder", "wis"], "pl": ["usuń", "usun", "usuw", "skasuj"], "ru": ["удал"],
         "uk": ["видал", "вилуч"], "id": ["hapus"], "zh": ["删除"], "ja": ["削除"], "ko": ["삭제"],
         "ar": ["حذف", "احذف", "إزالة", "ازالة"], "hi": ["हटा", "मिटा"], "bn": ["মুছ", "মোছ"],
         "ur": ["حذف", "مٹا", "ڈیلیٹ"],

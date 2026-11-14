@@ -106,8 +106,11 @@ fn last_book() -> Result<PathBuf, String> {
     let text = ai_switch::settings_file()
         .and_then(|file| std::fs::read_to_string(file).ok())
         .ok_or_else(none)?;
-    let home = std::env::var("HOME").ok();
-    let runtime = std::env::var("XDG_RUNTIME_DIR").ok();
+    let (home, runtime) = folders_of_the_app(
+        std::env::var("HOME").ok(),
+        std::env::var("XDG_RUNTIME_DIR").ok(),
+        std::env::var_os("SNAP").is_some() || std::env::var_os("SNAP_NAME").is_some(),
+    );
     match last_book_in(&text, home.as_deref(), runtime.as_deref()) {
         Ok(Some(path)) => Ok(path),
         Ok(None) => Err(none()),
@@ -117,6 +120,34 @@ fn last_book() -> Result<PathBuf, String> {
                 .to_owned(),
         ),
     }
+}
+
+/// The home and runtime folders the app wrote the remembered path with. In a
+/// snap, the app (and so this server, which runs in the same snap) sees its
+/// own runtime folder as `$XDG_RUNTIME_DIR` (`.../snap.<name>`), while the
+/// book's path was written with the runtime folder above it, where the
+/// document portal is mounted: the same mapping as `platform::runtime_dir`
+/// in the app (D-776). `$HOME` is read the same way in both.
+fn folders_of_the_app(
+    home: Option<String>,
+    runtime: Option<String>,
+    in_snap: bool,
+) -> (Option<String>, Option<String>) {
+    if !in_snap {
+        return (home, runtime);
+    }
+    let runtime = runtime.map(|dir| {
+        let path = std::path::Path::new(&dir);
+        let own = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.starts_with("snap."));
+        match path.parent() {
+            Some(parent) if own => parent.to_string_lossy().into_owned(),
+            _ => dir,
+        }
+    });
+    (home, runtime)
 }
 
 /// The book opened last in the settings file's `text`, with `home` as the
@@ -189,6 +220,41 @@ mod tests {
 
     fn read(text: &str) -> Result<Option<PathBuf>, ()> {
         last_book_in(text, Some("/home/ada"), Some("/run/user/1000"))
+    }
+
+    // Paths like `/run/user/1000` are absolute on Linux only, where snaps run.
+    #[cfg(unix)]
+    #[test]
+    fn a_snap_reads_the_book_path_with_the_runtime_folder_above_its_own() {
+        let snap = |runtime: &str| {
+            folders_of_the_app(
+                Some("/home/ada/snap/kassensturz/9".into()),
+                Some(runtime.into()),
+                true,
+            )
+        };
+        // The portal's mount is in the user's runtime folder, not in the
+        // snap's own one (B-275).
+        let (home, runtime) = snap("/run/user/1000/snap.kassensturz");
+        assert_eq!(home.as_deref(), Some("/home/ada/snap/kassensturz/9"));
+        assert_eq!(runtime.as_deref(), Some("/run/user/1000"));
+        assert_eq!(
+            last_book_in(
+                "[Books]\nLastBook[$e]=$XDG_RUNTIME_DIR/doc/ab12/Books/Household.ksz\n",
+                home.as_deref(),
+                runtime.as_deref()
+            ),
+            Ok(Some(PathBuf::from(
+                "/run/user/1000/doc/ab12/Books/Household.ksz"
+            )))
+        );
+        // Nothing changes outside a snap, or for a runtime folder that isn't
+        // the snap's own.
+        assert_eq!(
+            folders_of_the_app(None, Some("/run/user/1000/snap.kassensturz".into()), false).1,
+            Some("/run/user/1000/snap.kassensturz".into())
+        );
+        assert_eq!(snap("/run/user/1000").1.as_deref(), Some("/run/user/1000"));
     }
 
     fn path(text: &str) -> PathBuf {

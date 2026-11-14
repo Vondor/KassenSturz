@@ -661,6 +661,18 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This transaction came from your bank or a file, so its amount stays as it was delivered. You can change the rest.");
         case "store.delivered-kept":
             return i18nContext.i18nc("@info", "KassenSturz keeps what your bank or a file delivered exactly as it came, so this change wasn't made and nothing was lost. This is a mistake in KassenSturz or in another program that changed the book; please report it.");
+        // The drive, not the change (B-282): the change was taken back.
+        case "store.io":
+            switch (result.kind) {
+            case "storage-full":
+            case "quota-exceeded":
+                return i18nContext.i18nc("@info", "The drive is full, so this change wasn't saved and the book is as it was. Free up some space, for example by emptying the trash, then try again.");
+            case "permission-denied":
+            case "read-only":
+                return i18nContext.i18nc("@info", "KassenSturz isn't allowed to change files in this folder. Choose a folder you can write to.");
+            default:
+                return i18nContext.i18nc("@info", "The file couldn't be read or written. Check that the drive is connected, then try again.");
+            }
         case "store.hidden-text":
         case "store.account-name":
             switch (result.reason) {
@@ -700,6 +712,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This entry is matched to a planned payment already. Each entry pays one planned payment.");
         case "store.schedule-entry-not-fitting":
             return i18nContext.i18nc("@info", "This entry can't pay this planned payment: it must be in the plan's account, with the money going the same way, and not a move between your own accounts.");
+        case "store.lock-lost":
+            return i18nContext.i18nc("@info", "Another program took this book over, so your change wasn't saved. Close the book and open it again.");
         case "store.corrupt.history-mismatch":
             return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
         // The receipt inbox (US7, #333): a bill can't move back or again,

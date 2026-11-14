@@ -511,5 +511,13 @@ fn a_computer_name_stays_one_line_of_the_lock_file() {
         Some("Laptop since=2000-01-01T00:00:00Z")
     );
     let text = std::fs::read_to_string(side_file(&path, ".lock")).expect("lock file read");
-    assert_eq!(text.lines().count(), 3, "{text:?}");
+    // The name added no line of its own: one line per key, and the keys are
+    // the ones the format names (`pid`, `start`, `boot`, `namespace` where the system tells).
+    let keys: Vec<&str> = text
+        .lines()
+        .map(|line| line.split('=').next().unwrap_or_default())
+        .collect();
+    assert_eq!(keys[..3], ["computer", "since", "token"], "{text:?}");
+    let known = ["pid", "start", "boot", "namespace", "locks"];
+    assert!(keys[3..].iter().all(|key| known.contains(key)), "{text:?}");
 }

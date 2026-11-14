@@ -71,6 +71,7 @@ FormCard.FormCardPage {
     FolderChooser {
         id: folderChooser
 
+        forBook: true
         title: page.i18nContext.i18nc("@title:window", "Where to keep the new book")
         onGranted: grant => {
             nameDialog.folder = grant.path;

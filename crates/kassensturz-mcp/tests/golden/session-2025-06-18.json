@@ -401,6 +401,58 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
+            "description": "Money in, money out and what is left for each calendar month from \"from\" to \"to\" (at most 24 months), per currency, in ONE call: use it for \"each month\", \"month by month\", \"per month\" or the course of a year, instead of calling category_totals once per month. Each month's figures are exactly what category_totals gives for that month alone and are counted the same way: joined Transfers and starting balances count as neither income nor spending, and \"possible_transfers\" says what may be moves between the user's own accounts, which are in the totals. A month cut by \"from\" or \"to\" says \"partial\" with its real first and last day: never compare it with a whole month as if it were one. A month with nothing in it has no currencies. With \"top\" each month also names its largest categories per side, each with its \"total\" as in category_totals; with \"category_id\" each month has only that category's row (its \"total\" with everything inside it), for \"how much on Food each month\". Quote the figures as they are and never add months up yourself.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "account_ids": {
+                  "description": "Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
+                "category_id": {
+                  "description": "Only this category's row in each month, ID from list_categories.",
+                  "type": "string"
+                },
+                "from": {
+                  "description": "First day, YYYY-MM-DD.",
+                  "format": "date",
+                  "type": "string"
+                },
+                "tag_id": {
+                  "description": "Only money with this tag, ID from list_tags.",
+                  "type": "string"
+                },
+                "to": {
+                  "description": "Last day, YYYY-MM-DD. At most 24 months after from.",
+                  "format": "date",
+                  "type": "string"
+                },
+                "top": {
+                  "description": "Also name the largest categories per side in each month. Not with category_id.",
+                  "maximum": 5,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "from",
+                "to"
+              ],
+              "type": "object"
+            },
+            "name": "monthly_totals"
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
             "description": "Says which build of KassenSturz these tools are: version, e.g. 0.261111.29, and commit; commit_from is pull-request-head when the commit is a pull request's last commit, which main merged. Compare it with the version under About in KassenSturz's Settings: when they differ, this AI tool still runs an older build of these tools, so the user quits and restarts this AI tool. Reads nothing from the book.",
             "inputSchema": {
               "additionalProperties": false,

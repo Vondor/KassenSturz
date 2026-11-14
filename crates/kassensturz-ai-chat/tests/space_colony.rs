@@ -65,24 +65,25 @@ fn a_question_goes_through_the_real_client_and_functions() {
     assert_eq!(received.len(), 2);
     let first: Value = serde_json::from_slice(&received[0].body).unwrap();
     assert_eq!(first["stream"], false);
-    // The twelve read functions (list_budgets since M6c.11, payee_totals
-    // since D-597, list_views since D-681, list_tags since D-744,
-    // list_plans and forecast since #920), propose_changes (M5.5),
-    // propose_view (M6c.8), draft_issue (M5.13), open_page and suggest_note
-    // (#808); the debug log isn't offered, since it is off.
+    // The read functions (list_budgets since M6c.11, payee_totals since
+    // D-597, list_views since D-681, list_tags since D-744, list_plans and
+    // forecast since #920, monthly_totals since #852), propose_changes
+    // (M5.5), propose_view (M6c.8), draft_issue (M5.13), open_page and
+    // suggest_note (#808); the debug log isn't offered, since it is off.
     let tools = first["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 17);
+    assert_eq!(tools.len(), 18);
     assert_eq!(tools[3]["function"]["name"], "payee_totals");
     assert_eq!(tools[7]["function"]["name"], "list_budgets");
     assert_eq!(tools[8]["function"]["name"], "list_views");
     assert_eq!(tools[9]["function"]["name"], "list_tags");
     assert_eq!(tools[10]["function"]["name"], "list_plans");
     assert_eq!(tools[11]["function"]["name"], "forecast");
-    assert_eq!(tools[12]["function"]["name"], "propose_changes");
-    assert_eq!(tools[13]["function"]["name"], "propose_view");
-    assert_eq!(tools[14]["function"]["name"], "draft_issue");
-    assert_eq!(tools[15]["function"]["name"], "open_page");
-    assert_eq!(tools[16]["function"]["name"], "suggest_note");
+    assert_eq!(tools[12]["function"]["name"], "monthly_totals");
+    assert_eq!(tools[13]["function"]["name"], "propose_changes");
+    assert_eq!(tools[14]["function"]["name"], "propose_view");
+    assert_eq!(tools[15]["function"]["name"], "draft_issue");
+    assert_eq!(tools[16]["function"]["name"], "open_page");
+    assert_eq!(tools[17]["function"]["name"], "suggest_note");
     let system = first["messages"][0]["content"].as_str().unwrap();
     assert!(system.contains("KassenSturz 0.261025.0 (commit 1775d22), a pre-release build"));
     assert!(system.contains("Today is 2026-10-25."));

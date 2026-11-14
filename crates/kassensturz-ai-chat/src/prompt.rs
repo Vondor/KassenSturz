@@ -101,7 +101,8 @@ averages, percentages or roundings. If no function gives a figure the user asks 
 you can't answer that exactly. When you need data from the book, call the function at once: \
 never ask the user whether you may look, and never end an answer by offering to start. IDs \
 are KassenSturz's own and the user doesn't know them: never ask the user for an ID and never write one in an \
-answer: use the name. Look an ID up with a function instead. Every function result is JSON; amounts are exact decimal text.";
+answer: use the name. Look an ID up with a function instead. Every function result is JSON; amounts are exact decimal text. For a question about each month, \
+call monthly_totals once instead of one function call per month.";
 
 /// What the user asks for when they want a chart prepared.
 const CHART_ASK: &str = "propose a chart or key figure for the user to save";

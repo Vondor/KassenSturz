@@ -2686,6 +2686,15 @@ fn today() -> String {
     Timestamp::now().to_string()[..10].to_owned()
 }
 
+/// A day three days ahead: a payment planned for a Saturday or a Sunday is
+/// due on the Monday after, so a window that ends today would miss it.
+fn in_three_days() -> String {
+    let later = Timestamp::now()
+        .checked_add(std::time::Duration::from_secs(3 * 24 * 60 * 60))
+        .expect("a day in range");
+    later.to_string()[..10].to_owned()
+}
+
 /// The ID `schedule list` shows for the plan called `name`.
 fn plan_id(session: &Session, name: &str) -> String {
     let list = session.ok(&["schedule", "list"]);
@@ -2768,7 +2777,14 @@ fn planned_payments_are_matched_skipped_booked_and_undone() {
     assert!(import.contains("the plan's"), "{import}");
     let register = session.ok(&["register", "Home/Other"]);
     assert!(register.contains("750.30"), "{register}");
-    let paid = session.ok(&["schedule", "due", "--from", &today, "--to", &today]);
+    let paid = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        &today,
+        "--to",
+        &in_three_days(),
+    ]);
     assert!(paid.contains("paid"), "{paid}");
 
     // One Undo takes the match back and keeps the entry; Redo matches it
@@ -2777,7 +2793,14 @@ fn planned_payments_are_matched_skipped_booked_and_undone() {
     let register = session.ok(&["register", "Checking account"]);
     assert!(register.contains("-750.30"), "{register}");
     assert!(!session.ok(&["register", "Home/Other"]).contains("750.30"));
-    let open = session.ok(&["schedule", "due", "--from", &today, "--to", &today]);
+    let open = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        &today,
+        "--to",
+        &in_three_days(),
+    ]);
     assert!(!open.contains("paid"), "{open}");
     session.ok(&["redo"]);
     assert!(session.ok(&["register", "Home/Other"]).contains("750.30"));

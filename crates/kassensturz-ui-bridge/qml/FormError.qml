@@ -640,6 +640,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
         case "store.nothing-moves":
             return i18nContext.i18nc("@info %1 is the name of an account or category", "Every part of this transaction is in %1, so no money moves. Choose another account or category for one of them.", result.account);
+        case "store.zero-amount":
+            return i18nContext.i18nc("@info", "This transaction is zero, so no money moves. Enter its amount.");
         // Planned payments (US7.1, D-769).
         case "input.plan-every":
             return i18nContext.i18nc("@info", "Choose how often it comes: every 1 to 52 weeks, months or years.");

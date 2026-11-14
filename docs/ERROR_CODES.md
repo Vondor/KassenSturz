@@ -135,6 +135,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.stated-balance-currency-mismatch` | `account`, `account_currency`, `currency` | | {account} counts in {account_currency}, the balance you stated is in {currency}. State it in the account's currency. |
 | `store.account-closed` | `account` | | {account} is closed. Open it again to add or change its transactions. |
 | `store.nothing-moves` | `account` | | Every part of this transaction is in {account}, so no money moves. Choose another account or category for one of them (B-270). |
+| `store.zero-amount` | | | This transaction is 0.00, so no money moves. Enter its amount (B-270; a bank's entry of 0.00 is kept as the bank delivered it). |
 | `store.account-not-empty` | `account`, `balance` | | {account} still has {balance}. Move the money to another account first, then close it. |
 | `store.category-in-use` | `category`, `used_by` | `subcategories`, `transactions`, `rules`, `budgets`, `schedules` | {category} can't be deleted because {used_by} use it. A category can only be deleted when nothing uses it; for `budgets`, delete its budget first (D-345); for `schedules`, give the planned payment another category or remove it (D-769). |
 | `store.not-a-category` | `account` | | {account} is an account, not a category. Only categories sit inside other categories. |

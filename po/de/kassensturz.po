@@ -11169,6 +11169,11 @@ msgstr ""
 "Jeder Teil dieser Buchung liegt in %1, es wird also kein Geld bewegt. Wählen "
 "Sie für einen der Teile ein anderes Konto oder eine andere Kategorie."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:644
+msgctxt "@info"
+msgid "This transaction is zero, so no money moves. Enter its amount."
+msgstr "Diese Buchung ist null, es wird also kein Geld bewegt. Geben Sie ihren Betrag ein."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:528
 #, kde-format
 msgctxt "@info"

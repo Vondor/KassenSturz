@@ -245,6 +245,9 @@ pub enum StoreError {
     /// category, so no money moves anywhere: a Transfer from an account to
     /// itself (B-270).
     NothingMoves(AccountId),
+    /// Every part of a transaction typed in, not delivered by a bank, is
+    /// zero, so no money moves anywhere (B-270).
+    ZeroAmount,
     /// An account can only be closed when its balance is zero.
     AccountNotEmpty {
         /// The account.
@@ -752,6 +755,7 @@ impl Report for StoreError {
             Self::NothingMoves(account) => {
                 new("store.nothing-moves").with("account", P::Account(*account))
             }
+            Self::ZeroAmount => new("store.zero-amount"),
             Self::AccountNotEmpty { account, balance } => new("store.account-not-empty")
                 .with("account", P::Account(*account))
                 .with("balance", P::Money(*balance)),

@@ -3284,3 +3284,56 @@ fn a_transfer_from_an_account_to_itself_is_refused() {
         "Savings",
     ]);
 }
+
+/// B-270, round 8: a hand entry of 0.00 moves nothing and is refused, while
+/// a bank's entry of 0.00 in a real CAMT.053 file still comes in as the
+/// bank delivered it.
+#[test]
+fn a_hand_entry_of_zero_is_refused_but_a_banks_is_kept() {
+    let session = household();
+    let refused = session.cli(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "0.00",
+        "--category",
+        "Salary",
+    ]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(
+        refused.err.starts_with("error: store.zero-amount\n"),
+        "{}",
+        refused.err
+    );
+    let before = session
+        .ok(&["register", "Checking account"])
+        .lines()
+        .count();
+
+    let file = camt053_file(
+        &session,
+        "closing.xml",
+        "<Ntry><Amt Ccy=\"EUR\">0.00</Amt><CdtDbtInd>DBIT</CdtDbtInd>\
+         <Sts>BOOK</Sts><BookgDt><Dt>2026-10-31</Dt></BookgDt>\
+         <AcctSvcrRef>CLOSING-10</AcctSvcrRef>\
+         <NtryDtls><TxDtls><RmtInf><Ustrd>Statement period closed</Ustrd></RmtInf>\
+         </TxDtls></NtryDtls></Ntry>",
+    );
+    let imported = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        imported.starts_with("Imported 1 of 1 entry into"),
+        "{imported}"
+    );
+    assert_eq!(
+        session
+            .ok(&["register", "Checking account"])
+            .lines()
+            .count(),
+        before + 1,
+        "the bank's entry is in the register"
+    );
+}

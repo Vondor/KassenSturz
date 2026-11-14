@@ -215,6 +215,7 @@ fn examples() -> Vec<ErrorReport> {
         },
         StoreError::AccountClosed(account),
         StoreError::NothingMoves(account),
+        StoreError::ZeroAmount,
         StoreError::AccountNotEmpty {
             account,
             balance: money,

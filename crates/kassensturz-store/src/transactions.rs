@@ -113,7 +113,9 @@ impl Book {
     /// (D-081). Neither the transaction's ID nor its parts' may be in use
     /// already. Not every part may be booked to one and the same account
     /// or category, since then no money moves ([`StoreError::NothingMoves`],
-    /// B-270), except while a new book is filled ([`Book::fill_new`]).
+    /// B-270), and not every part may be zero unless a bank delivered it
+    /// ([`StoreError::ZeroAmount`]), except while a new book is filled
+    /// ([`Book::fill_new`]).
     pub fn add_transaction(&mut self, transaction: &Transaction) -> Result<(), StoreError> {
         let accounts = self.check_transaction(transaction)?;
         let exists: Option<i64> = self
@@ -859,6 +861,19 @@ impl Book {
             && rest.iter().all(|split| split.account == Some(id))
         {
             return Err(StoreError::NothingMoves(id));
+        }
+        // A transaction of 0.00 moves nothing either. A bank may deliver
+        // one, e.g. a notice that a statement period closed, and such an
+        // entry stays as the bank delivered it, so only one typed in or
+        // prepared by hand or by the AI is refused.
+        if !self.filling
+            && transaction.splits().iter().all(|split| {
+                split.amount.is_zero()
+                    && split.account_amount().is_zero()
+                    && split.imported.is_none()
+            })
+        {
+            return Err(StoreError::ZeroAmount);
         }
         Ok(accounts)
     }

@@ -22735,6 +22735,12 @@ msgctxt "@title"
 msgid "KassenSturz couldn't save your latest change"
 msgstr "KassenSturz konnte Ihre letzte Änderung nicht speichern"
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:65
+#, kde-format
+msgctxt "@title"
+msgid "Another program replaced your book"
+msgstr "Ein anderes Programm hat Ihr Haushaltsbuch ersetzt"
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:89
 #, kde-format
 msgctxt "@info"
@@ -22752,6 +22758,30 @@ msgid ""
 "read-only. Choose the folder again and allow changes, or choose a folder you "
 "can write to. The book wasn't changed."
 msgstr "Der Ordner wurde KassenSturz nur zum Lesen freigegeben, oder das Laufwerk ist schreibgeschützt. Wählen Sie den Ordner erneut und erlauben Sie Änderungen, oder wählen Sie einen Ordner, in den Sie schreiben dürfen. Das Buch wurde nicht geändert."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:97
+#, kde-format
+msgctxt "@info"
+msgid ""
+"While KassenSturz had the book open, another program put a different file in "
+"its place, most likely a sync program such as Nextcloud or Syncthing. Your "
+"latest change was not saved, because it would have gone into the old file. "
+"Choose \"Try again\" to open the file that is in the folder now, and enter "
+"your latest change again if it is missing. If the sync program left a copy "
+"next to the book with \"conflicted copy\" in its name, that file holds the "
+"other version of the book: open it with \"Open another book…\" to compare the "
+"two."
+msgstr ""
+"Während KassenSturz das Haushaltsbuch geöffnet hatte, hat ein anderes "
+"Programm eine andere Datei an seine Stelle gelegt, wahrscheinlich ein "
+"Synchronisierungsprogramm wie Nextcloud oder Syncthing. Ihre letzte Änderung "
+"wurde nicht gespeichert, weil sie in die alte Datei gegangen wäre. Wählen "
+"Sie „Erneut versuchen“, um die Datei zu öffnen, die jetzt im Ordner liegt, "
+"und geben Sie Ihre letzte Änderung noch einmal ein, falls sie fehlt. Wenn "
+"das Synchronisierungsprogramm neben dem Buch eine Kopie mit „conflicted "
+"copy“ im Namen hinterlassen hat, enthält diese Datei die andere Fassung des "
+"Buches: Öffnen Sie sie mit „Anderes Haushaltsbuch öffnen…“, um beide zu "
+"vergleichen."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:93
 #, kde-format

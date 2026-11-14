@@ -106,6 +106,8 @@ pub struct Book {
     /// read-only folder). From then on every change is refused, so nothing
     /// is half written; the user opens the book again (D-732).
     write_failed: bool,
+    /// Whether another program replaced the book's file (B-289).
+    file_replaced: bool,
     /// The book's lock file, removed when the book is closed. Declared after
     /// `conn`, so the database is closed first. Books in memory have none.
     _lock: Option<HeldLock>,
@@ -289,6 +291,7 @@ impl Book {
             recording: false,
             filling: false,
             write_failed: false,
+            file_replaced: false,
             _lock: lock,
         };
         book.prune_history()?;

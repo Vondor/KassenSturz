@@ -61,6 +61,8 @@ Kirigami.Page {
             return i18nContext.i18nc("@title", "KassenSturz can't change files in this folder");
         case "book.write-failed":
             return i18nContext.i18nc("@title", "KassenSturz couldn't save your latest change");
+        case "book.replaced":
+            return i18nContext.i18nc("@title", "Another program replaced your book");
         case "book.outside-test":
             return i18nContext.i18nc("@title", "The test mode only opens books in its own folder");
         case "store.already-exists":
@@ -91,6 +93,8 @@ Kirigami.Page {
             return i18nContext.i18nc("@info", "The folder was shared with KassenSturz for reading only, or the drive is read-only. Choose the folder again and allow changes, or choose a folder you can write to. The book wasn't changed.");
         case "book.write-failed":
             return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive was disconnected or the access ended. Your earlier work is safe in the book. Reconnect the drive or choose the folder again, then try again.");
+        case "book.replaced":
+            return i18nContext.i18nc("@info", "While KassenSturz had the book open, another program put a different file in its place, most likely a sync program such as Nextcloud or Syncthing. Your latest change was not saved, because it would have gone into the old file. Choose \"Try again\" to open the file that is in the folder now, and enter your latest change again if it is missing. If the sync program left a copy next to the book with \"conflicted copy\" in its name, that file holds the other version of the book: open it with \"Open another book…\" to compare the two.");
         case "book.outside-test":
             return i18nContext.i18nc("@info", "KassenSturz runs in test mode, which never opens or changes your own books. Choose a book in the test folder, or try an example book. The book wasn't touched.");
         case "book.no-app-folder":
@@ -215,7 +219,7 @@ Kirigami.Page {
                 }
             }
             Controls.Button {
-                visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database", "book.write-failed"].includes(page.code)
+                visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database", "book.write-failed", "book.replaced"].includes(page.code)
                 icon.name: "view-refresh"
                 text: page.i18nContext.i18nc("@action:button", "Try again")
                 onClicked: {

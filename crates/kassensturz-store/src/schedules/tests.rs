@@ -1035,3 +1035,34 @@ fn the_forecast_months_start_on_the_day_the_salary_budgets_share() {
         book.forecast(&[checking], EUR, today, 2).expect("forecast")
     );
 }
+
+/// A planned payment so large that the forecast couldn't add it up is
+/// refused, when made and when changed (B-269, #965); the largest allowed
+/// one still forecasts with the balance.
+#[test]
+fn a_plan_too_large_to_forecast_is_refused() {
+    let household = household();
+    let mut plan = rent_plan(&household);
+    let mut book = household.book;
+    for amount in [-(crate::MAX_PLAN_AMOUNT + 1), -i64::MAX, i64::MIN + 1] {
+        plan.amount = eur(amount);
+        plan.tolerance = eur(0);
+        assert!(
+            matches!(book.add_schedule(&plan), Err(StoreError::AmountOverflow)),
+            "{amount}"
+        );
+    }
+    assert!(book.schedules().expect("plans").is_empty());
+    plan.amount = eur(-crate::MAX_PLAN_AMOUNT);
+    let id = book.add_schedule(&plan).expect("the largest plan");
+    let today = date(2026, 11, 13);
+    let accounts = book.default_forecast_accounts().expect("accounts");
+    book.forecast(&accounts, EUR, today, kassensturz_core::MAX_FORECAST_MONTHS)
+        .expect("it adds up");
+    let mut edited = book.schedule(id).expect("plan");
+    edited.amount = eur(-(crate::MAX_PLAN_AMOUNT + 1));
+    assert!(matches!(
+        book.edit_schedule(&edited),
+        Err(StoreError::AmountOverflow)
+    ));
+}

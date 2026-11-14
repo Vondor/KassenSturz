@@ -278,6 +278,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18ncp("@info", "Amounts here have at most %1 decimal place. Leave out the extra ones; nothing is rounded for you.", "Amounts here have at most %1 decimal places. Leave out the extra ones; nothing is rounded for you.", parseInt(result.max));
         case "input.amount-too-large":
             return i18nContext.i18nc("@info", "This amount is too large. Check it for extra digits.");
+        case "store.amount-overflow":
+            return i18nContext.i18nc("@info", "This would make the amounts in your book add up to more than KassenSturz can work with. Nothing was changed. Check the amount for extra digits.");
         case "input.amount-not-positive":
             return i18nContext.i18nc("@info", "Type an amount above zero. Whether you paid or received it, you choose above.");
         case "input.negative-debt":
@@ -342,6 +344,10 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is text from the file", "\"%1\" should be a date, but KassenSturz can't read it in the order of day, month and year chosen. Check that order. Nothing was imported.", result.found);
         case "import.wrong-encoding":
             return i18nContext.i18nc("@info", "The file has a character that doesn't exist in the text encoding chosen. Choose another encoding, or let KassenSturz tell it from the file. Nothing was imported.");
+        case "import.encoding-contradiction":
+            return i18nContext.i18nc("@info %1 is a text encoding such as UTF-8", "The file says it is written in %1, but its text isn't. It may have been saved again by another program. Download it again, or save it in UTF-8. Nothing was imported.", result.declared);
+        case "import.unsupported-encoding":
+            return i18nContext.i18nc("@info %1 is a text encoding such as UTF-32", "The file is written in the text encoding %1, which KassenSturz doesn't read. Download it again in UTF-8, or save it in UTF-8 or UTF-16. Nothing was imported.", result.found);
         case "import.column-not-found":
             return i18nContext.i18nc("@info %1 is the name of a column", "The file has no column called \"%1\". Your bank may have changed its file: check which column holds what. Nothing was imported.", result.column);
         case "import.column-not-unique":

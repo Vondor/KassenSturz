@@ -213,6 +213,10 @@ pub enum StoreError {
     DuplicateAccountName {
         /// The account that has it.
         existing: AccountId,
+        /// The name, as the account being added or renamed has it, so the
+        /// user learns which one even when the book can't name `existing`,
+        /// e.g. after a new book from a file was taken back (B-283).
+        name: String,
     },
     /// The account's type doesn't fit its kind, e.g. a credit card that
     /// isn't money the user owes.
@@ -725,9 +729,9 @@ impl Report for StoreError {
             Self::TooManyBudgets { limit, max } => new("store.budget-too-many")
                 .with("limit", P::Keyword(limit))
                 .with("max", P::count(*max)),
-            Self::DuplicateAccountName { existing } => {
-                new("store.duplicate-account-name").with("existing", P::Account(*existing))
-            }
+            Self::DuplicateAccountName { existing, name } => new("store.duplicate-account-name")
+                .with("existing", P::Account(*existing))
+                .with("name", P::Text(name.clone())),
             Self::AccountTypeMismatch { account_type, kind } => new("store.account-type-mismatch")
                 .with("account_type", P::AccountType(*account_type))
                 .with("kind", P::AccountKind(*kind)),

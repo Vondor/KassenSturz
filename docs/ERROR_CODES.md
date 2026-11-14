@@ -129,7 +129,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.budget-choice` | `reason` | `no-category`, `category-twice`, `currencies`, `account-twice`, `not-own-account` | The budget's categories or accounts don't fit: it needs at least one spending category (`no-category`), each once (`category-twice`), all in one currency (`currencies`); each account once (`account-twice`), and only your own accounts, not a category (`not-own-account`). Choose the categories and accounts again. |
 | `store.budget-name` | `reason`, `max_chars` | `too-long`, `line-break` | The budget's name can't be kept: it can have at most {max_chars} characters (`too-long`) and must fit on one line (`line-break`). Choose a shorter name, or leave it empty to call the budget by its categories (D-664). |
 | `store.budget-too-many` | `limit`, `max` | `budgets`, `amounts`, `categories`, `accounts`, `counts` | A book keeps at most {max} budgets (`budgets`), a budget at most {max} changes of its amount (`amounts`) and of what it counts (`counts`), and at most {max} categories (`categories`) and {max} accounts (`accounts`). Delete a budget you no longer need, change the amount from an earlier period on, or choose fewer categories or accounts. |
-| `store.duplicate-account-name` | `existing` | | {existing} already has this name. Choose another one, so you can tell them apart. |
+| `store.duplicate-account-name` | `existing`, `name` | | {existing} already has this name. Choose another one, so you can tell them apart. `name` is the name both have, for when {existing} can't be named, e.g. after a new book from a file was taken back (B-283). |
 | `store.account-type-mismatch` | `account_type`, `kind` | | {account_type} doesn't fit this kind of account. Choose another type. |
 | `store.not-an-account` | `account` | | {account} is a category, not an account. Choose an account. |
 | `store.stated-balance-currency-mismatch` | `account`, `account_currency`, `currency` | | {account} counts in {account_currency}, the balance you stated is in {currency}. State it in the account's currency. |
@@ -186,7 +186,7 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `store.no-rate` | `from`, `to`, `date` | | There is no exchange rate from {from} to {to} on or before {date}. Enter one. |
 | `store.duplicate-rate` | `existing` | | There is already a rate for these currencies on this day. Change that one instead. |
 | `store.date-out-of-range` | `date` | | KassenSturz can't store {date}. Choose a date in the year 1 or later. |
-| `store.amount-overflow` | | | The amounts add up to more than KassenSturz can work with. Check them for extra digits. |
+| `store.amount-overflow` | | | The amounts add up to more than KassenSturz can work with: one amount, the amounts of a book in one currency together, or a planned payment repeated over the years a forecast looks at (B-269). Nothing was changed. Check them for extra digits. |
 | `store.io` | `kind` | `not-found`, `permission-denied`, `already-exists`, `read-only`, `storage-full`, `quota-exceeded`, `file-too-large`, `other` | The file couldn't be read or written. Not found: it was moved or removed. Permission denied or read-only: choose a folder you can write to. Storage full or quota exceeded: free up space. File too large: the drive can't hold files this big. |
 | `store.database` | | | Something went wrong reading or writing the book. Try again. If it keeps happening, restore a backup. |
 
@@ -256,6 +256,8 @@ A file from a bank or another program couldn't be read (D-091), or what it holds
 | `import.bad-amount` | `found`, `line?` | | {found} should be an amount, but it isn't one KassenSturz can read. Check the format, or download the file again. Nothing was imported. |
 | `import.bad-date` | `found`, `line?` | | {found} should be a date, but it isn't one KassenSturz can read in the order of day, month and year chosen for the file. Check that order, or download the file again. Nothing was imported. |
 | `import.wrong-encoding` | `encoding`, `line?` | `utf-8`, `windows-1252`, `iso-8859-15` | The file has a character that doesn't exist in {encoding}, so it is written in another text encoding. Choose the one your bank names for the file; for German banks it is often Windows-1252. Nothing was imported. |
+| `import.encoding-contradiction` | `declared`, `line?` | | The file says it is written in {declared}, but its text isn't. It may have been saved again by another program. Download it again, or save it in UTF-8. Nothing was imported. |
+| `import.unsupported-encoding` | `found` | | The file is written in the text encoding {found}, which KassenSturz doesn't read. Download it again in UTF-8, or save it in UTF-8 or UTF-16. Nothing was imported. |
 | `import.column-not-found` | `column`, `line?` | | The file has no column called {column}. Your bank may have changed its file: check which column holds what. Nothing was imported. |
 | `import.column-not-unique` | `column`, `line?` | | The file has more than one column called {column}, so KassenSturz can't tell which one is meant. Choose the column by its number. Nothing was imported. |
 | `import.bad-settings` | `line?` | | The settings for reading the file are incomplete or contradict each other, e.g. no column for the amount. Check which column holds what; {line} is the line of the settings file. Nothing was imported. |
@@ -444,6 +446,7 @@ The user confirmed a change set (D-199), and it couldn't be applied. Nothing of 
 | `ai-changes.edit-in-use` | | | The user left out a new category that another change of the set uses (a Rule or a transaction booked to it), so it stays. Change or leave out that change first. |
 | `ai-changes.edit-refused` | | | The checks refused the user's edit, e.g. a parent of the other kind or currency, a chart kind that doesn't suit its figures, or a condition the Rule can't hold; the detail is the AI tools' code. Nothing was kept; choose something else, or take the AI's version. |
 | `ai-changes.not-applied` | | | The book refused one of the changes, e.g. because a category of that name was added in the meantime, so nothing was changed. The detail says why; ask the AI to prepare them again. |
+| `ai-changes.amount-too-large` | | | The book refused a change because an amount is too large (the amounts would add up to more than it can work with, or one budget's amount is above the limit), so nothing was changed. Shown instead of `ai-changes.not-applied` for these causes (B-288). Ask the AI to prepare them again with a smaller amount. |
 
 ## Your own AI tools' changes (`kassensturz-mcp`, `kassensturz-ai-tools`)
 

@@ -237,13 +237,7 @@ pub fn set_retention(book: &mut Book, key: &str) -> Result<(), HistoryError> {
 /// history moves into memory and is lost when the book closes.
 pub fn expiring(book: &Book, key: &str, now: Timestamp) -> Result<usize, HistoryError> {
     let keep = read_retention(key)?;
-    let oldest_first: Vec<Timestamp> = book
-        .history()?
-        .iter()
-        .rev()
-        .map(|change| change.made_at)
-        .collect();
-    Ok(expiring_count(&oldest_first, keep, now))
+    Ok(book.history_expiring(keep, now)?)
 }
 
 /// Deletes the whole history for good (D-066, D-086). Backups keep what
@@ -259,29 +253,6 @@ pub fn error_text(book: &Book, error: &HistoryError, locale: &impl Locale) -> Er
         HistoryError::NoSuchChoice => ErrorText::plain("input.no-such-entry"),
         HistoryError::Store(error) => report_text(book, &error.report(), locale),
     }
-}
-
-/// How many of the changes, oldest first, a book that keeps its history as
-/// `keep` says deletes at `now`: those from the oldest up to the newest one
-/// that is too old, so the history has no gaps (D-086).
-fn expiring_count(oldest_first: &[Timestamp], keep: HistoryRetention, now: Timestamp) -> usize {
-    let HistoryRetention::Days(days) = keep else {
-        return 0;
-    };
-    if days == 0 {
-        return 0;
-    }
-    let Some(limit) = now
-        .as_second()
-        .checked_sub(86_400 * i64::from(days))
-        .and_then(|second| Timestamp::from_second(second).ok())
-    else {
-        return 0;
-    };
-    oldest_first
-        .iter()
-        .rposition(|made_at| *made_at < limit)
-        .map_or(0, |last| last + 1)
 }
 
 fn read_retention(key: &str) -> Result<HistoryRetention, HistoryError> {
@@ -645,33 +616,23 @@ mod tests {
         );
     }
 
+    /// The count the user is asked with is the store's own rule (B-274):
+    /// a clock a month ahead alone makes no change old enough to go, since
+    /// the book wasn't changed on other days after them.
     #[test]
-    fn a_shorter_setting_counts_the_changes_it_would_delete_from_the_oldest() {
-        let day = 86_400;
-        let now = at(100 * day);
-        let times = [at(10 * day), at(50 * day), at(95 * day), at(99 * day)];
-        let count = |keep| expiring_count(&times, keep, now);
-        assert_eq!(count(HistoryRetention::Days(30)), 2);
-        assert_eq!(count(HistoryRetention::Days(3)), 3);
-        assert_eq!(count(HistoryRetention::Days(365)), 0);
-        assert_eq!(count(HistoryRetention::Forever), 0);
-        assert_eq!(count(HistoryRetention::Days(0)), 0);
-        // A change that is too old after a newer one that isn't takes the
-        // ones before it along, so the history has no gaps.
-        let odd = [at(99 * day), at(10 * day), at(99 * day)];
-        assert_eq!(expiring_count(&odd, HistoryRetention::Days(30), now), 2);
-        assert_eq!(expiring_count(&[], HistoryRetention::Days(30), now), 0);
-    }
-
-    #[test]
-    fn expiring_counts_every_change_once_they_are_all_too_old() {
+    fn expiring_counts_what_the_book_would_really_delete() {
         let (mut book, _) = book_with_account("Checking account");
         let total = view_of(&book).total;
+        assert!(total > 0);
         let now = Timestamp::now();
         assert_eq!(expiring(&book, "30", now).expect("count"), 0);
-        // A month from now, every change is too old.
         let later = at(now.as_second() + 31 * 86_400);
-        assert_eq!(expiring(&book, "30", later).expect("count"), total);
+        assert_eq!(expiring(&book, "30", later).expect("count"), 0);
+        assert_eq!(
+            book.history_expiring(HistoryRetention::Days(30), later)
+                .expect("count"),
+            0
+        );
         assert!(expiring(&book, "weeks", now).is_err());
         // Nothing is too old yet, so a shorter setting deletes nothing now.
         set_retention(&mut book, "7").expect("set");

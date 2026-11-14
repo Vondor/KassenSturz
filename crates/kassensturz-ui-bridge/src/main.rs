@@ -158,6 +158,11 @@ fn main() {
     platform::follow_system_colours();
     platform::start_in_user_folder();
     platform::set_window_icon();
+    // SIGTERM (logout, shutdown, pkill) ends the app like quitting does, so
+    // the book's lock file doesn't stay behind (B-276).
+    platform::quit_on_signals();
+    // A Windows logoff or shutdown does the same (B-287).
+    platform::close_book_on_session_end();
     platform::load_ki18n_qml();
     // The week words of formulas start on the locale's first day (D-740).
     kassensturz_report::set_first_weekday(locale::QtLocale::first_weekday());

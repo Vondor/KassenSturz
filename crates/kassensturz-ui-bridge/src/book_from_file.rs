@@ -592,6 +592,8 @@ pub struct Created {
     pub transactions: usize,
     /// How many exchange rates came with it.
     pub rates: usize,
+    /// How many planned payments came with it.
+    pub schedules: usize,
     /// How many transactions have no category yet, as in the file (D-101).
     pub uncategorized: usize,
     /// How many didn't add up in the file and got a part without a category
@@ -752,6 +754,7 @@ fn created_text(
         categories: report.categories,
         transactions: report.transactions,
         rates: report.rates,
+        schedules: report.schedules,
         uncategorized: report.uncategorized,
         completed: report.completed,
         renamed: report

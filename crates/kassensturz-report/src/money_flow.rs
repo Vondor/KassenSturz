@@ -8,7 +8,9 @@
 //! Every column of the result adds up to the same total, and for every node
 //! the bands in equal the bands out.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+
+mod accounts;
 
 use kassensturz_core::{AccountId, CurrencyCode, Money};
 use kassensturz_store::StoreError;
@@ -30,6 +32,8 @@ pub struct FlowOptions {
     pub sub_categories: bool,
     /// Payees get a column at the outer edge.
     pub payees: bool,
+    /// The chosen accounts replace *Your money* (*Show accounts*).
+    pub accounts: bool,
 }
 
 /// What a money-flow component asks for besides the filters, as its settings
@@ -40,6 +44,8 @@ pub struct FlowChoice {
     pub sub_categories: bool,
     /// `params.payees`.
     pub payees: bool,
+    /// `params.show_accounts`.
+    pub accounts: bool,
     /// `params.currency`: an ISO code, or empty for the currency with the
     /// most money moved.
     pub currency: String,
@@ -57,6 +63,7 @@ impl FlowChoice {
         Self {
             sub_categories: flag(crate::schema::FLOW_SUBS_KEY),
             payees: flag(crate::schema::FLOW_PAYEES_KEY),
+            accounts: flag(crate::schema::FLOW_ACCOUNTS_KEY),
             currency: match component.get(crate::schema::FLOW_CURRENCY_KEY) {
                 Some(Setting::Text(code)) => code.trim().to_ascii_uppercase(),
                 _ => String::new(),
@@ -69,6 +76,7 @@ impl FlowChoice {
         FlowOptions {
             sub_categories: self.sub_categories,
             payees: self.payees,
+            accounts: self.accounts,
         }
     }
 }
@@ -90,6 +98,12 @@ pub enum FlowNodeKind {
     Unsorted,
     /// The middle node, *Your money*.
     Middle,
+    /// One of the chosen accounts (*Show accounts*); the name is the
+    /// account's.
+    Account,
+    /// *To / From other accounts*: where Transfers to or from accounts that
+    /// are not chosen go.
+    OtherAccounts,
     /// What is left when income is larger than spending.
     LeftOver,
     /// What makes up the gap when spending is larger than income.
@@ -109,6 +123,8 @@ impl FlowNodeKind {
             Self::CategoryItself => "category-itself",
             Self::Unsorted => "unsorted",
             Self::Middle => "middle",
+            Self::Account => "account",
+            Self::OtherAccounts => "other-accounts",
             Self::LeftOver => "left-over",
             Self::Reserves => "reserves",
             Self::Other => "other",
@@ -133,6 +149,8 @@ pub struct FlowNode {
     pub amount: Money,
     /// For a category: its ID, so a click can open its transactions.
     pub category: Option<AccountId>,
+    /// For an account node: its ID, so a click can open its transactions.
+    pub account: Option<AccountId>,
     /// For *Other*: what it holds, largest first, with each name (empty for
     /// money not sorted yet or without a payee) and amount.
     pub holds: Vec<(String, Money)>,
@@ -159,7 +177,8 @@ pub struct MoneyFlow {
     /// The bands, each pair of nodes at most once.
     pub flows: Vec<Flow>,
     /// What passes through the middle node: the larger of income and
-    /// spending.
+    /// spending. With accounts, the sum of the widest column, which the
+    /// layout scales to.
     pub total: Money,
     /// Everything that moved in this currency, income and spending
     /// together, so the screen can name what it does not show.
@@ -174,6 +193,8 @@ struct Atom {
     category: Option<AccountId>,
     payee: Option<String>,
     signed: i64,
+    /// The chosen account the money passed through (*Show accounts*).
+    account: Option<AccountId>,
 }
 
 /// A group of atoms under one name.
@@ -209,15 +230,13 @@ pub fn money_flow(
     options: FlowOptions,
 ) -> Result<Vec<MoneyFlow>, ReportError> {
     let mut atoms: HashMap<CurrencyCode, Vec<Atom>> = HashMap::new();
-    for part in source.parts(period, filter)? {
+    let mut transfers: HashMap<CurrencyCode, Vec<accounts::Transfer>> = HashMap::new();
+    let parts = source.parts(period, filter)?;
+    let atom_of = |part: &crate::source::Part, signed: i64, account| -> Result<Atom, ReportError> {
+        let _ = signed;
         let transaction = &source.transactions()[part.transaction];
         let split = &transaction.splits()[part.split];
-        let amount = part.amount.minor_units();
-        let signed = match part.kind {
-            Kind::Income => amount,
-            Kind::Spending => amount.checked_neg().ok_or_else(overflow)?,
-        };
-        atoms.entry(part.currency).or_default().push(Atom {
+        Ok(Atom {
             top: part.category.map(|id| source.top_level(id)),
             category: part.category,
             payee: transaction
@@ -226,13 +245,75 @@ pub fn money_flow(
                 .filter(|payee| !payee.is_empty())
                 .map(str::to_owned),
             signed,
-        });
+            account,
+        })
+    };
+    if options.accounts {
+        // The chosen accounts, or every account of the user's own.
+        let chosen: HashSet<AccountId> = match &filter.accounts {
+            Some(list) => list
+                .iter()
+                .copied()
+                .filter(|id| accounts::own_accounts(source).contains(id))
+                .collect(),
+            None => accounts::own_accounts(source),
+        };
+        let mut by_split: HashMap<(usize, usize), &crate::source::Part> = HashMap::new();
+        for part in &parts {
+            by_split.insert((part.transaction, part.split), part);
+        }
+        // A Transfer is neither income nor spending, so a filter by category
+        // or tag leaves it out.
+        let with_transfers = filter.categories.is_none() && filter.tags.is_none();
+        for (index, transaction) in source.transactions().iter().enumerate() {
+            if !period.contains(transaction.booking_date()) {
+                continue;
+            }
+            let Some(moved) = accounts::allocate(source, transaction, &chosen)? else {
+                continue;
+            };
+            let currency = transaction.currency();
+            for piece in moved.pieces {
+                let Some(part) = by_split.get(&(index, piece.split)) else {
+                    continue;
+                };
+                let signed = if piece.money_in {
+                    piece.amount
+                } else {
+                    piece.amount.checked_neg().ok_or_else(overflow)?
+                };
+                atoms.entry(currency).or_default().push(atom_of(
+                    part,
+                    signed,
+                    Some(piece.account),
+                )?);
+            }
+            if with_transfers {
+                transfers
+                    .entry(currency)
+                    .or_default()
+                    .extend(moved.transfers);
+            }
+        }
+    } else {
+        for part in &parts {
+            let amount = part.amount.minor_units();
+            let signed = match part.kind {
+                Kind::Income => amount,
+                Kind::Spending => amount.checked_neg().ok_or_else(overflow)?,
+            };
+            atoms
+                .entry(part.currency)
+                .or_default()
+                .push(atom_of(part, signed, None)?);
+        }
     }
     let mut currencies: Vec<CurrencyCode> = atoms.keys().copied().collect();
     currencies.sort_unstable();
     let mut results = Vec::new();
     for currency in currencies {
-        if let Some(flow) = build(source, currency, &atoms[&currency], options)? {
+        let moved = transfers.get(&currency).map(Vec::as_slice).unwrap_or(&[]);
+        if let Some(flow) = build(source, currency, &atoms[&currency], moved, options)? {
             results.push(flow);
         }
     }
@@ -248,6 +329,8 @@ struct Builder<'a> {
     payees: HashMap<(i8, Option<String>), usize>,
     /// The *Other* node of the payee column of a side.
     payee_other: HashMap<i8, usize>,
+    /// The account nodes already made (*Show accounts*).
+    accounts: HashMap<AccountId, usize>,
 }
 
 impl Builder<'_> {
@@ -263,6 +346,7 @@ impl Builder<'_> {
             column,
             amount,
             category: None,
+            account: None,
             holds: Vec::new(),
         });
         self.nodes.len() - 1
@@ -374,6 +458,7 @@ fn build(
     source: &Source,
     currency: CurrencyCode,
     atoms: &[Atom],
+    transfers: &[accounts::Transfer],
     options: FlowOptions,
 ) -> Result<Option<MoneyFlow>, ReportError> {
     let mut b = Builder {
@@ -383,6 +468,7 @@ fn build(
         flows: Vec::new(),
         payees: HashMap::new(),
         payee_other: HashMap::new(),
+        accounts: HashMap::new(),
     };
     let middle = b.node(FlowNodeKind::Middle, String::new(), 0, 0);
     let mut volume = 0_i64;
@@ -410,7 +496,11 @@ fn build(
         };
         let node = b.node(kind, name.clone(), side.signum(), amount);
         b.nodes[node].category = id;
-        b.band(side, node, middle, amount);
+        if options.accounts {
+            accounts::connect(&mut b, side, node, &top.atoms)?;
+        } else {
+            b.band(side, node, middle, amount);
+        }
         if side < 0 {
             income = add(income, amount)?;
         } else {
@@ -510,8 +600,12 @@ fn build(
             cap(&mut b, side * column)?;
         }
     }
-    // The balance node.
-    if income > spending {
+    // The balance node, or with accounts one for each account.
+    let mut total = income.max(spending);
+    if options.accounts {
+        accounts::finish(&mut b, middle, transfers)?;
+        total = accounts::widest_column(&b)?;
+    } else if income > spending {
         let left = income - spending;
         let node = b.node(FlowNodeKind::LeftOver, String::new(), 1, left);
         b.flows.push((middle, node, left));
@@ -533,7 +627,7 @@ fn build(
         currency,
         nodes: b.nodes,
         flows,
-        total: Money::from_minor_units(income.max(spending), currency),
+        total: Money::from_minor_units(total, currency),
         volume: Money::from_minor_units(volume, currency),
     }))
 }

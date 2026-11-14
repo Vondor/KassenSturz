@@ -536,9 +536,10 @@ impl Found {
         // columns are named; with numbered columns it is a real row, which
         // must never be dropped silently (B-281).
         if header_given.is_none() {
-            settings.header = settings
+            let named = settings
                 .columns()
                 .any(|column| matches!(column, Column::Name(_)));
+            settings.header = named;
         }
         Some(settings)
     }

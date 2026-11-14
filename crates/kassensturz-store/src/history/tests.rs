@@ -1168,6 +1168,10 @@ fn changes_older_than_the_book_keeps_them_are_deleted() {
     book.rename_account(checking, "Main account")
         .expect("renamed");
     let renamed = contents(&book);
+    // Kept for one day: a change goes once it is a day old and the book was
+    // changed on one other day since (B-274).
+    book.set_history_retention(HistoryRetention::Days(1))
+        .expect("set");
     // As if the account had been added long ago, and the currency used on a
     // computer whose clock was far ahead.
     book.conn
@@ -1187,7 +1191,9 @@ fn changes_older_than_the_book_keeps_them_are_deleted() {
     book.redo().expect("redone");
     assert_eq!(contents(&book), renamed);
 
-    // And when the user keeps it for a shorter time.
+    // And when the user keeps it for a shorter time: the last day the book
+    // was changed on stays however old it is, until a change on another
+    // day follows it.
     book.conn
         .execute(
             "UPDATE main.changes SET made_at = '2000-01-01T00:00:00Z'",
@@ -1199,7 +1205,94 @@ fn changes_older_than_the_book_keeps_them_are_deleted() {
     assert_eq!(book.history().expect("history read").len(), 1);
     book.set_history_retention(HistoryRetention::Days(1))
         .expect("set");
-    assert_eq!(book.history().expect("history read"), Vec::new());
+    assert_eq!(book.history().expect("history read").len(), 1);
+    book.rename_account(checking, "Everyday account")
+        .expect("renamed");
+    assert_eq!(actions(&book), [(Action::RenameAccount, false)]);
+    book.undo().expect("undone");
+    assert_eq!(
+        book.account(checking).expect("account").name,
+        "Main account"
+    );
+    assert_eq!(book.undo().expect("nothing older"), None);
+}
+
+/// A clock that jumps years ahead (a bad battery, a wrong BIOS date) must
+/// not delete the history at the next change or start (B-274): the
+/// changes before the jump stay, an undone one can still be redone, and
+/// they go only once the book was changed on as many other days as it
+/// keeps the history for.
+#[test]
+fn a_clock_far_ahead_deletes_no_history_until_the_book_was_used_that_long() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    book.set_history_retention(HistoryRetention::Days(3))
+        .expect("set");
+    let today = actions(&book).len();
+    // The next changes are made with a clock in January 2099.
+    let made_on = |book: &Book, day: u8| {
+        book.conn
+            .execute(
+                "UPDATE main.changes SET made_at = ?1
+                 WHERE sequence = (SELECT max(sequence) FROM main.changes)",
+                [format!("2099-01-{day:02}T12:00:00Z")],
+            )
+            .expect("time changed");
+    };
+    let prune_on = |book: &mut Book, day: u8| {
+        let now: Timestamp = format!("2099-01-{day:02}T13:00:00Z")
+            .parse()
+            .expect("a time");
+        book.in_savepoint(|book| prune(&book.conn, HistoryRetention::Days(3), now))
+            .expect("pruned");
+    };
+    // Starting with that clock deletes nothing, and what was undone can be
+    // redone.
+    book.rename_account(checking, "Main account")
+        .expect("renamed");
+    book.undo().expect("undone");
+    prune_on(&mut book, 1);
+    assert_eq!(actions(&book).len(), today + 1);
+    book.redo().expect("redone");
+    assert_eq!(
+        book.account(checking).expect("account").name,
+        "Main account"
+    );
+    // A change on 1 and 2 January: today's changes are followed by two
+    // other days only, fewer than the 3 the book keeps.
+    book.rename_account(checking, "Everyday account")
+        .expect("renamed");
+    made_on(&book, 1);
+    book.rename_account(checking, "Daily account")
+        .expect("renamed");
+    made_on(&book, 2);
+    prune_on(&mut book, 2);
+    assert_eq!(actions(&book).len(), today + 3);
+    // A third day of use: now today's changes are old by the clock and by
+    // use, and go, oldest first; those of 2099 stay.
+    book.rename_account(checking, "Spending account")
+        .expect("renamed");
+    made_on(&book, 3);
+    // What the settings ask the user with is what then goes.
+    let on_3: Timestamp = "2099-01-03T13:00:00Z".parse().expect("a time");
+    assert_eq!(
+        book.history_expiring(HistoryRetention::Days(3), on_3)
+            .expect("count"),
+        today + 1
+    );
+    assert_eq!(
+        book.history_expiring(HistoryRetention::Days(4), on_3)
+            .expect("count"),
+        0
+    );
+    prune_on(&mut book, 3);
+    assert_eq!(actions(&book).len(), 3, "{:?}", actions(&book));
+    for name in ["Daily account", "Everyday account", "Main account"] {
+        book.undo().expect("undone");
+        assert_eq!(book.account(checking).expect("account").name, name);
+    }
+    assert_eq!(book.undo().expect("nothing older"), None);
 }
 
 #[test]

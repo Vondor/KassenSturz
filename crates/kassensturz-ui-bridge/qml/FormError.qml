@@ -303,6 +303,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18ncp("@info", "Amounts here have at most %1 decimal place. Leave out the extra ones; nothing is rounded for you.", "Amounts here have at most %1 decimal places. Leave out the extra ones; nothing is rounded for you.", parseInt(result.max));
         case "input.amount-too-large":
             return i18nContext.i18nc("@info", "This amount is too large. Check it for extra digits.");
+        case "store.amount-overflow":
+            return i18nContext.i18nc("@info", "This would make the amounts in your book add up to more than KassenSturz can work with. Nothing was changed. Check the amount for extra digits.");
         case "input.amount-not-positive":
             return i18nContext.i18nc("@info", "Type an amount above zero. Whether you paid or received it, you choose above.");
         case "input.negative-debt":

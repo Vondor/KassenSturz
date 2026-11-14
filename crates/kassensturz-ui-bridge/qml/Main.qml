@@ -466,7 +466,9 @@ Kirigami.ApplicationWindow {
 
     onClosing: {
         // The chat window must not keep the app running.
-        chatWindow.hide();
+        if (chatWindowLoader.item) {
+            chatWindowLoader.item.hide();
+        }
         const maximized = root.visibility === Window.Maximized;
         const g = maximized ? root.normalGeometry : Qt.rect(root.x, root.y, root.width, root.height);
         windowState.save(g.width, g.height, g.x, g.y, maximized);
@@ -1213,8 +1215,15 @@ Kirigami.ApplicationWindow {
     property bool chatDetached: false
 
     function detachChat() {
-        chatPanel.parent = chatWindowHolder;
+        // The window exists only while the chat is detached and AI is on, so
+        // with AI off no chat window is created at all (B-286): setting the
+        // flag makes the loader create it, at once.
         chatDetached = true;
+        if (!chatWindowLoader.item) {
+            chatDetached = false;
+            return;
+        }
+        chatPanel.parent = chatWindowLoader.item.holder;
         chatDrawer.close();
         showChatWindow();
     }
@@ -1224,9 +1233,9 @@ Kirigami.ApplicationWindow {
     // "Move back to the sidebar" is for; closing the chat window, or the AI
     // switch going off, leaves the sidebar closed.
     function attachChat(reopen) {
+        // The panel leaves the window first; then the loader drops the window.
         chatPanel.parent = chatHolder;
         chatDetached = false;
-        chatWindow.hide();
         if (reopen) {
             chatDrawer.open();
             root.raise();
@@ -1235,9 +1244,12 @@ Kirigami.ApplicationWindow {
     }
 
     function showChatWindow() {
-        chatWindow.show();
-        chatWindow.raise();
-        chatWindow.requestActivate();
+        if (!chatWindowLoader.item) {
+            return;
+        }
+        chatWindowLoader.item.show();
+        chatWindowLoader.item.raise();
+        chatWindowLoader.item.requestActivate();
     }
 
     function raiseMainWindow() {
@@ -1344,21 +1356,36 @@ Kirigami.ApplicationWindow {
     // unsent text and the open tab stay as they are. Closing the window puts
     // the panel back into the sidebar, which stays closed. The window opens
     // where it was left (not remembered between sessions).
-    Controls.ApplicationWindow {
-        id: chatWindow
+    Loader {
+        id: chatWindowLoader
 
-        width: Kirigami.Units.gridUnit * 26
-        height: Kirigami.Units.gridUnit * 36
-        minimumWidth: Kirigami.Units.gridUnit * 18
-        minimumHeight: Kirigami.Units.gridUnit * 20
-        visible: false
-        title: chatPanel.windowTitle
-        onClosing: root.attachChat(false)
+        // Not even an empty window object while AI is off (B-286, §8): it
+        // would show in the accessibility tree.
+        active: aiSwitch.enabled && root.chatDetached
 
-        Item {
-            id: chatWindowHolder
+        sourceComponent: Controls.ApplicationWindow {
+            id: chatWindow
 
-            anchors.fill: parent
+            property alias holder: chatWindowHolder
+
+            width: Kirigami.Units.gridUnit * 26
+            height: Kirigami.Units.gridUnit * 36
+            minimumWidth: Kirigami.Units.gridUnit * 18
+            minimumHeight: Kirigami.Units.gridUnit * 20
+            visible: false
+            title: chatPanel.windowTitle
+            onClosing: close => {
+                // The loader drops this window, which must not happen inside
+                // its own closing handler.
+                close.accepted = false;
+                Qt.callLater(() => root.attachChat(false));
+            }
+
+            Item {
+                id: chatWindowHolder
+
+                anchors.fill: parent
+            }
         }
     }
 

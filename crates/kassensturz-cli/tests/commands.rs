@@ -2686,6 +2686,18 @@ fn today() -> String {
     Timestamp::now().to_string()[..10].to_owned()
 }
 
+/// The latest weekday up to today. A payment that falls on a weekend moves
+/// to the Monday (D-770), so a test that needs a payment due on a given
+/// day uses a weekday, whatever day it runs on.
+fn weekday_up_to_today() -> String {
+    let mut day: kassensturz_core::Date = today().parse().expect("a date");
+    // Saturday is 6 and Sunday 7.
+    while day.weekday().to_monday_one_offset() >= 6 {
+        day = day.yesterday().expect("a day before");
+    }
+    day.to_string()
+}
+
 /// The ID `schedule list` shows for the plan called `name`.
 fn plan_id(session: &Session, name: &str) -> String {
     let list = session.ok(&["schedule", "list"]);
@@ -2717,6 +2729,9 @@ fn state_on(session: &Session, day: &str, plan: &str) -> String {
 fn planned_payments_are_matched_skipped_booked_and_undone() {
     let session = household();
     let today = today();
+    // The plan's day: a weekday, since a payment on a weekend moves to the
+    // Monday (D-770).
+    let day = weekday_up_to_today();
     session.ok(&[
         "schedule",
         "add",
@@ -2724,7 +2739,7 @@ fn planned_payments_are_matched_skipped_booked_and_undone() {
         "-750",
         "Rent",
         "--from",
-        &today,
+        &day,
         "--category",
         "Home/Other",
         "--tolerance",
@@ -2757,7 +2772,7 @@ fn planned_payments_are_matched_skipped_booked_and_undone() {
         "rent.kstest",
         &[
             "account;DE89370400440532013000;;EUR",
-            &format!("entry;booked;{today};;-750.30;R1;Example Landlord;;Rent"),
+            &format!("entry;booked;{day};;-750.30;R1;Example Landlord;;Rent"),
         ],
     );
     let import = session.ok(&["import", &file, "--account", "Checking account"]);
@@ -2768,7 +2783,7 @@ fn planned_payments_are_matched_skipped_booked_and_undone() {
     assert!(import.contains("the plan's"), "{import}");
     let register = session.ok(&["register", "Home/Other"]);
     assert!(register.contains("750.30"), "{register}");
-    let paid = session.ok(&["schedule", "due", "--from", &today, "--to", &today]);
+    let paid = session.ok(&["schedule", "due", "--from", &day, "--to", &day]);
     assert!(paid.contains("paid"), "{paid}");
 
     // One Undo takes the match back and keeps the entry; Redo matches it
@@ -2777,7 +2792,7 @@ fn planned_payments_are_matched_skipped_booked_and_undone() {
     let register = session.ok(&["register", "Checking account"]);
     assert!(register.contains("-750.30"), "{register}");
     assert!(!session.ok(&["register", "Home/Other"]).contains("750.30"));
-    let open = session.ok(&["schedule", "due", "--from", &today, "--to", &today]);
+    let open = session.ok(&["schedule", "due", "--from", &day, "--to", &day]);
     assert!(!open.contains("paid"), "{open}");
     session.ok(&["redo"]);
     assert!(session.ok(&["register", "Home/Other"]).contains("750.30"));
@@ -2895,8 +2910,12 @@ fn planned_payments_are_matched_skipped_booked_and_undone() {
     assert!(session.ok(&["schedule", "list"]).contains("Rent"));
 
     let forecast = session.ok(&["forecast", "--months", "2"]);
+    // The day the program looked ahead from: today, or the next day if the
+    // test crossed midnight (UTC) on the way.
+    let looked_ahead_on =
+        |day: &str| forecast.starts_with(&format!("Looking ahead for Checking account on {day}."));
     assert!(
-        forecast.starts_with(&format!("Looking ahead for Checking account on {today}.")),
+        looked_ahead_on(&today) || looked_ahead_on(&self::today()),
         "{forecast}"
     );
     assert!(forecast.contains("Left after that"), "{forecast}");

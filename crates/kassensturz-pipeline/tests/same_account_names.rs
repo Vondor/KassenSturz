@@ -124,3 +124,31 @@ fn a_complete_export_with_two_accounts_of_one_name_names_them_in_the_error() {
     );
     assert!(new.is_empty().expect("read"));
 }
+
+/// B-272 meets B-283: a name that only differs by a character that shows
+/// as nothing is the same name, and a bank's name is cleaned like an
+/// account's before it goes after one.
+#[test]
+fn a_look_alike_name_gets_a_clean_bank_name_after_it() {
+    let mut file = two_of_one_name(true);
+    for institution in &mut file.institutions {
+        if institution.key == "I2" {
+            institution.name = "Harbor\u{200B} Savings".into();
+        }
+    }
+    let mut second = true;
+    for account in file.accounts.iter_mut().rev() {
+        if account.name == "Daily money" && second {
+            account.name = "Daily\u{200B} money".into();
+            second = false;
+        }
+    }
+    let mut book = Book::create_in_memory().expect("book created");
+    fill_book_from(&mut book, &file, &HashMap::new()).expect("both come in");
+    let mut names: Vec<String> = account_names(&book)
+        .into_iter()
+        .filter(|name| name.starts_with("Daily"))
+        .collect();
+    names.sort();
+    assert_eq!(names, ["Daily money", "Daily money (Harbor Savings)"]);
+}

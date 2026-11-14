@@ -22,6 +22,7 @@ mod history;
 mod layout;
 mod lock;
 mod moving;
+mod names;
 mod originals;
 mod reader;
 mod recurring_moves;
@@ -62,6 +63,7 @@ pub use moving::{
     MoveRefused, MoveStep, MoveSteps, Moved, book_file_name, move_backup_stamp, move_backups_of,
     plan_move, remove_left_book,
 };
+pub use names::{MAX_ACCOUNT_NAME_CHARS, account_name_key, fitting_account_name, is_invisible};
 pub use recurring_moves::{
     JoinedTransfers, NeedsYou, NewRecurringMove, NotJoined, RecurringJoin, RecurringJoins,
     RefusedJoin,
@@ -470,9 +472,7 @@ impl Book {
     /// The checks `add_account`, `rename_account` and `move_category` share,
     /// on the account as it is going to be.
     fn check_account(&self, account: &Account) -> Result<(), StoreError> {
-        if account.name.trim().is_empty() {
-            return Err(StoreError::EmptyAccountName);
-        }
+        names::check_account_name(&account.name)?;
         if let Some(account_type) = account.account_type
             && account_type.kind() != account.kind
         {
@@ -548,14 +548,15 @@ impl Book {
         }
         // Accounts share one list; categories share one with their siblings,
         // the categories of the same kind inside the same category.
-        let wanted = account.name.trim().to_lowercase();
+        // Names that look the same are the same (B-272).
+        let wanted = names::account_name_key(&account.name);
         let clash = others.iter().find(|other| {
             let same_list = if account.kind.is_account() {
                 other.kind.is_account()
             } else {
                 other.kind == account.kind && other.parent == account.parent
             };
-            same_list && other.name.trim().to_lowercase() == wanted
+            same_list && names::account_name_key(&other.name) == wanted
         });
         if let Some(existing) = clash {
             return Err(StoreError::DuplicateAccountName {

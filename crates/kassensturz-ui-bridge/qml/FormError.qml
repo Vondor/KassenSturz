@@ -661,6 +661,16 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This transaction came from your bank or a file, so its amount stays as it was delivered. You can change the rest.");
         case "store.delivered-kept":
             return i18nContext.i18nc("@info", "KassenSturz keeps what your bank or a file delivered exactly as it came, so this change wasn't made and nothing was lost. This is a mistake in KassenSturz or in another program that changed the book; please report it.");
+        case "store.hidden-text":
+        case "store.account-name":
+            switch (result.reason) {
+            case "line-break":
+                return i18nContext.i18nc("@info", "A name must fit on one line. Type it again without the line break.");
+            case "invisible":
+                return i18nContext.i18nc("@info", "This name holds a character that can't be seen, for example a zero-width space, so it could look like another name. Type the name again instead of pasting it.");
+            default:
+                return i18nContext.i18nc("@info %1 is a number", "A name can have at most %1 characters. Choose a shorter name.", result.max_chars);
+            }
         case "store.account-closed":
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
         case "store.nothing-moves":

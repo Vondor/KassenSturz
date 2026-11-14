@@ -1719,3 +1719,39 @@ fn a_rule_the_ai_made_stays_marked_until_the_user_opens_it() {
     book.remove_rule(made.id).expect("removed");
     assert!(book.unchecked_ai_rules().expect("read").is_empty());
 }
+
+/// B-272, round 8: a Rule's name, or the payee it sets, with a character
+/// that can't be seen or turns the text around could look like another.
+#[test]
+fn a_look_alike_rule_name_or_payee_is_refused() {
+    let Sample { mut book, .. } = sample();
+    let hidden = rule("Shop\u{200B}", vec![name_contains("shop")], None);
+    assert!(matches!(
+        book.add_rule(&hidden, None),
+        Err(StoreError::HiddenText {
+            field: "rule-name",
+            reason: "invisible"
+        })
+    ));
+    let mut turned = rule("Shop", vec![name_contains("shop")], None);
+    turned.actions.payee = Some("Shop\u{202E}live".into());
+    assert!(matches!(
+        book.add_rule(&turned, None),
+        Err(StoreError::HiddenText {
+            field: "payee",
+            reason: "invisible"
+        })
+    ));
+    assert!(book.rules().expect("rules").is_empty());
+    // Renaming one into a look-alike is refused too.
+    let mut fine = rule("Shop", vec![name_contains("shop")], None);
+    book.add_rule(&fine, None).expect("added");
+    fine.name = "Shop\u{FEFF}".into();
+    assert!(matches!(
+        book.update_rule(&fine),
+        Err(StoreError::HiddenText {
+            field: "rule-name",
+            ..
+        })
+    ));
+}

@@ -21,7 +21,9 @@ use kassensturz_import::{
     BookTag, BookTransaction, ImportError, ImportedBook, Replacement, Skipped, SkippedData,
     currency,
 };
-use kassensturz_store::{Book, StoreError};
+use kassensturz_store::{
+    Book, MAX_ACCOUNT_NAME_CHARS, StoreError, account_name_key, fitting_account_name,
+};
 
 use crate::book::fill_book;
 use crate::error::PipelineError;
@@ -55,7 +57,10 @@ pub struct BookImportReport {
     /// Accounts and categories whose name another one had already, ignoring
     /// capitals, and that got a number after it, e.g. "Savings (2)", or for
     /// an account at a bank, the bank's name, e.g. "Savings (Lumen Bank)"
-    /// (B-283): their new IDs and their names in the file.
+    /// (B-283), or whose name the book couldn't keep as it was: a line break
+    /// became a space, a character that shows as nothing went, or it was cut
+    /// to [`MAX_ACCOUNT_NAME_CHARS`] (B-272). Their new IDs and their names
+    /// in the file.
     pub renamed: Vec<(AccountId, String)>,
     /// Categories that sat inside one in another currency, which a book
     /// can't add up (D-082), and are top-level categories now.
@@ -764,28 +769,39 @@ impl Mapper {
             } else {
                 (Some(account.kind), parent)
             };
-            let wanted = account.name.trim();
+            // One visible line the book keeps (B-272): another program's
+            // name may hold a line break or a character that shows as
+            // nothing. A name that had to change is listed like a renamed
+            // one.
+            let fitting = fitting_account_name(&account.name);
+            let wanted = fitting.as_str();
             let mut name = wanted.to_owned();
             let mut number = 1;
             let bank = account
                 .institution
                 .as_ref()
                 .and_then(|key| self.institution_names.get(key))
+                .map(|bank| fitting_account_name(bank))
                 .filter(|bank| !bank.is_empty());
             if let Some(bank) = bank
                 && account.kind.is_account()
-                && taken.contains(&(list.0, list.1, name.to_lowercase()))
+                && taken.contains(&(list.0, list.1, account_name_key(&name)))
             {
                 let with_bank = format!("{wanted} ({bank})");
-                if !taken.contains(&(list.0, list.1, with_bank.to_lowercase())) {
+                if with_bank.chars().count() <= MAX_ACCOUNT_NAME_CHARS
+                    && !taken.contains(&(list.0, list.1, account_name_key(&with_bank)))
+                {
                     name = with_bank;
                 }
             }
-            while !taken.insert((list.0, list.1, name.to_lowercase())) {
+            while !taken.insert((list.0, list.1, account_name_key(&name))) {
                 number += 1;
-                name = format!("{wanted} ({number})");
+                let suffix = format!(" ({number})");
+                let room = MAX_ACCOUNT_NAME_CHARS - suffix.chars().count();
+                let cut: String = wanted.chars().take(room).collect();
+                name = format!("{}{suffix}", cut.trim_end());
             }
-            if name != wanted {
+            if name != account.name.trim() {
                 self.renamed.push((id, account.name.clone()));
             }
             accounts.push(Account {

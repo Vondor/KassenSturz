@@ -7,7 +7,7 @@
 //! formulas worked out on a real book with the store's own groups, through
 //! the reporting layer's real datasets.
 
-use kassensturz_core::{AccountKind, GroupKind, GroupMember, Money, RoundingMode};
+use kassensturz_core::{Account, AccountKind, GroupKind, GroupMember, Money, RoundingMode};
 use proptest::prelude::*;
 
 use super::tests::{EUR, USD, account, autumn, build, chart, date, entries, period, sample};
@@ -925,14 +925,48 @@ fn unclear_names_are_refused_with_the_paths_to_write_never_guessed() {
         EUR,
         None,
     );
-    account(
-        &mut sample.book,
-        "Car\u{202E}",
-        AccountKind::Expense,
-        EUR,
-        None,
+    account(&mut sample.book, "Car", AccountKind::Expense, EUR, None);
+    // The book refuses a name with a mark that turns the text (B-272), but
+    // a book another program wrote could still hold one: the source is
+    // read with it.
+    let book = &sample.book;
+    let marked = |mut account: Account| {
+        if account.name == "Car" {
+            account.name = "Car\u{202E}".into();
+        }
+        account
+    };
+    let source = Source::from_parts(
+        autumn(),
+        book.all_accounts()
+            .expect("read")
+            .into_iter()
+            .map(marked)
+            .collect(),
+        book.categories()
+            .expect("read")
+            .into_iter()
+            .map(|mut entry| {
+                entry.category = marked(entry.category);
+                for name in &mut entry.path {
+                    if name == "Car" {
+                        *name = "Car\u{202E}".into();
+                    }
+                }
+                entry
+            })
+            .collect(),
+        book.transactions_between(autumn().first(), autumn().last())
+            .expect("read"),
+    )
+    .with_groups(
+        book.category_groups().expect("read"),
+        book.hidden_categories().expect("read"),
+    )
+    .with_settings(
+        &book.currencies().expect("read"),
+        book.rounding_mode().expect("read"),
     );
-    let source = Source::read(&sample.book, autumn()).expect("read");
     let figure = |text: &str| worked_out(&source, text, autumn());
     assert_eq!(
         mistake(figure("=1 + Groceries")),

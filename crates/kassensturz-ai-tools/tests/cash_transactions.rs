@@ -267,3 +267,28 @@ fn a_cash_payment_into_its_own_account_is_refused() {
     assert_eq!(error.model_report().code, "ai-tools.unknown-category");
     assert_eq!(accounts(&book), before);
 }
+
+/// B-272 (#968): the AI can't make a look-alike of an account the user
+/// has, with a character that shows as nothing, nor rename one into it.
+#[test]
+fn a_look_alike_account_name_from_the_ai_is_refused() {
+    let book = space_colony();
+    let wallet = cash_account(&book);
+    let name = wallet["name"].as_str().expect("a name").to_owned();
+    let before = accounts(&book);
+    for change in [
+        json!({"new_accounts": [{"name": format!("{name}\u{200B}"), "type": "cash"}]}),
+        json!({"new_accounts": [{"name": format!("{name}\u{2066}"), "type": "checking"}]}),
+        json!({"edit_accounts": [{"account_id": accounts(&book)[0]["id"], "name": format!("{name}\u{200B}")}]}),
+    ] {
+        let error = propose_with(&book, &change, open()).expect_err("refused");
+        let report = error.model_report();
+        assert_eq!(report.code, "ai-tools.bad-argument");
+        assert!(
+            report.params.iter().any(|(key, value)| *key == "argument"
+                && *value == kassensturz_core::ErrorParam::Keyword("name")),
+            "{report:?}"
+        );
+    }
+    assert_eq!(accounts(&book), before);
+}

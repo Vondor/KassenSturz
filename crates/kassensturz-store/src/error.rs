@@ -83,6 +83,16 @@ pub enum StoreError {
     UnknownAccount(AccountId),
     /// The account's name is empty.
     EmptyAccountName,
+    /// An account's or category's name can't be kept (B-272): `reason` is
+    /// `line-break` (a line break or another control character),
+    /// `invisible` (a character that shows as nothing, such as a zero-width
+    /// space) or `too-long` (more than `max_chars` characters).
+    AccountName {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+        /// The most characters a name may have.
+        max_chars: usize,
+    },
     /// A bank link must name a bank account: an IBAN, or a bank code with an
     /// account number (D-148).
     IncompleteBankLink(AccountId),
@@ -370,6 +380,18 @@ pub enum StoreError {
     RuleIdInUse(RuleId),
     /// The Rule's name is empty.
     EmptyRuleName,
+    /// A Rule's name or a payee typed in can't be kept (B-272): `reason` is
+    /// `line-break` (a line break or another control character) or
+    /// `invisible` (a character that shows as nothing or turns the text
+    /// around, such as a zero-width space or a right-to-left override), so
+    /// it could look like another. `field` says which: `rule-name` or
+    /// `payee`.
+    HiddenText {
+        /// Which text, as a keyword.
+        field: &'static str,
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+    },
     /// Another Rule in the same place, the top level or inside the same
     /// Rule, already has this name, ignoring capitals.
     DuplicateRuleName {
@@ -667,6 +689,9 @@ impl Report for StoreError {
                 new("store.unknown-account").with("account", P::Account(*account))
             }
             Self::EmptyAccountName => new("store.empty-account-name"),
+            Self::AccountName { reason, max_chars } => new("store.account-name")
+                .with("reason", P::Keyword(reason))
+                .with("max_chars", P::count(*max_chars)),
             Self::IncompleteBankLink(account) => {
                 new("store.incomplete-bank-link").with("account", P::Account(*account))
             }
@@ -838,6 +863,9 @@ impl Report for StoreError {
             Self::UnknownRule(rule) => new("store.unknown-rule").with("rule", P::Rule(*rule)),
             Self::RuleIdInUse(rule) => new("store.rule-id-in-use").with("rule", P::Rule(*rule)),
             Self::EmptyRuleName => new("store.empty-rule-name"),
+            Self::HiddenText { field, reason } => new("store.hidden-text")
+                .with("field", P::Keyword(field))
+                .with("reason", P::Keyword(reason)),
             Self::DuplicateRuleName { existing } => {
                 new("store.duplicate-rule-name").with("existing", P::Rule(*existing))
             }

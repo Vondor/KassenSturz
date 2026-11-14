@@ -18,7 +18,7 @@ use kassensturz_import::{
     Replacement, import,
 };
 use kassensturz_pipeline::{BookImportReport, RuleScope, fill_book, fill_book_from_with};
-use kassensturz_store::{Book, Computer};
+use kassensturz_store::{Book, Computer, fitting_account_name};
 
 use crate::error::CliError;
 use crate::input::{parse_currency, parse_date};
@@ -277,12 +277,14 @@ fn write_report(
         )?;
     }
     for (id, name) in &report.renamed {
-        writeln!(
-            out,
-            "Renamed {}, whose name was taken: now {}.",
-            plain(name),
-            plain(&book.account(*id)?.name)
-        )?;
+        let now = book.account(*id)?.name;
+        // Cleaned (B-272), or another account had the name (B-283).
+        let why = if fitting_account_name(name) == now {
+            "it had a line break, a character that can't be seen or too many characters"
+        } else {
+            "another account or category had that name"
+        };
+        writeln!(out, "Renamed {} to {}: {why}.", plain(name), plain(&now))?;
     }
     for id in &report.moved_to_top {
         writeln!(

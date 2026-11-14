@@ -8,7 +8,7 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 
 1. Download the test build from the project's [releases page](https://github.com/Vondor/KassenSturz/releases) (the newest entry marked *Pre-release*).
 2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
-3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the [user guide](docs/user/USER_GUIDE.de.md) (German) explains how to use KassenSturz.
+3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the [user guide](docs/user/USER_GUIDE.de.md) (German) explains how to use KassenSturz. [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
 
 ## Goals
 
@@ -192,6 +192,8 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 - [`docs/ERROR_CODES.md`](docs/ERROR_CODES.md): every error code with its parameters, for the UI and translators
 - [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md): third-party dependencies, licenses and reused code
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md): what KassenSturz protects, from whom, and how
+- [`docs/SECURITY_OVERVIEW.en.md`](docs/SECURITY_OVERVIEW.en.md): how safe KassenSturz is, in plain words, with what was attacked and fixed (German: [`SECURITY_OVERVIEW.de.md`](docs/SECURITY_OVERVIEW.de.md))
+- [`docs/SECURITY_LOG.md`](docs/SECURITY_LOG.md): how attack rounds are run and recorded (every round is logged)
 - [`SECURITY.md`](SECURITY.md): how to report a vulnerability privately
 - [`docs/proposals/`](docs/proposals/): proposals waiting for a decision
 

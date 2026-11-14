@@ -11198,6 +11198,21 @@ msgstr ""
 "Änderung nicht gespeichert. Schließen Sie das Haushaltsbuch und öffnen Sie "
 "es noch einmal."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:636
+#, kde-format
+msgctxt "@info %1 is the name of an account or category"
+msgid ""
+"Every part of this transaction is in %1, so no money moves. Choose another "
+"account or category for one of them."
+msgstr ""
+"Jeder Teil dieser Buchung liegt in %1, es wird also kein Geld bewegt. Wählen "
+"Sie für einen der Teile ein anderes Konto oder eine andere Kategorie."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:644
+msgctxt "@info"
+msgid "This transaction is zero, so no money moves. Enter its amount."
+msgstr "Diese Buchung ist null, es wird also kein Geld bewegt. Geben Sie ihren Betrag ein."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:528
 #, kde-format
 msgctxt "@info"

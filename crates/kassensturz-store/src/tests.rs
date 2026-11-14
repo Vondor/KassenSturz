@@ -497,6 +497,161 @@ fn parts_must_be_booked_to_existing_accounts() {
     assert!(book.register(checking).expect("register").is_empty());
 }
 
+/// B-270, round 8: a transaction of 0.00 typed in moves nothing either and
+/// is refused, added or changed. A bank's entry of 0.00, e.g. a notice that
+/// a statement period closed, comes in as the bank delivered it, and a
+/// part of zero next to others that move money is fine.
+#[test]
+fn a_transaction_of_zero_typed_in_is_refused() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let zero = transaction(
+        date(2026, 10, 5),
+        "Landlord",
+        &[(checking, eur(0)), (groceries, eur(0))],
+    );
+    assert!(matches!(
+        book.add_transaction(&zero),
+        Err(StoreError::ZeroAmount)
+    ));
+    assert!(book.register(checking).expect("register").is_empty());
+
+    // Delivered by a bank: kept.
+    let mut splits = zero.splits().to_vec();
+    splits[0].imported = Some(kassensturz_core::ImportedDetails {
+        bank_id: Some("closing-2026-10".into()),
+        ..Default::default()
+    });
+    let delivered = Transaction::new(TransactionId::generate(), zero.booking_date(), None, splits)
+        .expect("balanced");
+    book.add_transaction(&delivered)
+        .expect("a bank's entry stays");
+
+    // A zero part next to parts that move money.
+    let with_a_zero_part = transaction(
+        date(2026, 10, 6),
+        "Corner Grocery",
+        &[
+            (checking, eur(-800)),
+            (groceries, eur(800)),
+            (groceries, eur(0)),
+        ],
+    );
+    book.add_transaction(&with_a_zero_part).expect("added");
+
+    // Changing one to 0.00 is refused, and it stays as it was.
+    let splits = vec![Split::new(checking, eur(0)), Split::new(groceries, eur(0))];
+    let changed = Transaction::new(
+        with_a_zero_part.id(),
+        with_a_zero_part.booking_date(),
+        None,
+        splits,
+    )
+    .expect("balanced");
+    assert!(matches!(
+        book.update_transaction(&changed),
+        Err(StoreError::ZeroAmount)
+    ));
+    assert_eq!(
+        book.transaction(with_a_zero_part.id()).expect("read"),
+        with_a_zero_part
+    );
+}
+
+/// B-270: a transaction whose every part is in one account or category
+/// moves nothing, e.g. a Transfer from an account to itself, and is
+/// refused when added or changed; one with another account or a part
+/// without a category is not. Filling a new book still takes one, since a
+/// book another program kept may hold it.
+#[test]
+fn a_transaction_that_moves_nothing_is_refused() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let to_itself = transaction(
+        date(2026, 10, 5),
+        "Myself",
+        &[(checking, eur(-1000)), (checking, eur(1000))],
+    );
+    assert!(matches!(
+        book.add_transaction(&to_itself),
+        Err(StoreError::NothingMoves(id)) if id == checking
+    ));
+    let in_one_category = transaction(
+        date(2026, 10, 5),
+        "Myself",
+        &[
+            (groceries, eur(-1000)),
+            (groceries, eur(400)),
+            (groceries, eur(600)),
+        ],
+    );
+    assert!(matches!(
+        book.add_transaction(&in_one_category),
+        Err(StoreError::NothingMoves(id)) if id == groceries
+    ));
+    assert!(book.register(checking).expect("register").is_empty());
+    assert!(
+        book.history()
+            .expect("history")
+            .iter()
+            .all(|change| change.action != Action::AddTransaction)
+    );
+
+    // Two parts in the account and one in a category, or a part without a
+    // category, move money and stay allowed.
+    let shopping = transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[
+            (checking, eur(-1000)),
+            (checking, eur(200)),
+            (groceries, eur(800)),
+        ],
+    );
+    book.add_transaction(&shopping).expect("added");
+    let unsorted = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 6),
+        None,
+        vec![
+            Split::new(checking, eur(-500)),
+            Split::uncategorized(eur(500)),
+        ],
+    )
+    .expect("balanced");
+    book.add_transaction(&unsorted).expect("added");
+
+    // Changing one so that it moves nothing is refused too.
+    let mut splits = shopping.splits().to_vec();
+    splits[2].account = Some(checking);
+    let changed =
+        Transaction::new(shopping.id(), shopping.booking_date(), None, splits).expect("balanced");
+    assert!(matches!(
+        book.update_transaction(&changed),
+        Err(StoreError::NothingMoves(id)) if id == checking
+    ));
+    assert_eq!(book.transaction(shopping.id()).expect("read"), shopping);
+
+    // A new book filled from another program's book takes it as it is.
+    let mut filled = Book::create_in_memory().expect("book created");
+    filled
+        .fill_new(crate::HistoryRetention::Forever, |filled| {
+            filled.use_currency(EUR)?;
+            filled.add_account(&book.account(checking)?)?;
+            filled.add_transaction(&to_itself)
+        })
+        .expect("filled");
+    assert_eq!(filled.transaction(to_itself.id()).expect("read"), to_itself);
+}
+
 #[test]
 fn parts_must_be_in_their_accounts_currency() {
     let Sample {

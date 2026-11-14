@@ -29,7 +29,7 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::lock::{self, lock_path};
 use crate::reader::BUSY_WAIT;
-use crate::{Book, Computer, StoreError, is_book_file};
+use crate::{Book, Computer, Corruption, StoreError, is_book_file};
 
 /// How many "before moving" backups of each book are kept, apart from the
 /// ten automatic ones (D-731).
@@ -940,7 +940,15 @@ fn check_copy(reader: &Connection, book: &Book, copy: &Path) -> Result<(), MoveC
     }
     // The balances, computed by KassenSturz's own code from each file
     // (AGENTS.md §2.1).
-    let copy_book = Book::open_to_read(copy)?;
+    let copy_book = match Book::open_to_read(copy) {
+        Ok(book) => book,
+        // A copy that doesn't pass the checks of every open (B-291) is
+        // damaged, however it got that way.
+        Err(StoreError::Corrupt(Corruption::DamagedFile | Corruption::UnbalancedTransaction)) => {
+            return differs(Difference::Damaged);
+        }
+        Err(error) => return Err(error.into()),
+    };
     let accounts = book.all_accounts()?;
     if copy_book.all_accounts()? != accounts {
         return differs(Difference::Accounts);

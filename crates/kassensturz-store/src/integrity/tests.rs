@@ -117,3 +117,130 @@ fn a_damaged_page_is_found() {
     );
     assert!(!crate::lock::lock_path(&path).exists());
 }
+
+#[test]
+fn a_cut_short_file_is_a_damaged_book() {
+    let folder = TempFolder::new();
+    let path = book_file(&folder);
+    let bytes = std::fs::read(&path).expect("read");
+    for keep in [bytes.len() / 2, bytes.len() - 100, 4096 * 2, 200] {
+        std::fs::write(&path, &bytes[..keep]).expect("written");
+        let refused = Book::open(&path, &computer(&folder));
+        let shown = refused.as_ref().err().map(|error| {
+            use kassensturz_core::Report;
+            error.report().code
+        });
+        assert!(
+            matches!(refused, Err(StoreError::Corrupt(Corruption::DamagedFile))),
+            "kept {keep}: {shown:?}"
+        );
+        assert!(!crate::lock::lock_path(&path).exists());
+        // The reader beside the app (MCP server, CLI) says the same.
+        assert!(
+            matches!(
+                Book::open_to_read(&path),
+                Err(StoreError::Corrupt(Corruption::DamagedFile))
+            ),
+            "kept {keep}"
+        );
+    }
+}
+
+/// A book in a file with one euro transaction that moved 1000.00 EUR into a
+/// dollar account, which received 1085.60 USD at the stored rate `rate`
+/// (from `from_euro`: euros into dollars, or the other way round).
+fn converted_book(folder: &TempFolder, rate: &str, from_euro: bool) -> std::path::PathBuf {
+    use crate::tests::USD;
+    use kassensturz_core::{
+        DatedRate, DatedRateId, ForeignAmount, Money, RateSource, Split, Transaction, TransactionId,
+    };
+
+    let path = folder.join("Trips.ksz");
+    let mut book = Book::create(&path, &computer(folder)).expect("book made");
+    book.use_currency(EUR).expect("currency used");
+    book.use_currency(USD).expect("currency used");
+    let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
+    let dollars = account(&mut book, "Dollar account", AccountKind::Asset, USD);
+    let (from, to) = if from_euro { (EUR, USD) } else { (USD, EUR) };
+    let rate = DatedRate {
+        id: DatedRateId::generate(),
+        date: date(2026, 10, 7),
+        from,
+        to,
+        rate: rate.parse().expect("valid rate"),
+        source: RateSource::Manual,
+    };
+    let received = Split {
+        foreign: Some(ForeignAmount {
+            amount: Money::from_minor_units(108_560, USD),
+            rate: Some(rate),
+        }),
+        ..Split::new(dollars, eur(100_000))
+    };
+    let transaction = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 7),
+        Some("To the dollar account".into()),
+        vec![Split::new(checking, eur(-100_000)), received],
+    )
+    .expect("balanced");
+    book.add_transaction(&transaction).expect("added");
+    path
+}
+
+fn change_foreign_amount(path: &Path, to: i64) {
+    let conn = rusqlite::Connection::open(path).expect("file opened");
+    let changed = conn
+        .execute(
+            "UPDATE splits SET foreign_amount = ?1 WHERE foreign_amount IS NOT NULL",
+            [to],
+        )
+        .expect("changed");
+    assert_eq!(changed, 1);
+}
+
+#[test]
+fn a_converted_part_that_agrees_with_its_rate_opens_either_way_round() {
+    for (rate, from_euro) in [("1.0856", true), ("0.92116", false)] {
+        let folder = TempFolder::new();
+        let path = converted_book(&folder, rate, from_euro);
+        Book::open(&path, &computer(&folder)).unwrap_or_else(|error| {
+            panic!("{rate} refused: {error:?}");
+        });
+    }
+}
+
+#[test]
+fn a_changed_foreign_amount_is_found() {
+    for (rate, from_euro) in [("1.0856", true), ("0.92116", false)] {
+        let folder = TempFolder::new();
+        let path = converted_book(&folder, rate, from_euro);
+        change_foreign_amount(&path, 108_560 + 4_000);
+        let refused = Book::open(&path, &computer(&folder));
+        assert!(
+            matches!(
+                refused,
+                Err(StoreError::Corrupt(Corruption::UnbalancedTransaction))
+            ),
+            "{rate}: {:?}",
+            refused.err()
+        );
+        assert!(matches!(
+            Book::open_to_read(&path),
+            Err(StoreError::Corrupt(Corruption::UnbalancedTransaction))
+        ));
+    }
+}
+
+/// Typed-in amounts have no stored rate: nothing to compare with.
+#[test]
+fn a_part_without_a_stored_rate_is_not_judged() {
+    let folder = TempFolder::new();
+    let path = converted_book(&folder, "1.0856", true);
+    let conn = rusqlite::Connection::open(&path).expect("file opened");
+    conn.execute("DELETE FROM split_rates", [])
+        .expect("deleted");
+    drop(conn);
+    change_foreign_amount(&path, 99_999);
+    Book::open(&path, &computer(&folder)).expect("opens");
+}

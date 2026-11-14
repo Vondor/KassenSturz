@@ -697,9 +697,24 @@ fn changed_copy(sql: &'static str) -> Box<MoveFailed> {
 
 #[test]
 fn the_check_catches_a_changed_balance() {
-    let failed = changed_copy("UPDATE splits SET amount = amount + 1 WHERE amount = 1234");
+    // Both parts of the transaction change, so it still adds up: only the
+    // balances tell. A change that doesn't add up is a damaged copy.
+    let failed = changed_copy(
+        "UPDATE splits SET amount = amount * 2 WHERE transaction_id IN \
+         (SELECT transaction_id FROM splits WHERE amount = 1234)",
+    );
     assert!(
         matches!(failed.cause, MoveCause::Differs(Difference::Balance(_))),
+        "{:?}",
+        failed.cause
+    );
+}
+
+#[test]
+fn the_check_catches_a_copy_that_no_longer_adds_up() {
+    let failed = changed_copy("UPDATE splits SET amount = amount + 1 WHERE amount = 1234");
+    assert!(
+        matches!(failed.cause, MoveCause::Differs(Difference::Damaged)),
         "{:?}",
         failed.cause
     );

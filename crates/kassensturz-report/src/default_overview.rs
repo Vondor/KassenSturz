@@ -18,11 +18,13 @@ pub const OVERVIEW_NAME: &str = "Overview";
 /// bank, what the accounts are worth, four key figures in a row, the budget
 /// bars (which take no room until the book has a budget, D-357, Q-264),
 /// *Left this month* and *Coming up* side by side (US7, D-769, D-770), the
-/// spending donut and the table of what it shows side by side, then the line
-/// of the last 12 months, where the money came from, the note about
-/// transfers and the note about the transactions without a category (US1.9,
-/// D-637). A component without a `props.period` takes the page's period
-/// (the month the Overview shows); the line asks for its own.
+/// spending donut and the table of what it shows, each category next to the
+/// average of the three months before (D-788), the line of the last 12
+/// months, where the money came from and the newest transactions side by
+/// side (D-788),
+/// the note about transfers and the note about the transactions without a
+/// category (US1.9, D-637). A component without a `props.period` takes the
+/// page's period (the month the Overview shows); the line asks for its own.
 pub const DEFAULT_OVERVIEW: &str = r#"{
   "format": "kassensturz-dashboard", "version": 4, "kind": "dashboard",
   "name": "Overview",
@@ -59,17 +61,19 @@ pub const DEFAULT_OVERVIEW: &str = r#"{
      "params": {"grouping": "top_level_category"},
      "frame": {"col": 0, "row": 15, "cols": 6, "rows": 5}},
     {"id": "biggest", "type": "table.rows", "dataset": "spending_by_category",
-     "params": {"grouping": "top_level_category"},
+     "params": {"grouping": "top_level_category", "compare": "average-3"},
      "frame": {"col": 6, "row": 15, "cols": 6, "rows": 5}},
     {"id": "trend", "type": "chart.line", "dataset": "income_expense_by_month",
      "props": {"period": "last-12-months"},
      "frame": {"col": 0, "row": 20, "cols": 12, "rows": 4}},
     {"id": "sources", "type": "table.income_sources",
-     "frame": {"col": 0, "row": 24, "cols": 12, "rows": 4}},
+     "frame": {"col": 0, "row": 24, "cols": 6, "rows": 5}},
+    {"id": "newest", "type": "table.transactions",
+     "frame": {"col": 6, "row": 24, "cols": 6, "rows": 5}},
     {"id": "transfers", "type": "notice.transfers",
-     "frame": {"col": 0, "row": 28, "cols": 12, "rows": 1}},
+     "frame": {"col": 0, "row": 29, "cols": 12, "rows": 1}},
     {"id": "unsorted", "type": "notice.unsorted",
-     "frame": {"col": 0, "row": 29, "cols": 12, "rows": 2}}
+     "frame": {"col": 0, "row": 30, "cols": 12, "rows": 2}}
   ]
 }"#;
 

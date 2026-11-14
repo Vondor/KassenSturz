@@ -44,7 +44,7 @@ pub mod qobject {
         /// `shownAs` and `shownIsRealPath`, or else `code` for the reason it
         /// isn't used.
         #[qinvokable]
-        fn grant(self: &FolderChoice, folder: &QUrl) -> QVariant;
+        fn grant(self: &FolderChoice, folder: &QUrl, for_book: bool) -> QVariant;
 
         /// The book called `name` in `folder` (a folder this object granted)
         /// as a file URL for the pages that make a book there: `ok` and
@@ -73,9 +73,9 @@ impl cxx_qt::Initialize for qobject::FolderChoice {
 }
 
 impl qobject::FolderChoice {
-    fn grant(&self, folder: &QUrl) -> QVariant {
+    fn grant(&self, folder: &QUrl, for_book: bool) -> QVariant {
         match local_path(folder) {
-            Some(path) => grant_object(&platform::choose_folder(&path)),
+            Some(path) => grant_object(&platform::choose_folder(&path, for_book)),
             None => grant_object(&Err(FolderRefused::NotUsable)),
         }
     }

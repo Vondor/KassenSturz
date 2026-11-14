@@ -144,6 +144,7 @@ FormCard.FormCardPage {
     FolderChooser {
         id: chooser
 
+        forBook: true
         title: page.i18nContext.i18nc("@title:window", "Choose the folder for your book")
         onGranted: chosen => {
             page.grant = chosen;

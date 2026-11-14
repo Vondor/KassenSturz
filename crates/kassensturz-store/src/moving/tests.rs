@@ -922,3 +922,28 @@ fn a_failed_move_says_nothing_about_where() {
     let text = format!("{failed:?}");
     assert!(!text.contains("Sync") && !text.contains("own"), "{text}");
 }
+
+#[test]
+fn a_book_without_file_locks_is_not_moved_when_its_lock_file_was_taken_away() {
+    let setup = Setup::new();
+    crate::lockless::NO_LOCKS.with(|flag| flag.set(true));
+    let book = setup.open();
+    let plan = setup.plan();
+    // An older build's "open anyway" removed the lock file (D-776).
+    fs::remove_file(lock_path(&setup.from)).expect("lock file removed");
+    let mut settings = setup.settings();
+    let failed = match book.move_to(&plan, &setup.computer, &mut settings) {
+        Err(failed) => failed,
+        Ok(_) => panic!("the move should have been refused"),
+    };
+    crate::lockless::NO_LOCKS.with(|flag| flag.set(false));
+    assert!(
+        matches!(failed.cause, MoveCause::Store(StoreError::LockLost)),
+        "{:?}",
+        failed.cause
+    );
+    // Nothing was copied or removed.
+    assert!(setup.from.exists());
+    assert!(!setup.to().exists());
+    assert_eq!(settings.note, None);
+}

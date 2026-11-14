@@ -136,6 +136,13 @@ pub fn on_network_drive() -> bool {
     })
 }
 
+/// Whether the open book works without file locks, because the system
+/// refuses them in its folder, so the UI tells the user about the weaker
+/// protection (Q-570, D-776).
+pub fn without_file_locks() -> bool {
+    with_book(Book::without_file_locks).unwrap_or(false)
+}
+
 /// Runs `f` with the open book; `None` if no book is open.
 pub fn with_book<T>(f: impl FnOnce(&Book) -> T) -> Option<T> {
     OPEN.with(|open| open.borrow().as_ref().map(|open| f(&open.book)))

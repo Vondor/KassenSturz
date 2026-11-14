@@ -239,3 +239,14 @@ Build 2b (the start-screen tiles) followed parts 5 and 2.6:
 - **The days come from the same function as budgets and reports** (`salary_month_of`, D-645): "this month" runs from the last such day to the day before the next one, and in a month shorter than the day its last day starts it. `kassensturz_core::forecast_from_day` and `Book::forecast_from_day` take the day; `forecast` is day 1. Each projected month carries its last day (`MonthPlan::last`).
 - **The tile says where a salary month ends** ("This month runs until 24.11.2026, like your budgets."), and the Planned payments window names such months by their first and last day. The window and the tile's state use *Like my budgets*; a tile with a fixed day asks `PlannedPayments.monthFrom` for its own figures. Overdue payments and the state don't depend on the day.
 - **Public holidays** still don't move a due day (D-030); the CLI's `forecast` keeps calendar months.
+
+## 13. Planned payments from a KMyMoney file (#919)
+
+The KMyMoney importer reads the file's scheduled transactions as planned payments. Built clean-room (D-044) from the synthetic golden files and the sample the maintainer approved; nothing was taken from KMyMoney's source.
+
+- **Which repeats:** only the codes the sample shows are read: weekly (4), monthly (32) and yearly (16384), with the file's own "every n" multiplier. Any other code (twice a month, every other week as its own code, once, and so on) is not guessed: it is left out and counted as "scheduled or recurring transactions that could not become planned payments" on the summary page and in `SkippedData::Schedules`.
+- **What is kept:** name (cut at 60 characters), the account, amount, category and the first due date. A plan whose last payment is behind it, or whose account is closed, is left out. A plan whose payment was already made counts from the next due date.
+- **What is not kept:** the weekend rule (plans always move forward to Monday, D-770), "enter automatically", the payee label, and a variable amount (the plan gets tolerance 0). A transfer is planned on the account the money leaves, without the other account.
+- **Never books by itself:** the import creates plans only; booking stays the user's step (D-769).
+- **Limits:** the same limits as every importer apply (at most 200 plans, repeat 1 to 52, texts within the text limit); the check at the end of the import (`check_book`) refuses a plan that doesn't fit them. The schedule's template transaction is not read as a real transaction.
+- **Where:** `kassensturz-import` (`BookSchedule`), `kassensturz-pipeline` (`Mapper::schedule`), golden files `kmy/schedules.kmy` and `kmy-sqlite/schedules.sqlite`.

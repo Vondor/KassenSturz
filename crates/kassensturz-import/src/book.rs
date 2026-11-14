@@ -7,7 +7,7 @@
 
 use kassensturz_core::{
     AccountKind, AccountType, Currency, CurrencyCode, Date, ExchangeRate, ImportedDetails,
-    MatchMode, Money, PartStatus, PayeeRecognition, TextField, TextOperator,
+    MatchMode, Money, PartStatus, PayeeRecognition, ScheduleUnit, TextField, TextOperator,
 };
 
 /// Another program's book, read from its file.
@@ -18,7 +18,8 @@ use kassensturz_core::{
 /// new book with it (`kassensturz-pipeline`). Data KassenSturz can't hold
 /// yet, such as investments or scheduled transactions, isn't in it; the
 /// importer counts it in [`ImportedBook::skipped`], so the user learns what
-/// stayed behind (D-029).
+/// stayed behind (D-029). Scheduled transactions are in it as far as a
+/// planned payment can hold them ([`ImportedBook::schedules`], #919).
 ///
 /// Its currencies can include withdrawn ones, such as the German mark,
 /// with the decimal places they had ([`crate::currency`]): the
@@ -48,6 +49,10 @@ pub struct ImportedBook {
     pub transactions: Vec<BookTransaction>,
     /// The exchange rates of the price table (D-028).
     pub rates: Vec<BookRate>,
+    /// The scheduled transactions the file repeats, in the order of the
+    /// file, as far as KassenSturz's planned payments can hold them
+    /// (#919). The others are counted as [`SkippedData::Schedules`].
+    pub schedules: Vec<BookSchedule>,
     /// The currencies of accounts and transactions that neither
     /// KassenSturz's ISO 4217 table nor its table of withdrawn currencies
     /// lists, sorted by code (D-106).
@@ -290,6 +295,60 @@ pub struct BookPart {
     pub tags: Vec<String>,
 }
 
+/// A scheduled transaction of an imported book (#919): a payment the other
+/// program expects on a day and repeats, which becomes a planned payment
+/// (D-769). Like everything in [`ImportedBook`] it names accounts by the
+/// file's keys; the pipeline decides which side is the user's account and
+/// whether the plan fits (`kassensturz-pipeline`).
+///
+/// Only what a planned payment can keep is read: a plan that repeats every
+/// so many weeks, months or years. What the other program has beyond that
+/// is here as it was written, for the pipeline and the report to say what
+/// differs ([`BookSchedule::weekend`], [`BookSchedule::auto_enter`],
+/// [`BookSchedule::fixed_amount`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookSchedule {
+    /// The file's own ID for it, unique within the file.
+    pub key: String,
+    /// Its name, as the file gives it.
+    pub name: String,
+    /// The payment it makes, as the file keeps it: its date is the day the
+    /// next one is due, its payee and parts are what an occurrence books.
+    pub payment: BookTransaction,
+    /// Weeks, months or years.
+    pub unit: ScheduleUnit,
+    /// How many of them between two payments, 1 to 52.
+    pub every: u8,
+    /// The first due date, the one the pattern is counted from.
+    pub first_due: Date,
+    /// The last date a payment may be due, if the plan ends.
+    pub ends_on: Option<Date>,
+    /// Whether the file counts a monthly plan from the last day of each
+    /// month, not from the day of its first date.
+    pub last_day_of_month: bool,
+    /// The day of the last payment the other program entered, if any.
+    pub last_payment: Option<Date>,
+    /// Whether the amount is always the same; if not, the file's amount is
+    /// only an estimate.
+    pub fixed_amount: bool,
+    /// Whether the other program enters the payment by itself when it is
+    /// due. A planned payment never books by itself (D-769).
+    pub auto_enter: bool,
+    /// What the other program does when a due date is on a weekend.
+    pub weekend: BookWeekend,
+}
+
+/// What a scheduled transaction does when its due date is on a weekend.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BookWeekend {
+    /// The date moves to the banking day before.
+    Before,
+    /// The date moves to the banking day after.
+    After,
+    /// The date stays.
+    Unchanged,
+}
+
 /// An exchange rate of an imported book's price table: one unit of `from`
 /// costs `rate` units of `to` on `date` (D-028).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -353,7 +412,11 @@ pub enum SkippedData {
     /// them come into the book without a category, so the money that went
     /// in or out of the user's other accounts is still there.
     Investments,
-    /// Scheduled and recurring transactions, counted as schedules (D-029).
+    /// Scheduled and recurring transactions that couldn't become a planned
+    /// payment (D-029, #919), counted as schedules: a pattern other than
+    /// every so many weeks, months or years, a payment with more than two
+    /// parts, one in a withdrawn currency, one that already ended, or any
+    /// beyond a book's planned payments.
     Schedules,
     /// Budgets.
     Budgets,

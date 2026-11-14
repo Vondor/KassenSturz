@@ -7,7 +7,8 @@
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
-    AccountKind, Currency, CurrencyCode, ImportedDetails, Money, PayeeRecognition,
+    AccountKind, Currency, CurrencyCode, ImportedDetails, MAX_SCHEDULE_EVERY, Money,
+    PayeeRecognition,
 };
 
 use crate::book::{BookAccount, BookTransaction, ImportedBook, Replacement};
@@ -192,6 +193,23 @@ fn check_book(book: &ImportedBook, limits: &Limits) -> Result<(), ImportError> {
     for transaction in &book.transactions {
         uses(transaction.currency)?;
         check_transaction(transaction, &accounts, &tags, limits)?;
+    }
+    // A planned payment's plan: a name and key within the limits, each key
+    // once, a repeat the plan can hold, and a payment that is a transaction
+    // of the book (#919).
+    limits.check_entries(book.schedules.len())?;
+    let mut schedules = HashSet::new();
+    for schedule in &book.schedules {
+        limits.check_text(&schedule.key, None)?;
+        limits.check_text(&schedule.name, None)?;
+        if !schedules.insert(schedule.key.as_str())
+            || !(1..=MAX_SCHEDULE_EVERY).contains(&schedule.every)
+            || schedule.ends_on.is_some_and(|end| end < schedule.first_due)
+        {
+            return Err(malformed());
+        }
+        uses(schedule.payment.currency)?;
+        check_transaction(&schedule.payment, &accounts, &tags, limits)?;
     }
     for rate in &book.rates {
         if rate.from == rate.to {

@@ -76,7 +76,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Zu große Beträge in KI-Vorschlägen wurden erst spät und mit falscher Begründung abgelehnt | B-288 | #994 |
 | Ersetzte ein Sync-Programm das offene Buch, war die Meldung unklar | B-289 | #1000 |
 | Ein Hinweis zu sehr vielen Berichten war abgeschnitten | B-290 | #1001, #1003 |
-| Ein Buch mit einer veränderten Zahl in der Datei öffnete sich mit falschem Kontostand, eine beschädigte Seite fiel erst beim nächsten Speichern auf | B-291 | #PR |
+| Ein Buch mit einer veränderten Zahl in der Datei öffnete sich mit falschem Kontostand, eine beschädigte Seite fiel erst beim nächsten Speichern auf | B-291 | #1010 |
 
 Kein Fund hat eine PIN verraten. Nur bei einem (B-252) hätten Daten Ihren Computer verlassen können, und auch das nur, wenn jemand vorher Ihre Einstellungsdatei von Hand gefälscht hätte.
 

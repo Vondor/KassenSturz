@@ -74,8 +74,7 @@ pub fn suggest_note(
     if line.is_empty()
         || line.chars().count() > MAX_NOTE_LINE_CHARS
         || line.chars().any(|c| {
-            c.is_control()
-                || matches!(c, '\u{200b}'..='\u{200f}' | '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}' | '\u{feff}' | '\u{2028}' | '\u{2029}')
+            c.is_control() || crate::text::hides_text(c) || matches!(c, '\u{2028}' | '\u{2029}')
         })
     {
         return Err(bad);

@@ -2723,6 +2723,77 @@ fn state_on(session: &Session, day: &str, plan: &str) -> String {
         .to_owned()
 }
 
+/// `schedule due` answers only for days it looked at (B-271, #967): a
+/// range that ends before it starts or is longer than five years is
+/// refused with the longest range it would answer, never "none".
+#[test]
+fn schedule_due_refuses_a_range_it_would_not_look_at_whole() {
+    let session = household();
+    session.ok(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-31",
+        "Month end",
+        "--from",
+        "2026-01-31",
+        "--category",
+        "Home/Other",
+    ]);
+    for (from, to, says) in [
+        (
+            "0001-01-01",
+            "9999-12-31",
+            "from 0001-01-01 up to 0006-01-01",
+        ),
+        (
+            "2026-01-01",
+            "2035-01-01",
+            "from 2026-01-01 up to 2031-01-01",
+        ),
+        ("2026-03-01", "2026-01-01", "before it starts on 2026-03-01"),
+    ] {
+        let refused = session.cli(&["schedule", "due", "--from", from, "--to", to]);
+        assert_eq!(refused.status, 1, "{from} to {to}");
+        assert!(
+            refused.err.contains(says),
+            "{from} to {to}: {}",
+            refused.err
+        );
+        assert_eq!(refused.out, "", "{from} to {to}");
+    }
+    // A start long ago without an end runs up to 31 days from today.
+    let refused = session.cli(&["schedule", "due", "--from", "0001-01-01"]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(refused.err.contains("up to 0006-01-01"), "{}", refused.err);
+    // Exactly five years is answered whole: 60 month ends, the last on
+    // Tue 31 Dec 2030; 31 Jan 2026 is a Saturday, so it is due Mon 2 Feb.
+    let due = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        "2026-01-01",
+        "--to",
+        "2031-01-01",
+    ]);
+    assert_eq!(due.matches("Month end").count(), 60, "{due}");
+    assert!(due.contains("2026-02-02"), "{due}");
+    assert!(due.contains("2030-12-31"), "{due}");
+    // An empty range is still answered for what it covers.
+    let none = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        "2026-01-01",
+        "--to",
+        "2026-01-30",
+    ]);
+    assert_eq!(
+        none,
+        "No payments are planned from 2026-01-01 to 2026-01-30.\n"
+    );
+}
+
 #[test]
 fn planned_payments_are_matched_skipped_booked_and_undone() {
     let session = household();

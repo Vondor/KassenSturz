@@ -783,3 +783,31 @@ fn the_filters_of_a_session_are_checked_like_a_documents() {
     // A refused choice leaves the session as it was.
     assert!(!editor.has_changes());
 }
+
+/// B-296 where the editor meets the book: a transactions tile limited to
+/// one account and set to 50 rows is still so after its dashboard is saved
+/// in the book and opened again.
+#[test]
+fn a_transactions_tile_keeps_its_own_settings_in_the_book() {
+    let mut book = Book::create_in_memory().unwrap();
+    let account = kassensturz_core::AccountId::generate().to_string();
+    let text = json!({
+        "format": "kassensturz-dashboard", "version": VERSION, "kind": "dashboard",
+        "name": "Mine",
+        "components": [
+            {"id": "newest", "type": "table.transactions",
+             "params": {"accounts": [account], "rows": "50"},
+             "frame": {"col": 0, "row": 0, "cols": 6, "rows": 5}}
+        ]
+    })
+    .to_string();
+    let document = Document::read(&text).unwrap();
+    let id = book.add_view(&document.to_json()).unwrap();
+    let again = Document::read(&book.view(id).unwrap().document).unwrap();
+    assert_eq!(again, document);
+    let Item::Component(tile) = &again.entries[0].item else {
+        panic!("a component");
+    };
+    assert_eq!(tile.get("rows"), Some(&Setting::Word("50".into())));
+    assert_eq!(tile.get("accounts"), Some(&Setting::Ids(vec![account])));
+}

@@ -176,6 +176,36 @@ fn every_two_weeks_counts_from_the_anchor() {
     );
 }
 
+/// The clocks of Europe and of the United States change on 8 and 29 March,
+/// 25 October and 1 November, and the year changes in between. A payment date is a calendar day with no
+/// time of day (D-061), so no change of the clock moves one (D-787, section
+/// C, a time-zone or DST change while payments are due).
+#[test]
+fn a_change_of_the_clock_moves_no_payment() {
+    let weekly = plan(
+        AccountId::generate(),
+        -1_000,
+        ScheduleUnit::Week,
+        1,
+        day(2026, 3, 2),
+    );
+    let found = dates(&weekly, day(2026, 3, 2), day(2027, 1, 4));
+    for pair in found.windows(2) {
+        let gap = pair[1].since(pair[0]).expect("a span").get_days();
+        assert_eq!(gap, 7, "{} to {}", pair[0], pair[1]);
+        assert_eq!(pair[1].weekday(), pair[0].weekday());
+    }
+    assert_eq!(found.first(), Some(&day(2026, 3, 2)));
+    assert_eq!(found.last(), Some(&day(2027, 1, 4)));
+
+    let rent = monthly(AccountId::generate(), -80_000, day(2026, 1, 31));
+    assert_eq!(
+        dates(&rent, day(2026, 10, 1), day(2026, 11, 30)),
+        [day(2026, 11, 2), day(2026, 11, 30)],
+        "the 31st of a Saturday moves to the Monday, a short month is cut back"
+    );
+}
+
 #[test]
 fn a_saturday_moves_forward_across_the_month_end() {
     let phone = monthly(AccountId::generate(), -3_499, day(2026, 11, 28));

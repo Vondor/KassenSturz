@@ -181,3 +181,40 @@ fn the_start_of_the_computer_and_the_process_space_decide_on_linux() {
     );
     assert!(is_locked(Book::open(&path, &computer(&folder))));
 }
+
+// D-787, section C: a lock file another program or another computer wrote
+// can be anything, as a sync client or a damaged disk leaves it. Opening
+// never panics, never takes it for permission, and never touches another file.
+
+#[test]
+fn a_lock_file_of_any_shape_asks_and_is_never_taken_for_permission() {
+    let folder = TempFolder::new();
+    let path = made(&folder);
+    let big = "computer=Laptop\n".repeat(1_000_000);
+    let shapes: [&[u8]; 4] = [
+        b"\xff\xfe\xc3\x28computer=Laptop\n",
+        b"computer=Laptop\0\0\0pid=1\nstart=1\n",
+        b"computer=Laptop\nsince=2026-10-19T11:04:02Z\ntoken=old\npid=-1\nstart=-1\n",
+        big.as_bytes(),
+    ];
+    for bytes in shapes {
+        std::fs::write(crate::lock::lock_path(&path), bytes).expect("lock file written");
+        assert!(is_locked(Book::open(&path, &computer(&folder))));
+        assert!(
+            crate::lock::lock_path(&path).exists(),
+            "an unreadable lock is left for the user to decide"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn a_lock_file_that_links_to_another_file_does_not_overwrite_it() {
+    let folder = TempFolder::new();
+    let path = made(&folder);
+    let victim = folder.join("Other file.txt");
+    std::fs::write(&victim, "keep me").expect("written");
+    std::os::unix::fs::symlink(&victim, crate::lock::lock_path(&path)).expect("linked");
+    let _ = Book::open(&path, &computer(&folder));
+    assert_eq!(std::fs::read_to_string(&victim).expect("read"), "keep me");
+}

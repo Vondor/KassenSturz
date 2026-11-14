@@ -67,6 +67,7 @@ pub fn net_worth_over_time(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: None,
     })
 }
@@ -133,6 +134,7 @@ pub fn cash_flow_by_month(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: None,
     })
 }
@@ -241,6 +243,7 @@ pub fn account_balances(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: None,
     })
 }
@@ -310,6 +313,7 @@ pub fn balance_candles(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: None,
     })
 }

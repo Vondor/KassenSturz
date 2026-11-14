@@ -59,6 +59,8 @@ pub struct Scope {
     pub flow: kassensturz_report::FlowChoice,
     /// The months of a moving average and of MACD (US7, D-777).
     pub trend: kassensturz_report::Trend,
+    /// The days of a daily balance's averages (US7, D-794).
+    pub ema: kassensturz_report::Ema,
 }
 
 /// The own lists of one series of a chart (D-646): empty for a dimension it
@@ -89,6 +91,7 @@ impl Default for Scope {
             candle: String::new(),
             flow: kassensturz_report::FlowChoice::default(),
             trend: kassensturz_report::Trend::default(),
+            ema: kassensturz_report::Ema::default(),
         }
     }
 }
@@ -137,6 +140,7 @@ impl Scope {
                 .unwrap_or_default(),
             flow: asked.flow.clone(),
             trend: asked.trend,
+            ema: asked.ema,
         }
     }
 
@@ -203,6 +207,11 @@ impl Scope {
                 "length": self.trend.length,
                 "slow": self.trend.slow,
                 "signal": self.trend.signal,
+            },
+            "ema": {
+                "fast": self.ema.fast,
+                "slow": self.ema.slow,
+                "signal": self.ema.signal,
             },
         })
         .to_string()
@@ -308,6 +317,17 @@ impl Scope {
                 };
                 kassensturz_report::Trend::read(&word("length"), &word("slow"), &word("signal"))
             },
+            ema: {
+                let ema = value.get("ema");
+                let word = |key: &str| {
+                    ema.and_then(|ema| ema.get(key))
+                        .and_then(Value::as_u64)
+                        .and_then(|days| u32::try_from(days).ok())
+                        .map(kassensturz_report::Ema::word)
+                        .unwrap_or_default()
+                };
+                kassensturz_report::Ema::read(&word("fast"), &word("slow"), &word("signal"))
+            },
         }
     }
 
@@ -342,6 +362,7 @@ impl Scope {
             candle: None,
             flow: kassensturz_report::FlowChoice::default(),
             trend: kassensturz_report::Trend::default(),
+            ema: kassensturz_report::Ema::default(),
         }
         .apply(source)
     }
@@ -751,6 +772,11 @@ mod tests {
                 length: 6,
                 slow: 12,
                 signal: 4,
+            },
+            ema: kassensturz_report::Ema {
+                fast: 9,
+                slow: 50,
+                signal: 5,
             },
         };
         assert_eq!(Scope::from_text(&scope.to_text()), scope);

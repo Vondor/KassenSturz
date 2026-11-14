@@ -14,7 +14,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_charts::{
-    ChangeMark, ChartModel, ComparedTable, FlowModel, HiddenNote, Prepared, Series, Slices, WHOLE,
+    ChangeMark, ChartModel, ComparedTable, DailyLook, FlowModel, HiddenNote, Prepared, Series,
+    Slices, WHOLE,
 };
 use kassensturz_core::ErrorParam;
 
@@ -432,7 +433,39 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("ticks", list(ticks)),
         ("table", table),
         ("compared", compared),
+        ("daily", daily_object(model.daily.as_ref())),
     ])
+}
+
+/// How a panel of a daily balance is drawn (US7, #1036, D-794): its
+/// `panel` (`balance` or `macd`), how each series is drawn (`draws`, in the
+/// order of `series`), the places along the axis with a name (`axis`, each
+/// `index` and `name`) and whether the first day is the accounts' first
+/// entry (`startsLate`). Empty for every other chart: `panel` is empty.
+fn daily_object(daily: Option<&DailyLook>) -> QVariant {
+    let index = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(0));
+    match daily {
+        Some(daily) => map([
+            ("panel", text(daily.panel)),
+            ("draws", list(daily.draws.iter().map(|draw| text(draw)))),
+            (
+                "axis",
+                list(
+                    daily
+                        .axis
+                        .iter()
+                        .map(|(at, name)| map([("index", index(*at)), ("name", text(name))])),
+                ),
+            ),
+            ("startsLate", QVariant::from(&daily.starts_late)),
+        ]),
+        None => map([
+            ("panel", text("")),
+            ("draws", list(core::iter::empty())),
+            ("axis", list(core::iter::empty())),
+            ("startsLate", QVariant::from(&false)),
+        ]),
+    }
 }
 
 /// The money-flow chart as QML reads it (US7, #821, D-758): its nodes and
@@ -724,6 +757,74 @@ mod tests {
     }
 
     #[test]
+    fn a_daily_balance_reads_back_as_two_panels_the_way_qml_reads_them() {
+        // US7, #1036, D-794: the balance panel and the MACD panel, each with
+        // how its series are drawn, the axis names and every figure of a day.
+        let view = view_of(&Request {
+            grouping: "balance-averages-macd".into(),
+            ..request("daily_balance", "line")
+        });
+        let shown = list_of(&view, "charts");
+        assert_eq!(shown.len(), 2);
+        let panels: Vec<QVariant> = shown
+            .iter()
+            .map(|chart| object_of(chart, "daily"))
+            .collect();
+        for daily in &panels {
+            assert_eq!(keys(daily), ["axis", "draws", "panel", "startsLate"]);
+            // The book's first entry is on 3 August, inside the last 12
+            // months: the chart starts there and says so.
+            assert!(flag_of(daily, "startsLate"));
+        }
+        assert_eq!(text_of(&panels[0], "panel"), "balance");
+        assert_eq!(text_of(&panels[1], "panel"), "macd");
+        let draws = |daily: &QVariant| -> Vec<String> {
+            list_of(daily, "draws")
+                .iter()
+                .map(|draw| draw.value::<QString>().expect("text").to_string())
+                .collect()
+        };
+        assert_eq!(
+            draws(&panels[0]),
+            ["step", "line", "dashed", "none", "none", "none"]
+        );
+        assert_eq!(
+            draws(&panels[1]),
+            ["bars", "line", "dashed", "none", "none", "none"]
+        );
+        let axis = list_of(&panels[0], "axis");
+        assert_eq!(keys(&axis[0]), ["index", "name"]);
+        // 1 September and 1 October.
+        assert_eq!(axis.len(), 2);
+        let chart = &shown[0];
+        assert_eq!(text_of(chart, "dataset"), "daily_balance");
+        // 3 August to today, 19 October.
+        assert_eq!(number_of(chart, "count"), 78);
+        let series = list_of(chart, "series");
+        let keys_of: Vec<String> = series.iter().map(|s| text_of(s, "key")).collect();
+        assert_eq!(
+            keys_of,
+            [
+                "balance",
+                "daily_average_12",
+                "daily_average_26",
+                "daily_macd",
+                "daily_signal",
+                "daily_gap"
+            ]
+        );
+        // The last day's balance is everything booked by today.
+        let points = list_of(&series[0], "points");
+        assert_eq!(
+            text_of(points.last().expect("a day"), "minorUnits"),
+            "333446"
+        );
+        // A chart that is not a daily balance has an empty look.
+        let other = list_of(&view_of(&request("spending_by_category", "pie")), "charts");
+        assert_eq!(text_of(&object_of(&other[0], "daily"), "panel"), "");
+    }
+
+    #[test]
     fn a_spending_chart_reads_back_the_way_qml_reads_it() {
         let view = view_of(&request("spending_by_category", "pie"));
         assert_eq!(
@@ -753,6 +854,7 @@ mod tests {
                 "compared",
                 "count",
                 "currency",
+                "daily",
                 "dataset",
                 "extraColors",
                 "hidden",

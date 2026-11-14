@@ -10,9 +10,9 @@
 //! the rounding rule of every ratio (D-285).
 
 use crate::{
-    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, FORMULA_MEASURE,
-    INCOME_EXPENSE_BY_MONTH, MACD, MONEY_FLOW, MOVING_AVERAGE, NET_WORTH_OVER_TIME,
-    SPENDING_BY_CATEGORY, TREND_SERIES, Takes,
+    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, DAILY_BALANCE,
+    DAILY_PARTS, FORMULA_MEASURE, INCOME_EXPENSE_BY_MONTH, MACD, MONEY_FLOW, MOVING_AVERAGE,
+    NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY, TREND_SERIES, Takes,
 };
 
 /// One dataset a chart or card can show.
@@ -122,6 +122,32 @@ pub const CATALOG: &[DatasetInfo] = &[
         suits: &["line", "bar", "table"],
         measures: &[],
         takes: Takes::ALL,
+        for_ai: true,
+    },
+    // The balance of an account day by day, with its averages and MACD
+    // (US7, #1036, D-794).
+    DatasetInfo {
+        id: DAILY_BALANCE,
+        description: "What the chosen account held at the end of each day of a period (without \
+             a choice, all checking, savings and cash accounts together), drawn as a stepped \
+             line, with two exponential moving averages of that balance (by default over 12 and \
+             26 days) and, in a second panel under it, the MACD indicator: the short average less \
+             the long one, its signal line (the average of MACD, by default over 9 days) and the \
+             histogram (MACD less the signal line). A day's balance counts what the bank booked \
+             by that day where the bank said so, otherwise what is dated up to that day, and \
+             starting balances count, exactly as account_balance gives it. The days shown end on \
+             the period's last day or today, whichever comes first, so the last day's balance is \
+             today's. The averages start well before the period and the days before it are not \
+             shown; they never start before the account's first entry, and when that entry lies \
+             inside the period the chart starts on its day. Each day's average is the day \
+             before's plus 2/(days+1) of the difference, rounded once a day to whole cents. At \
+             most 1100 days. Amounts in different currencies are never added together: there is \
+             one result per currency. group_by chooses the panels: balance-averages-macd (all), \
+             balance-averages, balance or macd.",
+        groupings: &DAILY_PARTS,
+        suits: &["line", "table"],
+        measures: &[],
+        takes: Takes::NO_CATEGORIES,
         for_ai: true,
     },
     DatasetInfo {
@@ -310,7 +336,12 @@ mod tests {
         }
         // The datasets of balances count everything booked to an account,
         // starting balances too, and say so; the others leave them out.
-        let balances = [ACCOUNT_BALANCES, NET_WORTH_OVER_TIME, CASH_FLOW_BY_MONTH];
+        let balances = [
+            ACCOUNT_BALANCES,
+            NET_WORTH_OVER_TIME,
+            CASH_FLOW_BY_MONTH,
+            DAILY_BALANCE,
+        ];
         for dataset in every() {
             let described = flat(dataset.description);
             if balances.contains(&dataset.id) {

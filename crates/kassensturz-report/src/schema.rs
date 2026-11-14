@@ -16,6 +16,7 @@
 use crate::ReportError;
 use crate::catalog::{CATALOG, DatasetInfo, NO_DATASET};
 use crate::columns::MAX_COLUMNS;
+use crate::daily::{EMA_FAST_WORDS, EMA_SIGNAL_WORDS, EMA_SLOW_WORDS};
 use crate::filter::MAX_FILTER_IDS;
 use crate::formula::MAX_FORMULA_CHARS;
 use crate::trend::{TREND_LENGTH_WORDS, TREND_SIGNAL_WORDS, TREND_SLOW_WORDS};
@@ -809,12 +810,39 @@ const TREND_SIGNAL: Property = Property {
 };
 pub(crate) const TREND_SIGNAL_KEY: &str = "trend_signal";
 
-const CHART: [Property; 20] = [
+/// `params.ema_fast` (US7, #1036, D-794): how many days the short average
+/// of a daily balance spans. Only `daily_balance` reads it, as its two
+/// companions below.
+const EMA_FAST: Property = Property {
+    key: EMA_FAST_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&EMA_FAST_WORDS),
+};
+pub(crate) const EMA_FAST_KEY: &str = "ema_fast";
+/// `params.ema_slow`: how many days the long average spans.
+const EMA_SLOW: Property = Property {
+    key: EMA_SLOW_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&EMA_SLOW_WORDS),
+};
+pub(crate) const EMA_SLOW_KEY: &str = "ema_slow";
+/// `params.ema_signal`: how many days MACD's signal line spans.
+const EMA_SIGNAL: Property = Property {
+    key: EMA_SIGNAL_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&EMA_SIGNAL_WORDS),
+};
+pub(crate) const EMA_SIGNAL_KEY: &str = "ema_signal";
+
+const CHART: [Property; 23] = [
     GROUPING,
     AVERAGE,
     TREND_LENGTH,
     TREND_SLOW,
     TREND_SIGNAL,
+    EMA_FAST,
+    EMA_SLOW,
+    EMA_SIGNAL,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
@@ -905,12 +933,15 @@ const KPI_CARD: [Property; 8] = [
 const PROGRESS_BAR: [Property; 8] = [
     ACCOUNTS, TAGS, COMPARE, FORMULA, TARGET, TITLE, HIDE_NOTE, PERIOD,
 ];
-const TABLE: [Property; 20] = [
+const TABLE: [Property; 23] = [
     GROUPING,
     AVERAGE,
     TREND_LENGTH,
     TREND_SLOW,
     TREND_SIGNAL,
+    EMA_FAST,
+    EMA_SLOW,
+    EMA_SIGNAL,
     COMPARE_SPENDING,
     NEUTRAL,
     GROUPS,

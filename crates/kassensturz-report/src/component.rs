@@ -407,6 +407,16 @@ impl Component {
             {
                 continue;
             }
+            // The lengths of a daily balance's averages likewise (D-794).
+            if matches!(
+                property.key,
+                crate::schema::EMA_FAST_KEY
+                    | crate::schema::EMA_SLOW_KEY
+                    | crate::schema::EMA_SIGNAL_KEY
+            ) && self.dataset.id != crate::DAILY_BALANCE
+            {
+                continue;
+            }
             // The total is the default and is not written (D-648).
             if property.key == crate::schema::AVERAGE_KEY
                 && matches!(setting, Setting::Word(word) if word == "total")

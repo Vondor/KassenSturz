@@ -12,20 +12,21 @@
 use kassensturz_charts::{
     BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, FlowModel, Prepared,
     account_balances as balances_chart, balance_candles as candles_chart,
-    cash_flow_by_month as cash_flow_chart, category_over_time, flow_model, income_expense_by_month,
-    macd as macd_chart, moving_average as moving_average_chart,
-    net_worth_over_time as net_worth_chart, spending_by_category, spending_by_category_as,
-    spending_by_category_compared,
+    cash_flow_by_month as cash_flow_chart, category_over_time, daily_balance as daily_chart,
+    flow_model, income_expense_by_month, macd as macd_chart,
+    moving_average as moving_average_chart, net_worth_over_time as net_worth_chart,
+    spending_by_category, spending_by_category_as, spending_by_category_compared,
 };
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
     ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, CandleLength, Column,
-    CompareWith, Filter, INCOME_EXPENSE_BY_MONTH, Level, MACD, MONEY_FLOW, MOVING_AVERAGE,
-    NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period, ReportError, SPENDING_BY_CATEGORY,
-    SharedCategory, Shown, Source, TextFormat, TrendSeries, account_balances as balances_dataset,
-    balance_candles as candles_dataset, cash_flow_by_month as cash_flow_dataset,
-    category_over_time as over_time_dataset, columns_over_time, columns_span, columns_spending,
-    compared_early, counted_early, income_expense_by_month as monthly_dataset,
+    CompareWith, DAILY_BALANCE, DAILY_PARTS, DailyParts, Filter, INCOME_EXPENSE_BY_MONTH, Level,
+    MACD, MONEY_FLOW, MOVING_AVERAGE, NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period,
+    ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat, TrendSeries,
+    account_balances as balances_dataset, balance_candles as candles_dataset,
+    cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
+    columns_over_time, columns_span, columns_spending, compared_early, counted_early,
+    daily_balance as daily_dataset, daily_days, income_expense_by_month as monthly_dataset,
     income_expense_by_series, macd as macd_dataset, money_flow as money_flow_dataset,
     moving_average as moving_average_dataset, net_worth_over_time as net_worth_dataset,
     shared_categories, spending_by_category_shown as spending_dataset, spending_compared,
@@ -304,7 +305,7 @@ fn is_trend(dataset: &str) -> bool {
 pub(crate) fn is_financial(dataset: &str) -> bool {
     matches!(
         dataset,
-        ACCOUNT_BALANCES | NET_WORTH_OVER_TIME | CASH_FLOW_BY_MONTH
+        ACCOUNT_BALANCES | NET_WORTH_OVER_TIME | CASH_FLOW_BY_MONTH | DAILY_BALANCE
     )
 }
 
@@ -334,6 +335,8 @@ pub fn charts(
         // A trend follows one of money in, money out and what is left
         // (US7, D-777); the grouping word says which.
         "net" | "income" | "expenses" if is_trend(&request.dataset) => Level::Each,
+        // A daily balance's grouping says which panels it shows (D-794).
+        word if request.dataset == DAILY_BALANCE && DAILY_PARTS.contains(&word) => Level::Each,
         _ => return Err(ChartsError::UnknownName("grouping")),
     };
     // A formula of a column may name periods of its own, so the book is read
@@ -354,6 +357,14 @@ pub fn charts(
     let span = if is_trend(&request.dataset) {
         let trend = request.scope.trend.read_span(&request.dataset, period)?;
         Period::new(trend.first().min(span.first()), span.last())?
+    } else {
+        span
+    };
+    // A daily balance's averages start well before the days shown (D-794).
+    let span = if request.dataset == DAILY_BALANCE {
+        let shown = daily_days(period, locale.today())?.unwrap_or(period);
+        let warm = request.scope.ema.read_span(shown)?;
+        Period::new(warm.first().min(span.first()), span.last().max(warm.last()))?
     } else {
         span
     };
@@ -574,6 +585,16 @@ pub fn charts(
                     .iter()
                     .map(|data| moving_average_chart(data, kind, &text))
                     .collect::<Result<Vec<_>, _>>()?
+            }
+            DAILY_BALANCE => {
+                let parts = DailyParts::read(&request.grouping);
+                let mut panels = Vec::new();
+                for data in
+                    daily_dataset(&source, period, locale.today(), &filter, request.scope.ema)?
+                {
+                    panels.extend(daily_chart(&data, parts, kind, &text)?);
+                }
+                panels
             }
             MACD => {
                 let series = TrendSeries::read(&request.grouping);

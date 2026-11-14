@@ -94,6 +94,16 @@ fn every_component_keeps_its_own_params_through_a_document() {
                 {
                     continue;
                 }
+                // A daily balance's lengths likewise (D-794).
+                if matches!(
+                    property.key,
+                    crate::schema::EMA_FAST_KEY
+                        | crate::schema::EMA_SLOW_KEY
+                        | crate::schema::EMA_SIGNAL_KEY
+                ) && dataset_id != crate::DAILY_BALANCE
+                {
+                    continue;
+                }
                 let setting = match property.kind {
                     Kind::Choice(_) | Kind::Grouping => {
                         let words = words_of(property);

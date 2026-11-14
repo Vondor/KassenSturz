@@ -48,7 +48,10 @@ fn old_book(folder: &TempFolder, fixture: &str, layout: i32) -> PathBuf {
             .join("tests/fixtures")
             .join(fixture),
     )
-    .expect("fixture read");
+    .expect("fixture read")
+    // A checkout on Windows may turn line ends into CR LF; the layout is
+    // compared as text, so the file must hold the line ends the build wrote.
+    .replace("\r\n", "\n");
     let path = folder.0.join("Household.ksz");
     let conn = rusqlite::Connection::open(&path).expect("file made");
     // The tables come in alphabetical order, so a part may come before its account.

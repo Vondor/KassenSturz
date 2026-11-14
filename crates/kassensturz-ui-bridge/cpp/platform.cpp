@@ -16,6 +16,7 @@
 #include <QtCore/QSysInfo>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QIcon>
+#include <QtGui/QSessionManager>
 
 #include <cerrno>
 #include <csignal>
@@ -182,6 +183,29 @@ void quitOnSignals()
         ::sigaction(number, &action, nullptr);
     }
 #endif
+}
+
+// Defined in Rust (`platform.rs`): closes the open book, which removes its
+// lock file.
+extern "C" void kassensturz_close_book_at_session_end();
+
+void closeBookOnSessionEnd()
+{
+    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    if (!app) {
+        return;
+    }
+    // Direct, so it runs in the signal's own call: after the session ends
+    // Windows may end the process at once.
+    QObject::connect(
+        app,
+        &QGuiApplication::commitDataRequest,
+        app,
+        [](QSessionManager &) {
+            kassensturz_close_book_at_session_end();
+            QCoreApplication::quit();
+        },
+        Qt::DirectConnection);
 }
 
 void useTestLocations()

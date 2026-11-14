@@ -9,10 +9,17 @@ name: Fuzzing
 
 on:
   pull_request:
+    # The three crates the targets build, without their integration tests,
+    # which the targets never compile; the importers' test files stay in,
+    # since they are the seeds (D-791).
     paths:
       - "crates/kassensturz-import/**"
       - "crates/kassensturz-store/**"
       - "crates/kassensturz-core/**"
+      - "!crates/kassensturz-import/tests/**"
+      - "!crates/kassensturz-store/tests/**"
+      - "!crates/kassensturz-core/tests/**"
+      - "crates/kassensturz-import/tests/golden/**"
       - "fuzz/**"
       - ".github/workflows/fuzz.yml"
   schedule:

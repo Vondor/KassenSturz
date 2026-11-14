@@ -193,6 +193,9 @@ fn a_file_that_is_not_a_book_is_never_read_as_one_without_file_locks() {
     assert_eq!(std::fs::read(&path).expect("read"), b"not a book at all");
 }
 
+// The program's process number and start time come from Linux's `/proc`;
+// lock-less books exist only in the snap (D-776).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_lock_of_a_program_that_still_runs_here_is_not_taken_over_without_file_locks() {
     let folder = TempFolder::new();
@@ -231,6 +234,9 @@ fn a_lock_a_crash_left_behind_can_be_taken_over_without_file_locks() {
     assert!(Book::open_anyway(&path, &computer, &seen).is_ok());
 }
 
+// The program's process number and start time come from Linux's `/proc`;
+// lock-less books exist only in the snap (D-776).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_lock_of_a_book_open_without_file_locks_is_not_taken_over_by_a_program_with_locks() {
     let folder = TempFolder::new();

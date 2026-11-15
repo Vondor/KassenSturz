@@ -1462,13 +1462,9 @@ impl Book {
     /// (B-306, D-798). A lock file that can't be read is not a take-over.
     #[must_use]
     pub fn lock_taken_over(&self) -> bool {
-        self._lock.as_ref().is_some_and(|lock| {
-            if self.without_file_locks {
-                !lock.is_still_ours()
-            } else {
-                lock.is_taken_over()
-            }
-        })
+        self._lock
+            .as_ref()
+            .is_some_and(crate::lock::HeldLock::is_taken_over)
     }
 
     /// Runs `change` in a savepoint: if it fails, everything it changed is

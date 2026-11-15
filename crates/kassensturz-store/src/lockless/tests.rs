@@ -558,6 +558,75 @@ fn a_book_taken_over_with_open_anyway_refuses_the_first_ones_next_change() {
     assert_eq!(names(&second), ["Checking", "Savings"]);
 }
 
+// B-316: a pulled drive takes the book and its lock file away together and
+// may leave an empty folder; that is the drive's error, not a take-over.
+#[test]
+fn a_lock_file_gone_with_the_book_is_not_a_take_over() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let book = Book::create(&path, &computer).expect("book made");
+    assert!(!book.lock_taken_over());
+    let lock = crate::lock::lock_path(&path);
+    // The lock file alone is gone while the book stays: someone removed it.
+    std::fs::remove_file(&lock).expect("lock removed");
+    assert!(book.lock_taken_over());
+    // The book goes too, the folder stays: the drive is gone. (A book that
+    // is open can't be moved on Windows, so a lock of a book that was never
+    // made stands in for it.)
+    let gone = folder.join("Gone.ksz");
+    let held = crate::lock::HeldLock::acquire(&gone, "Laptop").expect("lock taken");
+    std::fs::remove_file(crate::lock::lock_path(&gone)).expect("lock removed");
+    assert!(!held.is_taken_over());
+    std::fs::write(&gone, b"x").expect("book made");
+    assert!(held.is_taken_over());
+}
+
+// B-315: a book that another program holds shut at the database, with its
+// lock file not visible here, gets the in-use page, and leaves no lock file
+// of ours behind.
+#[test]
+fn a_busy_book_without_a_visible_lock_file_shows_the_in_use_page() {
+    let folder = TempFolder::new();
+    let (path, _holder) = book_with_busy_write_lock(&folder);
+    let result = Book::open(&path, &computer(&folder));
+    assert!(
+        matches!(result, Err(StoreError::Locked(_))),
+        "{:?}",
+        result.err()
+    );
+    assert!(
+        !crate::lock::lock_path(&path).exists(),
+        "no lock file of ours is left"
+    );
+}
+
+#[test]
+fn only_busy_and_held_shut_errors_become_the_in_use_page() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let busy = StoreError::from(rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+        None,
+    ));
+    assert!(matches!(
+        crate::lock::in_use_instead(&path, busy),
+        StoreError::Locked(_)
+    ));
+    let other = StoreError::from(rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
+        None,
+    ));
+    assert!(matches!(
+        crate::lock::in_use_instead(&path, other),
+        StoreError::Database(_)
+    ));
+    assert!(matches!(
+        crate::lock::in_use_instead(&path, StoreError::Io(std::io::ErrorKind::NotFound)),
+        StoreError::Io(std::io::ErrorKind::NotFound)
+    ));
+}
+
 // B-304: a cifs mount takes the write lock but fails the save, so the open
 // has to look at the mount's type and try a whole save on a scratch file.
 #[test]

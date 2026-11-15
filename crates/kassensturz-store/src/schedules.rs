@@ -18,8 +18,8 @@ use kassensturz_core::{
     AccountId, AccountKind, AccountType, CurrencyCode, Date, Decided, Due, Forecast, ForecastError,
     LOOK_BACK_YEARS, MAX_BUSINESS_DAYS, MAX_SCHEDULES, Money, OccurrenceState, OpenOccurrence,
     OtherParty, Schedule, ScheduleEntry, ScheduleError, ScheduleId, ScheduleUnit, Split,
-    Transaction, TransactionId, add_banking_days, cut_party, due_dates, forecast_from_day,
-    match_schedules,
+    Transaction, TransactionId, add_banking_days, cut_party, due_dates,
+    forecast_with_entries_ahead, match_schedules,
 };
 use rusqlite::{OptionalExtension, params};
 
@@ -1126,11 +1126,34 @@ impl Book {
             .filter(|plan| counted.contains(&plan.account))
             .collect();
         let decided = self.decided_occurrences()?;
-        let result = forecast_from_day(balance, &plans, &decided, today, months, starts_on)
-            .map_err(|error| match error {
-                ForecastError::Money(_) => StoreError::AmountOverflow,
-                ForecastError::Calendar => out_of_calendar(today),
-            })?;
+        // A planned payment matched to an entry dated after today is in
+        // neither the balance nor the open occurrences (B-331): its entry
+        // counts as still to come.
+        let matched: HashSet<TransactionId> = decided
+            .iter()
+            .filter(|((plan, _), _)| plans.iter().any(|known| known.id == *plan))
+            .filter_map(|(_, state)| match state {
+                Decided::Matched(transaction) => Some(*transaction),
+                Decided::Skipped => None,
+            })
+            .collect();
+        let mut ahead = Vec::new();
+        if !matched.is_empty() {
+            for &id in &counted {
+                for part in self.account_parts(id)? {
+                    if part.booking_date > today && matched.contains(&part.transaction) {
+                        ahead.push((part.booking_date, part.amount));
+                    }
+                }
+            }
+        }
+        let result = forecast_with_entries_ahead(
+            balance, &plans, &decided, &ahead, today, months, starts_on,
+        )
+        .map_err(|error| match error {
+            ForecastError::Money(_) => StoreError::AmountOverflow,
+            ForecastError::Calendar => out_of_calendar(today),
+        })?;
         Ok(AccountsForecast {
             forecast: result,
             accounts: counted,

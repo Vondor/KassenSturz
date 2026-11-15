@@ -12,7 +12,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use kassensturz_core::AccountId;
+use kassensturz_core::{AccountId, Date, Money, Split, Transaction, TransactionId};
 use kassensturz_store::{Book, Computer, StoreError, backups_of};
 
 struct TempFolder(PathBuf);
@@ -89,6 +89,69 @@ fn user_version(path: &Path) -> i32 {
         .expect("layout read")
 }
 
+/// Work on a converted book as a person would: add an entry, change another,
+/// close the book, open it again. Every figure must move by exactly what was
+/// typed, and a book that was edited must still open.
+fn edit_save_and_reopen(mut book: Book, path: &Path, computer: &Computer) {
+    let accounts = book.all_accounts().expect("accounts");
+    let find = |name: &str| {
+        accounts
+            .iter()
+            .find(|a| a.name == name)
+            .expect(name)
+            .clone()
+    };
+    let (checking, groceries) = (find("Checking account"), find("Groceries"));
+    let euro = checking.currency;
+    let money = |minor| Money::from_minor_units(minor, euro);
+
+    // A new entry: 12.34 spent on groceries.
+    let added = Transaction::new(
+        TransactionId::generate(),
+        Date::constant(2026, 11, 1),
+        Some("Edited after the upgrade".to_owned()),
+        vec![
+            Split::new(checking.id, money(-1_234)),
+            Split::new(groceries.id, money(1_234)),
+        ],
+    )
+    .expect("a transaction");
+    book.add_transaction(&added).expect("added");
+
+    // Change that entry to 20.00 and save it again.
+    let changed = Transaction::new(
+        added.id(),
+        Date::constant(2026, 11, 1),
+        Some("Edited after the upgrade".to_owned()),
+        vec![
+            Split::new(checking.id, money(-2_000)),
+            Split::new(groceries.id, money(2_000)),
+        ],
+    )
+    .expect("a transaction");
+    book.update_transaction(&changed).expect("changed");
+    assert_eq!(
+        book.balance(checking.id).expect("balance").minor_units(),
+        143_141 - 2_000
+    );
+
+    drop(book);
+    let reopened = Book::open(path, computer).expect("an edited book opens");
+    let balance = |name: &str| {
+        let account = reopened
+            .all_accounts()
+            .expect("accounts")
+            .into_iter()
+            .find(|a| a.name == name)
+            .expect(name);
+        reopened.balance(account.id).expect("balance").minor_units()
+    };
+    assert_eq!(balance("Checking account"), 143_141 - 2_000);
+    assert_eq!(balance("Groceries"), 6_859 + 2_000);
+    assert_eq!(balance("Salary"), -250_000);
+    assert_eq!(reopened.transactions().expect("transactions").len(), 6);
+}
+
 fn check_one(fixture: &str, layout: i32) {
     let folder = TempFolder::new();
     let path = old_book(&folder, fixture, layout);
@@ -110,6 +173,7 @@ fn check_one(fixture: &str, layout: i32) {
             // And it opens again, with the same figures.
             let again = Book::open(&path, &folder.computer()).expect("opens again");
             assert_the_household(&again);
+            edit_save_and_reopen(again, &path, &folder.computer());
         }
         Err(StoreError::DevelopmentLayout { .. } | StoreError::UnsupportedLayout { .. }) => {
             assert_eq!(

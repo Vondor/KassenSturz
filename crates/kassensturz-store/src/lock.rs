@@ -21,6 +21,7 @@ use crate::error::StoreError;
 
 /// The most of a lock file that is read. Its own lines are far shorter; a
 /// larger file isn't KassenSturz's.
+#[cfg(not(windows))]
 const MAX_LOCK_FILE_SIZE: u64 = 4096;
 
 /// The most characters of the computer's name that go into the lock file, so
@@ -290,7 +291,8 @@ pub(crate) fn read(path: &Path) -> Result<Option<Lock>, StoreError> {
     let mut bytes = Vec::new();
     #[cfg(windows)]
     {
-        // An unbuffered read needs a buffer aligned to the disk's sectors.
+        // An unbuffered read needs a buffer aligned to the disk's sectors;
+        // 4096 bytes is the most of a lock file that is read, as above.
         #[repr(align(4096))]
         struct Aligned([u8; 4096]);
         let mut buffer = Aligned([0; 4096]);

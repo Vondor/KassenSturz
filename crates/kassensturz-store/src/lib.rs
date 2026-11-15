@@ -227,11 +227,13 @@ impl Book {
         let path = std::path::absolute(path)?;
         let metadata = std::fs::metadata(&path).map_err(|error| match error.kind() {
             ErrorKind::NotFound => StoreError::NotFound,
-            kind => StoreError::Io(kind),
+            kind => lock::locked_instead(&path, StoreError::Io(kind)),
         })?;
         // Before SQLite opens the file, so another program's SQLite file is
         // never changed, not even its journal mode.
-        if !metadata.is_file() || !is_book_file(&path)? {
+        if !metadata.is_file()
+            || !is_book_file(&path).map_err(|error| lock::locked_instead(&path, error))?
+        {
             return Err(StoreError::NotABook);
         }
         let lock = lock(&path)?;

@@ -218,3 +218,42 @@ fn a_lock_file_that_links_to_another_file_does_not_overwrite_it() {
     let _ = Book::open(&path, &computer(&folder));
     assert_eq!(std::fs::read_to_string(&victim).expect("read"), "keep me");
 }
+
+// B-315: a share that keeps the lock file shut while another computer has it
+// must still show the "in use elsewhere" page, not "could not be read".
+#[test]
+fn a_lock_file_that_cant_be_read_is_still_a_lock() {
+    let folder = TempFolder::new();
+    let path = made(&folder);
+    // A folder in the lock file's place: it exists, and reading it fails.
+    std::fs::create_dir(crate::lock::lock_path(&path)).expect("stand-in made");
+    let result = Book::open(&path, &computer(&folder));
+    match result {
+        Err(StoreError::Locked(lock)) => assert_eq!(lock.computer, None),
+        _ => panic!("expected the book to be reported as in use"),
+    }
+}
+
+#[test]
+fn an_io_error_before_the_lock_shows_the_lock_page_if_there_is_a_lock() {
+    let folder = TempFolder::new();
+    let path = made(&folder);
+    let lock = crate::lock::lock_path(&path);
+    std::fs::write(&lock, "computer=Desktop\ntoken=abc\n").expect("lock written");
+    let error =
+        crate::lock::locked_instead(&path, StoreError::Io(std::io::ErrorKind::PermissionDenied));
+    match error {
+        StoreError::Locked(lock) => assert_eq!(lock.computer.as_deref(), Some("Desktop")),
+        _ => panic!("expected the lock page"),
+    }
+    // Without a lock file, or for any other error, nothing changes.
+    std::fs::remove_file(&lock).expect("lock removed");
+    assert!(matches!(
+        crate::lock::locked_instead(&path, StoreError::Io(std::io::ErrorKind::PermissionDenied)),
+        StoreError::Io(std::io::ErrorKind::PermissionDenied)
+    ));
+    assert!(matches!(
+        crate::lock::locked_instead(&path, StoreError::NotFound),
+        StoreError::NotFound
+    ));
+}

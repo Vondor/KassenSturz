@@ -311,3 +311,47 @@ fn sides_a_rule_sorted_into_categories_become_a_move_and_leave_the_categories() 
         &[("Current account", current), ("Household", household)],
     );
 }
+
+#[test]
+fn a_band_says_how_much_of_it_went_both_ways_and_one_way_bands_say_nothing() {
+    // 70,000 to savings and 30,000 back: one band of 40,000 that says 30,000
+    // also went the other way. A move to a third account that nothing
+    // comes back from says nothing.
+    let mut book = Book::create_in_memory().expect("book");
+    book.use_currency(EUR).expect("currency");
+    let a = account(&mut book, "Current account", AccountKind::Asset, EUR, None);
+    let b = account(&mut book, "Savings", AccountKind::Asset, EUR, None);
+    let c = account(&mut book, "Household", AccountKind::Asset, EUR, None);
+    let salary = account(&mut book, "Salary", AccountKind::Income, EUR, None);
+    let bookings = vec![
+        parts(&[(a, 200_000), (salary, -200_000)], 1),
+        open_side(a, -70_000, 2),
+        open_side(b, 70_000, 2),
+        open_side(b, -30_000, 9),
+        open_side(a, 30_000, 9),
+        open_side(a, -10_000, 12),
+        open_side(c, 10_000, 12),
+    ];
+    for transaction in &bookings {
+        book.add_transaction(transaction).expect("added");
+    }
+    let whole = period(date(2026, 10, 1), date(2026, 10, 31));
+    let source = Source::read_with_moves(&book, whole).expect("read");
+    let flows = money_flow(&source, whole, &Filter::default(), FLOW).expect("flow");
+    let flow = &flows[0];
+    assert_eq!(
+        band(flow, "Current account", "Savings"),
+        Some((40_000, 40_000))
+    );
+    assert_eq!(returned(flow, "Current account", "Savings"), Some(30_000));
+    assert_eq!(returned(flow, "Current account", "Household"), Some(0));
+    // The chart's net change still equals the register's: 200,000 in, nothing
+    // spent, so all of it is left over.
+    let left_over: i64 = flow
+        .nodes
+        .iter()
+        .filter(|n| n.kind == FlowNodeKind::LeftOver)
+        .map(|n| n.amount.minor_units())
+        .sum();
+    assert_eq!(left_over, 200_000);
+}

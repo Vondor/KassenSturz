@@ -547,6 +547,20 @@ mod engine {
             ),
             ("consent", text(consent)),
             ("consentDay", text(&day)),
+            // A consent that counts only until KassenSturz closes, and the
+            // day of one in the file that can't be confirmed (B-324).
+            (
+                "consentUntilClose",
+                QVariant::from(&form.consent_until_close),
+            ),
+            (
+                "consentUnconfirmedDay",
+                text(
+                    &form
+                        .consent_unconfirmed
+                        .map_or_else(String::new, |day| app_locale().short_date(day)),
+                ),
+            ),
             // What the last test found for this address and model, empty
             // when there is none (D-294).
             (
@@ -1745,6 +1759,8 @@ mod tests {
                 "capability",
                 "consent",
                 "consentDay",
+                "consentUnconfirmedDay",
+                "consentUntilClose",
                 "keyUse",
                 "model",
                 "network",
@@ -1779,6 +1795,9 @@ mod tests {
         assert!(store.give_consent(TODAY));
         let form = load_in(&store, false);
         assert_eq!(text_of(&form, "consent"), "given");
+        // The test's keychain saved the seal: it counts after a restart.
+        assert!(!flag_of(&form, "consentUntilClose"));
+        assert_eq!(text_of(&form, "consentUnconfirmedDay"), "");
         assert!(
             text_of(&form, "consentDay").contains("25"),
             "the day, as the locale writes it"

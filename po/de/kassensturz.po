@@ -25538,3 +25538,15 @@ msgstr "Ein anderer Computer hat dieses Haushaltsbuch trotzdem geöffnet, deshal
 msgctxt "@action:button hides a note for this book"
 msgid "Don't show again for this book"
 msgstr "Für dieses Haushaltsbuch nicht mehr anzeigen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:1
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "You agreed on %1, but KassenSturz can't confirm that agreement any more: it was kept only until KassenSturz closed, or it wasn't given in KassenSturz. Nothing is sent to this provider until you read what is sent and agree again."
+msgstr "Sie haben am %1 zugestimmt, aber KassenSturz kann diese Zustimmung nicht mehr bestätigen: Sie galt nur, bis KassenSturz geschlossen wurde, oder sie wurde nicht in KassenSturz gegeben. Diesem Anbieter wird nichts gesendet, bis Sie lesen, was gesendet wird, und erneut zustimmen."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "This agreement holds only until KassenSturz closes: it couldn't be kept where KassenSturz saves PINs and keys. To keep it, choose a place under Settings → Advanced → Password storage, check that it is unlocked, and agree again."
+msgstr "Diese Zustimmung gilt nur, bis KassenSturz geschlossen wird: Sie konnte nicht dort aufbewahrt werden, wo KassenSturz PINs und Schlüssel speichert. Damit sie bleibt, wählen Sie unter Einstellungen → Erweitert → Passwortspeicher einen Ort, prüfen Sie, dass er entsperrt ist, und stimmen Sie erneut zu."

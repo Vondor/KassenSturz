@@ -67,6 +67,17 @@ struct Holder {
 }
 
 impl Lock {
+    /// The lock of a lock file that is there but can't be read: all that is
+    /// known is that the book is in use (B-315).
+    fn unreadable() -> Self {
+        Self {
+            computer: None,
+            since: None,
+            token: None,
+            holder: Box::default(),
+        }
+    }
+
     /// Whether opening the book at `book` anyway is refused on the computer
     /// called `computer`, because the program that holds this lock may still
     /// run there and either side has no file locks, so SQLite couldn't keep
@@ -106,12 +117,30 @@ impl HeldLock {
             match create(&path, computer) {
                 Ok(lock) => return Ok(lock),
                 Err(error) if error.kind() == ErrorKind::AlreadyExists => {
-                    if let Some(lock) = read(&path)? {
-                        if !left_behind_here(&lock, computer) {
-                            return Err(StoreError::Locked(lock));
+                    match read(&path) {
+                        Ok(Some(lock)) => {
+                            if !left_behind_here(&lock, computer) {
+                                return Err(StoreError::Locked(lock));
+                            }
+                            clear_if_unchanged(&path, &lock)?;
                         }
-                        clear_if_unchanged(&path, &lock)?;
+                        Ok(None) => {}
+                        // Something is there that can't be read, e.g. a share
+                        // that keeps the file shut while the other computer
+                        // has it: still a lock, so the book isn't opened and
+                        // the user is told it is in use (B-315).
+                        Err(StoreError::Io(_)) => {
+                            return Err(StoreError::Locked(Lock::unreadable()));
+                        }
+                        Err(other) => return Err(other),
                     }
+                }
+                // Windows reports a file the other side holds, or is deleting,
+                // as "access denied" instead of "exists" (B-315).
+                Err(error) if error.kind() == ErrorKind::PermissionDenied && path.exists() => {
+                    return Err(StoreError::Locked(
+                        read(&path).ok().flatten().unwrap_or_else(Lock::unreadable),
+                    ));
                 }
                 Err(error) => return Err(error.into()),
             }
@@ -244,16 +273,69 @@ pub(crate) fn held_here(lock: &Lock) -> bool {
         .is_some_and(|token| held().contains(token))
 }
 
+/// Turns an I/O error met before the book's lock is taken into the lock
+/// page if the book has a lock file: a share can refuse to read the book
+/// while another computer has it open, and "in use there" is the useful
+/// answer, not "could not be read" (B-315). Any other error stays as it is.
+pub(crate) fn locked_instead(book: &Path, error: StoreError) -> StoreError {
+    if !matches!(error, StoreError::Io(_)) {
+        return error;
+    }
+    let path = lock_path(book);
+    match read(&path) {
+        Ok(Some(lock)) if !held_here(&lock) => StoreError::Locked(lock),
+        Err(StoreError::Io(_)) if path.exists() => StoreError::Locked(Lock::unreadable()),
+        _ => error,
+    }
+}
+
 /// The lock file at `path`, or `None` if there is none.
 pub(crate) fn read(path: &Path) -> Result<Option<Lock>, StoreError> {
-    let file = match fs::File::open(path) {
+    let mut file = match open_fresh(path) {
         Ok(file) => file,
         Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(error.into()),
     };
     let mut bytes = Vec::new();
-    file.take(MAX_LOCK_FILE_SIZE).read_to_end(&mut bytes)?;
+    #[cfg(windows)]
+    {
+        // An unbuffered read needs a buffer aligned to the disk's sectors.
+        #[repr(align(4096))]
+        struct Aligned([u8; 4096]);
+        let mut buffer = Aligned([0; 4096]);
+        let got = file.read(&mut buffer.0)?;
+        bytes.extend_from_slice(&buffer.0[..got]);
+    }
+    #[cfg(not(windows))]
+    {
+        Read::by_ref(&mut file)
+            .take(MAX_LOCK_FILE_SIZE)
+            .read_to_end(&mut bytes)?;
+    }
     Ok(Some(parse(&String::from_utf8_lossy(&bytes))))
+}
+
+/// Opens the lock file for reading so that what is read is what the other
+/// computer wrote. Windows' network client keeps what it read of a file and
+/// may hand it back although another computer replaced the file (B-306):
+/// an unbuffered open goes to the server each time. If the folder doesn't
+/// allow that, the ordinary open is used.
+fn open_fresh(path: &Path) -> std::io::Result<fs::File> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_FLAG_NO_BUFFERING: u32 = 0x2000_0000;
+        match OpenOptions::new()
+            .read(true)
+            .custom_flags(FILE_FLAG_NO_BUFFERING)
+            .open(path)
+        {
+            Err(error) if error.kind() == ErrorKind::NotFound => return Err(error),
+            Ok(file) => return Ok(file),
+            Err(_) => {}
+        }
+    }
+    fs::File::open(path)
 }
 
 /// Reads the `key=value` lines of a lock file. Anything it doesn't

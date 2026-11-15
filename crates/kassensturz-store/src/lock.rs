@@ -110,6 +110,17 @@ impl HeldLock {
     /// Locks the book at `book` for this computer, called `computer`. Fails
     /// with [`StoreError::Locked`] if it's locked already.
     pub(crate) fn acquire(book: &Path, computer: &str) -> Result<Self, StoreError> {
+        Self::acquire_with(book, computer, create, read)
+    }
+
+    /// [`HeldLock::acquire`] with the two file steps given, so a test can
+    /// make them disagree the way a stale share view does.
+    fn acquire_with(
+        book: &Path,
+        computer: &str,
+        create: impl Fn(&Path, &str) -> std::io::Result<Self>,
+        read: impl Fn(&Path) -> Result<Option<Lock>, StoreError>,
+    ) -> Result<Self, StoreError> {
         let path = lock_path(book);
         // A lock that disappears between the two steps was just released,
         // and one this computer certainly left behind is cleared (D-781), so
@@ -146,7 +157,10 @@ impl HeldLock {
                 Err(error) => return Err(error.into()),
             }
         }
-        Err(StoreError::Io(ErrorKind::AlreadyExists))
+        // The server says the lock file exists, but the folder view this
+        // computer keeps never shows it (a share's cached listing, B-315):
+        // still a lock that is somewhere else, so say it is in use.
+        Err(StoreError::Locked(Lock::unreadable()))
     }
 
     /// Takes over the lock of the book at `book`, after the user was warned

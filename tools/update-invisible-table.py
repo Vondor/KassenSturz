@@ -11,8 +11,10 @@ and Cn (unassigned, so a character added later is hidden too until a person
 has looked at it), the variation selectors and the Other_Default_Ignorable
 code points that are letters or marks (the Hangul and Khmer fillers, the
 combining grapheme joiner). Run it again when a new Unicode version comes
-out; `--check` compares the file with what this Python would write and stays
-silent when the Python's Unicode version is not the file's.
+out. `--check` (run by CI) compares the file with what this Python would write
+when both come from the same Unicode version; with another version it checks
+that every format, private-use and default-ignorable code point this Python
+knows is in the file, and never passes silently.
 
     tools/update-invisible-table.py          write the file
     tools/update-invisible-table.py --check  compare it
@@ -72,20 +74,53 @@ def text():
     return "\n".join(lines) + "\n"
 
 
-def main():
-    new = text()
-    if "--check" in sys.argv:
-        old = TARGET.read_text()
-        version = f"source data: {unicodedata.unidata_version}"
-        if version not in old:
-            print(f"skipped: this Python knows Unicode {unicodedata.unidata_version}, the file another version")
-            return 0
-        if old != new:
+def table_ranges(old_text):
+    """The ranges the file holds, read back from its text."""
+    import re
+
+    return [
+        (int(first, 16), int(last, 16))
+        for first, last in re.findall(r"\(0x([0-9A-F]+), 0x([0-9A-F]+)\)", old_text)
+    ]
+
+
+def check():
+    old = TARGET.read_text()
+    version = f"source data: {unicodedata.unidata_version}"
+    if version in old:
+        if old != text():
             print("invisible_table.rs is out of date: run tools/update-invisible-table.py")
             return 1
-        print("invisible_table.rs is current")
+        print(f"invisible_table.rs is current (Unicode {unicodedata.unidata_version})")
         return 0
-    TARGET.write_text(new)
+    # Another Unicode version than the file's: a code point that is a format
+    # or private-use character, a variation selector or a default-ignorable
+    # letter here must still be in the file (those are never taken away),
+    # whichever version is newer. Unassigned ones differ between versions.
+    held = table_ranges(old)
+    missing = []
+    for code in range(0x110000):
+        if 0xD800 <= code < 0xE000:
+            continue
+        hidden = unicodedata.category(chr(code)) in ("Cf", "Co") or any(
+            first <= code <= last for first, last in VARIATION_SELECTORS + OTHER_IGNORABLE
+        )
+        if hidden and not any(first <= code <= last for first, last in held):
+            missing.append(code)
+    if missing:
+        print("invisible_table.rs lacks U+" + ", U+".join(f"{c:04X}" for c in missing[:20]))
+        return 1
+    print(
+        f"invisible_table.rs holds every format, private-use and ignorable code point "
+        f"Python's Unicode {unicodedata.unidata_version} knows (the file was made from another version)"
+    )
+    return 0
+
+
+def main():
+    if "--check" in sys.argv:
+        return check()
+    TARGET.write_text(text())
     print(f"wrote {TARGET} (Unicode {unicodedata.unidata_version})")
     return 0
 

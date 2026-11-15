@@ -1291,11 +1291,6 @@ pub(crate) fn search_transactions(
     Ok(result)
 }
 
-/// `text` with every run of whitespace as one space, trimmed.
-fn squeeze(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
 /// One entry of a search: the day, the account, the amount as seen from it
 /// (money in is positive), who and what it was, and where the money came
 /// from or went.
@@ -1336,20 +1331,14 @@ fn search_row(
     }
     let memo = part.note.as_deref().or(transaction.note());
     let bank_text = imported.and_then(|imported| imported.remittance_information.as_deref());
-    // Each text once (#593, D-670): a memo the bank text holds is left out,
-    // and so is a bank text the memo holds, whitespace aside. The bank text
-    // is what Rules test, so it stays when the two are the same.
+    // Each text once, only when it is the very same text (D-670, narrowed
+    // by D-799, B-310): a note that is exactly the bank text (whitespace at
+    // the ends aside) is left out, because the bank text is what Rules test.
+    // A note that only contains the bank text, or the other way round, is a
+    // different text: both are sent, so a note the user typed never hides
+    // what the bank delivered.
     let (memo, bank_text) = match (memo, bank_text) {
-        (Some(memo), Some(bank)) => {
-            let (memo_words, bank_words) = (squeeze(memo), squeeze(bank));
-            if bank_words.contains(&memo_words) {
-                (None, Some(bank))
-            } else if memo_words.contains(&bank_words) {
-                (Some(memo), None)
-            } else {
-                (Some(memo), Some(bank))
-            }
-        }
+        (Some(memo), Some(bank)) if memo.trim() == bank.trim() => (None, Some(bank)),
         other => other,
     };
     if let Some(memo) = memo {

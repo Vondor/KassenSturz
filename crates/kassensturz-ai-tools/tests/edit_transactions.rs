@@ -221,3 +221,43 @@ fn an_edit_is_out_of_date_when_the_entry_changed_in_between() {
         .expect_err("out of date");
     assert_eq!(error.report().code, "ai-changes.out-of-date");
 }
+
+// B-310, D-799: a note the AI writes (or the user writes in the form) next
+// to what the bank delivered never replaces the bank text: it is in the
+// search result after the edit, after Undo and after Redo.
+#[test]
+fn a_note_edit_keeps_the_bank_text_in_the_result_through_undo_and_redo() {
+    let mut book = space_colony();
+    let rows = run(&book, "search_transactions", json!({"limit": 50}));
+    let row = rows["rows"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .find(|row| row.get("bank_text").is_some())
+        .expect("a row with a bank text")
+        .clone();
+    let bank_text = row["bank_text"].clone();
+    let id = row["transaction_id"].clone();
+
+    let note = format!("{} and my own words", bank_text.as_str().unwrap());
+    let proposal = propose_with(
+        &book,
+        &json!({"edit_transactions": [{"transaction_id": id, "note": note}]}),
+        open(),
+    )
+    .expect("prepared");
+    proposal
+        .changes
+        .apply(&mut book, Confirmed::by_the_user())
+        .expect("applied");
+    let now = find(&book, &id);
+    assert_eq!(now["note"], json!(note));
+    assert_eq!(now["bank_text"], bank_text, "the bank text is still sent");
+
+    book.undo().expect("undone").expect("a change");
+    assert_eq!(find(&book, &id), row);
+    book.redo().expect("made again");
+    let again = find(&book, &id);
+    assert_eq!(again["bank_text"], bank_text);
+    assert_eq!(again["note"], json!(note));
+}

@@ -1594,3 +1594,71 @@ fn an_action_costs_the_same_however_long_the_history_is() {
         "40 actions took {short} steps with a short history and {long} with a long one"
     );
 }
+
+/// What the bank delivered for `id`, as the book holds it.
+fn bank_text_of(book: &Book, id: TransactionId) -> Option<String> {
+    book.transaction(id)
+        .expect("transaction")
+        .splits()
+        .iter()
+        .find_map(|split| split.imported.as_ref())
+        .and_then(|imported| imported.remittance_information.clone())
+}
+
+// B-310: a note typed over, or added to, what the bank delivered never
+// replaces it: the bank text stays in the book through the edit, Undo and
+// Redo, and the delivered details as a whole are unchanged.
+#[test]
+fn what_the_bank_delivered_survives_a_note_edit_undo_and_redo() {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
+    let purchase = imported_purchase(checking);
+    book.add_transaction(&purchase).expect("added");
+    let id = purchase.id();
+    let delivered_text = Some("Card payment 2026-10-04".to_owned());
+    assert_eq!(bank_text_of(&book, id), delivered_text);
+
+    // The form saves the note the user typed, appended to a note that was
+    // there already (as in the VM round).
+    let first = purchase.clone().with_note(Some("Fuel".into()));
+    book.update_transaction(&first).expect("changed");
+    let second = first.clone().with_note(Some("FuelNotiz R3".into()));
+    book.update_transaction(&second).expect("changed");
+    assert_eq!(bank_text_of(&book, id), delivered_text);
+    assert_eq!(
+        book.transaction(id).expect("transaction").note(),
+        Some("FuelNotiz R3")
+    );
+    assert_eq!(
+        book.transaction(id).expect("transaction").splits()[0].imported,
+        purchase.splits()[0].imported,
+        "every delivered detail is as delivered"
+    );
+
+    book.undo().expect("undone");
+    assert_eq!(bank_text_of(&book, id), delivered_text);
+    assert_eq!(
+        book.transaction(id).expect("transaction").note(),
+        Some("Fuel")
+    );
+    book.undo().expect("undone");
+    assert_eq!(bank_text_of(&book, id), delivered_text);
+    assert_eq!(book.transaction(id).expect("transaction").note(), None);
+    book.redo().expect("redone");
+    book.redo().expect("redone");
+    assert_eq!(bank_text_of(&book, id), delivered_text);
+    assert_eq!(
+        book.transaction(id).expect("transaction").note(),
+        Some("FuelNotiz R3")
+    );
+
+    // A note written over the bank's words, or emptied, doesn't touch them.
+    let same = second
+        .clone()
+        .with_note(Some("Card payment 2026-10-04".into()));
+    book.update_transaction(&same).expect("changed");
+    book.update_transaction(&same.clone().with_note(None))
+        .expect("changed");
+    assert_eq!(bank_text_of(&book, id), delivered_text);
+}

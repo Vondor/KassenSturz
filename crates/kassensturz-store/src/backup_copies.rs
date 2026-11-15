@@ -183,9 +183,16 @@ impl Book {
     /// folder the user chose, and removes that book's oldest copies there
     /// beyond the last `keep` (#806). If `backups`, the app's own backup
     /// folder, has a backup that `copies` lacks and that is newer than
-    /// every copy there, that backup is copied; else, if no copy there is
-    /// from the last day, a new one of the book as it is now. The folder is
-    /// never made: a missing one is a stick that isn't plugged in.
+    /// every copy there, that backup is copied. Then, if no copy there is
+    /// from the last day, also that one just copied, a new one of the book
+    /// as it is now is made in the same call (D-805), so an old backup never
+    /// stands in for today's state. The folder is never made: a missing one
+    /// is a stick that isn't plugged in.
+    ///
+    /// Returns the copy of the book as it is now when one was made, else
+    /// the copied backup, else the recent copy that was there. If the
+    /// backup was copied but the new copy can't be written, the error is
+    /// returned: the copied backup stays, and *Try again* makes the new one.
     ///
     /// # Errors
     ///
@@ -210,12 +217,15 @@ impl Book {
         }
         let stem = stem_of(book)?;
         let present = backups_of(book, &copies)?;
-        let newest_copy = present.first();
+        let mut newest_copy = present.first().cloned();
         let newest_backup = backups_of(book, backups)
             .ok()
             .and_then(|found| found.into_iter().next());
+        let mut copied = None;
         if let Some(local) = newest_backup
-            && newest_copy.is_none_or(|copy| local.made > copy.made)
+            && newest_copy
+                .as_ref()
+                .is_none_or(|copy| local.made > copy.made)
         {
             let name = local
                 .path
@@ -223,18 +233,26 @@ impl Book {
                 .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
             if !exists(&copies.join(name))? {
                 let path = copy_file(&local.path, &copies, stem, keep)?;
-                return Ok(KeptCopy::Made(BackupFile {
+                let file = BackupFile {
                     path,
                     made: local.made,
-                }));
+                };
+                newest_copy = Some(file.clone());
+                copied = Some(file);
             }
         }
+        // Copying an older backup keeps that state, but doesn't stand in
+        // for the book as it is now (D-805): without a copy from the last
+        // day, one is made in the same call.
         let now = Timestamp::now();
         if let Some(copy) = newest_copy
             && copy.made <= now
             && now.as_second() - copy.made.as_second() < RECENT_SECONDS
         {
-            return Ok(KeptCopy::Recent(copy.clone()));
+            return Ok(match copied {
+                Some(file) => KeptCopy::Made(file),
+                None => KeptCopy::Recent(copy),
+            });
         }
         let path = backup::write_backup(&self.conn, book, &copies, keep)?;
         Ok(KeptCopy::Made(BackupFile { path, made: now }))
@@ -633,6 +651,81 @@ mod tests {
             .expect("copy kept");
         assert!(matches!(again, KeptCopy::Recent(_)));
         assert_eq!(names_in(&stick).len(), 1);
+    }
+
+    /// A file name for a backup of `Household.ksz` made `days` ago.
+    fn backup_name_days_ago(days: i64) -> String {
+        let made =
+            Timestamp::from_second(Timestamp::now().as_second() - days * 86_400).expect("a time");
+        format!("Household {}.ksz", made.strftime("%Y-%m-%d %H-%M-%S UTC"))
+    }
+
+    /// A real backup of the book, renamed as if made `days` ago.
+    fn old_backup(book: &Book, path: &Path, backups: &Path, days: i64) -> String {
+        let made = book.back_up_now(path, backups).expect("backed up");
+        let name = backup_name_days_ago(days);
+        fs::rename(&made, backups.join(&name)).expect("renamed");
+        name
+    }
+
+    /// The copy in `made` holds the book as it is now.
+    fn holds_now(made: &BackupFile) {
+        let copy = Book::open(&made.path, &computer(&TempFolder::new())).expect("the copy opens");
+        assert_eq!(account_names(&copy), ["Giro", "Savings"]);
+    }
+
+    #[test]
+    fn an_old_backup_copied_to_an_empty_folder_is_joined_by_a_copy_of_today() {
+        // #1081, D-805: a backup from 20 days ago lacks what was added
+        // since, so copying it alone would leave only the old state there.
+        let folder = TempFolder::new();
+        let (mut book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        let old = old_backup(&book, &path, &backups, 20);
+        add_account(&mut book, "Savings");
+        let stick = folder.join("Stick");
+        fs::create_dir(&stick).expect("folder made");
+
+        let kept = book
+            .keep_copy(&path, &backups, &stick, 5)
+            .expect("copy kept");
+        let KeptCopy::Made(made) = kept else {
+            panic!("no copy made: {kept:?}");
+        };
+        holds_now(&made);
+        let names = names_in(&stick);
+        assert_eq!(names.len(), 2, "{names:?}");
+        assert!(names.contains(&old), "the old backup is kept there too");
+        // Both are there now: nothing more until the next day.
+        let again = book
+            .keep_copy(&path, &backups, &stick, 5)
+            .expect("copy kept");
+        assert!(matches!(&again, KeptCopy::Recent(file) if file.path == made.path));
+        assert_eq!(names_in(&stick).len(), 2);
+    }
+
+    #[test]
+    fn a_copy_older_than_the_backup_both_over_a_day_old_gets_the_backup_and_today() {
+        let folder = TempFolder::new();
+        let (mut book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        let old = old_backup(&book, &path, &backups, 20);
+        add_account(&mut book, "Savings");
+        let stick = folder.join("Stick");
+        fs::create_dir(&stick).expect("folder made");
+        let older = backup_name_days_ago(30);
+        fs::write(stick.join(&older), "made up").expect("written");
+
+        let kept = book
+            .keep_copy(&path, &backups, &stick, 5)
+            .expect("copy kept");
+        let KeptCopy::Made(made) = kept else {
+            panic!("no copy made: {kept:?}");
+        };
+        holds_now(&made);
+        let names = names_in(&stick);
+        assert_eq!(names.len(), 3, "{names:?}");
+        assert!(names.contains(&old) && names.contains(&older));
     }
 
     #[test]

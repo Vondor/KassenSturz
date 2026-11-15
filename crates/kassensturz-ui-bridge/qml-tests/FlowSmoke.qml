@@ -59,17 +59,20 @@ Window {
     // it and apart in each column, and no column shows more than fit.
     function labelsApart(chart, places, plotHeight, labelHeight) {
         const byColumn = {};
+        // A column in `oneLine` has labels of one line, half as high.
+        const heightOf = column => (places.oneLine ?? {})[column] === true ? labelHeight / 2 : labelHeight;
         for (let i = 0; i < places.length; i++) {
             if (places[i] === null) {
                 continue;
             }
-            if (places[i] < -0.01 || places[i] + labelHeight > plotHeight + 0.01) {
+            if (places[i] < -0.01 || places[i] + heightOf(chart.nodes[i].column) > plotHeight + 0.01) {
                 return false;
             }
             (byColumn[chart.nodes[i].column] = byColumn[chart.nodes[i].column] ?? []).push(places[i]);
         }
         for (const key in byColumn) {
             const tops = byColumn[key].sort((a, b) => a - b);
+            const labelHeight = heightOf(Number(key));
             if (tops.length > Math.max(1, Math.floor(plotHeight / labelHeight))) {
                 return false;
             }
@@ -153,6 +156,13 @@ Window {
                 && window.labelsApart(window.crowded, short, crowdedFlow.labelHeight * 3.5, crowdedFlow.labelHeight)));
             console.log("flow-labels-all " + roomy.every(top => top !== null));
             console.log("flow-labels-short " + short.filter(top => top !== null).length);
+            // A crowded column of the short chart shows names only, one line
+            // each, so twice as many fit; the roomy one keeps two lines
+            // (B-309, round 4).
+            console.log("flow-labels-one-line " + JSON.stringify(Object.keys(short.oneLine)) + " " + JSON.stringify(Object.keys(roomy.oneLine)));
+            // A label in an inner column ends before the next column's nodes,
+            // so it covers neither them nor their labels (B-309, round 4).
+            console.log("flow-labels-inner-fit " + (crowdedFlow.xOf(1, 360) + crowdedFlow.nodeWidth + crowdedFlow.innerLabelWidth(1, 360) <= crowdedFlow.xOf(2, 360)));
             window.save(window.contentItem, "flow-chart", function () {
                 flow.showTable = true;
                 tableTimer.start();

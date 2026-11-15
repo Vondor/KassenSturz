@@ -224,21 +224,29 @@ ColumnLayout {
     // theirs first; they are still in the table, in the text under the
     // chart when in focus, and in the "Other" line. The outermost columns
     // always try to label every node; the others only nodes tall enough.
+    // A column whose two-line labels don't all fit shows only the names, one
+    // line each, so twice as many fit (B-309, round 4); those columns are in
+    // `oneLine` of the result.
     function labelPlaces(plotHeight: real): var {
         const places = new Array(nodes.length).fill(null);
-        const height = labelHeight;
-        if (plotHeight <= 0 || height <= 0) {
+        places.oneLine = {};
+        if (plotHeight <= 0 || labelHeight <= 0) {
             return places;
         }
         const byColumn = {};
         for (let i = 0; i < nodes.length; i++) {
             (byColumn[nodes[i].column] = byColumn[nodes[i].column] ?? []).push(i);
         }
-        const fits = Math.max(1, Math.floor(plotHeight / height));
         for (const key in byColumn) {
             const column = Number(key);
             const outer = column === 0 || column === columns - 1;
             let shown = byColumn[key].filter(i => outer || nodes[i].height * plotHeight / whole >= Kirigami.Units.gridUnit * 0.9);
+            const oneLine = shown.length > Math.floor(plotHeight / labelHeight);
+            const height = oneLine ? labelHeight / 2 : labelHeight;
+            const fits = Math.max(1, Math.floor(plotHeight / height));
+            if (oneLine) {
+                places.oneLine[column] = true;
+            }
             if (shown.length > fits) {
                 shown = shown.sort((a, b) => nodes[b].height - nodes[a].height).slice(0, fits);
             }
@@ -265,6 +273,14 @@ ColumnLayout {
     function xOf(column: int, plotWidth: real): real {
         const index = columnIndex(column);
         return columns > 1 ? index * (plotWidth - nodeWidth) / (columns - 1) : 0;
+    }
+
+    // How wide the label of a node in an inner column may be: up to the
+    // nodes of the next column, so it never covers them or their labels
+    // (B-309, round 4).
+    function innerLabelWidth(column: int, plotWidth: real): real {
+        const gap = xOf(column + 1, plotWidth) - xOf(column, plotWidth) - nodeWidth - 2 * Kirigami.Units.smallSpacing;
+        return Math.max(0, gap);
     }
 
     // `column` of a node is already the place from the left, 0 up.
@@ -419,13 +435,17 @@ ColumnLayout {
                     readonly property bool first: modelData.column === 0
                     readonly property bool last: modelData.column === view.columns - 1
                     readonly property var labelTop: plot.labelTops[index] ?? null
+                    // Only the name when its column is too crowded for two
+                    // lines.
+                    readonly property bool oneLine: (plot.labelTops.oneLine ?? {})[modelData.column] === true
                     readonly property int alignment: first ? Text.AlignRight : Text.AlignLeft
 
                     visible: labelTop !== null
                     x: first ? -view.labelWidth : view.xOf(modelData.column, plot.width) + view.nodeWidth + Kirigami.Units.smallSpacing
                     y: labelTop ?? 0
-                    width: first || last ? view.labelWidth - Kirigami.Units.smallSpacing : Math.max(nameLabel.implicitWidth, amountLabel.implicitWidth)
-                    height: view.labelHeight
+                    width: first || last ? view.labelWidth - Kirigami.Units.smallSpacing : Math.min(Math.max(nameLabel.implicitWidth, amountLabel.implicitWidth), view.innerLabelWidth(modelData.column, plot.width))
+                    height: oneLine ? view.labelHeight / 2 : view.labelHeight
+                    clip: true
                     Accessible.ignored: true
 
                     Rectangle {
@@ -450,6 +470,7 @@ ColumnLayout {
                     Controls.Label {
                         id: amountLabel
 
+                        visible: !label.oneLine
                         y: Math.ceil(labelMetrics.height)
                         width: parent.width
                         text: label.modelData.label

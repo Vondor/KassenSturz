@@ -338,6 +338,10 @@ mod tests {
         let year = period(day(2026, 1, 1), day(2026, 12, 31));
         assert_eq!(Per::Month.count(year, day(2026, 11, 7)).unwrap(), 10);
         assert_eq!(Per::Month.count(year, day(2026, 1, 2)).unwrap(), 1);
+        // As the chart test of B-313 round 4 counts on 19 October.
+        assert_eq!(Per::Month.count(year, day(2026, 10, 19)).unwrap(), 10);
+        let from_august = period(day(2026, 8, 3), day(2026, 10, 19));
+        assert_eq!(Per::Month.count(from_august, day(2026, 10, 19)).unwrap(), 3);
         // A period that has not begun counts all its days.
         assert_eq!(Per::Month.count(year, day(2025, 6, 1)).unwrap(), 12);
     }

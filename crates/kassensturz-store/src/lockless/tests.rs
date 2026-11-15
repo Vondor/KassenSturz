@@ -571,9 +571,13 @@ fn a_lock_file_gone_with_the_book_is_not_a_take_over() {
     // The lock file alone is gone while the book stays: someone removed it.
     std::fs::remove_file(&lock).expect("lock removed");
     assert!(book.lock_taken_over());
-    // The book goes too, the folder stays: the drive is gone.
-    let moved = folder.join("Household.moved");
-    std::fs::rename(&path, &moved).expect("book moved away");
-    assert!(!book.lock_taken_over());
-    std::fs::rename(&moved, &path).expect("book moved back");
+    // The book goes too, the folder stays: the drive is gone. (A book that
+    // is open can't be moved on Windows, so a lock of a book that was never
+    // made stands in for it.)
+    let gone = folder.join("Gone.ksz");
+    let held = crate::lock::HeldLock::acquire(&gone, "Laptop").expect("lock taken");
+    std::fs::remove_file(crate::lock::lock_path(&gone)).expect("lock removed");
+    assert!(!held.is_taken_over());
+    std::fs::write(&gone, b"x").expect("book made");
+    assert!(held.is_taken_over());
 }

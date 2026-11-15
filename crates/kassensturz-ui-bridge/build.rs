@@ -55,6 +55,7 @@ fn main() {
                 "qml/AiChatLogLine.qml",
                 "qml/AiChatMessage.qml",
                 "qml/AiChatPanel.qml",
+                "qml/AiConsentStatement.qml",
                 "qml/AiErrorMessage.qml",
                 "qml/AiPermissionGrid.qml",
                 "qml/AiRequestReview.qml",

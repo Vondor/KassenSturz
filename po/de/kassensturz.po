@@ -25515,3 +25515,8 @@ msgid "This period is not over yet, so the average is divided by the %1 month up
 msgid_plural "This period is not over yet, so the average is divided by the %1 months up to today, not by all %2."
 msgstr[0] "Dieser Zeitraum ist noch nicht vorbei, daher wird der Durchschnitt durch den %1 Monat bis heute geteilt, nicht durch alle %2."
 msgstr[1] "Dieser Zeitraum ist noch nicht vorbei, daher wird der Durchschnitt durch die %1 Monate bis heute geteilt, nicht durch alle %2."
+
+#, kde-format
+msgctxt "@info in the chat, above the list of what would be sent"
+msgid "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Below is what would be sent; to agree, open the AI settings. Or use a provider on this computer."
+msgstr "Dieser Anbieter liegt auf einem anderen Computer, und Sie haben dem, was KassenSturz ihm sendet, noch nicht zugestimmt. Es wurde nichts gesendet. Unten steht, was gesendet würde; zustimmen können Sie in den KI-Einstellungen. Oder nutzen Sie einen Anbieter auf diesem Computer."

@@ -152,6 +152,7 @@ ColumnLayout {
     AiErrorMessage {
         Layout.fillWidth: true
         ai: item.ai
+        settings: item.settings
         offerSettings: true
         onSettingsClicked: item.settingsClicked()
         visible: item.message.kind === "error"

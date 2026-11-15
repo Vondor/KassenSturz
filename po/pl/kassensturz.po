@@ -23377,3 +23377,8 @@ msgid_plural "This period is not over yet, so the average is divided by the %1 m
 msgstr[0] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 miesiąc do dziś, a nie przez wszystkie %2."
 msgstr[1] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 miesiące do dziś, a nie przez wszystkie %2."
 msgstr[2] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 miesięcy do dziś, a nie przez wszystkie %2."
+
+#, kde-format
+msgctxt "@info in the chat, above the list of what would be sent"
+msgid "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Below is what would be sent; to agree, open the AI settings. Or use a provider on this computer."
+msgstr "Ten dostawca działa na innym komputerze, a Ty nie zgodziłeś się jeszcze na to, co KassenSturz mu wysyła. Nic nie zostało wysłane. Poniżej jest to, co zostałoby wysłane; aby się zgodzić, otwórz ustawienia AI. Albo użyj dostawcy na tym komputerze."

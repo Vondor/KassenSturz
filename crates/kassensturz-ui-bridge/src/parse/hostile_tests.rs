@@ -198,3 +198,53 @@ fn a_pasted_amount_with_other_currency_symbols_is_not_read_as_euro() {
         assert!(de(text).is_err(), "{text:?} was read as {:?}", de(text));
     }
 }
+
+/// What the app writes with each group separator a region is shown with
+/// (the CLDR one, a no-break space, a narrow no-break space, a plain space,
+/// an apostrophe), the reader reads back as the same amount, in the German,
+/// the Swiss and the French way of writing (D-787, challenge from the retro).
+#[test]
+fn what_the_app_writes_with_any_group_separator_reads_back_as_itself() {
+    let swiss = AmountFormat {
+        decimal_point: ".".into(),
+        zero_digit: '0',
+        positive: Affixes::spaced("CHF".into(), String::new()),
+        negative: Affixes::spaced("CHF-".into(), String::new()),
+    };
+    let french = AmountFormat {
+        decimal_point: ",".into(),
+        zero_digit: '0',
+        positive: Affixes::spaced(String::new(), "\u{202f}€".into()),
+        negative: Affixes::spaced("-".into(), "\u{202f}€".into()),
+    };
+    let regions: [(&str, AmountFormat, &[&str]); 3] = [
+        ("de", german(), &[".", "\u{a0}", "\u{202f}", " "]),
+        ("de-CH", swiss, &["\u{2019}", "'", "\u{a0}", "\u{202f}"]),
+        ("fr", french, &["\u{202f}", "\u{a0}", " ", "."]),
+    ];
+    for (name, format, groups) in regions {
+        for group in groups {
+            for minor in [0, 5, -5, 100, 123_456, -123_456_789, 98_765_432_101] {
+                for digits in 0..=4_u8 {
+                    let text =
+                        format.format(Money::from_minor_units(minor, EUR), digits, |whole| {
+                            let digits = whole.to_string();
+                            let mut grouped = String::new();
+                            for (index, digit) in digits.chars().enumerate() {
+                                if index > 0 && (digits.len() - index).is_multiple_of(3) {
+                                    grouped.push_str(group);
+                                }
+                                grouped.push(digit);
+                            }
+                            grouped
+                        });
+                    assert_eq!(
+                        read(&format, group, digits, &text),
+                        Ok(minor),
+                        "{name}, group {group:?}, {digits} digits, written {text:?}"
+                    );
+                }
+            }
+        }
+    }
+}

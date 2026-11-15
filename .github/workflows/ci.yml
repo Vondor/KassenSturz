@@ -180,6 +180,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: python3 tools/check-doc-facts.py
 
+  # The table of invisible code points that the AI tools hide from a model is
+  # generated (tools/update-invisible-table.py, D-787, B-300). This fails when
+  # the file is out of date for the runner's Unicode version, or, for another
+  # version, when the file lacks a format, private-use or default-ignorable
+  # code point that version knows. Seconds, Python only.
+  invisible-table:
+    name: Invisible text table is current
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 tools/update-invisible-table.py --check
+
   # Early warning for the checks that fail most often (CI history of 400 pull
   # request runs, 2026-10-31 to 11-09): the build without AI failed in 14 runs
   # and the KDE job in 10, but both answer only after 8 to 20 minutes, because

@@ -102,6 +102,8 @@ Kirigami.ApplicationWindow {
             const transactions = grid.rows.find(row => row.key === "Transactions");
             window.check(transactions !== undefined, "the grid has its Transactions row");
             window.check(grid.readForced(transactions, 0), "joining keeps the transactions readable");
+            // B-311: a greyed Read says why, on hover and to a screen reader.
+            window.check(grid.readForcedText.length > 0, "a locked Read says why it is locked");
             window.check(grid.historyAtRisk(0), "joining warns about the history");
             settings.allowed = ({});
             window.check(!grid.readForced(transactions, 0), "without it Read is free again");

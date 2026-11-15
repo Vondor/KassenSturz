@@ -23348,3 +23348,32 @@ msgstr "Tylko MACD"
 msgctxt "@info the amount of a flow of the money-flow chart between two of your accounts: %1 the amount with what comes before it, %2 the amount that went both ways"
 msgid "%1; %2 also went the other way and is shown only once"
 msgstr "%1; %2 poszło też w drugą stronę i jest pokazane tylko raz"
+
+#, kde-format
+msgctxt "@info:tooltip why reading can't be switched off in the AI permission grid"
+msgid "Stays on while the AI may change, add or delete here: it has to read what it works on. Switch those off first to switch reading off."
+msgstr "Pozostaje włączone, dopóki AI może tu zmieniać, dodawać lub usuwać: musi czytać to, nad czym pracuje. Najpierw wyłącz te opcje, aby wyłączyć czytanie."
+
+#, kde-format
+msgctxt "@info %1 is how many quarters of a period have passed, %2 how many it has"
+msgid "This period is not over yet, so the average is divided by the %1 quarter up to today, not by all %2."
+msgid_plural "This period is not over yet, so the average is divided by the %1 quarters up to today, not by all %2."
+msgstr[0] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 kwartał do dziś, a nie przez wszystkie %2."
+msgstr[1] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 kwartały do dziś, a nie przez wszystkie %2."
+msgstr[2] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 kwartałów do dziś, a nie przez wszystkie %2."
+
+#, kde-format
+msgctxt "@info %1 is how many years of a period have passed, %2 how many it has"
+msgid "This period is not over yet, so the average is divided by the %1 year up to today, not by all %2."
+msgid_plural "This period is not over yet, so the average is divided by the %1 years up to today, not by all %2."
+msgstr[0] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 rok do dziś, a nie przez wszystkie %2."
+msgstr[1] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 lata do dziś, a nie przez wszystkie %2."
+msgstr[2] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 lat do dziś, a nie przez wszystkie %2."
+
+#, kde-format
+msgctxt "@info %1 is how many months of a period have passed, %2 how many it has"
+msgid "This period is not over yet, so the average is divided by the %1 month up to today, not by all %2."
+msgid_plural "This period is not over yet, so the average is divided by the %1 months up to today, not by all %2."
+msgstr[0] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 miesiąc do dziś, a nie przez wszystkie %2."
+msgstr[1] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 miesiące do dziś, a nie przez wszystkie %2."
+msgstr[2] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona przez %1 miesięcy do dziś, a nie przez wszystkie %2."

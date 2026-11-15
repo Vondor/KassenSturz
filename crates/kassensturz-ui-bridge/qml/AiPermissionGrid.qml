@@ -215,6 +215,9 @@ ColumnLayout {
     // A row may also need the reading of another one (`readRow`). Only a row
     // that names one does: most rows have neither a `key` nor a `readRow`,
     // and two missing names are not a match (US4 P3, R5).
+    // Why a Read stays on and greyed (B-311).
+    readonly property string readForcedText: i18nContext.i18nc("@info:tooltip why reading can't be switched off in the AI permission grid", "Stays on while the AI may change, add or delete here: it has to read what it works on. Switch those off first to switch reading off.")
+
     function readForced(row: var, again: int): bool {
         return rows.some(other => (other === row || (row.key !== undefined && other.readRow === row.key)) && other.cells.some(cell => cell.needsRead && settings.allows(cell.key)));
     }
@@ -330,12 +333,27 @@ ColumnLayout {
                     enabled: !forced
                     checked: forced || grid.isOn(cell.modelData.key ?? "", grid.revision)
                     Accessible.name: cell.isName ? "" : grid.i18nContext.i18nc("@label:switch row and action, e.g. Rules, Delete", "%1: %2", cell.row.name, grid.columns[cell.modelData.column])
+                    // Why a greyed Read can't be switched off, for the screen
+                    // reader too (B-311, US7 P3 table row 23).
+                    Accessible.description: forced ? grid.readForcedText : ""
                     onToggled: {
                         ActionLog.taken("AiPermissionGrid_toggled")
                         grid.choose(cell.modelData.key, checked);
                         checked = Qt.binding(() => forced || grid.isOn(cell.modelData.key ?? "", grid.revision));
                     }
                 }
+
+                // A disabled switch gets no hover, so the cell shows why it
+                // is locked (B-311).
+                HoverHandler {
+                    id: lockedHover
+
+                    enabled: toggle.visible && toggle.forced
+                }
+
+                Controls.ToolTip.visible: lockedHover.hovered
+                Controls.ToolTip.text: grid.readForcedText
+                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
 
                 // Wrapped within its own column, so a longer translation
                 // never runs into the next cell (US4 P3, R8), and only

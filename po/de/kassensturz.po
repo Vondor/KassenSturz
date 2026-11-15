@@ -25489,3 +25489,29 @@ msgstr "Nur MACD"
 msgctxt "@info the amount of a flow of the money-flow chart between two of your accounts: %1 the amount with what comes before it, %2 the amount that went both ways"
 msgid "%1; %2 also went the other way and is shown only once"
 msgstr "%1; %2 gingen auch in die andere Richtung und werden nur einmal gezeigt"
+
+#, kde-format
+msgctxt "@info:tooltip why reading can't be switched off in the AI permission grid"
+msgid "Stays on while the AI may change, add or delete here: it has to read what it works on. Switch those off first to switch reading off."
+msgstr "Bleibt an, solange die KI hier ändern, hinzufügen oder löschen darf: Sie muss lesen, woran sie arbeitet. Schalten Sie das zuerst aus, um das Lesen auszuschalten."
+
+#, kde-format
+msgctxt "@info %1 is how many quarters of a period have passed, %2 how many it has"
+msgid "This period is not over yet, so the average is divided by the %1 quarter up to today, not by all %2."
+msgid_plural "This period is not over yet, so the average is divided by the %1 quarters up to today, not by all %2."
+msgstr[0] "Dieser Zeitraum ist noch nicht vorbei, daher wird der Durchschnitt durch das %1 Quartal bis heute geteilt, nicht durch alle %2."
+msgstr[1] "Dieser Zeitraum ist noch nicht vorbei, daher wird der Durchschnitt durch die %1 Quartale bis heute geteilt, nicht durch alle %2."
+
+#, kde-format
+msgctxt "@info %1 is how many years of a period have passed, %2 how many it has"
+msgid "This period is not over yet, so the average is divided by the %1 year up to today, not by all %2."
+msgid_plural "This period is not over yet, so the average is divided by the %1 years up to today, not by all %2."
+msgstr[0] "Dieser Zeitraum ist noch nicht vorbei, daher wird der Durchschnitt durch das %1 Jahr bis heute geteilt, nicht durch alle %2."
+msgstr[1] "Dieser Zeitraum ist noch nicht vorbei, daher wird der Durchschnitt durch die %1 Jahre bis heute geteilt, nicht durch alle %2."
+
+#, kde-format
+msgctxt "@info %1 is how many months of a period have passed, %2 how many it has"
+msgid "This period is not over yet, so the average is divided by the %1 month up to today, not by all %2."
+msgid_plural "This period is not over yet, so the average is divided by the %1 months up to today, not by all %2."
+msgstr[0] "Dieser Zeitraum ist noch nicht vorbei, daher wird der Durchschnitt durch den %1 Monat bis heute geteilt, nicht durch alle %2."
+msgstr[1] "Dieser Zeitraum ist noch nicht vorbei, daher wird der Durchschnitt durch die %1 Monate bis heute geteilt, nicht durch alle %2."

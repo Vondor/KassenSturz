@@ -257,3 +257,21 @@ fn an_io_error_before_the_lock_shows_the_lock_page_if_there_is_a_lock() {
         StoreError::NotFound
     ));
 }
+
+#[test]
+fn a_lock_the_server_has_but_the_folder_view_never_shows_is_in_use() {
+    // A share's cached listing: creating the lock file says it exists, yet
+    // reading it finds nothing, every time (B-315, stale view).
+    let folder = TempFolder::new();
+    let path = made(&folder);
+    let result = crate::lock::HeldLock::acquire_with(
+        &path,
+        "Desktop",
+        |_, _| Err(std::io::ErrorKind::AlreadyExists.into()),
+        |_| Ok(None),
+    );
+    match result {
+        Err(StoreError::Locked(lock)) => assert_eq!(lock.computer, None),
+        _ => panic!("expected the in-use page"),
+    }
+}

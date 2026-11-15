@@ -89,6 +89,7 @@ mod language_model;
 mod locale;
 mod monthly_moves;
 mod network_guard;
+mod network_notice;
 mod number_format;
 mod number_format_model;
 mod overview;

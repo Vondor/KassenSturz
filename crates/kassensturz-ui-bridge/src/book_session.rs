@@ -51,6 +51,7 @@ pub mod qobject {
         #[qproperty(QString, folder, READ, NOTIFY)]
         #[qproperty(QString, folder_url, cxx_name = "folderUrl", READ, NOTIFY)]
         #[qproperty(bool, network_drive, cxx_name = "networkDrive", READ, NOTIFY)]
+        #[qproperty(bool, network_note_shown, cxx_name = "networkNoteShown", READ, NOTIFY)]
         #[qproperty(bool, without_file_locks, cxx_name = "withoutFileLocks", READ, NOTIFY)]
         #[qproperty(QString, backup_folder, cxx_name = "backupFolder", READ, CONSTANT)]
         #[qproperty(QString, version, READ, CONSTANT)]
@@ -92,6 +93,12 @@ pub mod qobject {
         /// Tries to open the book `problem` is about again.
         #[qinvokable]
         fn retry(self: Pin<&mut BookSession>);
+
+        /// Hides the note that the open book is on a network drive, for this
+        /// book, from now on (B-321, D-802).
+        #[qinvokable]
+        #[cxx_name = "hideNetworkNote"]
+        fn hide_network_note(self: Pin<&mut BookSession>);
 
         /// Forgets `problem`, e.g. when the user goes back to the book that
         /// is open.
@@ -171,6 +178,9 @@ pub struct BookSessionRust {
     folder: QString,
     folder_url: QString,
     network_drive: bool,
+    /// Whether the note about the network drive is shown: the book is on
+    /// one and the user didn't hide the note for it (B-321, D-802).
+    network_note_shown: bool,
     without_file_locks: bool,
     backup_folder: QString,
     version: QString,
@@ -352,6 +362,15 @@ impl qobject::BookSession {
         self.show_open_book();
     }
 
+    fn hide_network_note(mut self: Pin<&mut Self>) {
+        if let Some(path) = session::path() {
+            crate::network_notice::hide_for(&Settings::user(), &path);
+        }
+        // Gone for this run too, even if the settings couldn't be written.
+        self.as_mut().rust_mut().network_note_shown = false;
+        self.as_mut().network_note_shown_changed();
+    }
+
     fn dismiss_problem(mut self: Pin<&mut Self>) {
         self.as_mut().rust_mut().last_attempt = None;
         self.as_mut().set_problem(QVariant::default());
@@ -522,6 +541,8 @@ impl qobject::BookSession {
         let folder_url = folder_url(&opened_at);
         let folder = shown_folder_text(&path, opened_at);
         let network_drive = session::on_network_drive();
+        let network_note_shown =
+            network_drive && crate::network_notice::shown_for(&Settings::user(), &path);
         let without_file_locks = session::without_file_locks();
         let mut state = self.as_mut().rust_mut();
         state.open = true;
@@ -529,12 +550,14 @@ impl qobject::BookSession {
         state.folder = QString::from(folder.as_str());
         state.folder_url = folder_url;
         state.network_drive = network_drive;
+        state.network_note_shown = network_note_shown;
         state.without_file_locks = without_file_locks;
         self.as_mut().open_changed();
         self.as_mut().file_name_changed();
         self.as_mut().folder_changed();
         self.as_mut().folder_url_changed();
         self.as_mut().network_drive_changed();
+        self.as_mut().network_note_shown_changed();
         self.as_mut().without_file_locks_changed();
     }
 

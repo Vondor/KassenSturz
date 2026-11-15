@@ -1466,6 +1466,17 @@ Kirigami.ApplicationWindow {
         onTriggered: bookSession.checkWriteHealth()
     }
 
+    // The book may have been opened "anyway" on another computer while this
+    // window was in the background: ask as soon as it is back (B-306).
+    Connections {
+        target: Qt.application
+        function onStateChanged() {
+            if (Qt.application.state === Qt.ApplicationActive && bookSession.open) {
+                bookSession.checkWriteHealth()
+            }
+        }
+    }
+
     Dialogs.FileDialog {
         id: openDialog
 

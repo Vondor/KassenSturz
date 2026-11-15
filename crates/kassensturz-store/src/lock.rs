@@ -152,6 +152,21 @@ impl HeldLock {
     }
 }
 
+impl HeldLock {
+    /// Whether the lock file is gone or names another token. A lock file
+    /// that can't be read (the drive dropped) is not a take-over: the write
+    /// that follows reports the drive's own error (D-732, B-306).
+    pub(crate) fn is_taken_over(&self) -> bool {
+        match read(&self.path) {
+            Ok(Some(lock)) => lock.token.as_deref() != Some(self.token.as_str()),
+            // A folder that is gone (the drive dropped) is not a take-over
+            // either.
+            Ok(None) => self.path.parent().is_some_and(Path::is_dir),
+            Err(_) => false,
+        }
+    }
+}
+
 impl Drop for HeldLock {
     fn drop(&mut self) {
         held().retain(|token| *token != self.token);

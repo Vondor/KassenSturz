@@ -2053,6 +2053,14 @@ mod tests {
             Some("Groceries")
         );
 
+        // B-307: a second Rule from a transaction, under a name that is
+        // taken, names the Rule that has it, not an id.
+        let mut again = form.clone();
+        again.name = "Market".into();
+        let taken = refused(&mut book, &again);
+        assert_eq!(taken.code, "store.duplicate-rule-name");
+        assert_eq!(taken.params, [("existing", "Market".to_owned())]);
+
         // A transaction typed by hand has a payee and a category.
         let rent = category(&book, "Rent");
         let by_hand = typed(&mut book, &account, "Landlord", "700", &rent, "2026-10-01");

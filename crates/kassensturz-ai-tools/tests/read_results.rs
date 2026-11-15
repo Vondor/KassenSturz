@@ -87,7 +87,7 @@ fn book() -> (Book, Ids) {
         groceries_refund: groceries_refund.id,
     };
     let entries = [
-        // The memo is part of the bank text: sent once, as the bank text.
+        // The memo is only part of the bank text: both are sent (D-799).
         Entry {
             day: 1,
             minor_units: -2_000,
@@ -97,7 +97,7 @@ fn book() -> (Book, Ids) {
             bank_text: Some("CARD PAYMENT  Corner Grocer   North 0815"),
             memo: Some("Corner Grocer North"),
         },
-        // The bank text is part of the memo: sent once, as the memo.
+        // The bank text is only part of the memo: both are sent (D-799).
         Entry {
             day: 2,
             minor_units: -3_000,
@@ -124,8 +124,8 @@ fn book() -> (Book, Ids) {
             category: Some(groceries_refund.id),
             payee: None,
             other_party: Some("Corner Grocer North"),
-            bank_text: None,
-            memo: None,
+            bank_text: Some("REFUND 0817"),
+            memo: Some("  REFUND 0817 "),
         },
         // Entered by hand: no bank details, only the payee.
         Entry {
@@ -306,26 +306,30 @@ fn every_name_in_a_search_row_comes_with_its_id() {
 }
 
 #[test]
-fn a_text_the_other_text_holds_is_sent_once() {
+fn a_text_is_left_out_only_when_it_is_exactly_the_other_one() {
     let (book, _) = book();
     let value = run(&book, "search_transactions", json!({ "limit": 50 }));
-    // The memo is in the bank text (whitespace aside): only the bank text,
-    // which Rules test.
+    // A note that only contains the bank text, or the other way round, is
+    // another text: both are sent, so a note typed over the bank's words
+    // never hides them (D-799, B-310).
     let first = row_of_day(&value, "2026-10-01");
-    assert!(first.get("note").is_none(), "{first}");
+    assert_eq!(first["note"], json!("Corner Grocer North"));
     assert_eq!(
         first["bank_text"],
         json!("CARD PAYMENT  Corner Grocer   North 0815")
     );
-    // The bank text is in the memo: only the memo.
     let second = row_of_day(&value, "2026-10-02");
     assert_eq!(second["note"], json!("Weekly shop at Corner Grocer South"));
-    assert!(second.get("bank_text").is_none(), "{second}");
-    // Different texts: both.
+    assert_eq!(second["bank_text"], json!("Grocer South"));
     let third = row_of_day(&value, "2026-10-03");
     assert_eq!(third["note"], json!("Party snacks"));
     assert_eq!(third["bank_text"], json!("CARD PAYMENT 0816"));
-    // The search still finds a row by the text left out.
+    // The very same text (whitespace at the ends aside): once, as the bank
+    // text, which Rules test.
+    let same = row_of_day(&value, "2026-10-04");
+    assert!(same.get("note").is_none(), "{same}");
+    assert_eq!(same["bank_text"], json!("REFUND 0817"));
+    // The search finds a row by either text.
     let found = run(
         &book,
         "search_transactions",

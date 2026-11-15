@@ -239,7 +239,7 @@ pub fn code_text(report: &ErrorReport) -> ErrorText {
                 let text = match param {
                     ErrorParam::Number(number) => number.to_string(),
                     ErrorParam::Text(text) => text.clone(),
-                    other => format!("{other:?}"),
+                    other => crate::errors::param_without_book(other),
                 };
                 (*name, text)
             })

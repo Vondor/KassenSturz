@@ -516,3 +516,47 @@ fn sides_in_two_currencies_are_never_a_move_and_each_currency_matches_its_regist
         &[("Dollar account", dollar), ("Travel account", dollar_two)],
     );
 }
+
+#[test]
+fn sides_that_cancel_in_not_sorted_yet_draw_no_node_without_the_accounts_layer() {
+    // The same amount out of one account and into another, neither sorted:
+    // without the accounts they net to zero in *Not sorted yet*, so no node
+    // is drawn (the dataset description says so, B-312); with the accounts
+    // the pair is an assumed move.
+    let mut book = Book::create_in_memory().expect("book");
+    book.use_currency(EUR).expect("currency");
+    let a = account(&mut book, "Current account", AccountKind::Asset, EUR, None);
+    let b = account(&mut book, "Savings", AccountKind::Asset, EUR, None);
+    let salary = account(&mut book, "Salary", AccountKind::Income, EUR, None);
+    for transaction in [
+        parts(&[(a, 100_000), (salary, -100_000)], 1),
+        open_side(a, -3_980, 4),
+        open_side(b, 3_980, 5),
+    ] {
+        book.add_transaction(&transaction).expect("added");
+    }
+    let whole = period(date(2026, 10, 1), date(2026, 10, 31));
+    let plain = Source::read(&book, whole).expect("read");
+    let flows = money_flow(
+        &plain,
+        whole,
+        &Filter::default(),
+        FlowOptions {
+            accounts: false,
+            ..FLOW
+        },
+    )
+    .expect("flow");
+    assert!(
+        flows[0]
+            .nodes
+            .iter()
+            .all(|n| n.kind != FlowNodeKind::Unsorted)
+    );
+    let with_moves = Source::read_with_moves(&book, whole).expect("read");
+    let flows = money_flow(&with_moves, whole, &Filter::default(), FLOW).expect("flow");
+    assert_eq!(
+        band(&flows[0], "Current account", "Savings"),
+        Some((3_980, 3_980))
+    );
+}

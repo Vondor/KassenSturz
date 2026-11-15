@@ -23382,3 +23382,15 @@ msgstr[2] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona p
 msgctxt "@info in the chat, above the list of what would be sent"
 msgid "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Below is what would be sent; to agree, open the AI settings. Or use a provider on this computer."
 msgstr "Ten dostawca działa na innym komputerze, a Ty nie zgodziłeś się jeszcze na to, co KassenSturz mu wysyła. Nic nie zostało wysłane. Poniżej jest to, co zostałoby wysłane; aby się zgodzić, otwórz ustawienia AI. Albo użyj dostawcy na tym komputerze."
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:1
+#, kde-format
+msgctxt "@title"
+msgid "This book is open on another computer now"
+msgstr "Ta księga jest teraz otwarta na innym komputerze"
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "Another computer opened this book anyway, so KassenSturz closed it here. Your latest change here was not saved if it came after that. Close the book on the other computer, then choose \"Try again\" to open it here."
+msgstr "Inny komputer otworzył tę księgę mimo to, więc KassenSturz zamknął ją tutaj. Twoja ostatnia zmiana tutaj nie została zapisana, jeśli była po tym. Zamknij księgę na drugim komputerze, a potem wybierz „Spróbuj ponownie”, aby otworzyć ją tutaj."

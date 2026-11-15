@@ -34,8 +34,8 @@ use kassensturz_report::{
     Rolling, SPENDING_BY_CATEGORY, Source, Term, range_word,
 };
 use kassensturz_report::{
-    DAILY_BALANCE, EMA_FAST_WORDS, EMA_SIGNAL_WORDS, EMA_SLOW_WORDS, MACD, MOVING_AVERAGE,
-    TREND_LENGTH_WORDS, TREND_SIGNAL_WORDS, TREND_SLOW_WORDS,
+    DAILY_BALANCE, EMA_FAST_WORDS, EMA_SIGNAL_WORDS, EMA_SLOW_WORDS, MACD, MONEY_FLOW,
+    MOVING_AVERAGE, TREND_LENGTH_WORDS, TREND_SIGNAL_WORDS, TREND_SLOW_WORDS,
 };
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
@@ -89,6 +89,7 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "ema_fast",
     "ema_slow",
     "ema_signal",
+    "show_accounts",
     "income_categories",
     "income_accounts",
     "expenses_categories",
@@ -324,6 +325,7 @@ pub fn view_choices(argument: &str) -> Option<Vec<&'static str>> {
         "ema_fast" => EMA_FAST_WORDS.to_vec(),
         "ema_slow" => EMA_SLOW_WORDS.to_vec(),
         "ema_signal" => EMA_SIGNAL_WORDS.to_vec(),
+        "show_accounts" => vec!["off", "on"],
         _ => return None,
     };
     Some(words)
@@ -551,6 +553,16 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
     ] {
         properties.insert(argument.into(), choice(argument, description));
     }
+    properties.insert(
+        "show_accounts".into(),
+        choice(
+            "show_accounts",
+            "Only for data money_flow: on shows your accounts as a column of the flow, with \
+             the moves between them (a move that only looks like one is marked assumed, and \
+             money that went both ways is shown once, with a note); off (the default) shows \
+             all your money as one node. The figures stay the same.",
+        ),
+    );
     if offered("categories", allowed) {
         properties.insert(
             "categories".into(),
@@ -1401,6 +1413,20 @@ fn check(
             });
         }
     }
+    // The accounts column belongs to the money flow only; refused for any
+    // other data, never dropped (B-312).
+    let show_accounts = unless_new(word("show_accounts")?, "off");
+    if given("show_accounts").is_some()
+        && let Some(data) = word("data")?
+        && data != MONEY_FLOW
+    {
+        return Err(ToolError::NotForChart {
+            argument: "show_accounts",
+            allowed: Vec::new(),
+            use_instead: None,
+            only_for_show_as: Vec::new(),
+        });
+    }
     let period = match given("period") {
         None => None,
         // A period that moves with today (D-644, D-645) is not in the list.
@@ -1543,6 +1569,7 @@ fn check(
                 ("ema_fast", lengths[3]),
                 ("ema_slow", lengths[4]),
                 ("ema_signal", lengths[5]),
+                ("show_accounts", show_accounts),
                 ("formula", formula),
                 ("target", target),
             ],
@@ -1592,6 +1619,7 @@ fn check(
         ("ema_fast", lengths[3]),
         ("ema_slow", lengths[4]),
         ("ema_signal", lengths[5]),
+        ("show_accounts", show_accounts),
         ("formula", formula),
         ("target", target),
     ] {
@@ -1647,7 +1675,7 @@ fn unless_new<'a>(word: Option<&'a str>, default: &str, editing: bool) -> Option
 
 /// The arguments a custom chart doesn't take: it draws what its
 /// description says (D-729).
-const CUSTOM_REFUSES: [&str; 20] = [
+const CUSTOM_REFUSES: [&str; 21] = [
     "measure",
     "group_by",
     "compare",
@@ -1662,6 +1690,7 @@ const CUSTOM_REFUSES: [&str; 20] = [
     "ema_fast",
     "ema_slow",
     "ema_signal",
+    "show_accounts",
     "income_categories",
     "income_accounts",
     "expenses_categories",
@@ -1690,7 +1719,7 @@ struct EditItem<'a> {
     data: Option<&'a str>,
     show_as: Option<&'a str>,
     description: Option<&'a str>,
-    words: [(&'static str, Option<&'a str>); 14],
+    words: [(&'static str, Option<&'a str>); 15],
     period: Option<String>,
     columns: Option<Value>,
     lists: Vec<(&'static str, &'a Vec<AccountId>)>,
@@ -2018,11 +2047,19 @@ pub(crate) fn list_views(
             ("ema_fast", "ema_fast"),
             ("ema_slow", "ema_slow"),
             ("ema_signal", "ema_signal"),
+            ("show_accounts", "show_accounts"),
         ] {
             // A length belongs only to the data that have it (D-794).
             if let Some((_, takes)) = LENGTHS.iter().find(|(length, _)| *length == key)
                 && !takes.contains(&component.dataset().id)
             {
+                continue;
+            }
+            // The accounts column is a flag in the schema, on or off here.
+            if key == "show_accounts" {
+                if let Some(kassensturz_report::Setting::Flag(true)) = component.get(key) {
+                    row.insert(argument.into(), json!("on"));
+                }
                 continue;
             }
             if let Some(kassensturz_report::Setting::Word(word)) = component.get(key)

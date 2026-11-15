@@ -382,7 +382,8 @@ fn adopt_identity(path: &Path, id: &BookId) -> Result<(), StoreError> {
         [id.to_bytes().as_slice()],
     )?;
     drop(conn);
-    File::open(path)?.sync_all()?;
+    // Windows syncs only files opened for writing.
+    OpenOptions::new().write(true).open(path)?.sync_all()?;
     Ok(())
 }
 

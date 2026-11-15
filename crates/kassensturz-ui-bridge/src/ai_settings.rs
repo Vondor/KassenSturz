@@ -598,6 +598,9 @@ impl Store {
     /// Records that the user agreed to what is sent to the saved provider,
     /// on `today`, to the current statement. Returns whether it was
     /// written; nothing is recorded for a provider that isn't usable.
+    /// The app itself calls [`Self::give_consent_noting`]; this short form
+    /// is kept for the tests.
+    #[cfg(test)]
     pub fn give_consent(&self, today: Date) -> bool {
         self.give_consent_noting(today).0
     }

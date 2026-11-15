@@ -34,6 +34,9 @@ pub(crate) const KEEP_MONTHS: usize = 12;
 /// the book makes another one (B-255): thirty days.
 pub(crate) const MONTHLY_SECONDS: i64 = 30 * 24 * 60 * 60;
 
+/// A day, the room [`made_ahead`] leaves for clocks that differ.
+const DAY_SECONDS: i64 = 24 * 60 * 60;
+
 /// When a backup was made, in UTC: the store has no time zone data (D-061).
 /// Without colons, which Windows doesn't allow in names.
 const STAMP_FORMAT: &str = "%Y-%m-%d %H-%M-%S UTC";
@@ -77,6 +80,7 @@ pub(crate) fn prune_own(folder: &Path, stem: &str, just_made: &Path, now: Timest
             Some((stamp.to_owned(), number, entry.path()))
         })
         .filter(|(_, _, path)| path != just_made)
+        .filter(|(stamp, _, _)| !made_ahead(stamp, now))
         .collect();
     // Oldest first: the stamps sort by time, the numbers within one second.
     older.sort();
@@ -267,6 +271,7 @@ pub(crate) fn prune(folder: &Path, stem: &str, just_made: &Path, keep: usize) {
             Some((stamp.to_owned(), number, entry.path()))
         })
         .filter(|(_, _, path)| path != just_made)
+        .filter(|(stamp, _, _)| !made_ahead(stamp, Timestamp::now()))
         .collect();
     // Oldest first: the stamps sort by time, the numbers within one second.
     older.sort();
@@ -274,6 +279,20 @@ pub(crate) fn prune(folder: &Path, stem: &str, just_made: &Path, keep: usize) {
     for (_, _, path) in older.into_iter().take(excess) {
         let _ = fs::remove_file(path);
     }
+}
+
+/// Whether a backup's `stamp` is more than a day after `now`: it was made
+/// while the clock was set ahead (B-341). Pruning neither counts nor
+/// removes such a backup, so it never makes the next backups delete the
+/// real ones, and it is itself never lost; it is pruned like any other once
+/// `now` comes near it. The day leaves room for clocks of two computers
+/// that share a backup folder and differ a little.
+fn made_ahead(stamp: &str, now: Timestamp) -> bool {
+    let Ok(limit) = Timestamp::from_second(now.as_second().saturating_add(DAY_SECONDS)) else {
+        return false;
+    };
+    // The stamps sort by time as text.
+    stamp > limit.strftime(STAMP_FORMAT).to_string().as_str()
 }
 
 /// The stamp and number of `name` if it is the name of a backup of the book

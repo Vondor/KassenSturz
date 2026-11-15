@@ -243,7 +243,8 @@ pub const CATALOG: &[DatasetInfo] = &[
              the gap, so both sides always add up to the same total. A refund reduces the \
              category it came back to, and a category whose net is money coming back is shown on \
              the income side. Money you have not sorted into a category yet has a node of its \
-             own. Sub-categories and the payees can be shown as further columns. At most 8 nodes \
+             own, unless what came in and what went out there is the same amount: the two \
+             cancel and no node is drawn, as for a refund. Sub-categories and the payees can be shown as further columns. At most 8 nodes \
              stand in a column; the smallest are grouped as Other. Money that moves through \
              several accounts counts once. One currency is shown. \
              Money moved between your own accounts and starting balances are not counted, \

@@ -285,6 +285,12 @@ impl Books {
         self.run_here(OpenKind::Open(path.to_owned()))
     }
 
+    /// Opens the book at `path` although `seen` says it is in use.
+    #[cfg(test)]
+    pub fn open_anyway(&self, path: &Path, seen: &Lock) -> Result<OpenBook, Problem> {
+        self.run_here(OpenKind::OpenAnyway(path.to_owned(), seen.clone()))
+    }
+
     /// Makes a new, empty book at `path` and opens it. The extension
     /// `.ksz` is added if `path` lacks it. An existing file is never
     /// replaced, even if the file dialog asked whether it should be.

@@ -157,8 +157,9 @@ Window {
             console.log("flow-labels-all " + roomy.every(top => top !== null));
             console.log("flow-labels-short " + short.filter(top => top !== null).length);
             // A crowded column of the short chart shows names only, one line
-            // each, so twice as many fit; the roomy one keeps two lines
-            // (B-309, round 4).
+            // each, so twice as many fit (7 instead of 3: all 6 on the left,
+            // 7 of the 11 on the right, and the middle, 14 labels); the
+            // roomy one keeps two lines (B-309, round 4).
             console.log("flow-labels-one-line " + JSON.stringify(Object.keys(short.oneLine)) + " " + JSON.stringify(Object.keys(roomy.oneLine)));
             // A label in an inner column ends before the next column's nodes,
             // so it covers neither them nor their labels (B-309, round 4).

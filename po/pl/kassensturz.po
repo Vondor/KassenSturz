@@ -20343,6 +20343,18 @@ msgctxt "@title:group"
 msgid "Backups of this book"
 msgstr "Kopie zapasowe tej księgi"
 
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:1
+#, kde-format
+msgctxt "@title:group"
+msgid "Older backups"
+msgstr "Starsze kopie zapasowe"
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "These backups were saved before KassenSturz could tell books apart. They have the same name as this book, but they may belong to another book with that name. Pick one only if you know it is the right one."
+msgstr "Te kopie zapasowe zapisano, zanim KassenSturz potrafił odróżniać księgi. Mają taką samą nazwę jak ta księga, ale mogą należeć do innej księgi o tej nazwie. Wybierz jedną tylko wtedy, gdy wiesz, że jest właściwa."
+
 #: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:91
 #, kde-format
 msgctxt "@info"

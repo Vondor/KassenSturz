@@ -356,8 +356,10 @@ mod path_audit {
     /// how many there are. A new one fails here until it is checked against
     /// the test profile and added: a later path can't slip past it.
     const READS: &[(&str, usize)] = &[
-        // Follows XDG_CONFIG_HOME, checked above.
-        ("kassensturz-core/src/ai_switch.rs", 2),
+        // Follows XDG_CONFIG_HOME, checked above, and on Windows without it
+        // LOCALAPPDATA (B-322), moved by the profile too; 9 of the 11 are
+        // its tests.
+        ("kassensturz-core/src/ai_switch.rs", 11),
         // Follows XDG_DATA_HOME, or on Windows LOCALAPPDATA (D-556), both
         // moved by the profile, checked above; 5 of the 8 are its tests.
         ("kassensturz-core/src/debug_log.rs", 8),

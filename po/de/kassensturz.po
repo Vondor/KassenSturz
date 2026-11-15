@@ -22474,6 +22474,14 @@ msgstr "KassenSturz konnte Ihr Haushaltsbuch im jetzigen Stand nicht sichern und
 #, kde-format
 msgctxt "@info"
 msgid ""
+"Another computer has taken this book over, so KassenSturz restored nothing. "
+"Close the book and open it again before you restore a backup."
+msgstr "Ein anderer Computer hat dieses Haushaltsbuch übernommen, deshalb hat KassenSturz nichts wiederhergestellt. Schließen Sie das Haushaltsbuch und öffnen Sie es erneut, bevor Sie eine Sicherung wiederherstellen."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:44
+#, kde-format
+msgctxt "@info"
+msgid ""
 "This backup isn't there any more. Your book wasn't changed. Choose another "
 "one from the list."
 msgstr "Diese Sicherung ist nicht mehr da. Ihr Haushaltsbuch wurde nicht geändert. Wählen Sie eine andere aus der Liste."

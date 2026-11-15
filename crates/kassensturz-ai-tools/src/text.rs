@@ -275,6 +275,24 @@ fn mask_ibans(text: &str) -> String {
 /// characters, which spell ASCII in invisible code points. They can make
 /// text read differently from what it says, or carry a text nobody sees.
 pub(crate) fn hides_text(c: char) -> bool {
+    // The generated table (every Cf, Co and Cn code point, the variation
+    // selectors and the default-ignorable letters) and, as a second guard
+    // should the table be older than a Unicode version, the list below.
+    let code = c as u32;
+    if crate::invisible_table::HIDDEN
+        .binary_search_by(|&(first, last)| {
+            if last < code {
+                std::cmp::Ordering::Less
+            } else if first > code {
+                std::cmp::Ordering::Greater
+            } else {
+                std::cmp::Ordering::Equal
+            }
+        })
+        .is_ok()
+    {
+        return true;
+    }
     matches!(
         c,
         '\u{00AD}'
@@ -375,6 +393,51 @@ pub(crate) fn cleaned_for_model(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The table the generator wrote is sorted and has no overlaps, so the
+    /// binary search can be trusted.
+    #[test]
+    fn the_invisible_table_is_sorted_and_apart() {
+        let table = crate::invisible_table::HIDDEN;
+        assert!(!table.is_empty());
+        for pair in table.windows(2) {
+            assert!(pair[0].0 <= pair[0].1, "{pair:?}");
+            assert!(pair[0].1 + 1 < pair[1].0, "{pair:?} touch or overlap");
+        }
+    }
+
+    /// Every one of the 1.1 million code points: what the table marks is
+    /// gone from what a model is shown, in both cleaning functions, and
+    /// what it does not mark is a printable letter, digit, mark, symbol,
+    /// punctuation or space that stays (so the table is not hiding text).
+    #[test]
+    fn every_code_point_the_table_marks_is_gone_and_no_other_is_lost() {
+        let table = crate::invisible_table::HIDDEN;
+        let marked = |code: u32| {
+            table
+                .iter()
+                .any(|&(first, last)| (first..=last).contains(&code))
+        };
+        let mut hidden = 0_u32;
+        for code in 0..=0x10_FFFF_u32 {
+            let Some(c) = char::from_u32(code) else {
+                continue;
+            };
+            let text = format!("a{c}b");
+            if marked(code) {
+                hidden += 1;
+                assert!(hides_text(c), "U+{code:04X} is in the table");
+                assert_eq!(cleaned_for_model(&text), "ab", "U+{code:04X} is shown");
+            } else if !c.is_control() && !c.is_whitespace() && !hides_text(c) {
+                assert_eq!(cleaned_for_model(&text), text, "U+{code:04X} was lost");
+            }
+        }
+        // 15.1 has about 970,000 unassigned, private-use and format points.
+        assert!(
+            hidden > 900_000,
+            "only {hidden} code points are in the table"
+        );
+    }
 
     #[test]
     fn a_word_that_mixes_alphabets_is_found() {

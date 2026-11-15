@@ -1913,6 +1913,30 @@ mod tests {
         assert_eq!(list_of(chart, "overlays").len(), 1);
     }
 
+    /// B-340: a custom chart's mean is rounded in the book's own rounding
+    /// mode (D-027). The two salaries over twelve months are 416.666… a
+    /// month: 416.67 rounded half away from zero, 416.66 toward zero.
+    #[test]
+    fn a_custom_charts_mean_is_rounded_as_the_book_rounds() {
+        let level = |book: &Book| -> String {
+            let result = charts::charts(book, &TestLocale, &custom(MONTHLY, false));
+            let view = view_object(&result);
+            let chart = &list_of(&view, "charts")[0];
+            let overlays = list_of(chart, "overlays");
+            let series = list_of(&overlays[0], "series");
+            let item = &list_of(&series[0], "items")[0];
+            format!("{} {}", text_of(item, "label"), text_of(item, "text"))
+        };
+        let half_up = level(&book());
+        assert!(half_up.contains("416,67"), "{half_up}");
+        let mut toward_zero = book();
+        toward_zero
+            .set_rounding_mode(kassensturz_core::RoundingMode::TowardZero)
+            .expect("rounding set");
+        let cut = level(&toward_zero);
+        assert!(cut.contains("416,66"), "{cut}");
+    }
+
     /// Every ready example of the help page and the "Insert an example"
     /// menu (US4.11, D-720) draws from the book's real data, as the screen
     /// asks for it, with its own title and no part left out.

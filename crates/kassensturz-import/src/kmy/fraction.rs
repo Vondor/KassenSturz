@@ -30,6 +30,9 @@ impl Fraction {
         }
         let numerator: i128 = numerator.parse().ok()?;
         let denominator: i128 = denominator.parse().ok()?;
+        // The smallest i128 has no positive counterpart, so `abs` and the
+        // inverse would overflow (B-345): no file's amount comes near it.
+        numerator.checked_abs()?;
         (denominator > 0).then_some(Self {
             numerator,
             denominator,

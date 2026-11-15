@@ -33,6 +33,18 @@ fn only_plain_fractions_are_read() {
     assert_eq!(Fraction::parse(&format!("{}/1", "9".repeat(40))), None);
 }
 
+/// B-345: the smallest i128 is refused, so its inverse and absolute value
+/// never overflow; one more is read.
+#[test]
+fn the_smallest_numerator_is_refused() {
+    assert_eq!(
+        Fraction::parse("-170141183460469231731687303715884105728/1"),
+        None
+    );
+    let next = fraction("-170141183460469231731687303715884105727/1");
+    assert!(next.inverse().is_some());
+}
+
 #[test]
 fn amounts_come_out_in_whole_minor_units() {
     let amount = |text: &str, currency: Currency| fraction(text).money(currency, text);

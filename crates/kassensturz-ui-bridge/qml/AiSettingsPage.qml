@@ -532,11 +532,26 @@ Kirigami.ScrollablePage {
                 case "given":
                     return page.i18nContext.i18nc("@info %1 is a date", "You agreed on %1 to what KassenSturz sends to this provider. You can read it again, or take your agreement back; nothing is sent to this provider while it is withdrawn.", page.form.consentDay);
                 case "missing":
+                    // A consent in the file that can't be confirmed: say
+                    // why the user is asked again (B-324).
+                    if ((page.form.consentUnconfirmedDay ?? "") !== "") {
+                        return page.i18nContext.i18nc("@info %1 is a date", "You agreed on %1, but KassenSturz can't confirm that agreement any more: it was kept only until KassenSturz closed, or it wasn't given in KassenSturz. Nothing is sent to this provider until you read what is sent and agree again.", page.form.consentUnconfirmedDay);
+                    }
                     return page.i18nContext.i18nc("@info", "This provider is on another computer. Nothing is sent to it until you have read what KassenSturz sends and agreed.");
                 default:
                     return page.i18nContext.i18nc("@info", "This provider is on this computer, so what you ask never leaves it and there is nothing to agree to.");
                 }
             }
+        }
+
+        // An agreement whose seal couldn't be saved holds only until
+        // KassenSturz closes (B-259, B-324): the user learns it now, not
+        // after the next start.
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: page.hasProvider && page.form.consent === "given" && page.form.consentUntilClose === true
+            type: Kirigami.MessageType.Warning
+            text: page.i18nContext.i18nc("@info", "This agreement holds only until KassenSturz closes: it couldn't be kept where KassenSturz saves PINs and keys. To keep it, choose a place under Settings → Advanced → Password storage, check that it is unlocked, and agree again.")
         }
 
         RowLayout {

@@ -184,6 +184,24 @@ impl ProviderKeys {
         ConsentRecord::from_seal_text(secret.expose())
     }
 
+    /// Whether the seal of `consent` is saved where secrets are saved, so
+    /// the consent still counts after KassenSturz restarts (B-324). False
+    /// with nowhere to save secrets, when the keychain refused it (B-259)
+    /// and when the keychain can't be read now: then the consent counts
+    /// only until KassenSturz closes, and the screen says so.
+    pub fn consent_seal_saved(&self, consent: &ConsentRecord) -> bool {
+        let Some(store) = &self.store else {
+            return false;
+        };
+        let Ok(key) = Self::consent_key(&consent.address) else {
+            return false;
+        };
+        matches!(
+            store.read(&key),
+            Ok(Some(secret)) if ConsentRecord::from_seal_text(secret.expose()).as_ref() == Some(consent)
+        )
+    }
+
     /// Breaks the seal of the consent for `address`, in memory and where it
     /// was saved: the user took the consent back.
     pub fn unseal_consent(&mut self, address: &ProviderAddress) -> Result<(), AiError> {

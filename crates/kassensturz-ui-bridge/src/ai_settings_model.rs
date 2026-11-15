@@ -385,7 +385,7 @@ mod engine {
                     let text = match param {
                         kassensturz_core::ErrorParam::Number(number) => number.to_string(),
                         kassensturz_core::ErrorParam::Text(text) => text.clone(),
-                        other => format!("{other:?}"),
+                        other => crate::errors::param_without_book(other),
                     };
                     (*name, text)
                 })

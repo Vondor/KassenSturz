@@ -172,25 +172,16 @@ impl HeldLock {
 }
 
 impl HeldLock {
-    /// Whether the lock file is still this lock: there, and with this lock's
-    /// token. A book without file locks checks it before every change, since
-    /// the file is then its only guard against a second writer (D-776): a
-    /// program that doesn't know that, or a sync tool, may have replaced it.
-    pub(crate) fn is_still_ours(&self) -> bool {
-        matches!(read(&self.path), Ok(Some(lock)) if lock.token.as_deref() == Some(self.token.as_str()))
-    }
-}
-
-impl HeldLock {
     /// Whether the lock file is gone or names another token. A lock file
     /// that can't be read (the drive dropped) is not a take-over: the write
     /// that follows reports the drive's own error (D-732, B-306).
     pub(crate) fn is_taken_over(&self) -> bool {
         match read(&self.path) {
             Ok(Some(lock)) => lock.token.as_deref() != Some(self.token.as_str()),
-            // A folder that is gone (the drive dropped) is not a take-over
-            // either.
-            Ok(None) => self.path.parent().is_some_and(Path::is_dir),
+            // A lock file that is gone is a take-over only while the book is
+            // still there: with a drive pulled out, the book goes too, even
+            // if an empty folder is left where it was mounted (B-316).
+            Ok(None) => self.path.with_extension("").is_file(),
             Err(_) => false,
         }
     }

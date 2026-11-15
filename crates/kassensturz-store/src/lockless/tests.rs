@@ -557,3 +557,23 @@ fn a_book_taken_over_with_open_anyway_refuses_the_first_ones_next_change() {
     assert!(crate::lock::lock_path(&path).exists());
     assert_eq!(names(&second), ["Checking", "Savings"]);
 }
+
+// B-316: a pulled drive takes the book and its lock file away together and
+// may leave an empty folder; that is the drive's error, not a take-over.
+#[test]
+fn a_lock_file_gone_with_the_book_is_not_a_take_over() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let book = Book::create(&path, &computer).expect("book made");
+    assert!(!book.lock_taken_over());
+    let lock = crate::lock::lock_path(&path);
+    // The lock file alone is gone while the book stays: someone removed it.
+    std::fs::remove_file(&lock).expect("lock removed");
+    assert!(book.lock_taken_over());
+    // The book goes too, the folder stays: the drive is gone.
+    let moved = folder.join("Household.moved");
+    std::fs::rename(&path, &moved).expect("book moved away");
+    assert!(!book.lock_taken_over());
+    std::fs::rename(&moved, &path).expect("book moved back");
+}

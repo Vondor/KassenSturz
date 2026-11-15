@@ -599,9 +599,17 @@ impl Store {
     /// on `today`, to the current statement. Returns whether it was
     /// written; nothing is recorded for a provider that isn't usable.
     pub fn give_consent(&self, today: Date) -> bool {
+        self.give_consent_noting(today).0
+    }
+
+    /// [`Store::give_consent`], and why its seal couldn't be saved where
+    /// secrets go, if it couldn't: then the consent counts only until
+    /// KassenSturz closes (B-259, B-324), and the developer mode's log
+    /// says why.
+    pub fn give_consent_noting(&self, today: Date) -> (bool, Option<AiError>) {
         let config = self.config.read();
         let Ok(provider) = config.provider() else {
-            return false;
+            return (false, None);
         };
         let record = ConsentRecord::give(&provider.address, today);
         // The seal first: a consent in the file without it counts for
@@ -609,11 +617,12 @@ impl Store {
         // closes; a keychain that refuses to save it (B-259) only means
         // the user is asked again at the next start, so it doesn't stop
         // the consent the user just gave.
-        let _ = self.with_seals(|keys| keys.seal_consent(&record));
-        record
+        let sealed = self.with_seals(|keys| keys.seal_consent(&record));
+        let written = record
             .entries()
             .iter()
-            .all(|(name, value)| self.put(name, value))
+            .all(|(name, value)| self.put(name, value));
+        (written, sealed.err())
     }
 
     /// Takes the consent back: nothing goes to a provider on another

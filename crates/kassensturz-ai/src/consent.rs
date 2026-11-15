@@ -114,9 +114,16 @@ impl ConsentRecord {
     }
 
     /// A record [`ConsentRecord::seal_text`] wrote; `None` for anything else.
+    ///
+    /// The address is read back as it was agreed to, also a plain `http://`
+    /// one to another computer that the user allowed (D-746): the seal only
+    /// confirms the consent in the file, which is read with the user's
+    /// choice, and whether anything may go over `http://` is decided there.
+    /// Read strictly, such a seal never matched after a restart, so the
+    /// consent was lost at every start (B-324).
     pub fn from_seal_text(text: &str) -> Option<Self> {
         let mut lines = text.split('\n');
-        let address = ProviderAddress::parse(lines.next()?).ok()?;
+        let address = ProviderAddress::parse_with(lines.next()?, true).ok()?;
         let statement = lines.next()?.parse().ok()?;
         let day = lines.next()?.parse().ok()?;
         if lines.next().is_some() {
@@ -185,6 +192,27 @@ mod tests {
             ..given.clone()
         };
         assert!(!older.covers(&cloud));
+    }
+
+    #[test]
+    fn a_seal_reads_back_also_for_an_allowed_unencrypted_address() {
+        // B-324: a consent for a plain `http://` address in the home
+        // network (allowed by the user, D-746) was sealed, but the seal
+        // didn't read back, so the consent was gone after every restart.
+        for text in [
+            "https://api.example.com/v1",
+            "http://192.168.1.2:1234/v1",
+            "http://localhost:11434/v1",
+        ] {
+            let address = ProviderAddress::parse_with(text, true).unwrap();
+            let given = ConsentRecord::give(&address, jiff::civil::date(2026, 11, 15));
+            assert_eq!(
+                ConsentRecord::from_seal_text(&given.seal_text()),
+                Some(given),
+                "{text}"
+            );
+        }
+        assert_eq!(ConsentRecord::from_seal_text("not a seal"), None);
     }
 
     #[test]

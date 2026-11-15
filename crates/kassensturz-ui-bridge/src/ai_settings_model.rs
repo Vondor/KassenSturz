@@ -458,9 +458,18 @@ mod engine {
     }
 
     pub(super) fn give_consent() -> bool {
-        let given = Store::user().give_consent(app_locale().today());
+        let store = Store::user();
+        let (given, seal_error) = store.give_consent_noting(app_locale().today());
         if given {
             crate::note!(ConsentGiven);
+            // Why it holds only until KassenSturz closes, if it does: the
+            // keychain's code, or none when secrets are saved nowhere
+            // (B-324).
+            if let Some(error) = seal_error {
+                crate::note!(ConsentUntilClose, None, Some(error.report().code));
+            } else if store.form().consent_until_close {
+                crate::note!(ConsentUntilClose);
+            }
         }
         given
     }

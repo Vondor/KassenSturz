@@ -1115,6 +1115,9 @@ fn connect(path: &Path) -> Result<(Connection, bool), StoreError> {
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
     let (conn, without_file_locks) = lockless::open_writer(path, flags)?;
     harden(&conn)?;
+    if !without_file_locks {
+        lockless::check_write_lock(&conn, path)?;
+    }
     // A write waits for a reader such as `kassensturz-mcp` to finish its
     // short read instead of failing (Q-036, D-195).
     conn.busy_timeout(reader::BUSY_WAIT)?;

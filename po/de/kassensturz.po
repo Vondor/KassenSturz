@@ -5642,6 +5642,22 @@ msgstr ""
 "KassenSturz sie nicht geöffnet. Kopieren Sie das Haushaltsbuch in einen "
 "Ordner auf diesem Computer und öffnen Sie es von dort."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:122
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This folder can't lock files, so KassenSturz didn't open the book: two "
+"programs could change it at the same time and damage it. Copy the book to a "
+"folder on this computer and open it from there, or ask whoever set up the "
+"share to allow file locks. The book wasn't changed."
+msgstr ""
+"In diesem Ordner lassen sich keine Dateien sperren, deshalb hat KassenSturz "
+"das Haushaltsbuch nicht geöffnet: Zwei Programme könnten es gleichzeitig "
+"ändern und beschädigen. Kopieren Sie das Haushaltsbuch in einen Ordner auf "
+"diesem Computer und öffnen Sie es von dort, oder bitten Sie die Person, die "
+"die Freigabe eingerichtet hat, Dateisperren zu erlauben. Das "
+"Haushaltsbuch wurde nicht verändert."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:99
 #, kde-format
 msgctxt "@info"

@@ -101,6 +101,79 @@ pub(crate) fn open_writer(path: &Path, flags: OpenFlags) -> Result<(Connection, 
     Ok((Connection::open_with_flags(path, flags)?, false))
 }
 
+/// How long the check below waits for a write lock. Nothing but a second
+/// writer holds it, which the book's lock file keeps out, so a short wait
+/// is enough.
+const WRITE_LOCK_WAIT: Duration = if cfg!(test) {
+    Duration::from_millis(100)
+} else {
+    Duration::from_secs(1)
+};
+
+#[cfg(test)]
+thread_local! {
+    /// Makes the tests of this thread see a folder where SQLite can't lock
+    /// even a file of its own (B-304).
+    pub(crate) static SQLITE_CANT_LOCK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Checks at open that SQLite can take the write lock in the book's folder
+/// (B-304). Some network shares (a cifs mount with byte-range locks, say)
+/// refuse it, and the book would open and then fail at its first save with
+/// nothing the user could act on. If the lock is busy, a scratch database in
+/// the same folder is tried: if that can't be locked either, the folder is
+/// the cause and [`StoreError::LocksUnsupported`] says so; if it can, the
+/// busy lock is real and SQLite's own error stands. The book is not opened
+/// without locks here: two writers could then damage it (D-038, D-776).
+pub(crate) fn check_write_lock(conn: &Connection, book: &Path) -> Result<(), StoreError> {
+    conn.busy_timeout(WRITE_LOCK_WAIT)?;
+    let taken = conn.execute_batch("BEGIN IMMEDIATE; ROLLBACK");
+    let Err(error) = taken else {
+        return Ok(());
+    };
+    let _ = conn.execute_batch("ROLLBACK");
+    if !is_busy(&error) {
+        // Not a question of locks (a read-only book, say): the ordinary
+        // errors follow where the book is used.
+        return Ok(());
+    }
+    if book.parent().is_some_and(scratch_cant_lock) {
+        return Err(StoreError::LocksUnsupported);
+    }
+    Err(error.into())
+}
+
+fn is_busy(error: &rusqlite::Error) -> bool {
+    matches!(
+        error.sqlite_error_code(),
+        Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)
+    )
+}
+
+/// Whether SQLite can't lock a database of its own made in `folder`. Nothing
+/// of the user's is touched: the file has a name of its own and goes away.
+fn scratch_cant_lock(folder: &Path) -> bool {
+    #[cfg(test)]
+    if SQLITE_CANT_LOCK.with(std::cell::Cell::get) {
+        return true;
+    }
+    let path = folder.join(format!(
+        ".kassensturz-lock-check-{}.db",
+        uuid::Uuid::now_v7().simple()
+    ));
+    let refused = (|| {
+        let conn = Connection::open(&path)?;
+        conn.busy_timeout(WRITE_LOCK_WAIT)?;
+        conn.execute_batch("BEGIN IMMEDIATE; ROLLBACK")
+    })()
+    .is_err_and(|error| is_busy(&error));
+    let _ = fs::remove_file(&path);
+    let mut journal = path.into_os_string();
+    journal.push("-journal");
+    let _ = fs::remove_file(journal);
+    refused
+}
+
 #[cfg(unix)]
 fn open_without_locks(path: &Path, flags: OpenFlags) -> Result<Connection, StoreError> {
     Ok(Connection::open_with_flags_and_vfs(

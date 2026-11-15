@@ -51,6 +51,7 @@ def ranges():
 
 
 def text():
+    # REUSE-IgnoreStart
     lines = [
         "// SPDX-FileCopyrightText: 2026 KassenSturz contributors",
         "// SPDX-License-Identifier: GPL-3.0-or-later",
@@ -64,6 +65,7 @@ def text():
         "/// Sorted, non-overlapping, inclusive ranges.",
         "pub(crate) const HIDDEN: &[(u32, u32)] = &[",
     ]
+    # REUSE-IgnoreEnd
     for first, last in ranges():
         lines.append(f"    (0x{first:X}, 0x{last:X}),")
     lines.append("];")

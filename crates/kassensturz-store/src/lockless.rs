@@ -129,6 +129,14 @@ pub(crate) fn check_write_lock(conn: &Connection, book: &Path) -> Result<(), Sto
     conn.busy_timeout(WRITE_LOCK_WAIT)?;
     let taken = conn.execute_batch("BEGIN IMMEDIATE; ROLLBACK");
     let Err(error) = taken else {
+        // Taking the write lock works, but a save also needs the exclusive
+        // lock and a journal. A cifs mount with byte-range locks lets the
+        // first pass and fails the second, at the user's first save
+        // (B-304). So on a network share the whole save is tried on a
+        // scratch database next to the book.
+        if on_network_share(book) && book.parent().is_some_and(scratch_cant_save) {
+            return Err(StoreError::LocksUnsupported);
+        }
         return Ok(());
     };
     let _ = conn.execute_batch("ROLLBACK");
@@ -150,6 +158,64 @@ fn is_busy(error: &rusqlite::Error) -> bool {
     )
 }
 
+/// Whether `file` is on a network share, as the system's mount table says
+/// (Linux only; elsewhere nothing is learnt, and the check stays as it was).
+fn on_network_share(file: &Path) -> bool {
+    #[cfg(test)]
+    if SQLITE_CANT_LOCK.with(std::cell::Cell::get) {
+        return false;
+    }
+    let Ok(table) = fs::read_to_string("/proc/self/mountinfo") else {
+        return false;
+    };
+    let Some(folder) = file
+        .parent()
+        .and_then(|folder| fs::canonicalize(folder).ok())
+    else {
+        return false;
+    };
+    is_network_type(mount_type_of(&table, &folder).as_deref())
+}
+
+fn is_network_type(kind: Option<&str>) -> bool {
+    matches!(
+        kind,
+        Some("cifs" | "smb3" | "smbfs" | "nfs" | "nfs4" | "9p" | "fuse.sshfs")
+    )
+}
+
+/// The file system type of the mount that holds `folder`: of the longest
+/// mount point in `table` (the format of `/proc/self/mountinfo`) that
+/// `folder` is in.
+fn mount_type_of(table: &str, folder: &Path) -> Option<String> {
+    let mut best: Option<(usize, String)> = None;
+    for line in table.lines() {
+        let Some((before, after)) = line.split_once(" - ") else {
+            continue;
+        };
+        let (Some(point), Some(kind)) = (before.split(' ').nth(4), after.split(' ').next()) else {
+            continue;
+        };
+        let point = point.replace("\\040", " ");
+        if folder.starts_with(Path::new(&point))
+            && best.as_ref().is_none_or(|(len, _)| point.len() >= *len)
+        {
+            best = Some((point.len(), kind.to_owned()));
+        }
+    }
+    best.map(|(_, kind)| kind)
+}
+
+/// Whether a save, the whole of it, fails on a database of its own made in
+/// `folder`. Nothing of the user's is touched: the file has a name of its
+/// own and goes away.
+fn scratch_cant_save(folder: &Path) -> bool {
+    scratch_fails(
+        folder,
+        "BEGIN IMMEDIATE; CREATE TABLE t(x); INSERT INTO t VALUES (1); COMMIT",
+    )
+}
+
 /// Whether SQLite can't lock a database of its own made in `folder`. Nothing
 /// of the user's is touched: the file has a name of its own and goes away.
 fn scratch_cant_lock(folder: &Path) -> bool {
@@ -157,6 +223,12 @@ fn scratch_cant_lock(folder: &Path) -> bool {
     if SQLITE_CANT_LOCK.with(std::cell::Cell::get) {
         return true;
     }
+    scratch_fails(folder, "BEGIN IMMEDIATE; ROLLBACK")
+}
+
+/// Runs `sql` on a scratch database in `folder`; whether it fails because
+/// of the folder's locks or files (busy, locked, or an I/O error).
+fn scratch_fails(folder: &Path, sql: &str) -> bool {
     let path = folder.join(format!(
         ".kassensturz-lock-check-{}.db",
         uuid::Uuid::now_v7().simple()
@@ -164,9 +236,15 @@ fn scratch_cant_lock(folder: &Path) -> bool {
     let refused = (|| {
         let conn = Connection::open(&path)?;
         conn.busy_timeout(WRITE_LOCK_WAIT)?;
-        conn.execute_batch("BEGIN IMMEDIATE; ROLLBACK")
+        conn.execute_batch(sql)
     })()
-    .is_err_and(|error| is_busy(&error));
+    .is_err_and(|error| {
+        is_busy(&error)
+            || matches!(
+                error.sqlite_error_code(),
+                Some(rusqlite::ErrorCode::SystemIoFailure)
+            )
+    });
     let _ = fs::remove_file(&path);
     let mut journal = path.into_os_string();
     journal.push("-journal");

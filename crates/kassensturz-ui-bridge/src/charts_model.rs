@@ -998,6 +998,33 @@ mod tests {
         assert_eq!(text_of(&notes[0], "id"), "per-month");
         assert_eq!(number_of(&notes[0], "counted"), 2);
         assert_eq!(number_of(&notes[0], "before"), 4);
+        // B-313, round 4: a period that is not over and starts before the
+        // book shows both notes, the divisor first, so "7 of the 10 months
+        // this average counts" reads on from "divided by the 10 months up
+        // to today, not by all 12".
+        let mut both = request("spending_by_category", "donut");
+        both.scope.average = "per-month".into();
+        both.period = "2026-01-01..2026-12-31".into();
+        let notes = list_of(&object_of(&view_of(&both), "filter"), "notes");
+        // On 19 October this year counts 10 of its 12 months, and the
+        // book's 3 August start leaves 7 of those 10 before it.
+        let read: Vec<(String, i32, i32)> = notes
+            .iter()
+            .map(|note| {
+                (
+                    text_of(note, "kind"),
+                    number_of(note, "counted"),
+                    number_of(note, "before"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            read,
+            [
+                ("average-so-far".to_string(), 10, 12),
+                ("average-early".to_string(), 10, 7)
+            ]
+        );
         let plain = view_of(&request("spending_by_category", "donut"));
         assert_eq!(text_of(&list_of(&plain, "charts")[0], "per"), "");
         // A total names nothing.

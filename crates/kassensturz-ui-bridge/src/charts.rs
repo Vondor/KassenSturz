@@ -26,10 +26,11 @@ use kassensturz_report::{
     account_balances as balances_dataset, balance_candles as candles_dataset,
     cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
     columns_over_time, columns_span, columns_spending, compared_early, counted_early,
-    daily_balance as daily_dataset, daily_days, income_expense_by_month as monthly_dataset,
-    income_expense_by_series, macd as macd_dataset, money_flow as money_flow_dataset,
-    moving_average as moving_average_dataset, net_worth_over_time as net_worth_dataset,
-    shared_categories, spending_by_category_shown as spending_dataset, spending_compared,
+    counted_so_far, daily_balance as daily_dataset, daily_days,
+    income_expense_by_month as monthly_dataset, income_expense_by_series, macd as macd_dataset,
+    money_flow as money_flow_dataset, moving_average as moving_average_dataset,
+    net_worth_over_time as net_worth_dataset, shared_categories,
+    spending_by_category_shown as spending_dataset, spending_compared,
 };
 use kassensturz_store::Book;
 
@@ -529,6 +530,19 @@ pub fn charts(
             id: early.per.word().into(),
             counted: early.counted,
             before: early.before,
+        });
+    } else if let Some(average) = &average
+        && let Some(so_far) = counted_so_far(average.per, period, locale.today())?
+    {
+        // A period that is not over yet divides by the months up to today
+        // (D-648), fewer than its name suggests: the chart says by how many
+        // (B-313). The note above already names the count when it shows.
+        filter_view.notes.push(NoteView {
+            kind: "average-so-far",
+            dimension: "period",
+            id: so_far.per.word().into(),
+            counted: so_far.counted,
+            before: so_far.whole,
         });
     }
     // A comparison that counts periods before the first transaction says so

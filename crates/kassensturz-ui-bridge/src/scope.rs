@@ -382,19 +382,24 @@ impl Scope {
 /// A note under a component about its filter, by fixed words.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoteView {
-    /// `not-applied`, `gone`, `chooses-nothing` or `average-early`.
+    /// `not-applied`, `gone`, `chooses-nothing`, `average-early`,
+    /// `average-so-far` or `compare-early`.
     pub kind: &'static str,
-    /// `period`, `accounts` or `categories`; `period` for `average-early`.
+    /// `period`, `accounts` or `categories`; `period` for `average-early`
+    /// and `average-so-far`.
     pub dimension: &'static str,
-    /// For `gone`, the ID as the list writes it; for `average-early`, the
+    /// For `gone`, the ID as the list writes it; for `average-early` and
+    /// `average-so-far`, the
     /// `params.average` word (`per-month`, `per-quarter`, `per-year`); else
     /// empty.
     pub id: String,
-    /// For `average-early` (M6-B207, #590, D-668): how many months
-    /// (quarters, years) the average divides by; else zero.
+    /// For `average-early` (M6-B207, #590, D-668) and `average-so-far`
+    /// (B-313): how many months (quarters, years) the average divides by;
+    /// else zero.
     pub counted: u32,
     /// For `average-early`: how many of them lie before the first
-    /// transaction of the accounts and categories it counts; else zero.
+    /// transaction of the accounts and categories it counts; for
+    /// `average-so-far`: how many the whole period holds; else zero.
     pub before: u32,
 }
 

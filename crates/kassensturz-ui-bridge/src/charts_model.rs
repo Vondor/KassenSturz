@@ -984,6 +984,20 @@ mod tests {
         assert_eq!(text_of(&notes[0], "id"), "per-month");
         assert_eq!(number_of(&notes[0], "counted"), 12);
         assert_eq!(number_of(&notes[0], "before"), 9);
+        // B-313: September to December on 19 October is not over, so the
+        // average divides by the 2 months up to today, not all 4, and says
+        // so the way FilterNotes.qml reads it. The book has transactions
+        // before September, so nothing counts early.
+        let mut so_far = request("spending_by_category", "donut");
+        so_far.scope.average = "per-month".into();
+        so_far.period = "2026-09-01..2026-12-31".into();
+        let notes = list_of(&object_of(&view_of(&so_far), "filter"), "notes");
+        assert_eq!(notes.len(), 1);
+        assert_eq!(text_of(&notes[0], "kind"), "average-so-far");
+        assert_eq!(text_of(&notes[0], "dimension"), "period");
+        assert_eq!(text_of(&notes[0], "id"), "per-month");
+        assert_eq!(number_of(&notes[0], "counted"), 2);
+        assert_eq!(number_of(&notes[0], "before"), 4);
         let plain = view_of(&request("spending_by_category", "donut"));
         assert_eq!(text_of(&list_of(&plain, "charts")[0], "per"), "");
         // A total names nothing.

@@ -222,6 +222,40 @@ pub fn counted_early(
     }))
 }
 
+/// An average over a period that is not over yet, so it divides by fewer
+/// months (quarters, years) than the period holds (B-313, as D-648 counts
+/// them): "the last 12 months" on 15 November divides by the 11 months up to
+/// today. The figure stays as D-648 computes it; the chart says so, since
+/// the period's name alone suggests the whole count.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CountedSoFar {
+    /// What the average is taken per.
+    pub per: Per,
+    /// How many months (quarters, years) the average divides by: its
+    /// [`Average::count`].
+    pub counted: u32,
+    /// How many the whole period holds; more than `counted`.
+    pub whole: u32,
+}
+
+/// Whether an average per `per` over `period` as of `today` divides by
+/// fewer months (quarters, years) than the whole period holds (B-313), and
+/// by how many. `None` when the period is over, has not begun, or when
+/// what has passed already rounds to the whole count.
+pub fn counted_so_far(
+    per: Per,
+    period: Period,
+    today: Date,
+) -> Result<Option<CountedSoFar>, ReportError> {
+    let counted = per.count(period, today)?;
+    let whole = per.count(period, period.last())?;
+    Ok((counted < whole).then_some(CountedSoFar {
+        per,
+        counted,
+        whole,
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,6 +286,51 @@ mod tests {
         assert_eq!(count(day(2026, 3, 1), day(2026, 3, 3), Per::Month), 1);
         assert_eq!(count(day(2026, 3, 1), day(2026, 4, 14), Per::Month), 1);
         assert_eq!(count(day(2026, 3, 1), day(2026, 4, 15), Per::Month), 2);
+    }
+
+    #[test]
+    fn a_period_not_over_yet_says_by_how_many_it_divides() {
+        // B-313: the last 12 months on 15 November 2026 are December 2025
+        // to November 2026, and 350 days round to 11 months.
+        let last_12 = Period::last_12_months(day(2026, 11, 15)).unwrap();
+        assert_eq!(
+            counted_so_far(Per::Month, last_12, day(2026, 11, 15)).unwrap(),
+            Some(CountedSoFar {
+                per: Per::Month,
+                counted: 11,
+                whole: 12
+            })
+        );
+        // From the 16th, half the month has passed and the count is whole.
+        let later = Period::last_12_months(day(2026, 11, 16)).unwrap();
+        assert_eq!(
+            counted_so_far(Per::Month, later, day(2026, 11, 16)).unwrap(),
+            None
+        );
+        // A period that is over, or has not begun, counts all of it.
+        let year = period(day(2025, 1, 1), day(2025, 12, 31));
+        assert_eq!(
+            counted_so_far(Per::Month, year, day(2026, 11, 15)).unwrap(),
+            None
+        );
+        assert_eq!(
+            counted_so_far(Per::Month, year, day(2024, 3, 1)).unwrap(),
+            None
+        );
+        // This year on 7 November: 10 of 12 months, 3 of 4 quarters.
+        let this_year = period(day(2026, 1, 1), day(2026, 12, 31));
+        assert_eq!(
+            counted_so_far(Per::Month, this_year, day(2026, 11, 7))
+                .unwrap()
+                .map(|so_far| (so_far.counted, so_far.whole)),
+            Some((10, 12))
+        );
+        assert_eq!(
+            counted_so_far(Per::Quarter, this_year, day(2026, 11, 7))
+                .unwrap()
+                .map(|so_far| (so_far.counted, so_far.whole)),
+            Some((3, 4))
+        );
     }
 
     #[test]

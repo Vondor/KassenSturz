@@ -75,7 +75,9 @@ pub use alarms::{
     AlarmReason, AlarmResult, AlarmRule, AlarmState, BudgetLook, CantCheck, MAX_ALARMS,
     MAX_AMOUNT_CHARS, MAX_SHARE, MAX_TIMES, amount_money, amount_text, evaluate as evaluate_alarms,
 };
-pub use average::{AVERAGE_WORDS, Average, CountedEarly, Per, counted_early};
+pub use average::{
+    AVERAGE_WORDS, Average, CountedEarly, CountedSoFar, Per, counted_early, counted_so_far,
+};
 pub use balances::{
     ACCOUNT_BALANCES, AccountBalance, AccountBalances, Converted, CurrencyBalances, CurrencyWorth,
     NET_WORTH_OVER_TIME, NetWorthOverTime, Worth, WorthRow, account_balances, net_worth_over_time,

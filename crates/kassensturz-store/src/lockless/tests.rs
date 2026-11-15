@@ -1,6 +1,8 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+use std::path::PathBuf;
+
 use kassensturz_core::AccountKind;
 #[cfg(target_os = "linux")]
 use rusqlite::{Connection, OpenFlags};
@@ -460,6 +462,68 @@ fn private_copies_a_killed_program_left_are_removed_when_old_enough() {
     assert!(young.exists(), "one that may still be in use stays");
     std::fs::remove_dir(&young).expect("removed");
 }
+
+/// Holds the book's write lock from a second connection, as a folder that
+/// refuses SQLite's locks looks to the first open (B-304).
+fn book_with_busy_write_lock(folder: &TempFolder) -> (PathBuf, Connection) {
+    let path = folder.join("Household.ksz");
+    drop(Book::create(&path, &computer(folder)).expect("book made"));
+    let holder = Connection::open(&path).expect("opened");
+    holder.execute_batch("BEGIN IMMEDIATE").expect("locked");
+    (path, holder)
+}
+
+fn files_in(folder: &TempFolder) -> Vec<String> {
+    let mut files: Vec<String> = std::fs::read_dir(folder.path())
+        .expect("listed")
+        .map(|entry| {
+            entry
+                .expect("entry")
+                .file_name()
+                .to_string_lossy()
+                .into_owned()
+        })
+        .collect();
+    files.sort();
+    files
+}
+
+#[test]
+fn a_folder_that_cant_lock_is_told_at_open_and_nothing_stays_behind() {
+    let folder = TempFolder::new();
+    let (path, _holder) = book_with_busy_write_lock(&folder);
+    let before = files_in(&folder);
+    SQLITE_CANT_LOCK.with(|flag| flag.set(true));
+    let result = crate::connect(&path);
+    SQLITE_CANT_LOCK.with(|flag| flag.set(false));
+    assert!(
+        matches!(result, Err(StoreError::LocksUnsupported)),
+        "{:?}",
+        result.err()
+    );
+    assert_eq!(files_in(&folder), before);
+}
+
+#[test]
+fn a_busy_write_lock_in_a_folder_that_locks_fine_keeps_sqlites_own_error() {
+    let folder = TempFolder::new();
+    let (path, _holder) = book_with_busy_write_lock(&folder);
+    let before = files_in(&folder);
+    let result = crate::connect(&path);
+    assert!(
+        matches!(result, Err(StoreError::Database(_))),
+        "{:?}",
+        result.err()
+    );
+    assert_eq!(files_in(&folder), before, "the scratch file is gone");
+}
+
+#[test]
+fn the_error_has_its_own_code_and_no_parameters() {
+    use kassensturz_core::Report;
+    let report = StoreError::LocksUnsupported.report();
+    assert_eq!(report.code, "store.locks-unsupported");
+    assert!(report.params.is_empty());
 
 #[test]
 fn a_book_taken_over_with_open_anyway_refuses_the_first_ones_next_change() {

@@ -521,6 +521,11 @@ pub enum StoreError {
     /// longer be the only writer. The change wasn't written; the book is as
     /// it was. Close it and open it again.
     LockLost,
+    /// The book's folder doesn't let SQLite lock files (a network share
+    /// mounted with byte-range locks, say), found when the book is opened
+    /// (B-304). The book isn't opened without locks there: two writers could
+    /// damage it. Copying it to a local folder is the way out.
+    LocksUnsupported,
 }
 
 /// What's wrong with data read from a book.
@@ -973,6 +978,7 @@ impl Report for StoreError {
             },
             Self::WriteFailed => new("store.write-failed"),
             Self::LockLost => new("store.lock-lost"),
+            Self::LocksUnsupported => new("store.locks-unsupported"),
         }
     }
 }

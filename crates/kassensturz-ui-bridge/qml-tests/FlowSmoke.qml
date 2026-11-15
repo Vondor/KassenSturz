@@ -71,6 +71,14 @@ Window {
             console.log("flow-text " + flow.bandText(flow.bands[0]));
             console.log("flow-assumed " + flow.bandText(flow.bands[2]));
             console.log("flow-returned " + flow.bandText(flow.bands[3]));
+            // What a screen reader gets: the chart is one focusable item (the
+            // review card of the AI shows this same component), named by the
+            // band being read, with the round trip in its words (B-305).
+            flow.current = 3;
+            console.log("flow-accessible-name " + flow.Accessible.name);
+            console.log("flow-accessible-role " + (flow.Accessible.role === Accessible.Chart));
+            console.log("flow-accessible-description " + (flow.Accessible.description.length > 0));
+            flow.current = -1;
             // What a click opens: a band takes its outer category, a band or
             // node with none takes everything, and the scope is narrowed in
             // text only.

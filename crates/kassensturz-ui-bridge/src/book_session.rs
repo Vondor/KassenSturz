@@ -300,6 +300,27 @@ impl qobject::BookSession {
     }
 
     fn check_write_health(mut self: Pin<&mut Self>) -> bool {
+        // Another computer took the book over with "open anyway": nothing
+        // more may be written here (B-306, D-798).
+        if session::with_book(Book::lock_taken_over).unwrap_or(false) {
+            let Some(path) = session::path() else {
+                return false;
+            };
+            // Closing doesn't touch a lock file that isn't ours.
+            session::close();
+            let problem = Problem::Store {
+                path: path.clone(),
+                error: StoreError::LockLost,
+            };
+            let shown = self.problem_map(&problem);
+            let mut state = self.as_mut().rust_mut();
+            state.open = false;
+            state.last_attempt = Some(Attempt::Open(path));
+            self.as_mut().open_changed();
+            self.as_mut().set_problem(shown);
+            self.as_mut().failed();
+            return true;
+        }
         if !session::with_book(Book::write_failed).unwrap_or(false) {
             return false;
         }

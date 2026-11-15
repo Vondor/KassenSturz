@@ -597,6 +597,16 @@ mod tests {
         shown
     }
 
+    // B-306: a book another computer took over has a page of its own.
+    #[test]
+    fn a_book_taken_over_elsewhere_shows_its_own_page() {
+        let problem = Problem::Store {
+            path: PathBuf::from("/data/Household.ksz"),
+            error: StoreError::LockLost,
+        };
+        assert_eq!(code(problem), "store.lock-lost");
+    }
+
     // B-289: a replaced book file has a page of its own, not the drive's.
     #[test]
     fn a_replaced_book_file_is_told_from_a_lost_drive() {

@@ -538,6 +538,11 @@ fn a_book_taken_over_with_open_anyway_refuses_the_first_ones_next_change() {
     };
     // The user says "open anyway" on another computer: it takes the lock.
     let mut second = Book::open_anyway(&path, &computer, &seen).expect("taken over");
+    assert!(
+        first.lock_taken_over(),
+        "the first one can ask before it writes"
+    );
+    assert!(!second.lock_taken_over());
     let before = std::fs::read(&path).expect("book read");
     let result = first.as_one_action(crate::Action::AddAccount, |_| Ok::<(), StoreError>(()));
     assert!(matches!(result, Err(StoreError::LockLost)), "{result:?}");

@@ -65,6 +65,8 @@ Kirigami.Page {
             return i18nContext.i18nc("@title", "Another program replaced your book");
         case "book.outside-test":
             return i18nContext.i18nc("@title", "The test mode only opens books in its own folder");
+        case "store.lock-lost":
+            return i18nContext.i18nc("@title", "This book is open on another computer now");
         case "store.already-exists":
             return i18nContext.i18nc("@title", "There is a file with this name already");
         default:
@@ -117,6 +119,8 @@ Kirigami.Page {
             return i18nContext.i18nc("@info", "This book was made by a test version of KassenSturz from before the Beta. Open it with that version, choose \"Save the whole book\" there, and start a new book from the saved file. The book wasn't changed.");
         case "store.backup-failed":
             return i18nContext.i18nc("@info", "Before it updates a book to work with this version, KassenSturz saves a copy, and that didn't work, so the book was left as it was. Free up space on the drive, then try again.");
+        case "store.lock-lost":
+            return i18nContext.i18nc("@info", "Another computer opened this book anyway, so KassenSturz closed it here. Your latest change here was not saved if it came after that. Close the book on the other computer, then choose \"Try again\" to open it here.");
         case "store.locks-unsupported":
             return i18nContext.i18nc("@info", "This folder can't lock files, so KassenSturz didn't open the book: two programs could change it at the same time and damage it. Copy the book to a folder on this computer and open it from there, or ask whoever set up the share to allow file locks. The book wasn't changed.");
         case "store.journal-mode-refused":
@@ -235,7 +239,7 @@ Kirigami.Page {
                 }
             }
             Controls.Button {
-                visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database", "book.write-failed", "book.replaced"].includes(page.code)
+                visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database", "book.write-failed", "book.replaced", "store.lock-lost"].includes(page.code)
                 icon.name: "view-refresh"
                 text: page.i18nContext.i18nc("@action:button", "Try again")
                 onClicked: {

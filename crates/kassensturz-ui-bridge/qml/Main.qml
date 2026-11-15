@@ -1038,12 +1038,22 @@ Kirigami.ApplicationWindow {
             }
 
             // A book on a network drive opens, with this warning on every
-            // screen (D-038).
+            // screen (D-038), until the user hides it for that book
+            // (B-321, D-802).
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 position: Kirigami.InlineMessage.Position.Header
                 type: Kirigami.MessageType.Warning
-                visible: bookSession.open && bookSession.networkDrive
+                visible: bookSession.open && bookSession.networkNoteShown
+                actions: [
+                    Kirigami.Action {
+                        text: root.i18nContext.i18nc("@action:button hides a note for this book", "Don't show again for this book")
+                        onTriggered: {
+                            ActionLog.taken("Main_hideNetworkNote")
+                            bookSession.hideNetworkNote()
+                        }
+                    }
+                ]
                 text: root.i18nContext.i18nc("@info", "This book is on a network drive. Network drives can damage a book, because they don't save changes as reliably as this computer's own drive. Keep the book on this computer; a sync folder, such as Nextcloud's, is fine.")
             }
         }

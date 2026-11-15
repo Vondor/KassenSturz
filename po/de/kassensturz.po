@@ -25532,3 +25532,9 @@ msgstr "Dieses Haushaltsbuch ist jetzt auf einem anderen Computer geöffnet"
 msgctxt "@info"
 msgid "Another computer opened this book anyway, so KassenSturz closed it here. Your latest change here was not saved if it came after that. Close the book on the other computer, then choose \"Try again\" to open it here."
 msgstr "Ein anderer Computer hat dieses Haushaltsbuch trotzdem geöffnet, deshalb hat KassenSturz es hier geschlossen. Ihre letzte Änderung hier wurde nicht gespeichert, wenn sie danach kam. Schließen Sie das Haushaltsbuch auf dem anderen Computer und wählen Sie dann „Erneut versuchen“, um es hier zu öffnen."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1
+#, kde-format
+msgctxt "@action:button hides a note for this book"
+msgid "Don't show again for this book"
+msgstr "Für dieses Haushaltsbuch nicht mehr anzeigen"

@@ -45,6 +45,8 @@
 
 #[cfg(feature = "ai")]
 mod changes;
+#[cfg(feature = "ai")]
+mod daily;
 #[cfg(all(feature = "ai", feature = "debug-log"))]
 mod debug_log;
 #[cfg(feature = "ai")]

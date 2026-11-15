@@ -61,7 +61,7 @@ fn nothing_is_read_until_the_user_allows_it() {
 fn each_row_opens_only_the_functions_that_read_it() {
     assert_eq!(
         names(Permissions::NONE.with(Permission::AccountsRead, true)),
-        ["list_accounts", "account_balance"]
+        ["list_accounts", "account_balance", "daily_balances"]
     );
     assert_eq!(
         names(Permissions::NONE.with(Permission::RulesRead, true)),

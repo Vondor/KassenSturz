@@ -418,12 +418,12 @@ ColumnLayout {
 
                     readonly property bool first: modelData.column === 0
                     readonly property bool last: modelData.column === view.columns - 1
-                    readonly property var top: plot.labelTops[index] ?? null
+                    readonly property var labelTop: plot.labelTops[index] ?? null
                     readonly property int alignment: first ? Text.AlignRight : Text.AlignLeft
 
-                    visible: top !== null
+                    visible: labelTop !== null
                     x: first ? -view.labelWidth : view.xOf(modelData.column, plot.width) + view.nodeWidth + Kirigami.Units.smallSpacing
-                    y: top ?? 0
+                    y: labelTop ?? 0
                     width: first || last ? view.labelWidth - Kirigami.Units.smallSpacing : Math.max(nameLabel.implicitWidth, amountLabel.implicitWidth)
                     height: view.labelHeight
                     Accessible.ignored: true

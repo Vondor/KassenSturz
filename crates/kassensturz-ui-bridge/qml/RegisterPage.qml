@@ -144,7 +144,11 @@ Kirigami.ScrollablePage {
         if (window) {
             const drawn = () => {
                 window.frameSwapped.disconnect(drawn);
-                page.ready();
+                // The page can be gone before its first frame (a book switch,
+                // or leaving the register at once, B-317).
+                if (page !== null) {
+                    page.ready();
+                }
             };
             window.frameSwapped.connect(drawn);
         }

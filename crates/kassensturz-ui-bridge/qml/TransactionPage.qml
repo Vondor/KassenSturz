@@ -512,6 +512,11 @@ Kirigami.ScrollablePage {
             spacing: Kirigami.Units.smallSpacing
             Layout.fillWidth: true
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            // The column may be narrower than its wanted width, as at 200%
+            // text in the smallest window; its hint then wraps inside the
+            // room there is and not under the page's scrollbar (B-318).
+            Layout.minimumWidth: 0
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 20
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Note:")
 
             Controls.ScrollView {
@@ -580,6 +585,7 @@ Kirigami.ScrollablePage {
             Controls.Label {
                 id: noteCounter
                 Layout.fillWidth: true
+                Layout.preferredWidth: 0
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 font: Kirigami.Theme.smallFont

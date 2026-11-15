@@ -683,18 +683,36 @@ pub fn enabled_at(path: &Path) -> bool {
     std::fs::read_to_string(path).is_ok_and(|text| enabled_in(&text))
 }
 
-/// Where KConfig keeps the app's settings file, where this build knows it.
-/// `None` elsewhere, which counts as off until the Windows and macOS
-/// packaging steps (M7) say where their settings go.
+/// Where KConfig keeps the app's settings file, where this build knows it:
+/// on Linux in `$XDG_CONFIG_HOME` or `~/.config`, and on Windows in
+/// `%LOCALAPPDATA%`, Qt's `GenericConfigLocation` there (B-322). `None`
+/// elsewhere, which counts as off until the macOS packaging says where its
+/// settings go.
 pub fn settings_file() -> Option<PathBuf> {
-    if cfg!(not(target_os = "linux")) {
-        return None;
-    }
-    let folder = match std::env::var_os("XDG_CONFIG_HOME") {
-        Some(folder) if !folder.is_empty() => PathBuf::from(folder),
-        _ => {
-            PathBuf::from(std::env::var_os("HOME").filter(|home| !home.is_empty())?).join(".config")
-        }
+    settings_file_for(std::env::consts::OS, |name| {
+        std::env::var_os(name).filter(|value| !value.is_empty())
+    })
+}
+
+/// [`settings_file`] on the system `os` (as `std::env::consts::OS` names
+/// it), with the environment read through `var`.
+///
+/// On Windows `XDG_CONFIG_HOME` comes first: Qt there doesn't read it, but
+/// the app's test profile sets it to the folder of the settings file it
+/// keeps for itself, so the switch reads that file in the test profile
+/// too (Q-399). Without it, `%LOCALAPPDATA%` is where KConfig writes.
+fn settings_file_for(
+    os: &str,
+    var: impl Fn(&str) -> Option<std::ffi::OsString>,
+) -> Option<PathBuf> {
+    let folder = match os {
+        "linux" => var("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| var("HOME").map(|home| PathBuf::from(home).join(".config")))?,
+        "windows" => var("XDG_CONFIG_HOME")
+            .or_else(|| var("LOCALAPPDATA"))
+            .map(PathBuf::from)?,
+        _ => return None,
     };
     Some(folder.join(FILE))
 }
@@ -892,6 +910,55 @@ mod tests {
         assert!(Permission::FileBills.needs_read());
         assert_eq!(Permission::FileBills.row(), Row::Transactions);
         assert_ne!(Permission::FileBills.key(), Permission::AttachBills.key());
+    }
+
+    #[test]
+    fn the_settings_file_is_where_kconfig_keeps_it_on_each_system() {
+        // B-322: on Windows the switch used to read nothing, so AI stayed
+        // off there whatever the toggle wrote, and the consent couldn't be
+        // saved.
+        let env = |pairs: &'static [(&'static str, &'static str)]| {
+            move |name: &str| {
+                pairs
+                    .iter()
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| std::ffi::OsString::from(value))
+            }
+        };
+        assert_eq!(
+            settings_file_for("linux", env(&[("HOME", "/home/sam")])),
+            Some(Path::new("/home/sam/.config").join(FILE))
+        );
+        assert_eq!(
+            settings_file_for(
+                "linux",
+                env(&[("HOME", "/home/sam"), ("XDG_CONFIG_HOME", "/elsewhere")])
+            ),
+            Some(Path::new("/elsewhere").join(FILE))
+        );
+        assert_eq!(
+            settings_file_for(
+                "windows",
+                env(&[("LOCALAPPDATA", r"C:\Users\Sam\AppData\Local")])
+            ),
+            Some(Path::new(r"C:\Users\Sam\AppData\Local").join(FILE))
+        );
+        // The test profile's own settings folder wins on Windows too.
+        assert_eq!(
+            settings_file_for(
+                "windows",
+                env(&[
+                    ("LOCALAPPDATA", r"C:\Users\Sam\AppData\Local"),
+                    ("XDG_CONFIG_HOME", r"C:\Test\config")
+                ])
+            ),
+            Some(Path::new(r"C:\Test\config").join(FILE))
+        );
+        assert_eq!(settings_file_for("windows", env(&[])), None);
+        assert_eq!(
+            settings_file_for("macos", env(&[("HOME", "/Users/sam")])),
+            None
+        );
     }
 
     #[test]

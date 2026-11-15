@@ -71,6 +71,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Manche Kontoauszüge in anderen Zeichensätzen wurden nicht gelesen | B-280 | #996 |
 | Bei manchen CSV-Dateien ging die erste Buchung als Überschrift verloren | B-281 | #984 |
 | Ein KMyMoney-Buch mit zwei gleich benannten Konten ließ sich nicht einlesen | B-283 | #997 |
+| Eine eigens gebaute KMyMoney-SQLite-Datei konnte beim Einlesen sehr viel Arbeitsspeicher belegen | B-335 | dieser PR |
 | Ein im Belegordner unbemerkt ausgetauschter Beleg fiel nicht auf | B-284 | #969 |
 | Nach einem Zurückwechseln auf eine ältere Version fehlte der Hinweis auf die Sicherung | B-285 | #992 |
 | Bei ausgeschalteter KI gab es noch einen unsichtbaren Rest des Chatfensters | B-286 | #991 |

@@ -71,6 +71,7 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | Some statements in other character sets weren't read | B-280 | #996 |
 | With some CSV files the first entry was lost as a header | B-281 | #984 |
 | A KMyMoney book with two accounts of the same name couldn't be imported | B-283 | #997 |
+| A specially made KMyMoney SQLite file could make an import use a very large amount of memory | B-335 | this PR |
 | A receipt swapped in the receipt folder went unnoticed | B-284 | #969 |
 | After going back to an older version, the pointer to the backup was missing | B-285 | #992 |
 | With AI off, an invisible remnant of the chat window still existed | B-286 | #991 |

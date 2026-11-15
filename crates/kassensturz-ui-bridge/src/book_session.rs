@@ -448,7 +448,7 @@ impl qobject::BookSession {
         let job = books.job();
         let kind = kind(books);
         self.as_mut().rust_mut().opening = true;
-        self.as_mut().set_opening(true);
+        self.as_mut().opening_changed();
         let thread = self.qt_thread();
         std::thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| job.run(kind)));
@@ -456,15 +456,20 @@ impl qobject::BookSession {
             let _ = match result {
                 Ok(result) => thread.queue(move |qobject| qobject.finish(attempt, result)),
                 // Never leave the window waiting for a book that can't come.
-                Err(_) => thread.queue(|qobject| qobject.set_opening(false)),
+                Err(_) => thread.queue(|qobject| qobject.stop_opening()),
             };
         });
     }
 
+    /// The worker is done, whatever it found.
+    fn stop_opening(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().opening = false;
+        self.as_mut().opening_changed();
+    }
+
     /// What the worker thread found: the book opened, or the problem.
     fn finish(mut self: Pin<&mut Self>, attempt: Attempt, result: Result<OpenBook, Problem>) {
-        self.as_mut().rust_mut().opening = false;
-        self.as_mut().set_opening(false);
+        self.as_mut().stop_opening();
         match result {
             Ok(book) => {
                 let backups = {

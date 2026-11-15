@@ -53,6 +53,7 @@ mod error;
 mod figures;
 #[cfg(feature = "ai")]
 mod functions;
+#[cfg(feature = "ai")]
 mod invisible_table;
 #[cfg(feature = "ai")]
 mod issue;
@@ -68,6 +69,7 @@ mod read;
 pub mod refusal;
 #[cfg(feature = "ai")]
 pub mod requests;
+#[cfg(feature = "ai")]
 mod text;
 #[cfg(feature = "ai")]
 mod writer;

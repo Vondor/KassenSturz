@@ -129,6 +129,7 @@ pub fn spending_by_category_compared(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: Some(ComparedTable {
             marks,
             total: change_row(String::new(), &total, format),

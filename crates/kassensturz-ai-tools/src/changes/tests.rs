@@ -3314,6 +3314,7 @@ mod sort_rules;
 mod tool_review;
 mod view_call;
 mod view_columns;
+mod view_daily;
 
 // A bank's amount keeps its figure, and the AI is told why (M6-B215).
 #[test]

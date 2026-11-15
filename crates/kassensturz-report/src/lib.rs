@@ -44,6 +44,7 @@ mod catalog;
 mod columns;
 mod compared;
 mod component;
+mod daily;
 mod dashboard_file;
 mod dashboard_file_read;
 mod default_overview;
@@ -95,6 +96,10 @@ pub use compared::{
     spending_compared,
 };
 pub use component::Component;
+pub use daily::{
+    DAILY_BALANCE, DAILY_PARTS, DailyBalance, DailyParts, DailyRow, EMA_FAST_WORDS,
+    EMA_SIGNAL_WORDS, EMA_SLOW_WORDS, Ema, MAX_DAILY_DAYS, daily_balance, daily_days,
+};
 pub use dashboard_file::{
     DASHBOARD_FILE_EXTENSION, DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, DashboardFile,
     MAX_APPLICATION_CHARS, MAX_DASHBOARD_FILE_BYTES, MAX_PATH_NAMES, MAX_REFERENCE_NAME_CHARS,
@@ -176,6 +181,8 @@ mod component_tests;
 #[cfg(test)]
 mod custom_chart_tests;
 #[cfg(test)]
+mod daily_tests;
+#[cfg(test)]
 mod dashboard_file_read_tests;
 #[cfg(test)]
 mod dashboard_file_tests;
@@ -193,6 +200,8 @@ mod formula_tests;
 mod grid_tests;
 #[cfg(test)]
 mod groups_tests;
+#[cfg(test)]
+mod money_flow_moves_tests;
 #[cfg(test)]
 mod money_flow_tests;
 #[cfg(test)]

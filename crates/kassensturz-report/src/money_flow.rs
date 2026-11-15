@@ -165,6 +165,11 @@ pub struct Flow {
     pub to: usize,
     /// Its amount, more than zero.
     pub amount: Money,
+    /// How much of it is assumed: moves between own accounts that look like
+    /// moves (same amount out of one and into the other, a few days apart)
+    /// but are not joined as Transfers (#1035). Zero for a band that is
+    /// fully known.
+    pub assumed: Money,
 }
 
 /// The money flow of one currency.
@@ -231,6 +236,7 @@ pub fn money_flow(
 ) -> Result<Vec<MoneyFlow>, ReportError> {
     let mut atoms: HashMap<CurrencyCode, Vec<Atom>> = HashMap::new();
     let mut transfers: HashMap<CurrencyCode, Vec<accounts::Transfer>> = HashMap::new();
+    let mut assumed: HashMap<CurrencyCode, Vec<accounts::Transfer>> = HashMap::new();
     let parts = source.parts(period, filter)?;
     let atom_of = |part: &crate::source::Part, signed: i64, account| -> Result<Atom, ReportError> {
         let _ = signed;
@@ -265,8 +271,19 @@ pub fn money_flow(
         // A Transfer is neither income nor spending, so a filter by category
         // or tag leaves it out.
         let with_transfers = filter.categories.is_none() && filter.tags.is_none();
+        // Pairs that look like moves between the chosen accounts are drawn
+        // as moves, marked as assumed, in place of the income and spending
+        // their two sides would otherwise count as (#1035).
+        let guesses = if with_transfers {
+            accounts::assumed_moves(source, period, &chosen)
+        } else {
+            accounts::AssumedMoves::default()
+        };
+        for (currency, transfer) in &guesses.moves {
+            assumed.entry(*currency).or_default().push(*transfer);
+        }
         for (index, transaction) in source.transactions().iter().enumerate() {
-            if !period.contains(transaction.booking_date()) {
+            if !period.contains(transaction.booking_date()) || guesses.skip.contains(&index) {
                 continue;
             }
             let Some(moved) = accounts::allocate(source, transaction, &chosen)? else {
@@ -308,12 +325,17 @@ pub fn money_flow(
                 .push(atom_of(part, signed, None)?);
         }
     }
-    let mut currencies: Vec<CurrencyCode> = atoms.keys().copied().collect();
+    // A currency with only assumed moves has a chart of its own too.
+    let mut currencies: Vec<CurrencyCode> = atoms.keys().chain(assumed.keys()).copied().collect();
     currencies.sort_unstable();
+    currencies.dedup();
     let mut results = Vec::new();
     for currency in currencies {
         let moved = transfers.get(&currency).map(Vec::as_slice).unwrap_or(&[]);
-        if let Some(flow) = build(source, currency, &atoms[&currency], moved, options)? {
+        let guessed = assumed.get(&currency).map(Vec::as_slice).unwrap_or(&[]);
+        let no_atoms = Vec::new();
+        let atoms = atoms.get(&currency).unwrap_or(&no_atoms);
+        if let Some(flow) = build(source, currency, atoms, moved, guessed, options)? {
             results.push(flow);
         }
     }
@@ -325,6 +347,8 @@ struct Builder<'a> {
     currency: CurrencyCode,
     nodes: Vec<FlowNode>,
     flows: Vec<(usize, usize, i64)>,
+    /// How much of a band between two nodes is assumed (#1035).
+    assumed: Vec<(usize, usize, i64)>,
     /// The payee nodes already made, by side and payee.
     payees: HashMap<(i8, Option<String>), usize>,
     /// The *Other* node of the payee column of a side.
@@ -459,6 +483,7 @@ fn build(
     currency: CurrencyCode,
     atoms: &[Atom],
     transfers: &[accounts::Transfer],
+    assumed: &[accounts::Transfer],
     options: FlowOptions,
 ) -> Result<Option<MoneyFlow>, ReportError> {
     let mut b = Builder {
@@ -466,6 +491,7 @@ fn build(
         currency,
         nodes: Vec::new(),
         flows: Vec::new(),
+        assumed: Vec::new(),
         payees: HashMap::new(),
         payee_other: HashMap::new(),
         accounts: HashMap::new(),
@@ -603,7 +629,7 @@ fn build(
     // The balance node, or with accounts one for each account.
     let mut total = income.max(spending);
     if options.accounts {
-        accounts::finish(&mut b, middle, transfers)?;
+        accounts::finish(&mut b, middle, transfers, assumed)?;
         total = accounts::widest_column(&b)?;
     } else if income > spending {
         let left = income - spending;
@@ -621,6 +647,15 @@ fn build(
             from,
             to,
             amount: Money::from_minor_units(amount, currency),
+            assumed: Money::from_minor_units(
+                b.assumed
+                    .iter()
+                    .filter(|a| a.0 == from && a.1 == to)
+                    .map(|a| a.2)
+                    .sum::<i64>()
+                    .min(amount),
+                currency,
+            ),
         })
         .collect();
     Ok(Some(MoneyFlow {
@@ -763,6 +798,10 @@ fn drop_unused(b: &mut Builder<'_>, gone: &HashMap<usize, usize>) {
     for flow in &mut b.flows {
         flow.0 = new_index[flow.0];
         flow.1 = new_index[flow.1];
+    }
+    for pair in &mut b.assumed {
+        pair.0 = new_index[pair.0];
+        pair.1 = new_index[pair.1];
     }
     for node in b.payees.values_mut() {
         *node = new_index[*node];

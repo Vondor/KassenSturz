@@ -34,6 +34,12 @@ pub(crate) mod shape {
 pub const CATEGORY_NOT_RULE_HINT: &str = "This ID is a category. Rule IDs come from \
 list_rules; call list_rules and copy the ID of the Rule.";
 
+/// What a refused length of a trend or a daily balance tells the model
+/// (US7, #1036, D-794): which data take it. Fixed text, never the call's.
+pub const LENGTH_HINT: &str = "trend_length is only for data moving_average and macd; \
+trend_slow and trend_signal only for macd; ema_fast, ema_slow and ema_signal only for \
+daily_balance. Call propose_view again without it, or with the data that takes it.";
+
 /// What [`ToolError::hint`] tells the model when `measure` is refused on a
 /// chart (R2-16).
 pub const READY_MADE_TILE_HINT: &str = "measure is only the one number of a key figure \
@@ -477,6 +483,15 @@ impl ToolError {
                 only_for_show_as,
                 ..
             } if only_for_show_as.contains(&"figure") => Some(READY_MADE_TILE_HINT),
+            Self::NotForChart {
+                argument, allowed, ..
+            } if allowed.is_empty()
+                && crate::changes::LENGTHS
+                    .iter()
+                    .any(|(length, _)| length == argument) =>
+            {
+                Some(LENGTH_HINT)
+            }
             Self::CategoryNotRule => Some(CATEGORY_NOT_RULE_HINT),
             _ => None,
         }

@@ -82,6 +82,7 @@ pub use tags::TagTransaction;
 pub use transactions::{EditTransaction, FieldEdit, FieldValue};
 #[cfg(test)]
 pub(crate) use view_call::ARGUMENTS as VIEW_ARGUMENTS;
+pub(crate) use view_call::LENGTHS;
 pub(crate) use view_call::list_views;
 pub use view_call::{
     MAX_VIEW_ACCOUNTS, MAX_VIEW_CALL_BYTES, MAX_VIEW_CATEGORIES, MAX_VIEWS_PER_ANSWER,

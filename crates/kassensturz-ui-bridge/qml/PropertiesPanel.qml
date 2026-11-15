@@ -127,6 +127,8 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in, money out or what is left, with its moving average");
         case "macd":
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Short-term against long-term trend (MACD)");
+        case "daily_balance":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "An account's balance day by day, with averages and MACD");
         }
         return "";
     }
@@ -149,6 +151,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "Shows what is left, or money in, or money out, in each month, and next to it a moving average: the average of that month and the ones before it, which smooths out the ups and downs so you can see where things are heading. You choose how many months it spans. Months from before the period are used for the first averages but not shown. Each currency is shown on its own; they are never added together.");
         case "macd":
             return i18nContext.i18nc("@info", "Shows whether the recent months are doing better or worse than the longer run. The trend line is the average of the last few months less the average of the last many months; above zero means the recent months are better. The signal line is the average of the trend line over a few months, and the gap is the trend line less the signal line. You choose the lengths. Each currency is shown on its own; they are never added together.");
+        case "daily_balance":
+            return i18nContext.i18nc("@info", "Shows what the account held at the end of each day, as a stepped line, up to today. Two averages follow the balance and weigh the latest days most, by default over 12 and 26 days. The panel under it shows MACD, the short average less the long one: above zero, the balance has lately risen faster than its longer average. The signal line is the average of MACD, and the bars are MACD less the signal line. The averages start well before the period, so the first day is already settled. If the account's first entry is inside the period, the chart starts on that day. Without a chosen account, your checking, savings and cash accounts are added up. Each currency is shown on its own.");
         case "money_flow":
             return i18nContext.i18nc("@info", "Shows where the money of the period came from and where it went, as bands as wide as their amount. If you earned more than you spent, the rest is shown as left over; if you spent more, as taken from your reserves. Money moved between your own accounts is not counted. One currency is shown, with no conversion.");
         case "cash_flow_by_month":
@@ -190,7 +194,18 @@ ColumnLayout {
         case "legend":
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
+            // A daily balance's grouping says which panels it shows (D-794).
+            if (fields.some(field => field.key === "ema_fast")) {
+                return i18nContext.i18nc("@label:listbox which lines and panels a daily balance chart shows", "Show");
+            }
             return i18nContext.i18nc("@label:listbox how the figures are grouped", "Group by");
+        // The days of a daily balance's averages (US7, #1036).
+        case "ema_fast":
+            return i18nContext.i18nc("@label:listbox the days the short average of a daily balance spans", "Short average over");
+        case "ema_slow":
+            return i18nContext.i18nc("@label:listbox the days the long average of a daily balance spans", "Long average over");
+        case "ema_signal":
+            return i18nContext.i18nc("@label:listbox the days the signal line of a daily balance's MACD spans", "Signal line over");
         case "average":
             return i18nContext.i18nc("@label:listbox whether a chart shows the total spending or an average per month, quarter or year", "Show as");
         case "orientation":
@@ -350,6 +365,31 @@ ColumnLayout {
         case "24-months":
         case "36-months":
             return i18nContext.i18nc("@item:inlistbox a whole number of months; %1 is the number", "%1 months", word.split("-")[0]);
+        // The days of a daily balance's averages (US7, #1036).
+        case "3-days":
+        case "5-days":
+        case "7-days":
+        case "9-days":
+        case "10-days":
+        case "12-days":
+        case "14-days":
+        case "20-days":
+        case "26-days":
+        case "30-days":
+        case "50-days":
+        case "90-days":
+        case "100-days":
+        case "200-days":
+            return i18nContext.i18nc("@item:inlistbox a whole number of days; %1 is the number", "%1 days", word.split("-")[0]);
+        // What a daily balance shows (US7, #1036).
+        case "balance-averages-macd":
+            return i18nContext.i18nc("@item:inlistbox what a daily balance chart shows", "Balance, both averages and MACD");
+        case "balance-averages":
+            return i18nContext.i18nc("@item:inlistbox what a daily balance chart shows", "Balance and both averages");
+        case "balance":
+            return i18nContext.i18nc("@item:inlistbox what a daily balance chart shows", "Balance only");
+        case "macd":
+            return i18nContext.i18nc("@item:inlistbox what a daily balance chart shows", "MACD only");
         case "income":
         case "money_in":
             return i18nContext.i18nc("@item:inlistbox", "Money in");

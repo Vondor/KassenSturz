@@ -1197,6 +1197,46 @@ fn the_ai_chooses_which_way_bars_go() {
     );
 }
 
+#[test]
+fn the_ai_can_ask_for_the_accounts_column_of_the_money_flow() {
+    // B-312: the review card can show the accounts layer (and with it the
+    // assumed moves and the round trips). A flag in the schema, `on` and
+    // `off` for the AI, only for the money flow.
+    let Sample { book, .. } = sample();
+    let spec = propose_view_spec(Permissions::all()).expect("offered");
+    let schema: Value = serde_json::from_str(&spec.parameters).expect("JSON");
+    assert_eq!(words(&schema["properties"]["show_accounts"]), ["off", "on"]);
+    assert_eq!(
+        Some(words(&schema["properties"]["show_accounts"])),
+        view_choices("show_accounts")
+    );
+    let text = |show_accounts: Option<&str>| {
+        let mut call = json!({"title": "Flow", "data": "money_flow", "show_as": "money_flow"});
+        if let Some(word) = show_accounts {
+            call["show_accounts"] = json!(word);
+        }
+        call.to_string()
+    };
+    let props = |show_accounts: Option<&str>| -> Value {
+        let proposal = call(&book, &text(show_accounts)).expect("prepared");
+        let component: Value =
+            serde_json::from_str(&chart(&proposal).component_json()).expect("JSON");
+        component["params"].clone()
+    };
+    assert_eq!(props(Some("on"))["show_accounts"], true);
+    assert_eq!(props(Some("off"))["show_accounts"], false);
+    assert_eq!(props(None)["show_accounts"], false);
+    // Not a word of the list, and not for another data.
+    assert_eq!(
+        view_code(call(&book, &text(Some("yes")))),
+        "bad-argument show_accounts"
+    );
+    let other = json!({"title": "Bars", "data": "income_expense_by_month", "show_as": "bar",
+        "show_accounts": "on"})
+    .to_string();
+    assert_eq!(view_code(call(&book, &other)), "bad-argument show_accounts");
+}
+
 /// The sample book with a salary paid on the day of its other
 /// transactions, so a month has income, spending and a savings rate.
 fn with_income() -> Book {

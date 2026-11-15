@@ -1804,8 +1804,10 @@ mod tests {
         assert!(store.give_consent(TODAY));
         let form = load_in(&store, false);
         assert_eq!(text_of(&form, "consent"), "given");
-        // The test's keychain saved the seal: it counts after a restart.
-        assert!(!flag_of(&form, "consentUntilClose"));
+        // `Store::at` has nowhere to save secrets, so the seal is kept only
+        // in memory and the form says the consent lasts until KassenSturz
+        // closes (B-324). The saved case is tested in `ai_settings`.
+        assert!(flag_of(&form, "consentUntilClose"));
         assert_eq!(text_of(&form, "consentUnconfirmedDay"), "");
         assert!(
             text_of(&form, "consentDay").contains("25"),

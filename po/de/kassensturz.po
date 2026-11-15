@@ -25467,3 +25467,9 @@ msgstr "Nur Kontostand"
 msgctxt "@item:inlistbox what a daily balance chart shows"
 msgid "MACD only"
 msgstr "Nur MACD"
+
+#: crates/kassensturz-ui-bridge/qml/FlowChart.qml:97
+#, kde-format
+msgctxt "@info the amount of a flow of the money-flow chart between two of your accounts: %1 the amount with what comes before it, %2 the amount that went both ways"
+msgid "%1; %2 also went the other way and is shown only once"
+msgstr "%1; %2 gingen auch in die andere Richtung und werden nur einmal gezeigt"

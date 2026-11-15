@@ -87,10 +87,16 @@ ColumnLayout {
     // The amount of a band; one that holds moves between own accounts that
     // only look like moves says how much of it is assumed (#1035).
     function amountText(band: var): string {
-        if (!band.assumed) {
-            return band.label;
+        let text = band.label;
+        if (band.assumed) {
+            text = i18nContext.i18nc("@info the amount of a flow of the money-flow chart, part of which is assumed to be a move between your own accounts: %1 the amount, %2 the assumed part", "%1 (%2 assumed)", band.label, band.assumed);
         }
-        return i18nContext.i18nc("@info the amount of a flow of the money-flow chart, part of which is assumed to be a move between your own accounts: %1 the amount, %2 the assumed part", "%1 (%2 assumed)", band.label, band.assumed);
+        if (band.returned) {
+            // Money that went there and back is drawn once, as the
+            // difference, so the account's own figures may look larger.
+            text = i18nContext.i18nc("@info the amount of a flow of the money-flow chart between two of your accounts: %1 the amount with what comes before it, %2 the amount that went both ways", "%1; %2 also went the other way and is shown only once", text, band.returned);
+        }
+        return text;
     }
 
     function bandText(band: var): string {

@@ -69,6 +69,15 @@ fn check_against_register(flow: &MoneyFlow, bookings: &[Transaction], own: &[(&s
     );
 }
 
+/// What the band says went both ways (#1050 follow-up).
+fn returned(flow: &MoneyFlow, from: &str, to: &str) -> Option<i64> {
+    let name = |index: usize| flow.nodes[index].name.as_str();
+    flow.flows
+        .iter()
+        .find(|f| name(f.from) == from && name(f.to) == to)
+        .map(|f| f.returned.minor_units())
+}
+
 fn band(flow: &MoneyFlow, from: &str, to: &str) -> Option<(i64, i64)> {
     let name = |index: usize| flow.nodes[index].name.as_str();
     flow.flows

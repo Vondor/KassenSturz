@@ -164,6 +164,9 @@ fn every_result(book: &Book, ids: &Ids) -> Vec<(String, Value)> {
                 json!({ "from": "2026-01-01", "to": "2026-12-31" })
             }
             "search_transactions" => json!({ "category_id": ids.groceries.to_string() }),
+            "daily_balances" => json!({
+                "account_id": ids.checking.to_string(), "from": "2026-09-01", "to": "2026-12-31"
+            }),
             _ => Value::Null,
         };
         let output = call(book, function.name, &arguments, TODAY)

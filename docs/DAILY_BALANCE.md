@@ -62,3 +62,14 @@ its description, `group_by` takes the four words above, and `ema_fast`,
 only) the same way. A word that is not in its list is refused with the list
 (`allowed`); a length the chosen data does not have is refused with a hint,
 never silently dropped. Every figure is computed by KassenSturz (D-052).
+
+The read function `daily_balances` gives the model the same figures for one
+account (under *Accounts › Read*, like `account_balance`): `account_id`,
+`from` and `to` (at most 200 days, days after today left out), and
+optionally `ema_fast`, `ema_slow` and `ema_signal` as whole days from 2 to
+200, the long average longer than the short one (default 12, 26, 9). Each
+row is `day, balance, average_short, average_long, macd, signal, histogram`;
+`starts_on_first_entry` says the account has no balance before
+`first_day`, and a period wholly after today has no rows and says
+`after_today`. Every amount goes through the number check, so a figure the
+model makes up is flagged (T-23).

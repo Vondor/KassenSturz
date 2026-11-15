@@ -302,6 +302,10 @@ fn an_answer_quoting_the_results_passes_the_number_check() {
                 let id = book.accounts(false).expect("accounts")[0].id.to_string();
                 json!({ "account_id": id })
             }
+            "daily_balances" => {
+                let id = book.accounts(false).expect("accounts")[0].id.to_string();
+                json!({ "account_id": id, "from": "2026-10-01", "to": "2026-10-31" })
+            }
             "category_totals" | "payee_totals" | "monthly_totals" => {
                 json!({ "from": "2026-10-01", "to": "2026-10-31" })
             }

@@ -15,6 +15,7 @@ use kassensturz_core::{AccountId, Date, RuleId};
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
 
+use crate::daily;
 use crate::error::ToolError;
 use crate::figures::Figures;
 use crate::plans;
@@ -41,6 +42,9 @@ impl Function {
     pub fn rows(&self) -> &'static [Row] {
         match self.name {
             "list_accounts" | "account_balance" => &[Row::Accounts],
+            // An account's balance day by day, as account_balance gives it
+            // for one day (US7, #1036, D-794).
+            "daily_balances" => &[Row::Accounts],
             "category_totals" => &[Row::Categories, Row::Transactions],
             // The same two rows, month by month (#852).
             "monthly_totals" => &[Row::Categories, Row::Transactions],
@@ -287,6 +291,21 @@ pub const FUNCTIONS: &[Function] = &[
             they are and never add months up yourself.",
         parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD. At most 24 months after from."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"tag_id":{"type":"string","description":"Only money with this tag, ID from list_tags."},"category_id":{"type":"string","description":"Only this category's row in each month, ID from list_categories."},"top":{"type":"integer","minimum":1,"maximum":5,"description":"Also name the largest categories per side in each month. Not with category_id."}},"required":["from","to"],"additionalProperties":false}"#,
     },
+    Function {
+        name: "daily_balances",
+        description: "One account's balance at the end of each day from \"from\" to \"to\" \
+            (at most 200 days, never after today), with its exponential moving averages over \
+            a short and a long number of days, MACD (the short average less the long one), \
+            the signal line (the average of MACD) and the histogram (MACD less the signal \
+            line): the figures of the app's daily balance chart, which propose_view prepares \
+            with data daily_balance. Each day's balance is the one account_balance gives for \
+            that day. Each row holds the values named in \"columns\". The averages start \
+            well before \"from\", so the first day is already settled, but never before the \
+            account's first entry: \"starts_on_first_entry\": true means the account has no \
+            balance before \"first_day\". Quote the figures as they are and never work out \
+            an average yourself. Amounts are exact decimal text with a dot as the decimal mark.",
+        parameters: r#"{"type":"object","properties":{"account_id":{"type":"string","description":"The account's ID from list_accounts."},"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD. At most 200 days after from; days after today are left out."},"ema_fast":{"type":"integer","minimum":2,"maximum":200,"description":"Days of the short average. Default 12."},"ema_slow":{"type":"integer","minimum":3,"maximum":200,"description":"Days of the long average, more than ema_fast. Default 26."},"ema_signal":{"type":"integer","minimum":2,"maximum":200,"description":"Days of the signal line. Default 9."}},"required":["account_id","from","to"],"additionalProperties":false}"#,
+    },
 ];
 
 /// The name of every argument any function takes, and `arguments` for a
@@ -318,6 +337,9 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "months",
     "month_starts_on",
     "top",
+    "ema_fast",
+    "ema_slow",
+    "ema_signal",
 ];
 
 /// The most accounts `account_ids` of a total names (M6-B206), as many as
@@ -545,6 +567,31 @@ fn call_with(
         }
         "list_views" => crate::changes::list_views(book, &mut w, permissions)?,
         "list_plans" => plans::list_plans(book, &mut w, today, permissions.reads(Row::Categories))?,
+        "daily_balances" => {
+            let names = Names::read(book)?;
+            let account = args.id("account_id")?.ok_or(ToolError::BadArgument {
+                argument: "account_id",
+            })?;
+            let from = args
+                .date("from")?
+                .ok_or(ToolError::BadArgument { argument: "from" })?;
+            let to = args
+                .date("to")?
+                .ok_or(ToolError::BadArgument { argument: "to" })?;
+            if to < from {
+                return Err(ToolError::BadPeriod);
+            }
+            let lengths = args.ema()?;
+            daily::daily_balances(
+                book,
+                &mut w,
+                &names,
+                account,
+                read::Period { from, to },
+                lengths,
+                today,
+            )?
+        }
         "forecast" => {
             let names = Names::read(book)?;
             let accounts = args.accounts(&names)?;
@@ -875,6 +922,34 @@ impl<'a> Arguments<'a> {
 
     /// `top`: how many categories per side a month names, 1 to
     /// [`read::MAX_MONTHLY_TOP`] (#852).
+    /// `ema_fast`, `ema_slow` and `ema_signal` of `daily_balances`: whole
+    /// days within [`daily::EMA_DAYS`], the long average longer than the
+    /// short one; each left out takes the chart's default (12, 26, 9).
+    fn ema(&self) -> Result<kassensturz_report::Ema, ToolError> {
+        let usual = kassensturz_report::Ema::default();
+        let days = |name: &'static str, default: u32| -> Result<u32, ToolError> {
+            self.get(name).map_or(Ok(default), |value| {
+                value
+                    .as_u64()
+                    .and_then(|days| u32::try_from(days).ok())
+                    .filter(|days| daily::EMA_DAYS.contains(days))
+                    .ok_or(ToolError::BadArgument { argument: name })
+            })
+        };
+        let fast = days("ema_fast", usual.fast)?;
+        let slow = days("ema_slow", usual.slow)?;
+        if slow <= fast {
+            return Err(ToolError::BadArgument {
+                argument: "ema_slow",
+            });
+        }
+        Ok(kassensturz_report::Ema {
+            fast,
+            slow,
+            signal: days("ema_signal", usual.signal)?,
+        })
+    }
+
     fn top(&self) -> Result<Option<usize>, ToolError> {
         self.get("top")
             .map(|value| {

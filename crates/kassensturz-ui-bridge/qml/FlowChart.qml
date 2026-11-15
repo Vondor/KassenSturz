@@ -52,6 +52,15 @@ ColumnLayout {
     readonly property int middleColumn: nodes.length > 0 ? nodes[0].column : 0
     // Room at both ends for the names of the outermost nodes.
     readonly property real labelWidth: Math.min(Kirigami.Units.gridUnit * 9, width * 0.22)
+    // A node's label is two lines, its name and its amount, in the small
+    // font; it grows with the user's text size (B-309).
+    readonly property real labelHeight: Math.ceil(labelMetrics.height) * 2
+
+    FontMetrics {
+        id: labelMetrics
+
+        font: Kirigami.Theme.smallFont
+    }
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -207,6 +216,52 @@ ColumnLayout {
         return top.concat(bottom);
     }
 
+    // Where the label of each node goes in a plot `plotHeight` high: the top
+    // of its two lines, or null when it is not shown (B-309). In each column
+    // the labels keep the order of their nodes, start at their node's middle
+    // and are pushed apart so none covers another, and all stay inside the
+    // plot. When a column has more labels than fit, the smallest nodes lose
+    // theirs first; they are still in the table, in the text under the
+    // chart when in focus, and in the "Other" line. The outermost columns
+    // always try to label every node; the others only nodes tall enough.
+    function labelPlaces(plotHeight: real): var {
+        const places = new Array(nodes.length).fill(null);
+        const height = labelHeight;
+        if (plotHeight <= 0 || height <= 0) {
+            return places;
+        }
+        const byColumn = {};
+        for (let i = 0; i < nodes.length; i++) {
+            (byColumn[nodes[i].column] = byColumn[nodes[i].column] ?? []).push(i);
+        }
+        const fits = Math.max(1, Math.floor(plotHeight / height));
+        for (const key in byColumn) {
+            const column = Number(key);
+            const outer = column === 0 || column === columns - 1;
+            let shown = byColumn[key].filter(i => outer || nodes[i].height * plotHeight / whole >= Kirigami.Units.gridUnit * 0.9);
+            if (shown.length > fits) {
+                shown = shown.sort((a, b) => nodes[b].height - nodes[a].height).slice(0, fits);
+            }
+            shown.sort((a, b) => nodes[a].y - nodes[b].y);
+            const tops = shown.map(i => {
+                const middle = (nodes[i].y + nodes[i].height / 2) * plotHeight / whole;
+                return Math.min(Math.max(0, middle - height / 2), plotHeight - height);
+            });
+            // Down: none starts above the end of the one before it.
+            for (let j = 1; j < tops.length; j++) {
+                tops[j] = Math.max(tops[j], tops[j - 1] + height);
+            }
+            // Up: none ends below the plot or the start of the one after it.
+            let limit = plotHeight;
+            for (let j = tops.length - 1; j >= 0; j--) {
+                tops[j] = Math.max(0, Math.min(tops[j], limit - height));
+                limit = tops[j];
+            }
+            shown.forEach((index, j) => places[index] = tops[j]);
+        }
+        return places;
+    }
+
     function xOf(column: int, plotWidth: real): real {
         const index = columnIndex(column);
         return columns > 1 ? index * (plotWidth - nodeWidth) / (columns - 1) : 0;
@@ -347,10 +402,15 @@ ColumnLayout {
 
             // The names beside the nodes. The outermost columns have their
             // names at the sides of the chart, the others beside the node.
+            // Each name is one line cut short with "…" at its end, so a long
+            // name never runs off the chart, and no label covers another
+            // (B-309).
+            readonly property var labelTops: view.labelPlaces(height)
+
             Repeater {
                 model: view.nodes
 
-                Controls.Label {
+                Item {
                     id: label
 
                     required property var modelData
@@ -358,23 +418,48 @@ ColumnLayout {
 
                     readonly property bool first: modelData.column === 0
                     readonly property bool last: modelData.column === view.columns - 1
-                    readonly property real nodeHeight: modelData.height * plot.height / view.whole
+                    readonly property var labelTop: plot.labelTops[index] ?? null
+                    readonly property int alignment: first ? Text.AlignRight : Text.AlignLeft
 
-                    visible: nodeHeight >= Kirigami.Units.gridUnit * 0.9 || first || last
-                    text: view.nodeName(modelData) + "\n" + modelData.label
-                    textFormat: Text.PlainText
-                    elide: Text.ElideRight
-                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                    horizontalAlignment: first ? Text.AlignRight : Text.AlignLeft
-                    width: first || last ? view.labelWidth - Kirigami.Units.smallSpacing : implicitWidth
-                    maximumLineCount: 2
+                    visible: labelTop !== null
                     x: first ? -view.labelWidth : view.xOf(modelData.column, plot.width) + view.nodeWidth + Kirigami.Units.smallSpacing
-                    y: modelData.y * plot.height / view.whole + Math.max(0, (nodeHeight - implicitHeight) / 2)
-                    background: Rectangle {
+                    y: labelTop ?? 0
+                    width: first || last ? view.labelWidth - Kirigami.Units.smallSpacing : Math.max(nameLabel.implicitWidth, amountLabel.implicitWidth)
+                    height: view.labelHeight
+                    Accessible.ignored: true
+
+                    Rectangle {
+                        anchors.fill: parent
                         visible: !label.first && !label.last
                         color: Qt.alpha(Kirigami.Theme.backgroundColor, 0.75)
                     }
-                    Accessible.ignored: true
+
+                    Controls.Label {
+                        id: nameLabel
+
+                        width: parent.width
+                        text: view.nodeName(label.modelData)
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
+                        font: Kirigami.Theme.smallFont
+                        horizontalAlignment: label.alignment
+                        Accessible.ignored: true
+                    }
+
+                    Controls.Label {
+                        id: amountLabel
+
+                        y: Math.ceil(labelMetrics.height)
+                        width: parent.width
+                        text: label.modelData.label
+                        textFormat: Text.PlainText
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
+                        font: Kirigami.Theme.smallFont
+                        horizontalAlignment: label.alignment
+                        Accessible.ignored: true
+                    }
                 }
             }
 

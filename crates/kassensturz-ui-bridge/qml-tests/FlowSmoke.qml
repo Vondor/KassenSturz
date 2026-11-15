@@ -38,6 +38,50 @@ Window {
         ]
     })
 
+    // Many small nodes close together on both sides, with long names, as in
+    // a real year (B-309): their labels must not cover one another.
+    readonly property var crowded: {
+        const nodes = [{kind: "middle", name: "", column: 1, y: 0, height: 1000000, label: "57.190,06 €", category: "", holds: []}];
+        const bands = [];
+        const sides = [[0, [900000, 30000, 20000, 15000, 10000, 5000]], [2, [300000, 200000, 150000, 100000, 80000, 60000, 40000, 30000, 20000, 15000, 5000]]];
+        for (const [column, heights] of sides) {
+            let y = 0;
+            for (const height of heights) {
+                nodes.push({kind: "category", name: "A very long category name " + nodes.length, column: column, y: y, height: height, label: "54.116,00 €", category: "x" + nodes.length, holds: []});
+                bands.push({from: column === 0 ? nodes.length - 1 : 0, to: column === 0 ? 0 : nodes.length - 1, yFrom: y, yTo: y, thickness: height, label: "1,00 €", assumed: "", returned: ""});
+                y += height;
+            }
+        }
+        return {kind: "flow", dataset: "money_flow", currency: "EUR", total: "57.190,06 €", whole: 1000000, columns: 3, elsewhere: [], nodes: nodes, bands: bands};
+    }
+
+    // Whether the labels of `places` in a plot `plotHeight` high stay inside
+    // it and apart in each column, and no column shows more than fit.
+    function labelsApart(chart, places, plotHeight, labelHeight) {
+        const byColumn = {};
+        for (let i = 0; i < places.length; i++) {
+            if (places[i] === null) {
+                continue;
+            }
+            if (places[i] < -0.01 || places[i] + labelHeight > plotHeight + 0.01) {
+                return false;
+            }
+            (byColumn[chart.nodes[i].column] = byColumn[chart.nodes[i].column] ?? []).push(places[i]);
+        }
+        for (const key in byColumn) {
+            const tops = byColumn[key].sort((a, b) => a - b);
+            if (tops.length > Math.max(1, Math.floor(plotHeight / labelHeight))) {
+                return false;
+            }
+            for (let j = 1; j < tops.length; j++) {
+                if (tops[j] < tops[j - 1] + labelHeight - 0.01) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
     readonly property string outDir: "out"
 
     ColumnLayout {
@@ -50,6 +94,16 @@ Window {
             Layout.fillWidth: true
             chart: window.chart
             title: "Where my money went"
+        }
+
+        // The crowded chart at a phone's width (360 px): not drawn, only
+        // measured.
+        FlowChart {
+            id: crowdedFlow
+
+            Layout.preferredWidth: 360
+            visible: false
+            chart: window.crowded
         }
     }
 
@@ -90,6 +144,15 @@ Window {
             // A click on an account narrows to it, in text only.
             const account = JSON.parse(flow.behindScope("", ["acc-1"]));
             console.log("flow-scope-account " + JSON.stringify([account.accounts, account.accountsOwn, account.takes.accounts, account.takes.period]));
+            // No label covers another or leaves the chart, at a roomy and at a
+            // short height; every outer node of the roomy one has a label,
+            // and a short one shows only what fits (B-309).
+            const roomy = crowdedFlow.labelPlaces(600);
+            const short = crowdedFlow.labelPlaces(crowdedFlow.labelHeight * 3.5);
+            console.log("flow-labels-apart " + (window.labelsApart(window.crowded, roomy, 600, crowdedFlow.labelHeight)
+                && window.labelsApart(window.crowded, short, crowdedFlow.labelHeight * 3.5, crowdedFlow.labelHeight)));
+            console.log("flow-labels-all " + roomy.every(top => top !== null));
+            console.log("flow-labels-short " + short.filter(top => top !== null).length);
             window.save(window.contentItem, "flow-chart", function () {
                 flow.showTable = true;
                 tableTimer.start();

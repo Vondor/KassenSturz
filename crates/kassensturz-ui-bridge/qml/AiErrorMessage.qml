@@ -28,6 +28,11 @@ ColumnLayout {
     // Whether the message offers to add `/v1` to the address, for the
     // settings page.
     property bool offerV1: false
+    // The AI settings, for the chat: when a question was held back because
+    // the user hasn't agreed yet, what would be sent is shown right under
+    // the message (B-314). Null on the settings page, which has the consent
+    // dialog.
+    property var settings: null
 
     // The user wants the AI settings.
     signal settingsClicked()
@@ -55,6 +60,9 @@ ColumnLayout {
         case "ai.plain-http":
             return i18nContext.i18nc("@info", "This address is on another computer and starts with http://, which isn't encrypted, so KassenSturz won't send anything to it. Use the provider's https:// address. If the provider offers only http:// and runs in a network you trust, you can tick “Allow unencrypted connections” under the address in the AI settings.");
         case "ai.no-consent":
+            if (settings !== null) {
+                return i18nContext.i18nc("@info in the chat, above the list of what would be sent", "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Below is what would be sent; to agree, open the AI settings. Or use a provider on this computer.");
+            }
             return i18nContext.i18nc("@info", "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Read what is sent and agree below, or use a provider on this computer.");
         case "ai.settings-changed":
             return i18nContext.i18nc("@info", "The provider's settings changed after this request was prepared, so it wasn't sent. Look at the request again and send it.");
@@ -160,5 +168,19 @@ ColumnLayout {
         // An InlineMessage shows markup as markup: nothing from a provider
         // may look like it (D-143).
         text: visible ? Plain.plain(message.messageFor(message.result)) : ""
+    }
+
+    // What would be sent, in the words of the consent dialog (B-314).
+    Loader {
+        Layout.fillWidth: true
+        Layout.leftMargin: Kirigami.Units.largeSpacing
+        Layout.rightMargin: Kirigami.Units.largeSpacing
+        active: message.settings !== null && message.result.code === "ai.no-consent"
+        visible: active
+
+        sourceComponent: AiConsentStatement {
+            ai: message.ai
+            settings: message.settings
+        }
     }
 }

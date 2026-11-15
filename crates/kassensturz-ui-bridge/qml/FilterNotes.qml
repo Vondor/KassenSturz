@@ -34,7 +34,7 @@ ColumnLayout {
 
     readonly property var own: hideMarks ? [] : (filter?.own ?? []).filter(word => !(accountsInTitle && word === "accounts"))
     readonly property var filtered: hideMarks ? [] : (filter?.filtered ?? []).filter(word => word !== "period" && !(accountsInTitle && word === "accounts"))
-    readonly property var list: (filter?.notes ?? []).filter(note => !(hideMarks && (note.kind === "not-applied" || note.kind === "average-early" || note.kind === "compare-early")))
+    readonly property var list: (filter?.notes ?? []).filter(note => !(hideMarks && (note.kind === "not-applied" || note.kind === "average-early" || note.kind === "average-so-far" || note.kind === "compare-early")))
     readonly property bool quiet: own.length === 0 && filtered.length === 0 && list.length === 0
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -79,6 +79,17 @@ ColumnLayout {
                 return i18nContext.i18ncp("@info %1 is how many years of an average are before the first transaction, %2 how many it counts", "%1 of the %2 years this average counts is before the first transaction and counts as zero.", "%1 of the %2 years this average counts are before the first transaction and count as zero.", note.before, note.counted);
             }
             return i18nContext.i18ncp("@info %1 is how many months of an average are before the first transaction, %2 how many it counts", "%1 of the %2 months this average counts is before the first transaction and counts as zero.", "%1 of the %2 months this average counts are before the first transaction and count as zero.", note.before, note.counted);
+        }
+        if (note.kind === "average-so-far") {
+            // The period is not over yet, so the average divides by what has
+            // passed: %1 of its %2 months (quarters, years) (B-313, D-648).
+            switch (note.id) {
+            case "per-quarter":
+                return i18nContext.i18ncp("@info %1 is how many quarters of a period have passed, %2 how many it has", "This period is not over yet, so the average is divided by the %1 quarter up to today, not by all %2.", "This period is not over yet, so the average is divided by the %1 quarters up to today, not by all %2.", note.counted, note.before);
+            case "per-year":
+                return i18nContext.i18ncp("@info %1 is how many years of a period have passed, %2 how many it has", "This period is not over yet, so the average is divided by the %1 year up to today, not by all %2.", "This period is not over yet, so the average is divided by the %1 years up to today, not by all %2.", note.counted, note.before);
+            }
+            return i18nContext.i18ncp("@info %1 is how many months of a period have passed, %2 how many it has", "This period is not over yet, so the average is divided by the %1 month up to today, not by all %2.", "This period is not over yet, so the average is divided by the %1 months up to today, not by all %2.", note.counted, note.before);
         }
         if (note.kind === "compare-early") {
             // A comparison whose periods end before the first transaction it

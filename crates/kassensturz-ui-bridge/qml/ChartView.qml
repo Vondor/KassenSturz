@@ -17,6 +17,7 @@
 import QtQuick
 import QtQuick.Controls as Controls
 import QtQuick.Layouts
+import QtQuick.Shapes
 import org.kde.kirigami as Kirigami
 import org.kde.ki18n
 import org.kde.quickcharts as Charts
@@ -48,6 +49,14 @@ ColumnLayout {
     // lowest and end. KQuickCharts has no candles, so they are rectangles
     // placed by the drawing values, as the overlays are.
     readonly property bool candles: chart.kind === "candlestick"
+    // A panel of a daily balance (US7, #1036, D-794): KQuickCharts can't
+    // draw a stepped line, bars under lines or hundreds of days with a
+    // name each, so it is drawn here from the drawing values, as the
+    // overlays are. `draws` says how each series is drawn; a series drawn
+    // as `none` is only in the text of a day and in the table, so each
+    // panel tells the other panel's figures too.
+    readonly property var dailyLook: chart.daily ?? null
+    readonly property bool daily: (dailyLook?.panel ?? "") !== ""
     // Which candles have a filled box (`props.candle_fill`, D-748): by
     // default a candle that ended higher is hollow and one that ended lower
     // filled (D-718).
@@ -100,7 +109,10 @@ ColumnLayout {
                 {color: 1, marker: -1, hollow: candleHollow(false), name: i18nContext.i18nc("@label legend of a candle chart", "Ended lower than it started")}
             ];
         }
-        const found = chart.series.map(series => ({color: series.color, marker: series.marker, name: seriesName(series.key)}));
+        // A daily balance's series that are not drawn have no legend entry.
+        const found = chart.series
+            .filter((series, index) => drawOf(index) !== "none")
+            .map(series => ({color: series.color, marker: series.marker, name: seriesName(series.key)}));
         for (const overlay of overlays) {
             for (const series of overlay.series) {
                 found.push({color: series.color, marker: series.marker, name: series.name});
@@ -222,6 +234,9 @@ ColumnLayout {
                 return series.name;
             }
         }
+        if (key.startsWith("daily_average_")) {
+            return i18nContext.i18nc("@label a series of a chart: an average of the balance that weighs the latest days most; %1 is how many days, at least five", "Average of the last %1 days", key.substring("daily_average_".length));
+        }
         if (key.startsWith("trend_average_")) {
             return i18nContext.i18nc("@label a series of a chart: the average of a month and the ones before it; %1 is how many months, at least two", "Average of the last %1 months", key.substring("trend_average_".length));
         }
@@ -251,6 +266,15 @@ ColumnLayout {
             return i18nContext.i18nc("@label a series of a chart: the trend less the signal line", "Gap between them");
         case "balance":
             return i18nContext.i18nc("@title:column a table of a chart", "Balance");
+        // A daily balance (US7, #1036): its averages and MACD.
+        case "daily_average":
+            return i18nContext.i18nc("@label a series of a chart: an average of the balance that weighs the latest days most", "Average of the balance");
+        case "daily_macd":
+            return i18nContext.i18nc("@label a series of a chart: the short average of the balance less the long one (MACD)", "MACD (short less long average)");
+        case "daily_signal":
+            return i18nContext.i18nc("@label a series of a chart: the average of MACD over a few days", "Signal line");
+        case "daily_gap":
+            return i18nContext.i18nc("@label a series of a chart, drawn as bars: MACD less its signal line", "Histogram (MACD less signal line)");
         // The four balances of a candle (US4.10).
         case "start":
             return i18nContext.i18nc("@label a balance of a candle: at the start of its days", "Start");
@@ -506,6 +530,16 @@ ColumnLayout {
         textFormat: Text.PlainText
     }
 
+    // What the MACD panel of a daily balance shows (D-794).
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: view.daily && view.dailyLook.panel === "macd"
+        text: i18nContext.i18nc("@info above the second panel of a daily balance chart", "Short-term against long-term trend of the balance (MACD): above zero, the balance has lately risen faster than its longer average.")
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
+        font: Kirigami.Theme.smallFont
+    }
+
     // The chart: the value axis on the left, the picture, the categories
     // below.
     RowLayout {
@@ -588,7 +622,7 @@ ColumnLayout {
                     id: drawing
 
                     anchors.fill: parent
-                    sourceComponent: view.round ? pie : (view.candles ? candle : (view.lines ? line : bar))
+                    sourceComponent: view.round ? pie : (view.candles ? candle : (view.daily ? dailyPlot : (view.lines ? line : bar)))
                 }
 
                 // A new chart gets new sources of values; the old ones go with
@@ -714,6 +748,16 @@ ColumnLayout {
                     onHoveredChanged: if (!hovered) view.current = -1
                 }
 
+                // Pointing at a day of a daily balance says every figure of
+                // that day, as the keys and the table do (D-794).
+                HoverHandler {
+                    enabled: view.daily && view.count > 0
+                    onPointChanged: view.current = view.count > 1
+                        ? Math.max(0, Math.min(view.count - 1, Math.round(point.position.x / (plot.width / (view.count - 1)))))
+                        : 0
+                    onHoveredChanged: if (!hovered) view.current = -1
+                }
+
                 // The point in focus: a frame around its place.
                 Rectangle {
                     visible: view.current >= 0 && !view.round
@@ -746,7 +790,7 @@ ColumnLayout {
                 }
 
                 Repeater {
-                    model: view.round ? 0 : view.count
+                    model: view.round || view.daily ? 0 : view.count
 
                     delegate: Controls.Label {
                         required property int index
@@ -770,8 +814,46 @@ ColumnLayout {
                         Accessible.ignored: true
                     }
                 }
+
+                // A daily balance names only some days, the first of each
+                // month; the text of a day names it whole (D-794).
+                Repeater {
+                    model: view.daily ? view.dailyLook.axis : []
+
+                    delegate: Controls.Label {
+                        required property var modelData
+
+                        readonly property real at: view.count > 1 ? modelData.index * plot.width / (view.count - 1) : 0
+                        x: Math.max(0, Math.min(plot.width - width, at))
+                        text: modelData.name
+                        textFormat: Text.PlainText
+                        font: Kirigami.Theme.smallFont
+                        color: Kirigami.Theme.textColor
+                        Accessible.ignored: true
+
+                        // A short tick at the day it names.
+                        Rectangle {
+                            x: parent.at - parent.x
+                            y: -Kirigami.Units.smallSpacing
+                            width: 1
+                            height: Kirigami.Units.smallSpacing
+                            color: Kirigami.Theme.disabledTextColor
+                        }
+                    }
+                }
             }
         }
+    }
+
+    // A daily balance that starts later than its period says why (D-794).
+    Controls.Label {
+        Layout.fillWidth: true
+        visible: view.daily && view.dailyLook.startsLate && view.count > 0
+        text: i18nContext.i18nc("@info under a daily balance chart; %1 is a day", "The chart starts on %1, the day of the first entry; there was no balance before.", view.categoryName(0))
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
+        font: Kirigami.Theme.smallFont
+        color: Kirigami.Theme.disabledTextColor
     }
 
     // Bars as rows (M6-B3, D-679): one row per category or month, the name
@@ -1139,6 +1221,128 @@ ColumnLayout {
         }
     }
 
+    // A panel of a daily balance (D-794): the balance as a stepped line, an
+    // average as a line or a dashed line, the histogram as bars from zero.
+    // The drawing values only place marks (AGENTS.md §5). Each drawn line
+    // ends in its series' second mark, so a line is never told by its color
+    // alone (D-283).
+    Component {
+        id: dailyPlot
+
+        Item {
+            id: dailyItem
+
+            readonly property real span: Math.max(1, view.high - view.low)
+
+            function xOf(index: int): real {
+                return view.count > 1 ? index * width / (view.count - 1) : width / 2;
+            }
+
+            function yOf(value: real): real {
+                return (1 - (value - view.low) / span) * height;
+            }
+
+            // The corners of series `index`: for a stepped line each day's
+            // level runs to the next day, then drops or rises to its level.
+            function pathOf(index: int): var {
+                const points = view.chart.series[index]?.points ?? [];
+                const step = view.drawOf(index) === "step";
+                const found = [];
+                for (let at = 0; at < points.length; ++at) {
+                    const y = yOf(points[at].value);
+                    if (step && at > 0) {
+                        found.push(Qt.point(xOf(at), yOf(points[at - 1].value)));
+                    }
+                    found.push(Qt.point(xOf(at), y));
+                }
+                return found;
+            }
+
+            readonly property var drawnLines: view.chart.series
+                .map((series, index) => index)
+                .filter(index => ["step", "line", "dashed"].indexOf(view.drawOf(index)) >= 0)
+            readonly property var drawnBars: view.chart.series
+                .map((series, index) => index)
+                .filter(index => view.drawOf(index) === "bars")
+
+            // The histogram first, so the lines lie on top of it.
+            Repeater {
+                model: dailyItem.drawnBars.length > 0 ? view.count : 0
+
+                delegate: Rectangle {
+                    required property int index
+                    readonly property var series: view.chart.series[dailyItem.drawnBars[0]]
+                    readonly property real value: series?.points[index]?.value ?? 0
+                    readonly property real barTop: dailyItem.yOf(Math.max(0, value))
+                    readonly property real barBottom: dailyItem.yOf(Math.min(0, value))
+
+                    width: Math.max(1, dailyItem.width / Math.max(1, view.count) * 0.7)
+                    x: dailyItem.xOf(index) - width / 2
+                    y: barTop
+                    height: Math.max(1, barBottom - barTop)
+                    color: ChartPalette.color(series?.color ?? 0, view.extraColors)
+                    opacity: 0.6
+                    Accessible.ignored: true
+                }
+            }
+
+            Repeater {
+                model: dailyItem.drawnLines
+
+                delegate: Item {
+                    id: dailyLine
+
+                    required property int modelData
+                    readonly property var series: view.chart.series[modelData]
+                    readonly property color tint: ChartPalette.color(series?.color ?? 0, view.extraColors)
+                    readonly property var corners: dailyItem.pathOf(modelData)
+
+                    anchors.fill: parent
+
+                    Shape {
+                        anchors.fill: parent
+                        preferredRendererType: Shape.CurveRenderer
+
+                        ShapePath {
+                            strokeColor: dailyLine.tint
+                            strokeWidth: view.drawOf(dailyLine.modelData) === "step" ? 3 : 2
+                            fillColor: "transparent"
+                            strokeStyle: view.drawOf(dailyLine.modelData) === "dashed" ? ShapePath.DashLine : ShapePath.SolidLine
+                            dashPattern: [4, 3]
+
+                            PathPolyline {
+                                path: dailyLine.corners
+                            }
+                        }
+                    }
+
+                    // The series' second mark at the line's last day.
+                    Controls.Label {
+                        readonly property point end: dailyLine.corners.length > 0 ? dailyLine.corners[dailyLine.corners.length - 1] : Qt.point(0, 0)
+
+                        visible: dailyLine.corners.length > 0 && (dailyLine.series?.marker ?? -1) >= 0
+                        x: end.x - width / 2
+                        y: end.y - height / 2
+                        text: ["■", "●", "▲", "◆"][dailyLine.series?.marker ?? -1] ?? ""
+                        color: dailyLine.tint
+                        textFormat: Text.PlainText
+                        Accessible.ignored: true
+                    }
+                }
+            }
+
+            // Zero, where the axis crosses it (the MACD panel).
+            Rectangle {
+                visible: view.low < 0 && view.high > 0
+                width: parent.width
+                height: 1
+                y: dailyItem.yOf(0)
+                color: Kirigami.Theme.textColor
+                opacity: 0.5
+            }
+        }
+    }
+
     // Bars side by side or piled up.
     Component {
         id: bar
@@ -1301,6 +1505,12 @@ ColumnLayout {
             y: inside ? top + size * 0.2 : Math.max(0, top - size - 2),
             inside: inside
         };
+    }
+
+    // How series `index` of a daily balance is drawn: `step`, `line`,
+    // `dashed`, `bars` or `none`; empty for every other chart.
+    function drawOf(index: int): string {
+        return daily ? (dailyLook.draws[index] ?? "none") : "";
     }
 
     function markerOf(key: string): int {

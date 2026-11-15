@@ -94,6 +94,10 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                     kassensturz_report::MOVING_AVERAGE | kassensturz_report::MACD
                 ),
                 "trend_slow" | "trend_signal" => component.dataset().id != kassensturz_report::MACD,
+                // The days of a daily balance's averages (D-794).
+                "ema_fast" | "ema_slow" | "ema_signal" => {
+                    component.dataset().id != kassensturz_report::DAILY_BALANCE
+                }
                 "target" => !has_formula,
                 // A chart made of columns shows their totals, so it has no
                 // comparison of the dataset's own rows either (US3.1a).

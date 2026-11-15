@@ -292,13 +292,20 @@ fn choose_columns(component: &mut Component, value: Option<&Value>) -> Result<()
 /// The settings of a chart the AI prepares besides its kind and dataset,
 /// in the order they are set: words, then lists of ids, then formulas
 /// (D-352, D-650).
-const WORDS: [&str; 6] = [
+const WORDS: [&str; 12] = [
     "grouping",
     "measure",
     "compare",
     "average",
     "orientation",
     "neutral",
+    // The lengths of a trend and of a daily balance's averages (D-794).
+    "trend_length",
+    "trend_slow",
+    "trend_signal",
+    "ema_fast",
+    "ema_slow",
+    "ema_signal",
 ];
 const ID_LISTS: [&str; 6] = [
     "categories",
@@ -338,6 +345,12 @@ pub(super) fn new_view(
             "average",
             "orientation",
             "neutral",
+            "trend_length",
+            "trend_slow",
+            "trend_signal",
+            "ema_fast",
+            "ema_slow",
+            "ema_signal",
             "period",
             "categories",
             "accounts",
@@ -538,7 +551,7 @@ fn chart_of(view: &StoredView) -> Result<(Document, Component), ToolError> {
 
 /// The keys of an item of `edit_views`: those of `new_views` and the
 /// chart's ID.
-const EDIT_KEYS: [&str; 21] = [
+const EDIT_KEYS: [&str; 27] = [
     "view_id",
     "title",
     "dataset",
@@ -549,6 +562,12 @@ const EDIT_KEYS: [&str; 21] = [
     "average",
     "orientation",
     "neutral",
+    "trend_length",
+    "trend_slow",
+    "trend_signal",
+    "ema_fast",
+    "ema_slow",
+    "ema_signal",
     "period",
     "categories",
     "accounts",

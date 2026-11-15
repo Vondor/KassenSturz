@@ -376,7 +376,7 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     let book = hostile_book();
     let (provider, _) = Script::provider(
         on(),
-        vec![says_counting("A", 12_000), says_counting("B", 8_000)],
+        vec![says_counting("A", 13_000), says_counting("B", 8_000)],
     );
     let mut chat = session();
     // A request of about 8 KB of question plus the prompt and the functions
@@ -386,8 +386,9 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     // US2.13, list_views and the changes of saved charts of D-681, the
     // single Rule conditions of #570, the names next to IDs of #598 and the
     // chart description help with its example of D-729, monthly_totals of
-    // US7.5, and the planned payments and forecast of #920) for 12,000
-    // tokens is what an uncut request comes to.
+    // US7.5, the planned payments and forecast of #920, and the daily
+    // balance and the lengths of the trends of #1036) for 13,000 tokens is
+    // what an uncut request comes to.
     let long = "word ".repeat(1_600);
     let answer = chat
         .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)

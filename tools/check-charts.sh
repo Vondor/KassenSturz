@@ -90,6 +90,8 @@ mkdir "$work/out"
     grep -q 'flow-scope-all true$' run.log || { echo "check-charts: a click on no category narrows the scope" >&2; exit 1; }
     grep -q 'flow-assumed Your money to Rent: 1.000,00 € (400,00 € assumed)$' run.log || { echo "check-charts: a band does not say how much of it is assumed" >&2; exit 1; }
     grep -q 'flow-returned Your money to .*: 500,00 €; 100,00 € also went the other way and is shown only once$' run.log || { echo "check-charts: a band does not say what went both ways" >&2; exit 1; }
+    grep -q 'flow-accessible-name Your money to Food: 500,00 €; 100,00 € also went the other way and is shown only once$' run.log || { echo "check-charts: a band has no screen-reader name with the round trip" >&2; exit 1; }
+    grep -q 'flow-accessible-role true$' run.log && grep -q 'flow-accessible-description true$' run.log || { echo "check-charts: the flow chart is not a chart with a description for a screen reader" >&2; exit 1; }
     grep -q 'flow-text Salary to Your money: ' run.log || { echo "check-charts: a band does not say where it goes" >&2; exit 1; }
     cp out/*.png "$work/out/"
 )

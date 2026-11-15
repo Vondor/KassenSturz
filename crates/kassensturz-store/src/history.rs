@@ -1449,18 +1449,26 @@ impl Book {
     /// (B-306, D-798). A change can still slip in between this check and
     /// the commit, which takes milliseconds.
     pub(crate) fn check_lock_is_ours(&self) -> Result<(), StoreError> {
-        if self.conn.is_autocommit()
-            && self._lock.as_ref().is_some_and(|lock| {
-                if self.without_file_locks {
-                    !lock.is_still_ours()
-                } else {
-                    lock.is_taken_over()
-                }
-            })
-        {
+        if self.conn.is_autocommit() && self.lock_taken_over() {
             return Err(StoreError::LockLost);
         }
         Ok(())
+    }
+
+    /// Whether another program or computer took this book's lock over, so
+    /// the next change would be refused with [`StoreError::LockLost`]. The
+    /// UI asks every few seconds and when its window gets the focus, so the
+    /// user hears of it before typing something that can't be saved
+    /// (B-306, D-798). A lock file that can't be read is not a take-over.
+    #[must_use]
+    pub fn lock_taken_over(&self) -> bool {
+        self._lock.as_ref().is_some_and(|lock| {
+            if self.without_file_locks {
+                !lock.is_still_ours()
+            } else {
+                lock.is_taken_over()
+            }
+        })
     }
 
     /// Runs `change` in a savepoint: if it fails, everything it changed is

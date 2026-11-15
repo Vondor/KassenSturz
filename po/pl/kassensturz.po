@@ -23348,3 +23348,15 @@ msgstr "Tylko MACD"
 msgctxt "@info the amount of a flow of the money-flow chart between two of your accounts: %1 the amount with what comes before it, %2 the amount that went both ways"
 msgid "%1; %2 also went the other way and is shown only once"
 msgstr "%1; %2 poszło też w drugą stronę i jest pokazane tylko raz"
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:1
+#, kde-format
+msgctxt "@title"
+msgid "This book is open on another computer now"
+msgstr "Ta księga jest teraz otwarta na innym komputerze"
+
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "Another computer opened this book anyway, so KassenSturz closed it here. Your latest change here was not saved if it came after that. Close the book on the other computer, then choose \"Try again\" to open it here."
+msgstr "Inny komputer otworzył tę księgę mimo to, więc KassenSturz zamknął ją tutaj. Twoja ostatnia zmiana tutaj nie została zapisana, jeśli była po tym. Zamknij księgę na drugim komputerze, a potem wybierz „Spróbuj ponownie”, aby otworzyć ją tutaj."

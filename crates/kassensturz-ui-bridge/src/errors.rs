@@ -129,7 +129,16 @@ pub fn report_text(book: &Book, report: &ErrorReport, locale: &impl Locale) -> E
                 ErrorParam::Currency(currency) => currency.to_string(),
                 ErrorParam::Date(date) => locale.short_date(*date),
                 ErrorParam::Keyword(keyword) => (*keyword).to_owned(),
-                other => format!("{other:?}"),
+                // A Rule is shown by its name, never by its id (B-307).
+                ErrorParam::Rule(id) => book.rule(*id).map(|rule| rule.name).unwrap_or_default(),
+                ErrorParam::AccountKind(kind) => kind_word(*kind).to_owned(),
+                ErrorParam::AccountType(kind) => type_word(*kind).to_owned(),
+                ErrorParam::Timestamp(time) => crate::locale::QtLocale::date_time(*time),
+                // Ids of transactions, parts and rates mean nothing to a
+                // person: no text, and no Debug output of a type (B-307).
+                ErrorParam::Transaction(_) | ErrorParam::Split(_) | ErrorParam::Rate(_) => {
+                    String::new()
+                }
             };
             (*name, text)
         })
@@ -137,5 +146,99 @@ pub fn report_text(book: &Book, report: &ErrorReport, locale: &impl Locale) -> E
     ErrorText {
         code: report.code,
         params,
+    }
+}
+
+/// The word `docs/ERROR_CODES.md` gives for a kind of account.
+fn kind_word(kind: kassensturz_core::AccountKind) -> &'static str {
+    use kassensturz_core::AccountKind as K;
+    match kind {
+        K::Asset => "asset",
+        K::Liability => "liability",
+        K::Income => "income",
+        K::Expense => "expense",
+        K::Equity => "equity",
+    }
+}
+
+/// The word for a sort of account.
+fn type_word(kind: kassensturz_core::AccountType) -> &'static str {
+    use kassensturz_core::AccountType as T;
+    match kind {
+        T::Checking => "checking",
+        T::Savings => "savings",
+        T::Cash => "cash",
+        T::CreditCard => "credit-card",
+    }
+}
+
+/// The text of a parameter that needs no book to be written: what an error
+/// of a part that has no book of its own (a bank, the AI) can carry. A
+/// parameter that is only an id, or needs the book, gives no text, never
+/// the Debug output of its type: that would reach the screen as
+/// `Rule(RuleId(...))` (B-307, D-034).
+pub fn param_without_book(param: &ErrorParam) -> String {
+    match param {
+        ErrorParam::Text(text) => text.clone(),
+        ErrorParam::Number(number) => number.to_string(),
+        ErrorParam::Currency(currency) => currency.to_string(),
+        ErrorParam::Keyword(keyword) => (*keyword).to_owned(),
+        ErrorParam::AccountKind(kind) => kind_word(*kind).to_owned(),
+        ErrorParam::AccountType(kind) => type_word(*kind).to_owned(),
+        ErrorParam::Timestamp(time) => crate::locale::QtLocale::date_time(*time),
+        ErrorParam::Money(_)
+        | ErrorParam::Date(_)
+        | ErrorParam::Account(_)
+        | ErrorParam::Transaction(_)
+        | ErrorParam::Split(_)
+        | ErrorParam::Rate(_)
+        | ErrorParam::Rule(_) => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // B-307: no parameter's text is the Debug output of a type.
+    #[test]
+    fn a_parameter_without_a_book_never_shows_a_types_debug_output() {
+        let rule = kassensturz_core::RuleId::generate();
+        assert_eq!(param_without_book(&ErrorParam::Rule(rule)), "");
+        let transaction = kassensturz_core::TransactionId::generate();
+        assert_eq!(
+            param_without_book(&ErrorParam::Transaction(transaction)),
+            ""
+        );
+        assert_eq!(
+            param_without_book(&ErrorParam::AccountKind(
+                kassensturz_core::AccountKind::Asset
+            )),
+            "asset"
+        );
+        assert_eq!(
+            param_without_book(&ErrorParam::Keyword("not-found")),
+            "not-found"
+        );
+    }
+
+    // The sweep: no non-test code in the bridge turns a parameter into
+    // text with `{:?}` (B-307, D-034).
+    #[test]
+    fn no_error_parameter_is_written_with_debug_output() {
+        let source = include_str!("errors.rs");
+        let code = source.split("#[cfg(test)]").next().expect("code");
+        assert!(!code.contains("format!(\"{other:?}\")"));
+        for file in [
+            include_str!("bank_connection.rs"),
+            include_str!("ai_chat.rs"),
+            include_str!("ai_settings_model.rs"),
+        ] {
+            let code = file.split("#[cfg(test)]").next().expect("code");
+            assert!(
+                !code.contains("other => format!(\"{other:?}\")"),
+                "an error parameter is shown with Debug output"
+            );
+        }
     }
 }

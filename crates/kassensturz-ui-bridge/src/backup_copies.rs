@@ -481,8 +481,8 @@ mod tests {
         assert_eq!(
             file_names(&found),
             [
-                format!("Household [{tag}] 2026-10-02 09-00-00 UTC vor dem Verschieben 2.ksz"),
                 format!("Household [{tag}] 2026-10-02 09-00-00 UTC vor dem Verschieben.ksz"),
+                format!("Household [{tag}] 2026-10-02 09-00-00 UTC vor dem Verschieben 2.ksz"),
                 format!("Household [{tag}] 2026-10-01 09-00-00 UTC.ksz"),
             ]
         );

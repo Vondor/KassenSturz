@@ -557,3 +557,34 @@ fn a_book_taken_over_with_open_anyway_refuses_the_first_ones_next_change() {
     assert!(crate::lock::lock_path(&path).exists());
     assert_eq!(names(&second), ["Checking", "Savings"]);
 }
+
+// B-304: a cifs mount takes the write lock but fails the save, so the open
+// has to look at the mount's type and try a whole save on a scratch file.
+#[test]
+fn the_mount_table_tells_a_share_from_a_local_folder() {
+    let table = "\
+25 1 8:2 / / rw - ext4 /dev/sda2 rw
+40 25 0:35 / /media/tester/netz rw,relatime - cifs //server/share rw,vers=3.1.1
+41 25 0:36 / /media/tester/my\\040disk rw - ext4 /dev/sdb1 rw
+garbage line
+";
+    let kind = |folder: &str| mount_type_of(table, Path::new(folder));
+    assert_eq!(kind("/media/tester/netz/b304").as_deref(), Some("cifs"));
+    assert_eq!(kind("/media/tester/my disk/x").as_deref(), Some("ext4"));
+    assert_eq!(kind("/home/tester").as_deref(), Some("ext4"));
+    assert!(is_network_type(kind("/media/tester/netz").as_deref()));
+    assert!(!is_network_type(kind("/home/tester").as_deref()));
+    assert!(!is_network_type(None));
+}
+
+#[test]
+fn a_whole_save_on_a_scratch_file_works_in_a_local_folder_and_leaves_nothing() {
+    let folder = TempFolder::new();
+    assert!(!scratch_cant_save(folder.path()));
+    assert_eq!(
+        std::fs::read_dir(folder.path())
+            .expect("folder read")
+            .count(),
+        0
+    );
+}

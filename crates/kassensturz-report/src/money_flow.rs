@@ -170,6 +170,10 @@ pub struct Flow {
     /// but are not joined as Transfers (#1035). Zero for a band that is
     /// fully known.
     pub assumed: Money,
+    /// How much of it went in both directions between the two accounts and
+    /// is drawn only once, as the difference (a round trip). Zero for a band
+    /// where nothing came back.
+    pub returned: Money,
 }
 
 /// The money flow of one currency.
@@ -349,6 +353,8 @@ struct Builder<'a> {
     flows: Vec<(usize, usize, i64)>,
     /// How much of a band between two nodes is assumed (#1035).
     assumed: Vec<(usize, usize, i64)>,
+    /// How much of a band between two accounts also went the other way.
+    returned: Vec<(usize, usize, i64)>,
     /// The payee nodes already made, by side and payee.
     payees: HashMap<(i8, Option<String>), usize>,
     /// The *Other* node of the payee column of a side.
@@ -492,6 +498,7 @@ fn build(
         nodes: Vec::new(),
         flows: Vec::new(),
         assumed: Vec::new(),
+        returned: Vec::new(),
         payees: HashMap::new(),
         payee_other: HashMap::new(),
         accounts: HashMap::new(),
@@ -656,6 +663,14 @@ fn build(
                     .min(amount),
                 currency,
             ),
+            returned: Money::from_minor_units(
+                b.returned
+                    .iter()
+                    .filter(|r| r.0 == from && r.1 == to)
+                    .map(|r| r.2)
+                    .sum::<i64>(),
+                currency,
+            ),
         })
         .collect();
     Ok(Some(MoneyFlow {
@@ -799,7 +814,7 @@ fn drop_unused(b: &mut Builder<'_>, gone: &HashMap<usize, usize>) {
         flow.0 = new_index[flow.0];
         flow.1 = new_index[flow.1];
     }
-    for pair in &mut b.assumed {
+    for pair in b.assumed.iter_mut().chain(b.returned.iter_mut()) {
         pair.0 = new_index[pair.0];
         pair.1 = new_index[pair.1];
     }

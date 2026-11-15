@@ -63,6 +63,9 @@ pub struct LaidBand {
     /// How much of it is assumed (a move between own accounts that is not
     /// joined as a Transfer, #1035), written the same way; empty when none.
     pub assumed: String,
+    /// How much of it went both ways between the two accounts and is shown
+    /// only once, as the difference (empty if nothing went back).
+    pub returned: String,
 }
 
 /// The money-flow chart: what to draw and the text to say about it.
@@ -199,6 +202,11 @@ pub fn flow_model(flow: &MoneyFlow, elsewhere: &[MoneyFlow], text: &impl TextFor
             } else {
                 text.amount(f.assumed)
             },
+            returned: if f.returned.is_zero() {
+                String::new()
+            } else {
+                text.amount(f.returned)
+            },
         })
         .collect();
     // Largest first, so the screen reader and the table start with the
@@ -270,6 +278,7 @@ mod tests {
             to,
             amount: Money::from_minor_units(amount, eur()),
             assumed: Money::from_minor_units(0, eur()),
+            returned: Money::from_minor_units(0, eur()),
         }
     }
 

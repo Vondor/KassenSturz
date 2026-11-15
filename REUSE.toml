@@ -81,6 +81,13 @@ path = ["crates/kassensturz-import/tests/golden/**"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
+# The made-up households that two earlier builds wrote, as SQL text, for the
+# upgrade test (D-787).
+[[annotations]]
+path = ["crates/kassensturz-store/tests/fixtures/**"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
 # The five-year Space Colony book, made up entirely by
 # tools/space-colony/generate.py (D-270); a database file can't carry a
 # header of its own.

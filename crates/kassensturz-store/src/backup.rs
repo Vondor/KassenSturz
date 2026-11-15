@@ -327,6 +327,18 @@ pub(crate) fn parse_name<'a>(name: &'a str, tag: &str) -> Option<(&'a str, u32)>
     parse_rest(after_tag(name, tag)?)
 }
 
+/// Like [`parse_name`] for a backup of the book called `stem` with any tag:
+/// for a damaged book that can't say what its identity is (B-334).
+pub(crate) fn parse_any_tagged_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
+    let rest = after_stem(name, stem)?.strip_prefix('[')?;
+    let (tag, rest) = rest.split_once("] ")?;
+    let is_tag = tag.len() == 12 && tag.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+    if !is_tag {
+        return None;
+    }
+    parse_rest(rest)
+}
+
 /// Like [`parse_name`] for an older backup without a tag of the book
 /// called `stem` (D-806).
 pub(crate) fn parse_older_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {

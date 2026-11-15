@@ -120,11 +120,47 @@ pub fn book_id_of_file(book: &Path) -> Option<BookId> {
 /// book's identity, which a newer layout keeps. A backup this version can't
 /// open (a newer layout, a damaged file) is passed over.
 pub fn newest_usable_backup(book: &Path, folder: &Path) -> Option<BackupFile> {
-    let id = book_id_of_file(book)?;
-    backups_of(&id, folder)
-        .ok()?
+    // A damaged file often can't tell who it is: then the backups made
+    // under the book's file name are the ones to look at (B-334).
+    let mut candidates = match book_id_of_file(book) {
+        Some(id) => backups_of(&id, folder).ok()?,
+        None => Vec::new(),
+    };
+    candidates.extend(older_backups_of(book, folder).ok()?);
+    if candidates.is_empty() {
+        candidates = backups_named_like(book, folder);
+    }
+    candidates.sort_by_key(|backup| std::cmp::Reverse(backup.made));
+    candidates
         .into_iter()
         .find(|backup| check_backup(&backup.path).is_ok())
+}
+
+/// The backups in `folder` made under the file name of `book` with any
+/// identity tag, newest first. For a damaged book that can't say which one
+/// it is (B-334); the checks of a restore still refuse another book's.
+fn backups_named_like(book: &Path, folder: &Path) -> Vec<BackupFile> {
+    let Ok(stem) = stem_of(book) else {
+        return Vec::new();
+    };
+    let Ok(entries) = fs::read_dir(folder) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(Timestamp, u32, PathBuf)> = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().into_string().ok()?;
+            let (stamp, number) = crate::backup::parse_any_tagged_name(&name, stem)?;
+            let made = stamp_time(stamp)?;
+            let is_file = entry.file_type().ok()?.is_file();
+            is_file.then(|| (made, number, entry.path()))
+        })
+        .collect();
+    found.sort_by_key(|entry| std::cmp::Reverse((entry.0, entry.1)));
+    found
+        .into_iter()
+        .map(|(made, _, path)| BackupFile { path, made })
+        .collect()
 }
 
 /// What [`Book::keep_copy`] did.
@@ -330,6 +366,26 @@ fn copy_file(from: &Path, folder: &Path, tag: &str, keep: usize) -> Result<PathB
 }
 
 /// Copies the file `from` into `to` and makes sure the copy is on the disk.
+/// Brings the book at `path`, a copy of a backup from before books had an
+/// identity, to the current layout with the identity `id` in place of the
+/// one the update would make up (B-333). The copy is the user's own; the
+/// backup it was made from stays as it was.
+fn adopt_identity(path: &Path, id: &BookId) -> Result<(), StoreError> {
+    let mut conn = rusqlite::Connection::open(path)?;
+    let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    // The checks opening a book makes, before anything in the file runs.
+    layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, version)
+        .map_err(|_| StoreError::NotABook)?;
+    layout::migrate(&mut conn, version)?;
+    conn.execute(
+        "UPDATE book_identity SET book_id = ?1 WHERE id = 1",
+        [id.to_bytes().as_slice()],
+    )?;
+    drop(conn);
+    File::open(path)?.sync_all()?;
+    Ok(())
+}
+
 fn copy_and_sync(from: &Path, to: &Path) -> Result<(), StoreError> {
     fs::copy(from, to)?;
     // Windows syncs only files opened for writing.
@@ -374,7 +430,8 @@ impl PreparedRestore {
         // from before books had an identity has none to compare: it comes
         // from the list of older backups, which the user picks from on
         // purpose.
-        if check_backup(&backup)?.is_some_and(|found| found != *id) {
+        let found = check_backup(&backup)?;
+        if found.as_ref().is_some_and(|found| found != id) {
             return Err(StoreError::NotABook);
         }
         let mut partial = book.as_os_str().to_owned();
@@ -392,6 +449,16 @@ impl PreparedRestore {
             .open(&partial)?;
         let prepared = Self { partial, book };
         copy_and_sync(&backup, &prepared.partial)?;
+        if found.is_none() {
+            // The copy is the book's own from now on: it keeps the book's
+            // identity, or every backup tied to it, the one made just
+            // before this restore among them, would no longer be the
+            // book's (B-333).
+            if let Err(error) = adopt_identity(&prepared.partial, id) {
+                let _ = fs::remove_file(&prepared.partial);
+                return Err(error);
+            }
+        }
         Ok(prepared)
     }
 

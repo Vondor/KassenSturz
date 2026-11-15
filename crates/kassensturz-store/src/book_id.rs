@@ -45,6 +45,11 @@ impl BookId {
         Some(Self(bytes.try_into().ok()?))
     }
 
+    /// The 16 bytes of the ID.
+    pub(crate) fn to_bytes(&self) -> [u8; 16] {
+        self.0
+    }
+
     /// The short tag in the names of this book's backups: 12 lower-case
     /// hexadecimal digits, e.g. `a1b2c3d4e5f6`.
     #[must_use]

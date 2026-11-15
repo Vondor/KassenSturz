@@ -503,87 +503,95 @@ Kirigami.ScrollablePage {
         // It grows up to a few lines and then scrolls, so the buttons below
         // stay in view, and it stops taking text at the limit a save checks,
         // with a counter below that shows how much is left (B-226).
-        Controls.ScrollView {
-            id: noteScroll
+        // The field and its counter are one item of the form, so the form
+        // makes room for the counter's wrapped lines under the field: as
+        // two items the long red hint at the limit overlapped the field
+        // at the smallest window and at 200% text (B-308).
+        ColumnLayout {
             visible: page.editable
+            spacing: Kirigami.Units.smallSpacing
             Layout.fillWidth: true
             Layout.maximumWidth: Kirigami.Units.gridUnit * 20
-            Layout.maximumHeight: Kirigami.Units.gridUnit * 8
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Note:")
 
-            Controls.TextArea {
-                id: noteField
-                wrapMode: TextEdit.Wrap
-                placeholderText: page.i18nContext.i18nc("@info:placeholder", "Optional, for example what it was for")
-                Accessible.name: page.i18nContext.i18nc("@label:textbox", "Note:")
-                Accessible.description: noteCounter.text
-                Keys.onTabPressed: event => nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
-                Keys.onBacktabPressed: event => nextItemInFocusChain(false).forceActiveFocus(Qt.BacktabFocusReason)
+            Controls.ScrollView {
+                id: noteScroll
+                Layout.fillWidth: true
+                Layout.maximumHeight: Kirigami.Units.gridUnit * 8
 
-                // The text as it last fitted, to go back to when typing or
-                // pasting would make it longer than the limit; text that
-                // makes it shorter is always taken, and nothing already in
-                // the field is cut.
-                property string fitting: ""
-                property int counted: 0
-                property bool refused: false
-                property bool restoring: false
+                Controls.TextArea {
+                    id: noteField
+                    wrapMode: TextEdit.Wrap
+                    placeholderText: page.i18nContext.i18nc("@info:placeholder", "Optional, for example what it was for")
+                    Accessible.name: page.i18nContext.i18nc("@label:textbox", "Note:")
+                    Accessible.description: noteCounter.text
+                    Keys.onTabPressed: event => nextItemInFocusChain(true).forceActiveFocus(Qt.TabFocusReason)
+                    Keys.onBacktabPressed: event => nextItemInFocusChain(false).forceActiveFocus(Qt.BacktabFocusReason)
 
-                onTextChanged: {
-                    if (restoring) {
-                        return;
-                    }
-                    const typedLength = page.register.noteLength(text);
-                    if (typedLength > page.noteLimit && typedLength > counted) {
-                        // Keep as much of the new text as fits and refuse
-                        // only the rest, so a long paste is cut at the
-                        // limit, not dropped (#707, US4 P3 R1).
-                        const kept = page.fitNote(fitting, text, page.noteLimit);
-                        restoring = true;
-                        text = kept.text;
-                        cursorPosition = Math.max(0, Math.min(kept.cursor, text.length));
-                        restoring = false;
+                    // The text as it last fitted, to go back to when typing or
+                    // pasting would make it longer than the limit; text that
+                    // makes it shorter is always taken, and nothing already in
+                    // the field is cut.
+                    property string fitting: ""
+                    property int counted: 0
+                    property bool refused: false
+                    property bool restoring: false
+
+                    onTextChanged: {
+                        if (restoring) {
+                            return;
+                        }
+                        const typedLength = page.register.noteLength(text);
+                        if (typedLength > page.noteLimit && typedLength > counted) {
+                            // Keep as much of the new text as fits and refuse
+                            // only the rest, so a long paste is cut at the
+                            // limit, not dropped (#707, US4 P3 R1).
+                            const kept = page.fitNote(fitting, text, page.noteLimit);
+                            restoring = true;
+                            text = kept.text;
+                            cursorPosition = Math.max(0, Math.min(kept.cursor, text.length));
+                            restoring = false;
+                            fitting = text;
+                            counted = page.register.noteLength(text);
+                            refused = true;
+                            return;
+                        }
                         fitting = text;
-                        counted = page.register.noteLength(text);
-                        refused = true;
-                        return;
+                        counted = typedLength;
+                        refused = false;
                     }
-                    fitting = text;
-                    counted = typedLength;
-                    refused = false;
-                }
 
-                // Ctrl+Enter saves; Enter alone starts a new line.
-                Shortcut {
-                    sequences: ["Ctrl+Return", "Ctrl+Enter"]
-                    enabled: noteField.activeFocus
-                    onActivated: {
-                        ActionLog.taken("TransactionPage_save_5")
-                        page.save()
+                    // Ctrl+Enter saves; Enter alone starts a new line.
+                    Shortcut {
+                        sequences: ["Ctrl+Return", "Ctrl+Enter"]
+                        enabled: noteField.activeFocus
+                        onActivated: {
+                            ActionLog.taken("TransactionPage_save_5")
+                            page.save()
+                        }
                     }
                 }
             }
-        }
 
-        // How long the note is and how long it may be; when typing or
-        // pasting was stopped at the limit it says why, in the field's
-        // column so it is seen where the text goes (B-226).
-        Controls.Label {
-            id: noteCounter
-            visible: page.editable
-            Layout.fillWidth: true
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
-            wrapMode: Text.Wrap
-            textFormat: Text.PlainText
-            font: Kirigami.Theme.smallFont
-            color: noteField.refused
-                ? Kirigami.Theme.negativeTextColor
-                : noteField.counted >= page.noteLimit
-                    ? Kirigami.Theme.neutralTextColor
-                    : Kirigami.Theme.disabledTextColor
-            text: noteField.refused
-                ? page.i18nContext.i18nc("@info %1 is the longest a note may be", "A note may be up to %1 characters long, so the rest did not fit. Please shorten the note to add more.", page.noteLimit)
-                : page.i18nContext.i18nc("@info %1 characters typed so far, %2 the longest a note may be", "%1 of %2 characters", noteField.counted, page.noteLimit)
+
+            // How long the note is and how long it may be; when typing or
+            // pasting was stopped at the limit it says why, in the field's
+            // column so it is seen where the text goes (B-226).
+            Controls.Label {
+                id: noteCounter
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                color: noteField.refused
+                    ? Kirigami.Theme.negativeTextColor
+                    : noteField.counted >= page.noteLimit
+                        ? Kirigami.Theme.neutralTextColor
+                        : Kirigami.Theme.disabledTextColor
+                text: noteField.refused
+                    ? page.i18nContext.i18nc("@info %1 is the longest a note may be", "A note may be up to %1 characters long, so the rest did not fit. Please shorten the note to add more.", page.noteLimit)
+                    : page.i18nContext.i18nc("@info %1 characters typed so far, %2 the longest a note may be", "%1 of %2 characters", noteField.counted, page.noteLimit)
+            }
         }
 
         // The tags of the whole transaction (US4.8, docs/TAGS.md §1). A

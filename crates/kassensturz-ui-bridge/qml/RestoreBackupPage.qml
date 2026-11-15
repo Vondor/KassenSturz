@@ -24,6 +24,11 @@ FormCard.FormCardPage {
     property var picked: ({})
     // Why the last restore didn't happen, as a code, or "".
     property string failedCode: ""
+    // The backups that are certainly this book's, and the older ones from
+    // before KassenSturz could tell books apart, which may be another book's
+    // with the same name (D-806).
+    readonly property var ownItems: found.items.filter(item => !item.older)
+    readonly property var olderItems: found.items.filter(item => item.older)
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -89,7 +94,7 @@ FormCard.FormCardPage {
 
     FormCard.FormCard {
         FormCard.FormTextDelegate {
-            visible: page.found.items.length === 0
+            visible: page.ownItems.length === 0
             text: page.i18nContext.i18nc("@info", "There are no backups of this book yet.")
             descriptionItem.textFormat: Text.PlainText
             description: copies.chosen
@@ -98,23 +103,50 @@ FormCard.FormCardPage {
         }
 
         Repeater {
-            model: page.found.items
+            model: page.ownItems
+            delegate: backupRow
+        }
+    }
 
-            delegate: FormCard.FormButtonDelegate {
-                required property var modelData
+    // Backups from before KassenSturz could tell books apart: nothing says
+    // whose they are, so they are listed on their own and never taken for
+    // this book's (D-806).
+    FormCard.FormHeader {
+        visible: page.olderItems.length > 0
+        title: page.i18nContext.i18nc("@title:group", "Older backups")
+    }
 
-                icon.name: "document-revert"
-                text: Plain.plain(modelData.when)
-                description: modelData.inChosen
-                    ? page.i18nContext.i18nc("@info where a backup is kept", "In the folder you chose for copies")
-                    : page.i18nContext.i18nc("@info where a backup is kept", "In KassenSturz's backup folder")
-                descriptionItem.textFormat: Text.PlainText
-                Accessible.name: text + ", " + description
-                onClicked: {
-                    ActionLog.taken("RestoreBackupPage_pick")
-                    page.picked = modelData;
-                    confirmDialog.open();
-                }
+    FormCard.FormCard {
+        visible: page.olderItems.length > 0
+
+        FormCard.FormTextDelegate {
+            text: page.i18nContext.i18nc("@info", "These backups were saved before KassenSturz could tell books apart. They have the same name as this book, but they may belong to another book with that name. Pick one only if you know it is the right one.")
+            descriptionItem.textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.olderItems
+            delegate: backupRow
+        }
+    }
+
+    Component {
+        id: backupRow
+
+        FormCard.FormButtonDelegate {
+            required property var modelData
+
+            icon.name: "document-revert"
+            text: Plain.plain(modelData.when)
+            description: modelData.inChosen
+                ? page.i18nContext.i18nc("@info where a backup is kept", "In the folder you chose for copies")
+                : page.i18nContext.i18nc("@info where a backup is kept", "In KassenSturz's backup folder")
+            descriptionItem.textFormat: Text.PlainText
+            Accessible.name: text + ", " + description
+            onClicked: {
+                ActionLog.taken("RestoreBackupPage_pick")
+                page.picked = modelData;
+                confirmDialog.open();
             }
         }
     }

@@ -113,7 +113,11 @@ fn a_backup_that_does_not_fit_leaves_the_others_and_no_part_file() {
         "a part file was left"
     );
     assert_eq!(fs::read(&path).expect("book read"), book_before);
-    let listed = backups_of(&path, &backups).expect("listed");
+    let id = Book::open(&path, &computer)
+        .expect("opens")
+        .book_id()
+        .expect("an identity");
+    let listed = backups_of(&id, &backups).expect("listed");
     assert_eq!(listed.len(), before.len());
     Book::open(&path, &computer).expect("the book still opens");
 }

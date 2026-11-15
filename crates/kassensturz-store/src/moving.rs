@@ -755,11 +755,12 @@ pub fn remove_left_book(path: &Path, computer: &Computer) -> Result<(), StoreErr
 }
 
 /// The stamp of `name` if it is the name of a "before moving" backup of the
-/// book `stem` (`<stem> <stamp> before moving.ksz`, or `… before moving
-/// 2.ksz` and so on), for the list of backups (#806). The ten automatic
+/// book with the tag `tag` (`<name> [<tag>] <stamp> vor dem Verschieben.ksz`,
+/// or `… vor dem Verschieben 2.ksz` and so on), for the list of backups
+/// (#806, D-806). The ten automatic
 /// backups' names never match, nor theirs this one.
-pub fn move_backup_stamp<'a>(name: &'a str, stem: &str) -> Option<&'a str> {
-    move_backup_name(name, stem).map(|(stamp, _)| stamp)
+pub fn move_backup_stamp<'a>(name: &'a str, tag: &str) -> Option<&'a str> {
+    move_backup_name(name, tag).map(|(stamp, _)| stamp)
 }
 
 /// The "before moving" backups of the book at `book` in `folder`, newest
@@ -772,13 +773,39 @@ pub fn move_backup_stamp<'a>(name: &'a str, stem: &str) -> Option<&'a str> {
 ///
 /// [`StoreError::Io`] if the folder can't be read, with
 /// [`ErrorKind::NotFound`] if it isn't there.
-pub fn move_backups_of(book: &Path, folder: &Path) -> Result<Vec<crate::BackupFile>, StoreError> {
+pub fn move_backups_of(
+    id: &crate::BookId,
+    folder: &Path,
+) -> Result<Vec<crate::BackupFile>, StoreError> {
+    let tag = id.tag();
+    listed_move_backups(folder, |name| move_backup_name(name, &tag))
+}
+
+/// The "before moving" backups from before books had an identity, of a book
+/// called like the one at `book`, newest first, for the older backups in
+/// the list to restore from (D-806): whose they are can't be told.
+///
+/// # Errors
+///
+/// [`StoreError::Io`] if the folder can't be read, with
+/// [`ErrorKind::NotFound`] if it isn't there.
+pub fn older_move_backups_of(
+    book: &Path,
+    folder: &Path,
+) -> Result<Vec<crate::BackupFile>, StoreError> {
     let stem = crate::backup::stem_of(book)?;
+    listed_move_backups(folder, |name| older_move_backup_name(name, stem))
+}
+
+fn listed_move_backups(
+    folder: &Path,
+    parse: impl Fn(&str) -> Option<(&str, u32)>,
+) -> Result<Vec<crate::BackupFile>, StoreError> {
     let mut found: Vec<(Timestamp, u32, PathBuf)> = fs::read_dir(folder)?
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
-            let (stamp, number) = move_backup_name(&name, stem)?;
+            let (stamp, number) = parse(&name)?;
             let made = crate::backup::stamp_time(stamp)?;
             // A folder or a link with a backup's name isn't one.
             let is_file = entry.file_type().ok()?.is_file();
@@ -794,11 +821,19 @@ pub fn move_backups_of(book: &Path, folder: &Path) -> Result<Vec<crate::BackupFi
 
 /// The stamp and number of a "before moving" backup's name; the number is 1
 /// if the name has none.
-fn move_backup_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
-    let rest = name
-        .strip_prefix(stem)?
-        .strip_prefix(' ')?
-        .strip_suffix(EXTENSION)?;
+fn move_backup_name<'a>(name: &'a str, tag: &str) -> Option<(&'a str, u32)> {
+    move_backup_rest(crate::backup::after_tag(name, tag)?)
+}
+
+/// Like [`move_backup_name`] for a backup from before books had an
+/// identity, of the book called `stem`.
+fn older_move_backup_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
+    move_backup_rest(crate::backup::after_stem(name, stem)?)
+}
+
+/// The stamp and number in what follows a "before moving" backup's label.
+fn move_backup_rest(rest: &str) -> Option<(&str, u32)> {
+    let rest = rest.strip_suffix(EXTENSION)?;
     let stamp = rest.get(..STAMP_PATTERN.len())?;
     let is_stamp = stamp
         .bytes()
@@ -828,21 +863,20 @@ fn move_backup_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
 }
 
 /// Step 1: copies the book `reader` reads, which is at `book`, into
-/// `folder` as `<stem> <stamp> before moving.ksz`, then removes that book's
+/// `folder` as `<name> [<tag>] <stamp> vor dem Verschieben.ksz`, then removes that book's
 /// oldest "before moving" backups beyond the last [`KEEP_MOVE_BACKUPS`].
 fn back_up_before_moving(
     reader: &Connection,
     book: &Path,
     folder: &Path,
 ) -> Result<PathBuf, StoreError> {
-    let stem = book
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
+    // The book is open here, so it has its identity (D-806).
+    let id = crate::BookId::try_read(reader).ok_or(StoreError::NotABook)?;
+    let label = crate::backup::label_of(book, Some(&id))?;
     let folder = std::path::absolute(folder)?;
     fs::create_dir_all(&folder)?;
     let stamp = Timestamp::now().strftime(STAMP_FORMAT).to_string();
-    let (path, partial) = claim_backup(&folder, stem, &stamp)?;
+    let (path, partial) = claim_backup(&folder, &label, &stamp)?;
     let made = copy_into(reader, &partial).and_then(|()| {
         // Never over another file, should one have appeared.
         if exists(&path) {
@@ -854,18 +888,18 @@ fn back_up_before_moving(
         let _ = fs::remove_file(&partial);
         return Err(error);
     }
-    prune_move_backups(&folder, stem, &path);
+    prune_move_backups(&folder, &id.tag(), &path);
     Ok(path)
 }
 
 /// The first free name for a "before moving" backup, with the name the copy
 /// is written under first, claimed by creating an empty file.
-fn claim_backup(folder: &Path, stem: &str, stamp: &str) -> Result<(PathBuf, PathBuf), StoreError> {
+fn claim_backup(folder: &Path, label: &str, stamp: &str) -> Result<(PathBuf, PathBuf), StoreError> {
     for number in 1..=MAX_PER_SECOND {
         let name = if number == 1 {
-            format!("{stem} {stamp}{BEFORE_MOVING}{EXTENSION}")
+            format!("{label} {stamp}{BEFORE_MOVING}{EXTENSION}")
         } else {
-            format!("{stem} {stamp}{BEFORE_MOVING} {number}{EXTENSION}")
+            format!("{label} {stamp}{BEFORE_MOVING} {number}{EXTENSION}")
         };
         let path = folder.join(name);
         if exists(&path) {
@@ -885,11 +919,11 @@ fn claim_backup(folder: &Path, stem: &str, stamp: &str) -> Result<(PathBuf, Path
     Err(StoreError::Io(ErrorKind::AlreadyExists))
 }
 
-/// Removes the oldest "before moving" backups of the book `stem` until the
+/// Removes the oldest "before moving" backups of the book with the tag `tag` until the
 /// last [`KEEP_MOVE_BACKUPS`] are left, `just_made` always among them. Other
 /// files, the automatic backups among them, are left alone. Errors are
 /// ignored: a backup too many does no harm.
-fn prune_move_backups(folder: &Path, stem: &str, just_made: &Path) {
+fn prune_move_backups(folder: &Path, tag: &str, just_made: &Path) {
     let Ok(entries) = fs::read_dir(folder) else {
         return;
     };
@@ -897,7 +931,7 @@ fn prune_move_backups(folder: &Path, stem: &str, just_made: &Path) {
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
-            let (stamp, number) = move_backup_name(&name, stem)?;
+            let (stamp, number) = move_backup_name(&name, tag)?;
             Some((stamp.to_owned(), number, entry.path()))
         })
         .filter(|(_, _, path)| path != just_made)

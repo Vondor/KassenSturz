@@ -12,6 +12,7 @@
 mod backup;
 mod backup_copies;
 mod bank_links;
+mod book_id;
 mod budgets;
 mod cached;
 mod category_groups;
@@ -50,8 +51,10 @@ use rusqlite::config::DbConfig;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
 pub use backup_copies::{
-    BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of, newest_usable_backup,
+    BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of, book_id_of_file,
+    newest_usable_backup, older_backups_of,
 };
+pub use book_id::BookId;
 pub use budgets::{check_budget_amount_size, check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
@@ -63,7 +66,7 @@ pub use lock::Lock;
 pub use moving::{
     Difference, Interrupted, KEEP_MOVE_BACKUPS, MoveCause, MoveFailed, MoveNote, MovePlan,
     MoveRefused, MoveStep, MoveSteps, Moved, book_file_name, move_backup_stamp, move_backups_of,
-    plan_move, remove_left_book,
+    older_move_backups_of, plan_move, remove_left_book,
 };
 pub use names::{
     MAX_ACCOUNT_NAME_CHARS, fitting_account_name, is_invisible, name_key, stored_name,
@@ -137,6 +140,15 @@ pub struct CategoryEntry {
 }
 
 impl Book {
+    /// The identity of this book: it stays with the book through a move, a
+    /// rename and a copy of the file, and its backups are tied to it
+    /// (D-806). Only a book of a layout before 34 has none, and it gets one
+    /// when it is opened.
+    #[must_use]
+    pub fn book_id(&self) -> Option<BookId> {
+        BookId::try_read(&self.conn)
+    }
+
     /// Creates a new, empty book at `path` and opens it on `computer`.
     ///
     /// Fails with [`StoreError::AlreadyExists`] if something is at `path`
@@ -255,8 +267,13 @@ impl Book {
         match version {
             same if same == current => {}
             older if (first_version..current).contains(&older) => {
-                backup::back_up(&conn, &path, &computer.backup_folder)
-                    .map_err(|error| StoreError::BackupFailed(Box::new(error)))?;
+                backup::back_up(
+                    &conn,
+                    &path,
+                    &computer.backup_folder,
+                    BookId::try_read(&conn).as_ref(),
+                )
+                .map_err(|error| StoreError::BackupFailed(Box::new(error)))?;
                 layout::migrate_with(&mut conn, migrations, first_version, older)?;
             }
             // A development build of the Alpha wrote it (D-045, D-135, D-536).

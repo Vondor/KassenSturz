@@ -13,7 +13,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::{AccountId, Date, Money, Split, Transaction, TransactionId};
-use kassensturz_store::{Book, Computer, StoreError, backups_of};
+use kassensturz_store::{Book, Computer, StoreError, older_backups_of};
 
 struct TempFolder(PathBuf);
 
@@ -159,11 +159,23 @@ fn check_one(fixture: &str, layout: i32) {
     match Book::open(&path, &folder.computer()) {
         Ok(book) => {
             assert_the_household(&book);
+            // The update gave the book its identity (layout 34, D-806), and
+            // it stays when the book is opened again.
+            let id = book.book_id().expect("an identity was given");
             drop(book);
+            assert_eq!(
+                Book::open(&path, &folder.computer())
+                    .expect("opens")
+                    .book_id(),
+                Some(id)
+            );
             // The book is in the layout of this build, and a copy in the
             // layout it was is kept.
             assert_eq!(user_version(&path), kassensturz_store::LAYOUT);
-            let backups = backups_of(&path, &folder.computer().backup_folder).expect("listed");
+            // From before the book had an identity, so it is one of the
+            // older backups (layout 34, D-806).
+            let backups =
+                older_backups_of(&path, &folder.computer().backup_folder).expect("listed");
             assert!(
                 backups
                     .iter()

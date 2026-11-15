@@ -35,9 +35,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 10] = [
+pub(crate) const MIGRATIONS: [&str; 11] = [
     LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30, LAYOUT_31,
-    LAYOUT_32, LAYOUT_33,
+    LAYOUT_32, LAYOUT_33, LAYOUT_34,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
@@ -1177,6 +1177,26 @@ const LAYOUT_32: &str = "
 CREATE TABLE unchecked_ai_rules (
     rule_id BLOB PRIMARY KEY NOT NULL REFERENCES rules (id) ON DELETE CASCADE
 ) STRICT;
+";
+
+/// Layout 34 (B-328, D-804, D-806): the book's own identity.
+///
+/// - `book_identity`: exactly one row with a 16-byte random ID the book
+///   keeps for good: through a move, a rename and a copy of the file. The
+///   backups are tied to it and not to the book's file name, so two books
+///   called the same don't share backups (D-806). A book made before this
+///   layout gets its ID here, once, from SQLite's random bytes: the
+///   migration is the one place that needs no value of its own, so every
+///   book, new or updated, is made by the same SQL. It is a table of its
+///   own and not a column of `settings`, because the change history records
+///   `settings` and an Undo must never change a book's identity.
+const LAYOUT_34: &str = "
+CREATE TABLE book_identity (
+    id INTEGER PRIMARY KEY NOT NULL CHECK (id = 1),
+    book_id BLOB NOT NULL CHECK (length(book_id) = 16)
+) STRICT;
+
+INSERT INTO book_identity (id, book_id) VALUES (1, randomblob(16));
 ";
 
 /// Layout 33 (US7, #795 and #725, D-769): planned payments.

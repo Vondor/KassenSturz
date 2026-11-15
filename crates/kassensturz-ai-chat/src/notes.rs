@@ -147,8 +147,33 @@ const DONE_BY: &[&str] = &[
     "ist ",
 ];
 
+/// Phrases that say the book is now different ("Das Konto 'Bargeld' heißt
+/// jetzt 'Portemonnaie'"): a change claimed as done in other words
+/// (B-325).
+const NOW_DIFFERENT: &[&str] = &[
+    "heißt jetzt",
+    "heißt nun",
+    "heißen jetzt",
+    "heißen nun",
+    "gehört jetzt",
+    "gehören jetzt",
+    "gehört nun",
+    "gehören nun",
+    "is now called",
+    "is now named",
+    "are now called",
+    "are now named",
+    "now belongs to",
+    "now belong to",
+    "is now in the category",
+    "are now in the category",
+];
+
 fn claims_done(sentence: &str) -> bool {
     let lower = format!("{} ", sentence.to_lowercase());
+    if NOW_DIFFERENT.iter().any(|phrase| lower.contains(phrase)) {
+        return true;
+    }
     DONE.iter().any(|word| lower.contains(word))
         && DONE_BY
             .iter()
@@ -407,6 +432,9 @@ mod tests {
             "I deleted the 13 transactions.",
             "I've renamed the category for you.",
             "The transactions were categorized as Groceries.",
+            // B-325: the claim in other words, with no function called.
+            "Das Konto 'Bargeld' heißt jetzt 'Portemonnaie'.",
+            "The account Cash is now called Wallet.",
         ] {
             assert!(
                 notes_for(claim, idle(), &none()).contains(&AnswerNote::NothingPrepared),

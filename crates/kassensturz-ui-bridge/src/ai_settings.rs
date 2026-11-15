@@ -1031,6 +1031,53 @@ mod tests {
     }
 
     #[test]
+    fn a_consent_taken_back_is_gone_after_a_restart() {
+        // B-319: a consent outlives a restart (D-202: per computer, in the
+        // settings file with its seal in the keychain), so taking it back
+        // must remove it for good. "Take my agreement back", in the page
+        // and in the consent dialog while a consent is given, both call
+        // `withdraw_consent`. A new store on the same file and keychain,
+        // with fresh keys, is the next start of KassenSturz.
+        let (_folder, file, mut store) = on();
+        let keychain = Arc::new(MemoryKeychain::new());
+        let own = || {
+            Some(Arc::new(Mutex::new(ProviderKeys::new(Some(Box::new(
+                Shared(keychain.clone()),
+            ))))))
+        };
+        store.keys = own();
+        let (_, mut keys) = keys();
+        let address = "https://api.example.com/v1";
+        store.save(&mut keys, address, "big", KeyUse::None, None);
+        assert!(store.give_consent(TODAY));
+
+        // The next start still has the consent, sealed in the keychain.
+        let mut again = Store::at(&file);
+        again.keys = own();
+        assert_eq!(again.form().consent, Consent::Given(TODAY));
+        assert!(again.withdraw_consent());
+        drop(again);
+
+        // The start after that reads no consent: none in the file, no seal
+        // in the keychain, and the client refuses to send.
+        let mut after = Store::at(&file);
+        after.keys = own();
+        assert_eq!(after.form().consent, Consent::Missing);
+        assert_eq!(after.config().read().consent(), None);
+        assert_eq!(keychain.len(), 0, "the seal is gone too");
+        let client = after.client();
+        let request = client
+            .prepare(vec![kassensturz_ai::Message::user("Hi")], Vec::new())
+            .expect("a request");
+        assert_eq!(client.send(&request, None), Err(AiError::NoConsent));
+        // Saving the same address again asks for consent again.
+        assert_eq!(
+            after.save(&mut keys, address, "big", KeyUse::None, None),
+            written(Place::AnotherComputer, true)
+        );
+    }
+
+    #[test]
     fn a_consent_counts_until_close_when_the_keychain_cant_save_its_seal() {
         // B-259: with the keychain refusing to save (e.g. a wallet that
         // can't be opened), "I agree" used to say the settings couldn't be

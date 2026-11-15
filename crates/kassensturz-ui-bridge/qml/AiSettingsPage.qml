@@ -917,6 +917,15 @@ Kirigami.ScrollablePage {
     Kirigami.Dialog {
         id: consentDialog
 
+        // Whether the user has agreed already for the saved provider.
+        readonly property bool given: page.form.consent === "given"
+
+        // While it is given, the dialog ends only with one of its two
+        // buttons, so no way out of it leaves the user unsure whether the
+        // agreement still stands (B-319).
+        showCloseButton: !given
+        closePolicy: given ? Controls.Popup.NoAutoClose : Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
+
         function show() {
             page.sample = ({});
             exampleShown.checked = false;
@@ -947,11 +956,22 @@ Kirigami.ScrollablePage {
                     consentDialog.agree()
                 }
             },
+            // While a consent is given (the dialog read again, or shown
+            // again after saving), leaving it without agreeing takes the
+            // consent back, and the button says so: "Not now" never leaves
+            // an agreement standing behind it (B-319, AGENTS.md §8).
             Kirigami.Action {
-                text: page.i18nContext.i18nc("@action:button", "Not now")
+                text: consentDialog.given
+                    ? page.i18nContext.i18nc("@action:button", "Take my agreement back")
+                    : page.i18nContext.i18nc("@action:button", "Not now")
                 icon.name: "dialog-cancel"
                 onTriggered: {
                     ActionLog.taken("AiSettingsPage_notNow")
+                    if (consentDialog.given) {
+                        ActionLog.taken("AiSettingsPage_takeAgreementBack")
+                        page.notWritten = !page.settings.withdrawConsent();
+                        page.reload();
+                    }
                     consentDialog.close()
                 }
             }

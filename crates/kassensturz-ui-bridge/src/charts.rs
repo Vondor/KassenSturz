@@ -518,6 +518,21 @@ pub fn charts(
         )?),
         _ => None,
     };
+    // A period that is not over yet divides by the months up to today
+    // (D-648), fewer than its name suggests: the chart says by how many
+    // (B-313). It comes first, so the note below, which counts the same
+    // months, reads on from it (B-313, round 4).
+    if let Some(average) = &average
+        && let Some(so_far) = counted_so_far(average.per, period, locale.today())?
+    {
+        filter_view.notes.push(NoteView {
+            kind: "average-so-far",
+            dimension: "period",
+            id: so_far.per.word().into(),
+            counted: so_far.counted,
+            before: so_far.whole,
+        });
+    }
     // An average that counts months before the first transaction says so
     // under the chart (M6-B207, #590, D-668); the figure stays as it is.
     if let Some(average) = &average
@@ -530,19 +545,6 @@ pub fn charts(
             id: early.per.word().into(),
             counted: early.counted,
             before: early.before,
-        });
-    } else if let Some(average) = &average
-        && let Some(so_far) = counted_so_far(average.per, period, locale.today())?
-    {
-        // A period that is not over yet divides by the months up to today
-        // (D-648), fewer than its name suggests: the chart says by how many
-        // (B-313). The note above already names the count when it shows.
-        filter_view.notes.push(NoteView {
-            kind: "average-so-far",
-            dimension: "period",
-            id: so_far.per.word().into(),
-            counted: so_far.counted,
-            before: so_far.whole,
         });
     }
     // A comparison that counts periods before the first transaction says so

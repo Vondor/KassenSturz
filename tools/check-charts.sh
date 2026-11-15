@@ -95,7 +95,9 @@ mkdir "$work/out"
     grep -q 'flow-text Salary to Your money: ' run.log || { echo "check-charts: a band does not say where it goes" >&2; exit 1; }
     grep -q 'flow-labels-apart true$' run.log || { echo "check-charts: labels of the money-flow chart cover one another or leave the chart (B-309)" >&2; exit 1; }
     grep -q 'flow-labels-all true$' run.log || { echo "check-charts: a node of a roomy money-flow chart has no label (B-309)" >&2; exit 1; }
-    grep -q 'flow-labels-short 7$' run.log || { echo "check-charts: a short money-flow chart does not show the labels that fit (B-309)" >&2; exit 1; }
+    grep -q 'flow-labels-short 14$' run.log || { echo "check-charts: a short money-flow chart does not show the labels that fit (B-309)" >&2; exit 1; }
+    grep -q 'flow-labels-one-line \["0","2"\] \[\]$' run.log || { echo "check-charts: a crowded money-flow column does not fall back to one-line labels (B-309)" >&2; exit 1; }
+    grep -q 'flow-labels-inner-fit true$' run.log || { echo "check-charts: an inner money-flow label runs into the next column (B-309)" >&2; exit 1; }
     cp out/*.png "$work/out/"
 )
 

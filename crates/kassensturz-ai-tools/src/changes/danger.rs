@@ -14,7 +14,8 @@
 //! one line and wants a deliberate tick before the confirm button works.
 //! The counts come from code, never from the model (§8).
 
-use super::{ChangeSet, FieldValue, ProposedChange};
+use super::{ChangeSet, FieldValue, ProposedChange, SplitPart};
+use kassensturz_core::Transaction;
 use kassensturz_core::ai_switch::Field;
 
 /// From how many touched things, or transactions Rules catch, a set counts
@@ -67,6 +68,15 @@ impl ChangeSet {
                 ProposedChange::EditAccount(edit) if edit.before != edit.after => {
                     danger.texts_lost += 1;
                 }
+                // A deleted transaction takes its payee and notes with it,
+                // and a split joined into fewer parts the names of the parts
+                // that are gone (B-337).
+                ProposedChange::DeleteTransaction(delete) => {
+                    danger.texts_lost += deleted_texts(&delete.reviewed);
+                }
+                ProposedChange::SplitTransaction(split) => {
+                    danger.texts_lost += names_gone(&split.before, &split.parts);
+                }
                 ProposedChange::NewRule(new) => danger.caught += new.catches,
                 ProposedChange::EditRule(edit) => danger.caught += edit.catches,
                 _ => {}
@@ -75,6 +85,41 @@ impl ChangeSet {
         let big = danger.touched >= MANY || danger.caught >= MANY;
         (big || danger.texts_lost > 0).then_some(danger)
     }
+}
+
+/// The texts the user wrote that go with `transaction`: its payee and note,
+/// and the own payee and note of each of its parts.
+fn deleted_texts(transaction: &Transaction) -> usize {
+    let has = |text: Option<&str>| text.is_some_and(|text| !text.trim().is_empty());
+    usize::from(has(transaction.payee()))
+        + usize::from(has(transaction.note()))
+        + transaction
+            .splits()
+            .iter()
+            .map(|part| {
+                usize::from(has(part.own_payee.as_deref())) + usize::from(has(part.note.as_deref()))
+            })
+            .sum::<usize>()
+}
+
+/// How many names of the parts `before` none of the parts `after` keeps.
+fn names_gone(before: &[SplitPart], after: &[SplitPart]) -> usize {
+    let mut kept: Vec<&str> = after
+        .iter()
+        .filter_map(|part| part.name.as_deref())
+        .collect();
+    let mut gone = 0;
+    for name in before.iter().filter_map(|part| part.name.as_deref()) {
+        if name.trim().is_empty() {
+            continue;
+        }
+        if let Some(at) = kept.iter().position(|kept| *kept == name) {
+            kept.swap_remove(at);
+        } else {
+            gone += 1;
+        }
+    }
+    gone
 }
 
 /// Whether a field held text before.

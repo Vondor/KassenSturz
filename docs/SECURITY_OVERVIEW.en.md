@@ -56,6 +56,7 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | A deliberately altered book could delete parts of transactions on an edit, and Undo could write back wrong amounts | B-245, B-246 | #883 |
 | An AI could propose more changes at once than allowed, and names with foreign look-alike letters went unnoticed | B-247, B-250 | #884 |
 | Large, deleting AI changes came without a clear warning; Rules made by an AI weren't marked as such | B-248, B-249 | #900 |
+| An AI change set was not checked again at confirm against all locks, gave no warning when a deletion erased notes, and linked bills to transactions changed since the review | B-336, B-337, B-338 | this PR |
 | A web address in an AI answer reached the user without a note | B-251 | #888 |
 | A consent written into the settings file by hand counted like the user's real one, so data could have gone to an AI elsewhere | B-252 | #897 |
 | A chat transcript stayed on disk after the developer mode was switched off | B-253 | #885 |

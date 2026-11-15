@@ -17,7 +17,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use kassensturz_ai_tools::{
-    Confirmed, Folders, INBOX, PROPOSE_CHANGES, ProposedChange, ToolError, TotalCheck,
+    ChangeError, Confirmed, Folders, INBOX, PROPOSE_CHANGES, ProposedChange, ToolError, TotalCheck,
     inbox_answer, prepare_named_with_folders, propose_spec,
 };
 use kassensturz_core::ai_switch::{Field, Permission, Permissions};
@@ -431,6 +431,47 @@ fn a_set_applies_only_the_bills_the_app_put_in_place_and_one_undo_takes_back_all
     let change = book.change_to_undo().unwrap().unwrap();
     assert_eq!(change.action, Action::ApplyAiChanges);
     book.undo().unwrap();
+    assert!(links(&book, id).is_empty());
+}
+
+/// B-338: a bill is filed with the transaction the user reviewed it with.
+/// One whose amount changed since leaves the whole set unmade, so the
+/// app takes the archived copy back.
+#[test]
+fn a_bill_for_a_transaction_changed_since_the_review_is_not_filed() {
+    let place = Place::new();
+    let (mut book, id) = book_in("EUR", 2_450);
+    let call = item(id, "RE-0042.pdf", &json!({}));
+    let mut set = prepare(&book, &call, unlocked(), &place.folders())
+        .unwrap()
+        .changes;
+    let archived = place.root.join("Archive/RE-0042.pdf");
+    set.put_bills_in_place(|_| Some(archived.to_str().unwrap().to_owned()));
+    let stored = book.transaction(id).unwrap();
+    let money = |minor| Money::from_minor_units(minor, code_of("EUR"));
+    let changed = Transaction::new(
+        id,
+        DAY,
+        stored.payee().map(str::to_owned),
+        stored
+            .splits()
+            .iter()
+            .map(|part| {
+                let minor = if part.amount.is_negative() {
+                    -9_990
+                } else {
+                    9_990
+                };
+                Split::new(part.account.unwrap(), money(minor))
+            })
+            .collect(),
+    )
+    .unwrap();
+    book.update_transaction(&changed).unwrap();
+    assert!(matches!(
+        set.apply(&mut book, Confirmed::by_the_user()),
+        Err(ChangeError::OutOfDate)
+    ));
     assert!(links(&book, id).is_empty());
 }
 

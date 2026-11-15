@@ -581,3 +581,48 @@ fn a_lock_file_gone_with_the_book_is_not_a_take_over() {
     std::fs::write(&gone, b"x").expect("book made");
     assert!(held.is_taken_over());
 }
+
+// B-315: a book that another program holds shut at the database, with its
+// lock file not visible here, gets the in-use page, and leaves no lock file
+// of ours behind.
+#[test]
+fn a_busy_book_without_a_visible_lock_file_shows_the_in_use_page() {
+    let folder = TempFolder::new();
+    let (path, _holder) = book_with_busy_write_lock(&folder);
+    let result = Book::open(&path, &computer(&folder));
+    assert!(
+        matches!(result, Err(StoreError::Locked(_))),
+        "{:?}",
+        result.err()
+    );
+    assert!(
+        !crate::lock::lock_path(&path).exists(),
+        "no lock file of ours is left"
+    );
+}
+
+#[test]
+fn only_busy_and_held_shut_errors_become_the_in_use_page() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let busy = StoreError::from(rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+        None,
+    ));
+    assert!(matches!(
+        crate::lock::in_use_instead(&path, busy),
+        StoreError::Locked(_)
+    ));
+    let other = StoreError::from(rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
+        None,
+    ));
+    assert!(matches!(
+        crate::lock::in_use_instead(&path, other),
+        StoreError::Database(_)
+    ));
+    assert!(matches!(
+        crate::lock::in_use_instead(&path, StoreError::Io(std::io::ErrorKind::NotFound)),
+        StoreError::Io(std::io::ErrorKind::NotFound)
+    ));
+}

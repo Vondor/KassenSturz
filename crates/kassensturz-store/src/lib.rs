@@ -237,8 +237,9 @@ impl Book {
             return Err(StoreError::NotABook);
         }
         let lock = lock(&path)?;
-        let (mut conn, without_file_locks) =
-            connect(&path).map_err(integrity::damaged_if_malformed)?;
+        let (mut conn, without_file_locks) = connect(&path)
+            .map_err(integrity::damaged_if_malformed)
+            .map_err(|error| lock::in_use_instead(&path, error))?;
         // Before anything is read from the book, and before any backup or
         // migration writes to the file, so a file cut short or with a page
         // SQLite can't parse is a damaged book, not a generic database

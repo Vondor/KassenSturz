@@ -182,7 +182,10 @@ impl HeldLock {
             // A lock file that is gone is a take-over only while the book is
             // still there: with a drive pulled out, the book goes too, even
             // if an empty folder is left where it was mounted (B-316).
-            Ok(None) => self.path.with_extension("").is_file(),
+            // Checked by reading from the book, not by looking it up: a
+            // portal or a share can keep answering for a drive that has been
+            // pulled out (B-316).
+            Ok(None) => book_can_be_read(&self.path.with_extension("")),
             Err(_) => false,
         }
     }
@@ -265,6 +268,60 @@ pub(crate) fn held_here(lock: &Lock) -> bool {
         .is_some_and(|token| held().contains(token))
 }
 
+/// Whether the book at `book` can be read: its folder lists it, it opens and
+/// a byte comes back.
+fn book_can_be_read(book: &Path) -> bool {
+    // The folder's listing must still name the book too: a read can be
+    // answered from what the system kept, a listing is asked of the drive.
+    let listed = book
+        .parent()
+        .zip(book.file_name())
+        .is_some_and(|(folder, name)| {
+            fs::read_dir(folder).is_ok_and(|mut entries| {
+                entries.any(|entry| entry.is_ok_and(|e| e.file_name() == name))
+            })
+        });
+    listed
+        && fs::File::open(book)
+            .and_then(|mut file| file.read(&mut [0; 1]))
+            .is_ok()
+}
+
+/// Whether the book is held shut by another program, as the system says
+/// when it is opened for reading: a sharing or lock violation on Windows,
+/// "busy" elsewhere. A share can answer so while the lock file is not yet
+/// visible here, e.g. a directory listing the client still has cached
+/// (B-315).
+fn book_is_held_shut(book: &Path) -> bool {
+    let Err(error) = fs::File::open(book).and_then(|mut file| file.read(&mut [0; 1])) else {
+        return false;
+    };
+    matches!(
+        error.kind(),
+        ErrorKind::ResourceBusy | ErrorKind::WouldBlock
+    ) || (cfg!(windows) && matches!(error.raw_os_error(), Some(32 | 33)))
+}
+
+/// What to say when the book can't be opened with `error` after the lock
+/// was taken or while the lock file may not be visible: if SQLite says the
+/// book is busy or locked, or the book is held shut, another program has it
+/// open, so the answer is the in-use page and not a general error (B-315).
+pub(crate) fn in_use_instead(book: &Path, error: StoreError) -> StoreError {
+    let busy = match &error {
+        StoreError::Database(database) => matches!(
+            database.0.sqlite_error_code(),
+            Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)
+        ),
+        StoreError::Io(_) => book_is_held_shut(book),
+        _ => false,
+    };
+    if busy {
+        StoreError::Locked(Lock::unreadable())
+    } else {
+        error
+    }
+}
+
 /// Turns an I/O error met before the book's lock is taken into the lock
 /// page if the book has a lock file: a share can refuse to read the book
 /// while another computer has it open, and "in use there" is the useful
@@ -277,7 +334,7 @@ pub(crate) fn locked_instead(book: &Path, error: StoreError) -> StoreError {
     match read(&path) {
         Ok(Some(lock)) if !held_here(&lock) => StoreError::Locked(lock),
         Err(StoreError::Io(_)) if path.exists() => StoreError::Locked(Lock::unreadable()),
-        _ => error,
+        _ => in_use_instead(book, error),
     }
 }
 

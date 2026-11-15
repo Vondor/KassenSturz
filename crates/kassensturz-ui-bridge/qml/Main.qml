@@ -1048,7 +1048,10 @@ Kirigami.ApplicationWindow {
                 actions: [
                     Kirigami.Action {
                         text: root.i18nContext.i18nc("@action:button hides a note for this book", "Don't show again for this book")
-                        onTriggered: bookSession.hideNetworkNote()
+                        onTriggered: {
+                            ActionLog.taken("Main_hideNetworkNote")
+                            bookSession.hideNetworkNote()
+                        }
                     }
                 ]
                 text: root.i18nContext.i18nc("@info", "This book is on a network drive. Network drives can damage a book, because they don't save changes as reliably as this computer's own drive. Keep the book on this computer; a sync folder, such as Nextcloud's, is fine.")

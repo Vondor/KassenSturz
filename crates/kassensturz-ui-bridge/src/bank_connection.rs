@@ -705,7 +705,7 @@ pub fn error_text(error: &BankError) -> ErrorText {
                 ErrorParam::Text(text) => text.clone(),
                 ErrorParam::Keyword(keyword) => (*keyword).to_owned(),
                 ErrorParam::Currency(currency) => currency.to_string(),
-                other => format!("{other:?}"),
+                other => crate::errors::param_without_book(other),
             };
             (*name, text)
         })

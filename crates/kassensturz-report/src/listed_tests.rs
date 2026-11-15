@@ -374,3 +374,77 @@ fn a_period_the_source_was_not_read_for_is_refused() {
         Err(ReportError::PeriodNotRead)
     ));
 }
+
+/// The rows of `filter` in the days `first` to `last`, read the way the tile
+/// reads them.
+fn tile_rows(f: &Fixture, first: Date, last: Date, filter: &Filter) -> Vec<Listed> {
+    let period = Period::new(first, last).expect("period");
+    let source = Source::read_by_side_dates(&f.book, period).expect("read");
+    let listed = listed_transactions(&source, period, filter, MAX_LISTED).expect("listed");
+    assert_eq!(listed.total, listed.rows.len());
+    listed.rows
+}
+
+fn only(accounts: &[AccountId]) -> Filter {
+    Filter {
+        accounts: Some(accounts.to_vec()),
+        ..Filter::default()
+    }
+}
+
+#[test]
+fn a_transfer_with_sides_on_two_days_is_on_each_day_of_its_own_account_only() {
+    // B-348: Checking Nov 1, Savings Nov 2, booked Nov 1.
+    let mut f = fixture();
+    let (checking, savings) = (f.checking, f.savings);
+    let mut left = Split::new(checking, money(-4_200));
+    left.own_date = Some(date(2026, 11, 1));
+    let mut reached = Split::new(savings, money(4_200));
+    reached.own_date = Some(date(2026, 11, 2));
+    let id = add(&mut f.book, date(2026, 11, 1), "Move", vec![left, reached]);
+    let (d1, d2) = (date(2026, 11, 1), date(2026, 11, 2));
+
+    // Savings only: nothing on Nov 1, one row on Nov 2 with Nov 2.
+    assert!(tile_rows(&f, d1, d1, &only(&[savings])).is_empty());
+    let rows = tile_rows(&f, d2, d2, &only(&[savings]));
+    assert_eq!(rows.len(), 1);
+    assert_eq!((rows[0].transaction, rows[0].date), (id, d2));
+    assert_eq!(rows[0].amount, money(4_200));
+    // Checking only: the other way round.
+    assert!(tile_rows(&f, d2, d2, &only(&[checking])).is_empty());
+    let rows = tile_rows(&f, d1, d1, &only(&[checking]));
+    assert_eq!((rows.len(), rows[0].date), (1, d1));
+    // Both accounts: one row a day, from the side that shows that day.
+    for (day, account) in [(d1, checking), (d2, savings)] {
+        let rows = tile_rows(&f, day, day, &Filter::default());
+        assert_eq!(
+            (rows.len(), rows[0].account, rows[0].date),
+            (1, account, day)
+        );
+    }
+    // Both days: one row, from the later side as before.
+    let rows = tile_rows(&f, d1, d2, &only(&[checking, savings]));
+    assert_eq!(
+        (rows.len(), rows[0].account, rows[0].date),
+        (1, savings, d2)
+    );
+}
+
+#[test]
+fn a_transfer_over_a_month_boundary_shows_no_date_outside_the_period() {
+    let mut f = fixture();
+    let (checking, savings) = (f.checking, f.savings);
+    let mut left = Split::new(checking, money(-1_000));
+    left.own_date = Some(date(2026, 10, 31));
+    let mut reached = Split::new(savings, money(1_000));
+    reached.own_date = Some(date(2026, 11, 1));
+    add(&mut f.book, date(2026, 10, 31), "Move", vec![left, reached]);
+    let november = (date(2026, 11, 1), date(2026, 11, 30));
+    let october = (date(2026, 10, 1), date(2026, 10, 31));
+    let rows = tile_rows(&f, november.0, november.1, &only(&[checking, savings]));
+    assert_eq!((rows.len(), rows[0].date), (1, date(2026, 11, 1)));
+    assert!(tile_rows(&f, november.0, november.1, &only(&[checking])).is_empty());
+    let rows = tile_rows(&f, october.0, october.1, &only(&[checking, savings]));
+    assert_eq!((rows.len(), rows[0].date), (1, date(2026, 10, 31)));
+    assert!(tile_rows(&f, october.0, october.1, &only(&[savings])).is_empty());
+}

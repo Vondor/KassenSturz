@@ -53,7 +53,6 @@ mod error;
 mod figures;
 #[cfg(feature = "ai")]
 mod functions;
-#[cfg(feature = "ai")]
 mod invisible_table;
 #[cfg(feature = "ai")]
 mod issue;

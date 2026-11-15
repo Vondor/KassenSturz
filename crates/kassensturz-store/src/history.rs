@@ -1441,17 +1441,22 @@ impl Book {
         })
     }
 
-    /// Without file locks, the lock file is the only guard against a second
-    /// writer: checks it is still ours before a change starts (outside a
-    /// bigger change, which checked already; D-776). A change can still slip
-    /// in between this check and the commit, which takes milliseconds.
+    /// Checks the lock file is still ours before a change starts (outside a
+    /// bigger change, which checked already). Without file locks it is the
+    /// only guard against a second writer (D-776). With them it catches a
+    /// book another computer took over with "open anyway" (D-038): SQLite's
+    /// locks don't reach across a network share, so both would save
+    /// (B-306, D-798). A change can still slip in between this check and
+    /// the commit, which takes milliseconds.
     pub(crate) fn check_lock_is_ours(&self) -> Result<(), StoreError> {
-        if self.without_file_locks
-            && self.conn.is_autocommit()
-            && self
-                ._lock
-                .as_ref()
-                .is_some_and(|lock| !lock.is_still_ours())
+        if self.conn.is_autocommit()
+            && self._lock.as_ref().is_some_and(|lock| {
+                if self.without_file_locks {
+                    !lock.is_still_ours()
+                } else {
+                    lock.is_taken_over()
+                }
+            })
         {
             return Err(StoreError::LockLost);
         }

@@ -460,3 +460,30 @@ fn private_copies_a_killed_program_left_are_removed_when_old_enough() {
     assert!(young.exists(), "one that may still be in use stays");
     std::fs::remove_dir(&young).expect("removed");
 }
+
+#[test]
+fn a_book_taken_over_with_open_anyway_refuses_the_first_ones_next_change() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let mut first = Book::create(&path, &computer).expect("book made");
+    add(&mut first, "Checking");
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    // The user says "open anyway" on another computer: it takes the lock.
+    let mut second = Book::open_anyway(&path, &computer, &seen).expect("taken over");
+    let before = std::fs::read(&path).expect("book read");
+    let result = first.as_one_action(crate::Action::AddAccount, |_| Ok::<(), StoreError>(()));
+    assert!(matches!(result, Err(StoreError::LockLost)), "{result:?}");
+    assert!(matches!(
+        first.dry_run(|_| Ok::<(), StoreError>(())),
+        Err(StoreError::LockLost)
+    ));
+    assert_eq!(std::fs::read(&path).expect("book read"), before);
+    // The one that took over goes on, and its lock outlives the first.
+    add(&mut second, "Savings");
+    drop(first);
+    assert!(crate::lock::lock_path(&path).exists());
+    assert_eq!(names(&second), ["Checking", "Savings"]);
+}

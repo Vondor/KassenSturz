@@ -21,8 +21,24 @@ use kassensturz_core::{CurrencyCode, Money};
 use libfuzzer_sys::fuzz_target;
 use parse::AmountReader;
 
+/// The group separators a region is written with by people and programs:
+/// the CLDR one, a no-break space, a narrow no-break space, a plain space,
+/// an apostrophe. The reader is given one of them at a time.
+const GROUPS: [[&str; 4]; 5] = [
+    [".", "\u{a0}", "\u{202f}", " "],
+    [",", "\u{a0}", "\u{202f}", " "],
+    ["\u{66c}", ",", "\u{a0}", " "],
+    ["\u{2019}", "'", "\u{a0}", "\u{202f}"],
+    ["\u{202f}", "\u{a0}", " ", "."],
+];
+
 /// A region's format and its group separator.
 fn region(selector: u8) -> (AmountFormat, &'static str) {
+    let (format, _) = region_format(selector);
+    (format, GROUPS[usize::from(selector % 5)][usize::from(selector / 5 % 4)])
+}
+
+fn region_format(selector: u8) -> (AmountFormat, &'static str) {
     match selector % 5 {
         0 => (
             AmountFormat {

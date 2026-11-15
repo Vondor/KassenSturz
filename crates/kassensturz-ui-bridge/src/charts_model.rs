@@ -502,6 +502,7 @@ fn flow_object(model: &FlowModel) -> QVariant {
             ("thickness", place(band.thickness)),
             ("label", text(&band.label)),
             ("assumed", text(&band.assumed)),
+            ("returned", text(&band.returned)),
         ])
     });
     map([
@@ -1556,12 +1557,14 @@ mod tests {
                 "assumed",
                 "from",
                 "label",
+                "returned",
                 "thickness",
                 "to",
                 "yFrom",
                 "yTo"
             ]
         );
+        assert!(bands.iter().all(|b| text_of(b, "returned").is_empty()));
         // Nothing in this book is assumed: the text is empty (#1035).
         assert!(bands.iter().all(|b| text_of(b, "assumed").is_empty()));
         // The largest band is the salary into the middle node: 5,000.00.

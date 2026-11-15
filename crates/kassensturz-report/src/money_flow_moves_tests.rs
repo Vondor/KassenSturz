@@ -36,9 +36,6 @@ fn register(bookings: &[Transaction], own: AccountId) -> (i64, i64) {
     (into, out)
 }
 
-/// The oracle: an account's node is as wide as the larger of what the
-/// register says came in and went out, and what is left over less what was
-/// drawn from reserves is the register's net change of all chosen accounts.
 /// The part of the oracle that holds even where opposite moves cancel: what
 /// is left over less what was drawn from reserves is the register's net change
 /// of all chosen accounts.
@@ -68,6 +65,9 @@ fn check_net_against_register(
     );
 }
 
+/// The oracle: an account's node is as wide as the larger of what the
+/// register says came in and went out, and what is left over less what was
+/// drawn from reserves is the register's net change of all chosen accounts.
 fn check_against_register(flow: &MoneyFlow, bookings: &[Transaction], own: &[(&str, AccountId)]) {
     let mut net = 0_i64;
     for &(name, id) in own {
@@ -96,6 +96,15 @@ fn check_against_register(flow: &MoneyFlow, bookings: &[Transaction], own: &[(&s
         net,
         "what is left over less the reserves is the register's net change"
     );
+}
+
+/// What the band says went both ways (#1050 follow-up).
+fn returned(flow: &MoneyFlow, from: &str, to: &str) -> Option<i64> {
+    let name = |index: usize| flow.nodes[index].name.as_str();
+    flow.flows
+        .iter()
+        .find(|f| name(f.from) == from && name(f.to) == to)
+        .map(|f| f.returned.minor_units())
 }
 
 fn band(flow: &MoneyFlow, from: &str, to: &str) -> Option<(i64, i64)> {
@@ -330,6 +339,50 @@ fn sides_a_rule_sorted_into_categories_become_a_move_and_leave_the_categories() 
         &bookings,
         &[("Current account", current), ("Household", household)],
     );
+}
+
+#[test]
+fn a_band_says_how_much_of_it_went_both_ways_and_one_way_bands_say_nothing() {
+    // 70,000 to savings and 30,000 back: one band of 40,000 that says 30,000
+    // also went the other way. A move to a third account that nothing
+    // comes back from says nothing.
+    let mut book = Book::create_in_memory().expect("book");
+    book.use_currency(EUR).expect("currency");
+    let a = account(&mut book, "Current account", AccountKind::Asset, EUR, None);
+    let b = account(&mut book, "Savings", AccountKind::Asset, EUR, None);
+    let c = account(&mut book, "Household", AccountKind::Asset, EUR, None);
+    let salary = account(&mut book, "Salary", AccountKind::Income, EUR, None);
+    let bookings = vec![
+        parts(&[(a, 200_000), (salary, -200_000)], 1),
+        open_side(a, -70_000, 2),
+        open_side(b, 70_000, 2),
+        open_side(b, -30_000, 9),
+        open_side(a, 30_000, 9),
+        open_side(a, -10_000, 12),
+        open_side(c, 10_000, 12),
+    ];
+    for transaction in &bookings {
+        book.add_transaction(transaction).expect("added");
+    }
+    let whole = period(date(2026, 10, 1), date(2026, 10, 31));
+    let source = Source::read_with_moves(&book, whole).expect("read");
+    let flows = money_flow(&source, whole, &Filter::default(), FLOW).expect("flow");
+    let flow = &flows[0];
+    assert_eq!(
+        band(flow, "Current account", "Savings"),
+        Some((40_000, 40_000))
+    );
+    assert_eq!(returned(flow, "Current account", "Savings"), Some(30_000));
+    assert_eq!(returned(flow, "Current account", "Household"), Some(0));
+    // The chart's net change still equals the register's: 200,000 in, nothing
+    // spent, so all of it is left over.
+    let left_over: i64 = flow
+        .nodes
+        .iter()
+        .filter(|n| n.kind == FlowNodeKind::LeftOver)
+        .map(|n| n.amount.minor_units())
+        .sum();
+    assert_eq!(left_over, 200_000);
 }
 
 fn foreign_open_side(account: AccountId, amount: i64, day: i8) -> Transaction {

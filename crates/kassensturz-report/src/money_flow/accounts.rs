@@ -298,6 +298,9 @@ pub(super) fn finish(
     // kept apart, so its band can say how much of it is assumed.
     let mut pairs: BTreeMap<(AccountId, AccountId), i64> = BTreeMap::new();
     let mut guessed: BTreeMap<(AccountId, AccountId), i64> = BTreeMap::new();
+    // What went each way between two accounts, before the two are netted:
+    // the smaller of the two is what the one band shows only once.
+    let mut ways: BTreeMap<(AccountId, AccountId), (i64, i64)> = BTreeMap::new();
     let mut from_other: BTreeMap<AccountId, i64> = BTreeMap::new();
     let mut to_other: BTreeMap<AccountId, i64> = BTreeMap::new();
     for (&(from, to, amount), is_assumed) in transfers
@@ -314,6 +317,12 @@ pub(super) fn finish(
                 };
                 let entry = pairs.entry(key).or_insert(0);
                 *entry = add(*entry, signed)?;
+                let way = ways.entry(key).or_insert((0, 0));
+                if signed > 0 {
+                    way.0 = add(way.0, signed)?;
+                } else {
+                    way.1 = add(way.1, signed.checked_neg().ok_or_else(overflow)?)?;
+                }
                 if is_assumed {
                     let entry = guessed.entry(key).or_insert(0);
                     *entry = add(*entry, signed)?;
@@ -395,10 +404,15 @@ pub(super) fn finish(
     }
     for &(from, to, amount) in &edges {
         let guess = assumed_part(from, to, amount);
+        let key = if from < to { (from, to) } else { (to, from) };
+        let (forward, backward) = ways.get(&key).copied().unwrap_or((0, 0));
         let (from, to) = (b.accounts[&from], b.accounts[&to]);
         b.flows.push((from, to, amount));
         if guess > 0 {
             b.assumed.push((from, to, guess));
+        }
+        if forward.min(backward) > 0 {
+            b.returned.push((from, to, forward.min(backward)));
         }
     }
     for (side, list) in [(-1_i8, &from_other), (1, &to_other)] {

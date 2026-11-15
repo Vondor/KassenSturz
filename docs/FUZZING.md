@@ -18,7 +18,7 @@ For agents and developers. A fuzzer feeds a program millions of broken inputs an
 | `kmy` | KMyMoney `.kmy` files |
 | `kmy_sqlite` | KMyMoney SQLite files |
 | `book_open` | a KassenSturz book file, through the normal open path (integrity checks included) |
-| `amount_parse` | an amount typed by the user, in five regional formats. The reader is part of the Qt app crate, which a fuzz build can't compile, so the target includes its two source files by path (they use only `kassensturz-core`). An amount that is read must read back as itself when it is written again |
+| `amount_parse` | an amount typed by the user, in five regional formats, each with four group separators (the CLDR one, no-break space, narrow no-break space, plain space or apostrophe). The reader is part of the Qt app crate, which a fuzz build can't compile, so the target includes its two source files by path (they use only `kassensturz-core`). An amount that is read must read back as itself when it is written again |
 
 The targets are in `fuzz/fuzz_targets/`. They only call the public functions of the importers and the store and hold no logic of their own.
 

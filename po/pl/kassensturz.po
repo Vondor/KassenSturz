@@ -4973,6 +4973,16 @@ msgid ""
 "Copy the book to a folder on this computer and open it from there."
 msgstr "Nie udało się bezpiecznie przygotować pliku księgi, więc KassenSturz go nie otworzył. Skopiuj księgę do folderu na tym komputerze i otwórz ją stamtąd."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:122
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This folder can't lock files, so KassenSturz didn't open the book: two "
+"programs could change it at the same time and damage it. Copy the book to a "
+"folder on this computer and open it from there, or ask whoever set up the "
+"share to allow file locks. The book wasn't changed."
+msgstr "W tym folderze nie można blokować plików, więc KassenSturz nie otworzył księgi: dwa programy mogłyby zmieniać ją jednocześnie i ją uszkodzić. Skopiuj księgę do folderu na tym komputerze i otwórz ją stamtąd albo poproś osobę, która skonfigurowała udział, o zezwolenie na blokowanie plików. Księga nie została zmieniona."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:99
 #, kde-format
 msgctxt "@info"

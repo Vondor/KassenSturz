@@ -117,6 +117,8 @@ Kirigami.Page {
             return i18nContext.i18nc("@info", "This book was made by a test version of KassenSturz from before the Beta. Open it with that version, choose \"Save the whole book\" there, and start a new book from the saved file. The book wasn't changed.");
         case "store.backup-failed":
             return i18nContext.i18nc("@info", "Before it updates a book to work with this version, KassenSturz saves a copy, and that didn't work, so the book was left as it was. Free up space on the drive, then try again.");
+        case "store.locks-unsupported":
+            return i18nContext.i18nc("@info", "This folder can't lock files, so KassenSturz didn't open the book: two programs could change it at the same time and damage it. Copy the book to a folder on this computer and open it from there, or ask whoever set up the share to allow file locks. The book wasn't changed.");
         case "store.journal-mode-refused":
             return i18nContext.i18nc("@info", "The book's file couldn't be set up safely, so KassenSturz didn't open it. Copy the book to a folder on this computer and open it from there.");
         case "store.io":

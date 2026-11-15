@@ -15,7 +15,7 @@ use kassensturz_core::{
 use kassensturz_store::Book;
 
 use super::*;
-use crate::tests::{EUR, account, date, money, period};
+use crate::tests::{EUR, USD, account, date, money, period};
 
 /// What the register says about one own account: the money that came in and
 /// the money that went out, from the booked parts alone.
@@ -39,6 +39,35 @@ fn register(bookings: &[Transaction], own: AccountId) -> (i64, i64) {
 /// The oracle: an account's node is as wide as the larger of what the
 /// register says came in and went out, and what is left over less what was
 /// drawn from reserves is the register's net change of all chosen accounts.
+/// The part of the oracle that holds even where opposite moves cancel: what
+/// is left over less what was drawn from reserves is the register's net change
+/// of all chosen accounts.
+fn check_net_against_register(
+    flow: &MoneyFlow,
+    bookings: &[Transaction],
+    own: &[(&str, AccountId)],
+) {
+    let net: i64 = own
+        .iter()
+        .map(|&(_, id)| {
+            let (into, out) = register(bookings, id);
+            into - out
+        })
+        .sum();
+    let sum = |kind: FlowNodeKind| -> i64 {
+        flow.nodes
+            .iter()
+            .filter(|n| n.kind == kind)
+            .map(|n| n.amount.minor_units())
+            .sum()
+    };
+    assert_eq!(
+        sum(FlowNodeKind::LeftOver) - sum(FlowNodeKind::Reserves),
+        net,
+        "what is left over less the reserves is the register's net change"
+    );
+}
+
 fn check_against_register(flow: &MoneyFlow, bookings: &[Transaction], own: &[(&str, AccountId)]) {
     let mut net = 0_i64;
     for &(name, id) in own {
@@ -300,5 +329,137 @@ fn sides_a_rule_sorted_into_categories_become_a_move_and_leave_the_categories() 
         flow,
         &bookings,
         &[("Current account", current), ("Household", household)],
+    );
+}
+
+fn foreign_open_side(account: AccountId, amount: i64, day: i8) -> Transaction {
+    let usd = |minor| kassensturz_core::Money::from_minor_units(minor, USD);
+    Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, day),
+        None,
+        vec![
+            Split::new(account, usd(amount)),
+            Split::uncategorized(usd(-amount)),
+        ],
+    )
+    .expect("balanced")
+}
+
+#[test]
+fn a_money_loop_between_two_accounts_matches_the_register() {
+    // A to B and part of it back to A: one assumed band of the difference.
+    let mut book = Book::create_in_memory().expect("book");
+    book.use_currency(EUR).expect("currency");
+    let a = account(&mut book, "Current account", AccountKind::Asset, EUR, None);
+    let b = account(&mut book, "Savings", AccountKind::Asset, EUR, None);
+    let salary = account(&mut book, "Salary", AccountKind::Income, EUR, None);
+    let bookings = vec![
+        parts(&[(a, 200_000), (salary, -200_000)], 1),
+        open_side(a, -70_000, 2),
+        open_side(b, 70_000, 2),
+        open_side(b, -30_000, 9),
+        open_side(a, 30_000, 9),
+    ];
+    for transaction in &bookings {
+        book.add_transaction(transaction).expect("added");
+    }
+    let whole = period(date(2026, 10, 1), date(2026, 10, 31));
+    let source = Source::read_with_moves(&book, whole).expect("read");
+    let flows = money_flow(&source, whole, &Filter::default(), FLOW).expect("flow");
+    let flow = &flows[0];
+    // Opposite moves between the same two accounts are one band of the
+    // difference, as for every pair of nodes (the band is drawn once).
+    assert_eq!(
+        band(flow, "Current account", "Savings"),
+        Some((40_000, 40_000))
+    );
+    assert_eq!(band(flow, "Savings", "Current account"), None);
+    // The round trip of 30,000 cancels inside the one band, so the node is
+    // as wide as the register's inflow less the part that went round; the
+    // net change still equals the register's.
+    let width = |name: &str| {
+        flow.nodes
+            .iter()
+            .find(|n| n.kind == FlowNodeKind::Account && n.name == name)
+            .map(|n| n.amount.minor_units())
+    };
+    assert_eq!(width("Current account"), Some(200_000));
+    assert_eq!(width("Savings"), Some(40_000));
+    check_net_against_register(flow, &bookings, &[("Current account", a), ("Savings", b)]);
+}
+
+#[test]
+fn a_booking_split_over_three_accounts_matches_the_register() {
+    // One booking takes money out of A and puts it into B and C at once (not
+    // a pair, so not a move), next to a pair that is one. The figures must
+    // still equal the register.
+    let mut book = Book::create_in_memory().expect("book");
+    book.use_currency(EUR).expect("currency");
+    let a = account(&mut book, "Current account", AccountKind::Asset, EUR, None);
+    let b = account(&mut book, "Household", AccountKind::Asset, EUR, None);
+    let c = account(&mut book, "Savings", AccountKind::Asset, EUR, None);
+    let salary = account(&mut book, "Salary", AccountKind::Income, EUR, None);
+    let bookings = vec![
+        parts(&[(a, 300_000), (salary, -300_000)], 1),
+        parts(&[(a, -100_000), (b, 60_000), (c, 40_000)], 3),
+        open_side(a, -25_000, 4),
+        open_side(c, 25_000, 5),
+    ];
+    for transaction in &bookings {
+        book.add_transaction(transaction).expect("added");
+    }
+    let whole = period(date(2026, 10, 1), date(2026, 10, 31));
+    let source = Source::read_with_moves(&book, whole).expect("read");
+    let flows = money_flow(&source, whole, &Filter::default(), FLOW).expect("flow");
+    let flow = &flows[0];
+    assert_eq!(
+        band(flow, "Current account", "Savings").map(|b| b.1),
+        Some(25_000)
+    );
+    check_against_register(
+        flow,
+        &bookings,
+        &[("Current account", a), ("Household", b), ("Savings", c)],
+    );
+}
+
+#[test]
+fn sides_in_two_currencies_are_never_a_move_and_each_currency_matches_its_register() {
+    // Same figure out of a euro account and into a dollar account: not a
+    // move (one currency only, D-043); a real dollar move beside it is.
+    let mut book = Book::create_in_memory().expect("book");
+    book.use_currency(EUR).expect("currency");
+    book.use_currency(USD).expect("currency");
+    let euro = account(&mut book, "Current account", AccountKind::Asset, EUR, None);
+    let dollar = account(&mut book, "Dollar account", AccountKind::Asset, USD, None);
+    let dollar_two = account(&mut book, "Travel account", AccountKind::Asset, USD, None);
+    let bookings = vec![
+        open_side(euro, -10_000, 2),
+        foreign_open_side(dollar, 10_000, 2),
+        foreign_open_side(dollar, -4_000, 6),
+        foreign_open_side(dollar_two, 4_000, 6),
+    ];
+    for transaction in &bookings {
+        book.add_transaction(transaction).expect("added");
+    }
+    let whole = period(date(2026, 10, 1), date(2026, 10, 31));
+    let source = Source::read_with_moves(&book, whole).expect("read");
+    let flows = money_flow(&source, whole, &Filter::default(), FLOW).expect("flow");
+    assert_eq!(flows.len(), 2);
+    let euros = flows.iter().find(|f| f.currency == EUR).expect("EUR");
+    let dollars = flows.iter().find(|f| f.currency == USD).expect("USD");
+    assert!(euros.flows.iter().all(|f| f.assumed.is_zero()));
+    assert_eq!(
+        band(dollars, "Dollar account", "Travel account"),
+        Some((4_000, 4_000))
+    );
+    let euro_bookings: Vec<_> = bookings[..1].to_vec();
+    let dollar_bookings: Vec<_> = bookings[1..].to_vec();
+    check_against_register(euros, &euro_bookings, &[("Current account", euro)]);
+    check_against_register(
+        dollars,
+        &dollar_bookings,
+        &[("Dollar account", dollar), ("Travel account", dollar_two)],
     );
 }

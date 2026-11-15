@@ -839,4 +839,70 @@ proptest! {
             check_accounts(&flow);
         }
     }
+
+    /// B-330: transactions whose two category parts may go both ways (a
+    /// gross salary with a deduction, a purchase with a refund part) count
+    /// the same income and spending with accounts as without, and every
+    /// node still keeps its balance.
+    #[test]
+    fn with_accounts_mixed_parts_count_what_the_plain_chart_counts(
+        entries in prop::collection::vec(
+            (0usize..2, 0usize..4, 0usize..4, -500_000i64..500_000, -500_000i64..500_000),
+            1..20,
+        ),
+    ) {
+        let mut w = world(&[
+            ("Salary", AccountKind::Income, None),
+            ("Food", AccountKind::Expense, None),
+            ("Rent", AccountKind::Expense, None),
+            ("Fun", AccountKind::Expense, None),
+        ]);
+        let second = add_own(&mut w, "Savings", AccountKind::Asset);
+        let own = [w.own, second];
+        let cats = ["Salary", "Food", "Rent", "Fun"];
+        let mut bookings = Vec::new();
+        for (account, first, other, a, b) in entries {
+            let rest = -(a + b);
+            if first == other || a == 0 || b == 0 || rest == 0 {
+                continue;
+            }
+            bookings.push(parts(&[
+                (own[account], rest),
+                (w.names[cats[first]], a),
+                (w.names[cats[other]], b),
+            ]));
+        }
+        let whole = period(date(2026, 1, 1), date(2026, 12, 31));
+        let source = Source::from_parts(whole, w.accounts.clone(), w.tree.clone(), bookings);
+        let flow = |accounts| {
+            money_flow(
+                &source,
+                whole,
+                &Filter::default(),
+                FlowOptions {
+                    sub_categories: false,
+                    payees: false,
+                    accounts,
+                },
+            )
+            .expect("flow")
+        };
+        let totals = |flows: &[MoneyFlow]| -> Vec<i64> {
+            cats.iter()
+                .map(|name| {
+                    flows
+                        .iter()
+                        .flat_map(|flow| &flow.nodes)
+                        .filter(|node| node.name == *name && node.kind != FlowNodeKind::Middle)
+                        .map(|node| node.amount.minor_units())
+                        .sum()
+                })
+                .collect()
+        };
+        let with_accounts = flow(true);
+        for one in &with_accounts {
+            check_accounts(one);
+        }
+        prop_assert_eq!(totals(&with_accounts), totals(&flow(false)));
+    }
 }

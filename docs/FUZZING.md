@@ -39,6 +39,7 @@ Use synthetic seed files only (AGENTS.md §3.1 rule 2). CI takes the importers' 
 `.github/workflows/fuzz.yml` runs every target:
 
 - on a pull request that touches an importer, the store, the core or `fuzz/`: a short smoke run (one minute per target). It is not a required check.
+- by hand (Actions, "Fuzzing", Run workflow): the same 30-minute run per target by default; untick `long` for a one-minute smoke run.
 - every night: a 30-minute run per target. A crash, hang or out-of-memory fails the job, and the input that caused it is kept as a CI artifact.
 
 A finding is fixed like any bug: add a regression test with the input as a synthetic file, fix the code, add a row to `docs/SECURITY_LOG.md` when it can harm stored data.

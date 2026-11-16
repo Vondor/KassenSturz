@@ -307,9 +307,9 @@ Kirigami.ApplicationWindow {
 
         // The import writes, the preview only reads; once the import
         // saves, it can't be cancelled anymore (B-367).
-        title: importWorkDialog.progress.importing
+        title: Plain.plain(importWorkDialog.progress.importing
             ? root.i18nContext.i18nc("@title:window", "Importing the statement")
-            : root.i18nContext.i18nc("@title:window", "Reading the statement")
+            : root.i18nContext.i18nc("@title:window", "Reading the statement"))
         padding: Kirigami.Units.largeSpacing
         preferredWidth: Kirigami.Units.gridUnit * 22
         modal: true

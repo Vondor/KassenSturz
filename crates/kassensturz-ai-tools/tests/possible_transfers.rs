@@ -190,7 +190,13 @@ fn moves_not_joined_as_transfers_are_marked() {
     assert_eq!(value["matches"], json!(4));
     // No IBAN reaches the model, not even the user's own.
     let text = value.to_string();
-    assert!(!text.contains("DE89") && !text.contains("de89") && !text.contains("GB29"));
+    // Searched by the IBANs' long digit runs, with and without spaces:
+    // four characters such as "de89" can turn up in a random ID (a CI run
+    // of #1122 met it).
+    for digits in ["37040044", "3704 0044", "60161331926819"] {
+        assert!(!text.to_lowercase().contains(digits), "{digits}");
+    }
+    assert!(!text.contains("GB29NWBK") && !text.contains("DE89 3704"));
 }
 
 #[test]

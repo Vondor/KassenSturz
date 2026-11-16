@@ -274,3 +274,148 @@ fn a_part_whose_account_is_gone_is_found() {
         );
     }
 }
+
+/// A converted part as `Book::convert` would store it: `amount` (euro
+/// minor units) converted at `rate` in `rounding`, either multiplied
+/// (`forward`, a rate from euros into dollars) or divided by a rate from
+/// dollars into euros.
+fn conversion(
+    amount: i64,
+    rate: kassensturz_core::ExchangeRate,
+    forward: bool,
+    rounding: kassensturz_core::RoundingMode,
+) -> super::Conversion {
+    use crate::tests::USD;
+    use kassensturz_core::{Currency, Money};
+    let euro = Currency::new(EUR, 2).expect("currency");
+    let dollar = Currency::new(USD, 2).expect("currency");
+    let money = Money::from_minor_units(amount, EUR);
+    let converted = if forward {
+        money.checked_mul_rate(euro, rate, dollar, rounding)
+    } else {
+        money.checked_div_rate(euro, rate, dollar, rounding)
+    }
+    .expect("converted");
+    super::Conversion {
+        amount,
+        currency: ("EUR".to_owned(), 2),
+        foreign: converted.minor_units(),
+        foreign_currency: ("USD".to_owned(), 2),
+        from: if forward { "EUR" } else { "USD" }.to_owned(),
+        digits: rate.digits(),
+        places: i64::from(rate.decimal_places()),
+    }
+}
+
+/// B-349: a converted part with a negative amount was refused whenever the
+/// amount rounded one way, because the range of what the rate allows was
+/// worked out as if every amount were positive. Every amount, of either
+/// sign, converted in either direction and in every rounding mode, must
+/// agree with its own rate; a foreign amount far off must still be found.
+#[test]
+fn every_correct_conversion_agrees_whatever_its_sign() {
+    use kassensturz_core::{ExchangeRate, RoundingMode};
+    let rates = ["1.0856", "0.92116", "1.1", "157.42", "0.0063", "1.0000"];
+    // A simple, fixed sequence of further amounts, so the run is the same
+    // every time: large and odd ones besides the small ones swept below.
+    let mut next: u64 = 0x2545_f491_4f6c_dd1d;
+    let mut more = || {
+        next = next
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        i64::try_from(next >> 34).expect("fits")
+    };
+    let amounts: Vec<i64> = (1..=1_200)
+        .chain((1..=100).map(|n| n * 10_000))
+        .chain((0..500).map(|_| more()))
+        .collect();
+    for rate in rates {
+        let rate: ExchangeRate = rate.parse().expect("valid rate");
+        for forward in [true, false] {
+            for rounding in RoundingMode::ALL {
+                for &amount in &amounts {
+                    for amount in [amount, -amount] {
+                        let part = conversion(amount, rate, forward, rounding);
+                        assert_eq!(
+                            part.disagrees(),
+                            Some(false),
+                            "{amount} at {rate:?} forward={forward} {rounding:?}"
+                        );
+                        // A tiny amount fits many others within the rate's
+                        // last digit; only a clear difference is asked for.
+                        if amount.abs() < 1_000 {
+                            continue;
+                        }
+                        let mut off = conversion(amount, rate, forward, rounding);
+                        off.foreign += amount.signum() * (off.foreign.abs() / 10 + 50);
+                        assert_eq!(
+                            off.disagrees(),
+                            Some(true),
+                            "{amount} at {rate:?} forward={forward} {rounding:?} not found"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// B-349 end to end: transfers converted by `Book::convert`, out of the
+/// euro account and into it, in both directions of the rate, are stored
+/// and the book opens again afterwards, also read-only.
+#[test]
+fn a_book_with_converted_transfers_of_either_sign_opens_again() {
+    use crate::tests::USD;
+    use kassensturz_core::{
+        DatedRate, DatedRateId, ForeignAmount, RateSource, Split, Transaction, TransactionId,
+    };
+    for (rate, from_euro) in [("1.0856", true), ("0.92116", false)] {
+        let folder = TempFolder::new();
+        let path = folder.join("Trips.ksz");
+        let mut book = Book::create(&path, &computer(&folder)).expect("book made");
+        book.use_currency(EUR).expect("currency used");
+        book.use_currency(USD).expect("currency used");
+        let checking = account(&mut book, "Checking account", AccountKind::Asset, EUR);
+        let dollars = account(&mut book, "Dollar account", AccountKind::Asset, USD);
+        let (from, to) = if from_euro { (EUR, USD) } else { (USD, EUR) };
+        book.add_rate(&DatedRate {
+            id: DatedRateId::generate(),
+            date: date(2026, 10, 1),
+            from,
+            to,
+            rate: rate.parse().expect("valid rate"),
+            source: RateSource::Manual,
+        })
+        .expect("rate added");
+        let euros = (1..=300).chain((100..=1_000).map(|n| n * 100));
+        for minor in euros {
+            for minor in [minor, -minor] {
+                let (converted, rate) = book
+                    .convert(eur(minor), USD, date(2026, 10, 7))
+                    .expect("converted");
+                let moved = Split {
+                    foreign: Some(ForeignAmount {
+                        amount: converted,
+                        rate: Some(rate),
+                    }),
+                    ..Split::new(dollars, eur(minor))
+                };
+                let transaction = Transaction::new(
+                    TransactionId::generate(),
+                    date(2026, 10, 7),
+                    Some("Dollar account".into()),
+                    vec![Split::new(checking, eur(-minor)), moved],
+                )
+                .expect("balanced");
+                book.add_transaction(&transaction).expect("added");
+            }
+        }
+        drop(book);
+        Book::open(&path, &computer(&folder)).unwrap_or_else(|error| {
+            panic!("{rate} refused: {error:?}");
+        });
+        Book::open_to_read(&path).unwrap_or_else(|error| {
+            panic!("{rate} refused read-only: {error:?}");
+        });
+    }
+}

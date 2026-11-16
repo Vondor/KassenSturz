@@ -360,7 +360,14 @@ fn the_forecast_takes_chosen_accounts_and_refuses_what_is_not_one() {
     for months in [json!(13), json!(-1), json!("3"), json!(1.5)] {
         let refused = call(&p.book, "forecast", &json!({"months": months}), TODAY);
         assert!(
-            matches!(refused, Err(ToolError::BadArgument { argument: "months" })),
+            matches!(
+                refused,
+                Err(ToolError::OutOfRange {
+                    argument: "months",
+                    min: 0,
+                    max: 12
+                })
+            ),
             "{months}: {refused:?}"
         );
     }

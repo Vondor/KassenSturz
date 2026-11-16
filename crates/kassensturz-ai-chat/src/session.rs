@@ -243,8 +243,8 @@ pub struct Answer {
     /// Nothing in them is applied: only the review screen's confirm does.
     pub changes: Vec<ChangeSet>,
     /// For each set of `changes`, the numbers in the titles of its new
-    /// charts that no function produced, marked like those of an answer
-    /// (D-188, D-402).
+    /// charts that the user didn't write, whether a function produced them
+    /// or not (D-188, D-402, B-361).
     pub title_numbers: Vec<Vec<Unverified>>,
     /// Set when the model's attempts at a chart ran out (D-402).
     pub chart_failed: Option<ChartFailed>,
@@ -346,6 +346,9 @@ pub struct ChatSession {
     history: Vec<Message>,
     /// Every figure the functions, the user and the build produced so far.
     figures: Figures,
+    /// Only the figures the user's own words and the build hold: a chart's
+    /// title may repeat these, but no figure of the book (B-361, A7).
+    said: Figures,
     log: Vec<LogEntry>,
     /// What the user did with prepared changes since the last question, to
     /// tell the model with the next one.
@@ -396,6 +399,7 @@ impl ChatSession {
             test_found_no_functions: false,
             overview_from_test: false,
             history: Vec::new(),
+            said: figures.clone(),
             figures,
             log: Vec::new(),
             outcomes: Vec::new(),
@@ -571,6 +575,7 @@ impl ChatSession {
         );
         self.follow_the_test(hooks);
         self.figures.add_text(question);
+        self.said.add_text(question);
         self.history.push(Message::user(question));
         self.proposed.clear();
         self.issue = None;
@@ -617,6 +622,7 @@ impl ChatSession {
             let permissions = self.permissions();
             let notes = self.notes();
             self.figures.add_text(&notes);
+            self.said.add_text(&notes);
             let notes = prompt::notes_block(&notes);
             let (system, functions) = match &overview {
                 Some(overview) => (
@@ -990,9 +996,12 @@ impl ChatSession {
         Message::tool_result(call.id.clone(), result)
     }
 
-    /// The numbers in the titles of the new charts of `set` that no function
-    /// produced (D-188, D-402). A title is the model's text: it is shown as
-    /// plain text and marked like an answer.
+    /// The numbers in the titles of the new charts of `set` that the user
+    /// didn't write (D-188, D-402). A title is the model's text: it is shown
+    /// as plain text and marked. Unlike in an answer, a figure a function
+    /// produced is marked too: a title stays as it is, is never worked out
+    /// again from the book, and goes along with a dashboard file the user
+    /// shares, so a real balance there is marked as well (B-361, attack A7).
     fn title_numbers(&self, set: &ChangeSet) -> Vec<Unverified> {
         set.changes()
             .iter()
@@ -1013,7 +1022,7 @@ impl ChatSession {
                     .cloned()
                     .into_iter()
                     .chain(description.map(description_titles).unwrap_or_default())
-                    .flat_map(|text| check_numbers(&text, &self.figures))
+                    .flat_map(|text| check_numbers(&text, &self.said))
                     .collect::<Vec<_>>()
             })
             .collect()

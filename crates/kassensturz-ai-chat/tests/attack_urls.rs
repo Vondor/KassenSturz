@@ -48,10 +48,9 @@ fn a3_a_web_address_in_an_answer_is_marked_or_cut() {
 
 /// Attack scenario A7 (its AI half): injected text makes the AI write the
 /// user's real balance into a chart's title, so it leaves with a shared
-/// dashboard file. The number check marks figures no function produced
-/// (T-39); the review asks that the card marks a real figure too.
+/// dashboard file. The card marks every figure in a title that the user
+/// didn't write, a real one too (T-39, B-254, B-361).
 #[test]
-#[ignore = "B-254 (attack A7): a real balance in a chart title is not marked"]
 fn a7_a_real_balance_in_a_chart_title_is_marked() {
     let book = space_colony();
     let accounts =

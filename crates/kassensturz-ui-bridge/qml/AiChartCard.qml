@@ -165,7 +165,7 @@ Kirigami.AbstractCard {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Warning
             visible: card.chart !== null && card.unverified.length > 0
-            text: visible ? Plain.plain(card.i18nContext.i18nc("@info %1 is a list of numbers", "Don't rely on the numbers in this title: they don't come from your book, so the AI may have made them up: %1", card.unverified.join(", "))) : ""
+            text: visible ? Plain.plain(card.i18nContext.i18nc("@info %1 is a list of numbers", "Check the numbers in this title before you keep it: the AI wrote them as text, so they are never worked out from your book, may be made up, and go along with any dashboard file you share: %1", card.unverified.join(", "))) : ""
         }
 
         Controls.Label {

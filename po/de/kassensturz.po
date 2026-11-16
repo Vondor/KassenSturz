@@ -25582,3 +25582,21 @@ msgstr "Sie haben am %1 zugestimmt, aber KassenSturz kann diese Zustimmung nicht
 msgctxt "@info"
 msgid "This agreement holds only until KassenSturz closes: it couldn't be kept where KassenSturz saves PINs and keys. To keep it, choose a place under Settings → Advanced → Password storage, check that it is unlocked, and agree again."
 msgstr "Diese Zustimmung gilt nur, bis KassenSturz geschlossen wird: Sie konnte nicht dort aufbewahrt werden, wo KassenSturz PINs und Schlüssel speichert. Damit sie bleibt, wählen Sie unter Einstellungen → Erweitert → Passwortspeicher einen Ort, prüfen Sie, dass er entsperrt ist, und stimmen Sie erneut zu."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The prepared changes were made, then taken back with Undo. They are no "
+"longer in your book."
+msgstr ""
+"Die vorbereiteten Änderungen wurden vorgenommen und dann mit „Rückgängig“ "
+"zurückgenommen. Sie sind nicht mehr in Ihrem Buch."
+
+#: crates/kassensturz-ui-bridge/qml/AiChartCard.qml
+#, kde-format
+msgctxt "@info"
+msgid "Kept, then taken back with Undo. The chart is no longer saved."
+msgstr ""
+"Behalten, dann mit „Rückgängig“ zurückgenommen. Das Diagramm ist nicht mehr "
+"gespeichert."

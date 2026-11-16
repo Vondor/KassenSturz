@@ -668,6 +668,12 @@ Kirigami.ApplicationWindow {
             showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
         }
         const what = changeNames.describe(result.change);
+        // The chat hears of an Undo of the changes it prepared, whichever
+        // way the user took them back (B-354).
+        if (!redone && result.change.action === "apply-ai-changes") {
+            aiChat.changesUndone();
+            chatPanel.markUndone();
+        }
         if (redone) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
         } else {
@@ -2133,11 +2139,7 @@ Kirigami.ApplicationWindow {
                 pageStack.pop();
             }
             onUndoClicked: {
-                const result = changeHistory.undo();
-                root.afterStep(result, false);
-                if (result.code === undefined) {
-                    aiChat.changesUndone();
-                }
+                root.afterStep(changeHistory.undo(), false);
             }
             onDoneClicked: root.closeChangeReview(setId)
         }

@@ -293,7 +293,9 @@ ColumnLayout {
         textFormat: Text.PlainText
         text: item.message.kind === "changesDone"
             ? (item.message.applied
-                ? item.i18nContext.i18nc("@info", "The prepared changes were made. You can take them back with Undo.")
+                ? (item.message.undone === true
+                    ? item.i18nContext.i18nc("@info", "The prepared changes were made, then taken back with Undo. They are no longer in your book.")
+                    : item.i18nContext.i18nc("@info", "The prepared changes were made. You can take them back with Undo."))
                 : item.i18nContext.i18nc("@info", "The prepared changes were thrown away. Nothing was changed."))
             : ""
     }

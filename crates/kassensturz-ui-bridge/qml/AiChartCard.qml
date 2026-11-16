@@ -43,7 +43,7 @@ Kirigami.AbstractCard {
     signal handled(string outcome)
 
     // What the user did: empty while the chart waits, then `kept`, `added`,
-    // `builder`, `left` or `outOfDate`. A card made again for a chart that
+    // `builder`, `left`, `undone` or `outOfDate`. A card made again for a chart that
     // was dealt with starts with it and loads nothing.
     property string outcome: ""
     // The refusal of the book when keeping failed, as `FormError` shows it.
@@ -244,12 +244,14 @@ Kirigami.AbstractCard {
 
         Controls.Label {
             Layout.fillWidth: true
-            visible: card.outcome === "kept" || card.outcome === "added" || card.outcome === "builder" || card.outcome === "left"
+            visible: card.outcome === "kept" || card.outcome === "added" || card.outcome === "undone" || card.outcome === "builder" || card.outcome === "left"
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
             textFormat: Text.PlainText
             text: card.outcome === "kept"
                 ? card.i18nContext.i18nc("@info", "Kept. The chart is saved in the Statistic Builder. You can take it back with Undo.")
+                : card.outcome === "undone"
+                    ? card.i18nContext.i18nc("@info", "Kept, then taken back with Undo. The chart is no longer saved.")
                 : card.outcome === "added"
                     ? card.i18nContext.i18nc("@info", "Kept and added to the Overview. You can take it back with Undo.")
                 : card.outcome === "builder"

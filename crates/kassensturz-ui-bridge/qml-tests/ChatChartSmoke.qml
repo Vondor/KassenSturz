@@ -171,6 +171,10 @@ Kirigami.ApplicationWindow {
             window.check(chat.discarded.includes("9") && window.handedOn.length === 1, "Leave out throws the set away and hands nothing on");
 
             window.check(window.outcomes.join(",") === "keep:kept,keep:added,change:builder,leave:left", "each card tells what became of its chart: " + window.outcomes.join(","));
+            // Undo of the kept chart: the chat marks the card (B-354).
+            keeping.outcome = "undone";
+            window.check(window.texts(keeping, []).some(text => text.startsWith("Kept, then taken back with Undo")), "an undone chart says it is no longer saved");
+
             console.log(window.failed ? "chat chart: FAILED" : "chat chart: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

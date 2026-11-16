@@ -897,3 +897,41 @@ proptest! {
         }
     }
 }
+
+/// B-331: entries matched to a plan but dated after today are in neither
+/// the balance nor the open occurrences, so they count with their own
+/// amount in the month of their date. Ones dated today or earlier are in
+/// the balance already and count for nothing here.
+#[test]
+fn entries_booked_ahead_count_in_the_month_of_their_date() {
+    let account = AccountId::generate();
+    let rent = monthly(account, -80_000, day(2026, 11, 20));
+    let mut decided = HashMap::new();
+    decided.insert(
+        (rent.id, day(2026, 11, 20)),
+        Decided::Matched(TransactionId::generate()),
+    );
+    let today = day(2026, 11, 13);
+    let ahead = [
+        // The rent, booked for its due date: still to leave this month.
+        (day(2026, 11, 20), eur(-81_000)),
+        // A refund booked for the 25th.
+        (day(2026, 11, 25), eur(1_500)),
+        // Something booked for 4 December.
+        (day(2026, 12, 4), eur(-2_000)),
+        // Today's entry is in the balance already.
+        (today, eur(-99_999)),
+    ];
+    let plans = [rent];
+    let result = forecast_with_entries_ahead(eur(100_000), &plans, &decided, &ahead, today, 1, 1)
+        .expect("a forecast");
+    assert_eq!(result.out_due, eur(81_000));
+    assert_eq!(result.in_due, eur(1_500));
+    assert_eq!(result.left, eur(19_000));
+    assert_eq!(result.expected_end, eur(20_500));
+    // December: its rent is open, and the entry of the 4th goes out too.
+    assert_eq!(result.months[0].planned_out, eur(80_000 + 2_000));
+    // Without entries ahead, the matched rent counts for nothing, as before.
+    let plain = forecast_from_day(eur(100_000), &plans, &decided, today, 1, 1).expect("a forecast");
+    assert_eq!(plain.left, eur(100_000));
+}

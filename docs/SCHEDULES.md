@@ -135,6 +135,7 @@ Limits: at most 200 plans per book (`schedule.too-many`), names 60 characters. E
 - `balance_now`: the booked balance of the chosen accounts at the end of today, by booking date (pending entries and future-dated ones are not in it);
 - `out_due`: the sum of the **open** outgoing occurrences whose moved date is from today to the end of the calendar month, plus `due` ones from the last 3 banking days (the bank may still deliver them);
 - `in_due`: the same for incoming ones;
+- an entry matched to a plan but dated after today is in neither figure above (its occurrence is matched, the balance leaves it out), so it counts as still to come with its own amount: in `out_due` or `in_due` when its date is in this month, otherwise in its month's planned in or out (B-331). Without this, "Book it" with the due date a week ahead made `left` too high by the whole payment;
 - **`left = balance_now − out_due`**. Planned income that has **not arrived** is not added to `left`: the figure may be too low, never too high (principle 1, "a wrong balance is the worst bug");
 - `expected_end = left + in_due`, shown as a second line only when `in_due` is not zero: "At month end, with the 2.200,00 € you expect: 4.379,11 €";
 - `overdue`: the open occurrences that are `overdue`, **not counted** in any figure and listed as "Did this happen?" (2.5); the tile shows their number so the figure is never silently too high or too low;

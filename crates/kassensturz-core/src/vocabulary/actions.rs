@@ -305,6 +305,7 @@ pub const ACTIONS: &[&str] = &[
     "LeftThisMonthWidget_plan",
     "Main_accounts",
     "Main_budgets",
+    "Main_cancelImportWork",
     "Main_categories",
     "Main_createFile",
     "Main_deleteBankLog",

@@ -241,7 +241,7 @@ fn fill(
     let mut transactions: Vec<Option<Transaction>> = vec![None; imported.transactions.len()];
     for index in order {
         // A SIGTERM while a large book is made stops it (B-362).
-        crate::stop::check()?;
+        crate::stop::check_requested()?;
         let transaction = &imported.transactions[index];
         let (splits, added) = mapper.splits(transaction, &mut changeover, rounding)?;
         match added {

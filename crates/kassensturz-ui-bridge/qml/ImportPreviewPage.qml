@@ -64,6 +64,10 @@ Kirigami.ScrollablePage {
 
     function importNow() {
         error.result = statementImport.importNow();
+        if (error.result.working === true) {
+            pending = "import";
+            return;
+        }
         if (error.result.code === undefined) {
             imported();
         }
@@ -71,6 +75,38 @@ Kirigami.ScrollablePage {
 
     function decide(key: string, on: bool) {
         error.result = statementImport.setImportAnyway(key, on);
+        if (error.result.working === true) {
+            pending = "decide";
+        }
+    }
+
+    function workDone(what: string) {
+        if (what === "import") {
+            imported();
+        }
+    }
+
+    // What waits for the preview or import that runs on its thread
+    // (B-362): "" when nothing does.
+    property string pending: ""
+
+    Connections {
+        target: page.statementImport
+
+        function onDone(result: var) {
+            const what = page.pending;
+            if (what === "") {
+                return;
+            }
+            page.pending = "";
+            if (result.cancelled === true) {
+                return;
+            }
+            error.result = result;
+            if (result.code === undefined) {
+                page.workDone(what);
+            }
+        }
     }
 
     // What a transaction of the book the entry looks like is booked to.

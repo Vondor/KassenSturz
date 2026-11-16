@@ -168,8 +168,39 @@ Kirigami.ScrollablePage {
 
     function readFile() {
         error.result = statementImport.readCsv(form(), bankBox.editText.trim());
+        if (error.result.working === true) {
+            pending = "read";
+            return;
+        }
         if (error.result.code === undefined) {
             read();
+        }
+    }
+
+    function workDone(what: string) {
+        read();
+    }
+
+    // What waits for the preview or import that runs on its thread
+    // (B-362): "" when nothing does.
+    property string pending: ""
+
+    Connections {
+        target: page.statementImport
+
+        function onDone(result: var) {
+            const what = page.pending;
+            if (what === "") {
+                return;
+            }
+            page.pending = "";
+            if (result.cancelled === true) {
+                return;
+            }
+            error.result = result;
+            if (result.code === undefined) {
+                page.workDone(what);
+            }
         }
     }
 

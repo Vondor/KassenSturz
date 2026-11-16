@@ -283,6 +283,88 @@ Kirigami.ApplicationWindow {
         id: statementImporter
 
         onChanged: root.screenChangedBook()
+        onDone: result => {
+            // The file was read and its preview is ready (B-362).
+            const then = root.afterImportStart;
+            root.afterImportStart = null;
+            if (then !== null) {
+                then(result);
+            }
+        }
+    }
+
+    // What to do once the preview a new import started on its thread is
+    // ready (B-362); null when nothing waits.
+    property var afterImportStart: null
+
+    // While a preview or an import runs on its thread (B-362): how far it
+    // got, and a way to cancel it. The book is lent to that thread
+    // meanwhile, so the window can't be used for anything else.
+    Kirigami.Dialog {
+        id: importWorkDialog
+
+        property var progress: ({ done: 0, total: 0 })
+
+        title: root.i18nContext.i18nc("@title:window", "Reading the statement")
+        padding: Kirigami.Units.largeSpacing
+        preferredWidth: Kirigami.Units.gridUnit * 22
+        modal: true
+        showCloseButton: false
+        closePolicy: Controls.Popup.NoAutoClose
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: root.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    ActionLog.taken("Main_cancelImportWork")
+                    statementImporter.cancelWork()
+                }
+            }
+        ]
+
+        ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: importWorkDialog.progress.total > 0
+                    ? root.i18nContext.i18nc("@info %1 and %2 are numbers of entries", "%1 of %2 entries", importWorkDialog.progress.done, importWorkDialog.progress.total)
+                    : root.i18nContext.i18nc("@info", "Getting ready…")
+            }
+
+            Controls.ProgressBar {
+                Layout.fillWidth: true
+                from: 0
+                to: Math.max(1, importWorkDialog.progress.total)
+                value: importWorkDialog.progress.done
+                indeterminate: importWorkDialog.progress.total === 0
+                    || importWorkDialog.progress.done >= importWorkDialog.progress.total
+                Accessible.name: root.i18nContext.i18nc("@info:whatsthis", "How far the import got")
+            }
+        }
+
+        Timer {
+            interval: 200
+            repeat: true
+            running: importWorkDialog.visible
+            onTriggered: importWorkDialog.progress = statementImporter.progress()
+        }
+
+        Connections {
+            target: statementImporter
+
+            function onWorkingChanged() {
+                if (statementImporter.working) {
+                    importWorkDialog.progress = { done: 0, total: 0 };
+                    importWorkDialog.open();
+                } else {
+                    importWorkDialog.close();
+                }
+            }
+        }
     }
 
     // Saving a copy of the data in a new file (M3.12).
@@ -917,6 +999,24 @@ Kirigami.ApplicationWindow {
             showPassiveNotification(errorTexts.messageFor(result), 12000);
             return;
         }
+        if (result.working === true) {
+            afterImportStart = root.showImportStart;
+            return;
+        }
+        pushPage(importStep());
+    }
+
+    // Shows the screen a new import is at once its preview is ready, or
+    // why it can't go on (B-362). A cancelled one just ends.
+    function showImportStart(result: var) {
+        if (result.cancelled === true) {
+            statementImporter.cancel();
+            return;
+        }
+        if (result.code !== undefined) {
+            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            return;
+        }
         pushPage(importStep());
     }
 
@@ -926,6 +1026,10 @@ Kirigami.ApplicationWindow {
         const result = statementImporter.startFromBank(accountId);
         if (result.code !== undefined) {
             showPassiveNotification(errorTexts.messageFor(result), 12000);
+            return;
+        }
+        if (result.working === true) {
+            afterImportStart = root.showImportStart;
             return;
         }
         pushPage(importStep());

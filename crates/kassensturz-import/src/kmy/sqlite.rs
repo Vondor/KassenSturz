@@ -250,6 +250,7 @@ impl<'a> Reader<'a> {
         if !READ.iter().all(|table| tables.contains(*table)) {
             return Err(malformed());
         }
+        self.check_stored_values_only()?;
         let mut versions = Vec::new();
         self.query("SELECT version FROM kmmFileInfo", |row| {
             versions.push(self.optional(row, 0)?);
@@ -265,6 +266,40 @@ impl<'a> Reader<'a> {
             }
             _ => Err(malformed()),
         }
+    }
+
+    /// Fails unless every table holds only what the file stores (B-335):
+    /// KMyMoney writes plain tables, so a virtual table, or a column whose
+    /// values SQLite works out on each read, can only come from a crafted
+    /// file. Such values are not bound by the file's size, and a query that
+    /// sorts its rows would build all of them in memory before the first
+    /// one reaches the limits.
+    fn check_stored_values_only(&self) -> Result<(), ImportError> {
+        let virtual_tables: i64 = self
+            .connection
+            .query_row(
+                "SELECT count(*) FROM sqlite_master \
+                 WHERE type = 'table' AND upper(ltrim(sql)) LIKE 'CREATE VIRTUAL%'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(sql)?;
+        if virtual_tables != 0 {
+            return Err(malformed());
+        }
+        let computed: i64 = self
+            .connection
+            .query_row(
+                "SELECT count(*) FROM sqlite_master AS t, pragma_table_xinfo(t.name) AS c \
+                 WHERE t.type = 'table' AND c.hidden != 0",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(sql)?;
+        if computed != 0 {
+            return Err(malformed());
+        }
+        Ok(())
     }
 
     /// The names of the columns of `table`, one of the fixed names above.

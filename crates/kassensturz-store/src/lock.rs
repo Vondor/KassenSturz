@@ -14,6 +14,7 @@ use std::fs::{self, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use kassensturz_core::Timestamp;
 
@@ -104,6 +105,34 @@ struct Place {
 pub(crate) struct HeldLock {
     path: PathBuf,
     token: String,
+    /// Whether it was taken over from another program with "open anyway",
+    /// which may have been saving to the book at that moment (B-353).
+    taken_over: bool,
+}
+
+/// How long a book just taken over is given to settle: a save the other
+/// program had under way when its lock was taken is done well within it,
+/// even on a slow share (B-353).
+pub(crate) const SETTLE: Duration = Duration::from_secs(3);
+
+/// How long to wait before a book that looked damaged right after a
+/// take-over is read again (B-353).
+pub(crate) const SETTLE_STEP: Duration = Duration::from_millis(200);
+
+/// Waits until the book at `book` has no rollback journal next to it, or
+/// until `until`. A journal there means a program is in the middle of a
+/// save, and reading the book now would read it half written; SQLite would
+/// even take the journal for a crash's leftover and play it back, since its
+/// locks don't reach across a network share (B-353). A journal that a crash
+/// did leave behind stays until `until`, and SQLite then plays it back as
+/// it always does.
+pub(crate) fn wait_for_journal(book: &Path, until: Instant) {
+    let mut journal = OsString::from(book.as_os_str());
+    journal.push("-journal");
+    let journal = PathBuf::from(journal);
+    while journal.exists() && Instant::now() < until {
+        std::thread::sleep(SETTLE_STEP);
+    }
 }
 
 impl HeldLock {
@@ -174,10 +203,13 @@ impl HeldLock {
         let path = lock_path(book);
         match read(&path)? {
             Some(current) if current == *seen => match overwrite(&path, computer) {
-                Ok(held) => {
+                Ok(mut held) => {
                     // Read it back: whoever wrote last owns the lock.
                     return match read(&path)? {
-                        Some(now) if now.token.as_deref() == Some(held.token.as_str()) => Ok(held),
+                        Some(now) if now.token.as_deref() == Some(held.token.as_str()) => {
+                            held.taken_over = true;
+                            Ok(held)
+                        }
                         Some(now) => Err(StoreError::Locked(now)),
                         None => Self::acquire(book, computer),
                     };
@@ -194,6 +226,12 @@ impl HeldLock {
 }
 
 impl HeldLock {
+    /// Whether this lock was taken over from another program, which may
+    /// have been saving to the book just then (B-353).
+    pub(crate) fn taken_over(&self) -> bool {
+        self.taken_over
+    }
+
     /// Whether the lock file is gone or names another token. A lock file
     /// that can't be read (the drive dropped) is not a take-over: the write
     /// that follows reports the drive's own error (D-732, B-306).
@@ -276,6 +314,7 @@ fn create(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
     Ok(HeldLock {
         path: path.to_owned(),
         token,
+        taken_over: false,
     })
 }
 
@@ -293,6 +332,7 @@ fn overwrite(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
     Ok(HeldLock {
         path: path.to_owned(),
         token,
+        taken_over: false,
     })
 }
 

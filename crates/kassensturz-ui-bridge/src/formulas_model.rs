@@ -85,6 +85,12 @@ pub mod qobject {
         /// `separator` between them and the `decimal` mark.
         #[qinvokable]
         fn functions(self: Pin<&mut BookFormula>) -> QVariant;
+
+        /// The mistake in how `formula` writes a period, as the error object
+        /// of a formula (`code` and its parameters), or nothing when its
+        /// periods are fine (B-351).
+        #[qinvokable]
+        fn period_problem(self: Pin<&mut BookFormula>, formula: &QString) -> QVariant;
     }
 }
 
@@ -149,6 +155,14 @@ impl qobject::BookFormula {
 
     fn functions(self: Pin<&mut Self>) -> QVariant {
         functions_object(&formulas::number_form(&app_locale()))
+    }
+
+    fn period_problem(self: Pin<&mut Self>, formula: &QString) -> QVariant {
+        session::with_book(|book| {
+            formulas::period_mistake(book, &app_locale(), &formula.to_string())
+        })
+        .flatten()
+        .map_or_else(QVariant::default, |mistake| error_object(&mistake.error))
     }
 }
 
@@ -380,6 +394,26 @@ mod tests {
         let mut bad = request("=Pets", None);
         bad.period = "yesterday".into();
         assert_eq!(keys(&viewed(&bad)), ["error"]);
+    }
+
+    #[test]
+    fn a_period_mistake_reads_back_with_its_code_and_limit() {
+        // B-351: the same reason the formula's own reader gives.
+        let found = |text: &str| {
+            formulas::period_mistake(&book(), &TestLocale, text)
+                .map(|mistake| error_object(&mistake.error))
+        };
+        let zero = found("Pets@\"last 0 days\"").expect("a mistake");
+        assert_eq!(text_of(&zero, "code"), "report.formula-period-count");
+        assert_eq!(text_of(&zero, "unit"), "days");
+        assert_eq!(text_of(&zero, "most"), "366");
+        // With or without the = in front.
+        assert!(found("=Pets@\"last 367 days\"").is_some());
+        // The page's own examples are fine, and so is a name alone.
+        assert!(found("Pets@\"last 30 days\"").is_none());
+        assert!(found("Pets@\"last month\"").is_none());
+        assert!(found("Pets").is_none());
+        assert!(found("").is_none());
     }
 
     #[test]

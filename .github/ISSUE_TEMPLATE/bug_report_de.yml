@@ -48,7 +48,7 @@ body:
     validations:
       required: true
   - type: input
-    id: ai-written
+    id: made-by
     attributes:
       label: "Falls eine KI dieses Ticket geschrieben hat: Werkzeug und Modell"
-      description: 'Leer lassen, wenn Sie es selbst geschrieben haben. Sonst Werkzeug und Modell nennen, zum Beispiel "Example Assistant (model-name 1.2)". KI-geschriebene Tickets bekommen außerdem das Label `ai-written` (AGENTS.md §9).'
+      description: 'Leer lassen, wenn Sie es selbst geschrieben haben. Sonst Werkzeug und Modell nennen, zum Beispiel "Example Assistant (model-name 1.2)". Tickets der externen KI-Prüfer des Projekts bekommen außerdem das Label `outside-review` (AGENTS.md §9).'

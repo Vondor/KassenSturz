@@ -4,7 +4,7 @@
 
 ## Made by (D-810)
 
-<!-- Who made this: Vondor or Claude (outside reviewers write issues only, D-811), with the model where known, e.g. "Claude (model-name 1.2)". A pull request made by an AI also gets the label `ai-written`. -->
+<!-- Who made this: Vondor or Claude (outside reviewers write issues only, D-811), with the model where known, e.g. "Claude (model-name 1.2)". Outside reviewers' findings are issues with the label `outside-review` (D-812); link the issue a pull request is based on. -->
 
 ## Definition of done (AGENTS.md §9.5)
 

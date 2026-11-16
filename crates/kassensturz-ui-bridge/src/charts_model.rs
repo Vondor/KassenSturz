@@ -1292,6 +1292,20 @@ mod tests {
     }
 
     #[test]
+    fn a_formula_column_with_a_relative_period_is_shown_not_refused() {
+        // B-351: "last month" of the first month is before the chart's
+        // period, which the book is read for.
+        let book = book();
+        for formula in ["Groceries@\"last month\"", "Groceries@\"last 90 days\""] {
+            let mut asked = request("spending_by_category", "pie");
+            asked.columns = vec![("Col".into(), Vec::new(), formula.into())];
+            let view = view_with(&book, &asked);
+            assert!(!keys(&view).contains(&"error".to_owned()), "{formula}");
+            assert_eq!(list_of(&view, "totals").len(), 1, "{formula}");
+        }
+    }
+
+    #[test]
     fn groups_and_series_of_a_document_reach_the_chart_and_unknown_ids_are_counted() {
         let mut book = book();
         let food = category_id(&book, "Groceries");

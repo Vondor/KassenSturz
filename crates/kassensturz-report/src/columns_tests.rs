@@ -8,7 +8,7 @@
 
 use kassensturz_core::{GroupId, GroupKind, GroupMember};
 
-use super::tests::{EUR, USD, autumn, sample};
+use super::tests::{EUR, USD, autumn, date, sample};
 use super::*;
 
 fn column(name: &str, members: &[GroupMember]) -> Column {
@@ -193,6 +193,23 @@ fn a_column_can_be_a_formula_that_names_the_other_columns() {
     assert_eq!(spending[0].total.minor_units(), 248_820);
     assert_eq!(spending[0].rows.len(), 4);
     assert_eq!(spending[0].rows[0].path, ["Twice the rent"]);
+}
+
+#[test]
+fn a_formula_period_relative_to_each_month_is_read_for_the_first_month_too() {
+    // B-351: "last month" worked out for August is July, which the read for
+    // August to October has to cover, or the chart fails with PeriodNotRead.
+    let sample = sample();
+    let columns = [
+        formula_column("Before", "Food@\"last month\""),
+        formula_column("Longer", "Food@\"last 90 days\""),
+    ];
+    let span = columns_span(&columns, autumn()).expect("span");
+    assert!(span.first() <= date(2026, 7, 1), "{span:?}");
+    let source = Source::read(&sample.book, span).expect("read");
+    let spending =
+        columns_spending(&source, autumn(), &Filter::default(), &columns, EUR).expect("spending");
+    assert_eq!(spending.len(), 1);
 }
 
 #[test]

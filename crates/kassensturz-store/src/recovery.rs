@@ -193,7 +193,11 @@ fn put_in_place(book: &Path, journal: &Path, taken_back: &Path) -> Result<PathBu
         let _ = fs::remove_file(&incoming);
         StoreError::from(error)
     };
-    fs::File::open(&incoming)
+    // Windows writes a file to the disk only through a handle that may
+    // write to it.
+    fs::OpenOptions::new()
+        .write(true)
+        .open(&incoming)
         .and_then(|file| file.sync_all())
         .map_err(cleanup)?;
     fs::rename(book, &kept).map_err(cleanup)?;

@@ -85,9 +85,11 @@ fn hostile_file(how: &str, bytes_per_row: usize) -> Vec<u8> {
     connection.serialize(MAIN_DB).unwrap().to_vec()
 }
 
+/// The process's peak memory in KiB, where the system reports it (Linux);
+/// 0 elsewhere, so only the time is checked there.
 fn peak_rss_kib() -> u64 {
     std::fs::read_to_string("/proc/self/status")
-        .unwrap()
+        .unwrap_or_default()
         .lines()
         .find_map(|line| line.strip_prefix("VmHWM:"))
         .and_then(|rest| rest.trim().trim_end_matches(" kB").trim().parse().ok())

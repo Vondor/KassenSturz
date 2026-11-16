@@ -23456,3 +23456,113 @@ msgstr "Przygotowane zmiany zostały wprowadzone, a potem wycofane przyciskiem �
 msgctxt "@info"
 msgid "Kept, then taken back with Undo. The chart is no longer saved."
 msgstr "Zachowano, a potem wycofano przyciskiem „Cofnij”. Wykres nie jest już zapisany."
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New planned payment"
+msgstr "Nowa zaplanowana płatność"
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Changed planned payment"
+msgstr "Zmieniona zaplanowana płatność"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "New planned payments"
+msgstr "Nowe zaplanowane płatności"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Planned payments that change"
+msgstr "Zaplanowane płatności, które się zmieniają"
+
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Planned payments"
+msgstr "Zaplanowane płatności"
+
+#, kde-format
+msgctxt "@info %1 is the first due day, %2 the last day a plan may be due"
+msgid "From %1 until %2"
+msgstr "Od %1 do %2"
+
+#, kde-format
+msgctxt "@info %1 is the first due day of a plan that doesn't end"
+msgid "From %1, with no end"
+msgstr "Od %1, bez końca"
+
+#, kde-format
+msgctxt "@info %1 is who is paid"
+msgid "Paid to %1"
+msgstr "Płacone dla %1"
+
+#, kde-format
+msgctxt "@info %1 is who pays"
+msgid "Received from %1"
+msgstr "Otrzymywane od %1"
+
+#, kde-format
+msgctxt "@info %1 is an amount"
+msgid "may differ by up to %1"
+msgstr "może różnić się o maksymalnie %1"
+
+#, kde-format
+msgctxt "@info %1 is a category"
+msgid "matching entries go to %1"
+msgstr "pasujące transakcje trafiają do %1"
+
+#, kde-format
+msgctxt "@info a plan that is paused"
+msgid "Paused"
+msgstr "Wstrzymana"
+
+#, kde-format
+msgctxt "@info %1 describes a plan as it is now, %2 when it is due"
+msgid "Now: %1. %2."
+msgstr "Teraz: %1. %2."
+
+#, kde-format
+msgctxt "@info"
+msgid "It is paused."
+msgstr "Jest wstrzymana."
+
+#, kde-format
+msgctxt "@info %1 describes a plan after a change"
+msgid "After the change: %1"
+msgstr "Po zmianie: %1"
+
+#, kde-format
+msgctxt "@info %1 is the name a plan has now"
+msgid "It is called %1 now."
+msgstr "Teraz nazywa się %1."
+
+#, kde-format
+msgctxt "@info"
+msgid "It is paused: nothing is expected or counted until you let it go on."
+msgstr "Zostanie wstrzymana: nic nie jest oczekiwane ani liczone, dopóki jej nie wznowisz."
+
+#, kde-format
+msgctxt "@info"
+msgid "It goes on again."
+msgstr "Zostanie wznowiona."
+
+#, kde-format
+msgctxt "@info %1 is a list of days"
+msgid "Next due: %1"
+msgstr "Następne terminy: %1"
+
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz took the amount from an entry in your book, not the AI. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
+msgstr "KassenSturz wziął kwotę z transakcji w Twojej księdze, nie AI. Zaplanowana płatność mówi tylko, czego się spodziewasz: nie przesuwa pieniędzy i nie tworzy transakcji, a prognoza ją uwzględnia. „Cofnij” ją wycofa."
+
+#, kde-format
+msgctxt "@info"
+msgid "The AI took this amount from what you wrote. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
+msgstr "Tę kwotę AI wzięło z tego, co napisałeś. Zaplanowana płatność mówi tylko, czego się spodziewasz: nie przesuwa pieniędzy i nie tworzy transakcji, a prognoza ją uwzględnia. „Cofnij” ją wycofa."
+
+#, kde-format
+msgctxt "@info"
+msgid "A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
+msgstr "Zaplanowana płatność mówi tylko, czego się spodziewasz: nie przesuwa pieniędzy i nie tworzy transakcji, a prognoza ją uwzględnia. „Cofnij” ją wycofa."

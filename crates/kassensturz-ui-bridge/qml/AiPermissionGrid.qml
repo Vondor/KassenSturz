@@ -149,6 +149,20 @@ ColumnLayout {
             ]
         },
         {
+            // Its own row (US7, B-357, D-814), so allowing sorting never
+            // allowed the AI to plan: a plan is what the user expects in
+            // the future. Its amount is one the user named or an entry's.
+            // It reads the transactions, so it keeps Transactions › Read on.
+            name: i18nContext.i18nc("@label a part of the book", "Planned payments"),
+            readRow: "Transactions",
+            cells: [
+                { key: "", absent: "viaTransactions" },
+                { key: "AllowNewPlans", needsRead: true },
+                { key: "AllowEditPlans", needsRead: true },
+                { key: "", absent: "never" }
+            ]
+        },
+        {
             name: i18nContext.i18nc("@label a part of the book", "Charts"),
             cells: [
                 { key: "AllowReadViews", read: true },

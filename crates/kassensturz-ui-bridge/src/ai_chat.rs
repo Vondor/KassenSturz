@@ -744,6 +744,20 @@ pub enum ChangeView {
         /// The parts it gets.
         parts: Vec<PartView>,
     },
+    /// A new plan (US7, B-357, D-814), as the Planned payments window
+    /// shows one, with its next three due days.
+    NewPlan {
+        /// The plan.
+        plan: PlanView,
+    },
+    /// A plan changed (US7, B-357, D-814): the plan as it is and as it
+    /// will be.
+    EditPlan {
+        /// The plan now.
+        before: PlanView,
+        /// The plan after the change.
+        after: PlanView,
+    },
     /// A bill from the bill folder linked to a transaction (US5.13,
     /// D-739), with the transaction as the register shows it.
     AttachBill {
@@ -1204,6 +1218,80 @@ fn view_of(
         ProposedChange::JoinTransfer(join) => ChangeView::JoinTransfer {
             transfer: suggestion_text(book, &book.all_accounts()?, &join.transfer, locale)?,
         },
+        ProposedChange::NewPlan(new) => {
+            let plan = &new.plan;
+            ChangeView::NewPlan {
+                plan: plan_view(
+                    book,
+                    PlanParts {
+                        name: &plan.name,
+                        account: &new.account_name,
+                        amount: plan.amount,
+                        tolerance: plan.tolerance,
+                        unit: plan.unit,
+                        every: plan.every,
+                        first_due: plan.anchor,
+                        ends: plan.ends_on,
+                        category: new.category.as_deref(),
+                        party: plan.party_name.as_deref(),
+                        paused: false,
+                        next: &new.next_due(locale.today(), 3),
+                        from_entry: new.amount_from.is_some(),
+                    },
+                    locale,
+                )?,
+            }
+        }
+        ProposedChange::EditPlan(edit) => {
+            fn parts<'a>(
+                plan: &'a kassensturz_core::Schedule,
+                account: &'a str,
+                category: Option<&'a [String]>,
+                next: &'a [Date],
+                from_entry: bool,
+            ) -> PlanParts<'a> {
+                PlanParts {
+                    name: &plan.name,
+                    account,
+                    amount: plan.amount,
+                    tolerance: plan.tolerance,
+                    unit: plan.unit,
+                    every: plan.every,
+                    first_due: plan.anchor,
+                    ends: plan.ends_on,
+                    category,
+                    party: plan.party_name.as_deref(),
+                    paused: plan.paused,
+                    next,
+                    from_entry,
+                }
+            }
+            let next = edit.next_due(locale.today(), 3);
+            ChangeView::EditPlan {
+                before: plan_view(
+                    book,
+                    parts(
+                        &edit.before,
+                        &edit.account_name,
+                        edit.category_before.as_deref(),
+                        &[],
+                        false,
+                    ),
+                    locale,
+                )?,
+                after: plan_view(
+                    book,
+                    parts(
+                        &edit.after,
+                        &edit.account_name,
+                        edit.category_after.as_deref(),
+                        &next,
+                        edit.amount_from.is_some(),
+                    ),
+                    locale,
+                )?,
+            }
+        }
         ProposedChange::TagTransaction(tag) => ChangeView::TagTransaction {
             date: locale.short_date(tag.date),
             payee: tag.payee.clone().unwrap_or_default(),
@@ -1317,6 +1405,40 @@ fn archive_place(
     Ok(folder.join(name))
 }
 
+/// A plan as the review shows it (US7, B-357, D-814): every amount and day
+/// written by Rust in the user's format (D-065).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PlanView {
+    /// What it is for.
+    pub name: String,
+    /// The name of its account.
+    pub account: String,
+    /// Whether the money goes out.
+    pub outgoing: bool,
+    /// The amount without its sign, exact.
+    pub amount: String,
+    /// `week`, `month` or `year`.
+    pub unit: &'static str,
+    /// How many of them between two due days.
+    pub every: i32,
+    /// The first due day.
+    pub first_due: String,
+    /// The last day it may be due; empty when it doesn't end.
+    pub ends: String,
+    /// How much an entry may differ, exact; empty for exactly.
+    pub tolerance: String,
+    /// The category a matching entry gets as a path; empty for none.
+    pub category: String,
+    /// The other party's name; empty for any.
+    pub party: String,
+    /// Whether it is paused.
+    pub paused: bool,
+    /// The next three due days from today.
+    pub next: Vec<String>,
+    /// Whether the amount was taken from an entry of the book.
+    pub from_entry: bool,
+}
+
 /// One part of a split as the review shows it (D-737).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PartView {
@@ -1366,6 +1488,67 @@ fn sorted_by_rules(
         closed: sort.closed,
         other: sort.other,
         examples: apply_examples(book, &sort.changes, locale)?,
+    })
+}
+
+/// What [`plan_view`] writes for the review.
+struct PlanParts<'a> {
+    name: &'a str,
+    account: &'a str,
+    amount: Money,
+    tolerance: Money,
+    unit: kassensturz_core::ScheduleUnit,
+    every: u8,
+    first_due: Date,
+    ends: Option<Date>,
+    category: Option<&'a [String]>,
+    party: Option<&'a str>,
+    paused: bool,
+    next: &'a [Date],
+    from_entry: bool,
+}
+
+/// A plan as the review writes it, amounts and days in the user's format.
+fn plan_view(
+    book: &Book,
+    parts: PlanParts<'_>,
+    locale: &impl Locale,
+) -> Result<PlanView, StoreError> {
+    let writer = AmountWriter::new(book, parts.amount.currency(), locale)?;
+    let size = if parts.amount.is_negative() {
+        parts.amount.checked_neg().unwrap_or(parts.amount)
+    } else {
+        parts.amount
+    };
+    Ok(PlanView {
+        name: parts.name.to_owned(),
+        account: parts.account.to_owned(),
+        outgoing: parts.amount.is_negative(),
+        amount: writer.text(size).exact,
+        unit: parts.unit.word(),
+        every: i32::from(parts.every),
+        first_due: locale.short_date(parts.first_due),
+        ends: parts
+            .ends
+            .map(|day| locale.short_date(day))
+            .unwrap_or_default(),
+        tolerance: if parts.tolerance.is_zero() {
+            String::new()
+        } else {
+            writer.text(parts.tolerance).exact
+        },
+        category: parts
+            .category
+            .map(|path| path.join(" › "))
+            .unwrap_or_default(),
+        party: parts.party.unwrap_or_default().to_owned(),
+        paused: parts.paused,
+        next: parts
+            .next
+            .iter()
+            .map(|day| locale.short_date(*day))
+            .collect(),
+        from_entry: parts.from_entry,
     })
 }
 

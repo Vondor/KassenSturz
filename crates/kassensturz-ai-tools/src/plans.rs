@@ -4,9 +4,10 @@
 //! The planned payments and the forecast for a model to read (#920,
 //! `docs/SCHEDULES.md`): `list_plans` and `forecast`.
 //!
-//! Both only read. A plan is made, changed, matched, booked and skipped
-//! only by the user, in the window (AGENTS.md §3.1 rule 9, §8, D-749): no
-//! change a model prepares reaches a plan. Every figure comes from the
+//! Both only read. A model may prepare a new plan or a change to one with
+//! `propose_changes` (`new_plans`, `edit_plans`, US7, B-357, D-814), which
+//! the user confirms in the window (AGENTS.md §3.1 rule 9, §8); a plan is
+//! matched, booked, skipped and removed only by the user. Every figure comes from the
 //! store's exact forecast (D-052, D-770), written as decimal text; no IBAN
 //! a plan remembers is ever in a result (T-23, D-186), and a plan's name
 //! and the other party's name are text of the book, made harmless as every

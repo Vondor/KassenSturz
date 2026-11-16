@@ -609,6 +609,26 @@ pub(crate) mod engine {
         }))
     }
 
+    /// A plan as the review card reads it (US7, B-357, D-814).
+    fn plan_object(plan: &crate::ai_chat::PlanView) -> QVariant {
+        map([
+            ("name", text(&plan.name)),
+            ("account", text(&plan.account)),
+            ("outgoing", QVariant::from(&plan.outgoing)),
+            ("amount", text(&plan.amount)),
+            ("unit", text(plan.unit)),
+            ("every", QVariant::from(&plan.every)),
+            ("firstDue", text(&plan.first_due)),
+            ("ends", text(&plan.ends)),
+            ("tolerance", text(&plan.tolerance)),
+            ("category", text(&plan.category)),
+            ("party", text(&plan.party)),
+            ("paused", QVariant::from(&plan.paused)),
+            ("next", list(plan.next.iter().map(|day| text(day)))),
+            ("fromEntry", QVariant::from(&plan.from_entry)),
+        ])
+    }
+
     /// One change's own fields.
     fn view_entries(view: &ChangeView) -> Vec<(&'static str, QVariant)> {
         match view {
@@ -963,6 +983,14 @@ pub(crate) mod engine {
                 ("account", text(account)),
                 ("file", text(file)),
                 ("title", text(title)),
+            ],
+            ChangeView::NewPlan { plan } => {
+                vec![("kind", text("newPlan")), ("plan", plan_object(plan))]
+            }
+            ChangeView::EditPlan { before, after } => vec![
+                ("kind", text("editPlan")),
+                ("before", plan_object(before)),
+                ("after", plan_object(after)),
             ],
             ChangeView::FileBill {
                 date,
@@ -2763,6 +2791,138 @@ mod tests {
         assert_eq!(text_of(&incoming, "account"), "Savings");
         assert_eq!(text_of(&incoming, "category"), "");
         assert_eq!(text_of(&incoming, "sortedBy"), "");
+    }
+
+    #[test]
+    fn a_plan_change_reads_back_as_qml_reads_it() {
+        // US7, B-357, D-814: through the real proposal and the review's rows.
+        use kassensturz_ai_tools::propose;
+        use kassensturz_core::ai_switch::{Permission, Permissions};
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, ScheduleUnit,
+        };
+        use kassensturz_store::{Book, NewSchedule};
+
+        use crate::ai_chat::rows_of;
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let account = |name: &str, kind: AccountKind| Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = account("Checking", AccountKind::Asset);
+        let rent = account("Rent", AccountKind::Expense);
+        for account in [&checking, &rent] {
+            book.add_account(account).unwrap();
+        }
+        let gym = book
+            .add_schedule(&NewSchedule {
+                name: "<b>Gym</b>".into(),
+                account: checking.id,
+                amount: Money::from_minor_units(-2_500, eur),
+                tolerance: Money::zero(eur),
+                category: None,
+                party_iban: None,
+                party_name: None,
+                unit: ScheduleUnit::Month,
+                every: 1,
+                anchor: Date::constant(2026, 1, 5),
+                track_from: Date::constant(2026, 1, 5),
+                ends_on: None,
+            })
+            .unwrap();
+        let allowed = Permissions::NONE
+            .with(Permission::NewPlans, true)
+            .with(Permission::EditPlans, true);
+        let proposal = propose(
+            &book,
+            &serde_json::json!({
+                "new_plans": [{
+                    "name": "Rent",
+                    "account_id": checking.id.to_string(),
+                    "direction": "out",
+                    "amount": "850.00",
+                    "tolerance": "5.00",
+                    "category_id": rent.id.to_string(),
+                    "unit": "month",
+                    "first_due": "2026-11-01",
+                    "ends": "2027-10-31",
+                    "paid_to": "Habitat Ring",
+                }],
+                "edit_plans": [{"plan_id": gym.to_string(), "every": 3, "paused": true}],
+            }),
+            allowed,
+        )
+        .unwrap();
+        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 2);
+        let plan_keys = [
+            "account",
+            "amount",
+            "category",
+            "ends",
+            "every",
+            "firstDue",
+            "fromEntry",
+            "name",
+            "next",
+            "outgoing",
+            "party",
+            "paused",
+            "tolerance",
+            "unit",
+        ];
+        let new = &items[0];
+        assert_eq!(own_keys(new), ["kind", "plan"]);
+        assert_eq!(text_of(new, "kind"), "newPlan");
+        assert_eq!(text_of(new, "slot"), "new_plans/0");
+        let plan = object_of(new, "plan");
+        assert_eq!(keys(&plan), plan_keys);
+        assert_eq!(text_of(&plan, "name"), "Rent");
+        assert_eq!(text_of(&plan, "account"), "Checking");
+        assert!(flag_of(&plan, "outgoing"));
+        // No sign: the card says "out of".
+        assert!(!text_of(&plan, "amount").contains('-'));
+        assert!(text_of(&plan, "amount").contains("850"));
+        assert!(text_of(&plan, "tolerance").contains('5'));
+        assert_eq!(text_of(&plan, "unit"), "month");
+        assert_eq!(number_of(&plan, "every"), 1);
+        assert!(!text_of(&plan, "firstDue").is_empty());
+        assert!(!text_of(&plan, "ends").is_empty());
+        assert_eq!(text_of(&plan, "category"), "Rent");
+        assert_eq!(text_of(&plan, "party"), "Habitat Ring");
+        assert!(!flag_of(&plan, "paused"));
+        assert!(!flag_of(&plan, "fromEntry"));
+        assert!(list_of(&plan, "next").len() <= 3);
+
+        let edit = &items[1];
+        assert_eq!(own_keys(edit), ["after", "before", "kind"]);
+        assert_eq!(text_of(edit, "kind"), "editPlan");
+        assert_eq!(text_of(edit, "slot"), "edit_plans/0");
+        let before = object_of(edit, "before");
+        let after = object_of(edit, "after");
+        assert_eq!(keys(&before), plan_keys);
+        assert_eq!(keys(&after), plan_keys);
+        assert_eq!(text_of(&before, "name"), "<b>Gym</b>");
+        assert_eq!(number_of(&before, "every"), 1);
+        assert_eq!(number_of(&after, "every"), 3);
+        assert!(!flag_of(&before, "paused"));
+        assert!(flag_of(&after, "paused"));
+        assert_eq!(text_of(&before, "ends"), "");
+        assert_eq!(text_of(&before, "category"), "");
     }
 
     #[test]

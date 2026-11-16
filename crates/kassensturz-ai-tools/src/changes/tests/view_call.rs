@@ -1807,3 +1807,39 @@ fn a_table_never_tells_a_model_rows_it_may_not_read() {
         );
     }
 }
+
+/// B-352: a measure asked for on the money flow, whether the word is a
+/// measure of some data or none at all, gets the same plain hint as on any
+/// other chart: no chart takes it, and what to tell the user.
+#[test]
+fn a_measure_on_the_money_flow_comes_back_with_the_tile_hint() {
+    let Sample { book, .. } = sample();
+    let refuse = |arguments: Value| {
+        propose_view(&book, &arguments, Permissions::all(), today()).expect_err("refused")
+    };
+    for word in ["money_in", "bogus"] {
+        let error = refuse(json!({
+            "title": "Flow", "data": "money_flow", "show_as": "money_flow", "measure": word
+        }));
+        assert_eq!(
+            error.model_report().param("argument"),
+            Some(&ErrorParam::Keyword("measure")),
+            "{word}"
+        );
+        assert_eq!(
+            error.hint(),
+            Some(crate::error::READY_MADE_TILE_HINT),
+            "{word}"
+        );
+        // No list of words that no way of drawing this data takes.
+        assert_eq!(error.allowed_fields(), None, "{word}");
+    }
+    // A key figure that is given a word of no list still gets the list of
+    // its own data, and no hint, since a key figure does take a measure.
+    let typo = refuse(json!({
+        "title": "Money", "data": "income_expense_by_month", "show_as": "figure",
+        "measure": "bogus"
+    }));
+    assert_eq!(typo.hint(), None);
+    assert!(typo.allowed_fields().is_some_and(|words| !words.is_empty()));
+}

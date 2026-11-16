@@ -480,9 +480,14 @@ impl ToolError {
         match self.kind() {
             Self::NotForChart {
                 argument: "measure",
+                allowed,
                 only_for_show_as,
                 ..
-            } if only_for_show_as.contains(&"figure") => Some(READY_MADE_TILE_HINT),
+            } if only_for_show_as.contains(&"figure")
+                || (allowed.is_empty() && only_for_show_as.is_empty()) =>
+            {
+                Some(READY_MADE_TILE_HINT)
+            }
             Self::NotForChart {
                 argument, allowed, ..
             } if allowed.is_empty()

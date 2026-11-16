@@ -241,10 +241,14 @@ fn run(
     let held = book.account_parts(account.id)?;
     let mut entries = Vec::new();
     let mut added = Vec::new();
-    for (at, decision) in decide(statements, &held, choices) {
-        // Between entries: a SIGTERM during a long import ends it, and the
-        // import's transaction leaves the book as it was (B-362).
+    let decisions = decide(statements, &held, choices);
+    stop::set_total(decisions.len());
+    for (at, decision) in decisions {
+        // Between entries: a SIGTERM or a cancel during a long import ends
+        // it, and the import's transaction leaves the book as it was
+        // (B-362).
         stop::check()?;
+        stop::one_done();
         let outcome = match decision {
             Decision::Import { similar } => {
                 let entry = &statements[at.statement].entries[at.entry];

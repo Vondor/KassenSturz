@@ -192,6 +192,8 @@ pub enum ImportError {
     /// shutdown (SIGTERM), so the import stopped (B-362). Nothing of it was
     /// written.
     Stopped,
+    /// The user cancelled the import (B-362). Nothing of it was written.
+    Cancelled,
 }
 
 impl ImportError {
@@ -223,7 +225,8 @@ impl ImportError {
             | Self::SuccessorNotCurrent { .. }
             | Self::UnsupportedEncoding { .. }
             | Self::DecimalPlacesDiffer { .. }
-            | Self::Stopped => {}
+            | Self::Stopped
+            | Self::Cancelled => {}
         }
         self
     }
@@ -364,6 +367,7 @@ impl Report for ImportError {
                 .with("book", ErrorParam::Number((*book).into()))
                 .with("file", ErrorParam::Number((*file).into())),
             Self::Stopped => ErrorReport::new("import.stopped"),
+            Self::Cancelled => ErrorReport::new("import.cancelled"),
         }
     }
 }

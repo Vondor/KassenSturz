@@ -261,6 +261,7 @@ A file from a bank or another program couldn't be read (D-091), or what it holds
 | `import.too-deeply-nested` | `max`, `line?` | | The file nests more than {max} levels deep, which no bank file does. It may be damaged. Download it again. Nothing was imported. |
 | `import.too-many-entries` | `max` | | The file has more than {max} entries. Download a shorter period and import each part. Nothing was imported. |
 | `import.stopped` | | | KassenSturz was asked to quit (a logout, a shutdown) while it imported, so it stopped. Nothing was imported; import the file again (B-362). |
+| `import.cancelled` | | | The user cancelled the import while it ran. Nothing was imported (B-362). The import screens go back a step instead of showing it. |
 | `import.text-too-long` | `max_bytes`, `line?` | | A text in the file is longer than {max_bytes}, which no bank file has. It may be damaged. Download it again. Nothing was imported. |
 | `import.malformed` | `line?` | | The file isn't in the format chosen, or it is damaged. Check the format, or download the file again. Nothing was imported. |
 | `import.bad-amount` | `found`, `line?` | | {found} should be an amount, but it isn't one KassenSturz can read. Check the format, or download the file again. Nothing was imported. |

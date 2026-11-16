@@ -200,6 +200,9 @@ fn main() {
     // Qt objects go in reverse order of creation: the engine before the app.
     drop(engine);
     drop(app);
+    // A preview or import still running on its thread stops at its next
+    // entry, writes nothing and closes the book it holds (B-362).
+    statement_import_model::finish_work_before_quitting();
     // `exit` doesn't drop what the thread keeps, so the book is closed here,
     // which removes its lock file (D-038).
     session::close();

@@ -41,6 +41,7 @@ fn examples() -> Vec<ImportError> {
         ImportError::TooDeeplyNested { max: 64, line },
         ImportError::TooManyEntries { max: 10 },
         ImportError::Stopped,
+        ImportError::Cancelled,
         ImportError::TextTooLong {
             max_bytes: 16,
             line,

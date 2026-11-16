@@ -4,6 +4,12 @@
 //! The QML object behind the import screens (M3.10): one file at a time,
 //! from choosing it to the summary. The work is in `statement_import.rs`;
 //! this file only moves text between it and QML (D-065).
+//!
+//! The preview and the import run on a worker thread (B-362): a file of
+//! tens of thousands of entries takes seconds, which froze the window and
+//! couldn't be cancelled. The open book is lent to the worker for that
+//! time ([`session::take`]) and put back when it is done; the window shows
+//! the progress and "Cancel" meanwhile (`working`, [`progress`], `done`).
 
 use core::pin::Pin;
 use std::path::PathBuf;
@@ -15,8 +21,9 @@ use kassensturz_import::{Limits, read_file};
 
 use crate::bank_fetch;
 use crate::book_session::local_path;
+use crate::books::OpenBook;
 use crate::errors::ErrorText;
-use crate::number_format::app_locale;
+use crate::number_format::{UserLocale, app_locale};
 use crate::register_model::{field, flag, suggestion_object};
 use crate::session;
 use crate::settings::Settings;
@@ -51,8 +58,11 @@ pub mod qobject {
         #[qproperty(QVariant, view, READ, NOTIFY)]
         #[qproperty(QString, account_id, cxx_name = "accountId", READ, NOTIFY)]
         #[qproperty(QString, file_name, cxx_name = "fileName", READ, NOTIFY)]
+        #[qproperty(bool, working, READ, NOTIFY)]
         type StatementImport = super::StatementImportRust;
     }
+
+    impl cxx_qt::Threading for StatementImport {}
 
     extern "RustQt" {
         /// Reads `file` for `account_id` and recognizes its format. An
@@ -131,15 +141,34 @@ pub mod qobject {
         #[cxx_name = "readCsv"]
         fn read_csv(self: Pin<&mut StatementImport>, form: &QVariant, name: &QString) -> QVariant;
 
-        /// Forgets the file.
+        /// Forgets the file. During the preview or the import, cancels it
+        /// first: nothing of it is written.
         #[qinvokable]
         fn cancel(self: Pin<&mut StatementImport>);
+
+        /// Cancels the preview or import under way (B-362); `done` follows
+        /// with `cancelled`, and the book is as it was.
+        #[qinvokable]
+        #[cxx_name = "cancelWork"]
+        fn cancel_work(self: Pin<&mut StatementImport>);
+
+        /// How far the preview or import under way got: `done` and `total`
+        /// entries, both 0 before it counted them.
+        #[qinvokable]
+        fn progress(self: &StatementImport) -> QVariant;
     }
 
     unsafe extern "RustQt" {
         /// The book changed: an import was made.
         #[qsignal]
         fn changed(self: Pin<&mut StatementImport>);
+
+        /// The preview or import that an invokable answered with
+        /// `working` is done (B-362): `result` is an empty map when it
+        /// worked, `cancelled` when the user cancelled it, else an error
+        /// object.
+        #[qsignal]
+        fn done(self: Pin<&mut StatementImport>, result: &QVariant);
     }
 
     impl cxx_qt::Initialize for StatementImport {}
@@ -158,6 +187,44 @@ pub struct StatementImportRust {
     loaded: Option<Loaded>,
     /// The transactions the last import added.
     new: Vec<TransactionId>,
+    /// Whether a preview or an import runs on the worker thread, with the
+    /// book and the loaded file lent to it (B-362).
+    working: bool,
+    /// Whether the user forgot the file while it worked: what comes back
+    /// is dropped then.
+    forget_after_work: bool,
+}
+
+/// What the worker thread does.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Work {
+    Preview,
+    Import,
+}
+
+/// What the worker hands back: the book, the file, and the outcome.
+type WorkResult = (
+    OpenBook,
+    Loaded,
+    Option<Result<statement_import::ImportView, ErrorText>>,
+);
+
+/// The worker thread under way, so the app can wait for it before it ends
+/// (B-362): the book it holds is then closed properly.
+static WORKER: std::sync::Mutex<Option<std::thread::JoinHandle<()>>> = std::sync::Mutex::new(None);
+
+/// Stops a preview or import under way and waits for its thread, before the
+/// app ends: the work stops at the next entry, nothing of it is written, and
+/// the book it held is closed, which removes its lock file (B-362).
+pub fn finish_work_before_quitting() {
+    let worker = WORKER
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take();
+    if let Some(worker) = worker {
+        kassensturz_pipeline::stop::cancel();
+        let _ = worker.join();
+    }
 }
 
 impl cxx_qt::Initialize for qobject::StatementImport {
@@ -266,25 +333,8 @@ impl qobject::StatementImport {
         }
     }
 
-    fn import_now(mut self: Pin<&mut Self>) -> QVariant {
-        let Some(loaded) = self.rust().loaded.as_ref() else {
-            return error_object(&ErrorText::plain("input.no-such-entry"));
-        };
-        let imported = session::with_book_mut(|book| {
-            statement_import::import(book, loaded, &app_locale())
-                .map_err(|error| statement_import::error_text(book, &error, &app_locale()))
-        })
-        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
-        match imported {
-            Ok(view) => {
-                let shown = view_object(&view);
-                self.as_mut().rust_mut().new = view.new;
-                self.as_mut().set_step("done", shown);
-                self.as_mut().changed();
-                map([])
-            }
-            Err(error) => error_object(&error),
-        }
+    fn import_now(self: Pin<&mut Self>) -> QVariant {
+        self.run_work(Work::Import)
     }
 
     fn undo_joins(self: Pin<&mut Self>) -> QVariant {
@@ -379,6 +429,10 @@ impl qobject::StatementImport {
     }
 
     fn cancel(mut self: Pin<&mut Self>) {
+        if self.rust().working {
+            kassensturz_pipeline::stop::cancel();
+            self.as_mut().rust_mut().forget_after_work = true;
+        }
         {
             let mut rust = self.as_mut().rust_mut();
             rust.input = Vec::new();
@@ -443,23 +497,114 @@ impl qobject::StatementImport {
         self.show_preview()
     }
 
-    fn show_preview(mut self: Pin<&mut Self>) -> QVariant {
-        let Some(loaded) = self.rust().loaded.as_ref() else {
+    fn show_preview(self: Pin<&mut Self>) -> QVariant {
+        self.run_work(Work::Preview)
+    }
+
+    fn cancel_work(self: Pin<&mut Self>) {
+        if self.rust().working {
+            kassensturz_pipeline::stop::cancel();
+        }
+    }
+
+    fn progress(&self) -> QVariant {
+        progress_object(kassensturz_pipeline::stop::progress())
+    }
+
+    /// Runs `work` on a worker thread with the open book and the loaded
+    /// file lent to it, and answers `working`; `done` says how it ended
+    /// (B-362).
+    fn run_work(mut self: Pin<&mut Self>, work: Work) -> QVariant {
+        if self.rust().working {
+            return map([("working", QVariant::from(&true))]);
+        }
+        let Some(loaded) = self.as_mut().rust_mut().loaded.take() else {
             return error_object(&ErrorText::plain("input.no-such-entry"));
         };
-        let previewed = session::with_book_mut(|book| {
-            statement_import::preview(book, loaded, &app_locale())
-                .map_err(|error| statement_import::error_text(book, &error, &app_locale()))
-        })
-        .unwrap_or_else(|| Err(ErrorText::plain("input.no-such-entry")));
-        match previewed {
-            Ok(view) => {
+        let Some(open) = session::take() else {
+            self.as_mut().rust_mut().loaded = Some(loaded);
+            return error_object(&ErrorText::plain("input.no-such-entry"));
+        };
+        // The user's number format is kept per thread: the worker gets it.
+        let format = crate::number_format::current();
+        kassensturz_pipeline::stop::start();
+        {
+            let mut rust = self.as_mut().rust_mut();
+            rust.working = true;
+            rust.forget_after_work = false;
+        }
+        self.as_mut().working_changed();
+        let thread = self.qt_thread();
+        let worker = std::thread::spawn(move || {
+            let mut open = open;
+            let locale = UserLocale::new(crate::locale::QtLocale, format);
+            let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let book = &mut open.book;
+                let result = match work {
+                    Work::Preview => statement_import::preview(book, &loaded, &locale),
+                    Work::Import => statement_import::import(book, &loaded, &locale),
+                };
+                result.map_err(|error| statement_import::error_text(book, &error, &locale))
+            }))
+            .ok();
+            let back: WorkResult = (open, loaded, outcome);
+            // A window that is gone has no one left to tell: the book is
+            // closed here then, which removes its lock file.
+            let _ = thread.queue(move |qobject| qobject.finish_work(work, back));
+        });
+        *WORKER
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(worker);
+        map([("working", QVariant::from(&true))])
+    }
+
+    /// Takes back what the worker lent and says how the work ended.
+    fn finish_work(mut self: Pin<&mut Self>, work: Work, back: WorkResult) {
+        let (open, loaded, outcome) = back;
+        WORKER
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        // Another book can't have been opened meanwhile, the window
+        // blocks it; if one was, it stays, and this one is closed.
+        if session::path().is_none() {
+            session::set(open);
+        } else {
+            drop(open);
+        }
+        let forget = self.rust().forget_after_work;
+        {
+            let mut rust = self.as_mut().rust_mut();
+            rust.working = false;
+            if !forget {
+                rust.loaded = Some(loaded);
+            }
+        }
+        self.as_mut().working_changed();
+        let result = match outcome {
+            _ if forget => map([("cancelled", QVariant::from(&true))]),
+            Some(Ok(view)) => {
                 let shown = view_object(&view);
-                self.as_mut().set_step("preview", shown);
+                match work {
+                    Work::Preview => self.as_mut().set_step("preview", shown),
+                    Work::Import => {
+                        self.as_mut().rust_mut().new = view.new;
+                        self.as_mut().set_step("done", shown);
+                        self.as_mut().changed();
+                    }
+                }
                 map([])
             }
-            Err(error) => error_object(&error),
-        }
+            Some(Err(error)) if error.code == "import.cancelled" => {
+                map([("cancelled", QVariant::from(&true))])
+            }
+            Some(Err(error)) => {
+                crate::note!(ImportRefused, None, Some(error.code));
+                error_object(&error)
+            }
+            None => error_object(&ErrorText::plain("input.no-such-entry")),
+        };
+        self.as_mut().done(&result);
     }
 
     fn set_step(mut self: Pin<&mut Self>, step: &str, view: QVariant) {
@@ -493,6 +638,12 @@ impl qobject::StatementImport {
         crate::note!(ImportRefused, None, Some(logged));
         error_object(&shown)
     }
+}
+
+/// The progress for QML: `done` and `total` entries.
+fn progress_object((done, total): (usize, usize)) -> QVariant {
+    let count = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX));
+    map([("done", count(done)), ("total", count(total))])
 }
 
 fn view_object(view: &ImportView) -> QVariant {

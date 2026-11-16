@@ -13963,6 +13963,30 @@ msgstr ""
 "Haushaltsbuch auf diesem Computer auf; ein Sync-Ordner, etwa von Nextcloud, "
 "ist in Ordnung."
 
+#: crates/kassensturz-ui-bridge/qml/Main.qml:308
+#, kde-format
+msgctxt "@title:window"
+msgid "Reading the statement"
+msgstr "Kontoauszug wird gelesen"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:334
+#, kde-format
+msgctxt "@info %1 and %2 are numbers of entries"
+msgid "%1 of %2 entries"
+msgstr "%1 von %2 Einträgen"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:335
+#, kde-format
+msgctxt "@info"
+msgid "Getting ready…"
+msgstr "Wird vorbereitet…"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:345
+#, kde-format
+msgctxt "@info:whatsthis"
+msgid "How far the import got"
+msgstr "Wie weit der Import ist"
+
 #: crates/kassensturz-ui-bridge/qml/Main.qml:1110
 #, kde-format
 msgctxt "@action:button hides a note"

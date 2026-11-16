@@ -12352,6 +12352,30 @@ msgid ""
 "book on this computer; a sync folder, such as Nextcloud's, is fine."
 msgstr "Ta księga jest na dysku sieciowym. Dyski sieciowe mogą uszkodzić księgę, bo nie zapisują zmian tak niezawodnie jak własny dysk tego komputera. Trzymaj księgę na tym komputerze; folder synchronizowany, na przykład Nextcloud, jest w porządku."
 
+#: crates/kassensturz-ui-bridge/qml/Main.qml:308
+#, kde-format
+msgctxt "@title:window"
+msgid "Reading the statement"
+msgstr "Odczytywanie wyciągu"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:334
+#, kde-format
+msgctxt "@info %1 and %2 are numbers of entries"
+msgid "%1 of %2 entries"
+msgstr "%1 z %2 pozycji"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:335
+#, kde-format
+msgctxt "@info"
+msgid "Getting ready…"
+msgstr "Przygotowywanie…"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:345
+#, kde-format
+msgctxt "@info:whatsthis"
+msgid "How far the import got"
+msgstr "Postęp importu"
+
 #: crates/kassensturz-ui-bridge/qml/Main.qml:1110
 #, kde-format
 msgctxt "@action:button hides a note"

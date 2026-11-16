@@ -921,6 +921,80 @@ fn register_total(book: &Book, account: AccountId) -> (usize, i64) {
     (rows.len(), total)
 }
 
+/// B-332: a bank may give a later payment a reference it used before, e.g.
+/// a counter per day. An entry with a known bank ID and amount is a
+/// duplicate only on the same bank date; a few banking days apart the user
+/// decides, and further apart it is another payment.
+#[test]
+fn a_reused_bank_reference_on_another_date_is_never_skipped() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let first = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(1, -80000, "0001", "Landlord")])],
+    );
+    let booked = first.imported()[0];
+    // The next rent, four weeks later with the same reference: imported.
+    let later = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(29, -80000, "0001", "Landlord")])],
+    );
+    assert_eq!(later.summary().imported, 1, "{:?}", later.entries);
+    assert_eq!(register_total(&book, checking), (2, -160000));
+    // One banking day after the first: maybe the same booking with a
+    // corrected date, so the user sees it next to it.
+    let close = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(2, -80000, "0001", "Landlord")])],
+    );
+    assert_eq!(
+        close.entries[0].outcome,
+        EntryOutcome::Similar(vec![booked])
+    );
+    // The very same entry again stays a duplicate.
+    let again = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(1, -80000, "0001", "Landlord")])],
+    );
+    assert_eq!(
+        again.entries[0].outcome,
+        EntryOutcome::Duplicate(Duplicate::InBook(booked))
+    );
+    assert_eq!(register_total(&book, checking), (2, -160000));
+
+    // Within one import: two payments with one reference on two dates both
+    // come in, the same entry twice only once.
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let both = import(
+        &mut book,
+        checking,
+        &[
+            statement(vec![
+                entry(5, -1500, "0002", "Club"),
+                entry(26, -1500, "0002", "Club"),
+            ]),
+            statement(vec![entry(26, -1500, "0002", "Club")]),
+        ],
+    );
+    assert_eq!(
+        both.summary(),
+        Summary {
+            imported: 2,
+            to_decide: 0,
+            duplicates: 1,
+            pending: 0,
+        }
+    );
+    assert_eq!(register_total(&book, checking), (2, -3000));
+}
+
 /// B-277: one transaction in the book stands for at most one entry. Two
 /// genuinely identical payments both stay: in a new book, next to one the
 /// book has, and when the same two come again.

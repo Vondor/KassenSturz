@@ -687,14 +687,16 @@ fn add_details(
         let name = imported
             .other_party_name
             .as_deref()
-            .unwrap_or_default()
-            .trim();
+            .map(kassensturz_store::shown_text)
+            .unwrap_or_default();
+        let name = name.trim();
         if !name.is_empty() && !name.eq_ignore_ascii_case(shown.other_party.trim()) {
             name.clone_into(&mut shown.bank_name);
         }
         imported
             .remittance_information
             .as_deref()
+            .map(kassensturz_store::shown_text)
             .unwrap_or_default()
             .trim()
             .clone_into(&mut shown.purpose);
@@ -799,8 +801,18 @@ fn describe(
         entries.push(EntryText {
             key: format!("{}.{}", at.statement, at.entry),
             date: locale.short_date(entry.booking_date),
-            other_party: entry.other_party_name.clone().unwrap_or_default(),
-            purpose: entry.remittance_information.clone().unwrap_or_default(),
+            // What the bank delivered, shown without characters that hide
+            // or turn it around (B-365).
+            other_party: entry
+                .other_party_name
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
+            purpose: entry
+                .remittance_information
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
             amount,
             incoming: entry.amount.minor_units() > 0,
             outcome,
@@ -1409,6 +1421,56 @@ mod tests {
         );
         entry.other_party_name = Some(other_party.into());
         entry
+    }
+
+    /// B-365 (round 7, B6): a bank's text with a direction override showed
+    /// turned around ("Bäcker Gaben") in the preview and the register. Both
+    /// show it without the characters that hide or turn it, the payee is
+    /// imported without them, and the book keeps what the bank delivered.
+    #[test]
+    fn a_bank_text_that_turns_itself_around_is_shown_without_that() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-10-01",
+        );
+        let turned = "Bäcker \u{202E}nebaG\u{202C}";
+        let mut bakery = entry(5, -350, turned);
+        bakery.remittance_information = Some("Bread\u{200B} \u{202E}5 gnuhcer\u{202C}".into());
+        let statement = Statement {
+            account: StatementAccount::default(),
+            currency: eur(),
+            opening_balance: None,
+            closing_balance: None,
+            entries: vec![bakery],
+        };
+        let loaded = Loaded::new(checking, PathBuf::from("bidi.sta"), vec![statement]);
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        assert_eq!(shown.entries[0].other_party, "Bäcker nebaG");
+        assert_eq!(shown.entries[0].purpose, "Bread 5 gnuhcer");
+        import(&mut book, &loaded, &TestLocale).expect("imported");
+
+        let columns = Columns::default().with(RegisterColumn::Purpose, true);
+        let register = register_view_with(&book, checking, Sort::default(), columns, &TestLocale)
+            .expect("register");
+        let row = register
+            .rows
+            .iter()
+            .find(|row| row.other_party.starts_with("Bäcker"))
+            .expect("the bakery's row");
+        assert_eq!(row.other_party, "Bäcker nebaG");
+        assert_eq!(row.purpose, "Bread 5 gnuhcer");
+        // What the bank delivered is kept as delivered (D-375).
+        let kept = book
+            .account_parts(checking)
+            .expect("parts")
+            .into_iter()
+            .find_map(|part| part.imported)
+            .expect("delivered");
+        assert_eq!(kept.other_party_name.as_deref(), Some(turned));
     }
 
     /// B-366: a book file too large to read is a whole book, not a

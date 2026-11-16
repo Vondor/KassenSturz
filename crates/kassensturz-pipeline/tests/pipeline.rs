@@ -1248,3 +1248,57 @@ fn a_corrected_amount_is_never_silently_hidden() {
     );
     assert_eq!(register_total(&book, checking), (4, -3400));
 }
+
+/// B-365 (round 7, B6): a bank's text that turns itself around with a
+/// direction override showed "Bäcker Gaben" in the register. The payee the
+/// transaction gets is the name without such characters, like a typed one
+/// must be (B-272); what the bank delivered stays as delivered (D-375).
+#[test]
+fn a_payee_with_characters_that_turn_it_around_is_imported_without_them() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let turned = "Bäcker \u{202E}nebaG\u{202C}";
+    let isolated = "\u{2067}Mallory\u{2069}";
+    let hidden_only = "\u{200B}\u{202E}";
+    let report = import(
+        &mut book,
+        checking,
+        &[statement(vec![
+            entry(5, -350, "B1", turned),
+            entry(6, -420, "B2", isolated),
+            entry(7, -100, "B3", hidden_only),
+        ])],
+    );
+    let ids = report.imported();
+    assert_eq!(ids.len(), 3);
+    let payees: Vec<Option<String>> = ids
+        .iter()
+        .map(|id| {
+            book.transaction(*id)
+                .expect("read")
+                .payee()
+                .map(str::to_owned)
+        })
+        .collect();
+    assert_eq!(
+        payees,
+        [
+            Some("Bäcker nebaG".to_owned()),
+            Some("Mallory".to_owned()),
+            None
+        ]
+    );
+    // The delivered name and text stay as the bank wrote them.
+    let first = book.transaction(ids[0]).expect("read");
+    let delivered = first
+        .splits()
+        .iter()
+        .find_map(|split| split.imported.as_ref())
+        .expect("delivered");
+    assert_eq!(delivered.other_party_name.as_deref(), Some(turned));
+    assert_eq!(
+        delivered.remittance_information.as_deref(),
+        Some(format!("{turned} card payment").as_str())
+    );
+}

@@ -70,7 +70,7 @@ pub use moving::{
     older_move_backups_of, plan_move, remove_left_book,
 };
 pub use names::{
-    MAX_ACCOUNT_NAME_CHARS, fitting_account_name, is_invisible, name_key, stored_name,
+    MAX_ACCOUNT_NAME_CHARS, fitting_account_name, is_invisible, name_key, shown_text, stored_name,
 };
 pub use recurring_moves::{
     JoinedTransfers, NeedsYou, NewRecurringMove, NotJoined, RecurringJoin, RecurringJoins,

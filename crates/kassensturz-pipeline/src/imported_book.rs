@@ -250,7 +250,8 @@ fn fill(
         let transaction = Transaction::new(
             TransactionId::generate(),
             transaction.date,
-            transaction.payee.clone(),
+            // Shown as the payee list below names it (B-365).
+            crate::payee_from(transaction.payee.as_deref()),
             splits,
         )
         // The importer's checks (`kassensturz_import::import`) make sure of
@@ -655,7 +656,9 @@ impl Mapper {
             .iter()
             .map(|payee| Payee {
                 id: PayeeId::generate(),
-                name: unique_name(&payee.name, &mut taken),
+                // Without characters that hide or turn the name around,
+                // as each transaction's payee is (B-365).
+                name: unique_name(&kassensturz_store::shown_text(&payee.name), &mut taken),
                 address: payee.address.clone(),
                 email: payee.email.clone(),
                 phone: payee.phone.clone(),

@@ -386,14 +386,18 @@ pub fn details(
     let names = tags::names(book)?;
     // The account's own date and payee, as the register shows them (D-108).
     let date = transaction.date_of(own_split);
-    let other_party = transaction.payee_of(own_split).unwrap_or_default();
+    // Shown without characters that hide or turn the text around (B-365).
+    let other_party = transaction
+        .payee_of(own_split)
+        .map(kassensturz_store::shown_text)
+        .unwrap_or_default();
     let delivered_name = own_split
         .imported
         .as_ref()
         .and_then(|delivered| delivered.other_party_name.as_deref())
+        .map(kassensturz_store::shown_text)
         .filter(|name| *name != other_party)
-        .unwrap_or_default()
-        .to_owned();
+        .unwrap_or_default();
     Ok(EntryForm {
         id: transaction.id().to_string(),
         kind: kind.key(),

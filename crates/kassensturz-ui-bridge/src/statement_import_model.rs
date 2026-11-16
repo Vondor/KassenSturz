@@ -345,7 +345,13 @@ impl qobject::StatementImport {
         match form.rows(&self.rust().input) {
             Ok(rows) => list(
                 rows.iter()
-                    .map(|row| list(row.iter().map(|cell| text(cell)))),
+                    // Without characters that hide or turn a cell around (B-365).
+                    .map(|row| {
+                        list(
+                            row.iter()
+                                .map(|cell| text(&kassensturz_store::shown_text(cell))),
+                        )
+                    }),
             ),
             Err(error) => self.fail_text(&error),
         }

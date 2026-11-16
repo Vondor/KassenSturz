@@ -14,7 +14,7 @@
 use core::pin::Pin;
 use std::path::PathBuf;
 
-use cxx_qt::CxxQtType;
+use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 use kassensturz_core::TransactionId;
 use kassensturz_import::{Limits, read_file};

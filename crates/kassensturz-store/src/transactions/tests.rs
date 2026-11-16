@@ -1501,3 +1501,36 @@ fn the_transactions_of_an_account_are_those_with_a_part_in_it_as_read_one_by_one
             .is_empty()
     );
 }
+
+#[test]
+fn a_transaction_is_read_by_the_date_of_any_side_too() {
+    // B-348: booked on 1 Nov, one side shows 2 Nov.
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let mut reached = Split::new(groceries, eur(4200));
+    reached.own_date = Some(date(2026, 11, 2));
+    let t = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 11, 1),
+        None,
+        vec![Split::new(checking, eur(-4200)), reached],
+    )
+    .expect("balanced");
+    book.add_transaction(&t).expect("added");
+    let by = |day| {
+        book.transactions_with_a_date_between(date(2026, 11, day), date(2026, 11, day))
+            .expect("read")
+            .len()
+    };
+    let booked = |day| {
+        book.transactions_between(date(2026, 11, day), date(2026, 11, day))
+            .expect("read")
+            .len()
+    };
+    assert_eq!((booked(1), booked(2)), (1, 0));
+    assert_eq!((by(1), by(2), by(3)), (1, 1, 0));
+}

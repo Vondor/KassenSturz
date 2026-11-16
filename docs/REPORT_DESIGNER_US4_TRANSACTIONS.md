@@ -34,6 +34,7 @@ The tile honours the **three shared filters** like every data tile (D-350, D-351
 
 - **Accounts:** the user's own accounts (bank accounts, cash, cards, debts). Default: all open accounts. A closed account is listed only when it is chosen by name.
 - **Categories:** a transaction is listed when **at least one of its Parts** is booked to a chosen category or one of its subcategories, or to a category of a chosen My group. With no category filter every transaction is listed, *Not sorted yet* ones and Transfers included. With a category filter, Transfers and *Not sorted yet* are left out, as they have no category.
+- **Which day counts:** a row counts by the date its own account shows (D-108), not by the transaction's booking date, and only a side that shows a day of the period is listed. A Transfer whose two sides fall on different days is therefore on the day of the account the tile is limited to, and never on a day outside the period; with both accounts chosen it is one row, from the later side that lies in the period (on one day, the side money reached). The tile reads its data by every side's date for this (B-348, #1084); figures elsewhere still count by the booking date.
 - **Period:** every period word the other tiles take (this month, last month, the last N months, a salary month, a typed range, D-332, D-644), plus the new **last N days** (section 2). Default: the page's period.
 
 The grey filter notes and their *Hide the grey filter notes* switch work as on every tile (D-663).

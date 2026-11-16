@@ -404,6 +404,23 @@ impl Book {
         )
     }
 
+    /// The transactions booked from `first` to `last`, plus those with a
+    /// part that shows a date of its own in that range, sorted and checked
+    /// as [`Book::transactions`] does. A Transfer whose sides show other
+    /// days than its booking date is read when any side falls in the range,
+    /// for a list that shows each account's own date (D-108, B-348).
+    pub fn transactions_with_a_date_between(
+        &self,
+        first: Date,
+        last: Date,
+    ) -> Result<Vec<Transaction>, StoreError> {
+        self.transactions_where(
+            "WHERE t.booking_date BETWEEN ?1 AND ?2 OR t.id IN \
+             (SELECT transaction_id FROM splits WHERE own_date BETWEEN ?1 AND ?2)",
+            params![date_to_text(first)?, date_to_text(last)?],
+        )
+    }
+
     /// The transactions with a part booked to `account`, sorted and checked
     /// as [`Book::transactions`] does. They are read in a few queries instead
     /// of one by one, so a register with thousands of lines opens quickly.

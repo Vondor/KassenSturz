@@ -1698,12 +1698,23 @@ fn a_rule_the_ai_made_stays_marked_until_the_user_opens_it() {
     assert!(book.mark_rule_made_by_ai(RuleId::generate()).is_err());
     assert_eq!(book.unchecked_ai_rules().expect("read").len(), 1);
     // Undo takes the Rule away and the mark with it; redo brings the Rule
-    // back without it.
+    // back with its mark, since the user never opened it (B-370).
     book.undo().expect("undone");
     assert!(book.unchecked_ai_rules().expect("read").is_empty());
     book.redo().expect("redone");
     assert!(book.rule(made.id).is_ok());
+    assert_eq!(
+        book.unchecked_ai_rules().expect("read"),
+        HashSet::from([made.id])
+    );
+    // And again for a second undo and redo.
+    book.undo().expect("undone again");
     assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    book.redo().expect("redone again");
+    assert_eq!(
+        book.unchecked_ai_rules().expect("read"),
+        HashSet::from([made.id])
+    );
     // Opening a marked Rule takes the mark off.
     book.as_one_action(Action::ApplyAiChanges, |book| {
         book.mark_rule_made_by_ai(made.id)

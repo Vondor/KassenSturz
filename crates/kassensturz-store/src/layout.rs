@@ -1169,8 +1169,8 @@ ALTER TABLE new_changes RENAME TO changes;
 ///   once removes it, and removing the Rule removes it too. It is a mark for
 ///   the user's eyes, not the book's data, so the change history doesn't
 ///   record it, like `originals_unlocked`: undoing the change set removes
-///   the Rule and with it the mark, and redoing it brings the Rule back
-///   without one.
+///   the Rule and with it the mark, and redoing it while the book is open
+///   brings the Rule back with its mark (B-370).
 ///
 /// Nothing a book of layout 31 holds changes: no Rule starts marked.
 const LAYOUT_32: &str = "

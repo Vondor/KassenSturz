@@ -507,7 +507,7 @@ The guard of the triggers on [`split_imports`](#split_imports) (D-375). Empty in
 
 ### `unchecked_ai_rules`
 
-From layout 32 (B-249): the Rules the AI made or changed, after the user confirmed the change set, that the user hasn't opened since. The Rules page says "Made by the AI, not checked by you yet" for each until the user opens it once in the editor, which deletes its row. Deleting the Rule deletes its row too. It is a mark for the user's eyes, not the book's data, so the history doesn't record it: undoing the change set takes the Rule away and with it the mark, and redoing it brings the Rule back without one.
+From layout 32 (B-249): the Rules the AI made or changed, after the user confirmed the change set, that the user hasn't opened since. The Rules page says "Made by the AI, not checked by you yet" for each until the user opens it once in the editor, which deletes its row. Deleting the Rule deletes its row too. It is a mark for the user's eyes, not the book's data, so the history doesn't record it: undoing the change set takes the Rule away and with it the mark, and redoing it while the book is still open brings the Rule back with its mark (B-370); after the book was closed, a redo brings it back without one.
 
 | Column | Type | Meaning |
 |---|---|---|

@@ -209,11 +209,13 @@ pub struct Loaded {
 impl Loaded {
     /// The statements of a file for `account`. A file with statements for
     /// one account only imports them all; otherwise the user picks one with
-    /// [`Loaded::choose_statement`] first.
+    /// [`Loaded::choose_statement`] first. One IBAN in two currencies is two
+    /// accounts, as a multi-currency account's file has them (B-339): one
+    /// KassenSturz account holds one currency, so the user picks.
     pub fn new(account: AccountId, path: PathBuf, statements: Vec<Statement>) -> Self {
-        let one_account = statements
-            .windows(2)
-            .all(|pair| pair[0].account == pair[1].account);
+        let one_account = statements.windows(2).all(|pair| {
+            pair[0].account == pair[1].account && pair[0].currency.code() == pair[1].currency.code()
+        });
         let chosen = if one_account {
             (0..statements.len()).collect()
         } else {
@@ -299,7 +301,9 @@ impl Loaded {
 pub struct StatementChoice {
     /// Its place in the file, which [`Loaded::choose_statement`] takes.
     pub index: usize,
-    /// The account as the file names it: the IBAN, else the number.
+    /// The account as the file names it: the IBAN, else the number, and
+    /// its currency's code when the file has the same account in another
+    /// currency too (B-339), e.g. `DE89… · USD`.
     pub account: String,
     /// The first and last booking date, if the statement has entries.
     pub first_date: String,
@@ -324,14 +328,22 @@ pub fn statement_choices(
             let dates = statement.entries.iter().map(|entry| entry.booking_date);
             let writer = AmountWriter::new(book, statement.currency.code(), locale).ok();
             let closing = statement.closing_balance;
+            let mut account = statement
+                .account
+                .iban
+                .clone()
+                .or_else(|| statement.account.number.clone())
+                .unwrap_or_default();
+            let in_two_currencies = loaded.statements.iter().any(|other| {
+                other.account == statement.account
+                    && other.currency.code() != statement.currency.code()
+            });
+            if in_two_currencies {
+                account = format!("{account} · {}", statement.currency.code());
+            }
             StatementChoice {
                 index,
-                account: statement
-                    .account
-                    .iban
-                    .clone()
-                    .or_else(|| statement.account.number.clone())
-                    .unwrap_or_default(),
+                account,
                 first_date: dates
                     .clone()
                     .min()
@@ -1693,6 +1705,49 @@ mod tests {
         let error = import(&mut book, &loaded, &TestLocale).expect_err("refused");
         assert_eq!(code(&error), "store.not-linked");
         assert_eq!(rows(&book, checking), before, "all or nothing");
+    }
+
+    /// B-339: a multi-currency account's CAMT.053 file holds one statement
+    /// per currency under one IBAN. The user picks the one for the account
+    /// instead of the whole file being refused for its second currency.
+    #[test]
+    fn one_iban_in_two_currencies_lets_the_user_pick_the_statement() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "100",
+            "2026-09-30",
+        );
+        let input = br#"<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <Stmt>
+      <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id><Ccy>EUR</Ccy></Acct>
+      <Ntry><Amt Ccy="EUR">10.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-01</Dt></BookgDt><AcctSvcrRef>E-1</AcctSvcrRef></Ntry>
+    </Stmt>
+    <Stmt>
+      <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id><Ccy>USD</Ccy></Acct>
+      <Ntry><Amt Ccy="USD">20.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-01</Dt></BookgDt><AcctSvcrRef>U-1</AcctSvcrRef></Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
+"#;
+        let statements = read_statements(&Camt053, input).expect("statements");
+        assert_eq!(statements.len(), 2);
+        let mut loaded = Loaded::new(checking, PathBuf::from("two.xml"), statements);
+        assert!(loaded.needs_statement_choice());
+        let choices = statement_choices(&book, &loaded, &TestLocale);
+        assert_eq!(choices[0].account, "DE89370400440532013000 · EUR");
+        assert_eq!(choices[1].account, "DE89370400440532013000 · USD");
+        loaded.choose_statement(0).expect("chosen");
+        let before = rows(&book, checking);
+        let shown = import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(shown.imported, 1);
+        assert_eq!(rows(&book, checking), before + 1);
     }
 
     #[test]

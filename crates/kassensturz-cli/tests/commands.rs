@@ -1764,8 +1764,8 @@ fn text_from_the_book_cannot_move_the_terminal() {
         "{}",
         refused.err
     );
-    // A bank's statement keeps it as delivered, and the register shows it
-    // harmless.
+    // A bank's statement keeps it as delivered in the original; the payee
+    // shown from it has the control character as a space (B-365, D-375).
     let path = session.0.join("sneaky.sta");
     std::fs::write(
         &path,
@@ -1782,7 +1782,7 @@ fn text_from_the_book_cannot_move_the_terminal() {
         "Savings",
     ]);
     let register = session.ok(&["register", "Savings"]);
-    assert!(register.contains("Sneaky ?[2J shop"));
+    assert!(register.contains("Sneaky  [2J shop"), "{register}");
     assert!(!register.contains('\u{1b}'));
 }
 

@@ -117,6 +117,13 @@ thread_local! {
     pub(crate) static SQLITE_CANT_LOCK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
+#[cfg(test)]
+thread_local! {
+    /// Makes the tests of this thread see every folder as one on a network
+    /// share (B-304).
+    pub(crate) static PRETEND_SHARE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// Checks at open that SQLite can take the write lock in the book's folder
 /// (B-304). Some network shares (a cifs mount with byte-range locks, say)
 /// refuse it, and the book would open and then fail at its first save with
@@ -130,13 +137,7 @@ pub(crate) fn check_write_lock(conn: &Connection, book: &Path) -> Result<(), Sto
     let taken = conn.execute_batch("BEGIN IMMEDIATE; ROLLBACK");
     let Err(error) = taken else {
         // Taking the write lock works, but a save also needs the exclusive
-        // lock and a journal. A cifs mount with byte-range locks lets the
-        // first pass and fails the second, at the user's first save
-        // (B-304). So on a network share the whole save is tried on a
-        // scratch database next to the book.
-        if on_network_share(book) && book.parent().is_some_and(scratch_cant_save) {
-            return Err(StoreError::LocksUnsupported);
-        }
+        // lock: [`check_save`] tries that.
         return Ok(());
     };
     let _ = conn.execute_batch("ROLLBACK");
@@ -151,6 +152,39 @@ pub(crate) fn check_write_lock(conn: &Connection, book: &Path) -> Result<(), Sto
     Err(error.into())
 }
 
+/// Checks, on a network share, that the book can really be saved there
+/// (B-304): the whole of a save is done once on the book itself, with the
+/// journal and sync settings it is used with. A cifs mount with byte-range
+/// locks takes the write lock at open and refuses the exclusive lock a save
+/// needs, so the book would open and fail at the user's first save. Nothing
+/// logical is written: the layout number is set to the value it has, which
+/// SQLite still writes as a save. A failure that isn't about the file's
+/// permissions, space or damage is [`StoreError::LocksUnsupported`]. Local
+/// folders are left alone, and where a save works the book opens as ever.
+pub(crate) fn check_save(conn: &Connection, book: &Path) -> Result<(), StoreError> {
+    if !may_be_on_a_share(book) {
+        return Ok(());
+    }
+    conn.busy_timeout(WRITE_LOCK_WAIT)?;
+    let version: i64 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let tried = conn.execute_batch(&format!(
+        "BEGIN IMMEDIATE; PRAGMA user_version = {version}; COMMIT"
+    ));
+    let Err(error) = tried else {
+        return Ok(());
+    };
+    let _ = conn.execute_batch("ROLLBACK");
+    use rusqlite::ErrorCode::{
+        DatabaseCorrupt, DiskFull, NotADatabase, PermissionDenied, ReadOnly,
+    };
+    match error.sqlite_error_code() {
+        Some(ReadOnly | PermissionDenied | DiskFull | NotADatabase | DatabaseCorrupt) | None => {
+            Err(error.into())
+        }
+        Some(_) => Err(StoreError::LocksUnsupported),
+    }
+}
+
 fn is_busy(error: &rusqlite::Error) -> bool {
     matches!(
         error.sqlite_error_code(),
@@ -158,29 +192,53 @@ fn is_busy(error: &rusqlite::Error) -> bool {
     )
 }
 
-/// Whether `file` is on a network share, as the system's mount table says
-/// (Linux only; elsewhere nothing is learnt, and the check stays as it was).
-fn on_network_share(file: &Path) -> bool {
+/// Whether the save check must run for `file`: unless the mount table says
+/// the file is on a local disk, it may be a share, and a snap or another
+/// sandbox can hide the mount table or its file system type (B-304 round 5).
+/// A save that works costs one small write; a wrongly skipped check costs
+/// the user's first save.
+pub(crate) fn may_be_on_a_share(file: &Path) -> bool {
+    #[cfg(test)]
+    if PRETEND_SHARE.with(std::cell::Cell::get) {
+        return true;
+    }
     #[cfg(test)]
     if SQLITE_CANT_LOCK.with(std::cell::Cell::get) {
         return false;
     }
-    let Ok(table) = fs::read_to_string("/proc/self/mountinfo") else {
-        return false;
-    };
-    let Some(folder) = file
-        .parent()
-        .and_then(|folder| fs::canonicalize(folder).ok())
-    else {
-        return false;
-    };
-    is_network_type(mount_type_of(&table, &folder).as_deref())
+    // Only Linux has a mount table to ask; elsewhere the check stays as it was.
+    cfg!(target_os = "linux") && !is_local_type(mount_type(file).as_deref())
 }
 
-fn is_network_type(kind: Option<&str>) -> bool {
+/// The file system type that holds `file`, or `None` if the mount table
+/// can't be read or doesn't name one.
+fn mount_type(file: &Path) -> Option<String> {
+    let table = fs::read_to_string("/proc/self/mountinfo").ok()?;
+    let folder = fs::canonicalize(file.parent()?).ok()?;
+    mount_type_of(&table, &folder)
+}
+
+fn is_local_type(kind: Option<&str>) -> bool {
     matches!(
         kind,
-        Some("cifs" | "smb3" | "smbfs" | "nfs" | "nfs4" | "9p" | "fuse.sshfs")
+        Some(
+            "ext2"
+                | "ext3"
+                | "ext4"
+                | "btrfs"
+                | "xfs"
+                | "f2fs"
+                | "zfs"
+                | "tmpfs"
+                | "overlay"
+                | "vfat"
+                | "exfat"
+                | "ntfs"
+                | "ntfs3"
+                | "fuseblk"
+                | "apfs"
+                | "hfsplus"
+        )
     )
 }
 
@@ -204,16 +262,6 @@ fn mount_type_of(table: &str, folder: &Path) -> Option<String> {
         }
     }
     best.map(|(_, kind)| kind)
-}
-
-/// Whether a save, the whole of it, fails on a database of its own made in
-/// `folder`. Nothing of the user's is touched: the file has a name of its
-/// own and goes away.
-fn scratch_cant_save(folder: &Path) -> bool {
-    scratch_fails(
-        folder,
-        "BEGIN IMMEDIATE; CREATE TABLE t(x); INSERT INTO t VALUES (1); COMMIT",
-    )
 }
 
 /// Whether SQLite can't lock a database of its own made in `folder`. Nothing

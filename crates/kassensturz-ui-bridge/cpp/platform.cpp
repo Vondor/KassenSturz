@@ -18,6 +18,10 @@
 #include <QtGui/QIcon>
 #include <QtGui/QSessionManager>
 
+#ifdef Q_OS_LINUX
+#include <sys/vfs.h>
+#endif
+
 #include <cerrno>
 #include <csignal>
 #include <cstdio>
@@ -233,8 +237,45 @@ void loadKI18nQml()
     library->load();
 }
 
+#ifdef Q_OS_LINUX
+// The network file system the kernel itself names for `path`, from the magic
+// number statfs returns, or an empty string. In a snap AppArmor blocks the
+// mount table that QStorageInfo reads, but statfs still works (B-304).
+static QString networkTypeByStatfs(const QString &path)
+{
+    struct statfs info;
+    if (::statfs(QFile::encodeName(path).constData(), &info) != 0) {
+        return QString();
+    }
+    switch (static_cast<unsigned long>(info.f_type) & 0xFFFFFFFFUL) {
+    case 0xFE534D42UL: // SMB2 and SMB3
+        return QStringLiteral("smb3");
+    case 0xFF534D42UL: // CIFS
+        return QStringLiteral("cifs");
+    case 0x517BUL: // SMB
+        return QStringLiteral("smbfs");
+    case 0x6969UL: // NFS
+        return QStringLiteral("nfs");
+    case 0x00C36400UL: // Ceph
+        return QStringLiteral("ceph");
+    case 0x5346414FUL: // AFS
+        return QStringLiteral("afs");
+    case 0x564CUL: // NCP
+        return QStringLiteral("ncpfs");
+    default:
+        return QString();
+    }
+}
+#endif
+
 QString fileSystemType(const QString &path)
 {
+#ifdef Q_OS_LINUX
+    const QString network = networkTypeByStatfs(path);
+    if (!network.isEmpty()) {
+        return network;
+    }
+#endif
     const QStorageInfo storage(path);
     return storage.isValid() ? QString::fromUtf8(storage.fileSystemType()) : QString();
 }

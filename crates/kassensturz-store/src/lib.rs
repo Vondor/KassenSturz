@@ -1154,6 +1154,10 @@ fn connect(path: &Path) -> Result<(Connection, bool), StoreError> {
     // cut the journal could come back and roll the save back. EXTRA also
     // syncs that folder (sqlite.org/pragma.html#pragma_synchronous).
     conn.pragma_update(None, "synchronous", "EXTRA")?;
+    if !without_file_locks {
+        // With the settings the book is saved with (B-304).
+        lockless::check_save(&conn, path)?;
+    }
     Ok((conn, without_file_locks))
 }
 

@@ -196,6 +196,27 @@ fn a_column_can_be_a_formula_that_names_the_other_columns() {
 }
 
 #[test]
+fn a_formula_that_names_a_category_adds_to_the_total_of_a_chart() {
+    // B-359: a chart of one formula column that names a category had a
+    // total of nothing, as no column's members held the money.
+    let sample = sample();
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let alone = [formula_column("Eating", "Food")];
+    let spending =
+        columns_spending(&source, autumn(), &Filter::default(), &alone, EUR).expect("spending");
+    assert_eq!(spending[0].rows[0].total.minor_units(), 8_820);
+    assert_eq!(spending[0].total.minor_units(), 8_820);
+    // A formula of columns only is made of parts already counted.
+    let made_of_columns = [
+        column("Home", &[GroupMember::Category(sample.rent)]),
+        formula_column("Twice the rent", "2 * Home"),
+    ];
+    let spending = columns_spending(&source, autumn(), &Filter::default(), &made_of_columns, EUR)
+        .expect("spending");
+    assert_eq!(spending[0].total.minor_units(), 240_000);
+}
+
+#[test]
 fn a_formula_period_relative_to_each_month_is_read_for_the_first_month_too() {
     // B-351: "last month" worked out for August is July, which the read for
     // August to October has to cover, or the chart fails with PeriodNotRead.

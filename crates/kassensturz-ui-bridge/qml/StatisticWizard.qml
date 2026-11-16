@@ -410,6 +410,8 @@ ColumnLayout {
                 visible: wizard.step === 1
 
                 ColumnBoard {
+                    id: columnBoard
+
                     Layout.fillWidth: true
                     visible: wizard.hasBoard
                     workbench: wizard.workbench
@@ -640,6 +642,9 @@ ColumnLayout {
             text: wizard.i18nContext.i18nc("@action:button keep the view the wizard made", "Finish")
             icon.name: "dialog-ok-apply"
             highlighted: true
+            // A formula with a period the reader refuses can't be shown;
+            // its reason is under the field (B-351).
+            enabled: !(wizard.hasBoard && columnBoard.periodWrong)
             onClicked: {
                 ActionLog.taken("StatisticWizard_finish")
                 wizard.finish()

@@ -164,6 +164,7 @@ pub mod qobject {
         /// The user took the changes they confirmed back with Undo: the
         /// model hears it with the next question.
         #[qinvokable]
+        #[cxx_name = "changesUndone"]
         fn changes_undone(self: Pin<&mut AiChat>);
 
         /// Starts a new conversation: forgets this one and every set that

@@ -90,6 +90,7 @@ pub mod qobject {
         /// of a formula (`code` and its parameters), or nothing when its
         /// periods are fine (B-351).
         #[qinvokable]
+        #[cxx_name = "periodProblem"]
         fn period_problem(self: Pin<&mut BookFormula>, formula: &QString) -> QVariant;
     }
 }

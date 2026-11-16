@@ -453,6 +453,10 @@ ColumnLayout {
         return formulaBook.periodProblem(text) ?? ({});
     }
 
+    // Whether a column's formula writes a period the reader refuses, so the
+    // wizard doesn't finish a view that can't be shown (B-351).
+    readonly property bool periodWrong: columns.some(column => isFormula(column) && periodProblem(column.formula ?? "").code !== undefined)
+
     // The suggestions for the word at the cursor in the formula of column
     // `index`: {label, detail, start, end, insert}.
     function suggest(index: int, text: string, cursor: int): var {

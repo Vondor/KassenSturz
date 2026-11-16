@@ -321,6 +321,15 @@ Kirigami.ApplicationWindow {
                     window.check(board.formulaProblem(both, "Fast food@\"last 0 days\"") === "", "a period out of range is not told as a name");
                     window.check(board.periodProblem("Fast food@\"last 0 days\"").code === "report.formula-period-count", "a period out of range has the formula reader's reason");
                     window.check(board.formulaProblem(both, "Nonsense + 1") !== "", "a name that is none is still told");
+                    // The field says why, and Finish waits (B-351).
+                    window.check(!board.periodWrong, "a good period does not hold Finish back");
+                    board.setColumnFormula(both, "Fast food@\"last 0 days\"");
+                    const finish = find(wizard, "Button", []).filter(button => button.text === "Finish")[0];
+                    window.check(board.periodWrong && !finish.enabled, "a period out of range holds Finish back");
+                    const said = find(board, "FormError", []).filter(message => message.visible && String(message.text).indexOf("366") >= 0);
+                    window.check(said.length === 1, "the field names the range: " + said.length);
+                    board.setColumnFormula(both, "Fast food@\"last 30 days\"");
+                    window.check(!board.periodWrong && finish.enabled, "a good period lets Finish through again");
                     board.removeColumn(both);
                     // The Formula card is never used up and makes formula columns.
                     const unusedBefore = board.unused.length;

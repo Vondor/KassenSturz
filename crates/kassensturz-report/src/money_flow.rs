@@ -824,4 +824,9 @@ fn drop_unused(b: &mut Builder<'_>, gone: &HashMap<usize, usize>) {
     for node in b.payee_other.values_mut() {
         *node = new_index[*node];
     }
+    // The account nodes made so far too: folding a column that comes after
+    // their first use moves them (B-350).
+    for node in b.accounts.values_mut() {
+        *node = new_index[*node];
+    }
 }

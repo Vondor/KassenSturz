@@ -169,6 +169,10 @@ Kirigami.ScrollablePage {
     // The longest note the page takes: 512, or the loaded note's own length
     // if it is longer, so an imported memo can be changed without being cut
     // (D-703, B-226).
+    // How wide a field of the form may be: 20 units, or the room the page
+    // has when that is less, as at 200% text in the smallest window, where
+    // the form's own width ignores the scrollbar (B-318).
+    readonly property real fieldWidth: Math.min(Kirigami.Units.gridUnit * 20, page.availableWidth - Kirigami.Units.gridUnit * 2)
     readonly property int noteLimit: register.noteLimit(entry.note ?? "")
 
     // `typed` is `before` with text put in (and maybe some taken out) at one
@@ -511,12 +515,11 @@ Kirigami.ScrollablePage {
             visible: page.editable
             spacing: Kirigami.Units.smallSpacing
             Layout.fillWidth: true
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            Layout.maximumWidth: page.fieldWidth
             // The column may be narrower than its wanted width, as at 200%
             // text in the smallest window; its hint then wraps inside the
             // room there is and not under the page's scrollbar (B-318).
             Layout.minimumWidth: 0
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 20
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Note:")
 
             Controls.ScrollView {
@@ -607,7 +610,7 @@ Kirigami.ScrollablePage {
             id: tagField
             visible: page.editable || page.kind === "transfer"
             Layout.fillWidth: true
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+            Layout.maximumWidth: page.fieldWidth
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Tags:")
         }
 

@@ -128,6 +128,21 @@ pub struct Book {
     /// The private copy of the book a read-only book reads, where the
     /// folder refuses locks. Declared after `conn`, so it is closed first.
     _copy: Option<lockless::PrivateFolder>,
+    /// Whether opening took back a save that was cut short (B-364).
+    cut_short: Option<CutShortSave>,
+}
+
+/// A save that was cut short and taken back when the book was opened
+/// (B-364): the book is as it was before that save, so the changes of that
+/// save are not in it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CutShortSave {
+    /// Taken back in the book's folder; nothing else changed there.
+    TakenBack,
+    /// Taken back through a private copy, which took the book's place; the
+    /// book as the cut-short save left it, with its journal, is kept at
+    /// this path, which the user may delete once the book is checked.
+    KeptBeside(PathBuf),
 }
 
 /// One category in the category tree, as [`Book::categories`] lists them.
@@ -266,7 +281,11 @@ impl Book {
         // Before anything reads the book: a save that a killed program or a
         // power cut left half done is taken back first, also where SQLite
         // can't do that in the book's folder (B-364).
-        recovery::finish_cut_short_save(&path)?;
+        let cut_short = match recovery::finish_cut_short_save(&path)? {
+            recovery::Outcome::None => None,
+            recovery::Outcome::InPlace => Some(CutShortSave::TakenBack),
+            recovery::Outcome::ThroughCopy(kept) => Some(CutShortSave::KeptBeside(kept)),
+        };
         loop {
             match Self::read_checked(&path, computer, migrations, first_version) {
                 // A save still going on can also hold the file busy for a
@@ -278,7 +297,9 @@ impl Book {
                 }
                 result => {
                     let (conn, without_file_locks) = result?;
-                    return Self::finish(conn, Some(lock), without_file_locks);
+                    let mut book = Self::finish(conn, Some(lock), without_file_locks)?;
+                    book.cut_short = cut_short;
+                    return Ok(book);
                 }
             }
         }
@@ -367,6 +388,19 @@ impl Book {
         self.without_file_locks
     }
 
+    /// The save that was cut short and taken back when this book was
+    /// opened, if there was one (B-364), so the UI can say that its changes
+    /// are not in the book and where the cut-short file is kept.
+    #[must_use]
+    pub fn cut_short_save(&self) -> Option<&CutShortSave> {
+        self.cut_short.as_ref()
+    }
+
+    /// [`Book::cut_short_save`], told once: the next call returns `None`.
+    pub fn take_cut_short_save(&mut self) -> Option<CutShortSave> {
+        self.cut_short.take()
+    }
+
     /// Creates a new, empty book that lives in memory only: nothing is saved.
     pub fn create_in_memory() -> Result<Self, StoreError> {
         let mut conn = Connection::open_in_memory()?;
@@ -402,6 +436,7 @@ impl Book {
             _lock: lock,
             without_file_locks,
             _copy: None,
+            cut_short: None,
         };
         book.prune_history()?;
         Ok(book)

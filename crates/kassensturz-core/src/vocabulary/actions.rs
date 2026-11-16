@@ -310,6 +310,7 @@ pub const ACTIONS: &[&str] = &[
     "Main_deleteBankLog",
     "Main_deleteLog",
     "Main_drawerOpen",
+    "Main_hideCutShortNote",
     "Main_hideNetworkNote",
     "Main_openFile",
     "Main_overview",

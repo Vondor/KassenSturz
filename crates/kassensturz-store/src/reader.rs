@@ -92,6 +92,7 @@ impl Book {
             _lock: None,
             without_file_locks: copy.is_some(),
             _copy: copy,
+            cut_short: None,
         })
     }
 

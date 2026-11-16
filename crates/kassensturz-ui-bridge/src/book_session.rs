@@ -15,7 +15,7 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 use kassensturz_core::Timestamp;
 use kassensturz_store::{
-    Book, Corruption, Lock, PreparedRestore, StoreError, newest_usable_backup,
+    Book, Corruption, CutShortSave, Lock, PreparedRestore, StoreError, newest_usable_backup,
 };
 
 use crate::backup_copies;
@@ -54,6 +54,14 @@ pub mod qobject {
         #[qproperty(bool, network_drive, cxx_name = "networkDrive", READ, NOTIFY)]
         #[qproperty(bool, network_note_shown, cxx_name = "networkNoteShown", READ, NOTIFY)]
         #[qproperty(bool, without_file_locks, cxx_name = "withoutFileLocks", READ, NOTIFY)]
+        #[qproperty(
+            bool,
+            cut_short_note_shown,
+            cxx_name = "cutShortNoteShown",
+            READ,
+            NOTIFY
+        )]
+        #[qproperty(QString, cut_short_kept, cxx_name = "cutShortKept", READ, NOTIFY)]
         #[qproperty(QString, backup_folder, cxx_name = "backupFolder", READ, CONSTANT)]
         #[qproperty(QString, version, READ, CONSTANT)]
         #[qproperty(bool, from_pull_request, cxx_name = "fromPullRequest", READ, CONSTANT)]
@@ -100,6 +108,11 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "hideNetworkNote"]
         fn hide_network_note(self: Pin<&mut BookSession>);
+
+        /// Hides the note that the last save was cut short (B-364).
+        #[qinvokable]
+        #[cxx_name = "hideCutShortNote"]
+        fn hide_cut_short_note(self: Pin<&mut BookSession>);
 
         /// Forgets `problem`, e.g. when the user goes back to the book that
         /// is open.
@@ -188,6 +201,12 @@ pub struct BookSessionRust {
     /// one and the user didn't hide the note for it (B-321, D-802).
     network_note_shown: bool,
     without_file_locks: bool,
+    /// Whether the note is shown that opening the book took back a save
+    /// that was cut short, so its changes are missing (B-364).
+    cut_short_note_shown: bool,
+    /// The file name of the book as the cut-short save left it, kept next
+    /// to the book; empty if none was kept.
+    cut_short_kept: QString,
     backup_folder: QString,
     version: QString,
     from_pull_request: bool,
@@ -575,6 +594,11 @@ impl qobject::BookSession {
         QVariant::from(&map)
     }
 
+    fn hide_cut_short_note(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().cut_short_note_shown = false;
+        self.as_mut().cut_short_note_shown_changed();
+    }
+
     /// Shows where the open book is.
     fn show_open_book(mut self: Pin<&mut Self>) {
         let Some(path) = session::path() else {
@@ -591,6 +615,16 @@ impl qobject::BookSession {
         let network_note_shown =
             network_drive && crate::network_notice::shown_for(&Settings::user(), &path);
         let without_file_locks = session::without_file_locks();
+        // Told once per opening: showing the book again, e.g. after it was
+        // moved, doesn't bring a hidden note back (B-364).
+        let cut_short = session::with_book_mut(Book::take_cut_short_save).flatten();
+        let cut_short_kept = match &cut_short {
+            Some(CutShortSave::KeptBeside(kept)) => kept
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            _ => String::new(),
+        };
         let mut state = self.as_mut().rust_mut();
         state.open = true;
         state.file_name = QString::from(file_name.as_str());
@@ -599,6 +633,8 @@ impl qobject::BookSession {
         state.network_drive = network_drive;
         state.network_note_shown = network_note_shown;
         state.without_file_locks = without_file_locks;
+        state.cut_short_note_shown = cut_short.is_some();
+        state.cut_short_kept = QString::from(cut_short_kept.as_str());
         self.as_mut().open_changed();
         self.as_mut().file_name_changed();
         self.as_mut().folder_changed();
@@ -606,6 +642,8 @@ impl qobject::BookSession {
         self.as_mut().network_drive_changed();
         self.as_mut().network_note_shown_changed();
         self.as_mut().without_file_locks_changed();
+        self.as_mut().cut_short_note_shown_changed();
+        self.as_mut().cut_short_kept_changed();
     }
 
     fn set_problem(mut self: Pin<&mut Self>, problem: QVariant) {

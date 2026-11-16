@@ -127,7 +127,13 @@ fn a_save_cut_short_by_a_killed_program_is_taken_back() {
     let book = Book::open(&path, &computer(&folder)).expect("the book opens");
     assert_eq!(account_names(&book), ["Checking"]);
     assert!(!journal_of(&path).exists());
+    // The app is told, so it can say the last changes may be missing.
+    assert_eq!(book.cut_short_save(), Some(&crate::CutShortSave::TakenBack));
     drop(book);
+    // Opened again, there is nothing to tell.
+    let again = Book::open(&path, &computer(&folder)).expect("the book opens");
+    assert_eq!(again.cut_short_save(), None);
+    drop(again);
     // Taken back in place: nothing was put beside the book.
     let mut names: Vec<String> = std::fs::read_dir(folder.path())
         .expect("folder read")
@@ -237,4 +243,22 @@ fn the_size_before_a_save_is_read_from_the_journal() {
     let other = folder.join("other-journal");
     std::fs::write(&other, [1u8; 40]).expect("written");
     assert_eq!(size_before_the_save(&other).expect("read"), None);
+}
+
+#[test]
+fn a_book_opened_through_a_private_copy_says_where_the_cut_short_file_is() {
+    let folder = TempFolder::new();
+    let original = book_on_disk(&folder);
+    let path = folder.join("Crashed.ksz");
+    crashed_copy(&original, &path);
+    IN_PLACE_FAILS.set(true);
+    let opened = Book::open(&path, &computer(&folder));
+    IN_PLACE_FAILS.set(false);
+    let book = opened.expect("the book opens");
+    let Some(crate::CutShortSave::KeptBeside(kept)) = book.cut_short_save() else {
+        panic!("{:?}", book.cut_short_save());
+    };
+    assert!(kept.exists());
+    assert!(journal_of(kept).exists());
+    assert_eq!(kept.parent(), path.parent());
 }

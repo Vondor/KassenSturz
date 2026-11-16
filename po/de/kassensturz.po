@@ -13963,6 +13963,24 @@ msgstr ""
 "Haushaltsbuch auf diesem Computer auf; ein Sync-Ordner, etwa von Nextcloud, "
 "ist in Ordnung."
 
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1110
+#, kde-format
+msgctxt "@action:button hides a note"
+msgid "Got it"
+msgstr "Verstanden"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1118
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz was closed while it saved to this book last time, for example by force or by a power cut, so that save was taken back: the book is as it was before it. Check your latest changes and enter again what is missing."
+msgstr "KassenSturz wurde beim letzten Speichern in dieses Haushaltsbuch beendet, zum Beispiel gewaltsam oder durch einen Stromausfall. Deshalb wurde dieses Speichern zurückgenommen: Das Haushaltsbuch ist so, wie es davor war. Prüfen Sie Ihre letzten Änderungen und tragen Sie Fehlendes noch einmal ein."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1122
+#, kde-format
+msgctxt "@info %1 is a file name"
+msgid "The book as that save left it is kept next to it as %1. Once you have checked the book, you can delete that file and the one next to it whose name begins the same."
+msgstr "Das Haushaltsbuch, wie dieses Speichern es hinterlassen hat, liegt daneben als %1. Wenn Sie das Haushaltsbuch geprüft haben, können Sie diese Datei und die daneben, deren Name genauso beginnt, löschen."
+
 #: crates/kassensturz-ui-bridge/qml/Main.qml:824
 #, kde-format
 msgctxt "@action:inmenu a screen"

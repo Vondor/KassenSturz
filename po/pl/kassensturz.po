@@ -12352,6 +12352,24 @@ msgid ""
 "book on this computer; a sync folder, such as Nextcloud's, is fine."
 msgstr "Ta księga jest na dysku sieciowym. Dyski sieciowe mogą uszkodzić księgę, bo nie zapisują zmian tak niezawodnie jak własny dysk tego komputera. Trzymaj księgę na tym komputerze; folder synchronizowany, na przykład Nextcloud, jest w porządku."
 
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1110
+#, kde-format
+msgctxt "@action:button hides a note"
+msgid "Got it"
+msgstr "Rozumiem"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1118
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz was closed while it saved to this book last time, for example by force or by a power cut, so that save was taken back: the book is as it was before it. Check your latest changes and enter again what is missing."
+msgstr "KassenSturz został zamknięty podczas ostatniego zapisu tej księgi, na przykład siłą lub przez zanik zasilania, więc ten zapis został cofnięty: księga jest taka, jak przed nim. Sprawdź swoje ostatnie zmiany i wpisz ponownie to, czego brakuje."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1122
+#, kde-format
+msgctxt "@info %1 is a file name"
+msgid "The book as that save left it is kept next to it as %1. Once you have checked the book, you can delete that file and the one next to it whose name begins the same."
+msgstr "Księga w stanie, w jakim zostawił ją ten zapis, jest zachowana obok jako %1. Po sprawdzeniu księgi możesz usunąć ten plik oraz plik obok, którego nazwa zaczyna się tak samo."
+
 #: crates/kassensturz-ui-bridge/qml/Main.qml:824
 #, kde-format
 msgctxt "@action:inmenu a screen"

@@ -1372,6 +1372,11 @@ fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
         if let Some(shape) = error.expected_shape() {
             object.insert("expected_shape".into(), json!(shape));
         }
+        // A whole number outside its range: the range (#1118).
+        if let Some((min, max)) = error.range() {
+            object.insert("min".into(), json!(min));
+            object.insert("max".into(), json!(max));
+        }
         if let Some(ways) = error.only_for_show_as() {
             // A general list of the argument's words would mislead: the
             // chosen way of drawing takes none of them.

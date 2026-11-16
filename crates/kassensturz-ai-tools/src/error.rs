@@ -27,6 +27,8 @@ pub(crate) mod shape {
     pub(crate) const TRUE_OR_FALSE: &str = "true or false";
     /// Text that is an ID, as the read functions give it.
     pub(crate) const ID: &str = "text that is an ID, as the read functions give it";
+    /// An amount's size, the filters of `search_transactions` (#1118).
+    pub(crate) const SIZE: &str = "a size as plain decimal text without a sign, e.g. 49.99";
 }
 
 /// What [`ToolError::hint`] tells the model when it sent a category's ID
@@ -104,6 +106,27 @@ pub enum ToolError {
         /// What the argument has to be: one of the fixed words of
         /// [`shape`].
         expected: &'static str,
+    },
+    /// A whole-number argument outside the range it takes, such as a
+    /// `limit` of 200 where at most 50 rows are given (#1118). It is
+    /// reported as [`Self::BadArgument`]; the answer to the model adds
+    /// `min` and `max`, so it never has to guess by trying.
+    OutOfRange {
+        /// The argument's name, from the function's fixed list.
+        argument: &'static str,
+        /// The smallest value it takes.
+        min: u64,
+        /// The largest value it takes.
+        max: u64,
+    },
+    /// An argument that takes one of a few fixed words and got another,
+    /// such as `sort` (#1118). It is reported as [`Self::BadArgument`]; the
+    /// answer to the model lists the words in `allowed`.
+    NotOneOf {
+        /// The argument's name, from the function's fixed list.
+        argument: &'static str,
+        /// The words it takes.
+        allowed: &'static [&'static str],
     },
     /// A `propose_view` argument that doesn't suit the chosen data or way of
     /// drawing it, such as `show_as` `line` for data drawn only as bars
@@ -432,6 +455,7 @@ impl ToolError {
             Self::UnknownField { allowed, .. } => Some(allowed),
             Self::UnknownArgument { allowed, .. } if !allowed.is_empty() => Some(allowed),
             Self::NotForChart { allowed, .. } if !allowed.is_empty() => Some(allowed),
+            Self::NotOneOf { allowed, .. } => Some(allowed),
             Self::BadDescription {
                 reason: "data-not-offered",
                 ..
@@ -455,6 +479,15 @@ impl ToolError {
     pub fn expected_shape(&self) -> Option<&'static str> {
         match self.kind() {
             Self::NotShaped { expected, .. } => Some(expected),
+            _ => None,
+        }
+    }
+
+    /// The smallest and the largest value a whole-number argument takes,
+    /// when it got one outside them (#1118).
+    pub fn range(&self) -> Option<(u64, u64)> {
+        match self.kind() {
+            Self::OutOfRange { min, max, .. } => Some((*min, *max)),
             _ => None,
         }
     }
@@ -613,6 +646,8 @@ impl Report for ToolError {
             }
             Self::BadArgument { argument }
             | Self::NotShaped { argument, .. }
+            | Self::OutOfRange { argument, .. }
+            | Self::NotOneOf { argument, .. }
             | Self::NotForChart { argument, .. } => ErrorReport::new("ai-tools.bad-argument")
                 .with("argument", ErrorParam::Keyword(argument)),
             Self::BadArgumentWhy { argument, reason } => ErrorReport::new("ai-tools.bad-argument")

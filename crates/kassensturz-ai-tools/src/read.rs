@@ -1009,6 +1009,9 @@ impl Sort {
         }
     }
 
+    /// The names `sort` takes, in the order of the schema.
+    pub(crate) const NAMES: &'static [&'static str] = &["newest", "largest_out", "largest_in"];
+
     pub(crate) fn from_name(name: &str) -> Option<Self> {
         [Self::Newest, Self::LargestOut, Self::LargestIn]
             .into_iter()

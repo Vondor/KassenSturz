@@ -591,6 +591,11 @@ fn error_result(report: &ErrorReport, error: &ToolError) -> CallToolResult {
     if let Some(shape) = error.expected_shape() {
         value.insert("expected_shape".into(), Value::from(shape));
     }
+    // A whole number outside its range: the range (#1118).
+    if let Some((min, max)) = error.range() {
+        value.insert("min".into(), Value::from(min));
+        value.insert("max".into(), Value::from(max));
+    }
     if let Some(ways) = error.only_for_show_as() {
         value.insert("only_for_show_as".into(), Value::from(ways.to_vec()));
     }
@@ -806,6 +811,44 @@ mod tests {
         assert_eq!(answer["error"], "ai-tools.bad-argument");
         assert_eq!(answer["argument"], "new_rules");
         assert_eq!(answer["expected_shape"], "a list of objects");
+    }
+
+    /// #1118: a limit or a sort the tool doesn't take says what it takes.
+    #[test]
+    fn a_limit_or_sort_out_of_range_says_what_it_takes() {
+        let book = kassensturz_store::Book::create_in_memory().expect("a book");
+        let today = kassensturz_core::Date::constant(2026, 11, 16);
+        let answer = |arguments: Value| -> Value {
+            let error = kassensturz_ai_tools::call(&book, "search_transactions", &arguments, today)
+                .expect_err("refused");
+            let result =
+                serde_json::to_value(error_result(&error.model_report(), &error)).expect("JSON");
+            serde_json::from_str(result["content"][0]["text"].as_str().expect("text"))
+                .expect("JSON text")
+        };
+        assert_eq!(
+            answer(serde_json::json!({"limit": 200})),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "limit",
+                "min": 1,
+                "max": 50,
+            })
+        );
+        assert_eq!(
+            answer(serde_json::json!({"sort": "biggest"})),
+            serde_json::json!({
+                "error": "ai-tools.bad-argument",
+                "argument": "sort",
+                "allowed": ["newest", "largest_out", "largest_in"],
+            })
+        );
+        let amount = answer(serde_json::json!({"min_amount": "-5"}));
+        assert_eq!(amount["argument"], "min_amount");
+        assert_eq!(
+            amount["expected_shape"],
+            "a size as plain decimal text without a sign, e.g. 49.99"
+        );
     }
 
     /// The bill folder's tool (D-739) is offered only with a folder and the

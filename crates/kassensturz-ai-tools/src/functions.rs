@@ -118,6 +118,8 @@ pub const FUNCTIONS: &[Function] = &[
             and what they add to that side (the bank names another of the user's accounts, or \
             another account has the opposite entry within 3 business days); they are in the \
             totals, so tell the user they may be moves instead of leaving them out yourself. \
+            On the spending side money out counts as positive, on the income side money \
+            in (search_transactions instead gives money out as negative). \
             Money not sorted into a category yet has \
             \"unsorted\": true. A row's \"total\" is the category's total with everything \
             inside it: for \"how much on Food\" quote Food's \"total\", never add rows up \
@@ -132,13 +134,15 @@ pub const FUNCTIONS: &[Function] = &[
             each as a whole, and \"accounts\" names them. With \"tag_id\" only the \
             parts with that tag count (on the part or on the whole transaction; the sum by \
             tag), and \"tag\" names it.",
-        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"tag_id":{"type":"string","description":"Only money with this tag, ID from list_tags: the sum by tag."}},"required":["from","to"],"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"account_id":{"type":"string","description":"One account, ID from list_accounts: the same as account_ids with only this ID. Not together with account_ids."},"tag_id":{"type":"string","description":"Only money with this tag, ID from list_tags: the sum by tag."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {
         name: "payee_totals",
         description: "Who the user paid and who paid the user in a period, per currency, \
             largest first: \"paid\" with what went to each payee, \"received\" with what \
-            came from each, and how many transactions. Each payee's figure is net, so a refund \
+            came from each, and how many transactions. Every amount here is positive; the \
+            side says which way the money went (search_transactions instead gives money out \
+            as negative). Each payee's figure is net, so a refund \
             from a shop lowers what was paid to it. Joined Transfers between the user's own \
             accounts and starting balances are left out. Use it for questions such as \"whom did I pay the \
             most\" instead of adding up search results yourself. With \"account_ids\" only \
@@ -146,7 +150,7 @@ pub const FUNCTIONS: &[Function] = &[
             With \"group_by\" \"other_party_name\" entries are grouped by the name the bank \
             gave the other party instead of the payee shown, and rows name it under \
             \"other_party_name\".",
-        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most payees per side and currency. Default 10."},"group_by":{"type":"string","enum":["payee","other_party_name"],"description":"payee: the payee shown in the app, which a Rule may have set to a general name; other_party_name: the name the bank gave the other party. Each falls back to the other when an entry has none. Default payee."}},"required":["from","to"],"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"account_id":{"type":"string","description":"One account, ID from list_accounts: the same as account_ids with only this ID. Not together with account_ids."},"limit":{"type":"integer","minimum":1,"maximum":50,"description":"Most payees per side and currency. Default 10."},"group_by":{"type":"string","enum":["payee","other_party_name"],"description":"payee: the payee shown in the app, which a Rule may have set to a general name; other_party_name: the name the bank gave the other party. Each falls back to the other when an entry has none. Default payee."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {
         name: "search_transactions",
@@ -271,7 +275,7 @@ pub const FUNCTIONS: &[Function] = &[
             the open checking and cash accounts, not credit cards or savings. Accounts in \
             another currency than most of them are in \"left_out_account_ids\", never \
             converted. Amounts are exact decimal text with a dot as the decimal mark.",
-        parameters: r#"{"type":"object","properties":{"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only these accounts, IDs from list_accounts. Leave it out for the open checking and cash accounts."},"months":{"type":"integer","minimum":0,"maximum":12,"description":"How many months after this one to show. Default 3."},"month_starts_on":{"type":"integer","minimum":1,"maximum":31,"description":"The day each month starts on, 1 for calendar months, e.g. the salary day. Leave it out for the day the user's budgets use, as the app's Left this month tile does."}},"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only these accounts, IDs from list_accounts. Leave it out for the open checking and cash accounts."},"account_id":{"type":"string","description":"One account, ID from list_accounts: the same as account_ids with only this ID. Not together with account_ids."},"months":{"type":"integer","minimum":0,"maximum":12,"description":"How many months after this one to show. Default 3."},"month_starts_on":{"type":"integer","minimum":1,"maximum":31,"description":"The day each month starts on, 1 for calendar months, e.g. the salary day. Leave it out for the day the user's budgets use, as the app's Left this month tile does."}},"additionalProperties":false}"#,
     },
     Function {
         name: "monthly_totals",
@@ -289,7 +293,7 @@ pub const FUNCTIONS: &[Function] = &[
             \"category_id\" each month has only that category's row (its \"total\" with \
             everything inside it), for \"how much on Food each month\". Quote the figures as \
             they are and never add months up yourself.",
-        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD. At most 24 months after from."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"tag_id":{"type":"string","description":"Only money with this tag, ID from list_tags."},"category_id":{"type":"string","description":"Only this category's row in each month, ID from list_categories."},"top":{"type":"integer","minimum":1,"maximum":5,"description":"Also name the largest categories per side in each month. Not with category_id."}},"required":["from","to"],"additionalProperties":false}"#,
+        parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD. At most 24 months after from."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"account_id":{"type":"string","description":"One account, ID from list_accounts: the same as account_ids with only this ID. Not together with account_ids."},"tag_id":{"type":"string","description":"Only money with this tag, ID from list_tags."},"category_id":{"type":"string","description":"Only this category's row in each month, ID from list_categories."},"top":{"type":"integer","minimum":1,"maximum":5,"description":"Also name the largest categories per side in each month. Not with category_id."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {
         name: "daily_balances",
@@ -798,10 +802,23 @@ impl<'a> Arguments<'a> {
     /// [`MAX_ACCOUNT_IDS`], each once; not given or empty is every account
     /// (M6-B206, D-667). A category or an ID not in the book is
     /// `ai-tools.unknown-account`, as with `account_id`.
+    ///
+    /// `account_id`, one ID, is taken the same way as `account_ids` with
+    /// only that ID, since the functions about one account call it so and
+    /// models carry the name over (#1119); not both at once.
     fn accounts(&self, names: &Names) -> Result<Vec<AccountId>, ToolError> {
         let bad = || ToolError::BadArgument {
             argument: "account_ids",
         };
+        if let Some(id) = self.id("account_id")? {
+            if self.get("account_ids").is_some() {
+                return Err(ToolError::BadArgument {
+                    argument: "account_id",
+                });
+            }
+            names.own_account(id)?;
+            return Ok(vec![id]);
+        }
         let Some(value) = self.get("account_ids") else {
             return Ok(Vec::new());
         };
@@ -864,7 +881,10 @@ impl<'a> Arguments<'a> {
     fn sort(&self) -> Result<read::Sort, ToolError> {
         self.string("sort")?
             .map(|name| {
-                read::Sort::from_name(name).ok_or(ToolError::BadArgument { argument: "sort" })
+                read::Sort::from_name(name).ok_or(ToolError::NotOneOf {
+                    argument: "sort",
+                    allowed: read::Sort::NAMES,
+                })
             })
             .transpose()
             .map(Option::unwrap_or_default)
@@ -873,7 +893,12 @@ impl<'a> Arguments<'a> {
     /// An amount's size as plain decimal text.
     fn size(&self, name: &'static str) -> Result<Option<read::Size>, ToolError> {
         self.string(name)?
-            .map(|text| read::Size::parse(text).ok_or(ToolError::BadArgument { argument: name }))
+            .map(|text| {
+                read::Size::parse(text).ok_or(ToolError::NotShaped {
+                    argument: name,
+                    expected: crate::error::shape::SIZE,
+                })
+            })
             .transpose()
     }
 
@@ -886,7 +911,11 @@ impl<'a> Arguments<'a> {
             .as_u64()
             .filter(|offset| *offset <= MAX_OFFSET)
             .and_then(|offset| usize::try_from(offset).ok())
-            .ok_or(ToolError::BadArgument { argument: "offset" })
+            .ok_or(ToolError::OutOfRange {
+                argument: "offset",
+                min: 0,
+                max: MAX_OFFSET,
+            })
     }
 
     /// `months`: how many months after the current one a forecast shows,
@@ -900,7 +929,11 @@ impl<'a> Arguments<'a> {
             .as_u64()
             .and_then(|months| usize::try_from(months).ok())
             .filter(|months| *months <= kassensturz_core::MAX_FORECAST_MONTHS)
-            .ok_or(ToolError::BadArgument { argument: "months" })
+            .ok_or(ToolError::OutOfRange {
+                argument: "months",
+                min: 0,
+                max: kassensturz_core::MAX_FORECAST_MONTHS as u64,
+            })
     }
 
     /// `month_starts_on`: the day 1 to 31 each month of a forecast starts
@@ -957,13 +990,21 @@ impl<'a> Arguments<'a> {
                     .as_u64()
                     .and_then(|top| usize::try_from(top).ok())
                     .filter(|top| (1..=read::MAX_MONTHLY_TOP).contains(top))
-                    .ok_or(ToolError::BadArgument { argument: "top" })
+                    .ok_or(ToolError::OutOfRange {
+                        argument: "top",
+                        min: 1,
+                        max: read::MAX_MONTHLY_TOP as u64,
+                    })
             })
             .transpose()
     }
 
     fn limit(&self) -> Result<usize, ToolError> {
-        let bad = ToolError::BadArgument { argument: "limit" };
+        let bad = ToolError::OutOfRange {
+            argument: "limit",
+            min: 1,
+            max: read::MAX_SEARCH_ROWS as u64,
+        };
         match self.get("limit") {
             None => Ok(read::DEFAULT_SEARCH_ROWS),
             Some(value) => value

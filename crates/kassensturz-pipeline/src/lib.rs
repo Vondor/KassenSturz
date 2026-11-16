@@ -165,7 +165,11 @@ pub fn import_statements(
         if let Some(file) = file {
             book.note_file(file)?;
         }
-        run(book, account, statements, choices)
+        let report = run(book, account, statements, choices)?;
+        // From here the import is saved whole: a cancel comes too late
+        // (B-367).
+        stop::check_before_saving()?;
+        Ok(report)
     })
 }
 
@@ -271,6 +275,8 @@ fn run(
         entries.push(EntryResult { entry: at, outcome });
     }
 
+    // Looking for Transfers and running the Rules take seconds in a large
+    // import, and a cancel during them still takes it all back (B-367).
     stop::check()?;
     let (transfers, rules) = if added.is_empty() {
         (Vec::new(), RuleRun::default())
@@ -284,7 +290,10 @@ fn run(
                     || new.contains(&found.incoming.transaction)
             })
             .collect();
-        (transfers, book.run_rules_on(&added)?)
+        stop::check()?;
+        let rules = book.run_rules_on(&added)?;
+        stop::check()?;
+        (transfers, rules)
     };
 
     let parts = book.account_parts(account.id)?;

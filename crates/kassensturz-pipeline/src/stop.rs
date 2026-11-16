@@ -17,25 +17,46 @@
 //! [`kassensturz_import::ImportError::Cancelled`], and [`start`] takes the
 //! cancel back for the next one. [`progress`] says how many entries of the
 //! current import were handled, for a progress bar.
+//!
+//! An import can be cancelled until it starts to save: [`saving`] says
+//! when it got there (B-367). From then on a cancel comes too late and
+//! changes nothing, so the import is either saved whole or not at all.
 
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering};
 
 static REQUESTED: AtomicBool = AtomicBool::new(false);
-static CANCELLED: AtomicBool = AtomicBool::new(false);
+/// Where the import under way is: [`RUNNING`], [`CANCELLED`] or
+/// [`SAVING`]. One value, so a cancel and the start of the save can't
+/// both win.
+static STATE: AtomicU8 = AtomicU8::new(RUNNING);
+const RUNNING: u8 = 0;
+const CANCELLED: u8 = 1;
+const SAVING: u8 = 2;
 static DONE: AtomicUsize = AtomicUsize::new(0);
 static TOTAL: AtomicUsize = AtomicUsize::new(0);
 
 /// Readies the flags for a new import: no cancel, no progress yet. A stop
 /// the app was asked for stays.
 pub fn start() {
-    CANCELLED.store(false, Ordering::Relaxed);
+    STATE.store(RUNNING, Ordering::SeqCst);
     DONE.store(0, Ordering::Relaxed);
     TOTAL.store(0, Ordering::Relaxed);
 }
 
 /// Asks the import under way to stop because the user cancelled it.
-pub fn cancel() {
-    CANCELLED.store(true, Ordering::Relaxed);
+/// Returns whether that came in time: an import that is saving goes on
+/// (B-367).
+pub fn cancel() -> bool {
+    match STATE.compare_exchange(RUNNING, CANCELLED, Ordering::SeqCst, Ordering::SeqCst) {
+        Ok(_) => true,
+        Err(state) => state == CANCELLED,
+    }
+}
+
+/// Whether the import under way is saving, so a cancel comes too late.
+#[must_use]
+pub fn saving() -> bool {
+    STATE.load(Ordering::SeqCst) == SAVING
 }
 
 /// How many entries of the current import were handled, and how many it
@@ -74,10 +95,21 @@ pub fn requested() -> bool {
 pub(crate) fn check() -> Result<(), crate::PipelineError> {
     if requested() {
         Err(kassensturz_import::ImportError::Stopped.into())
-    } else if CANCELLED.load(Ordering::Relaxed) {
+    } else if STATE.load(Ordering::SeqCst) == CANCELLED {
         Err(kassensturz_import::ImportError::Cancelled.into())
     } else {
         Ok(())
+    }
+}
+
+/// The last [`check`] before the import saves: if the user hasn't
+/// cancelled by now, the import is saving, and a later cancel changes
+/// nothing.
+pub(crate) fn check_before_saving() -> Result<(), crate::PipelineError> {
+    check()?;
+    match STATE.compare_exchange(RUNNING, SAVING, Ordering::SeqCst, Ordering::SeqCst) {
+        Err(CANCELLED) => Err(kassensturz_import::ImportError::Cancelled.into()),
+        _ => Ok(()),
     }
 }
 

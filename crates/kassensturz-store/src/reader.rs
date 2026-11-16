@@ -114,6 +114,20 @@ impl Book {
         self.conn
             .execute_batch("BEGIN DEFERRED")
             .map_err(StoreError::from)?;
+        // SQLite's shared lock is taken here, before `read` runs: a book the
+        // app is in the middle of a long save to is "in use", not a database
+        // error from whichever read met it first (B-368). Once held, the
+        // app's save waits for this read to end ([`BUSY_WAIT`]).
+        if let Err(error) = self
+            .conn
+            .query_row("SELECT count(*) FROM sqlite_schema", [], |row| {
+                row.get::<_, i64>(0)
+            })
+        {
+            let _ = self.conn.execute_batch("ROLLBACK");
+            let path = Path::new(self.conn.path().unwrap_or_default());
+            return Err(crate::lock::in_use_instead(path, StoreError::from(error)).into());
+        }
         let result = read(self);
         // A read transaction has nothing to keep, so it ends the same way
         // whether `read` succeeded or not.
@@ -214,6 +228,28 @@ mod tests {
             "{:?}",
             read.err()
         );
+    }
+
+    /// B-368: a reader that opened the book before the app began a long
+    /// save is told the book is in use when it reads, not a database error.
+    #[test]
+    fn a_read_during_a_long_save_is_told_the_book_is_in_use() {
+        let folder = TempFolder::new();
+        let path = book_on_disk(&folder);
+        let reader = Book::open_to_read(&path).expect("opened to read");
+        let writer = Connection::open(&path).expect("opened");
+        writer
+            .execute_batch("BEGIN EXCLUSIVE")
+            .expect("a save under way");
+        let read = reader.reading(|book| book.accounts(false));
+        writer.execute_batch("ROLLBACK").expect("rolled back");
+        assert!(
+            matches!(read, Err(StoreError::Locked(_))),
+            "{:?}",
+            read.err()
+        );
+        // Once the save is over, the same reader reads again.
+        assert!(reader.reading(|book| book.accounts(false)).is_ok());
     }
 
     #[test]

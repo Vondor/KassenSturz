@@ -13987,6 +13987,24 @@ msgctxt "@info:whatsthis"
 msgid "How far the import got"
 msgstr "Wie weit der Import ist"
 
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "Importing the statement"
+msgstr "Kontoauszug wird importiert"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info"
+msgid "Saving the entries in the book. This can't be cancelled anymore."
+msgstr "Die Einträge werden im Haushaltsbuch gespeichert. Das lässt sich jetzt nicht mehr abbrechen."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info"
+msgid "Looking for Transfers and applying your Rules…"
+msgstr "Umbuchungen werden gesucht und Ihre Regeln angewendet…"
+
 #: crates/kassensturz-ui-bridge/qml/Main.qml:1110
 #, kde-format
 msgctxt "@action:button hides a note"

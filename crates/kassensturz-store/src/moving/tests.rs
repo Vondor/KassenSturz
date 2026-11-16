@@ -118,6 +118,8 @@ struct Setup {
     target: PathBuf,
     checking: AccountId,
     opening: AccountId,
+    /// The tag of the book's identity, which its backups' names carry.
+    tag: String,
 }
 
 impl Setup {
@@ -149,6 +151,7 @@ impl Setup {
             &[(groceries, eur(1_234)), (checking, eur(-1_234))],
         ))
         .expect("added");
+        let tag = book.book_id().expect("an identity").tag();
         drop(book);
         Self {
             folder,
@@ -157,6 +160,7 @@ impl Setup {
             target,
             checking,
             opening,
+            tag,
         }
     }
 
@@ -182,7 +186,7 @@ impl Setup {
     fn move_backups(&self) -> Vec<String> {
         names_in(&self.computer.backup_folder)
             .into_iter()
-            .filter(|name| move_backup_stamp(name, "Household").is_some())
+            .filter(|name| move_backup_stamp(name, &self.tag).is_some())
             .collect()
     }
 }
@@ -793,8 +797,13 @@ fn the_last_three_move_backups_are_kept_apart_from_the_ten() {
     let automatic_backups = |at: &Path| {
         let book = Book::open(at, &setup.computer).expect("book opened");
         for _ in 0..12 {
-            crate::backup::back_up(&book.conn, at, &setup.computer.backup_folder)
-                .expect("backed up");
+            crate::backup::back_up(
+                &book.conn,
+                at,
+                &setup.computer.backup_folder,
+                book.book_id().as_ref(),
+            )
+            .expect("backed up");
         }
     };
     // Twelve automatic backups: the last ten stay.
@@ -842,44 +851,56 @@ fn move_backup_names_are_recognized_strictly() {
     let stamp = "2026-11-13 03-04-05 UTC";
     for (name, expected) in [
         (
-            "Household 2026-11-13 03-04-05 UTC before moving.ksz",
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC before moving.ksz",
             Some((stamp, 1)),
         ),
         (
-            "Household 2026-11-13 03-04-05 UTC before moving 2.ksz",
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC before moving 2.ksz",
             Some((stamp, 2)),
         ),
         (
-            "Household 2026-11-13 03-04-05 UTC vor dem Verschieben.ksz",
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC vor dem Verschieben.ksz",
             Some((stamp, 1)),
         ),
         (
-            "Household 2026-11-13 03-04-05 UTC vor dem Verschieben 2.ksz",
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC vor dem Verschieben 2.ksz",
             Some((stamp, 2)),
         ),
         // The automatic backups' names.
-        ("Household 2026-11-13 03-04-05 UTC.ksz", None),
-        ("Household 2026-11-13 03-04-05 UTC 2.ksz", None),
+        ("Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC.ksz", None),
+        (
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC 2.ksz",
+            None,
+        ),
         // Another book's, and names no move gives.
-        ("Garden 2026-11-13 03-04-05 UTC before moving.ksz", None),
-        ("Household before moving 2026-11-13 03-04-05 UTC.ksz", None),
         (
-            "Household 2026-11-13 03-04-05 UTC before moving 1.ksz",
+            "Garden [ffffffffffff] 2026-11-13 03-04-05 UTC before moving.ksz",
             None,
         ),
         (
-            "Household 2026-11-13 03-04-05 UTC before moving 02.ksz",
+            "Household [a1b2c3d4e5f6] before moving 2026-11-13 03-04-05 UTC.ksz",
             None,
         ),
         (
-            "Household 2026-11-13 03-04-05 UTC before moving.ksz.part",
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC before moving 1.ksz",
             None,
         ),
-        ("Household 2026-11-13 03:04:05 UTC before moving.ksz", None),
+        (
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC before moving 02.ksz",
+            None,
+        ),
+        (
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC before moving.ksz.part",
+            None,
+        ),
+        (
+            "Household [a1b2c3d4e5f6] 2026-11-13 03:04:05 UTC before moving.ksz",
+            None,
+        ),
     ] {
-        assert_eq!(move_backup_name(name, "Household"), expected, "{name}");
+        assert_eq!(move_backup_name(name, "a1b2c3d4e5f6"), expected, "{name}");
         assert_eq!(
-            move_backup_stamp(name, "Household"),
+            move_backup_stamp(name, "a1b2c3d4e5f6"),
             expected.map(|(stamp, _)| stamp)
         );
     }
@@ -888,16 +909,29 @@ fn move_backup_names_are_recognized_strictly() {
 #[test]
 fn move_backups_are_listed_apart_from_the_automatic_ones() {
     let folder = TempFolder::new();
+    let id = crate::BookId::from_bytes(&[
+        0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    ])
+    .expect("an ID");
     for name in [
-        "Household 2026-11-12 09-00-00 UTC.ksz",
-        "Household 2026-11-13 03-04-05 UTC before moving.ksz",
-        "Household 2026-11-13 03-04-05 UTC before moving 2.ksz",
-        "Garden 2026-11-13 03-04-05 UTC before moving.ksz",
+        "Household [a1b2c3d4e5f6] 2026-11-12 09-00-00 UTC.ksz",
+        "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC vor dem Verschieben.ksz",
+        "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC vor dem Verschieben 2.ksz",
+        // Renamed since: the tag still says whose it is.
+        "Giro [a1b2c3d4e5f6] 2026-11-15 03-04-05 UTC vor dem Verschieben.ksz",
+        // Another book with the same name, another with another name.
+        "Household [ffffffffffff] 2026-11-13 03-04-05 UTC vor dem Verschieben.ksz",
+        "Garden [a1b2c3d4e5f7] 2026-11-13 03-04-05 UTC vor dem Verschieben.ksz",
+        // From before books had an identity: whose, nobody can tell.
+        "Household 2026-11-10 03-04-05 UTC before moving.ksz",
+        "Household 2026-11-11 03-04-05 UTC vor dem Verschieben.ksz",
     ] {
         fs::write(folder.join(name), "made up").expect("written");
     }
-    fs::create_dir(folder.join("Household 2026-11-14 03-04-05 UTC before moving.ksz"))
-        .expect("made");
+    fs::create_dir(
+        folder.join("Household [a1b2c3d4e5f6] 2026-11-14 03-04-05 UTC vor dem Verschieben.ksz"),
+    )
+    .expect("made");
     let book = Path::new("/books/Household.ksz");
     let names = |found: Vec<crate::BackupFile>| -> Vec<String> {
         found
@@ -912,18 +946,26 @@ fn move_backups_are_listed_apart_from_the_automatic_ones() {
             .collect()
     };
     assert_eq!(
-        names(move_backups_of(book, &folder.join(".")).expect("listed")),
+        names(move_backups_of(&id, &folder.join(".")).expect("listed")),
         [
-            "Household 2026-11-13 03-04-05 UTC before moving 2.ksz",
-            "Household 2026-11-13 03-04-05 UTC before moving.ksz",
+            "Giro [a1b2c3d4e5f6] 2026-11-15 03-04-05 UTC vor dem Verschieben.ksz",
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC vor dem Verschieben 2.ksz",
+            "Household [a1b2c3d4e5f6] 2026-11-13 03-04-05 UTC vor dem Verschieben.ksz",
+        ]
+    );
+    assert_eq!(
+        names(crate::older_move_backups_of(book, &folder.join(".")).expect("listed")),
+        [
+            "Household 2026-11-11 03-04-05 UTC vor dem Verschieben.ksz",
+            "Household 2026-11-10 03-04-05 UTC before moving.ksz",
         ]
     );
     // The copies in a chosen folder are counted by the automatic ones only.
     assert_eq!(
-        names(crate::backups_of(book, &folder.join(".")).expect("listed")),
-        ["Household 2026-11-12 09-00-00 UTC.ksz"]
+        names(crate::backups_of(&id, &folder.join(".")).expect("listed")),
+        ["Household [a1b2c3d4e5f6] 2026-11-12 09-00-00 UTC.ksz"]
     );
-    assert!(move_backups_of(book, &folder.join("gone")).is_err());
+    assert!(move_backups_of(&id, &folder.join("gone")).is_err());
 }
 
 #[test]

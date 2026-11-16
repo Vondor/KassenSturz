@@ -402,13 +402,16 @@ impl qobject::BookSession {
         // Only a backup the page lists, never any file QML names.
         let wanted = PathBuf::from(path.to_string());
         let chosen = backup_copies::chosen(&Settings::user()).map(|chosen| chosen.path);
-        let (listed, _) = backup_copies::listed(&book, &backups, chosen.as_deref());
+        let Some(id) = session::with_book(Book::book_id).flatten() else {
+            return refused("restore.no-book");
+        };
+        let (listed, _) = backup_copies::listed(&book, &id, &backups, chosen.as_deref());
         if !listed.iter().any(|listed| listed.path == wanted) {
             return refused("restore.not-listed");
         }
         // Checked and copied next to the book first, so the backup below
         // can't prune the one being restored.
-        let prepared = match PreparedRestore::new(&wanted, &book) {
+        let prepared = match PreparedRestore::new(&wanted, &book, &id) {
             Ok(prepared) => prepared,
             Err(
                 StoreError::NotABook

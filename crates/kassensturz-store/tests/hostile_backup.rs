@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use kassensturz_core::{
     Account, AccountId, AccountKind, CurrencyCode, Date, Money, Split, Transaction, TransactionId,
 };
-use kassensturz_store::{Book, Computer, PreparedRestore};
+use kassensturz_store::{Book, Computer, PreparedRestore, book_id_of_file};
 
 struct TempFolder(PathBuf);
 
@@ -92,8 +92,9 @@ fn book_and_backup(folder: &TempFolder) -> (PathBuf, PathBuf) {
 /// part file left next to it.
 fn assert_refused(backup: &Path, book: &Path) {
     let before = fs::read(book).expect("book read");
+    let id = book_id_of_file(book).expect("the book has an identity");
     assert!(
-        PreparedRestore::new(backup, book).is_err(),
+        PreparedRestore::new(backup, book, &id).is_err(),
         "a damaged backup was accepted for a restore"
     );
     assert_eq!(fs::read(book).expect("book read"), before);
@@ -169,7 +170,8 @@ fn a_restore_into_a_read_only_folder_changes_nothing() {
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).expect("locked");
     // Running as the superuser, a read-only folder doesn't stop anyone.
     let writable = fs::write(locked.join("probe"), b"x").is_ok();
-    let result = PreparedRestore::new(&backup, &book);
+    let id = book_id_of_file(&book).expect("the book has an identity");
+    let result = PreparedRestore::new(&backup, &book, &id);
     fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).expect("unlocked");
     let _ = fs::remove_file(locked.join("probe"));
     if !writable {

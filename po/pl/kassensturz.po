@@ -4984,6 +4984,18 @@ msgid ""
 "share to allow file locks. The book wasn't changed."
 msgstr "W tym folderze nie można blokować plików, więc KassenSturz nie otworzył księgi: dwa programy mogłyby zmieniać ją jednocześnie i ją uszkodzić. Skopiuj księgę do folderu na tym komputerze i otwórz ją stamtąd albo poproś osobę, która skonfigurowała udział, o zezwolenie na blokowanie plików. Księga nie została zmieniona."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:126
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The last save to this book was cut short, for example because KassenSturz "
+"was closed by force, and KassenSturz couldn't finish putting the book back "
+"as it was before that save. Nothing is lost: what it needs is in a second "
+"file next to the book, whose name begins with the book's name. Don't delete "
+"or move that file on its own. Copy the book together with that file to a folder on this "
+"computer, then open the book there."
+msgstr "Ostatni zapis tej księgi został przerwany, na przykład dlatego, że KassenSturz został zamknięty siłą, i KassenSturz nie zdołał przywrócić księgi do stanu sprzed tego zapisu. Nic nie zostało utracone: to, czego potrzeba, jest w drugim pliku obok księgi, którego nazwa zaczyna się od nazwy księgi. Nie usuwaj ani nie przenoś tego pliku osobno. Skopiuj księgę razem z tym plikiem do folderu na tym komputerze, a potem otwórz ją tam."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:99
 #, kde-format
 msgctxt "@info"

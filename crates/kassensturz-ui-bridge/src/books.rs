@@ -146,7 +146,7 @@ impl Problem {
             Self::Replaced { .. } => "book.replaced",
             Self::OutsideTest { .. } => "book.outside-test",
             Self::NoAppFolder => "book.no-app-folder",
-            Self::Store { error, .. } => error.report().code,
+            Self::Store { error, .. } => error.log_code(),
         }
     }
 

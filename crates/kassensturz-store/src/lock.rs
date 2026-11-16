@@ -392,10 +392,12 @@ fn book_is_held_shut(book: &Path) -> bool {
 /// open, so the answer is the in-use page and not a general error (B-315).
 pub(crate) fn in_use_instead(book: &Path, error: StoreError) -> StoreError {
     let busy = match &error {
-        StoreError::Database(database) => matches!(
-            database.0.sqlite_error_code(),
-            Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)
-        ),
+        StoreError::Database(database) => {
+            matches!(
+                database.0.sqlite_error_code(),
+                Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)
+            ) || cut_short_save_unread(&database.0)
+        }
         StoreError::Io(_) => book_is_held_shut(book),
         _ => false,
     };
@@ -404,6 +406,18 @@ pub(crate) fn in_use_instead(book: &Path, error: StoreError) -> StoreError {
     } else {
         error
     }
+}
+
+/// Whether `error` is SQLite's answer to a read-only connection that meets
+/// a save cut short (`SQLITE_READONLY_ROLLBACK`): only a program that may
+/// write can take that save back, which the app does when it opens the
+/// book (B-364), so to a reader the book is in use until then.
+fn cut_short_save_unread(error: &rusqlite::Error) -> bool {
+    matches!(
+        error,
+        rusqlite::Error::SqliteFailure(failure, _)
+            if failure.extended_code == rusqlite::ffi::SQLITE_READONLY_ROLLBACK
+    )
 }
 
 /// Turns an I/O error met before the book's lock is taken into the lock

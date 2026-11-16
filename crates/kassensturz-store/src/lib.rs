@@ -28,6 +28,7 @@ mod moving;
 mod names;
 mod originals;
 mod reader;
+mod recovery;
 mod recurring_moves;
 mod rules;
 mod schedules;
@@ -262,6 +263,10 @@ impl Book {
             lock::wait_for_journal(&path, until);
             until
         });
+        // Before anything reads the book: a save that a killed program or a
+        // power cut left half done is taken back first, also where SQLite
+        // can't do that in the book's folder (B-364).
+        recovery::finish_cut_short_save(&path)?;
         loop {
             match Self::read_checked(&path, computer, migrations, first_version) {
                 // A save still going on can also hold the file busy for a

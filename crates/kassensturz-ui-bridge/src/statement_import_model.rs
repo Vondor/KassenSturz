@@ -478,6 +478,13 @@ impl qobject::StatementImport {
         let shown =
             session::with_book(|book| statement_import::error_text(book, error, &app_locale()))
                 .unwrap_or_else(|| ErrorText::plain("input.no-such-entry"));
+        // The code in the developer log, so a failed import shows there
+        // (B-364); a book's refusal with SQLite's kind of error.
+        let logged = match error {
+            StatementImportError::Store(store) => store.log_code(),
+            _ => shown.code,
+        };
+        crate::note!(ImportRefused, None, Some(logged));
         error_object(&shown)
     }
 }

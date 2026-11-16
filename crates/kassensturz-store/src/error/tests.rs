@@ -156,6 +156,7 @@ fn examples() -> Vec<ErrorReport> {
         StoreError::WriteFailed,
         StoreError::LockLost,
         StoreError::LocksUnsupported,
+        StoreError::UnfinishedSave,
         StoreError::JournalModeRefused { mode: text("wal") },
         StoreError::UnlistedCurrency(USD),
         StoreError::WithdrawnCurrency(USD),

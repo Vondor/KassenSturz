@@ -5661,6 +5661,27 @@ msgstr ""
 "die Freigabe eingerichtet hat, Dateisperren zu erlauben. Das "
 "Haushaltsbuch wurde nicht verändert."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:126
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The last save to this book was cut short, for example because KassenSturz "
+"was closed by force, and KassenSturz couldn't finish putting the book back "
+"as it was before that save. Nothing is lost: what it needs is in a second "
+"file next to the book, whose name begins with the book's name. Don't delete "
+"or move that file on its own. Copy the book together with that file to a folder on this "
+"computer, then open the book there."
+msgstr ""
+"Das letzte Speichern in dieses Haushaltsbuch wurde abgebrochen, zum "
+"Beispiel weil KassenSturz gewaltsam beendet wurde, und KassenSturz konnte "
+"das Haushaltsbuch nicht wieder in den Stand vor diesem Speichern bringen. "
+"Es ist nichts verloren: Was dafür nötig ist, steht in einer zweiten Datei "
+"neben dem Haushaltsbuch, deren Name mit dem Namen des Haushaltsbuchs "
+"beginnt. Löschen oder verschieben "
+"Sie diese Datei nicht allein. Kopieren Sie das Haushaltsbuch zusammen mit "
+"dieser Datei in einen Ordner auf diesem Computer und öffnen Sie es dann "
+"dort."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:99
 #, kde-format
 msgctxt "@info"

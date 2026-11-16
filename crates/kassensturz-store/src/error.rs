@@ -526,6 +526,12 @@ pub enum StoreError {
     /// (B-304). The book isn't opened without locks there: two writers could
     /// damage it. Copying it to a local folder is the way out.
     LocksUnsupported,
+    /// The book's last save was cut short (the program was killed or the
+    /// computer lost power during it), and taking that save back failed
+    /// both in the book's folder and through a private copy (B-364). The
+    /// book wasn't changed: what taking it back needs is in the rollback
+    /// journal next to it, which must stay with the book.
+    UnfinishedSave,
 }
 
 /// What's wrong with data read from a book.
@@ -658,6 +664,31 @@ fn refused_by_layout_23(error: &rusqlite::Error) -> bool {
         error,
         rusqlite::Error::SqliteFailure(_, Some(message)) if message.starts_with(DELIVERED_KEPT)
     )
+}
+
+impl StoreError {
+    /// The error's code for the developer log: the code of its report, but
+    /// for a database error with SQLite's kind of error after it, e.g.
+    /// `store.database.io`, so a log tells a disk error from a busy or
+    /// read-only book where the page says the same (B-364).
+    #[must_use]
+    pub fn log_code(&self) -> &'static str {
+        use rusqlite::ErrorCode as C;
+        let Self::Database(DatabaseError(error)) = self else {
+            return self.report().code;
+        };
+        match error.sqlite_error_code() {
+            Some(C::SystemIoFailure) => "store.database.io",
+            Some(C::ReadOnly) => "store.database.read-only",
+            Some(C::DatabaseBusy | C::DatabaseLocked) => "store.database.busy",
+            Some(C::CannotOpen) => "store.database.cannot-open",
+            Some(C::DatabaseCorrupt) => "store.database.corrupt",
+            Some(C::DiskFull) => "store.database.full",
+            Some(C::PermissionDenied) => "store.database.permission",
+            Some(_) => "store.database.other",
+            None => "store.database.rust",
+        }
+    }
 }
 
 impl Report for StoreError {
@@ -979,6 +1010,7 @@ impl Report for StoreError {
             Self::WriteFailed => new("store.write-failed"),
             Self::LockLost => new("store.lock-lost"),
             Self::LocksUnsupported => new("store.locks-unsupported"),
+            Self::UnfinishedSave => new("store.unfinished-save"),
         }
     }
 }

@@ -123,6 +123,9 @@ Kirigami.Page {
             return i18nContext.i18nc("@info", "Another computer opened this book anyway, so KassenSturz closed it here. Your latest change here was not saved if it came after that. Close the book on the other computer, then choose \"Try again\" to open it here.");
         case "store.locks-unsupported":
             return i18nContext.i18nc("@info", "This folder can't lock files, so KassenSturz didn't open the book: two programs could change it at the same time and damage it. Copy the book to a folder on this computer and open it from there, or ask whoever set up the share to allow file locks. The book wasn't changed.");
+        case "store.unfinished-save":
+            // B-364: nothing is lost, so no backup is offered.
+            return i18nContext.i18nc("@info", "The last save to this book was cut short, for example because KassenSturz was closed by force, and KassenSturz couldn't finish putting the book back as it was before that save. Nothing is lost: what it needs is in a second file next to the book, whose name begins with the book's name. Don't delete or move that file on its own. Copy the book together with that file to a folder on this computer, then open the book there.");
         case "store.journal-mode-refused":
             return i18nContext.i18nc("@info", "The book's file couldn't be set up safely, so KassenSturz didn't open it. Copy the book to a folder on this computer and open it from there.");
         case "store.io":

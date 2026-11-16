@@ -58,6 +58,14 @@ QtObject {
         return {start: match.index, end: cursor, names: names};
     }
 
+    // The mistake in a period, or nothing (B-351).
+    function periodProblem(text) {
+        if (text.indexOf("last 0 days") >= 0) {
+            return {code: "report.formula-period-count", position: "7", unit: "days", most: "366"};
+        }
+        return undefined;
+    }
+
     function functions() {
         return {separator: ";", decimal: ",", functions: [
             {name: "SUM", arguments: ["x", "…"]},

@@ -8,4 +8,8 @@ import QtQuick
 Item {
     property var ai
     property var result
+    property var settings
+    property bool offerSettings: false
+    signal settingsClicked()
+    signal useV1Clicked()
 }

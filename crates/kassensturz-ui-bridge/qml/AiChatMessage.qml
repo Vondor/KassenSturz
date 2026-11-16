@@ -205,6 +205,8 @@ ColumnLayout {
     // A chart the AI prepared, drawn from the book, with Keep, Change… and
     // Leave out (M6c.9, D-355).
     AiChartCard {
+        id: chartCard
+
         Layout.fillWidth: true
         // Shown for a chart only; the card is inside this message, which
         // is hidden with the rest of AI (D-013).
@@ -213,11 +215,19 @@ ColumnLayout {
         chat: item.chat
         setId: item.message.kind === "chart" ? item.message.setId : ""
         unverified: item.message.kind === "chart" ? (item.message.unverified ?? []) : []
-        outcome: item.message.kind === "chart" ? (item.message.outcome ?? "") : ""
         dashboardName: item.dashboardName
         onChangeClicked: (title, component, period) => item.chartChangeClicked(title, component, period)
         onAddToOverviewClicked: (component, period) => item.chartAddToOverviewClicked(component, period)
         onHandled: outcome => item.chartHandled(outcome)
+    }
+
+    // The card sets its own `outcome` when a button is pressed, which would
+    // end a plain binding; a Binding keeps following the message, so a chart
+    // taken back with Undo shows it (B-358).
+    Binding {
+        target: chartCard
+        property: "outcome"
+        value: item.message.kind === "chart" ? (item.message.outcome ?? "") : ""
     }
 
     // The AI's last attempt at a change was refused and nothing waits:

@@ -96,17 +96,44 @@ impl Names {
     }
 
     /// Category `id` and every category below it.
+    ///
+    /// Found by walking each category's parents, never by comparing name
+    /// paths: an income and an expense category may share a name (D-082),
+    /// and so may their sub-categories (#1110).
     pub(crate) fn category_and_below(
         &self,
         id: AccountId,
     ) -> Result<HashSet<AccountId>, ToolError> {
-        let top = self.paths.get(&id).ok_or(ToolError::UnknownCategory)?;
+        if !self.paths.contains_key(&id) {
+            return Err(ToolError::UnknownCategory);
+        }
         Ok(self
             .paths
-            .iter()
-            .filter(|(_, path)| path.starts_with(top))
-            .map(|(&id, _)| id)
+            .keys()
+            .copied()
+            .filter(|&category| self.is_in(category, id))
             .collect())
+    }
+
+    /// Whether category `category` is `top` or sits somewhere below it.
+    fn is_in(&self, category: AccountId, top: AccountId) -> bool {
+        let mut current = Some(category);
+        // A category tree is never deeper than the book has categories, so
+        // the walk ends even if a damaged book had a parent loop.
+        for _ in 0..=self.paths.len() {
+            match current {
+                Some(id) if id == top => return true,
+                Some(id) => {
+                    current = self
+                        .accounts
+                        .get(&id)
+                        .and_then(|account| account.parent)
+                        .filter(|parent| self.paths.contains_key(parent));
+                }
+                None => return false,
+            }
+        }
+        false
     }
 }
 

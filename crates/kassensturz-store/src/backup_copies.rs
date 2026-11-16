@@ -15,7 +15,7 @@
 //! from opening.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::ErrorKind;
+use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::Timestamp;
@@ -404,11 +404,18 @@ fn adopt_identity(path: &Path, id: &BookId) -> Result<(), StoreError> {
     Ok(())
 }
 
-/// Copies the file `from` into `to` and makes sure the copy is on the disk.
+/// Copies the file `from` into the file `to`, which the caller has made,
+/// and makes sure the copy is on the disk.
+///
+/// Only the bytes are copied, never the permissions: a backup the user made
+/// read-only must still restore, and a read-only copy could not be opened
+/// for writing or synced (#1113).
 fn copy_and_sync(from: &Path, to: &Path) -> Result<(), StoreError> {
-    fs::copy(from, to)?;
+    let mut source = File::open(from)?;
     // Windows syncs only files opened for writing.
-    OpenOptions::new().write(true).open(to)?.sync_all()?;
+    let mut target = OpenOptions::new().write(true).truncate(true).open(to)?;
+    io::copy(&mut source, &mut target)?;
+    target.sync_all()?;
     Ok(())
 }
 
@@ -468,6 +475,13 @@ impl PreparedRestore {
             .open(&partial)?;
         let prepared = Self { partial, book };
         copy_and_sync(&backup, &prepared.partial)?;
+        // The restored book keeps the book's own permissions, e.g. readable
+        // only by the user, whatever the backup file's were (#1113).
+        if let Ok(metadata) = fs::metadata(&prepared.book)
+            && !metadata.permissions().readonly()
+        {
+            fs::set_permissions(&prepared.partial, metadata.permissions())?;
+        }
         if found.is_none() {
             // The copy is the book's own from now on: it keeps the book's
             // identity, or every backup tied to it, the one made just
@@ -1140,6 +1154,60 @@ mod tests {
         let newest = backups_of(&id, &backups).expect("listed");
         let before = Book::open(&newest[0].path, &computer(&TempFolder::new())).expect("opens");
         assert_eq!(account_names(&before), ["Giro", "Savings"]);
+    }
+
+    /// Sets or clears the read-only mark of the file at `path`.
+    fn set_read_only(path: &Path, read_only: bool) {
+        let mut permissions = fs::metadata(path).expect("metadata").permissions();
+        permissions.set_readonly(read_only);
+        fs::set_permissions(path, permissions).expect("permissions set");
+    }
+
+    /// #1113: a backup the user made read-only restores, and the restored
+    /// book is not read-only. Both kinds: one with the book's identity, and
+    /// an older one without, whose copy is opened for writing to take it.
+    #[test]
+    fn a_read_only_backup_restores_to_a_writable_book() {
+        let folder = TempFolder::new();
+        let (mut book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        let backup = book.back_up_now(&path, &backups).expect("backed up");
+        let older = backups.join("Household 2026-09-01 09-00-00 UTC.ksz");
+        fs::copy(&backup, &older).expect("copied");
+        Connection::open(&older)
+            .and_then(|conn| {
+                conn.execute_batch("DROP TABLE book_identity; PRAGMA user_version = 33;")
+            })
+            .expect("made old");
+        add_account(&mut book, "Savings");
+        let id = book.book_id().expect("an identity");
+        drop(book);
+
+        for from in [&backup, &older] {
+            set_read_only(from, true);
+            let prepared = PreparedRestore::new(from, &path, &id).expect("made ready");
+            prepared.put_in_place().expect("put in place");
+            assert!(
+                !fs::metadata(&path)
+                    .expect("metadata")
+                    .permissions()
+                    .readonly(),
+                "{from:?}"
+            );
+            let mut restored = Book::open(&path, &computer(&folder)).expect("book opens");
+            assert_eq!(account_names(&restored), ["Giro"]);
+            add_account(&mut restored, "Savings");
+            drop(restored);
+            // The backup is left as the user made it.
+            assert!(
+                fs::metadata(from)
+                    .expect("metadata")
+                    .permissions()
+                    .readonly()
+            );
+            // So the folder can be removed on every system.
+            set_read_only(from, false);
+        }
     }
 
     #[test]

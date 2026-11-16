@@ -407,6 +407,15 @@ impl<'a> Parser<'a> {
             1 if name != "BkToCstmrStmt" => return Err(self.malformed()),
             _ => {}
         }
+        // An element of another namespace, e.g. a bank tool's extension, is
+        // never read as a statement's own element, even when its local name
+        // is one, nor is anything inside it (#1112). `{` cannot start an XML
+        // name, so the mark cannot meet a real one.
+        let name = if in_camt053 {
+            name
+        } else {
+            format!("{{other}}{name}")
+        };
         self.path.push(name);
         self.text.clear();
         self.attribute = None;
@@ -469,7 +478,7 @@ impl<'a> Parser<'a> {
         let position = self.position();
         if let Some(field) = self.field.take() {
             let text = std::mem::take(&mut self.text);
-            self.keep(field, text, position);
+            self.keep(field, text, position)?;
         }
         let below = self.below_statement();
         let below: Option<Vec<&str>> = below
@@ -515,7 +524,14 @@ impl<'a> Parser<'a> {
     }
 
     /// Stores the text of a finished element where it belongs.
-    fn keep(&mut self, field: Field, text: String, position: usize) {
+    ///
+    /// An amount or a credit/debit mark may come only once per entry and
+    /// balance: a second one is refused rather than guessed between, so an
+    /// amount never changes without the user seeing it (#1112).
+    fn keep(&mut self, field: Field, text: String, position: usize) -> Result<(), ImportError> {
+        let twice = || ImportError::Malformed {
+            line: Some(line_at(self.input.as_bytes(), position)),
+        };
         let raw = |text: String| Raw { text, position };
         // A text that is only whitespace, as pretty-printing leaves around
         // an empty element, is no text.
@@ -548,11 +564,17 @@ impl<'a> Parser<'a> {
             }
             Field::BalanceAmount => {
                 if let Some(balance) = self.balance.as_mut() {
+                    if balance.amount.is_some() {
+                        return Err(twice());
+                    }
                     balance.amount = Some(amount(text, attribute));
                 }
             }
             Field::BalanceIndicator => {
                 if let Some(balance) = self.balance.as_mut() {
+                    if balance.indicator.is_some() {
+                        return Err(twice());
+                    }
                     balance.indicator = Some(raw(text));
                 }
             }
@@ -563,11 +585,17 @@ impl<'a> Parser<'a> {
             }
             Field::EntryAmount => {
                 if let Some(entry) = self.entry.as_mut() {
+                    if entry.amount.is_some() {
+                        return Err(twice());
+                    }
                     entry.amount = Some(amount(text, attribute));
                 }
             }
             Field::EntryIndicator => {
                 if let Some(entry) = self.entry.as_mut() {
+                    if entry.indicator.is_some() {
+                        return Err(twice());
+                    }
                     entry.indicator = Some(raw(text));
                 }
             }
@@ -637,6 +665,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+        Ok(())
     }
 
     /// Turns what the file says about one statement into numbers and dates.

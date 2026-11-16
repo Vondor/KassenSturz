@@ -144,6 +144,23 @@ ColumnLayout {
         }
     }
 
+    // The user took back the changes the AI prepared with Undo (B-354): the
+    // latest kept chart or made changes say so, instead of still saying they
+    // are saved.
+    function markUndone() {
+        for (let i = messages.count - 1; i >= 0; i--) {
+            const message = messages.get(i).message;
+            if (message.kind === "chart" && (message.outcome === "kept" || message.outcome === "added")) {
+                messages.set(i, { message: { kind: "chart", setId: message.setId, unverified: message.unverified, outcome: "undone" } });
+                return;
+            }
+            if (message.kind === "changesDone" && message.applied && message.undone !== true) {
+                messages.set(i, { message: { kind: "changesDone", applied: true, undone: true } });
+                return;
+            }
+        }
+    }
+
     // The review screen or the user's choice ended with a set.
     function markHandled(setId: string, applied: bool) {
         for (let i = 0; i < messages.count; i++) {

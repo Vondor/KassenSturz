@@ -283,10 +283,28 @@ pub fn columns_spending(
             .into_iter()
             .find(|each| each.currency == data.currency)
             .map_or(Money::zero(data.currency), |each| each.totals[0]);
+        // A formula that names the book's own categories (not only other
+        // columns) is money no column's members hold: its figure adds to the
+        // total, or a chart of formulas alone would say it spent nothing
+        // (B-359). One that names only columns adds nothing, as it is made
+        // of parts already counted.
+        let names: Vec<&str> = columns.iter().map(|column| column.name.as_str()).collect();
+        let mut total = once;
+        for (column, figure) in columns.iter().zip(&data.totals) {
+            let stands_alone = match column.formula.as_deref() {
+                Some(text) => Formula::parse(text)?.names_beyond(&names),
+                None => false,
+            };
+            if stands_alone {
+                total = total.checked_add(*figure).map_err(|_| {
+                    ReportError::Store(kassensturz_store::StoreError::AmountOverflow)
+                })?;
+            }
+        }
         results.push(SpendingByCategory {
             currency: data.currency,
             rows,
-            total: once,
+            total,
             hidden: Vec::new(),
             hidden_total: Money::zero(data.currency),
         });

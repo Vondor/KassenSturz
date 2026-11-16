@@ -249,9 +249,45 @@ impl Book {
             return Err(StoreError::NotABook);
         }
         let lock = lock(&path)?;
-        let (mut conn, without_file_locks) = connect(&path)
+        // A book just taken over from a program that may be saving to it at
+        // this moment can be read half written: SQLite's locks don't reach
+        // across a network share, so what looks damaged may be a save that
+        // is a few hundred milliseconds from done. Its journal going away
+        // is waited for, and a book that still looks damaged is read again
+        // until it settles; only one that stays damaged is called so
+        // (B-353).
+        let settle_until = lock.taken_over().then(|| {
+            let until = std::time::Instant::now() + lock::SETTLE;
+            lock::wait_for_journal(&path, until);
+            until
+        });
+        loop {
+            match Self::read_checked(&path, computer, migrations, first_version) {
+                Err(StoreError::Corrupt(_))
+                    if settle_until.is_some_and(|until| std::time::Instant::now() < until) =>
+                {
+                    std::thread::sleep(lock::SETTLE_STEP);
+                }
+                result => {
+                    let (conn, without_file_locks) = result?;
+                    return Self::finish(conn, Some(lock), without_file_locks);
+                }
+            }
+        }
+    }
+
+    /// Connects to the book at `path`, whose lock is taken, updates its
+    /// layout if it is older, and checks that nothing in it is damaged:
+    /// the part of [`Book::open_updating`] after the lock.
+    fn read_checked(
+        path: &Path,
+        computer: &Computer,
+        migrations: &[&str],
+        first_version: i32,
+    ) -> Result<(Connection, bool), StoreError> {
+        let (mut conn, without_file_locks) = connect(path)
             .map_err(integrity::damaged_if_malformed)
-            .map_err(|error| lock::in_use_instead(&path, error))?;
+            .map_err(|error| lock::in_use_instead(path, error))?;
         // Before anything is read from the book, and before any backup or
         // migration writes to the file, so a file cut short or with a page
         // SQLite can't parse is a damaged book, not a generic database
@@ -269,7 +305,7 @@ impl Book {
             older if (first_version..current).contains(&older) => {
                 backup::back_up(
                     &conn,
-                    &path,
+                    path,
                     &computer.backup_folder,
                     BookId::try_read(&conn).as_ref(),
                 )
@@ -287,7 +323,7 @@ impl Book {
         integrity::check_references(&conn)?;
         integrity::check_balances(&conn)?;
         integrity::check_conversions(&conn)?;
-        Self::finish(conn, Some(lock), without_file_locks)
+        Ok((conn, without_file_locks))
     }
 
     /// [`Book::open`] with the layouts `migrations`, for the tests of an

@@ -354,6 +354,26 @@ pub struct FilterView {
     pub yes_no: bool,
 }
 
+/// Every number in a chart's `title` and in the titles of its
+/// `description`: the AI wrote them, so the review lists them to check
+/// (B-361). Unlike the chat, the review doesn't know what the user said, so
+/// it marks every one, never fewer.
+fn title_numbers(title: Option<&str>, description: Option<&str>) -> Vec<String> {
+    title
+        .map(str::to_owned)
+        .into_iter()
+        .chain(
+            description
+                .map(kassensturz_ai_tools::description_titles)
+                .unwrap_or_default(),
+        )
+        .flat_map(|text| {
+            kassensturz_ai_tools::check_numbers(&text, &kassensturz_ai_tools::Figures::new())
+        })
+        .map(|number| number.text)
+        .collect()
+}
+
 /// The filters of `description`, the chart's own and each layer's, in
 /// the order they are written. Empty for no description or one that can't
 /// be read (the preview says why).
@@ -595,6 +615,10 @@ pub enum ChangeView {
         charts: Vec<&'static str>,
         /// The filters of a description the AI wrote, in words (D-729).
         filters: Vec<FilterView>,
+        /// The numbers in its title and the titles of its description: the
+        /// AI's text, never worked out from the book, so the review marks
+        /// them, whichever way the change came (B-361, A7).
+        title_numbers: Vec<String>,
     },
     /// A saved chart changed (D-681).
     EditView {
@@ -609,6 +633,9 @@ pub enum ChangeView {
         /// The filters of a description the AI wrote anew, in words
         /// (D-729).
         filters: Vec<FilterView>,
+        /// The numbers in a new title and in the titles of a description
+        /// written anew, as for [`ChangeView::NewView`] (B-361).
+        title_numbers: Vec<String>,
     },
     /// A saved chart deleted (D-681).
     DeleteView {
@@ -1196,6 +1223,7 @@ fn view_of(
                     .collect()
             },
             filters: filter_views(new.description(), locale),
+            title_numbers: title_numbers(Some(&new.title), new.description()),
         },
         ProposedChange::EditView(edit) => ChangeView::EditView {
             before: edit.before.clone(),
@@ -1205,6 +1233,10 @@ fn view_of(
             filters: filter_views(
                 edit.description().filter(|_| edit.writes_description()),
                 locale,
+            ),
+            title_numbers: title_numbers(
+                (edit.title != edit.before).then_some(edit.title.as_str()),
+                edit.description().filter(|_| edit.writes_description()),
             ),
         },
         ProposedChange::DeleteView(delete) => ChangeView::DeleteView {
@@ -2272,6 +2304,32 @@ mod tests {
         assert!(book.account(first.id).unwrap().closed);
         assert!(book.undo().unwrap().is_some());
         assert!(!book.account(first.id).unwrap().closed);
+    }
+
+    /// B-361 (A7): a chart an outside AI proposed through the MCP server
+    /// reaches the same review, and the figures in its title are listed
+    /// there to check, since nobody worked them out from the book.
+    #[test]
+    fn the_numbers_in_a_proposed_charts_title_are_listed_for_the_review() {
+        let book = space_colony();
+        let call = serde_json::json!({
+            "title": "Savings 4512.30 by 2027",
+            "data": "spending_by_category",
+            "show_as": "auto",
+            "period": "this-year",
+        });
+        let proposal = kassensturz_ai_tools::propose_view(
+            &book,
+            &call,
+            Permissions::all(),
+            kassensturz_core::Date::new(2026, 11, 9).unwrap(),
+        )
+        .unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
+        let [ChangeView::NewView { title_numbers, .. }] = views.as_slice() else {
+            panic!("one chart: {views:?}");
+        };
+        assert_eq!(title_numbers, &["4512.30"]);
     }
 
     #[test]

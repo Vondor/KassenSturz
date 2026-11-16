@@ -1810,6 +1810,15 @@ Kirigami.ScrollablePage {
                         text: chartCard.modelData.title
                     }
 
+                    // The AI wrote the numbers in the title, also when an
+                    // outside AI proposed the chart (B-361, A7).
+                    Kirigami.InlineMessage {
+                        Layout.fillWidth: true
+                        type: Kirigami.MessageType.Warning
+                        visible: (chartCard.modelData.titleNumbers ?? []).length > 0
+                        text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a list of numbers", "Check the numbers in this title before you keep it: the AI wrote them as text, so they are never worked out from your book, may be made up, and go along with any dashboard file you share: %1", chartCard.modelData.titleNumbers.join(", "))) : ""
+                    }
+
                     Controls.Label {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
@@ -1892,12 +1901,21 @@ Kirigami.ScrollablePage {
                         text: changedChartCard.modelData.title
                     }
 
+                    // The AI wrote the numbers in the title, also when an
+                    // outside AI proposed the chart (B-361, A7).
+                    Kirigami.InlineMessage {
+                        Layout.fillWidth: true
+                        type: Kirigami.MessageType.Warning
+                        visible: (changedChartCard.modelData.titleNumbers ?? []).length > 0
+                        text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a list of numbers", "Check the numbers in this title before you keep it: the AI wrote them as text, so they are never worked out from your book, may be made up, and go along with any dashboard file you share: %1", changedChartCard.modelData.titleNumbers.join(", "))) : ""
+                    }
+
                     Controls.Label {
                         Layout.fillWidth: true
                         visible: changedChartCard.modelData.before !== changedChartCard.modelData.title
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
-                        text: page.i18nContext.i18nc("@info %1 is the name a saved chart has now", "Now called: %1", changedChartCard.modelData.before)
+                        text: page.i18nContext.i18nc("@info %1 is the name a saved chart has before the change", "Called %1 until now.", changedChartCard.modelData.before)
                     }
 
                     Controls.Label {

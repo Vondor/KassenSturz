@@ -15,6 +15,15 @@ const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Err(_) => panic!("EUR is a valid code"),
 };
 
+/// The flags hold for the whole program: one test at a time.
+static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn one_at_a_time() -> std::sync::MutexGuard<'static, ()> {
+    ONE_AT_A_TIME
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 fn sample() -> (Book, AccountId, Statement) {
     let mut book = Book::create_in_memory().expect("book created");
     book.use_currency(EUR).expect("currency used");
@@ -54,6 +63,7 @@ fn sample() -> (Book, AccountId, Statement) {
 
 #[test]
 fn a_cancelled_import_writes_nothing_and_the_next_one_runs() {
+    let _one = one_at_a_time();
     let (mut book, checking, statement) = sample();
     stop::start();
     stop::cancel();
@@ -77,4 +87,25 @@ fn a_cancelled_import_writes_nothing_and_the_next_one_runs() {
         .expect("imported");
     assert_eq!(book.register(checking).expect("register").len(), 20);
     assert_eq!(stop::progress(), (20, 20));
+}
+
+/// Once an import saves, a cancel comes too late and says so (B-367): the
+/// app hides Cancel then, and the import is saved whole.
+#[test]
+fn a_cancel_once_the_import_saves_comes_too_late() {
+    let _one = one_at_a_time();
+    let (mut book, checking, statement) = sample();
+    stop::start();
+    assert!(!stop::saving());
+    import_statements(&mut book, checking, &[statement], &Choices::default(), None)
+        .expect("imported");
+    assert!(stop::saving());
+    assert!(!stop::cancel());
+    assert_eq!(book.register(checking).expect("register").len(), 20);
+
+    // The next import can be cancelled again.
+    stop::start();
+    assert!(!stop::saving());
+    assert!(stop::cancel());
+    assert!(stop::cancel());
 }

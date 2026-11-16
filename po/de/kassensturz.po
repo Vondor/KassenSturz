@@ -13987,6 +13987,24 @@ msgctxt "@info:whatsthis"
 msgid "How far the import got"
 msgstr "Wie weit der Import ist"
 
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "Importing the statement"
+msgstr "Kontoauszug wird importiert"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info"
+msgid "Saving the entries in the book. This can't be cancelled anymore."
+msgstr "Die Einträge werden im Haushaltsbuch gespeichert. Das lässt sich jetzt nicht mehr abbrechen."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info"
+msgid "Looking for Transfers and applying your Rules…"
+msgstr "Umbuchungen werden gesucht und Ihre Regeln angewendet…"
+
 #: crates/kassensturz-ui-bridge/qml/Main.qml:1110
 #, kde-format
 msgctxt "@action:button hides a note"
@@ -20093,9 +20111,9 @@ msgid "Saved charts that change"
 msgstr "Gespeicherte Diagramme, die sich ändern"
 
 #, kde-format
-msgctxt "@info %1 is the name a saved chart has now"
-msgid "Now called: %1"
-msgstr "Heißt jetzt: %1"
+msgctxt "@info %1 is the name a saved chart has before the change"
+msgid "Called %1 until now."
+msgstr "Hieß bisher %1."
 
 #, kde-format
 msgctxt "@info"
@@ -25755,9 +25773,9 @@ msgid "After the change: %1"
 msgstr "Nach der Änderung: %1"
 
 #, kde-format
-msgctxt "@info %1 is the name a plan has now"
-msgid "It is called %1 now."
-msgstr "Sie heißt jetzt %1."
+msgctxt "@info %1 is the name a plan has before the change"
+msgid "Called %1 until now."
+msgstr "Hieß bisher %1."
 
 #, kde-format
 msgctxt "@info"

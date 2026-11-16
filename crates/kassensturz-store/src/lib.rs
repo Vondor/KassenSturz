@@ -130,6 +130,11 @@ pub struct Book {
     _copy: Option<lockless::PrivateFolder>,
     /// Whether opening took back a save that was cut short (B-364).
     cut_short: Option<CutShortSave>,
+    /// The Rules the AI made that an undo took away while they still had
+    /// their mark for the user's eyes: a redo that brings one back brings
+    /// the mark back too (B-370). Kept while the book is open, since the
+    /// mark isn't part of the history.
+    parked_ai_marks: std::collections::HashSet<kassensturz_core::RuleId>,
 }
 
 /// A save that was cut short and taken back when the book was opened
@@ -437,6 +442,7 @@ impl Book {
             without_file_locks,
             _copy: None,
             cut_short: None,
+            parked_ai_marks: std::collections::HashSet::new(),
         };
         book.prune_history()?;
         Ok(book)

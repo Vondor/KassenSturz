@@ -19,7 +19,7 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use kassensturz_core::{AccountId, Date, Timestamp, TransactionId};
+use kassensturz_core::{AccountId, Date, RuleId, Timestamp, TransactionId};
 use rusqlite::{Connection, OptionalExtension, ToSql, params};
 
 use crate::cached::Cached;
@@ -1226,9 +1226,26 @@ impl Book {
         Ok(())
     }
 
+    /// Whether the book has the Rule `rule`.
+    fn rule_exists(&self, rule: RuleId) -> Result<bool, StoreError> {
+        Ok(self.conn.query_row_cached(
+            "SELECT EXISTS (SELECT 1 FROM main.rules WHERE id = ?1)",
+            [rule.to_bytes()],
+            |row| row.get(0),
+        )?)
+    }
+
     fn write_back(&mut self, schema: &str, change: ChangeId, side: Side) -> Result<(), StoreError> {
         self.conn
             .execute_cached("INSERT INTO temp.history_state (recording) VALUES (0)", [])?;
+        // The AI's Rules that an earlier undo took away with their mark:
+        // those this change brings back get it again (B-370).
+        let away: Vec<RuleId> = self
+            .parked_ai_marks
+            .iter()
+            .copied()
+            .filter(|rule| !self.rule_exists(*rule).unwrap_or(true))
+            .collect();
         let id = change.to_bytes();
         // The book must hold what the other side says, or the values written
         // back wouldn't fit what is around them.
@@ -1282,12 +1299,33 @@ impl Book {
         })?;
         // The marks of Rules the AI made aren't recorded (layout 32): with
         // the foreign keys off nothing removes the mark of a Rule that was
-        // taken away, so it goes here.
+        // taken away, so it goes here, and is kept aside for a redo that
+        // brings the Rule back (B-370).
+        let taken_away: Vec<[u8; 16]> = {
+            let mut statement = self.conn.prepare_cached(
+                "SELECT rule_id FROM main.unchecked_ai_rules
+                 WHERE rule_id NOT IN (SELECT id FROM main.rules)",
+            )?;
+            statement
+                .query_map([], |row| row.get(0))?
+                .collect::<Result<_, _>>()?
+        };
         self.conn.execute_cached(
             "DELETE FROM main.unchecked_ai_rules
              WHERE rule_id NOT IN (SELECT id FROM main.rules)",
             [],
         )?;
+        for rule in away {
+            if self.rule_exists(rule)? {
+                self.conn.execute_cached(
+                    "INSERT OR IGNORE INTO main.unchecked_ai_rules (rule_id) VALUES (?1)",
+                    [rule.to_bytes()],
+                )?;
+                self.parked_ai_marks.remove(&rule);
+            }
+        }
+        self.parked_ai_marks
+            .extend(taken_away.into_iter().map(RuleId::from_bytes));
         let broken_references: i64 = self.conn.query_row_cached(
             "SELECT count(*) FROM pragma_foreign_key_check",
             [],

@@ -153,7 +153,9 @@ pub mod qobject {
         fn cancel_work(self: Pin<&mut StatementImport>);
 
         /// How far the preview or import under way got: `done` and `total`
-        /// entries, both 0 before it counted them.
+        /// entries, both 0 before it counted them; `importing` when it is
+        /// the import, and `saving` once it saves and can't be cancelled
+        /// anymore (B-367).
         #[qinvokable]
         fn progress(self: &StatementImport) -> QVariant;
     }
@@ -193,6 +195,9 @@ pub struct StatementImportRust {
     /// Whether the user forgot the file while it worked: what comes back
     /// is dropped then.
     forget_after_work: bool,
+    /// Whether the work under way is the import, which writes, rather than
+    /// the preview (B-367).
+    importing: bool,
 }
 
 /// What the worker thread does.
@@ -508,7 +513,11 @@ impl qobject::StatementImport {
     }
 
     fn progress(&self) -> QVariant {
-        progress_object(kassensturz_pipeline::stop::progress())
+        progress_object(
+            kassensturz_pipeline::stop::progress(),
+            self.rust().importing,
+            kassensturz_pipeline::stop::saving(),
+        )
     }
 
     /// Runs `work` on a worker thread with the open book and the loaded
@@ -532,6 +541,7 @@ impl qobject::StatementImport {
             let mut rust = self.as_mut().rust_mut();
             rust.working = true;
             rust.forget_after_work = false;
+            rust.importing = work == Work::Import;
         }
         self.as_mut().working_changed();
         let thread = self.qt_thread();
@@ -582,7 +592,14 @@ impl qobject::StatementImport {
         }
         self.as_mut().working_changed();
         let result = match outcome {
-            _ if forget => map([("cancelled", QVariant::from(&true))]),
+            _ if forget => {
+                // A cancel that came once the import was saving didn't stop
+                // it (B-367): the book changed all the same.
+                if work == Work::Import && matches!(outcome, Some(Ok(_))) {
+                    self.as_mut().changed();
+                }
+                map([("cancelled", QVariant::from(&true))])
+            }
             Some(Ok(view)) => {
                 let shown = view_object(&view);
                 match work {
@@ -641,9 +658,14 @@ impl qobject::StatementImport {
 }
 
 /// The progress for QML: `done` and `total` entries.
-fn progress_object((done, total): (usize, usize)) -> QVariant {
+fn progress_object((done, total): (usize, usize), importing: bool, saving: bool) -> QVariant {
     let count = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX));
-    map([("done", count(done)), ("total", count(total))])
+    map([
+        ("done", count(done)),
+        ("total", count(total)),
+        ("importing", QVariant::from(&importing)),
+        ("saving", QVariant::from(&saving)),
+    ])
 }
 
 fn view_object(view: &ImportView) -> QVariant {
@@ -850,6 +872,27 @@ mod tests {
             text: exact.to_owned(),
             exact: exact.to_owned(),
         }
+    }
+
+    /// The progress reaches the import's dialog in `Main.qml` with how far
+    /// it got, whether it is the import, and whether it is saving, when
+    /// the dialog hides Cancel (B-367).
+    #[test]
+    fn the_progress_says_when_the_import_saves() {
+        let progress = object(&progress_object((49_000, 49_000), true, true));
+        let number = |key: &str| {
+            progress
+                .get(&QString::from(key))
+                .and_then(|value| value.value::<i32>())
+                .unwrap_or_else(|| panic!("no number `{key}`"))
+        };
+        assert_eq!(number("done"), 49_000);
+        assert_eq!(number("total"), 49_000);
+        assert!(flag(&progress, "importing"));
+        assert!(flag(&progress, "saving"));
+        let reading = object(&progress_object((3, 10), false, false));
+        assert!(!flag(&reading, "importing"));
+        assert!(!flag(&reading, "saving"));
     }
 
     /// The summary lists the pairs joined by themselves with the fields

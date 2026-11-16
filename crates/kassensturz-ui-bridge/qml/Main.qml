@@ -303,9 +303,13 @@ Kirigami.ApplicationWindow {
     Kirigami.Dialog {
         id: importWorkDialog
 
-        property var progress: ({ done: 0, total: 0 })
+        property var progress: ({ done: 0, total: 0, importing: false, saving: false })
 
-        title: root.i18nContext.i18nc("@title:window", "Reading the statement")
+        // The import writes, the preview only reads; once the import
+        // saves, it can't be cancelled anymore (B-367).
+        title: Plain.plain(importWorkDialog.progress.importing
+            ? root.i18nContext.i18nc("@title:window", "Importing the statement")
+            : root.i18nContext.i18nc("@title:window", "Reading the statement"))
         padding: Kirigami.Units.largeSpacing
         preferredWidth: Kirigami.Units.gridUnit * 22
         modal: true
@@ -316,6 +320,7 @@ Kirigami.ApplicationWindow {
             Kirigami.Action {
                 text: root.i18nContext.i18nc("@action:button", "Cancel")
                 icon.name: "dialog-cancel"
+                visible: !importWorkDialog.progress.saving
                 onTriggered: {
                     ActionLog.taken("Main_cancelImportWork")
                     statementImporter.cancelWork()
@@ -330,9 +335,14 @@ Kirigami.ApplicationWindow {
                 Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
-                text: importWorkDialog.progress.total > 0
-                    ? root.i18nContext.i18nc("@info %1 and %2 are numbers of entries", "%1 of %2 entries", importWorkDialog.progress.done, importWorkDialog.progress.total)
-                    : root.i18nContext.i18nc("@info", "Getting ready…")
+                text: importWorkDialog.progress.saving
+                    ? root.i18nContext.i18nc("@info", "Saving the entries in the book. This can't be cancelled anymore.")
+                    : importWorkDialog.progress.total > 0
+                        && importWorkDialog.progress.done >= importWorkDialog.progress.total
+                        ? root.i18nContext.i18nc("@info", "Looking for Transfers and applying your Rules…")
+                        : importWorkDialog.progress.total > 0
+                            ? root.i18nContext.i18nc("@info %1 and %2 are numbers of entries", "%1 of %2 entries", importWorkDialog.progress.done, importWorkDialog.progress.total)
+                            : root.i18nContext.i18nc("@info", "Getting ready…")
             }
 
             Controls.ProgressBar {
@@ -358,7 +368,7 @@ Kirigami.ApplicationWindow {
 
             function onWorkingChanged() {
                 if (statementImporter.working) {
-                    importWorkDialog.progress = { done: 0, total: 0 };
+                    importWorkDialog.progress = { done: 0, total: 0, importing: false, saving: false };
                     importWorkDialog.open();
                 } else {
                     importWorkDialog.close();
@@ -902,7 +912,10 @@ Kirigami.ApplicationWindow {
     function startBookFromFile(file: url) {
         const result = bookFromFileState.start(file);
         if (result.code !== undefined) {
-            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            // The file was meant as a book, so its messages say so, e.g. a
+            // KMyMoney file too large is no "statement" (B-366).
+            const forBook = errorTexts.messageForNewBook(result);
+            showPassiveNotification(forBook !== "" ? forBook : errorTexts.messageFor(result), 12000);
             return;
         }
         pushPage(bookFromFilePage);

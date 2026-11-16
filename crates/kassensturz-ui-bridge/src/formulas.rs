@@ -181,6 +181,24 @@ fn excerpt(text: &str, position: usize) -> (String, String) {
     )
 }
 
+/// The mistake in how a formula writes a period (`@"last 0 days"`), if it
+/// has one: the same reasons the formula's own reader gives, for a field that
+/// checks names itself and so cannot tell a period from a name (B-351).
+pub fn period_mistake(book: &Book, locale: &impl Locale, text: &str) -> Option<Mistake> {
+    let text = text.trim();
+    let written = if text.starts_with('=') {
+        text.to_owned()
+    } else {
+        format!("={text}")
+    };
+    match parse(&written, true, locale) {
+        Err(error @ (ReportError::FormulaPeriodCount { .. } | ReportError::BadPeriod)) => {
+            Some(mistake(book, locale, &written, &error, false))
+        }
+        _ => None,
+    }
+}
+
 fn mistake(
     book: &Book,
     locale: &impl Locale,

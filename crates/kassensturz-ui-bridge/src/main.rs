@@ -82,6 +82,7 @@ mod grid_editor_model;
 mod history;
 mod history_model;
 mod install_paths;
+mod invokable_names_audit;
 mod kmy_reports_import;
 mod kmy_reports_import_model;
 mod language;

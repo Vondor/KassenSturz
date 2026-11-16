@@ -224,7 +224,7 @@ fn without_an_encoding_utf_8_comes_first_and_a_byte_order_mark_decides() {
 }
 
 fn rows(text: &str, delimiter: char) -> Vec<(u64, Vec<String>)> {
-    let mut rows = Rows::new(text, delimiter, 1);
+    let mut rows = Rows::new(text, delimiter, 1, Limits::default().max_text_bytes);
     let mut all = Vec::new();
     while let Some(row) = rows.next_row() {
         let row = row.expect("a valid row");
@@ -263,7 +263,7 @@ fn rows_are_split_as_rfc_4180_says() {
 #[test]
 fn a_broken_quote_fails_with_its_line() {
     for text in ["a\n\"b;c\nd\n", "a\n\"b\"c;d\n"] {
-        let mut rows = Rows::new(text, ';', 1);
+        let mut rows = Rows::new(text, ';', 1, Limits::default().max_text_bytes);
         assert!(rows.next_row().is_some_and(|row| row.is_ok()));
         assert_eq!(
             rows.next_row().map(|row| row.err()),
@@ -276,14 +276,14 @@ fn a_broken_quote_fails_with_its_line() {
 #[test]
 fn a_row_with_too_many_fields_is_refused() {
     let text = ";".repeat(MAX_COLUMNS);
-    let mut rows = Rows::new(&text, ';', 1);
+    let mut rows = Rows::new(&text, ';', 1, Limits::default().max_text_bytes);
     assert_eq!(
         rows.next_row().map(|row| row.err()),
         Some(Some(ImportError::Malformed { line: Some(1) }))
     );
     let text = ";".repeat(MAX_COLUMNS - 1);
     assert!(
-        Rows::new(&text, ';', 1)
+        Rows::new(&text, ';', 1, Limits::default().max_text_bytes)
             .next_row()
             .is_some_and(|row| row.is_ok())
     );
@@ -682,4 +682,36 @@ fn an_old_profile_meeting_a_header_row_is_refused_not_skipped() {
     let settings = CsvSettings::from_text(&format!("{base}header = yes\n")).expect("settings");
     let read = read(settings, "Datum;Betrag\n05.10.2026;-12,50\n").expect("read");
     assert_eq!(read[0].entries.len(), 1);
+}
+
+/// B-360: a file with one huge line got the app killed for memory while it
+/// showed the first rows. A field longer than a text may be is refused on
+/// its line, in the preview and when the file is read, quoted or not, and
+/// whether or not a column of it is read.
+#[test]
+fn a_field_longer_than_a_text_may_be_is_refused_on_its_line() {
+    let max = Limits::default().max_text_bytes;
+    let long = "X".repeat(max + 1);
+    let just = "X".repeat(max);
+    let too_long = ImportError::TextTooLong {
+        max_bytes: max,
+        line: Some(2),
+    };
+    for row in [
+        format!("01.10.2026;-1,00;{long}"),
+        format!("01.10.2026;-1,00;\"{long}\""),
+    ] {
+        let input = format!("Datum;Betrag;Empfänger\n{row}\n");
+        assert_eq!(
+            csv_preview(input.as_bytes(), None, ';', 0, 10),
+            Err(too_long.clone())
+        );
+        // Column 3 isn't read by these settings, and still refuses the file.
+        let mut settings = simple();
+        settings.skip_lines = 1;
+        assert_eq!(read(settings, &input), Err(too_long.clone()));
+    }
+    let input = format!("Datum;Betrag;Empfänger\n01.10.2026;-1,00;{just}\n");
+    let rows = csv_preview(input.as_bytes(), None, ';', 0, 10).expect("preview");
+    assert_eq!(rows[1][2].len(), max);
 }

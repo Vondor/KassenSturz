@@ -1133,6 +1133,17 @@ fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -
         }
         "group_by" => (Vec::new(), None, fits.grouped_as.clone()),
         "measure" if drawn_as(&["figure"]) => (fits.measure.clone(), None, Vec::new()),
+        // No way of drawing this data takes a measure (the money flow): the
+        // refusal still says so, for the hint that tells the model what to
+        // do (B-352).
+        "measure" if suiting(&["figure"]).is_empty() => {
+            return ToolError::NotForChart {
+                argument,
+                allowed: Vec::new(),
+                use_instead: None,
+                only_for_show_as: Vec::new(),
+            };
+        }
         "measure" => (Vec::new(), None, suiting(&["figure"])),
         // A spending bar or table compares with its six words (US3.1a), a
         // key figure and a progress bar with three; anything else with none.
@@ -1299,6 +1310,22 @@ fn check(
         // the model can choose again without guessing.
         let refused = || match choices.is_empty() {
             true => ToolError::BadArgument { argument: name },
+            // A measure for a way of drawing that takes none says what suits
+            // the data, with the same hint as any other chart (B-352).
+            false
+                if name == "measure"
+                    && given("show_as").and_then(Value::as_str) != Some("figure") =>
+            {
+                match what_suits(arguments, allowed, name) {
+                    ToolError::BadArgument { .. } => ToolError::NotForChart {
+                        argument: name,
+                        allowed: choices.clone(),
+                        use_instead: None,
+                        only_for_show_as: Vec::new(),
+                    },
+                    error => error,
+                }
+            }
             false => ToolError::NotForChart {
                 argument: name,
                 allowed: choices.clone(),

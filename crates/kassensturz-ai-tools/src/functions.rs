@@ -246,9 +246,10 @@ pub const FUNCTIONS: &[Function] = &[
             \"unit\"), its first due day, the day it ends if it ends, \"paused\": true if \
             the user paused it, and \"next_due\", the next day it is due that has no entry \
             yet. \"paid_to\" or \"received_from\" is the other party the user remembered. \
-            With the reading of categories, its category. Only the user makes, changes, \
-            pauses, matches or skips a plan, in the app under Accounts; you can't change \
-            one. Amounts are exact decimal text with a dot as the decimal mark.",
+            With the reading of categories, its category. Where the user allows it, \
+            propose_changes prepares new plans and changes to plans for the user to \
+            confirm; only the user matches, skips or removes a plan, in the app under \
+            Accounts. Amounts are exact decimal text with a dot as the decimal mark.",
         parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
     },
     Function {

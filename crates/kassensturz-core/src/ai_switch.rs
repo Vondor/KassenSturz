@@ -161,11 +161,23 @@ pub enum Permission {
     /// accident (D-739). It reads the transactions, so it switches
     /// Transactions › Read on.
     FileBills,
+    /// Prepare new planned payments (Planned payments, Add; US7, B-357,
+    /// D-814). Its own cell, off by default: a plan is what the user
+    /// expects in the future, so a user who allowed sorting never allowed
+    /// the AI to plan. The amount is one the user named or one an entry
+    /// was booked with, never one the model worked out. It reads the
+    /// transactions, so it switches Transactions › Read on.
+    NewPlans,
+    /// Change the amount, how often, the end, the name, the category or
+    /// the pause of planned payments (Planned payments, Change; US7,
+    /// B-357, D-814). It reads the transactions, so it switches
+    /// Transactions › Read on.
+    EditPlans,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 28] = [
+    pub const ALL: [Self; 30] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -194,6 +206,8 @@ impl Permission {
         Self::SplitTransactions,
         Self::AttachBills,
         Self::FileBills,
+        Self::NewPlans,
+        Self::EditPlans,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -227,6 +241,8 @@ impl Permission {
             Self::SplitTransactions => "AllowSplitTransactions",
             Self::AttachBills => "AllowAttachBills",
             Self::FileBills => "AllowFileBills",
+            Self::NewPlans => "AllowNewPlans",
+            Self::EditPlans => "AllowEditPlans",
         }
     }
 
@@ -247,7 +263,9 @@ impl Permission {
             | Self::TagTransactions
             | Self::SplitTransactions
             | Self::AttachBills
-            | Self::FileBills => Row::Transactions,
+            | Self::FileBills
+            | Self::NewPlans
+            | Self::EditPlans => Row::Transactions,
             Self::ChartsRead
             | Self::NewViews
             | Self::EditViews
@@ -293,6 +311,8 @@ impl Permission {
                 | Self::SplitTransactions
                 | Self::AttachBills
                 | Self::FileBills
+                | Self::NewPlans
+                | Self::EditPlans
         )
     }
 

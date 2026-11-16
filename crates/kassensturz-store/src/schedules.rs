@@ -315,7 +315,11 @@ impl Book {
 
     /// Checks `schedule` against the book: an open account of the user's
     /// in the amount's currency, a category in that currency.
-    fn check_schedule(&self, schedule: &Schedule) -> Result<(), StoreError> {
+    /// Checks `schedule` as [`Book::add_schedule`] and
+    /// [`Book::edit_schedule`] do, without changing the book, so a plan
+    /// the AI prepares hears the book's own refusal before the user reviews
+    /// it (B-357, D-814). How many plans there are is not checked here.
+    pub fn check_schedule(&self, schedule: &Schedule) -> Result<(), StoreError> {
         schedule.check().map_err(StoreError::Schedule)?;
         // So large that the forecast couldn't add it up (B-269).
         if schedule

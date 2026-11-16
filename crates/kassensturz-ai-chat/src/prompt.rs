@@ -216,6 +216,16 @@ fn changes(allowed: Permissions) -> String {
             "changed budgets (edit_budgets, from the current period on)",
         ),
         (
+            allowed.allows(Permission::NewPlans),
+            "plan money that comes again and again, such as rent or salary",
+            "new plans (new_plans, the amount named by the user or from an entry)",
+        ),
+        (
+            allowed.allows(Permission::EditPlans),
+            "change or pause the user's plans",
+            "changed plans (edit_plans, IDs from list_plans)",
+        ),
+        (
             allowed.allows(Permission::DeleteViews),
             "delete charts the user saved",
             "deleted saved charts (delete_views, IDs from list_views)",

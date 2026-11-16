@@ -165,6 +165,8 @@ pub enum ToolError {
     UnknownTransaction,
     /// No tag of the book has that ID (US5.2, D-744).
     UnknownTag,
+    /// No plan of the book has that ID (US7, B-357, D-814).
+    UnknownPlan,
     /// A `reference` to search for has fewer than four letters or digits,
     /// so it would match half the book (US5.12, D-738).
     ReferenceTooShort,
@@ -378,6 +380,10 @@ pub enum ToolError {
     /// the store gives a budget made by hand (D-358): the model hears the
     /// store's own code, as the user would.
     BudgetRefused(StoreError),
+    /// The book would refuse the plan the call prepares, for the reason
+    /// the store gives a plan made by hand (US7, B-357, D-814): the model
+    /// hears the store's own code, as the user would.
+    PlanRefused(StoreError),
     /// The two transactions of a pair can't be joined as one Transfer, for
     /// the reason the store gives a join by hand (D-691, D-693): the model
     /// hears the store's own code, as the user would.
@@ -639,6 +645,7 @@ impl Report for ToolError {
                 .with("not_before", ErrorParam::Keyword("from")),
             Self::UnknownTransaction => ErrorReport::new("ai-tools.unknown-transaction"),
             Self::UnknownTag => ErrorReport::new("ai-tools.unknown-tag"),
+            Self::UnknownPlan => ErrorReport::new("ai-tools.unknown-plan"),
             Self::ReferenceTooShort => ErrorReport::new("ai-tools.reference-too-short")
                 .with("min_chars", ErrorParam::count(MIN_REFERENCE_CHARS)),
             Self::NoBillFolder => ErrorReport::new("ai-tools.no-bill-folder"),
@@ -748,7 +755,7 @@ impl Report for ToolError {
             Self::Store(error) => {
                 ErrorReport::new("ai-tools.book-unreadable").caused_by(error.report())
             }
-            Self::BudgetRefused(error) => error.report(),
+            Self::BudgetRefused(error) | Self::PlanRefused(error) => error.report(),
             Self::TransferRefused(error) => error.report(),
             Self::BudgetFigures(error) => {
                 ErrorReport::new("ai-tools.budget-figures-unreadable").caused_by(error.report())
@@ -801,6 +808,7 @@ mod tests {
             ToolError::BadPeriod,
             ToolError::UnknownTransaction,
             ToolError::UnknownTag,
+            ToolError::UnknownPlan,
             ToolError::ReferenceTooShort,
             ToolError::NoBillFolder,
             ToolError::BillOutsideFolder,

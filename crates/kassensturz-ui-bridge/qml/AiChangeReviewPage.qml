@@ -92,6 +92,8 @@ Kirigami.ScrollablePage {
     readonly property var deletedViews: kept.filter(change => change.kind === "deleteView")
     readonly property var newBudgets: kept.filter(change => change.kind === "newBudget")
     readonly property var editedBudgets: kept.filter(change => change.kind === "editBudget")
+    readonly property var newPlans: kept.filter(change => change.kind === "newPlan")
+    readonly property var editedPlans: kept.filter(change => change.kind === "editPlan")
     readonly property var editedAccounts: kept.filter(change => change.kind === "editAccount")
     readonly property var sorts: kept.filter(change => change.kind === "sortWithRules")
     readonly property var joins: kept.filter(change => change.kind === "joinTransfer")
@@ -329,6 +331,10 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "New budget");
         case "editBudget":
             return i18nContext.i18nc("@info a kind of prepared change", "Changed budget");
+        case "newPlan":
+            return i18nContext.i18nc("@info a kind of prepared change", "New planned payment");
+        case "editPlan":
+            return i18nContext.i18nc("@info a kind of prepared change", "Changed planned payment");
         case "editView":
             return i18nContext.i18nc("@info a kind of prepared change", "Changed chart");
         case "deleteView":
@@ -2012,6 +2018,48 @@ Kirigami.ScrollablePage {
             model: page.shows ? page.editedBudgets : []
 
             AiBudgetChange {
+                required property var modelData
+
+                Layout.fillWidth: true
+                ai: page.ai
+                change: modelData
+                choices: page.choices
+                review: page
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.newPlans.length > 0
+            text: page.i18nContext.i18nc("@title:group", "New planned payments")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.newPlans : []
+
+            AiPlanChange {
+                required property var modelData
+
+                Layout.fillWidth: true
+                ai: page.ai
+                change: modelData
+                choices: page.choices
+                review: page
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.editedPlans.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Planned payments that change")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.editedPlans : []
+
+            AiPlanChange {
                 required property var modelData
 
                 Layout.fillWidth: true

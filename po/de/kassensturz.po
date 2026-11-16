@@ -25600,3 +25600,113 @@ msgid "Kept, then taken back with Undo. The chart is no longer saved."
 msgstr ""
 "Behalten, dann mit „Rückgängig“ zurückgenommen. Das Diagramm ist nicht mehr "
 "gespeichert."
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New planned payment"
+msgstr "Neue geplante Zahlung"
+
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "Changed planned payment"
+msgstr "Geänderte geplante Zahlung"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "New planned payments"
+msgstr "Neue geplante Zahlungen"
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Planned payments that change"
+msgstr "Geplante Zahlungen, die sich ändern"
+
+#, kde-format
+msgctxt "@label a part of the book"
+msgid "Planned payments"
+msgstr "Geplante Zahlungen"
+
+#, kde-format
+msgctxt "@info %1 is the first due day, %2 the last day a plan may be due"
+msgid "From %1 until %2"
+msgstr "Ab %1 bis %2"
+
+#, kde-format
+msgctxt "@info %1 is the first due day of a plan that doesn't end"
+msgid "From %1, with no end"
+msgstr "Ab %1, ohne Ende"
+
+#, kde-format
+msgctxt "@info %1 is who is paid"
+msgid "Paid to %1"
+msgstr "Bezahlt an %1"
+
+#, kde-format
+msgctxt "@info %1 is who pays"
+msgid "Received from %1"
+msgstr "Erhalten von %1"
+
+#, kde-format
+msgctxt "@info %1 is an amount"
+msgid "may differ by up to %1"
+msgstr "darf um bis zu %1 abweichen"
+
+#, kde-format
+msgctxt "@info %1 is a category"
+msgid "matching entries go to %1"
+msgstr "passende Buchungen kommen in %1"
+
+#, kde-format
+msgctxt "@info a plan that is paused"
+msgid "Paused"
+msgstr "Pausiert"
+
+#, kde-format
+msgctxt "@info %1 describes a plan as it is now, %2 when it is due"
+msgid "Now: %1. %2."
+msgstr "Jetzt: %1. %2."
+
+#, kde-format
+msgctxt "@info"
+msgid "It is paused."
+msgstr "Sie ist pausiert."
+
+#, kde-format
+msgctxt "@info %1 describes a plan after a change"
+msgid "After the change: %1"
+msgstr "Nach der Änderung: %1"
+
+#, kde-format
+msgctxt "@info %1 is the name a plan has now"
+msgid "It is called %1 now."
+msgstr "Sie heißt jetzt %1."
+
+#, kde-format
+msgctxt "@info"
+msgid "It is paused: nothing is expected or counted until you let it go on."
+msgstr "Sie wird pausiert: Nichts wird erwartet oder mitgezählt, bis Sie sie fortsetzen."
+
+#, kde-format
+msgctxt "@info"
+msgid "It goes on again."
+msgstr "Sie wird fortgesetzt."
+
+#, kde-format
+msgctxt "@info %1 is a list of days"
+msgid "Next due: %1"
+msgstr "Nächste Fälligkeit: %1"
+
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz took the amount from an entry in your book, not the AI. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
+msgstr "KassenSturz hat den Betrag aus einer Buchung in Ihrem Buch übernommen, nicht die KI. Eine geplante Zahlung sagt nur, was Sie erwarten: Sie bewegt kein Geld und legt keine Buchung an, und „Übrig in diesem Monat“ rechnet sie mit ein. Rückgängig nimmt sie zurück."
+
+#, kde-format
+msgctxt "@info"
+msgid "The AI took this amount from what you wrote. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
+msgstr "Die KI hat diesen Betrag aus Ihrer Nachricht übernommen. Eine geplante Zahlung sagt nur, was Sie erwarten: Sie bewegt kein Geld und legt keine Buchung an, und „Übrig in diesem Monat“ rechnet sie mit ein. Rückgängig nimmt sie zurück."
+
+#, kde-format
+msgctxt "@info"
+msgid "A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
+msgstr "Eine geplante Zahlung sagt nur, was Sie erwarten: Sie bewegt kein Geld und legt keine Buchung an, und „Übrig in diesem Monat“ rechnet sie mit ein. Rückgängig nimmt sie zurück."

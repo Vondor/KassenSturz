@@ -47,6 +47,7 @@ fn main() {
                 "qml/AccountsPage.qml",
                 "qml/AiChangeCorrection.qml",
                 "qml/AiBudgetChange.qml",
+                "qml/AiPlanChange.qml",
                 "qml/AiJoinTransferChange.qml",
                 "qml/AiRuleMark.qml",
                 "qml/AiRulesSortChange.qml",

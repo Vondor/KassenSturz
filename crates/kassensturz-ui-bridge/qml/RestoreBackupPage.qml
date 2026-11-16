@@ -45,6 +45,8 @@ FormCard.FormCardPage {
             return i18nContext.i18nc("@info", "This backup can't be used: it is damaged, or a newer KassenSturz made it. Your book wasn't changed. Choose another backup.");
         case "restore.no-backup-first":
             return i18nContext.i18nc("@info", "KassenSturz couldn't save your book as it is now, so it didn't restore anything. Check that there is free space on this computer, then try again.");
+        case "restore.lock-lost":
+            return i18nContext.i18nc("@info", "Another computer has taken this book over, so KassenSturz restored nothing. Close the book and open it again before you restore a backup.");
         case "restore.not-listed":
             return i18nContext.i18nc("@info", "This backup isn't there any more. Your book wasn't changed. Choose another one from the list.");
         default:

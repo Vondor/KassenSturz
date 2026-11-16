@@ -713,6 +713,35 @@ pub fn forecast_from_day(
     months: usize,
     starts_on: i8,
 ) -> Result<Forecast, ForecastError> {
+    forecast_with_entries_ahead(
+        balance_now,
+        schedules,
+        decided,
+        &[],
+        today,
+        months,
+        starts_on,
+    )
+}
+
+/// [`forecast_from_day`] with `ahead`: the entries matched to a planned
+/// payment that are dated after `today`, each with its date and what it
+/// does to the chosen accounts (B-331). `balance_now` leaves them out and
+/// their occurrences are matched, so without them a payment booked ahead
+/// would be in no figure and `left` too high. Each counts with its own
+/// amount in the month of its date, as an occurrence still due does:
+/// outgoing ones in `out_due` or a month's planned out, incoming ones in
+/// `in_due` or a month's planned in. Entries dated today or earlier, or
+/// after the last month, count for nothing here.
+pub fn forecast_with_entries_ahead(
+    balance_now: Money,
+    schedules: &[Schedule],
+    decided: &HashMap<(ScheduleId, Date), Decided>,
+    ahead: &[(Date, Money)],
+    today: Date,
+    months: usize,
+    starts_on: i8,
+) -> Result<Forecast, ForecastError> {
     let period = |day: Date| salary_month_of(day, starts_on).ok_or(ForecastError::Calendar);
     let currency: CurrencyCode = balance_now.currency();
     let zero = Money::zero(currency);
@@ -749,6 +778,21 @@ pub fn forecast_from_day(
             }
         }
     }
+    let ahead: Vec<(Date, Money)> = ahead
+        .iter()
+        .copied()
+        .filter(|(date, amount)| *date > today && amount.currency() == currency)
+        .collect();
+    for &(date, amount) in &ahead {
+        if date > month_end {
+            continue;
+        }
+        if amount.is_negative() {
+            out_due = out_due.checked_sub(amount)?;
+        } else {
+            in_due = in_due.checked_add(amount)?;
+        }
+    }
     overdue.sort_by_key(|found| (found.due.date, found.schedule));
     let left = balance_now.checked_sub(out_due)?;
     let expected_end = left.checked_add(in_due)?;
@@ -768,6 +812,16 @@ pub fn forecast_from_day(
                 } else {
                     planned_in = planned_in.checked_add(plan.amount)?;
                 }
+            }
+        }
+        for &(date, amount) in &ahead {
+            if date < first || date > last {
+                continue;
+            }
+            if amount.is_negative() {
+                planned_out = planned_out.checked_sub(amount)?;
+            } else {
+                planned_in = planned_in.checked_add(amount)?;
             }
         }
         let end = start.checked_add(planned_in)?.checked_sub(planned_out)?;

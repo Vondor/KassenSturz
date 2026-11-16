@@ -420,6 +420,11 @@ impl qobject::BookSession {
             ) => return refused("restore.not-usable"),
             Err(_) => return refused("restore.failed"),
         };
+        // Another computer took the book over (D-798): putting a backup in
+        // place would replace the file it writes (B-342).
+        if session::with_book(|open| open.lock_taken_over()).unwrap_or(false) {
+            return refused("restore.lock-lost");
+        }
         if !matches!(
             session::with_book(|open| open.back_up_now(&book, &backups)),
             Some(Ok(_))

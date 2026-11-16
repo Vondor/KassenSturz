@@ -955,7 +955,15 @@ impl ChangeSet {
             ProposedChange::DeleteCategory(_) => allowed.allows(Permission::DeleteCategories),
             ProposedChange::NewAccount(_) => allowed.allows(Permission::NewAccounts),
             ProposedChange::EditAccount(_) => allowed.allows(Permission::EditAccounts),
-            ProposedChange::NewTransaction(_) => adds_allowed(allowed),
+            // The payee, note and category locks too, as when it was
+            // proposed: a set prepared before the user locked them stops
+            // here (B-336, D-239).
+            ProposedChange::NewTransaction(new) => {
+                adds_allowed(allowed)
+                    && !(new.payee.is_some() && allowed.locked(Field::Payee))
+                    && !(new.note.is_some() && allowed.locked(Field::Note))
+                    && !(new.category.is_some() && allowed.locked(Field::Category))
+            }
             ProposedChange::DeleteTransaction(_) => allowed.allows(Permission::DeleteTransactions),
             // A description the AI wrote needs Chart descriptions too (D-729).
             ProposedChange::NewView(view) => {
@@ -1244,6 +1252,25 @@ impl ChangeSet {
             .any(|change| matches!(change, ProposedChange::MoveRule(_)));
         if moves && top_level_rules(book)? != self.rule_order {
             return Err(ChangeError::OutOfDate);
+        }
+        // A bill is linked to the transaction the user reviewed it with:
+        // one changed since, e.g. another amount or payee, may no longer be
+        // what the bill is for, so the set is out of date (B-338). Checked
+        // before any change of the set is made, so the set's own changes to
+        // the transaction don't count.
+        for change in &self.changes {
+            let (id, reviewed) = match change {
+                ProposedChange::AttachBill(bill) => (bill.transaction, &bill.reviewed),
+                ProposedChange::FileBill(bill) => (bill.transaction, &bill.reviewed),
+                _ => continue,
+            };
+            match book.transaction(id) {
+                Ok(stored) if stored == *reviewed => {}
+                Ok(_) | Err(StoreError::UnknownTransaction(_)) => {
+                    return Err(ChangeError::OutOfDate);
+                }
+                Err(error) => return Err(error.into()),
+            }
         }
         book.as_one_action(Action::ApplyAiChanges, |book| {
             for change in &self.changes {
@@ -2012,10 +2039,52 @@ fn build(
             _ => {}
         }
     }
+    refuse_deleting_what_the_set_uses(&changes)?;
     Ok(Built {
         changes,
         rule_order,
     })
+}
+
+/// Fails if the set deletes a category that another of its changes books
+/// into, sorts a Rule to or puts a category under (B-344). The delete is
+/// checked against the book when it is prepared, so such a set would be
+/// offered for review and then never apply.
+fn refuse_deleting_what_the_set_uses(changes: &[ProposedChange]) -> Result<(), ToolError> {
+    let books_into = |transaction: &Transaction, id: AccountId| {
+        transaction
+            .splits()
+            .iter()
+            .any(|part| part.account == Some(id))
+    };
+    let rule_to = |rule: &Rule, id: AccountId| rule.actions.book_to == Some(BookTo::Category(id));
+    let deletes = changes.iter().filter_map(|change| match change {
+        ProposedChange::DeleteCategory(delete) => Some(delete.id),
+        _ => None,
+    });
+    for (index, id) in deletes.enumerate() {
+        let used_by = changes.iter().find_map(|change| match change {
+            ProposedChange::Categorize(sort) if sort.category == id => Some("transactions"),
+            ProposedChange::NewTransaction(new) if books_into(&new.built, id) => {
+                Some("transactions")
+            }
+            ProposedChange::EditTransaction(edit) if books_into(&edit.edited, id) => {
+                Some("transactions")
+            }
+            ProposedChange::SplitTransaction(split) if split.books_into(id) => Some("transactions"),
+            ProposedChange::NewRule(new) if rule_to(&new.rule, id) => Some("rules"),
+            ProposedChange::EditRule(edit) if rule_to(&edit.rule, id) => Some("rules"),
+            ProposedChange::NewCategory(new) if new.parent == Some(id) => Some("subcategories"),
+            ProposedChange::EditCategory(edit) if edit.parent == Some(Some(id)) => {
+                Some("subcategories")
+            }
+            _ => None,
+        });
+        if let Some(used_by) = used_by {
+            return Err(ToolError::CategoryInUse { used_by }.at("delete_categories", index));
+        }
+    }
+    Ok(())
 }
 
 /// What the checks need to know about the book, and the categories the set

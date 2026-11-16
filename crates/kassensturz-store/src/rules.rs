@@ -398,12 +398,17 @@ impl Book {
     /// Takes the mark of [`Book::mark_rule_made_by_ai`] off `rule`: the user
     /// opened it. Nothing else changes, and a Rule without the mark stays as
     /// it is.
+    ///
+    /// Like every write, it is refused with [`StoreError::LockLost`] once
+    /// another computer took the book over (B-343, D-798).
     pub fn mark_rule_checked(&mut self, rule: RuleId) -> Result<(), StoreError> {
-        self.conn.execute_cached(
-            "DELETE FROM main.unchecked_ai_rules WHERE rule_id = ?1",
-            [rule.to_bytes()],
-        )?;
-        Ok(())
+        self.in_savepoint(|book| {
+            book.conn.execute_cached(
+                "DELETE FROM main.unchecked_ai_rules WHERE rule_id = ?1",
+                [rule.to_bytes()],
+            )?;
+            Ok(())
+        })
     }
 
     /// The Rules the AI made or changed that the user hasn't opened since.

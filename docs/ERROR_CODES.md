@@ -211,6 +211,7 @@ Codes the Settings page and the restore page turn into words. None of them stops
 | `restore.not-listed` | | | The backup isn't in the list any more. The book wasn't changed. Choose another one. |
 | `restore.not-usable` | | | The backup is damaged, or a newer KassenSturz made it. The book wasn't changed. Choose another backup. |
 | `restore.no-backup-first` | | | KassenSturz couldn't save the book as it is now, so it restored nothing. Make room on this computer and try again. |
+| `restore.lock-lost` | | | Another computer took this book over, so KassenSturz restored nothing. Close the book and open it again first. Checked before the backup of the book as it is now is made (B-342, D-798). |
 | `restore.failed` | | | The backup couldn't be put in place, so the book is as it was. Check that the book's folder can be written to, then try again. |
 
 ## Damaged books (`kassensturz-store`)

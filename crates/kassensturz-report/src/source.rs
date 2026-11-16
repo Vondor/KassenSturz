@@ -175,6 +175,21 @@ impl Source {
         })
     }
 
+    /// Reads what [`Source::read`] reads, but the transactions by every date
+    /// their sides show, not only the booking date, for the transactions
+    /// tile's list, which shows each account's own date (B-348). Not for
+    /// figures: they count by the booking date (D-108).
+    pub fn read_by_side_dates(book: &Book, period: Period) -> Result<Self, ReportError> {
+        book.reading(|book| {
+            let source = Self::read_now(book, period, false)?;
+            Ok(Self {
+                transactions: book
+                    .transactions_with_a_date_between(period.first(), period.last())?,
+                ..source
+            })
+        })
+    }
+
     fn read_now(book: &Book, period: Period, balances: bool) -> Result<Self, ReportError> {
         let accounts = book.all_accounts()?;
         let holdings = if balances {

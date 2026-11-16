@@ -558,6 +558,27 @@ fn a_book_taken_over_with_open_anyway_refuses_the_first_ones_next_change() {
     assert_eq!(names(&second), ["Checking", "Savings"]);
 }
 
+// B-343: marking a Rule as seen writes to the book too, so it is refused
+// like any other write once another computer took the book over.
+#[test]
+fn marking_a_rule_seen_is_refused_once_the_book_was_taken_over() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let mut first = Book::create(&path, &computer).expect("book made");
+    first
+        .mark_rule_checked(kassensturz_core::RuleId::generate())
+        .expect("ours while nobody took it over");
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    let _second = Book::open_anyway(&path, &computer, &seen).expect("taken over");
+    let before = std::fs::read(&path).expect("book read");
+    let result = first.mark_rule_checked(kassensturz_core::RuleId::generate());
+    assert!(matches!(result, Err(StoreError::LockLost)), "{result:?}");
+    assert_eq!(std::fs::read(&path).expect("book read"), before);
+}
+
 // B-316: a pulled drive takes the book and its lock file away together and
 // may leave an empty folder; that is the drive's error, not a take-over.
 #[test]

@@ -90,6 +90,16 @@ pub struct SplitTransaction {
     edited: Transaction,
 }
 
+impl SplitTransaction {
+    /// Whether one of the parts it makes books into `id`.
+    pub(super) fn books_into(&self, id: AccountId) -> bool {
+        self.edited
+            .splits()
+            .iter()
+            .any(|part| part.account == Some(id))
+    }
+}
+
 impl Known {
     /// Checks one item of [`LIST`] against `book` under the locks of
     /// `allowed`, and works out the transaction it makes.

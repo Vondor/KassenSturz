@@ -985,14 +985,14 @@ fn fetched(account: BankAccount, unique_id: u32, record: FetchRecord) -> Fetched
         transactions,
         ..
     } = found;
+    // Only the booked balance is compared with the book, which holds booked
+    // entries only. The noted one counts pending entries too, so it would
+    // show a difference with the bank that isn't there; without a booked
+    // balance the fetch has none and the import checks nothing (B-347,
+    // D-808).
     let balance = balances
         .iter()
         .find(|balance| balance.kind == BalanceKind::Booked)
-        .or_else(|| {
-            balances
-                .iter()
-                .find(|balance| balance.kind == BalanceKind::Noted)
-        })
         .map(|balance| FetchedBalance {
             amount: FetchedAmount {
                 fraction: balance.amount.fraction.clone(),
@@ -1520,7 +1520,7 @@ mod tests {
     }
 
     #[test]
-    fn the_booked_balance_is_preferred_and_lines_are_split() {
+    fn only_the_booked_balance_is_taken_and_lines_are_split() {
         let record = FetchRecord {
             accounts: vec![FetchedAccountRecord {
                 unique_id: 3,
@@ -1606,7 +1606,8 @@ mod tests {
         assert!(!pending.booked);
         assert_eq!(pending.bank_id, None);
         assert!(pending.purpose.is_empty());
-        // Only a noted balance: it is taken.
+        // Only a noted balance: it includes pending entries, so no balance
+        // is taken and the import checks none (B-347, D-808).
         let record = FetchRecord {
             accounts: vec![FetchedAccountRecord {
                 unique_id: 3,
@@ -1624,7 +1625,7 @@ mod tests {
             messages: vec![],
         };
         let result = fetched(account(), 3, record);
-        assert_eq!(result.balance.expect("noted").amount.fraction, "1/100");
+        assert_eq!(result.balance, None);
         // An answer without the account: nothing new.
         let result = fetched(
             account(),

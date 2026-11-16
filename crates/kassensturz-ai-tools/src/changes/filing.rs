@@ -25,7 +25,9 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use kassensturz_core::{AccountId, Attachment, CurrencyCode, Date, Money, TransactionId};
+use kassensturz_core::{
+    AccountId, Attachment, CurrencyCode, Date, Money, Transaction, TransactionId,
+};
 use kassensturz_store::{Book, StoreError};
 use serde_json::Value;
 
@@ -204,6 +206,9 @@ pub struct FileBill {
     /// `None` until then, and a set with a bill not yet put in place is not
     /// applied.
     pub archived: Option<String>,
+    /// The transaction as the user reviewed it: filing fails if it changed
+    /// since (B-338).
+    pub(super) reviewed: Transaction,
 }
 
 impl FileBill {
@@ -373,6 +378,7 @@ impl Known {
             bill_total,
             check,
             archived: None,
+            reviewed: stored.clone(),
         })
     }
 }

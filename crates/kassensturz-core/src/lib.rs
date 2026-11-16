@@ -76,7 +76,7 @@ pub use schedule::{
     MAX_SCHEDULES, MonthPlan, OccurrenceState, OpenOccurrence, Schedule, ScheduleEntry,
     ScheduleError, ScheduleId, ScheduleMatch, ScheduleMatches, ScheduleUnit, UnclearOccurrence,
     add_banking_days, banking_day, cut_party, due_dates, due_window_end, entry_fits, forecast,
-    forecast_from_day, match_schedules, sub_banking_days,
+    forecast_from_day, forecast_with_entries_ahead, match_schedules, sub_banking_days,
 };
 pub use transaction::{
     Attachment, ForeignAmount, ImportedDetails, OriginalAmount, PartStatus, Split, SplitId,

@@ -56,6 +56,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Ein absichtlich verändertes Buch konnte beim Bearbeiten Teile von Buchungen löschen, und „Rückgängig“ konnte falsche Beträge zurückschreiben | B-245, B-246 | #883 |
 | Eine KI konnte mehr Änderungen auf einmal vorschlagen als erlaubt, und Namen mit fremden, gleich aussehenden Buchstaben fielen nicht auf | B-247, B-250 | #884 |
 | Große, löschende KI-Änderungen kamen ohne deutliche Warnung; Regeln einer KI waren nicht als solche gekennzeichnet | B-248, B-249 | #900 |
+| Eine KI-Änderung wurde beim Bestätigen nicht erneut gegen alle Sperren geprüft, warnte nicht, wenn ein Löschen Notizen entfernte, und verknüpfte Belege mit inzwischen geänderten Buchungen | B-336, B-337, B-338 | dieser PR |
 | Eine Webadresse in einer KI-Antwort erreichte Sie ohne Hinweis | B-251 | #888 |
 | Eine von Hand in die Einstellungsdatei geschriebene Zustimmung zählte wie Ihre echte, sodass Daten an eine fremde KI hätten gehen können | B-252 | #897 |
 | Ein Gesprächsprotokoll blieb nach dem Ausschalten des Entwicklermodus liegen | B-253 | #885 |

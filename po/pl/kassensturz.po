@@ -20293,6 +20293,14 @@ msgstr "KassenSturz nie mógł zapisać Twojej księgi w obecnym stanie, więc n
 #, kde-format
 msgctxt "@info"
 msgid ""
+"Another computer has taken this book over, so KassenSturz restored nothing. "
+"Close the book and open it again before you restore a backup."
+msgstr "Inny komputer przejął tę księgę, dlatego KassenSturz niczego nie przywrócił. Zamknij księgę i otwórz ją ponownie, zanim przywrócisz kopię zapasową."
+
+#: crates/kassensturz-ui-bridge/qml/RestoreBackupPage.qml:44
+#, kde-format
+msgctxt "@info"
+msgid ""
 "This backup isn't there any more. Your book wasn't changed. Choose another "
 "one from the list."
 msgstr "Tej kopii zapasowej już nie ma. Twoja księga nie została zmieniona. Wybierz inną z listy."

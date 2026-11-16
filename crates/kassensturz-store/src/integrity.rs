@@ -192,12 +192,18 @@ impl Conversion {
                     ones.checked_div_rate(ones_currency, rate, other_currency, rounding)
                 }
             };
-            // Multiplying grows with the rate, dividing shrinks with it.
-            let (small, large) = if multiply { (low, high) } else { (high, low) };
+            // Which end of the rate gives the smaller result depends on
+            // the direction and on the amount's sign (a larger rate makes
+            // a negative amount more negative), so both ends are tried
+            // with both roundings (B-349).
             // Too big to judge here: the other checks decide.
-            let lowest = convert(small, RoundingMode::Floor).ok()?;
-            let highest = convert(large, RoundingMode::Ceiling).ok()?;
-            Some((lowest.minor_units()..=highest.minor_units()).contains(&other.minor_units()))
+            let mut lowest = i64::MAX;
+            let mut highest = i64::MIN;
+            for rate in [low, high] {
+                lowest = lowest.min(convert(rate, RoundingMode::Floor).ok()?.minor_units());
+                highest = highest.max(convert(rate, RoundingMode::Ceiling).ok()?.minor_units());
+            }
+            Some((lowest..=highest).contains(&other.minor_units()))
         };
         let one_way = fits(amount, own, foreign_amount, foreign, forward)?;
         let other_way = fits(foreign_amount, foreign, amount, own, !forward)?;

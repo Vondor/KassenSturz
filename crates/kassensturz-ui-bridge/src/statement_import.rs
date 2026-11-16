@@ -154,6 +154,21 @@ pub fn recognize(input: &[u8], name: &str) -> Result<FileKind, StatementImportEr
     }
 }
 
+/// What to say when the file called `name` couldn't be read with `error`:
+/// a book file (a KMyMoney or KassenSturz book, by its name) that is too
+/// large is still a whole book, not a statement that is too large (B-366),
+/// so the user is pointed to starting a book from it.
+pub fn unread_file(name: &str, error: ImportError) -> StatementImportError {
+    let book = Path::new(name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| ["kmy", "ksz"].contains(&extension.to_ascii_lowercase().as_str()));
+    match error {
+        ImportError::FileTooLarge { .. } if book => StatementImportError::WholeBook,
+        error => StatementImportError::Import(error),
+    }
+}
+
 /// Reads the statements of `input` with `importer`, within the limits for
 /// untrusted statement files (D-091): a file with more entries than a
 /// household's statements ever have is refused before anything of it is
@@ -1394,6 +1409,25 @@ mod tests {
         );
         entry.other_party_name = Some(other_party.into());
         entry
+    }
+
+    /// B-366: a book file too large to read is a whole book, not a
+    /// statement that is too large.
+    #[test]
+    fn a_book_file_too_large_to_read_is_still_a_whole_book() {
+        let too_large = || ImportError::FileTooLarge { max_bytes: 128 };
+        assert_eq!(
+            code(&unread_file("Household.KMY", too_large())),
+            "input.whole-book"
+        );
+        assert_eq!(
+            code(&unread_file("Household.ksz", too_large())),
+            "input.whole-book"
+        );
+        assert_eq!(
+            code(&unread_file("statement.sta", too_large())),
+            "import.file-too-large"
+        );
     }
 
     #[test]

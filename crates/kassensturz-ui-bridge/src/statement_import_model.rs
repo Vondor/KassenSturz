@@ -185,7 +185,7 @@ impl qobject::StatementImport {
         self.as_mut().file_name_changed();
         let input = match read_file(&path, &Limits::default()) {
             Ok(input) => input,
-            Err(error) => return self.fail(&StatementImportError::Import(error)),
+            Err(error) => return self.fail(&statement_import::unread_file(&name, error)),
         };
         let kind = match statement_import::recognize(&input, &name) {
             Ok(kind) => kind,

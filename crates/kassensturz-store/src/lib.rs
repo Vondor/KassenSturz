@@ -179,6 +179,7 @@ impl Book {
     fn create_at(path: &Path, computer: &Computer) -> Result<Self, StoreError> {
         let lock = HeldLock::acquire(path, &computer.name)?;
         let (mut conn, without_file_locks) = connect(path)?;
+        check_save(&conn, path, without_file_locks)?;
         layout::migrate(&mut conn, 0)?;
         Self::finish(conn, Some(lock), without_file_locks)
     }
@@ -267,6 +268,8 @@ impl Book {
         match version {
             same if same == current => {}
             older if (first_version..current).contains(&older) => {
+                // The book passed its checks, so it may be written now.
+                check_save(&conn, &path, without_file_locks)?;
                 backup::back_up(
                     &conn,
                     &path,
@@ -287,6 +290,11 @@ impl Book {
         integrity::check_references(&conn)?;
         integrity::check_balances(&conn)?;
         integrity::check_conversions(&conn)?;
+        if version == current {
+            // Only now: a book that is refused is never written, not even
+            // SQLite's header (B-355).
+            check_save(&conn, &path, without_file_locks)?;
+        }
         Self::finish(conn, Some(lock), without_file_locks)
     }
 
@@ -1154,11 +1162,18 @@ fn connect(path: &Path) -> Result<(Connection, bool), StoreError> {
     // cut the journal could come back and roll the save back. EXTRA also
     // syncs that folder (sqlite.org/pragma.html#pragma_synchronous).
     conn.pragma_update(None, "synchronous", "EXTRA")?;
-    if !without_file_locks {
-        // With the settings the book is saved with (B-304).
-        lockless::check_save(&conn, path)?;
-    }
     Ok((conn, without_file_locks))
+}
+
+/// Tries a save on the book at `path` on a network share, with the settings
+/// it is saved with (B-304), unless it works without file locks. The save
+/// writes SQLite's header, so it runs only once the book has passed every
+/// check that can refuse it (B-355).
+fn check_save(conn: &Connection, path: &Path, without_file_locks: bool) -> Result<(), StoreError> {
+    if without_file_locks {
+        return Ok(());
+    }
+    lockless::check_save(conn, path)
 }
 
 /// Sets up `conn` so that a hostile book file can do as little as possible

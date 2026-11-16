@@ -693,7 +693,9 @@ fn a_share_that_takes_the_write_lock_but_fails_the_save_is_told_at_open() {
     let before = files_in(&folder);
     let bytes = std::fs::read(&path).expect("book read");
     PRETEND_SHARE.with(|flag| flag.set(true));
-    let result = crate::connect(&path);
+    let result = crate::connect(&path).and_then(|(conn, without_file_locks)| {
+        crate::check_save(&conn, &path, without_file_locks).map(|()| (conn, without_file_locks))
+    });
     PRETEND_SHARE.with(|flag| flag.set(false));
     assert!(
         matches!(result, Err(StoreError::LocksUnsupported)),
@@ -717,7 +719,9 @@ fn a_share_where_a_save_works_opens_the_book_and_changes_nothing_in_it() {
     drop(book);
     let before = files_in(&folder);
     PRETEND_SHARE.with(|flag| flag.set(true));
-    let result = crate::connect(&path);
+    let result = crate::connect(&path).and_then(|(conn, without_file_locks)| {
+        crate::check_save(&conn, &path, without_file_locks).map(|()| (conn, without_file_locks))
+    });
     PRETEND_SHARE.with(|flag| flag.set(false));
     let (conn, _) = result.expect("a share where saving works opens");
     let version: i32 = conn
@@ -738,4 +742,54 @@ fn a_local_folder_is_not_probed_with_a_save() {
     let (path, _reader) = book_with_a_reader(&folder);
     let result = crate::connect(&path);
     assert!(result.is_ok(), "{:?}", result.err());
+}
+
+/// B-355: on a share the save check writes SQLite's header, so it runs only
+/// once a book has passed every check. A book that is refused, here for a
+/// planted view or trigger, a newer layout, or a layout from a development
+/// build, is left byte for byte as it was.
+#[test]
+fn a_book_refused_at_open_on_a_share_is_never_written() {
+    let development = format!(
+        "PRAGMA user_version = {};",
+        crate::layout::FIRST_DEVELOPMENT_VERSION
+    );
+    let plants = [
+        "CREATE VIEW leak AS SELECT * FROM splits;",
+        "CREATE TRIGGER t AFTER UPDATE ON transactions BEGIN DELETE FROM splits; END;",
+        "PRAGMA user_version = 1000;",
+        development.as_str(),
+    ];
+    for plant in plants {
+        let folder = TempFolder::new();
+        let path = folder.join("Household.ksz");
+        drop(Book::create(&path, &computer(&folder)).expect("book made"));
+        let conn = Connection::open(&path).expect("opened");
+        conn.execute_batch(plant).expect("planted");
+        drop(conn);
+        let bytes = std::fs::read(&path).expect("book read");
+        let before = files_in(&folder);
+        PRETEND_SHARE.with(|flag| flag.set(true));
+        let result = Book::open(&path, &computer(&folder));
+        PRETEND_SHARE.with(|flag| flag.set(false));
+        assert!(result.is_err(), "{plant} opened");
+        assert_eq!(std::fs::read(&path).expect("book read"), bytes, "{plant}");
+        assert_eq!(files_in(&folder), before, "{plant}");
+    }
+}
+
+/// B-355, the other side: a book that passes its checks still gets the
+/// save check on a share.
+#[test]
+fn a_book_that_opens_on_a_share_gets_the_save_check() {
+    let folder = TempFolder::new();
+    let (path, _reader) = book_with_a_reader(&folder);
+    PRETEND_SHARE.with(|flag| flag.set(true));
+    let result = Book::open(&path, &computer(&folder));
+    PRETEND_SHARE.with(|flag| flag.set(false));
+    assert!(
+        matches!(result, Err(StoreError::LocksUnsupported)),
+        "{:?}",
+        result.err()
+    );
 }

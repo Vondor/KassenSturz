@@ -178,6 +178,28 @@ pub(super) fn allocate(
     let Some(first) = first_chosen else {
         return Ok(None);
     };
+    // A transaction whose category parts go both ways, e.g. a gross salary
+    // with a deduction or a purchase with a refund part, moves more through
+    // its accounts than their parts show (B-330): the money of one category
+    // passes through an account on to the other. As the transaction
+    // balances, the categories bring in that much more than the accounts
+    // received, and take out that much more than they paid; it passes
+    // through the first chosen account, so every part is counted whole.
+    let mut needed_in = 0_i64;
+    for &(_, brings) in &categories {
+        if brings > 0 {
+            needed_in = add(needed_in, brings)?;
+        }
+    }
+    let mut received = 0_i64;
+    for &(_, amount) in &into {
+        received = add(received, amount)?;
+    }
+    let passes = needed_in.checked_sub(received).ok_or_else(overflow)?;
+    if passes > 0 {
+        into.push((Some(first), passes));
+        out.push((Some(first), passes));
+    }
     let mut moved = Moved {
         pieces: Vec::new(),
         transfers: Vec::new(),

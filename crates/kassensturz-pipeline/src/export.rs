@@ -77,6 +77,15 @@ pub fn export_transactions_in(
                 .splits()
                 .iter()
                 .partition(|split| split.account == Some(id));
+            // The register makes one row per day a transaction touches the
+            // account (B-327): the row's memo and original come only from
+            // the parts booked to the account on that day.
+            let own: Vec<_> = own
+                .into_iter()
+                .filter(|split| {
+                    split.own_date.unwrap_or(transaction.booking_date()) == entry.booking_date
+                })
+                .collect();
             let memo = own.iter().find_map(|split| {
                 split
                     .imported

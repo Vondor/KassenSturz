@@ -111,6 +111,41 @@ Kirigami.ApplicationWindow {
         onFailed: root.showProblem()
     }
 
+    // A book that takes long to open, e.g. on a slow network drive, is
+    // opened in the background: the window stays alive and says so, instead
+    // of staying blank (B-326).
+    Controls.Popup {
+        parent: Controls.Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        closePolicy: Controls.Popup.NoAutoClose
+        visible: bookSession.opening
+        padding: Kirigami.Units.largeSpacing * 2
+
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            Controls.BusyIndicator {
+                Layout.alignment: Qt.AlignHCenter
+                running: bookSession.opening
+            }
+
+            Controls.Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: root.i18nContext.i18nc("@info:status shown while a book is being opened", "Opening your book …")
+            }
+
+            Controls.Label {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                opacity: 0.7
+                text: root.i18nContext.i18nc("@info:status", "A book on a network drive can take a little while. Please wait.")
+            }
+        }
+    }
+
     // Where the book is kept, and moving it (D-731). Made before the first
     // book opens: a move that was cut short decides which book that is.
     // Its id isn't `bookMove`: in a Component below, `bookMove: bookMove`

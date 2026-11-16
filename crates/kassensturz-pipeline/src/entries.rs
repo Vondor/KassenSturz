@@ -53,7 +53,7 @@ pub(crate) fn decide(
     }
     // The parts an entry already stands for.
     let mut claimed: HashSet<SplitId> = HashSet::new();
-    let mut in_statements: HashMap<&str, Vec<(EntryRef, Money)>> = HashMap::new();
+    let mut in_statements: HashMap<&str, Vec<(EntryRef, Money, Date)>> = HashMap::new();
     // Each entry, and what is decided about it so far: `None` while it may
     // still look like a part of the book.
     let mut decided: Vec<(EntryRef, &Entry, Option<Decision>)> = Vec::new();
@@ -68,32 +68,48 @@ pub(crate) fn decide(
                     break 'decided Some(Decision::LeaveOut(EntryOutcome::Pending));
                 }
                 if let Some(id) = bank_id(entry.bank_id.as_deref()) {
-                    if let Some(parts) = in_book.get(id) {
-                        if let Some(part) = parts.iter().find(|part| same_amount(entry, part)) {
-                            claimed.insert(part.split);
-                            break 'decided Some(Decision::LeaveOut(EntryOutcome::Duplicate(
-                                Duplicate::InBook(part.transaction),
-                            )));
-                        }
-                        let part = parts[0];
+                    // A bank may use a reference again later, e.g. a
+                    // counter per day (B-332): only a part with the ID
+                    // whose bank date is close to the entry's can be it.
+                    let near: Vec<&AccountPart> = in_book
+                        .get(id)
+                        .into_iter()
+                        .flatten()
+                        .copied()
+                        .filter(|part| near_in_time(entry.booking_date, bank_date(part)))
+                        .collect();
+                    if let Some(part) = near.iter().find(|part| {
+                        same_amount(entry, part) && bank_date(part) == entry.booking_date
+                    }) {
+                        claimed.insert(part.split);
+                        break 'decided Some(Decision::LeaveOut(EntryOutcome::Duplicate(
+                            Duplicate::InBook(part.transaction),
+                        )));
+                    }
+                    if let Some(part) = near
+                        .iter()
+                        .find(|part| !claimed.contains(&part.split))
+                        .or(near.first())
+                    {
                         claimed.insert(part.split);
                         // The bank delivers what it delivered before with
-                        // another amount, e.g. corrected: never skipped
-                        // without a word, the user decides.
+                        // another amount or date, e.g. corrected: never
+                        // skipped without a word, the user decides.
                         break 'decided Some(similar(at, vec![part.transaction], choices));
                     }
                     // The same entry twice, e.g. in two overlapping
-                    // statements. One with the ID but another amount is
-                    // another entry (B-279): it never goes missing.
+                    // statements. One with the ID but another amount
+                    // (B-279) or another date (B-332) is another entry: it
+                    // never goes missing.
                     let earlier = in_statements.entry(id).or_default();
-                    if let Some(&(first, _)) =
-                        earlier.iter().find(|(_, amount)| *amount == entry.amount)
-                    {
+                    if let Some(&(first, _, _)) = earlier.iter().find(|(_, amount, date)| {
+                        *amount == entry.amount && *date == entry.booking_date
+                    }) {
                         break 'decided Some(Decision::LeaveOut(EntryOutcome::Duplicate(
                             Duplicate::InStatements(first),
                         )));
                     }
-                    earlier.push((at, entry.amount));
+                    earlier.push((at, entry.amount, entry.booking_date));
                 }
                 None
             };
@@ -156,6 +172,13 @@ fn similar(at: EntryRef, like: Vec<TransactionId>, choices: &Choices) -> Decisio
     } else {
         Decision::LeaveOut(EntryOutcome::Similar(like))
     }
+}
+
+/// Whether two bank dates are close enough for an entry and a part with
+/// the same bank ID to be one booking: at most [`MAX_BUSINESS_DAYS`] apart
+/// (B-332).
+fn near_in_time(entry: Date, part: Date) -> bool {
+    business_days_apart(entry, part, MAX_BUSINESS_DAYS).is_some()
 }
 
 /// Whether `entry` has the amount `part` has, or had in a withdrawn

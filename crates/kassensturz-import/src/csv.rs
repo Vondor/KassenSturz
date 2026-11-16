@@ -92,7 +92,12 @@ pub fn csv_preview(
     let first_line = u64::try_from(skip_lines)
         .unwrap_or(u64::MAX)
         .saturating_add(1);
-    let mut split = Rows::new(body, delimiter, first_line);
+    let mut split = Rows::new(
+        body,
+        delimiter,
+        first_line,
+        Limits::default().max_text_bytes,
+    );
     let mut shown = Vec::new();
     while shown.len() < rows {
         let Some(row) = split.next_row() else {
@@ -134,7 +139,12 @@ impl Importer for Csv {
             return Recognition::No;
         };
         let body = without_first_lines(&text, self.settings.skip_lines);
-        let mut rows = Rows::new(body, self.settings.delimiter, 1);
+        let mut rows = Rows::new(
+            body,
+            self.settings.delimiter,
+            1,
+            Limits::default().max_text_bytes,
+        );
         let first = loop {
             match rows.next_row() {
                 Some(Ok(row)) if row.is_empty() => {}
@@ -162,7 +172,12 @@ impl Importer for Csv {
         let first_line = u64::try_from(self.settings.skip_lines)
             .unwrap_or(u64::MAX)
             .saturating_add(1);
-        let mut rows = Rows::new(body, self.settings.delimiter, first_line);
+        let mut rows = Rows::new(
+            body,
+            self.settings.delimiter,
+            first_line,
+            limits.max_text_bytes,
+        );
         let mut reader = Reader {
             importer: self,
             limits,

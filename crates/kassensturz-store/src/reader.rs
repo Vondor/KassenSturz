@@ -33,7 +33,10 @@ impl Book {
     /// must update first, and like [`Book::open`] for a file that isn't a
     /// book or a layout this version can't read.
     pub fn open_to_read(path: &Path) -> Result<Self, StoreError> {
+        // A book another program is saving to for longer than a reader
+        // waits is "in use", not a database error (B-363).
         Self::open_to_read_at(path, layout::VERSION)
+            .map_err(|error| crate::lock::in_use_instead(path, error))
     }
 
     /// [`Book::open_to_read`] for a KassenSturz whose current layout is
@@ -191,6 +194,25 @@ mod tests {
         // No lock file, journal or anything else was left by the reader.
         assert_eq!(files_in(folder.path()), before);
         drop(app);
+    }
+
+    /// B-363: a reader that opens the book while the app is in the middle
+    /// of a long save is told the book is in use, not a database error.
+    #[test]
+    fn a_reader_meeting_a_long_save_is_told_the_book_is_in_use() {
+        let folder = TempFolder::new();
+        let path = book_on_disk(&folder);
+        let writer = Connection::open(&path).expect("opened");
+        writer
+            .execute_batch("BEGIN EXCLUSIVE")
+            .expect("a save under way");
+        let read = Book::open_to_read(&path);
+        writer.execute_batch("ROLLBACK").expect("rolled back");
+        assert!(
+            matches!(read, Err(StoreError::Locked(_))),
+            "{:?}",
+            read.err()
+        );
     }
 
     #[test]

@@ -1582,11 +1582,14 @@ msgstr ""
 #, kde-format
 msgctxt "@info %1 is a list of numbers"
 msgid ""
-"Don't rely on the numbers in this title: they don't come from your book, so "
-"the AI may have made them up: %1"
+"Check the numbers in this title before you keep it: the AI wrote them as "
+"text, so they are never worked out from your book, may be made up, and go "
+"along with any dashboard file you share: %1"
 msgstr ""
-"Verlassen Sie sich nicht auf die Zahlen in diesem Titel: Sie stammen nicht "
-"aus Ihrem Buch, die KI kann sie erfunden haben: %1"
+"Prüfen Sie die Zahlen in diesem Titel, bevor Sie ihn behalten: Die KI hat "
+"sie als Text geschrieben, sie werden also nie aus Ihrem Buch berechnet, "
+"können erfunden sein und gehen mit jeder Dashboard-Datei mit, die Sie "
+"weitergeben: %1"
 
 #: crates/kassensturz-ui-bridge/qml/AiChartCard.qml:193
 #, kde-format

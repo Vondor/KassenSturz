@@ -1514,9 +1514,10 @@ msgstr "Ten wykres nie jest już dostępny. Poproś o niego ponownie, jeśli nad
 #, kde-format
 msgctxt "@info %1 is a list of numbers"
 msgid ""
-"Don't rely on the numbers in this title: they don't come from your book, so "
-"the AI may have made them up: %1"
-msgstr "Nie polegaj na liczbach w tym tytule: nie pochodzą z Twojej księgi, więc AI mogło je wymyślić: %1"
+"Check the numbers in this title before you keep it: the AI wrote them as "
+"text, so they are never worked out from your book, may be made up, and go "
+"along with any dashboard file you share: %1"
+msgstr "Sprawdź liczby w tym tytule, zanim go zachowasz: AI zapisało je jako tekst, więc nigdy nie są obliczane z Twojej księgi, mogą być wymyślone i trafią do każdego udostępnianego pliku pulpitu: %1"
 
 #: crates/kassensturz-ui-bridge/qml/AiChartCard.qml:193
 #, kde-format

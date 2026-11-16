@@ -59,7 +59,7 @@ pub use importer::{
     import, import_file,
 };
 pub use kmy::{Kmy, KmySqlite};
-pub use limits::{Limits, read_file};
+pub use limits::{Limits, MAX_STATEMENT_ENTRIES, read_file};
 pub use mt940::Mt940;
 pub use ofx::Ofx;
 pub use statement::{Balance, Entry, EntryStatus, Statement, StatementAccount};

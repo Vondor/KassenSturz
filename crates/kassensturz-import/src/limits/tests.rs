@@ -94,3 +94,44 @@ fn a_named_pipe_or_device_is_refused_without_waiting() {
     assert_eq!(read_within_time(plain), Ok(b"abc".to_vec()));
     std::fs::remove_dir_all(&folder).expect("cleanup");
 }
+
+/// B-362: a statement file built to hold a million entries froze the app
+/// while all of them went into the book. A statement file is refused once
+/// it has more than [`crate::MAX_STATEMENT_ENTRIES`], whatever its format;
+/// one with that many is read.
+#[test]
+fn a_statement_file_with_more_entries_than_a_household_has_is_refused() {
+    use crate::importer::import;
+    use crate::{ImportError, Imported, Mt940};
+    let file = |entries: usize| {
+        let mut text = String::from(":20:X\n:25:DE89370400440532013000\n:60F:C261001EUR0,00\n");
+        for _ in 0..entries {
+            text.push_str(":61:261002C0,01NMSCNONREF\n:86:Synthetic\n");
+        }
+        text.push_str(":62F:C261002EUR0,00\n-\n");
+        text
+    };
+    let limits = Limits::for_statements();
+    assert_eq!(limits.max_entries, crate::MAX_STATEMENT_ENTRIES);
+    assert_eq!(
+        Limits {
+            max_entries: Limits::default().max_entries,
+            ..limits
+        },
+        Limits::default()
+    );
+    let over = file(crate::MAX_STATEMENT_ENTRIES + 1);
+    assert_eq!(
+        import(&Mt940, over.as_bytes(), &limits),
+        Err(ImportError::TooManyEntries {
+            max: crate::MAX_STATEMENT_ENTRIES
+        })
+    );
+    let at = file(crate::MAX_STATEMENT_ENTRIES);
+    match import(&Mt940, at.as_bytes(), &limits) {
+        Ok(Imported::Statements(statements)) => {
+            assert_eq!(statements[0].entries.len(), crate::MAX_STATEMENT_ENTRIES);
+        }
+        other => panic!("{other:?}"),
+    }
+}

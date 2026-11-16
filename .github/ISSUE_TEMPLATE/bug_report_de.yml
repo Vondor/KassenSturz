@@ -47,3 +47,8 @@ body:
         - macOS
     validations:
       required: true
+  - type: input
+    id: ai-written
+    attributes:
+      label: "Falls eine KI dieses Ticket geschrieben hat: Werkzeug und Modell"
+      description: 'Leer lassen, wenn Sie es selbst geschrieben haben. Sonst Werkzeug und Modell nennen, zum Beispiel "Example Assistant (model-name 1.2)". KI-geschriebene Tickets bekommen außerdem das Label `ai-written` (AGENTS.md §9).'

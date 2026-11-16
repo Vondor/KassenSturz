@@ -43,3 +43,8 @@ body:
         - Other Linux desktop
     validations:
       required: true
+  - type: input
+    id: ai-written
+    attributes:
+      label: "If an AI wrote this issue: tool and model"
+      description: 'Leave empty if you wrote it yourself. Otherwise name the tool and the model, for example "Example Assistant (model-name 1.2)". AI-written issues also get the label `ai-written` (AGENTS.md §9).'

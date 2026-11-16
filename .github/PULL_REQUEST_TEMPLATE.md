@@ -2,6 +2,10 @@
 
 <!-- What does this change, and why? Link the roadmap item or issue if there is one. -->
 
+## Made by (D-810)
+
+<!-- Who made this: Vondor or Claude (outside reviewers write issues only, D-811), with the model where known, e.g. "Claude (model-name 1.2)". A pull request made by an AI also gets the label `ai-written`. -->
+
 ## Definition of done (AGENTS.md §9.5)
 
 - [ ] Builds in CI

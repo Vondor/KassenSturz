@@ -168,9 +168,13 @@ ColumnLayout {
     onFlowActivated: (from, to) => openBehind(from, to)
 
     // The places of the nodes of one column, in order, give each its color.
+    // The accounts count over all columns together, so no two accounts have
+    // the color of the same place, whatever column they are drawn in (B-356).
     readonly property var nodeColors: {
         const result = new Array(nodes.length);
         const byColumn = {};
+        const accountPlaces = nodes.map((node, index) => index).filter(index => nodes[index].kind === "account")
+            .sort((a, b) => nodes[a].column - nodes[b].column || nodes[a].y - nodes[b].y);
         for (let i = 0; i < nodes.length; i++) {
             (byColumn[nodes[i].column] = byColumn[nodes[i].column] ?? []).push(i);
         }
@@ -180,16 +184,26 @@ ColumnLayout {
                 const kind = nodes[index].kind;
                 result[index] = kind === "middle" ? Kirigami.Theme.textColor
                     : (kind === "left-over" || kind === "reserves" || kind === "other" || kind === "other-accounts") ? Kirigami.Theme.disabledTextColor
+                    : kind === "account" ? ChartPalette.color(accountPlaces.indexOf(index), undefined)
                     : ChartPalette.color(place, undefined);
             });
         }
         return result;
     }
 
-    // A band takes the color of its node that is farther from the middle.
+    // A band takes the color of its node that is farther from the middle;
+    // a band of an account takes the account's, the one it comes from when
+    // it joins two, so it reads as that account's money wherever it passes
+    // (B-356).
     function bandColor(band: var): color {
         const a = nodes[band.from];
         const b = nodes[band.to];
+        if (a.kind === "account") {
+            return nodeColors[band.from];
+        }
+        if (b.kind === "account") {
+            return nodeColors[band.to];
+        }
         const outer = Math.abs(a.column - middleColumn) >= Math.abs(b.column - middleColumn) ? band.from : band.to;
         return nodeColors[outer];
     }

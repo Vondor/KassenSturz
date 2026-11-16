@@ -1446,8 +1446,9 @@ impl Book {
     /// only guard against a second writer (D-776). With them it catches a
     /// book another computer took over with "open anyway" (D-038): SQLite's
     /// locks don't reach across a network share, so both would save
-    /// (B-306, D-798). A change can still slip in between this check and
-    /// the commit, which takes milliseconds.
+    /// (B-306, D-798). The outermost savepoint asks again just before it
+    /// saves (B-353), so only a take-over during the save itself, which
+    /// takes milliseconds, can still slip in.
     pub(crate) fn check_lock_is_ours(&self) -> Result<(), StoreError> {
         if self.conn.is_autocommit() && self.lock_taken_over() {
             return Err(StoreError::LockLost);
@@ -1481,11 +1482,26 @@ impl Book {
             return Err(StoreError::WriteFailed.into());
         }
         self.check_lock_is_ours()?;
+        // Whether this savepoint is the outermost one, whose release saves
+        // the change to the file.
+        let saves = self.conn.is_autocommit();
         if let Err(error) = self.conn.execute_batch("SAVEPOINT book") {
             self.note_write_failure(&error);
             return Err(StoreError::from(error).into());
         }
         match change(self) {
+            // Asked again just before the save: another computer may have
+            // taken the book over while the change was being made, and its
+            // save must not land in a book that is now that computer's
+            // (B-353). What is left is the save itself.
+            Ok(_) if saves && self.lock_taken_over() => {
+                // The whole transaction, so not even an empty save reaches
+                // the file.
+                if self.conn.execute_batch("ROLLBACK").is_err() {
+                    self.roll_back();
+                }
+                Err(StoreError::LockLost.into())
+            }
             Ok(value) => match self.conn.execute_batch("RELEASE book") {
                 Ok(()) => Ok(value),
                 Err(error) => {

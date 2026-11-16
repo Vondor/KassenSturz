@@ -744,6 +744,122 @@ fn a_local_folder_is_not_probed_with_a_save() {
     assert!(result.is_ok(), "{:?}", result.err());
 }
 
+/// Writes the lock of another computer into the lock file of the book at
+/// `path`, as its "open anyway" would.
+fn take_over_elsewhere(path: &std::path::Path) {
+    std::fs::write(
+        crate::lock::lock_path(path),
+        "computer=Desktop\nsince=2026-01-01T10:00:00Z\ntoken=taken-over-elsewhere\n",
+    )
+    .expect("lock file written");
+}
+
+/// Sets every account's currency in the book at `path` to `currency`,
+/// behind SQLite's own reference check, so the book looks damaged until it
+/// is set back: what a book read half written looks like (B-353).
+fn set_currency_behind_its_back(path: &std::path::Path, currency: &str) {
+    let conn = Connection::open(path).expect("file opened");
+    conn.execute_batch("PRAGMA foreign_keys = OFF")
+        .expect("off");
+    conn.execute("UPDATE accounts SET currency = ?1", [currency])
+        .expect("changed");
+}
+
+// B-353: another computer takes the book over while a change is being made
+// here; the change must not be saved into a book that is now that
+// computer's.
+#[test]
+fn a_take_over_while_a_change_is_made_refuses_its_save() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let mut first = Book::create(&path, &computer).expect("book made");
+    add(&mut first, "Checking");
+    let before = std::fs::read(&path).expect("book read");
+    let result = first.as_one_action(crate::Action::AddAccount, |book| {
+        add(book, "Same moment");
+        take_over_elsewhere(&path);
+        Ok::<(), StoreError>(())
+    });
+    assert!(matches!(result, Err(StoreError::LockLost)), "{result:?}");
+    assert_eq!(names(&first), ["Checking"]);
+    assert_eq!(std::fs::read(&path).expect("book read"), before);
+}
+
+// B-353: the book is taken over while the other program is in the middle
+// of a save, so it is read half written. It is read again until the save
+// is done, not called damaged.
+#[test]
+fn a_book_read_half_written_after_a_take_over_is_read_again() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let mut first = Book::create(&path, &computer).expect("book made");
+    add(&mut first, "Checking");
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    set_currency_behind_its_back(&path, "XXX");
+    let finishing = {
+        let path = path.clone();
+        std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+            set_currency_behind_its_back(&path, "EUR");
+        })
+    };
+    let second = Book::open_anyway(&path, &computer, &seen);
+    finishing.join().expect("finished");
+    let second = second.expect("opened once the save was done");
+    assert_eq!(names(&second), ["Checking"]);
+    assert!(first.lock_taken_over());
+    assert!(crate::lock::lock_path(&path).exists());
+}
+
+// B-353: a book that stays damaged after a take-over is still called
+// damaged, once it had the time to settle.
+#[test]
+fn a_book_that_stays_damaged_after_a_take_over_is_called_damaged() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let mut first = Book::create(&path, &computer).expect("book made");
+    add(&mut first, "Checking");
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &computer) else {
+        panic!("expected the book to be locked");
+    };
+    set_currency_behind_its_back(&path, "XXX");
+    let started = std::time::Instant::now();
+    let result = Book::open_anyway(&path, &computer, &seen);
+    assert!(
+        matches!(
+            result,
+            Err(StoreError::Corrupt(crate::Corruption::BrokenReferences))
+        ),
+        "{:?}",
+        result.err()
+    );
+    assert!(started.elapsed() >= crate::lock::SETTLE);
+}
+
+// B-353: a book opened without a take-over isn't held up: a damaged one is
+// called so at once.
+#[test]
+fn a_damaged_book_opened_normally_is_called_damaged_at_once() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let mut book = Book::create(&path, &computer).expect("book made");
+    add(&mut book, "Checking");
+    drop(book);
+    set_currency_behind_its_back(&path, "XXX");
+    let started = std::time::Instant::now();
+    assert!(matches!(
+        Book::open(&path, &computer),
+        Err(StoreError::Corrupt(crate::Corruption::BrokenReferences))
+    ));
+    assert!(started.elapsed() < crate::lock::SETTLE);
+}
+
 /// B-355: on a share the save check writes SQLite's header, so it runs only
 /// once a book has passed every check. A book that is refused, here for a
 /// planted view or trigger, a newer layout, or a layout from a development

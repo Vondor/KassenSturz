@@ -667,14 +667,72 @@ garbage line
     assert!(!is_network_type(None));
 }
 
+/// A book whose folder takes the write lock but refuses the exclusive lock a
+/// save needs: a second connection holds a read lock, as the mount does for
+/// every save (B-304).
+fn book_with_a_reader(folder: &TempFolder) -> (PathBuf, Connection) {
+    let path = folder.join("Household.ksz");
+    drop(Book::create(&path, &computer(folder)).expect("book made"));
+    let reader = Connection::open(&path).expect("opened");
+    reader.execute_batch("BEGIN").expect("began");
+    reader
+        .query_row("SELECT count(*) FROM sqlite_master", [], |row| {
+            row.get::<_, i64>(0)
+        })
+        .expect("read, so the read lock is held");
+    (path, reader)
+}
+
 #[test]
-fn a_whole_save_on_a_scratch_file_works_in_a_local_folder_and_leaves_nothing() {
+fn a_share_that_takes_the_write_lock_but_fails_the_save_is_told_at_open() {
     let folder = TempFolder::new();
-    assert!(!scratch_cant_save(folder.path()));
-    assert_eq!(
-        std::fs::read_dir(folder.path())
-            .expect("folder read")
-            .count(),
-        0
+    let (path, _reader) = book_with_a_reader(&folder);
+    let before = files_in(&folder);
+    let bytes = std::fs::read(&path).expect("book read");
+    PRETEND_SHARE.with(|flag| flag.set(true));
+    let result = crate::connect(&path);
+    PRETEND_SHARE.with(|flag| flag.set(false));
+    assert!(
+        matches!(result, Err(StoreError::LocksUnsupported)),
+        "{:?}",
+        result.err()
     );
+    assert_eq!(
+        files_in(&folder),
+        before,
+        "no journal or scratch file stays"
+    );
+    assert_eq!(std::fs::read(&path).expect("book read"), bytes);
+}
+
+#[test]
+fn a_share_where_a_save_works_opens_the_book_and_changes_nothing_in_it() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let book = Book::create(&path, &computer(&folder)).expect("book made");
+    let id = book.book_id();
+    drop(book);
+    let before = files_in(&folder);
+    PRETEND_SHARE.with(|flag| flag.set(true));
+    let result = crate::connect(&path);
+    PRETEND_SHARE.with(|flag| flag.set(false));
+    let (conn, _) = result.expect("a share where saving works opens");
+    let version: i32 = conn
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .expect("layout read");
+    assert_eq!(version, crate::layout::VERSION);
+    drop(conn);
+    assert_eq!(files_in(&folder), before, "no journal file stays");
+    let reopened = Book::open(&path, &computer(&folder)).expect("opens");
+    assert_eq!(reopened.book_id(), id);
+}
+
+#[test]
+fn a_local_folder_is_not_probed_with_a_save() {
+    // The same reader that fails a share's open is no matter in a local
+    // folder: nothing is written there at open.
+    let folder = TempFolder::new();
+    let (path, _reader) = book_with_a_reader(&folder);
+    let result = crate::connect(&path);
+    assert!(result.is_ok(), "{:?}", result.err());
 }

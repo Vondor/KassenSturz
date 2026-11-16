@@ -18061,9 +18061,9 @@ msgid "Saved charts that change"
 msgstr "Zapisane wykresy, które się zmieniają"
 
 #, kde-format
-msgctxt "@info %1 is the name a saved chart has now"
-msgid "Now called: %1"
-msgstr "Teraz nazywa się: %1"
+msgctxt "@info %1 is the name a saved chart has before the change"
+msgid "Called %1 until now."
+msgstr "Dotąd nazywał się %1."
 
 #, kde-format
 msgctxt "@info"
@@ -23618,9 +23618,9 @@ msgid "After the change: %1"
 msgstr "Po zmianie: %1"
 
 #, kde-format
-msgctxt "@info %1 is the name a plan has now"
-msgid "It is called %1 now."
-msgstr "Teraz nazywa się %1."
+msgctxt "@info %1 is the name a plan has before the change"
+msgid "Called %1 until now."
+msgstr "Dotąd nazywał się %1."
 
 #, kde-format
 msgctxt "@info"

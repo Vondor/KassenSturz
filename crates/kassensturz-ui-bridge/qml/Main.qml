@@ -912,7 +912,10 @@ Kirigami.ApplicationWindow {
     function startBookFromFile(file: url) {
         const result = bookFromFileState.start(file);
         if (result.code !== undefined) {
-            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            // The file was meant as a book, so its messages say so, e.g. a
+            // KMyMoney file too large is no "statement" (B-366).
+            const forBook = errorTexts.messageForNewBook(result);
+            showPassiveNotification(forBook !== "" ? forBook : errorTexts.messageFor(result), 12000);
             return;
         }
         pushPage(bookFromFilePage);

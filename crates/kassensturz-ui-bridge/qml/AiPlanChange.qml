@@ -139,7 +139,9 @@ Kirigami.AbstractCard {
             opacity: 0.8
             textFormat: Text.PlainText
             text: !card.isNew && card.before.name !== card.plan.name
-                ? card.i18nContext.i18nc("@info %1 is the name a plan has now", "It is called %1 now.", card.before.name)
+                // The heading shows the new name; "now" read as after the
+                // change, so the old name says "until now" (B-369).
+                ? card.i18nContext.i18nc("@info %1 is the name a plan has before the change", "Called %1 until now.", card.before.name)
                 : ""
         }
 

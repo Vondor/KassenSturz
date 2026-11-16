@@ -809,6 +809,7 @@ pub(crate) mod engine {
                 component,
                 charts,
                 filters,
+                title_numbers,
             } => vec![
                 ("kind", text("newView")),
                 ("title", text(title)),
@@ -816,6 +817,10 @@ pub(crate) mod engine {
                 ("component", text(component)),
                 ("charts", list(charts.iter().map(|chart| text(chart)))),
                 ("filters", filter_list(filters)),
+                (
+                    "titleNumbers",
+                    list(title_numbers.iter().map(|number| text(number))),
+                ),
             ],
             ChangeView::EditView {
                 before,
@@ -823,6 +828,7 @@ pub(crate) mod engine {
                 period,
                 component,
                 filters,
+                title_numbers,
             } => vec![
                 ("kind", text("editView")),
                 ("before", text(before)),
@@ -830,6 +836,10 @@ pub(crate) mod engine {
                 ("period", text(period)),
                 ("component", text(component)),
                 ("filters", filter_list(filters)),
+                (
+                    "titleNumbers",
+                    list(title_numbers.iter().map(|number| text(number))),
+                ),
             ],
             ChangeView::DeleteView { name } => {
                 vec![("kind", text("deleteView")), ("name", text(name))]
@@ -2185,6 +2195,7 @@ mod tests {
                     values: vec!["<b>Food</b>".into(), "Rent".into()],
                     yes_no: false,
                 }],
+                title_numbers: vec!["4.512,30".into()],
             },
             ChangeView::NewBudget {
                 name: "<b>Weekly</b> shop".into(),
@@ -2233,6 +2244,7 @@ mod tests {
                 period: "last-12-months".into(),
                 component: r#"{"type":"chart.bar"}"#.into(),
                 filters: Vec::new(),
+                title_numbers: Vec::new(),
             },
             ChangeView::DeleteView {
                 name: "<b>Old</b> chart".into(),
@@ -2406,9 +2418,24 @@ mod tests {
         assert_eq!(text_of(&items[12], "category"), "");
         assert_eq!(
             own_keys(&items[13]),
-            ["charts", "component", "filters", "kind", "period", "title"]
+            [
+                "charts",
+                "component",
+                "filters",
+                "kind",
+                "period",
+                "title",
+                "titleNumbers"
+            ]
         );
         assert_eq!(list_of(&items[13], "charts").len(), 2);
+        // The numbers in the AI's title, for the review to mark (B-361).
+        let numbers: Vec<String> = list_of(&items[13], "titleNumbers")
+            .iter()
+            .filter_map(|number| number.value::<QString>())
+            .map(|number| number.to_string())
+            .collect();
+        assert_eq!(numbers, ["4.512,30"]);
         // What the chart's description leaves out, in words (D-729).
         let filters = list_of(&items[13], "filters");
         assert_eq!(filters.len(), 1);
@@ -2510,9 +2537,18 @@ mod tests {
         // Saved charts the AI changes or deletes (D-681).
         assert_eq!(
             own_keys(&items[16]),
-            ["before", "component", "filters", "kind", "period", "title"]
+            [
+                "before",
+                "component",
+                "filters",
+                "kind",
+                "period",
+                "title",
+                "titleNumbers"
+            ]
         );
         assert!(list_of(&items[16], "filters").is_empty());
+        assert!(list_of(&items[16], "titleNumbers").is_empty());
         assert_eq!(text_of(&items[16], "kind"), "editView");
         assert_eq!(text_of(&items[16], "before"), "Spending");
         assert_eq!(text_of(&items[16], "title"), "<b>Spending</b> by row");

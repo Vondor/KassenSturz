@@ -560,3 +560,55 @@ fn sides_that_cancel_in_not_sorted_yet_draw_no_node_without_the_accounts_layer()
         Some((3_980, 3_980))
     );
 }
+
+#[test]
+fn folding_a_crowded_column_keeps_the_accounts_nodes_in_place() {
+    // B-350: more spending categories than a column holds. The small ones
+    // fold into *Other*, which renumbers the nodes; an account first used by
+    // a folded category must still be found by its number.
+    let mut book = Book::create_in_memory().expect("book");
+    book.use_currency(EUR).expect("currency");
+    let current = account(&mut book, "Current account", AccountKind::Asset, EUR, None);
+    let cash = account(&mut book, "Cash box", AccountKind::Asset, EUR, None);
+    let salary = account(&mut book, "Salary", AccountKind::Income, EUR, None);
+    let mut bookings = vec![parts(&[(current, 900_000), (salary, -900_000)], 1)];
+    for number in 1..=12_i64 {
+        let category = account(
+            &mut book,
+            &format!("Category {number:02}"),
+            AccountKind::Expense,
+            EUR,
+            None,
+        );
+        // The first twelve are paid from the current account, the smallest
+        // from the cash box, which no larger category uses.
+        let (from, amount) = if number == 12 {
+            (cash, 100)
+        } else {
+            (current, 100_000 - number * 1_000)
+        };
+        bookings.push(parts(&[(from, -amount), (category, amount)], 2));
+    }
+    for transaction in &bookings {
+        book.add_transaction(transaction).expect("added");
+    }
+    let whole = period(date(2026, 10, 1), date(2026, 10, 31));
+    let source = Source::read(&book, whole).expect("read");
+    let flows = money_flow(&source, whole, &Filter::default(), FLOW).expect("flow");
+    let flow = &flows[0];
+    let accounts: Vec<(&str, i8)> = flow
+        .nodes
+        .iter()
+        .filter(|n| n.kind == FlowNodeKind::Account)
+        .map(|n| (n.name.as_str(), n.column))
+        .collect();
+    assert_eq!(accounts, [("Current account", 0), ("Cash box", 0)]);
+    assert!(flow.nodes.iter().any(|n| n.kind == FlowNodeKind::Other));
+    for node in flow
+        .nodes
+        .iter()
+        .filter(|n| n.kind == FlowNodeKind::Account)
+    {
+        assert!(node.account.is_some(), "{}", node.name);
+    }
+}

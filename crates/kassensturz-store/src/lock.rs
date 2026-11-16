@@ -173,8 +173,15 @@ impl HeldLock {
         }
         let path = lock_path(book);
         match read(&path)? {
-            Some(current) if current == *seen => match fs::remove_file(&path) {
-                Ok(()) => {}
+            Some(current) if current == *seen => match overwrite(&path, computer) {
+                Ok(held) => {
+                    // Read it back: whoever wrote last owns the lock.
+                    return match read(&path)? {
+                        Some(now) if now.token.as_deref() == Some(held.token.as_str()) => Ok(held),
+                        Some(now) => Err(StoreError::Locked(now)),
+                        None => Self::acquire(book, computer),
+                    };
+                }
                 Err(error) if error.kind() == ErrorKind::NotFound => {}
                 Err(error) => return Err(error.into()),
             },
@@ -227,8 +234,8 @@ pub(crate) fn lock_path(book: &Path) -> PathBuf {
     PathBuf::from(path)
 }
 
-/// Creates the lock file, failing with `AlreadyExists` if there is one.
-fn create(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
+/// The token and the text of a new lock file for `path`.
+fn lock_text(path: &Path, computer: &str) -> (String, String) {
     let token = uuid::Uuid::now_v7().hyphenated().to_string();
     let now = Timestamp::now();
     // Whole seconds are precise enough for "open since 14:02".
@@ -250,6 +257,12 @@ fn create(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
         "computer={}\nsince={since}\ntoken={token}\n{process}{place}{locks}",
         one_line(computer)
     );
+    (token, text)
+}
+
+/// Creates the lock file, failing with `AlreadyExists` if there is one.
+fn create(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
+    let (token, text) = lock_text(path, computer);
     let mut file = OpenOptions::new().write(true).create_new(true).open(path)?;
     let written = file
         .write_all(text.as_bytes())
@@ -259,6 +272,23 @@ fn create(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
         let _ = fs::remove_file(path);
         return Err(error);
     }
+    held().push(token.clone());
+    Ok(HeldLock {
+        path: path.to_owned(),
+        token,
+    })
+}
+
+/// Writes a new lock into the existing lock file, in the same file, so the
+/// computer that held the lock sees its file change. Deleting the file and
+/// making a new one is not enough for it on Windows: its network client can
+/// go on answering from the file it knew (B-306). Fails with `NotFound` if
+/// the file is gone.
+fn overwrite(path: &Path, computer: &str) -> std::io::Result<HeldLock> {
+    let (token, text) = lock_text(path, computer);
+    let mut file = OpenOptions::new().write(true).truncate(true).open(path)?;
+    file.write_all(text.as_bytes())?;
+    file.sync_all()?;
     held().push(token.clone());
     Ok(HeldLock {
         path: path.to_owned(),
@@ -389,14 +419,21 @@ fn open_fresh(path: &Path) -> std::io::Result<fs::File> {
     {
         use std::os::windows::fs::OpenOptionsExt;
         const FILE_FLAG_NO_BUFFERING: u32 = 0x2000_0000;
-        match OpenOptions::new()
-            .read(true)
-            .custom_flags(FILE_FLAG_NO_BUFFERING)
-            .open(path)
-        {
-            Err(error) if error.kind() == ErrorKind::NotFound => return Err(error),
-            Ok(file) => return Ok(file),
-            Err(_) => {}
+        // Asking for write access too makes the client open the file at the
+        // server instead of handing back a handle it kept from an earlier
+        // read (B-306). The file is only read; if the folder refuses write
+        // access, the read-only open follows.
+        for write in [true, false] {
+            match OpenOptions::new()
+                .read(true)
+                .write(write)
+                .custom_flags(FILE_FLAG_NO_BUFFERING)
+                .open(path)
+            {
+                Err(error) if error.kind() == ErrorKind::NotFound => return Err(error),
+                Ok(file) => return Ok(file),
+                Err(_) => {}
+            }
         }
     }
     fs::File::open(path)
@@ -629,6 +666,71 @@ mod left_behind_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A folder that is removed again when it goes out of scope.
+    struct Folder(PathBuf);
+
+    impl Drop for Folder {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn temp_book() -> (Folder, PathBuf) {
+        let dir = std::env::temp_dir().join(format!("ks-lock-test-{}", uuid::Uuid::now_v7()));
+        fs::create_dir_all(&dir).expect("temp dir");
+        let book = dir.join("Book.ksz");
+        (Folder(dir), book)
+    }
+
+    #[test]
+    fn a_take_over_writes_into_the_same_lock_file_and_the_first_holder_notices() {
+        let (_dir, book) = temp_book();
+        let first = HeldLock::acquire(&book, "first").expect("first lock");
+        let seen = read(&lock_path(&book)).expect("read").expect("a lock");
+        #[cfg(unix)]
+        let inode = {
+            use std::os::unix::fs::MetadataExt;
+            fs::metadata(lock_path(&book)).expect("meta").ino()
+        };
+        assert!(!first.is_taken_over());
+        let second = HeldLock::take_over(&book, "second", &seen).expect("take over");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::MetadataExt;
+            assert_eq!(fs::metadata(lock_path(&book)).expect("meta").ino(), inode);
+        }
+        assert!(first.is_taken_over());
+        assert!(!second.is_taken_over());
+        // The first one closing later must not remove the second one's lock.
+        drop(first);
+        assert!(lock_path(&book).exists());
+        assert!(!second.is_taken_over());
+    }
+
+    #[test]
+    fn a_take_over_of_a_lock_that_changed_is_refused() {
+        let (_dir, book) = temp_book();
+        let first = HeldLock::acquire(&book, "first").expect("first lock");
+        let seen = read(&lock_path(&book)).expect("read").expect("a lock");
+        let other = Lock {
+            token: Some("someone-else".to_owned()),
+            ..seen.clone()
+        };
+        let refused = HeldLock::take_over(&book, "second", &other);
+        assert!(matches!(refused, Err(StoreError::Locked(_))));
+        assert!(!first.is_taken_over());
+    }
+
+    #[test]
+    fn a_take_over_when_the_lock_was_released_meanwhile_makes_a_new_lock() {
+        let (_dir, book) = temp_book();
+        let first = HeldLock::acquire(&book, "first").expect("first lock");
+        let seen = read(&lock_path(&book)).expect("read").expect("a lock");
+        drop(first);
+        let second = HeldLock::take_over(&book, "second", &seen).expect("take over");
+        assert!(!second.is_taken_over());
+    }
 
     #[test]
     fn a_lock_stays_small_enough_to_travel_in_error_values() {

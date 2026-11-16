@@ -301,7 +301,7 @@ pub(crate) mod engine {
         confirm_with_bills_in, corrected, hooks, outcome_of, rows_of,
     };
     use crate::ai_requests::{Arrived, take_requests, tell_confirmed, tell_declined, tell_dropped};
-    use crate::ai_settings::{self, Store};
+    use crate::ai_settings::{self, Consent, Store};
     use crate::book_session::app_version;
     use crate::format::Locale;
     use crate::number_format::app_locale;
@@ -1043,7 +1043,14 @@ pub(crate) mod engine {
         // The fake model stands for a provider on another computer, so the
         // review of each request can be tried with it (D-210).
         let demo = ai_settings::demo_model();
-        let ask_first = demo.is_some() || store.form().place == Some(Place::AnotherComputer);
+        let form = store.form();
+        // Without consent nothing can go to a provider on another computer:
+        // say so before the review of the request, not after it (B-324).
+        // The chat then shows what would be sent (B-314).
+        if demo.is_none() && form.consent == Consent::Missing {
+            return error(&ErrorText::plain("ai.no-consent"));
+        }
+        let ask_first = demo.is_some() || form.place == Some(Place::AnotherComputer);
         let today = app_locale().today();
         let typed = (!key.is_empty()).then(|| Secret::new(key.to_owned()));
         let question = question.to_owned();

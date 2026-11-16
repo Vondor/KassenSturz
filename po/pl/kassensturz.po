@@ -23412,3 +23412,27 @@ msgstr "Inny komputer otworzył tę księgę mimo to, więc KassenSturz zamkną�
 msgctxt "@action:button hides a note for this book"
 msgid "Don't show again for this book"
 msgstr "Nie pokazuj ponownie dla tej księgi"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1
+#, kde-format
+msgctxt "@info:status shown while a book is being opened"
+msgid "Opening your book …"
+msgstr "Otwieranie księgi …"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1
+#, kde-format
+msgctxt "@info:status"
+msgid "A book on a network drive can take a little while. Please wait."
+msgstr "Otwieranie księgi na dysku sieciowym może chwilę potrwać. Proszę czekać."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:1
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid "You agreed on %1, but KassenSturz can't confirm that agreement any more: it was kept only until KassenSturz closed, or it wasn't given in KassenSturz. Nothing is sent to this provider until you read what is sent and agree again."
+msgstr "Dnia %1 zgodziłeś się, ale KassenSturz nie może już potwierdzić tej zgody: obowiązywała tylko do zamknięcia KassenSturz albo nie została udzielona w KassenSturz. Nic nie jest wysyłane do tego dostawcy, dopóki nie przeczytasz, co jest wysyłane, i nie zgodzisz się ponownie."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "This agreement holds only until KassenSturz closes: it couldn't be kept where KassenSturz saves PINs and keys. To keep it, choose a place under Settings → Advanced → Password storage, check that it is unlocked, and agree again."
+msgstr "Ta zgoda obowiązuje tylko do zamknięcia KassenSturz: nie udało się jej zachować tam, gdzie KassenSturz zapisuje kody PIN i klucze. Aby ją zachować, wybierz miejsce w Ustawienia → Zaawansowane → Przechowywanie haseł, sprawdź, czy jest odblokowane, i zgódź się ponownie."

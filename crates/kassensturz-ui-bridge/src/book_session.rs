@@ -11,7 +11,7 @@
 use core::pin::Pin;
 use std::path::{Path, PathBuf};
 
-use cxx_qt::CxxQtType;
+use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 use kassensturz_core::Timestamp;
 use kassensturz_store::{
@@ -19,7 +19,7 @@ use kassensturz_store::{
 };
 
 use crate::backup_copies;
-use crate::books::{Books, OpenBook, Problem};
+use crate::books::{Books, OpenBook, OpenKind, Problem};
 use crate::locale::QtLocale;
 use crate::platform;
 use crate::session;
@@ -47,6 +47,7 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, open, READ, NOTIFY)]
+        #[qproperty(bool, opening, READ, NOTIFY)]
         #[qproperty(QString, file_name, cxx_name = "fileName", READ, NOTIFY)]
         #[qproperty(QString, folder, READ, NOTIFY)]
         #[qproperty(QString, folder_url, cxx_name = "folderUrl", READ, NOTIFY)]
@@ -168,12 +169,17 @@ pub mod qobject {
     }
 
     impl cxx_qt::Initialize for BookSession {}
+
+    impl cxx_qt::Threading for BookSession {}
 }
 
 /// The Rust side of [`qobject::BookSession`].
 #[derive(Default)]
 pub struct BookSessionRust {
     open: bool,
+    /// Whether a book is being opened on a worker thread: a slow drive
+    /// then never freezes the window (B-326).
+    opening: bool,
     file_name: QString,
     folder: QString,
     folder_url: QString,
@@ -226,8 +232,9 @@ impl cxx_qt::Initialize for qobject::BookSession {
 impl qobject::BookSession {
     fn open_last(self: Pin<&mut Self>, name: &QString) {
         let name = name.to_string();
-        self.attempt(Attempt::OpenLast(name.clone()), |books| {
-            books.open_last(&name)
+        self.attempt(Attempt::OpenLast(name.clone()), |books| OpenKind::Last {
+            last: books.last_book(),
+            name,
         });
     }
 
@@ -239,14 +246,14 @@ impl qobject::BookSession {
             // It is the book that is open.
             return;
         }
-        self.attempt(Attempt::Open(path.clone()), |books| books.open(&path));
+        self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Open(path));
     }
 
     fn create_file(self: Pin<&mut Self>, file: &QUrl) {
         let Some(path) = local_path(file) else {
             return;
         };
-        self.attempt(Attempt::Open(path.clone()), |books| books.create(&path));
+        self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Create(path));
     }
 
     fn adopt_open_book(mut self: Pin<&mut Self>) {
@@ -264,8 +271,8 @@ impl qobject::BookSession {
             return;
         };
         let (path, lock) = (path.clone(), lock.clone());
-        self.attempt(Attempt::Open(path.clone()), |books| {
-            books.open_anyway(&path, &lock)
+        self.attempt(Attempt::Open(path.clone()), |_| {
+            OpenKind::OpenAnyway(path, lock)
         });
     }
 
@@ -277,7 +284,7 @@ impl qobject::BookSession {
             }
             Some(Attempt::Open(path) | Attempt::Locked(path, _)) => {
                 let path = path.clone();
-                self.attempt(Attempt::Open(path.clone()), |books| books.open(&path));
+                self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Open(path));
             }
             None => {}
         }
@@ -295,7 +302,7 @@ impl qobject::BookSession {
         if session::path().as_deref() == Some(path.as_path()) {
             return;
         }
-        self.attempt(Attempt::Open(path.clone()), |books| books.open(&path));
+        self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Open(path));
     }
 
     fn create_in(self: Pin<&mut Self>, folder: &QString, name: &QString) -> QVariant {
@@ -305,7 +312,7 @@ impl qobject::BookSession {
                 ("code", variant::text("name.invalid")),
             ]);
         };
-        self.attempt(Attempt::Open(path.clone()), |books| books.create(&path));
+        self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Create(path));
         variant::map([("ok", QVariant::from(&true))])
     }
 
@@ -423,26 +430,58 @@ impl qobject::BookSession {
         let placed = prepared.put_in_place();
         // The book opens again either way: restored, or as it was.
         self.as_mut()
-            .attempt(Attempt::Open(book.clone()), |books| books.open(&book));
+            .attempt(Attempt::Open(book.clone()), |_| OpenKind::Open(book));
         match placed {
             Ok(()) => variant::map([("ok", QVariant::from(&true))]),
             Err(_) => refused("restore.failed"),
         }
     }
 
-    /// Opens a book with `open`. If that fails, the book that was open stays
-    /// open, and `problem` says why.
-    fn attempt(
-        mut self: Pin<&mut Self>,
-        attempt: Attempt,
-        open: impl FnOnce(&Books) -> Result<OpenBook, Problem>,
-    ) {
+    /// Opens a book as `kind` says, on a worker thread, so a slow drive
+    /// never freezes the window (B-326). While it runs, `opening` is true
+    /// and a new attempt is ignored. If it fails, the book that was open
+    /// stays open, and `problem` says why.
+    fn attempt(mut self: Pin<&mut Self>, attempt: Attempt, kind: impl FnOnce(&Books) -> OpenKind) {
+        if self.rust().opening {
+            return;
+        }
         let Some(books) = self.rust().books.as_ref() else {
             return;
         };
-        match open(books) {
+        let job = books.job();
+        let kind = kind(books);
+        self.as_mut().rust_mut().opening = true;
+        self.as_mut().opening_changed();
+        let thread = self.qt_thread();
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| job.run(kind)));
+            // A window that is closing has no one left to tell.
+            let _ = match result {
+                Ok(result) => thread.queue(move |qobject| qobject.finish(attempt, result)),
+                // Never leave the window waiting for a book that can't come.
+                Err(_) => thread.queue(|qobject| qobject.stop_opening()),
+            };
+        });
+    }
+
+    /// The worker is done, whatever it found.
+    fn stop_opening(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().opening = false;
+        self.as_mut().opening_changed();
+    }
+
+    /// What the worker thread found: the book opened, or the problem.
+    fn finish(mut self: Pin<&mut Self>, attempt: Attempt, result: Result<OpenBook, Problem>) {
+        self.as_mut().stop_opening();
+        match result {
             Ok(book) => {
-                let backups = books.backup_folder().to_owned();
+                let backups = {
+                    let Some(books) = self.rust().books.as_ref() else {
+                        return;
+                    };
+                    books.remember_opened(&book);
+                    books.backup_folder().to_owned()
+                };
                 session::set(book);
                 // A backup in the app's own folder at least once a month
                 // (B-255), then a copy in the folder the user chose, at

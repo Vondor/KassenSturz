@@ -116,6 +116,15 @@ pub struct Form {
     pub address_error: Option<AiError>,
     /// The consent for the saved provider.
     pub consent: Consent,
+    /// A given consent whose seal is only in memory (nowhere to save
+    /// secrets, or the keychain refused it): it counts until KassenSturz
+    /// closes, and the screen says so (B-324).
+    pub consent_until_close: bool,
+    /// The day of a consent the settings file holds for this address that
+    /// KassenSturz can't confirm, because no seal matches it: kept only
+    /// until KassenSturz closed last time, or not given in KassenSturz
+    /// (B-252). The screen says why it asks again (B-324).
+    pub consent_unconfirmed: Option<Date>,
     /// What the last test found out about the saved model, if it was made
     /// for this address and model.
     pub capability: Option<Capability>,
@@ -334,14 +343,25 @@ impl Store {
             kassensturz_ai::allowed(&self.text(kassensturz_ai::ALLOW_UNENCRYPTED_KEY));
         let parsed = ProviderAddress::parse_with(&address, allow_unencrypted);
         let config = self.config.read();
-        let consent = match &parsed {
+        let (consent, consent_until_close, consent_unconfirmed) = match &parsed {
             Ok(parsed) if parsed.place() == Place::AnotherComputer => {
                 match self.consent_for(&config, parsed) {
-                    Some(consent) if consent.covers(parsed) => Consent::Given(consent.day),
-                    _ => Consent::Missing,
+                    Some(consent) if consent.covers(parsed) => (
+                        Consent::Given(consent.day),
+                        !self.with_seals(|keys| keys.consent_seal_saved(&consent)),
+                        None,
+                    ),
+                    _ => (
+                        Consent::Missing,
+                        false,
+                        config
+                            .consent()
+                            .filter(|file| file.covers(parsed))
+                            .map(|file| file.day),
+                    ),
                 }
             }
-            _ => Consent::NotNeeded,
+            _ => (Consent::NotNeeded, false, None),
         };
         let usable = parsed.as_ref().ok();
         let place = usable.map(ProviderAddress::place);
@@ -363,6 +383,8 @@ impl Store {
             key_use,
             address_error,
             consent,
+            consent_until_close,
+            consent_unconfirmed,
         }
     }
 
@@ -576,10 +598,21 @@ impl Store {
     /// Records that the user agreed to what is sent to the saved provider,
     /// on `today`, to the current statement. Returns whether it was
     /// written; nothing is recorded for a provider that isn't usable.
+    /// The app itself calls [`Self::give_consent_noting`]; this short form
+    /// is kept for the tests.
+    #[cfg(test)]
     pub fn give_consent(&self, today: Date) -> bool {
+        self.give_consent_noting(today).0
+    }
+
+    /// [`Store::give_consent`], and why its seal couldn't be saved where
+    /// secrets go, if it couldn't: then the consent counts only until
+    /// KassenSturz closes (B-259, B-324), and the developer mode's log
+    /// says why.
+    pub fn give_consent_noting(&self, today: Date) -> (bool, Option<AiError>) {
         let config = self.config.read();
         let Ok(provider) = config.provider() else {
-            return false;
+            return (false, None);
         };
         let record = ConsentRecord::give(&provider.address, today);
         // The seal first: a consent in the file without it counts for
@@ -587,11 +620,12 @@ impl Store {
         // closes; a keychain that refuses to save it (B-259) only means
         // the user is asked again at the next start, so it doesn't stop
         // the consent the user just gave.
-        let _ = self.with_seals(|keys| keys.seal_consent(&record));
-        record
+        let sealed = self.with_seals(|keys| keys.seal_consent(&record));
+        let written = record
             .entries()
             .iter()
-            .all(|(name, value)| self.put(name, value))
+            .all(|(name, value)| self.put(name, value));
+        (written, sealed.err())
     }
 
     /// Takes the consent back: nothing goes to a provider on another
@@ -1031,6 +1065,34 @@ mod tests {
     }
 
     #[test]
+    fn a_consent_kept_only_until_close_says_so_and_why_it_is_asked_again() {
+        // B-324: with nowhere to save secrets (Password storage: don't
+        // save), the seal lives only in memory. The screen says the
+        // consent holds until KassenSturz closes, and after a restart it
+        // says why it asks again, though the file still names the day.
+        let (_folder, file, mut store) = on();
+        store.keys = Some(Arc::new(Mutex::new(ProviderKeys::new(None))));
+        let (_, mut keys) = keys();
+        let address = "https://api.example.com/v1";
+        store.save(&mut keys, address, "big", KeyUse::None, None);
+        assert_eq!(store.form().consent_unconfirmed, None);
+        assert!(store.give_consent(TODAY));
+        let form = store.form();
+        assert_eq!(form.consent, Consent::Given(TODAY));
+        assert!(form.consent_until_close);
+
+        let mut after = Store::at(&file);
+        after.keys = Some(Arc::new(Mutex::new(ProviderKeys::new(None))));
+        let form = after.form();
+        assert_eq!(form.consent, Consent::Missing);
+        assert!(!form.consent_until_close);
+        assert_eq!(form.consent_unconfirmed, Some(TODAY));
+        // Agreeing again counts, until KassenSturz closes once more.
+        assert!(after.give_consent(TODAY));
+        assert_eq!(after.form().consent_unconfirmed, None);
+    }
+
+    #[test]
     fn a_consent_taken_back_is_gone_after_a_restart() {
         // B-319: a consent outlives a restart (D-202: per computer, in the
         // settings file with its seal in the keychain), so taking it back
@@ -1051,10 +1113,13 @@ mod tests {
         store.save(&mut keys, address, "big", KeyUse::None, None);
         assert!(store.give_consent(TODAY));
 
+        assert!(!store.form().consent_until_close, "the seal is saved");
+
         // The next start still has the consent, sealed in the keychain.
         let mut again = Store::at(&file);
         again.keys = own();
         assert_eq!(again.form().consent, Consent::Given(TODAY));
+        assert!(!again.form().consent_until_close);
         assert!(again.withdraw_consent());
         drop(again);
 
@@ -1093,6 +1158,8 @@ mod tests {
         memory.fail_with(Some(KeychainError::Unavailable));
         assert!(store.give_consent(TODAY), "the consent is written");
         assert_eq!(store.form().consent, Consent::Given(TODAY));
+        // The screen says it holds only until KassenSturz closes (B-324).
+        assert!(store.form().consent_until_close);
         let client = store.client();
         let request = client
             .prepare(vec![kassensturz_ai::Message::user("Hi")], Vec::new())

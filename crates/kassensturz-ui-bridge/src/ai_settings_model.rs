@@ -458,9 +458,18 @@ mod engine {
     }
 
     pub(super) fn give_consent() -> bool {
-        let given = Store::user().give_consent(app_locale().today());
+        let store = Store::user();
+        let (given, seal_error) = store.give_consent_noting(app_locale().today());
         if given {
             crate::note!(ConsentGiven);
+            // Why it holds only until KassenSturz closes, if it does: the
+            // keychain's code, or none when secrets are saved nowhere
+            // (B-324).
+            if let Some(error) = seal_error {
+                crate::note!(ConsentUntilClose, None, Some(error.report().code));
+            } else if store.form().consent_until_close {
+                crate::note!(ConsentUntilClose);
+            }
         }
         given
     }
@@ -547,6 +556,20 @@ mod engine {
             ),
             ("consent", text(consent)),
             ("consentDay", text(&day)),
+            // A consent that counts only until KassenSturz closes, and the
+            // day of one in the file that can't be confirmed (B-324).
+            (
+                "consentUntilClose",
+                QVariant::from(&form.consent_until_close),
+            ),
+            (
+                "consentUnconfirmedDay",
+                text(
+                    &form
+                        .consent_unconfirmed
+                        .map_or_else(String::new, |day| app_locale().short_date(day)),
+                ),
+            ),
             // What the last test found for this address and model, empty
             // when there is none (D-294).
             (
@@ -1745,6 +1768,8 @@ mod tests {
                 "capability",
                 "consent",
                 "consentDay",
+                "consentUnconfirmedDay",
+                "consentUntilClose",
                 "keyUse",
                 "model",
                 "network",
@@ -1779,6 +1804,11 @@ mod tests {
         assert!(store.give_consent(TODAY));
         let form = load_in(&store, false);
         assert_eq!(text_of(&form, "consent"), "given");
+        // `Store::at` has nowhere to save secrets, so the seal is kept only
+        // in memory and the form says the consent lasts until KassenSturz
+        // closes (B-324). The saved case is tested in `ai_settings`.
+        assert!(flag_of(&form, "consentUntilClose"));
+        assert_eq!(text_of(&form, "consentUnconfirmedDay"), "");
         assert!(
             text_of(&form, "consentDay").contains("25"),
             "the day, as the locale writes it"

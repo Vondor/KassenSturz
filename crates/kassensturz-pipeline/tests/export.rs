@@ -276,6 +276,70 @@ fn an_amount_converted_from_marks_keeps_its_original_in_the_row() {
 }
 
 #[test]
+fn parts_on_one_account_on_two_days_each_keep_their_own_memo_and_original() {
+    // B-327 (#1082): the register makes one row per day, so each row takes
+    // only the parts booked to the account on its own day.
+    const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+        Ok(code) => code,
+        Err(_) => panic!("DEM is a valid code"),
+    };
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    book.use_currency(DEM).expect("currency used");
+    let checking = add(&mut book, "Checking account", AccountKind::Asset, None);
+    let groceries = add(&mut book, "Groceries", AccountKind::Expense, None);
+    let with_memo = |amount, memo: &str| {
+        let mut split = Split::new(checking, eur(amount));
+        split.imported = Some(ImportedDetails {
+            remittance_information: Some(memo.into()),
+            ..ImportedDetails::default()
+        });
+        split
+    };
+    let first = Split {
+        original: Some(OriginalAmount {
+            amount: Money::from_minor_units(-1_000, DEM),
+            rate: DEM
+                .withdrawn()
+                .expect("the table lists the mark")
+                .dated_rate(DatedRateId::generate()),
+        }),
+        ..with_memo(-511, "First instalment")
+    };
+    let second = Split {
+        own_date: Some(day(9)),
+        ..with_memo(-200, "Second instalment")
+    };
+    add_transaction(
+        &mut book,
+        day(3),
+        Some("Corner Grocery"),
+        vec![first, second, Split::new(groceries, eur(711))],
+    );
+
+    let accounts = only(export_transactions(&book, &[checking]).expect("gathered"));
+    let rows = &accounts[0].rows;
+    let summary: Vec<_> = rows
+        .iter()
+        .map(|row| (row.date, row.memo.as_deref(), row.amount))
+        .collect();
+    assert_eq!(
+        summary,
+        vec![
+            (day(3), Some("First instalment"), eur(-511)),
+            (day(9), Some("Second instalment"), eur(-200)),
+        ]
+    );
+    let original = rows[0]
+        .original
+        .as_ref()
+        .expect("the first part's original");
+    assert_eq!(original.amount, Money::from_minor_units(-1_000, DEM));
+    // The second part was typed in euros: its row has no original.
+    assert_eq!(rows[1].original, None);
+}
+
+#[test]
 fn a_long_note_the_user_wrote_reaches_the_csv_file_whole() {
     // B-257: the note was never exported, so a transaction entered by hand
     // with a long note had an empty memo and nothing else.

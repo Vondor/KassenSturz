@@ -162,7 +162,7 @@ pub(crate) fn check_write_lock(conn: &Connection, book: &Path) -> Result<(), Sto
 /// permissions, space or damage is [`StoreError::LocksUnsupported`]. Local
 /// folders are left alone, and where a save works the book opens as ever.
 pub(crate) fn check_save(conn: &Connection, book: &Path) -> Result<(), StoreError> {
-    if !on_network_share(book) {
+    if !may_be_on_a_share(book) {
         return Ok(());
     }
     conn.busy_timeout(WRITE_LOCK_WAIT)?;
@@ -192,9 +192,12 @@ fn is_busy(error: &rusqlite::Error) -> bool {
     )
 }
 
-/// Whether `file` is on a network share, as the system's mount table says
-/// (Linux only; elsewhere nothing is learnt, and the check stays as it was).
-fn on_network_share(file: &Path) -> bool {
+/// Whether the save check must run for `file`: unless the mount table says
+/// the file is on a local disk, it may be a share, and a snap or another
+/// sandbox can hide the mount table or its file system type (B-304 round 5).
+/// A save that works costs one small write; a wrongly skipped check costs
+/// the user's first save.
+pub(crate) fn may_be_on_a_share(file: &Path) -> bool {
     #[cfg(test)]
     if PRETEND_SHARE.with(std::cell::Cell::get) {
         return true;
@@ -203,22 +206,39 @@ fn on_network_share(file: &Path) -> bool {
     if SQLITE_CANT_LOCK.with(std::cell::Cell::get) {
         return false;
     }
-    let Ok(table) = fs::read_to_string("/proc/self/mountinfo") else {
-        return false;
-    };
-    let Some(folder) = file
-        .parent()
-        .and_then(|folder| fs::canonicalize(folder).ok())
-    else {
-        return false;
-    };
-    is_network_type(mount_type_of(&table, &folder).as_deref())
+    // Only Linux has a mount table to ask; elsewhere the check stays as it was.
+    cfg!(target_os = "linux") && !is_local_type(mount_type(file).as_deref())
 }
 
-fn is_network_type(kind: Option<&str>) -> bool {
+/// The file system type that holds `file`, or `None` if the mount table
+/// can't be read or doesn't name one.
+fn mount_type(file: &Path) -> Option<String> {
+    let table = fs::read_to_string("/proc/self/mountinfo").ok()?;
+    let folder = fs::canonicalize(file.parent()?).ok()?;
+    mount_type_of(&table, &folder)
+}
+
+fn is_local_type(kind: Option<&str>) -> bool {
     matches!(
         kind,
-        Some("cifs" | "smb3" | "smbfs" | "nfs" | "nfs4" | "9p" | "fuse.sshfs")
+        Some(
+            "ext2"
+                | "ext3"
+                | "ext4"
+                | "btrfs"
+                | "xfs"
+                | "f2fs"
+                | "zfs"
+                | "tmpfs"
+                | "overlay"
+                | "vfat"
+                | "exfat"
+                | "ntfs"
+                | "ntfs3"
+                | "fuseblk"
+                | "apfs"
+                | "hfsplus"
+        )
     )
 }
 

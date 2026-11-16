@@ -662,9 +662,12 @@ garbage line
     assert_eq!(kind("/media/tester/netz/b304").as_deref(), Some("cifs"));
     assert_eq!(kind("/media/tester/my disk/x").as_deref(), Some("ext4"));
     assert_eq!(kind("/home/tester").as_deref(), Some("ext4"));
-    assert!(is_network_type(kind("/media/tester/netz").as_deref()));
-    assert!(!is_network_type(kind("/home/tester").as_deref()));
-    assert!(!is_network_type(None));
+    // Only a mount known to be a local disk skips the save check: a share,
+    // an unknown type and an unreadable table (a snap, B-304) are checked.
+    assert!(!is_local_type(kind("/media/tester/netz").as_deref()));
+    assert!(is_local_type(kind("/home/tester").as_deref()));
+    assert!(!is_local_type(None));
+    assert!(!is_local_type(Some("fuse.gvfsd-fuse")));
 }
 
 /// A book whose folder takes the write lock but refuses the exclusive lock a

@@ -264,7 +264,9 @@ impl Book {
         });
         loop {
             match Self::read_checked(&path, computer, migrations, first_version) {
-                Err(StoreError::Corrupt(_))
+                // A save still going on can also hold the file busy for a
+                // moment, which reads as "in use" (B-355 CI).
+                Err(StoreError::Corrupt(_) | StoreError::Locked(_))
                     if settle_until.is_some_and(|until| std::time::Instant::now() < until) =>
                 {
                     std::thread::sleep(lock::SETTLE_STEP);

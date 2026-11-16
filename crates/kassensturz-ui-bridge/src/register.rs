@@ -415,7 +415,12 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
         entries.push(Entry {
             transaction: entry.transaction,
             date: entry.booking_date,
-            other_party: entry.payee.unwrap_or_default(),
+            // A payee from before B-365 may hold hidden characters.
+            other_party: entry
+                .payee
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
             category,
             amount: entry.amount,
             kind,
@@ -485,7 +490,12 @@ pub fn latest_entries(
         found.push(Entry {
             transaction: entry.transaction,
             date: entry.booking_date,
-            other_party: entry.payee.unwrap_or_default(),
+            // A payee from before B-365 may hold hidden characters.
+            other_party: entry
+                .payee
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
             category,
             amount: entry.amount,
             kind,
@@ -682,7 +692,7 @@ pub fn imported_texts(
 /// `text` with every run of white space, e.g. the line breaks of a bank's
 /// remittance information, written as one space.
 fn one_line(text: Option<&str>) -> String {
-    text.unwrap_or_default()
+    kassensturz_store::shown_text(text.unwrap_or_default())
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")

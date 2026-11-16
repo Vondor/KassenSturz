@@ -154,6 +154,21 @@ pub fn recognize(input: &[u8], name: &str) -> Result<FileKind, StatementImportEr
     }
 }
 
+/// What to say when the file called `name` couldn't be read with `error`:
+/// a book file (a KMyMoney or KassenSturz book, by its name) that is too
+/// large is still a whole book, not a statement that is too large (B-366),
+/// so the user is pointed to starting a book from it.
+pub fn unread_file(name: &str, error: ImportError) -> StatementImportError {
+    let book = Path::new(name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| ["kmy", "ksz"].contains(&extension.to_ascii_lowercase().as_str()));
+    match error {
+        ImportError::FileTooLarge { .. } if book => StatementImportError::WholeBook,
+        error => StatementImportError::Import(error),
+    }
+}
+
 /// Reads the statements of `input` with `importer`, within the limits for
 /// untrusted statement files (D-091): a file with more entries than a
 /// household's statements ever have is refused before anything of it is
@@ -672,14 +687,16 @@ fn add_details(
         let name = imported
             .other_party_name
             .as_deref()
-            .unwrap_or_default()
-            .trim();
+            .map(kassensturz_store::shown_text)
+            .unwrap_or_default();
+        let name = name.trim();
         if !name.is_empty() && !name.eq_ignore_ascii_case(shown.other_party.trim()) {
             name.clone_into(&mut shown.bank_name);
         }
         imported
             .remittance_information
             .as_deref()
+            .map(kassensturz_store::shown_text)
             .unwrap_or_default()
             .trim()
             .clone_into(&mut shown.purpose);
@@ -784,8 +801,18 @@ fn describe(
         entries.push(EntryText {
             key: format!("{}.{}", at.statement, at.entry),
             date: locale.short_date(entry.booking_date),
-            other_party: entry.other_party_name.clone().unwrap_or_default(),
-            purpose: entry.remittance_information.clone().unwrap_or_default(),
+            // What the bank delivered, shown without characters that hide
+            // or turn it around (B-365).
+            other_party: entry
+                .other_party_name
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
+            purpose: entry
+                .remittance_information
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
             amount,
             incoming: entry.amount.minor_units() > 0,
             outcome,
@@ -1394,6 +1421,75 @@ mod tests {
         );
         entry.other_party_name = Some(other_party.into());
         entry
+    }
+
+    /// B-365 (round 7, B6): a bank's text with a direction override showed
+    /// turned around ("Bäcker Gaben") in the preview and the register. Both
+    /// show it without the characters that hide or turn it, the payee is
+    /// imported without them, and the book keeps what the bank delivered.
+    #[test]
+    fn a_bank_text_that_turns_itself_around_is_shown_without_that() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-10-01",
+        );
+        let turned = "Bäcker \u{202E}nebaG\u{202C}";
+        let mut bakery = entry(5, -350, turned);
+        bakery.remittance_information = Some("Bread\u{200B} \u{202E}5 gnuhcer\u{202C}".into());
+        let statement = Statement {
+            account: StatementAccount::default(),
+            currency: eur(),
+            opening_balance: None,
+            closing_balance: None,
+            entries: vec![bakery],
+        };
+        let loaded = Loaded::new(checking, PathBuf::from("bidi.sta"), vec![statement]);
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        assert_eq!(shown.entries[0].other_party, "Bäcker nebaG");
+        assert_eq!(shown.entries[0].purpose, "Bread 5 gnuhcer");
+        import(&mut book, &loaded, &TestLocale).expect("imported");
+
+        let columns = Columns::default().with(RegisterColumn::Purpose, true);
+        let register = register_view_with(&book, checking, Sort::default(), columns, &TestLocale)
+            .expect("register");
+        let row = register
+            .rows
+            .iter()
+            .find(|row| row.other_party.starts_with("Bäcker"))
+            .expect("the bakery's row");
+        assert_eq!(row.other_party, "Bäcker nebaG");
+        assert_eq!(row.purpose, "Bread 5 gnuhcer");
+        // What the bank delivered is kept as delivered (D-375).
+        let kept = book
+            .account_parts(checking)
+            .expect("parts")
+            .into_iter()
+            .find_map(|part| part.imported)
+            .expect("delivered");
+        assert_eq!(kept.other_party_name.as_deref(), Some(turned));
+    }
+
+    /// B-366: a book file too large to read is a whole book, not a
+    /// statement that is too large.
+    #[test]
+    fn a_book_file_too_large_to_read_is_still_a_whole_book() {
+        let too_large = || ImportError::FileTooLarge { max_bytes: 128 };
+        assert_eq!(
+            code(&unread_file("Household.KMY", too_large())),
+            "input.whole-book"
+        );
+        assert_eq!(
+            code(&unread_file("Household.ksz", too_large())),
+            "input.whole-book"
+        );
+        assert_eq!(
+            code(&unread_file("statement.sta", too_large())),
+            "import.file-too-large"
+        );
     }
 
     #[test]

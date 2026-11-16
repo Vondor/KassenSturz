@@ -117,6 +117,24 @@ pub fn stored_name(name: &str) -> String {
     name.nfc().collect()
 }
 
+/// `text` from a bank, a file or another program's book as KassenSturz
+/// shows it and as a payee it takes over (B-365): a character that shows as
+/// nothing or turns the text around ([`is_invisible`]) goes, and a control
+/// character such as a line break becomes a space. Otherwise unchanged, so
+/// an ordinary text stays as it was. The joiners some scripts need stay.
+/// What a bank or file delivered is kept as delivered (D-375); this is how
+/// it is shown, the same as typed text may be (B-272) and as the AI tools
+/// see it.
+pub fn shown_text(text: &str) -> String {
+    if !text.chars().any(|c| is_invisible(c) || c.is_control()) {
+        return text.to_owned();
+    }
+    text.chars()
+        .filter(|&c| !is_invisible(c))
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect()
+}
+
 /// `wanted` made into a name the book keeps, for a name another program
 /// wrote: control characters such as a line break become spaces, characters
 /// that show as nothing go, the name is composed (NFC, D-782), and a name
@@ -223,5 +241,25 @@ mod tests {
         );
         assert_eq!(fitting_account_name("\u{200B}"), "");
         assert!(check_account_name(&fitting_account_name("Giro\u{2066}\t")).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod shown_tests {
+    use super::shown_text;
+
+    /// B-365: what hides or turns a delivered text around goes; the
+    /// joiners some scripts need and ordinary text stay.
+    #[test]
+    fn a_text_is_shown_without_what_hides_or_turns_it() {
+        assert_eq!(shown_text("Bäcker \u{202E}nebaG\u{202C}"), "Bäcker nebaG");
+        assert_eq!(shown_text("\u{2067}Mallory\u{2069}"), "Mallory");
+        assert_eq!(shown_text("Rent\u{200B} October"), "Rent October");
+        assert_eq!(shown_text("Line one\nline two"), "Line one line two");
+        assert_eq!(
+            shown_text("\u{1F468}\u{200D}\u{1F373} Café"),
+            "\u{1F468}\u{200D}\u{1F373} Café"
+        );
+        assert_eq!(shown_text("Corner Grocery"), "Corner Grocery");
     }
 }

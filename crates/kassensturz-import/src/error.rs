@@ -188,6 +188,10 @@ pub enum ImportError {
         /// The decimal places the file's amounts are counted in.
         file: u8,
     },
+    /// The app was asked to quit during the import, e.g. by a logout or a
+    /// shutdown (SIGTERM), so the import stopped (B-362). Nothing of it was
+    /// written.
+    Stopped,
 }
 
 impl ImportError {
@@ -218,7 +222,8 @@ impl ImportError {
             | Self::SuccessorNeeded { .. }
             | Self::SuccessorNotCurrent { .. }
             | Self::UnsupportedEncoding { .. }
-            | Self::DecimalPlacesDiffer { .. } => {}
+            | Self::DecimalPlacesDiffer { .. }
+            | Self::Stopped => {}
         }
         self
     }
@@ -358,6 +363,7 @@ impl Report for ImportError {
                 .with("currency", ErrorParam::Currency(*currency))
                 .with("book", ErrorParam::Number((*book).into()))
                 .with("file", ErrorParam::Number((*file).into())),
+            Self::Stopped => ErrorReport::new("import.stopped"),
         }
     }
 }

@@ -196,6 +196,9 @@ events! {
     /// the import (M6d.6a, Q-319 = A); the detail is KMyMoney's word for
     /// the period, [`Entry::days`] the import day and the two days.
     ImportPeriodFixed = "import.period-fixed",
+    /// A statement file wasn't imported; the code says why, e.g.
+    /// `import.too-many-entries` (B-364).
+    ImportRefused = "import.refused",
 }
 
 impl Event {

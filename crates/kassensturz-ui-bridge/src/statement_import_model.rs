@@ -185,7 +185,7 @@ impl qobject::StatementImport {
         self.as_mut().file_name_changed();
         let input = match read_file(&path, &Limits::default()) {
             Ok(input) => input,
-            Err(error) => return self.fail(&StatementImportError::Import(error)),
+            Err(error) => return self.fail(&statement_import::unread_file(&name, error)),
         };
         let kind = match statement_import::recognize(&input, &name) {
             Ok(kind) => kind,
@@ -345,7 +345,13 @@ impl qobject::StatementImport {
         match form.rows(&self.rust().input) {
             Ok(rows) => list(
                 rows.iter()
-                    .map(|row| list(row.iter().map(|cell| text(cell)))),
+                    // Without characters that hide or turn a cell around (B-365).
+                    .map(|row| {
+                        list(
+                            row.iter()
+                                .map(|cell| text(&kassensturz_store::shown_text(cell))),
+                        )
+                    }),
             ),
             Err(error) => self.fail_text(&error),
         }
@@ -478,6 +484,13 @@ impl qobject::StatementImport {
         let shown =
             session::with_book(|book| statement_import::error_text(book, error, &app_locale()))
                 .unwrap_or_else(|| ErrorText::plain("input.no-such-entry"));
+        // The code in the developer log, so a failed import shows there
+        // (B-364); a book's refusal with SQLite's kind of error.
+        let logged = match error {
+            StatementImportError::Store(store) => store.log_code(),
+            _ => shown.code,
+        };
+        crate::note!(ImportRefused, None, Some(logged));
         error_object(&shown)
     }
 }

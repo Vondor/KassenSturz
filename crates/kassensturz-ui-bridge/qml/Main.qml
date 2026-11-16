@@ -1097,6 +1097,31 @@ Kirigami.ApplicationWindow {
                 ]
                 text: root.i18nContext.i18nc("@info", "This book is on a network drive. Network drives can damage a book, because they don't save changes as reliably as this computer's own drive. Keep the book on this computer; a sync folder, such as Nextcloud's, is fine.")
             }
+
+            // Opening the book took back a save that was cut short, e.g. by
+            // a forced quit or a power cut (B-364): its changes are missing.
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                position: Kirigami.InlineMessage.Position.Header
+                type: Kirigami.MessageType.Warning
+                visible: bookSession.open && bookSession.cutShortNoteShown
+                actions: [
+                    Kirigami.Action {
+                        text: root.i18nContext.i18nc("@action:button hides a note", "Got it")
+                        onTriggered: {
+                            ActionLog.taken("Main_hideCutShortNote")
+                            bookSession.hideCutShortNote()
+                        }
+                    }
+                ]
+                text: {
+                    const taken = root.i18nContext.i18nc("@info", "KassenSturz was closed while it saved to this book last time, for example by force or by a power cut, so that save was taken back: the book is as it was before it. Check your latest changes and enter again what is missing.");
+                    if (bookSession.cutShortKept === "") {
+                        return Plain.plain(taken);
+                    }
+                    return Plain.plain(taken + " " + root.i18nContext.i18nc("@info %1 is a file name", "The book as that save left it is kept next to it as %1. Once you have checked the book, you can delete that file and the one next to it whose name begins the same.", bookSession.cutShortKept));
+                }
+            }
         }
     }
 

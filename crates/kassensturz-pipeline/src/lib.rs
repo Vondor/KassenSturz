@@ -68,6 +68,7 @@ mod imported_book;
 mod kmy_reports;
 mod kmy_reports_into;
 mod report;
+pub mod stop;
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -241,6 +242,9 @@ fn run(
     let mut entries = Vec::new();
     let mut added = Vec::new();
     for (at, decision) in decide(statements, &held, choices) {
+        // Between entries: a SIGTERM during a long import ends it, and the
+        // import's transaction leaves the book as it was (B-362).
+        stop::check()?;
         let outcome = match decision {
             Decision::Import { similar } => {
                 let entry = &statements[at.statement].entries[at.entry];
@@ -263,6 +267,7 @@ fn run(
         entries.push(EntryResult { entry: at, outcome });
     }
 
+    stop::check()?;
     let (transfers, rules) = if added.is_empty() {
         (Vec::new(), RuleRun::default())
     } else {
@@ -441,6 +446,16 @@ fn convert(
     Ok(converted)
 }
 
+/// The payee a delivered name becomes (B-365): without characters that
+/// show as nothing or turn the text around, the way a typed payee must be
+/// (B-272), so the register shows what the bank meant and not a reversed
+/// or hidden text. The name as delivered stays with the account's part
+/// (D-375). `None` for a name that is nothing but such characters.
+pub(crate) fn payee_from(delivered: Option<&str>) -> Option<String> {
+    let shown = kassensturz_store::shown_text(delivered?);
+    (!shown.trim().is_empty()).then_some(shown)
+}
+
 /// The transaction an entry becomes: the account's part, with everything
 /// the bank delivered, and one part without a category (D-083). An entry
 /// in a withdrawn currency comes to the `converted` amount, and the
@@ -481,7 +496,7 @@ fn transaction_for(
     let transaction = Transaction::new(
         TransactionId::generate(),
         entry.booking_date,
-        entry.other_party_name.clone(),
+        payee_from(entry.other_party_name.as_deref()),
         vec![own, Split::uncategorized(open)],
     )
     // Two parts in one currency that cancel out, the first with an account,

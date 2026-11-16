@@ -5661,6 +5661,27 @@ msgstr ""
 "die Freigabe eingerichtet hat, Dateisperren zu erlauben. Das "
 "Haushaltsbuch wurde nicht verändert."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:126
+#, kde-format
+msgctxt "@info"
+msgid ""
+"The last save to this book was cut short, for example because KassenSturz "
+"was closed by force, and KassenSturz couldn't finish putting the book back "
+"as it was before that save. Nothing is lost: what it needs is in a second "
+"file next to the book, whose name begins with the book's name. Don't delete "
+"or move that file on its own. Copy the book together with that file to a folder on this "
+"computer, then open the book there."
+msgstr ""
+"Das letzte Speichern in dieses Haushaltsbuch wurde abgebrochen, zum "
+"Beispiel weil KassenSturz gewaltsam beendet wurde, und KassenSturz konnte "
+"das Haushaltsbuch nicht wieder in den Stand vor diesem Speichern bringen. "
+"Es ist nichts verloren: Was dafür nötig ist, steht in einer zweiten Datei "
+"neben dem Haushaltsbuch, deren Name mit dem Namen des Haushaltsbuchs "
+"beginnt. Löschen oder verschieben "
+"Sie diese Datei nicht allein. Kopieren Sie das Haushaltsbuch zusammen mit "
+"dieser Datei in einen Ordner auf diesem Computer und öffnen Sie es dann "
+"dort."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:99
 #, kde-format
 msgctxt "@info"
@@ -10108,6 +10129,18 @@ msgstr ""
 "Die Datei hat mehr als %1 Einträge. Laden Sie einen kürzeren Zeitraum "
 "herunter und importieren Sie jeden Teil. Es wurde nichts importiert."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:167
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz was asked to quit while it made the book, so it stopped. Nothing was made."
+msgstr "KassenSturz wurde beim Anlegen des Haushaltsbuchs zum Beenden aufgefordert und hat deshalb aufgehört. Es wurde nichts angelegt."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:365
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz was asked to quit while it imported, so it stopped. Nothing was imported; import the file again."
+msgstr "KassenSturz wurde während des Imports zum Beenden aufgefordert und hat deshalb aufgehört. Es wurde nichts importiert; importieren Sie die Datei noch einmal."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:290
 #, kde-format
 msgctxt "@info %1 is a line number"
@@ -13929,6 +13962,24 @@ msgstr ""
 "speichern wie das eigene Laufwerk dieses Computers. Bewahren Sie das "
 "Haushaltsbuch auf diesem Computer auf; ein Sync-Ordner, etwa von Nextcloud, "
 "ist in Ordnung."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1110
+#, kde-format
+msgctxt "@action:button hides a note"
+msgid "Got it"
+msgstr "Verstanden"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1118
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz was closed while it saved to this book last time, for example by force or by a power cut, so that save was taken back: the book is as it was before it. Check your latest changes and enter again what is missing."
+msgstr "KassenSturz wurde beim letzten Speichern in dieses Haushaltsbuch beendet, zum Beispiel gewaltsam oder durch einen Stromausfall. Deshalb wurde dieses Speichern zurückgenommen: Das Haushaltsbuch ist so, wie es davor war. Prüfen Sie Ihre letzten Änderungen und tragen Sie Fehlendes noch einmal ein."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1122
+#, kde-format
+msgctxt "@info %1 is a file name"
+msgid "The book as that save left it is kept next to it as %1. Once you have checked the book, you can delete that file and the one next to it whose name begins the same."
+msgstr "Das Haushaltsbuch, wie dieses Speichern es hinterlassen hat, liegt daneben als %1. Wenn Sie das Haushaltsbuch geprüft haben, können Sie diese Datei und die daneben, deren Name genauso beginnt, löschen."
 
 #: crates/kassensturz-ui-bridge/qml/Main.qml:824
 #, kde-format

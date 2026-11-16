@@ -797,6 +797,7 @@ pub fn entry_choices(
                     .as_ref()
                     .and_then(|imported| imported.other_party_name.clone())
             })
+            .map(|payee| kassensturz_store::shown_text(&payee))
             .unwrap_or_default();
         let distance = (part.booking_date - due_on).get_days().unsigned_abs();
         found.push((

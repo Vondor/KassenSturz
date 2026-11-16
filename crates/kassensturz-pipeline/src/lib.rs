@@ -68,6 +68,7 @@ mod imported_book;
 mod kmy_reports;
 mod kmy_reports_into;
 mod report;
+pub mod stop;
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -241,6 +242,9 @@ fn run(
     let mut entries = Vec::new();
     let mut added = Vec::new();
     for (at, decision) in decide(statements, &held, choices) {
+        // Between entries: a SIGTERM during a long import ends it, and the
+        // import's transaction leaves the book as it was (B-362).
+        stop::check()?;
         let outcome = match decision {
             Decision::Import { similar } => {
                 let entry = &statements[at.statement].entries[at.entry];
@@ -263,6 +267,7 @@ fn run(
         entries.push(EntryResult { entry: at, outcome });
     }
 
+    stop::check()?;
     let (transfers, rules) = if added.is_empty() {
         (Vec::new(), RuleRun::default())
     } else {

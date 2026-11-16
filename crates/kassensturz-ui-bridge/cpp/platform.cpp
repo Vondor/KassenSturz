@@ -138,6 +138,10 @@ void quitApp()
     QCoreApplication::quit();
 }
 
+// Defined in Rust (`platform.rs`): asks an import under way to stop
+// (B-362). Only an atomic store, so a signal handler may call it.
+extern "C" void kassensturz_request_stop();
+
 #ifdef Q_OS_UNIX
 namespace
 {
@@ -148,6 +152,9 @@ int signalPipe[2] = {-1, -1};
 void onTerminationSignal(int)
 {
     const int savedErrno = errno;
+    // An import that holds the event loop stops between two entries
+    // (B-362); the pipe below then ends the event loop.
+    kassensturz_request_stop();
     const char byte = 1;
     const ssize_t written = ::write(signalPipe[1], &byte, 1);
     (void)written; // A full pipe already holds a wake-up.

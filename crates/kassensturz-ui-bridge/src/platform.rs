@@ -208,6 +208,16 @@ pub extern "C" fn kassensturz_close_book_at_session_end() {
     crate::session::close();
 }
 
+/// What the signal handler in `platform.cpp` calls on SIGTERM, SIGHUP and
+/// SIGINT, besides waking the event loop: an import that holds the event
+/// loop for seconds stops between two entries, so the app can quit with the
+/// book as it was (B-362). Only an atomic store, which a signal handler may
+/// do.
+#[unsafe(no_mangle)]
+pub extern "C" fn kassensturz_request_stop() {
+    kassensturz_pipeline::stop::request();
+}
+
 /// Whether the app runs in a Flatpak sandbox.
 pub fn in_flatpak_sandbox() -> bool {
     in_flatpak(Path::new("/.flatpak-info"))

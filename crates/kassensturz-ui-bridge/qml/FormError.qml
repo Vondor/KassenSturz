@@ -163,6 +163,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The file isn't built like a book KassenSturz can read; it may be damaged. Nothing was made.");
         case "import.too-many-entries":
             return i18nContext.i18nc("@info %1 is a number", "The file has more than %1 entries, more than KassenSturz reads safely. Nothing was made.", result.max);
+        case "import.stopped":
+            return i18nContext.i18nc("@info", "KassenSturz was asked to quit while it made the book, so it stopped. Nothing was made.");
         case "import.malformed":
             return result.line !== undefined
                 ? i18nContext.i18nc("@info %1 is a line number", "The file isn't a KMyMoney book KassenSturz can read, or it is damaged (line %1). Save it again in KMyMoney, then choose it again. Nothing was made.", result.line)
@@ -359,6 +361,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The file isn't built like a bank file; it may be damaged. Download it again. Nothing was imported.");
         case "import.too-many-entries":
             return i18nContext.i18nc("@info %1 is a number", "The file has more than %1 entries. Download a shorter period and import each part. Nothing was imported.", result.max);
+        case "import.stopped":
+            return i18nContext.i18nc("@info", "KassenSturz was asked to quit while it imported, so it stopped. Nothing was imported; import the file again.");
         case "import.malformed":
             return result.line !== undefined
                 ? i18nContext.i18nc("@info %1 is a line number", "The file isn't in the format chosen, or it is damaged (line %1). Check the choices, or download the file again. Nothing was imported.", result.line)

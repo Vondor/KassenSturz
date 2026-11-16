@@ -9123,6 +9123,18 @@ msgid ""
 "part. Nothing was imported."
 msgstr "Plik ma więcej niż %1 wpisów. Pobierz krótszy okres i zaimportuj każdą część. Nic nie zostało zaimportowane."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:167
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz was asked to quit while it made the book, so it stopped. Nothing was made."
+msgstr "KassenSturz otrzymał polecenie zamknięcia podczas tworzenia księgi, więc przerwał pracę. Nic nie zostało utworzone."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:365
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz was asked to quit while it imported, so it stopped. Nothing was imported; import the file again."
+msgstr "KassenSturz otrzymał polecenie zamknięcia podczas importu, więc przerwał pracę. Nic nie zostało zaimportowane; zaimportuj plik ponownie."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:290
 #, kde-format
 msgctxt "@info %1 is a line number"

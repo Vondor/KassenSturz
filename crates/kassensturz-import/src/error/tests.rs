@@ -40,6 +40,7 @@ fn examples() -> Vec<ImportError> {
         ImportError::FileTooLarge { max_bytes: 1024 },
         ImportError::TooDeeplyNested { max: 64, line },
         ImportError::TooManyEntries { max: 10 },
+        ImportError::Stopped,
         ImportError::TextTooLong {
             max_bytes: 16,
             line,

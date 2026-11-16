@@ -155,12 +155,14 @@ pub fn recognize(input: &[u8], name: &str) -> Result<FileKind, StatementImportEr
 }
 
 /// Reads the statements of `input` with `importer`, within the limits for
-/// untrusted files (D-091).
+/// untrusted statement files (D-091): a file with more entries than a
+/// household's statements ever have is refused before anything of it is
+/// written (B-362).
 pub fn read_statements(
     importer: &dyn Importer,
     input: &[u8],
 ) -> Result<Vec<Statement>, StatementImportError> {
-    match read_with(importer, input, &Limits::default())? {
+    match read_with(importer, input, &Limits::for_statements())? {
         Imported::Statements(statements) if statements.is_empty() => {
             Err(StatementImportError::NoStatements)
         }

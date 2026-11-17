@@ -291,3 +291,33 @@ fn the_server_tells_the_ai_tool_when_its_tools_change() {
     assert_eq!(session.receive().expect("an answer")["id"], json!(50));
     assert!(session.finish().status.success());
 }
+
+/// B-372: a server started while the book is being saved is pointed at
+/// the right book, which is only busy. It starts with a note instead of
+/// refusing, and answers once the save is done.
+#[test]
+fn a_server_started_during_a_save_starts_and_answers_after_it() {
+    let folder = Folder::new("started-during-a-save");
+    folder.switch_ai(true);
+    let book = folder.book();
+    // A save under way: SQLite's journal beside the book, its header
+    // written.
+    let mut journal_path = book.as_os_str().to_owned();
+    journal_path.push("-journal");
+    let journal = PathBuf::from(journal_path);
+    let mut header = vec![0u8; 512];
+    header[..8].copy_from_slice(&[0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7]);
+    std::fs::write(&journal, header).expect("journal written");
+
+    let mut session = Session::start(folder.path(), &book);
+    session.initialize("2025-06-18");
+    // The save is done.
+    std::fs::remove_file(&journal).expect("journal removed");
+    let (accounts, failed) = session.call("list_accounts", json!({}));
+    assert!(!failed, "{accounts}");
+    let output = session.finish();
+    assert!(output.status.success());
+    let said = common::stderr(&output);
+    assert!(said.contains("is in use right now"), "{said}");
+    assert!(!said.contains("Check the path"), "{said}");
+}

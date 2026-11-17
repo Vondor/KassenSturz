@@ -173,11 +173,19 @@ pub enum Permission {
     /// B-357, D-814). It reads the transactions, so it switches
     /// Transactions › Read on.
     EditPlans,
+    /// Make new tags for the transactions a change set tags (Tags on
+    /// transactions, Add; D-830). Its own cell, off by default and apart
+    /// from [`Self::TagTransactions`]: a user who allowed the AI to use
+    /// their tags never allowed it to make new words for them. A new tag is
+    /// made only together with a transaction it goes on, so it needs
+    /// [`Self::TagTransactions`] too to be offered; it reads the
+    /// transactions, so it switches Transactions › Read on.
+    NewTags,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 31] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -203,6 +211,7 @@ impl Permission {
         Self::EditBudgets,
         Self::JoinTransfers,
         Self::TagTransactions,
+        Self::NewTags,
         Self::SplitTransactions,
         Self::AttachBills,
         Self::FileBills,
@@ -243,6 +252,7 @@ impl Permission {
             Self::FileBills => "AllowFileBills",
             Self::NewPlans => "AllowNewPlans",
             Self::EditPlans => "AllowEditPlans",
+            Self::NewTags => "AllowNewTags",
         }
     }
 
@@ -265,7 +275,8 @@ impl Permission {
             | Self::AttachBills
             | Self::FileBills
             | Self::NewPlans
-            | Self::EditPlans => Row::Transactions,
+            | Self::EditPlans
+            | Self::NewTags => Row::Transactions,
             Self::ChartsRead
             | Self::NewViews
             | Self::EditViews
@@ -313,6 +324,7 @@ impl Permission {
                 | Self::FileBills
                 | Self::NewPlans
                 | Self::EditPlans
+                | Self::NewTags
         )
     }
 

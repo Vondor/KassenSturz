@@ -233,6 +233,13 @@ pub enum ToolError {
     /// A new category or Rule would have the name of one that is there
     /// already, or of another new one.
     NameTaken,
+    /// A new tag would have the name of a tag the book has, ignoring
+    /// capitals and spaces around it (D-830): the answer to the model names
+    /// that tag's ID, so it can use it instead ([`Self::existing_tag`]).
+    TagNameTaken {
+        /// The tag of the book with that name.
+        tag: kassensturz_core::TagId,
+    },
     /// The transaction can't simply get a category: it is a transfer, a
     /// starting balance, or split over several categories.
     NotCategorizable,
@@ -407,6 +414,10 @@ pub enum ToolError {
     /// the store gives a plan made by hand (US7, B-357, D-814): the model
     /// hears the store's own code, as the user would.
     PlanRefused(StoreError),
+    /// The book would refuse the new tag the call prepares, for the reason
+    /// the store gives a tag made by hand (D-830): the model hears the
+    /// store's own code, as the user would.
+    TagRefused(StoreError),
     /// The two transactions of a pair can't be joined as one Transfer, for
     /// the reason the store gives a join by hand (D-691, D-693): the model
     /// hears the store's own code, as the user would.
@@ -564,6 +575,16 @@ impl ToolError {
         }
     }
 
+    /// The tag of the book to use instead, when a new tag would have its
+    /// name (D-830). The answer to the model gives it as `tag_id`, the ID
+    /// `list_tags` gives.
+    pub fn existing_tag(&self) -> Option<kassensturz_core::TagId> {
+        match self.kind() {
+            Self::TagNameTaken { tag } => Some(*tag),
+            _ => None,
+        }
+    }
+
     /// The error itself, without the place of the item it came from.
     pub fn kind(&self) -> &Self {
         match self {
@@ -699,6 +720,10 @@ impl Report for ToolError {
             Self::PartsDontAddUp { .. } => ErrorReport::new("ai-tools.parts-dont-add-up"),
             Self::TooManyChanges => ErrorReport::new("ai-tools.too-many-changes"),
             Self::NameTaken => ErrorReport::new("ai-tools.name-taken"),
+            // The tag's ID goes to the model through
+            // [`ToolError::existing_tag`]: a report carries keywords and
+            // counts, never IDs of tags.
+            Self::TagNameTaken { .. } => ErrorReport::new("ai-tools.tag-name-taken"),
             Self::NotCategorizable => ErrorReport::new("ai-tools.not-categorizable"),
             Self::NotEditable { reason } => ErrorReport::new("ai-tools.not-editable")
                 .with("reason", ErrorParam::Keyword(reason)),
@@ -790,7 +815,9 @@ impl Report for ToolError {
             Self::Store(error) => {
                 ErrorReport::new("ai-tools.book-unreadable").caused_by(error.report())
             }
-            Self::BudgetRefused(error) | Self::PlanRefused(error) => error.report(),
+            Self::BudgetRefused(error) | Self::PlanRefused(error) | Self::TagRefused(error) => {
+                error.report()
+            }
             Self::TransferRefused(error) => error.report(),
             Self::BudgetFigures(error) => {
                 ErrorReport::new("ai-tools.budget-figures-unreadable").caused_by(error.report())
@@ -861,6 +888,9 @@ mod tests {
             },
             ToolError::TooManyChanges,
             ToolError::NameTaken,
+            ToolError::TagNameTaken {
+                tag: kassensturz_core::TagId::generate(),
+            },
             ToolError::NotCategorizable,
             ToolError::HasBudget {
                 argument: "category_id",

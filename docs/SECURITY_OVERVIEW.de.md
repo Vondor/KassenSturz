@@ -89,7 +89,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Ein Betrag mit zwei Vorzeichen (etwa "-+5") wurde als eines davon gelesen, statt abgelehnt zu werden | B-299 | #1038 |
 | Unsichtbare Zeichen in einem Zahlungsempfänger oder Verwendungszweck konnten der KI eine verborgene Anweisung mitgeben | B-300 | #1039 |
 | Sicherungen, die bei vorgestelltem Datum entstanden, konnten die echten Sicherungen verdrängen | B-341 | #1094 |
-| „Aus Sicherung wiederherstellen“ und das Markieren einer KI-Regel als gesehen prüften nicht, ob das Buch noch uns gehört, auch nachdem ein anderer Computer es übernommen hatte | B-342, B-343 | #1095 |
+| „Aus Sicherung wiederherstellen“ und das Markieren einer KI-Regel als gesehen prüften nicht, ob das Buch noch auf diesem Computer geöffnet ist, auch nachdem ein anderer Computer es übernommen hatte | B-342, B-343 | #1095 |
 | Die Sicherung eines anderen Buchs konnte an die Stelle dieses Buchs gesetzt werden | B-328, B-333, B-334 | #1083 |
 | Ein Buch auf einem Netzwerklaufwerk, das Dateisperren verweigert, ließ sich öffnen, und erst das erste Speichern scheiterte, ohne Hinweis, was zu tun ist | B-304 | #1104 |
 | Wenn ein anderer Computer ein geöffnetes Buch übernahm, merkte das der erste unter Windows nicht und konnte noch speichern | B-306 | #1105 |
@@ -97,9 +97,9 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Ein Buch, das beim Öffnen auf einem Netzwerklaufwerk abgelehnt wurde, wurde von der Prüfung beim Öffnen trotzdem beschrieben | B-355 | #1120 |
 | Ein Kontoauszug oder eine CSV mit einem riesigen Feld oder ein Kontoauszug mit einer Million Einträgen konnte den Arbeitsspeicher aufbrauchen und die App hängen lassen | B-360, B-362 | #1126, #1127 |
 | Ein durch ein beendetes Programm abgebrochenes Speichern konnte ein Buch hinterlassen, das sich nicht mehr öffnen ließ (im Flatpak) | B-364 | #1127 |
-| Text von einer Bank mit Zeichen, die Text umdrehen oder verbergen, wurde unverändert angezeigt | B-365 | #1127 |
+| Banktexte mit Zeichen, die Text umdrehen oder verbergen, wurden unverändert angezeigt | B-365 | #1127 |
 | Ein Import, der schon speicherte, ließ sich scheinbar noch abbrechen, ohne Wirkung, und ein Leser, der während eines langen Speicherns lief, meldete „Datenbankfehler“ statt „in Benutzung“ | B-367, B-368 | #1129, #1130 |
-| Die KI konnte geplante Zahlungen nur lesen; jetzt kann sie sie zur Bestätigung vorbereiten, und jeder Betrag stammt von Ihnen oder aus einer Buchung des Buchs, nie von der KI | B-357 | #1123 |
+| Beträge in von der KI vorbereiteten geplanten Zahlungen stammen jetzt immer von Ihnen oder aus einer Buchung des Buchs, nie von der KI | B-357 | #1123 |
 | Eine KI-Regel verlor ihre Kennzeichnung „von der KI gemacht, noch nicht geprüft“ durch „Rückgängig“, Schließen und Öffnen und „Wiederholen“ | B-370 | #1137 |
 | Unter Windows tat der Schalter, mit dem externe KI-Programme Änderungen vorbereiten dürfen, nichts | B-377 | #1138 |
 | Ein Geldfluss-Diagramm mit Konten konnte die App zum Absturz bringen, wenn eine überfüllte Spalte zusammengefasst wurde | B-350 | #1103 |

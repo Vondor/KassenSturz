@@ -89,7 +89,7 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | An amount typed with two signs (such as "-+5") was read as one of them instead of refused | B-299 | #1038 |
 | Invisible characters in a payee or memo could carry a hidden instruction to the AI | B-300 | #1039 |
 | Backups made while the clock was set ahead could push out the real backups | B-341 | #1094 |
-| "Restore from backup" and marking an AI Rule as seen didn't check that the book was still ours, even after another computer had taken it over | B-342, B-343 | #1095 |
+| "Restore from backup" and marking an AI Rule as seen didn't check that the book was still open on this computer, even after another computer had taken it over | B-342, B-343 | #1095 |
 | The backup of another book could be put in place of this one | B-328, B-333, B-334 | #1083 |
 | A book on a network drive that refuses file locks opened, and only the first save failed, without a hint what to do | B-304 | #1104 |
 | When another computer took over an open book, the first one on Windows didn't notice and could still save | B-306 | #1105 |
@@ -97,9 +97,9 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | A book that was refused at opening on a network drive was still written to by the check made at opening | B-355 | #1120 |
 | A statement or CSV with one enormous field, or a statement with a million entries, could use up the memory and hang the app | B-360, B-362 | #1126, #1127 |
 | A save cut short by a killed program could leave a book that wouldn't open (in the Flatpak) | B-364 | #1127 |
-| Text from a bank with characters that turn text around or hide it was shown as it came | B-365 | #1127 |
+| Bank texts with characters that turn text around or hide it were shown as they came | B-365 | #1127 |
 | An import that was already saving could still be stopped with no effect, and a reader opened during a long save said "database error" instead of "in use" | B-367, B-368 | #1129, #1130 |
-| The AI could only read planned payments; now it can prepare them for you to confirm, and every amount comes from you or from an entry of the book, never from the AI | B-357 | #1123 |
+| The amounts in planned payments the AI prepares now always come from you or from an entry of the book, never from the AI | B-357 | #1123 |
 | An AI Rule lost its "made by the AI, not checked yet" mark through Undo, closing and reopening, and Redo | B-370 | #1137 |
 | On Windows, the switch that lets outside AI programs prepare changes did nothing | B-377 | #1138 |
 | A chart of money flow with accounts could crash the app when a crowded column folded | B-350 | #1103 |

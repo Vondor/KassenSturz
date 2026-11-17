@@ -27,21 +27,21 @@ QtObject {
         ? (name.drawer.drawerOpen ? name.drawer.handleOpenToolTip : name.drawer.handleClosedToolTip)
         : ""
 
-    default property list<QtObject> bindings
-
-    Binding {
+    // A document can't fill a default property it declares itself, so each
+    // binding has a property of its own.
+    property Binding nameBinding: Binding {
         target: name.button
         property: "Accessible.name"
         value: name.words
     }
 
-    Binding {
+    property Binding textBinding: Binding {
         target: name.button
         property: "text"
         value: name.words
     }
 
-    Binding {
+    property Binding displayBinding: Binding {
         target: name.button
         property: "display"
         value: Controls.AbstractButton.IconOnly

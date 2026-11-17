@@ -115,7 +115,7 @@ pub mod qobject {
         /// through `kassensturz-mcp`, not the chat: the review then doesn't
         /// speak of what the user wrote (B-371).
         #[qinvokable]
-        #[cxx_name = "fromOwnTool"]
+        #[cxx_name = "isFromOwnTool"]
         fn is_from_own_tool(self: &AiChat, id: &QString) -> bool;
 
         /// The user corrects the change `slot` of the set `id` before

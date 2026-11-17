@@ -185,7 +185,7 @@ QtObject {
 
     // Whether the user's own AI tool prepared a set (B-371): the fake sets
     // all come from the chat.
-    function fromOwnTool(setId) {
+    function isFromOwnTool(setId) {
         return false;
     }
 

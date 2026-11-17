@@ -209,7 +209,7 @@ Kirigami.AbstractCard {
                 ? card.i18nContext.i18nc("@info", "A budget only shows how your spending compares; it changes no booking. Undo takes it back.")
                 : card.change.basisPeriods > 0
                 ? card.i18nContext.i18nc("@info", "KassenSturz worked out this amount from your book, not the AI. A budget only shows how your spending compares; it changes no booking. Undo takes it back.")
-                : card.review.fromOwnTool
+                : card.review.isFromOwnTool
                 ? card.i18nContext.i18nc("@info", "Your AI tool gave this amount; it doesn't come from your book. A budget only shows how your spending compares; it changes no booking. Undo takes it back.")
                 : card.i18nContext.i18nc("@info", "The AI took this amount from what you wrote. A budget only shows how your spending compares; it changes no booking. Undo takes it back.")
         }

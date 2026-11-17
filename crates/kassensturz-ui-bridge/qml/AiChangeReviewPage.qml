@@ -65,7 +65,7 @@ Kirigami.ScrollablePage {
     // Whether one of the user's own AI tools prepared these changes through
     // kassensturz-mcp: then there was no message of the user's that an
     // amount came from (B-371).
-    readonly property bool fromOwnTool: chat.fromOwnTool(setId)
+    readonly property bool isFromOwnTool: chat.isFromOwnTool(setId)
     // The reasons the user may pick, keyword and label; the keywords are
     // those of `kassensturz_ai_tools::refusal::RefusalReason`.
     readonly property var reasonChoices: [

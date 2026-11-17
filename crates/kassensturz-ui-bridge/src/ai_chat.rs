@@ -2338,7 +2338,10 @@ mod tests {
         };
         let mut sets = Sets::default();
         let chat = sets.add(proposal());
-        let tool = sets.add_requested(proposal(), RequestId::new());
+        let tool = sets.add_requested(
+            proposal(),
+            RequestId::parse("0123456789abcdef0123456789abcdef").unwrap(),
+        );
         assert!(!sets.is_from_own_tool(chat));
         assert!(sets.is_from_own_tool(tool));
         assert!(!sets.is_from_own_tool(tool + 1));

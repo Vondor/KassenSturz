@@ -584,6 +584,10 @@ fn error_result(report: &ErrorReport, error: &ToolError) -> CallToolResult {
     for (name, amount) in error.amounts().into_iter().flatten() {
         value.insert(name.into(), Value::from(amount));
     }
+    // A new tag with the name of one the user has: that one (D-830).
+    if let Some(tag) = error.existing_tag() {
+        value.insert("tag_id".into(), Value::from(tag.to_string()));
+    }
     // Where the user can switch on what is off (D-676).
     if let Some(setting) = error.setting() {
         value.insert("setting".into(), setting.json());
@@ -672,6 +676,26 @@ mod tests {
         assert_eq!(
             answer,
             serde_json::json!({"error": "ai-tools.name-taken", "list": "new_rules", "item": 2})
+        );
+    }
+
+    #[test]
+    fn a_new_tag_with_a_taken_name_is_answered_with_the_tag_to_use() {
+        // D-830: the model hears the ID list_tags gives, never the name.
+        let tag = kassensturz_core::TagId::generate();
+        let error = ToolError::TagNameTaken { tag }.at("new_tags", 0);
+        let result =
+            serde_json::to_value(error_result(&error.model_report(), &error)).expect("JSON");
+        let text = result["content"][0]["text"].as_str().expect("text");
+        let answer: Value = serde_json::from_str(text).expect("JSON text");
+        assert_eq!(
+            answer,
+            serde_json::json!({
+                "error": "ai-tools.tag-name-taken",
+                "list": "new_tags",
+                "item": 1,
+                "tag_id": tag.to_string(),
+            })
         );
     }
 

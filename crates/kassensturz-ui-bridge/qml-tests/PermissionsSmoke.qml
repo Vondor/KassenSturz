@@ -116,6 +116,16 @@ Kirigami.ApplicationWindow {
             window.check(grid.readForced(transactions, 0), "tagging keeps the transactions readable");
             window.check(!grid.historyAtRisk(0), "tagging doesn't warn about the history");
             settings.allowed = ({});
+            // Making tags is the Add cell of the same row, apart from
+            // putting tags on (D-830): one never switches the other on.
+            window.check(tagging.cells[1].key === "AllowNewTags", "making tags is the tag row's Add");
+            settings.allowed = ({ AllowTagTransactions: true });
+            window.check(!grid.isOn("AllowNewTags", 0), "tagging doesn't let the AI make tags");
+            settings.allowed = ({ AllowNewTags: true });
+            window.check(grid.isOn("AllowNewTags", 0), "the new-tag cell reads its setting");
+            window.check(!grid.isOn("AllowTagTransactions", 0), "making tags doesn't switch tagging on");
+            window.check(grid.readForced(transactions, 0), "making tags keeps the transactions readable");
+            settings.allowed = ({});
             // Breaking into parts is its own row (D-737): it keeps
             // Transactions › Read on and writes parts, so it warns.
             const splitting = grid.rows.find(row => row.cells.some(cell => cell.key === "AllowSplitTransactions"));

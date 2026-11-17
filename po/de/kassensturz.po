@@ -22071,7 +22071,7 @@ msgstr "Buchungen, die andere Schlagwörter bekommen"
 #, kde-format
 msgctxt "@info %1 is a list of tag names"
 msgid "Tags put on: %1"
-msgstr "Neue Schlagwörter: %1"
+msgstr "Schlagwörter dazu: %1"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1261
 #, kde-format
@@ -25848,6 +25848,38 @@ msgstr "Menü einblenden"
 msgctxt "@info:tooltip the button that opens the chat sidebar"
 msgid "Open the chat"
 msgstr "Chat öffnen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New tag"
+msgstr "Neues Schlagwort"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@title:group"
+msgid "New tags"
+msgstr "Neue Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info a tag the AI makes"
+msgid "New"
+msgstr "Neu"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "New tags put on: %1"
+msgstr "Neu angelegte Schlagwörter dazu: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "You don't have this tag yet. It is made only if you apply these changes, and goes on %1 transaction below."
+msgid_plural "You don't have this tag yet. It is made only if you apply these changes, and goes on %1 transactions below."
+msgstr[0] "Dieses Schlagwort haben Sie noch nicht. Es wird nur angelegt, wenn Sie diese Änderungen übernehmen, und kommt an %1 Buchung unten."
+msgstr[1] "Dieses Schlagwort haben Sie noch nicht. Es wird nur angelegt, wenn Sie diese Änderungen übernehmen, und kommt an %1 Buchungen unten."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:239
 #, kde-format

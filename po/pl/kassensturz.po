@@ -23694,6 +23694,39 @@ msgctxt "@info:tooltip the button that opens the chat sidebar"
 msgid "Open the chat"
 msgstr "Otwórz czat"
 
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New tag"
+msgstr "Nowy tag"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@title:group"
+msgid "New tags"
+msgstr "Nowe tagi"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info a tag the AI makes"
+msgid "New"
+msgstr "Nowy"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "New tags put on: %1"
+msgstr "Dodane nowe tagi: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "You don't have this tag yet. It is made only if you apply these changes, and goes on %1 transaction below."
+msgid_plural "You don't have this tag yet. It is made only if you apply these changes, and goes on %1 transactions below."
+msgstr[0] "Nie masz jeszcze tego tagu. Zostanie utworzony tylko wtedy, gdy zastosujesz te zmiany, i trafi do %1 transakcji poniżej."
+msgstr[1] "Nie masz jeszcze tego tagu. Zostanie utworzony tylko wtedy, gdy zastosujesz te zmiany, i trafi do %1 transakcji poniżej."
+msgstr[2] "Nie masz jeszcze tego tagu. Zostanie utworzony tylko wtedy, gdy zastosujesz te zmiany, i trafi do %1 transakcji poniżej."
+
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:239
 #, kde-format
 msgctxt ""

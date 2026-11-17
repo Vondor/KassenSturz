@@ -86,23 +86,37 @@ fn main() -> ExitCode {
     };
     // Checked once at the start, so a wrong book shows in the AI tool's log
     // right away; every answer opens the book again (D-195).
-    if let Err(error) = kassensturz_store::Book::open_to_read(&book) {
-        // A newer KassenSturz updated the book, so this one is out of date
-        // (M6-B194); otherwise the path is wrong or the app updates it.
-        let next = if matches!(
-            error,
-            kassensturz_store::StoreError::UnsupportedLayout { .. }
-        ) {
-            "Update KassenSturz, then restart this AI tool."
-        } else {
-            "Check the path, or open the book in KassenSturz once."
-        };
-        eprintln!(
-            "error: the book {} can't be read ({}). {next}",
-            book.display(),
-            error.report().code
-        );
-        return ExitCode::from(REFUSED);
+    match kassensturz_store::Book::open_to_read(&book) {
+        Ok(_) => {}
+        // A book being saved, after the reader's wait, is the right book,
+        // only busy: the server starts, and every answer reads it again
+        // and says "in use" until the save is done (B-372).
+        Err(kassensturz_store::StoreError::Locked(_)) => {
+            eprintln!(
+                "note: the book {} is in use right now, for example while KassenSturz saves it. \
+                 The server starts anyway and answers as soon as the book can be read.",
+                book.display()
+            );
+        }
+        Err(error) => {
+            // A newer KassenSturz updated the book, so this one is out of
+            // date (M6-B194); otherwise the path is wrong or the app
+            // updates it.
+            let next = if matches!(
+                error,
+                kassensturz_store::StoreError::UnsupportedLayout { .. }
+            ) {
+                "Update KassenSturz, then restart this AI tool."
+            } else {
+                "Check the path, or open the book in KassenSturz once."
+            };
+            eprintln!(
+                "error: the book {} can't be read ({}). {next}",
+                book.display(),
+                error.report().code
+            );
+            return ExitCode::from(REFUSED);
+        }
     }
     // One thread, a timer for the protocol's timeouts, and no I/O driver:
     // standard input and output are read and written on Tokio's blocking

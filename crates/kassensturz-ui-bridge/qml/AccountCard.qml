@@ -27,6 +27,12 @@ Kirigami.AbstractCard {
     }
 
     showClickFeedback: true
+    // Tab from the page's header reaches the cards, and Enter opens one, as
+    // a click does (B-376).
+    activeFocusOnTab: true
+    focusPolicy: Qt.StrongFocus
+    Keys.onReturnPressed: card.clicked()
+    Keys.onEnterPressed: card.clicked()
     Accessible.name: [modelData.name, types.nameOf(modelData.type), balance.phrase(modelData.exactBalance)]
         .filter(text => text !== "").join(", ")
 

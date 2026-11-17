@@ -32,11 +32,22 @@ Item {
     // Whether the user decided, so that closing the window afterwards is
     // not a second decision.
     property bool decided: false
+    // A new request came while the window was still closing after "Send":
+    // it opens again once it has closed. A provider that answers at once,
+    // e.g. with a call of a function KassenSturz doesn't offer, sends the
+    // next request for a look within the closing animation, and that
+    // request was never shown, so the question waited forever (B-375).
+    property bool reopen: false
+    // Whether a request waits for the user's look, so the chat doesn't
+    // count that time as the AI's.
+    readonly property bool waiting: reopen || (dialog.visible && !decided)
 
     // Shows `request`, new or again after a phrase was left out.
     function show(request: var) {
         review.request = request;
-        if (!dialog.visible) {
+        if (dialog.visible && decided) {
+            reopen = true;
+        } else if (!dialog.visible) {
             decided = false;
             leaveOut.text = "";
             dialog.open();
@@ -45,6 +56,7 @@ Item {
 
     // The question ended (stopped, say) while the window was open.
     function hide() {
+        reopen = false;
         decided = true;
         dialog.close();
     }
@@ -91,6 +103,13 @@ Item {
             }
         ]
         onClosed: {
+            if (review.reopen) {
+                review.reopen = false;
+                review.decided = false;
+                leaveOut.text = "";
+                dialog.open();
+                return;
+            }
             if (!review.decided) {
                 review.decided = true;
                 review.chat.reviewStop();

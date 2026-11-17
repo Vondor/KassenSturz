@@ -550,7 +550,9 @@ ColumnLayout {
     Timer {
         interval: 1000
         repeat: true
-        running: panel.chat.busy
+        // A request waiting for the user's look is not the AI being slow
+        // (B-375).
+        running: panel.chat.busy && !review.waiting
         onRunningChanged: {
             panel.waitedSeconds = 0;
             panel.keepsWaiting = running && panel.settings.slowAnswer() === "warn";

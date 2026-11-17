@@ -1238,14 +1238,20 @@ impl Book {
     fn write_back(&mut self, schema: &str, change: ChangeId, side: Side) -> Result<(), StoreError> {
         self.conn
             .execute_cached("INSERT INTO temp.history_state (recording) VALUES (0)", [])?;
-        // The AI's Rules that an earlier undo took away with their mark:
-        // those this change brings back get it again (B-370).
-        let away: Vec<RuleId> = self
-            .parked_ai_marks
-            .iter()
-            .copied()
-            .filter(|rule| !self.rule_exists(*rule).unwrap_or(true))
-            .collect();
+        // The AI's Rules that an earlier undo or redo took away with their
+        // mark: those this change brings back get it again (B-370). They are
+        // kept in the book (layout 35, D-815), so this holds also after the
+        // book was closed and opened again.
+        let away: Vec<RuleId> = {
+            let mut statement = self.conn.prepare_cached(
+                "SELECT rule_id FROM main.parked_ai_rule_marks
+                 WHERE rule_id NOT IN (SELECT id FROM main.rules)",
+            )?;
+            statement
+                .query_map([], |row| row.get::<_, [u8; 16]>(0))?
+                .map(|id| id.map(RuleId::from_bytes))
+                .collect::<Result<_, _>>()?
+        };
         let id = change.to_bytes();
         // The book must hold what the other side says, or the values written
         // back wouldn't fit what is around them.
@@ -1299,8 +1305,8 @@ impl Book {
         })?;
         // The marks of Rules the AI made aren't recorded (layout 32): with
         // the foreign keys off nothing removes the mark of a Rule that was
-        // taken away, so it goes here, and is kept aside for a redo that
-        // brings the Rule back (B-370).
+        // taken away, so it goes here, and is kept aside in the book for a
+        // redo that brings the Rule back (B-370, layout 35).
         let taken_away: Vec<[u8; 16]> = {
             let mut statement = self.conn.prepare_cached(
                 "SELECT rule_id FROM main.unchecked_ai_rules
@@ -1321,11 +1327,18 @@ impl Book {
                     "INSERT OR IGNORE INTO main.unchecked_ai_rules (rule_id) VALUES (?1)",
                     [rule.to_bytes()],
                 )?;
-                self.parked_ai_marks.remove(&rule);
+                self.conn.execute_cached(
+                    "DELETE FROM main.parked_ai_rule_marks WHERE rule_id = ?1",
+                    [rule.to_bytes()],
+                )?;
             }
         }
-        self.parked_ai_marks
-            .extend(taken_away.into_iter().map(RuleId::from_bytes));
+        for rule in taken_away {
+            self.conn.execute_cached(
+                "INSERT OR IGNORE INTO main.parked_ai_rule_marks (rule_id) VALUES (?1)",
+                [rule],
+            )?;
+        }
         let broken_references: i64 = self.conn.query_row_cached(
             "SELECT count(*) FROM pragma_foreign_key_check",
             [],

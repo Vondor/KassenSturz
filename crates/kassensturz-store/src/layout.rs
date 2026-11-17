@@ -35,9 +35,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 11] = [
+pub(crate) const MIGRATIONS: [&str; 12] = [
     LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30, LAYOUT_31,
-    LAYOUT_32, LAYOUT_33, LAYOUT_34,
+    LAYOUT_32, LAYOUT_33, LAYOUT_34, LAYOUT_35,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
@@ -1169,8 +1169,8 @@ ALTER TABLE new_changes RENAME TO changes;
 ///   once removes it, and removing the Rule removes it too. It is a mark for
 ///   the user's eyes, not the book's data, so the change history doesn't
 ///   record it, like `originals_unlocked`: undoing the change set removes
-///   the Rule and with it the mark, and redoing it while the book is open
-///   brings the Rule back with its mark (B-370).
+///   the Rule and with it the mark, and redoing it brings the Rule back
+///   with its mark (B-370; from layout 35 also after the book was closed).
 ///
 /// Nothing a book of layout 31 holds changes: no Rule starts marked.
 const LAYOUT_32: &str = "
@@ -1197,6 +1197,28 @@ CREATE TABLE book_identity (
 ) STRICT;
 
 INSERT INTO book_identity (id, book_id) VALUES (1, randomblob(16));
+";
+
+/// Layout 35 (B-370, D-815): the marks of the AI's Rules that an Undo or
+/// Redo took away with their Rule.
+///
+/// - `parked_ai_rule_marks`: one row per Rule the AI made or changed that an
+///   Undo or Redo removed while it still had its mark in
+///   `unchecked_ai_rules`. When a later Undo or Redo brings the Rule back,
+///   its mark comes back and the row goes. Before this layout the list was
+///   kept in memory only, so after the book was closed and opened again a
+///   Redo brought the Rule back without its mark. Like the marks, it is for
+///   the user's eyes and not the book's data, so the change history doesn't
+///   record it; it has no reference to `rules`, since its Rules are not in
+///   the book while it has their row.
+///
+/// Nothing a book of layout 34 holds changes: it starts empty, so a Rule
+/// an Undo took away before the update comes back without its mark, as it
+/// did before.
+const LAYOUT_35: &str = "
+CREATE TABLE parked_ai_rule_marks (
+    rule_id BLOB PRIMARY KEY NOT NULL CHECK (length(rule_id) = 16)
+) STRICT;
 ";
 
 /// Layout 33 (US7, #795 and #725, D-769): planned payments.
@@ -2351,6 +2373,53 @@ mod tests {
         // Once, even without a party, which SQLite would count as different.
         assert!(insert(checking, savings, 100, 15, None).is_err());
         insert(checking, savings, 100, 15, Some("DE89370400440532013000")).expect("another party");
+    }
+
+    #[test]
+    fn layout_35_adds_the_parked_ai_marks_after_a_backup() {
+        // Books of layout 24 (the first Beta's) and 34, each with a change
+        // the history recorded, as an older KassenSturz wrote them (B-370,
+        // D-815).
+        for version in [FIRST_VERSION, 34] {
+            let folder = TempFolder::new();
+            let path = folder.join("Household.ksz");
+            let checking = old_book(&path, version);
+            recorded_rename(&path, checking);
+
+            let computer = computer(&folder);
+            let mut book = Book::open(&path, &computer).expect("book updated");
+            assert_eq!(
+                pragma(&book.conn, "user_version"),
+                VERSION,
+                "from {version}"
+            );
+            // Updated after a backup, which keeps the old layout.
+            let backups = files_in(&computer.backup_folder);
+            assert_eq!(backups.len(), 1, "from {version}");
+            let backup = Connection::open(&backups[0]).expect("backup opened");
+            assert_eq!(pragma(&backup, "user_version"), version);
+            assert!(
+                !schema(&backup)
+                    .iter()
+                    .any(|(_, name, _)| name == "parked_ai_rule_marks")
+            );
+            drop(backup);
+            // The new table is there and empty, and nothing the book held
+            // changed: the change made before the update is undone and made
+            // again.
+            assert_eq!(count(&book.conn, "parked_ai_rule_marks"), 0);
+            assert_eq!(count(&book.conn, "transactions"), 1);
+            book.undo().expect("undone");
+            assert_eq!(
+                book.account(checking).expect("account").name,
+                "Main account"
+            );
+            book.redo().expect("made again");
+            drop(book);
+            // Opened again: no second backup.
+            drop(Book::open(&path, &computer).expect("opened again"));
+            assert_eq!(files_in(&computer.backup_folder).len(), 1);
+        }
     }
 
     #[test]

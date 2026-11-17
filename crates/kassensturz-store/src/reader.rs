@@ -143,7 +143,6 @@ impl Book {
             without_file_locks: copy.is_some(),
             _copy: copy,
             cut_short: None,
-            parked_ai_marks: std::collections::HashSet::new(),
         })
     }
 

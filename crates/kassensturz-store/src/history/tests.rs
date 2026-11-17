@@ -1422,6 +1422,7 @@ fn the_history_records_every_table_with_every_column() {
                 "history_settings",
                 "originals_unlocked",
                 "unchecked_ai_rules",
+                "parked_ai_rule_marks",
                 // The book's identity is never undone (D-806).
                 "book_identity",
             ]

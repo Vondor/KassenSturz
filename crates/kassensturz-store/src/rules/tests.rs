@@ -1797,3 +1797,57 @@ fn a_rule_name_that_only_looks_different_is_taken() {
         Err(StoreError::DuplicateRuleName { existing }) if existing == composed.id
     ));
 }
+
+/// B-370 (D-815): the mark of a Rule the AI made comes back with the Rule
+/// also when the book was closed and opened again between the Undo that
+/// took the Rule away and the Redo that brings it back.
+#[test]
+fn a_rule_the_ai_made_keeps_its_mark_through_undo_closing_and_redo() {
+    let folder = crate::test_folder::TempFolder::new();
+    let computer = crate::Computer {
+        name: "Laptop".into(),
+        backup_folder: folder.join("Backups"),
+    };
+    let path = folder.join("Household.ksz");
+    let made = rule("FRESHO", vec![name_contains("FRESHO")], None);
+    {
+        let mut book = Book::create(&path, &computer).expect("created");
+        book.as_one_action(Action::ApplyAiChanges, |book| {
+            book.add_rule(&made, None)?;
+            book.mark_rule_made_by_ai(made.id)
+        })
+        .expect("applied");
+        book.undo().expect("undone");
+        assert!(book.rule(made.id).is_err());
+        assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    }
+    {
+        let mut book = Book::open(&path, &computer).expect("opened again");
+        book.redo().expect("redone");
+        assert!(book.rule(made.id).is_ok());
+        assert_eq!(
+            book.unchecked_ai_rules().expect("read"),
+            HashSet::from([made.id])
+        );
+        // Taken away once more, and the book closed again.
+        book.undo().expect("undone again");
+        assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    }
+    let mut book = Book::open(&path, &computer).expect("opened a third time");
+    book.redo().expect("redone again");
+    assert_eq!(
+        book.unchecked_ai_rules().expect("read"),
+        HashSet::from([made.id])
+    );
+    // Back with its mark, nothing waits aside any more.
+    let parked: i64 = book
+        .conn
+        .query_row("SELECT count(*) FROM parked_ai_rule_marks", [], |row| {
+            row.get(0)
+        })
+        .expect("counted");
+    assert_eq!(parked, 0);
+    // Opening it takes the mark off, as before.
+    book.mark_rule_checked(made.id).expect("opened");
+    assert!(book.unchecked_ai_rules().expect("read").is_empty());
+}

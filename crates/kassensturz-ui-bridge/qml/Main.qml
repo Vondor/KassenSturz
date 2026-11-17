@@ -1250,6 +1250,11 @@ Kirigami.ApplicationWindow {
         // Also visible in a wide window: if the drawer was closed there (see
         // onModalChanged), the handle is the way back to the menu (M5-B19).
         handleVisible: root.started
+        // Kirigami's own words for the handle are English only, and the
+        // button showed no name to a screen reader (B-376).
+        handleOpenToolTip: root.i18nContext.i18nc("@info:tooltip the button that hides the menu on the left", "Hide the menu")
+        handleClosedToolTip: root.i18nContext.i18nc("@info:tooltip the button that shows the menu on the left", "Show the menu")
+        Component.onCompleted: root.nameDrawerHandle(this)
         // Opening a narrow window closes the drawer by hand, which ends the
         // binding above; without this the menu stayed hidden after maximizing.
         onModalChanged: drawerOpen = !modal
@@ -1342,6 +1347,18 @@ Kirigami.ApplicationWindow {
                 }
             }
         ]
+    }
+
+    // Gives the button of a drawer's handle its words as its name, so a
+    // screen reader says what it does (B-376): Kirigami's handle names the
+    // button only through its tooltip, which Orca read as no name at all.
+    function nameDrawerHandle(drawer) {
+        const button = drawer.handle?.children?.[0];
+        if (button === undefined || button.display === undefined) {
+            return;
+        }
+        button.display = Controls.AbstractButton.IconOnly;
+        button.text = Qt.binding(() => drawer.drawerOpen ? drawer.handleOpenToolTip : drawer.handleClosedToolTip);
     }
 
     // Opens and closes the chat sidebar from the keyboard. The menu has no entry
@@ -1480,6 +1497,9 @@ Kirigami.ApplicationWindow {
         handleVisible: aiSwitch.enabled && root.started
         handleClosedIcon.source: "dialog-messages"
         handleOpenIcon.source: "go-next"
+        handleOpenToolTip: root.i18nContext.i18nc("@action:button close the chat sidebar", "Close the chat")
+        handleClosedToolTip: root.i18nContext.i18nc("@info:tooltip the button that opens the chat sidebar", "Open the chat")
+        Component.onCompleted: root.nameDrawerHandle(this)
         width: Math.max(root.chatMinWidth, Math.min(root.chatWidth, root.chatMaxWidth))
         drawerOpen: false
         topPadding: 0

@@ -202,4 +202,11 @@ QtObject {
         discarded = discarded.concat([setId]);
         discardedReasons = discardedReasons.concat([reasons]);
     }
+
+    // The answers to a request shown for a look (AiRequestReview.qml, B-375).
+    property var reviewAnswers: []
+
+    function reviewSend() { reviewAnswers = reviewAnswers.concat(["send"]); }
+    function reviewStop() { reviewAnswers = reviewAnswers.concat(["stop"]); }
+    function reviewLeaveOut(phrase) { reviewAnswers = reviewAnswers.concat(["leave out " + phrase]); }
 }

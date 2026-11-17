@@ -38,6 +38,7 @@ Flatseal's role for the Flatpak is played by snapd itself:
 
 - **Command line:** `snap connections kassensturz` lists every interface and whether it is connected; `sudo snap connect kassensturz:removable-media` and `sudo snap disconnect kassensturz:home` change it. The change applies at the next start of the app.
 - **Graphical:** KDE Discover (the app's page, *Permissions*), Ubuntu's *Settings > Applications*, and the Snap Store app show the same switches.
+- **Installing a newer snap file by hand:** installing a file with `sudo snap install --dangerous kassensturz_*.snap` (tester builds) connects `home` again, even if you had run `sudo snap disconnect kassensturz:home` before. After each such install, check `snap connections kassensturz` and disconnect `home` again if you want to test without it (VM check (b) below), then restart the app.
 - **What happens without them:** with `home` disconnected, a folder chosen in the file chooser is used through the portal, and the book works without file locks (below). Nothing is lost; the book shows the plain note "less protection here: open it in only one program at a time". Connect `home` again and restart: the book opens in its real folder, with locks.
 
 ### Books without file locks (D-776)

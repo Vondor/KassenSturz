@@ -155,7 +155,13 @@ pub(crate) fn formula_help() -> String {
          written as they are named there, in single quotes when they have blanks ('Eating \
          out'), a category inside another as 'Home > Rent'; Spending.Pets or Income.Pets picks \
          the kind when both have the name; Spending.ALL and Income.ALL are all money out and \
-         all money in. A name stands for its money in the chart's period as a positive amount, \
+         all money in. Plans.OUT_DUE is what the planned payments of the chart's accounts \
+         still expect to go out from today to the end of the period, Plans.IN_DUE the planned \
+         income not yet arrived, both counted as Left this month counts them; \
+         Plans.OUT_OVERDUE and Plans.IN_OVERDUE are the plans whose day passed with no entry \
+         (\"Did this happen?\"), which Left this month counts in no figure, e.g. \
+         =Income.Salary@\"last month\" - Spending.ALL - Plans.OUT_DUE for what is probably \
+         left at the month's end. A name stands for its money in the chart's period as a positive amount, \
          counted from the chart's accounts and categories (income_accounts, expenses_accounts, \
          income_categories and expenses_categories don't apply to it). @ after a name takes \
          another period, e.g. =Groceries@\"last 3 complete months\" / 3 for the average month. \
@@ -743,8 +749,8 @@ fn columns_schema() -> Value {
                     "minLength": 1,
                     "maxLength": MAX_FORMULA_CHARS,
                     "description": "The column's figure as a formula written as for formula, \
-                        which must give an amount, e.g. =Salary@\"last month\" or \
-                        =Spending.ALL. Not together with categories.",
+                        which must give an amount, e.g. =Salary@\"last month\", \
+                        =Spending.ALL or =Plans.OUT_DUE. Not together with categories.",
                 },
                 "categories": {
                     "type": "array",
@@ -1921,7 +1927,12 @@ fn check_formula(
     let currency = CurrencyCode::new("EUR").map_err(|_| ToolError::BadPeriod)?;
     let work = |text: &str| -> Result<FormulaResult, ReportError> {
         let formula = Formula::parse(text)?;
-        let source = Source::read(book, formula.span(period)?)?;
+        let span = formula.span(period)?;
+        let source = if formula.names_plans() {
+            Source::read_with_plans(book, span, day)?
+        } else {
+            Source::read(book, span)?
+        };
         formula.evaluate(&source, period, &Filter::default(), currency)
     };
     let result = match work(text) {

@@ -125,7 +125,7 @@ pub use filter::{
 pub use formula::{
     Counted, FUNCTIONS, Formula, FormulaResult, FormulaValue, FunctionInfo, KnownName,
     MAX_FORMULA_ARGUMENTS, MAX_FORMULA_CHARS, MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES,
-    MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm, Term,
+    MAX_FORMULA_PERIODS, MAX_FORMULA_TOKENS, NumberForm, PLANS_WORD, PlanFigure, Term,
 };
 pub use groups::{Overlap, Shown};
 /// The day of the week, for [`set_first_weekday`].

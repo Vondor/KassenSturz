@@ -235,6 +235,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is a character position", "A quote at character %1 is never closed. Add the quote that closes it.", result.position);
         case "unknown-kind":
             return i18nContext.i18nc("@info %1 is a character position", "The word before the dot at character %1 isn't one formulas know. Write Income or Spending before the dot, for example Spending.Pets, or put a name with a dot in single quotes.", result.position);
+        case "unknown-plan-figure":
+            return i18nContext.i18nc("@info %1 is a character position; OUT_DUE, IN_DUE, OUT_OVERDUE and IN_OVERDUE are formula words, not translated", "Planned payments have no figure of that name at character %1. Write Plans.OUT_DUE, Plans.IN_DUE, Plans.OUT_OVERDUE or Plans.IN_OVERDUE.", result.position);
         case "bad-period":
             return i18nContext.i18nc("@info %1 is a character position", "The time range at character %1 isn't written the way ranges are. Use words in double quotes, such as @\"last month\", or dates, such as @2026-03 or @2026-01..2026-03.", result.position);
         }

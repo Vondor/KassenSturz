@@ -338,6 +338,25 @@ mod tests {
     }
 
     #[test]
+    fn a_figure_of_the_plans_reads_back_with_its_word_and_last_day() {
+        // D-826: FormulaWords.qml words the line from `all` and `lastDay`.
+        let mut asked = request("=Plans.OUT_DUE", None);
+        asked.period = "this-month".into();
+        let view = view_object(&formulas::show(
+            &formulas::tests::book_with_a_plan(),
+            &TestLocale,
+            &asked,
+        ));
+        let result = object_of(&view, "result");
+        assert_eq!(text_of(&result, "value"), "12,50 €");
+        let counted = list_of(&result, "counted");
+        assert_eq!(counted.len(), 1);
+        assert_eq!(text_of(&counted[0], "all"), "plans-out-due");
+        assert_eq!(text_of(&counted[0], "lastDay"), "2026-10-31");
+        assert_eq!(text_of(&counted[0], "name"), "");
+    }
+
+    #[test]
     fn a_bar_reads_back_with_its_fill_and_target() {
         let view = viewed(&request("=Pets", Some("=Salary / 10")));
         let result = object_of(&view, "result");

@@ -13,7 +13,10 @@ use std::collections::HashSet;
 
 use super::exact::Exact;
 use super::lex::{Comparison, Kind as Token, Token as Lexed};
-use super::{MAX_FORMULA_ARGUMENTS, MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES, MAX_FORMULA_PERIODS};
+use super::{
+    MAX_FORMULA_ARGUMENTS, MAX_FORMULA_DEPTH, MAX_FORMULA_NAMES, MAX_FORMULA_PERIODS, PLANS_WORD,
+    PlanFigure,
+};
 use crate::source::Kind as Side;
 use crate::{Period, ReportError};
 
@@ -295,12 +298,18 @@ pub(crate) struct Name {
     /// `Income.ALL` or `Spending.ALL`: everything of that side, also what
     /// is not sorted into a category yet, and not a name to look up.
     pub(crate) all: bool,
+    /// `Plans.OUT_DUE` and the like: a figure of the planned payments,
+    /// not a name to look up (D-826).
+    pub(crate) plan: Option<PlanFigure>,
 }
 
 impl Name {
     /// The name as an error message shows it: with its kind in front when
     /// the formula gave one.
     pub(crate) fn shown(&self) -> String {
+        if let Some(plan) = self.plan {
+            return format!("{PLANS_WORD}.{}", plan.word());
+        }
         match self.side {
             Some(side) => format!("{}.{}", side_word(side), self.text),
             None => self.text.clone(),
@@ -509,6 +518,9 @@ impl Parser<'_> {
     /// `Income . name` or `Spending . name`, also `Spending . ALL` (D-653).
     /// `ALL` bare is the term; `'All'` in quotes is a name like any other.
     fn kinded(&mut self, word: &str, at: usize) -> Result<Expr, ReportError> {
+        if word.eq_ignore_ascii_case(PLANS_WORD) {
+            return self.planned(at);
+        }
         let side = read_side(word).ok_or_else(|| syntax(at, "unknown-kind"))?;
         // The `.`.
         self.next += 1;
@@ -520,6 +532,28 @@ impl Parser<'_> {
             Some(Token::Name(text) | Token::Quoted(text)) => self.name(text, at, Some(side), false),
             _ => Err(syntax(after, "expected-value")),
         }
+    }
+
+    /// `Plans . OUT_DUE` and the other figures of the plans, also with `@`
+    /// (D-826). Any other word after the dot is `unknown-plan-figure`.
+    fn planned(&mut self, at: usize) -> Result<Expr, ReportError> {
+        // The `.`.
+        self.next += 1;
+        let after = self.at();
+        let figure = match self.take().map(|token| token.kind.clone()) {
+            Some(Token::Name(text)) => {
+                let figure =
+                    PlanFigure::read(&text).ok_or_else(|| syntax(after, "unknown-plan-figure"))?;
+                (text, figure)
+            }
+            Some(Token::Quoted(_)) => return Err(syntax(after, "unknown-plan-figure")),
+            _ => return Err(syntax(after, "expected-value")),
+        };
+        let expr = self.name(figure.0, at, None, false)?;
+        if let Some(name) = self.names.last_mut() {
+            name.plan = Some(figure.1);
+        }
+        Ok(expr)
     }
 
     /// `name [@ period]`.
@@ -565,6 +599,7 @@ impl Parser<'_> {
             only_counted: false,
             side,
             all,
+            plan: None,
         });
         Ok(Expr {
             node: Node::Name(self.names.len() - 1),
@@ -616,12 +651,16 @@ impl Parser<'_> {
         }
         if function == Function::Count {
             for argument in &arguments {
-                let Node::Name(index) = argument.node else {
-                    return Err(ReportError::FormulaArguments {
-                        position: argument.at,
-                        function: function.name(),
-                        reason: "names-only",
-                    });
+                // COUNT counts transactions; a figure of the plans has none.
+                let index = match argument.node {
+                    Node::Name(index) if self.names[index].plan.is_none() => index,
+                    _ => {
+                        return Err(ReportError::FormulaArguments {
+                            position: argument.at,
+                            function: function.name(),
+                            reason: "names-only",
+                        });
+                    }
                 };
                 self.names[index].only_counted = true;
             }

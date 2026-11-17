@@ -148,6 +148,7 @@ Sums are over **one currency** at a time: the tile uses the book's main currency
 - The **Left this month** tile: one data widget `forecast.month` (kpi, with the state word from Rust: `to-do` when something is overdue, `unknown` with no plan, else `fine`; status icon at 1 × 1, STATUS_TILES D-734).
 - The Planned payments page has a **month by month** table (`months`) and a catalog dataset `forecast.months` so the user can add a chart; chart coordinates are the only floats and are computed from exact values, never read back (AGENTS.md §5).
 - The CLI: `forecast`.
+- **Formulas (D-826):** `Plans.OUT_DUE` and `Plans.IN_DUE` are `out_due` and `in_due` counted up to the last day of a chart's period instead of the month's end, for the chart's accounts; `Plans.OUT_OVERDUE` and `Plans.IN_OVERDUE` add up `overdue`. One function (`still_expected` in `kassensturz-core`) counts for both, through `Book::expected_plans`. An entry booked ahead and matched (B-331) counts only in the tile: a formula counts it through its other names (`Spending.ALL`).
 
 ### 5.4 Worked example (becomes the golden test)
 

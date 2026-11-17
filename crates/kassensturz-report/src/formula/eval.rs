@@ -21,7 +21,7 @@ use kassensturz_core::{
 use super::exact::{Exact, TooLarge};
 use super::lex::Comparison;
 use super::parse::{Expr, Function, Kind, Name, Node, Operator, Range, Tree, Words, side_word};
-use super::{Counted, FormulaResult, FormulaValue, Term};
+use super::{Counted, FormulaResult, FormulaValue, PlanFigure, Term};
 use crate::source::Kind as Side;
 use crate::{Filter, Overlap, Percent, Period, ReportError, Source, category_over_time};
 use kassensturz_store::StoreError;
@@ -34,6 +34,8 @@ enum Target {
     /// Everything of one side, also what is not sorted into a category
     /// yet (D-653).
     All(Side),
+    /// A figure of the planned payments (D-826).
+    Plan(PlanFigure),
 }
 
 /// What a name in `COUNT` counts transactions by.
@@ -192,6 +194,9 @@ pub(super) fn written_path(side: Side, path: &str, with_side: bool) -> String {
 /// instead, never guessed (T-42): with the side in front when an income and
 /// a spending category share the name, or when the formula gave one.
 fn resolve(source: &Source, name: &Name) -> Result<Target, ReportError> {
+    if let Some(plan) = name.plan {
+        return Ok(Target::Plan(plan));
+    }
     if name.all
         && let Some(side) = name.side
     {
@@ -425,6 +430,35 @@ impl Evaluator {
     }
 }
 
+/// A figure of the planned payments of the filter's accounts (all accounts
+/// when it chooses none), one amount per currency that has any, each
+/// positive: what the forecast counts from today up to `period`'s last day
+/// (D-826). Only the accounts of the filter apply; plans have no
+/// categories or tags to filter by.
+fn plan_figures(
+    source: &Source,
+    filter: &Filter,
+    period: Period,
+    figure: PlanFigure,
+) -> Result<Vec<Money>, ReportError> {
+    let plans = source.plans()?;
+    let accounts = filter.accounts.as_deref();
+    let mut found = Vec::new();
+    for currency in plans.currencies(accounts) {
+        let expected = plans.still_expected(accounts, currency, period.last())?;
+        let total = match figure {
+            PlanFigure::OutDue => expected.out_due,
+            PlanFigure::InDue => expected.in_due,
+            PlanFigure::OutOverdue => expected.out_overdue,
+            PlanFigure::InOverdue => expected.in_overdue,
+        };
+        if !total.is_zero() {
+            found.push(total);
+        }
+    }
+    Ok(found)
+}
+
 /// See [`Formula::evaluate`](super::Formula::evaluate).
 pub(crate) fn evaluate(
     tree: &Tree,
@@ -455,7 +489,7 @@ pub(crate) fn evaluate(
             .iter()
             .filter_map(|target| match target {
                 Target::Member(member) => Some(*member),
-                Target::All(_) => None,
+                Target::All(_) | Target::Plan(_) => None,
             })
             .collect();
         if !categories.is_empty() {
@@ -472,6 +506,17 @@ pub(crate) fn evaluate(
                             .push(*total);
                     }
                 }
+            }
+        }
+        for figure in PlanFigure::ALL {
+            if !chosen.contains(&Target::Plan(figure)) {
+                continue;
+            }
+            for total in plan_figures(source, filter, *period, figure)? {
+                figures
+                    .entry((*period, Target::Plan(figure)))
+                    .or_default()
+                    .push(total);
             }
         }
         for side in [Side::Income, Side::Spending] {
@@ -594,6 +639,7 @@ pub(crate) fn evaluate(
             Target::Member(member) => Term::Member(member),
             Target::All(Side::Income) => Term::AllIncome,
             Target::All(Side::Spending) => Term::AllSpending,
+            Target::Plan(figure) => Term::Plans(figure),
         };
         if counted
             .iter()
@@ -602,7 +648,8 @@ pub(crate) fn evaluate(
             continue;
         }
         let Target::Member(member) = target else {
-            // Everything of a side: no path, nothing inside to list.
+            // Everything of a side or a figure of the plans: no path,
+            // nothing inside to list.
             counted.push(Counted {
                 of: term,
                 path: Vec::new(),

@@ -30,6 +30,9 @@ mod parse;
 
 pub use names::{FUNCTIONS, FunctionInfo, KnownName};
 
+/// The word in front of the figures of the planned payments (D-826).
+pub const PLANS_WORD: &str = "Plans";
+
 use kassensturz_core::{CurrencyCode, GroupMember, Money, RoundingMode};
 
 use crate::{Filter, Percent, Period, ReportError, Source};
@@ -132,6 +135,50 @@ pub enum Term {
     /// `Spending.ALL`: all money out, also what is not sorted into a
     /// category yet (D-653).
     AllSpending,
+    /// `Plans.OUT_DUE` and the other figures of the planned payments
+    /// (D-826).
+    Plans(PlanFigure),
+}
+
+/// A figure of the planned payments, which a formula names with `Plans.` in
+/// front (D-826). Each counts the plans of the chart's accounts as the
+/// forecast (*Left this month*) does, from today up to the last day of the
+/// name's period, as a positive amount.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PlanFigure {
+    /// `Plans.OUT_DUE`: what the plans still expect to go out, the
+    /// forecast's "still to go out".
+    OutDue,
+    /// `Plans.IN_DUE`: the planned income that has not arrived yet.
+    InDue,
+    /// `Plans.OUT_OVERDUE`: the outgoing occurrences whose day passed more
+    /// than a few banking days ago with no entry, the forecast's "Did this
+    /// happen?" list, which it counts in no figure.
+    OutOverdue,
+    /// `Plans.IN_OVERDUE`: the same for incoming ones.
+    InOverdue,
+}
+
+impl PlanFigure {
+    /// Every figure, in the order the help lists them.
+    pub const ALL: [Self; 4] = [Self::OutDue, Self::InDue, Self::OutOverdue, Self::InOverdue];
+
+    /// The word a formula writes after `Plans.`.
+    pub const fn word(self) -> &'static str {
+        match self {
+            Self::OutDue => "OUT_DUE",
+            Self::InDue => "IN_DUE",
+            Self::OutOverdue => "OUT_OVERDUE",
+            Self::InOverdue => "IN_OVERDUE",
+        }
+    }
+
+    /// The figure `word` names, ignoring capitals.
+    pub(crate) fn read(word: &str) -> Option<Self> {
+        Self::ALL
+            .into_iter()
+            .find(|figure| figure.word().eq_ignore_ascii_case(word))
+    }
 }
 
 /// A category or group a formula counted, for the line "counts Pets (with
@@ -141,7 +188,8 @@ pub struct Counted {
     /// The category or group, or all income or all spending.
     pub of: Term,
     /// The category's names from the top-level category down, or the
-    /// group's name alone; empty for all income or all spending.
+    /// group's name alone; empty for all income or all spending and for a
+    /// figure of the plans.
     pub path: Vec<String>,
     /// The names of the other categories counted with it, in the order of
     /// the category tree: what is inside a category, or the categories of a
@@ -194,8 +242,20 @@ impl Formula {
 
     /// The names the formula writes, as they are written, without quotes
     /// (M6d.4: the summary of a dashboard file lists those its book lacks).
+    /// `Spending.ALL` and the figures of the plans are terms, not names.
     pub(crate) fn name_texts(&self) -> impl Iterator<Item = &str> {
-        self.tree.names.iter().map(|name| name.text.as_str())
+        self.tree
+            .names
+            .iter()
+            .filter(|name| !name.all && name.plan.is_none())
+            .map(|name| name.text.as_str())
+    }
+
+    /// Whether the formula names a figure of the planned payments
+    /// (`Plans.OUT_DUE`, D-826): its [`Source`] must then be read with
+    /// [`Source::read_with_plans`].
+    pub fn names_plans(&self) -> bool {
+        self.tree.names.iter().any(|name| name.plan.is_some())
     }
 
     /// The categories and groups of `source`, each written the way a
@@ -211,6 +271,7 @@ impl Formula {
         self.tree.names.iter().any(|name| {
             let written = name.text.trim().trim_matches('\'');
             name.all
+                || name.plan.is_some()
                 || !columns
                     .iter()
                     .any(|column| column.eq_ignore_ascii_case(written))

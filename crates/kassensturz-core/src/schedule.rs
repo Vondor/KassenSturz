@@ -664,6 +664,100 @@ pub struct Forecast {
     pub months: Vec<MonthPlan>,
 }
 
+/// What the planned payments still expect on `today`, up to `end` (D-826):
+/// the figures *Left this month* is made of, for any last day, so a chart's
+/// formula (`Plans.OUT_DUE`) and the forecast count the same way.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StillExpected {
+    /// The open outgoing occurrences that are upcoming or due (dated from
+    /// [`MAX_BUSINESS_DAYS`] banking days ago) up to `end`, and the
+    /// outgoing entries booked ahead and matched, dated after today up to
+    /// `end`, as a positive amount.
+    pub out_due: Money,
+    /// The same for incoming ones.
+    pub in_due: Money,
+    /// The open outgoing occurrences more than [`MAX_BUSINESS_DAYS`]
+    /// banking days ago, at most [`LOOK_BACK_YEARS`] back and dated up to
+    /// `end`: the "Did this happen?" list, added up, as a positive amount.
+    pub out_overdue: Money,
+    /// The same for incoming ones.
+    pub in_overdue: Money,
+    /// Those overdue occurrences, sorted by date, then plan.
+    pub overdue: Vec<OpenOccurrence>,
+}
+
+/// What `plans` still expect in `currency` on `today`, up to `end` (D-826).
+///
+/// Paused plans and plans in another currency count for nothing; the caller
+/// leaves out plans of closed or unchosen accounts. A matched or skipped
+/// occurrence counts for nothing (`decided`), and `ahead` holds the entries
+/// matched to a plan that are dated after today, each with what it does to
+/// the chosen accounts (B-331). [`forecast`] is this up to the month's end.
+pub fn still_expected(
+    plans: &[&Schedule],
+    decided: &HashMap<(ScheduleId, Date), Decided>,
+    ahead: &[(Date, Money)],
+    today: Date,
+    end: Date,
+    currency: CurrencyCode,
+) -> Result<StillExpected, ForecastError> {
+    let zero = Money::zero(currency);
+    let look_back = today
+        .checked_sub(i64::from(LOOK_BACK_YEARS).years())
+        .map_err(|_| ForecastError::Calendar)?;
+    let mut found = StillExpected {
+        out_due: zero,
+        in_due: zero,
+        out_overdue: zero,
+        in_overdue: zero,
+        overdue: Vec::new(),
+    };
+    for plan in plans
+        .iter()
+        .filter(|plan| !plan.paused && plan.amount.currency() == currency)
+    {
+        for due in due_dates(plan, look_back, end) {
+            let state = OccurrenceState::of(
+                due.date,
+                decided.get(&(plan.id, due.counted)).copied(),
+                today,
+            );
+            let (out, into) = match state {
+                OccurrenceState::Matched | OccurrenceState::Skipped => continue,
+                OccurrenceState::Overdue => {
+                    found.overdue.push(OpenOccurrence {
+                        schedule: plan.id,
+                        due,
+                    });
+                    (&mut found.out_overdue, &mut found.in_overdue)
+                }
+                OccurrenceState::Upcoming | OccurrenceState::Due => {
+                    (&mut found.out_due, &mut found.in_due)
+                }
+            };
+            if plan.is_outgoing() {
+                *out = out.checked_sub(plan.amount)?;
+            } else {
+                *into = into.checked_add(plan.amount)?;
+            }
+        }
+    }
+    for &(date, amount) in ahead {
+        if date <= today || date > end || amount.currency() != currency {
+            continue;
+        }
+        if amount.is_negative() {
+            found.out_due = found.out_due.checked_sub(amount)?;
+        } else {
+            found.in_due = found.in_due.checked_add(amount)?;
+        }
+    }
+    found
+        .overdue
+        .sort_by_key(|occurrence| (occurrence.due.date, occurrence.schedule));
+    Ok(found)
+}
+
 /// Why the forecast can't be computed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ForecastError {
@@ -750,50 +844,13 @@ pub fn forecast_with_entries_ahead(
         .filter(|plan| !plan.paused && plan.amount.currency() == currency)
         .collect();
     let (_, month_end) = period(today)?;
-    let look_back = today
-        .checked_sub(i64::from(LOOK_BACK_YEARS).years())
-        .map_err(|_| ForecastError::Calendar)?;
-    let (mut out_due, mut in_due) = (zero, zero);
-    let mut overdue = Vec::new();
-    for plan in &plans {
-        for due in due_dates(plan, look_back, month_end) {
-            let state = OccurrenceState::of(
-                due.date,
-                decided.get(&(plan.id, due.counted)).copied(),
-                today,
-            );
-            match state {
-                OccurrenceState::Matched | OccurrenceState::Skipped => {}
-                OccurrenceState::Overdue => overdue.push(OpenOccurrence {
-                    schedule: plan.id,
-                    due,
-                }),
-                OccurrenceState::Upcoming | OccurrenceState::Due => {
-                    if plan.is_outgoing() {
-                        out_due = out_due.checked_sub(plan.amount)?;
-                    } else {
-                        in_due = in_due.checked_add(plan.amount)?;
-                    }
-                }
-            }
-        }
-    }
+    let open = still_expected(&plans, decided, ahead, today, month_end, currency)?;
+    let (out_due, in_due, overdue) = (open.out_due, open.in_due, open.overdue);
     let ahead: Vec<(Date, Money)> = ahead
         .iter()
         .copied()
         .filter(|(date, amount)| *date > today && amount.currency() == currency)
         .collect();
-    for &(date, amount) in &ahead {
-        if date > month_end {
-            continue;
-        }
-        if amount.is_negative() {
-            out_due = out_due.checked_sub(amount)?;
-        } else {
-            in_due = in_due.checked_add(amount)?;
-        }
-    }
-    overdue.sort_by_key(|found| (found.due.date, found.schedule));
     let left = balance_now.checked_sub(out_due)?;
     let expected_end = left.checked_add(in_due)?;
     let mut projected = Vec::new();

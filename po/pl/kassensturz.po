@@ -3194,6 +3194,18 @@ msgctxt "@option:check"
 msgid "Let my AI tools prepare changes"
 msgstr "Pozwól moim narzędziom AI przygotowywać zmiany"
 
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:769
+#, kde-format
+msgctxt "@info"
+msgid "On this system your AI tools can't prepare changes yet. They can still read the parts of your book you allowed above."
+msgstr "W tym systemie Twoje narzędzia AI nie mogą jeszcze przygotowywać zmian. Nadal mogą czytać te części Twojej księgi, na które zezwoliłeś powyżej."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:769
+#, kde-format
+msgctxt "@info"
+msgid "Your AI tools can't prepare changes right now: KassenSturz can't create or open its folder for them in your user data folder. Check that you may write there, for example that the disk isn't full, then switch this off and on again."
+msgstr "Twoje narzędzia AI nie mogą teraz przygotowywać zmian: KassenSturz nie może utworzyć ani otworzyć swojego folderu dla nich w Twoim folderze danych użytkownika. Sprawdź, czy możesz tam zapisywać, na przykład czy dysk nie jest pełny, a potem wyłącz i ponownie włącz tę opcję."
+
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:673
 #, kde-format
 msgctxt "@title:window"

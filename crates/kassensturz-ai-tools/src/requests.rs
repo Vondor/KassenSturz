@@ -16,7 +16,8 @@
 //! replaces only this module.
 //!
 //! The files, in one folder that only the user may enter (0700, files
-//! 0600 on Unix), each named by the request's ID:
+//! 0600 on Unix; on Windows the user's own `%LOCALAPPDATA%`, whose access
+//! rules the folder inherits, B-377), each named by the request's ID:
 //! - `<id>.request.json`: written by the MCP server, the book and the call;
 //! - `<id>.taken.json`: the same file once an app took it. Taking is a
 //!   rename, so only one app takes a request, and the server can tell
@@ -215,21 +216,20 @@ pub struct RequestFolder {
 
 impl RequestFolder {
     /// Where the request folder is on this computer: in KassenSturz's data
-    /// folder, `$XDG_DATA_HOME/io.github.vondor.KassenSturz/mcp-requests`
-    /// (by default under `~/.local/share`). The Flatpak gives the app and
-    /// every program started with `flatpak run --command=…` the same
+    /// folder, the same one the debug log uses (D-556). On Linux that is
+    /// `$XDG_DATA_HOME/io.github.vondor.KassenSturz/mcp-requests` (by
+    /// default under `~/.local/share`); the Flatpak gives the app and every
+    /// program started with `flatpak run --command=…` the same
     /// `XDG_DATA_HOME`, so they meet there without a new permission
-    /// (D-219). `None` off Linux until the Windows and macOS packaging
-    /// steps (M7) say where their data goes, like the AI switch (D-177).
+    /// (D-219). On Windows it is
+    /// `%LOCALAPPDATA%\io.github.vondor.KassenSturz\mcp-requests` (B-377,
+    /// D-816): `kassensturz.exe` and `kassensturz-mcp.exe` run as the same
+    /// user and read the same variable. `None` on macOS until its packaging
+    /// says where its data goes, like the AI switch (D-177).
     pub fn default_place() -> Option<PathBuf> {
-        if cfg!(not(target_os = "linux")) {
-            return None;
-        }
-        let nonempty = |name| std::env::var_os(name).filter(|value| !value.is_empty());
-        let data = nonempty("XDG_DATA_HOME")
-            .map(PathBuf::from)
-            .or_else(|| nonempty("HOME").map(|home| PathBuf::from(home).join(".local/share")))?;
-        Some(data.join(APP_FOLDER).join(FOLDER_NAME))
+        place_for(std::env::consts::OS, |name| {
+            std::env::var_os(name).filter(|value| !value.is_empty())
+        })
     }
 
     /// Opens the folder at `path`, making it if needed, for the user only.
@@ -520,6 +520,27 @@ impl Inbox for RequestFolder {
     fn reply(&mut self, id: &RequestId, reply: &Reply) -> io::Result<()> {
         self.write(&id.file(ANSWER), reply.to_json().to_string().as_bytes())
     }
+}
+
+/// The request folder on the system `os` (as `std::env::consts::OS` names
+/// it), with the environment read through `var`: Linux's `XDG_DATA_HOME`
+/// or `HOME/.local/share`, Windows' `LOCALAPPDATA`; `None` elsewhere or
+/// when the variable is missing.
+///
+/// `%LOCALAPPDATA%` lies in the user's own profile, which only the user,
+/// the system and administrators may enter, and a folder made there
+/// inherits that; it is what `0700` gives on Linux, where root can enter
+/// too. The test profile moves `LOCALAPPDATA` as it moves `XDG_DATA_HOME`
+/// (M7a.9), so a test app never meets the real folder.
+fn place_for(os: &str, var: impl Fn(&str) -> Option<std::ffi::OsString>) -> Option<PathBuf> {
+    let data = match os {
+        "linux" => var("XDG_DATA_HOME")
+            .map(PathBuf::from)
+            .or_else(|| var("HOME").map(|home| PathBuf::from(home).join(".local/share")))?,
+        "windows" => PathBuf::from(var("LOCALAPPDATA")?),
+        _ => return None,
+    };
+    Some(data.join(APP_FOLDER).join(FOLDER_NAME))
 }
 
 /// Whether `name` is one of the files this module writes.

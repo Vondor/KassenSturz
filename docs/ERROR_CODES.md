@@ -471,7 +471,7 @@ The user's own AI tool asked `kassensturz-mcp` to prepare changes (D-216, D-217)
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
 | `mcp-writes.off` | | | Your AI tools may not prepare changes. Turn on "Let my AI tools prepare changes" in KassenSturz's AI settings if you want them to. |
-| `mcp-writes.folder` | | | The folder through which changes reach KassenSturz couldn't be made or used, or this system has none yet (only Linux has one so far). Check that your user can write to KassenSturz's data folder. |
+| `mcp-writes.folder` | | | The folder through which changes reach KassenSturz couldn't be made or used, or this system has none yet (Linux and Windows have one; macOS not yet). Check that your user can write to KassenSturz's data folder. |
 | `mcp-writes.app-not-running` | | | KassenSturz didn't take the changes within 10 seconds: it isn't open, has another book open, or AI or "Let my AI tools prepare changes" is off in it. Open the book in KassenSturz and ask your AI tool again. |
 | `mcp-writes.unknown-request` | | | There are no prepared changes with that number (any more): they were decided on and already reported, or are older than an hour. Ask your AI tool to prepare them again if you still want them. |
 | `mcp-writes.bad-request` | | | KassenSturz couldn't read what arrived in its folder, so it showed nothing. Ask your AI tool again; if it keeps happening, the AI tool or another program writes into the folder by itself. |

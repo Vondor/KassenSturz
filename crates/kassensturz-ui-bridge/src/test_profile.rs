@@ -363,8 +363,11 @@ mod path_audit {
         // Follows XDG_DATA_HOME, or on Windows LOCALAPPDATA (D-556), both
         // moved by the profile, checked above; 5 of the 8 are its tests.
         ("kassensturz-core/src/debug_log.rs", 8),
-        // Follows XDG_DATA_HOME, checked above.
-        ("kassensturz-ai-tools/src/requests.rs", 2),
+        // Follows XDG_DATA_HOME, or on Windows LOCALAPPDATA (B-377), both
+        // moved by the profile, checked above; its tests give `place_for`
+        // made-up variables and read none.
+        ("kassensturz-ai-tools/src/requests.rs", 3),
+        ("kassensturz-ai-tools/src/requests/tests.rs", 9),
         // The MCP server's `$HOME` in a `LastBook` it reads from the
         // settings file `ai_switch::settings_file` finds; while a test app
         // runs, the server moves its folders as the app does (M6-B208).

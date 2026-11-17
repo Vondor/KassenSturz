@@ -322,14 +322,134 @@ fn a_link_is_neither_the_folder_nor_a_request() {
     assert!(app.take_new(&book).is_empty());
 }
 
+/// A directory junction (B-377), which Windows lets every user make, in
+/// place of the folder is refused like a link on Linux.
+#[cfg(windows)]
+#[test]
+fn a_junction_is_not_the_folder_on_windows() {
+    let scratch = Scratch::new("junction");
+    let elsewhere = scratch.0.join("elsewhere");
+    fs::create_dir_all(&elsewhere).expect("made");
+    fs::create_dir_all(scratch.0.join("data")).expect("made");
+    let place = scratch.0.join("data").join(FOLDER_NAME);
+    let made = std::process::Command::new("cmd")
+        .arg("/C")
+        .arg("mklink")
+        .arg("/J")
+        .arg(&place)
+        .arg(&elsewhere)
+        .output()
+        .expect("mklink ran");
+    assert!(made.status.success(), "{made:?}");
+    assert!(RequestFolder::open(place.clone()).is_err());
+    fs::remove_dir(&place).expect("junction removed");
+    assert!(elsewhere.is_dir(), "the junction's target stays");
+}
+
+/// On Windows a file another program holds open is not always renamed
+/// over (B-377): the app answers again while the server reads the last
+/// answer, and the new answer arrives all the same.
+#[cfg(windows)]
+#[test]
+fn a_new_answer_replaces_one_the_server_holds_open_on_windows() {
+    let scratch = Scratch::new("open-answer");
+    let book = scratch.book("Household.ksz");
+    let server = scratch.folder();
+    let mut app = scratch.folder();
+    let id = server.send(&book, &call()).expect("sent");
+    assert_eq!(app.take_new(&book).len(), 1);
+    app.reply(&id, &Reply::Shown { changes: 1 })
+        .expect("answered");
+    let held = fs::File::open(server.path().join(id.file(ANSWER))).expect("opened");
+    app.reply(&id, &Reply::Applied)
+        .expect("answered while the old answer is open");
+    drop(held);
+    assert_eq!(server.standing(&id), Standing::Answered(Reply::Applied));
+    server.finish(&id);
+    assert!(scratch.names().is_empty(), "{:?}", scratch.names());
+}
+
 #[test]
 fn the_default_place_is_in_the_data_folder() {
-    if cfg!(target_os = "linux") {
-        let place = RequestFolder::default_place().expect("a place on Linux");
-        assert!(place.ends_with("io.github.vondor.KassenSturz/mcp-requests"));
+    if cfg!(any(target_os = "linux", windows)) {
+        let place = RequestFolder::default_place().expect("a place on Linux and Windows");
+        assert!(place.ends_with(Path::new(APP_FOLDER).join(FOLDER_NAME)));
     } else {
         assert_eq!(RequestFolder::default_place(), None);
     }
+}
+
+/// The environment `pairs` as `place_for` reads it.
+fn env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<std::ffi::OsString> {
+    let pairs: Vec<(String, String)> = pairs
+        .iter()
+        .map(|(name, value)| ((*name).to_owned(), (*value).to_owned()))
+        .collect();
+    move |name| {
+        pairs
+            .iter()
+            .find(|(key, _)| key == name)
+            .map(|(_, value)| value.into())
+    }
+}
+
+#[test]
+fn windows_keeps_requests_in_the_users_local_app_data() {
+    // B-377: off Linux there was no place, so every call of
+    // `propose_changes` answered `mcp-writes.folder`.
+    let place = place_for(
+        "windows",
+        env(&[("LOCALAPPDATA", r"C:\Users\Sam\AppData\Local")]),
+    )
+    .expect("a place on Windows");
+    assert_eq!(
+        place,
+        PathBuf::from(r"C:\Users\Sam\AppData\Local")
+            .join("io.github.vondor.KassenSturz")
+            .join("mcp-requests")
+    );
+    // The same folder the debug log sits beside (D-556), so the app and
+    // `kassensturz-mcp.exe` meet there; the roaming APPDATA is never used.
+    assert_eq!(
+        place_for(
+            "windows",
+            env(&[("APPDATA", r"C:\Users\Sam\AppData\Roaming")])
+        ),
+        None
+    );
+    // Windows has no XDG folders of its own; only LOCALAPPDATA counts.
+    assert_eq!(
+        place_for("windows", env(&[("XDG_DATA_HOME", "/x"), ("HOME", "/h")])),
+        None
+    );
+}
+
+#[test]
+fn linux_keeps_requests_in_the_xdg_data_folder() {
+    assert_eq!(
+        place_for("linux", env(&[("XDG_DATA_HOME", "/d"), ("HOME", "/h")])),
+        Some(PathBuf::from(
+            "/d/io.github.vondor.KassenSturz/mcp-requests"
+        ))
+    );
+    assert_eq!(
+        place_for("linux", env(&[("HOME", "/h")])),
+        Some(PathBuf::from(
+            "/h/.local/share/io.github.vondor.KassenSturz/mcp-requests"
+        ))
+    );
+    assert_eq!(place_for("linux", env(&[])), None);
+}
+
+#[test]
+fn other_systems_have_no_request_folder_yet() {
+    assert_eq!(
+        place_for(
+            "macos",
+            env(&[("HOME", "/Users/sam"), ("LOCALAPPDATA", "x")])
+        ),
+        None
+    );
 }
 
 #[test]

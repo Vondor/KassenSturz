@@ -751,7 +751,22 @@ Kirigami.ScrollablePage {
                 ActionLog.taken("AiSettingsPage_letAiTools")
                 page.notWritten = !page.settings.setWriteTools(checked);
                 checked = page.settings.writeTools();
+                writeToolsProblem.problem = checked ? page.settings.writeToolsProblem() : "";
             }
+        }
+
+        // The switch is on, but the folder through which the AI tools hand
+        // their changes over can't be used here (B-377): say so instead of
+        // leaving every prepared change to fail in the AI program.
+        Kirigami.InlineMessage {
+            id: writeToolsProblem
+
+            property string problem: writeToolsSwitch.checked ? page.settings.writeToolsProblem() : ""
+
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Warning
+            visible: problem !== ""
+            text: problem === "none" ? page.i18nContext.i18nc("@info", "On this system your AI tools can't prepare changes yet. They can still read the parts of your book you allowed above.") : page.i18nContext.i18nc("@info", "Your AI tools can't prepare changes right now: KassenSturz can't create or open its folder for them in your user data folder. Check that you may write there, for example that the disk isn't full, then switch this off and on again.")
         }
 
         // The bill folder (US5.13, D-739): the user's own AI tools read a

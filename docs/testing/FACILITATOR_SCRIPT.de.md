@@ -1,4 +1,4 @@
-# KassenSturz: Leitfaden für die Testleitung (Runde 1)
+# KassenSturz: Leitfaden für die Testleitung (Beta)
 
 *Für die Person, die den Test begleitet; in jeder Runde ist das der Maintainer (D-552). Gehört zum [Fragebogen](QUESTIONNAIRE_1.de.md) und zum [Tester-Guide](TESTER_GUIDE.de.md). Dauer etwa 60 Minuten mit Vor- und Nachgespräch. Englische Fassung: [FACILITATOR_SCRIPT.en.md](FACILITATOR_SCRIPT.en.md).*
 
@@ -8,9 +8,9 @@ Die **eingerahmten Texte** liest die Testleitung **wörtlich vor**, damit jeder 
 
 ## 1. Vorbereitung (vor dem Termin)
 
-- Die Installationsdatei liegt **nicht** bereit und nichts ist installiert: Karte 1 misst die Installation. Der Tester kennt nur die [Installationsblätter](README.md) und die Download-Seite.
+- **Karte 1 (Installation) ist schon erledigt.** Der Tester hat vor dem Termin zu Hause allein installiert, nur mit dem Installationsblatt für sein System und der Download-Seite, und das [Installationsprotokoll](INSTALL_LOG.de.md) geschickt. Die Testleitung liest es vor dem Termin. Jedes „mit Mühe“ und jedes „nein“ ist ein Fund. Steckt ein Tester zu Hause fest, gibt die Testleitung genau einen Hinweis per E-Mail und notiert ihn als Fund.
 - **Die Testleitung installiert nie für den Tester.** Auch nicht, wenn er es bittet.
-- Die Beispielbücher kommen mit der App. Der passende Test-Kontoauszug für Karte 5 (aus dem Ordner `statements/`, siehe [README.md](README.md)) liegt auf dem Rechner des Testers bereit, ebenso die neuere Version für Karte 6.
+- Die Beispielbücher kommen mit der App. Der passende Test-Kontoauszug für Karte 5 (aus dem Ordner `statements/`, siehe [README.md](README.md)) liegt auf dem Rechner des Testers bereit.
 - **Stimmen Beispielbuch und Kontoauszug zusammen?** Die Kontoauszüge und Lösungsblätter im Repository gehören zum Referenzmonat 2026-11 (siehe `reference-month.txt` im Ordner der Beispielbücher). Die App verschiebt die Daten eines Beispielbuchs beim Anlegen in den laufenden Monat und hält 24 Monate; ein Auszug aus 2026-11 passt dann nur zum Buch, wenn der Termin im November 2026 liegt. Vor jeder späteren Runde: `tools/example-books/generate.py --reference-month JJJJ-MM` für den Monat des Termins laufen lassen, den Test `example_books` die Lösungsblätter neu schreiben lassen und erst dann Auszüge und Lösungsblätter verwenden (Einzelheiten in der [README](README.md)). Die Aufgabe 4 und 5 am besten vorab einmal selbst durchspielen.
 - KI und Bankverbindungen sind aus. Internet ist nach der Installation nicht nötig.
 - Die Aufgabenkarten sind **einzeln** ausgedruckt oder als einzelne Nachrichten vorbereitet. Der Tester sieht immer nur die aktuelle Karte.
@@ -26,7 +26,9 @@ Die **eingerahmten Texte** liest die Testleitung **wörtlich vor**, damit jeder 
 >
 > Ich habe an dem Programm mitgebaut. Gerade deshalb brauche ich Ihre ehrliche, auch harte Kritik. Sie tun mir damit einen Gefallen, keinen Schaden. Sagen Sie ruhig „Das ist umständlich“ oder „Das verstehe ich nicht“. Das sind für uns die wertvollsten Sätze.
 >
-> Wir arbeiten heute nur mit erfundenen Zahlen und den Beispielbüchern. Bitte geben Sie keine echten Konten, Beträge oder Banken ein. Wenn das Programm nach einem Kontostand fragt, denken Sie sich einen aus. Nichts davon verlässt Ihren Computer.
+> **Bitte keine echten Daten.** Benutzen Sie im Test nur das Beispielbuch. Wenn Sie trotzdem eigene Konten, Beträge, Banken oder IBANs eingeben, werden diese Daten mit aufgenommen und ausgewertet: in der Bildschirm- und Tonaufnahme, im Protokoll der App und in Ihrem Bericht. Deshalb bitten wir Sie, das nicht zu tun.
+>
+> Wenn das Programm nach einem Kontostand fragt, denken Sie sich einen aus.
 >
 > Sie können jederzeit eine Pause machen oder aufhören, ohne einen Grund zu nennen.
 
@@ -63,7 +65,7 @@ Die **eingerahmten Texte** liest die Testleitung **wörtlich vor**, damit jeder 
 
 **Übung abwarten**, dann loben: „Genau so, perfekt.“ Nennt der Tester nur die Zahl: „Sehr gut, und jetzt bitte noch mal, aber sagen Sie, wie Sie im Kopf durch die Räume gehen.“
 
-> Noch etwas: **Ich werde Ihnen während des Tests nicht helfen.** Das ist keine Unhöflichkeit. Ich möchte sehen, wie das Programm ohne Hilfe funktioniert, denn zu Hause sitzt auch niemand neben Ihnen. Das gilt auch für die Installation: Die erste Karte ist das Installieren, und das machen Sie allein mit dem Blatt. Ihre Fragen schreibe ich mir auf, und am Ende beantworte ich gern alles.
+> Noch etwas: **Ich werde Ihnen während des Tests nicht helfen.** Das ist keine Unhöflichkeit. Ich möchte sehen, wie das Programm ohne Hilfe funktioniert, denn zu Hause sitzt auch niemand neben Ihnen. Das Installieren haben Sie schon zu Hause allein gemacht, darum fangen wir heute mit Karte 2 an. Ihre Fragen schreibe ich mir auf, und am Ende beantworte ich gern alles.
 >
 > Wenn Sie still werden, frage ich nur: „Was denken Sie gerade?“ Haben Sie dazu Fragen?
 
@@ -73,7 +75,7 @@ Die **eingerahmten Texte** liest die Testleitung **wörtlich vor**, damit jeder 
 
 > Hier ist die nächste Aufgabe. Lesen Sie sie bitte laut vor, und sagen Sie mir, wenn Sie meinen, Sie sind fertig.
 
-Nach jeder Karte: „Wo haben Sie gestockt?“ und „Wie leicht war das, von 1 bis 5?“ Bei Karte 1 die Zeit stoppen.
+Nach jeder Karte: „Wo haben Sie gestockt?“ und „Wie leicht war das, von 1 bis 5?“ Die Minuten für Karte 1 stehen im Installationsprotokoll.
 
 **Was die Testleitung sagen darf** (neutral, ohne Richtung):
 - „Was denken Sie gerade?“
@@ -95,7 +97,7 @@ Nach jeder Karte: „Wo haben Sie gestockt?“ und „Wie leicht war das, von 1 
 **Wenn der Tester festhängt:** nach etwa 3 Minuten ohne Fortschritt oder bei sichtbarem Frust:
 > Das ist eine sehr wichtige Stelle für uns, danke. Möchten Sie es noch kurz weiter versuchen, oder gehen wir zur nächsten Karte?
 
-Erst danach, falls die nächste Karte darauf aufbaut, darf die Testleitung den Weg zeigen. In der Mitschrift notieren: „Hilfe gegeben bei …“. **Bei Karte 1 (Installation):** dem Tester nur sagen, bei welchem Schritt des Blatts er ist, nie, wohin er klicken soll; steckt er fest, die Stelle notieren und weitergehen lassen (zum Beispiel mit dem Hinweis auf den nächsten Absatz des Blatts).
+Erst danach, falls die nächste Karte darauf aufbaut, darf die Testleitung den Weg zeigen. In der Mitschrift notieren: „Hilfe gegeben bei …“. **Bei Karte 1 (Installation zu Hause):** Der Hinweis per E-Mail nennt nur den Schritt des Blatts, an dem der Tester ist, nie, wohin er klicken soll (zum Beispiel den nächsten Absatz des Blatts).
 
 **Wenn der Tester echte Daten eintippt:** nicht unterbrechen oder rügen. Mitschrift: „Echte Daten: ja“. Am Ende Frage 8 einfach stellen.
 
@@ -106,7 +108,7 @@ Erst danach, falls die nächste Karte darauf aufbaut, darf die Testleitung den W
 
 > Das waren alle Aufgaben, vielen Dank. Jetzt habe ich noch ein paar Fragen, danach dürfen Sie mich alles fragen.
 
-Dann die Fragen „Nach dem Test“ (Fragebogen, Abschnitt 3), Frage 8 zuletzt und freundlich:
+Dann die Fragen „Nach dem Test“ (Fragebogen, Abschnitt 3), die Fragen 9 bis 11 vor Frage 8 und Frage 8 zuletzt und freundlich:
 > Eine letzte Frage, und jede Antwort ist hier in Ordnung: Haben Sie heute irgendwo echte eigene Daten eingegeben? Ich frage nur, damit wir Ihre Notizen entsprechend schützen.
 
 Danach Fragen des Testers beantworten und zeigen, was er gesucht hat. Dann erklären, wohin Fragebogen und Berichte gehen ([Berichtsseite](REPORT_PAGE.de.md)). Zum Schluss:
@@ -124,12 +126,11 @@ Hier steht, **woran die Testleitung erkennt, ob eine Karte geschafft ist**. Pro 
 
 | Karte | Geschafft, wenn … | Zielzeit | Prüfen nach der Karte |
 |---|---|---|---|
-| 1 Installieren und starten | die Übersicht mit einem selbst angelegten Konto erscheint, „Entwicklermodus“ im Fenstertitel, und das allein nach dem Installationsblatt | 10 Min. | Steht „Entwicklermodus“ oben? Stimmt der Kontostand mit dem ausgedachten überein? An welchem Schritt des Blatts wurde gestockt? |
+| 1 Installieren und starten | die Übersicht mit einem selbst angelegten Konto erscheint, „Entwicklermodus“ im Fenstertitel, und das allein zu Hause nach dem Installationsblatt | 10 Min. (Ubuntu 15) | Im Installationsprotokoll: Welche Schritte „mit Mühe“ oder „nein“, und wie lange insgesamt? Beim Termin: Steht „Entwicklermodus“ oben? Stimmt der Kontostand mit dem ausgedachten überein? |
 | 2 Alltagsausgaben | alle drei Buchungen mit richtigem Betrag, Datum und Richtung (Ausgabe/Einnahme) im Konto stehen; Supermarkt und Kaffee in einer passenden Kategorie | 5 Min. | Kontostand = Anfangsstand − 42,50 − 3,20 + 1.800 |
 | 3 Korrigieren und umbuchen | Kaffee steht auf 2,30; 200 € sind als Umbuchung zwischen zwei eigenen Konten gebucht (nicht als Ausgabe); der letzte Schritt ist rückgängig gemacht | 7 Min. | Zählt die Übersicht die Umbuchung **nicht** als Geld rein/raus? Weiß der Tester, welcher Schritt rückgängig gemacht wurde? |
 | 4 Wo ist mein Geld hin? | die genannte Summe für Lebensmittel und die Antwort „mehr rein/mehr raus“ stimmen mit dem Lösungsblatt des Beispielbuchs überein | 3 Min. | Antwort mit dem Lösungsblatt vergleichen |
 | 5 Kontoauszug einlesen | die Datei ist im richtigen Konto, die doppelte Buchung wurde **nicht** zweimal übernommen, der Tester hat die Vorschau gelesen, bevor er bestätigt | 7 Min. | Anzahl neuer Buchungen = Lösungsblatt; Kontostand = Endsaldo der Datei (siehe Hinweis unten) |
-| 6 Aktualisieren | neue Version installiert, das Buch öffnet ohne Fehlermeldung, die Buchungen aus Karte 2 sind da | 5 Min. | Versionsnummer unter „Über“ ist die neue |
 | 7 Sprache und Wörter | (keine Lösung; jede Fundstelle zählt) | 3 Min. | Liste der Wörter übernehmen |
 | 8 Tiefer einsteigen (freiwillig) | eine Regel sortiert Kaffee-Käufe von selbst; ein neues Diagramm ist auf der Übersicht | 7 Min. | Neue Kaffee-Buchung eintragen: landet sie in der Kategorie? |
 
@@ -142,15 +143,15 @@ Hier steht, **woran die Testleitung erkennt, ob eine Karte geschafft ist**. Pro 
 Die App ist **bereit für die nächste Runde**, wenn über alle Tester einer Runde:
 
 1. **Keine einzige** Karte mit einem falschen Ergebnis endet, das der Tester für richtig hält (Karten 2 bis 5). Ein solcher Fall ist ein Fehler der höchsten Stufe, egal wie selten.
-2. Die Karten 1 bis 6 von **mindestens 4 von 5 Testern geschafft** werden (Geschafft oder Mit Mühe), und keine dieser Karten von mehr als einem Tester nur „Mit Mühe“.
+2. Die Karten 1 bis 5 von **mindestens 4 von 5 Testern geschafft** werden (Geschafft oder Mit Mühe), und keine dieser Karten von mehr als einem Tester nur „Mit Mühe“.
 3. Die **Leichtigkeit im Schnitt mindestens 4 von 5** ist und keine Karte im Schnitt unter 3 liegt.
 4. Bei Frage 3.1 („Vertrauen Sie den Zahlen?“) **niemand „nein“** sagt.
 5. Bei Frage 3.6 („weiter benutzen?“) **mindestens die Hälfte „ja“ oder „vielleicht“** sagt.
-6. **Kein Absturz und kein Datenverlust** (Karte 6: alles noch da).
+6. **Kein Absturz und kein Datenverlust.**
 
 Jede Stelle, an der **zwei oder mehr Tester** stocken, wird ein Fund für die nächste Version, auch wenn die Karte am Ende geschafft wurde.
 
-*Bei Runde 1 mit nur einem Tester (dem Maintainer) gelten 1, 4 und 6 voll; 2, 3 und 5 werden erst mit mehreren Testern gezählt.*
+*Karte 6 (Aktualisieren) gibt es in der Beta nicht: Das Update von jedem früheren Beta-Format prüfen die automatischen Update-Tests (D-274, D-835). Solange eine Runde weniger als fünf Tester hat, gelten 1, 4 und 6 voll; 2, 3 und 5 werden erst mit mehreren Testern gezählt.*
 
 ## 6. Mitschrift der Testleitung
 

@@ -7,6 +7,7 @@ Everything a person needs to test KassenSturz without help from the code. German
 | Testers: what the test is, safety, consent, install overview | [TESTER_GUIDE.de.md](TESTER_GUIDE.de.md) | [TESTER_GUIDE.en.md](TESTER_GUIDE.en.md) |
 | Testers: install on Windows | [INSTALL_WINDOWS.de.md](INSTALL_WINDOWS.de.md) | [INSTALL_WINDOWS.en.md](INSTALL_WINDOWS.en.md) |
 | Testers: install on Ubuntu | [INSTALL_UBUNTU.de.md](INSTALL_UBUNTU.de.md) | [INSTALL_UBUNTU.en.md](INSTALL_UBUNTU.en.md) |
+| Testers: step log for installing at home (card 1) | [INSTALL_LOG.de.md](INSTALL_LOG.de.md) | [INSTALL_LOG.en.md](INSTALL_LOG.en.md) |
 | Testers: questionnaire and task cards | [QUESTIONNAIRE_1.de.md](QUESTIONNAIRE_1.de.md) | [QUESTIONNAIRE_1.en.md](QUESTIONNAIRE_1.en.md) |
 | Testers: report a problem | [REPORT_PAGE.de.md](REPORT_PAGE.de.md) | [REPORT_PAGE.en.md](REPORT_PAGE.en.md) |
 | Facilitator: script, consent step, success criteria | [FACILITATOR_SCRIPT.de.md](FACILITATOR_SCRIPT.de.md) | [FACILITATOR_SCRIPT.en.md](FACILITATOR_SCRIPT.en.md) |

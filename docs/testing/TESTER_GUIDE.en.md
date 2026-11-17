@@ -6,12 +6,12 @@ Thank you for trying KassenSturz, a free household-money program for your comput
 
 ## What happens in the test
 
-A session takes 45 to 60 minutes. The facilitator, the person who invited you, sits next to you or joins by video call. They hand you **task cards** one at a time. You solve them with KassenSturz while thinking aloud, then answer a few questions.
+Before the session you install KassenSturz at home, alone, with the install sheet and the [step log](INSTALL_LOG.en.md). The session itself takes 45 to 60 minutes. The facilitator, the person who invited you, sits next to you or joins by video call. They hand you **task cards** one at a time. You solve them with KassenSturz while thinking aloud, then answer a few questions.
 
 | When | What | About |
 |---|---|---|
-| Before | Read this guide, get your computer ready | 5 min |
-| Test | Install (card 1) and cards 2 to 8 | 30 min |
+| Before, at home | Read this guide, install KassenSturz (card 1), send the step log | about 20 min |
+| Session | Cards 2 to 5, 7 and 8 | 30 min |
 | After | Closing questions | 10 min |
 
 ## 1. You can't do anything wrong
@@ -37,9 +37,12 @@ Say **everything that goes through your head** while you use the program, as if 
 
 ## 3. What is safe
 
+> **Please, no real data.** Use only the example book in the test. If you still enter your own accounts, amounts, banks or IBANs, that data is recorded and analysed: in the screen and audio recording, in the app's log and in your report. That is why we ask you not to.
+
 - **Made-up numbers and the example books only.** Don't type your own accounts, amounts, bank names or IBANs. If the program asks for a balance, invent one.
 - **Nothing leaves your computer.** The test needs no bank, no AI service and, after installing, no internet. Leave AI and bank connections off.
 - **If you do enter real data:** that is not a problem, please just tell us honestly (question 8 of the questionnaire). Your report is then treated as personal data: only the facilitator reads it, it is not published, not put into the project, the public bug list or any AI tool, and it is deleted after the round.
+- **Your household book is not encrypted.** KassenSturz stores your household book unencrypted on your computer. Anyone who can use your computer can open it. So protect your user account with a password and, if you can, switch on your system's encryption (on Windows "Device encryption" or BitLocker).
 - **Recording only with your consent.** The facilitator asks first. "No" is a perfectly fine answer.
 - **About developer mode.** For the test we start KassenSturz in *developer mode*, so it writes a log of where it was slow or failed. It contains only times, names of screens and buttons and error codes, **no amounts, names or text from your book**. If "Entwicklermodus" ("developer mode") shows in the window title, it is running. It is for testing, not everyday use. Keep AI off, or the AI conversation would be logged too.
 
@@ -47,13 +50,13 @@ Say **everything that goes through your head** while you use the program, as if 
 
 - A computer with **Windows 11 (or 10)** or **Ubuntu**, and a step-by-step sheet for each: [Windows](INSTALL_WINDOWS.en.md), [Ubuntu](INSTALL_UBUNTU.en.md).
 - Internet for the download (not afterwards); on Ubuntu, your computer password once.
-- **Installing is part of the test.** The facilitator doesn't install for you and doesn't show you where to click. If you get stuck, say so: it's a valuable finding.
+- **Installing is part of the test.** You install at home, alone, with the install sheet only; nobody helps, not even by phone. Note each step in the [step log](INSTALL_LOG.en.md). If you get stuck, write down where, stop and send the log to the facilitator: it's a valuable finding, and you get a hint by e-mail.
 
 ## 5. Installing in short
 
-1. Open https://github.com/Vondor/KassenSturz/releases (no GitHub account needed). The top entry is the newest, marked *Pre-release*.
-2. Under **Assets** download the file for your system: for Windows the file with "windows" in its name, for Ubuntu the file ending in `.flatpak`.
-3. Windows warns twice because the test build isn't signed yet; the sheet shows how to continue. Ubuntu: set up Flatpak once (your password once), then the KDE runtime and the program, both for your user only.
+1. Open https://github.com/Vondor/KassenSturz/releases (no GitHub account needed). The top entry is the newest Beta, marked *Pre-release*; the facilitator tells you its number (for example 0.261117.8).
+2. Under **Assets** download the file for your system: for Windows the file ending in `-windows-x64-setup.exe`. On Ubuntu you usually need no file: you install KassenSturz with one command from the Snap Store.
+3. Windows warns twice because the Beta isn't signed yet; the sheet shows how to continue. Ubuntu: one command in the terminal, with your password once; if that fails, the sheet shows a second way with a Flatpak file.
 4. Start in developer mode and create an account with an **invented** balance.
 
 How to use KassenSturz day to day is in the [user guide](../user/USER_GUIDE.de.md) (German). You don't need it before the test.
@@ -61,8 +64,9 @@ How to use KassenSturz day to day is in the [user guide](../user/USER_GUIDE.de.m
 ## 6. The session, step by step
 
 1. You read this guide.
-2. The facilitator greets you, asks about recording and practises thinking aloud with you.
-3. You answer "Before the test" ([questionnaire](QUESTIONNAIRE_1.en.md), section 1).
-4. You get the task cards one at a time. Card 1 is installing, with the install sheet.
-5. You answer "After the test".
-6. For a problem you want to write down, use the [report page](REPORT_PAGE.en.md). It goes only to the facilitator.
+2. You install KassenSturz at home (card 1) and send the step log to the facilitator.
+3. The facilitator greets you, asks about recording and practises thinking aloud with you.
+4. You answer "Before the test" ([questionnaire](QUESTIONNAIRE_1.en.md), section 1).
+5. You get the task cards from card 2 on, one at a time.
+6. You answer "After the test".
+7. For a problem you want to write down, use the [report page](REPORT_PAGE.en.md). It goes only to the facilitator.

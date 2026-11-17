@@ -2,9 +2,9 @@
 
 *Dieses Blatt führt Sie Klick für Klick durch die Installation. Sie brauchen dafür keine Hilfe und normalerweise keine Administrator-Rechte. Dauer: etwa 10 Minuten. Englische Fassung: [INSTALL_WINDOWS.en.md](INSTALL_WINDOWS.en.md).*
 
-> **Stand für das Team.** Am 3. November 2026 wurde dieses Blatt auf einer Windows-11-VM mit Build 0.261103.18 abgearbeitet (D-542, D-557). Die Bildschirmfotos dieses Laufs liegen in [screenshots/windows/](screenshots/windows/). Dateinamen, Ordner und Abläufe unten stammen aus diesem Lauf. Ausnahme ist der Installer: Er installiert inzwischen ohne Administrator-Rechte und auf Deutsch (D-583). Seine Bildschirmfotos und die Korrekturen aus dem Lauf (M6-B141 bis B143, B147, B149) werden in einem zweiten Lauf geprüft. Erst danach dürfen Tester mit Windows eingeladen werden.
+> **Stand für das Team.** Am 3. November 2026 wurde dieses Blatt auf einer Windows-11-VM mit Build 0.261103.18 abgearbeitet (D-542, D-557). Die Bildschirmfotos dieses Laufs liegen in [screenshots/windows/](screenshots/windows/). Dateinamen, Ordner und Abläufe unten stammen aus diesem Lauf. Ausnahme ist der Installer: Er installiert inzwischen ohne Administrator-Rechte und auf Deutsch (D-583). Seine Bildschirmfotos und die Korrekturen aus dem Lauf (M6-B141 bis B143, B147, B149) werden in einem zweiten Lauf geprüft. Erst danach dürfen Tester mit Windows eingeladen werden. Seit der Beta (0.261117.8) liegt auf der Download-Seite auch eine `.msix`-Datei für den Microsoft Store; Tester nehmen die `-windows-x64-setup.exe`. Schritt 3b (SmartScreen) bleibt, bis der Installer signiert ist (#927).
 
-**Kommen Sie nicht weiter?** Sagen Sie es der Testleitung. Sie installiert nicht für Sie, aber sie notiert die Stelle, und Sie bekommen einen Hinweis, damit der Test weitergeht.
+**Kommen Sie nicht weiter?** Schreiben Sie ins [Installationsprotokoll](INSTALL_LOG.de.md), bei welchem Schritt Sie waren und was auf dem Bildschirm stand. Hören Sie dort auf und schicken Sie das Protokoll an die Testleitung. Sie bekommen dann per E-Mail einen Hinweis, damit der Test weitergeht.
 
 ---
 
@@ -21,7 +21,7 @@
 
    **https://github.com/Vondor/KassenSturz/releases**
 
-3. Sie sehen eine Liste von Versionen. Die oberste ist die neueste. Oben auf der Karte steht **Pre-release** (Testversion). Das ist richtig so.
+3. Sie sehen eine Liste von Versionen. Die oberste ist die neueste Beta-Version. Oben auf der Karte steht **Pre-release**. Das ist richtig so.
 4. Ein GitHub-Konto brauchen Sie **nicht**. Wenn die Seite danach fragt, schließen Sie die Frage.
 
 *(Bildschirmfoto folgt: Download-Seite mit der obersten Version.)*
@@ -29,16 +29,16 @@
 ## Schritt 2: Die richtige Datei wählen
 
 1. Scrollen Sie auf der Karte zu **Assets** (Dateien) und klappen Sie die Liste auf, falls nötig.
-2. Wählen Sie die Datei, deren Name mit **-windows-x64-setup.exe** endet, zum Beispiel `KassenSturz-0.261103.18-windows-x64-setup.exe`. Die Zahl in der Mitte ist die Nummer der Testversion; die Testleitung hat sie Ihnen vorher gesagt.
+2. Wählen Sie die Datei, deren Name mit **-windows-x64-setup.exe** endet, zum Beispiel `KassenSturz-0.261117.8-windows-x64-setup.exe`. Die Zahl in der Mitte ist die Versionsnummer; die Testleitung hat sie Ihnen vorher gesagt.
    Die Datei, die auf **-windows-x64.zip** endet, ist dasselbe Programm zum Entpacken ohne Installation. Nehmen Sie sie nur, wenn die Testleitung es sagt.
-3. **Nicht** diese Dateien: *Source code (zip)*, *Source code (tar.gz)* und die Datei, die auf **.flatpak** endet. Die sind für andere Systeme oder für Entwickler.
+3. **Nicht** diese Dateien: die Datei, die auf **.msix** endet (sie ist für den Microsoft Store), *Source code (zip)*, *Source code (tar.gz)*, die Datei, die auf **.flatpak** endet, und `kassensturz.snap`. Die sind für andere Wege, andere Systeme oder für Entwickler.
 4. Klicken Sie auf den Namen der Datei. Der Download startet.
 
 *(Bildschirmfoto folgt: Dateiliste, richtige Datei markiert.)*
 
 ## Schritt 3: Windows meldet eine Warnung beim Download
 
-Weil KassenSturz noch ein Test ist, kennt Windows die Datei noch nicht. Das zeigt sich in zwei Warnungen. Beide sind bei einer Testversion normal. **Die Datei kommt von der Seite, die Sie eben selbst geöffnet haben.**
+Weil KassenSturz noch ein Test ist, kennt Windows die Datei noch nicht. Das zeigt sich in zwei Warnungen. Beide sind bei einer Beta-Version normal. **Die Datei kommt von der Seite, die Sie eben selbst geöffnet haben.**
 
 **a) Der Browser fragt, ob er die Datei behalten soll.** In Edge erscheint zum Beispiel „… wird nicht häufig heruntergeladen“.
 1. Klicken Sie neben der Meldung auf die drei Punkte **…**
@@ -59,7 +59,7 @@ Diese Warnung kommt, weil das Programm noch nicht signiert ist. Das ändert sich
 
 1. Öffnen Sie die heruntergeladene Datei per Doppelklick (im Browser über „Datei öffnen“ oder im Ordner **Downloads**).
 2. Folgen Sie dem Installationsfenster: **Weiter**, dann **Installieren**. Sie müssen nichts umstellen. KassenSturz kommt in Ihren eigenen Ordner (`%LOCALAPPDATA%\Programs\KassenSturz`), deshalb braucht die Installation keine Administrator-Rechte.
-3. Fragt Windows trotzdem nach einem **Administrator-Kennwort** oder ob die App Änderungen vornehmen darf, wählen Sie **Abbrechen** bzw. **Nein** und sagen Sie es der Testleitung.
+3. Fragt Windows trotzdem nach einem **Administrator-Kennwort** oder ob die App Änderungen vornehmen darf, wählen Sie **Abbrechen** bzw. **Nein** und notieren Sie es im Installationsprotokoll.
 4. Am Ende klicken Sie **Fertig stellen**. Im Startmenü gibt es jetzt den Eintrag **KassenSturz**.
 
 *(Bildschirmfoto folgt: Installationsfenster, Schritte.)*
@@ -87,7 +87,7 @@ Lassen Sie das PowerShell-Fenster offen, bis Sie fertig sind.
 1. Auf der ersten Seite **Willkommen bei KassenSturz** wählen Sie Ihre Sprache und Währung. Meist ist schon alles richtig eingestellt; klicken Sie **Weiter**.
 2. Auf der Seite **Wie möchten Sie anfangen?** wählen Sie für Karte 1 **Mit meinen eigenen Konten**. Wollen Sie lieber nur herumschauen, wählen Sie **Ein Beispielbuch ausprobieren** und dann die *Vorstadtfamilie* (empfohlener Einstieg).
 3. Bei **Mit meinen eigenen Konten** legen Sie ein Konto an und **denken sich einen Kontostand aus**. Tragen Sie keine echten Zahlen ein. Mit **Haushaltsbuch anlegen** geht es weiter. Wie neue Buchungen hineinkommen, wählen Sie als Nächstes (zum Beispiel **Ich tippe sie selbst ein**).
-4. Sie sind fertig, wenn Sie die **Übersicht** sehen. Notieren Sie, wie viele Minuten Sie gebraucht haben. Das ist das Ergebnis von Karte 1.
+4. Sie sind fertig, wenn Sie die **Übersicht** sehen. Notieren Sie im [Installationsprotokoll](INSTALL_LOG.de.md), wie viele Minuten Sie insgesamt gebraucht haben. Das ist das Ergebnis von Karte 1.
 
 *(Bildschirmfoto folgt: Die Seiten des Einrichtungsassistenten und die Übersicht.)*
 
@@ -97,4 +97,4 @@ Lassen Sie das PowerShell-Fenster offen, bis Sie fertig sind.
 
 ---
 
-> **Stuck? Ask the facilitator.** / **Nicht weiter? Sagen Sie es der Testleitung.** Notieren Sie, bei welchem Schritt Sie waren und was auf dem Bildschirm stand. Die Testleitung installiert nicht für Sie, hilft Ihnen aber mit einem Hinweis weiter.
+> **Nicht weiter?** Notieren Sie im [Installationsprotokoll](INSTALL_LOG.de.md), bei welchem Schritt Sie waren und was auf dem Bildschirm stand, und schicken Sie es an die Testleitung. Sie bekommen dann per E-Mail einen Hinweis.

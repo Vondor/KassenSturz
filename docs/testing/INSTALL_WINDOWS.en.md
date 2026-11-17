@@ -2,12 +2,12 @@
 
 *Click-by-click; no help needed and normally no administrator rights. About 10 minutes. German original (the one handed to testers): [INSTALL_WINDOWS.de.md](INSTALL_WINDOWS.de.md).*
 
-> **Team note.** The German sheet was followed on a Windows 11 VM on 2026-11-03 with build 0.261103.18 (D-542, D-557). Screenshots: [screenshots/windows/](screenshots/windows/). Since then the installer installs for the user alone, without administrator rights, and in German (D-583). A second VM run checks it and the fixes M6-B141 to B143, B147 and B149; no Windows testers before then.
+> **Team note.** The German sheet was followed on a Windows 11 VM on 2026-11-03 with build 0.261103.18 (D-542, D-557). Screenshots: [screenshots/windows/](screenshots/windows/). Since then the installer installs for the user alone, without administrator rights, and in German (D-583). A second VM run checks it and the fixes M6-B141 to B143, B147 and B149; no Windows testers before then. Since the Beta (0.261117.8) the download page also has an `.msix` for the Microsoft Store; testers take the `-windows-x64-setup.exe`. The SmartScreen step stays until the installer is signed (#927).
 
 **Stuck?** Tell the facilitator. They don't install for you, but they note the spot and give you a hint so the test continues.
 
-1. **Open the download page:** https://github.com/Vondor/KassenSturz/releases. No GitHub account needed. The top entry is newest, marked *Pre-release*.
-2. **Pick the file:** under **Assets**, the one ending in **-windows-x64-setup.exe** (e.g. `KassenSturz-0.261103.18-windows-x64-setup.exe`). The **-windows-x64.zip** is the same program to unpack without installing; only if the facilitator says so. Not *Source code* and not the `.flatpak` file. About 600 MB of free space needed.
+1. **Open the download page:** https://github.com/Vondor/KassenSturz/releases. No GitHub account needed. The top entry is newest, the newest Beta, marked *Pre-release*.
+2. **Pick the file:** under **Assets**, the one ending in **-windows-x64-setup.exe** (e.g. `KassenSturz-0.261117.8-windows-x64-setup.exe`). The **-windows-x64.zip** is the same program to unpack without installing; only if the facilitator says so. Not the `.msix` (that is for the Microsoft Store), not *Source code*, not the `.flatpak` file and not `kassensturz.snap`. About 600 MB of free space needed.
 3. **Windows warnings** (the build isn't signed yet; normal for a test build, as long as the file comes from the page above):
    - Browser: click **…** next to the message, **Keep**, then **Keep anyway**.
    - SmartScreen "Windows protected your PC": click **More info** (not "Don't run"), then **Run anyway**.

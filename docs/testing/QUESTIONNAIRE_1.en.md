@@ -1,10 +1,10 @@
-# KassenSturz questionnaire and task cards (round 1)
+# KassenSturz questionnaire and task cards (Beta)
 
 *German original (handed to testers): [QUESTIONNAIRE_1.de.md](QUESTIONNAIRE_1.de.md). About 45 minutes: 5 before, 30 tasks, 10 after.*
 
 ## 0. First: installing (card 1)
 
-Everything needed to install is on the install sheet for the tester's system: [Windows](INSTALL_WINDOWS.en.md), [Ubuntu](INSTALL_UBUNTU.en.md). In short: open https://github.com/Vondor/KassenSturz/releases (no account), download the file for your system under **Assets**, follow the sheet. The facilitator doesn't install for the tester. Day-to-day use is in the [user guide](../user/USER_GUIDE.de.md).
+Everything needed to install is on the install sheet for the tester's system: [Windows](INSTALL_WINDOWS.en.md), [Ubuntu](INSTALL_UBUNTU.en.md). In short: open https://github.com/Vondor/KassenSturz/releases (no account), download the file for your system under **Assets**, follow the sheet. **The tester installs at home, alone, before the session**, and fills in the [step log](INSTALL_LOG.en.md). If stuck, they write down where, stop and send the log; they get one hint by e-mail. Day-to-day use is in the [user guide](../user/USER_GUIDE.de.md).
 
 ## 1. Before the test
 
@@ -17,14 +17,16 @@ Everything needed to install is on the install sheet for the tester's system: [W
 
 ## 2. Task cards (handed out one at a time)
 
+> **Please, no real data.** Use only the example book in the test. If you still enter your own accounts, amounts, banks or IBANs, that data is recorded and analysed: in the screen and audio recording, in the app's log and in your report. That is why we ask you not to.
+
 After each card note: where you got stuck, ease 1 to 5 (1 = gave up, 5 = effortless), and for card 1 the minutes.
 
-1. **Install and start (timed).** Install using only the install sheet; start in developer mode; reach the overview; invent an account and balance.
+1. **Install and start (timed, at home).** Install using only the install sheet; start in developer mode; reach the overview; invent an account and balance. Done at home with the step log; the session starts with card 2.
 2. **Everyday spending.** Yesterday 42.50 € at the supermarket, today 3.20 € for a coffee, and 1,800 € salary on the 1st. Enter all three.
 3. **Fix a mistake and move money.** The coffee was really 2.30 €: fix it. Move 200 € from checking to a savings account (create one if needed). Undo your last step.
 4. **Where did my money go?** Open an example book (Space Colony, Flower Utopia, Suburban Family or the government agent's book; Suburban Family recommended). How much went on food last month? Did more come in than went out?
 5. **Read a bank statement.** Read the example statement file belonging to your example book into the matching account. Check nothing is counted twice.
-6. **Update the app.** Install the newer version over the old one; open your book; are the entries from card 2 still there?
+*(No card 6 in this round; the other cards keep their numbers, D-835.)*
 7. **Language and words.** Walk through the pages you saw; note every word you don't understand and every text that is cut off, English or odd.
 8. **(Optional) Go deeper.** Make the app sort coffee purchases into a category by itself; add a chart of your choice to the overview.
 
@@ -38,5 +40,9 @@ After each card note: where you got stuck, ease 1 to 5 (1 = gave up, 5 = effortl
 6. Would you keep using it for your real money? Yes / maybe / no; what would have to change?
 7. Compared with today: easier / the same / harder.
 8. **Did you enter real data of your own during the test?** No / a little / yes. An honest answer changes nothing about your test; it tells us how to protect your report.
+
+9. **Did you create or look at a budget in the test?** Yes / no. If yes: **what was missing for planning?** (for example: splitting money into "envelopes", a savings goal, a warning before the month ends)
+10. **Is your computer's disk encrypted** (for example with BitLocker on Windows, or when installing Ubuntu)? Yes / no / don't know
+11. **Would you like KassenSturz to protect your household book with a password of its own as well?** Yes / don't mind / no. Why?
 
 Send everything only to the facilitator ([report page](REPORT_PAGE.en.md)).

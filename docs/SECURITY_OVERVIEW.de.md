@@ -56,7 +56,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Ein absichtlich verändertes Buch konnte beim Bearbeiten Teile von Buchungen löschen, und „Rückgängig“ konnte falsche Beträge zurückschreiben | B-245, B-246 | #883 |
 | Eine KI konnte mehr Änderungen auf einmal vorschlagen als erlaubt, und Namen mit fremden, gleich aussehenden Buchstaben fielen nicht auf | B-247, B-250 | #884 |
 | Große, löschende KI-Änderungen kamen ohne deutliche Warnung; Regeln einer KI waren nicht als solche gekennzeichnet | B-248, B-249 | #900 |
-| Eine KI-Änderung wurde beim Bestätigen nicht erneut gegen alle Sperren geprüft, warnte nicht, wenn ein Löschen Notizen entfernte, und verknüpfte Belege mit inzwischen geänderten Buchungen | B-336, B-337, B-338 | dieser PR |
+| Eine KI-Änderung wurde beim Bestätigen nicht erneut gegen alle Sperren geprüft, warnte nicht, wenn ein Löschen Notizen entfernte, und verknüpfte Belege mit inzwischen geänderten Buchungen | B-336, B-337, B-338 | #1092 |
 | Eine Webadresse in einer KI-Antwort erreichte Sie ohne Hinweis | B-251 | #888 |
 | Eine von Hand in die Einstellungsdatei geschriebene Zustimmung zählte wie Ihre echte, sodass Daten an eine fremde KI hätten gehen können | B-252 | #897 |
 | Ein Gesprächsprotokoll blieb nach dem Ausschalten des Entwicklermodus liegen | B-253 | #885 |
@@ -72,7 +72,7 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Manche Kontoauszüge in anderen Zeichensätzen wurden nicht gelesen | B-280 | #996 |
 | Bei manchen CSV-Dateien ging die erste Buchung als Überschrift verloren | B-281 | #984 |
 | Ein KMyMoney-Buch mit zwei gleich benannten Konten ließ sich nicht einlesen | B-283 | #997 |
-| Eine eigens gebaute KMyMoney-SQLite-Datei konnte beim Einlesen sehr viel Arbeitsspeicher belegen | B-335 | dieser PR |
+| Eine eigens gebaute KMyMoney-SQLite-Datei konnte beim Einlesen sehr viel Arbeitsspeicher belegen | B-335 | #1090 |
 | Ein im Belegordner unbemerkt ausgetauschter Beleg fiel nicht auf | B-284 | #969 |
 | Nach einem Zurückwechseln auf eine ältere Version fehlte der Hinweis auf die Sicherung | B-285 | #992 |
 | Bei ausgeschalteter KI gab es noch einen unsichtbaren Rest des Chatfensters | B-286 | #991 |
@@ -88,6 +88,21 @@ Jeder Fund bekommt eine Nummer (B-…) und wird in einer eigenen Änderung (#…
 | Eine Sicherung mit beschädigter Datei oder geändertem Betrag konnte an die Stelle eines guten Buchs gesetzt werden | B-298 | #1032 |
 | Ein Betrag mit zwei Vorzeichen (etwa "-+5") wurde als eines davon gelesen, statt abgelehnt zu werden | B-299 | #1038 |
 | Unsichtbare Zeichen in einem Zahlungsempfänger oder Verwendungszweck konnten der KI eine verborgene Anweisung mitgeben | B-300 | #1039 |
+| Sicherungen, die bei vorgestelltem Datum entstanden, konnten die echten Sicherungen verdrängen | B-341 | #1094 |
+| „Aus Sicherung wiederherstellen“ und das Markieren einer KI-Regel als gesehen prüften nicht, ob das Buch noch auf diesem Computer geöffnet ist, auch nachdem ein anderer Computer es übernommen hatte | B-342, B-343 | #1095 |
+| Die Sicherung eines anderen Buchs konnte an die Stelle dieses Buchs gesetzt werden | B-328, B-333, B-334 | #1083 |
+| Ein Buch auf einem Netzwerklaufwerk, das Dateisperren verweigert, ließ sich öffnen, und erst das erste Speichern scheiterte, ohne Hinweis, was zu tun ist | B-304 | #1104 |
+| Wenn ein anderer Computer ein geöffnetes Buch übernahm, merkte das der erste unter Windows nicht und konnte noch speichern | B-306 | #1105 |
+| Ein Buch, das ein anderer Computer während des Speicherns übernahm, wurde halb geschrieben gelesen und als beschädigt bezeichnet, und das Speichern des ersten konnte noch durchkommen | B-353 | #1116 |
+| Ein Buch, das beim Öffnen auf einem Netzwerklaufwerk abgelehnt wurde, wurde von der Prüfung beim Öffnen trotzdem beschrieben | B-355 | #1120 |
+| Ein Kontoauszug oder eine CSV mit einem riesigen Feld oder ein Kontoauszug mit einer Million Einträgen konnte den Arbeitsspeicher aufbrauchen und die App hängen lassen | B-360, B-362 | #1126, #1127 |
+| Ein durch ein beendetes Programm abgebrochenes Speichern konnte ein Buch hinterlassen, das sich nicht mehr öffnen ließ (im Flatpak) | B-364 | #1127 |
+| Banktexte mit Zeichen, die Text umdrehen oder verbergen, wurden unverändert angezeigt | B-365 | #1127 |
+| Ein Import, der schon speicherte, ließ sich scheinbar noch abbrechen, ohne Wirkung, und ein Leser, der während eines langen Speicherns lief, meldete „Datenbankfehler“ statt „in Benutzung“ | B-367, B-368 | #1129, #1130 |
+| Beträge in von der KI vorbereiteten geplanten Zahlungen stammen jetzt immer von Ihnen oder aus einer Buchung des Buchs, nie von der KI | B-357 | #1123 |
+| Eine KI-Regel verlor ihre Kennzeichnung „von der KI gemacht, noch nicht geprüft“ durch „Rückgängig“, Schließen und Öffnen und „Wiederholen“ | B-370 | #1137 |
+| Unter Windows tat der Schalter, mit dem externe KI-Programme Änderungen vorbereiten dürfen, nichts | B-377 | #1138 |
+| Ein Geldfluss-Diagramm mit Konten konnte die App zum Absturz bringen, wenn eine überfüllte Spalte zusammengefasst wurde | B-350 | #1103 |
 
 Kein Fund hat eine PIN verraten. Nur bei einem (B-252) hätten Daten Ihren Computer verlassen können, und auch das nur, wenn jemand vorher Ihre Einstellungsdatei von Hand gefälscht hätte.
 

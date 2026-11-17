@@ -56,7 +56,7 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | A deliberately altered book could delete parts of transactions on an edit, and Undo could write back wrong amounts | B-245, B-246 | #883 |
 | An AI could propose more changes at once than allowed, and names with foreign look-alike letters went unnoticed | B-247, B-250 | #884 |
 | Large, deleting AI changes came without a clear warning; Rules made by an AI weren't marked as such | B-248, B-249 | #900 |
-| An AI change set was not checked again at confirm against all locks, gave no warning when a deletion erased notes, and linked bills to transactions changed since the review | B-336, B-337, B-338 | this PR |
+| An AI change set was not checked again at confirm against all locks, gave no warning when a deletion erased notes, and linked bills to transactions changed since the review | B-336, B-337, B-338 | #1092 |
 | A web address in an AI answer reached the user without a note | B-251 | #888 |
 | A consent written into the settings file by hand counted like the user's real one, so data could have gone to an AI elsewhere | B-252 | #897 |
 | A chat transcript stayed on disk after the developer mode was switched off | B-253 | #885 |
@@ -72,7 +72,7 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | Some statements in other character sets weren't read | B-280 | #996 |
 | With some CSV files the first entry was lost as a header | B-281 | #984 |
 | A KMyMoney book with two accounts of the same name couldn't be imported | B-283 | #997 |
-| A specially made KMyMoney SQLite file could make an import use a very large amount of memory | B-335 | this PR |
+| A specially made KMyMoney SQLite file could make an import use a very large amount of memory | B-335 | #1090 |
 | A receipt swapped in the receipt folder went unnoticed | B-284 | #969 |
 | After going back to an older version, the pointer to the backup was missing | B-285 | #992 |
 | With AI off, an invisible remnant of the chat window still existed | B-286 | #991 |
@@ -88,6 +88,21 @@ Every finding gets a number (B-…) and is fixed in its own change (#…). After
 | A backup with a damaged file or a changed amount could be put in place of a good book | B-298 | #1032 |
 | An amount typed with two signs (such as "-+5") was read as one of them instead of refused | B-299 | #1038 |
 | Invisible characters in a payee or memo could carry a hidden instruction to the AI | B-300 | #1039 |
+| Backups made while the clock was set ahead could push out the real backups | B-341 | #1094 |
+| "Restore from backup" and marking an AI Rule as seen didn't check that the book was still open on this computer, even after another computer had taken it over | B-342, B-343 | #1095 |
+| The backup of another book could be put in place of this one | B-328, B-333, B-334 | #1083 |
+| A book on a network drive that refuses file locks opened, and only the first save failed, without a hint what to do | B-304 | #1104 |
+| When another computer took over an open book, the first one on Windows didn't notice and could still save | B-306 | #1105 |
+| A book taken over by another computer during a save was read half written and called damaged, and the first one's save could still land | B-353 | #1116 |
+| A book that was refused at opening on a network drive was still written to by the check made at opening | B-355 | #1120 |
+| A statement or CSV with one enormous field, or a statement with a million entries, could use up the memory and hang the app | B-360, B-362 | #1126, #1127 |
+| A save cut short by a killed program could leave a book that wouldn't open (in the Flatpak) | B-364 | #1127 |
+| Bank texts with characters that turn text around or hide it were shown as they came | B-365 | #1127 |
+| An import that was already saving could still be stopped with no effect, and a reader opened during a long save said "database error" instead of "in use" | B-367, B-368 | #1129, #1130 |
+| The amounts in planned payments the AI prepares now always come from you or from an entry of the book, never from the AI | B-357 | #1123 |
+| An AI Rule lost its "made by the AI, not checked yet" mark through Undo, closing and reopening, and Redo | B-370 | #1137 |
+| On Windows, the switch that lets outside AI programs prepare changes did nothing | B-377 | #1138 |
+| A chart of money flow with accounts could crash the app when a crowded column folded | B-350 | #1103 |
 
 No finding revealed a PIN. Only one (B-252) could have let data leave the computer, and only if someone had first forged the settings file by hand.
 

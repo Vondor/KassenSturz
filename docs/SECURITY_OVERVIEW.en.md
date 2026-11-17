@@ -93,7 +93,7 @@ No finding revealed a PIN. Only one (B-252) could have let data leave the comput
 
 ## What KassenSturz can't do yet (honestly)
 
-- **It is a test version.** KassenSturz is in its Alpha stage. For testing, please use made-up numbers or an example book, not your real household book.
+- **It is a test version.** KassenSturz is in its Beta stage. For testing, please use made-up numbers or an example book, not your real household book.
 - **No review by an outside security firm.** KassenSturz is built and checked mostly by AI programs, supervised by a person who makes every important decision. A focused extra review of the most sensitive parts (money, password store, bank) is planned before the finished version.
 - **The book is not encrypted.** It holds no PIN, but it holds your transactions. Whoever gets a copy of the file can read it. Protect your computer with a password and, if you can, an encrypted disk; the same goes for backups and sync folders.
 - **Malware on your computer** is something KassenSturz can't defend against. A program running as you can read your files. Keep your system up to date.

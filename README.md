@@ -23,7 +23,7 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 
 ## Status
 
-Alpha (the release stages are in [`AGENTS.md`](AGENTS.md#release-stages-d-274)): only the maintainer and the project's AI agents test it, with made-up books, and the book format may still change. Where the work stands is in [`docs/ROADMAP.md`](docs/ROADMAP.md). Test builds are published as pre-releases on the [releases page](https://github.com/Vondor/KassenSturz/releases); there is no stable release yet. Builds are numbered `0.YYMMDD.N` (build date and a counter) until the first stable release, 1.0. To connect an AI, see [Connect an AI](docs/user/CONNECT_AN_AI.md), which also has the command that lets Claude Desktop or Claude Code read your book.
+Beta since 17 Nov 2026 (the release stages are in [`AGENTS.md`](AGENTS.md#release-stages-d-274), D-824): the feature set is complete and invited testers try it, with made-up example books. The book format is no longer changed freely: every change to the book or settings format is a migration with an automatic backup and a test, so a book made by an earlier Beta build opens in every later one. Where the work stands is in [`docs/ROADMAP.md`](docs/ROADMAP.md). Test builds are published as pre-releases on the [releases page](https://github.com/Vondor/KassenSturz/releases); there is no stable release yet. Builds are numbered `0.YYMMDD.N` (build date and a counter) until the first stable release, 1.0. To connect an AI, see [Connect an AI](docs/user/CONNECT_AN_AI.md), which also has the command that lets Claude Desktop or Claude Code read your book.
 
 What the app does today, with all numbers worked out by the core and shown in your regional format:
 

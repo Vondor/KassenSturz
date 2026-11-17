@@ -111,6 +111,13 @@ pub mod qobject {
         #[qinvokable]
         fn danger(self: &AiChat, id: &QString) -> QVariant;
 
+        /// Whether one of the user's own AI tools prepared the set `id`
+        /// through `kassensturz-mcp`, not the chat: the review then doesn't
+        /// speak of what the user wrote (B-371).
+        #[qinvokable]
+        #[cxx_name = "isFromOwnTool"]
+        fn is_from_own_tool(self: &AiChat, id: &QString) -> bool;
+
         /// The user corrects the change `slot` of the set `id` before
         /// confirming it (D-293): `fields` is a JSON object of the fields
         /// that change, in the words of `propose_changes`. The set's changes
@@ -272,6 +279,10 @@ mod engine {
 
     pub(super) fn danger(_chat: &qobject::AiChat, _id: &str) -> QVariant {
         off()
+    }
+
+    pub(super) fn is_from_own_tool(_chat: &qobject::AiChat, _id: &str) -> bool {
+        false
     }
 
     pub(super) fn confirm(_chat: Pin<&mut qobject::AiChat>, _id: &str) -> QVariant {
@@ -1227,6 +1238,10 @@ pub(crate) mod engine {
         id.parse().ok()
     }
 
+    pub(super) fn is_from_own_tool(chat: &qobject::AiChat, id: &str) -> bool {
+        id_of(id).is_some_and(|id| chat.state.sets.is_from_own_tool(id))
+    }
+
     pub(super) fn danger(chat: &qobject::AiChat, id: &str) -> QVariant {
         let danger = id_of(id)
             .and_then(|id| chat.state.sets.get(id))
@@ -1535,6 +1550,10 @@ impl qobject::AiChat {
 
     fn danger(&self, id: &QString) -> QVariant {
         engine::danger(self, &id.to_string())
+    }
+
+    fn is_from_own_tool(&self, id: &QString) -> bool {
+        engine::is_from_own_tool(self, &id.to_string())
     }
 
     fn confirm(self: Pin<&mut Self>, id: &QString) -> QVariant {

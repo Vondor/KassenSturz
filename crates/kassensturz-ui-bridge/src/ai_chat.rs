@@ -299,6 +299,15 @@ impl Sets {
         self.sets.get(&id).map(|waiting| &waiting.set)
     }
 
+    /// Whether the set `id` waits for one of the user's own AI tools, which
+    /// prepared it through `kassensturz-mcp`, rather than for the chat
+    /// (B-371).
+    pub fn is_from_own_tool(&self, id: u64) -> bool {
+        self.sets
+            .get(&id)
+            .is_some_and(|waiting| waiting.from.is_some())
+    }
+
     /// Puts the user's edited version of a waiting set in its place
     /// (D-293); `false` when the set isn't waiting any more.
     pub fn replace(&mut self, id: u64, set: ChangeSet) -> bool {
@@ -2304,6 +2313,38 @@ mod tests {
         assert!(book.account(first.id).unwrap().closed);
         assert!(book.undo().unwrap().is_some());
         assert!(!book.account(first.id).unwrap().closed);
+    }
+
+    /// B-371: the review knows a set came from one of the user's own AI
+    /// tools, so it doesn't speak of a message of the user's.
+    #[test]
+    fn a_set_from_an_own_ai_tool_is_told_apart_from_the_chats() {
+        let book = space_colony();
+        let call = serde_json::json!({
+            "title": "Where the money goes",
+            "data": "spending_by_category",
+            "show_as": "auto",
+            "period": "this-year",
+        });
+        let proposal = || {
+            kassensturz_ai_tools::propose_view(
+                &book,
+                &call,
+                Permissions::all(),
+                kassensturz_core::Date::new(2026, 11, 9).unwrap(),
+            )
+            .unwrap()
+            .changes
+        };
+        let mut sets = Sets::default();
+        let chat = sets.add(proposal());
+        let tool = sets.add_requested(
+            proposal(),
+            RequestId::parse("0123456789abcdef0123456789abcdef").unwrap(),
+        );
+        assert!(!sets.is_from_own_tool(chat));
+        assert!(sets.is_from_own_tool(tool));
+        assert!(!sets.is_from_own_tool(tool + 1));
     }
 
     /// B-361 (A7): a chart an outside AI proposed through the MCP server

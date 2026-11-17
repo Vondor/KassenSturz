@@ -83,6 +83,7 @@ The Snap Store terms (canonical.com) could not be read from this build environme
 2. The login as CI secret: run `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -` and store the output as the secret `SNAPCRAFT_STORE_CREDENTIALS` of the environment `release`. Until then the upload job only warns.
 3. Optionally a request to the store for auto-connection of `password-manager-service` and `pcscd` (section 4), or leave it manual.
 4. Read the terms (section 7).
+5. The store page. `snapcraft.yaml` carries every store key the reference offers (title, summary, description, license, website, source-code, issues, contact, donation, icon). The category and the screenshots exist only on snapcraft.io. The store copies the file's metadata into the listing only for a stable release, and only while the listing has not been edited on the web; once someone saves the listing on the web, the web page owns it and the file's texts no longer reach it. Keep the two the same.
 
 ## Folder checks for the VM rounds
 

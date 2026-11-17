@@ -27,6 +27,13 @@ license: GPL-3.0-or-later
 website: https://github.com/Vondor/KassenSturz
 source-code: https://github.com/Vondor/KassenSturz
 issues: https://github.com/Vondor/KassenSturz/issues
+contact: https://github.com/Vondor/KassenSturz/issues
+donation: https://buymeacoffee.com/fdrywa
+# Everything the file can say about the store page is here, so the page can
+# follow each release (docs/SNAP.md, section 8). Category and screenshots
+# exist only on snapcraft.io. The workflow copies this file to snap/ at the
+# project root, so the icon path is from the project root.
+icon: data/icons/hicolor/256x256/apps/io.github.vondor.KassenSturz.png
 confinement: strict
 # `devel` for every build that is not an official tag; the workflow sets
 # `stable` through SNAPCRAFT_GRADE for a tag (the store refuses `devel`

@@ -28,7 +28,7 @@ msgstr "W tym transakcje po dzisiejszym dniu: %1"
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "you owed %1"
-msgstr "byłeś winien %1"
+msgstr "dług wynosił %1"
 
 #: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:90
 #, kde-format
@@ -189,7 +189,7 @@ msgctxt "@info"
 msgid ""
 "What you buy with it, you pay back later. KassenSturz shows what you owe on "
 "it."
-msgstr "To, co nią kupujesz, spłacasz później. KassenSturz pokazuje, ile jesteś na niej winien."
+msgstr "To, co nią kupujesz, spłacasz później. KassenSturz pokazuje, ile jeszcze zostało do spłaty."
 
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:35
 #, kde-format
@@ -239,7 +239,7 @@ msgstr "Konto to miejsce, w którym są Twoje pieniądze: konto w banku, portfel
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "All together you owe %1"
-msgstr "Łącznie jesteś winien %1"
+msgstr "Łączne zadłużenie: %1"
 
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:127
 #, kde-format
@@ -266,7 +266,7 @@ msgid ""
 "No moves between your accounts to ask about. Moves you sorted yourself "
 "aren't looked for: open one of their entries and choose “Join with the other "
 "side of a move…”."
-msgstr "Nie ma przelewów między Twoimi kontami, o które trzeba by zapytać. Przelewów, które przypisałeś sam, nie szukamy: otwórz jedną z ich transakcji i wybierz „Połącz z drugą stroną przelewu…”."
+msgstr "Nie ma przelewów między Twoimi kontami, o które trzeba by zapytać. KassenSturz pomija przelewy przypisane ręcznie: aby je połączyć, otwórz jedną z ich transakcji i wybierz „Połącz z drugą stroną przelewu…”."
 
 #: crates/kassensturz-ui-bridge/qml/AddMenu.qml:47
 #, kde-format
@@ -419,7 +419,7 @@ msgctxt "@info"
 msgid ""
 "The AI took this amount from what you wrote. A budget only shows how your "
 "spending compares; it changes no booking. Undo takes it back."
-msgstr "Tę kwotę AI wzięło z tego, co napisałeś. Budżet pokazuje tylko, jak wypadają Twoje wydatki; nie zmienia żadnej transakcji. „Cofnij” go wycofa."
+msgstr "AI ustaliło tę kwotę na podstawie Twojej wiadomości. Budżet pokazuje tylko, jak Twoje wydatki mają się do planu. Nie zmienia żadnych transakcji. „Cofnij” go usunie."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:48
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:137
@@ -1041,7 +1041,7 @@ msgstr "Za dużo zmian"
 #, kde-format
 msgctxt "@action:button a reason for throwing the AI's changes away"
 msgid "Not what I asked for"
-msgstr "Nie o to prosiłem"
+msgstr "Nie o to chodziło"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
 #, kde-format
@@ -1087,7 +1087,7 @@ msgctxt "@info"
 msgid ""
 "You left every change out, so there is nothing to confirm. Put a change back "
 "below, or throw the changes away."
-msgstr "Pominąłeś wszystkie zmiany, więc nie ma czego potwierdzać. Przywróć zmianę poniżej albo odrzuć zmiany."
+msgstr "Wszystkie zmiany zostały pominięte, więc nie ma czego potwierdzać. Przywróć zmianę poniżej albo odrzuć zmiany."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:358
 #, kde-format
@@ -1405,7 +1405,7 @@ msgstr "Waluta"
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
 msgctxt "@label a field of a chart's data: whether the account is money the user owes"
 msgid "Money you owe"
-msgstr "Pieniądze, które jesteś winien"
+msgstr "Dług"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
 msgctxt "@label a field of a chart's data: whether the account is closed"
@@ -1517,7 +1517,7 @@ msgid ""
 "Check the numbers in this title before you keep it: the AI wrote them as "
 "text, so they are never worked out from your book, may be made up, and go "
 "along with any dashboard file you share: %1"
-msgstr "Sprawdź liczby w tym tytule, zanim go zachowasz: AI zapisało je jako tekst, więc nigdy nie są obliczane z Twojej księgi, mogą być wymyślone i trafią do każdego udostępnianego pliku pulpitu: %1"
+msgstr "Sprawdź liczby w tym tytule, zanim go zachowasz: AI zapisało je jako tekst, więc nigdy nie są obliczane z Twojej księgi, mogą być wymyślone i trafią do każdego pliku, w którym udostępnisz ten pulpit: %1"
 
 #: crates/kassensturz-ui-bridge/qml/AiChartCard.qml:193
 #, kde-format
@@ -1593,7 +1593,7 @@ msgstr "Pominięto. Nic nie zostało zmienione."
 #, kde-format
 msgctxt "@info %1 is what the user asked"
 msgid "You asked: %1"
-msgstr "Zapytałeś: %1"
+msgstr "Twoje pytanie: %1"
 
 #: crates/kassensturz-ui-bridge/qml/AiChatLogLine.qml:48
 #, kde-format
@@ -1761,7 +1761,7 @@ msgctxt "@info"
 msgid ""
 "The AI could not prepare this chart, even after two corrections. Nothing was "
 "changed. You can make the chart yourself in the Statistic Builder."
-msgstr "AI nie zdołało przygotować tego wykresu, nawet po dwóch poprawkach. Nic nie zostało zmienione. Możesz sam utworzyć wykres w Kreatorze statystyk."
+msgstr "AI nie zdołało przygotować tego wykresu, nawet po dwóch poprawkach. Nic nie zostało zmienione. Możesz samodzielnie utworzyć wykres w Kreatorze statystyk."
 
 #: crates/kassensturz-ui-bridge/qml/AiChatMessage.qml:240
 #, kde-format
@@ -1970,7 +1970,7 @@ msgctxt "@info"
 msgid ""
 "Ask a question about your book, for example how much you spent on food last "
 "month, or ask for help sorting your transactions."
-msgstr "Zadaj pytanie o swoją księgę, na przykład ile wydałeś na jedzenie w zeszłym miesiącu, albo poproś o pomoc w przypisaniu kategorii do transakcji."
+msgstr "Zadaj pytanie o swoją księgę, na przykład ile wyniosły wydatki na jedzenie w zeszłym miesiącu, albo poproś o pomoc w przypisaniu kategorii do transakcji."
 
 #: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml:483
 #, kde-format
@@ -2095,7 +2095,7 @@ msgid ""
 "This provider is on another computer, and you haven't agreed yet to what "
 "KassenSturz sends to it. Nothing was sent. Read what is sent and agree "
 "below, or use a provider on this computer."
-msgstr "Ten dostawca jest na innym komputerze, a Ty jeszcze nie zgodziłeś się na to, co KassenSturz do niego wysyła. Nic nie zostało wysłane. Przeczytaj, co jest wysyłane, i wyraź zgodę poniżej albo użyj dostawcy na tym komputerze."
+msgstr "Ten dostawca jest na innym komputerze, a nie ma jeszcze Twojej zgody na to, co KassenSturz do niego wysyła. Nic nie zostało wysłane. Przeczytaj, co jest wysyłane, i wyraź zgodę poniżej albo użyj dostawcy na tym komputerze."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:60
 #, kde-format
@@ -2243,7 +2243,7 @@ msgstr "Odpowiedź dostawcy nie jest tym, czego KassenSturz oczekuje od dostawcy
 #, kde-format
 msgctxt "@info"
 msgid "You stopped the question. Ask again when you like."
-msgstr "Zatrzymałeś pytanie. Zapytaj ponownie, kiedy zechcesz."
+msgstr "Pytanie zostało zatrzymane. Zapytaj ponownie, kiedy zechcesz."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:96
 #, kde-format
@@ -2251,7 +2251,7 @@ msgctxt "@info"
 msgid ""
 "Nothing was sent: you didn't let the request go. Ask again, and leave out "
 "what you don't want to send."
-msgstr "Nic nie zostało wysłane: nie puściłeś zapytania. Zapytaj ponownie i pomiń to, czego nie chcesz wysyłać."
+msgstr "Nic nie zostało wysłane: zapytanie nie zostało zatwierdzone. Zapytaj ponownie i pomiń to, czego nie chcesz wysyłać."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:98
 #, kde-format
@@ -2329,7 +2329,7 @@ msgid ""
 "These changes hold a kind of change that you have turned off in the AI "
 "settings since the AI prepared them. Nothing was changed. Turn it on again "
 "under “What the AI may do”, or ask the AI to prepare the changes again."
-msgstr "Te zmiany zawierają rodzaj zmiany, który wyłączyłeś w ustawieniach AI, odkąd AI je przygotowało. Nic nie zostało zmienione. Włącz go ponownie w „Co AI może robić” albo poproś AI, aby przygotowało zmiany ponownie."
+msgstr "Te zmiany obejmują coś, co od czasu ich przygotowania wyłączono w ustawieniach AI, więc niczego nie zmieniono. Włącz to ponownie w sekcji „Co AI może robić” albo poproś AI o przygotowanie zmian od nowa."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:108
 #, kde-format
@@ -2379,7 +2379,7 @@ msgctxt "@info"
 msgid ""
 "Another change uses this new category, for example a Rule that books to it, "
 "so it can't be left out alone. Change or leave out that change first."
-msgstr "Inna zmiana używa tej nowej kategorii, na przykład reguła, która do niej księguje, więc nie można jej pominąć osobno. Najpierw zmień lub pomiń tamtą zmianę."
+msgstr "Inna zmiana używa tej nowej kategorii, na przykład reguła, która do niej przypisuje transakcje, więc nie można jej pominąć osobno. Najpierw zmień lub pomiń tamtą zmianę."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:118
 #, kde-format
@@ -2560,7 +2560,7 @@ msgid ""
 "account is never offered, you can do that yourself. For transactions, the AI "
 "can add and delete only payments in a cash account, and delete only what was "
 "entered by hand."
-msgstr "Zmiana lub usuwanie pozwala AI także odczytać ten wiersz, bo nie może zmienić tego, czego nie widzi. AI może usunąć tylko kategorię, której nic nie używa. W przypadku konta zmiana oznacza zmianę nazwy, zamknięcie i ponowne otwarcie; usuwanie konta nigdy nie jest oferowane, możesz to zrobić sam. W przypadku transakcji AI może dodawać i usuwać tylko płatności na koncie gotówkowym i usuwać tylko to, co wpisano ręcznie."
+msgstr "Zmiana lub usuwanie pozwala AI także odczytać ten wiersz, bo nie może zmienić tego, czego nie widzi. AI może usunąć tylko kategorię, której nic nie używa. W przypadku konta zmiana oznacza zmianę nazwy, zamknięcie i ponowne otwarcie; usuwanie konta nigdy nie jest oferowane, możesz to zrobić samodzielnie. W przypadku transakcji AI może dodawać i usuwać tylko płatności na koncie gotówkowym i usuwać tylko to, co wpisano ręcznie."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:274
 #, kde-format
@@ -2682,7 +2682,7 @@ msgid ""
 "names of accounts and categories, balances and totals, transactions with the "
 "names of whoever was paid or paid you and the notes you wrote, and your "
 "Rules. Only as much as your question needs, never the whole book."
-msgstr "Informacje z Twojej otwartej księgi, o które AI prosi, aby Ci odpowiedzieć: nazwy kont i kategorii, salda i sumy, transakcje z nazwami tych, którym zapłacono lub którzy Tobie zapłacili, oraz notatki, które napisałeś, a także Twoje reguły. Tylko tyle, ile potrzebuje Twoje pytanie, nigdy cała księga."
+msgstr "Informacje z Twojej otwartej księgi, o które AI prosi, aby Ci odpowiedzieć: nazwy kont i kategorii, salda i sumy, transakcje z nazwami tych, którym zapłacono lub którzy Tobie zapłacili, oraz Twoje notatki, a także Twoje reguły. Tylko tyle, ile potrzebuje Twoje pytanie, nigdy cała księga."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:76
 #, kde-format
@@ -2785,7 +2785,7 @@ msgctxt "@info"
 msgid ""
 "You allowed an unencrypted connection, so all of this travels without "
 "encryption and others on the way could read it."
-msgstr "Zezwoliłeś na nieszyfrowane połączenie, więc wszystko to przesyłane jest bez szyfrowania i inni po drodze mogliby to przeczytać."
+msgstr "Połączenie bez szyfrowania jest włączone, więc wszystko to jest przesyłane otwartym tekstem i inni po drodze mogliby to odczytać."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:205
 #, kde-format
@@ -3054,7 +3054,7 @@ msgid ""
 "You agreed on %1 to what KassenSturz sends to this provider. You can read it "
 "again, or take your agreement back; nothing is sent to this provider while "
 "it is withdrawn."
-msgstr "Dnia %1 zgodziłeś się na to, co KassenSturz wysyła do tego dostawcy. Możesz to przeczytać ponownie albo wycofać zgodę; dopóki jest wycofana, nic nie jest wysyłane do tego dostawcy."
+msgstr "Zgodę na to, co KassenSturz wysyła do tego dostawcy, wyrażono %1. Możesz to przeczytać ponownie albo wycofać zgodę; dopóki jest wycofana, nic nie jest wysyłane do tego dostawcy."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:496
 #, kde-format
@@ -3124,7 +3124,7 @@ msgstr "Przestań czekać automatycznie po 5 minutach"
 #, kde-format
 msgctxt "@item:inlistbox what to do when the AI takes long"
 msgid "Keep waiting and warn me, so I can cancel"
-msgstr "Czekaj dalej i ostrzeż mnie, abym mógł anulować"
+msgstr "Czekaj dalej i daj mi możliwość anulowania"
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:588
 #, kde-format
@@ -3186,7 +3186,7 @@ msgid ""
 "be open for that. After you switch this on or off, quit your AI program and "
 "start it again so it notices. How to set one up is explained in \"Connect an "
 "AI\" in the user guide."
-msgstr "Programy AI na tym komputerze, które skonfigurowałeś do używania KassenSturz, mogą czytać te części Twojej księgi, na które zezwoliłeś powyżej. Jeśli na to zezwolisz, mogą też przygotowywać zmiany, na które zezwoliłeś powyżej. Ich zmiany są pokazywane w panelu czatu i nic się nie zmienia, dopóki ich nie przeczytasz i nie potwierdzisz. KassenSturz musi być wtedy otwarty. Po włączeniu lub wyłączeniu tej opcji zamknij swój program AI i uruchom go ponownie, aby to zauważył. Jak go skonfigurować, wyjaśnia rozdział „Podłącz AI” w podręczniku użytkownika."
+msgstr "Programy AI na tym komputerze, skonfigurowane do pracy z KassenSturz, mogą czytać części Twojej księgi zaznaczone powyżej. Jeśli na to zezwolisz, mogą też przygotowywać zmiany zaznaczone powyżej. Ich zmiany są pokazywane w panelu czatu i nic się nie zmienia, dopóki ich nie przeczytasz i nie potwierdzisz. KassenSturz musi być wtedy otwarty. Po włączeniu lub wyłączeniu tej opcji zamknij swój program AI i uruchom go ponownie, aby to zauważył. Jak go skonfigurować, wyjaśnia rozdział „Podłącz AI” w podręczniku użytkownika."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:643
 #, kde-format
@@ -3260,7 +3260,7 @@ msgstr "To pierwsze zapytanie dla wymyślonego pytania, dokładnie tak, jak Kass
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "You owe %1"
-msgstr "Jesteś winien %1"
+msgstr "Do spłaty: %1"
 
 #: crates/kassensturz-ui-bridge/qml/BankAccountNames.qml:29
 #, kde-format
@@ -3303,7 +3303,7 @@ msgstr "Porównaj %1 z moim bankiem"
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "you owe %1"
-msgstr "jesteś winien %1"
+msgstr "do spłaty: %1"
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:83
 #, kde-format
@@ -3389,7 +3389,7 @@ msgid ""
 "If the difference comes from before you started using KassenSturz, the "
 "starting balance would have to be %1 instead of %2 for both to agree. "
 "KassenSturz doesn't change it by itself."
-msgstr "Jeśli różnica pochodzi z czasu, zanim zacząłeś używać KassenSturz, saldo początkowe musiałoby wynosić %1 zamiast %2, aby obie kwoty się zgadzały. KassenSturz nie zmienia go sam."
+msgstr "Jeśli różnica powstała, zanim KassenSturz zaczął śledzić to konto, saldo początkowe musiałoby wynosić %1 zamiast %2, aby obie kwoty się zgadzały. KassenSturz nie zmienia go sam."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:110
 #, kde-format
@@ -3434,7 +3434,7 @@ msgstr "KassenSturz ma o %1 mniej niż Twój bank."
 #, kde-format
 msgctxt "@label:textbox"
 msgid "What does your bank say you owe?"
-msgstr "Ile według banku jesteś winien?"
+msgstr "Ile według banku wynosi zadłużenie?"
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:139
 #, kde-format
@@ -3515,7 +3515,7 @@ msgid ""
 "If the difference comes from before you started using KassenSturz, a "
 "starting balance of %1 dated %2 makes both agree. KassenSturz then has on %3 "
 "what your bank says. Your other transactions stay as they are."
-msgstr "Jeśli różnica pochodzi z czasu, zanim zacząłeś używać KassenSturz, saldo początkowe %1 z datą %2 sprawi, że obie kwoty się zgodzą. KassenSturz będzie wtedy miał dnia %3 to, co podaje Twój bank. Twoje pozostałe transakcje pozostają bez zmian."
+msgstr "Jeśli różnica powstała, zanim KassenSturz zaczął śledzić to konto, saldo początkowe %1 z datą %2 sprawi, że obie kwoty będą zgodne. Wtedy %3 saldo w KassenSturz będzie takie samo jak w banku. Pozostałe transakcje się nie zmienią."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:231
 #, kde-format
@@ -3524,7 +3524,7 @@ msgid ""
 "If the difference comes from before you started using KassenSturz, a "
 "starting balance of %1 (dated %2) makes both agree. KassenSturz then has on "
 "%3 what your bank says. Your other transactions stay as they are."
-msgstr "Jeśli różnica pochodzi z czasu, zanim zacząłeś używać KassenSturz, saldo początkowe %1 (z datą %2) sprawi, że obie kwoty się zgodzą. KassenSturz będzie wtedy miał dnia %3 to, co podaje Twój bank. Twoje pozostałe transakcje pozostają bez zmian."
+msgstr "Jeśli różnica powstała, zanim KassenSturz zaczął śledzić to konto, saldo początkowe %1 (z datą %2) sprawi, że obie kwoty będą zgodne. Wtedy %3 saldo w KassenSturz będzie takie samo jak w banku. Pozostałe transakcje się nie zmienią."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:240
 #, kde-format
@@ -3587,7 +3587,7 @@ msgid ""
 "Your bank wants you to confirm this with a TAN. The bank's message below "
 "says what it is for and where the TAN comes from, for example your TAN app "
 "or a text message:"
-msgstr "Twój bank chce, abyś potwierdził to kodem TAN. Wiadomość banku poniżej mówi, do czego on służy i skąd pochodzi TAN, na przykład z aplikacji TAN lub SMS-a:"
+msgstr "Twój bank prosi o potwierdzenie kodem TAN. Wiadomość banku poniżej mówi, do czego on służy i skąd pochodzi TAN, na przykład z aplikacji TAN lub SMS-a:"
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:155
 #, kde-format
@@ -3915,13 +3915,13 @@ msgstr "Zobacz, co przysłał Twój bank"
 #, kde-format
 msgctxt "@info"
 msgid "You looked at it. Get the transactions again to see them once more."
-msgstr "Już to obejrzałeś. Pobierz transakcje ponownie, aby zobaczyć je jeszcze raz."
+msgstr "Te transakcje zostały już przejrzane. Pobierz je ponownie, aby zobaczyć je jeszcze raz."
 
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:341
 #, kde-format
 msgctxt "@info"
 msgid "Nothing is added to your book before you say so."
-msgstr "Nic nie zostaje dodane do Twojej księgi, zanim tego nie powiesz."
+msgstr "Nic nie zostanie dodane do Twojej księgi, dopóki tego nie zatwierdzisz."
 
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:359
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml:561
@@ -4202,7 +4202,7 @@ msgctxt "@info"
 msgid ""
 "KassenSturz forgets the PIN as soon as it has talked to your bank. This is "
 "the safest choice."
-msgstr "KassenSturz zapomina PIN, gdy tylko skończy rozmawiać z Twoim bankiem. To najbezpieczniejszy wybór."
+msgstr "KassenSturz zapomina PIN, gdy tylko zakończy połączenie z Twoim bankiem. To najbezpieczniejszy wybór."
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:336
 #, kde-format
@@ -4250,7 +4250,7 @@ msgstr "Konto w KassenSturz"
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "Don't fill an account from it"
-msgstr "Nie zasilaj z niego żadnego konta"
+msgstr "Nie pobieraj z niego transakcji do żadnego konta"
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:432
 #, kde-format
@@ -4259,7 +4259,7 @@ msgid ""
 "Your book has no account yet that the bank could fill. Add your accounts "
 "first; you can link them to the bank's accounts when you get new "
 "transactions."
-msgstr "Twoja księga nie ma jeszcze konta, które bank mógłby zasilać. Najpierw dodaj swoje konta; możesz je połączyć z kontami banku przy pobieraniu nowych transakcji."
+msgstr "W Twojej księdze nie ma jeszcze konta, do którego bank mógłby pobierać transakcje. Najpierw dodaj swoje konta; możesz je połączyć z kontami banku przy pobieraniu nowych transakcji."
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:436
 #: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:42
@@ -4356,9 +4356,9 @@ msgid ""
 msgid_plural ""
 "%1 names that didn't become a Rule: your file has no category to book each "
 "to, or no text to recognize each by"
-msgstr[0] "%1 nazwa, która nie stała się regułą: Twój plik nie ma kategorii, do której można by ją księgować, ani tekstu, po którym można by ją rozpoznać"
-msgstr[1] "%1 nazwy, które nie stały się regułami: Twój plik nie ma kategorii, do której można by każdą księgować, ani tekstu, po którym można by każdą rozpoznać"
-msgstr[2] "%1 nazw, które nie stały się regułami: Twój plik nie ma kategorii, do której można by każdą księgować, ani tekstu, po którym można by każdą rozpoznać"
+msgstr[0] "%1 nazwa, która nie stała się regułą: Twój plik nie ma kategorii, do której można by ją przypisać, ani tekstu, po którym można by ją rozpoznać"
+msgstr[1] "%1 nazwy, które nie stały się regułami: Twój plik nie ma kategorii, do której można by każdą przypisać, ani tekstu, po którym można by każdą rozpoznać"
+msgstr[2] "%1 nazw, które nie stały się regułami: Twój plik nie ma kategorii, do której można by każdą przypisać, ani tekstu, po którym można by każdą rozpoznać"
 
 #: crates/kassensturz-ui-bridge/qml/BookFromFileDonePage.qml:54
 #, kde-format
@@ -6212,13 +6212,13 @@ msgstr "Co masz"
 #, kde-format
 msgctxt "@label a row of a table: money the user owes"
 msgid "What you owe"
-msgstr "Co jesteś winien"
+msgstr "Długi"
 
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:35
 #, kde-format
 msgctxt "@label a row of a table: what the user has less what they owe"
 msgid "What you are worth"
-msgstr "Ile jesteś wart"
+msgstr "Majątek netto"
 
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:53
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:57
@@ -6319,7 +6319,7 @@ msgstr "Konto"
 msgctxt ""
 "@title:column a table of a chart: whether the user has the money or owes it"
 msgid "Have or owe"
-msgstr "Masz czy jesteś winien"
+msgstr "Środki czy dług"
 
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:81
 #, kde-format
@@ -6343,14 +6343,14 @@ msgstr "Masz"
 #, kde-format
 msgctxt "@title:column a table of a chart: what the user owes"
 msgid "You owe"
-msgstr "Jesteś winien"
+msgstr "Do spłaty"
 
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:85
 #, kde-format
 msgctxt ""
 "@title:column a table of a chart: what the user has less what they owe"
 msgid "You are worth"
-msgstr "Jesteś wart"
+msgstr "Majątek netto"
 
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:86
 #, kde-format
@@ -6397,7 +6397,7 @@ msgstr "Wydatki"
 #, kde-format
 msgctxt "@label a series of a chart: what the user has less what they owe"
 msgid "What you are worth"
-msgstr "Ile jesteś wart"
+msgstr "Majątek netto"
 
 #: crates/kassensturz-ui-bridge/qml/ChartView.qml:120
 #, kde-format
@@ -6473,7 +6473,7 @@ msgstr "Wydano łącznie: %1"
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "What you are worth at the end: %1"
-msgstr "Ile jesteś wart na koniec: %1"
+msgstr "Majątek netto na koniec: %1"
 
 #: crates/kassensturz-ui-bridge/qml/ChartView.qml:728
 #, kde-format
@@ -6488,7 +6488,7 @@ msgctxt ""
 "@label %1 is an amount of money: what the user has less what they owe at the "
 "end of the period"
 msgid "What you are worth: %1"
-msgstr "Ile jesteś wart: %1"
+msgstr "Majątek netto: %1"
 
 #, kde-format
 msgctxt "@title:column a table of budgets: what the budget is for"
@@ -7594,14 +7594,14 @@ msgctxt ""
 "@action:inmenu move the dashboard shown one place towards the start of the "
 "list"
 msgid "Move earlier"
-msgstr "Przesuń wcześniej"
+msgstr "Przesuń w lewo"
 
 #: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:95
 #, kde-format
 msgctxt ""
 "@action:inmenu move the dashboard shown one place towards the end of the list"
 msgid "Move later"
-msgstr "Przesuń później"
+msgstr "Przesuń w prawo"
 
 #: crates/kassensturz-ui-bridge/qml/DashboardMenu.qml:104
 #, kde-format
@@ -8092,7 +8092,7 @@ msgctxt "@info"
 msgid ""
 "How the columns are separated, how decimals are written, and more. The usual "
 "choices fit your region."
-msgstr "Jak rozdzielane są kolumny, jak zapisywane są ułamki i więcej. Zwykłe ustawienia pasują do Twojego regionu."
+msgstr "Jak rozdzielane są kolumny, jak zapisywane są liczby dziesiętne i więcej. Zwykłe ustawienia pasują do Twojego regionu."
 
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml:170
 #, kde-format
@@ -8110,7 +8110,7 @@ msgstr "Przecinek"
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "A semicolon (usual where decimals have a comma)"
-msgstr "Średnik (zwykle tam, gdzie ułamki zapisuje się z przecinkiem)"
+msgstr "Średnik (zwykle tam, gdzie znakiem dziesiętnym jest przecinek)"
 
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml:176
 #, kde-format
@@ -8509,7 +8509,7 @@ msgctxt "@info"
 msgid ""
 "A number with decimals must be written in quotes, such as \"12.50\", so it "
 "is read exactly. Put it in quotes."
-msgstr "Liczbę z ułamkiem trzeba zapisać w cudzysłowie, na przykład \"12.50\", aby została odczytana dokładnie. Ujmij ją w cudzysłów."
+msgstr "Liczbę dziesiętną trzeba zapisać w cudzysłowie, na przykład \"12.50\", aby została odczytana dokładnie. Ujmij ją w cudzysłów."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:81
 #, kde-format
@@ -8857,7 +8857,7 @@ msgstr "Liczba miejsc po przecinku dla %1 (znak %2) musi być liczbą całkowit�
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid "%1 was given the wrong parts (character %2). Check them."
-msgstr "%1 dostała niewłaściwe części (znak %2). Sprawdź je."
+msgstr "Funkcja %1 ma niewłaściwe argumenty (znak %2). Sprawdź je."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:210
 #, kde-format
@@ -8966,13 +8966,13 @@ msgstr "Wtedy kwoty w Twojej księdze sumowałyby się do więcej, niż KassenSt
 msgctxt "@info"
 msgid ""
 "Type an amount above zero. Whether you paid or received it, you choose above."
-msgstr "Wpisz kwotę większą od zera. To, czy ją zapłaciłeś, czy otrzymałeś, wybierasz powyżej."
+msgstr "Wpisz kwotę większą od zera. Powyżej wybierz, czy to wydatek, czy wpływ."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:246
 #, kde-format
 msgctxt "@info"
 msgid "Type what you owe without a minus sign."
-msgstr "Wpisz, ile jesteś winien, bez znaku minus."
+msgstr "Wpisz kwotę zadłużenia, bez znaku minus."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:248
 #, kde-format
@@ -9350,7 +9350,7 @@ msgctxt "@info"
 msgid ""
 "This file is too large to be a dashboard file, so it was not read. Check "
 "that you chose the right file."
-msgstr "Ten plik jest za duży, aby był plikiem pulpitu, więc nie został odczytany. Sprawdź, czy wybrałeś właściwy plik."
+msgstr "Ten plik jest zbyt duży jak na zapisany pulpit KassenSturz, więc nie został wczytany. Upewnij się, że to właściwy plik."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:341
 #, kde-format
@@ -9359,7 +9359,7 @@ msgid ""
 "This dashboard file was made by a newer KassenSturz (file version %1), so "
 "this one can't read it. Update KassenSturz, or ask for a file saved by this "
 "version."
-msgstr "Ten plik pulpitu utworzyła nowsza wersja KassenSturz (wersja pliku %1), więc ta nie może go odczytać. Zaktualizuj KassenSturz albo poproś o plik zapisany przez tę wersję."
+msgstr "Ten zapisany pulpit pochodzi z nowszej wersji KassenSturz (wersja pliku %1), więc ta wersja nie może go odczytać. Zaktualizuj KassenSturz albo poproś o plik zapisany przez tę wersję."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:345
 #, kde-format
@@ -10056,7 +10056,7 @@ msgid ""
 "A comma can't both separate the columns and be the decimal mark. Choose a "
 "semicolon or a tab between the columns, or a point for decimals. Nothing was "
 "saved."
-msgstr "Przecinek nie może jednocześnie rozdzielać kolumn i być znakiem dziesiętnym. Wybierz średnik lub tabulator między kolumnami albo kropkę dla ułamków. Nic nie zostało zapisane."
+msgstr "Przecinek nie może jednocześnie rozdzielać kolumn i być znakiem dziesiętnym. Wybierz średnik lub tabulator między kolumnami albo kropkę jako znak dziesiętny. Nic nie zostało zapisane."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:552
 #, kde-format
@@ -10250,7 +10250,7 @@ msgctxt "@info"
 msgid ""
 "The bank's question was closed before it was answered, so nothing was done. "
 "Start again when you are ready."
-msgstr "Pytanie banku zostało zamknięte przed udzieleniem odpowiedzi, więc nic nie zostało zrobione. Zacznij od nowa, gdy będziesz gotowy."
+msgstr "Pytanie banku zostało zamknięte przed udzieleniem odpowiedzi, więc nic nie zostało zrobione. Zacznij od nowa, kiedy zechcesz."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:605
 #, kde-format
@@ -10813,7 +10813,7 @@ msgctxt "@info"
 msgid ""
 "A note appears here when you moved money between your own accounts this "
 "month. There is none right now."
-msgstr "Tutaj pojawia się notatka, gdy w tym miesiącu przeniosłeś pieniądze między swoimi kontami. W tej chwili nie ma żadnej."
+msgstr "Tutaj pojawi się notatka, gdy w tym miesiącu przeniesiesz pieniądze między swoimi kontami. Na razie nie ma żadnej."
 
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml:667
 #, kde-format
@@ -10981,7 +10981,7 @@ msgctxt ""
 "@item:inlistbox a part of the layout: what all the accounts hold together, a "
 "card for each currency"
 msgid "What you are worth"
-msgstr "Ile jesteś wart"
+msgstr "Majątek netto"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:49
 #, kde-format
@@ -11059,7 +11059,7 @@ msgctxt ""
 "@item:inlistbox a part of the layout: a line of what the user is worth at "
 "the end of each month"
 msgid "What you are worth over time"
-msgstr "Ile jesteś wart w czasie"
+msgstr "Majątek netto w czasie"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:76
 #, kde-format
@@ -11090,7 +11090,7 @@ msgctxt ""
 "@item:inlistbox a part of the layout: one figure of what the user has, owes "
 "or is worth"
 msgid "What you have, owe and are worth"
-msgstr "Co masz, ile jesteś winien i ile jesteś wart"
+msgstr "Środki, długi i majątek netto"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:101
 #, kde-format
@@ -11149,7 +11149,7 @@ msgstr "Wpływy i wydatki"
 #, kde-format
 msgctxt "@title"
 msgid "What you are worth over time"
-msgstr "Ile jesteś wart w czasie"
+msgstr "Majątek netto w czasie"
 
 #: crates/kassensturz-ui-bridge/qml/GridNames.qml:132
 #, kde-format
@@ -11617,7 +11617,7 @@ msgctxt "@info"
 msgid ""
 "Maybe you typed it in before the statement came. It is left out unless you "
 "tick \"Import it anyway\" below."
-msgstr "Może wpisałeś ją, zanim przyszedł wyciąg. Zostanie pominięta, chyba że zaznaczysz poniżej „Zaimportuj mimo to”."
+msgstr "Może wpisano ją ręcznie, zanim przyszedł wyciąg. Zostanie pominięta, chyba że zaznaczysz poniżej „Zaimportuj mimo to”."
 
 #: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:181
 #, kde-format
@@ -11745,7 +11745,7 @@ msgstr "Dodaj raporty"
 #, kde-format
 msgctxt "@info about a report brought in before"
 msgid "you deleted its view earlier"
-msgstr "wcześniej usunąłeś jego widok"
+msgstr "ten widok został wcześniej usunięty"
 
 #: crates/kassensturz-ui-bridge/qml/KmyReportsImportPage.qml:133
 #, kde-format
@@ -12169,7 +12169,7 @@ msgstr "Co zostaje"
 #, kde-format
 msgctxt "@title:card a key figure: what all accounts hold, less what is owed"
 msgid "What you are worth"
-msgstr "Ile jesteś wart"
+msgstr "Majątek netto"
 
 #: crates/kassensturz-ui-bridge/qml/KpiNames.qml:27
 #, kde-format
@@ -12183,7 +12183,7 @@ msgstr "Co masz"
 #, kde-format
 msgctxt "@title:card a key figure: the debt on the credit cards"
 msgid "What you owe"
-msgstr "Co jesteś winien"
+msgstr "Zadłużenie"
 
 #: crates/kassensturz-ui-bridge/qml/KpiNames.qml:31
 #, kde-format
@@ -12548,7 +12548,7 @@ msgstr "Jakiego rodzaju jest to konto?"
 #, kde-format
 msgctxt "@label:textbox"
 msgid "How much do you owe on it?"
-msgstr "Ile jesteś na nim winien?"
+msgstr "Ile jeszcze zostało do spłaty?"
 
 #: crates/kassensturz-ui-bridge/qml/NewAccountPage.qml:108
 #, kde-format
@@ -12629,7 +12629,7 @@ msgstr "Wszystko na pierwszy rzut oka, jak standardowy przegląd."
 #, kde-format
 msgctxt "@info what a template shows"
 msgid "What you spent, by category, this month and over the year."
-msgstr "Na co wydałeś, według kategorii, w tym miesiącu i w ciągu roku."
+msgstr "Wydatki według kategorii w tym miesiącu i w ciągu roku."
 
 #: crates/kassensturz-ui-bridge/qml/NewDashboardDialog.qml:78
 #, kde-format
@@ -12641,7 +12641,7 @@ msgstr "Co wpłynęło i co wypłynęło, miesiąc po miesiącu."
 #, kde-format
 msgctxt "@info what a template shows"
 msgid "What you have, what you owe and how it changed."
-msgstr "Co masz, co jesteś winien i jak to się zmieniło."
+msgstr "Środki, długi i ich zmiany w czasie."
 
 #: crates/kassensturz-ui-bridge/qml/NewDashboardDialog.qml:83
 #, kde-format
@@ -13159,14 +13159,14 @@ msgstr "Co się stało?"
 #, kde-format
 msgctxt "@option:radio"
 msgid "I paid money"
-msgstr "Zapłaciłem"
+msgstr "Wydatek"
 
 #: crates/kassensturz-ui-bridge/qml/PartsPage.qml:173
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:231
 #, kde-format
 msgctxt "@option:radio"
 msgid "I received money"
-msgstr "Otrzymałem pieniądze"
+msgstr "Wpływ"
 
 #: crates/kassensturz-ui-bridge/qml/PartsPage.qml:184
 #, kde-format
@@ -13335,13 +13335,13 @@ msgctxt "@info"
 msgid ""
 "Nothing came in or went out this month yet. Add what you paid or received, "
 "and it shows up here."
-msgstr "W tym miesiącu nic jeszcze nie wpłynęło ani nie wypłynęło. Dodaj to, co zapłaciłeś lub otrzymałeś, a pojawi się tutaj."
+msgstr "W tym miesiącu nie było jeszcze żadnych wpływów ani wydatków. Gdy je dodasz, pojawią się tutaj."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:106
 #, kde-format
 msgctxt "@item:inlistbox what a chart shows"
 msgid "What you spent, by category"
-msgstr "Na co wydałeś, według kategorii"
+msgstr "Wydatki według kategorii"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:108
 #, kde-format
@@ -13371,7 +13371,7 @@ msgstr "Ile jest na Twoich kontach"
 #, kde-format
 msgctxt "@item:inlistbox what a chart shows"
 msgid "What you are worth, month by month"
-msgstr "Ile jesteś wart, miesiąc po miesiącu"
+msgstr "Majątek netto, miesiąc po miesiącu"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:118
 #, kde-format
@@ -13393,7 +13393,7 @@ msgctxt "@info"
 msgid ""
 "Shows what you spent or received in each month for the categories and groups "
 "you pick, one line each. A group counts all its categories, hidden ones too."
-msgstr "Pokazuje, ile wydałeś lub otrzymałeś w każdym miesiącu w wybranych kategoriach i grupach, po jednej linii dla każdej. Grupa liczy wszystkie swoje kategorie, także ukryte."
+msgstr "Pokazuje wydatki lub wpływy z każdego miesiąca w wybranych kategoriach i grupach, po jednej linii dla każdej. Grupa liczy wszystkie swoje kategorie, także ukryte."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:130
 #, kde-format
@@ -13418,7 +13418,7 @@ msgid ""
 "Shows what each account held at the end of the period, and what you have, "
 "what you owe and what you are worth. Each currency is shown on its own; they "
 "are never added together."
-msgstr "Pokazuje, ile było na każdym koncie na koniec okresu, oraz co masz, co jesteś winien i ile jesteś wart. Każda waluta jest pokazana osobno; nigdy nie są dodawane do siebie."
+msgstr "Pokazuje, ile było na każdym koncie na koniec okresu, oraz środki, długi i majątek netto. Każda waluta jest pokazana osobno; nigdy nie są sumowane."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:136
 #, kde-format
@@ -13426,7 +13426,7 @@ msgctxt "@info"
 msgid ""
 "Shows what you have, what you owe and what you are worth at the end of each "
 "month. Each currency is shown on its own; they are never added together."
-msgstr "Pokazuje, co masz, co jesteś winien i ile jesteś wart na koniec każdego miesiąca. Każda waluta jest pokazana osobno; nigdy nie są dodawane do siebie."
+msgstr "Pokazuje środki, długi i majątek netto na koniec każdego miesiąca. Każda waluta jest pokazana osobno; nigdy nie są sumowane."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:138
 #, kde-format
@@ -13566,7 +13566,7 @@ msgstr "Każde konto"
 #, kde-format
 msgctxt "@item:inlistbox"
 msgid "What you have, what you owe and what you are worth"
-msgstr "Co masz, co jesteś winien i ile jesteś wart"
+msgstr "Środki, długi i majątek netto"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:196
 #, kde-format
@@ -13608,7 +13608,7 @@ msgstr "Co zostaje"
 #, kde-format
 msgctxt "@item:inlistbox a key figure"
 msgid "What you are worth"
-msgstr "Ile jesteś wart"
+msgstr "Majątek netto"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:222
 #, kde-format
@@ -13620,7 +13620,7 @@ msgstr "Co masz"
 #, kde-format
 msgctxt "@item:inlistbox a key figure"
 msgid "What you owe"
-msgstr "Co jesteś winien"
+msgstr "Zadłużenie"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:226
 #, kde-format
@@ -13686,7 +13686,7 @@ msgstr "Nic nie zaznaczono: to podąża za filtrami strony. Zaznacz kilka, aby l
 #, kde-format
 msgctxt "@label %1 is an amount of money"
 msgid "You owe: %1"
-msgstr "Jesteś winien: %1"
+msgstr "Do spłaty: %1"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:63
 #, kde-format
@@ -13795,9 +13795,9 @@ msgid ""
 msgid_plural ""
 "You have sorted %2 into %3 by hand %1 times. Want KassenSturz to do it for "
 "you from now on?"
-msgstr[0] "%1 raz ręcznie przypisałeś %2 do %3. Czy KassenSturz ma od teraz robić to za Ciebie?"
-msgstr[1] "%1 razy ręcznie przypisałeś %2 do %3. Czy KassenSturz ma od teraz robić to za Ciebie?"
-msgstr[2] "%1 razy ręcznie przypisałeś %2 do %3. Czy KassenSturz ma od teraz robić to za Ciebie?"
+msgstr[0] "%2 przypisano ręcznie do %3 już %1 raz. Czy KassenSturz ma od teraz robić to za Ciebie?"
+msgstr[1] "%2 przypisano ręcznie do %3 już %1 razy. Czy KassenSturz ma od teraz robić to za Ciebie?"
+msgstr[2] "%2 przypisano ręcznie do %3 już %1 razy. Czy KassenSturz ma od teraz robić to za Ciebie?"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:286
 #: crates/kassensturz-ui-bridge/qml/RulesPage.qml:136
@@ -13837,7 +13837,7 @@ msgctxt "@info"
 msgid ""
 "Add what you paid or received from this account, and it shows up here with "
 "what was left afterwards."
-msgstr "Dodaj to, co zapłaciłeś lub otrzymałeś z tego konta, a pojawi się tutaj razem z tym, co zostało potem."
+msgstr "Dodaj wydatki lub wpływy z tego konta, a pojawią się tutaj razem z saldem po każdej transakcji."
 
 #: crates/kassensturz-ui-bridge/qml/RemoveOriginalDialog.qml:42
 #, kde-format
@@ -14176,7 +14176,7 @@ msgid ""
 "A Rule sorts transactions for you. The first Rule that fits a transaction "
 "decides; put the most specific ones first in the list. Transactions you "
 "sorted yourself are never changed."
-msgstr "Reguła przypisuje transakcje za Ciebie. Decyduje pierwsza reguła, która pasuje do transakcji; najbardziej szczegółowe umieść na początku listy. Transakcje, którym sam przypisałeś kategorię, nigdy nie są zmieniane."
+msgstr "Reguła przypisuje transakcje za Ciebie. Decyduje pierwsza reguła, która pasuje do transakcji; najbardziej szczegółowe umieść na początku listy. Transakcje z kategorią przypisaną ręcznie nigdy nie są zmieniane."
 
 #: crates/kassensturz-ui-bridge/qml/RulePage.qml:210
 #, kde-format
@@ -14306,7 +14306,7 @@ msgctxt "@info"
 msgid ""
 "Without this, only new transactions follow the changed Rule. Transactions "
 "you changed yourself are left alone either way."
-msgstr "Bez tego zmienioną regułę stosują tylko nowe transakcje. Transakcje, które sam zmieniłeś, i tak zostają bez zmian."
+msgstr "Bez tego zmienioną regułę stosują tylko nowe transakcje. Transakcje zmienione ręcznie i tak zostają bez zmian."
 
 #: crates/kassensturz-ui-bridge/qml/RulePage.qml:381
 #, kde-format
@@ -14493,13 +14493,13 @@ msgstr "Do tej reguły nie pasują jeszcze żadne transakcje"
 #, kde-format
 msgctxt "@action:button hide what was typed in a secret field"
 msgid "Hide what you typed"
-msgstr "Ukryj to, co wpisałeś"
+msgstr "Ukryj wpisany tekst"
 
 #: crates/kassensturz-ui-bridge/qml/SecretField.qml:39
 #, kde-format
 msgctxt "@action:button show what was typed in a secret field"
 msgid "Show what you typed"
-msgstr "Pokaż to, co wpisałeś"
+msgstr "Pokaż wpisany tekst"
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:121
 #, kde-format
@@ -14581,7 +14581,7 @@ msgstr "Otwórz ten folder w menedżerze plików"
 msgctxt "@info"
 msgid ""
 "KassenSturz opens the book you used last. Most households need only one."
-msgstr "KassenSturz otwiera księgę, której używałeś ostatnio. Większości gospodarstw domowych wystarcza jedna."
+msgstr "Przy uruchomieniu KassenSturz otwiera ostatnio używaną księgę. Większości gospodarstw domowych wystarczy jedna."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:226
 #, kde-format
@@ -14890,7 +14890,7 @@ msgid ""
 "KassenSturz forgets the login and its saved PIN on this computer. Your "
 "accounts and their transactions stay as they are, and so does which bank "
 "account fills which of them: set the login up again to fetch once more."
-msgstr "KassenSturz zapomina na tym komputerze logowanie i zapisany PIN. Twoje konta i ich transakcje zostają bez zmian, podobnie jak to, które konto bankowe zasila które z nich: skonfiguruj logowanie ponownie, aby znowu pobierać."
+msgstr "KassenSturz usunie z tego komputera dane logowania i zapisany PIN. Twoje konta i transakcje się nie zmienią, a konta bankowe zostaną powiązane z Twoimi kontami. Aby znowu pobierać transakcje, skonfiguruj logowanie od nowa."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:540
 #, kde-format
@@ -15204,7 +15204,7 @@ msgid ""
 "Copies of the book that KassenSturz saved before an update (backups) keep "
 "their history; cleaning up does not touch them."
 msgstr ""
-"To usuwa na zawsze całą historię, więc niczego, co zrobiłeś do tej pory, nie będzie można cofnąć ani ponowić. Twoje konta, transakcje i wszystko inne zostają dokładnie takie, jakie są.\n"
+"To usuwa na zawsze całą historię, więc niczego, co zostało zrobione do tej pory, nie będzie można cofnąć ani ponowić. Twoje konta, transakcje i wszystko inne zostają dokładnie takie, jakie są.\n"
 "\n"
 "Kopie księgi, które KassenSturz zapisał przed aktualizacją (kopie zapasowe), zachowują swoją historię; czyszczenie ich nie dotyczy."
 
@@ -15504,7 +15504,7 @@ msgid ""
 "Choose whose transactions are listed. With none ticked, every open account "
 "and every category counts. For example: only your checking account, only "
 "Groceries."
-msgstr "Wybierz, czyje transakcje mają być wypisane. Gdy nic nie jest zaznaczone, liczy się każde otwarte konto i każda kategoria. Na przykład: tylko Twoje konto osobiste, tylko „Zakupy spożywcze”."
+msgstr "Wybierz, z których kont i kategorii mają być pokazane transakcje. Gdy nic nie jest zaznaczone, liczy się każde otwarte konto i każda kategoria. Na przykład: tylko Twoje konto osobiste, tylko „Zakupy spożywcze”."
 
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:102
 #, kde-format
@@ -15688,7 +15688,7 @@ msgctxt "@info"
 msgid ""
 "This is the statistic you left before Finish. Finish keeps it; Cancel starts "
 "a new one."
-msgstr "To statystyka, którą opuściłeś przed „Zakończ”. „Zakończ” ją zachowuje; „Anuluj” zaczyna nową."
+msgstr "To niedokończona statystyka: kreator zamknięto przed kliknięciem „Zakończ”. „Zakończ” ją zachowa, a „Anuluj” zacznie nową."
 
 #, kde-format
 msgctxt "@action:button"
@@ -15901,7 +15901,7 @@ msgid ""
 "This is the starting balance: what the account held when you began. To "
 "change it, check the account against your bank, and KassenSturz offers to "
 "correct it."
-msgstr "To jest saldo początkowe: tyle było na koncie, gdy zaczynałeś. Aby je zmienić, porównaj konto z bankiem, a KassenSturz zaproponuje poprawkę."
+msgstr "To jest saldo początkowe, czyli kwota na koncie w dniu, od którego je prowadzisz. Aby je zmienić, porównaj konto z bankiem, a KassenSturz zaproponuje poprawkę."
 
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:171
 #, kde-format
@@ -16058,7 +16058,7 @@ msgstr "Jeszcze bez kategorii"
 #, kde-format
 msgctxt "@label %1 is an amount of money the user owed after this entry"
 msgid "Then you owed: %1"
-msgstr "Potem byłeś winien: %1"
+msgstr "Pozostało do spłaty: %1"
 
 #: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:81
 #, kde-format
@@ -16148,7 +16148,7 @@ msgstr "Przypisane do „%1” przez regułę"
 #, kde-format
 msgctxt "@info %1 is a category"
 msgid "You sorted it as “%1” yourself"
-msgstr "Sam przypisałeś to do „%1”"
+msgstr "Przypisane ręcznie do „%1”"
 
 #: crates/kassensturz-ui-bridge/qml/TransferPartnerDialog.qml:138
 #, kde-format
@@ -16232,14 +16232,14 @@ msgstr "Przypisane do „%1” przez regułę. Po połączeniu nie liczy się ju
 #, kde-format
 msgctxt "@info %1 is a category"
 msgid "You sorted it as “%1” yourself. Joined, it no longer counts in “%1”."
-msgstr "Sam przypisałeś to do „%1”. Po połączeniu nie liczy się już w „%1”."
+msgstr "Przypisane ręcznie do „%1”. Po połączeniu nie liczy się już w „%1”."
 
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:173
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:205
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid "What you wrote on it or attached to it stays, on the entry in %1."
-msgstr "To, co na nim napisałeś lub do niego dołączyłeś, zostaje we wpisie na %1."
+msgstr "Notatki i załączniki zostają przy wpisie na koncie %1."
 
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:221
 #, kde-format
@@ -16263,7 +16263,7 @@ msgstr "Żadna reguła nie przypisała tej płatności. Czy ją znasz?"
 #, kde-format
 msgctxt "@info"
 msgid "Skipped: you cancelled the PIN or TAN for its bank."
-msgstr "Pominięto: anulowałeś PIN lub TAN dla jego banku."
+msgstr "Pominięto: anulowano PIN lub TAN dla jego banku."
 
 #: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:90
 #, kde-format
@@ -16275,7 +16275,7 @@ msgstr "Pominięto: połączenie z bankiem nie powiodło się przy wcześniejszy
 #, kde-format
 msgctxt "@info"
 msgid "Skipped: you pressed Stop."
-msgstr "Pominięto: nacisnąłeś „Zatrzymaj”."
+msgstr "Pominięto: naciśnięto „Zatrzymaj”."
 
 #: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:94
 #, kde-format
@@ -16313,7 +16313,7 @@ msgctxt "@info"
 msgid ""
 "Asks your banks for the new transactions of every linked account and books "
 "them."
-msgstr "Prosi Twoje banki o nowe transakcje każdego połączonego konta i je księguje."
+msgstr "Pobiera z banków nowe transakcje wszystkich połączonych kont i dodaje je do księgi."
 
 #: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:161
 #, kde-format
@@ -16396,7 +16396,7 @@ msgstr "Twój bank podaje %1 na dzień %2; KassenSturz różni się o %3. Porów
 #, kde-format
 msgctxt "@action:button the user has read the summary"
 msgid "Seen"
-msgstr "Widziałem"
+msgstr "Przeczytane"
 
 #: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:31
 #, kde-format
@@ -16494,7 +16494,7 @@ msgstr "Jakiego rodzaju jest to konto?"
 #, kde-format
 msgctxt "@label:textbox"
 msgid "You owe:"
-msgstr "Jesteś winien:"
+msgstr "Do spłaty:"
 
 #: crates/kassensturz-ui-bridge/qml/WizardAccountsPage.qml:178
 #, kde-format
@@ -16506,7 +16506,7 @@ msgstr "Dzisiaj:"
 #, kde-format
 msgctxt "@label:textbox"
 msgid "How much do you owe on it today?"
-msgstr "Ile jesteś na nim dzisiaj winien?"
+msgstr "Ile dziś zostało do spłaty?"
 
 #: crates/kassensturz-ui-bridge/qml/WizardAccountsPage.qml:185
 #, kde-format
@@ -16571,7 +16571,7 @@ msgstr "Twoja domowa księga jest gotowa. Jak chcesz od teraz dodawać to, co p�
 #, kde-format
 msgctxt "@action:button"
 msgid "I'll type them myself"
-msgstr "Będę je wpisywać sam"
+msgstr "Będę je wpisywać samodzielnie"
 
 #: crates/kassensturz-ui-bridge/qml/WizardEntriesPage.qml:118
 #, kde-format
@@ -17138,7 +17138,7 @@ msgctxt ""
 "@info the other party's name as the bank delivered it for a transaction in "
 "the book, %1 is the name"
 msgid "As delivered: %1"
-msgstr "Jak dostarczono: %1"
+msgstr "Według banku: %1"
 
 #: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:428
 #, kde-format
@@ -17155,7 +17155,7 @@ msgid ""
 "Your bank wants you to choose an approval method first. Go back to "
 "Settings, choose \"Change this bank login…\", pick the method and save; "
 "then link the account again."
-msgstr "Twój bank chce, abyś najpierw wybrał metodę zatwierdzania. Wróć do Ustawień, wybierz „Zmień to logowanie do banku…”, wskaż metodę i zapisz; potem połącz konto ponownie."
+msgstr "Twój bank wymaga najpierw wyboru metody zatwierdzania. Wróć do Ustawień, wybierz „Zmień to logowanie do banku…”, wskaż metodę i zapisz; potem połącz konto ponownie."
 
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:326
 #, kde-format
@@ -17264,7 +17264,7 @@ msgid ""
 "Your own Rules decide where each transaction goes, not the AI. If your book "
 "changes before you confirm, nothing is sorted and you are asked to prepare "
 "it again. Undo takes the whole run back."
-msgstr "To Twoje własne reguły decydują, dokąd trafia każda transakcja, a nie AI. Jeśli Twoja księga zmieni się, zanim potwierdzisz, nic nie zostanie przypisane i zostaniesz poproszony o ponowne przygotowanie. „Cofnij” cofa cały przebieg."
+msgstr "To Twoje własne reguły decydują, dokąd trafia każda transakcja, a nie AI. Jeśli Twoja księga zmieni się, zanim potwierdzisz, nic nie zostanie przypisane i pojawi się prośba o ponowne przygotowanie. „Cofnij” cofa cały przebieg."
 
 #: crates/kassensturz-ui-bridge/qml/RulesApply.qml
 #, kde-format
@@ -17282,7 +17282,7 @@ msgid ""
 "Your Rules sort the transactions already in your book, in the order of the "
 "list: the first Rule that fits a transaction decides. Transactions you "
 "sorted or changed yourself are never touched."
-msgstr "Twoje reguły przypisują transakcje, które już są w Twojej księdze, w kolejności listy: decyduje pierwsza reguła, która pasuje do transakcji. Transakcje, które sam przypisałeś lub zmieniłeś, nigdy nie są ruszane."
+msgstr "Twoje reguły przypisują transakcje, które już są w Twojej księdze, w kolejności listy: decyduje pierwsza reguła, która pasuje do transakcji. Transakcje przypisane lub zmienione ręcznie nigdy nie są zmieniane."
 
 #: crates/kassensturz-ui-bridge/qml/RulesApply.qml
 #, kde-format
@@ -17291,7 +17291,7 @@ msgid ""
 "This Rule sorts the transactions already in your book that it decides. A "
 "Rule before it in the list still takes a transaction first. Transactions you "
 "sorted or changed yourself are never touched."
-msgstr "Ta reguła przypisuje transakcje już będące w Twojej księdze, o których decyduje. Reguła wcześniej na liście i tak przejmuje transakcję pierwsza. Transakcje, które sam przypisałeś lub zmieniłeś, nigdy nie są ruszane."
+msgstr "Ta reguła przypisze pasujące transakcje, które już są w Twojej księdze. Reguła wyżej na liście ma jednak pierwszeństwo. Transakcje przypisane lub zmienione ręcznie nigdy nie są zmieniane."
 
 #: crates/kassensturz-ui-bridge/qml/RulesApply.qml
 #, kde-format
@@ -17872,7 +17872,7 @@ msgid ""
 "As a credit card, its balance counts as what you owe instead of what you "
 "have. Your transactions, the balance and what you are worth stay the same. "
 "You can undo this."
-msgstr "Jako karta kredytowa jego saldo liczy się jako to, co jesteś winien, a nie to, co masz. Twoje transakcje, saldo i to, ile jesteś wart, zostają bez zmian. Możesz to cofnąć."
+msgstr "Gdy konto jest kartą kredytową, jego saldo liczy się jako dług, a nie jako środki. Twoje transakcje, saldo i majątek netto zostają bez zmian. Możesz to cofnąć."
 
 #: crates/kassensturz-ui-bridge/qml/AccountDetailsPage.qml:247
 #, kde-format
@@ -17881,7 +17881,7 @@ msgid ""
 "Its balance then counts as what you have instead of what you owe. Your "
 "transactions, the balance and what you are worth stay the same. You can undo "
 "this."
-msgstr "Jego saldo liczy się wtedy jako to, co masz, a nie to, co jesteś winien. Twoje transakcje, saldo i to, ile jesteś wart, zostają bez zmian. Możesz to cofnąć."
+msgstr "Jego saldo liczy się wtedy jako środki, a nie jako dług. Twoje transakcje, saldo i majątek netto zostają bez zmian. Możesz to cofnąć."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:584
 #, kde-format
@@ -17903,7 +17903,7 @@ msgctxt "@info"
 msgid ""
 "Its balance then counts as what you owe instead of what you have; what you "
 "are worth stays the same."
-msgstr "Jego saldo liczy się wtedy jako to, co jesteś winien, a nie to, co masz; to, ile jesteś wart, zostaje bez zmian."
+msgstr "Jego saldo liczy się wtedy jako dług, a nie jako środki; majątek netto zostaje bez zmian."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:588
 #, kde-format
@@ -17911,7 +17911,7 @@ msgctxt "@info"
 msgid ""
 "Its balance then counts as what you have instead of what you owe; what you "
 "are worth stays the same."
-msgstr "Jego saldo liczy się wtedy jako to, co masz, a nie to, co jesteś winien; to, ile jesteś wart, zostaje bez zmian."
+msgstr "Jego saldo liczy się wtedy jako środki, a nie jako dług; majątek netto zostaje bez zmian."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1464
 #, kde-format
@@ -18071,7 +18071,7 @@ msgid ""
 "The AI changed what this saved chart shows; everything it did not name stays "
 "as you set it. The figures are worked out by KassenSturz from your book. The "
 "chart changes only when you confirm, and Undo puts it back."
-msgstr "AI zmieniło to, co pokazuje ten zapisany wykres; wszystko, czego nie wymieniło, zostaje tak, jak to ustawiłeś. Liczby wylicza KassenSturz z Twojej księgi. Wykres zmienia się dopiero, gdy potwierdzisz, a „Cofnij” go przywraca."
+msgstr "AI zmieniło to, co pokazuje ten zapisany wykres; wszystko, czego nie wymieniło, zostaje bez zmian. Liczby wylicza KassenSturz z Twojej księgi. Wykres zmienia się dopiero, gdy potwierdzisz, a „Cofnij” go przywraca."
 
 #, kde-format
 msgctxt "@title:group"
@@ -18433,7 +18433,7 @@ msgctxt "@info a function of formulas, its English name first"
 msgid ""
 "COUNT: how many transactions the categories or groups have in the period. A "
 "transaction in more than one of them counts once."
-msgstr "COUNT: ile transakcji mają kategorie lub grupy w okresie. Transakcja w więcej niż jednej z nich liczy się raz."
+msgstr "COUNT: liczba transakcji w kategoriach lub grupach w danym okresie. Transakcja w więcej niż jednej z nich liczy się raz."
 
 #: crates/kassensturz-ui-bridge/qml/HelpPage.qml:186
 #, kde-format
@@ -18849,7 +18849,7 @@ msgstr "Wydatki jako pierścień, według kategorii głównych"
 #, kde-format
 msgctxt "@item:inmenu a ready chart description"
 msgid "What you are worth, with its average"
-msgstr "Ile jesteś wart, ze średnią"
+msgstr "Majątek netto, ze średnią"
 
 #, kde-format
 msgctxt "@title"
@@ -18887,7 +18887,7 @@ msgstr "Nazwę danych zapisz jako \"data\": { \"name\": … }. Każda nazwa ma p
 #, kde-format
 msgctxt "@info what a data name of a chart description holds"
 msgid "What you spent in the period, one row per category."
-msgstr "Ile wydałeś w okresie, jeden wiersz na kategorię."
+msgstr "Wydatki w okresie, jeden wiersz na kategorię."
 
 #, kde-format
 msgctxt "@info what a data name of a chart description holds"
@@ -18904,7 +18904,7 @@ msgstr "Ile było na każdym koncie na koniec okresu i czy to dług, czy konto z
 #, kde-format
 msgctxt "@info what a data name of a chart description holds"
 msgid "What you have, owe and are worth at the end of each month."
-msgstr "Co masz, co jesteś winien i ile jesteś wart na koniec każdego miesiąca."
+msgstr "Środki, długi i majątek netto na koniec każdego miesiąca."
 
 #, kde-format
 msgctxt "@info what a data name of a chart description holds"
@@ -19196,7 +19196,7 @@ msgid ""
 "The lowest point is the smallest balance at the end of a day, from the start "
 "of this month to today. For an account you owe on, such as a credit card, a "
 "debt is a negative balance: under −1,000 means more than 1,000 owed."
-msgstr "Najniższy punkt to najmniejsze saldo na koniec dnia, od początku tego miesiąca do dzisiaj. Dla konta, na którym jesteś winien, takiego jak karta kredytowa, dług to saldo ujemne: poniżej −1000 oznacza ponad 1000 długu."
+msgstr "Najniższy punkt to najmniejsze saldo na koniec dnia, od początku tego miesiąca do dzisiaj. Dla konta z zadłużeniem, takiego jak karta kredytowa, dług to saldo ujemne: poniżej −1000 oznacza ponad 1000 długu."
 
 msgctxt "@info"
 msgid ""
@@ -20172,7 +20172,7 @@ msgctxt "@info"
 msgid ""
 "Your book wasn't moved: something in the folder changed since you chose it. "
 "Choose it again."
-msgstr "Twoja księga nie została przeniesiona: coś w folderze zmieniło się od czasu, gdy go wybrałeś. Wybierz go ponownie."
+msgstr "Twoja księga nie została przeniesiona: w międzyczasie coś w folderze się zmieniło. Wybierz go ponownie."
 
 msgctxt "@info"
 msgid ""
@@ -20778,7 +20778,7 @@ msgid ""
 "You gave KassenSturz access to the folder earlier, but the system has taken "
 "it back, or the folder is gone. Choose the folder again to open the book. "
 "Nothing was changed."
-msgstr "Wcześniej dałeś KassenSturz dostęp do tego folderu, ale system go odebrał albo folderu już nie ma. Wybierz folder ponownie, aby otworzyć księgę. Nic nie zostało zmienione."
+msgstr "KassenSturz miał wcześniej dostęp do tego folderu, ale system go odebrał albo folderu już nie ma. Wybierz folder ponownie, aby otworzyć księgę. Nic nie zostało zmienione."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:91
 #, kde-format
@@ -20910,9 +20910,9 @@ msgstr "Połączenia zostały cofnięte. Oba wpisy są znowu na swoich kontach."
 msgctxt "@info"
 msgid "%1 move between your accounts was joined, as you asked."
 msgid_plural "%1 moves between your accounts were joined, as you asked."
-msgstr[0] "Połączono %1 przeniesienie między Twoimi kontami, tak jak prosiłeś."
-msgstr[1] "Połączono %1 przeniesienia między Twoimi kontami, tak jak prosiłeś."
-msgstr[2] "Połączono %1 przeniesień między Twoimi kontami, tak jak prosiłeś."
+msgstr[0] "Połączono %1 przeniesienie między Twoimi kontami, zgodnie z Twoją prośbą."
+msgstr[1] "Połączono %1 przeniesienia między Twoimi kontami, zgodnie z Twoją prośbą."
+msgstr[2] "Połączono %1 przeniesień między Twoimi kontami, zgodnie z Twoją prośbą."
 
 #: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:175
 #, kde-format
@@ -20962,7 +20962,7 @@ msgctxt "@info"
 msgid ""
 "Two entries fit equally well, or a join would lose something you wrote. Join"
 " them yourself: Accounts › Find moves between my accounts…"
-msgstr "Dwa wpisy pasują równie dobrze albo połączenie straciłoby coś, co napisałeś. Połącz je samodzielnie: Konta › Znajdź przeniesienia między moimi kontami…"
+msgstr "Dwa wpisy pasują w równym stopniu albo połączenie usunęłoby coś, co wpisano ręcznie. Połącz je samodzielnie: Konta › Znajdź przeniesienia między moimi kontami…"
 
 #: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:74
 #, kde-format
@@ -21158,9 +21158,9 @@ msgid ""
 "These changes empty or overwrite %1 text you wrote, such as a note or a name."
 msgid_plural ""
 "These changes empty or overwrite %1 texts you wrote, such as notes or names."
-msgstr[0] "Te zmiany opróżniają lub nadpisują %1 tekst, który napisałeś, taki jak notatka lub nazwa."
-msgstr[1] "Te zmiany opróżniają lub nadpisują %1 teksty, które napisałeś, takie jak notatki lub nazwy."
-msgstr[2] "Te zmiany opróżniają lub nadpisują %1 tekstów, które napisałeś, takich jak notatki lub nazwy."
+msgstr[0] "Te zmiany wyczyszczą lub nadpiszą %1 wpisany przez Ciebie tekst, np. notatkę lub nazwę."
+msgstr[1] "Te zmiany wyczyszczą lub nadpiszą %1 wpisane przez Ciebie teksty, np. notatki lub nazwy."
+msgstr[2] "Te zmiany wyczyszczą lub nadpiszą %1 wpisanych przez Ciebie tekstów, np. notatek lub nazw."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:500
 #, kde-format
@@ -21194,7 +21194,7 @@ msgstr "„Cofnij” cofa to wszystko, dopóki historia to przechowuje."
 #, kde-format
 msgctxt "@option:check"
 msgid "I have read what these changes take away and want them"
-msgstr "Przeczytałem, co te zmiany zabierają, i akceptuję je"
+msgstr "Wiem, co te zmiany usuną, i chcę je wprowadzić"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:830
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:906
@@ -21278,7 +21278,7 @@ msgctxt "@info what is sent"
 msgid ""
 "The notes you wrote for the AI in these settings, if you wrote any. They go "
 "with every question."
-msgstr "Notatki, które napisałeś dla AI w tych ustawieniach, jeśli jakieś napisałeś. Są dołączane do każdego pytania."
+msgstr "Twoje notatki dla AI z tych ustawień. AI dostaje je przy każdym pytaniu."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:689
 #, kde-format
@@ -21919,7 +21919,7 @@ msgctxt "@info"
 msgid ""
 "For an account you keep by hand: this adds the entry to the account, as you "
 "typed it. Undo takes it back."
-msgstr "Dla konta, które prowadzisz ręcznie: dodaje wpis do konta tak, jak go wpisałeś. „Cofnij” go cofa."
+msgstr "Dla konta, które prowadzisz ręcznie: dodaje wpis do konta dokładnie tak, jak go wpisano. „Cofnij” go cofa."
 
 #: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml:372
 #, kde-format
@@ -22239,7 +22239,7 @@ msgstr "Nie udało się odczytać zaplanowanych płatności."
 #, kde-format
 msgctxt "@info:tooltip"
 msgid "Nothing planned yet, or no checking or cash account to look ahead for."
-msgstr "Nic jeszcze nie zaplanowano albo nie ma konta osobistego ani gotówkowego, dla którego można by patrzeć naprzód."
+msgstr "Nic jeszcze nie zaplanowano albo nie ma konta osobistego ani gotówkowego, dla którego można przygotować prognozę."
 
 #: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:151
 #, kde-format
@@ -22357,7 +22357,7 @@ msgstr "Twój komputer nie odebrał dostępu. Nic nie zostało zmienione i żade
 #, kde-format
 msgctxt "@title:group"
 msgid "What you gave access to"
-msgstr "Do czego dałeś dostęp"
+msgstr "Udostępnione foldery"
 
 #: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
 #, kde-format
@@ -22387,7 +22387,7 @@ msgstr "Żaden plik nie zostanie usunięty."
 #, kde-format
 msgctxt "@info"
 msgid "You have not given KassenSturz access to any folder."
-msgstr "Nie dałeś KassenSturz dostępu do żadnego folderu."
+msgstr "KassenSturz nie ma dostępu do żadnego folderu."
 
 #: crates/kassensturz-ui-bridge/qml/GrantedFoldersPage.qml
 #, kde-format
@@ -22547,7 +22547,7 @@ msgstr "Skąd przyszły Twoje pieniądze i dokąd poszły"
 #, kde-format
 msgctxt "@info"
 msgid "Shows where the money of the period came from and where it went, as bands as wide as their amount. If you earned more than you spent, the rest is shown as left over; if you spent more, as taken from your reserves. Money moved between your own accounts is not counted. One currency is shown, with no conversion."
-msgstr "Pokazuje, skąd przyszły pieniądze z okresu i dokąd poszły, jako pasma tak szerokie jak ich kwota. Jeśli zarobiłeś więcej, niż wydałeś, reszta jest pokazana jako to, co zostało; jeśli wydałeś więcej, jako wzięte z Twoich oszczędności. Pieniądze przenoszone między Twoimi własnymi kontami nie są liczone. Pokazywana jest jedna waluta, bez przeliczania."
+msgstr "Pokazuje, skąd w danym okresie przyszły pieniądze i na co poszły. Szerokość każdego pasma odpowiada kwocie. Jeśli wpływy są większe niż wydatki, nadwyżka jest pokazana jako to, co zostało; jeśli wydatki są większe, brakująca część jest pokazana jako wzięta z oszczędności. Przeniesienia między Twoimi kontami nie są liczone. Wykres pokazuje jedną walutę, bez przeliczania."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:198
 #, kde-format
@@ -22661,7 +22661,7 @@ msgstr "nie wybrano skrzynki i archiwum w „Twoich własnych narzędziach AI”
 #, kde-format
 msgctxt "@info"
 msgid "you chose another inbox since"
-msgstr "od tego czasu wybrałeś inną skrzynkę"
+msgstr "w międzyczasie wybrano inną skrzynkę"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:397
 #, kde-format
@@ -22778,7 +22778,7 @@ msgstr "Trafia do: %1"
 #, kde-format
 msgctxt "@info"
 msgid "You put this bill back on purpose, for example because of a tip or a part payment. Your transaction keeps the bank's amount."
-msgstr "Celowo przywróciłeś ten rachunek, na przykład z powodu napiwku lub częściowej płatności. Twoja transakcja zachowuje kwotę z banku."
+msgstr "Ten rachunek został celowo przywrócony, na przykład z powodu napiwku lub częściowej płatności. Twoja transakcja zachowuje kwotę z banku."
 
 #: crates/kassensturz-ui-bridge/qml/AiPermissionGrid.qml:142
 #, kde-format
@@ -23149,7 +23149,7 @@ msgstr "Trend (krótkoterminowy minus długoterminowy)"
 #, kde-format
 msgctxt "@label a series of a chart: the average of the trend over the last few months"
 msgid "Signal line"
-msgstr "Linia sygnału"
+msgstr "Linia sygnałowa"
 
 #: crates/kassensturz-ui-bridge/qml/ChartView.qml:251
 #, kde-format
@@ -23173,13 +23173,13 @@ msgstr "Trend krótkoterminowy na tle długoterminowego (MACD)"
 #, kde-format
 msgctxt "@info"
 msgid "Shows what is left, or money in, or money out, in each month, and next to it a moving average: the average of that month and the ones before it, which smooths out the ups and downs so you can see where things are heading. You choose how many months it spans. Months from before the period are used for the first averages but not shown. Each currency is shown on its own; they are never added together."
-msgstr "Pokazuje dla każdego miesiąca to, co zostaje, albo wpływy, albo wydatki, a obok średnią kroczącą: średnią z tego miesiąca i miesięcy wcześniejszych. Wygładza wahania, żeby było widać, dokąd to zmierza. Sam wybierasz, ile miesięcy obejmuje. Miesiące sprzed okresu liczą się do pierwszych średnich, ale nie są pokazywane. Każda waluta jest pokazana osobno; nigdy nie są sumowane."
+msgstr "Pokazuje dla każdego miesiąca to, co zostaje, albo wpływy, albo wydatki, a obok średnią kroczącą: średnią z tego miesiąca i miesięcy wcześniejszych. Wygładza wahania, żeby było widać, dokąd to zmierza. Możesz wybrać, ile miesięcy obejmuje. Miesiące sprzed okresu liczą się do pierwszych średnich, ale nie są pokazywane. Każda waluta jest pokazana osobno; nigdy nie są sumowane."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:151
 #, kde-format
 msgctxt "@info"
 msgid "Shows whether the recent months are doing better or worse than the longer run. The trend line is the average of the last few months less the average of the last many months; above zero means the recent months are better. The signal line is the average of the trend line over a few months, and the gap is the trend line less the signal line. You choose the lengths. Each currency is shown on its own; they are never added together."
-msgstr "Pokazuje, czy ostatnie miesiące idą lepiej, czy gorzej niż dłuższy okres. Linia trendu to średnia z ostatnich kilku miesięcy minus średnia z ostatnich wielu miesięcy; powyżej zera oznacza, że ostatnie miesiące są lepsze. Linia sygnału to średnia linii trendu z kilku miesięcy, a różnica to linia trendu minus linia sygnału. Sam wybierasz długości. Każda waluta jest pokazana osobno; nigdy nie są sumowane."
+msgstr "Pokazuje, czy ostatnie miesiące idą lepiej, czy gorzej niż dłuższy okres. Linia trendu to średnia z ostatnich kilku miesięcy minus średnia z ostatnich wielu miesięcy; powyżej zera oznacza, że ostatnie miesiące są lepsze. Linia sygnałowa to średnia linii trendu z kilku miesięcy, a różnica to linia trendu minus linia sygnałowa. Długości możesz wybrać. Każda waluta jest pokazana osobno; nigdy nie są sumowane."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:213
 #, kde-format
@@ -23197,7 +23197,7 @@ msgstr "Średnia długoterminowa z"
 #, kde-format
 msgctxt "@label:listbox the months MACD's signal line spans"
 msgid "Signal line over"
-msgstr "Linia sygnału z"
+msgstr "Linia sygnałowa z"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:350
 #, kde-format
@@ -23332,7 +23332,7 @@ msgstr "MACD"
 #, kde-format
 msgctxt "@title:column a table of a daily balance: the average of MACD over a few days"
 msgid "Signal line"
-msgstr "Linia sygnału"
+msgstr "Linia sygnałowa"
 
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:160
 #, kde-format
@@ -23362,13 +23362,13 @@ msgstr "MACD (krótka minus długa średnia)"
 #, kde-format
 msgctxt "@label a series of a chart: the average of MACD over a few days"
 msgid "Signal line"
-msgstr "Linia sygnału"
+msgstr "Linia sygnałowa"
 
 #: crates/kassensturz-ui-bridge/qml/ChartView.qml:277
 #, kde-format
 msgctxt "@label a series of a chart, drawn as bars: MACD less its signal line"
 msgid "Histogram (MACD less signal line)"
-msgstr "Histogram (MACD minus linia sygnału)"
+msgstr "Histogram (MACD minus linia sygnałowa)"
 
 #: crates/kassensturz-ui-bridge/qml/ChartView.qml:537
 #, kde-format
@@ -23392,7 +23392,7 @@ msgstr "Saldo konta dzień po dniu, ze średnimi i MACD"
 #, kde-format
 msgctxt "@info"
 msgid "Shows what the account held at the end of each day, as a stepped line, up to today. Two averages follow the balance and weigh the latest days most, by default over 12 and 26 days. The panel under it shows MACD, the short average less the long one: above zero, the balance has lately risen faster than its longer average. The signal line is the average of MACD, and the bars are MACD less the signal line. The averages start well before the period, so the first day is already settled. If the account's first entry is inside the period, the chart starts on that day. Without a chosen account, your checking, savings and cash accounts are added up. Each currency is shown on its own."
-msgstr "Pokazuje, ile było na koncie na koniec każdego dnia, jako linię schodkową aż do dziś. Dwie średnie podążają za saldem i najmocniej ważą ostatnie dni, domyślnie z 12 i 26 dni. Panel pod nim pokazuje MACD, czyli krótką średnią minus długą: powyżej zera saldo rosło ostatnio szybciej niż jego dłuższa średnia. Linia sygnału to średnia MACD, a słupki to MACD minus linia sygnału. Średnie zaczynają się długo przed okresem, więc już pierwszy dzień jest ustalony. Jeśli pierwszy wpis konta przypada w okresie, wykres zaczyna się w tym dniu. Bez wybranego konta sumowane są konta bieżące, oszczędnościowe i gotówkowe. Każda waluta jest pokazywana osobno."
+msgstr "Pokazuje, ile było na koncie na koniec każdego dnia, jako linię schodkową aż do dziś. Dwie średnie podążają za saldem i najmocniej ważą ostatnie dni, domyślnie z 12 i 26 dni. Panel pod nim pokazuje MACD, czyli krótką średnią minus długą: powyżej zera saldo rosło ostatnio szybciej niż jego dłuższa średnia. Linia sygnałowa to średnia MACD, a słupki to MACD minus linia sygnałowa. Średnie zaczynają się długo przed okresem, więc już pierwszy dzień jest ustalony. Jeśli pierwszy wpis konta przypada w okresie, wykres zaczyna się w tym dniu. Bez wybranego konta sumowane są konta bieżące, oszczędnościowe i gotówkowe. Każda waluta jest pokazywana osobno."
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:199
 #, kde-format
@@ -23416,7 +23416,7 @@ msgstr "Długa średnia z"
 #, kde-format
 msgctxt "@label:listbox the days the signal line of a daily balance's MACD spans"
 msgid "Signal line over"
-msgstr "Linia sygnału z"
+msgstr "Linia sygnałowa z"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:383
 #, kde-format
@@ -23486,7 +23486,7 @@ msgstr[2] "Ten okres jeszcze się nie skończył, więc średnia jest dzielona p
 #, kde-format
 msgctxt "@info in the chat, above the list of what would be sent"
 msgid "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Below is what would be sent; to agree, open the AI settings. Or use a provider on this computer."
-msgstr "Ten dostawca działa na innym komputerze, a Ty nie zgodziłeś się jeszcze na to, co KassenSturz mu wysyła. Nic nie zostało wysłane. Poniżej jest to, co zostałoby wysłane; aby się zgodzić, otwórz ustawienia AI. Albo użyj dostawcy na tym komputerze."
+msgstr "Ten dostawca działa na innym komputerze, a nie ma jeszcze Twojej zgody na to, co KassenSturz mu wysyła. Nic nie zostało wysłane. Poniżej jest to, co zostałoby wysłane; aby wyrazić zgodę, otwórz ustawienia AI. Możesz też użyć dostawcy na tym komputerze."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:1
 #, kde-format
@@ -23522,7 +23522,7 @@ msgstr "Otwieranie księgi na dysku sieciowym może chwilę potrwać. Proszę cz
 #, kde-format
 msgctxt "@info %1 is a date"
 msgid "You agreed on %1, but KassenSturz can't confirm that agreement any more: it was kept only until KassenSturz closed, or it wasn't given in KassenSturz. Nothing is sent to this provider until you read what is sent and agree again."
-msgstr "Dnia %1 zgodziłeś się, ale KassenSturz nie może już potwierdzić tej zgody: obowiązywała tylko do zamknięcia KassenSturz albo nie została udzielona w KassenSturz. Nic nie jest wysyłane do tego dostawcy, dopóki nie przeczytasz, co jest wysyłane, i nie zgodzisz się ponownie."
+msgstr "Zgodę wyrażono %1, ale KassenSturz nie może już jej potwierdzić: obowiązywała tylko do zamknięcia KassenSturz albo nie została udzielona w KassenSturz. Nic nie jest wysyłane do tego dostawcy, dopóki nie przeczytasz, co jest wysyłane, i nie zgodzisz się ponownie."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:1
 #, kde-format
@@ -23645,7 +23645,7 @@ msgstr "KassenSturz wziął kwotę z transakcji w Twojej księdze, nie AI. Zapla
 #, kde-format
 msgctxt "@info"
 msgid "The AI took this amount from what you wrote. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
-msgstr "Tę kwotę AI wzięło z tego, co napisałeś. Zaplanowana płatność mówi tylko, czego się spodziewasz: nie przesuwa pieniędzy i nie tworzy transakcji, a prognoza ją uwzględnia. „Cofnij” ją wycofa."
+msgstr "Tę kwotę AI wzięło z Twojej wiadomości. Zaplanowana płatność mówi tylko, czego się spodziewasz: nie przesuwa pieniędzy i nie tworzy transakcji, a prognoza ją uwzględnia. „Cofnij” ją wycofa."
 
 #, kde-format
 msgctxt "@info"

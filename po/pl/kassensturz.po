@@ -576,7 +576,7 @@ msgstr "Kategoria:"
 #, kde-format
 msgctxt "@label:listbox the category a Rule books to"
 msgid "Books to:"
-msgstr "Księguje do:"
+msgstr "Przypisuje do:"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeCorrection.qml:216
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:289
@@ -943,14 +943,14 @@ msgstr "Słupki"
 #, kde-format
 msgctxt "@item:inlistbox a way to show figures"
 msgid "Pie"
-msgstr "Koło"
+msgstr "Kołowy"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:251
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:59
 #, kde-format
 msgctxt "@item:inlistbox a way to show figures"
 msgid "Ring"
-msgstr "Pierścień"
+msgstr "Pierścieniowy"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:253
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:61
@@ -964,7 +964,7 @@ msgstr "Linia"
 #, kde-format
 msgctxt "@item:inlistbox a way to show figures"
 msgid "Filled line"
-msgstr "Wypełniona linia"
+msgstr "Warstwowy"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:257
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:65
@@ -1211,7 +1211,7 @@ msgstr "Wewnątrz reguły „%1”: sprawdzana tylko wtedy, gdy ta reguła pasow
 #, kde-format
 msgctxt "@info %1 is the path of a category"
 msgid "Books matching transactions to %1."
-msgstr "Księguje pasujące transakcje do %1."
+msgstr "Przypisuje pasujące transakcje do %1."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:630
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:698
@@ -1245,7 +1245,7 @@ msgstr "%1 → %2"
 #, kde-format
 msgctxt "@info %1 and %2 are paths of categories"
 msgid "Books matching transactions to %2 (before: %1)."
-msgstr "Księguje pasujące transakcje do %2 (wcześniej: %1)."
+msgstr "Przypisuje pasujące transakcje do %2 (wcześniej: %1)."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:720
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:834
@@ -1277,7 +1277,7 @@ msgstr "Usuwane reguły"
 #, kde-format
 msgctxt "@info %1 is the path of a category"
 msgid "Booked matching transactions to %1."
-msgstr "Księgowała pasujące transakcje do %1."
+msgstr "Przypisywała pasujące transakcje do %1."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:851
 #, kde-format
@@ -3118,7 +3118,7 @@ msgstr "Gdy AI długo nie odpowiada"
 #, kde-format
 msgctxt "@item:inlistbox what to do when the AI takes long"
 msgid "Stop waiting by itself after 5 minutes"
-msgstr "Przestań czekać samodzielnie po 5 minutach"
+msgstr "Przestań czekać automatycznie po 5 minutach"
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:573
 #, kde-format
@@ -3219,7 +3219,7 @@ msgid ""
 "The provider at %1 is on another computer, even if that computer is in your "
 "home. When you ask the AI something, this leaves your computer and goes to "
 "it:"
-msgstr "Dostawca pod adresem %1 jest na innym komputerze, nawet jeśli ten komputer jest u Ciebie w domu. Gdy pytasz o coś AI, to opuszcza Twój komputer i trafia do niego:"
+msgstr "Dostawca pod adresem %1 działa na innym komputerze, nawet jeśli ten komputer stoi u Ciebie w domu. Gdy zadajesz pytanie AI, z Twojego komputera do dostawcy trafiają:"
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:735
 #, kde-format
@@ -3284,7 +3284,7 @@ msgstr "Karta kredytowa"
 #, kde-format
 msgctxt "@label an account at the bank, by its kind"
 msgid "Securities account"
-msgstr "Rachunek papierów wartościowych"
+msgstr "Rachunek maklerski"
 
 #: crates/kassensturz-ui-bridge/qml/BankAccountNames.qml:35
 #, kde-format
@@ -3779,7 +3779,7 @@ msgctxt "@info"
 msgid ""
 "KassenSturz keeps the number in memory until it closes. It is never saved, "
 "shown or logged, and is sent only to the bank, as the program's registration."
-msgstr "KassenSturz przechowuje numer w pamięci do zamknięcia. Nigdy nie jest zapisywany, pokazywany ani zapisywany w dzienniku i jest wysyłany tylko do banku jako rejestracja programu."
+msgstr "KassenSturz przechowuje numer w pamięci do zamknięcia. Nigdy nie jest zapisywany na dysku, pokazywany ani zapisywany w dzienniku i jest wysyłany tylko do banku jako rejestracja programu."
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:389
 #, kde-format
@@ -3808,7 +3808,7 @@ msgid ""
 "KassenSturz asks your bank for the transactions since the last time and "
 "shows them to you first. Nothing is added to your book until you say so. It "
 "only reads from your bank; it never sends money."
-msgstr "KassenSturz prosi Twój bank o transakcje od ostatniego razu i najpierw Ci je pokazuje. Nic nie zostaje dodane do Twojej księgi, dopóki tego nie powiesz. Tylko odczytuje dane z Twojego banku; nigdy nie wysyła pieniędzy."
+msgstr "KassenSturz pobiera z banku transakcje od ostatniej aktualizacji i najpierw Ci je pokazuje. Nic nie zostanie dodane, dopóki tego nie zatwierdzisz. KassenSturz tylko odczytuje dane z banku, nigdy nie wysyła pieniędzy."
 
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:195
 #, kde-format
@@ -3888,7 +3888,7 @@ msgstr "To konto jest połączone z rachunkiem papierów wartościowych w Twoim 
 #, kde-format
 msgctxt "@action:button %1 is the name of an account"
 msgid "Unlink %1 from its bank account"
-msgstr "Rozłącz %1 od jego konta bankowego"
+msgstr "Odłącz %1 od konta bankowego"
 
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:316
 #, kde-format
@@ -3974,7 +3974,7 @@ msgstr "Połącz"
 #, kde-format
 msgctxt "@info %1 is the name of an account"
 msgid "Which bank account fills %1? Its new transactions are fetched into it."
-msgstr "Które konto bankowe zasila %1? Jego nowe transakcje są do niego pobierane."
+msgstr "Z którego konta bankowego pobierać transakcje do %1?"
 
 #: crates/kassensturz-ui-bridge/qml/BankFetchPage.qml:464
 #, kde-format
@@ -4232,7 +4232,7 @@ msgctxt "@info"
 msgid ""
 "Connected. Your bank shows these accounts. Choose which account in "
 "KassenSturz each one fills, so its transactions can be fetched into it."
-msgstr "Połączono. Twój bank pokazuje te konta. Wybierz, które konto w KassenSturz każde z nich zasila, aby można było pobierać do niego jego transakcje."
+msgstr "Połączono. Twój bank pokazuje te konta. Wybierz, do którego konta w KassenSturz mają trafiać transakcje z każdego z nich."
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:409
 #, kde-format
@@ -4906,7 +4906,7 @@ msgid ""
 "KassenSturz runs in test mode, which never opens or changes your own books. "
 "Choose a book in the test folder, or try an example book. The book wasn't "
 "touched."
-msgstr "KassenSturz działa w trybie testowym, który nigdy nie otwiera ani nie zmienia Twoich własnych ksiąg. Wybierz księgę w folderze testowym albo wypróbuj przykładową księgę. Księga nie została tknięta."
+msgstr "KassenSturz działa w trybie testowym, który nigdy nie otwiera ani nie zmienia Twoich prawdziwych danych. Wybierz plik w folderze testowym albo wypróbuj przykładowe dane. Plik nie został zmieniony."
 
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:82
 #, kde-format
@@ -5792,7 +5792,7 @@ msgstr "Wewnątrz:"
 #, kde-format
 msgctxt "@item:inlistbox put the category at the top level"
 msgid "Nothing, on its own"
-msgstr "Nic, osobno"
+msgstr "Brak (najwyższy poziom)"
 
 #: crates/kassensturz-ui-bridge/qml/CategoryPage.qml:145
 #, kde-format
@@ -6065,19 +6065,19 @@ msgstr "Scalono dwa tagi"
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Chose to join a monthly move by itself"
-msgstr "Wybrano samodzielne łączenie comiesięcznego przelewu"
+msgstr "Włączono automatyczne łączenie comiesięcznego przelewu"
 
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:116
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Stopped joining a monthly move by itself"
-msgstr "Wyłączono samodzielne łączenie comiesięcznego przelewu"
+msgstr "Wyłączono automatyczne łączenie comiesięcznego przelewu"
 
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:118
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Joined monthly moves of your own money by themselves"
-msgstr "Comiesięczne przelewy własne zostały połączone samodzielnie"
+msgstr "Comiesięczne przelewy własne zostały połączone automatycznie"
 
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:120
 #, kde-format
@@ -6131,7 +6131,7 @@ msgstr "Pominięto tym razem zaplanowaną płatność"
 #, kde-format
 msgctxt "@info a change you made"
 msgid "Expected a skipped payment again"
-msgstr "Ponownie oczekiwano pominiętej płatności"
+msgstr "Przywrócono oczekiwanie na pominiętą płatność"
 
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml:138
 #, kde-format
@@ -7937,7 +7937,7 @@ msgctxt "@info one line about an example book"
 msgid ""
 "An everyday household with a checking account, savings, a credit card and "
 "cash. The easiest place to start."
-msgstr "Zwykłe gospodarstwo domowe z kontem osobistym, oszczędnościami, kartą kredytową i gotówką. Najłatwiejszy początek."
+msgstr "Zwykłe gospodarstwo domowe z kontem osobistym, oszczędnościami, kartą kredytową i gotówką. Najlepszy wybór na początek."
 
 #: crates/kassensturz-ui-bridge/qml/ExampleBookChooser.qml:59
 #, kde-format
@@ -8122,7 +8122,7 @@ msgstr "Tabulator"
 #, kde-format
 msgctxt "@label:listbox"
 msgid "Decimals are written with"
-msgstr "Ułamki są zapisywane z"
+msgstr "Separator dziesiętny"
 
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml:196
 #, kde-format
@@ -8830,13 +8830,13 @@ msgstr "Przy znaku %1 to nie jest zapisane tak, jak zapisuje się formuły. Zmie
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid ""
 "%1 was given too few parts (character %2). Add the ones that are missing."
-msgstr "%1 dostała za mało części (znak %2). Dodaj te, których brakuje."
+msgstr "Funkcja %1 ma za mało argumentów (znak %2). Dodaj brakujące."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:198
 #, kde-format
 msgctxt "@info %1 is a function name, %2 a character position"
 msgid "%1 was given too many parts (character %2). Take some out."
-msgstr "%1 dostała za dużo części (znak %2). Usuń niektóre."
+msgstr "Funkcja %1 ma za dużo argumentów (znak %2). Usuń niektóre."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:200
 #, kde-format
@@ -9931,7 +9931,7 @@ msgctxt "@info %1 is the name of a category"
 msgid ""
 "A Rule books to %1 or looks at it, so it can't be deleted. Change or delete "
 "the Rule first."
-msgstr "Reguła księguje do %1 lub ją sprawdza, więc nie można jej usunąć. Najpierw zmień lub usuń regułę."
+msgstr "Reguła przypisuje do %1 lub ją sprawdza, więc nie można jej usunąć. Najpierw zmień lub usuń regułę."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:513
 #, kde-format
@@ -10343,7 +10343,7 @@ msgctxt "@info"
 msgid ""
 "KassenSturz is still talking to your bank. Wait for it to finish and try "
 "again."
-msgstr "KassenSturz nadal rozmawia z Twoim bankiem. Poczekaj, aż skończy, i spróbuj ponownie."
+msgstr "KassenSturz nadal łączy się z Twoim bankiem. Poczekaj, aż skończy, i spróbuj ponownie."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:623
 #, kde-format
@@ -10523,7 +10523,7 @@ msgstr "Największa z liczb."
 #, kde-format
 msgctxt "@info a function of formulas"
 msgid "How many transactions the categories or groups have in the period."
-msgstr "Ile transakcji mają kategorie lub grupy w danym okresie."
+msgstr "Liczba transakcji w kategoriach lub grupach w danym okresie."
 
 #: crates/kassensturz-ui-bridge/qml/FormulaField.qml:65
 #, kde-format
@@ -10743,7 +10743,7 @@ msgstr "Bez celu pasek postępu wypełnia się tylko dla procentu. Ustaw cel alb
 #, kde-format
 msgctxt "@info"
 msgid "Where the month's money came from appears here once something came in."
-msgstr "Gdy coś wpłynie, pojawi się tutaj, skąd pochodziły pieniądze w tym miesiącu."
+msgstr "Tu zobaczysz, skąd w tym miesiącu wpłynęły pieniądze – gdy tylko pojawi się pierwszy wpływ."
 
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml:404
 #, kde-format
@@ -11832,7 +11832,7 @@ msgstr "Te widoki są tym, co dają ich raporty: nic do zrobienia."
 #, kde-format
 msgctxt "@title:group reports"
 msgid "Not kept"
-msgstr "Nie zachowane"
+msgstr "Niezachowane"
 
 #: crates/kassensturz-ui-bridge/qml/KmyReportsImportPage.qml:202
 #, kde-format
@@ -12668,7 +12668,7 @@ msgstr "Ile jest na każdym koncie, i jeden przycisk, aby zaktualizować wszystk
 #, kde-format
 msgctxt "@info what a template shows"
 msgid "Nothing yet: you add the widgets you want."
-msgstr "Na razie nic: dodajesz widżety, które chcesz."
+msgstr "Na razie pusty: dodaj widżety, które chcesz."
 
 #: crates/kassensturz-ui-bridge/qml/NewDashboardDialog.qml:95
 #, kde-format
@@ -13046,16 +13046,16 @@ msgid ""
 "This window is too narrow to arrange columns, so the widgets are listed one "
 "under the other. You can move them earlier or later. Make the window wider "
 "to arrange them side by side."
-msgstr "To okno jest zbyt wąskie, aby układać kolumny, więc widżety są wypisane jeden pod drugim. Możesz przesuwać je wcześniej lub później. Poszerz okno, aby ułożyć je obok siebie."
+msgstr "To okno jest zbyt wąskie, aby układać kolumny, więc widżety są wypisane jeden pod drugim. Możesz przesuwać je w górę lub w dół. Poszerz okno, aby ułożyć je obok siebie."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:749
 #, kde-format
 msgctxt "@info %1 is how many widgets"
 msgid "%1 widget on this page has a problem. It says what is wrong."
 msgid_plural "%1 widgets on this page have a problem. Each says what is wrong."
-msgstr[0] "%1 widżet na tej stronie ma problem. Mówi, co jest nie tak."
-msgstr[1] "%1 widżety na tej stronie mają problem. Każdy mówi, co jest nie tak."
-msgstr[2] "%1 widżetów na tej stronie ma problem. Każdy mówi, co jest nie tak."
+msgstr[0] "%1 widżet na tej stronie ma problem. Opis problemu znajdziesz w widżecie."
+msgstr[1] "%1 widżety na tej stronie mają problem. Opis problemu znajdziesz w każdym z nich."
+msgstr[2] "%1 widżetów na tej stronie ma problem. Opis problemu znajdziesz w każdym z nich."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:752
 #, kde-format
@@ -13632,7 +13632,7 @@ msgstr "Stopa oszczędności"
 #, kde-format
 msgctxt "@item:inlistbox a key figure the user works out with a formula"
 msgid "A formula I write"
-msgstr "Formuła, którą napiszę"
+msgstr "Własna formuła"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:264
 #, kde-format
@@ -14867,7 +14867,7 @@ msgid ""
 "The overview reminds you when an account linked to your bank was last "
 "updated from it longer ago than this. Banks only list their recent "
 "transactions, so a long wait can leave some out."
-msgstr "Przegląd przypomina Ci, gdy konto połączone z bankiem zostało ostatnio zaktualizowane z niego dawniej niż ten czas. Banki pokazują tylko ostatnie transakcje, więc przy długim czekaniu części może zabraknąć."
+msgstr "Przegląd przypomina Ci, gdy konto połączone z bankiem nie było aktualizowane dłużej niż ten czas. Banki pokazują tylko ostatnie transakcje, więc przy długim czekaniu części może zabraknąć."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:535
 #, kde-format
@@ -15528,7 +15528,7 @@ msgctxt ""
 "@item:inlistbox a kind of chart: the balance of accounts per day, week or "
 "month"
 msgid "Balance candles"
-msgstr "Świece salda"
+msgstr "Wykres świecowy salda"
 
 #: crates/kassensturz-ui-bridge/qml/StatisticWizard.qml:133
 #, kde-format
@@ -15962,7 +15962,7 @@ msgstr "Na przykład sklep"
 #, kde-format
 msgctxt "@label the other party's name as the bank or file delivered it"
 msgid "As delivered:"
-msgstr "Jak dostarczono:"
+msgstr "Według banku:"
 
 #: crates/kassensturz-ui-bridge/qml/TransactionPage.qml:278
 #, kde-format
@@ -16100,7 +16100,7 @@ msgstr "Wpłata"
 #, kde-format
 msgctxt "@title:column what you owed after the transaction"
 msgid "You owed after"
-msgstr "Winien potem"
+msgstr "Dług potem"
 
 #: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:172
 #, kde-format
@@ -16192,7 +16192,7 @@ msgstr "Nie, zostaw je osobno"
 #, kde-format
 msgctxt "@info %1 is an amount, %2 the name of an account, %3 a date"
 msgid "%1 left %2 on %3."
-msgstr "%1 opuściło %2 dnia %3."
+msgstr "%1 wypłynęło z %2 dnia %3."
 
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:121
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:137
@@ -16269,7 +16269,7 @@ msgstr "Pominięto: anulowałeś PIN lub TAN dla jego banku."
 #, kde-format
 msgctxt "@info"
 msgid "Skipped: its bank failed for an account before it. Try again later."
-msgstr "Pominięto: jego bank zawiódł przy wcześniejszym koncie. Spróbuj ponownie później."
+msgstr "Pominięto: połączenie z bankiem nie powiodło się przy wcześniejszym koncie. Spróbuj ponownie później."
 
 #: crates/kassensturz-ui-bridge/qml/UpdateAllWidget.qml:92
 #, kde-format
@@ -16416,7 +16416,7 @@ msgctxt "@info"
 msgid ""
 "KassenSturz shows you how much money you have and where it goes. Everything "
 "stays on this computer."
-msgstr "KassenSturz pokazuje Ci, ile masz pieniędzy i na co idą. Wszystko zostaje na tym komputerze."
+msgstr "KassenSturz pokazuje, ile masz pieniędzy i na co je wydajesz. Wszystkie dane zostają na tym komputerze."
 
 #: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:65
 #, kde-format
@@ -16448,7 +16448,7 @@ msgctxt "@info"
 msgid ""
 "Most people only need to confirm this. You can add an account in another "
 "currency later."
-msgstr "Większość osób musi to tylko potwierdzić. Konto w innej walucie możesz dodać później."
+msgstr "Zwykle wystarczy potwierdzić. Konto w innej walucie możesz dodać później."
 
 #: crates/kassensturz-ui-bridge/qml/WelcomePage.qml:112
 #, kde-format
@@ -16545,7 +16545,7 @@ msgstr "Kwotę znajdziesz w aplikacji bankowej albo na wyciągu. Tylko wypróbow
 #, kde-format
 msgctxt "@action:button"
 msgid "Try an example book"
-msgstr "Wypróbuj przykładową księgę"
+msgstr "Wypróbuj na przykładowych danych"
 
 #: crates/kassensturz-ui-bridge/qml/WizardAccountsPage.qml:296
 #, kde-format
@@ -16634,7 +16634,7 @@ msgstr "Moje własne konta"
 #, kde-format
 msgctxt "@info"
 msgid "Type how much is in each account today. Takes about two minutes."
-msgstr "Wpisz, ile jest dzisiaj na każdym koncie. Zajmie to około dwóch minut."
+msgstr "Wpisz dzisiejsze saldo każdego konta. Zajmie to około dwóch minut."
 
 #: crates/kassensturz-ui-bridge/qml/WizardStartPage.qml:107
 #, kde-format
@@ -16658,7 +16658,7 @@ msgstr "Księga KMyMoney albo kopia zapisana w KassenSturz."
 #, kde-format
 msgctxt "@action:button"
 msgid "Open a KassenSturz book I already have…"
-msgstr "Otwórz księgę KassenSturz, którą już mam…"
+msgstr "Otwórz istniejący plik KassenSturz…"
 
 #: crates/kassensturz-ui-bridge/qml/ChartColorsCard.qml:58
 #, kde-format
@@ -17432,7 +17432,7 @@ msgstr "Saldo potem"
 #, kde-format
 msgctxt "@item:inmenu a column of the transactions: the IBAN of whom the money came from or went to"
 msgid "Their IBAN"
-msgstr "Ich IBAN"
+msgstr "IBAN kontrahenta"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml:1
 #, kde-format
@@ -18212,7 +18212,7 @@ msgid ""
 "every period you can write. The formula field lists the functions with a "
 "short line each and completes the names of your categories while you type. A "
 "mistake is described in words, with the place marked."
-msgstr "Możesz używać + - * / i nawiasów, % dla procentu oraz porównań = <> < > <= >=. Między częściami funkcji wszędzie działa ;, jak w LibreOffice Calc. Jeśli Twój format liczb używa kropki dziesiętnej, działa też przecinek. Okres po @ nadaje nazwie własny okres; następna część wymienia wszystkie okresy, które możesz zapisać. Pole formuły wymienia funkcje z krótkim opisem każdej i uzupełnia nazwy Twoich kategorii podczas pisania. Błąd jest opisany słowami, z zaznaczonym miejscem."
+msgstr "Możesz używać + - * / i nawiasów, % dla procentu oraz porównań = <> < > <= >=. Argumenty funkcji oddzielaj średnikiem (;), jak w LibreOffice Calc. Jeśli Twój format liczb używa kropki dziesiętnej, działa też przecinek. Okres po @ nadaje nazwie własny okres; następna część wymienia wszystkie okresy, które możesz zapisać. Pole formuły wymienia funkcje z krótkim opisem każdej i uzupełnia nazwy Twoich kategorii podczas pisania. Błąd jest opisany słowami, z zaznaczonym miejscem."
 
 #: crates/kassensturz-ui-bridge/qml/HelpPage.qml:142
 #, kde-format
@@ -19218,11 +19218,11 @@ msgstr "Dodaj ostrzeżenie…"
 
 msgctxt "@option:radio a kind of warning"
 msgid "A budget is used up past a share"
-msgstr "Budżet jest wykorzystany ponad udział"
+msgstr "Budżet przekracza próg wykorzystania"
 
 msgctxt "@option:radio a kind of warning"
 msgid "A budget was used less than a share"
-msgstr "Budżet został wykorzystany mniej niż udział"
+msgstr "Budżet nie osiągnął progu wykorzystania"
 
 msgctxt "@option:radio a kind of warning"
 msgid "An account falls under an amount"
@@ -20897,7 +20897,7 @@ msgstr "Comiesięczne przeniesienia…"
 #, kde-format
 msgctxt "@title:group"
 msgid "Joined by themselves"
-msgstr "Połączone samodzielnie"
+msgstr "Połączone automatycznie"
 
 #: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:173
 #, kde-format
@@ -20980,7 +20980,7 @@ msgstr "Przeniesienia między Twoimi kontami"
 #, kde-format
 msgctxt "@action:button"
 msgid "Join them by themselves from now on"
-msgstr "Od teraz łącz je samodzielnie"
+msgstr "Od teraz łącz je automatycznie"
 
 #: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:101
 #, kde-format
@@ -21026,7 +21026,7 @@ msgstr[2] "Połączono %1 przeniesień."
 #, kde-format
 msgctxt "@info"
 msgid "Join them by themselves from now on? Only the ones you tick."
-msgstr "Od teraz łączyć je samodzielnie? Tylko te, które zaznaczysz."
+msgstr "Od teraz łączyć je automatycznie? Tylko te, które zaznaczysz."
 
 #: crates/kassensturz-ui-bridge/qml/JoinAllDialog.qml:168
 #, kde-format
@@ -21050,7 +21050,7 @@ msgid ""
 " both sides, and lists what it joined after every import. Moves already "
 "joined stay joined. If you remove one, KassenSturz asks about that move "
 "again, one by one."
-msgstr "KassenSturz sam łączy te przeniesienia, gdy wyciągi Twoich kont przynoszą obie strony, i po każdym imporcie wypisuje, co połączył. Już połączone przeniesienia pozostają połączone. Jeśli któreś usuniesz, KassenSturz znowu zapyta o to przeniesienie, po kolei."
+msgstr "KassenSturz automatycznie łączy te przeniesienia, gdy na wyciągach pojawią się obie strony, i po każdym imporcie pokazuje, co połączył. Przeniesienia, które już zostały połączone, takie zostają. Jeśli usuniesz któreś z tej listy, KassenSturz znów będzie pytać o każde takie przeniesienie osobno."
 
 #: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:72
 #, kde-format
@@ -21065,7 +21065,7 @@ msgid ""
 "When you join two entries that are one move between your accounts, "
 "KassenSturz can offer to join it by itself every month. It only does so if "
 "you tick the box there."
-msgstr "Gdy połączysz dwa wpisy będące jednym przeniesieniem między Twoimi kontami, KassenSturz może zaproponować samodzielne łączenie go co miesiąc. Robi to tylko wtedy, gdy tam zaznaczysz pole."
+msgstr "Gdy połączysz dwa wpisy w jedno przeniesienie między Twoimi kontami, KassenSturz może zaproponować, żeby co miesiąc łączyć je automatycznie. Zrobi to tylko wtedy, gdy zaznaczysz odpowiednie pole."
 
 #: crates/kassensturz-ui-bridge/qml/MonthlyMovesDialog.qml:94
 #, kde-format
@@ -21084,7 +21084,7 @@ msgstr "Tylko wpisy z napisem „%1”"
 #, kde-format
 msgctxt "@info %1 and %2 are names of accounts"
 msgid "Stop joining the move from “%1” to “%2” by itself"
-msgstr "Przestań samodzielnie łączyć przeniesienie z „%1” na „%2”"
+msgstr "Wyłącz automatyczne łączenie przeniesień z „%1” na „%2”"
 
 #: crates/kassensturz-ui-bridge/qml/TransactionRow.qml:43
 #, kde-format
@@ -21099,7 +21099,7 @@ msgctxt "@option:check"
 msgid ""
 "Next time, join this move by itself when it comes again around the same day "
 "of the month."
-msgstr "Następnym razem połącz to przeniesienie samodzielnie, gdy pojawi się znowu około tego samego dnia miesiąca."
+msgstr "Łącz to przeniesienie automatycznie, gdy znowu pojawi się około tego samego dnia miesiąca."
 
 #: crates/kassensturz-ui-bridge/qml/TransferPrompt.qml:267
 #, kde-format
@@ -21125,9 +21125,9 @@ msgctxt "@info"
 msgid "%1 monthly move was joined by itself; Undo takes it apart."
 msgid_plural ""
 "%1 monthly moves were joined by themselves; Undo takes them apart."
-msgstr[0] "%1 comiesięczne przeniesienie zostało połączone samodzielnie; „Cofnij” je rozdziela."
-msgstr[1] "%1 comiesięczne przeniesienia zostały połączone samodzielnie; „Cofnij” je rozdziela."
-msgstr[2] "%1 comiesięcznych przeniesień zostało połączonych samodzielnie; „Cofnij” je rozdziela."
+msgstr[0] "Automatycznie połączono %1 comiesięczne przeniesienie. „Cofnij” je rozdzieli."
+msgstr[1] "Automatycznie połączono %1 comiesięczne przeniesienia. „Cofnij” je rozdzieli."
+msgstr[2] "Automatycznie połączono %1 comiesięcznych przeniesień. „Cofnij” je rozdzieli."
 
 #: crates/kassensturz-ui-bridge/qml/Main.qml:95
 #, kde-format
@@ -21452,7 +21452,7 @@ msgctxt "@info"
 msgid ""
 "This entry is matched to a planned payment already. Each entry pays one "
 "planned payment."
-msgstr "Ten wpis jest już przypisany do zaplanowanej płatności. Każdy wpis opłaca jedną zaplanowaną płatność."
+msgstr "Ten wpis jest już przypisany do zaplanowanej płatności. Każdy wpis można przypisać tylko do jednej zaplanowanej płatności."
 
 #: crates/kassensturz-ui-bridge/qml/FormError.qml:657
 #, kde-format
@@ -22047,7 +22047,7 @@ msgstr "Wkrótce"
 #, kde-format
 msgctxt "@info"
 msgid "There is no open checking or cash account to look ahead for yet."
-msgstr "Nie ma jeszcze otwartego konta osobistego ani gotówkowego, dla którego można by patrzeć naprzód."
+msgstr "Nie ma jeszcze otwartego konta osobistego ani gotówkowego, dla którego można przygotować prognozę."
 
 #: crates/kassensturz-ui-bridge/qml/LeftThisMonthWidget.qml:74
 #, kde-format
@@ -22169,7 +22169,7 @@ msgstr "Koniec"
 #, kde-format
 msgctxt "@info a status icon: the planned payments of this month are all known"
 msgid "Planned payments known"
-msgstr "Zaplanowane płatności znane"
+msgstr "Wszystkie zaplanowane płatności rozpoznane"
 
 #: crates/kassensturz-ui-bridge/qml/TileStatusWords.qml:72
 #, kde-format
@@ -22583,7 +22583,7 @@ msgstr "Przepływ pieniędzy"
 #, kde-format
 msgctxt "@info"
 msgid "Choose whose money the chart follows. With none ticked, every account and every category counts. For example: only your checking account."
-msgstr "Wybierz, czyje pieniądze śledzi wykres. Gdy nic nie jest zaznaczone, liczy się każde konto i każda kategoria. Na przykład: tylko Twoje konto osobiste."
+msgstr "Wybierz, które konta i kategorie obejmuje wykres. Gdy nic nie jest zaznaczone, liczy się każde konto i każda kategoria. Na przykład: tylko Twoje konto osobiste."
 
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:100
 #, kde-format
@@ -22607,7 +22607,7 @@ msgstr "Pokaż, gdzie były trzymane pieniądze"
 #, kde-format
 msgctxt "@info"
 msgid "No transactions behind this in this period."
-msgstr "Brak transakcji za tym w tym okresie."
+msgstr "Brak transakcji składających się na tę kwotę w tym okresie."
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:292
 #, kde-format
@@ -23113,7 +23113,7 @@ msgstr "Trend"
 #, kde-format
 msgctxt "@title:column a table of a chart: the average of the trend over the last few months"
 msgid "Signal line"
-msgstr "Linia sygnału"
+msgstr "Linia sygnałowa"
 
 #: crates/kassensturz-ui-bridge/qml/ChartTable.qml:153
 #, kde-format

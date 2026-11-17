@@ -15,8 +15,8 @@
 
 use kassensturz_core::{CurrencyCode, Report};
 use kassensturz_report::{
-    Counted, FUNCTIONS, Formula, FormulaValue, KnownName, NumberForm, Period, ReportError, Source,
-    Term, TextFormat,
+    Counted, FUNCTIONS, Formula, FormulaValue, KnownName, NumberForm, Period, PlanFigure,
+    ReportError, Source, Term, TextFormat,
 };
 use kassensturz_store::Book;
 
@@ -59,8 +59,10 @@ pub struct Line {
     /// Its name; a category's path from the top-level category down, joined
     /// by " > ". Empty for all income and all spending.
     pub name: String,
-    /// `income` or `spending` for `Income.ALL` and `Spending.ALL`, which
-    /// the app words itself (D-034); empty for a category or group.
+    /// `income` or `spending` for `Income.ALL` and `Spending.ALL`, and
+    /// `plans-out-due`, `plans-in-due`, `plans-out-overdue` or
+    /// `plans-in-overdue` for a figure of the plans (D-826), which the app
+    /// words itself (D-034); empty for a category or group.
     pub all: &'static str,
     /// The first names of what is counted with it.
     pub inside: Vec<String>,
@@ -246,6 +248,12 @@ fn line(
             Term::Member(_) => "",
             Term::AllIncome => "income",
             Term::AllSpending => "spending",
+            // The plain words of the plans' figures (D-826), up to
+            // `last_day`.
+            Term::Plans(PlanFigure::OutDue) => "plans-out-due",
+            Term::Plans(PlanFigure::InDue) => "plans-in-due",
+            Term::Plans(PlanFigure::OutOverdue) => "plans-out-overdue",
+            Term::Plans(PlanFigure::InOverdue) => "plans-in-overdue",
         },
         inside: counted.inside.iter().take(INSIDE_SHOWN).cloned().collect(),
         inside_more: counted.inside.len().saturating_sub(INSIDE_SHOWN),
@@ -290,7 +298,13 @@ fn work(
     figure: Period,
     scope: &Scope,
 ) -> Result<Worked, ReportError> {
-    let source = Source::read(book, formula.span(figure)?)?;
+    let span = formula.span(figure)?;
+    // The plans are read only for a formula that names them (D-826).
+    let source = if formula.names_plans() {
+        Source::read_with_plans(book, span, locale.today())?
+    } else {
+        Source::read(book, span)?
+    };
     let (filter, view) = scope.resolve(book, &source)?;
     let result = formula.evaluate(&source, figure, &filter, fallback_currency(book))?;
     let text = AppText::new(book, locale);
@@ -836,6 +850,68 @@ pub(crate) mod tests {
         let mut stored = request("=PERCENT_OF(Pets; Salary)");
         stored.typed = false;
         assert_eq!(shown(&book, &TestLocale, &stored).value, "4,0 %");
+    }
+
+    /// [`book`] with a planned payment of 12.50 out of the checking account,
+    /// due on Monday 26 October 2026, a week after the test's today.
+    pub(crate) fn book_with_a_plan() -> Book {
+        let mut book = book();
+        let checking = book
+            .accounts(false)
+            .expect("accounts")
+            .into_iter()
+            .find(|account| account.name == "Checking account")
+            .expect("the checking account")
+            .id;
+        let due = Date::new(2026, 10, 26).expect("a date");
+        book.add_schedule(&kassensturz_store::NewSchedule {
+            name: "Phone".into(),
+            account: checking,
+            amount: Money::from_minor_units(-1_250, EUR),
+            tolerance: Money::zero(EUR),
+            category: None,
+            party_iban: None,
+            party_name: None,
+            unit: kassensturz_core::ScheduleUnit::Month,
+            every: 1,
+            anchor: due,
+            track_from: due,
+            ends_on: None,
+        })
+        .expect("a plan");
+        book
+    }
+
+    #[test]
+    fn a_figure_of_the_plans_is_worked_out_and_says_what_it_counts() {
+        // D-826: the plans count from today on, and the line next to the
+        // result names the figure, with its last day, for the app's words.
+        let book = book_with_a_plan();
+        let mut asked = request("=Plans.OUT_DUE");
+        asked.period = "this-month".into();
+        let due = shown(&book, &TestLocale, &asked);
+        assert_eq!((due.kind, due.value.as_str()), ("amount", "12,50 €"));
+        assert_eq!(due.counted.len(), 1);
+        let line = &due.counted[0];
+        assert_eq!(line.all, "plans-out-due");
+        assert_eq!(line.name, "");
+        assert_eq!(line.last_day, "2026-10-31");
+        for (text, word) in [
+            ("=Plans.IN_DUE", "plans-in-due"),
+            ("=Plans.OUT_OVERDUE", "plans-out-overdue"),
+            ("=Plans.IN_OVERDUE", "plans-in-overdue"),
+        ] {
+            let mut asked = request(text);
+            asked.period = "this-month".into();
+            let none = shown(&book, &TestLocale, &asked);
+            assert_eq!(none.value, "0,00 €", "{text}");
+            assert_eq!(none.counted[0].all, word, "{text}");
+        }
+        // Last month is over: nothing in it is still to come.
+        assert_eq!(
+            shown(&book, &TestLocale, &request("=Plans.OUT_DUE")).value,
+            "0,00 €"
+        );
     }
 
     #[test]

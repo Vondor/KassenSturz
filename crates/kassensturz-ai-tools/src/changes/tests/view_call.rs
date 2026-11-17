@@ -868,6 +868,9 @@ fn the_ai_writes_a_formula_card_that_the_book_checks_first() {
         "=Spending.Food + Income.Salary",
         "=ROUND(Spending.ALL / 2; 2)",
         "='Food > Groceries'",
+        // The figures of the plans (D-826).
+        "=Income.Salary@\"last month\" - Spending.ALL - Plans.OUT_DUE",
+        "=Plans.IN_DUE - Plans.OUT_OVERDUE + Plans.IN_OVERDUE",
     ]
     .into_iter()
     .enumerate()
@@ -885,6 +888,8 @@ fn the_ai_writes_a_formula_card_that_the_book_checks_first() {
         ("=FOO(Food)", "formula unknown-function Some(2)"),
         ("=ABS(Food; Travel)", "formula arguments Some(2)"),
         ("=Food * Food", "formula kinds Some(7)"),
+        ("=Plans.SOON", "formula syntax Some(8)"),
+        ("=COUNT(Plans.OUT_DUE)", "formula arguments Some(8)"),
         ("=Food\u{202e}", "formula text None"),
         ("  ", "formula text None"),
     ] {
@@ -935,6 +940,11 @@ fn the_ai_writes_a_formula_card_that_the_book_checks_first() {
     assert_eq!(
         formula_code(call(&book, &bar("Unknown", "=Pets"))),
         "target unknown-name Some(2)"
+    );
+    // A target may name the plans too (D-826).
+    assert_eq!(
+        formula_code(call(&book, &bar("Plans", "=Groceries + Plans.OUT_DUE"))),
+        "prepared"
     );
     // The user may make the card a bar or a chart on the review page
     // (D-297): a bar keeps the formula, a chart has none to keep.

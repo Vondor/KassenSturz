@@ -25848,3 +25848,43 @@ msgstr "Menü einblenden"
 msgctxt "@info:tooltip the button that opens the chat sidebar"
 msgid "Open the chat"
 msgstr "Chat öffnen"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:239
+#, kde-format
+msgctxt ""
+"@info %1 is a character position; OUT_DUE, IN_DUE, OUT_OVERDUE and "
+"IN_OVERDUE are formula words, not translated"
+msgid ""
+"Planned payments have no figure of that name at character %1. Write Plans."
+"OUT_DUE, Plans.IN_DUE, Plans.OUT_OVERDUE or Plans.IN_OVERDUE."
+msgstr ""
+"Geplante Zahlungen haben an Zeichen %1 keine Zahl dieses Namens. Schreiben "
+"Sie Plans.OUT_DUE, Plans.IN_DUE, Plans.OUT_OVERDUE oder Plans.IN_OVERDUE."
+
+#: crates/kassensturz-ui-bridge/qml/FormulaWords.qml:31
+#, kde-format
+msgctxt "@info a name in a list of what a formula counts; %1 is a date"
+msgid "what your planned payments still expect to go out until %1"
+msgstr "was Ihre geplanten Zahlungen bis %1 noch abbuchen werden"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaWords.qml:33
+#, kde-format
+msgctxt "@info a name in a list of what a formula counts; %1 is a date"
+msgid "planned income still expected until %1"
+msgstr "geplante Einnahmen, die bis %1 noch erwartet werden"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaWords.qml:35
+#, kde-format
+msgctxt ""
+"@info a name in a list of what a formula counts: planned payments whose day "
+"passed with no entry"
+msgid "planned payments that are overdue and not confirmed yet"
+msgstr "geplante Zahlungen, die überfällig und noch nicht bestätigt sind"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaWords.qml:37
+#, kde-format
+msgctxt ""
+"@info a name in a list of what a formula counts: planned income whose day "
+"passed with no entry"
+msgid "planned income that is overdue and not confirmed yet"
+msgstr "geplante Einnahmen, die überfällig und noch nicht bestätigt sind"

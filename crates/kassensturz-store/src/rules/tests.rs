@@ -1698,12 +1698,23 @@ fn a_rule_the_ai_made_stays_marked_until_the_user_opens_it() {
     assert!(book.mark_rule_made_by_ai(RuleId::generate()).is_err());
     assert_eq!(book.unchecked_ai_rules().expect("read").len(), 1);
     // Undo takes the Rule away and the mark with it; redo brings the Rule
-    // back without it.
+    // back with its mark, since the user never opened it (B-370).
     book.undo().expect("undone");
     assert!(book.unchecked_ai_rules().expect("read").is_empty());
     book.redo().expect("redone");
     assert!(book.rule(made.id).is_ok());
+    assert_eq!(
+        book.unchecked_ai_rules().expect("read"),
+        HashSet::from([made.id])
+    );
+    // And again for a second undo and redo.
+    book.undo().expect("undone again");
     assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    book.redo().expect("redone again");
+    assert_eq!(
+        book.unchecked_ai_rules().expect("read"),
+        HashSet::from([made.id])
+    );
     // Opening a marked Rule takes the mark off.
     book.as_one_action(Action::ApplyAiChanges, |book| {
         book.mark_rule_made_by_ai(made.id)
@@ -1717,5 +1728,126 @@ fn a_rule_the_ai_made_stays_marked_until_the_user_opens_it() {
     })
     .expect("marked again");
     book.remove_rule(made.id).expect("removed");
+    assert!(book.unchecked_ai_rules().expect("read").is_empty());
+}
+
+/// B-272, round 8: a Rule's name, or the payee it sets, with a character
+/// that can't be seen or turns the text around could look like another.
+#[test]
+fn a_look_alike_rule_name_or_payee_is_refused() {
+    let Sample { mut book, .. } = sample();
+    let hidden = rule("Shop\u{200B}", vec![name_contains("shop")], None);
+    assert!(matches!(
+        book.add_rule(&hidden, None),
+        Err(StoreError::HiddenText {
+            field: "rule-name",
+            reason: "invisible"
+        })
+    ));
+    let mut turned = rule("Shop", vec![name_contains("shop")], None);
+    turned.actions.payee = Some("Shop\u{202E}live".into());
+    assert!(matches!(
+        book.add_rule(&turned, None),
+        Err(StoreError::HiddenText {
+            field: "payee",
+            reason: "invisible"
+        })
+    ));
+    assert!(book.rules().expect("rules").is_empty());
+    // Renaming one into a look-alike is refused too.
+    let mut fine = rule("Shop", vec![name_contains("shop")], None);
+    book.add_rule(&fine, None).expect("added");
+    fine.name = "Shop\u{FEFF}".into();
+    assert!(matches!(
+        book.update_rule(&fine),
+        Err(StoreError::HiddenText {
+            field: "rule-name",
+            ..
+        })
+    ));
+}
+
+/// D-782, the rogue run's recheck: a Rule's name typed with an accent on
+/// its own, or with a ligature, is the same name, and it is kept composed.
+#[test]
+fn a_rule_name_that_only_looks_different_is_taken() {
+    let Sample { mut book, .. } = sample();
+    let composed = rule("R\u{E9}gel", vec![name_contains("shop")], None);
+    book.add_rule(&composed, None).expect("added");
+    let decomposed = rule("Re\u{301}gel", vec![name_contains("shop")], None);
+    assert!(matches!(
+        book.add_rule(&decomposed, None),
+        Err(StoreError::DuplicateRuleName { existing }) if existing == composed.id
+    ));
+    let typed = rule("Cafe\u{301}", vec![name_contains("coffee")], None);
+    book.add_rule(&typed, None).expect("added");
+    assert_eq!(book.rule(typed.id).expect("read").name, "Caf\u{E9}");
+    let fine = rule("Finanz", vec![name_contains("bank")], None);
+    book.add_rule(&fine, None).expect("added");
+    let ligature = rule("\u{FB01}nanz", vec![name_contains("bank")], None);
+    assert!(matches!(
+        book.add_rule(&ligature, None),
+        Err(StoreError::DuplicateRuleName { existing }) if existing == fine.id
+    ));
+    // Renaming one into the other is refused too.
+    let mut renamed = book.rule(typed.id).expect("read");
+    renamed.name = "R\u{C9}GEL".into();
+    assert!(matches!(
+        book.update_rule(&renamed),
+        Err(StoreError::DuplicateRuleName { existing }) if existing == composed.id
+    ));
+}
+
+/// B-370 (D-815): the mark of a Rule the AI made comes back with the Rule
+/// also when the book was closed and opened again between the Undo that
+/// took the Rule away and the Redo that brings it back.
+#[test]
+fn a_rule_the_ai_made_keeps_its_mark_through_undo_closing_and_redo() {
+    let folder = crate::test_folder::TempFolder::new();
+    let computer = crate::Computer {
+        name: "Laptop".into(),
+        backup_folder: folder.join("Backups"),
+    };
+    let path = folder.join("Household.ksz");
+    let made = rule("FRESHO", vec![name_contains("FRESHO")], None);
+    {
+        let mut book = Book::create(&path, &computer).expect("created");
+        book.as_one_action(Action::ApplyAiChanges, |book| {
+            book.add_rule(&made, None)?;
+            book.mark_rule_made_by_ai(made.id)
+        })
+        .expect("applied");
+        book.undo().expect("undone");
+        assert!(book.rule(made.id).is_err());
+        assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    }
+    {
+        let mut book = Book::open(&path, &computer).expect("opened again");
+        book.redo().expect("redone");
+        assert!(book.rule(made.id).is_ok());
+        assert_eq!(
+            book.unchecked_ai_rules().expect("read"),
+            HashSet::from([made.id])
+        );
+        // Taken away once more, and the book closed again.
+        book.undo().expect("undone again");
+        assert!(book.unchecked_ai_rules().expect("read").is_empty());
+    }
+    let mut book = Book::open(&path, &computer).expect("opened a third time");
+    book.redo().expect("redone again");
+    assert_eq!(
+        book.unchecked_ai_rules().expect("read"),
+        HashSet::from([made.id])
+    );
+    // Back with its mark, nothing waits aside any more.
+    let parked: i64 = book
+        .conn
+        .query_row("SELECT count(*) FROM parked_ai_rule_marks", [], |row| {
+            row.get(0)
+        })
+        .expect("counted");
+    assert_eq!(parked, 0);
+    // Opening it takes the mark off, as before.
+    book.mark_rule_checked(made.id).expect("opened");
     assert!(book.unchecked_ai_rules().expect("read").is_empty());
 }

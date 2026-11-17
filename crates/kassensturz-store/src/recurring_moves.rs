@@ -310,6 +310,59 @@ impl Book {
         Ok(moved.id)
     }
 
+    /// Fills the new book with the remembered `moves` of a complete export,
+    /// with their own IDs and days (US7, B-263). They are checked as
+    /// [`Book::add_recurring_move`] checks one, so data from a file can't
+    /// get past what the app itself would refuse; a move given twice is
+    /// [`StoreError::RecurringMoveExists`]. Only for filling a new book
+    /// (`Book::fill_new`), where nothing is recorded in the history.
+    pub fn restore_recurring_moves(&mut self, moves: &[RecurringMove]) -> Result<(), StoreError> {
+        let mut seen = HashSet::new();
+        for moved in moves {
+            moved.check().map_err(StoreError::RecurringMove)?;
+            for id in [moved.from_account, moved.to_account] {
+                let account = self.account(id)?;
+                if !account.kind.is_account() {
+                    return Err(StoreError::NotAnAccount(id));
+                }
+                if account.currency != moved.amount.currency() {
+                    return Err(StoreError::RecurringMove(RecurringMoveError::OtherCurrency));
+                }
+            }
+            let key = (
+                moved.from_account,
+                moved.to_account,
+                moved.amount,
+                moved.from_party_iban.clone().unwrap_or_default(),
+                moved.from_party_name.clone().unwrap_or_default(),
+            );
+            if !seen.insert(key) {
+                return Err(StoreError::RecurringMoveExists { existing: moved.id });
+            }
+        }
+        self.as_one_action(Action::AddRecurringMove, |book| {
+            for moved in moves {
+                book.conn.execute(
+                    "INSERT INTO recurring_moves (id, from_account_id, to_account_id, amount,
+                         currency, day_of_month, from_party_iban, from_party_name, created_on)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                    params![
+                        moved.id.to_bytes(),
+                        moved.from_account.to_bytes(),
+                        moved.to_account.to_bytes(),
+                        moved.amount.minor_units(),
+                        moved.amount.currency().as_str(),
+                        moved.day_of_month,
+                        moved.from_party_iban,
+                        moved.from_party_name,
+                        date_to_text(moved.created_on)?,
+                    ],
+                )?;
+            }
+            Ok::<(), StoreError>(())
+        })
+    }
+
     /// Stops joining the move `id` by itself (D-749); the user action
     /// [`Action::RemoveRecurringMove`], which undo takes back. Moves already
     /// joined stay joined; from now on the user is asked about it again.

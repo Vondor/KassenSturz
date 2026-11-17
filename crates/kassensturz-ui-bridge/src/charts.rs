@@ -10,21 +10,25 @@
 //! and are never read back.
 
 use kassensturz_charts::{
-    BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, Prepared,
+    BalancesBy, ChartError, ChartKind, ChartModel, ChartProvider, CustomError, FlowModel, Prepared,
     account_balances as balances_chart, balance_candles as candles_chart,
-    cash_flow_by_month as cash_flow_chart, category_over_time, income_expense_by_month,
-    net_worth_over_time as net_worth_chart, spending_by_category, spending_by_category_as,
-    spending_by_category_compared,
+    cash_flow_by_month as cash_flow_chart, category_over_time, daily_balance as daily_chart,
+    flow_model, income_expense_by_month, macd as macd_chart,
+    moving_average as moving_average_chart, net_worth_over_time as net_worth_chart,
+    spending_by_category, spending_by_category_as, spending_by_category_compared,
 };
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
     ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, CandleLength, Column,
-    CompareWith, Filter, INCOME_EXPENSE_BY_MONTH, Level, NET_WORTH_OVER_TIME, Overlap, Per,
-    Percent, Period, ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat,
+    CompareWith, DAILY_BALANCE, DAILY_PARTS, DailyParts, Filter, INCOME_EXPENSE_BY_MONTH, Level,
+    MACD, MONEY_FLOW, MOVING_AVERAGE, NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period,
+    ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat, TrendSeries,
     account_balances as balances_dataset, balance_candles as candles_dataset,
     cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
     columns_over_time, columns_span, columns_spending, compared_early, counted_early,
-    income_expense_by_month as monthly_dataset, income_expense_by_series,
+    counted_so_far, daily_balance as daily_dataset, daily_days,
+    income_expense_by_month as monthly_dataset, income_expense_by_series, macd as macd_dataset,
+    money_flow as money_flow_dataset, moving_average as moving_average_dataset,
     net_worth_over_time as net_worth_dataset, shared_categories,
     spending_by_category_shown as spending_dataset, spending_compared,
 };
@@ -101,6 +105,9 @@ pub struct Custom {
 pub struct ChartSet {
     /// One chart per currency; empty when there was nothing to show.
     pub charts: Vec<(ChartModel, Prepared)>,
+    /// The money-flow chart, if the request was for one: at most one, of
+    /// one currency (D-758).
+    pub flows: Vec<FlowModel>,
     /// IDs in `groups`, `series` or a column that the book doesn't have.
     pub missing: usize,
     /// The categories that more than one column counts, so the screen can
@@ -290,10 +297,16 @@ pub(crate) fn period(book: &Book, key: &str, today: Date) -> Result<Period, Char
 
 /// Whether the dataset is made from the balances of the accounts, which the
 /// `Source` reads only when asked to (D-365).
+/// Whether `dataset` is one of the trends (US7, D-777), which read the book
+/// for months before the period too.
+fn is_trend(dataset: &str) -> bool {
+    matches!(dataset, MOVING_AVERAGE | MACD)
+}
+
 pub(crate) fn is_financial(dataset: &str) -> bool {
     matches!(
         dataset,
-        ACCOUNT_BALANCES | NET_WORTH_OVER_TIME | CASH_FLOW_BY_MONTH
+        ACCOUNT_BALANCES | NET_WORTH_OVER_TIME | CASH_FLOW_BY_MONTH | DAILY_BALANCE
     )
 }
 
@@ -307,11 +320,24 @@ pub fn charts(
     if let Some(custom) = &request.custom {
         return crate::custom_charts::custom_charts(book, locale, request, custom);
     }
-    let kind = ChartKind::from_key(&request.kind).ok_or(ChartsError::UnknownName("kind"))?;
+    // The money flow has no kind of chart or grouping of its own: it is one
+    // picture (US7, D-758).
+    let flow = request.dataset == MONEY_FLOW;
+    let kind = if flow {
+        ChartKind::Bar
+    } else {
+        ChartKind::from_key(&request.kind).ok_or(ChartsError::UnknownName("kind"))?
+    };
     let period = period(book, &request.period, locale.today())?;
     let level = match request.grouping.as_str() {
+        _ if flow => Level::Each,
         "top-level" => Level::TopLevel,
         "each" | "groups" | "account-kind" => Level::Each,
+        // A trend follows one of money in, money out and what is left
+        // (US7, D-777); the grouping word says which.
+        "net" | "income" | "expenses" if is_trend(&request.dataset) => Level::Each,
+        // A daily balance's grouping says which panels it shows (D-794).
+        word if request.dataset == DAILY_BALANCE && DAILY_PARTS.contains(&word) => Level::Each,
         _ => return Err(ChartsError::UnknownName("grouping")),
     };
     // A formula of a column may name periods of its own, so the book is read
@@ -328,10 +354,29 @@ pub fn charts(
         Some(compare) => compare.read_span(period)?,
         None => span,
     };
+    // A moving average needs the months before the period (US7, D-777).
+    let span = if is_trend(&request.dataset) {
+        let trend = request.scope.trend.read_span(&request.dataset, period)?;
+        Period::new(trend.first().min(span.first()), span.last())?
+    } else {
+        span
+    };
+    // A daily balance's averages start well before the days shown (D-794).
+    let span = if request.dataset == DAILY_BALANCE {
+        let shown = daily_days(period, locale.today())?.unwrap_or(period);
+        let warm = request.scope.ema.read_span(shown)?;
+        Period::new(warm.first().min(span.first()), span.last().max(warm.last()))?
+    } else {
+        span
+    };
     // The balances of the accounts take longer to read, so only the datasets
     // made from them ask for them (D-365). Columns decide what a chart shows,
     // whatever its dataset says, and they are made of spending.
-    let source = if request.columns.is_empty() && is_financial(&request.dataset) {
+    let source = if flow && request.scope.flow.accounts {
+        // The pairs that look like moves between own accounts are drawn as
+        // assumed moves (US7, #1035); a read with them is not kept.
+        std::rc::Rc::new(Source::read_with_moves(book, span)?)
+    } else if request.columns.is_empty() && is_financial(&request.dataset) {
         session::cached_source(book, span, true, || Source::read_with_balances(book, span))?
     } else {
         session::cached_source(book, span, false, || Source::read(book, span))?
@@ -358,6 +403,41 @@ pub fn charts(
     if filter_view.nothing {
         return Ok(ChartSet {
             charts: Vec::new(),
+            flows: Vec::new(),
+            missing: 0,
+            shared: Vec::new(),
+            totals: Vec::new(),
+            filter: filter_view,
+            title: String::new(),
+            description: String::new(),
+        });
+    }
+    if flow {
+        let flows = money_flow_dataset(&source, period, &filter, request.scope.flow.options())?;
+        // One currency per chart, with no conversion: the one asked for, else
+        // the one with the most money moved (the first of equals).
+        let at = flows
+            .iter()
+            .position(|flow| flow.currency.to_string() == request.scope.flow.currency)
+            .or_else(|| {
+                (0..flows.len())
+                    .max_by_key(|&i| (flows[i].volume.minor_units(), std::cmp::Reverse(i)))
+            });
+        let shown = match at {
+            Some(at) => {
+                let others: Vec<_> = flows
+                    .iter()
+                    .enumerate()
+                    .filter(|&(i, _)| i != at)
+                    .map(|(_, flow)| flow.clone())
+                    .collect();
+                vec![flow_model(&flows[at], &others, &text)]
+            }
+            None => Vec::new(),
+        };
+        return Ok(ChartSet {
+            charts: Vec::new(),
+            flows: shown,
             missing: 0,
             shared: Vec::new(),
             totals: Vec::new(),
@@ -438,6 +518,21 @@ pub fn charts(
         )?),
         _ => None,
     };
+    // A period that is not over yet divides by the months up to today
+    // (D-648), fewer than its name suggests: the chart says by how many
+    // (B-313). It comes first, so the note below, which counts the same
+    // months, reads on from it (B-313, round 4).
+    if let Some(average) = &average
+        && let Some(so_far) = counted_so_far(average.per, period, locale.today())?
+    {
+        filter_view.notes.push(NoteView {
+            kind: "average-so-far",
+            dimension: "period",
+            id: so_far.per.word().into(),
+            counted: so_far.counted,
+            before: so_far.whole,
+        });
+    }
     // An average that counts months before the first transaction says so
     // under the chart (M6-B207, #590, D-668); the figure stays as it is.
     if let Some(average) = &average
@@ -504,6 +599,30 @@ pub fn charts(
             .iter()
             .map(|data| income_expense_by_month(data, kind, &text))
             .collect::<Result<Vec<_>, _>>()?,
+            MOVING_AVERAGE => {
+                let series = TrendSeries::read(&request.grouping);
+                moving_average_dataset(&source, period, &filter, series, request.scope.trend)?
+                    .iter()
+                    .map(|data| moving_average_chart(data, kind, &text))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
+            DAILY_BALANCE => {
+                let parts = DailyParts::read(&request.grouping);
+                let mut panels = Vec::new();
+                for data in
+                    daily_dataset(&source, period, locale.today(), &filter, request.scope.ema)?
+                {
+                    panels.extend(daily_chart(&data, parts, kind, &text)?);
+                }
+                panels
+            }
+            MACD => {
+                let series = TrendSeries::read(&request.grouping);
+                macd_dataset(&source, period, &filter, series, request.scope.trend)?
+                    .iter()
+                    .map(|data| macd_chart(data, kind, &text))
+                    .collect::<Result<Vec<_>, _>>()?
+            }
             ACCOUNT_BALANCES => {
                 let by = if request.grouping == "account-kind" {
                     BalancesBy::Kind
@@ -546,6 +665,7 @@ pub fn charts(
         .collect::<Result<Vec<_>, ChartError>>()?;
     Ok(ChartSet {
         charts,
+        flows: Vec::new(),
         missing: named - known,
         shared: Vec::new(),
         totals: Vec::new(),
@@ -655,6 +775,7 @@ fn columns_charts(
         .collect::<Result<Vec<_>, ChartError>>()?;
     Ok(ChartSet {
         charts,
+        flows: Vec::new(),
         missing: named - known,
         shared: shared_categories(source, &columns),
         totals: column_totals(source, text, period, &columns, filter, fallback)?,

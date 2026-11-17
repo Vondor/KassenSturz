@@ -91,7 +91,10 @@ fn invalid_utf8_is_malformed_on_its_line() {
     input.push(0xFF);
     assert_eq!(
         read_with(&input, &Limits::default()),
-        Err(ImportError::Malformed { line: Some(4) })
+        Err(ImportError::EncodingContradiction {
+            declared: "UTF-8".to_owned(),
+            line: Some(4)
+        })
     );
 }
 
@@ -352,4 +355,107 @@ proptest! {
         }
         let _ = read_with(&damaged, &Limits::default());
     }
+}
+
+#[test]
+fn utf_16_is_recognized_from_its_first_bytes() {
+    let file = document("");
+    for little in [true, false] {
+        let mut bytes = if little {
+            vec![0xFF, 0xFE]
+        } else {
+            vec![0xFE, 0xFF]
+        };
+        for unit in file.encode_utf16() {
+            bytes.extend(if little {
+                unit.to_le_bytes()
+            } else {
+                unit.to_be_bytes()
+            });
+        }
+        assert_eq!(
+            Camt053.recognize(&bytes[..bytes.len().min(2048)]),
+            Recognition::Yes
+        );
+    }
+    assert_eq!(Camt053.recognize(b"\xFF\xFEa\x00b\x00"), Recognition::No);
+}
+
+#[test]
+fn a_file_in_each_encoding_reads_to_the_same_statements() {
+    let file = document("");
+    let utf8 = read(&file);
+    let utf16_file = file.replace("UTF-8", "UTF-16");
+    let mut utf16 = vec![0xFF, 0xFE];
+    for unit in utf16_file.encode_utf16() {
+        utf16.extend(unit.to_le_bytes());
+    }
+    assert_eq!(read_with(&utf16, &Limits::default()), utf8);
+    let mut with_bom = vec![0xEF, 0xBB, 0xBF];
+    with_bom.extend_from_slice(file.as_bytes());
+    assert_eq!(read_with(&with_bom, &Limits::default()), utf8);
+}
+
+#[test]
+fn an_odd_number_of_bytes_in_utf_16_is_malformed() {
+    let result = Camt053.read(b"\xFF\xFE<\x00?", &Limits::default());
+    assert!(matches!(result, Err(ImportError::Malformed { .. })));
+}
+
+#[test]
+fn a_second_amount_or_mark_in_an_entry_or_balance_is_refused() {
+    // #1112: the last `Amt` used to replace the first without a word.
+    let plain = only_entry(&document(&entry("100.00", "DBIT", "")));
+    assert_eq!(plain.amount.minor_units(), -10_000);
+
+    let two_amounts = document(&entry("100.00", "DBIT", "<Amt Ccy=\"EUR\">1.00</Amt>"));
+    assert!(matches!(
+        read(&two_amounts),
+        Err(ImportError::Malformed { line: Some(_) })
+    ));
+    let two_marks = document(&entry("100.00", "DBIT", "<CdtDbtInd>CRDT</CdtDbtInd>"));
+    assert!(matches!(
+        read(&two_marks),
+        Err(ImportError::Malformed { line: Some(_) })
+    ));
+
+    let balance = |extra: &str| {
+        document(&format!(
+            "<Bal><Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp><Amt Ccy=\"EUR\">5.00</Amt>\
+             <CdtDbtInd>CRDT</CdtDbtInd>{extra}<Dt><Dt>2026-10-31</Dt></Dt></Bal>"
+        ))
+    };
+    assert!(read(&balance("")).is_ok());
+    for extra in ["<Amt Ccy=\"EUR\">1.00</Amt>", "<CdtDbtInd>DBIT</CdtDbtInd>"] {
+        assert!(
+            matches!(
+                read(&balance(extra)),
+                Err(ImportError::Malformed { line: Some(_) })
+            ),
+            "{extra}"
+        );
+    }
+}
+
+#[test]
+fn an_element_of_another_namespace_is_never_read_as_the_statements_own() {
+    // #1112: an extension `Amt` replaced the entry's amount.
+    let extension = "<x:Amt xmlns:x=\"urn:synthetic:extension\" Ccy=\"EUR\">1.00</x:Amt>";
+    let found = only_entry(&document(&entry("100.00", "DBIT", extension)));
+    assert_eq!(found.amount.minor_units(), -10_000);
+
+    // Nor is anything inside such an element, whatever namespace it is in.
+    let nested = "<x:Ext xmlns:x=\"urn:synthetic:extension\"><Amt Ccy=\"EUR\">1.00</Amt>\
+         <CdtDbtInd>CRDT</CdtDbtInd></x:Ext>";
+    let found = only_entry(&document(&entry("100.00", "DBIT", nested)));
+    assert_eq!(found.amount.minor_units(), -10_000);
+
+    // An entry made only of another namespace's elements is no entry.
+    let foreign = format!(
+        "<x:Ntry xmlns:x=\"urn:synthetic:extension\"><x:Amt Ccy=\"EUR\">1.00</x:Amt>\
+         <x:CdtDbtInd>CRDT</x:CdtDbtInd></x:Ntry>{}",
+        entry("2.00", "CRDT", "")
+    );
+    let found = only_entry(&document(&foreign));
+    assert_eq!(found.amount.minor_units(), 200);
 }

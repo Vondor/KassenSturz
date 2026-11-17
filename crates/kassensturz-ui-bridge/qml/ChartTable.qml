@@ -146,6 +146,18 @@ DataTable {
         "average_12": i18nContext.i18nc("@title:column a table of a chart: the average spending of earlier periods", "Average of the 12 periods before"),
         "change": i18nContext.i18nc("@title:column a table of a chart: how much more or less was spent than in the comparison", "Change"),
         "change_percent": i18nContext.i18nc("@title:column a table of a chart: the change in percent of the comparison", "Change in %"),
+        // The trends (US7, #875): a moving average, and MACD.
+        "average": i18nContext.i18nc("@title:column a table of a chart: the average of this month and the ones before it", "Moving average"),
+        "macd": i18nContext.i18nc("@title:column a table of a chart: the average of the last few months less the average of the last many months", "Trend"),
+        "signal": i18nContext.i18nc("@title:column a table of a chart: the average of the trend over the last few months", "Signal line"),
+        "gap": i18nContext.i18nc("@title:column a table of a chart: the trend less the signal line", "Gap"),
+        // A daily balance (US7, #1036): each row is a day.
+        "day": i18nContext.i18nc("@title:column a table of a chart", "Day"),
+        "ema_fast": i18nContext.i18nc("@title:column a table of a daily balance: the average over fewer days", "Short average"),
+        "ema_slow": i18nContext.i18nc("@title:column a table of a daily balance: the average over more days", "Long average"),
+        "daily_macd": i18nContext.i18nc("@title:column a table of a daily balance: the short average less the long one", "MACD"),
+        "daily_signal": i18nContext.i18nc("@title:column a table of a daily balance: the average of MACD over a few days", "Signal line"),
+        "daily_gap": i18nContext.i18nc("@title:column a table of a daily balance: MACD less its signal line", "Histogram"),
         "series": i18nContext.i18nc("@title:column the table of a custom chart: which line, bars or dots the value is of", "Series"),
         "value": i18nContext.i18nc("@title:column the table of a custom chart", "Value"),
         "account": i18nContext.i18nc("@title:column a table of a chart", "Account"),

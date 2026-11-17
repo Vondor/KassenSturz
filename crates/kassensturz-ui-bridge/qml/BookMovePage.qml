@@ -23,6 +23,9 @@ FormCard.FormCardPage {
     required property BookMove bookMove
     // Told when the book moved, so the window shows it where it is now.
     signal moved()
+    // Told when the user closes the done page; the window goes back to
+    // where they were.
+    signal done()
 
     // "choose", "ready" (a folder is chosen), "moving", "done".
     property string stage: "choose"
@@ -144,6 +147,7 @@ FormCard.FormCardPage {
     FolderChooser {
         id: chooser
 
+        forBook: true
         title: page.i18nContext.i18nc("@title:window", "Choose the folder for your book")
         onGranted: chosen => {
             page.grant = chosen;
@@ -330,6 +334,19 @@ FormCard.FormCardPage {
 
     FormCard.FormCard {
         visible: page.stage === "done"
+
+        // Only closes the page; nothing changes. It tells the user the move
+        // is finished.
+        FormCard.FormButtonDelegate {
+            icon.name: "dialog-ok"
+            text: page.i18nContext.i18nc("@action:button", "Done")
+            onClicked: {
+                ActionLog.taken("BookMovePage_done")
+                page.done()
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
 
         FormCard.FormButtonDelegate {
             icon.name: "edit-undo"

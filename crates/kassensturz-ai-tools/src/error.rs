@@ -27,12 +27,20 @@ pub(crate) mod shape {
     pub(crate) const TRUE_OR_FALSE: &str = "true or false";
     /// Text that is an ID, as the read functions give it.
     pub(crate) const ID: &str = "text that is an ID, as the read functions give it";
+    /// An amount's size, the filters of `search_transactions` (#1118).
+    pub(crate) const SIZE: &str = "a size as plain decimal text without a sign, e.g. 49.99";
 }
 
 /// What [`ToolError::hint`] tells the model when it sent a category's ID
 /// where a Rule's belongs (#860). Fixed text, never the call's.
 pub const CATEGORY_NOT_RULE_HINT: &str = "This ID is a category. Rule IDs come from \
 list_rules; call list_rules and copy the ID of the Rule.";
+
+/// What a refused length of a trend or a daily balance tells the model
+/// (US7, #1036, D-794): which data take it. Fixed text, never the call's.
+pub const LENGTH_HINT: &str = "trend_length is only for data moving_average and macd; \
+trend_slow and trend_signal only for macd; ema_fast, ema_slow and ema_signal only for \
+daily_balance. Call propose_view again without it, or with the data that takes it.";
 
 /// What [`ToolError::hint`] tells the model when `measure` is refused on a
 /// chart (R2-16).
@@ -99,6 +107,27 @@ pub enum ToolError {
         /// [`shape`].
         expected: &'static str,
     },
+    /// A whole-number argument outside the range it takes, such as a
+    /// `limit` of 200 where at most 50 rows are given (#1118). It is
+    /// reported as [`Self::BadArgument`]; the answer to the model adds
+    /// `min` and `max`, so it never has to guess by trying.
+    OutOfRange {
+        /// The argument's name, from the function's fixed list.
+        argument: &'static str,
+        /// The smallest value it takes.
+        min: u64,
+        /// The largest value it takes.
+        max: u64,
+    },
+    /// An argument that takes one of a few fixed words and got another,
+    /// such as `sort` (#1118). It is reported as [`Self::BadArgument`]; the
+    /// answer to the model lists the words in `allowed`.
+    NotOneOf {
+        /// The argument's name, from the function's fixed list.
+        argument: &'static str,
+        /// The words it takes.
+        allowed: &'static [&'static str],
+    },
     /// A `propose_view` argument that doesn't suit the chosen data or way of
     /// drawing it, such as `show_as` `line` for data drawn only as bars
     /// (M6-B204). It is reported as [`Self::BadArgument`]; the answer to the
@@ -159,6 +188,8 @@ pub enum ToolError {
     UnknownTransaction,
     /// No tag of the book has that ID (US5.2, D-744).
     UnknownTag,
+    /// No plan of the book has that ID (US7, B-357, D-814).
+    UnknownPlan,
     /// A `reference` to search for has fewer than four letters or digits,
     /// so it would match half the book (US5.12, D-738).
     ReferenceTooShort,
@@ -172,6 +203,16 @@ pub enum ToolError {
     BillType,
     /// A bill to attach is not a file in the bill folder.
     BillNotFound,
+    /// No receipt inbox is chosen on this computer, so no bill can be
+    /// filed from it (US7, #333).
+    NoInbox,
+    /// No archive for the receipt inbox is chosen on this computer.
+    NoArchive,
+    /// A bill to file is larger than [`crate::MAX_BILL_BYTES`], or the
+    /// set's bills together are larger than [`crate::MAX_FILED_BYTES`].
+    BillTooBig,
+    /// A bill to file is linked to a transaction already.
+    BillAlreadyFiled,
     /// The same bill is attached to the same transaction twice.
     Duplicate,
     /// The parts of a split the AI prepared don't add up to what the
@@ -362,6 +403,10 @@ pub enum ToolError {
     /// the store gives a budget made by hand (D-358): the model hears the
     /// store's own code, as the user would.
     BudgetRefused(StoreError),
+    /// The book would refuse the plan the call prepares, for the reason
+    /// the store gives a plan made by hand (US7, B-357, D-814): the model
+    /// hears the store's own code, as the user would.
+    PlanRefused(StoreError),
     /// The two transactions of a pair can't be joined as one Transfer, for
     /// the reason the store gives a join by hand (D-691, D-693): the model
     /// hears the store's own code, as the user would.
@@ -416,6 +461,7 @@ impl ToolError {
             Self::UnknownField { allowed, .. } => Some(allowed),
             Self::UnknownArgument { allowed, .. } if !allowed.is_empty() => Some(allowed),
             Self::NotForChart { allowed, .. } if !allowed.is_empty() => Some(allowed),
+            Self::NotOneOf { allowed, .. } => Some(allowed),
             Self::BadDescription {
                 reason: "data-not-offered",
                 ..
@@ -443,6 +489,15 @@ impl ToolError {
         }
     }
 
+    /// The smallest and the largest value a whole-number argument takes,
+    /// when it got one outside them (#1118).
+    pub fn range(&self) -> Option<(u64, u64)> {
+        match self.kind() {
+            Self::OutOfRange { min, max, .. } => Some((*min, *max)),
+            _ => None,
+        }
+    }
+
     /// The ways of drawing the data that take the argument, when the chosen
     /// one takes none (M6-B204).
     pub fn only_for_show_as(&self) -> Option<&[&'static str]> {
@@ -464,9 +519,23 @@ impl ToolError {
         match self.kind() {
             Self::NotForChart {
                 argument: "measure",
+                allowed,
                 only_for_show_as,
                 ..
-            } if only_for_show_as.contains(&"figure") => Some(READY_MADE_TILE_HINT),
+            } if only_for_show_as.contains(&"figure")
+                || (allowed.is_empty() && only_for_show_as.is_empty()) =>
+            {
+                Some(READY_MADE_TILE_HINT)
+            }
+            Self::NotForChart {
+                argument, allowed, ..
+            } if allowed.is_empty()
+                && crate::changes::LENGTHS
+                    .iter()
+                    .any(|(length, _)| length == argument) =>
+            {
+                Some(LENGTH_HINT)
+            }
             Self::CategoryNotRule => Some(CATEGORY_NOT_RULE_HINT),
             _ => None,
         }
@@ -583,6 +652,8 @@ impl Report for ToolError {
             }
             Self::BadArgument { argument }
             | Self::NotShaped { argument, .. }
+            | Self::OutOfRange { argument, .. }
+            | Self::NotOneOf { argument, .. }
             | Self::NotForChart { argument, .. } => ErrorReport::new("ai-tools.bad-argument")
                 .with("argument", ErrorParam::Keyword(argument)),
             Self::BadArgumentWhy { argument, reason } => ErrorReport::new("ai-tools.bad-argument")
@@ -609,12 +680,19 @@ impl Report for ToolError {
                 .with("not_before", ErrorParam::Keyword("from")),
             Self::UnknownTransaction => ErrorReport::new("ai-tools.unknown-transaction"),
             Self::UnknownTag => ErrorReport::new("ai-tools.unknown-tag"),
+            Self::UnknownPlan => ErrorReport::new("ai-tools.unknown-plan"),
             Self::ReferenceTooShort => ErrorReport::new("ai-tools.reference-too-short")
                 .with("min_chars", ErrorParam::count(MIN_REFERENCE_CHARS)),
             Self::NoBillFolder => ErrorReport::new("ai-tools.no-bill-folder"),
             Self::BillOutsideFolder => ErrorReport::new("ai-tools.bill-outside-folder"),
             Self::BillType => ErrorReport::new("ai-tools.bill-type"),
             Self::BillNotFound => ErrorReport::new("ai-tools.bill-not-found"),
+            Self::NoInbox => ErrorReport::new("ai-tools.no-inbox"),
+            Self::NoArchive => ErrorReport::new("ai-tools.no-archive"),
+            Self::BillTooBig => ErrorReport::new("ai-tools.bill-too-big")
+                .with("max_bytes", bytes(crate::MAX_BILL_BYTES))
+                .with("max_set_bytes", bytes(crate::MAX_FILED_BYTES)),
+            Self::BillAlreadyFiled => ErrorReport::new("ai-tools.bill-already-filed"),
             Self::Duplicate => ErrorReport::new("ai-tools.duplicate"),
             // The amounts go to the model through [`Self::amounts`]: a
             // report carries keywords and counts, never text.
@@ -712,7 +790,7 @@ impl Report for ToolError {
             Self::Store(error) => {
                 ErrorReport::new("ai-tools.book-unreadable").caused_by(error.report())
             }
-            Self::BudgetRefused(error) => error.report(),
+            Self::BudgetRefused(error) | Self::PlanRefused(error) => error.report(),
             Self::TransferRefused(error) => error.report(),
             Self::BudgetFigures(error) => {
                 ErrorReport::new("ai-tools.budget-figures-unreadable").caused_by(error.report())
@@ -724,6 +802,11 @@ impl Report for ToolError {
 // The list of error codes lives in `kassensturz-store`'s source, so that the
 // crates that must not depend on each other all check their codes the same
 // way.
+/// A number of bytes as a report's parameter.
+fn bytes(count: u64) -> ErrorParam {
+    ErrorParam::Number(i64::try_from(count).unwrap_or(i64::MAX))
+}
+
 #[cfg(test)]
 #[path = "../../kassensturz-store/src/error/list.rs"]
 mod list;
@@ -760,11 +843,16 @@ mod tests {
             ToolError::BadPeriod,
             ToolError::UnknownTransaction,
             ToolError::UnknownTag,
+            ToolError::UnknownPlan,
             ToolError::ReferenceTooShort,
             ToolError::NoBillFolder,
             ToolError::BillOutsideFolder,
             ToolError::BillType,
             ToolError::BillNotFound,
+            ToolError::NoInbox,
+            ToolError::NoArchive,
+            ToolError::BillTooBig,
+            ToolError::BillAlreadyFiled,
             ToolError::Duplicate,
             ToolError::PartsDontAddUp {
                 total: "-19.99".into(),
@@ -1130,6 +1218,10 @@ mod tests {
             assert!(report.code.starts_with("ai-changes."), "{}", report.code);
             check(&report, &rows, &mut seen);
         }
+        // The app makes this code from a `not-applied` refusal whose cause is
+        // an amount's size (`kassensturz-ui-bridge`, `code_text`, B-288); it
+        // is tested there.
+        seen.insert("ai-changes.amount-too-large");
         let unused = unused(&rows, &seen, &["ai-changes"]);
         assert!(unused.is_empty(), "{unused:?}");
     }

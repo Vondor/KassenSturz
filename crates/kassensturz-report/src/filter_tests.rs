@@ -274,6 +274,9 @@ fn asked(accounts: &[String], categories: &[String], takes: Takes) -> Asked {
         average: None,
         compare: None,
         candle: None,
+        flow: crate::FlowChoice::default(),
+        trend: crate::Trend::default(),
+        ema: crate::Ema::default(),
     }
 }
 

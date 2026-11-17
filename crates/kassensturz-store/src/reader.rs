@@ -13,16 +13,59 @@
 //! ([`BUSY_WAIT`]) instead of failing, since the book keeps the classic
 //! rollback journal (D-033).
 
-use std::path::Path;
-use std::time::Duration;
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant, SystemTime};
 
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::OpenFlags;
 
 use crate::{Book, StoreError, cached, is_book_file, layout};
 
 /// How long a connection waits for another one's lock before it gives up:
 /// the app's write for a reader's answer, or a reader for the app's write.
 pub(crate) const BUSY_WAIT: Duration = Duration::from_secs(5);
+
+/// How often a reader looks whether a save it waits for is over.
+const SAVE_POLL: Duration = Duration::from_millis(50);
+
+/// Waits up to [`BUSY_WAIT`] while the book at `path` has a rollback
+/// journal with its header written beside it, that is while a save is under way or one was cut
+/// short, and then fails with [`StoreError::Locked`]: the book is in use.
+/// SQLite's own locks say the same where they work; the journal says it
+/// also where they don't reach the program that saves (B-368).
+fn wait_for_save(path: &Path) -> Result<(), StoreError> {
+    let journal = crate::recovery::journal_of(path);
+    let started = Instant::now();
+    // A journal that never got its header changed nothing (see
+    // `journal_is_hot`), so it doesn't count.
+    while crate::lockless::journal_is_hot(&journal) {
+        if started.elapsed() >= BUSY_WAIT {
+            return Err(StoreError::Locked(crate::lock::Lock::unreadable()));
+        }
+        std::thread::sleep(SAVE_POLL);
+    }
+    Ok(())
+}
+
+/// What tells whether the book's file was written to: its size, when it
+/// was last changed, and SQLite's change counter in its header, which
+/// every save raises. `None` where the file can't be read.
+#[derive(PartialEq, Eq)]
+struct FileState(Option<(u64, Option<SystemTime>, [u8; 4])>);
+
+impl FileState {
+    fn of(path: &Path) -> Self {
+        use std::io::{Read, Seek, SeekFrom};
+        let state = (|| {
+            let mut file = std::fs::File::open(path).ok()?;
+            let metadata = file.metadata().ok()?;
+            let mut counter = [0u8; 4];
+            file.seek(SeekFrom::Start(24)).ok()?;
+            file.read_exact(&mut counter).ok()?;
+            Some((metadata.len(), metadata.modified().ok(), counter))
+        })();
+        Self(state)
+    }
+}
 
 impl Book {
     /// Opens the book at `path` to read it only, beside the app that may
@@ -33,7 +76,17 @@ impl Book {
     /// must update first, and like [`Book::open`] for a file that isn't a
     /// book or a layout this version can't read.
     pub fn open_to_read(path: &Path) -> Result<Self, StoreError> {
-        Self::open_to_read_at(path, layout::VERSION)
+        // A book another program is saving to for longer than a reader
+        // waits is "in use", not a database error (B-363), also where
+        // SQLite's locks don't reach the program that saves (B-368).
+        wait_for_save(path)?;
+        Self::open_to_read_at(path, layout::VERSION).map_err(|error| {
+            if crate::lockless::journal_is_hot(&crate::recovery::journal_of(path)) {
+                StoreError::Locked(crate::lock::Lock::unreadable())
+            } else {
+                crate::lock::in_use_instead(path, error)
+            }
+        })
     }
 
     /// [`Book::open_to_read`] for a KassenSturz whose current layout is
@@ -52,11 +105,12 @@ impl Book {
         // `path` is absolute, so SQLite never takes it for a URI, and
         // without SQLITE_OPEN_CREATE it never creates a file.
         let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-        let conn = Connection::open_with_flags(&path, flags)?;
+        let (conn, copy) = crate::lockless::open_read_only(&path, flags)?.into_parts();
         crate::harden(&conn)?;
         conn.busy_timeout(BUSY_WAIT)?;
         // A second guard, should a statement ever try to write anyway.
         conn.pragma_update(None, "query_only", true)?;
+        crate::integrity::check_file(&conn)?;
         let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
         match version {
             same if same == current => {}
@@ -73,13 +127,22 @@ impl Book {
         // A book with SQL another program planted is refused here too, so
         // the MCP server never reads through it (B-245).
         layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, current)?;
+        // The same checks as the app makes (B-291): the MCP server and the
+        // command line never read figures from a damaged book either.
+        crate::integrity::check_references(&conn)?;
+        crate::integrity::check_balances(&conn)?;
+        crate::integrity::check_conversions(&conn)?;
         conn.set_prepared_statement_cache_capacity(cached::CAPACITY);
         Ok(Self {
             conn,
             recording: false,
             filling: false,
             write_failed: false,
+            file_replaced: false,
             _lock: None,
+            without_file_locks: copy.is_some(),
+            _copy: copy,
+            cut_short: None,
         })
     }
 
@@ -98,10 +161,42 @@ impl Book {
         if !self.conn.is_autocommit() {
             return read(self);
         }
+        let path = PathBuf::from(self.conn.path().unwrap_or_default());
+        wait_for_save(&path)?;
+        let before = FileState::of(&path);
         self.conn
             .execute_batch("BEGIN DEFERRED")
             .map_err(StoreError::from)?;
+        // SQLite's shared lock is taken here, before `read` runs: a book the
+        // app is in the middle of a long save to is "in use", not a database
+        // error from whichever read met it first (B-368). Once held, the
+        // app's save waits for this read to end ([`BUSY_WAIT`]).
+        if let Err(error) = self
+            .conn
+            .query_row("SELECT count(*) FROM sqlite_schema", [], |row| {
+                row.get::<_, i64>(0)
+            })
+        {
+            let _ = self.conn.execute_batch("ROLLBACK");
+            let error = if crate::lockless::journal_is_hot(&crate::recovery::journal_of(&path)) {
+                StoreError::Locked(crate::lock::Lock::unreadable())
+            } else {
+                crate::lock::in_use_instead(&path, StoreError::from(error))
+            };
+            return Err(error.into());
+        }
         let result = read(self);
+        // While this read holds SQLite's shared lock, nothing writes to the
+        // book's file. Where the locks don't reach the program that saves,
+        // such as a book on a network share opened through the desktop
+        // portal, the file can change under the read: then what was read
+        // may be half old and half new, and the answer is "in use" instead
+        // (B-368). Looked at before the read ends, while a save that does
+        // see the lock still waits for it.
+        if FileState::of(&path) != before {
+            let _ = self.conn.execute_batch("ROLLBACK");
+            return Err(StoreError::Locked(crate::lock::Lock::unreadable()).into());
+        }
         // A read transaction has nothing to keep, so it ends the same way
         // whether `read` succeeded or not.
         match self.conn.execute_batch("COMMIT") {
@@ -116,6 +211,7 @@ impl Book {
 
 #[cfg(test)]
 mod tests {
+    use rusqlite::Connection;
     use std::sync::mpsc;
     use std::thread;
 
@@ -181,6 +277,135 @@ mod tests {
         // No lock file, journal or anything else was left by the reader.
         assert_eq!(files_in(folder.path()), before);
         drop(app);
+    }
+
+    /// B-363: a reader that opens the book while the app is in the middle
+    /// of a long save is told the book is in use, not a database error.
+    #[test]
+    fn a_reader_meeting_a_long_save_is_told_the_book_is_in_use() {
+        let folder = TempFolder::new();
+        let path = book_on_disk(&folder);
+        let writer = Connection::open(&path).expect("opened");
+        writer
+            .execute_batch("BEGIN EXCLUSIVE")
+            .expect("a save under way");
+        let read = Book::open_to_read(&path);
+        writer.execute_batch("ROLLBACK").expect("rolled back");
+        assert!(
+            matches!(read, Err(StoreError::Locked(_))),
+            "{:?}",
+            read.err()
+        );
+    }
+
+    /// B-368: a reader that opened the book before the app began a long
+    /// save is told the book is in use when it reads, not a database error.
+    #[test]
+    fn a_read_during_a_long_save_is_told_the_book_is_in_use() {
+        let folder = TempFolder::new();
+        let path = book_on_disk(&folder);
+        let reader = Book::open_to_read(&path).expect("opened to read");
+        let writer = Connection::open(&path).expect("opened");
+        writer
+            .execute_batch("BEGIN EXCLUSIVE")
+            .expect("a save under way");
+        let read = reader.reading(|book| book.accounts(false));
+        writer.execute_batch("ROLLBACK").expect("rolled back");
+        assert!(
+            matches!(read, Err(StoreError::Locked(_))),
+            "{:?}",
+            read.err()
+        );
+        // Once the save is over, the same reader reads again.
+        assert!(reader.reading(|book| book.accounts(false)).is_ok());
+    }
+
+    /// A connection to the book whose locks no reader sees, like the app
+    /// saving to a book on a network share through the desktop portal,
+    /// while the MCP server reads the share (B-368).
+    #[cfg(unix)]
+    fn saving_unseen(path: &Path) -> Connection {
+        Connection::open_with_flags_and_vfs(
+            path,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE,
+            "unix-none",
+        )
+        .expect("opened without locks")
+    }
+
+    /// B-368 on a share: a save whose locks the reader can't see is under
+    /// way. Reading and opening say "in use", not a database error, and
+    /// both work again once the save is over.
+    #[cfg(unix)]
+    #[test]
+    fn a_save_the_reader_cant_see_the_locks_of_makes_the_book_in_use() {
+        let folder = TempFolder::new();
+        let path = book_on_disk(&folder);
+        let reader = Book::open_to_read(&path).expect("opened to read");
+        let writer = saving_unseen(&path);
+        // A save large enough that SQLite writes pages of the book before
+        // it ends, as a large import does.
+        writer
+            .execute_batch(
+                "PRAGMA cache_size = 1; BEGIN;
+                 CREATE TABLE filler (x);
+                 WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 500)
+                 INSERT INTO filler SELECT randomblob(1000) FROM n;",
+            )
+            .expect("a save under way");
+        assert!(crate::lockless::journal_is_hot(
+            &crate::recovery::journal_of(&path)
+        ));
+        let read = reader.reading(|book| book.accounts(false));
+        assert!(
+            matches!(read, Err(StoreError::Locked(_))),
+            "{:?}",
+            read.err()
+        );
+        let opened = Book::open_to_read(&path);
+        assert!(
+            matches!(opened, Err(StoreError::Locked(_))),
+            "{:?}",
+            opened.err()
+        );
+        // The save is taken back, and the book can be read again.
+        writer.execute_batch("ROLLBACK").expect("taken back");
+        assert!(reader.reading(|book| book.accounts(false)).is_ok());
+        assert!(Book::open_to_read(&path).is_ok());
+    }
+
+    /// B-368 on a share: a save the reader can't see the locks of ends in
+    /// the middle of a read. What was read may be half old and half new,
+    /// so the answer is "in use"; the next read reads the saved book.
+    #[cfg(unix)]
+    #[test]
+    fn a_save_during_a_read_that_cant_see_its_locks_makes_the_read_in_use() {
+        let folder = TempFolder::new();
+        let path = book_on_disk(&folder);
+        let reader = Book::open_to_read(&path).expect("opened to read");
+        let writer = saving_unseen(&path);
+        let read = reader.reading(|book| {
+            let accounts = book.accounts(false)?;
+            writer
+                .execute_batch("UPDATE accounts SET name = name || ' saved'")
+                .expect("saved under the read");
+            Ok::<_, StoreError>(accounts)
+        });
+        assert!(
+            matches!(read, Err(StoreError::Locked(_))),
+            "{:?}",
+            read.err()
+        );
+        let names: Vec<String> = reader
+            .reading(|book| book.accounts(false))
+            .expect("read again")
+            .into_iter()
+            .map(|account| account.name)
+            .collect();
+        assert!(
+            names.iter().all(|name| name.ends_with(" saved")),
+            "{names:?}"
+        );
     }
 
     #[test]

@@ -28,6 +28,9 @@ Kirigami.ApplicationWindow {
     property var handedOn: []
     property var outcomes: []
     property var added: []
+    property alias aiSwitch: ai
+    property alias aiSettings: settings
+    property alias aiChat: chat
 
     AiSwitch {
         id: ai
@@ -37,9 +40,29 @@ Kirigami.ApplicationWindow {
         id: chat
     }
 
+    AiSettings {
+        id: settings
+    }
+
+    // The chat's own list: a chart message, as AiChatPanel.qml holds it.
+    ListModel {
+        id: messages
+    }
+
     pageStack.initialPage: Kirigami.Page {
         ColumnLayout {
             anchors.fill: parent
+
+            Repeater {
+                model: messages
+
+                delegate: AiChatMessage {
+                    Layout.fillWidth: true
+                    ai: window.aiSwitch
+                    settings: window.aiSettings
+                    chat: window.aiChat
+                }
+            }
 
             AiChartCard {
                 id: keeping
@@ -171,6 +194,21 @@ Kirigami.ApplicationWindow {
             window.check(chat.discarded.includes("9") && window.handedOn.length === 1, "Leave out throws the set away and hands nothing on");
 
             window.check(window.outcomes.join(",") === "keep:kept,keep:added,change:builder,leave:left", "each card tells what became of its chart: " + window.outcomes.join(","));
+            // Undo of the kept chart: the chat marks the card (B-354).
+            keeping.outcome = "undone";
+            window.check(window.texts(keeping, []).some(text => text.startsWith("Kept, then taken back with Undo")), "an undone chart says it is no longer saved");
+
+            // The same through the chat's list: after Keep pressed in the
+            // card, the list marking the message undone reaches the card
+            // (B-358: the card's own assignment had ended the binding).
+            messages.append({ message: { kind: "chart", setId: "11", unverified: [], outcome: "" } });
+            const inList = window.find(window.contentItem, "AiChartCard", []).filter(card => card.setId === "11")[0];
+            window.check(inList !== undefined, "the chat's list shows the chart card");
+            inList.keep();
+            messages.set(0, { message: { kind: "chart", setId: "11", unverified: [], outcome: "kept" } });
+            messages.set(0, { message: { kind: "chart", setId: "11", unverified: [], outcome: "undone" } });
+            window.check(inList.outcome === "undone", "a chart kept in the chat and then taken back with Undo shows it: " + inList.outcome);
+
             console.log(window.failed ? "chat chart: FAILED" : "chat chart: ok");
             Qt.exit(window.failed ? 1 : 0);
         }

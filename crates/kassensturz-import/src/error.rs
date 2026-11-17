@@ -72,6 +72,21 @@ pub enum ImportError {
         /// Where, if known.
         line: Option<u64>,
     },
+    /// A file says it is written in one text encoding, and its bytes are in
+    /// another, e.g. a declaration of ISO-8859-1 over UTF-8 text. It is not
+    /// read by guess, because a wrong guess changes what a text says.
+    EncodingContradiction {
+        /// The encoding the file's XML declaration names.
+        declared: String,
+        /// Where, if known.
+        line: Option<u64>,
+    },
+    /// A file is written in a text encoding KassenSturz doesn't read, e.g.
+    /// UTF-32.
+    UnsupportedEncoding {
+        /// The encoding, as the file names it.
+        found: String,
+    },
     /// The file's header row has no column of the name the settings give.
     ColumnNotFound {
         /// The name.
@@ -173,6 +188,12 @@ pub enum ImportError {
         /// The decimal places the file's amounts are counted in.
         file: u8,
     },
+    /// The app was asked to quit during the import, e.g. by a logout or a
+    /// shutdown (SIGTERM), so the import stopped (B-362). Nothing of it was
+    /// written.
+    Stopped,
+    /// The user cancelled the import (B-362). Nothing of it was written.
+    Cancelled,
 }
 
 impl ImportError {
@@ -187,6 +208,7 @@ impl ImportError {
             | Self::BadAmount { line, .. }
             | Self::BadDate { line, .. }
             | Self::WrongEncoding { line, .. }
+            | Self::EncodingContradiction { line, .. }
             | Self::ColumnNotFound { line, .. }
             | Self::ColumnNotUnique { line, .. }
             | Self::BadSettings { line }
@@ -201,7 +223,10 @@ impl ImportError {
             | Self::ReplacedCurrencyDiffers { .. }
             | Self::SuccessorNeeded { .. }
             | Self::SuccessorNotCurrent { .. }
-            | Self::DecimalPlacesDiffer { .. } => {}
+            | Self::UnsupportedEncoding { .. }
+            | Self::DecimalPlacesDiffer { .. }
+            | Self::Stopped
+            | Self::Cancelled => {}
         }
         self
     }
@@ -261,6 +286,13 @@ impl Report for ImportError {
                     .with("encoding", ErrorParam::Keyword(encoding.keyword())),
                 line,
             ),
+            Self::EncodingContradiction { declared, line } => with_line(
+                ErrorReport::new("import.encoding-contradiction").with("declared", text(declared)),
+                line,
+            ),
+            Self::UnsupportedEncoding { found } => {
+                ErrorReport::new("import.unsupported-encoding").with("found", text(found))
+            }
             Self::ColumnNotFound { column, line } => with_line(
                 ErrorReport::new("import.column-not-found").with("column", text(column)),
                 line,
@@ -334,6 +366,8 @@ impl Report for ImportError {
                 .with("currency", ErrorParam::Currency(*currency))
                 .with("book", ErrorParam::Number((*book).into()))
                 .with("file", ErrorParam::Number((*file).into())),
+            Self::Stopped => ErrorReport::new("import.stopped"),
+            Self::Cancelled => ErrorReport::new("import.cancelled"),
         }
     }
 }

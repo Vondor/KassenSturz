@@ -40,6 +40,8 @@ fn examples() -> Vec<ImportError> {
         ImportError::FileTooLarge { max_bytes: 1024 },
         ImportError::TooDeeplyNested { max: 64, line },
         ImportError::TooManyEntries { max: 10 },
+        ImportError::Stopped,
+        ImportError::Cancelled,
         ImportError::TextTooLong {
             max_bytes: 16,
             line,
@@ -56,6 +58,13 @@ fn examples() -> Vec<ImportError> {
         ImportError::WrongEncoding {
             encoding: TextEncoding::Windows1252,
             line,
+        },
+        ImportError::EncodingContradiction {
+            declared: text("ISO-8859-1"),
+            line,
+        },
+        ImportError::UnsupportedEncoding {
+            found: text("UTF-32"),
         },
         ImportError::ColumnNotFound {
             column: text("Betrag"),

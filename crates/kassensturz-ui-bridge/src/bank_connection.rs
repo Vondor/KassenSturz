@@ -25,7 +25,8 @@
 //!
 //! Without AqBanking, or with `KASSENSTURZ_FAKE_BANK=1` (for trying the
 //! screens, marked in them), the worker holds the fake bank, which asks
-//! for a TAN at every connection (D-055). With `KASSENSTURZ_FAKE_BANK=keychain`
+//! for a TAN at every connection (D-055); with `KASSENSTURZ_FAKE_BANK_DEPOT=1`
+//! it also lists a securities account, to try #514 (D-624). With `KASSENSTURZ_FAKE_BANK=keychain`
 //! it is the same fake bank, but a PIN the user saves goes into the real
 //! system keychain, filed under [`FAKE_BANK_SERVICE`], so saving, reading
 //! back and removing a PIN can be tried with the desktop's own keychain
@@ -72,6 +73,28 @@ use crate::format::Locale;
 /// `1` with the PINs in memory, [`FAKE_BANK_WITH_KEYCHAIN`] with the PINs in
 /// the system keychain.
 pub const FAKE_BANK_VARIABLE: &str = "KASSENSTURZ_FAKE_BANK";
+
+/// The environment variable that gives the fake bank a securities account
+/// (a depot) next to its current account and credit card, to try how bank
+/// setup and fetching treat one (M6-B190, D-624, #514): `1` switches it on.
+/// It only matters while the fake bank is behind the screens.
+pub const FAKE_BANK_DEPOT_VARIABLE: &str = "KASSENSTURZ_FAKE_BANK_DEPOT";
+
+/// Whether `value` of [`FAKE_BANK_DEPOT_VARIABLE`] asks for the depot.
+fn depot_wanted(value: Option<&std::ffi::OsString>) -> bool {
+    value.is_some_and(|value| value == "1")
+}
+
+/// The fake bank the screens get: it asks for a TAN, and lists a depot if
+/// [`FAKE_BANK_DEPOT_VARIABLE`] says so.
+fn screen_fake_bank() -> FakeBank {
+    let bank = FakeBank::new().with_second_factor(SecondFactor::Tan);
+    if depot_wanted(std::env::var_os(FAKE_BANK_DEPOT_VARIABLE).as_ref()) {
+        bank.with_securities_account()
+    } else {
+        bank
+    }
+}
 
 /// The value of [`FAKE_BANK_VARIABLE`] that saves the fake bank's PINs in
 /// the system keychain (D-159).
@@ -251,10 +274,10 @@ impl Connection {
         match (backend, folder) {
             (Backend::FakeInMemory, _) => {
                 let pins = PinSession::new(memory_stores()(storage));
-                Self::fake(FakeBank::new().with_second_factor(SecondFactor::Tan), pins)
+                Self::fake(screen_fake_bank(), pins)
             }
             (Backend::FakeWithKeychain, _) => Self::fake_with_keychain(
-                FakeBank::new().with_second_factor(SecondFactor::Tan),
+                screen_fake_bank(),
                 keychain_stores(|storage| storage.keychain(FAKE_BANK_SERVICE)),
                 storage,
             ),
@@ -705,7 +728,7 @@ pub fn error_text(error: &BankError) -> ErrorText {
                 ErrorParam::Text(text) => text.clone(),
                 ErrorParam::Keyword(keyword) => (*keyword).to_owned(),
                 ErrorParam::Currency(currency) => currency.to_string(),
-                other => format!("{other:?}"),
+                other => crate::errors::param_without_book(other),
             };
             (*name, text)
         })
@@ -2137,6 +2160,15 @@ mod tests {
             None => FakeBank::new(),
         };
         Connection::fake(bank, PinSession::new(Box::new(MemoryPinStore::new())))
+    }
+
+    #[test]
+    fn the_depot_is_asked_for_by_name_only() {
+        let os = std::ffi::OsString::from;
+        assert!(depot_wanted(Some(&os("1"))));
+        assert!(!depot_wanted(Some(&os("0"))));
+        assert!(!depot_wanted(Some(&os(""))));
+        assert!(!depot_wanted(None));
     }
 
     #[test]

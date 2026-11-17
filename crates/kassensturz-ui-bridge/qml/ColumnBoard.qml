@@ -432,8 +432,11 @@ ColumnLayout {
                 return i18nContext.i18nc("@info a mistake in a formula; %1 is what was typed", "“%1” is not the name of a column, category or group. Pick one from the suggestions.", word);
             }
         }
-        // Names written in quotes must exist too.
-        for (const found of matches(text, /"([^"]+)"|'((?:[^']|'')+)'/g)) {
+        // Names written in quotes must exist too. What follows an @ is a
+        // period (@"last 30 days"), not a name (B-351); its words are checked
+        // by the formula's own reader, in periodProblem().
+        const withoutPeriods = text.replace(/@(?:"[^"]*"|'(?:[^']|'')*')/g, "@");
+        for (const found of matches(withoutPeriods, /"([^"]+)"|'((?:[^']|'')+)'/g)) {
             const typed = found[1] ?? found[2].replace(/''/g, "'");
             const word = typed.toLowerCase();
             if (!names.some(name => name.includes(word))) {
@@ -442,6 +445,17 @@ ColumnLayout {
         }
         return "";
     }
+
+    // What is wrong with how a formula writes a period, as the error object
+    // of a formula, or an empty object: the same reasons the formula's own
+    // reader gives (B-351).
+    function periodProblem(text: string): var {
+        return formulaBook.periodProblem(text) ?? ({});
+    }
+
+    // Whether a column's formula writes a period the reader refuses, so the
+    // wizard doesn't finish a view that can't be shown (B-351).
+    readonly property bool periodWrong: columns.some(column => isFormula(column) && periodProblem(column.formula ?? "").code !== undefined)
 
     // The suggestions for the word at the cursor in the formula of column
     // `index`: {label, detail, start, end, insert}.
@@ -886,6 +900,11 @@ ColumnLayout {
                         font: Kirigami.Theme.smallFont
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
+                    }
+
+                    FormError {
+                        Layout.fillWidth: true
+                        result: slotColumn.asFormula ? board.periodProblem(formulaInput.text) : ({})
                     }
 
                     Controls.Label {

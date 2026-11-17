@@ -118,6 +118,24 @@ QtObject {
             return i18nContext.i18nc("@info a change you made", "Joined monthly moves of your own money by themselves");
         case "join-transfers":
             return i18nContext.i18nc("@info a change you made", "Joined several moves of your own money at once");
+        case "add-schedule":
+            return i18nContext.i18nc("@info a change you made", "Planned a payment");
+        case "edit-schedule":
+            return i18nContext.i18nc("@info a change you made", "Changed a planned payment");
+        case "remove-schedule":
+            return i18nContext.i18nc("@info a change you made", "Removed a planned payment");
+        case "pause-schedule":
+            return i18nContext.i18nc("@info a change you made", "Paused or resumed a planned payment");
+        case "match-schedules":
+            return i18nContext.i18nc("@info a change you made", "Found planned payments in new entries");
+        case "match-schedule-occurrence":
+            return i18nContext.i18nc("@info a change you made", "Matched an entry to a planned payment");
+        case "skip-schedule-occurrence":
+            return i18nContext.i18nc("@info a change you made", "Skipped a planned payment this time");
+        case "unskip-schedule-occurrence":
+            return i18nContext.i18nc("@info a change you made", "Expected a skipped payment again");
+        case "book-schedule-occurrence":
+            return i18nContext.i18nc("@info a change you made", "Booked a planned payment");
         case "link-bank-account":
             return i18nContext.i18nc("@info a change you made", "Linked an account to your bank");
         case "unlink-bank-account":
@@ -140,6 +158,11 @@ QtObject {
     // read. `change` is an object of history_model.rs.
     function describe(change: var): string {
         const what = name(change.action);
+        if (change.filedBills > 0) {
+            // The bills it filed from the receipt inbox (US7, #333), so
+            // the user sees that Undo moves them back.
+            return i18nContext.i18ncp("@info %1 is a number of bills, %2 what was done", "%2, and %1 bill filed from the inbox", "%2, and %1 bills filed from the inbox", change.filedBills, what);
+        }
         return change.fileName
             ? i18nContext.i18nc("@info %1 is what was done, %2 the name of a file", "%1 (%2)", what, change.fileName)
             : what;

@@ -21,12 +21,19 @@ concurrency:
 # job has started; the slow jobs wait for them and then run side by side.
 # Beside the quick checks, an early-warning job repeats the lints and tests that
 # fail most often in a few minutes on the plain runner (see early-no-ai). A pull
-# request that only changes documentation skips the slow jobs: a job skipped by
+# request that changes no code (only documentation, other workflows or the snap
+# and Windows packaging, see the changes job, D-791) skips the formatting and
+# license checks and the slow jobs: a job skipped by
 # its own `if` counts as passed for branch protection, so the checks it requires
 # still report (a workflow-level `paths-ignore` would leave them pending forever).
 jobs:
-  # Decides whether the slow jobs have anything to build. Everything that isn't
-  # plainly documentation counts as code, and so does every push to main.
+  # Decides whether the slow jobs have anything to build (D-791). A file counts
+  # as code unless it is on the list of files no job below reads: the
+  # documentation, the licenses, the GitHub templates, the other workflows and
+  # the snap and Windows packaging, which have workflows of their own
+  # (snap.yml, windows-app.yml). Some of those files are read by tests or the
+  # build after all; they are listed again as code. Every push to main counts
+  # as code, so main always runs everything.
   changes:
     name: What changed
     runs-on: ubuntu-latest
@@ -43,15 +50,40 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          # Files no job of this workflow reads.
+          outside='^(docs/|LICENSES/|[^/]+\.md$|REUSE\.toml$|CODEOWNERS$|\.github/PULL_REQUEST_TEMPLATE\.md$|\.github/FUNDING\.yml$|\.github/workflows/|packaging/snap/|packaging/windows/)'
+          # Files on that list that a test or the build reads all the same: the
+          # error codes (kassensturz-store, -mcp, -ai-chat, -ui-bridge), the
+          # threat model (kassensturz-ai-tools), the regression index
+          # (kassensturz-store), the export format (kassensturz-export), this
+          # workflow and the Windows icon resource (CMakeLists.txt). The issue
+          # forms (read by kassensturz-ai-tools) are not on the list at all.
+          read_by_code='^(docs/(ERROR_CODES|THREAT_MODEL|REGRESSION_TESTS|EXPORT_FORMAT)\.md|\.github/workflows/ci\.yml|packaging/windows/kassensturz\.(rc|ico))$'
+          # Prints the lines of its input that are code.
+          is_code() {
+            local input
+            input=$(cat)
+            grep -Ev "$outside" <<< "$input" || true
+            grep -E "$read_by_code" <<< "$input" || true
+          }
+
+          # Every file outside the crates that a crate's code names as a string
+          # (an include_str!, a path joined to the repository) must count as
+          # code, or a change to it would skip the tests that read it. This
+          # fails when a new test reads such a file and the lists above don't
+          # say so yet.
+          named=$(git grep -hoE '"(\.\./)*(docs|LICENSES|\.github|packaging/(snap|windows)|[A-Za-z_]+\.md|REUSE\.toml|CODEOWNERS)(/[^"]*)?"' -- crates fuzz CMakeLists.txt cmake \
+            | tr -d '"' | sed -E 's#^(\./|\.\./)+##' | sort -u || true)
+          missed=$(comm -23 <(sort -u <<< "$named") <(is_code <<< "$named" | sort -u) | sed '/^$/d')
+          if [ -n "$missed" ]; then
+            echo "::error::The code reads these files, but the 'What changed' job counts them as documentation: add them to read_by_code in .github/workflows/ci.yml (D-791): $(tr '\n' ' ' <<< "$missed")"
+            exit 1
+          fi
+
           code=true
           if [ "$EVENT" = pull_request ]; then
             files=$(git diff --name-only "$BASE...$HEAD")
-            # docs/ERROR_CODES.md is compiled into the tests of kassensturz-store,
-            # so it's code. The other documentation, the licenses, the GitHub
-            # templates and the Markdown files in the top folder are not.
-            not_docs=$(grep -Ev '^(docs/|LICENSES/|[^/]+\.md$|REUSE\.toml$|CODEOWNERS$|\.github/ISSUE_TEMPLATE/|\.github/PULL_REQUEST_TEMPLATE\.md$)' <<< "$files" || true)
-            error_codes=$(grep -x 'docs/ERROR_CODES.md' <<< "$files" || true)
-            if [ -n "$files" ] && [ -z "$not_docs$error_codes" ]; then
+            if [ -n "$files" ] && [ -z "$(is_code <<< "$files" | sed '/^$/d')" ]; then
               code=false
             fi
           fi
@@ -105,6 +137,8 @@ jobs:
   fmt:
     name: Rust formatting
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust
@@ -112,6 +146,53 @@ jobs:
           rustup toolchain install 1.98.1 --profile minimal --component rustfmt
           rustup default 1.98.1
       - run: cargo fmt --all --check
+
+  # Hints for whoever reviews a translation (D-778): entries that look like a
+  # joke, vandalism, filler or text never really translated (left in English,
+  # wrong writing system, a key word with the wrong meaning). It never fails:
+  # the hints show as warnings on the pull request's changed lines and as a
+  # table in the job summary. Only entries this pull request changed are read.
+  translation-sense:
+    name: Translation hints (never blocks, D-778)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: The hint script still finds what it should
+        run: python3 tools/check-translation-sense.py --self-test
+      - name: Look for translations that weren't taken seriously
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: python3 tools/check-translation-sense.py --base "$BASE"
+
+  # The documentation names the current book layout in one place only, the
+  # status line of docs/BOOK_FORMAT.md; this fails when that line, or any
+  # other doc that claims a current layout, differs from the code's VERSION,
+  # and when the README or a user guide names a layout at all (outside
+  # review, 2026-11-14). Seconds, Python only; runs on every pull request,
+  # documentation-only ones included.
+  doc-facts:
+    name: Docs name the code's book layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 tools/check-doc-facts.py
+
+  # The table of invisible code points that the AI tools hide from a model is
+  # generated (tools/update-invisible-table.py, D-787, B-300). This fails when
+  # the file is out of date for the runner's Unicode version, or, for another
+  # version, when the file lacks a format, private-use or default-ignorable
+  # code point that version knows. Seconds, Python only.
+  invisible-table:
+    name: Invisible text table is current
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: python3 tools/update-invisible-table.py --check
 
   # Early warning for the checks that fail most often (CI history of 400 pull
   # request runs, 2026-10-31 to 11-09): the build without AI failed in 14 runs
@@ -513,6 +594,10 @@ jobs:
           status=0
           timeout 10 build/stage/usr/bin/kassensturz || status=$?
           test "$status" -eq 124
+      # A logout, a shutdown or `pkill` ends the app like quitting, so the
+      # book's lock file doesn't stay behind (B-276).
+      - name: The installed app ends cleanly on SIGTERM and SIGHUP
+        run: tools/check-sigterm.sh build/stage/usr/bin/kassensturz
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -669,11 +754,21 @@ jobs:
   licenses:
     name: Dependency licenses and sources (D-026)
     runs-on: ubuntu-latest
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
         with:
           command: check
+          command-arguments: licenses sources
+      # The fuzz targets have a lock file of their own (D-787); their one
+      # extra license, NCSA of libfuzzer-sys, is allowed in fuzz/deny.toml.
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          manifest-path: fuzz/Cargo.toml
+          command: check
+          arguments: --all-features --config fuzz/deny.toml
           command-arguments: licenses sources
 
   # After a merge, the Flatpak that the pull request already built and tested
@@ -786,12 +881,16 @@ jobs:
           restore-keys: flatpak-builder-state-x86_64-
       - name: "Builder cache restored from: ${{ steps.builder-cache.outputs.cache-matched-key || 'nothing' }}"
         run: ls .flatpak-builder 2>/dev/null | head || true
-      - uses: flatpak/flatpak-github-actions/flatpak-builder@79327416609af08178ad73b352877e51450790b3 # v6.8
+      # Not the flatpak-builder action: it updated the image's SDK from
+      # Flathub, which failed now and then with "Invalid cross-device link"
+      # (#904). The script uses the pinned image's runtime and SDK as they are.
+      - name: Build the Flatpak
+        run: sh tools/ci-flatpak-build.sh KassenSturz.flatpak
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          manifest-path: packaging/flatpak/io.github.vondor.KassenSturz.yml
-          bundle: KassenSturz.flatpak
-          restore-cache: false
-          save-cache: false
+          name: KassenSturz-x86_64.flatpak
+          path: KassenSturz.flatpak
+          if-no-files-found: error
       # What this bundle was made from, so that the run after the merge can
       # tell whether it may use the bundle again (D-427).
       - name: Note what the build was made from

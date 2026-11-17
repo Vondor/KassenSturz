@@ -1,0 +1,10 @@
+# Programs that may be in the Windows packages, as paths inside the package
+# (lower case). The recipe (craft/kassensturz/blacklist.txt) leaves out every
+# other .exe: the Craft build folder holds hundreds of programs (ffmpeg,
+# openssl, sqlite3, windeployqt, ...) that nobody needs at run time, and each
+# is one more program an attacker could start from a folder the app owns
+# (B-292). windows-app.yml checks the zip against this list.
+#
+# kassensturz-mcp.exe is the local MCP server of an AI-enabled build (D-050).
+bin/kassensturz.exe
+bin/kassensturz-mcp.exe

@@ -30,6 +30,9 @@ Kirigami.ScrollablePage {
     // The set was applied or thrown away.
     signal applied(string setId)
     signal discarded(string setId)
+    // Confirmed, but every change was a bill that stayed: nothing was made
+    // (B-284).
+    signal nothingMade(string setId)
     // The user wants the applied set taken back.
     signal undoClicked()
     signal doneClicked()
@@ -59,6 +62,10 @@ Kirigami.ScrollablePage {
     // The keywords of the reasons the user picked for throwing the set away
     // (D-678). Optional.
     property var reasons: []
+    // Whether one of the user's own AI tools prepared these changes through
+    // kassensturz-mcp: then there was no message of the user's that an
+    // amount came from (B-371).
+    readonly property bool isFromOwnTool: chat.isFromOwnTool(setId)
     // The reasons the user may pick, keyword and label; the keywords are
     // those of `kassensturz_ai_tools::refusal::RefusalReason`.
     readonly property var reasonChoices: [
@@ -89,12 +96,15 @@ Kirigami.ScrollablePage {
     readonly property var deletedViews: kept.filter(change => change.kind === "deleteView")
     readonly property var newBudgets: kept.filter(change => change.kind === "newBudget")
     readonly property var editedBudgets: kept.filter(change => change.kind === "editBudget")
+    readonly property var newPlans: kept.filter(change => change.kind === "newPlan")
+    readonly property var editedPlans: kept.filter(change => change.kind === "editPlan")
     readonly property var editedAccounts: kept.filter(change => change.kind === "editAccount")
     readonly property var sorts: kept.filter(change => change.kind === "sortWithRules")
     readonly property var joins: kept.filter(change => change.kind === "joinTransfer")
     readonly property var taggings: kept.filter(change => change.kind === "tagTransaction")
     readonly property var splits: kept.filter(change => change.kind === "splitTransaction")
     readonly property var bills: kept.filter(change => change.kind === "attachBill")
+    readonly property var filings: kept.filter(change => change.kind === "fileBill")
     readonly property bool shows: changes.code === undefined && !done
 
     // The name of a field of a transaction the AI changes.
@@ -287,6 +297,8 @@ Kirigami.ScrollablePage {
             return change.ruleName !== "" ? change.ruleName : i18nContext.i18nc("@info what a sort the AI prepared uses", "All Rules");
         case "joinTransfer":
             return i18nContext.i18nc("@info %1 is an amount, %2 and %3 the names of accounts", "%1 · %2 → %3", change.amount, change.outgoing.account, change.incoming.account);
+        case "fileBill":
+            return i18nContext.i18nc("@info %1 is a file name, %2 how its total compares with the bank's", "%1 · %2", change.file, totalCheck(change));
         }
         return i18nContext.i18nc("@info %1 is a date, %2 who was paid or paid, %3 an amount", "%1 · %2 · %3", change.date, change.payee, change.amount);
     }
@@ -323,6 +335,10 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "New budget");
         case "editBudget":
             return i18nContext.i18nc("@info a kind of prepared change", "Changed budget");
+        case "newPlan":
+            return i18nContext.i18nc("@info a kind of prepared change", "New planned payment");
+        case "editPlan":
+            return i18nContext.i18nc("@info a kind of prepared change", "Changed planned payment");
         case "editView":
             return i18nContext.i18nc("@info a kind of prepared change", "Changed chart");
         case "deleteView":
@@ -337,6 +353,8 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "Transaction broken into parts");
         case "attachBill":
             return i18nContext.i18nc("@info a kind of prepared change", "Bill linked to a transaction");
+        case "fileBill":
+            return i18nContext.i18nc("@info a kind of prepared change", "Bill filed from the inbox");
         }
         return i18nContext.i18nc("@info a kind of prepared change", "New chart");
     }
@@ -365,12 +383,66 @@ Kirigami.ScrollablePage {
         return id;
     }
 
+    // How the total the AI read on a bill compares with what the bank
+    // booked (D-751), every figure written by Rust (D-065).
+    function totalCheck(change: var): string {
+        switch (change.check) {
+        case "matches":
+            return i18nContext.i18nc("@info %1 is the bill's total, %2 what the bank booked", "The bill says %1 · your bank booked %2 ✓", change.billTotal, change.booked);
+        case "differs":
+            return i18nContext.i18nc("@info %1 is the bill's total, %2 what the bank booked", "The bill says %1, your bank booked %2.", change.billTotal, change.booked);
+        }
+        return i18nContext.i18nc("@info %1 is what the bank booked", "The AI did not give the bill's total; check the bill yourself. Your bank booked %1.", change.booked);
+    }
+
+    // Why a bill stayed in the inbox after the confirm (US7, #333).
+    function stayedReason(reason: string): string {
+        switch (reason) {
+        case "changed":
+            return i18nContext.i18nc("@info", "it changed after your AI read it");
+        case "not-found":
+            return i18nContext.i18nc("@info", "it isn't in the inbox any more");
+        case "no-folders":
+            return i18nContext.i18nc("@info", "no inbox and archive are chosen under Your own AI tools");
+        case "other-inbox":
+            return i18nContext.i18nc("@info", "you chose another inbox since");
+        case "inbox-gone":
+            return i18nContext.i18nc("@info", "the inbox folder isn't there any more");
+        case "archive-gone":
+            return i18nContext.i18nc("@info", "the archive folder isn't there any more");
+        case "no-space":
+            return i18nContext.i18nc("@info", "the drive is full");
+        case "no-permission":
+            return i18nContext.i18nc("@info", "KassenSturz may not write there");
+        case "exists":
+            return i18nContext.i18nc("@info", "a file of that name appeared in the archive");
+        case "too-long":
+            return i18nContext.i18nc("@info", "the archive's path is too long for a file name");
+        case "outside":
+            return i18nContext.i18nc("@info", "the place would lie outside the archive");
+        case "verify":
+            return i18nContext.i18nc("@info", "the copy didn't match, so it was removed");
+        case "no-journal":
+            return i18nContext.i18nc("@info", "KassenSturz couldn't note the move in its settings folder");
+        }
+        return i18nContext.i18nc("@info", "it couldn't be copied");
+    }
+
+    // The bills that stayed after the confirm, each with why, as one text.
+    function stayedList(): string {
+        return Array.from(result.stayed ?? []).map(bill => i18nContext.i18nc("@info %1 is a file name, %2 why it stayed", "%1 (%2)", bill.file, stayedReason(bill.reason))).join(", ");
+    }
+
     // The user's yes: the only call that applies the set.
     function confirm() {
         result = chat.confirm(setId);
         if (result.ok === true) {
             done = true;
-            applied(setId);
+            if (result.made === false) {
+                nothingMade(setId);
+            } else {
+                applied(setId);
+            }
         }
     }
 
@@ -529,7 +601,8 @@ Kirigami.ScrollablePage {
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Positive
-            visible: page.done
+            // Not when every change was a bill that stayed (B-284).
+            visible: page.done && page.result.made !== false
             text: page.i18nContext.i18nc("@info", "The changes were made. You can take them back with Undo.")
             actions: [
                 Kirigami.Action {
@@ -549,6 +622,35 @@ Kirigami.ScrollablePage {
                     }
                 }
             ]
+        }
+
+        // What filing the bills did (US7, #333): the bills that stayed in
+        // the inbox and why, and old copies that couldn't be removed.
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Warning
+            visible: page.done && (page.result.stayed ?? []).length > 0
+            text: visible ? Plain.plain(page.result.made === false
+                ? page.i18nContext.i18nc("@info %1 is a list of files with the reason each stayed", "Nothing was changed: these bills stayed in your inbox and were not linked: %1.", page.stayedList())
+                : page.i18nContext.i18nc("@info %1 is a list of files with the reason each stayed", "These bills stayed in your inbox and were not linked: %1. The other changes were made.", page.stayedList())) : ""
+            actions: page.result.made === false ? [closeAfterNothing] : []
+
+            Kirigami.Action {
+                id: closeAfterNothing
+                icon.name: "dialog-close"
+                text: page.i18nContext.i18nc("@action:button leave this page", "Close")
+                onTriggered: {
+                    ActionLog.taken("AiChangeReviewPage_closeAfterNothing")
+                    page.doneClicked()
+                }
+            }
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Warning
+            visible: page.done && (page.result.copiesLeft ?? []).length > 0
+            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a list of paths", "The bills are filed. KassenSturz couldn't remove these copies in your inbox: %1", Array.from(page.result.copiesLeft).join(", "))) : ""
         }
 
         Kirigami.Heading {
@@ -1521,6 +1623,104 @@ Kirigami.ScrollablePage {
 
         Kirigami.Heading {
             level: 3
+            visible: page.shows && page.filings.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Bills filed from the inbox")
+            textFormat: Text.PlainText
+        }
+
+        // What moving the bills means, above them (docs/RECEIPT_INBOX.md §2).
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: page.shows && page.filings.length > 0
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18ncp("@info %1 is a number of files", "%1 file will be moved from your inbox to your archive. It is copied and checked first; the original is removed only after your book is saved. Undo puts it back.", "%1 files will be moved from your inbox to your archive. Each is copied and checked first; the original is removed only after your book is saved. Undo puts them back.", page.filings.length)
+        }
+
+        // A bill from the receipt inbox (US7, #333, D-752): KassenSturz
+        // chooses where it goes, and checks the AI's total against the
+        // bank's. A differing total starts left out (D-751).
+        Repeater {
+            model: page.shows ? page.filings : []
+
+            Kirigami.AbstractCard {
+                id: filingCard
+
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        font.bold: true
+                        textFormat: Text.PlainText
+                        text: filingCard.modelData.payee !== "" ? filingCard.modelData.payee : page.i18nContext.i18nc("@info a transaction without a name", "(no name)")
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a date, %2 the name of an account", "%1 · %2", filingCard.modelData.date, filingCard.modelData.account)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a file name", "File bill: %1 (from your inbox)", filingCard.modelData.file)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: filingCard.modelData.goesTo !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is a path inside the archive", "Goes to: %1", filingCard.modelData.goesTo)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: filingCard.modelData.title !== ""
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info %1 is what the bill is called", "Called: %1", filingCard.modelData.title)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        color: filingCard.modelData.check === "differs" ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor
+                        text: page.totalCheck(filingCard.modelData)
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: filingCard.modelData.check === "differs"
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18nc("@info", "You put this bill back on purpose, for example because of a tip or a part payment. Your transaction keeps the bank's amount.")
+                    }
+
+                    AiChangeCorrection {
+                        Layout.fillWidth: true
+                        ai: page.ai
+                        change: filingCard.modelData
+                        choices: page.choices
+                        review: page
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
             visible: page.shows && page.transactions.length > 0
             text: page.i18nContext.i18nc("@title:group", "Transactions that get a category")
             textFormat: Text.PlainText
@@ -1614,6 +1814,15 @@ Kirigami.ScrollablePage {
                         text: chartCard.modelData.title
                     }
 
+                    // The AI wrote the numbers in the title, also when an
+                    // outside AI proposed the chart (B-361, A7).
+                    Kirigami.InlineMessage {
+                        Layout.fillWidth: true
+                        type: Kirigami.MessageType.Warning
+                        visible: (chartCard.modelData.titleNumbers ?? []).length > 0
+                        text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a list of numbers", "Check the numbers in this title before you keep it: the AI wrote them as text, so they are never worked out from your book, may be made up, and go along with any dashboard file you share: %1", chartCard.modelData.titleNumbers.join(", "))) : ""
+                    }
+
                     Controls.Label {
                         Layout.fillWidth: true
                         wrapMode: Text.Wrap
@@ -1696,12 +1905,21 @@ Kirigami.ScrollablePage {
                         text: changedChartCard.modelData.title
                     }
 
+                    // The AI wrote the numbers in the title, also when an
+                    // outside AI proposed the chart (B-361, A7).
+                    Kirigami.InlineMessage {
+                        Layout.fillWidth: true
+                        type: Kirigami.MessageType.Warning
+                        visible: (changedChartCard.modelData.titleNumbers ?? []).length > 0
+                        text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a list of numbers", "Check the numbers in this title before you keep it: the AI wrote them as text, so they are never worked out from your book, may be made up, and go along with any dashboard file you share: %1", changedChartCard.modelData.titleNumbers.join(", "))) : ""
+                    }
+
                     Controls.Label {
                         Layout.fillWidth: true
                         visible: changedChartCard.modelData.before !== changedChartCard.modelData.title
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
-                        text: page.i18nContext.i18nc("@info %1 is the name a saved chart has now", "Now called: %1", changedChartCard.modelData.before)
+                        text: page.i18nContext.i18nc("@info %1 is the name a saved chart has before the change", "Called %1 until now.", changedChartCard.modelData.before)
                     }
 
                     Controls.Label {
@@ -1822,6 +2040,48 @@ Kirigami.ScrollablePage {
             model: page.shows ? page.editedBudgets : []
 
             AiBudgetChange {
+                required property var modelData
+
+                Layout.fillWidth: true
+                ai: page.ai
+                change: modelData
+                choices: page.choices
+                review: page
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.newPlans.length > 0
+            text: page.i18nContext.i18nc("@title:group", "New planned payments")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.newPlans : []
+
+            AiPlanChange {
+                required property var modelData
+
+                Layout.fillWidth: true
+                ai: page.ai
+                change: modelData
+                choices: page.choices
+                review: page
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
+            visible: page.shows && page.editedPlans.length > 0
+            text: page.i18nContext.i18nc("@title:group", "Planned payments that change")
+            textFormat: Text.PlainText
+        }
+
+        Repeater {
+            model: page.shows ? page.editedPlans : []
+
+            AiPlanChange {
                 required property var modelData
 
                 Layout.fillWidth: true

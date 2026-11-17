@@ -142,7 +142,8 @@ enum Scope<'a> {
 impl Book {
     /// Adds a Rule at the end of the top-level list, or of `parent`'s
     /// sub-Rules (D-014). The Rule is checked ([`Rule::check`]); its name
-    /// can't be empty or the same as a sibling's, ignoring capitals; it
+    /// can't be empty or look the same as a sibling's ([`crate::name_key`]),
+    /// and it is stored composed (NFC, D-782); it
     /// books to a category or, for a Transfer, to an account; and every
     /// account, currency and date its conditions name must be in the book.
     pub fn add_rule(&mut self, rule: &Rule, parent: Option<RuleId>) -> Result<(), StoreError> {
@@ -397,12 +398,17 @@ impl Book {
     /// Takes the mark of [`Book::mark_rule_made_by_ai`] off `rule`: the user
     /// opened it. Nothing else changes, and a Rule without the mark stays as
     /// it is.
+    ///
+    /// Like every write, it is refused with [`StoreError::LockLost`] once
+    /// another computer took the book over (B-343, D-798).
     pub fn mark_rule_checked(&mut self, rule: RuleId) -> Result<(), StoreError> {
-        self.conn.execute_cached(
-            "DELETE FROM main.unchecked_ai_rules WHERE rule_id = ?1",
-            [rule.to_bytes()],
-        )?;
-        Ok(())
+        self.in_savepoint(|book| {
+            book.conn.execute_cached(
+                "DELETE FROM main.unchecked_ai_rules WHERE rule_id = ?1",
+                [rule.to_bytes()],
+            )?;
+            Ok(())
+        })
     }
 
     /// The Rules the AI made or changed that the user hasn't opened since.
@@ -977,12 +983,21 @@ impl Book {
     /// Rule as it is going to be, inside `parent`.
     fn check_rule(&self, rule: &Rule, parent: Option<RuleId>) -> Result<(), StoreError> {
         rule.check().map_err(StoreError::Rule)?;
-        let wanted = rule.name.trim().to_lowercase();
+        // Names that look the same are the same name (B-272, D-782).
+        let wanted = crate::names::name_key(&rule.name);
         if wanted.is_empty() {
             return Err(StoreError::EmptyRuleName);
         }
+        // A look-alike name (B-272). Another program's book keeps its
+        // names while a new book is filled.
+        if !self.filling {
+            crate::names::check_hidden_text(&rule.name, "rule-name")?;
+            if let Some(payee) = &rule.actions.payee {
+                crate::names::check_hidden_text(payee, "payee")?;
+            }
+        }
         for sibling in self.sibling_ids(parent)? {
-            if sibling != rule.id && self.rule(sibling)?.name.trim().to_lowercase() == wanted {
+            if sibling != rule.id && crate::names::name_key(&self.rule(sibling)?.name) == wanted {
                 return Err(StoreError::DuplicateRuleName { existing: sibling });
             }
         }
@@ -1038,7 +1053,7 @@ impl Book {
              WHERE id = ?1",
             params![
                 id,
-                rule.name,
+                crate::names::stored_name(&rule.name),
                 match rule.match_mode {
                     MatchMode::All => "all",
                     MatchMode::Any => "any",

@@ -16,9 +16,11 @@
 
 mod compared;
 mod custom;
+mod daily;
 mod datasets;
 mod error;
 mod financial;
+mod flow;
 mod model;
 mod palette;
 mod provider;
@@ -26,17 +28,20 @@ mod ticks;
 
 pub use compared::{compare_key, spending_by_category_compared};
 pub use custom::{CustomChart, CustomError, MAX_ROWS, MAX_SERIES, custom_chart};
+pub use daily::daily_balance;
 pub use datasets::{
-    category_over_time, income_expense_by_month, spending_by_category, spending_by_category_as,
+    category_over_time, income_expense_by_month, macd, moving_average, spending_by_category,
+    spending_by_category_as,
 };
 pub use error::ChartError;
 pub use financial::{
     BalancesBy, account_balances, balance_candles, cash_flow_by_month, net_worth_over_time,
 };
+pub use flow::{FlowModel, LaidBand, LaidNode, WHOLE, flow_model};
 pub use model::{
-    ANSWER_NO, ANSWER_YES, ChangeMark, ChartKind, ChartModel, ComparedTable, EXTRA_COLOR_BASE,
-    HiddenNote, MAX_DOT_SIZE, MAX_SLICES, NAMED_FROM_TENTHS, Overlay, OverlayItem, OverlayMark,
-    OverlaySeries, Point, Series, Slices, Tick,
+    ANSWER_NO, ANSWER_YES, ChangeMark, ChartKind, ChartModel, ComparedTable, DailyLook,
+    EXTRA_COLOR_BASE, HiddenNote, MAX_DOT_SIZE, MAX_SLICES, NAMED_FROM_TENTHS, Overlay,
+    OverlayItem, OverlayMark, OverlaySeries, Point, Series, Slices, Tick,
 };
 pub use palette::{
     DEFAULT_COLORS, MAX_COLORS, MIN_COLORS, Palette, PaletteWarning, STANDARD_COLORS,
@@ -46,6 +51,8 @@ pub use provider::{ChartProvider, Prepared, PreparedSeries, drawing_value};
 
 #[cfg(test)]
 mod custom_tests;
+#[cfg(test)]
+mod daily_tests;
 #[cfg(test)]
 mod palette_tests;
 #[cfg(test)]

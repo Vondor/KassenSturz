@@ -133,6 +133,36 @@ ColumnLayout {
             ]
         },
         {
+            // Its own row and cell (US7, #333, D-752), so linking a bill
+            // never moves one by accident: the user's own AI tools propose
+            // moving a bill from the inbox into the archive, which
+            // KassenSturz does when the user confirms. A Change: the file
+            // moves. It reads the transactions, so it keeps Transactions ›
+            // Read on.
+            name: i18nContext.i18nc("@label a part of the book", "Bills filed from the inbox"),
+            readRow: "Transactions",
+            cells: [
+                { key: "", absent: "viaTransactions" },
+                { key: "", absent: "never" },
+                { key: "AllowFileBills", needsRead: true },
+                { key: "", absent: "never" }
+            ]
+        },
+        {
+            // Its own row (US7, B-357, D-814), so allowing sorting never
+            // allowed the AI to plan: a plan is what the user expects in
+            // the future. Its amount is one the user named or an entry's.
+            // It reads the transactions, so it keeps Transactions › Read on.
+            name: i18nContext.i18nc("@label a part of the book", "Planned payments"),
+            readRow: "Transactions",
+            cells: [
+                { key: "", absent: "viaTransactions" },
+                { key: "AllowNewPlans", needsRead: true },
+                { key: "AllowEditPlans", needsRead: true },
+                { key: "", absent: "never" }
+            ]
+        },
+        {
             name: i18nContext.i18nc("@label a part of the book", "Charts"),
             cells: [
                 { key: "AllowReadViews", read: true },
@@ -199,6 +229,9 @@ ColumnLayout {
     // A row may also need the reading of another one (`readRow`). Only a row
     // that names one does: most rows have neither a `key` nor a `readRow`,
     // and two missing names are not a match (US4 P3, R5).
+    // Why a Read stays on and greyed (B-311).
+    readonly property string readForcedText: i18nContext.i18nc("@info:tooltip why reading can't be switched off in the AI permission grid", "Stays on while the AI may change, add or delete here: it has to read what it works on. Switch those off first to switch reading off.")
+
     function readForced(row: var, again: int): bool {
         return rows.some(other => (other === row || (row.key !== undefined && other.readRow === row.key)) && other.cells.some(cell => cell.needsRead && settings.allows(cell.key)));
     }
@@ -314,12 +347,27 @@ ColumnLayout {
                     enabled: !forced
                     checked: forced || grid.isOn(cell.modelData.key ?? "", grid.revision)
                     Accessible.name: cell.isName ? "" : grid.i18nContext.i18nc("@label:switch row and action, e.g. Rules, Delete", "%1: %2", cell.row.name, grid.columns[cell.modelData.column])
+                    // Why a greyed Read can't be switched off, for the screen
+                    // reader too (B-311, US7 P3 table row 23).
+                    Accessible.description: forced ? grid.readForcedText : ""
                     onToggled: {
                         ActionLog.taken("AiPermissionGrid_toggled")
                         grid.choose(cell.modelData.key, checked);
                         checked = Qt.binding(() => forced || grid.isOn(cell.modelData.key ?? "", grid.revision));
                     }
                 }
+
+                // A disabled switch gets no hover, so the cell shows why it
+                // is locked (B-311).
+                HoverHandler {
+                    id: lockedHover
+
+                    enabled: toggle.visible && toggle.forced
+                }
+
+                Controls.ToolTip.visible: lockedHover.hovered
+                Controls.ToolTip.text: grid.readForcedText
+                Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
 
                 // Wrapped within its own column, so a longer translation
                 // never runs into the next cell (US4 P3, R8), and only
@@ -354,6 +402,14 @@ ColumnLayout {
         visible: grid.historyAtRisk(grid.revision)
         type: Kirigami.MessageType.Error
         text: grid.i18nContext.i18nc("@info", "Danger: the AI can now change your transaction history. A model can misunderstand or make things up, and a wrong entry that you confirm without noticing may stay unnoticed for a long time. You can undo your last steps, but undo does not replace a backup. Save a copy of your book first (Save a copy of my data → The whole book).")
+    }
+
+    // The plain warning of D-752: filing moves the user's own files.
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        visible: grid.isOn("AllowFileBills", grid.revision)
+        type: Kirigami.MessageType.Warning
+        text: grid.i18nContext.i18nc("@info", "Your AI tools can now prepare moving bills from your inbox into your archive. Nothing moves until you confirm. Each file is copied and checked first and removed from the inbox only after your book is saved, and Undo moves it back. Choose the two folders under \"Your own AI tools\" below.")
     }
 
     // The plain warning of D-709: the AI writes what a custom chart draws.

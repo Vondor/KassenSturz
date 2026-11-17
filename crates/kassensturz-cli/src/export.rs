@@ -11,11 +11,12 @@ use kassensturz_export::{
     BookExport, CsvExport, CsvExportSettings, DecimalMark, ExportData, Exporter, Separator,
     export_file,
 };
-use kassensturz_pipeline::{export_book, export_transactions};
+use kassensturz_pipeline::{DateRange, export_book, export_transactions_in};
 use kassensturz_store::Book;
 
 use crate::args::Arguments;
 use crate::error::CliError;
+use crate::input::parse_date;
 use crate::lookup::find_account;
 use crate::text::{counted, plain};
 
@@ -25,7 +26,7 @@ const CSV: &str = "csv";
 const BOOK: &str = "book";
 
 /// The options only the CSV format takes.
-const CSV_OPTIONS: [&str; 3] = ["account", "separator", "decimal-mark"];
+const CSV_OPTIONS: [&str; 5] = ["account", "separator", "decimal-mark", "from", "until"];
 const CSV_FLAGS: [&str; 2] = ["no-header", "byte-order-mark"];
 
 /// `export FILE [--format csv|book] [--account NAME ...] ...`.
@@ -127,7 +128,16 @@ fn export_csv(
             .collect::<Result<_, _>>()?
     };
     let ids: Vec<_> = accounts.iter().map(|account| account.id).collect();
-    let data = export_transactions(book, &ids)?;
+    let range = DateRange {
+        from: args.value("from")?.map(parse_date).transpose()?,
+        until: args.value("until")?.map(parse_date).transpose()?,
+    };
+    if range.is_reversed() {
+        return Err(CliError::usage(
+            "--until is before --from: no transaction can be in between",
+        ));
+    }
+    let data = export_transactions_in(book, &ids, range)?;
     let ExportData::Transactions(exported) = &data else {
         unreachable!("export_transactions gathers transactions")
     };

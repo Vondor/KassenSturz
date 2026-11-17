@@ -98,6 +98,7 @@ impl AmountReader<'_> {
             return Err(AmountInputError::Empty);
         }
         let mut negative = false;
+        let mut signed = false;
         // Qt's American English writes negative amounts in parentheses.
         if let Some(inner) = rest
             .strip_prefix('(')
@@ -113,13 +114,19 @@ impl AmountReader<'_> {
                 rest = rest.strip_prefix(symbol.as_str()).unwrap_or(rest).trim();
                 rest = rest.strip_suffix(symbol.as_str()).unwrap_or(rest).trim();
             }
+            // One sign at most: "-+5" and "++5" say two things (B-299).
             if let Some(unsigned) = rest.strip_prefix(['-', '\u{2212}']) {
-                if negative {
+                if negative || signed {
                     return Err(AmountInputError::Malformed);
                 }
                 negative = true;
+                signed = true;
                 rest = unsigned.trim();
             } else if let Some(unsigned) = rest.strip_prefix('+') {
+                if signed {
+                    return Err(AmountInputError::Malformed);
+                }
+                signed = true;
                 rest = unsigned.trim();
             }
             if rest == before {
@@ -452,3 +459,6 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod hostile_tests;

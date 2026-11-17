@@ -16,7 +16,7 @@
 //! only in a build with AI (D-039).
 
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
 use kassensturz_ai::PreparedRequest;
@@ -25,20 +25,23 @@ use kassensturz_ai_chat::{
 };
 use kassensturz_ai_tools::requests::RequestId;
 use kassensturz_ai_tools::{
-    AmountBasis, ChangeError, ChangeSet, Confirmed, EditError, FieldValue, ProposedChange, Slot,
-    SortWithRules, SplitPart, ToolError, every_word,
+    AmountBasis, BILL_TYPES, ChangeError, ChangeSet, Confirmed, EditError, FieldValue, FileBill,
+    ProposedChange, Slot, SortWithRules, SplitPart, ToolError, TotalCheck, every_word,
 };
 use kassensturz_core::ai_switch::Permissions;
+use kassensturz_core::receipt_inbox::{ArchivePlace, PlaceError, free_file_name};
 use kassensturz_core::{
     AccountKind, BudgetEvery, Date, ErrorParam, ErrorReport, MatchMode, Money, Rule,
 };
 use kassensturz_platform::Secret;
+use kassensturz_platform::bill_files::{Direction, Disk, Fingerprint, tidy_archive};
 use kassensturz_report::ComponentType;
 use kassensturz_store::{Book, StoreError};
 
 use crate::ai_settings::{Store, with_keys};
 use crate::errors::ErrorText;
 use crate::format::Locale;
+use crate::receipt_moves::{Moved, Mover, Stayed, unsorted_name};
 use crate::register::AmountWriter;
 use crate::rules::{Applied, ConditionForm, apply_examples, condition_form};
 use crate::transfer_prompt::{SuggestionText, suggestion_text};
@@ -220,6 +223,13 @@ pub fn answer(
 /// An error report as the screens get it: its code and its parameters as
 /// text.
 pub fn code_text(report: &ErrorReport) -> ErrorText {
+    // The book refused a change because an amount is too large: say that,
+    // not the general "for example a category was added" (B-288).
+    if report.code == "ai-changes.not-applied"
+        && report.cause.as_deref().is_some_and(is_amount_too_large)
+    {
+        return ErrorText::plain("ai-changes.amount-too-large");
+    }
     ErrorText {
         code: report.code,
         params: report
@@ -229,12 +239,23 @@ pub fn code_text(report: &ErrorReport) -> ErrorText {
                 let text = match param {
                     ErrorParam::Number(number) => number.to_string(),
                     ErrorParam::Text(text) => text.clone(),
-                    other => format!("{other:?}"),
+                    other => crate::errors::param_without_book(other),
                 };
                 (*name, text)
             })
             .collect(),
     }
+}
+
+/// Whether `cause` is the book's refusal of an amount for its size: the
+/// limit on what the amounts add up to (`store.amount-overflow`), or on one
+/// budget's amount (`store.budget-amount`, `too-large`).
+fn is_amount_too_large(cause: &ErrorReport) -> bool {
+    cause.code == "store.amount-overflow"
+        || (cause.code == "store.budget-amount"
+            && cause.params.iter().any(|(name, param)| {
+                *name == "reason" && matches!(param, ErrorParam::Keyword("too-large"))
+            }))
 }
 
 /// The change sets a model prepared that the user has not yet confirmed or
@@ -276,6 +297,15 @@ impl Sets {
     /// The set with this ID, if it is still waiting.
     pub fn get(&self, id: u64) -> Option<&ChangeSet> {
         self.sets.get(&id).map(|waiting| &waiting.set)
+    }
+
+    /// Whether the set `id` waits for one of the user's own AI tools, which
+    /// prepared it through `kassensturz-mcp`, rather than for the chat
+    /// (B-371).
+    pub fn is_from_own_tool(&self, id: u64) -> bool {
+        self.sets
+            .get(&id)
+            .is_some_and(|waiting| waiting.from.is_some())
     }
 
     /// Puts the user's edited version of a waiting set in its place
@@ -331,6 +361,26 @@ pub struct FilterView {
     pub values: Vec<String>,
     /// Whether the values are the words `yes` and `no`.
     pub yes_no: bool,
+}
+
+/// Every number in a chart's `title` and in the titles of its
+/// `description`: the AI wrote them, so the review lists them to check
+/// (B-361). Unlike the chat, the review doesn't know what the user said, so
+/// it marks every one, never fewer.
+fn title_numbers(title: Option<&str>, description: Option<&str>) -> Vec<String> {
+    title
+        .map(str::to_owned)
+        .into_iter()
+        .chain(
+            description
+                .map(kassensturz_ai_tools::description_titles)
+                .unwrap_or_default(),
+        )
+        .flat_map(|text| {
+            kassensturz_ai_tools::check_numbers(&text, &kassensturz_ai_tools::Figures::new())
+        })
+        .map(|number| number.text)
+        .collect()
 }
 
 /// The filters of `description`, the chart's own and each layer's, in
@@ -574,6 +624,10 @@ pub enum ChangeView {
         charts: Vec<&'static str>,
         /// The filters of a description the AI wrote, in words (D-729).
         filters: Vec<FilterView>,
+        /// The numbers in its title and the titles of its description: the
+        /// AI's text, never worked out from the book, so the review marks
+        /// them, whichever way the change came (B-361, A7).
+        title_numbers: Vec<String>,
     },
     /// A saved chart changed (D-681).
     EditView {
@@ -588,6 +642,9 @@ pub enum ChangeView {
         /// The filters of a description the AI wrote anew, in words
         /// (D-729).
         filters: Vec<FilterView>,
+        /// The numbers in a new title and in the titles of a description
+        /// written anew, as for [`ChangeView::NewView`] (B-361).
+        title_numbers: Vec<String>,
     },
     /// A saved chart deleted (D-681).
     DeleteView {
@@ -723,6 +780,20 @@ pub enum ChangeView {
         /// The parts it gets.
         parts: Vec<PartView>,
     },
+    /// A new plan (US7, B-357, D-814), as the Planned payments window
+    /// shows one, with its next three due days.
+    NewPlan {
+        /// The plan.
+        plan: PlanView,
+    },
+    /// A plan changed (US7, B-357, D-814): the plan as it is and as it
+    /// will be.
+    EditPlan {
+        /// The plan now.
+        before: PlanView,
+        /// The plan after the change.
+        after: PlanView,
+    },
     /// A bill from the bill folder linked to a transaction (US5.13,
     /// D-739), with the transaction as the register shows it.
     AttachBill {
@@ -736,6 +807,32 @@ pub enum ChangeView {
         file: String,
         /// What the link is called, empty for its file name.
         title: String,
+    },
+    /// A bill from the receipt inbox filed into the archive and linked to
+    /// a transaction (US7, #333, D-752), with the transaction as the
+    /// register shows it and the bill's total checked against the bank's
+    /// (D-751).
+    FileBill {
+        /// Its day, in the user's format.
+        date: String,
+        /// Who was paid or paid, empty for none.
+        payee: String,
+        /// The user's account it is in.
+        account: String,
+        /// The bill's file name in the inbox.
+        file: String,
+        /// What the link is called, empty for its file name.
+        title: String,
+        /// Where it goes, from the archive's own name on:
+        /// `Archive/Checking account/Groceries/261105_RE-0042.pdf`; empty
+        /// while no archive is chosen.
+        goes_to: String,
+        /// What the bank booked, exact, without its sign.
+        booked: String,
+        /// The total the AI read on the bill, exact, empty for none.
+        bill_total: String,
+        /// `matches`, `differs` or `not-given`.
+        check: &'static str,
     },
 }
 
@@ -1135,6 +1232,7 @@ fn view_of(
                     .collect()
             },
             filters: filter_views(new.description(), locale),
+            title_numbers: title_numbers(Some(&new.title), new.description()),
         },
         ProposedChange::EditView(edit) => ChangeView::EditView {
             before: edit.before.clone(),
@@ -1144,6 +1242,10 @@ fn view_of(
             filters: filter_views(
                 edit.description().filter(|_| edit.writes_description()),
                 locale,
+            ),
+            title_numbers: title_numbers(
+                (edit.title != edit.before).then_some(edit.title.as_str()),
+                edit.description().filter(|_| edit.writes_description()),
             ),
         },
         ProposedChange::DeleteView(delete) => ChangeView::DeleteView {
@@ -1157,6 +1259,80 @@ fn view_of(
         ProposedChange::JoinTransfer(join) => ChangeView::JoinTransfer {
             transfer: suggestion_text(book, &book.all_accounts()?, &join.transfer, locale)?,
         },
+        ProposedChange::NewPlan(new) => {
+            let plan = &new.plan;
+            ChangeView::NewPlan {
+                plan: plan_view(
+                    book,
+                    PlanParts {
+                        name: &plan.name,
+                        account: &new.account_name,
+                        amount: plan.amount,
+                        tolerance: plan.tolerance,
+                        unit: plan.unit,
+                        every: plan.every,
+                        first_due: plan.anchor,
+                        ends: plan.ends_on,
+                        category: new.category.as_deref(),
+                        party: plan.party_name.as_deref(),
+                        paused: false,
+                        next: &new.next_due(locale.today(), 3),
+                        from_entry: new.amount_from.is_some(),
+                    },
+                    locale,
+                )?,
+            }
+        }
+        ProposedChange::EditPlan(edit) => {
+            fn parts<'a>(
+                plan: &'a kassensturz_core::Schedule,
+                account: &'a str,
+                category: Option<&'a [String]>,
+                next: &'a [Date],
+                from_entry: bool,
+            ) -> PlanParts<'a> {
+                PlanParts {
+                    name: &plan.name,
+                    account,
+                    amount: plan.amount,
+                    tolerance: plan.tolerance,
+                    unit: plan.unit,
+                    every: plan.every,
+                    first_due: plan.anchor,
+                    ends: plan.ends_on,
+                    category,
+                    party: plan.party_name.as_deref(),
+                    paused: plan.paused,
+                    next,
+                    from_entry,
+                }
+            }
+            let next = edit.next_due(locale.today(), 3);
+            ChangeView::EditPlan {
+                before: plan_view(
+                    book,
+                    parts(
+                        &edit.before,
+                        &edit.account_name,
+                        edit.category_before.as_deref(),
+                        &[],
+                        false,
+                    ),
+                    locale,
+                )?,
+                after: plan_view(
+                    book,
+                    parts(
+                        &edit.after,
+                        &edit.account_name,
+                        edit.category_after.as_deref(),
+                        &next,
+                        edit.amount_from.is_some(),
+                    ),
+                    locale,
+                )?,
+            }
+        }
         ProposedChange::TagTransaction(tag) => ChangeView::TagTransaction {
             date: locale.short_date(tag.date),
             payee: tag.payee.clone().unwrap_or_default(),
@@ -1184,7 +1360,124 @@ fn view_of(
             file: bill.file_name.clone(),
             title: bill.title.clone().unwrap_or_default(),
         },
+        ProposedChange::FileBill(bill) => file_bill_view(book, bill, locale)?,
     })
+}
+
+/// A bill to file as the check card shows it (`docs/RECEIPT_INBOX.md`
+/// §2): every figure written by Rust (D-065), the place as the move will
+/// choose it today.
+fn file_bill_view(
+    book: &Book,
+    bill: &FileBill,
+    locale: &impl Locale,
+) -> Result<ChangeView, StoreError> {
+    let written = |money: Money| {
+        AmountWriter::new(book, money.currency(), locale).map(|writer| writer.text(money).exact)
+    };
+    // The bank's sign is not the bill's (§4); the one amount without a
+    // positive twin is shown as it is.
+    let unsigned = |money: Money| {
+        if money.is_negative() {
+            money.checked_neg().unwrap_or(money)
+        } else {
+            money
+        }
+    };
+    let goes_to = crate::receipt_moves::archive()
+        .and_then(|archive| {
+            let disk = crate::receipt_moves::disk();
+            let to = archive_place(&archive, bill, &mut HashMap::new(), &disk).ok()?;
+            let shown = to.strip_prefix(archive.parent()?).ok()?;
+            Some(shown.to_string_lossy().into_owned())
+        })
+        .unwrap_or_default();
+    Ok(ChangeView::FileBill {
+        date: locale.short_date(bill.date),
+        payee: bill.payee.clone().unwrap_or_default(),
+        account: bill.account_name.clone(),
+        file: bill.file_name.clone(),
+        title: bill.title.clone().unwrap_or_default(),
+        goes_to,
+        booked: written(unsigned(bill.booked))?,
+        bill_total: bill
+            .bill_total
+            .map(written)
+            .transpose()?
+            .unwrap_or_default(),
+        check: match bill.check {
+            TotalCheck::Matches => "matches",
+            TotalCheck::Differs => "differs",
+            TotalCheck::NotGiven => "not-given",
+        },
+    })
+}
+
+/// The place in `archive` where `bill` goes (`docs/RECEIPT_INBOX.md` §5):
+/// built by code from the book's names, under a name no file in its
+/// folder has, nor one of `taken`, the names given to the set's earlier
+/// bills, which it then holds too. Reads the folder; writes nothing.
+fn archive_place(
+    archive: &Path,
+    bill: &FileBill,
+    taken: &mut HashMap<PathBuf, Vec<String>>,
+    disk: &dyn Disk,
+) -> Result<PathBuf, &'static str> {
+    let place = ArchivePlace::new(
+        archive,
+        &bill.account_name,
+        bill.category.as_deref(),
+        &unsorted_name(),
+        bill.date,
+        &bill.name(),
+        bill.ending(),
+        &BILL_TYPES,
+    )
+    .map_err(|refused| match refused {
+        PlaceError::TooLong => "too-long",
+        PlaceError::Ending => "type",
+    })?;
+    let folder = place.folder(archive);
+    let names = taken
+        .entry(folder.clone())
+        .or_insert_with(|| disk.names_in(&folder).unwrap_or_default());
+    let name = free_file_name(&place.stem, &place.ending, names.iter().map(String::as_str));
+    names.push(name.clone());
+    Ok(folder.join(name))
+}
+
+/// A plan as the review shows it (US7, B-357, D-814): every amount and day
+/// written by Rust in the user's format (D-065).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PlanView {
+    /// What it is for.
+    pub name: String,
+    /// The name of its account.
+    pub account: String,
+    /// Whether the money goes out.
+    pub outgoing: bool,
+    /// The amount without its sign, exact.
+    pub amount: String,
+    /// `week`, `month` or `year`.
+    pub unit: &'static str,
+    /// How many of them between two due days.
+    pub every: i32,
+    /// The first due day.
+    pub first_due: String,
+    /// The last day it may be due; empty when it doesn't end.
+    pub ends: String,
+    /// How much an entry may differ, exact; empty for exactly.
+    pub tolerance: String,
+    /// The category a matching entry gets as a path; empty for none.
+    pub category: String,
+    /// The other party's name; empty for any.
+    pub party: String,
+    /// Whether it is paused.
+    pub paused: bool,
+    /// The next three due days from today.
+    pub next: Vec<String>,
+    /// Whether the amount was taken from an entry of the book.
+    pub from_entry: bool,
 }
 
 /// One part of a split as the review shows it (D-737).
@@ -1236,6 +1529,67 @@ fn sorted_by_rules(
         closed: sort.closed,
         other: sort.other,
         examples: apply_examples(book, &sort.changes, locale)?,
+    })
+}
+
+/// What [`plan_view`] writes for the review.
+struct PlanParts<'a> {
+    name: &'a str,
+    account: &'a str,
+    amount: Money,
+    tolerance: Money,
+    unit: kassensturz_core::ScheduleUnit,
+    every: u8,
+    first_due: Date,
+    ends: Option<Date>,
+    category: Option<&'a [String]>,
+    party: Option<&'a str>,
+    paused: bool,
+    next: &'a [Date],
+    from_entry: bool,
+}
+
+/// A plan as the review writes it, amounts and days in the user's format.
+fn plan_view(
+    book: &Book,
+    parts: PlanParts<'_>,
+    locale: &impl Locale,
+) -> Result<PlanView, StoreError> {
+    let writer = AmountWriter::new(book, parts.amount.currency(), locale)?;
+    let size = if parts.amount.is_negative() {
+        parts.amount.checked_neg().unwrap_or(parts.amount)
+    } else {
+        parts.amount
+    };
+    Ok(PlanView {
+        name: parts.name.to_owned(),
+        account: parts.account.to_owned(),
+        outgoing: parts.amount.is_negative(),
+        amount: writer.text(size).exact,
+        unit: parts.unit.word(),
+        every: i32::from(parts.every),
+        first_due: locale.short_date(parts.first_due),
+        ends: parts
+            .ends
+            .map(|day| locale.short_date(day))
+            .unwrap_or_default(),
+        tolerance: if parts.tolerance.is_zero() {
+            String::new()
+        } else {
+            writer.text(parts.tolerance).exact
+        },
+        category: parts
+            .category
+            .map(|path| path.join(" › "))
+            .unwrap_or_default(),
+        party: parts.party.unwrap_or_default().to_owned(),
+        paused: parts.paused,
+        next: parts
+            .next
+            .iter()
+            .map(|day| locale.short_date(*day))
+            .collect(),
+        from_entry: parts.from_entry,
     })
 }
 
@@ -1332,11 +1686,11 @@ pub fn outcome_of(result: &Result<(), ChangeError>, corrected: bool) -> Outcome 
     }
 }
 
-/// Applies `set` to `book` as the user's own action on `today`: the one
-/// place in the app that makes a [`Confirmed`]. Only the confirm button of
-/// the review screen reaches it (D-171, D-200; M5.12 checks that no other
-/// code does). A budget change prepared in a period that is over by
-/// `today` is out of date (M6-B224).
+/// [`confirm_with_bills_in`] on a computer without the receipt inbox's
+/// folders: the tests' way to confirm a set as the user does. A budget
+/// change prepared in a period that is over by `today` is out of date
+/// (M6-B224).
+#[cfg(test)]
 pub fn confirm_in(
     book: &mut Book,
     set: ChangeSet,
@@ -1346,7 +1700,148 @@ pub fn confirm_in(
     // The user may have turned a kind of change off since the set was
     // prepared (D-239).
     set.check_allowed(allowed)?;
+    if set.bills_to_file().next().is_some() {
+        // Bills to file need the folders and the journal: without them none
+        // is filed, and the rest of the set is made.
+        return confirm_with_bills_in(book, set, allowed, today, None).map(|_| ());
+    }
+    apply_confirmed(book, set, today)
+}
+
+/// The one place that makes a [`Confirmed`]: [`confirm_with_bills_in`],
+/// reached only by the confirm button, applies through it.
+fn apply_confirmed(book: &mut Book, set: ChangeSet, today: Date) -> Result<(), ChangeError> {
     set.apply_on(book, Confirmed::by_the_user(), today)
+}
+
+/// Where the bills of a confirmed set go, on this computer.
+pub struct Filing<'a> {
+    /// The inbox, as chosen.
+    pub inbox: PathBuf,
+    /// The archive, as chosen.
+    pub archive: PathBuf,
+    /// The files and the journal.
+    pub mover: Mover<'a>,
+}
+
+/// Applies `set` to `book` as the user's own action on `today`, and files
+/// its bills from the inbox. Only the confirm button of the review screen
+/// reaches it, and through it [`apply_confirmed`], the one place in the app
+/// that makes a [`Confirmed`] (D-171, D-200; M5.12 checks that no other code
+/// does). The user may have turned a kind of change off since the set was
+/// prepared (D-239). Bills (US7, #333, D-752, `docs/RECEIPT_INBOX.md` §6):
+/// each is copied, checked
+/// and put in place in the archive before the book is saved, and its
+/// original is removed only after. A bill that can't be moved stays in the
+/// inbox, its change is dropped and it is reported; the rest of the set,
+/// which the user confirmed, is made. A book that can't save takes every
+/// copy back. Without `filing` (no folders or no journal on this computer)
+/// no bill is filed.
+pub fn confirm_with_bills_in(
+    book: &mut Book,
+    mut set: ChangeSet,
+    allowed: Permissions,
+    today: Date,
+    filing: Option<&Filing<'_>>,
+) -> Result<Moved, ChangeError> {
+    set.check_allowed(allowed)?;
+    let bills: Vec<FileBill> = set.bills_to_file().cloned().collect();
+    let Some(filing) = filing.filter(|_| !bills.is_empty()) else {
+        let stayed = bills
+            .into_iter()
+            .map(|bill| Stayed {
+                file: bill.file,
+                reason: "no-folders",
+            })
+            .collect();
+        set.put_bills_in_place(|_| None);
+        let made = !set.changes().is_empty();
+        if made {
+            apply_confirmed(book, set, today)?;
+        }
+        return Ok(Moved {
+            stayed,
+            made,
+            ..Moved::default()
+        });
+    };
+    let mover = &filing.mover;
+    let mut pending = Mover::start(Direction::File);
+    let mut taken = HashMap::new();
+    let inbox = std::fs::canonicalize(&filing.inbox).unwrap_or_else(|_| filing.inbox.clone());
+    let archive = std::fs::canonicalize(&filing.archive).ok();
+    for bill in &bills {
+        let to = if bill.file.parent() == Some(inbox.as_path()) {
+            archive_place(&filing.archive, bill, &mut taken, mover.disk)
+        } else {
+            // The user chose another inbox since the AI read this bill.
+            Err("other-inbox")
+        }
+        .and_then(|to| inside_archive(mover.disk, archive.as_deref(), to));
+        match to {
+            Ok(to) => {
+                let read = Fingerprint {
+                    size: bill.size,
+                    modified: bill.modified,
+                    digest: bill.digest,
+                };
+                if !mover.place(&mut pending, &bill.file, &to, Some(read)) {
+                    tidy_archive(mover.disk, &to);
+                }
+            }
+            Err(reason) => pending.stayed.push(Stayed {
+                file: bill.file.clone(),
+                reason,
+            }),
+        }
+    }
+    let places: HashMap<PathBuf, String> = pending
+        .placed()
+        .filter_map(|placed| Some((placed.from.clone(), placed.to.to_str()?.to_owned())))
+        .collect();
+    set.put_bills_in_place(|bill| places.get(&bill.file).cloned());
+    if set.changes().is_empty() {
+        return Ok(Moved {
+            stayed: mover.take_back(pending),
+            ..Moved::default()
+        });
+    }
+    match apply_confirmed(book, set, today) {
+        Ok(()) => {
+            let change = book
+                .change_to_undo()
+                .ok()
+                .flatten()
+                .map(|change| change.id.to_string());
+            Ok(Moved {
+                made: true,
+                ..mover.finish(pending, change.as_deref())
+            })
+        }
+        Err(error) => {
+            mover.take_back(pending);
+            Err(error)
+        }
+    }
+}
+
+/// `to` once its folder is made and lies inside the archive, its links
+/// resolved (§5): a link inside the archive named like an account can't
+/// lead a bill out of it.
+fn inside_archive(
+    disk: &dyn Disk,
+    archive: Option<&Path>,
+    to: PathBuf,
+) -> Result<PathBuf, &'static str> {
+    let archive = archive.ok_or("archive-gone")?;
+    let folder = to.parent().ok_or("outside")?;
+    disk.make_folders(folder).map_err(|_| "archive-gone")?;
+    let real = std::fs::canonicalize(folder).map_err(|_| "archive-gone")?;
+    if !real.starts_with(archive) || to.to_str().is_none() {
+        tidy_archive(disk, &to);
+        return Err("outside");
+    }
+    Ok(to)
 }
 
 #[cfg(test)]
@@ -1363,6 +1858,27 @@ mod tests {
     use crate::test_folder::TestFolder;
 
     const TODAY: Date = Date::constant(2026, 10, 25);
+
+    /// B-288: a change the book refused for an amount's size says so, with the
+    /// real reason; any other refusal keeps the general sentence's code.
+    #[test]
+    fn a_refusal_for_an_amounts_size_names_that_reason() {
+        let refused = |error| code_text(&ChangeError::NotApplied(error).report()).code;
+        assert_eq!(
+            refused(StoreError::BudgetAmount {
+                reason: "too-large"
+            }),
+            "ai-changes.amount-too-large"
+        );
+        assert_eq!(
+            refused(StoreError::AmountOverflow),
+            "ai-changes.amount-too-large"
+        );
+        assert_eq!(
+            refused(StoreError::BudgetAmount { reason: "zero" }),
+            "ai-changes.not-applied"
+        );
+    }
 
     /// Records what the question tells the window.
     #[derive(Clone, Default)]
@@ -1797,6 +2313,64 @@ mod tests {
         assert!(book.account(first.id).unwrap().closed);
         assert!(book.undo().unwrap().is_some());
         assert!(!book.account(first.id).unwrap().closed);
+    }
+
+    /// B-371: the review knows a set came from one of the user's own AI
+    /// tools, so it doesn't speak of a message of the user's.
+    #[test]
+    fn a_set_from_an_own_ai_tool_is_told_apart_from_the_chats() {
+        let book = space_colony();
+        let call = serde_json::json!({
+            "title": "Where the money goes",
+            "data": "spending_by_category",
+            "show_as": "auto",
+            "period": "this-year",
+        });
+        let proposal = || {
+            kassensturz_ai_tools::propose_view(
+                &book,
+                &call,
+                Permissions::all(),
+                kassensturz_core::Date::new(2026, 11, 9).unwrap(),
+            )
+            .unwrap()
+            .changes
+        };
+        let mut sets = Sets::default();
+        let chat = sets.add(proposal());
+        let tool = sets.add_requested(
+            proposal(),
+            RequestId::parse("0123456789abcdef0123456789abcdef").unwrap(),
+        );
+        assert!(!sets.is_from_own_tool(chat));
+        assert!(sets.is_from_own_tool(tool));
+        assert!(!sets.is_from_own_tool(tool + 1));
+    }
+
+    /// B-361 (A7): a chart an outside AI proposed through the MCP server
+    /// reaches the same review, and the figures in its title are listed
+    /// there to check, since nobody worked them out from the book.
+    #[test]
+    fn the_numbers_in_a_proposed_charts_title_are_listed_for_the_review() {
+        let book = space_colony();
+        let call = serde_json::json!({
+            "title": "Savings 4512.30 by 2027",
+            "data": "spending_by_category",
+            "show_as": "auto",
+            "period": "this-year",
+        });
+        let proposal = kassensturz_ai_tools::propose_view(
+            &book,
+            &call,
+            Permissions::all(),
+            kassensturz_core::Date::new(2026, 11, 9).unwrap(),
+        )
+        .unwrap();
+        let views = views_of(&book, &proposal.changes, &TestLocale);
+        let [ChangeView::NewView { title_numbers, .. }] = views.as_slice() else {
+            panic!("one chart: {views:?}");
+        };
+        assert_eq!(title_numbers, &["4512.30"]);
     }
 
     #[test]
@@ -2270,10 +2844,284 @@ mod tests {
         );
     }
 
+    /// US7, #333 end to end: a set from the MCP way in that splits a
+    /// transaction and files its bill is confirmed in one step, the bill
+    /// moves and is linked at its new place, and one Undo takes the split,
+    /// the link and the move back (`docs/RECEIPT_INBOX.md` §3, §6, §7).
+    #[test]
+    fn a_confirmed_bill_is_filed_with_its_split_and_one_undo_takes_both_back() {
+        use kassensturz_ai_tools::{Folders, PROPOSE_CHANGES, prepare_named_with_folders};
+        use kassensturz_platform::bill_files::{JOURNAL_FILE, Journal, RealDisk};
+
+        use crate::receipt_moves::{Mover, step};
+
+        fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
+            std::fs::hard_link(from, to)?;
+            std::fs::remove_file(from)
+        }
+
+        let mut book = space_colony();
+        // The user unlocked the amounts, as splitting needs (D-737).
+        let allowed =
+            Permissions::all().with_lock(kassensturz_core::ai_switch::Field::Amount, false);
+        let (transaction, account) = book
+            .transactions()
+            .unwrap()
+            .into_iter()
+            .find_map(|transaction| {
+                let account = transaction.splits().iter().find_map(|split| {
+                    let id = split.account?;
+                    let account = book.account(id).ok()?;
+                    (account.kind == AccountKind::Asset
+                        && split.amount.is_negative()
+                        && transaction.splits().len() == 2)
+                        .then_some(account)
+                })?;
+                // A payment to a category, not a transfer.
+                let spent = transaction.splits().iter().any(|split| {
+                    split.account.is_some_and(|id| {
+                        book.account(id)
+                            .is_ok_and(|category| category.kind == AccountKind::Expense)
+                    })
+                });
+                if !spent {
+                    return None;
+                }
+                Some((transaction, account))
+            })
+            .expect("a payment from an account");
+        let category = book
+            .categories()
+            .unwrap()
+            .into_iter()
+            .map(|entry| entry.category)
+            .find(|category| {
+                category.kind == AccountKind::Expense && category.currency == account.currency
+            })
+            .expect("a category");
+        let total = transaction
+            .splits()
+            .iter()
+            .find(|split| split.account == Some(account.id))
+            .unwrap()
+            .amount;
+        let half = total.minor_units() / 2;
+        let digits = book.currency_minor_digits(total.currency()).unwrap();
+        // Exact decimal text of minor units, with the sign as the account
+        // sees it.
+        let figure = |minor: i64| {
+            let scale = 10_i64.pow(u32::from(digits));
+            let sign = if minor < 0 { "-" } else { "" };
+            let minor = minor.abs();
+            if digits == 0 {
+                format!("{sign}{minor}")
+            } else {
+                format!(
+                    "{sign}{}.{:0width$}",
+                    minor / scale,
+                    minor % scale,
+                    width = usize::from(digits)
+                )
+            }
+        };
+
+        let folder = TestFolder::new();
+        let inbox = folder.join("Inbox");
+        let archive = folder.join("Archive");
+        std::fs::create_dir_all(&inbox).unwrap();
+        std::fs::create_dir_all(&archive).unwrap();
+        let bill = inbox.join("RE-0042.pdf");
+        std::fs::write(&bill, b"%PDF synthetic").unwrap();
+        let folders = Folders {
+            bills: None,
+            inbox: Some(inbox.clone()),
+            archive: Some(archive.clone()),
+        };
+        let proposal = prepare_named_with_folders(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({
+                "split_transactions": [{
+                    "transaction_id": transaction.id().to_string(),
+                    "parts": [
+                        {"category_id": category.id.to_string(), "amount": figure(half)},
+                        {"category_id": category.id.to_string(), "amount": figure(total.minor_units() - half)},
+                    ],
+                }],
+                "file_bills": [{
+                    "transaction_id": transaction.id().to_string(),
+                    "file": "RE-0042.pdf",
+                    "bill_total": figure(-total.minor_units()),
+                }],
+            }),
+            allowed,
+            TODAY,
+            &folders,
+        )
+        .unwrap();
+        let history = book.history().unwrap().len();
+
+        let disk = RealDisk::new(rename);
+        let journal = Journal::at(folder.join(JOURNAL_FILE));
+        let filing = Filing {
+            inbox: inbox.clone(),
+            archive: archive.clone(),
+            mover: Mover {
+                disk: &disk,
+                journal: &journal,
+            },
+        };
+        let moved =
+            confirm_with_bills_in(&mut book, proposal.changes, allowed, TODAY, Some(&filing))
+                .unwrap();
+        assert_eq!((moved.moved, moved.stayed.len()), (1, 0), "{moved:?}");
+        assert_eq!(book.history().unwrap().len(), history + 1, "one change");
+        assert!(!bill.exists(), "the original went once the book was saved");
+        let stored = book.transaction(transaction.id()).unwrap();
+        let link = &stored.attachments()[0].link;
+        let filed = PathBuf::from(link);
+        assert!(filed.starts_with(&archive) && filed.exists(), "{link}");
+        assert!(
+            filed.starts_with(
+                archive.join(kassensturz_core::receipt_inbox::sanitise(&account.name))
+            )
+        );
+        assert_eq!(std::fs::read(&filed).unwrap(), b"%PDF synthetic");
+        assert_eq!(stored.splits().len(), 3, "split as well");
+
+        // One Undo: the split, the link and the move.
+        let (_, moved) = step(
+            &mut book,
+            false,
+            false,
+            Some(&journal),
+            &disk,
+            Some(&archive),
+            |book| book.undo(),
+        )
+        .map_err(|_| "blocked")
+        .unwrap();
+        assert_eq!(moved.moved, 1);
+        assert!(bill.exists() && !filed.exists());
+        assert_eq!(book.transaction(transaction.id()).unwrap(), transaction);
+        assert_eq!(std::fs::read_dir(&archive).unwrap().count(), 0, "tidied");
+    }
+
+    #[test]
+    fn a_bill_that_changed_stays_and_the_rest_of_the_set_is_made() {
+        // §6 step 1: the file changed after the AI read it.
+        use kassensturz_ai_tools::{Folders, PROPOSE_CHANGES, prepare_named_with_folders};
+        use kassensturz_platform::bill_files::{JOURNAL_FILE, Journal, RealDisk};
+
+        use crate::receipt_moves::Mover;
+
+        fn rename(from: &Path, to: &Path) -> std::io::Result<()> {
+            std::fs::hard_link(from, to)?;
+            std::fs::remove_file(from)
+        }
+
+        let mut book = space_colony();
+        let transaction = book.transactions().unwrap().remove(0);
+        let folder = TestFolder::new();
+        let inbox = folder.join("Inbox");
+        let archive = folder.join("Archive");
+        std::fs::create_dir_all(&inbox).unwrap();
+        std::fs::create_dir_all(&archive).unwrap();
+        let bill = inbox.join("RE-0042.pdf");
+        std::fs::write(&bill, b"read by the AI").unwrap();
+        let then = std::fs::metadata(&bill).unwrap().modified().unwrap();
+        let proposal = prepare_named_with_folders(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({
+                "file_bills": [{"transaction_id": transaction.id().to_string(), "file": "RE-0042.pdf"}],
+                "new_categories": [{"key": "c", "name": "Filed on the side"}],
+            }),
+            Permissions::all(),
+            TODAY,
+            &Folders {
+                bills: None,
+                inbox: Some(inbox.clone()),
+                archive: Some(archive.clone()),
+            },
+        )
+        .unwrap();
+        // Another file of the same size, with the old time put back (B-284).
+        std::fs::write(&bill, b"swapped by you").unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(&bill)
+            .unwrap()
+            .set_modified(then)
+            .unwrap();
+        assert_eq!(std::fs::metadata(&bill).unwrap().len(), 14);
+        let disk = RealDisk::new(rename);
+        let journal = Journal::at(folder.join(JOURNAL_FILE));
+        let filing = Filing {
+            inbox: inbox.clone(),
+            archive: archive.clone(),
+            mover: Mover {
+                disk: &disk,
+                journal: &journal,
+            },
+        };
+        let moved = confirm_with_bills_in(
+            &mut book,
+            proposal.changes,
+            Permissions::all(),
+            TODAY,
+            Some(&filing),
+        )
+        .unwrap();
+        assert_eq!(moved.moved, 0);
+        assert_eq!(moved.stayed[0].reason, "changed");
+        assert!(moved.made, "the new category was made");
+        assert_eq!(std::fs::read(&bill).unwrap(), b"swapped by you");
+        assert_eq!(std::fs::read_dir(&archive).unwrap().count(), 0);
+        assert!(
+            book.transaction(transaction.id())
+                .unwrap()
+                .attachments()
+                .is_empty()
+        );
+        assert!(
+            book.categories()
+                .unwrap()
+                .iter()
+                .any(|entry| entry.category.name == "Filed on the side"),
+            "the rest of the set is made"
+        );
+
+        // Without folders on this computer, nothing is filed either.
+        let again = prepare_named_with_folders(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({"file_bills": [{"transaction_id": transaction.id().to_string(), "file": "RE-0042.pdf"}]}),
+            Permissions::all(),
+            TODAY,
+            &Folders {
+                bills: None,
+                inbox: Some(inbox.clone()),
+                archive: Some(archive.clone()),
+            },
+        )
+        .unwrap()
+        .changes;
+        let last = book.change_to_undo().unwrap().map(|change| change.id);
+        let moved =
+            confirm_with_bills_in(&mut book, again, Permissions::all(), TODAY, None).unwrap();
+        assert_eq!(moved.stayed[0].reason, "no-folders");
+        assert!(bill.exists());
+        // Every change of that set stayed, so nothing was made, and the
+        // window says so instead of "The changes were made" (B-284).
+        assert!(!moved.made);
+        assert_eq!(book.change_to_undo().unwrap().map(|change| change.id), last);
+    }
+
     #[test]
     fn only_the_confirm_function_makes_a_confirmation() {
         // M5.12 holds the whole workspace to this; here the app's own
-        // sources: one call, in `confirm_in` (D-171).
+        // sources: one call, in `apply_confirmed` (D-171).
         let folder = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
         let mut found = Vec::new();
         for entry in std::fs::read_dir(folder).unwrap() {

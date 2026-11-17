@@ -151,7 +151,7 @@ pub fn compact_iban(iban: &str) -> String {
 
 /// A name without spaces and in small letters, the way a remembered
 /// party's name is compared.
-fn compact_name(name: &str) -> String {
+pub(crate) fn compact_name(name: &str) -> String {
     name.chars()
         .filter(|c| !c.is_whitespace())
         .flat_map(char::to_lowercase)

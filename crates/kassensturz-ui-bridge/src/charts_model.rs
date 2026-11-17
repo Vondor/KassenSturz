@@ -14,7 +14,8 @@ use core::pin::Pin;
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_charts::{
-    ChangeMark, ChartModel, ComparedTable, HiddenNote, Prepared, Series, Slices,
+    ChangeMark, ChartModel, ComparedTable, DailyLook, FlowModel, HiddenNote, Prepared, Series,
+    Slices, WHOLE,
 };
 use kassensturz_core::ErrorParam;
 
@@ -24,6 +25,7 @@ use crate::properties;
 use crate::scope::Scope;
 use crate::session;
 use crate::variant::{list, map, text};
+use kassensturz_report::MONEY_FLOW;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -431,6 +433,88 @@ fn chart_object(model: &ChartModel, prepared: &Prepared) -> QVariant {
         ("ticks", list(ticks)),
         ("table", table),
         ("compared", compared),
+        ("daily", daily_object(model.daily.as_ref())),
+    ])
+}
+
+/// How a panel of a daily balance is drawn (US7, #1036, D-794): its
+/// `panel` (`balance` or `macd`), how each series is drawn (`draws`, in the
+/// order of `series`), the places along the axis with a name (`axis`, each
+/// `index` and `name`) and whether the first day is the accounts' first
+/// entry (`startsLate`). Empty for every other chart: `panel` is empty.
+fn daily_object(daily: Option<&DailyLook>) -> QVariant {
+    let index = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(0));
+    match daily {
+        Some(daily) => map([
+            ("panel", text(daily.panel)),
+            ("draws", list(daily.draws.iter().map(|draw| text(draw)))),
+            (
+                "axis",
+                list(
+                    daily
+                        .axis
+                        .iter()
+                        .map(|(at, name)| map([("index", index(*at)), ("name", text(name))])),
+                ),
+            ),
+            ("startsLate", QVariant::from(&daily.starts_late)),
+        ]),
+        None => map([
+            ("panel", text("")),
+            ("draws", list(core::iter::empty())),
+            ("axis", list(core::iter::empty())),
+            ("startsLate", QVariant::from(&false)),
+        ]),
+    }
+}
+
+/// The money-flow chart as QML reads it (US7, #821, D-758): its nodes and
+/// bands with the places in whole millionths of the chart's height (`whole`
+/// is one chart height; they only place marks) and every amount as text.
+fn flow_object(model: &FlowModel) -> QVariant {
+    let index = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(0));
+    let place = |value: i64| QVariant::from(&i32::try_from(value).unwrap_or(0));
+    let nodes =
+        model.nodes.iter().map(|node| {
+            map([
+                ("kind", text(node.kind.key())),
+                ("name", text(&node.name)),
+                ("column", index(node.column)),
+                ("y", place(node.y)),
+                ("height", place(node.height)),
+                ("label", text(&node.label)),
+                ("account", text(node.account.as_deref().unwrap_or(""))),
+                ("category", text(node.category.as_deref().unwrap_or(""))),
+                (
+                    "holds",
+                    list(node.holds.iter().map(|(name, amount)| {
+                        map([("name", text(name)), ("label", text(amount))])
+                    })),
+                ),
+            ])
+        });
+    let bands = model.bands.iter().map(|band| {
+        map([
+            ("from", index(band.from)),
+            ("to", index(band.to)),
+            ("yFrom", place(band.y_from)),
+            ("yTo", place(band.y_to)),
+            ("thickness", place(band.thickness)),
+            ("label", text(&band.label)),
+            ("assumed", text(&band.assumed)),
+            ("returned", text(&band.returned)),
+        ])
+    });
+    map([
+        ("kind", text("flow")),
+        ("dataset", text(MONEY_FLOW)),
+        ("currency", text(&model.currency)),
+        ("total", text(&model.total)),
+        ("whole", place(WHOLE)),
+        ("columns", index(model.columns)),
+        ("nodes", list(nodes)),
+        ("bands", list(bands)),
+        ("elsewhere", list(model.elsewhere.iter().map(|t| text(t)))),
     ])
 }
 
@@ -534,7 +618,10 @@ pub(crate) fn error_object(error: &ChartsError) -> QVariant {
 fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
     match result {
         Ok(set) => map([
-            ("empty", QVariant::from(&set.charts.is_empty())),
+            (
+                "empty",
+                QVariant::from(&(set.charts.is_empty() && set.flows.is_empty())),
+            ),
             ("missing", count(set.missing)),
             (
                 "shared",
@@ -562,7 +649,8 @@ fn view_object(result: &Result<ChartSet, ChartsError>) -> QVariant {
                 list(
                     set.charts
                         .iter()
-                        .map(|(model, prepared)| chart_object(model, prepared)),
+                        .map(|(model, prepared)| chart_object(model, prepared))
+                        .chain(set.flows.iter().map(flow_object)),
                 ),
             ),
             ("filter", set.filter.object()),
@@ -671,6 +759,74 @@ mod tests {
     }
 
     #[test]
+    fn a_daily_balance_reads_back_as_two_panels_the_way_qml_reads_them() {
+        // US7, #1036, D-794: the balance panel and the MACD panel, each with
+        // how its series are drawn, the axis names and every figure of a day.
+        let view = view_of(&Request {
+            grouping: "balance-averages-macd".into(),
+            ..request("daily_balance", "line")
+        });
+        let shown = list_of(&view, "charts");
+        assert_eq!(shown.len(), 2);
+        let panels: Vec<QVariant> = shown
+            .iter()
+            .map(|chart| object_of(chart, "daily"))
+            .collect();
+        for daily in &panels {
+            assert_eq!(keys(daily), ["axis", "draws", "panel", "startsLate"]);
+            // The book's first entry is on 3 August, inside the last 12
+            // months: the chart starts there and says so.
+            assert!(flag_of(daily, "startsLate"));
+        }
+        assert_eq!(text_of(&panels[0], "panel"), "balance");
+        assert_eq!(text_of(&panels[1], "panel"), "macd");
+        let draws = |daily: &QVariant| -> Vec<String> {
+            list_of(daily, "draws")
+                .iter()
+                .map(|draw| draw.value::<QString>().expect("text").to_string())
+                .collect()
+        };
+        assert_eq!(
+            draws(&panels[0]),
+            ["step", "line", "dashed", "none", "none", "none"]
+        );
+        assert_eq!(
+            draws(&panels[1]),
+            ["bars", "line", "dashed", "none", "none", "none"]
+        );
+        let axis = list_of(&panels[0], "axis");
+        assert_eq!(keys(&axis[0]), ["index", "name"]);
+        // 1 September and 1 October.
+        assert_eq!(axis.len(), 2);
+        let chart = &shown[0];
+        assert_eq!(text_of(chart, "dataset"), "daily_balance");
+        // 3 August to today, 19 October.
+        assert_eq!(number_of(chart, "count"), 78);
+        let series = list_of(chart, "series");
+        let keys_of: Vec<String> = series.iter().map(|s| text_of(s, "key")).collect();
+        assert_eq!(
+            keys_of,
+            [
+                "balance",
+                "daily_average_12",
+                "daily_average_26",
+                "daily_macd",
+                "daily_signal",
+                "daily_gap"
+            ]
+        );
+        // The last day's balance is everything booked by today.
+        let points = list_of(&series[0], "points");
+        assert_eq!(
+            text_of(points.last().expect("a day"), "minorUnits"),
+            "333446"
+        );
+        // A chart that is not a daily balance has an empty look.
+        let other = list_of(&view_of(&request("spending_by_category", "pie")), "charts");
+        assert_eq!(text_of(&object_of(&other[0], "daily"), "panel"), "");
+    }
+
+    #[test]
     fn a_spending_chart_reads_back_the_way_qml_reads_it() {
         let view = view_of(&request("spending_by_category", "pie"));
         assert_eq!(
@@ -700,6 +856,7 @@ mod tests {
                 "compared",
                 "count",
                 "currency",
+                "daily",
                 "dataset",
                 "extraColors",
                 "hidden",
@@ -827,6 +984,47 @@ mod tests {
         assert_eq!(text_of(&notes[0], "id"), "per-month");
         assert_eq!(number_of(&notes[0], "counted"), 12);
         assert_eq!(number_of(&notes[0], "before"), 9);
+        // B-313: September to December on 19 October is not over, so the
+        // average divides by the 2 months up to today, not all 4, and says
+        // so the way FilterNotes.qml reads it. The book has transactions
+        // before September, so nothing counts early.
+        let mut so_far = request("spending_by_category", "donut");
+        so_far.scope.average = "per-month".into();
+        so_far.period = "2026-09-01..2026-12-31".into();
+        let notes = list_of(&object_of(&view_of(&so_far), "filter"), "notes");
+        assert_eq!(notes.len(), 1);
+        assert_eq!(text_of(&notes[0], "kind"), "average-so-far");
+        assert_eq!(text_of(&notes[0], "dimension"), "period");
+        assert_eq!(text_of(&notes[0], "id"), "per-month");
+        assert_eq!(number_of(&notes[0], "counted"), 2);
+        assert_eq!(number_of(&notes[0], "before"), 4);
+        // B-313, round 4: a period that is not over and starts before the
+        // book shows both notes, the divisor first, so "7 of the 10 months
+        // this average counts" reads on from "divided by the 10 months up
+        // to today, not by all 12".
+        let mut both = request("spending_by_category", "donut");
+        both.scope.average = "per-month".into();
+        both.period = "2026-01-01..2026-12-31".into();
+        let notes = list_of(&object_of(&view_of(&both), "filter"), "notes");
+        // On 19 October this year counts 10 of its 12 months, and the
+        // book's 3 August start leaves 7 of those 10 before it.
+        let read: Vec<(String, i32, i32)> = notes
+            .iter()
+            .map(|note| {
+                (
+                    text_of(note, "kind"),
+                    number_of(note, "counted"),
+                    number_of(note, "before"),
+                )
+            })
+            .collect();
+        assert_eq!(
+            read,
+            [
+                ("average-so-far".to_string(), 10, 12),
+                ("average-early".to_string(), 10, 7)
+            ]
+        );
         let plain = view_of(&request("spending_by_category", "donut"));
         assert_eq!(text_of(&list_of(&plain, "charts")[0], "per"), "");
         // A total names nothing.
@@ -1094,6 +1292,20 @@ mod tests {
     }
 
     #[test]
+    fn a_formula_column_with_a_relative_period_is_shown_not_refused() {
+        // B-351: "last month" of the first month is before the chart's
+        // period, which the book is read for.
+        let book = book();
+        for formula in ["Groceries@\"last month\"", "Groceries@\"last 90 days\""] {
+            let mut asked = request("spending_by_category", "pie");
+            asked.columns = vec![("Col".into(), Vec::new(), formula.into())];
+            let view = view_with(&book, &asked);
+            assert!(!keys(&view).contains(&"error".to_owned()), "{formula}");
+            assert_eq!(list_of(&view, "totals").len(), 1, "{formula}");
+        }
+    }
+
+    #[test]
     fn groups_and_series_of_a_document_reach_the_chart_and_unknown_ids_are_counted() {
         let mut book = book();
         let food = category_id(&book, "Groceries");
@@ -1348,6 +1560,103 @@ mod tests {
         let view = view_of(&asked);
         assert_eq!(number_of(&view, "missing"), 0);
         assert!(!flag_of(&view, "empty"));
+    }
+
+    /// The money flow of the test book, read back as `FlowChart.qml` reads
+    /// it (US7, #821): one chart of kind `flow`, the nodes and bands placed
+    /// in whole millionths and every amount as text.
+    #[test]
+    fn the_money_flow_reads_back_the_way_qml_reads_it() {
+        let view = view_of(&request("money_flow", "flow"));
+        assert!(!flag_of(&view, "empty"));
+        let shown = list_of(&view, "charts");
+        assert_eq!(shown.len(), 1);
+        let chart = &shown[0];
+        assert_eq!(text_of(chart, "kind"), "flow");
+        assert_eq!(text_of(chart, "dataset"), "money_flow");
+        assert_eq!(
+            keys(chart),
+            [
+                "bands",
+                "columns",
+                "currency",
+                "dataset",
+                "elsewhere",
+                "kind",
+                "nodes",
+                "total",
+                "whole"
+            ]
+        );
+        assert_eq!(number_of(chart, "whole"), 1_000_000);
+        assert_eq!(number_of(chart, "columns"), 3);
+        assert_eq!(text_of(chart, "total"), "5000,00 €");
+        let nodes = list_of(chart, "nodes");
+        let kinds: Vec<String> = nodes.iter().map(|n| text_of(n, "kind")).collect();
+        assert_eq!(kinds[0], "middle");
+        for kind in ["category", "unsorted", "left-over"] {
+            assert!(kinds.iter().any(|k| k == kind), "{kinds:?}");
+        }
+        assert_eq!(nodes.len(), 6, "{kinds:?}");
+        assert_eq!(
+            keys(&nodes[0]),
+            [
+                "account", "category", "column", "height", "holds", "kind", "label", "name", "y"
+            ]
+        );
+        let bands = list_of(chart, "bands");
+        assert_eq!(bands.len(), 5);
+        assert_eq!(
+            keys(&bands[0]),
+            [
+                "assumed",
+                "from",
+                "label",
+                "returned",
+                "thickness",
+                "to",
+                "yFrom",
+                "yTo"
+            ]
+        );
+        assert!(bands.iter().all(|b| text_of(b, "returned").is_empty()));
+        // Nothing in this book is assumed: the text is empty (#1035).
+        assert!(bands.iter().all(|b| text_of(b, "assumed").is_empty()));
+        // The largest band is the salary into the middle node: 5,000.00.
+        assert_eq!(text_of(&bands[0], "label"), "5000,00 €");
+        // Left over: 5,000.00 less 1,600.00, 53.20 and 12.34.
+        let left = nodes
+            .iter()
+            .find(|n| text_of(n, "kind") == "left-over")
+            .expect("left over");
+        assert_eq!(text_of(left, "label"), "3334,46 €");
+        // The places only place marks: inside the chart's height.
+        for node in &nodes {
+            let (y, height) = (number_of(node, "y"), number_of(node, "height"));
+            assert!(y >= 0 && y + height <= 1_000_000, "{y} {height}");
+        }
+        // Sub-categories and payees reach the chart as columns.
+        let mut asked = request("money_flow", "flow");
+        asked.scope.flow.payees = true;
+        asked.scope.flow.sub_categories = true;
+        let view = view_of(&asked);
+        let wide = &list_of(&view, "charts")[0];
+        assert_eq!(number_of(wide, "columns"), 7);
+        // The accounts get a column between the middle and the sides, each
+        // account node says which account it is.
+        let mut asked = request("money_flow", "flow");
+        asked.scope.flow.accounts = true;
+        let view = view_of(&asked);
+        let accounts = &list_of(&view, "charts")[0];
+        let nodes = list_of(accounts, "nodes");
+        let named: Vec<String> = nodes
+            .iter()
+            .filter(|node| text_of(node, "kind") == "account")
+            .map(|node| text_of(node, "account"))
+            .collect();
+        assert!(!named.is_empty(), "no account node");
+        assert!(named.iter().all(|id| !id.is_empty()), "{named:?}");
+        assert!(number_of(accounts, "columns") >= 3);
     }
 
     /// The candles of the checking account over the last 12 months (US4.10),
@@ -1616,6 +1925,30 @@ mod tests {
             .collect();
         assert_eq!(paid, ["250000", "250000"]);
         assert_eq!(list_of(chart, "overlays").len(), 1);
+    }
+
+    /// B-340: a custom chart's mean is rounded in the book's own rounding
+    /// mode (D-027). The two salaries over twelve months are 416.666… a
+    /// month: 416.67 rounded half away from zero, 416.66 toward zero.
+    #[test]
+    fn a_custom_charts_mean_is_rounded_as_the_book_rounds() {
+        let level = |book: &Book| -> String {
+            let result = charts::charts(book, &TestLocale, &custom(MONTHLY, false));
+            let view = view_object(&result);
+            let chart = &list_of(&view, "charts")[0];
+            let overlays = list_of(chart, "overlays");
+            let series = list_of(&overlays[0], "series");
+            let item = &list_of(&series[0], "items")[0];
+            format!("{} {}", text_of(item, "label"), text_of(item, "text"))
+        };
+        let half_up = level(&book());
+        assert!(half_up.contains("416,67"), "{half_up}");
+        let mut toward_zero = book();
+        toward_zero
+            .set_rounding_mode(kassensturz_core::RoundingMode::TowardZero)
+            .expect("rounding set");
+        let cut = level(&toward_zero);
+        assert!(cut.contains("416,66"), "{cut}");
     }
 
     /// Every ready example of the help page and the "Insert an example"

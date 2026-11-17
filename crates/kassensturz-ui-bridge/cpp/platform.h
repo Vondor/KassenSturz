@@ -27,6 +27,19 @@ bool startDetached(const QString &program, const QStringList &arguments, const Q
 // Ends the event loop, so the app ends.
 void quitApp();
 
+// Makes SIGTERM, SIGHUP and SIGINT (a logout, a shutdown, `pkill`, Ctrl+C) end
+// the event loop the way quitting does, so the book is closed and its lock
+// file removed (B-276). Does nothing on Windows. Call it once the
+// application object exists.
+void quitOnSignals();
+
+// Closes the open book and ends the event loop when the desktop session ends
+// (a Windows logoff or shutdown, a session manager's logout), which Windows
+// follows by ending the process without `main` getting further, so the
+// book's lock file would stay behind (B-287). Call it once the application
+// object exists.
+void closeBookOnSessionEnd();
+
 // Switches QStandardPaths to Qt's test locations, apart from the user's real
 // ones: the test profile on Windows (M7a.9).
 void useTestLocations();
@@ -61,6 +74,17 @@ int renameNoReplace(const QString &from, const QString &to);
 // portal's GetHostPaths over D-Bus; empty where the portal doesn't say or on
 // systems without one.
 QString portalHostPath(const QString &documentId);
+
+// What this app may open through the document portal, from its List over
+// D-Bus: records ending with U+001E, each the document's ID, U+001F and the
+// path on the host. Empty where the portal doesn't answer or on systems
+// without one.
+QString portalDocuments();
+
+// Takes this app's access to the document `documentId` back, from the
+// portal's RevokePermissions over D-Bus. Never touches a file. Returns
+// whether the portal accepted it; the caller checks with `portalDocuments`.
+bool portalForget(const QString &documentId);
 
 // Loads KI18n's QML library on the calling thread. Qt otherwise loads it on
 // its QML loader thread, and a static object inside it then lives there while

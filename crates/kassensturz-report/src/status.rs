@@ -144,6 +144,43 @@ pub const fn update_all(f: UpdateFigures) -> Status {
     }
 }
 
+/// The figures the *Left this month* tile (`forecast.month`, D-770) has.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct ForecastFigures {
+    /// Whether there is an account to look ahead for.
+    pub accounts: bool,
+    /// Whether any planned payment counts in it.
+    pub plans: bool,
+    /// How many planned payments passed without an entry ("Did this
+    /// happen?"): counted in no figure, so the figure waits for the user.
+    pub overdue: usize,
+}
+
+/// The *Left this month* tile's status. `None` when the forecast could not
+/// be read. With no account or no plan the figure means nothing, so it is
+/// `unknown`, never `fine` (D-734).
+pub const fn forecast(figures: Option<ForecastFigures>) -> Status {
+    match figures {
+        None => Status::new(TileStatus::Failed, 0),
+        Some(f) if !f.accounts || !f.plans => Status::new(TileStatus::Unknown, 0),
+        Some(f) if f.overdue > 0 => Status::new(TileStatus::ToDo, f.overdue),
+        Some(_) => Status::new(TileStatus::Fine, 0),
+    }
+}
+
+/// The *Coming up* tile's status (`plan.coming_up`): `unknown` while no
+/// payment is planned, otherwise `fine` with how many payments come in the
+/// next days. A payment that passed waits on the *Left this month* tile and
+/// in the Planned payments window, so it isn't counted twice here.
+/// `None` when the plans could not be read.
+pub const fn coming_up(plans: Option<usize>, coming: usize) -> Status {
+    match plans {
+        None => Status::new(TileStatus::Failed, 0),
+        Some(0) => Status::new(TileStatus::Unknown, 0),
+        Some(_) => Status::new(TileStatus::Fine, coming),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -233,5 +270,32 @@ mod tests {
             }),
             TileStatus::Running
         );
+    }
+
+    #[test]
+    fn left_this_month() {
+        let f = |accounts, plans, overdue| {
+            forecast(Some(ForecastFigures {
+                accounts,
+                plans,
+                overdue,
+            }))
+        };
+        assert_eq!(forecast(None), Status::new(TileStatus::Failed, 0));
+        assert_eq!(f(true, true, 0), Status::new(TileStatus::Fine, 0));
+        assert_eq!(f(true, true, 2), Status::new(TileStatus::ToDo, 2));
+        // No plan or no account: the figure means nothing, never fine,
+        // even with nothing overdue.
+        assert_eq!(f(true, false, 0), Status::new(TileStatus::Unknown, 0));
+        assert_eq!(f(false, true, 0), Status::new(TileStatus::Unknown, 0));
+        assert_eq!(f(false, false, 3), Status::new(TileStatus::Unknown, 0));
+    }
+
+    #[test]
+    fn payments_coming_up() {
+        assert_eq!(coming_up(None, 0), Status::new(TileStatus::Failed, 0));
+        assert_eq!(coming_up(Some(0), 0), Status::new(TileStatus::Unknown, 0));
+        assert_eq!(coming_up(Some(2), 0), Status::new(TileStatus::Fine, 0));
+        assert_eq!(coming_up(Some(2), 3), Status::new(TileStatus::Fine, 3));
     }
 }

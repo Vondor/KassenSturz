@@ -55,6 +55,12 @@ pub struct Scope {
     /// How many days a candle chart's candle covers (Q-498): a
     /// `params.candle` word, empty for the length that follows the period.
     pub candle: String,
+    /// What a money-flow chart shows (US7, D-758).
+    pub flow: kassensturz_report::FlowChoice,
+    /// The months of a moving average and of MACD (US7, D-777).
+    pub trend: kassensturz_report::Trend,
+    /// The days of a daily balance's averages (US7, D-794).
+    pub ema: kassensturz_report::Ema,
 }
 
 /// The own lists of one series of a chart (D-646): empty for a dimension it
@@ -83,6 +89,9 @@ impl Default for Scope {
             average: String::new(),
             compare: String::new(),
             candle: String::new(),
+            flow: kassensturz_report::FlowChoice::default(),
+            trend: kassensturz_report::Trend::default(),
+            ema: kassensturz_report::Ema::default(),
         }
     }
 }
@@ -129,6 +138,9 @@ impl Scope {
                 .candle
                 .map(|length| length.key().to_owned())
                 .unwrap_or_default(),
+            flow: asked.flow.clone(),
+            trend: asked.trend,
+            ema: asked.ema,
         }
     }
 
@@ -185,6 +197,22 @@ impl Scope {
             "average": self.average,
             "compare": self.compare,
             "candle": self.candle,
+            "flow": {
+                "sub_categories": self.flow.sub_categories,
+                "payees": self.flow.payees,
+                "accounts": self.flow.accounts,
+                "currency": self.flow.currency,
+            },
+            "trend": {
+                "length": self.trend.length,
+                "slow": self.trend.slow,
+                "signal": self.trend.signal,
+            },
+            "ema": {
+                "fast": self.ema.fast,
+                "slow": self.ema.slow,
+                "signal": self.ema.signal,
+            },
         })
         .to_string()
     }
@@ -258,6 +286,48 @@ impl Scope {
                 .filter(|word| kassensturz_report::CandleLength::read(word).is_some())
                 .unwrap_or_default()
                 .to_owned(),
+            flow: {
+                let flow = value.get("flow");
+                let flag = |key: &str| {
+                    flow.and_then(|flow| flow.get(key))
+                        .and_then(Value::as_bool)
+                        .unwrap_or(false)
+                };
+                kassensturz_report::FlowChoice {
+                    sub_categories: flag("sub_categories"),
+                    payees: flag("payees"),
+                    accounts: flag("accounts"),
+                    currency: flow
+                        .and_then(|flow| flow.get("currency"))
+                        .and_then(Value::as_str)
+                        .filter(|code| code.len() <= 3)
+                        .unwrap_or_default()
+                        .to_owned(),
+                }
+            },
+            trend: {
+                let trend = value.get("trend");
+                let word = |key: &str| {
+                    trend
+                        .and_then(|trend| trend.get(key))
+                        .and_then(Value::as_u64)
+                        .and_then(|months| u32::try_from(months).ok())
+                        .map(kassensturz_report::Trend::word)
+                        .unwrap_or_default()
+                };
+                kassensturz_report::Trend::read(&word("length"), &word("slow"), &word("signal"))
+            },
+            ema: {
+                let ema = value.get("ema");
+                let word = |key: &str| {
+                    ema.and_then(|ema| ema.get(key))
+                        .and_then(Value::as_u64)
+                        .and_then(|days| u32::try_from(days).ok())
+                        .map(kassensturz_report::Ema::word)
+                        .unwrap_or_default()
+                };
+                kassensturz_report::Ema::read(&word("fast"), &word("slow"), &word("signal"))
+            },
         }
     }
 
@@ -290,6 +360,9 @@ impl Scope {
             average: None,
             compare: None,
             candle: None,
+            flow: kassensturz_report::FlowChoice::default(),
+            trend: kassensturz_report::Trend::default(),
+            ema: kassensturz_report::Ema::default(),
         }
         .apply(source)
     }
@@ -309,19 +382,24 @@ impl Scope {
 /// A note under a component about its filter, by fixed words.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NoteView {
-    /// `not-applied`, `gone`, `chooses-nothing` or `average-early`.
+    /// `not-applied`, `gone`, `chooses-nothing`, `average-early`,
+    /// `average-so-far` or `compare-early`.
     pub kind: &'static str,
-    /// `period`, `accounts` or `categories`; `period` for `average-early`.
+    /// `period`, `accounts` or `categories`; `period` for `average-early`
+    /// and `average-so-far`.
     pub dimension: &'static str,
-    /// For `gone`, the ID as the list writes it; for `average-early`, the
+    /// For `gone`, the ID as the list writes it; for `average-early` and
+    /// `average-so-far`, the
     /// `params.average` word (`per-month`, `per-quarter`, `per-year`); else
     /// empty.
     pub id: String,
-    /// For `average-early` (M6-B207, #590, D-668): how many months
-    /// (quarters, years) the average divides by; else zero.
+    /// For `average-early` (M6-B207, #590, D-668) and `average-so-far`
+    /// (B-313): how many months (quarters, years) the average divides by;
+    /// else zero.
     pub counted: u32,
     /// For `average-early`: how many of them lie before the first
-    /// transaction of the accounts and categories it counts; else zero.
+    /// transaction of the accounts and categories it counts; for
+    /// `average-so-far`: how many the whole period holds; else zero.
     pub before: u32,
 }
 
@@ -689,6 +767,22 @@ mod tests {
             average: "per-month".into(),
             compare: "same_last_year".into(),
             candle: "week".into(),
+            flow: kassensturz_report::FlowChoice {
+                sub_categories: true,
+                payees: true,
+                accounts: true,
+                currency: "USD".into(),
+            },
+            trend: kassensturz_report::Trend {
+                length: 6,
+                slow: 12,
+                signal: 4,
+            },
+            ema: kassensturz_report::Ema {
+                fast: 9,
+                slow: 50,
+                signal: 5,
+            },
         };
         assert_eq!(Scope::from_text(&scope.to_text()), scope);
     }

@@ -44,6 +44,7 @@ mod catalog;
 mod columns;
 mod compared;
 mod component;
+mod daily;
 mod dashboard_file;
 mod dashboard_file_read;
 mod default_overview;
@@ -56,6 +57,7 @@ pub mod grid;
 mod groups;
 mod listed;
 mod metrics;
+mod money_flow;
 mod monthly;
 pub mod notices;
 mod over_time;
@@ -67,12 +69,15 @@ mod spending;
 pub mod status;
 pub mod templates;
 mod text;
+mod trend;
 
 pub use alarms::{
     AlarmReason, AlarmResult, AlarmRule, AlarmState, BudgetLook, CantCheck, MAX_ALARMS,
     MAX_AMOUNT_CHARS, MAX_SHARE, MAX_TIMES, amount_money, amount_text, evaluate as evaluate_alarms,
 };
-pub use average::{AVERAGE_WORDS, Average, CountedEarly, Per, counted_early};
+pub use average::{
+    AVERAGE_WORDS, Average, CountedEarly, CountedSoFar, Per, counted_early, counted_so_far,
+};
 pub use balances::{
     ACCOUNT_BALANCES, AccountBalance, AccountBalances, Converted, CurrencyBalances, CurrencyWorth,
     NET_WORTH_OVER_TIME, NetWorthOverTime, Worth, WorthRow, account_balances, net_worth_over_time,
@@ -93,6 +98,10 @@ pub use compared::{
     spending_compared,
 };
 pub use component::Component;
+pub use daily::{
+    DAILY_BALANCE, DAILY_PARTS, DailyBalance, DailyParts, DailyRow, EMA_FAST_WORDS,
+    EMA_SIGNAL_WORDS, EMA_SLOW_WORDS, Ema, MAX_DAILY_DAYS, daily_balance, daily_days,
+};
 pub use dashboard_file::{
     DASHBOARD_FILE_EXTENSION, DASHBOARD_FILE_FORMAT, DASHBOARD_FILE_VERSION, DashboardFile,
     MAX_APPLICATION_CHARS, MAX_DASHBOARD_FILE_BYTES, MAX_PATH_NAMES, MAX_REFERENCE_NAME_CHARS,
@@ -128,6 +137,10 @@ pub use metrics::{
     CHANGE_STEPS, Change, Compare, IncomeExpenseChange, Percent, compare_income_expense,
     comparison_span, savings_rate,
 };
+pub use money_flow::{
+    Flow, FlowChoice, FlowNode, FlowNodeKind, FlowOptions, MAX_PER_COLUMN, MONEY_FLOW, MoneyFlow,
+    money_flow,
+};
 pub use monthly::{
     INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth, MonthRow, income_expense_by_month,
     income_expense_by_series,
@@ -141,8 +154,8 @@ pub use period::{
 };
 pub use schema::{
     ALARMS_KEY, CANDLE_FILL_WORDS, CANDLE_WORDS, ColumnSetting, ComponentType, FORMULA_MEASURE,
-    Kind, MAX_IDS, MAX_TEXT_CHARS, NEUTRAL_WORDS, ORIENTATION_WORDS, Place, Property, Setting,
-    dataset_for,
+    Kind, MAX_IDS, MAX_TEXT_CHARS, MONTH_START_KEY, MONTH_STARTS, NEUTRAL_WORDS, ORIENTATION_WORDS,
+    Place, Property, Setting, dataset_for,
 };
 pub use source::Source;
 pub use spending::{
@@ -150,6 +163,10 @@ pub use spending::{
     spending_by_category_shown,
 };
 pub use text::{TextFormat, TextTable};
+pub use trend::{
+    AverageRow, MACD, MOVING_AVERAGE, Macd, MacdRow, MovingAverage, TREND_LENGTH_WORDS,
+    TREND_SERIES, TREND_SIGNAL_WORDS, TREND_SLOW_WORDS, Trend, TrendSeries, macd, moving_average,
+};
 
 #[cfg(test)]
 mod alarms_tests;
@@ -165,6 +182,8 @@ mod compared_tests;
 mod component_tests;
 #[cfg(test)]
 mod custom_chart_tests;
+#[cfg(test)]
+mod daily_tests;
 #[cfg(test)]
 mod dashboard_file_read_tests;
 #[cfg(test)]
@@ -184,8 +203,14 @@ mod grid_tests;
 #[cfg(test)]
 mod groups_tests;
 #[cfg(test)]
+mod money_flow_moves_tests;
+#[cfg(test)]
+mod money_flow_tests;
+#[cfg(test)]
 mod page_widgets_tests;
 #[cfg(test)]
 mod tags_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod trend_tests;

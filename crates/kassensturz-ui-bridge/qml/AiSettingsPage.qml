@@ -73,23 +73,6 @@ Kirigami.ScrollablePage {
     // the user sees the models to choose from (or what is wrong).
     property bool testAfterSave: false
 
-    // The sentence of the consent statement for one thing that is sent
-    // (`settings.statement()`); a test holds this list to the statement.
-    function statementText(word: string): string {
-        switch (word) {
-        case "questions":
-            return i18nContext.i18nc("@info what is sent", "What you type into the chat.");
-        case "book-data":
-            return i18nContext.i18nc("@info what is sent", "Information from your open book that the AI asks for to answer you: the names of accounts and categories, balances and totals, transactions with the names of whoever was paid or paid you and the notes you wrote, and your Rules. Only as much as your question needs, never the whole book.");
-        case "instructions":
-            return i18nContext.i18nc("@info what is sent", "KassenSturz's own instructions to the AI, and the descriptions of the functions it may use to look things up or to prepare changes for you to confirm.");
-        case "key":
-            return i18nContext.i18nc("@info what is sent", "Your key for this provider, if it needs one, so that it accepts the request.");
-        default:
-            return "";
-        }
-    }
-
     // Reads what is saved into the page and the fields.
     function reload() {
         form = settings.load();
@@ -549,11 +532,26 @@ Kirigami.ScrollablePage {
                 case "given":
                     return page.i18nContext.i18nc("@info %1 is a date", "You agreed on %1 to what KassenSturz sends to this provider. You can read it again, or take your agreement back; nothing is sent to this provider while it is withdrawn.", page.form.consentDay);
                 case "missing":
+                    // A consent in the file that can't be confirmed: say
+                    // why the user is asked again (B-324).
+                    if ((page.form.consentUnconfirmedDay ?? "") !== "") {
+                        return page.i18nContext.i18nc("@info %1 is a date", "You agreed on %1, but KassenSturz can't confirm that agreement any more: it was kept only until KassenSturz closed, or it wasn't given in KassenSturz. Nothing is sent to this provider until you read what is sent and agree again.", page.form.consentUnconfirmedDay);
+                    }
                     return page.i18nContext.i18nc("@info", "This provider is on another computer. Nothing is sent to it until you have read what KassenSturz sends and agreed.");
                 default:
                     return page.i18nContext.i18nc("@info", "This provider is on this computer, so what you ask never leaves it and there is nothing to agree to.");
                 }
             }
+        }
+
+        // An agreement whose seal couldn't be saved holds only until
+        // KassenSturz closes (B-259, B-324): the user learns it now, not
+        // after the next start.
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: page.hasProvider && page.form.consent === "given" && page.form.consentUntilClose === true
+            type: Kirigami.MessageType.Warning
+            text: page.i18nContext.i18nc("@info", "This agreement holds only until KassenSturz closes: it couldn't be kept where KassenSturz saves PINs and keys. To keep it, choose a place under Settings → Advanced → Password storage, check that it is unlocked, and agree again.")
         }
 
         RowLayout {
@@ -679,6 +677,57 @@ Kirigami.ScrollablePage {
             }
         }
 
+        // The user's own notes for the AI (US7, #808): kept on this
+        // computer, put into every chat as the user's own words. Nothing
+        // is copied into them by itself; the AI can only suggest a line.
+        Kirigami.Heading {
+            level: 2
+            text: page.i18nContext.i18nc("@title:group", "Notes for the AI")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "Write down what the AI should know about you, for example \"Salary comes on the 28th\" or \"Corner Market is groceries\". The notes stay on this computer and go with every question you ask the AI in the chat, so they are sent to your AI provider too. Write no passwords or PINs. The AI never changes them by itself: it can suggest a line, and you decide. Your AI tools outside KassenSturz do not get them.")
+        }
+
+        Controls.TextArea {
+            id: notesField
+
+            Layout.fillWidth: true
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 8
+            wrapMode: TextEdit.Wrap
+            textFormat: TextEdit.PlainText
+            text: page.settings.notes()
+            placeholderText: page.i18nContext.i18nc("@info:placeholder", "One note per line")
+            Accessible.name: page.i18nContext.i18nc("@label accessible name", "Notes for the AI")
+            onTextChanged: if (length > page.settings.notesLimit()) remove(page.settings.notesLimit(), length)
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            Controls.Button {
+                text: page.i18nContext.i18nc("@action:button", "Save notes")
+                icon.name: "document-save"
+                enabled: notesField.text.trim() !== page.settings.notes()
+                onClicked: {
+                    ActionLog.taken("AiSettingsPage_saveNotes")
+                    page.notWritten = !page.settings.setNotes(notesField.text);
+                    notesField.text = page.settings.notes();
+                }
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignRight
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                text: page.i18nContext.i18nc("@info %1 characters written, %2 the most allowed", "%1 of %2 characters", notesField.length, page.settings.notesLimit())
+            }
+        }
+
         // The user's own AI tools (D-035, D-219): they can read the book
         // once AI is on; preparing changes is a second, separate yes.
         Kirigami.Heading {
@@ -702,7 +751,22 @@ Kirigami.ScrollablePage {
                 ActionLog.taken("AiSettingsPage_letAiTools")
                 page.notWritten = !page.settings.setWriteTools(checked);
                 checked = page.settings.writeTools();
+                writeToolsProblem.problem = checked ? page.settings.writeToolsProblem() : "";
             }
+        }
+
+        // The switch is on, but the folder through which the AI tools hand
+        // their changes over can't be used here (B-377): say so instead of
+        // leaving every prepared change to fail in the AI program.
+        Kirigami.InlineMessage {
+            id: writeToolsProblem
+
+            property string problem: writeToolsSwitch.checked ? page.settings.writeToolsProblem() : ""
+
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Warning
+            visible: problem !== ""
+            text: problem === "none" ? page.i18nContext.i18nc("@info", "On this system your AI tools can't prepare changes yet. They can still read the parts of your book you allowed above.") : page.i18nContext.i18nc("@info", "Your AI tools can't prepare changes right now: KassenSturz can't create or open its folder for them in your user data folder. Check that you may write there, for example that the disk isn't full, then switch this off and on again.")
         }
 
         // The bill folder (US5.13, D-739): the user's own AI tools read a
@@ -753,6 +817,118 @@ Kirigami.ScrollablePage {
                 }
             }
         }
+
+        // The receipt inbox (US7, #333, D-752): bills dropped into the
+        // inbox are moved into the archive when the user confirms what
+        // their AI tools prepared. Two folders through the system's folder
+        // chooser, shown by their real path (B-267).
+        Kirigami.Heading {
+            level: 3
+            text: page.i18nContext.i18nc("@title:group", "Inbox and archive for bills")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "Drop bills into the inbox. Your AI reads them, and when you confirm, KassenSturz moves each one into the archive, sorted by account and category. Undo puts it back. This needs \"Bills filed from the inbox\" above.")
+        }
+
+        Repeater {
+            model: [
+                {
+                    which: "inbox",
+                    label: page.i18nContext.i18nc("@label", "Inbox for new bills"),
+                    title: page.i18nContext.i18nc("@title:window", "Choose the inbox for new bills")
+                },
+                {
+                    which: "archive",
+                    label: page.i18nContext.i18nc("@label", "Archive for filed bills"),
+                    title: page.i18nContext.i18nc("@title:window", "Choose the archive for filed bills")
+                }
+            ]
+
+            ColumnLayout {
+                id: receiptRow
+
+                required property var modelData
+                property string folder: page.settings.receiptFolder(modelData.which)
+                property string refused: ""
+
+                Layout.fillWidth: true
+
+                function reasonFor(code: string): string {
+                    switch (code) {
+                    case "settings.inbox-archive-nested":
+                        return page.i18nContext.i18nc("@info", "The inbox and the archive must be two separate folders, neither inside the other, and not KassenSturz's own folder or your book's folder. Please choose another folder.");
+                    case "folder.too-broad":
+                        return page.i18nContext.i18nc("@info", "Please choose a folder inside your home folder, for example one just for your bills.");
+                    case "settings.not-written":
+                        return page.i18nContext.i18nc("@info", "The setting couldn't be saved. Check that your settings folder can be written to, then try again.");
+                    default:
+                        return page.i18nContext.i18nc("@info", "KassenSturz can't use this folder. Please choose another one.");
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    font.bold: true
+                    textFormat: Text.PlainText
+                    text: receiptRow.modelData.label
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font.italic: receiptRow.folder === ""
+                    text: receiptRow.folder !== "" ? receiptRow.folder : page.i18nContext.i18nc("@info no folder is chosen", "No folder chosen.")
+                }
+
+                Kirigami.InlineMessage {
+                    Layout.fillWidth: true
+                    type: Kirigami.MessageType.Error
+                    visible: receiptRow.refused !== ""
+                    text: receiptRow.refused !== "" ? Plain.plain(receiptRow.reasonFor(receiptRow.refused)) : ""
+                }
+
+                RowLayout {
+                    Controls.Button {
+                        text: page.i18nContext.i18nc("@action:button", "Choose folder…")
+                        icon.name: "folder-open"
+                        onClicked: {
+                            ActionLog.taken("AiSettingsPage_chooseReceiptFolder")
+                            receiptDialog.open()
+                        }
+                    }
+
+                    Controls.Button {
+                        visible: receiptRow.folder !== ""
+                        text: page.i18nContext.i18nc("@action:button", "Remove")
+                        icon.name: "edit-clear"
+                        onClicked: {
+                            ActionLog.taken("AiSettingsPage_removeReceiptFolder")
+                            page.notWritten = !page.settings.removeReceiptFolder(receiptRow.modelData.which);
+                            receiptRow.refused = "";
+                            receiptRow.folder = page.settings.receiptFolder(receiptRow.modelData.which);
+                        }
+                    }
+                }
+
+                // The system's folder chooser: in the Flatpak and the snap
+                // the file chooser portal, which grants this one folder.
+                Dialogs.FolderDialog {
+                    id: receiptDialog
+
+                    title: receiptRow.modelData.title
+                    onAccepted: {
+                        ActionLog.taken("AiSettingsPage_receiptFolderChosen")
+                        receiptRow.refused = page.settings.setReceiptFolder(receiptRow.modelData.which, selectedFolder);
+                        receiptRow.folder = page.settings.receiptFolder(receiptRow.modelData.which);
+                    }
+                }
+            }
+        }
     }
 
     // The system's folder chooser: in the Flatpak the file chooser portal,
@@ -770,6 +946,15 @@ Kirigami.ScrollablePage {
 
     Kirigami.Dialog {
         id: consentDialog
+
+        // Whether the user has agreed already for the saved provider.
+        readonly property bool given: page.form.consent === "given"
+
+        // While it is given, the dialog ends only with one of its two
+        // buttons, so no way out of it leaves the user unsure whether the
+        // agreement still stands (B-319).
+        showCloseButton: !given
+        closePolicy: given ? Controls.Popup.NoAutoClose : Controls.Popup.CloseOnEscape | Controls.Popup.CloseOnPressOutside
 
         function show() {
             page.sample = ({});
@@ -801,11 +986,22 @@ Kirigami.ScrollablePage {
                     consentDialog.agree()
                 }
             },
+            // While a consent is given (the dialog read again, or shown
+            // again after saving), leaving it without agreeing takes the
+            // consent back, and the button says so: "Not now" never leaves
+            // an agreement standing behind it (B-319, AGENTS.md §8).
             Kirigami.Action {
-                text: page.i18nContext.i18nc("@action:button", "Not now")
+                text: consentDialog.given
+                    ? page.i18nContext.i18nc("@action:button", "Take my agreement back")
+                    : page.i18nContext.i18nc("@action:button", "Not now")
                 icon.name: "dialog-cancel"
                 onTriggered: {
                     ActionLog.taken("AiSettingsPage_notNow")
+                    if (consentDialog.given) {
+                        ActionLog.taken("AiSettingsPage_takeAgreementBack")
+                        page.notWritten = !page.settings.withdrawConsent();
+                        page.reload();
+                    }
                     consentDialog.close()
                 }
             }
@@ -814,50 +1010,13 @@ Kirigami.ScrollablePage {
         ColumnLayout {
             spacing: Kirigami.Units.largeSpacing
 
-            Controls.Label {
+            // What is sent, in the same words the chat shows before
+            // agreeing (B-314).
+            AiConsentStatement {
                 Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                text: page.i18nContext.i18nc("@info %1 is a web address", "The provider at %1 is on another computer, even if that computer is in your home. When you ask the AI something, this leaves your computer and goes to it:", page.form.address ?? "")
-            }
-
-            Kirigami.InlineMessage {
-                Layout.fillWidth: true
-                visible: page.form.unencrypted === true
-                type: page.form.network === "home" ? Kirigami.MessageType.Warning : Kirigami.MessageType.Error
-                text: page.i18nContext.i18nc("@info", "You allowed an unencrypted connection, so all of this travels without encryption and others on the way could read it.")
-            }
-
-            Repeater {
-                model: page.settings.statement()
-
-                delegate: RowLayout {
-                    id: item
-
-                    required property string modelData
-
-                    Layout.fillWidth: true
-                    spacing: Kirigami.Units.smallSpacing
-
-                    Controls.Label {
-                        Layout.alignment: Qt.AlignTop
-                        text: "•"
-                    }
-
-                    Controls.Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.Wrap
-                        textFormat: Text.PlainText
-                        text: page.statementText(item.modelData)
-                    }
-                }
-            }
-
-            Controls.Label {
-                Layout.fillWidth: true
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
-                text: page.i18nContext.i18nc("@info", "Never sent: your bank logins, PINs and TANs, links to your bank, and the keys of other providers.")
+                ai: page.ai
+                settings: page.settings
+                form: page.form
             }
 
             Controls.Label {

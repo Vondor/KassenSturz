@@ -33,6 +33,10 @@ use kassensturz_report::{
     MAX_FORMULA_CHARS, NEUTRAL_WORDS, ORIENTATION_WORDS, PERIODS, Per, Period, ReportError,
     Rolling, SPENDING_BY_CATEGORY, Source, Term, range_word,
 };
+use kassensturz_report::{
+    DAILY_BALANCE, EMA_FAST_WORDS, EMA_SIGNAL_WORDS, EMA_SLOW_WORDS, MACD, MONEY_FLOW,
+    MOVING_AVERAGE, TREND_LENGTH_WORDS, TREND_SIGNAL_WORDS, TREND_SLOW_WORDS,
+};
 use kassensturz_store::Book;
 use serde_json::{Map, Value, json};
 
@@ -79,6 +83,13 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "average",
     "orientation",
     "neutral",
+    "trend_length",
+    "trend_slow",
+    "trend_signal",
+    "ema_fast",
+    "ema_slow",
+    "ema_signal",
+    "show_accounts",
     "income_categories",
     "income_accounts",
     "expenses_categories",
@@ -87,6 +98,18 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "target",
     "columns",
     "description",
+];
+
+/// The lengths of a trend or of a daily balance's averages (US7, #1036,
+/// D-794): each argument, which is also the key of its setting, and the
+/// data that take it. The first word of each list is its default.
+pub(crate) const LENGTHS: [(&str, &[&str]); 6] = [
+    ("trend_length", &[MOVING_AVERAGE, MACD]),
+    ("trend_slow", &[MACD]),
+    ("trend_signal", &[MACD]),
+    ("ema_fast", &[DAILY_BALANCE]),
+    ("ema_slow", &[DAILY_BALANCE]),
+    ("ema_signal", &[DAILY_BALANCE]),
 ];
 
 /// The own lists of money in and money out (D-646): each list's argument,
@@ -101,7 +124,7 @@ const SERIES_LISTS: [(&str, bool, Option<AccountKind>); 4] = [
 
 /// The words of `show_as` and the kind of component each one is; `auto`
 /// lets KassenSturz pick (D-352).
-const SHOW_AS: [(&str, Option<ComponentType>); 11] = [
+const SHOW_AS: [(&str, Option<ComponentType>); 12] = [
     ("auto", None),
     ("line", Some(ComponentType::ChartLine)),
     ("area", Some(ComponentType::ChartArea)),
@@ -113,6 +136,7 @@ const SHOW_AS: [(&str, Option<ComponentType>); 11] = [
     ("progress", Some(ComponentType::ProgressBar)),
     ("table", Some(ComponentType::TableRows)),
     ("budget_bars", Some(ComponentType::BudgetProgress)),
+    ("money_flow", Some(ComponentType::ChartFlow)),
 ];
 
 /// What a rolling period word looks like (D-644, D-645), for the schema;
@@ -295,6 +319,13 @@ pub fn view_choices(argument: &str) -> Option<Vec<&'static str>> {
         "average" => AVERAGE_WORDS.to_vec(),
         "orientation" => ORIENTATION_WORDS.to_vec(),
         "neutral" => NEUTRAL_WORDS.to_vec(),
+        "trend_length" => TREND_LENGTH_WORDS.to_vec(),
+        "trend_slow" => TREND_SLOW_WORDS.to_vec(),
+        "trend_signal" => TREND_SIGNAL_WORDS.to_vec(),
+        "ema_fast" => EMA_FAST_WORDS.to_vec(),
+        "ema_slow" => EMA_SLOW_WORDS.to_vec(),
+        "ema_signal" => EMA_SIGNAL_WORDS.to_vec(),
+        "show_accounts" => vec!["off", "on"],
         _ => return None,
     };
     Some(words)
@@ -483,6 +514,53 @@ pub fn propose_view_spec(allowed: Permissions) -> Option<ProposeSpec> {
              the comparison is green when less was spent and red when more, always with an \
              arrow. off (the default) colours every change; 2, 5, 10 or 20 leaves changes \
              smaller than that many percent uncoloured. The figures stay the same.",
+        ),
+    );
+    // The lengths of the trends and of a daily balance's averages (US7,
+    // #1036, D-794); KassenSturz works out every figure with them.
+    for (argument, description) in [
+        (
+            "trend_length",
+            "Only for moving_average and macd: how many months the moving average spans, and \
+             for macd the short-term average. Default 3-months.",
+        ),
+        (
+            "trend_slow",
+            "Only for macd: how many months the long-term average spans; always more than \
+             trend_length (a shorter one is taken as one month more). Default 6-months.",
+        ),
+        (
+            "trend_signal",
+            "Only for macd: how many months the signal line, the average of the trend line, \
+             spans. Default 3-months.",
+        ),
+        (
+            "ema_fast",
+            "Only for daily_balance: how many days the short average of the balance spans \
+             (an exponential moving average, the EMA fast of MACD). Default 12-days.",
+        ),
+        (
+            "ema_slow",
+            "Only for daily_balance: how many days the long average spans (the EMA slow of \
+             MACD); always more than ema_fast (a shorter one is taken as one day more). \
+             Default 26-days.",
+        ),
+        (
+            "ema_signal",
+            "Only for daily_balance: how many days the signal line, the average of MACD, \
+             spans. Default 9-days.",
+        ),
+    ] {
+        properties.insert(argument.into(), choice(argument, description));
+    }
+    properties.insert(
+        "show_accounts".into(),
+        choice(
+            "show_accounts",
+            "Only for data money_flow: on shows your accounts as a column of the flow, with \
+             the moves between them (a move that only looks like one is marked assumed, and \
+             money that went both ways is shown once, with a note); off (the default) shows \
+             all your money as one node. The figures stay the same.",
         ),
     );
     if offered("categories", allowed) {
@@ -1050,9 +1128,22 @@ fn what_suits(arguments: &Value, allowed: Permissions, argument: &'static str) -
             words.extend(&fits.show_as);
             (words, None, Vec::new())
         }
-        "group_by" if drawn_as(&fits.grouped_as) => (fits.group_by.clone(), None, Vec::new()),
+        "group_by" if drawn_as(&fits.grouped_as) || show_as.is_none_or(|way| way == "auto") => {
+            (fits.group_by.clone(), None, Vec::new())
+        }
         "group_by" => (Vec::new(), None, fits.grouped_as.clone()),
         "measure" if drawn_as(&["figure"]) => (fits.measure.clone(), None, Vec::new()),
+        // No way of drawing this data takes a measure (the money flow): the
+        // refusal still says so, for the hint that tells the model what to
+        // do (B-352).
+        "measure" if suiting(&["figure"]).is_empty() => {
+            return ToolError::NotForChart {
+                argument,
+                allowed: Vec::new(),
+                use_instead: None,
+                only_for_show_as: Vec::new(),
+            };
+        }
         "measure" => (Vec::new(), None, suiting(&["figure"])),
         // A spending bar or table compares with its six words (US3.1a), a
         // key figure and a progress bar with three; anything else with none.
@@ -1215,11 +1306,38 @@ fn check(
             return Ok(None);
         };
         let choices = view_choices(name).unwrap_or_default();
+        // A word that is not in the list is refused with the list (#1036):
+        // the model can choose again without guessing.
+        let refused = || match choices.is_empty() {
+            true => ToolError::BadArgument { argument: name },
+            // A measure for a way of drawing that takes none says what suits
+            // the data, with the same hint as any other chart (B-352).
+            false
+                if name == "measure"
+                    && given("show_as").and_then(Value::as_str) != Some("figure") =>
+            {
+                match what_suits(arguments, allowed, name) {
+                    ToolError::BadArgument { .. } => ToolError::NotForChart {
+                        argument: name,
+                        allowed: choices.clone(),
+                        use_instead: None,
+                        only_for_show_as: Vec::new(),
+                    },
+                    error => error,
+                }
+            }
+            false => ToolError::NotForChart {
+                argument: name,
+                allowed: choices.clone(),
+                use_instead: None,
+                only_for_show_as: Vec::new(),
+            },
+        };
         value
             .as_str()
             .filter(|word| choices.contains(word))
             .map(Some)
-            .ok_or(ToolError::BadArgument { argument: name })
+            .ok_or_else(refused)
     };
     let view_id = if editing {
         let id = given("view_id")
@@ -1302,6 +1420,40 @@ fn check(
     let average = unless_new(word("average")?, TOTAL);
     let orientation = unless_new(word("orientation")?, AUTO);
     let neutral = unless_new(word("neutral")?, NEUTRAL_OFF);
+    let mut lengths = [None; LENGTHS.len()];
+    for (at, (argument, takes)) in LENGTHS.iter().enumerate() {
+        let default = view_choices(argument)
+            .and_then(|words| words.first().copied())
+            .unwrap_or_default();
+        lengths[at] = unless_new(word(argument)?, default);
+        // A length the chosen data doesn't have is refused, never dropped:
+        // the chart would look as if it had it (#1036).
+        if given(argument).is_some()
+            && let Some(data) = word("data")?
+            && !takes.contains(&data)
+        {
+            return Err(ToolError::NotForChart {
+                argument,
+                allowed: Vec::new(),
+                use_instead: None,
+                only_for_show_as: Vec::new(),
+            });
+        }
+    }
+    // The accounts column belongs to the money flow only; refused for any
+    // other data, never dropped (B-312).
+    let show_accounts = unless_new(word("show_accounts")?, "off");
+    if given("show_accounts").is_some()
+        && let Some(data) = word("data")?
+        && data != MONEY_FLOW
+    {
+        return Err(ToolError::NotForChart {
+            argument: "show_accounts",
+            allowed: Vec::new(),
+            use_instead: None,
+            only_for_show_as: Vec::new(),
+        });
+    }
     let period = match given("period") {
         None => None,
         // A period that moves with today (D-644, D-645) is not in the list.
@@ -1438,6 +1590,13 @@ fn check(
                 ("average", average),
                 ("orientation", orientation),
                 ("neutral", neutral),
+                ("trend_length", lengths[0]),
+                ("trend_slow", lengths[1]),
+                ("trend_signal", lengths[2]),
+                ("ema_fast", lengths[3]),
+                ("ema_slow", lengths[4]),
+                ("ema_signal", lengths[5]),
+                ("show_accounts", show_accounts),
                 ("formula", formula),
                 ("target", target),
             ],
@@ -1481,6 +1640,13 @@ fn check(
         ("average", average),
         ("orientation", orientation),
         ("neutral", neutral),
+        ("trend_length", lengths[0]),
+        ("trend_slow", lengths[1]),
+        ("trend_signal", lengths[2]),
+        ("ema_fast", lengths[3]),
+        ("ema_slow", lengths[4]),
+        ("ema_signal", lengths[5]),
+        ("show_accounts", show_accounts),
         ("formula", formula),
         ("target", target),
     ] {
@@ -1536,7 +1702,7 @@ fn unless_new<'a>(word: Option<&'a str>, default: &str, editing: bool) -> Option
 
 /// The arguments a custom chart doesn't take: it draws what its
 /// description says (D-729).
-const CUSTOM_REFUSES: [&str; 14] = [
+const CUSTOM_REFUSES: [&str; 21] = [
     "measure",
     "group_by",
     "compare",
@@ -1545,6 +1711,13 @@ const CUSTOM_REFUSES: [&str; 14] = [
     "average",
     "orientation",
     "neutral",
+    "trend_length",
+    "trend_slow",
+    "trend_signal",
+    "ema_fast",
+    "ema_slow",
+    "ema_signal",
+    "show_accounts",
     "income_categories",
     "income_accounts",
     "expenses_categories",
@@ -1573,7 +1746,7 @@ struct EditItem<'a> {
     data: Option<&'a str>,
     show_as: Option<&'a str>,
     description: Option<&'a str>,
-    words: [(&'static str, Option<&'a str>); 8],
+    words: [(&'static str, Option<&'a str>); 15],
     period: Option<String>,
     columns: Option<Value>,
     lists: Vec<(&'static str, &'a Vec<AccountId>)>,
@@ -1895,7 +2068,27 @@ pub(crate) fn list_views(
             ("average", "average"),
             ("orientation", "orientation"),
             ("neutral", "neutral"),
+            ("trend_length", "trend_length"),
+            ("trend_slow", "trend_slow"),
+            ("trend_signal", "trend_signal"),
+            ("ema_fast", "ema_fast"),
+            ("ema_slow", "ema_slow"),
+            ("ema_signal", "ema_signal"),
+            ("show_accounts", "show_accounts"),
         ] {
+            // A length belongs only to the data that have it (D-794).
+            if let Some((_, takes)) = LENGTHS.iter().find(|(length, _)| *length == key)
+                && !takes.contains(&component.dataset().id)
+            {
+                continue;
+            }
+            // The accounts column is a flag in the schema, on or off here.
+            if key == "show_accounts" {
+                if let Some(kassensturz_report::Setting::Flag(true)) = component.get(key) {
+                    row.insert(argument.into(), json!("on"));
+                }
+                continue;
+            }
             if let Some(kassensturz_report::Setting::Word(word)) = component.get(key)
                 && !word.is_empty()
                 && !(key == "measure" && word == FORMULA_MEASURE)

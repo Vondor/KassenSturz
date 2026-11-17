@@ -1,0 +1,80 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# The fuzz targets (D-787, docs/FUZZING.md). A workspace of its own: it needs
+# a nightly Rust and `libfuzzer-sys`, which no KassenSturz program or release
+# build uses, and its lock file is checked by CI separately (D-026).
+
+[package]
+name = "kassensturz-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "GPL-3.0-or-later"
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "=0.4.13"
+kassensturz-core = { path = "../crates/kassensturz-core" }
+kassensturz-import = { path = "../crates/kassensturz-import" }
+kassensturz-store = { path = "../crates/kassensturz-store" }
+
+[[bin]]
+name = "camt053"
+path = "fuzz_targets/camt053.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "mt940"
+path = "fuzz_targets/mt940.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ofx"
+path = "fuzz_targets/ofx.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "csv"
+path = "fuzz_targets/csv.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kmy"
+path = "fuzz_targets/kmy.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "kmy_sqlite"
+path = "fuzz_targets/kmy_sqlite.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "book_open"
+path = "fuzz_targets/book_open.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "amount_parse"
+path = "fuzz_targets/amount_parse.rs"
+test = false
+doc = false
+bench = false

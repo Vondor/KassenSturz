@@ -45,7 +45,7 @@ Controls.Menu {
         const ctx = names.i18nContext;
         const list = [
             { name: ctx.i18nc("@title:menu a group of widgets: charts", "Charts"),
-              rows: kindRows(["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "chart.custom", "chart.candlestick"])
+              rows: kindRows(["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "chart.custom", "chart.candlestick", "chart.flow"])
                   .concat(dataRows([{ kind: "chart.line", dataset: "net_worth_over_time" }, { kind: "chart.bar", dataset: "cash_flow_by_month" }])).sort((a, b) => a.name.localeCompare(b.name)) },
             { name: ctx.i18nc("@title:menu a group of widgets: single figures and tables", "Figures and tables"),
               rows: kindRows(["kpi.card", "progress.bar", "table.rows", "table.income_sources", "card.net_worth", "budget.progress", "table.transactions"])
@@ -59,7 +59,7 @@ Controls.Menu {
               // offered: a page may hold as many as the user wants (D-532).
               rows: kindRows(["text.heading", "text.separator", "group.period", "page.tabs", "page.period", "page.filters"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: notes and warnings", "Notes"),
-              rows: kindRows(["notice.fetch_gap", "notice.transfers", "notice.unsorted", "notice.alarms"]) },
+              rows: kindRows(["notice.fetch_gap", "notice.transfers", "notice.unsorted", "notice.alarms", "forecast.month", "plan.coming_up"]) },
             { name: ctx.i18nc("@title:menu a group of widgets: views saved in the Statistic Builder", "Saved views"),
               rows: sorted(widgetMenu.savedList.map(row => ({ id: row.id, name: row.name, saved: true }))) }
         ];

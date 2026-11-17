@@ -14,19 +14,18 @@
 //! the model.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 use kassensturz_core::ai_switch::Permissions;
 use kassensturz_core::{Date, ErrorReport, Report};
 use kassensturz_store::Book;
 use serde_json::{Map, Value};
 
-use super::{Built, ChangeSet, NewCategory, ProposedChange, build, views};
+use super::{Built, ChangeSet, Folders, NewCategory, ProposedChange, build, views};
 use crate::error::ToolError;
 
 /// The lists of a call in the order [`super::build`] turns their items into
 /// changes, one change for each item.
-const ORDER: [&str; 23] = [
+const ORDER: [&str; 26] = [
     "new_categories",
     "edit_categories",
     "edit_rules",
@@ -44,11 +43,14 @@ const ORDER: [&str; 23] = [
     "tag_transactions",
     "split_transactions",
     "attach_bills",
+    "file_bills",
     "new_views",
     "edit_views",
     "delete_views",
     "new_budgets",
     "edit_budgets",
+    "new_plans",
+    "edit_plans",
     "sort_with_rules",
 ];
 
@@ -115,9 +117,9 @@ pub(super) struct Call {
     /// The day the set was prepared on, which budgets start with (D-394):
     /// the user's edits are checked on the same day.
     today: Option<Date>,
-    /// The bill folder the set was checked with (D-739): the user's edits
-    /// are checked with the same one.
-    bill_folder: Option<PathBuf>,
+    /// The folders for bills the set was checked with (D-739, D-752): the
+    /// user's edits are checked with the same ones.
+    folders: Folders,
 }
 
 impl Call {
@@ -126,11 +128,11 @@ impl Call {
         arguments: &Value,
         changes: &[ProposedChange],
         today: Option<Date>,
-        bill_folder: Option<PathBuf>,
+        folders: Folders,
     ) -> (Vec<Slot>, Self) {
         let call = Self {
             today,
-            bill_folder,
+            folders,
             ai: arguments.clone(),
             edits: BTreeMap::new(),
             ai_changes: Vec::new(),
@@ -366,6 +368,34 @@ impl ChangeSet {
         self.edit(book, slot, &fields, allowed)
     }
 
+    /// The set with every bill from the receipt inbox whose total differs
+    /// from the bank's left out, as it starts when it arrives (D-751): the
+    /// user brings one back on purpose, the AI never can.
+    pub fn leave_out_differing_bills(
+        &self,
+        book: &Book,
+        allowed: Permissions,
+    ) -> Result<Self, EditError> {
+        let differing: Vec<Slot> = self
+            .slots
+            .iter()
+            .zip(&self.changes)
+            .filter(|(_, change)| {
+                matches!(change, ProposedChange::FileBill(bill)
+                    if bill.check == super::TotalCheck::Differs)
+            })
+            .map(|(slot, _)| *slot)
+            .collect();
+        if differing.is_empty() {
+            return Ok(self.clone());
+        }
+        let mut call = self.call.clone();
+        for slot in differing {
+            call.edits.insert(slot, None);
+        }
+        Self::checked(book, call, allowed)
+    }
+
     /// The set without one change.
     pub fn leave_out(
         &self,
@@ -402,13 +432,7 @@ impl ChangeSet {
         let Built {
             changes,
             rule_order,
-        } = build(
-            book,
-            &call.as_edited(),
-            allowed,
-            call.today,
-            call.bill_folder.as_deref(),
-        )?;
+        } = build(book, &call.as_edited(), allowed, call.today, &call.folders)?;
         let slots = call.slots();
         debug_assert!(
             slots
@@ -447,10 +471,13 @@ pub(super) fn list_of(change: &ProposedChange) -> &'static str {
         ProposedChange::DeleteView(_) => "delete_views",
         ProposedChange::NewBudget(_) => "new_budgets",
         ProposedChange::EditBudget(_) => "edit_budgets",
+        ProposedChange::NewPlan(_) => super::planned::NEW_LIST,
+        ProposedChange::EditPlan(_) => super::planned::EDIT_LIST,
         ProposedChange::SortWithRules(_) => super::sort_rules::LIST,
         ProposedChange::JoinTransfer(_) => super::joins::LIST,
         ProposedChange::TagTransaction(_) => super::tags::LIST,
         ProposedChange::SplitTransaction(_) => super::splits::LIST,
         ProposedChange::AttachBill(_) => super::bills::LIST,
+        ProposedChange::FileBill(_) => super::filing::LIST,
     }
 }

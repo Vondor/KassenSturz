@@ -35,11 +35,13 @@ FormCard.FormCardPage {
         case "investments":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 investment account", "%1 investment accounts", count);
         case "schedules":
-            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 scheduled or recurring transaction", "%1 scheduled or recurring transactions", count);
+            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 scheduled or recurring transaction that could not become a planned payment", "%1 scheduled or recurring transactions that could not become planned payments", count);
         case "budgets":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 budget", "%1 budgets", count);
         case "reports":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 saved report", "%1 saved reports", count);
+        case "reports-not-listed":
+            return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 more saved report was not brought in (KassenSturz takes at most 500)", "%1 more saved reports were not brought in (KassenSturz takes at most 500)", count);
         case "tags":
             return i18nContext.i18ncp("@item what was left out, %1 is how many", "%1 tag that no transaction could be given", "%1 tags that no transaction could be given", count);
         case "rates":
@@ -124,6 +126,17 @@ FormCard.FormCardPage {
             text: page.i18nContext.i18nc("@label", "Exchange rates")
             description: String(page.report.rates ?? 0)
         }
+
+        FormCard.FormDelegateSeparator {
+            visible: (page.report.schedules ?? 0) > 0
+        }
+
+        FormCard.FormTextDelegate {
+            descriptionItem.textFormat: Text.PlainText
+            visible: (page.report.schedules ?? 0) > 0
+            text: page.i18nContext.i18nc("@label", "Planned payments")
+            description: String(page.report.schedules ?? 0)
+        }
     }
 
     FormCard.FormHeader {
@@ -164,7 +177,7 @@ FormCard.FormCardPage {
         FormCard.FormTextDelegate {
             visible: (page.report.renamed ?? []).length > 0
             text: page.i18nContext.i18nc("@info", "Some names were taken")
-            description: page.i18nContext.i18nc("@info %1 is a list of names", "These got a number after their name, so you can tell them apart: %1", page.joined(page.report.renamed ?? []))
+            description: page.i18nContext.i18nc("@info %1 is a list of names", "These got a new name, so each fits on one line and can be told apart from the others: %1", page.joined(page.report.renamed ?? []))
             descriptionItem.textFormat: Text.PlainText
         }
 
@@ -273,6 +286,11 @@ FormCard.FormCardPage {
 
             delegate: FormCard.FormTextDelegate {
                 textItem.textFormat: Text.PlainText
+                // Whole sentences: "(KassenSturz takes at most 500)" must
+                // not be cut off with "…" (B-290).
+                textItem.wrapMode: Text.Wrap
+                textItem.elide: Text.ElideNone
+                textItem.maximumLineCount: 6
                 required property var modelData
 
                 text: page.skippedName(modelData.what, modelData.count)

@@ -67,7 +67,9 @@ pub(crate) fn notes_for(text: &str, turn: Turn, names: &HashSet<String>) -> Vec<
     let mut notes = Vec::new();
     if !turn.prepared
         && !turn.no_change_said
-        && sentences.iter().any(|s| claims(s, PREPARED) && !denies(s))
+        && sentences
+            .iter()
+            .any(|s| (claims(s, PREPARED) || claims_done(s)) && !denies(s))
     {
         notes.push(AnswerNote::NothingPrepared);
     }
@@ -96,6 +98,87 @@ const PREPARED: &[&str] = &[
     "wartet auf ihre bestätigung",
     "wartet auf ihre prüfung",
 ];
+
+/// Words for a change said to be carried out already ("I deleted the 13
+/// transactions"): KassenSturz never changes the book without the user's
+/// confirmation, so with nothing prepared the claim can't be true (B-323,
+/// AGENTS.md §8).
+const DONE: &[&str] = &[
+    "gelöscht",
+    "deleted",
+    "entfernt",
+    "removed",
+    "geändert",
+    "changed",
+    "angelegt",
+    "erstellt",
+    "created",
+    "umbenannt",
+    "renamed",
+    "kategorisiert",
+    "categorized",
+    "categorised",
+    "zugeordnet",
+    "assigned",
+    "aktualisiert",
+    "updated",
+    "angewendet",
+    "applied",
+    "verschoben",
+    "moved",
+];
+
+/// What makes a done-word a claim about this turn, not a word about the
+/// book's past ("deleted transactions can be restored"): someone did it
+/// ("I have", "Ich habe") or it was done ("were", "wurden").
+const DONE_BY: &[&str] = &[
+    "i ",
+    "i've",
+    "i have",
+    "we ",
+    "has been",
+    "have been",
+    "was ",
+    "were ",
+    "ich ",
+    "habe",
+    "wurde",
+    "sind ",
+    "ist ",
+];
+
+/// Phrases that say the book is now different ("Das Konto 'Bargeld' heißt
+/// jetzt 'Portemonnaie'"): a change claimed as done in other words
+/// (B-325).
+const NOW_DIFFERENT: &[&str] = &[
+    "heißt jetzt",
+    "heißt nun",
+    "heißen jetzt",
+    "heißen nun",
+    "gehört jetzt",
+    "gehören jetzt",
+    "gehört nun",
+    "gehören nun",
+    "is now called",
+    "is now named",
+    "are now called",
+    "are now named",
+    "now belongs to",
+    "now belong to",
+    "is now in the category",
+    "are now in the category",
+];
+
+fn claims_done(sentence: &str) -> bool {
+    let lower = format!("{} ", sentence.to_lowercase());
+    if NOW_DIFFERENT.iter().any(|phrase| lower.contains(phrase)) {
+        return true;
+    }
+    DONE.iter().any(|word| lower.contains(word))
+        && DONE_BY
+            .iter()
+            .any(|by| lower.starts_with(by) || lower.contains(&format!(" {by}")))
+}
 
 const OPENED: &[&str] = &[
     "opened",
@@ -336,6 +419,46 @@ mod tests {
         assert_eq!(notes, vec![AnswerNote::NothingPrepared]);
         let notes = notes_for("Ich habe die Änderung vorbereitet.", idle(), &none());
         assert_eq!(notes, vec![AnswerNote::NothingPrepared]);
+    }
+
+    #[test]
+    fn a_change_claimed_done_without_one_prepared_gets_the_note() {
+        // B-323: the model said it had deleted 13 transactions at once and
+        // called no function. KassenSturz never changes the book without
+        // the user's confirmation, so the note says nothing was prepared.
+        for claim in [
+            "Ich habe die 13 Buchungen sofort gelöscht.",
+            "Die 13 Buchungen wurden gelöscht.",
+            "I deleted the 13 transactions.",
+            "I've renamed the category for you.",
+            "The transactions were categorized as Groceries.",
+            // B-325: the claim in other words, with no function called.
+            "Das Konto 'Bargeld' heißt jetzt 'Portemonnaie'.",
+            "The account Cash is now called Wallet.",
+        ] {
+            assert!(
+                notes_for(claim, idle(), &none()).contains(&AnswerNote::NothingPrepared),
+                "{claim}"
+            );
+        }
+        // Words about the book's past, a denial, or a real change set are
+        // no claim.
+        for not_a_claim in [
+            "Deleted transactions can be restored from a backup.",
+            "Gelöschte Buchungen lassen sich wiederherstellen.",
+            "Ich habe nichts gelöscht.",
+            "I haven't deleted anything.",
+        ] {
+            assert!(
+                !notes_for(not_a_claim, idle(), &none()).contains(&AnswerNote::NothingPrepared),
+                "{not_a_claim}"
+            );
+        }
+        let prepared = Turn {
+            prepared: true,
+            ..idle()
+        };
+        assert!(notes_for("Ich habe die 13 Buchungen gelöscht.", prepared, &none()).is_empty());
     }
 
     #[test]

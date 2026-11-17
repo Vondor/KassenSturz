@@ -76,6 +76,14 @@ pub enum Problem {
         /// The book.
         path: PathBuf,
     },
+    /// Another program replaced the book's file while it was open, e.g. a
+    /// sync program putting another computer's copy over it: the change in
+    /// progress was not written to the file now in the folder, the book was
+    /// closed, and nothing more is written until it is opened again (B-289).
+    Replaced {
+        /// The book.
+        path: PathBuf,
+    },
     /// The file came through a sandbox's file chooser, e.g. in the Flatpak,
     /// so its lock file and SQLite's journal can't be made next to it.
     Sandboxed {
@@ -118,6 +126,7 @@ impl Problem {
             | Self::NoAccess { path }
             | Self::ReadOnly { path }
             | Self::WriteFailed { path }
+            | Self::Replaced { path }
             | Self::OutsideTest { path }
             | Self::Store { path, .. } => Some(path),
             Self::NoAppFolder => None,
@@ -134,9 +143,10 @@ impl Problem {
             Self::NoAccess { .. } => "book.no-access",
             Self::ReadOnly { .. } => "book.read-only",
             Self::WriteFailed { .. } => "book.write-failed",
+            Self::Replaced { .. } => "book.replaced",
             Self::OutsideTest { .. } => "book.outside-test",
             Self::NoAppFolder => "book.no-app-folder",
-            Self::Store { error, .. } => error.report().code,
+            Self::Store { error, .. } => error.log_code(),
         }
     }
 
@@ -154,6 +164,7 @@ impl Problem {
             Self::NoAccess { .. } => ("book.no-access".to_owned(), Vec::new()),
             Self::ReadOnly { .. } => ("book.read-only".to_owned(), Vec::new()),
             Self::WriteFailed { .. } => ("book.write-failed".to_owned(), Vec::new()),
+            Self::Replaced { .. } => ("book.replaced".to_owned(), Vec::new()),
             Self::OutsideTest { .. } => ("book.outside-test".to_owned(), Vec::new()),
             Self::NoAppFolder => ("book.no-app-folder".to_owned(), Vec::new()),
             Self::Store { error, .. } => {
@@ -234,49 +245,66 @@ impl Books {
         &self.computer.name
     }
 
+    /// What a worker thread needs to open a book, so a slow drive never
+    /// freezes the window (B-326). The settings stay with the UI thread:
+    /// `last_book` is read there, and [`Books::remember_opened`] saves there.
+    pub fn job(&self) -> OpenJob {
+        OpenJob {
+            computer: self.computer.clone(),
+            test_root: self.test_root.clone(),
+            app_folder: self.app_folder.clone(),
+        }
+    }
+
+    /// The book opened last, if the settings name one.
+    pub fn last_book(&self) -> Option<PathBuf> {
+        self.settings.last_book()
+    }
+
+    /// Remembers an opened book as the one opened last, on the thread that
+    /// owns the settings.
+    pub fn remember_opened(&self, book: &OpenBook) {
+        self.remember(&book.path);
+    }
+
     /// Opens the book opened last. At the first start, or when no book was
     /// opened yet, it opens the app's own book, `name`.ksz in KassenSturz's
     /// data folder, and makes it if it isn't there. `name` comes from the
     /// UI, in the user's language.
+    #[cfg(test)]
     pub fn open_last(&self, name: &str) -> Result<OpenBook, Problem> {
-        // In the test profile a book outside the test folder is never
-        // opened, not even the one named last (Q-399).
-        if let Some(path) = self
-            .settings
-            .last_book()
-            .filter(|path| allows_in(self.test_root.as_deref(), path))
-        {
-            return self.open(&path);
-        }
-        let folder = self.app_folder.as_deref().ok_or(Problem::NoAppFolder)?;
-        let path = folder.join(file_name(name));
-        if path.exists() {
-            return self.open(&path);
-        }
-        std::fs::create_dir_all(folder).map_err(|error| Problem::Store {
-            path: path.clone(),
-            error: error.into(),
-        })?;
-        self.create(&path)
+        self.run_here(OpenKind::Last {
+            last: self.settings.last_book(),
+            name: name.to_owned(),
+        })
     }
 
     /// Opens the book at `path` and remembers it as the one opened last.
+    #[cfg(test)]
     pub fn open(&self, path: &Path) -> Result<OpenBook, Problem> {
-        self.opened(path, |path| Book::open(path, &self.computer))
+        self.run_here(OpenKind::Open(path.to_owned()))
     }
 
-    /// Opens the book at `path` although it is locked, after the user was
-    /// warned about `seen` (D-080).
+    /// Opens the book at `path` although `seen` says it is in use.
+    #[cfg(test)]
     pub fn open_anyway(&self, path: &Path, seen: &Lock) -> Result<OpenBook, Problem> {
-        self.opened(path, |path| Book::open_anyway(path, &self.computer, seen))
+        self.run_here(OpenKind::OpenAnyway(path.to_owned(), seen.clone()))
     }
 
     /// Makes a new, empty book at `path` and opens it. The extension
     /// `.ksz` is added if `path` lacks it. An existing file is never
     /// replaced, even if the file dialog asked whether it should be.
+    #[cfg(test)]
     pub fn create(&self, path: &Path) -> Result<OpenBook, Problem> {
-        let path = with_extension(path);
-        self.opened(&path, |path| Book::create(path, &self.computer))
+        self.run_here(OpenKind::Create(path.to_owned()))
+    }
+
+    /// Runs `kind` on this thread and remembers a book that opened.
+    #[cfg(test)]
+    fn run_here(&self, kind: OpenKind) -> Result<OpenBook, Problem> {
+        let book = self.job().run(kind)?;
+        self.remember_opened(&book);
+        Ok(book)
     }
 
     /// Makes a new book in KassenSturz's data folder, called `stem` (the
@@ -341,16 +369,6 @@ impl Books {
             .ok_or(Problem::NoAppFolder)
     }
 
-    fn opened(
-        &self,
-        path: &Path,
-        open: impl FnOnce(&Path) -> Result<Book, StoreError>,
-    ) -> Result<OpenBook, Problem> {
-        let book = self.opened_unremembered(path, open)?;
-        self.remember(&book.path);
-        Ok(book)
-    }
-
     /// If this isn't saved, the app opens its own book next time, which is
     /// safe: the user can open this one again.
     fn remember(&self, path: &Path) {
@@ -364,38 +382,120 @@ impl Books {
         path: &Path,
         open: impl FnOnce(&Path) -> Result<Book, StoreError>,
     ) -> Result<OpenBook, Problem> {
-        let path = std::path::absolute(path).unwrap_or_else(|_| path.to_owned());
-        if !allows_in(self.test_root.as_deref(), &path) {
-            return Err(Problem::OutsideTest { path });
-        }
-        let drive = platform::drive(&path);
-        if drive == Drive::Sandboxed {
-            return Err(Problem::Sandboxed { path });
-        }
-        if platform::runtime_dir().is_some_and(|runtime| grant_is_gone(&path, &runtime)) {
-            return Err(Problem::NoAccess { path });
-        }
-        let book = open(&path).map_err(|error| match error {
-            StoreError::Locked(lock) => Problem::Locked {
-                path: path.clone(),
-                lock,
-            },
-            StoreError::NotFound => Problem::Missing { path: path.clone() },
-            // The lock file (or the book) can't be made or changed there.
-            StoreError::Io(ErrorKind::PermissionDenied | ErrorKind::ReadOnlyFilesystem) => {
-                Problem::ReadOnly { path: path.clone() }
+        open_at(self.test_root.as_deref(), path, open)
+    }
+}
+
+/// How a book is to be opened, see [`OpenJob::run`].
+pub enum OpenKind {
+    /// The book at this path.
+    Open(PathBuf),
+    /// The book at this path although the lock the user was warned about
+    /// is on it (D-080).
+    OpenAnyway(PathBuf, Lock),
+    /// A new, empty book at this path.
+    Create(PathBuf),
+    /// The book opened last (`last`, as the settings name it), or the app's
+    /// own book called `name`.
+    Last {
+        /// The book the settings name, if any.
+        last: Option<PathBuf>,
+        /// The file name of the app's own book, in the user's language.
+        name: String,
+    },
+}
+
+/// What opening a book needs, without the settings: it can move to a
+/// worker thread (B-326).
+pub struct OpenJob {
+    computer: Computer,
+    test_root: Option<PathBuf>,
+    app_folder: Option<PathBuf>,
+}
+
+impl OpenJob {
+    /// Opens (or makes) the book `kind` asks for. It doesn't remember the
+    /// book as the one opened last: whoever owns the settings does.
+    pub fn run(self, kind: OpenKind) -> Result<OpenBook, Problem> {
+        match kind {
+            OpenKind::Open(path) => self.open_at(&path),
+            OpenKind::OpenAnyway(path, seen) => open_at(self.test_root.as_deref(), &path, |path| {
+                Book::open_anyway(path, &self.computer, &seen)
+            }),
+            OpenKind::Create(path) => self.create_at(&path),
+            OpenKind::Last { last, name } => {
+                // In the test profile a book outside the test folder is
+                // never opened, not even the one named last (Q-399).
+                if let Some(path) = last.filter(|path| allows_in(self.test_root.as_deref(), path)) {
+                    return self.open_at(&path);
+                }
+                let folder = self.app_folder.as_deref().ok_or(Problem::NoAppFolder)?;
+                let path = folder.join(file_name(&name));
+                if path.exists() {
+                    return self.open_at(&path);
+                }
+                std::fs::create_dir_all(folder).map_err(|error| Problem::Store {
+                    path: path.clone(),
+                    error: error.into(),
+                })?;
+                self.create_at(&path)
             }
-            error => Problem::Store {
-                path: path.clone(),
-                error,
-            },
-        })?;
-        Ok(OpenBook {
-            book,
-            path,
-            on_network_drive: drive == Drive::Network,
+        }
+    }
+
+    fn open_at(&self, path: &Path) -> Result<OpenBook, Problem> {
+        open_at(self.test_root.as_deref(), path, |path| {
+            Book::open(path, &self.computer)
         })
     }
+
+    fn create_at(&self, path: &Path) -> Result<OpenBook, Problem> {
+        let path = with_extension(path);
+        open_at(self.test_root.as_deref(), &path, |path| {
+            Book::create(path, &self.computer)
+        })
+    }
+}
+
+/// Opens a book at `path` with `open`, after the checks that keep a book
+/// outside the test folder or out of the sandbox from opening, and turns
+/// what goes wrong into a [`Problem`].
+fn open_at(
+    test_root: Option<&Path>,
+    path: &Path,
+    open: impl FnOnce(&Path) -> Result<Book, StoreError>,
+) -> Result<OpenBook, Problem> {
+    let path = std::path::absolute(path).unwrap_or_else(|_| path.to_owned());
+    if !allows_in(test_root, &path) {
+        return Err(Problem::OutsideTest { path });
+    }
+    let drive = platform::drive(&path);
+    if drive == Drive::Sandboxed {
+        return Err(Problem::Sandboxed { path });
+    }
+    if platform::runtime_dir().is_some_and(|runtime| grant_is_gone(&path, &runtime)) {
+        return Err(Problem::NoAccess { path });
+    }
+    let book = open(&path).map_err(|error| match error {
+        StoreError::Locked(lock) => Problem::Locked {
+            path: path.clone(),
+            lock,
+        },
+        StoreError::NotFound => Problem::Missing { path: path.clone() },
+        // The lock file (or the book) can't be made or changed there.
+        StoreError::Io(ErrorKind::PermissionDenied | ErrorKind::ReadOnlyFilesystem) => {
+            Problem::ReadOnly { path: path.clone() }
+        }
+        error => Problem::Store {
+            path: path.clone(),
+            error,
+        },
+    })?;
+    Ok(OpenBook {
+        book,
+        path,
+        on_network_drive: drive == Drive::Network,
+    })
 }
 
 /// Whether `path` is in a folder the user exported through the document
@@ -542,6 +642,59 @@ mod tests {
     }
 
     #[test]
+    fn a_book_opens_on_a_worker_thread_and_is_remembered_by_the_thread_that_owns_the_settings() {
+        // B-326: the open runs away from the window's thread, so the job
+        // must work without the settings, and the book is remembered after.
+        let setup = Setup::new();
+        let made = setup.folder.join("Household.ksz");
+        drop(setup.books("here").create(&made).expect("book made"));
+        let books = setup.books("here");
+        assert!(
+            books
+                .settings
+                .set_last_book(&setup.folder.join("Other.ksz"))
+        );
+        let job = books.job();
+        let opened = std::thread::spawn(move || job.run(OpenKind::Open(made)))
+            .join()
+            .expect("worker ended")
+            .expect("book opens");
+        // The job doesn't touch the settings.
+        assert_eq!(books.last_book(), Some(setup.folder.join("Other.ksz")),);
+        books.remember_opened(&opened);
+        assert_eq!(books.last_book(), Some(opened.path.clone()));
+    }
+
+    #[test]
+    fn a_worker_thread_tells_a_locked_book_and_makes_the_own_book_like_the_window_thread_does() {
+        let setup = Setup::new();
+        let made = setup.folder.join("Household.ksz");
+        let held = setup.books("there").create(&made).expect("book made");
+        // Open on another computer: the worker finds the lock, with its
+        // computer, so the lock page can say who has it.
+        let job = setup.books("here").job();
+        let problem = std::thread::spawn(move || job.run(OpenKind::Open(made)))
+            .join()
+            .expect("worker ended")
+            .err()
+            .expect("refused");
+        assert_eq!(code(problem), "store.locked");
+        drop(held);
+        // No book named last: the app's own book is made in its folder.
+        let job = setup.books("here").job();
+        let own = std::thread::spawn(move || {
+            job.run(OpenKind::Last {
+                last: None,
+                name: "Haushalt".to_owned(),
+            })
+        })
+        .join()
+        .expect("worker ended")
+        .expect("own book made");
+        assert!(own.path.starts_with(setup.folder.join("data")));
+    }
+
+    #[test]
     fn the_test_profile_never_opens_or_makes_a_book_outside_its_folder() {
         let setup = Setup::new();
         // The real book, as a user's own setup has it.
@@ -584,6 +737,36 @@ mod tests {
         let shown = problem.text().code;
         assert_eq!(problem.code(), shown, "the log names what the page shows");
         shown
+    }
+
+    // B-306: a book another computer took over has a page of its own.
+    #[test]
+    fn a_book_taken_over_elsewhere_shows_its_own_page() {
+        let problem = Problem::Store {
+            path: PathBuf::from("/data/Household.ksz"),
+            error: StoreError::LockLost,
+        };
+        assert_eq!(code(problem), "store.lock-lost");
+    }
+
+    // B-289: a replaced book file has a page of its own, not the drive's.
+    #[test]
+    fn a_replaced_book_file_is_told_from_a_lost_drive() {
+        let path = PathBuf::from("/data/Household.ksz");
+        assert_eq!(
+            code(Problem::Replaced { path: path.clone() }),
+            "book.replaced"
+        );
+        assert_eq!(
+            code(Problem::WriteFailed { path: path.clone() }),
+            "book.write-failed"
+        );
+        let shown = Problem::Replaced { path }.text();
+        assert!(
+            shown
+                .params
+                .contains(&("file".to_owned(), "Household.ksz".to_owned()))
+        );
     }
 
     #[test]

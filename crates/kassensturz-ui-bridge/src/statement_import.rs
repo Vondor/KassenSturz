@@ -26,7 +26,7 @@ use kassensturz_import::{
 };
 use kassensturz_pipeline::{
     Choices, Duplicate, EntryOutcome, EntryRef, ImportReport, PipelineError, import_statements,
-    join_recurring_moves,
+    join_recurring_moves, match_schedules,
 };
 use kassensturz_store::{Action, Book, StatedBalance, StoreError};
 
@@ -154,13 +154,30 @@ pub fn recognize(input: &[u8], name: &str) -> Result<FileKind, StatementImportEr
     }
 }
 
+/// What to say when the file called `name` couldn't be read with `error`:
+/// a book file (a KMyMoney or KassenSturz book, by its name) that is too
+/// large is still a whole book, not a statement that is too large (B-366),
+/// so the user is pointed to starting a book from it.
+pub fn unread_file(name: &str, error: ImportError) -> StatementImportError {
+    let book = Path::new(name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| ["kmy", "ksz"].contains(&extension.to_ascii_lowercase().as_str()));
+    match error {
+        ImportError::FileTooLarge { .. } if book => StatementImportError::WholeBook,
+        error => StatementImportError::Import(error),
+    }
+}
+
 /// Reads the statements of `input` with `importer`, within the limits for
-/// untrusted files (D-091).
+/// untrusted statement files (D-091): a file with more entries than a
+/// household's statements ever have is refused before anything of it is
+/// written (B-362).
 pub fn read_statements(
     importer: &dyn Importer,
     input: &[u8],
 ) -> Result<Vec<Statement>, StatementImportError> {
-    match read_with(importer, input, &Limits::default())? {
+    match read_with(importer, input, &Limits::for_statements())? {
         Imported::Statements(statements) if statements.is_empty() => {
             Err(StatementImportError::NoStatements)
         }
@@ -209,11 +226,13 @@ pub struct Loaded {
 impl Loaded {
     /// The statements of a file for `account`. A file with statements for
     /// one account only imports them all; otherwise the user picks one with
-    /// [`Loaded::choose_statement`] first.
+    /// [`Loaded::choose_statement`] first. One IBAN in two currencies is two
+    /// accounts, as a multi-currency account's file has them (B-339): one
+    /// KassenSturz account holds one currency, so the user picks.
     pub fn new(account: AccountId, path: PathBuf, statements: Vec<Statement>) -> Self {
-        let one_account = statements
-            .windows(2)
-            .all(|pair| pair[0].account == pair[1].account);
+        let one_account = statements.windows(2).all(|pair| {
+            pair[0].account == pair[1].account && pair[0].currency.code() == pair[1].currency.code()
+        });
         let chosen = if one_account {
             (0..statements.len()).collect()
         } else {
@@ -299,7 +318,9 @@ impl Loaded {
 pub struct StatementChoice {
     /// Its place in the file, which [`Loaded::choose_statement`] takes.
     pub index: usize,
-    /// The account as the file names it: the IBAN, else the number.
+    /// The account as the file names it: the IBAN, else the number, and
+    /// its currency's code when the file has the same account in another
+    /// currency too (B-339), e.g. `DE89… · USD`.
     pub account: String,
     /// The first and last booking date, if the statement has entries.
     pub first_date: String,
@@ -324,14 +345,22 @@ pub fn statement_choices(
             let dates = statement.entries.iter().map(|entry| entry.booking_date);
             let writer = AmountWriter::new(book, statement.currency.code(), locale).ok();
             let closing = statement.closing_balance;
+            let mut account = statement
+                .account
+                .iban
+                .clone()
+                .or_else(|| statement.account.number.clone())
+                .unwrap_or_default();
+            let in_two_currencies = loaded.statements.iter().any(|other| {
+                other.account == statement.account
+                    && other.currency.code() != statement.currency.code()
+            });
+            if in_two_currencies {
+                account = format!("{account} · {}", statement.currency.code());
+            }
             StatementChoice {
                 index,
-                account: statement
-                    .account
-                    .iban
-                    .clone()
-                    .or_else(|| statement.account.number.clone())
-                    .unwrap_or_default(),
+                account,
                 first_date: dates
                     .clone()
                     .min()
@@ -472,6 +501,28 @@ pub struct ImportView {
     /// How many remembered moves have entries among the new ones that wait
     /// for the user: two fit equally well, or a join would lose something.
     pub needs_you: usize,
+    /// The new entries matched to a planned payment (D-769), one line each,
+    /// by date.
+    pub planned: Vec<PlannedText>,
+    /// How many payments of planned payments new entries fit that wait for
+    /// the user: two entries fit equally well, or one entry fits two
+    /// payments ("Did this happen?").
+    pub planned_needs_you: usize,
+}
+
+/// A new entry matched to a planned payment after an import (D-769), as the
+/// summary lists it: the entry as the bank sent it, exactly.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PlannedText {
+    /// The planned payment's name.
+    pub name: String,
+    /// The day the payment was due.
+    pub due: String,
+    /// The entry's date and amount in the plan's account.
+    pub date: String,
+    pub amount: Shown,
+    /// Whether the entry got the plan's category, having none.
+    pub category_set: bool,
 }
 
 /// A pair joined by itself because it fits a monthly move (D-749), as the
@@ -501,6 +552,7 @@ pub fn preview(
     book.dry_run(|book| {
         let (mut report, stated) = perform(book, loaded, &statements, false)?;
         join_recurring_moves(book, &mut report)?;
+        match_schedules(book, &mut report, locale.today())?;
         describe(book, loaded, &statements, &report, stated.as_ref(), locale)
     })
 }
@@ -521,14 +573,45 @@ pub fn import(
         perform(book, loaded, &statements, true)
     })?;
     join_recurring_moves(book, &mut report)?;
+    match_schedules(book, &mut report, locale.today())?;
     describe(book, loaded, &statements, &report, stated.as_ref(), locale)
 }
 
 /// Takes back the joins [`import`] made, when they are still the newest
-/// change; anything the user did since comes first, so it is refused.
+/// change; anything the user did since comes first, so it is refused. The
+/// import matched its entries to planned payments right after joining
+/// (D-769): while those matches are the newest change, they are taken back
+/// first, since the joins lie under them.
 pub fn undo_joins(book: &mut Book) -> Result<(), StatementImportError> {
     match book.change_to_undo()? {
         Some(change) if change.action == Action::JoinRecurringMoves => {
+            book.undo()?;
+            Ok(())
+        }
+        Some(change) if change.action == Action::MatchSchedules => {
+            book.undo()?;
+            match book.change_to_undo()? {
+                Some(below) if below.action == Action::JoinRecurringMoves => {
+                    book.undo()?;
+                    Ok(())
+                }
+                _ => {
+                    // No joins under the matches: put them back as they were.
+                    book.redo()?;
+                    Err(StatementImportError::NoSuchEntry)
+                }
+            }
+        }
+        _ => Err(StatementImportError::NoSuchEntry),
+    }
+}
+
+/// Takes back the matches to planned payments [`import`] made ("Undo these
+/// matches", D-769), when they are still the newest change; the entries
+/// stay, and the payments wait again.
+pub fn undo_matches(book: &mut Book) -> Result<(), StatementImportError> {
+    match book.change_to_undo()? {
+        Some(change) if change.action == Action::MatchSchedules => {
             book.undo()?;
             Ok(())
         }
@@ -604,14 +687,16 @@ fn add_details(
         let name = imported
             .other_party_name
             .as_deref()
-            .unwrap_or_default()
-            .trim();
+            .map(kassensturz_store::shown_text)
+            .unwrap_or_default();
+        let name = name.trim();
         if !name.is_empty() && !name.eq_ignore_ascii_case(shown.other_party.trim()) {
             name.clone_into(&mut shown.bank_name);
         }
         imported
             .remittance_information
             .as_deref()
+            .map(kassensturz_store::shown_text)
             .unwrap_or_default()
             .trim()
             .clone_into(&mut shown.purpose);
@@ -716,8 +801,18 @@ fn describe(
         entries.push(EntryText {
             key: format!("{}.{}", at.statement, at.entry),
             date: locale.short_date(entry.booking_date),
-            other_party: entry.other_party_name.clone().unwrap_or_default(),
-            purpose: entry.remittance_information.clone().unwrap_or_default(),
+            // What the bank delivered, shown without characters that hide
+            // or turn it around (B-365).
+            other_party: entry
+                .other_party_name
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
+            purpose: entry
+                .remittance_information
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
             amount,
             incoming: entry.amount.minor_units() > 0,
             outcome,
@@ -815,6 +910,31 @@ fn describe(
             to_date: locale.short_date(join.incoming.booking_date),
         });
     }
+    let plans = book.schedules()?;
+    let mut planned = Vec::with_capacity(report.schedules.matched.len());
+    for done in &report.schedules.matched {
+        let Some(plan) = plans
+            .iter()
+            .find(|plan| plan.id == done.occurrence.schedule)
+        else {
+            continue;
+        };
+        let transaction = book.transaction(done.transaction)?;
+        let Some(part) = transaction
+            .splits()
+            .iter()
+            .find(|part| part.account == Some(plan.account))
+        else {
+            continue;
+        };
+        planned.push(PlannedText {
+            name: plan.name.clone(),
+            due: locale.short_date(done.occurrence.due.date),
+            date: locale.short_date(transaction.date_of(part)),
+            amount: AmountWriter::new(book, part.amount.currency(), locale)?.text(part.amount),
+            category_set: done.category_set,
+        });
+    }
     Ok(ImportView {
         from_bank: loaded.fetched_on.is_some(),
         file_name: loaded
@@ -835,6 +955,8 @@ fn describe(
         new: report.imported(),
         joined,
         needs_you: report.joins.needs_you.len(),
+        planned,
+        planned_needs_you: report.schedules.needs_you.len(),
     })
 }
 
@@ -1301,6 +1423,75 @@ mod tests {
         entry
     }
 
+    /// B-365 (round 7, B6): a bank's text with a direction override showed
+    /// turned around ("Bäcker Gaben") in the preview and the register. Both
+    /// show it without the characters that hide or turn it, the payee is
+    /// imported without them, and the book keeps what the bank delivered.
+    #[test]
+    fn a_bank_text_that_turns_itself_around_is_shown_without_that() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-10-01",
+        );
+        let turned = "Bäcker \u{202E}nebaG\u{202C}";
+        let mut bakery = entry(5, -350, turned);
+        bakery.remittance_information = Some("Bread\u{200B} \u{202E}5 gnuhcer\u{202C}".into());
+        let statement = Statement {
+            account: StatementAccount::default(),
+            currency: eur(),
+            opening_balance: None,
+            closing_balance: None,
+            entries: vec![bakery],
+        };
+        let loaded = Loaded::new(checking, PathBuf::from("bidi.sta"), vec![statement]);
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        assert_eq!(shown.entries[0].other_party, "Bäcker nebaG");
+        assert_eq!(shown.entries[0].purpose, "Bread 5 gnuhcer");
+        import(&mut book, &loaded, &TestLocale).expect("imported");
+
+        let columns = Columns::default().with(RegisterColumn::Purpose, true);
+        let register = register_view_with(&book, checking, Sort::default(), columns, &TestLocale)
+            .expect("register");
+        let row = register
+            .rows
+            .iter()
+            .find(|row| row.other_party.starts_with("Bäcker"))
+            .expect("the bakery's row");
+        assert_eq!(row.other_party, "Bäcker nebaG");
+        assert_eq!(row.purpose, "Bread 5 gnuhcer");
+        // What the bank delivered is kept as delivered (D-375).
+        let kept = book
+            .account_parts(checking)
+            .expect("parts")
+            .into_iter()
+            .find_map(|part| part.imported)
+            .expect("delivered");
+        assert_eq!(kept.other_party_name.as_deref(), Some(turned));
+    }
+
+    /// B-366: a book file too large to read is a whole book, not a
+    /// statement that is too large.
+    #[test]
+    fn a_book_file_too_large_to_read_is_still_a_whole_book() {
+        let too_large = || ImportError::FileTooLarge { max_bytes: 128 };
+        assert_eq!(
+            code(&unread_file("Household.KMY", too_large())),
+            "input.whole-book"
+        );
+        assert_eq!(
+            code(&unread_file("Household.ksz", too_large())),
+            "input.whole-book"
+        );
+        assert_eq!(
+            code(&unread_file("statement.sta", too_large())),
+            "import.file-too-large"
+        );
+    }
+
     #[test]
     fn recognizes_formats_by_content_and_csv_files_by_name() {
         let id = |input: &[u8], name: &str| match recognize(input, name) {
@@ -1612,6 +1803,49 @@ mod tests {
         let error = import(&mut book, &loaded, &TestLocale).expect_err("refused");
         assert_eq!(code(&error), "store.not-linked");
         assert_eq!(rows(&book, checking), before, "all or nothing");
+    }
+
+    /// B-339: a multi-currency account's CAMT.053 file holds one statement
+    /// per currency under one IBAN. The user picks the one for the account
+    /// instead of the whole file being refused for its second currency.
+    #[test]
+    fn one_iban_in_two_currencies_lets_the_user_pick_the_statement() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "100",
+            "2026-09-30",
+        );
+        let input = br#"<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <Stmt>
+      <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id><Ccy>EUR</Ccy></Acct>
+      <Ntry><Amt Ccy="EUR">10.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-01</Dt></BookgDt><AcctSvcrRef>E-1</AcctSvcrRef></Ntry>
+    </Stmt>
+    <Stmt>
+      <Acct><Id><IBAN>DE89370400440532013000</IBAN></Id><Ccy>USD</Ccy></Acct>
+      <Ntry><Amt Ccy="USD">20.00</Amt><CdtDbtInd>CRDT</CdtDbtInd><Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-01</Dt></BookgDt><AcctSvcrRef>U-1</AcctSvcrRef></Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
+"#;
+        let statements = read_statements(&Camt053, input).expect("statements");
+        assert_eq!(statements.len(), 2);
+        let mut loaded = Loaded::new(checking, PathBuf::from("two.xml"), statements);
+        assert!(loaded.needs_statement_choice());
+        let choices = statement_choices(&book, &loaded, &TestLocale);
+        assert_eq!(choices[0].account, "DE89370400440532013000 · EUR");
+        assert_eq!(choices[1].account, "DE89370400440532013000 · USD");
+        loaded.choose_statement(0).expect("chosen");
+        let before = rows(&book, checking);
+        let shown = import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(shown.imported, 1);
+        assert_eq!(rows(&book, checking), before + 1);
     }
 
     #[test]
@@ -2165,6 +2399,180 @@ mod tests {
                 .len(),
             0
         );
+    }
+
+    /// A planned payment saved the way the screen saves it: `amount` out
+    /// (or in, for `incoming`) every month from `first_due`.
+    fn plan(
+        book: &mut Book,
+        account: AccountId,
+        name: &str,
+        amount: &str,
+        incoming: bool,
+        first_due: &str,
+    ) -> String {
+        let form = crate::planned_payments::PlanForm {
+            name: name.into(),
+            outgoing: !incoming,
+            amount: amount.into(),
+            first_due: first_due.into(),
+            ..crate::planned_payments::new_form(&account.to_string(), &TestLocale)
+        };
+        crate::planned_payments::save(book, "", &form, &TestLocale).expect("plan saved")
+    }
+
+    // US7.1 (D-769), where steps meet: the real import's output matched to
+    // a plan saved as the screen saves it; the preview shows the match
+    // without making it, and "Undo these matches" keeps the entries.
+    #[test]
+    fn the_import_matches_its_entries_to_planned_payments_and_undo_takes_only_the_matches_back() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-09-01",
+        );
+        plan(&mut book, checking, "Rent", "750,00", false, "2026-10-01");
+        let mut rent = entry(1, -75_000, "Landlord");
+        rent.other_party_iban = Some("DE89370400440532013000".into());
+        let loaded = Loaded::new(
+            checking,
+            PathBuf::from("statement.sta"),
+            vec![statement_of(vec![rent, entry(2, -1_250, "Bakery")])],
+        );
+        let open = |book: &Book| {
+            crate::planned_payments::did_this_happen(book, &TestLocale)
+                .expect("read")
+                .len()
+        };
+        assert_eq!(open(&book), 1, "the rent of 1 October is overdue");
+
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        assert_eq!(shown.planned.len(), 1);
+        assert_eq!(open(&book), 1, "a preview matches nothing");
+        assert!(book.decided_occurrences().expect("read").is_empty());
+
+        let done = import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(
+            done.planned,
+            [PlannedText {
+                name: "Rent".into(),
+                due: "2026-10-01".into(),
+                date: "2026-10-01".into(),
+                amount: Shown {
+                    text: done.planned[0].amount.text.clone(),
+                    exact: "-750,00 €".into(),
+                },
+                category_set: false,
+            }]
+        );
+        assert_eq!(done.planned_needs_you, 0);
+        assert_eq!(open(&book), 0);
+        assert_eq!(rows(&book, checking), 3);
+
+        // No joins lie under the matches: "Undo these joins" changes nothing.
+        assert!(matches!(
+            undo_joins(&mut book),
+            Err(StatementImportError::NoSuchEntry)
+        ));
+        assert_eq!(open(&book), 0);
+        assert_eq!(book.decided_occurrences().expect("read").len(), 1);
+
+        undo_matches(&mut book).expect("undone");
+        assert_eq!(open(&book), 1, "the payment waits again");
+        assert_eq!(rows(&book, checking), 3, "the entries stay");
+        // Undo now would take back the import, not matches: refused.
+        assert!(matches!(
+            undo_matches(&mut book),
+            Err(StatementImportError::NoSuchEntry)
+        ));
+        assert_eq!(rows(&book, checking), 3);
+    }
+
+    // An import that both joins a monthly move and matches a planned
+    // payment: "Undo these joins" takes back the matches lying on top of
+    // the joins too, and nothing else.
+    #[test]
+    fn undoing_the_joins_takes_back_the_matches_made_after_them() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-09-01",
+        );
+        let savings = account(
+            &mut book,
+            "Savings",
+            AccountType::Savings,
+            "1000",
+            "2026-09-01",
+        );
+        let load = |account, entries| {
+            Loaded::new(
+                account,
+                PathBuf::from("statement.sta"),
+                vec![statement_of(entries)],
+            )
+        };
+        import(
+            &mut book,
+            &load(checking, vec![standing_order(10, 1, true)]),
+            &TestLocale,
+        )
+        .expect("imported");
+        let october = import(
+            &mut book,
+            &load(savings, vec![standing_order(10, 1, false)]),
+            &TestLocale,
+        )
+        .expect("imported");
+        let found = transfer_suggestions(&book, &october.new, &TestLocale).expect("suggested");
+        crate::monthly_moves::join_remembering(
+            &mut book,
+            &found[0].outgoing.id,
+            &found[0].incoming.id,
+            &TestLocale,
+        )
+        .expect("remembered");
+        plan(&mut book, savings, "Interest", "1,00", true, "2026-10-02");
+        import(
+            &mut book,
+            &load(checking, vec![standing_order(11, 2, true)]),
+            &TestLocale,
+        )
+        .expect("imported");
+        // Matching looks at payments due up to today (19 October), so the
+        // interest is October's, late in the same statement.
+        let interest = entry(2, 100, "Example Bank");
+        let second = import(
+            &mut book,
+            &load(savings, vec![standing_order(11, 2, false), interest]),
+            &TestLocale,
+        )
+        .expect("imported");
+        assert_eq!(second.joined.len(), 1);
+        assert_eq!(second.planned.len(), 1);
+        assert_eq!(second.planned[0].name, "Interest");
+        assert_eq!(second.planned[0].amount.exact, "1,00 €");
+
+        undo_joins(&mut book).expect("undone");
+        assert!(book.decided_occurrences().expect("read").is_empty());
+        assert_eq!(
+            transfer_suggestions(&book, &second.new, &TestLocale)
+                .expect("suggested")
+                .len(),
+            1,
+            "the pair is apart again"
+        );
+        assert_eq!(rows(&book, savings), 4, "the imported entries stay");
+        assert!(matches!(
+            undo_matches(&mut book),
+            Err(StatementImportError::NoSuchEntry)
+        ));
     }
 
     #[test]

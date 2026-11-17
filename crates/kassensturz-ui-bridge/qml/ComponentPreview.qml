@@ -75,7 +75,7 @@ ColumnLayout {
     // `quiet`), so it is only made when it has.
     readonly property bool hasFilterNotes: !hideNote && (filterView?.own ?? []).some(word => !(accountsInTitle && word === "accounts"))
         || !hideNote && (filterView?.filtered ?? []).some(word => word !== "period" && !(accountsInTitle && word === "accounts"))
-        || (filterView?.notes ?? []).some(note => !(hideNote && (note.kind === "not-applied" || note.kind === "average-early" || note.kind === "compare-early")))
+        || (filterView?.notes ?? []).some(note => !(hideNote && (note.kind === "not-applied" || note.kind === "average-early" || note.kind === "average-so-far" || note.kind === "compare-early")))
     // Every tile can leave out its grey marks (US1.9, #523; M6-B202, #581,
     // D-663). A title it draws then names the accounts it counts.
     readonly property bool hideNote: (subject?.fields ?? []).some(f => f.key === "hide_note" && f.flag)
@@ -368,8 +368,23 @@ ColumnLayout {
         }
     }
 
+    // The money-flow chart (US7, #821) has a picture of its own.
     Repeater {
-        model: preview.asked.shows === "chart" ? preview.charts : []
+        model: preview.asked.shows === "chart" ? Array.from(preview.charts).filter(c => c.kind === "flow") : []
+
+        FlowChart {
+            required property var modelData
+
+            Layout.fillWidth: true
+            chart: modelData
+            title: (chartData.view?.title ?? "") !== "" ? chartData.view.title : preview.title
+            period: preview.period
+            scope: preview.scope ?? preview.asked.scope ?? ""
+        }
+    }
+
+    Repeater {
+        model: preview.asked.shows === "chart" ? Array.from(preview.charts).filter(c => c.kind !== "flow") : []
 
         ChartView {
             required property var modelData
@@ -392,7 +407,7 @@ ColumnLayout {
     }
 
     Repeater {
-        model: preview.asked.shows === "table" ? preview.charts : []
+        model: preview.asked.shows === "table" ? Array.from(preview.charts).filter(c => c.kind !== "flow") : []
 
         ColumnLayout {
             id: tableBox

@@ -116,13 +116,8 @@ impl qobject::DataExport {
     }
 
     fn csv_choices(&self) -> QVariant {
-        let usual = CsvForm::usual(&app_locale());
-        map([
-            ("separator", text(&usual.separator)),
-            ("decimalMark", text(&usual.decimal_mark)),
-            ("header", QVariant::from(&usual.header)),
-            ("byteOrderMark", QVariant::from(&usual.byte_order_mark)),
-        ])
+        let locale = app_locale();
+        csv_choices_object(&CsvForm::usual(&locale), &locale.short_date(locale.today()))
     }
 
     fn suggested_name(&self, extension: &QString) -> QString {
@@ -157,8 +152,10 @@ impl qobject::DataExport {
             decimal_mark: field(&choices, "decimalMark"),
             header: flag(&choices, "header"),
             byte_order_mark: flag(&choices, "byteOrderMark"),
+            from: field(&choices, "from"),
+            until: field(&choices, "until"),
         };
-        self.saved(|book| export::save_csv(book, &ids, &form, &path))
+        self.saved(|book| export::save_csv(book, &ids, &form, &app_locale(), &path))
     }
 
     fn save_book(&self, file: &QUrl) -> QVariant {
@@ -219,6 +216,21 @@ impl qobject::DataExport {
     }
 }
 
+/// What QML keeps of the choices for the CSV file. `date_example` is a day
+/// written the way the user's region writes it, for the hint under the first
+/// and last day (#901).
+fn csv_choices_object(usual: &CsvForm, date_example: &str) -> QVariant {
+    map([
+        ("separator", text(&usual.separator)),
+        ("decimalMark", text(&usual.decimal_mark)),
+        ("header", QVariant::from(&usual.header)),
+        ("byteOrderMark", QVariant::from(&usual.byte_order_mark)),
+        ("from", text(&usual.from)),
+        ("until", text(&usual.until)),
+        ("dateExample", text(date_example)),
+    ])
+}
+
 /// What QML gets after a dashboard file was saved.
 fn saved_dashboard_object(saved: &export::SavedDashboard) -> QVariant {
     let count = |number: usize| QVariant::from(&i32::try_from(number).unwrap_or(i32::MAX));
@@ -233,6 +245,30 @@ fn saved_dashboard_object(saved: &export::SavedDashboard) -> QVariant {
 mod tests {
     use super::*;
     use crate::variant::read_back::{keys, number_of, text_of};
+
+    /// The choices read back the way QML reads them (AGENTS.md §9.4): the
+    /// first and last day start empty, which means all dates (#901).
+    #[test]
+    fn the_csv_choices_object_has_the_fields_qml_reads() {
+        let usual = CsvForm::usual(&crate::register::tests::TestLocale);
+        let object = csv_choices_object(&usual, "2026-10-19");
+        assert_eq!(
+            keys(&object),
+            [
+                "byteOrderMark",
+                "dateExample",
+                "decimalMark",
+                "from",
+                "header",
+                "separator",
+                "until"
+            ]
+        );
+        assert_eq!(text_of(&object, "from"), "");
+        assert_eq!(text_of(&object, "until"), "");
+        assert_eq!(text_of(&object, "dateExample"), "2026-10-19");
+        assert_eq!(text_of(&object, "separator"), "semicolon");
+    }
 
     /// The object reads back the way QML reads it (AGENTS.md §9.4).
     #[test]

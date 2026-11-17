@@ -497,6 +497,236 @@ fn parts_must_be_booked_to_existing_accounts() {
     assert!(book.register(checking).expect("register").is_empty());
 }
 
+/// B-272, round 8: a payee typed in with a character that can't be seen or
+/// turns the text around is refused, for the transaction and for a part,
+/// added or changed. A payee a bank delivered stays as the bank wrote it.
+#[test]
+fn a_look_alike_payee_typed_in_is_refused() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let turned = transaction(
+        date(2026, 10, 5),
+        "Shop\u{202E}live",
+        &[(checking, eur(-1200)), (groceries, eur(1200))],
+    );
+    assert!(matches!(
+        book.add_transaction(&turned),
+        Err(StoreError::HiddenText {
+            field: "payee",
+            reason: "invisible"
+        })
+    ));
+    let mut splits = turned.splits().to_vec();
+    splits[1].own_payee = Some("Shop\u{200B}".into());
+    let part = Transaction::new(
+        TransactionId::generate(),
+        turned.booking_date(),
+        Some("Shop".into()),
+        splits.clone(),
+    )
+    .expect("balanced");
+    assert!(matches!(
+        book.add_transaction(&part),
+        Err(StoreError::HiddenText { field: "payee", .. })
+    ));
+    assert!(book.register(checking).expect("register").is_empty());
+
+    // Delivered by a bank: kept as it is.
+    splits[0].imported = Some(kassensturz_core::ImportedDetails {
+        bank_id: Some("shop-1".into()),
+        other_party_name: Some("Shop\u{202E}live".into()),
+        ..Default::default()
+    });
+    let delivered = Transaction::new(
+        TransactionId::generate(),
+        turned.booking_date(),
+        Some("Shop\u{202E}live".into()),
+        splits,
+    )
+    .expect("balanced");
+    book.add_transaction(&delivered)
+        .expect("a bank's payee stays");
+
+    // Changed by hand into a look-alike: refused, and it stays as it was.
+    let fine = transaction(
+        date(2026, 10, 6),
+        "Corner Grocery",
+        &[(checking, eur(-800)), (groceries, eur(800))],
+    );
+    book.add_transaction(&fine).expect("added");
+    let changed = Transaction::new(
+        fine.id(),
+        fine.booking_date(),
+        Some("Corner\u{2066}Grocery".into()),
+        fine.splits().to_vec(),
+    )
+    .expect("balanced");
+    assert!(matches!(
+        book.update_transaction(&changed),
+        Err(StoreError::HiddenText { field: "payee", .. })
+    ));
+    assert_eq!(book.transaction(fine.id()).expect("read"), fine);
+}
+
+/// B-270, round 8: a transaction of 0.00 typed in moves nothing either and
+/// is refused, added or changed. A bank's entry of 0.00, e.g. a notice that
+/// a statement period closed, comes in as the bank delivered it, and a
+/// part of zero next to others that move money is fine.
+#[test]
+fn a_transaction_of_zero_typed_in_is_refused() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let zero = transaction(
+        date(2026, 10, 5),
+        "Landlord",
+        &[(checking, eur(0)), (groceries, eur(0))],
+    );
+    assert!(matches!(
+        book.add_transaction(&zero),
+        Err(StoreError::ZeroAmount)
+    ));
+    assert!(book.register(checking).expect("register").is_empty());
+
+    // Delivered by a bank: kept.
+    let mut splits = zero.splits().to_vec();
+    splits[0].imported = Some(kassensturz_core::ImportedDetails {
+        bank_id: Some("closing-2026-10".into()),
+        ..Default::default()
+    });
+    let delivered = Transaction::new(TransactionId::generate(), zero.booking_date(), None, splits)
+        .expect("balanced");
+    book.add_transaction(&delivered)
+        .expect("a bank's entry stays");
+
+    // A zero part next to parts that move money.
+    let with_a_zero_part = transaction(
+        date(2026, 10, 6),
+        "Corner Grocery",
+        &[
+            (checking, eur(-800)),
+            (groceries, eur(800)),
+            (groceries, eur(0)),
+        ],
+    );
+    book.add_transaction(&with_a_zero_part).expect("added");
+
+    // Changing one to 0.00 is refused, and it stays as it was.
+    let splits = vec![Split::new(checking, eur(0)), Split::new(groceries, eur(0))];
+    let changed = Transaction::new(
+        with_a_zero_part.id(),
+        with_a_zero_part.booking_date(),
+        None,
+        splits,
+    )
+    .expect("balanced");
+    assert!(matches!(
+        book.update_transaction(&changed),
+        Err(StoreError::ZeroAmount)
+    ));
+    assert_eq!(
+        book.transaction(with_a_zero_part.id()).expect("read"),
+        with_a_zero_part
+    );
+}
+
+/// B-270: a transaction whose every part is in one account or category
+/// moves nothing, e.g. a Transfer from an account to itself, and is
+/// refused when added or changed; one with another account or a part
+/// without a category is not. Filling a new book still takes one, since a
+/// book another program kept may hold it.
+#[test]
+fn a_transaction_that_moves_nothing_is_refused() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let to_itself = transaction(
+        date(2026, 10, 5),
+        "Myself",
+        &[(checking, eur(-1000)), (checking, eur(1000))],
+    );
+    assert!(matches!(
+        book.add_transaction(&to_itself),
+        Err(StoreError::NothingMoves(id)) if id == checking
+    ));
+    let in_one_category = transaction(
+        date(2026, 10, 5),
+        "Myself",
+        &[
+            (groceries, eur(-1000)),
+            (groceries, eur(400)),
+            (groceries, eur(600)),
+        ],
+    );
+    assert!(matches!(
+        book.add_transaction(&in_one_category),
+        Err(StoreError::NothingMoves(id)) if id == groceries
+    ));
+    assert!(book.register(checking).expect("register").is_empty());
+    assert!(
+        book.history()
+            .expect("history")
+            .iter()
+            .all(|change| change.action != Action::AddTransaction)
+    );
+
+    // Two parts in the account and one in a category, or a part without a
+    // category, move money and stay allowed.
+    let shopping = transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[
+            (checking, eur(-1000)),
+            (checking, eur(200)),
+            (groceries, eur(800)),
+        ],
+    );
+    book.add_transaction(&shopping).expect("added");
+    let unsorted = Transaction::new(
+        TransactionId::generate(),
+        date(2026, 10, 6),
+        None,
+        vec![
+            Split::new(checking, eur(-500)),
+            Split::uncategorized(eur(500)),
+        ],
+    )
+    .expect("balanced");
+    book.add_transaction(&unsorted).expect("added");
+
+    // Changing one so that it moves nothing is refused too.
+    let mut splits = shopping.splits().to_vec();
+    splits[2].account = Some(checking);
+    let changed =
+        Transaction::new(shopping.id(), shopping.booking_date(), None, splits).expect("balanced");
+    assert!(matches!(
+        book.update_transaction(&changed),
+        Err(StoreError::NothingMoves(id)) if id == checking
+    ));
+    assert_eq!(book.transaction(shopping.id()).expect("read"), shopping);
+
+    // A new book filled from another program's book takes it as it is.
+    let mut filled = Book::create_in_memory().expect("book created");
+    filled
+        .fill_new(crate::HistoryRetention::Forever, |filled| {
+            filled.use_currency(EUR)?;
+            filled.add_account(&book.account(checking)?)?;
+            filled.add_transaction(&to_itself)
+        })
+        .expect("filled");
+    assert_eq!(filled.transaction(to_itself.id()).expect("read"), to_itself);
+}
+
 #[test]
 fn parts_must_be_in_their_accounts_currency() {
     let Sample {
@@ -534,6 +764,79 @@ fn dates_before_the_year_1_are_refused() {
     ));
 }
 
+/// Amounts that each fit but add up past 64 bits are refused as a whole,
+/// whichever change brings them (B-269, #965): the book stays as it was and
+/// every balance can still be read.
+#[test]
+fn a_change_whose_amounts_would_add_up_too_far_is_refused() {
+    let Sample {
+        mut book,
+        checking,
+        salary,
+        ..
+    } = sample();
+    // A transaction counts twice, once on each side: one minor unit past
+    // the limit is too much.
+    let half = MAX_CURRENCY_TOTAL / 2 + 1;
+    let largest = transaction(
+        date(2026, 10, 1),
+        "Example Employer",
+        &[(checking, eur(half)), (salary, eur(-half))],
+    );
+    let before = book.balance(checking).expect("balance");
+    assert!(matches!(
+        book.add_transaction(&largest),
+        Err(StoreError::AmountOverflow)
+    ));
+    let third = MAX_CURRENCY_TOTAL / 3;
+    let large = |day| {
+        transaction(
+            date(2026, 10, day),
+            "Example Employer",
+            &[(checking, eur(third)), (salary, eur(-third))],
+        )
+    };
+    book.add_transaction(&large(1)).expect("still adds up");
+    let after_one = book.balance(checking).expect("balance");
+    for day in [2, 3] {
+        assert!(matches!(
+            book.add_transaction(&large(day)),
+            Err(StoreError::AmountOverflow)
+        ));
+    }
+    // Nothing of the refused ones was kept, and the balance reads.
+    assert_eq!(book.balance(checking).expect("balance"), after_one);
+    assert_ne!(after_one, before);
+    // Several in one action are refused together; a preview says so too.
+    let both = |book: &mut Book| -> Result<(), StoreError> {
+        book.add_transaction(&large(4))?;
+        book.add_transaction(&large(5))?;
+        Ok(())
+    };
+    book.undo().expect("undone");
+    assert!(matches!(
+        book.dry_run(both),
+        Err(StoreError::AmountOverflow)
+    ));
+    assert!(matches!(
+        book.as_one_action(Action::AddTransaction, both),
+        Err(StoreError::AmountOverflow)
+    ));
+    assert_eq!(book.balance(checking).expect("balance"), before);
+    // A single part past 64 bits without its sign is refused too.
+    let extreme = transaction(
+        date(2026, 10, 6),
+        "Example Employer",
+        &[(checking, eur(i64::MAX)), (salary, eur(-i64::MAX))],
+    );
+    assert!(matches!(
+        book.add_transaction(&extreme),
+        Err(StoreError::AmountOverflow)
+    ));
+}
+
+/// A book another program changed past 64 bits still opens, and reading
+/// the balance says what is wrong instead of a wrong figure.
 #[test]
 fn a_balance_too_large_for_64_bits_is_reported() {
     let Sample {
@@ -542,14 +845,28 @@ fn a_balance_too_large_for_64_bits_is_reported() {
         salary,
         ..
     } = sample();
-    for _ in 0..2 {
-        let huge = transaction(
-            date(2026, 10, 1),
-            "Example Employer",
-            &[(checking, eur(i64::MAX)), (salary, eur(-i64::MAX))],
-        );
-        book.add_transaction(&huge).expect("each one balances");
-    }
+    let third = MAX_CURRENCY_TOTAL / 3;
+    let large = transaction(
+        date(2026, 10, 1),
+        "Example Employer",
+        &[(checking, eur(third)), (salary, eur(-third))],
+    );
+    book.add_transaction(&large).expect("added");
+    // As if another program had changed the book (D-046).
+    book.as_another_program()
+        .execute(
+            "UPDATE splits SET amount = amount * 11 WHERE abs(amount) = ?1",
+            [third],
+        )
+        .expect("changed behind KassenSturz's back");
+    book.as_another_program()
+        .execute(
+            "INSERT INTO splits (id, transaction_id, position, account_id, amount)
+             SELECT randomblob(16), transaction_id, position + 10, account_id, amount
+             FROM splits WHERE abs(amount) = ?1 * 11",
+            [third],
+        )
+        .expect("changed behind KassenSturz's back");
     assert!(matches!(
         book.balance(checking),
         Err(StoreError::AmountOverflow)
@@ -911,7 +1228,7 @@ fn account_names_are_not_empty_and_not_shared() {
         assert!(
             matches!(
                 typed_account(&mut book, name, AccountType::CreditCard),
-                Err(StoreError::DuplicateAccountName { existing }) if existing == checking
+                Err(StoreError::DuplicateAccountName { existing, .. }) if existing == checking
             ),
             "{name:?}"
         );
@@ -924,6 +1241,30 @@ fn account_names_are_not_empty_and_not_shared() {
     // Categories can share names with accounts: they get their own rules
     // with the category tree (M1.5).
     account(&mut book, "Checking", AccountKind::Expense, EUR);
+
+    // An accent typed as its own character is the same name, and the book
+    // keeps the composed form (D-782).
+    let cafe = typed_account(&mut book, "Cafe\u{301}", AccountType::Cash).expect("added");
+    assert_eq!(book.account(cafe).expect("read").name, "Caf\u{E9}");
+    assert!(matches!(
+        typed_account(&mut book, "Caf\u{E9}", AccountType::Cash),
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == cafe
+    ));
+    let giro = typed_account(&mut book, "Gir\u{F3}", AccountType::Checking).expect("added");
+    assert!(matches!(
+        typed_account(&mut book, "Giro\u{301}", AccountType::Checking),
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == giro
+    ));
+    book.rename_account(cafe, "Cafe\u{301} corner")
+        .expect("renamed");
+    assert_eq!(book.account(cafe).expect("read").name, "Caf\u{E9} corner");
+    // A ligature is the letters it is made of; the name is kept as typed.
+    let finance = typed_account(&mut book, "\u{FB01}nance", AccountType::Savings).expect("added");
+    assert_eq!(book.account(finance).expect("read").name, "\u{FB01}nance");
+    assert!(matches!(
+        typed_account(&mut book, "Finance", AccountType::Savings),
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == finance
+    ));
 }
 
 #[test]
@@ -944,7 +1285,7 @@ fn renaming_follows_the_rules_for_names() {
         .expect("renamed");
     assert!(matches!(
         book.rename_account(savings, "household checking"),
-        Err(StoreError::DuplicateAccountName { existing }) if existing == checking
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == checking
     ));
     assert!(matches!(
         book.rename_account(savings, " "),
@@ -1342,12 +1683,12 @@ fn siblings_do_not_share_a_name() {
     for name in ["other", " OTHER "] {
         assert!(matches!(
             category(&mut book, name, AccountKind::Expense, Some(food)),
-            Err(StoreError::DuplicateAccountName { existing }) if existing == other
+            Err(StoreError::DuplicateAccountName { existing, .. }) if existing == other
         ));
     }
     assert!(matches!(
         category(&mut book, "food", AccountKind::Expense, None),
-        Err(StoreError::DuplicateAccountName { existing }) if existing == food
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == food
     ));
     // The same name elsewhere, or as income, is another category.
     category(&mut book, "Other", AccountKind::Expense, Some(home)).expect("added");
@@ -1357,7 +1698,7 @@ fn siblings_do_not_share_a_name() {
     let treats = category(&mut book, "Treats", AccountKind::Expense, Some(food)).expect("added");
     assert!(matches!(
         book.rename_account(treats, "Other"),
-        Err(StoreError::DuplicateAccountName { existing }) if existing == other
+        Err(StoreError::DuplicateAccountName { existing, .. }) if existing == other
     ));
     book.rename_account(treats, "Sweets").expect("renamed");
 }
@@ -1633,4 +1974,84 @@ fn a_grouped_account_changes_its_kind_and_leaves_its_group() {
         book.undo().expect("undone");
     }
     assert_eq!(book.all_accounts().expect("accounts"), before);
+}
+
+/// B-278: every connection to a book file syncs the folder after a save
+/// (SQLite's `synchronous` EXTRA, 3), so a save that returned is still
+/// there after a power cut; FULL (2) left the deleted journal to chance.
+/// Creating and opening a book both go through the one place that sets it.
+#[test]
+fn every_save_to_a_book_file_is_on_the_disk_when_it_returns() {
+    let folder = crate::test_folder::TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = Computer {
+        name: "Laptop".into(),
+        backup_folder: folder.join("Backups"),
+    };
+    let synchronous = |book: &Book| -> i64 {
+        book.conn
+            .pragma_query_value(None, "synchronous", |row| row.get(0))
+            .expect("read")
+    };
+    let mut book = Book::create(&path, &computer).expect("book created");
+    assert_eq!(synchronous(&book), 3);
+    book.use_currency(EUR).expect("a change saved");
+    drop(book);
+    let book = Book::open(&path, &computer).expect("book opened");
+    assert_eq!(synchronous(&book), 3);
+    let journal: String = book
+        .conn
+        .pragma_query_value(None, "journal_mode", |row| row.get(0))
+        .expect("read");
+    assert_eq!(journal, "delete");
+}
+
+/// B-282: when the drive is full, the change is taken back and the error
+/// says so, as `store.io` with the kind `storage-full`, which the app and
+/// the command line turn into "the drive is full, free up space", not the
+/// dead end `store.database`. SQLite's page limit stands in for the drive.
+#[test]
+fn a_full_drive_is_reported_as_such() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let pages: i64 = book
+        .conn
+        .pragma_query_value(None, "page_count", |row| row.get(0))
+        .expect("read");
+    book.conn
+        .pragma_update(None, "max_page_count", pages)
+        .expect("limited");
+    let error = book
+        .as_one_action(Action::ImportStatement, |book| {
+            for _ in 0..2_000 {
+                book.add_transaction(&transaction(
+                    date(2026, 10, 5),
+                    "Corner Grocery",
+                    &[(checking, eur(-100)), (groceries, eur(100))],
+                ))?;
+            }
+            Ok::<(), StoreError>(())
+        })
+        .expect_err("the drive is full");
+    let report = error.report();
+    assert_eq!(report.code, "store.io", "{error:?}");
+    assert_eq!(
+        report.param("kind"),
+        Some(&kassensturz_core::ErrorParam::Keyword("storage-full"))
+    );
+    assert!(book.register(checking).expect("register").is_empty());
+    // With space again, the same change goes through.
+    book.conn
+        .pragma_update(None, "max_page_count", 1_073_741_823)
+        .expect("space again");
+    book.add_transaction(&transaction(
+        date(2026, 10, 5),
+        "Corner Grocery",
+        &[(checking, eur(-100)), (groceries, eur(100))],
+    ))
+    .expect("saved");
 }

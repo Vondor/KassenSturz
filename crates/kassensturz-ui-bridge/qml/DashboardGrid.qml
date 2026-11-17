@@ -95,6 +95,12 @@ Item {
         return state.code === undefined ? state : ({});
     }
 
+    // The app's `PlannedPayments` (US7, D-769, D-770), for the *Left this
+    // month* and *Coming up* tiles; null where the grid has none, and the
+    // tiles then say that nothing is planned.
+    property var plans: null
+    readonly property var plansView: plans?.view ?? ({})
+
     // What the page knows that is not a figure of the report layer: the
     // overview's fetch-gap warnings and its count of transfers, for the
     // notice widgets (D-328).
@@ -131,6 +137,12 @@ Item {
     signal propertiesRequested(string id)
     signal getTransactionsClicked(string accountId)
     signal setBudgetClicked()
+    // *Plan a payment…* on a planned payments tile: open the form for a new
+    // plan.
+    signal planPaymentClicked()
+    // *Planned payments…* or *Check them…* on a planned payments tile: open
+    // the Planned payments window.
+    signal plannedPaymentsClicked()
     // A notice of Update all accounts was clicked (M6d.7).
     signal transactionClicked(string accountId, string transactionId)
     // The Update all accounts widget's *Connect a bank* (D-497).

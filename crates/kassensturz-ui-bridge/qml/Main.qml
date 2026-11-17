@@ -106,8 +106,44 @@ Kirigami.ApplicationWindow {
         onOpened: {
             bookMover.refresh();
             root.showBook();
+            root.tellSettledBills(changeHistory.settleBills());
         }
         onFailed: root.showProblem()
+    }
+
+    // A book that takes long to open, e.g. on a slow network drive, is
+    // opened in the background: the window stays alive and says so, instead
+    // of staying blank (B-326).
+    Controls.Popup {
+        parent: Controls.Overlay.overlay
+        anchors.centerIn: parent
+        modal: true
+        closePolicy: Controls.Popup.NoAutoClose
+        visible: bookSession.opening
+        padding: Kirigami.Units.largeSpacing * 2
+
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            Controls.BusyIndicator {
+                Layout.alignment: Qt.AlignHCenter
+                running: bookSession.opening
+            }
+
+            Controls.Label {
+                Layout.alignment: Qt.AlignHCenter
+                text: root.i18nContext.i18nc("@info:status shown while a book is being opened", "Opening your book …")
+            }
+
+            Controls.Label {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.WordWrap
+                opacity: 0.7
+                text: root.i18nContext.i18nc("@info:status", "A book on a network drive can take a little while. Please wait.")
+            }
+        }
     }
 
     // Where the book is kept, and moving it (D-731). Made before the first
@@ -213,6 +249,32 @@ Kirigami.ApplicationWindow {
         onChanged: root.screenChangedBook()
     }
 
+    // The planned payments (US7.1, D-769): the Accounts page, "Plan this
+    // again…" and the start screen read them. A change made here is one the
+    // user can undo from the notice.
+    PlannedPayments {
+        id: plannedPayments
+
+        onChanged: root.screenChangedBook()
+    }
+
+    // The Planned payments window and the form for a new plan, as the start
+    // screen's *Left this month* and *Coming up* tiles open them (US7,
+    // D-769, D-770). The Accounts page has the same window of its own.
+    PlannedPaymentsDialog {
+        id: overviewPlans
+
+        plans: plannedPayments
+        register: accountRegister
+    }
+
+    PlanFormDialog {
+        id: overviewPlanForm
+
+        plans: plannedPayments
+        register: accountRegister
+    }
+
     // Importing a file from the bank into an account (M3.10): one file at a
     // time, from the file dialog to the summary.
     // Named differently from the pages' `statementImport` property, which
@@ -221,6 +283,98 @@ Kirigami.ApplicationWindow {
         id: statementImporter
 
         onChanged: root.screenChangedBook()
+        onDone: result => {
+            // The file was read and its preview is ready (B-362).
+            const then = root.afterImportStart;
+            root.afterImportStart = null;
+            if (then !== null) {
+                then(result);
+            }
+        }
+    }
+
+    // What to do once the preview a new import started on its thread is
+    // ready (B-362); null when nothing waits.
+    property var afterImportStart: null
+
+    // While a preview or an import runs on its thread (B-362): how far it
+    // got, and a way to cancel it. The book is lent to that thread
+    // meanwhile, so the window can't be used for anything else.
+    Kirigami.Dialog {
+        id: importWorkDialog
+
+        property var progress: ({ done: 0, total: 0, importing: false, saving: false })
+
+        // The import writes, the preview only reads; once the import
+        // saves, it can't be cancelled anymore (B-367).
+        title: Plain.plain(importWorkDialog.progress.importing
+            ? root.i18nContext.i18nc("@title:window", "Importing the statement")
+            : root.i18nContext.i18nc("@title:window", "Reading the statement"))
+        padding: Kirigami.Units.largeSpacing
+        preferredWidth: Kirigami.Units.gridUnit * 22
+        modal: true
+        showCloseButton: false
+        closePolicy: Controls.Popup.NoAutoClose
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: root.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                visible: !importWorkDialog.progress.saving
+                onTriggered: {
+                    ActionLog.taken("Main_cancelImportWork")
+                    statementImporter.cancelWork()
+                }
+            }
+        ]
+
+        ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: importWorkDialog.progress.saving
+                    ? root.i18nContext.i18nc("@info", "Saving the entries in the book. This can't be cancelled anymore.")
+                    : importWorkDialog.progress.total > 0
+                        && importWorkDialog.progress.done >= importWorkDialog.progress.total
+                        ? root.i18nContext.i18nc("@info", "Looking for Transfers and applying your Rules…")
+                        : importWorkDialog.progress.total > 0
+                            ? root.i18nContext.i18nc("@info %1 and %2 are numbers of entries", "%1 of %2 entries", importWorkDialog.progress.done, importWorkDialog.progress.total)
+                            : root.i18nContext.i18nc("@info", "Getting ready…")
+            }
+
+            Controls.ProgressBar {
+                Layout.fillWidth: true
+                from: 0
+                to: Math.max(1, importWorkDialog.progress.total)
+                value: importWorkDialog.progress.done
+                indeterminate: importWorkDialog.progress.total === 0
+                    || importWorkDialog.progress.done >= importWorkDialog.progress.total
+                Accessible.name: root.i18nContext.i18nc("@info:whatsthis", "How far the import got")
+            }
+        }
+
+        Timer {
+            interval: 200
+            repeat: true
+            running: importWorkDialog.visible
+            onTriggered: importWorkDialog.progress = statementImporter.progress()
+        }
+
+        Connections {
+            target: statementImporter
+
+            function onWorkingChanged() {
+                if (statementImporter.working) {
+                    importWorkDialog.progress = { done: 0, total: 0, importing: false, saving: false };
+                    importWorkDialog.open();
+                } else {
+                    importWorkDialog.close();
+                }
+            }
+        }
     }
 
     // Saving a copy of the data in a new file (M3.12).
@@ -334,6 +488,8 @@ Kirigami.ApplicationWindow {
         id: aiChat
 
         onChanged: root.bookChanged()
+        // The archive's folder for bills without a category (US7, #333).
+        Component.onCompleted: nameUnsortedFolder(root.i18nContext.i18nc("@item the name of a folder for bills whose transaction has no category", "Not sorted yet"))
     }
 
     // Closing the sidebar and forgetting the conversation when the switch
@@ -437,7 +593,9 @@ Kirigami.ApplicationWindow {
 
     onClosing: {
         // The chat window must not keep the app running.
-        chatWindow.hide();
+        if (chatWindowLoader.item) {
+            chatWindowLoader.item.hide();
+        }
         const maximized = root.visibility === Window.Maximized;
         const g = maximized ? root.normalGeometry : Qt.rect(root.x, root.y, root.width, root.height);
         windowState.save(g.width, g.height, g.x, g.y, maximized);
@@ -494,6 +652,7 @@ Kirigami.ApplicationWindow {
         budgetBook.refresh();
         ruleBook.refresh();
         accountRegister.refresh();
+        plannedPayments.refresh();
         savedViews.refresh();
         dashboardLayout.refresh();
         changeHistory.refresh();
@@ -544,8 +703,43 @@ Kirigami.ApplicationWindow {
         afterStep(changeHistory.redo(), true);
     }
 
+    // What settling the receipt inbox's moves after a crash found (US7,
+    // #333): only what the user should know, never a guess.
+    function tellSettledBills(notes: var) {
+        for (const note of notes) {
+            let text;
+            switch (note.kind) {
+            case "unlinked":
+                text = i18nContext.i18nc("@info %1 is a path", "A bill is in your archive without a link: %1", note.path);
+                break;
+            case "notWhereLinked":
+                text = i18nContext.i18nc("@info %1 is a path", "A filed bill is back in your inbox: %1. Its link points to the archive, where it isn't.", note.path);
+                break;
+            case "bothKept":
+                text = i18nContext.i18nc("@info %1 and %2 are paths", "Two different copies of a bill were kept, so none was lost: %1 and %2", note.path, note.other);
+                break;
+            case "onlyPart":
+                text = i18nContext.i18nc("@info %1 is a path", "Only an unchecked copy of a bill was left, so it was kept: %1", note.path);
+                break;
+            default:
+                text = i18nContext.i18nc("@info %1 is a path", "A bill that was being filed isn't there any more: %1", note.path);
+            }
+            showPassiveNotification(text, "long");
+        }
+    }
+
     // Says what undo or redo did, or why it didn't work.
     function afterStep(result: var, redone: bool) {
+        if (result.code === "bill.undo-blocked" || result.code === "bill.redo-blocked") {
+            // Only the history page offers "Undo anyway" (US7, #333).
+            const shown = pageStack.currentItem;
+            if (shown && shown.stepped !== undefined) {
+                shown.failure = result;
+            } else {
+                pushPage(historyPage, { failure: result });
+            }
+            return;
+        }
         if (result.code !== undefined) {
             const page = pageStack.currentItem;
             if (page && page.failure !== undefined) {
@@ -559,7 +753,19 @@ Kirigami.ApplicationWindow {
             return;
         }
         leaveStalePages();
+        if ((result.leftInArchive ?? []).length > 0) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The link is gone. The bills stay in your archive: %1", Array.from(result.leftInArchive).join(", ")), "long");
+        }
+        if ((result.copiesLeft ?? []).length > 0) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
+        }
         const what = changeNames.describe(result.change);
+        // The chat hears of an Undo of the changes it prepared, whichever
+        // way the user took them back (B-354).
+        if (!redone && result.change.action === "apply-ai-changes") {
+            aiChat.changesUndone();
+            chatPanel.markUndone();
+        }
         if (redone) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
         } else {
@@ -706,7 +912,10 @@ Kirigami.ApplicationWindow {
     function startBookFromFile(file: url) {
         const result = bookFromFileState.start(file);
         if (result.code !== undefined) {
-            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            // The file was meant as a book, so its messages say so, e.g. a
+            // KMyMoney file too large is no "statement" (B-366).
+            const forBook = errorTexts.messageForNewBook(result);
+            showPassiveNotification(forBook !== "" ? forBook : errorTexts.messageFor(result), 12000);
             return;
         }
         pushPage(bookFromFilePage);
@@ -803,6 +1012,24 @@ Kirigami.ApplicationWindow {
             showPassiveNotification(errorTexts.messageFor(result), 12000);
             return;
         }
+        if (result.working === true) {
+            afterImportStart = root.showImportStart;
+            return;
+        }
+        pushPage(importStep());
+    }
+
+    // Shows the screen a new import is at once its preview is ready, or
+    // why it can't go on (B-362). A cancelled one just ends.
+    function showImportStart(result: var) {
+        if (result.cancelled === true) {
+            statementImporter.cancel();
+            return;
+        }
+        if (result.code !== undefined) {
+            showPassiveNotification(errorTexts.messageFor(result), 12000);
+            return;
+        }
         pushPage(importStep());
     }
 
@@ -812,6 +1039,10 @@ Kirigami.ApplicationWindow {
         const result = statementImporter.startFromBank(accountId);
         if (result.code !== undefined) {
             showPassiveNotification(errorTexts.messageFor(result), 12000);
+            return;
+        }
+        if (result.working === true) {
+            afterImportStart = root.showImportStart;
             return;
         }
         pushPage(importStep());
@@ -953,14 +1184,60 @@ Kirigami.ApplicationWindow {
                 ]
             }
 
+            // A book in a folder where the system refuses file locks opens
+            // with weaker protection: only the book's own lock file keeps
+            // two programs from writing at once (Q-570, D-776).
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                position: Kirigami.InlineMessage.Position.Header
+                type: Kirigami.MessageType.Information
+                visible: bookSession.open && bookSession.withoutFileLocks
+                text: root.i18nContext.i18nc("@info", "The system doesn't let KassenSturz lock files in this folder, so this book has less protection here: open it in only one program at a time. Your automatic backups are not affected.")
+            }
+
             // A book on a network drive opens, with this warning on every
-            // screen (D-038).
+            // screen (D-038), until the user hides it for that book
+            // (B-321, D-802).
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 position: Kirigami.InlineMessage.Position.Header
                 type: Kirigami.MessageType.Warning
-                visible: bookSession.open && bookSession.networkDrive
+                visible: bookSession.open && bookSession.networkNoteShown
+                actions: [
+                    Kirigami.Action {
+                        text: root.i18nContext.i18nc("@action:button hides a note for this book", "Don't show again for this book")
+                        onTriggered: {
+                            ActionLog.taken("Main_hideNetworkNote")
+                            bookSession.hideNetworkNote()
+                        }
+                    }
+                ]
                 text: root.i18nContext.i18nc("@info", "This book is on a network drive. Network drives can damage a book, because they don't save changes as reliably as this computer's own drive. Keep the book on this computer; a sync folder, such as Nextcloud's, is fine.")
+            }
+
+            // Opening the book took back a save that was cut short, e.g. by
+            // a forced quit or a power cut (B-364): its changes are missing.
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                position: Kirigami.InlineMessage.Position.Header
+                type: Kirigami.MessageType.Warning
+                visible: bookSession.open && bookSession.cutShortNoteShown
+                actions: [
+                    Kirigami.Action {
+                        text: root.i18nContext.i18nc("@action:button hides a note", "Got it")
+                        onTriggered: {
+                            ActionLog.taken("Main_hideCutShortNote")
+                            bookSession.hideCutShortNote()
+                        }
+                    }
+                ]
+                text: {
+                    const taken = root.i18nContext.i18nc("@info", "KassenSturz was closed while it saved to this book last time, for example by force or by a power cut, so that save was taken back: the book is as it was before it. Check your latest changes and enter again what is missing.");
+                    if (bookSession.cutShortKept === "") {
+                        return Plain.plain(taken);
+                    }
+                    return Plain.plain(taken + " " + root.i18nContext.i18nc("@info %1 is a file name", "The book as that save left it is kept next to it as %1. Once you have checked the book, you can delete that file and the one next to it whose name begins the same.", bookSession.cutShortKept));
+                }
             }
         }
     }
@@ -973,6 +1250,10 @@ Kirigami.ApplicationWindow {
         // Also visible in a wide window: if the drawer was closed there (see
         // onModalChanged), the handle is the way back to the menu (M5-B19).
         handleVisible: root.started
+        // Kirigami's own words for the handle are English only, and the
+        // button showed no name to a screen reader (B-376).
+        handleOpenToolTip: root.i18nContext.i18nc("@info:tooltip the button that hides the menu on the left", "Hide the menu")
+        handleClosedToolTip: root.i18nContext.i18nc("@info:tooltip the button that shows the menu on the left", "Show the menu")
         // Opening a narrow window closes the drawer by hand, which ends the
         // binding above; without this the menu stayed hidden after maximizing.
         onModalChanged: drawerOpen = !modal
@@ -1067,6 +1348,22 @@ Kirigami.ApplicationWindow {
         ]
     }
 
+    // The buttons of the drawers' handles say what they do to a screen
+    // reader (B-376).
+    DrawerHandleName {
+        drawer: root.globalDrawer
+    }
+
+    DrawerHandleName {
+        drawer: chatDrawer
+    }
+
+    // In a wide window the drawers' buttons sit in the pages' headers.
+    HeaderHandleNames {
+        pages: root.pageStack
+        scope: root.contentItem.parent ?? root.contentItem
+    }
+
     // Opens and closes the chat sidebar from the keyboard. The menu has no entry
     // for it any more: the sidebar's handle is the way to it (#207). Dead while
     // the switch is off (D-013).
@@ -1142,8 +1439,15 @@ Kirigami.ApplicationWindow {
     property bool chatDetached: false
 
     function detachChat() {
-        chatPanel.parent = chatWindowHolder;
+        // The window exists only while the chat is detached and AI is on, so
+        // with AI off no chat window is created at all (B-286): setting the
+        // flag makes the loader create it, at once.
         chatDetached = true;
+        if (!chatWindowLoader.item) {
+            chatDetached = false;
+            return;
+        }
+        chatPanel.parent = chatWindowLoader.item.holder;
         chatDrawer.close();
         showChatWindow();
     }
@@ -1153,9 +1457,9 @@ Kirigami.ApplicationWindow {
     // "Move back to the sidebar" is for; closing the chat window, or the AI
     // switch going off, leaves the sidebar closed.
     function attachChat(reopen) {
+        // The panel leaves the window first; then the loader drops the window.
         chatPanel.parent = chatHolder;
         chatDetached = false;
-        chatWindow.hide();
         if (reopen) {
             chatDrawer.open();
             root.raise();
@@ -1164,9 +1468,12 @@ Kirigami.ApplicationWindow {
     }
 
     function showChatWindow() {
-        chatWindow.show();
-        chatWindow.raise();
-        chatWindow.requestActivate();
+        if (!chatWindowLoader.item) {
+            return;
+        }
+        chatWindowLoader.item.show();
+        chatWindowLoader.item.raise();
+        chatWindowLoader.item.requestActivate();
     }
 
     function raiseMainWindow() {
@@ -1193,6 +1500,8 @@ Kirigami.ApplicationWindow {
         handleVisible: aiSwitch.enabled && root.started
         handleClosedIcon.source: "dialog-messages"
         handleOpenIcon.source: "go-next"
+        handleOpenToolTip: root.i18nContext.i18nc("@action:button close the chat sidebar", "Close the chat")
+        handleClosedToolTip: root.i18nContext.i18nc("@info:tooltip the button that opens the chat sidebar", "Open the chat")
         width: Math.max(root.chatMinWidth, Math.min(root.chatWidth, root.chatMaxWidth))
         drawerOpen: false
         topPadding: 0
@@ -1273,21 +1582,36 @@ Kirigami.ApplicationWindow {
     // unsent text and the open tab stay as they are. Closing the window puts
     // the panel back into the sidebar, which stays closed. The window opens
     // where it was left (not remembered between sessions).
-    Controls.ApplicationWindow {
-        id: chatWindow
+    Loader {
+        id: chatWindowLoader
 
-        width: Kirigami.Units.gridUnit * 26
-        height: Kirigami.Units.gridUnit * 36
-        minimumWidth: Kirigami.Units.gridUnit * 18
-        minimumHeight: Kirigami.Units.gridUnit * 20
-        visible: false
-        title: chatPanel.windowTitle
-        onClosing: root.attachChat(false)
+        // Not even an empty window object while AI is off (B-286, §8): it
+        // would show in the accessibility tree.
+        active: aiSwitch.enabled && root.chatDetached
 
-        Item {
-            id: chatWindowHolder
+        sourceComponent: Controls.ApplicationWindow {
+            id: chatWindow
 
-            anchors.fill: parent
+            property alias holder: chatWindowHolder
+
+            width: Kirigami.Units.gridUnit * 26
+            height: Kirigami.Units.gridUnit * 36
+            minimumWidth: Kirigami.Units.gridUnit * 18
+            minimumHeight: Kirigami.Units.gridUnit * 20
+            visible: false
+            title: chatPanel.windowTitle
+            onClosing: close => {
+                // The loader drops this window, which must not happen inside
+                // its own closing handler.
+                close.accepted = false;
+                Qt.callLater(() => root.attachChat(false));
+            }
+
+            Item {
+                id: chatWindowHolder
+
+                anchors.fill: parent
+            }
         }
     }
 
@@ -1295,6 +1619,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: openFolderChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Open another book")
         onGranted: grant => root.openBookFromFolder(grant.path)
         onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)
@@ -1313,6 +1638,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: newBookFolderChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Where to keep the new book")
         onGranted: grant => {
             newBookName.folder = grant.path;
@@ -1340,6 +1666,7 @@ Kirigami.ApplicationWindow {
     FolderChooser {
         id: noAccessChooser
 
+        forBook: true
         title: root.i18nContext.i18nc("@title:window", "Choose the folder of your book again")
         onGranted: grant => bookSession.openIn(grant.path, bookSession.problem.file ?? "")
         onRefused: (code, reason) => root.showPassiveNotification(reason, 10000)
@@ -1352,6 +1679,17 @@ Kirigami.ApplicationWindow {
         repeat: true
         running: bookSession.open
         onTriggered: bookSession.checkWriteHealth()
+    }
+
+    // The book may have been opened "anyway" on another computer while this
+    // window was in the background: ask as soon as it is back (B-306).
+    Connections {
+        target: Qt.application
+        function onStateChanged() {
+            if (Qt.application.state === Qt.ApplicationActive && bookSession.open) {
+                bookSession.checkWriteHealth()
+            }
+        }
     }
 
     Dialogs.FileDialog {
@@ -1562,6 +1900,7 @@ Kirigami.ApplicationWindow {
 
         TransactionPage {
             register: accountRegister
+            plans: plannedPayments
             onDone: root.pageStack.pop()
             onCheckAgainstBankClicked: accountId => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: "", initialDate: "" })
             // The Parts page takes this page's place, so saving goes back
@@ -1591,6 +1930,7 @@ Kirigami.ApplicationWindow {
             savedSource: savedViews
             groupsSource: categoryGroups
             bank: bankConnection
+            plans: plannedPayments
             folderUrl: bookSession.folderUrl
             justSetUp: root.freshBook
             onFirstLookClosed: root.freshBook = false
@@ -1599,6 +1939,8 @@ Kirigami.ApplicationWindow {
             onAddTransactionClicked: root.addTransaction("")
             onGetTransactionsClicked: accountId => root.pushPage(bankFetchPage, { initialAccountId: accountId })
             onSetBudgetClicked: root.pushPage(budgetPage, { categoryId: "" })
+            onPlanPaymentClicked: overviewPlanForm.create("")
+            onPlannedPaymentsClicked: overviewPlans.show()
             onDashboardFileChosen: file => root.pushPage(dashboardFilePage, { file: file })
             onConnectBankClicked: root.pushPage(bankSetupPage)
             onStatisticBuilderRequested: (id, component, period) => root.pushPage(statisticsPage, {
@@ -1685,6 +2027,7 @@ Kirigami.ApplicationWindow {
         AccountsPage {
             accounts: accountList
             register: accountRegister
+            plans: plannedPayments
             onAddAccountClicked: root.addAccount()
             onAccountClicked: accountId => root.showRegister(accountId)
             onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })
@@ -1840,28 +2183,75 @@ Kirigami.ApplicationWindow {
 
         SettingsPage {
             session: bookSession
-            numberFormat: numberFormatSettings
-            chartPalette: chartPaletteSettings
-            language: languageSettings
             ai: aiSwitch
-            history: changeHistory
+            onSaveCopyClicked: root.pushPage(exportPage)
+            onGroupClicked: group => root.pushPage({
+                book: settingsBookPage,
+                bank: settingsBankPage,
+                look: settingsLookPage,
+                backups: settingsBackupPage,
+                advanced: settingsAdvancedPage,
+            }[group])
+            onAiSettingsClicked: root.pushPage(aiSettingsPage)
+            onHelpClicked: root.pushPage(helpPage)
+        }
+    }
+
+    // The groups of the settings, each a page of its own (D-795).
+    Component {
+        id: settingsBookPage
+
+        SettingsBookPage {
+            session: bookSession
+            onOpenAnotherClicked: root.chooseBookToOpen()
+            onExampleBookClicked: root.chooseExampleBook()
+            onNewBookClicked: root.chooseNewBook()
+            onBookFromFileClicked: root.chooseFileForNewBook()
+            onTagsClicked: root.pushPage(tagsPage)
+        }
+    }
+
+    Component {
+        id: settingsBankPage
+
+        SettingsBankPage {
             bank: bankConnection
             fetchGap: fetchGapSettings
             onConnectBankClicked: root.pushPage(bankSetupPage)
             onChangeBankClicked: login => root.pushPage(bankLoginPage, { login: login })
             onLinkAccountClicked: login => root.pushPage(bankSetupPage, { refreshLogin: login.id })
-            onOpenAnotherClicked: root.chooseBookToOpen()
-            onExampleBookClicked: root.chooseExampleBook()
-            onNewBookClicked: root.chooseNewBook()
-            bookMove: bookMover
-            onSaveCopyClicked: root.pushPage(exportPage)
-            onBookPlaceClicked: root.pushPage(bookMovePage)
-            onBookFromFileClicked: root.chooseFileForNewBook()
+        }
+    }
+
+    Component {
+        id: settingsLookPage
+
+        SettingsLookPage {
+            numberFormat: numberFormatSettings
+            chartPalette: chartPaletteSettings
+            language: languageSettings
+        }
+    }
+
+    Component {
+        id: settingsBackupPage
+
+        SettingsBackupPage {
+            session: bookSession
+            history: changeHistory
             onShowHistoryClicked: root.pushPage(historyPage)
             onRestoreBackupClicked: root.pushPage(restoreBackupPage)
-            onTagsClicked: root.pushPage(tagsPage)
-            onAiSettingsClicked: root.pushPage(aiSettingsPage)
-            onHelpClicked: root.pushPage(helpPage)
+        }
+    }
+
+    Component {
+        id: settingsAdvancedPage
+
+        SettingsAdvancedPage {
+            bank: bankConnection
+            bookMove: bookMover
+            onBookPlaceClicked: root.pushPage(bookMovePage)
+            onGrantedFoldersClicked: root.pushPage(grantedFoldersPage)
         }
     }
 
@@ -1872,6 +2262,15 @@ Kirigami.ApplicationWindow {
             bookMove: bookMover
             // Shows the book where it is now, on the page that stays open.
             onMoved: bookSession.showMovedBook()
+            onDone: root.pageStack.pop()
+        }
+    }
+
+    Component {
+        id: grantedFoldersPage
+
+        GrantedFoldersPage {
+            bookMove: bookMover
         }
     }
 
@@ -1898,16 +2297,13 @@ Kirigami.ApplicationWindow {
             ai: aiSwitch
             chat: aiChat
             onApplied: setId => chatPanel.markHandled(setId, true)
+            onNothingMade: setId => chatPanel.markHandled(setId, false)
             onDiscarded: setId => {
                 chatPanel.markHandled(setId, false);
                 pageStack.pop();
             }
             onUndoClicked: {
-                const result = changeHistory.undo();
-                root.afterStep(result, false);
-                if (result.code === undefined) {
-                    aiChat.changesUndone();
-                }
+                root.afterStep(changeHistory.undo(), false);
             }
             onDoneClicked: root.closeChangeReview(setId)
         }

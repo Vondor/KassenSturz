@@ -204,6 +204,19 @@ impl Formula {
         names::known(source)
     }
 
+    /// Whether the formula names something other than `columns`: a category
+    /// or group of the book, or all of one side. Money named that way is
+    /// counted by no column, so a chart's total has to add it (B-359).
+    pub(crate) fn names_beyond(&self, columns: &[&str]) -> bool {
+        self.tree.names.iter().any(|name| {
+            let written = name.text.trim().trim_matches('\'');
+            name.all
+                || !columns
+                    .iter()
+                    .any(|column| column.eq_ignore_ascii_case(written))
+        })
+    }
+
     /// The days a [`Source`] must be read for to work this formula out for
     /// `period`: from the first to the last day of `period` and of every
     /// period a name gives itself, so one read serves them all.

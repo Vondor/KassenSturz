@@ -143,6 +143,9 @@ pub struct BillText {
     pub url: String,
     /// Whether it is a path whose file isn't there any more.
     pub missing: bool,
+    /// The `file://` address of the folder it is in, for *Show in folder*
+    /// (US7, #333); empty for a web address.
+    pub folder_url: String,
 }
 
 /// How the page shows each document linked to `transaction`.
@@ -173,6 +176,12 @@ fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
                     String::new()
                 },
                 missing: local && !path.is_file(),
+                folder_url: path
+                    .parent()
+                    .filter(|_| local)
+                    .and_then(|folder| folder.to_str())
+                    .map(file_url)
+                    .unwrap_or_default(),
             }
         })
         .collect()
@@ -377,14 +386,18 @@ pub fn details(
     let names = tags::names(book)?;
     // The account's own date and payee, as the register shows them (D-108).
     let date = transaction.date_of(own_split);
-    let other_party = transaction.payee_of(own_split).unwrap_or_default();
+    // Shown without characters that hide or turn the text around (B-365).
+    let other_party = transaction
+        .payee_of(own_split)
+        .map(kassensturz_store::shown_text)
+        .unwrap_or_default();
     let delivered_name = own_split
         .imported
         .as_ref()
         .and_then(|delivered| delivered.other_party_name.as_deref())
+        .map(kassensturz_store::shown_text)
         .filter(|name| *name != other_party)
-        .unwrap_or_default()
-        .to_owned();
+        .unwrap_or_default();
     Ok(EntryForm {
         id: transaction.id().to_string(),
         kind: kind.key(),
@@ -2173,6 +2186,15 @@ mod tests {
             bills[0].url
         );
         assert!(!bills[0].missing);
+        // Show in folder opens the folder it is in (US7, #333).
+        assert!(bills[0].folder_url.starts_with("file:///"));
+        assert!(
+            bills[0]
+                .url
+                .starts_with(&format!("{}/", bills[0].folder_url))
+        );
+        assert_eq!(bills[2].folder_url, "", "a web address has no folder");
+        assert_eq!(bills[3].folder_url, "");
         assert_eq!(bills[1].name, "moved.png");
         assert!(bills[1].missing);
         assert_eq!(bills[2].url, "https://example.org/bill");

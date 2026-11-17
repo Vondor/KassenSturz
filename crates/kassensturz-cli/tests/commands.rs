@@ -475,6 +475,7 @@ fn mistakes_in_a_transaction_are_refused_without_changing_the_book() {
 
     assert_eq!(session.ok(&["register", "Savings"]).lines().count(), 2);
     let balances = session.ok(&["balances"]);
+    println!("{balances}");
     let total = balances.lines().last().expect("a total line");
     assert_eq!(
         total.split_whitespace().collect::<Vec<_>>(),
@@ -1745,7 +1746,8 @@ fn help_is_shown_without_a_book() {
 #[test]
 fn text_from_the_book_cannot_move_the_terminal() {
     let session = household();
-    session.ok(&[
+    // Typed in, the book refuses it (B-272).
+    let refused = session.cli(&[
         "transaction",
         "add",
         "--date",
@@ -1757,8 +1759,30 @@ fn text_from_the_book_cannot_move_the_terminal() {
         "--payee",
         "Sneaky \u{1b}[2J shop",
     ]);
+    assert!(
+        refused.err.starts_with("error: store.hidden-text\n"),
+        "{}",
+        refused.err
+    );
+    // A bank's statement keeps it as delivered in the original; the payee
+    // shown from it has the control character as a space (B-365, D-375).
+    let path = session.0.join("sneaky.sta");
+    std::fs::write(
+        &path,
+        ":20:STARTUMS\n:25:DE89370400440532013000\n:60F:C261001EUR0,00\n\
+         :61:2610021002C1,00NMSCNONREF//S1\n\
+         :86:166?00Gutschrift?20SVWZ+Test?32Sneaky \u{1b}[2J shop\n\
+         :62F:C261002EUR1,00\n-\n",
+    )
+    .expect("file written");
+    session.ok(&[
+        "import",
+        &path.display().to_string(),
+        "--account",
+        "Savings",
+    ]);
     let register = session.ok(&["register", "Savings"]);
-    assert!(register.contains("Sneaky ?[2J shop"));
+    assert!(register.contains("Sneaky  [2J shop"), "{register}");
     assert!(!register.contains('\u{1b}'));
 }
 
@@ -1961,6 +1985,59 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
          2026-10-06,Savings,,,Checking account,,300.00,EUR,,,,\r\n"
     );
 
+    // A range of days, both ends included (#901): the Transfer's two sides
+    // are both in it, an open end reaches to the end of the book, and the
+    // rows stay as they are.
+    let ranged = session.0.join("ranged.csv");
+    let ranged_text = ranged.display().to_string();
+    let said = session.ok(&[
+        "export",
+        &ranged_text,
+        "--from",
+        "2026-10-06",
+        "--until",
+        "2026-10-07",
+        "--no-header",
+    ]);
+    assert_eq!(
+        said,
+        format!("Exported 3 transactions of 2 accounts to {ranged_text} as csv.\n")
+    );
+    assert_eq!(
+        std::fs::read_to_string(&ranged).expect("file written"),
+        "2026-10-06,Checking account,,,Savings,,-300.00,EUR,,,,\r\n\
+         2026-10-07,Checking account,Market,,,,-40.00,EUR,2,,,\r\n\
+         2026-10-06,Savings,,,Checking account,,300.00,EUR,,,,\r\n"
+    );
+    let open_end = session.0.join("open-end.csv");
+    let said = session.ok(&[
+        "export",
+        &open_end.display().to_string(),
+        "--from",
+        "2026-10-08",
+        "--no-header",
+    ]);
+    assert!(
+        said.starts_with("Exported 1 transaction of 2 accounts"),
+        "{said}"
+    );
+    // An empty range is a file with nothing but the header.
+    let empty = session.0.join("empty.csv");
+    let said = session.ok(&[
+        "export",
+        &empty.display().to_string(),
+        "--from",
+        "2027-01-01",
+    ]);
+    assert!(
+        said.starts_with("Exported 0 transactions of 2 accounts"),
+        "{said}"
+    );
+    assert_eq!(
+        std::fs::read_to_string(&empty).expect("file written"),
+        "date,account,payee,category,transfer,memo,amount,currency,parts,original_amount,original_currency,note\r\n"
+    );
+
     // One account, with Excel-friendly settings.
     let one = session.0.join("savings.csv");
     let one_text = one.display().to_string();
@@ -1995,6 +2072,10 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
         (vec!["--format", "xml"], "`xml` isn't a format to export"),
         (vec!["--separator", "pipe"], "`pipe` isn't a separator"),
         (vec!["--decimal-mark", "dot"], "`dot` isn't a decimal mark"),
+        (
+            vec!["--from", "2026-10-09", "--until", "2026-10-01"],
+            "--until is before --from",
+        ),
     ] {
         let target = session.0.join("never.csv").display().to_string();
         let mut line = vec!["export", target.as_str()];
@@ -2005,6 +2086,11 @@ fn transactions_are_exported_as_csv_into_a_new_file() {
         assert!(!session.0.join("never.csv").exists());
     }
     let target = session.0.join("never.csv").display().to_string();
+    for (option, text) in [("--from", "05.10.2026"), ("--until", "soon")] {
+        let refused = session.cli(&["export", &target, option, text]);
+        assert_eq!(refused.status, 1, "{option}");
+        assert!(refused.err.contains("isn't a date"), "{}", refused.err);
+    }
     let clash = session.cli(&["export", &target, "--decimal-mark", "comma"]);
     assert_eq!(clash.status, 1);
     assert_eq!(clash.err, "error: export.bad-settings\n");
@@ -2117,6 +2203,8 @@ fn the_whole_book_is_exported_and_read_back_into_a_new_book() {
     let target = session.0.join("never.json").display().to_string();
     for option in [
         &["--account", "Savings"][..],
+        &["--from", "2026-10-01"],
+        &["--until", "2026-10-31"],
         &["--separator", "tab"],
         &["--no-header"],
     ] {
@@ -2164,7 +2252,7 @@ fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
     .expect("written");
     std::fs::write(
         new.0.join("busy.json"),
-        written.replace("\"version\": 13", "\"version\": 14"),
+        written.replace("\"version\": 15", "\"version\": 16"),
     )
     .expect("written");
     for (from, code) in [
@@ -2615,4 +2703,879 @@ fn a_kmymoney_file_is_read_as_one_when_asked() {
             .ok(&["create", "--from", &sample, "--format", "kmy"])
             .starts_with("Created the book from ")
     );
+}
+
+/// Today in UTC, as the command line reads it.
+fn today() -> String {
+    Timestamp::now().to_string()[..10].to_owned()
+}
+
+/// A day three days ahead: a payment planned for a Saturday or a Sunday is
+/// due on the Monday after, so a window that ends today would miss it.
+fn in_three_days() -> String {
+    let later = Timestamp::now()
+        .checked_add(std::time::Duration::from_secs(3 * 24 * 60 * 60))
+        .expect("a day in range");
+    later.to_string()[..10].to_owned()
+}
+
+/// The ID `schedule list` shows for the plan called `name`.
+fn plan_id(session: &Session, name: &str) -> String {
+    let list = session.ok(&["schedule", "list"]);
+    list.lines()
+        .find(|line| line.starts_with(name))
+        .and_then(|line| line.split_whitespace().last())
+        .unwrap_or_else(|| panic!("{name} isn't planned: {list}"))
+        .to_owned()
+}
+
+/// The state `schedule due` shows for the plan's payment due on `day`.
+fn state_on(session: &Session, day: &str, plan: &str) -> String {
+    let due = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        "2040-01-01",
+        "--to",
+        "2041-12-31",
+    ]);
+    due.lines()
+        .find(|line| line.contains(day) && line.ends_with(plan))
+        .and_then(|line| line.split_whitespace().nth(5))
+        .unwrap_or_else(|| panic!("no payment due {day}: {due}"))
+        .to_owned()
+}
+
+/// `schedule due` answers only for days it looked at (B-271, #967): a
+/// range that ends before it starts or is longer than five years is
+/// refused with the longest range it would answer, never "none".
+#[test]
+fn schedule_due_refuses_a_range_it_would_not_look_at_whole() {
+    let session = household();
+    session.ok(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-31",
+        "Month end",
+        "--from",
+        "2026-01-31",
+        "--category",
+        "Home/Other",
+    ]);
+    for (from, to, says) in [
+        (
+            "0001-01-01",
+            "9999-12-31",
+            "from 0001-01-01 up to 0006-01-01",
+        ),
+        (
+            "2026-01-01",
+            "2035-01-01",
+            "from 2026-01-01 up to 2031-01-01",
+        ),
+        ("2026-03-01", "2026-01-01", "before it starts on 2026-03-01"),
+    ] {
+        let refused = session.cli(&["schedule", "due", "--from", from, "--to", to]);
+        assert_eq!(refused.status, 1, "{from} to {to}");
+        assert!(
+            refused.err.contains(says),
+            "{from} to {to}: {}",
+            refused.err
+        );
+        assert_eq!(refused.out, "", "{from} to {to}");
+    }
+    // A start long ago without an end runs up to 31 days from today.
+    let refused = session.cli(&["schedule", "due", "--from", "0001-01-01"]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(refused.err.contains("up to 0006-01-01"), "{}", refused.err);
+    // Exactly five years is answered whole: 60 month ends, the last on
+    // Tue 31 Dec 2030; 31 Jan 2026 is a Saturday, so it is due Mon 2 Feb.
+    let due = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        "2026-01-01",
+        "--to",
+        "2031-01-01",
+    ]);
+    assert_eq!(due.matches("Month end").count(), 60, "{due}");
+    assert!(due.contains("2026-02-02"), "{due}");
+    assert!(due.contains("2030-12-31"), "{due}");
+    // An empty range is still answered for what it covers.
+    let none = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        "2026-01-01",
+        "--to",
+        "2026-01-30",
+    ]);
+    assert_eq!(
+        none,
+        "No payments are planned from 2026-01-01 to 2026-01-30.\n"
+    );
+}
+
+#[test]
+fn planned_payments_are_matched_skipped_booked_and_undone() {
+    let session = household();
+    let today = today();
+    session.ok(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-750",
+        "Rent",
+        "--from",
+        &today,
+        "--category",
+        "Home/Other",
+        "--tolerance",
+        "0.50",
+    ]);
+    session.ok(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-12.99",
+        "Gym",
+        "--from",
+        "2040-01-15",
+        "--until",
+        "2040-12-31",
+    ]);
+    let rent = plan_id(&session, "Rent");
+    let gym = plan_id(&session, "Gym");
+    let list = session.ok(&["schedule", "list"]);
+    assert!(list.contains("-750.00 EUR ± 0.50"), "{list}");
+    assert!(
+        list.contains("every month from 2040-01-15 until 2040-12-31"),
+        "{list}"
+    );
+
+    // An entry 30 cents off the plan, booked today, is its payment, and
+    // gets the plan's category, as it has none.
+    let file = statement_file(
+        &session,
+        "rent.kstest",
+        &[
+            "account;DE89370400440532013000;;EUR",
+            &format!("entry;booked;{today};;-750.30;R1;Example Landlord;;Rent"),
+        ],
+    );
+    let import = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        import.contains("Matched 1 entry to planned payments:"),
+        "{import}"
+    );
+    assert!(import.contains("the plan's"), "{import}");
+    let register = session.ok(&["register", "Home/Other"]);
+    assert!(register.contains("750.30"), "{register}");
+    let paid = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        &today,
+        "--to",
+        &in_three_days(),
+    ]);
+    assert!(paid.contains("paid"), "{paid}");
+
+    // One Undo takes the match back and keeps the entry; Redo matches it
+    // again.
+    session.ok(&["undo"]);
+    let register = session.ok(&["register", "Checking account"]);
+    assert!(register.contains("-750.30"), "{register}");
+    assert!(!session.ok(&["register", "Home/Other"]).contains("750.30"));
+    let open = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        &today,
+        "--to",
+        &in_three_days(),
+    ]);
+    assert!(!open.contains("paid"), "{open}");
+    session.ok(&["redo"]);
+    assert!(session.ok(&["register", "Home/Other"]).contains("750.30"));
+
+    // A payment that won't come is skipped, and expected again.
+    session.ok(&["schedule", "skip", &gym, "2040-03-15"]);
+    assert_eq!(state_on(&session, "2040-03-15", &gym), "skipped");
+    let twice = session.cli(&["schedule", "skip", &gym, "2040-03-15"]);
+    assert_eq!(twice.status, 1);
+    assert!(
+        twice
+            .err
+            .starts_with("error: store.schedule-occurrence-decided"),
+        "{}",
+        twice.err
+    );
+    session.ok(&["schedule", "unskip", &gym, "2040-03-15"]);
+    assert_eq!(state_on(&session, "2040-03-15", &gym), "upcoming");
+    // 2040-09-15 is a Saturday: its payment is due on Monday, and either
+    // date names it.
+    let due = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        "2040-09-01",
+        "--to",
+        "2040-09-30",
+    ]);
+    assert!(due.contains("2040-09-17  2040-09-15  Gym"), "{due}");
+    session.ok(&["schedule", "skip", &gym, "2040-09-17"]);
+    assert_eq!(state_on(&session, "2040-09-15", &gym), "skipped");
+    // Not a payment of the plan.
+    let wrong = session.cli(&["schedule", "skip", &gym, "2040-03-16"]);
+    assert_eq!(wrong.status, 1);
+    assert!(
+        wrong
+            .err
+            .starts_with("error: store.schedule-occurrence-unknown"),
+        "{}",
+        wrong.err
+    );
+
+    // Booking a payment by hand makes the entry, which Undo takes away.
+    let booked = session.ok(&[
+        "schedule",
+        "book",
+        &gym,
+        "2040-01-15",
+        "--date",
+        "2040-01-16",
+        "--amount",
+        "-13.49",
+    ]);
+    assert!(
+        booked.starts_with("Booked -13.49 EUR on 2040-01-16"),
+        "{booked}"
+    );
+    assert_eq!(state_on(&session, "2040-01-15", &gym), "paid");
+    assert!(
+        session
+            .ok(&["register", "Checking account"])
+            .contains("-13.49")
+    );
+    session.ok(&["undo"]);
+    assert!(
+        !session
+            .ok(&["register", "Checking account"])
+            .contains("-13.49")
+    );
+    assert_eq!(state_on(&session, "2040-01-15", &gym), "upcoming");
+
+    // Matching by hand: the transaction must be in the plan's account.
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2040-02-14",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-12.99",
+        "--payee",
+        "Example Gym",
+    ]);
+    let transaction = last_added(&session.ok(&["register", "Checking account"]));
+    session.ok(&["schedule", "match", &gym, "2040-02-15", &transaction]);
+    assert_eq!(state_on(&session, "2040-02-15", &gym), "paid");
+    let taken = session.cli(&["schedule", "match", &gym, "2040-04-15", &transaction]);
+    assert_eq!(taken.status, 1);
+    assert!(
+        taken.err.starts_with("error: store.schedule-entry-taken"),
+        "{}",
+        taken.err
+    );
+
+    // Paused, a plan has no next payment; removing it keeps its entries.
+    session.ok(&["schedule", "pause", &rent]);
+    assert!(session.ok(&["schedule", "list"]).contains("paused"));
+    session.ok(&["schedule", "resume", &rent]);
+    session.ok(&[
+        "schedule",
+        "edit",
+        &gym,
+        "--name",
+        "Sports club",
+        "--no-end",
+    ]);
+    let list = session.ok(&["schedule", "list"]);
+    assert!(list.contains("Sports club"), "{list}");
+    assert!(list.contains("every month from 2040-01-15  "), "{list}");
+    session.ok(&["schedule", "remove", &rent]);
+    assert!(session.ok(&["register", "Home/Other"]).contains("750.30"));
+    assert!(!session.ok(&["schedule", "list"]).contains("Rent"));
+    session.ok(&["undo"]);
+    assert!(session.ok(&["schedule", "list"]).contains("Rent"));
+
+    let forecast = session.ok(&["forecast", "--months", "2"]);
+    assert!(
+        forecast.starts_with(&format!("Looking ahead for Checking account on {today}.")),
+        "{forecast}"
+    );
+    assert!(forecast.contains("Left after that"), "{forecast}");
+    assert_eq!(
+        forecast
+            .lines()
+            .filter(|line| line.starts_with("20"))
+            .count(),
+        2,
+        "{forecast}"
+    );
+}
+
+#[test]
+fn mistakes_in_a_plan_are_refused_without_changing_the_book() {
+    let session = household();
+    for (line, status, code) in [
+        (
+            &[
+                "schedule",
+                "add",
+                "Checking account",
+                "0",
+                "Nothing",
+                "--from",
+                "2040-01-01",
+            ][..],
+            1,
+            "store.schedule-invalid",
+        ),
+        (
+            &[
+                "schedule",
+                "add",
+                "Checking account",
+                "-5",
+                "Often",
+                "--from",
+                "2040-01-01",
+                "--every",
+                "53",
+            ],
+            1,
+            "store.schedule-invalid",
+        ),
+        (
+            &[
+                "schedule",
+                "add",
+                "Checking account",
+                "-5",
+                "Backwards",
+                "--from",
+                "2040-01-01",
+                "--until",
+                "2039-12-31",
+            ],
+            1,
+            "store.schedule-invalid",
+        ),
+        (
+            &[
+                "schedule",
+                "add",
+                "Checking account",
+                "-5",
+                "Odd",
+                "--from",
+                "2040-01-01",
+                "--unit",
+                "fortnight",
+            ],
+            2,
+            "",
+        ),
+        (
+            &["schedule", "add", "Checking account", "-5", "No start"],
+            2,
+            "",
+        ),
+        (&["schedule"], 2, ""),
+        (&["schedule", "plan"], 2, ""),
+        (&["schedule", "skip", "123456"], 2, ""),
+        (&["forecast", "--months", "13"], 2, ""),
+    ] {
+        let outcome = session.cli(line);
+        assert_eq!(outcome.status, status, "{line:?}: {}", outcome.err);
+        assert!(
+            outcome.err.starts_with(&format!("error: {code}")),
+            "{line:?}: {}",
+            outcome.err
+        );
+    }
+    assert_eq!(
+        session.ok(&["schedule", "list"]),
+        "No payments are planned.\n"
+    );
+    let unknown = session.cli(&["schedule", "pause", "123456"]);
+    assert_eq!(unknown.status, 1);
+    assert!(unknown.err.contains("isn't a plan's ID"), "{}", unknown.err);
+}
+
+/// B-272 (#968): a name with a character that shows as nothing, a line
+/// break or 5,000 characters is refused, so no look-alike "Checking
+/// account" can stand next to the real one.
+#[test]
+fn a_look_alike_or_unprintable_account_name_is_refused() {
+    let session = household();
+    let long = "x".repeat(5000);
+    for (name, reason) in [
+        ("Checking account\u{200B}", "invisible"),
+        ("\u{202E}tnuocca gnikcehC", "invisible"),
+        ("Line\nBreak", "line-break"),
+        (long.as_str(), "too-long"),
+    ] {
+        let refused = session.cli(&[
+            "account",
+            "add",
+            name,
+            "--type",
+            "checking",
+            "--currency",
+            "EUR",
+        ]);
+        assert_eq!(refused.status, 1, "{name:?}: {}", refused.err);
+        assert!(
+            refused
+                .err
+                .starts_with("error: store.account-name\n  reason: "),
+            "{name:?}: {}",
+            refused.err
+        );
+        assert!(refused.err.contains(reason), "{name:?}: {}", refused.err);
+    }
+    // A name that only differs in spaces inside is the same name.
+    let twin = session.cli(&[
+        "account",
+        "add",
+        "Checking  account",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    assert_eq!(twin.status, 1, "{}", twin.err);
+    assert!(
+        twin.err.starts_with("error: store.duplicate-account-name"),
+        "{}",
+        twin.err
+    );
+    let accounts = session.ok(&["account", "list"]);
+    assert_eq!(accounts.matches("Checking").count(), 1, "{accounts}");
+}
+
+/// B-279 and B-277 through a real CAMT.053 file: an entry with a known
+/// AcctSvcrRef but another amount is never dropped without a word, and one
+/// booked payment stands for one entry only.
+#[test]
+fn a_camt_entry_with_a_known_reference_but_another_amount_is_not_dropped() {
+    let session = household();
+    let entry = |day: u8, amount: &str, reference: &str| {
+        let reference = if reference.is_empty() {
+            String::new()
+        } else {
+            format!("<AcctSvcrRef>{reference}</AcctSvcrRef>")
+        };
+        format!(
+            "<Ntry><Amt Ccy=\"EUR\">{amount}</Amt><CdtDbtInd>DBIT</CdtDbtInd>\
+             <Sts>BOOK</Sts><BookgDt><Dt>2026-10-{day:02}</Dt></BookgDt>{reference}\
+             <NtryDtls><TxDtls><RltdPties><Cdtr><Nm>Kiosk</Nm></Cdtr></RltdPties>\
+             </TxDtls></NtryDtls></Ntry>"
+        )
+    };
+    let import = |name: &str, entries: &[String]| {
+        let file = camt053_file(&session, name, &entries.concat());
+        session.ok(&["import", &file, "--account", "Checking account"])
+    };
+    let balance = || {
+        session
+            .ok(&["balances"])
+            .lines()
+            .find(|line| line.starts_with("Checking account"))
+            .expect("listed")
+            .to_owned()
+    };
+
+    // One reference, two amounts in one file: both come in.
+    let imported = import(
+        "one.xml",
+        &[entry(5, "10.00", "R1"), entry(5, "12.00", "R1")],
+    );
+    assert!(
+        imported.starts_with("Imported 2 of 2 entries"),
+        "{imported}"
+    );
+    assert!(balance().ends_with("-22.00 EUR"), "{}", balance());
+
+    // The bank sends R1 again, corrected: the user is asked, nothing is
+    // skipped as a duplicate.
+    let again = import("two.xml", &[entry(5, "11.00", "R1")]);
+    assert!(again.starts_with("Imported 0 of 1 entry"), "{again}");
+    assert!(again.contains("may be in the book already"), "{again}");
+    assert!(balance().ends_with("-22.00 EUR"), "{}", balance());
+
+    // #977: one -4.50 booked on Thursday, two the next day without a
+    // reference: one is new.
+    import("three.xml", &[entry(1, "4.50", "")]);
+    let kiosk = import("four.xml", &[entry(2, "4.50", ""), entry(2, "4.50", "")]);
+    assert!(kiosk.starts_with("Imported 1 of 2 entries"), "{kiosk}");
+    assert!(balance().ends_with("-31.00 EUR"), "{}", balance());
+}
+
+/// B-269 (#965): amounts that each fit but together would make a balance
+/// the book can't add up are refused one by one, the book stays usable, and
+/// a plan too large to forecast is refused too.
+#[test]
+fn amounts_that_would_add_up_too_far_are_refused_and_the_book_stays_usable() {
+    let session = household();
+    let add = [
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "7000000000000000.00",
+        "--category",
+        "Salary",
+    ];
+    session.ok(&add);
+    let refused = session.cli(&add);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert_eq!(refused.err, "error: store.amount-overflow\n");
+    let balances = session.ok(&["balances"]);
+    assert!(
+        balances.contains("Checking account  7000000000000000.00 EUR"),
+        "{balances}"
+    );
+    let history = session.ok(&["history", "list"]);
+    assert_eq!(
+        history.matches("added a transaction").count(),
+        1,
+        "only the first one is in the book: {history}"
+    );
+    session.ok(&["forecast"]);
+
+    let plan = session.cli(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "-1000000000000.00",
+        "Too much",
+        "--from",
+        "2026-11-01",
+    ]);
+    assert_eq!(plan.status, 1, "{}", plan.err);
+    assert_eq!(plan.err, "error: store.amount-overflow\n");
+    session.ok(&["forecast"]);
+
+    // A bank statement whose two entries fit on their own but not together
+    // is refused as a whole.
+    let session = household();
+    let statement = session.0.join("too-much.sta");
+    std::fs::write(
+        &statement,
+        ":20:X\n:25:DE89370400440532013000\n:60F:C261001EUR0,00\n\
+         :61:261002C6000000000000000,00NMSCNONREF\n\
+         :61:261003C6000000000000000,00NMSCNONREF\n\
+         :62F:C261003EUR12000000000000000,00\n-\n",
+    )
+    .expect("file written");
+    let statement = statement.display().to_string();
+    let imported = session.cli(&["import", &statement, "--account", "Checking account"]);
+    assert_eq!(imported.status, 1, "{}", imported.err);
+    assert_eq!(imported.err, "error: store.amount-overflow\n");
+    assert!(
+        session
+            .ok(&["balances"])
+            .contains("Checking account  0.00 EUR"),
+        "nothing of it stays"
+    );
+}
+
+/// B-270 (#966): a Transfer from an account to itself, or parts that all
+/// name one account, move nothing and are refused.
+#[test]
+fn a_transfer_from_an_account_to_itself_is_refused() {
+    let session = household();
+    for line in [
+        &[
+            "transaction",
+            "add",
+            "--date",
+            "2026-10-05",
+            "--account",
+            "Checking account",
+            "--amount",
+            "-10.00",
+            "--to",
+            "Checking account",
+        ][..],
+        &[
+            "transaction",
+            "add",
+            "--date",
+            "2026-10-05",
+            "--account",
+            "Checking account",
+            "--amount",
+            "-10.00",
+            "--part",
+            "Checking account=-10",
+        ],
+    ] {
+        let refused = session.cli(line);
+        assert_eq!(refused.status, 1, "{line:?}: {}", refused.err);
+        assert!(
+            refused.err.starts_with("error: store.nothing-moves\n"),
+            "{line:?}: {}",
+            refused.err
+        );
+    }
+    assert_eq!(
+        session
+            .ok(&["register", "Checking account"])
+            .lines()
+            .count(),
+        session.ok(&["register", "Savings"]).lines().count(),
+        "nothing came in"
+    );
+    session.ok(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-10.00",
+        "--to",
+        "Savings",
+    ]);
+}
+
+/// B-270, round 8: a hand entry of 0.00 moves nothing and is refused, while
+/// a bank's entry of 0.00 in a real CAMT.053 file still comes in as the
+/// bank delivered it.
+#[test]
+fn a_hand_entry_of_zero_is_refused_but_a_banks_is_kept() {
+    let session = household();
+    let refused = session.cli(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "0.00",
+        "--category",
+        "Salary",
+    ]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(
+        refused.err.starts_with("error: store.zero-amount\n"),
+        "{}",
+        refused.err
+    );
+    let before = session
+        .ok(&["register", "Checking account"])
+        .lines()
+        .count();
+
+    let file = camt053_file(
+        &session,
+        "closing.xml",
+        "<Ntry><Amt Ccy=\"EUR\">0.00</Amt><CdtDbtInd>DBIT</CdtDbtInd>\
+         <Sts>BOOK</Sts><BookgDt><Dt>2026-10-31</Dt></BookgDt>\
+         <AcctSvcrRef>CLOSING-10</AcctSvcrRef>\
+         <NtryDtls><TxDtls><RmtInf><Ustrd>Statement period closed</Ustrd></RmtInf>\
+         </TxDtls></NtryDtls></Ntry>",
+    );
+    let imported = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(
+        imported.starts_with("Imported 1 of 1 entry into"),
+        "{imported}"
+    );
+    assert_eq!(
+        session
+            .ok(&["register", "Checking account"])
+            .lines()
+            .count(),
+        before + 1,
+        "the bank's entry is in the register"
+    );
+}
+
+/// B-272, round 8: a Rule's name and a payee typed in can't hold a
+/// character that can't be seen or turns the text around, so neither can
+/// look like another, in the CLI as in the AI's path.
+#[test]
+fn a_look_alike_rule_name_or_payee_is_refused() {
+    let session = household();
+    let refused = session.cli(&["rule", "add", "Shop\u{200B}", "--if", "payee is Shop"]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(
+        refused.err.starts_with("error: store.hidden-text\n"),
+        "{}",
+        refused.err
+    );
+    assert!(refused.err.contains("rule-name"), "{}", refused.err);
+
+    let refused = session.cli(&[
+        "transaction",
+        "add",
+        "--date",
+        "2026-10-05",
+        "--account",
+        "Checking account",
+        "--amount",
+        "-12.00",
+        "--category",
+        "Food/Groceries",
+        "--payee",
+        "Shop\u{202E}live",
+    ]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(
+        refused.err.starts_with("error: store.hidden-text\n"),
+        "{}",
+        refused.err
+    );
+    assert!(refused.err.contains("payee"), "{}", refused.err);
+    assert!(
+        !session
+            .ok(&["register", "Checking account"])
+            .contains("Shop"),
+        "nothing came in"
+    );
+}
+
+/// B-272 and B-283, round 8: a KMyMoney account renamed because another
+/// had its name, or because its name was cleaned, is reported with the
+/// right reason.
+#[test]
+fn a_kmymoney_account_renamed_says_why() {
+    let session = Session::new();
+    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../kassensturz-import/tests/golden/kmy/payee-rules.kmy");
+    let xml = std::fs::read_to_string(source).expect("read");
+    let card = "type=\"4\" name=\"Card\"";
+    let brokerage = "type=\"7\" name=\"Brokerage\"";
+    assert_eq!(xml.matches(card).count(), 1);
+    assert_eq!(xml.matches(brokerage).count(), 1);
+    let xml = xml
+        .replace(card, "type=\"4\" name=\"Checking\"")
+        .replace(brokerage, "type=\"7\" name=\"Broker&#x200B;age\"");
+    let file = session.0.join("renamed.kmy");
+    std::fs::write(&file, xml).expect("written");
+    let created = session.ok(&["create", "--from", &file.display().to_string()]);
+    assert!(
+        created.contains(
+            "Renamed Checking to Checking (2): another account or category had that name.\n"
+        ),
+        "{created}"
+    );
+    assert!(
+        created.contains("to Brokerage: it had a line break, a character that can't be seen"),
+        "{created}"
+    );
+    assert!(!created.contains("whose name was taken"), "{created}");
+}
+
+/// D-782 (round 8): an accent typed as its own character makes no second
+/// account of the same name.
+#[test]
+fn an_account_name_with_a_combining_accent_is_the_same_name() {
+    let session = household();
+    session.ok(&[
+        "account",
+        "add",
+        "Gir\u{F3}",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    let refused = session.cli(&[
+        "account",
+        "add",
+        "Giro\u{301}",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    assert_eq!(refused.status, 1, "{}", refused.err);
+    assert!(
+        refused
+            .err
+            .starts_with("error: store.duplicate-account-name\n"),
+        "{}",
+        refused.err
+    );
+    let accounts = session.ok(&["account", "list"]);
+    assert_eq!(accounts.matches("Gir\u{F3}").count(), 1, "{accounts}");
+}
+
+/// D-782, the rogue run's recheck: a name typed with an accent on its own,
+/// as macOS often sends it, or in capitals, finds the account, category or
+/// Rule, and a Rule's name that only looks different is taken.
+#[test]
+fn a_name_typed_with_a_combining_accent_finds_what_it_names() {
+    let session = household();
+    session.ok(&[
+        "account",
+        "add",
+        "Gir\u{F3}",
+        "--type",
+        "checking",
+        "--currency",
+        "EUR",
+    ]);
+    session.ok(&["category", "add", "Caf\u{E9}", "--inside", "Food"]);
+    for typed in ["Giro\u{301}", "GIRO\u{301}", " Gir\u{F3} "] {
+        let register = session.cli(&["register", typed]);
+        assert_eq!(register.status, 0, "{typed:?}: {}", register.err);
+    }
+    let register = session.cli(&["register", "Food/Cafe\u{301}"]);
+    assert_eq!(register.status, 0, "{}", register.err);
+    session.ok(&[
+        "rule",
+        "add",
+        "R\u{E9}gel",
+        "--if",
+        "payee contains shop",
+        "--category",
+        "Food/Cafe\u{301}",
+    ]);
+    let again = session.cli(&[
+        "rule",
+        "add",
+        "Re\u{301}gel",
+        "--if",
+        "payee contains shop",
+        "--category",
+        "Food/Groceries",
+    ]);
+    assert_eq!(again.status, 1, "{}", again.err);
+    assert!(
+        again.err.starts_with("error: store.duplicate-rule-name\n"),
+        "{}",
+        again.err
+    );
+    assert_eq!(
+        session.ok(&["rule", "remove", "RE\u{301}GEL"]),
+        "Removed the Rule R\u{E9}gel and its sub-Rules.\n"
+    );
+    // A name that isn't there still says so.
+    let missing = session.cli(&["register", "Giro\u{300}"]);
+    assert_eq!(missing.status, 1);
+    assert!(missing.err.contains("there is no"), "{}", missing.err);
 }

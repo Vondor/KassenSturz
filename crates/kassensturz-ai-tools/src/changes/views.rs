@@ -161,7 +161,9 @@ pub(super) fn automatic(dataset: &str, grouping: Option<&str>) -> Option<Compone
         kassensturz_report::dataset(dataset).and_then(|info| info.groupings.first().copied())
     });
     let by_category = grouping.is_some_and(|grouping| grouping.ends_with("category"));
-    let order: &[ComponentType] = if by_category {
+    let order: &[ComponentType] = if dataset == kassensturz_report::MONEY_FLOW {
+        &[ComponentType::ChartFlow]
+    } else if by_category {
         &[ComponentType::ChartPie, ComponentType::ChartBar]
     } else if kassensturz_report::dataset(dataset)
         .is_some_and(|info| info.suits.contains(&ComponentType::BudgetProgress.suit()))
@@ -210,9 +212,9 @@ fn choose(
 ) -> Result<(), ToolError> {
     match word {
         None => Ok(()),
-        Some(word) => component
-            .set(key, Setting::Word(word.to_owned()))
-            .map_err(|_| ToolError::BadArgument { argument }),
+        Some(word) => word_setting(key, word)
+            .and_then(|setting| component.set(key, setting).ok())
+            .ok_or(ToolError::BadArgument { argument }),
     }
 }
 
@@ -290,14 +292,39 @@ fn choose_columns(component: &mut Component, value: Option<&Value>) -> Result<()
 /// The settings of a chart the AI prepares besides its kind and dataset,
 /// in the order they are set: words, then lists of ids, then formulas
 /// (D-352, D-650).
-const WORDS: [&str; 6] = [
+const WORDS: [&str; 13] = [
     "grouping",
     "measure",
     "compare",
     "average",
     "orientation",
     "neutral",
+    // The lengths of a trend and of a daily balance's averages (D-794).
+    "trend_length",
+    "trend_slow",
+    "trend_signal",
+    "ema_fast",
+    "ema_slow",
+    "ema_signal",
+    // The money-flow chart shows the chosen accounts as a column (B-312);
+    // a flag in the schema, the words on and off for the AI.
+    SHOW_ACCOUNTS,
 ];
+/// The setting that is a flag in the schema and the words `on` and `off`
+/// for the AI.
+pub(super) const SHOW_ACCOUNTS: &str = "show_accounts";
+/// What a word of `key` sets: a flag for [`SHOW_ACCOUNTS`] (`on` or `off`,
+/// nothing else), a word for every other.
+fn word_setting(key: &str, word: &str) -> Option<Setting> {
+    if key != SHOW_ACCOUNTS {
+        return Some(Setting::Word(word.to_owned()));
+    }
+    match word {
+        "on" => Some(Setting::Flag(true)),
+        "off" => Some(Setting::Flag(false)),
+        _ => None,
+    }
+}
 const ID_LISTS: [&str; 6] = [
     "categories",
     "accounts",
@@ -336,6 +363,13 @@ pub(super) fn new_view(
             "average",
             "orientation",
             "neutral",
+            "trend_length",
+            "trend_slow",
+            "trend_signal",
+            "ema_fast",
+            "ema_slow",
+            "ema_signal",
+            "show_accounts",
             "period",
             "categories",
             "accounts",
@@ -482,10 +516,8 @@ pub(super) fn keep_fitting(item: &mut Map<String, Value>) {
                 .clone()
                 .set(key, Setting::Text(text.clone()))
                 .is_ok(),
-            Some(Value::String(word)) => component
-                .clone()
-                .set(key, Setting::Word(word.clone()))
-                .is_ok(),
+            Some(Value::String(word)) => word_setting(key, word)
+                .is_some_and(|setting| component.clone().set(key, setting).is_ok()),
             Some(Value::Array(ids)) => {
                 ids.is_empty() || choose_ids(&mut component.clone(), key, ids).is_ok()
             }
@@ -536,7 +568,7 @@ fn chart_of(view: &StoredView) -> Result<(Document, Component), ToolError> {
 
 /// The keys of an item of `edit_views`: those of `new_views` and the
 /// chart's ID.
-const EDIT_KEYS: [&str; 21] = [
+const EDIT_KEYS: [&str; 28] = [
     "view_id",
     "title",
     "dataset",
@@ -547,6 +579,13 @@ const EDIT_KEYS: [&str; 21] = [
     "average",
     "orientation",
     "neutral",
+    "trend_length",
+    "trend_slow",
+    "trend_signal",
+    "ema_fast",
+    "ema_slow",
+    "ema_signal",
+    "show_accounts",
     "period",
     "categories",
     "accounts",
@@ -671,7 +710,7 @@ pub(super) fn edit_view(
         let Some(word) = word else { continue };
         let setting = match (key, defaults.get(key)) {
             ("compare", Some(default)) if word == NO_COMPARISON => default.clone(),
-            _ => Setting::Word(word.to_owned()),
+            _ => word_setting(key, word).ok_or(ToolError::BadArgument { argument: key })?,
         };
         component
             .set(key, setting)

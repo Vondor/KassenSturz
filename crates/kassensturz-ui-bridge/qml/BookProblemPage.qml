@@ -61,8 +61,12 @@ Kirigami.Page {
             return i18nContext.i18nc("@title", "KassenSturz can't change files in this folder");
         case "book.write-failed":
             return i18nContext.i18nc("@title", "KassenSturz couldn't save your latest change");
+        case "book.replaced":
+            return i18nContext.i18nc("@title", "Another program replaced your book");
         case "book.outside-test":
             return i18nContext.i18nc("@title", "The test mode only opens books in its own folder");
+        case "store.lock-lost":
+            return i18nContext.i18nc("@title", "This book is open on another computer now");
         case "store.already-exists":
             return i18nContext.i18nc("@title", "There is a file with this name already");
         default:
@@ -76,7 +80,9 @@ Kirigami.Page {
             const since = problem.since
                 ? i18nContext.i18nc("@info %1 is a date and time", "It has been open since %1.", problem.since)
                 : "";
-            const what = problem.here
+            const what = problem.stillRunning
+                ? i18nContext.i18nc("@info", "KassenSturz still has this book open in another program on this computer, for example another window or another installation of KassenSturz. Close it there, then try again. If you can't find it, restart the computer, and the book opens.")
+                : problem.here
                 ? i18nContext.i18nc("@info", "KassenSturz may be open in another window, or it didn't close properly last time. If it isn't open anymore, you can open the book anyway.")
                 : i18nContext.i18nc("@info", "Close it there first, then try again. If KassenSturz isn't running there anymore, for example because that computer crashed, you can open the book here anyway.");
             return since ? since + " " + what : what;
@@ -90,7 +96,9 @@ Kirigami.Page {
         case "book.read-only":
             return i18nContext.i18nc("@info", "The folder was shared with KassenSturz for reading only, or the drive is read-only. Choose the folder again and allow changes, or choose a folder you can write to. The book wasn't changed.");
         case "book.write-failed":
-            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive was disconnected or the access ended. Your earlier work is safe in the book. Reconnect the drive or choose the folder again, then try again.");
+            return i18nContext.i18nc("@info", "The book's folder stopped accepting changes, for example because the drive is full or was disconnected, or the access ended. Your earlier work is safe in the book. Free up space, reconnect the drive or choose the folder again, then try again.");
+        case "book.replaced":
+            return i18nContext.i18nc("@info", "While KassenSturz had the book open, another program put a different file in its place, most likely a sync program such as Nextcloud or Syncthing. Your latest change was not saved, because it would have gone into the old file. Choose \"Try again\" to open the file that is in the folder now, and enter your latest change again if it is missing. If the sync program left a copy next to the book with \"conflicted copy\" in its name, that file holds the other version of the book: open it with \"Open another book…\" to compare the two.");
         case "book.outside-test":
             return i18nContext.i18nc("@info", "KassenSturz runs in test mode, which never opens or changes your own books. Choose a book in the test folder, or try an example book. The book wasn't touched.");
         case "book.no-app-folder":
@@ -99,12 +107,25 @@ Kirigami.Page {
             return i18nContext.i18nc("@info %1 is a file name", "KassenSturz never replaces a file with a new book, so %1 wasn't changed. Choose another name or another folder.", page.where);
         case "store.not-a-book":
             return i18nContext.i18nc("@info %1 is a file name", "%1 isn't a KassenSturz book. It wasn't changed. Choose another file.", page.where);
-        case "store.unsupported-layout":
-            return i18nContext.i18nc("@info", "This book was made by a newer KassenSturz. Update KassenSturz to open it. The book wasn't changed.");
+        case "store.unsupported-layout": {
+            const update = i18nContext.i18nc("@info", "This book was made by a newer KassenSturz. Update KassenSturz to open it. The book wasn't changed.");
+            if (!problem.backupName) {
+                return update;
+            }
+            // B-285: no dead end for someone who went back to an older version.
+            return update + " " + i18nContext.i18nc("@info %1 is a date and time, %2 a folder, %3 a file name", "To keep using this version instead, open the copy that the newer KassenSturz saved before it updated the book, on %1: it is in the backup folder (%2) as %3. Choose it with \"Open another book…\". Changes made since the update are not in that copy.", problem.backupWhen, session.backupFolder, problem.backupName);
+        }
         case "store.development-layout":
             return i18nContext.i18nc("@info", "This book was made by a test version of KassenSturz from before the Beta. Open it with that version, choose \"Save the whole book\" there, and start a new book from the saved file. The book wasn't changed.");
         case "store.backup-failed":
             return i18nContext.i18nc("@info", "Before it updates a book to work with this version, KassenSturz saves a copy, and that didn't work, so the book was left as it was. Free up space on the drive, then try again.");
+        case "store.lock-lost":
+            return i18nContext.i18nc("@info", "Another computer opened this book anyway, so KassenSturz closed it here. Your latest change here was not saved if it came after that. Close the book on the other computer, then choose \"Try again\" to open it here.");
+        case "store.locks-unsupported":
+            return i18nContext.i18nc("@info", "This folder can't lock files, so KassenSturz didn't open the book: two programs could change it at the same time and damage it. Copy the book to a folder on this computer and open it from there, or ask whoever set up the share to allow file locks. The book wasn't changed.");
+        case "store.unfinished-save":
+            // B-364: nothing is lost, so no backup is offered.
+            return i18nContext.i18nc("@info", "The last save to this book was cut short, for example because KassenSturz was closed by force, and KassenSturz couldn't finish putting the book back as it was before that save. Nothing is lost: what it needs is in a second file next to the book, whose name begins with the book's name. Don't delete or move that file on its own. Copy the book together with that file to a folder on this computer, then open the book there.");
         case "store.journal-mode-refused":
             return i18nContext.i18nc("@info", "The book's file couldn't be set up safely, so KassenSturz didn't open it. Copy the book to a folder on this computer and open it from there.");
         case "store.io":
@@ -118,6 +139,18 @@ Kirigami.Page {
             default:
                 return i18nContext.i18nc("@info", "The file couldn't be read or written. Check that the drive is connected, then try again.");
             }
+        case "store.corrupt.damaged-file":
+        case "store.corrupt.unbalanced-transaction": {
+            // B-291: nothing is shown from a book whose numbers can't be
+            // trusted, and nothing is saved over it.
+            const damaged = code === "store.corrupt.damaged-file"
+                ? i18nContext.i18nc("@info", "This book is damaged: its file has a part that can't be read. KassenSturz didn't open it, so no wrong figure is shown, and the book wasn't changed.")
+                : i18nContext.i18nc("@info", "This book is damaged: some entries no longer add up, for example because a number in the file was changed. KassenSturz didn't open it, so no wrong figure is shown, and the book wasn't changed.");
+            if (!problem.backupName) {
+                return damaged + " " + i18nContext.i18nc("@info", "Your backups are in KassenSturz's backup folder; open the newest one instead.");
+            }
+            return damaged + " " + i18nContext.i18nc("@info %1 is a date and time, %2 a folder, %3 a file name", "The newest backup was made on %1: it is in the backup folder (%2) as %3. Choose it with \"Open another book…\". Changes made since then are not in that copy.", problem.backupWhen, session.backupFolder, problem.backupName);
+        }
         case "store.corrupt.unexpected-layout":
             return i18nContext.i18nc("@info", "This book holds parts a KassenSturz book doesn't have, or lacks some of its own. Another program probably changed it. KassenSturz didn't open it, so nothing in it ran, and the book wasn't changed. Your backups are in KassenSturz's backup folder; open the newest one instead.");
         default:
@@ -200,7 +233,7 @@ Kirigami.Page {
             spacing: Kirigami.Units.smallSpacing
 
             Controls.Button {
-                visible: page.code === "store.locked"
+                visible: page.code === "store.locked" && !problem.stillRunning
                 icon.name: "unlock"
                 text: page.i18nContext.i18nc("@action:button", "Open anyway")
                 onClicked: {
@@ -209,7 +242,7 @@ Kirigami.Page {
                 }
             }
             Controls.Button {
-                visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database", "book.write-failed"].includes(page.code)
+                visible: ["store.locked", "book.missing", "store.io", "store.backup-failed", "store.database", "book.write-failed", "book.replaced", "store.lock-lost"].includes(page.code)
                 icon.name: "view-refresh"
                 text: page.i18nContext.i18nc("@action:button", "Try again")
                 onClicked: {

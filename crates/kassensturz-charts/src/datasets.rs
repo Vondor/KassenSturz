@@ -6,7 +6,8 @@
 use kassensturz_core::{CurrencyCode, Money};
 use kassensturz_report::{
     Average, CATEGORY_OVER_TIME, CategoryOverTime, INCOME_EXPENSE_BY_MONTH, IncomeExpenseByMonth,
-    Per, Percent, SPENDING_BY_CATEGORY, SpendingByCategory, TextFormat, TextTable,
+    MACD, MOVING_AVERAGE, Macd, MovingAverage, Per, Percent, SPENDING_BY_CATEGORY,
+    SpendingByCategory, TextFormat, TextTable, TrendSeries,
 };
 
 use crate::ticks::ticks;
@@ -180,6 +181,7 @@ pub fn spending_by_category_as(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: None,
     })
 }
@@ -233,6 +235,7 @@ fn one_split_bar(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: None,
     })
 }
@@ -432,8 +435,144 @@ pub fn income_expense_by_month(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: None,
     })
+}
+
+/// The key of the line that is a moving average of `months` months, which
+/// the screen turns into "Average of the last 3 months" (US7, D-777). Every
+/// length a trend can have has one; any other is the plain `trend_average`.
+fn average_key(months: u32) -> &'static str {
+    match months {
+        2 => "trend_average_2",
+        3 => "trend_average_3",
+        4 => "trend_average_4",
+        5 => "trend_average_5",
+        6 => "trend_average_6",
+        9 => "trend_average_9",
+        12 => "trend_average_12",
+        24 => "trend_average_24",
+        _ => "trend_average",
+    }
+}
+
+/// What a trend follows, as the series key of its own months: money in and
+/// money out have theirs, and what is left is `net`.
+const fn trend_series_key(series: TrendSeries) -> &'static str {
+    match series {
+        TrendSeries::Net => "net",
+        TrendSeries::Income => "income",
+        TrendSeries::Expenses => "expenses",
+    }
+}
+
+fn line_chart(
+    kind: ChartKind,
+    dataset: &'static str,
+    currency: CurrencyCode,
+    categories: Vec<String>,
+    series: Vec<Series>,
+    table: TextTable,
+    format: &impl TextFormat,
+) -> Result<ChartModel, ChartError> {
+    let (low, high) = extent(&series, false);
+    let ticks = ticks(low, high, major_unit(currency), currency, format)?;
+    Ok(ChartModel {
+        kind,
+        dataset,
+        currency: currency.to_string(),
+        categories,
+        unsorted: None,
+        series,
+        ticks,
+        // A total of averages means nothing, so there is none.
+        total: String::new(),
+        table,
+        slices: Slices::default(),
+        hidden: None,
+        overlays: Vec::new(),
+        extra_colors: Vec::new(),
+        slice_colors: Vec::new(),
+        daily: None,
+        compared: None,
+    })
+}
+
+/// A series (money in, money out or what is left) and its moving average
+/// month by month, as a line, bar or table (US7, #875, D-777): two series,
+/// one point per month. No total: a total of averages means nothing.
+pub fn moving_average(
+    data: &MovingAverage,
+    kind: ChartKind,
+    format: &impl TextFormat,
+) -> Result<ChartModel, ChartError> {
+    if kind.is_round() || kind == ChartKind::StackedBar {
+        return Err(ChartError::KindNotSupported(kind));
+    }
+    let table = data.to_text(format);
+    let categories = table.rows.iter().map(|row| row[0].clone()).collect();
+    let series = vec![
+        Series {
+            key: trend_series_key(data.series),
+            name: None,
+            color: 0,
+            points: data
+                .rows
+                .iter()
+                .map(|row| point(row.value, format))
+                .collect(),
+        },
+        Series {
+            key: average_key(data.length),
+            name: None,
+            color: 1,
+            points: data
+                .rows
+                .iter()
+                .map(|row| point(row.average, format))
+                .collect(),
+        },
+    ];
+    line_chart(
+        kind,
+        MOVING_AVERAGE,
+        data.currency,
+        categories,
+        series,
+        table,
+        format,
+    )
+}
+
+/// The MACD indicator of a series month by month (US7, #875, D-777): the
+/// trend line, its signal line and the gap between them.
+pub fn macd(
+    data: &Macd,
+    kind: ChartKind,
+    format: &impl TextFormat,
+) -> Result<ChartModel, ChartError> {
+    if kind.is_round() || kind == ChartKind::StackedBar {
+        return Err(ChartError::KindNotSupported(kind));
+    }
+    let table = data.to_text(format);
+    let categories = table.rows.iter().map(|row| row[0].clone()).collect();
+    let line = |key, color, pick: fn(&kassensturz_report::MacdRow) -> Money| Series {
+        key,
+        name: None,
+        color,
+        points: data
+            .rows
+            .iter()
+            .map(|row| point(pick(row), format))
+            .collect(),
+    };
+    let series = vec![
+        line("macd_line", 0, |row| row.macd),
+        line("macd_signal", 1, |row| row.signal),
+        line("macd_gap", 2, |row| row.gap),
+    ];
+    line_chart(kind, MACD, data.currency, categories, series, table, format)
 }
 
 /// The chosen categories and groups month by month as a line, area, bar or
@@ -492,6 +631,7 @@ pub fn category_over_time(
         overlays: Vec::new(),
         extra_colors: Vec::new(),
         slice_colors: Vec::new(),
+        daily: None,
         compared: None,
     })
 }

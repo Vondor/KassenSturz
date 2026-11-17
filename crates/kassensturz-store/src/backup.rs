@@ -18,6 +18,7 @@ use std::path::{Path, PathBuf};
 use kassensturz_core::Timestamp;
 use rusqlite::Connection;
 
+use crate::book_id::BookId;
 use crate::error::StoreError;
 
 /// How many backups of each book are kept (D-033).
@@ -34,6 +35,9 @@ pub(crate) const KEEP_MONTHS: usize = 12;
 /// the book makes another one (B-255): thirty days.
 pub(crate) const MONTHLY_SECONDS: i64 = 30 * 24 * 60 * 60;
 
+/// A day, the room [`made_ahead`] leaves for clocks that differ.
+const DAY_SECONDS: i64 = 24 * 60 * 60;
+
 /// When a backup was made, in UTC: the store has no time zone data (D-061).
 /// Without colons, which Windows doesn't allow in names.
 const STAMP_FORMAT: &str = "%Y-%m-%d %H-%M-%S UTC";
@@ -48,24 +52,32 @@ const MAX_PER_SECOND: u32 = 100;
 /// Copies the book that `conn` has open, which is at `book`, into `folder`,
 /// then removes that book's oldest backups beyond the last [`KEEP`]. Returns
 /// the copy's path.
+///
+/// `id` is the book's identity (D-806). A book of a layout before 34 has
+/// none yet, so its backup before the update that gives it one has a name
+/// without the tag, and no backup is removed then: the older backups are
+/// kept until the user decides.
 pub(crate) fn back_up(
     conn: &Connection,
     book: &Path,
     folder: &Path,
+    id: Option<&BookId>,
 ) -> Result<PathBuf, StoreError> {
     // Absolute, so SQLite never takes the copy's name for a URI.
     let folder = std::path::absolute(folder)?;
     fs::create_dir_all(&folder)?;
-    let path = write_backup(conn, book, &folder, usize::MAX)?;
-    prune_own(&folder, stem_of(book)?, &path, Timestamp::now());
+    let path = write_backup(conn, book, &folder, usize::MAX, id)?;
+    if let Some(id) = id {
+        prune_own(&folder, &id.tag(), &path, Timestamp::now());
+    }
     Ok(path)
 }
 
-/// Removes the oldest backups of the book `stem` in the app's own folder:
+/// Removes the oldest backups of the book with the tag `tag` in the app's own folder:
 /// the last [`KEEP`] stay, `just_made` among them, and so does the oldest
 /// one of each of the [`KEEP_MONTHS`] newest months before the month of
 /// `now` that have one (B-255). Errors are ignored, as in [`prune`].
-pub(crate) fn prune_own(folder: &Path, stem: &str, just_made: &Path, now: Timestamp) {
+pub(crate) fn prune_own(folder: &Path, tag: &str, just_made: &Path, now: Timestamp) {
     let Ok(entries) = fs::read_dir(folder) else {
         return;
     };
@@ -73,10 +85,11 @@ pub(crate) fn prune_own(folder: &Path, stem: &str, just_made: &Path, now: Timest
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
-            let (stamp, number) = parse_name(&name, stem)?;
+            let (stamp, number) = parse_name(&name, tag)?;
             Some((stamp.to_owned(), number, entry.path()))
         })
         .filter(|(_, _, path)| path != just_made)
+        .filter(|(stamp, _, _)| !made_ahead(stamp, now))
         .collect();
     // Oldest first: the stamps sort by time, the numbers within one second.
     older.sort();
@@ -110,41 +123,65 @@ pub(crate) fn write_backup(
     book: &Path,
     folder: &Path,
     keep: usize,
+    id: Option<&BookId>,
 ) -> Result<PathBuf, StoreError> {
-    let stem = stem_of(book)?;
+    let label = label_of(book, id)?;
     // Absolute, so SQLite never takes the copy's name for a URI.
     let folder = std::path::absolute(folder)?;
     let stamp = Timestamp::now().strftime(STAMP_FORMAT).to_string();
     // The copy is written under another name first, so a copy that was cut
     // short, e.g. by a crash, is never taken for a backup, and a sync tool
     // never uploads half a copy.
-    let (path, partial) = claim(&folder, stem, &stamp)?;
-    let copied =
-        copy(conn, &partial).and_then(|()| fs::rename(&partial, &path).map_err(StoreError::from));
+    let (path, partial) = claim(&folder, &label, &stamp)?;
+    let copied = copy(conn, &partial)
+        .and_then(|()| fs::rename(&partial, &path).map_err(StoreError::from))
+        .and_then(|()| sync_folder(&folder));
     if let Err(error) = copied {
         let _ = fs::remove_file(&partial);
         return Err(error);
     }
-    prune(&folder, stem, &path, keep);
+    if let Some(id) = id {
+        prune(&folder, &id.tag(), &path, keep);
+    }
     Ok(path)
 }
 
-/// The name a book's backups begin with: its file name without `.ksz`.
+/// What a backup's name begins with: the book's file name without `.ksz`
+/// and, once the book has an identity, its tag in brackets, e.g.
+/// `Household [a1b2c3d4e5f6]` (D-806). The name is for reading; the tag is
+/// what tells a book's backups from another book's.
+pub(crate) fn label_of(book: &Path, id: Option<&BookId>) -> Result<String, StoreError> {
+    let stem = stem_of(book)?;
+    Ok(match id {
+        Some(id) => format!("{stem} [{}]", id.tag()),
+        None => stem.to_owned(),
+    })
+}
+
+/// The name a book's backups began with before layouts had an identity: its
+/// file name without `.ksz`.
 pub(crate) fn stem_of(book: &Path) -> Result<&str, StoreError> {
     book.file_stem()
         .and_then(|stem| stem.to_str())
         .ok_or(StoreError::Io(ErrorKind::InvalidFilename))
 }
 
+/// Makes sure the backup's new name in `folder` is on the disk before the
+/// book changes (B-278), so after a power cut the backup is there under its
+/// name, not only as a `.part` file. Only Unix systems can open a folder for
+/// that; elsewhere the rename is as durable as the system makes it.
+fn sync_folder(folder: &Path) -> Result<(), StoreError> {
+    #[cfg(unix)]
+    fs::File::open(folder)?.sync_all()?;
+    #[cfg(not(unix))]
+    let _ = folder;
+    Ok(())
+}
+
 /// Copies the database `conn` has open into `to`, the empty file claimed for
 /// it, and makes sure the copy is on the disk.
 fn copy(conn: &Connection, to: &Path) -> Result<(), StoreError> {
-    let name = to
-        .to_str()
-        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
-    // VACUUM INTO writes into an empty file, but not into a database
-    // (sqlite.org/lang_vacuum.html).
-    conn.execute("VACUUM INTO ?1", [name])?;
+    vacuum_into(conn, to)?;
     // VACUUM INTO doesn't wait until the copy is on the disk, so it's synced
     // here, before the update changes the book. Windows syncs only files
     // opened for writing.
@@ -152,21 +189,60 @@ fn copy(conn: &Connection, to: &Path) -> Result<(), StoreError> {
     Ok(())
 }
 
-/// Picks the first free name for a backup of the book `stem` at `stamp`,
-/// e.g. `Household 2026-10-19 11-04-02 UTC.ksz`, or `… UTC 2.ksz` and so on
+/// Writes a copy of the database `conn` has open into `to`, an empty file.
+///
+/// VACUUM INTO writes into an empty file, but not into a database
+/// (sqlite.org/lang_vacuum.html). SQLite takes file locks on the copy, and
+/// some places refuse them: in a snap, the folders the portal hands out
+/// (B-265). Then the copy is made in a private folder of the app, where
+/// locks work, and put into `to` as plain bytes, which needs none.
+pub(crate) fn vacuum_into(conn: &Connection, to: &Path) -> Result<(), StoreError> {
+    let name = to
+        .to_str()
+        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
+    let Err(first) = conn.execute("VACUUM INTO ?1", [name]) else {
+        return Ok(());
+    };
+    // Only an empty file is written into: anything else is the user's, and
+    // is never replaced here.
+    if fs::metadata(to).map_or(true, |meta| meta.len() != 0) {
+        return Err(first.into());
+    }
+    via_private_folder(conn, to).map_err(|error| match error {
+        // The same trouble in the private folder is not about `to`.
+        StoreError::Database(_) => first.into(),
+        other => other,
+    })
+}
+
+/// The copy made in a private folder, then written into the empty file `to`.
+fn via_private_folder(conn: &Connection, to: &Path) -> Result<(), StoreError> {
+    let private = crate::lockless::PrivateFolder::new()?;
+    let staged = private.path().join("copy.ksz");
+    let staged_name = staged
+        .to_str()
+        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
+    conn.execute("VACUUM INTO ?1", [staged_name])?;
+    fs::copy(&staged, to)?;
+    Ok(())
+}
+
+/// Picks the first free name for a backup labelled `label` (see
+/// [`label_of`]) at `stamp`, e.g.
+/// `Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC.ksz`, or `… UTC 2.ksz` and so on
 /// if that is taken, so a backup never replaces another. Returns it with the
 /// name the copy is written under first, which is claimed by creating an
 /// empty file, so no other backup can write there.
 pub(crate) fn claim(
     folder: &Path,
-    stem: &str,
+    label: &str,
     stamp: &str,
 ) -> Result<(PathBuf, PathBuf), StoreError> {
     for number in 1..=MAX_PER_SECOND {
         let name = if number == 1 {
-            format!("{stem} {stamp}.ksz")
+            format!("{label} {stamp}.ksz")
         } else {
-            format!("{stem} {stamp} {number}.ksz")
+            format!("{label} {stamp} {number}.ksz")
         };
         let path = folder.join(name);
         if exists(&path)? {
@@ -203,13 +279,13 @@ pub(crate) fn exists(path: &Path) -> Result<bool, StoreError> {
     }
 }
 
-/// Removes the oldest backups of the book `stem` until the last `keep` are
+/// Removes the oldest backups of the book with the tag `tag` until the last `keep` are
 /// left, `just_made` always among them, even if the computer's clock was put
 /// back since the others were made. Only names that [`back_up`] gives count,
 /// so other files in the folder, and the backups of other books, are left
 /// alone. Errors are ignored: a backup too many does no harm, and the next
 /// backup tries again.
-pub(crate) fn prune(folder: &Path, stem: &str, just_made: &Path, keep: usize) {
+pub(crate) fn prune(folder: &Path, tag: &str, just_made: &Path, keep: usize) {
     let Ok(entries) = fs::read_dir(folder) else {
         return;
     };
@@ -217,10 +293,11 @@ pub(crate) fn prune(folder: &Path, stem: &str, just_made: &Path, keep: usize) {
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
-            let (stamp, number) = parse_name(&name, stem)?;
+            let (stamp, number) = parse_name(&name, tag)?;
             Some((stamp.to_owned(), number, entry.path()))
         })
         .filter(|(_, _, path)| path != just_made)
+        .filter(|(stamp, _, _)| !made_ahead(stamp, Timestamp::now()))
         .collect();
     // Oldest first: the stamps sort by time, the numbers within one second.
     older.sort();
@@ -230,13 +307,66 @@ pub(crate) fn prune(folder: &Path, stem: &str, just_made: &Path, keep: usize) {
     }
 }
 
+/// What follows the book's label in `name`, if `name` is a backup of the
+/// book with the tag `tag`: whatever the book was called then, ` [tag] `,
+/// and the rest. Looked for from the right, so a name that happens to
+/// contain the same words earlier is no problem. Only the tag matters: a
+/// book renamed keeps its backups (D-806).
+pub(crate) fn after_tag<'a>(name: &'a str, tag: &str) -> Option<&'a str> {
+    let marker = format!(" [{tag}] ");
+    let at = name.rfind(&marker)?;
+    Some(&name[at + marker.len()..])
+}
+
+/// What follows the book's name in `name` if `name` is an older backup of
+/// a book called `stem`, from before books had an identity: `<stem> <stamp>`
+/// and so on, with no tag (D-806). Whose they are can't be told, so they are
+/// listed apart and never removed.
+pub(crate) fn after_stem<'a>(name: &'a str, stem: &str) -> Option<&'a str> {
+    name.strip_prefix(stem)?.strip_prefix(' ')
+}
+
+/// Whether a backup's `stamp` is more than a day after `now`: it was made
+/// while the clock was set ahead (B-341). Pruning neither counts nor
+/// removes such a backup, so it never makes the next backups delete the
+/// real ones, and it is itself never lost; it is pruned like any other once
+/// `now` comes near it. The day leaves room for clocks of two computers
+/// that share a backup folder and differ a little.
+fn made_ahead(stamp: &str, now: Timestamp) -> bool {
+    let Ok(limit) = Timestamp::from_second(now.as_second().saturating_add(DAY_SECONDS)) else {
+        return false;
+    };
+    // The stamps sort by time as text.
+    stamp > limit.strftime(STAMP_FORMAT).to_string().as_str()
+}
+
 /// The stamp and number of `name` if it is the name of a backup of the book
-/// `stem`; the number is 1 if the name has none.
-pub(crate) fn parse_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
-    let rest = name
-        .strip_prefix(stem)?
-        .strip_prefix(' ')?
-        .strip_suffix(".ksz")?;
+/// with the tag `tag`; the number is 1 if the name has none.
+pub(crate) fn parse_name<'a>(name: &'a str, tag: &str) -> Option<(&'a str, u32)> {
+    parse_rest(after_tag(name, tag)?)
+}
+
+/// Like [`parse_name`] for a backup of the book called `stem` with any tag:
+/// for a damaged book that can't say what its identity is (B-334).
+pub(crate) fn parse_any_tagged_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
+    let rest = after_stem(name, stem)?.strip_prefix('[')?;
+    let (tag, rest) = rest.split_once("] ")?;
+    let is_tag = tag.len() == 12 && tag.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'));
+    if !is_tag {
+        return None;
+    }
+    parse_rest(rest)
+}
+
+/// Like [`parse_name`] for an older backup without a tag of the book
+/// called `stem` (D-806).
+pub(crate) fn parse_older_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
+    parse_rest(after_stem(name, stem)?)
+}
+
+/// The stamp and number in what follows a backup's label.
+fn parse_rest(rest: &str) -> Option<(&str, u32)> {
+    let rest = rest.strip_suffix(".ksz")?;
     let stamp = rest.get(..STAMP_PATTERN.len())?;
     let is_stamp = stamp
         .bytes()
@@ -274,6 +404,10 @@ mod tests {
     use super::*;
     use crate::test_folder::TempFolder;
 
+    /// A book's tag (D-806), and what its backups' names begin with.
+    const TAG: &str = "a1b2c3d4e5f6";
+    const LABEL: &str = "Household [a1b2c3d4e5f6]";
+
     fn names_in(folder: &TempFolder) -> Vec<String> {
         let mut names: Vec<String> = fs::read_dir(folder.path())
             .expect("folder read")
@@ -293,30 +427,62 @@ mod tests {
     fn backup_names_are_recognized_strictly() {
         let stamp = "2026-10-19 11-04-02 UTC";
         for (name, expected) in [
-            ("Household 2026-10-19 11-04-02 UTC.ksz", Some((stamp, 1))),
-            ("Household 2026-10-19 11-04-02 UTC 2.ksz", Some((stamp, 2))),
             (
-                "Household 2026-10-19 11-04-02 UTC 37.ksz",
+                "Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC.ksz",
+                Some((stamp, 1)),
+            ),
+            (
+                "Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC 2.ksz",
+                Some((stamp, 2)),
+            ),
+            (
+                "Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC 37.ksz",
                 Some((stamp, 37)),
             ),
-            // Not a backup of this book.
+            // A book renamed keeps its backups: only the tag tells.
+            (
+                "Garden [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC.ksz",
+                Some((stamp, 1)),
+            ),
+            // Not a backup of this book: another book with the same name,
+            // and an older backup from before books had a tag.
+            ("Household [ffffffffffff] 2026-10-19 11-04-02 UTC.ksz", None),
+            ("Household 2026-10-19 11-04-02 UTC.ksz", None),
             ("Household.ksz", None),
-            ("Household 2 2026-10-19 11-04-02 UTC.ksz", None),
+            (
+                "Household [a1b2c3d4e5f6] 2 2026-10-19 11-04-02 UTC.ksz",
+                None,
+            ),
             ("Household2026-10-19 11-04-02 UTC.ksz", None),
             ("Garden 2026-10-19 11-04-02 UTC.ksz", None),
             // Not a name back_up gives.
-            ("Household 2026-10-19 11-04-02 UTC.ksz.part", None),
-            ("Household 2026-10-19 11-04-02 UTC 1.ksz", None),
-            ("Household 2026-10-19 11-04-02 UTC 02.ksz", None),
-            ("Household 2026-10-19 11-04-02 UTC 2a.ksz", None),
-            ("Household 2026-10-19 11-04-02 UTC .ksz", None),
-            ("Household 2026-10-19 11:04:02 UTC.ksz", None),
-            ("Household 2026-10-19 11-04-02 CET.ksz", None),
-            ("Household 2026-10-19.ksz", None),
-            ("Household 2026-10-19 11-04-02 UTC.kmy", None),
-            ("Household 2026-1Ö-19 11-04-02 UTC.ksz", None),
+            (
+                "Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC.ksz.part",
+                None,
+            ),
+            (
+                "Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC 1.ksz",
+                None,
+            ),
+            (
+                "Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC 02.ksz",
+                None,
+            ),
+            (
+                "Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC 2a.ksz",
+                None,
+            ),
+            (
+                "Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC .ksz",
+                None,
+            ),
+            ("Household [a1b2c3d4e5f6] 2026-10-19 11:04:02 UTC.ksz", None),
+            ("Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 CET.ksz", None),
+            ("Household [a1b2c3d4e5f6] 2026-10-19.ksz", None),
+            ("Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC.kmy", None),
+            ("Household [a1b2c3d4e5f6] 2026-1Ö-19 11-04-02 UTC.ksz", None),
         ] {
-            assert_eq!(parse_name(name, "Household"), expected, "{name}");
+            assert_eq!(parse_name(name, TAG), expected, "{name}");
         }
     }
 
@@ -341,21 +507,24 @@ mod tests {
     fn a_backup_never_replaces_another() {
         let folder = TempFolder::new();
         let stamp = "2026-10-19 11-04-02 UTC";
-        let (first, first_partial) = claim(folder.path(), "Household", stamp).expect("claimed");
-        assert_eq!(first, folder.join("Household 2026-10-19 11-04-02 UTC.ksz"));
+        let (first, first_partial) = claim(folder.path(), LABEL, stamp).expect("claimed");
+        assert_eq!(
+            first,
+            folder.join("Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC.ksz")
+        );
         assert_eq!(fs::metadata(&first_partial).expect("claimed").len(), 0);
         // Another backup in the same second, while the first is being made.
-        let (second, _) = claim(folder.path(), "Household", stamp).expect("claimed");
+        let (second, _) = claim(folder.path(), LABEL, stamp).expect("claimed");
         assert_eq!(
             second,
-            folder.join("Household 2026-10-19 11-04-02 UTC 2.ksz")
+            folder.join("Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC 2.ksz")
         );
         // Finished, the first one keeps its name taken.
         fs::rename(&first_partial, &first).expect("renamed");
-        let (third, _) = claim(folder.path(), "Household", stamp).expect("claimed");
+        let (third, _) = claim(folder.path(), LABEL, stamp).expect("claimed");
         assert_eq!(
             third,
-            folder.join("Household 2026-10-19 11-04-02 UTC 3.ksz")
+            folder.join("Household [a1b2c3d4e5f6] 2026-10-19 11-04-02 UTC 3.ksz")
         );
     }
 
@@ -369,13 +538,17 @@ mod tests {
         last_day: u32,
     ) -> (Vec<String>, Vec<String>) {
         let backups: Vec<String> = (first_day..=last_day)
-            .map(|day| format!("Household 2026-10-{day:02} 09-00-00 UTC.ksz"))
+            .map(|day| format!("Household [a1b2c3d4e5f6] 2026-10-{day:02} 09-00-00 UTC.ksz"))
             .collect();
         let others: Vec<String> = [
             "Household.ksz",
-            "Household 2 2026-10-01 09-00-00 UTC.ksz",
+            // Another book with the same name, and an older backup from
+            // before books had an identity: neither is this book's.
+            "Household [ffffffffffff] 2026-10-01 09-00-00 UTC.ksz",
+            "Household 2026-10-01 09-00-00 UTC.ksz",
+            "Household [a1b2c3d4e5f6] 2 2026-10-01 09-00-00 UTC.ksz",
             "Garden 2026-10-01 09-00-00 UTC.ksz",
-            "Household 2026-10-01 08-00-00 UTC.ksz.part",
+            "Household [a1b2c3d4e5f6] 2026-10-01 08-00-00 UTC.ksz.part",
             "Notes.txt",
         ]
         .map(String::from)
@@ -392,12 +565,12 @@ mod tests {
         let (mut backups, others) = backups_and_others(&folder, 1, 12);
         // Two backups in the same second, right where the oldest three are
         // cut off: the second one is newer.
-        let same_second = "Household 2026-10-03 09-00-00 UTC 2.ksz";
+        let same_second = "Household [a1b2c3d4e5f6] 2026-10-03 09-00-00 UTC 2.ksz";
         fs::write(folder.join(same_second), "made up").expect("file written");
         backups.insert(3, same_second.into());
 
         let just_made = folder.join(backups.last().expect("a backup"));
-        prune(folder.path(), "Household", &just_made, KEEP);
+        prune(folder.path(), TAG, &just_made, KEEP);
 
         let mut expected: Vec<String> = backups[3..].iter().chain(&others).cloned().collect();
         expected.sort();
@@ -418,12 +591,12 @@ mod tests {
             };
             for day in [3, 13, 23] {
                 backups.push(format!(
-                    "Household {year}-{number:02}-{day:02} 09-00-00 UTC.ksz"
+                    "Household [a1b2c3d4e5f6] {year}-{number:02}-{day:02} 09-00-00 UTC.ksz"
                 ));
             }
         }
         let november: Vec<String> = (1..=12)
-            .map(|day| format!("Household 2026-11-{day:02} 09-00-00 UTC.ksz"))
+            .map(|day| format!("Household [a1b2c3d4e5f6] 2026-11-{day:02} 09-00-00 UTC.ksz"))
             .collect();
         backups.extend(november.iter().cloned());
         for name in &backups {
@@ -433,7 +606,7 @@ mod tests {
         assert_eq!(now.strftime("%Y-%m").to_string(), "2026-11");
         let just_made = folder.join(november.last().expect("one"));
 
-        prune_own(folder.path(), "Household", &just_made, now);
+        prune_own(folder.path(), TAG, &just_made, now);
 
         // The last ten of November, and the 3rd of each of the twelve
         // months before it (2025-11 to 2026-10); September and October 2025
@@ -445,13 +618,15 @@ mod tests {
             } else {
                 (2026, month - 3)
             };
-            expected.push(format!("Household {year}-{number:02}-03 09-00-00 UTC.ksz"));
+            expected.push(format!(
+                "Household [a1b2c3d4e5f6] {year}-{number:02}-03 09-00-00 UTC.ksz"
+            ));
         }
         expected.sort();
         assert_eq!(names_in(&folder), expected);
 
         // Pruned again, nothing more goes: one backup per earlier month stays.
-        prune_own(folder.path(), "Household", &just_made, now);
+        prune_own(folder.path(), TAG, &just_made, now);
         assert_eq!(names_in(&folder), expected);
     }
 
@@ -459,10 +634,10 @@ mod tests {
     fn the_backup_just_made_is_kept_even_if_the_clock_was_put_back() {
         let folder = TempFolder::new();
         let (backups, others) = backups_and_others(&folder, 10, 20);
-        let just_made = "Household 2026-10-01 09-00-00 UTC.ksz";
+        let just_made = "Household [a1b2c3d4e5f6] 2026-10-01 09-00-00 UTC.ksz";
         fs::write(folder.join(just_made), "made up").expect("file written");
 
-        prune(folder.path(), "Household", &folder.join(just_made), KEEP);
+        prune(folder.path(), TAG, &folder.join(just_made), KEEP);
 
         let mut expected: Vec<String> = backups[2..]
             .iter()
@@ -472,6 +647,36 @@ mod tests {
             .collect();
         expected.sort();
         assert_eq!(names_in(&folder), expected);
+    }
+
+    #[test]
+    fn a_copy_made_in_the_private_folder_is_a_complete_book() {
+        let folder = TempFolder::new();
+        let conn = Connection::open_in_memory().expect("database opened");
+        conn.execute_batch("CREATE TABLE t(x); INSERT INTO t VALUES (7);")
+            .expect("filled");
+        let to = folder.join("copy.ksz");
+        fs::write(&to, "").expect("claimed");
+
+        via_private_folder(&conn, &to).expect("copied");
+
+        let copy = Connection::open(&to).expect("copy opened");
+        let value: i64 = copy
+            .query_row("SELECT x FROM t", [], |row| row.get(0))
+            .expect("read back");
+        assert_eq!(value, 7);
+    }
+
+    #[test]
+    fn a_file_that_is_not_empty_is_never_replaced_by_the_fallback() {
+        let folder = TempFolder::new();
+        let conn = Connection::open_in_memory().expect("database opened");
+        conn.execute_batch("CREATE TABLE t(x);").expect("filled");
+        let to = folder.join("mine.ksz");
+        fs::write(&to, "the user's own file").expect("file written");
+
+        assert!(vacuum_into(&conn, &to).is_err());
+        assert_eq!(fs::read(&to).expect("read"), b"the user's own file");
     }
 
     #[test]
@@ -485,17 +690,23 @@ mod tests {
         )
         .expect("database written");
         let backups = folder.join("Backups");
-        let path =
-            back_up(&conn, Path::new("/home/sam/Household.ksz"), &backups).expect("backed up");
+        let id = BookId::from_bytes(&[
+            0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7,
+        ])
+        .expect("an ID");
+        let path = back_up(
+            &conn,
+            Path::new("/home/sam/Household.ksz"),
+            &backups,
+            Some(&id),
+        )
+        .expect("backed up");
         assert_eq!(path.parent(), Some(backups.as_path()));
         let name = path
             .file_name()
             .and_then(|name| name.to_str())
             .expect("UTF-8 name");
-        assert!(
-            matches!(parse_name(name, "Household"), Some((_, 1))),
-            "{name}"
-        );
+        assert!(matches!(parse_name(name, TAG), Some((_, 1))), "{name}");
         assert!(!partial_path(&path).exists());
 
         let copy = Connection::open(&path).expect("backup opened");
@@ -507,5 +718,29 @@ mod tests {
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .expect("version read");
         assert_eq!(version, 7);
+    }
+
+    #[test]
+    fn a_book_without_an_identity_gets_an_untagged_backup_and_nothing_is_removed() {
+        // The backup before the update that gives a book its identity
+        // (layout 34): no tag, and the older backups stay (D-806).
+        let folder = TempFolder::new();
+        let conn = Connection::open_in_memory().expect("database opened");
+        conn.execute_batch("CREATE TABLE t(x);").expect("filled");
+        let backups = folder.join("Backups");
+        fs::create_dir_all(&backups).expect("folder made");
+        for day in 1..=15 {
+            fs::write(
+                backups.join(format!("Household 2026-09-{day:02} 09-00-00 UTC.ksz")),
+                "made up",
+            )
+            .expect("older backup written");
+        }
+        let path = back_up(&conn, Path::new("/home/sam/Household.ksz"), &backups, None)
+            .expect("backed up");
+        let name = path.file_name().and_then(|n| n.to_str()).expect("a name");
+        assert!(parse_older_name(name, "Household").is_some(), "{name}");
+        assert!(!name.contains('['), "{name}");
+        assert_eq!(fs::read_dir(&backups).expect("read").count(), 16);
     }
 }

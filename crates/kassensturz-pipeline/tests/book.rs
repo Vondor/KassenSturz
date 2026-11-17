@@ -12,9 +12,12 @@ use kassensturz_core::{
     Transaction, TransactionId, ViewKind,
 };
 use kassensturz_core::{BudgetEvery, GroupKind, GroupMember};
+use kassensturz_core::{Decided, ScheduleError, ScheduleUnit};
 use kassensturz_export::{BookData, BookExport, ExportData, export, read_book};
 use kassensturz_pipeline::{export_book, fill_book};
-use kassensturz_store::{Book, HistoryRetention, StoreError};
+use kassensturz_store::{
+    Book, HistoryRetention, MAX_CURRENCY_TOTAL, NewRecurringMove, NewSchedule, StoreError,
+};
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
@@ -345,6 +348,25 @@ fn household() -> Book {
             Split::new(checking, eur(5_000)),
         ],
     );
+    // A yearly plan on the old savings account, paused, that comes back
+    // although the account is closed after it (D-769).
+    let interest = book
+        .add_schedule(&NewSchedule {
+            name: "Interest".into(),
+            account: old,
+            amount: eur(1_234),
+            tolerance: eur(100),
+            category: None,
+            party_iban: None,
+            party_name: Some("Example Savings Bank".into()),
+            unit: ScheduleUnit::Year,
+            every: 2,
+            anchor: day(1),
+            track_from: day(31),
+            ends_on: Some(Date::new(2030, 12, 31).expect("a valid date")),
+        })
+        .expect("planned");
+    book.set_schedule_paused(interest, true).expect("paused");
     book.close_account(old).expect("closed");
     add_transaction(
         &mut book,
@@ -479,6 +501,51 @@ fn household() -> Book {
     imported(&mut book, checking, -777, day(9), "Somebody else");
     book.run_rules().expect("ran");
     book.remove_rule(gone.id).expect("removed");
+    // The bakery every week from the 7th: the entry on the 7th is matched,
+    // the 14th is skipped (D-769).
+    let bread = book
+        .add_schedule(&NewSchedule {
+            name: "Bread".into(),
+            account: checking,
+            amount: eur(-450),
+            tolerance: eur(0),
+            category: Some(bakery),
+            party_iban: Some("DE89370400440532013000".into()),
+            party_name: None,
+            unit: ScheduleUnit::Week,
+            every: 1,
+            anchor: day(7),
+            track_from: day(7),
+            ends_on: None,
+        })
+        .expect("planned");
+    let matched = book.match_schedules(day(10), None).expect("matched");
+    assert_eq!(matched.matched.len(), 1);
+    book.skip_schedule_occurrence(bread, day(14))
+        .expect("skipped");
+
+    // Two monthly moves the user asked to join by themselves (D-749): one
+    // with the other party the paying side named, one without any (B-263).
+    book.add_recurring_move(&NewRecurringMove {
+        from_account: checking,
+        to_account: old,
+        amount: eur(20_000),
+        day_of_month: 5,
+        from_party_iban: Some("DE89370400440532013000".into()),
+        from_party_name: Some("Alex Example".into()),
+        created_on: day(1),
+    })
+    .expect("remembered");
+    book.add_recurring_move(&NewRecurringMove {
+        from_account: old,
+        to_account: checking,
+        amount: eur(1_550),
+        day_of_month: 31,
+        from_party_iban: None,
+        from_party_name: None,
+        created_on: day(2),
+    })
+    .expect("remembered");
 
     // The card bill, paid from checking on the 20th and booked by the
     // card's bank on the 21st, joined into a Transfer: the card's part keeps
@@ -541,6 +608,18 @@ fn a_book_comes_back_from_its_export_as_it_was() {
         1
     );
     assert_eq!(data.bank_links, book.bank_links().expect("read"));
+    // Both plans, the paused one too, with what was decided.
+    assert_eq!(data.schedules.len(), 2);
+    assert_eq!(
+        data.schedules
+            .iter()
+            .map(|plan| plan.decided.len())
+            .sum::<usize>(),
+        2
+    );
+    // Both remembered monthly moves are in the export, with their IDs (B-263).
+    assert_eq!(data.recurring_moves.len(), 2);
+    assert_eq!(data.recurring_moves, book.recurring_moves().expect("read"));
     assert_eq!(data.bank_links.len(), 2);
     assert_eq!(data.bank_links[0].last_fetched_on, Some(day(20)));
     // Dashboards first, then the views in the order of their list.
@@ -589,6 +668,23 @@ fn a_book_comes_back_from_its_export_as_it_was() {
         book.categories().expect("read")
     );
     assert_eq!(copy.rules().expect("read"), book.rules().expect("read"));
+    // The plans with their IDs, and their matched and skipped payments.
+    assert_eq!(
+        copy.schedules().expect("read"),
+        book.schedules().expect("read")
+    );
+    assert_eq!(
+        copy.decided_occurrences().expect("read"),
+        book.decided_occurrences().expect("read")
+    );
+    // The remembered monthly moves survive the round trip with their IDs,
+    // amounts, days and other parties, so the new book still joins them by
+    // itself (B-263).
+    assert_eq!(
+        copy.recurring_moves().expect("read"),
+        book.recurring_moves().expect("read")
+    );
+    assert_eq!(copy.recurring_moves().expect("read").len(), 2);
     assert_eq!(
         copy.bank_links().expect("read"),
         book.bank_links().expect("read")
@@ -671,6 +767,23 @@ fn what_a_book_would_refuse_is_refused_and_the_book_stays_empty() {
     broken.rules.clear();
     assert!(matches!(refused(&broken), StoreError::UnknownAccount(id) if id == checking));
 
+    // A remembered move between an account and itself, one for an account
+    // the file doesn't have, and one given twice.
+    let mut broken = data.clone();
+    broken.recurring_moves[0].to_account = broken.recurring_moves[0].from_account;
+    assert!(matches!(refused(&broken), StoreError::RecurringMove(_)));
+    let mut broken = data.clone();
+    broken.recurring_moves[0].to_account = AccountId::generate();
+    assert!(matches!(refused(&broken), StoreError::UnknownAccount(_)));
+    let mut broken = data.clone();
+    let mut twice = broken.recurring_moves[0].clone();
+    twice.id = kassensturz_core::RecurringMoveId::generate();
+    broken.recurring_moves.push(twice);
+    assert!(matches!(
+        refused(&broken),
+        StoreError::RecurringMoveExists { .. }
+    ));
+
     // A closed account that still holds money.
     let mut broken = data.clone();
     let open = broken
@@ -716,6 +829,55 @@ fn what_a_book_would_refuse_is_refused_and_the_book_stays_empty() {
         refused(&broken),
         StoreError::DuplicateAccountName { .. }
     ));
+
+    // A plan whose payment names an entry the file doesn't have, and one
+    // that ends before it starts (D-769).
+    let mut broken = data.clone();
+    let paid = broken
+        .schedules
+        .iter_mut()
+        .flat_map(|plan| plan.decided.iter_mut())
+        .find(|(_, decided)| matches!(decided, Decided::Matched(_)))
+        .expect("a matched payment");
+    paid.1 = Decided::Matched(TransactionId::generate());
+    assert!(matches!(
+        refused(&broken),
+        StoreError::UnknownTransaction(_)
+    ));
+    let mut broken = data.clone();
+    broken.schedules[0].schedule.ends_on = Some(Date::new(2020, 1, 1).expect("a valid date"));
+    assert!(matches!(
+        refused(&broken),
+        StoreError::Schedule(ScheduleError::EndBeforeStart)
+    ));
+
+    // Amounts the book couldn't add up (B-269): the transaction balances,
+    // but its two sides together don't fit in what the book can total.
+    let mut broken = data.clone();
+    let plain = broken
+        .transactions
+        .iter_mut()
+        .find(|transaction| {
+            transaction.splits().len() == 2
+                && transaction
+                    .splits()
+                    .iter()
+                    .all(|split| split.foreign.is_none() && split.original.is_none())
+        })
+        .expect("a plain transaction");
+    let big = MAX_CURRENCY_TOTAL / 2 + 1;
+    let currency = plain.currency();
+    let mut splits = plain.splits().to_vec();
+    splits[0].amount = Money::from_minor_units(big, currency);
+    splits[1].amount = Money::from_minor_units(-big, currency);
+    *plain = Transaction::new(
+        plain.id(),
+        plain.booking_date(),
+        plain.payee().map(str::to_owned),
+        splits,
+    )
+    .expect("it balances");
+    assert!(matches!(refused(&broken), StoreError::AmountOverflow));
 
     // A part in another currency than its account.
     let mut broken = data;

@@ -45,7 +45,9 @@ Controls.AbstractButton {
     property bool arranging: false
     // Which tile it is, by its type: `notice.alarms` (a bell),
     // `notice.unsorted` (a tag), `notice.fetch_gap` (a bank with a clock) or
-    // `bank.update_all` (two turning arrows). Any other word draws no emblem
+    // `bank.update_all` (two turning arrows), `forecast.month` (a calendar
+    // page with a line taken off) or `plan.coming_up` (a calendar page with
+    // an arrow ahead). Any other word draws no emblem
     // and the state shape fills the icon on its own.
     property string emblem: ""
 
@@ -57,7 +59,7 @@ Controls.AbstractButton {
         : shown === "running" ? Kirigami.Theme.highlightColor
         : shown === "failed" ? Kirigami.Theme.negativeTextColor
         : Kirigami.Theme.disabledTextColor
-    readonly property bool hasEmblem: ["notice.alarms", "notice.unsorted", "notice.fetch_gap", "bank.update_all"].includes(emblem)
+    readonly property bool hasEmblem: ["notice.alarms", "notice.unsorted", "notice.fetch_gap", "bank.update_all", "forecast.month", "plan.coming_up"].includes(emblem)
     // A frame in the state's colour when something wants a look.
     readonly property bool flagged: hasEmblem && (shown === "to-do" || shown === "failed")
     readonly property string hint: sentence === "" ? clickHint : sentence + " " + clickHint
@@ -128,6 +130,8 @@ Controls.AbstractButton {
                     const outline = icon.emblem === "notice.alarms" ? "M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z M10 20.5a2 2 0 0 0 4 0"
                         : icon.emblem === "notice.unsorted" ? "M3 12V4h8l10 10-8 8z"
                         : icon.emblem === "notice.fetch_gap" ? "M2.5 9L11 4l8.5 5z M4.5 9.5v7 M8 9.5v7 M11.5 9.5v4 M2.5 19h9 M17.5 14v2.5l1.8 1.2"
+                        : icon.emblem === "forecast.month" ? "M4 6h16v14H4z M4 10h16 M8 3.5v4 M16 3.5v4 M8 15h8"
+                        : icon.emblem === "plan.coming_up" ? "M4 6h16v14H4z M4 10h16 M8 3.5v4 M16 3.5v4 M8 15h7 M12.5 12.5l2.5 2.5-2.5 2.5"
                         : "M19.5 8.5A8 8 0 0 0 5 7 M19.5 4v4.5H15 M4.5 15.5A8 8 0 0 0 19 17 M4.5 20v-4.5H9";
                     ctx.path = outline;
                     ctx.stroke();

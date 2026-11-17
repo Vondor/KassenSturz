@@ -635,7 +635,9 @@ fn check_amount(amount: Money) -> Result<(), ToolError> {
             reason: "zero",
         }));
     }
-    Ok(())
+    // The limit of the store, so a check that "works" never fails at the
+    // user's confirmation (B-288).
+    kassensturz_store::check_budget_amount_size(amount).map_err(ToolError::BudgetRefused)
 }
 
 /// A new budget from an item of `new_budgets`, checked against `book` and

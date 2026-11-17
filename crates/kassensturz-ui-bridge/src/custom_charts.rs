@@ -22,7 +22,7 @@ use kassensturz_report::{
     category_over_time, columns_span, income_expense_by_month, net_worth_over_time,
     spending_by_category_shown,
 };
-use kassensturz_store::Book;
+use kassensturz_store::{Book, StoreError};
 
 use crate::charts::{
     AppText, ChartSet, ChartsError, Custom, QuickCharts, Request, is_financial, period,
@@ -150,7 +150,27 @@ fn tables(
         }
         _ => return Err(ChartsError::UnknownName("dataset")),
     };
-    Ok((tables, view, missing))
+    Ok((with_book_settings(book, tables)?, view, missing))
+}
+
+/// `tables` with the book's decimal places for each table's currency and
+/// its rounding mode (B-340, D-027): a mean is rounded as the book rounds,
+/// and an amount filter compares at the decimals the book stores. Without
+/// this the tables kept ISO's decimals and the default rounding.
+fn with_book_settings(book: &Book, tables: Vec<FlatTable>) -> Result<Vec<FlatTable>, ChartsError> {
+    let rounding = book.rounding_mode().map_err(ReportError::from)?;
+    tables
+        .into_iter()
+        .map(|table| {
+            let decimals = match book.currency_minor_digits(table.currency()) {
+                Ok(decimals) => decimals,
+                // A currency the book never used keeps ISO's decimals.
+                Err(StoreError::UnknownCurrency(_)) => table.decimals(),
+                Err(error) => return Err(ReportError::from(error).into()),
+            };
+            Ok(table.with_book_settings(decimals, rounding))
+        })
+        .collect()
 }
 
 /// The charts of a custom chart request: one per currency the dataset has
@@ -184,6 +204,7 @@ pub fn custom_charts(
     }
     Ok(ChartSet {
         charts,
+        flows: Vec::new(),
         missing,
         shared: Vec::new(),
         totals: Vec::new(),

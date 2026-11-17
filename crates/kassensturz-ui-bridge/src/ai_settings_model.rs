@@ -166,6 +166,39 @@ pub mod qobject {
         #[cxx_name = "setWriteTools"]
         fn set_write_tools(self: &AiSettings, on: bool) -> bool;
 
+        /// Why the user's own AI tools can't hand their changes to the
+        /// window on this computer (B-377): `none` when this system has no
+        /// request folder yet, `unusable` when it can't be made or used,
+        /// empty when it works and in a build without AI. Makes the folder
+        /// if needed, as the app does once the write tools are on.
+        #[qinvokable]
+        #[cxx_name = "writeToolsProblem"]
+        fn write_tools_problem(self: &AiSettings) -> QString;
+
+        /// The user's "Notes for the AI" (US7, #808): text they wrote,
+        /// empty for none; empty in a build without AI.
+        #[qinvokable]
+        fn notes(self: &AiSettings) -> QString;
+
+        /// Saves the user's notes as typed. Returns whether that was
+        /// saved; text longer than the limit is not.
+        #[qinvokable]
+        #[cxx_name = "setNotes"]
+        fn set_notes(self: &AiSettings, text: &QString) -> bool;
+
+        /// Adds one line the AI suggested, that the user just confirmed, to
+        /// the notes (US7, #808). Returns `added`, `duplicate` (already
+        /// there), `full` (it would pass the limit), `refused` (not one
+        /// plain line) or `failed` (not saved).
+        #[qinvokable]
+        #[cxx_name = "addNote"]
+        fn add_note(self: &AiSettings, line: &QString) -> QString;
+
+        /// The most characters the notes may have.
+        #[qinvokable]
+        #[cxx_name = "notesLimit"]
+        fn notes_limit(self: &AiSettings) -> i32;
+
         /// The folder the user chose for their bills (US5.13, D-739), as
         /// the system's folder chooser returned it; empty for none, and
         /// always in a build without AI.
@@ -185,6 +218,27 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "removeBillFolder"]
         fn remove_bill_folder(self: &AiSettings) -> bool;
+
+        /// The receipt inbox's folder `which` (`inbox` or `archive`, US7,
+        /// #333) as the user knows it: its real path where the system says
+        /// it (B-267); empty for none, and always in a build without AI.
+        #[qinvokable]
+        #[cxx_name = "receiptFolder"]
+        fn receipt_folder(self: &AiSettings, which: &QString) -> QString;
+
+        /// Keeps the folder the chooser returned as the receipt inbox's
+        /// folder `which`. Returns an empty text when it is saved, or the
+        /// code of why not: `folder.too-broad`, `folder.not-usable`,
+        /// `settings.inbox-archive-nested` or `settings.not-written`.
+        #[qinvokable]
+        #[cxx_name = "setReceiptFolder"]
+        fn set_receipt_folder(self: &AiSettings, which: &QString, folder: &QUrl) -> QString;
+
+        /// Forgets the receipt inbox's folder `which`; its files stay.
+        /// Returns whether that was saved.
+        #[qinvokable]
+        #[cxx_name = "removeReceiptFolder"]
+        fn remove_receipt_folder(self: &AiSettings, which: &QString) -> bool;
 
         /// Whether the AI may prepare the kind of change whose settings key
         /// is `key` (`AllowNewRules` and so on, D-239): what the user chose,
@@ -340,7 +394,7 @@ mod engine {
                     let text = match param {
                         kassensturz_core::ErrorParam::Number(number) => number.to_string(),
                         kassensturz_core::ErrorParam::Text(text) => text.clone(),
-                        other => format!("{other:?}"),
+                        other => crate::errors::param_without_book(other),
                     };
                     (*name, text)
                 })
@@ -413,9 +467,18 @@ mod engine {
     }
 
     pub(super) fn give_consent() -> bool {
-        let given = Store::user().give_consent(app_locale().today());
+        let store = Store::user();
+        let (given, seal_error) = store.give_consent_noting(app_locale().today());
         if given {
             crate::note!(ConsentGiven);
+            // Why it holds only until KassenSturz closes, if it does: the
+            // keychain's code, or none when secrets are saved nowhere
+            // (B-324).
+            if let Some(error) = seal_error {
+                crate::note!(ConsentUntilClose, None, Some(error.report().code));
+            } else if store.form().consent_until_close {
+                crate::note!(ConsentUntilClose);
+            }
         }
         given
     }
@@ -502,6 +565,20 @@ mod engine {
             ),
             ("consent", text(consent)),
             ("consentDay", text(&day)),
+            // A consent that counts only until KassenSturz closes, and the
+            // day of one in the file that can't be confirmed (B-324).
+            (
+                "consentUntilClose",
+                QVariant::from(&form.consent_until_close),
+            ),
+            (
+                "consentUnconfirmedDay",
+                text(
+                    &form
+                        .consent_unconfirmed
+                        .map_or_else(String::new, |day| app_locale().short_date(day)),
+                ),
+            ),
             // What the last test found for this address and model, empty
             // when there is none (D-294).
             (
@@ -732,22 +809,86 @@ impl qobject::AiSettings {
         keep_write_tools(&crate::settings::Settings::user(), on)
     }
 
+    fn write_tools_problem(&self) -> QString {
+        QString::from(request_folder_problem(default_request_folder()))
+    }
+
+    fn notes(&self) -> QString {
+        QString::from(notes_in(&crate::settings::Settings::user()).as_str())
+    }
+
+    fn set_notes(&self, text: &QString) -> bool {
+        keep_notes(&crate::settings::Settings::user(), &text.to_string())
+    }
+
+    fn add_note(&self, line: &QString) -> QString {
+        QString::from(add_note_in(
+            &crate::settings::Settings::user(),
+            &line.to_string(),
+        ))
+    }
+
+    fn notes_limit(&self) -> i32 {
+        notes_limit()
+    }
+
     fn bill_folder(&self) -> QString {
         QString::from(bill_folder_in(&crate::settings::Settings::user()).as_str())
     }
 
     fn set_bill_folder(&self, folder: &QUrl) -> bool {
         crate::book_session::local_path(folder).is_some_and(|path| {
+            // Shown by its real path where the system says it (B-267).
+            let shown = crate::platform::choose_folder(&path, false)
+                .map(|grant| grant.shown_as)
+                .unwrap_or_default();
             path.is_absolute()
                 && path.is_dir()
-                && path
-                    .to_str()
-                    .is_some_and(|path| keep_bill_folder(&crate::settings::Settings::user(), path))
+                && path.to_str().is_some_and(|path| {
+                    keep_bill_folder(&crate::settings::Settings::user(), path, &shown)
+                })
         })
     }
 
     fn remove_bill_folder(&self) -> bool {
-        keep_bill_folder(&crate::settings::Settings::user(), "")
+        keep_bill_folder(&crate::settings::Settings::user(), "", "")
+    }
+
+    fn receipt_folder(&self, which: &QString) -> QString {
+        QString::from(
+            receipt_folder_in(&crate::settings::Settings::user(), &which.to_string()).as_str(),
+        )
+    }
+
+    fn set_receipt_folder(&self, which: &QString, folder: &QUrl) -> QString {
+        let code = match crate::book_session::local_path(folder) {
+            None => "folder.not-usable",
+            Some(path) => match crate::platform::choose_folder(&path, false) {
+                Err(refused) => refused.code(),
+                Ok(grant) => {
+                    let book = crate::session::path();
+                    let own: Vec<std::path::PathBuf> = crate::platform::app_folder()
+                        .into_iter()
+                        .chain(
+                            book.as_deref()
+                                .and_then(std::path::Path::parent)
+                                .map(Into::into),
+                        )
+                        .collect();
+                    keep_receipt_folder(
+                        &crate::settings::Settings::user(),
+                        &which.to_string(),
+                        &grant,
+                        &own,
+                    )
+                }
+            },
+        };
+        QString::from(code)
+    }
+
+    fn remove_receipt_folder(&self, which: &QString) -> bool {
+        forget_receipt_folder(&crate::settings::Settings::user(), &which.to_string())
     }
 
     fn slow_answer(&self) -> QString {
@@ -966,12 +1107,120 @@ fn keep_write_tools(_settings: &crate::settings::Settings, _on: bool) -> bool {
     false
 }
 
-/// The bill folder in `settings` (D-739), empty for none; empty in a build
-/// without AI.
+/// The request folder's place on this computer, `None` where there is none
+/// (B-377).
+#[cfg(feature = "ai")]
+fn default_request_folder() -> Option<std::path::PathBuf> {
+    kassensturz_ai_tools::requests::RequestFolder::default_place()
+}
+
+#[cfg(not(feature = "ai"))]
+fn default_request_folder() -> Option<std::path::PathBuf> {
+    None
+}
+
+/// Why the request folder at `place` can't carry the AI tools' changes:
+/// `none` without a place, `unusable` when it can't be opened, empty when
+/// it can (B-377). The same open the window's inbox makes.
+#[cfg(feature = "ai")]
+fn request_folder_problem(place: Option<std::path::PathBuf>) -> &'static str {
+    match place {
+        None => "none",
+        Some(place) => match kassensturz_ai_tools::requests::RequestFolder::open(place) {
+            Ok(_) => "",
+            Err(_) => "unusable",
+        },
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn request_folder_problem(_place: Option<std::path::PathBuf>) -> &'static str {
+    ""
+}
+
+/// The most characters the notes may have; none in a build without AI.
+#[cfg(feature = "ai")]
+fn notes_limit() -> i32 {
+    i32::try_from(kassensturz_core::ai_switch::MAX_NOTES_CHARS).unwrap_or(i32::MAX)
+}
+
+#[cfg(not(feature = "ai"))]
+fn notes_limit() -> i32 {
+    0
+}
+
+/// The notes in `settings` (US7, #808): what the user wrote, cut at the
+/// limit, empty for none and in a build without AI.
+#[cfg(feature = "ai")]
+fn notes_in(settings: &crate::settings::Settings) -> String {
+    use kassensturz_core::ai_switch::{GROUP, MAX_NOTES_CHARS, NOTES_KEY};
+    settings
+        .text(GROUP, NOTES_KEY)
+        .chars()
+        .take(MAX_NOTES_CHARS)
+        .collect()
+}
+
+#[cfg(not(feature = "ai"))]
+fn notes_in(_settings: &crate::settings::Settings) -> String {
+    String::new()
+}
+
+/// Keeps `text` as the notes in `settings`. Text over the limit is not
+/// kept, so nothing the user typed is cut without their knowing.
+#[cfg(feature = "ai")]
+fn keep_notes(settings: &crate::settings::Settings, text: &str) -> bool {
+    use kassensturz_core::ai_switch::{GROUP, MAX_NOTES_CHARS, NOTES_KEY};
+    text.chars().count() <= MAX_NOTES_CHARS && settings.set_text(GROUP, NOTES_KEY, text.trim())
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_notes(_settings: &crate::settings::Settings, _text: &str) -> bool {
+    false
+}
+
+/// Adds `line`, a line the AI suggested and the user confirmed, to the
+/// notes in `settings`, as the last line. The line is saved exactly as it
+/// was shown: it is refused, not changed, when it is not one plain line.
+#[cfg(feature = "ai")]
+fn add_note_in(settings: &crate::settings::Settings, line: &str) -> &'static str {
+    use kassensturz_core::ai_switch::MAX_NOTES_CHARS;
+    let line = line.trim();
+    if line.is_empty() || line.chars().any(char::is_control) {
+        return "refused";
+    }
+    let current = notes_in(settings);
+    if current.lines().any(|existing| existing.trim() == line) {
+        return "duplicate";
+    }
+    let joined = if current.is_empty() {
+        line.to_owned()
+    } else {
+        format!("{current}\n{line}")
+    };
+    if joined.chars().count() > MAX_NOTES_CHARS {
+        return "full";
+    }
+    if keep_notes(settings, &joined) {
+        "added"
+    } else {
+        "failed"
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn add_note_in(_settings: &crate::settings::Settings, _line: &str) -> &'static str {
+    "failed"
+}
+
+/// The bill folder in `settings` (D-739) as the user knows it: its real
+/// path where the system said it when it was chosen (B-267), else as the
+/// app opens it; empty for none, and in a build without AI.
 #[cfg(feature = "ai")]
 fn bill_folder_in(settings: &crate::settings::Settings) -> String {
-    use kassensturz_core::ai_switch::{BILL_FOLDER_KEY, GROUP};
-    settings.text(GROUP, BILL_FOLDER_KEY)
+    use crate::receipt_moves::BILL_SHOWN_KEY;
+    use kassensturz_core::ai_switch::BILL_FOLDER_KEY;
+    shown_or_path(settings, BILL_FOLDER_KEY, BILL_SHOWN_KEY)
 }
 
 #[cfg(not(feature = "ai"))]
@@ -979,17 +1228,190 @@ fn bill_folder_in(_settings: &crate::settings::Settings) -> String {
     String::new()
 }
 
-/// Keeps `path` as the bill folder in `settings`, or none for an empty
-/// one. Returns whether that was saved.
+/// The folder under `key` in `settings` as the user knows it: how it is
+/// shown (`shown_key`), else its path; empty for none.
 #[cfg(feature = "ai")]
-fn keep_bill_folder(settings: &crate::settings::Settings, path: &str) -> bool {
+fn shown_or_path(settings: &crate::settings::Settings, key: &str, shown_key: &str) -> String {
+    use kassensturz_core::ai_switch::GROUP;
+    let path = settings.text(GROUP, key);
+    let shown = settings.text(GROUP, shown_key);
+    if path.is_empty() || shown.is_empty() {
+        path
+    } else {
+        shown
+    }
+}
+
+/// Keeps `path` as the bill folder in `settings`, or none for an empty
+/// one, shown as `shown` (display text only, empty: as its path). Returns
+/// whether that was saved.
+#[cfg(feature = "ai")]
+fn keep_bill_folder(settings: &crate::settings::Settings, path: &str, shown: &str) -> bool {
+    use crate::receipt_moves::BILL_SHOWN_KEY;
     use kassensturz_core::ai_switch::{BILL_FOLDER_KEY, GROUP};
     settings.set_text(GROUP, BILL_FOLDER_KEY, path)
+        && settings.set_text(GROUP, BILL_SHOWN_KEY, shown)
 }
 
 #[cfg(not(feature = "ai"))]
-fn keep_bill_folder(_settings: &crate::settings::Settings, _path: &str) -> bool {
+fn keep_bill_folder(_settings: &crate::settings::Settings, _path: &str, _shown: &str) -> bool {
     false
+}
+
+/// The settings keys of the receipt inbox's folder `which` (`inbox` or
+/// `archive`): its path, how it is shown, and the other folder's path.
+#[cfg(feature = "ai")]
+fn receipt_keys(which: &str) -> Option<(&'static str, &'static str, &'static str)> {
+    use crate::receipt_moves::{ARCHIVE_SHOWN_KEY, INBOX_SHOWN_KEY};
+    use kassensturz_core::ai_switch::{ARCHIVE_FOLDER_KEY, INBOX_FOLDER_KEY};
+    match which {
+        "inbox" => Some((INBOX_FOLDER_KEY, INBOX_SHOWN_KEY, ARCHIVE_FOLDER_KEY)),
+        "archive" => Some((ARCHIVE_FOLDER_KEY, ARCHIVE_SHOWN_KEY, INBOX_FOLDER_KEY)),
+        _ => None,
+    }
+}
+
+/// The receipt inbox's folder `which` in `settings` as the user knows it,
+/// empty for none or an unknown `which`.
+#[cfg(feature = "ai")]
+fn receipt_folder_in(settings: &crate::settings::Settings, which: &str) -> String {
+    receipt_keys(which)
+        .map(|(key, shown, _)| shown_or_path(settings, key, shown))
+        .unwrap_or_default()
+}
+
+#[cfg(not(feature = "ai"))]
+fn receipt_folder_in(_settings: &crate::settings::Settings, _which: &str) -> String {
+    String::new()
+}
+
+/// Keeps `grant` as the receipt inbox's folder `which` in `settings`, unless
+/// it and the other folder overlap, or it is one of KassenSturz's `own`
+/// folders (`docs/RECEIPT_INBOX.md` §2), compared with their links
+/// resolved. Returns an empty code when saved.
+#[cfg(feature = "ai")]
+fn keep_receipt_folder(
+    settings: &crate::settings::Settings,
+    which: &str,
+    grant: &kassensturz_core::book_folder::FolderGrant,
+    own: &[std::path::PathBuf],
+) -> &'static str {
+    use kassensturz_core::ai_switch::GROUP;
+    use kassensturz_core::receipt_inbox::check_folders;
+    let Some((key, shown_key, other_key)) = receipt_keys(which) else {
+        return "settings.not-written";
+    };
+    let Some(path) = grant.path.to_str() else {
+        return "folder.not-usable";
+    };
+    let real = |path: &std::path::Path| std::fs::canonicalize(path).unwrap_or_else(|_| path.into());
+    let chosen = real(&grant.path);
+    let own: Vec<std::path::PathBuf> = own.iter().map(|folder| real(folder)).collect();
+    let own: Vec<&std::path::Path> = own.iter().map(std::path::PathBuf::as_path).collect();
+    let other = settings.text(GROUP, other_key);
+    // Without the other folder yet, only KassenSturz's own are checked.
+    let nested = if other.is_empty() {
+        own.contains(&chosen.as_path())
+    } else {
+        check_folders(&chosen, &real(std::path::Path::new(&other)), &own).is_err()
+    };
+    if nested {
+        return "settings.inbox-archive-nested";
+    }
+    if settings.set_text(GROUP, key, path) && settings.set_text(GROUP, shown_key, &grant.shown_as) {
+        ""
+    } else {
+        "settings.not-written"
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_receipt_folder(
+    _settings: &crate::settings::Settings,
+    _which: &str,
+    _grant: &kassensturz_core::book_folder::FolderGrant,
+    _own: &[std::path::PathBuf],
+) -> &'static str {
+    "settings.not-written"
+}
+
+/// Forgets the receipt inbox's folder `which` in `settings`.
+#[cfg(feature = "ai")]
+fn forget_receipt_folder(settings: &crate::settings::Settings, which: &str) -> bool {
+    use kassensturz_core::ai_switch::GROUP;
+    receipt_keys(which).is_some_and(|(key, shown, _)| {
+        settings.set_text(GROUP, key, "") && settings.set_text(GROUP, shown, "")
+    })
+}
+
+#[cfg(not(feature = "ai"))]
+fn forget_receipt_folder(_settings: &crate::settings::Settings, _which: &str) -> bool {
+    false
+}
+
+#[cfg(all(test, feature = "ai"))]
+mod notes_tests {
+    use super::*;
+    use crate::settings::Settings;
+    use crate::test_folder::TestFolder;
+    use kassensturz_core::ai_switch::{self, MAX_NOTES_CHARS};
+
+    #[test]
+    fn notes_are_kept_and_read_back_by_the_chat_as_the_app_wrote_them() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(settings.set_text(ai_switch::GROUP, ai_switch::ENABLED_KEY, ai_switch::ON));
+        assert_eq!(notes_in(&settings), "");
+        let text = "Salary comes on the 28th.\nCorner Market is groceries. Ümlaut \\ ok";
+        assert!(keep_notes(&settings, text));
+        assert_eq!(notes_in(&settings), text);
+        // The chat reads the very file KConfig wrote, with its escapes.
+        let written = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(ai_switch::notes_in(&written), text);
+        // Switching AI off hides them from the chat; they stay in the file.
+        assert!(settings.set_text(ai_switch::GROUP, ai_switch::ENABLED_KEY, "false"));
+        let written = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(ai_switch::notes_in(&written), "");
+        assert_eq!(notes_in(&settings), text);
+    }
+
+    #[test]
+    fn text_over_the_limit_is_not_kept_and_the_old_notes_stay() {
+        let folder = TestFolder::new();
+        let settings = Settings::at(&folder.join("kassensturzrc"));
+        assert!(keep_notes(&settings, "first"));
+        assert!(!keep_notes(&settings, &"x".repeat(MAX_NOTES_CHARS + 1)));
+        assert_eq!(notes_in(&settings), "first");
+        assert!(keep_notes(&settings, &"x".repeat(MAX_NOTES_CHARS)));
+    }
+
+    #[test]
+    fn a_confirmed_line_is_added_once_as_the_last_line() {
+        let folder = TestFolder::new();
+        let settings = Settings::at(&folder.join("kassensturzrc"));
+        assert_eq!(add_note_in(&settings, "Salary comes on the 28th."), "added");
+        assert_eq!(
+            add_note_in(&settings, "Corner Market is groceries."),
+            "added"
+        );
+        assert_eq!(
+            notes_in(&settings),
+            "Salary comes on the 28th.\nCorner Market is groceries."
+        );
+        assert_eq!(
+            add_note_in(&settings, "Salary comes on the 28th."),
+            "duplicate"
+        );
+        assert_eq!(add_note_in(&settings, "two\nlines"), "refused");
+        assert_eq!(add_note_in(&settings, "  "), "refused");
+        assert_eq!(add_note_in(&settings, &"y".repeat(MAX_NOTES_CHARS)), "full");
+        assert_eq!(
+            notes_in(&settings),
+            "Salary comes on the 28th.\nCorner Market is groceries.",
+            "a refused line changes nothing"
+        );
+    }
 }
 
 #[cfg(all(test, feature = "ai"))]
@@ -1049,16 +1471,148 @@ mod bill_folder_tests {
             "/home/sam/back\\slash/[brackets]=equals;semi",
             "/run/user/1000/doc/1a2b3c4d/Bills",
         ] {
-            assert!(keep_bill_folder(&settings, path), "{path}");
+            assert!(keep_bill_folder(&settings, path, ""), "{path}");
             assert_eq!(bill_folder_in(&settings), path);
             let text = std::fs::read_to_string(&file).unwrap();
             let expected = path.starts_with('/').then(|| PathBuf::from(path));
             assert_eq!(read_by_tools(&text), expected, "{path}: {text}");
         }
-        assert!(keep_bill_folder(&settings, ""));
+        assert!(keep_bill_folder(&settings, "", ""));
         assert_eq!(bill_folder_in(&settings), "");
         let text = std::fs::read_to_string(&file).unwrap();
         assert_eq!(read_by_tools(&text), None);
+    }
+
+    /// B-267: in the Flatpak and the snap the folder is opened through the
+    /// sandbox's path, but shown by the real one the system named.
+    #[test]
+    fn the_bill_folder_is_shown_by_its_real_path_and_opened_by_the_sandboxs() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(settings.set_text(GROUP, ENABLED_KEY, ON));
+        let opened = "/run/user/1000/doc/1a2b3c4d/Bills";
+        assert!(keep_bill_folder(&settings, opened, "/home/sam/Bills"));
+        assert_eq!(bill_folder_in(&settings), "/home/sam/Bills");
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(read_by_tools(&text), Some(PathBuf::from(opened)));
+        assert_eq!(
+            crate::receipt_moves::shown_in(&settings, &PathBuf::from(opened).join("RE-1.pdf")),
+            "/home/sam/Bills/RE-1.pdf"
+        );
+        assert!(keep_bill_folder(&settings, "", ""));
+        assert_eq!(bill_folder_in(&settings), "");
+    }
+}
+
+#[cfg(all(test, feature = "ai"))]
+mod receipt_folder_tests {
+    use std::path::{Path, PathBuf};
+
+    use kassensturz_core::ai_switch::{ENABLED_KEY, GROUP, ON, archive_folder_in, inbox_folder_in};
+    use kassensturz_core::book_folder::FolderGrant;
+
+    use super::*;
+    use crate::settings::Settings;
+    use crate::test_folder::TestFolder;
+
+    /// Both folders as the tools read them, as `ai_switch::inbox_folders`.
+    fn inbox_folders_in(text: &str) -> Option<(PathBuf, PathBuf)> {
+        inbox_folder_in(text).zip(archive_folder_in(text))
+    }
+
+    fn grant(path: &Path, shown: &str) -> FolderGrant {
+        FolderGrant {
+            path: path.to_path_buf(),
+            shown_as: shown.to_owned(),
+            shown_is_real_path: true,
+        }
+    }
+
+    /// The seam (#333): both folders as KConfig writes them are the ones the
+    /// MCP server and the window read without Qt, and only as a pair.
+    #[test]
+    fn the_inbox_and_archive_kconfig_writes_are_the_ones_the_ai_tools_read() {
+        let folder = TestFolder::new();
+        let file = folder.join("kassensturzrc");
+        let settings = Settings::at(&file);
+        assert!(settings.set_text(GROUP, ENABLED_KEY, ON));
+        let inbox = folder.join("Inbox, neue Belege");
+        let archive = folder.join("Archiv €");
+        std::fs::create_dir_all(&inbox).unwrap();
+        std::fs::create_dir_all(&archive).unwrap();
+        assert_eq!(receipt_folder_in(&settings, "inbox"), "");
+
+        assert_eq!(
+            keep_receipt_folder(&settings, "inbox", &grant(&inbox, "/home/sam/Inbox"), &[]),
+            ""
+        );
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(inbox_folders_in(&text), None, "only both folders count");
+        assert_eq!(receipt_folder_in(&settings, "inbox"), "/home/sam/Inbox");
+
+        assert_eq!(
+            keep_receipt_folder(&settings, "archive", &grant(&archive, ""), &[]),
+            ""
+        );
+        assert_eq!(
+            receipt_folder_in(&settings, "archive"),
+            archive.to_str().unwrap()
+        );
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(
+            inbox_folders_in(&text),
+            Some((inbox.clone(), archive.clone()))
+        );
+
+        assert!(forget_receipt_folder(&settings, "archive"));
+        assert_eq!(receipt_folder_in(&settings, "archive"), "");
+        let text = std::fs::read_to_string(&file).unwrap();
+        assert_eq!(inbox_folders_in(&text), None);
+        assert!(!forget_receipt_folder(&settings, "elsewhere"));
+        assert_eq!(receipt_folder_in(&settings, "elsewhere"), "");
+    }
+
+    /// §2: the same folder, one inside the other, or KassenSturz's own
+    /// folder is refused, with links resolved, and nothing is saved.
+    #[test]
+    fn nested_folders_and_kassensturzs_own_are_refused() {
+        let folder = TestFolder::new();
+        let settings = Settings::at(&folder.join("kassensturzrc"));
+        let inbox = folder.join("Inbox");
+        let inside = inbox.join("Filed");
+        let own = folder.join("KassenSturz");
+        for made in [&inside, &own] {
+            std::fs::create_dir_all(made).unwrap();
+        }
+        let through_link = folder.join("Link to inbox");
+        std::os::unix::fs::symlink(&inbox, &through_link).unwrap();
+        let own_folders = [own.clone()];
+
+        assert_eq!(
+            keep_receipt_folder(&settings, "inbox", &grant(&own, ""), &own_folders),
+            "settings.inbox-archive-nested"
+        );
+        assert_eq!(
+            keep_receipt_folder(&settings, "inbox", &grant(&inbox, ""), &own_folders),
+            ""
+        );
+        let parent = folder.join("");
+        for refused in [&inbox, &inside, &through_link, &parent, &own] {
+            assert_eq!(
+                keep_receipt_folder(&settings, "archive", &grant(refused, ""), &own_folders),
+                "settings.inbox-archive-nested",
+                "{}",
+                refused.display()
+            );
+            assert_eq!(receipt_folder_in(&settings, "archive"), "");
+        }
+        let archive: PathBuf = folder.join("Archive");
+        std::fs::create_dir_all(&archive).unwrap();
+        assert_eq!(
+            keep_receipt_folder(&settings, "archive", &grant(&archive, ""), &own_folders),
+            ""
+        );
     }
 }
 
@@ -1092,6 +1646,27 @@ mod write_tools_tests {
     use super::*;
     use crate::settings::Settings;
     use crate::test_folder::TestFolder;
+
+    #[cfg(feature = "ai")]
+    #[test]
+    fn the_settings_page_says_when_the_request_folder_cant_be_used() {
+        let scratch = TestFolder::new();
+        // A usable place: no problem, and the folder is there afterwards.
+        let place = scratch.join("data").join("mcp-requests");
+        assert_eq!(request_folder_problem(Some(place.clone())), "");
+        assert!(place.is_dir());
+        // No place on this system (macOS until its packaging, B-377).
+        assert_eq!(request_folder_problem(None), "none");
+        // A file where the folder should be: it can't be used.
+        let file = scratch.join("a-file");
+        std::fs::write(&file, b"x").expect("file written");
+        assert_eq!(request_folder_problem(Some(file)), "unusable");
+        // Linux and Windows have a place now; only other systems have none.
+        assert_eq!(
+            default_request_folder().is_some(),
+            cfg!(any(target_os = "linux", windows))
+        );
+    }
 
     #[cfg(feature = "ai")]
     #[test]
@@ -1177,6 +1752,8 @@ mod write_tools_tests {
         assert!(!keep_write_tools(&settings, true));
         assert!(!write_tools_in(&settings));
         assert!(!file.exists());
+        // No AI, so no message about the request folder either.
+        assert_eq!(request_folder_problem(None), "");
     }
 }
 
@@ -1258,6 +1835,8 @@ mod tests {
                 "capability",
                 "consent",
                 "consentDay",
+                "consentUnconfirmedDay",
+                "consentUntilClose",
                 "keyUse",
                 "model",
                 "network",
@@ -1292,6 +1871,11 @@ mod tests {
         assert!(store.give_consent(TODAY));
         let form = load_in(&store, false);
         assert_eq!(text_of(&form, "consent"), "given");
+        // `Store::at` has nowhere to save secrets, so the seal is kept only
+        // in memory and the form says the consent lasts until KassenSturz
+        // closes (B-324). The saved case is tested in `ai_settings`.
+        assert!(flag_of(&form, "consentUntilClose"));
+        assert_eq!(text_of(&form, "consentUnconfirmedDay"), "");
         assert!(
             text_of(&form, "consentDay").contains("25"),
             "the day, as the locale writes it"
@@ -1430,7 +2014,10 @@ mod tests {
             .iter()
             .map(|word| word.value::<cxx_qt_lib::QString>().unwrap().to_string())
             .collect();
-        assert_eq!(words, ["questions", "book-data", "instructions", "key"]);
+        assert_eq!(
+            words,
+            ["questions", "book-data", "notes", "instructions", "key"]
+        );
     }
 
     #[test]

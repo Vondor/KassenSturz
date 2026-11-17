@@ -74,7 +74,7 @@ pub fn tile(
     scope: &Scope,
 ) -> Result<(TileView, FilterView), ChartsError> {
     let period = period(book, period_key, locale.today())?;
-    let source = Source::read(book, period)?;
+    let source = Source::read_by_side_dates(book, period)?;
     let (filter, view) = scope.resolve(book, &source)?;
     if view.nothing {
         return Ok((TileView::default(), view));
@@ -241,6 +241,42 @@ pub(crate) mod tests {
         assert!(!shop.incoming);
         assert!(shop.amount.exact.contains("23"), "{:?}", shop.amount);
         let _ = f.groceries;
+    }
+
+    /// B-348: a Transfer whose sides show two days is on the day of the
+    /// account the tile is limited to, in the tile's rows and its count.
+    #[test]
+    fn a_transfer_with_sides_on_two_days_is_listed_on_the_day_of_the_chosen_account() {
+        let mut f = fixture();
+        let day = |d: i8| kassensturz_core::Date::new(2026, 11, d).expect("a day");
+        let money = |minor| Money::from_minor_units(minor, EUR);
+        let mut left = Split::new(f.checking, money(-4_200));
+        left.own_date = Some(day(1));
+        let mut reached = Split::new(f.savings, money(4_200));
+        reached.own_date = Some(day(2));
+        let moved = Transaction::new(TransactionId::generate(), day(1), None, vec![left, reached])
+            .expect("balanced");
+        f.book.add_transaction(&moved).expect("added");
+        let only = |account: AccountId| {
+            Scope::from_text(&format!(
+                r#"{{"accounts": ["{account}"], "accountsOwn": true}}"#
+            ))
+        };
+        let rows_on = |account: AccountId, d: i8| {
+            let word = format!("2026-11-{d:02}..2026-11-{d:02}");
+            let (view, _) = tile(&f.book, &TestLocale, &word, "20", &only(account)).expect("tile");
+            (
+                view.total,
+                view.rows
+                    .iter()
+                    .map(|row| row.date.clone())
+                    .collect::<Vec<_>>(),
+            )
+        };
+        assert_eq!(rows_on(f.savings, 1), (0, vec![]));
+        assert_eq!(rows_on(f.savings, 2), (1, vec!["2026-11-02".to_owned()]));
+        assert_eq!(rows_on(f.checking, 2), (0, vec![]));
+        assert_eq!(rows_on(f.checking, 1), (1, vec!["2026-11-01".to_owned()]));
     }
 
     #[test]

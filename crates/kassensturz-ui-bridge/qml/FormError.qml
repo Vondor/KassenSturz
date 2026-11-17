@@ -39,6 +39,53 @@ Kirigami.InlineMessage {
             : i18nContext.i18nc("@info %1 is the number of a part of a transaction, %2 a message about it", "Part %1: %2", result.part, message);
     }
 
+    // Why a bill of the receipt inbox didn't move (US7, #333), from the
+    // reason word of `bill.move-failed` (docs/ERROR_CODES.md).
+    function billReason(reason: string): string {
+        switch (reason) {
+        case "changed":
+            return i18nContext.i18nc("@info", "The file changed after it was read.");
+        case "not-found":
+            return i18nContext.i18nc("@info", "The file isn't there any more.");
+        case "exists":
+            return i18nContext.i18nc("@info", "A file of that name is already there.");
+        case "no-space":
+            return i18nContext.i18nc("@info", "The drive is full.");
+        case "no-permission":
+            return i18nContext.i18nc("@info", "KassenSturz may not write there.");
+        case "inbox-gone":
+            return i18nContext.i18nc("@info", "The inbox folder isn't there any more.");
+        case "archive-gone":
+            return i18nContext.i18nc("@info", "The archive folder isn't there any more.");
+        case "verify":
+            return i18nContext.i18nc("@info", "The copy didn't match the original, so it was removed.");
+        default:
+            return i18nContext.i18nc("@info", "The file couldn't be copied.");
+        }
+    }
+
+    // Why a planned payment can't be kept as it is (D-769).
+    function scheduleInvalid(reason: string): string {
+        switch (reason) {
+        case "name":
+            return i18nContext.i18nc("@info", "Give the planned payment a name of 1 to 60 characters on one line, such as Rent.");
+        case "amount-zero":
+            return i18nContext.i18nc("@info", "Type an amount other than zero.");
+        case "every-range":
+            return i18nContext.i18nc("@info", "Choose how often it comes: every 1 to 52 weeks, months or years.");
+        case "end-before-start":
+            return i18nContext.i18nc("@info", "The end is before the first payment. Choose a later end, or none.");
+        case "tolerance-range":
+            return i18nContext.i18nc("@info", "The amount may vary by less than the amount itself. Type a smaller difference, or none.");
+        case "party":
+            return i18nContext.i18nc("@info", "The name or IBAN it is paid to or received from may have at most 140 characters.");
+        case "booked-amount":
+            return i18nContext.i18nc("@info", "To book it, type an amount other than zero.");
+        default:
+            return i18nContext.i18nc("@info", "This planned payment can't be kept as it is. Check the form.");
+        }
+    }
+
     // Why a chart description can't be read, at the place it names. The
     // place is the user's own text and is shown as it is (D-034).
     function specInvalid(result: var): string {
@@ -116,6 +163,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The file isn't built like a book KassenSturz can read; it may be damaged. Nothing was made.");
         case "import.too-many-entries":
             return i18nContext.i18nc("@info %1 is a number", "The file has more than %1 entries, more than KassenSturz reads safely. Nothing was made.", result.max);
+        case "import.stopped":
+            return i18nContext.i18nc("@info", "KassenSturz was asked to quit while it made the book, so it stopped. Nothing was made.");
         case "import.malformed":
             return result.line !== undefined
                 ? i18nContext.i18nc("@info %1 is a line number", "The file isn't a KMyMoney book KassenSturz can read, or it is damaged (line %1). Save it again in KMyMoney, then choose it again. Nothing was made.", result.line)
@@ -256,6 +305,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18ncp("@info", "Amounts here have at most %1 decimal place. Leave out the extra ones; nothing is rounded for you.", "Amounts here have at most %1 decimal places. Leave out the extra ones; nothing is rounded for you.", parseInt(result.max));
         case "input.amount-too-large":
             return i18nContext.i18nc("@info", "This amount is too large. Check it for extra digits.");
+        case "store.amount-overflow":
+            return i18nContext.i18nc("@info", "This would make the amounts in your book add up to more than KassenSturz can work with. Nothing was changed. Check the amount for extra digits.");
         case "input.amount-not-positive":
             return i18nContext.i18nc("@info", "Type an amount above zero. Whether you paid or received it, you choose above.");
         case "input.negative-debt":
@@ -310,6 +361,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The file isn't built like a bank file; it may be damaged. Download it again. Nothing was imported.");
         case "import.too-many-entries":
             return i18nContext.i18nc("@info %1 is a number", "The file has more than %1 entries. Download a shorter period and import each part. Nothing was imported.", result.max);
+        case "import.stopped":
+            return i18nContext.i18nc("@info", "KassenSturz was asked to quit while it imported, so it stopped. Nothing was imported; import the file again.");
         case "import.malformed":
             return result.line !== undefined
                 ? i18nContext.i18nc("@info %1 is a line number", "The file isn't in the format chosen, or it is damaged (line %1). Check the choices, or download the file again. Nothing was imported.", result.line)
@@ -320,6 +373,10 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is text from the file", "\"%1\" should be a date, but KassenSturz can't read it in the order of day, month and year chosen. Check that order. Nothing was imported.", result.found);
         case "import.wrong-encoding":
             return i18nContext.i18nc("@info", "The file has a character that doesn't exist in the text encoding chosen. Choose another encoding, or let KassenSturz tell it from the file. Nothing was imported.");
+        case "import.encoding-contradiction":
+            return i18nContext.i18nc("@info %1 is a text encoding such as UTF-8", "The file says it is written in %1, but its text isn't. It may have been saved again by another program. Download it again, or save it in UTF-8. Nothing was imported.", result.declared);
+        case "import.unsupported-encoding":
+            return i18nContext.i18nc("@info %1 is a text encoding such as UTF-32", "The file is written in the text encoding %1, which KassenSturz doesn't read. Download it again in UTF-8, or save it in UTF-8 or UTF-16. Nothing was imported.", result.found);
         case "import.column-not-found":
             return i18nContext.i18nc("@info %1 is the name of a column", "The file has no column called \"%1\". Your bank may have changed its file: check which column holds what. Nothing was imported.", result.column);
         case "import.column-not-unique":
@@ -595,6 +652,8 @@ Kirigami.InlineMessage {
                 return i18nContext.i18nc("@info %1 is the name of a category", "A Rule books to %1 or looks at it, so it can't be deleted. Change or delete the Rule first.", result.category);
             case "budgets":
                 return i18nContext.i18nc("@info %1 is the name of a category", "%1 has a budget, so it can't be deleted. Delete its budget first.", result.category);
+            case "schedules":
+                return i18nContext.i18nc("@info %1 is the name of a category", "A planned payment uses %1, so it can't be deleted. Give the planned payment another category first.", result.category);
             default:
                 return i18nContext.i18nc("@info %1 is the name of a category", "%1 has transactions, so it can't be deleted. Put them into another category first.", result.category);
             }
@@ -606,12 +665,71 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This transaction came from your bank or a file, so its amount stays as it was delivered. You can change the rest.");
         case "store.delivered-kept":
             return i18nContext.i18nc("@info", "KassenSturz keeps what your bank or a file delivered exactly as it came, so this change wasn't made and nothing was lost. This is a mistake in KassenSturz or in another program that changed the book; please report it.");
+        // The drive, not the change (B-282): the change was taken back.
+        case "store.io":
+            switch (result.kind) {
+            case "storage-full":
+            case "quota-exceeded":
+                return i18nContext.i18nc("@info", "The drive is full, so this change wasn't saved and the book is as it was. Free up some space, for example by emptying the trash, then try again.");
+            case "permission-denied":
+            case "read-only":
+                return i18nContext.i18nc("@info", "KassenSturz isn't allowed to change files in this folder. Choose a folder you can write to.");
+            default:
+                return i18nContext.i18nc("@info", "The file couldn't be read or written. Check that the drive is connected, then try again.");
+            }
+        case "store.hidden-text":
+        case "store.account-name":
+            switch (result.reason) {
+            case "line-break":
+                return i18nContext.i18nc("@info", "A name must fit on one line. Type it again without the line break.");
+            case "invisible":
+                return i18nContext.i18nc("@info", "This name holds a character that can't be seen, for example a zero-width space, so it could look like another name. Type the name again instead of pasting it.");
+            default:
+                return i18nContext.i18nc("@info %1 is a number", "A name can have at most %1 characters. Choose a shorter name.", result.max_chars);
+            }
         case "store.account-closed":
             return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed. Open it again to add or change its transactions.", result.account);
+        case "store.nothing-moves":
+            return i18nContext.i18nc("@info %1 is the name of an account or category", "Every part of this transaction is in %1, so no money moves. Choose another account or category for one of them.", result.account);
+        case "store.zero-amount":
+            return i18nContext.i18nc("@info", "This transaction is zero, so no money moves. Enter its amount.");
+        // Planned payments (US7.1, D-769).
+        case "input.plan-every":
+            return i18nContext.i18nc("@info", "Choose how often it comes: every 1 to 52 weeks, months or years.");
+        case "store.schedule-unknown":
+            return i18nContext.i18nc("@info", "This planned payment isn't in the book anymore. It may have just been removed.");
+        case "store.schedule-invalid":
+            return scheduleInvalid(result.reason ?? "");
+        case "store.schedule-account-closed":
+            return i18nContext.i18nc("@info %1 is the name of an account", "%1 is closed, so it gets no new planned payment and no new entry. Open it again first; its planned payments go on then.", result.account);
+        case "store.schedule-currency-differs":
+            return i18nContext.i18nc("@info %1 is the name of an account, %2 a currency code", "%1 doesn't count in %2. A planned payment is in its account's currency.", result.account, result.currency);
+        case "store.schedule-category":
+            return i18nContext.i18nc("@info %1 is the name of a category", "%1 isn't a category in the planned payment's currency. Choose another one, or none.", result.category);
+        case "store.schedule-too-many":
+            return i18nContext.i18nc("@info %1 is a number", "A book holds at most %1 planned payments. Remove one you don't need anymore first.", result.max);
+        case "store.schedule-occurrence-unknown":
+            return i18nContext.i18nc("@info", "This planned payment isn't due on that day. It may have just been changed. Look at the list again.");
+        case "store.schedule-occurrence-decided":
+            return i18nContext.i18nc("@info", "This payment was matched or skipped already, so nothing was changed. To take a match back, use Undo.");
+        case "store.schedule-entry-taken":
+            return i18nContext.i18nc("@info", "This entry is matched to a planned payment already. Each entry pays one planned payment.");
+        case "store.schedule-entry-not-fitting":
+            return i18nContext.i18nc("@info", "This entry can't pay this planned payment: it must be in the plan's account, with the money going the same way, and not a move between your own accounts.");
+        case "store.lock-lost":
+            return i18nContext.i18nc("@info", "Another program took this book over, so your change wasn't saved. Close the book and open it again.");
         case "store.corrupt.history-mismatch":
             return i18nContext.i18nc("@info", "The book doesn't match its history anymore, probably because another program changed it. Nothing was changed. To go on with Undo, open Settings and use \"Clean up history\".");
+        // The receipt inbox (US7, #333): a bill can't move back or again,
+        // so nothing was changed (docs/RECEIPT_INBOX.md §7).
+        case "bill.undo-blocked":
+            return i18nContext.i18nc("@info %1 is a list of files, %2 why the first can't be moved", "Nothing was undone: these bills can't be moved back into your inbox: %1. %2 Put them back, or undo anyway and leave them where they are.", result.files, billReason(result.reason));
+        case "bill.redo-blocked":
+            return i18nContext.i18nc("@info %1 is a list of files, %2 why the first can't be moved", "Nothing was made again: these bills can't be filed again: %1. %2 Put them back into your inbox, then try again.", result.files, billReason(result.reason));
         case "input.no-accounts-chosen":
             return i18nContext.i18nc("@info", "Tick at least one account.");
+        case "input.range-reversed":
+            return i18nContext.i18nc("@info", "The last day is before the first. Swap them.");
         case "export.io":
             switch (result.kind) {
             case "not-found":

@@ -16,9 +16,10 @@
 //! The history is kept in the book, or only in memory if the user keeps it
 //! for 0 days (D-066). Its layout is documented in `docs/BOOK_FORMAT.md`.
 
+use std::collections::HashSet;
 use std::path::Path;
 
-use kassensturz_core::{AccountId, Date, Timestamp, TransactionId};
+use kassensturz_core::{AccountId, Date, RuleId, Timestamp, TransactionId};
 use rusqlite::{Connection, OptionalExtension, ToSql, params};
 
 use crate::cached::Cached;
@@ -150,11 +151,32 @@ pub enum Action {
     JoinRecurringMoves,
     /// Joined several suggested Transfers at once (D-749, "Join all").
     JoinTransfers,
+    /// Made a new planned payment (D-769).
+    AddSchedule,
+    /// Changed a planned payment.
+    EditSchedule,
+    /// Removed a planned payment. The entries matched to it stay as they
+    /// are.
+    RemoveSchedule,
+    /// Paused a planned payment, or let it go on again.
+    PauseSchedule,
+    /// Matched, after an import, the new entries that fit planned payments
+    /// (D-769). Undo takes back the matches and leaves the entries.
+    MatchSchedules,
+    /// Matched an entry the user picked to a planned payment's occurrence.
+    MatchScheduleOccurrence,
+    /// Skipped one occurrence of a planned payment.
+    SkipScheduleOccurrence,
+    /// Took back the skip of an occurrence.
+    UnskipScheduleOccurrence,
+    /// Booked an occurrence of a planned payment as a new entry, on the
+    /// user's click.
+    BookScheduleOccurrence,
 }
 
 impl Action {
     /// Every action, in the order of the list above.
-    pub const ALL: [Self; 51] = [
+    pub const ALL: [Self; 60] = [
         Self::SetRoundingMode,
         Self::UseCurrency,
         Self::AddAccount,
@@ -206,6 +228,15 @@ impl Action {
         Self::RemoveRecurringMove,
         Self::JoinRecurringMoves,
         Self::JoinTransfers,
+        Self::AddSchedule,
+        Self::EditSchedule,
+        Self::RemoveSchedule,
+        Self::PauseSchedule,
+        Self::MatchSchedules,
+        Self::MatchScheduleOccurrence,
+        Self::SkipScheduleOccurrence,
+        Self::UnskipScheduleOccurrence,
+        Self::BookScheduleOccurrence,
     ];
 }
 
@@ -305,7 +336,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 27] = [
+pub(crate) const RECORDED: [Recorded; 29] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -616,6 +647,38 @@ pub(crate) const RECORDED: [Recorded; 27] = [
             ("created_on", "TEXT"),
         ],
     },
+    Recorded {
+        name: "schedules",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("name", "TEXT"),
+            ("account_id", "BLOB"),
+            ("amount", "INTEGER"),
+            ("currency", "TEXT"),
+            ("tolerance", "INTEGER"),
+            ("category_id", "BLOB"),
+            ("party_iban", "TEXT"),
+            ("party_name", "TEXT"),
+            ("unit", "TEXT"),
+            ("every", "INTEGER"),
+            ("anchor", "TEXT"),
+            ("track_from", "TEXT"),
+            ("ends_on", "TEXT"),
+            ("paused", "INTEGER"),
+        ],
+    },
+    Recorded {
+        name: "schedule_occurrences",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("schedule_id", "BLOB"),
+            ("due_on", "TEXT"),
+            ("status", "TEXT"),
+            ("transaction_id", "BLOB"),
+        ],
+    },
 ];
 
 impl Recorded {
@@ -817,6 +880,11 @@ impl Book {
             let changed = change(book);
             book.recording = false;
             let value = changed?;
+            // No change may leave a currency's amounts too large to add up
+            // (B-269), whichever way they came in.
+            if crate::totals::splits_changed(&book.conn)? {
+                crate::totals::check_totals(&book.conn)?;
+            }
             book.record(action)?;
             Ok(value)
         })
@@ -839,6 +907,7 @@ impl Book {
     where
         E: From<StoreError>,
     {
+        self.check_lock_is_ours()?;
         self.conn
             .execute_batch("SAVEPOINT book")
             .map_err(StoreError::from)?;
@@ -856,7 +925,22 @@ impl Book {
                 self.recording = true;
                 let result = change(self);
                 self.recording = outer;
-                result
+                // Refused where the real action would be (B-269).
+                match result {
+                    Ok(value) if !outer => {
+                        match crate::totals::splits_changed(&self.conn).and_then(|changed| {
+                            if changed {
+                                crate::totals::check_totals(&self.conn)
+                            } else {
+                                Ok(())
+                            }
+                        }) {
+                            Ok(()) => Ok(value),
+                            Err(error) => Err(error.into()),
+                        }
+                    }
+                    other => other,
+                }
             }
             Err(error) => Err(StoreError::from(error).into()),
         };
@@ -1142,9 +1226,32 @@ impl Book {
         Ok(())
     }
 
+    /// Whether the book has the Rule `rule`.
+    fn rule_exists(&self, rule: RuleId) -> Result<bool, StoreError> {
+        Ok(self.conn.query_row_cached(
+            "SELECT EXISTS (SELECT 1 FROM main.rules WHERE id = ?1)",
+            [rule.to_bytes()],
+            |row| row.get(0),
+        )?)
+    }
+
     fn write_back(&mut self, schema: &str, change: ChangeId, side: Side) -> Result<(), StoreError> {
         self.conn
             .execute_cached("INSERT INTO temp.history_state (recording) VALUES (0)", [])?;
+        // The AI's Rules that an earlier undo or redo took away with their
+        // mark: those this change brings back get it again (B-370). They are
+        // kept in the book (layout 35, D-815), so this holds also after the
+        // book was closed and opened again.
+        let away: Vec<RuleId> = {
+            let mut statement = self.conn.prepare_cached(
+                "SELECT rule_id FROM main.parked_ai_rule_marks
+                 WHERE rule_id NOT IN (SELECT id FROM main.rules)",
+            )?;
+            statement
+                .query_map([], |row| row.get::<_, [u8; 16]>(0))?
+                .map(|id| id.map(RuleId::from_bytes))
+                .collect::<Result<_, _>>()?
+        };
         let id = change.to_bytes();
         // The book must hold what the other side says, or the values written
         // back wouldn't fit what is around them.
@@ -1198,12 +1305,40 @@ impl Book {
         })?;
         // The marks of Rules the AI made aren't recorded (layout 32): with
         // the foreign keys off nothing removes the mark of a Rule that was
-        // taken away, so it goes here.
+        // taken away, so it goes here, and is kept aside in the book for a
+        // redo that brings the Rule back (B-370, layout 35).
+        let taken_away: Vec<[u8; 16]> = {
+            let mut statement = self.conn.prepare_cached(
+                "SELECT rule_id FROM main.unchecked_ai_rules
+                 WHERE rule_id NOT IN (SELECT id FROM main.rules)",
+            )?;
+            statement
+                .query_map([], |row| row.get(0))?
+                .collect::<Result<_, _>>()?
+        };
         self.conn.execute_cached(
             "DELETE FROM main.unchecked_ai_rules
              WHERE rule_id NOT IN (SELECT id FROM main.rules)",
             [],
         )?;
+        for rule in away {
+            if self.rule_exists(rule)? {
+                self.conn.execute_cached(
+                    "INSERT OR IGNORE INTO main.unchecked_ai_rules (rule_id) VALUES (?1)",
+                    [rule.to_bytes()],
+                )?;
+                self.conn.execute_cached(
+                    "DELETE FROM main.parked_ai_rule_marks WHERE rule_id = ?1",
+                    [rule.to_bytes()],
+                )?;
+            }
+        }
+        for rule in taken_away {
+            self.conn.execute_cached(
+                "INSERT OR IGNORE INTO main.parked_ai_rule_marks (rule_id) VALUES (?1)",
+                [rule],
+            )?;
+        }
         let broken_references: i64 = self.conn.query_row_cached(
             "SELECT count(*) FROM pragma_foreign_key_check",
             [],
@@ -1318,6 +1453,29 @@ impl Book {
         })
     }
 
+    /// How many changes the book would delete at `now` if it kept its
+    /// history as `keep`, by the same rule as when it deletes them (B-274),
+    /// so the user can be asked before a shorter setting. With 0 days none:
+    /// the history moves into memory and is lost when the book closes.
+    pub fn history_expiring(
+        &self,
+        keep: HistoryRetention,
+        now: Timestamp,
+    ) -> Result<usize, StoreError> {
+        if keep == HistoryRetention::Days(0) {
+            return Ok(0);
+        }
+        let Some(last) = last_to_delete(&self.conn, keep, now)? else {
+            return Ok(0);
+        };
+        let count: i64 = self.conn.query_row_cached(
+            "SELECT count(*) FROM main.changes WHERE sequence <= ?1",
+            [last],
+            |row| row.get(0),
+        )?;
+        Ok(usize::try_from(count).unwrap_or(0))
+    }
+
     /// Deletes the changes older than the book keeps them, when it is
     /// opened.
     pub(crate) fn prune_history(&mut self) -> Result<(), StoreError> {
@@ -1334,6 +1492,33 @@ impl Book {
         })
     }
 
+    /// Checks the lock file is still ours before a change starts (outside a
+    /// bigger change, which checked already). Without file locks it is the
+    /// only guard against a second writer (D-776). With them it catches a
+    /// book another computer took over with "open anyway" (D-038): SQLite's
+    /// locks don't reach across a network share, so both would save
+    /// (B-306, D-798). The outermost savepoint asks again just before it
+    /// saves (B-353), so only a take-over during the save itself, which
+    /// takes milliseconds, can still slip in.
+    pub(crate) fn check_lock_is_ours(&self) -> Result<(), StoreError> {
+        if self.conn.is_autocommit() && self.lock_taken_over() {
+            return Err(StoreError::LockLost);
+        }
+        Ok(())
+    }
+
+    /// Whether another program or computer took this book's lock over, so
+    /// the next change would be refused with [`StoreError::LockLost`]. The
+    /// UI asks every few seconds and when its window gets the focus, so the
+    /// user hears of it before typing something that can't be saved
+    /// (B-306, D-798). A lock file that can't be read is not a take-over.
+    #[must_use]
+    pub fn lock_taken_over(&self) -> bool {
+        self._lock
+            .as_ref()
+            .is_some_and(crate::lock::HeldLock::is_taken_over)
+    }
+
     /// Runs `change` in a savepoint: if it fails, everything it changed is
     /// taken back. Outside a transaction, the savepoint starts one, which
     /// ends with it.
@@ -1347,11 +1532,27 @@ impl Book {
         if self.write_failed {
             return Err(StoreError::WriteFailed.into());
         }
+        self.check_lock_is_ours()?;
+        // Whether this savepoint is the outermost one, whose release saves
+        // the change to the file.
+        let saves = self.conn.is_autocommit();
         if let Err(error) = self.conn.execute_batch("SAVEPOINT book") {
             self.note_write_failure(&error);
             return Err(StoreError::from(error).into());
         }
         match change(self) {
+            // Asked again just before the save: another computer may have
+            // taken the book over while the change was being made, and its
+            // save must not land in a book that is now that computer's
+            // (B-353). What is left is the save itself.
+            Ok(_) if saves && self.lock_taken_over() => {
+                // The whole transaction, so not even an empty save reaches
+                // the file.
+                if self.conn.execute_batch("ROLLBACK").is_err() {
+                    self.roll_back();
+                }
+                Err(StoreError::LockLost.into())
+            }
             Ok(value) => match self.conn.execute_batch("RELEASE book") {
                 Ok(()) => Ok(value),
                 Err(error) => {
@@ -1376,9 +1577,31 @@ impl Book {
         self.write_failed
     }
 
+    /// Whether writing failed because another program replaced the book's
+    /// file while it was open, e.g. a sync program putting another
+    /// computer's copy over it (B-289). The change that failed was not
+    /// written to the file now at the book's path.
+    #[must_use]
+    pub fn file_replaced(&self) -> bool {
+        self.file_replaced
+    }
+
     /// Remembers that `error` is the drive's, not the change's.
     fn note_write_failure(&mut self, error: &rusqlite::Error) {
         use rusqlite::ErrorCode;
+        // SQLite's own check that the file it has open is still the one at
+        // its path (`SQLITE_READONLY_DBMOVED`). It says the same for a file
+        // that is gone, so it is another file's replacing this one only if
+        // something is at the path now.
+        if let rusqlite::Error::SqliteFailure(failure, _) = error
+            && failure.extended_code == rusqlite::ffi::SQLITE_READONLY_DBMOVED
+            && self
+                .conn
+                .path()
+                .is_some_and(|path| std::path::Path::new(path).is_file())
+        {
+            self.file_replaced = true;
+        }
         if matches!(
             error.sqlite_error_code(),
             Some(
@@ -1514,11 +1737,27 @@ fn prune_after_change(
 
 /// Deletes the changes the book no longer keeps at `now`: with 0 days every
 /// change stored in the book, otherwise those made more than the days
-/// before. It deletes from the oldest change up to the newest one that is
-/// too old, so the history has no gaps even if a computer's clock was wrong
-/// when a change was made, and the history in memory isn't touched.
+/// before **and** followed by changes on at least as many other days
+/// ([`used_days_after`], D-780), so a clock far ahead deletes nothing a
+/// day of use doesn't. It deletes from the oldest change up to the newest
+/// one that is too old, so the history has no gaps even if a computer's
+/// clock was wrong when a change was made, and the history in memory isn't
+/// touched.
 fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<(), StoreError> {
-    let last: Option<i64> = match keep {
+    match last_to_delete(conn, keep, now)? {
+        Some(last) => delete_changes(conn, "main", "sequence <= ?1", &[&last]),
+        None => Ok(()),
+    }
+}
+
+/// The newest change [`prune`] deletes at `now` with the history kept as
+/// `keep`, together with every older one.
+fn last_to_delete(
+    conn: &Connection,
+    keep: HistoryRetention,
+    now: Timestamp,
+) -> Result<Option<i64>, StoreError> {
+    Ok(match keep {
         HistoryRetention::Forever => None,
         HistoryRetention::Days(0) => {
             conn.query_row_cached("SELECT max(sequence) FROM main.changes", [], |row| {
@@ -1530,7 +1769,7 @@ fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<()
                 .as_second()
                 .checked_sub(86_400 * i64::from(days))
                 .and_then(|second| Timestamp::from_second(second).ok());
-            match limit {
+            let by_clock: Option<i64> = match limit {
                 Some(limit) => conn.query_row_cached(
                     "SELECT max(sequence) FROM main.changes WHERE made_at < ?1",
                     [limit.to_string()],
@@ -1538,13 +1777,41 @@ fn prune(conn: &Connection, keep: HistoryRetention, now: Timestamp) -> Result<()
                 )?,
                 // Further back than any time, so nothing is that old.
                 None => None,
+            };
+            match by_clock {
+                Some(by_clock) => used_days_after(conn, days)?.map(|by_use| by_clock.min(by_use)),
+                None => None,
             }
         }
-    };
-    match last {
-        Some(last) => delete_changes(conn, "main", "sequence <= ?1", &[&last]),
-        None => Ok(()),
+    })
+}
+
+/// The newest change after which the book was changed on at least `days`
+/// other days, by the dates the changes were made on (D-780, B-274): only a
+/// change up to it may be deleted, whatever the clock says now. A clock
+/// that jumps years ahead then can't delete the whole history at the next
+/// change, since that change adds one day of use, not `days`; a book left
+/// alone for months keeps its last days of use too. It reads the changes
+/// from the newest one back only until it has seen that many days.
+fn used_days_after(conn: &Connection, days: u32) -> Result<Option<i64>, StoreError> {
+    let wanted = usize::try_from(days).unwrap_or(usize::MAX);
+    let mut statement =
+        conn.prepare_cached("SELECT sequence, made_at FROM main.changes ORDER BY sequence DESC")?;
+    let mut rows = statement.query([])?;
+    let mut seen: HashSet<String> = HashSet::new();
+    while let Some(row) = rows.next()? {
+        let sequence: i64 = row.get(0)?;
+        let made_at: String = row.get(1)?;
+        // The day of a time written as RFC 3339, e.g. `2026-11-14`; a time
+        // that can't be read counts as a day of its own.
+        let day = made_at.get(..10).unwrap_or(&made_at);
+        let other_days = seen.len() - usize::from(seen.contains(day));
+        if other_days >= wanted {
+            return Ok(Some(sequence));
+        }
+        seen.insert(day.to_owned());
     }
+    Ok(None)
 }
 
 /// `time` without the fraction of a second, which the history doesn't keep.
@@ -1616,6 +1883,15 @@ fn action_to_text(action: Action) -> &'static str {
         Action::RemoveRecurringMove => "remove_recurring_move",
         Action::JoinRecurringMoves => "join_recurring_moves",
         Action::JoinTransfers => "join_transfers",
+        Action::AddSchedule => "add_schedule",
+        Action::EditSchedule => "edit_schedule",
+        Action::RemoveSchedule => "remove_schedule",
+        Action::PauseSchedule => "pause_schedule",
+        Action::MatchSchedules => "match_schedules",
+        Action::MatchScheduleOccurrence => "match_schedule_occurrence",
+        Action::SkipScheduleOccurrence => "skip_schedule_occurrence",
+        Action::UnskipScheduleOccurrence => "unskip_schedule_occurrence",
+        Action::BookScheduleOccurrence => "book_schedule_occurrence",
     }
 }
 

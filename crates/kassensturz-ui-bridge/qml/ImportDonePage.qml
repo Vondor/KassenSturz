@@ -25,6 +25,11 @@ Kirigami.ScrollablePage {
     readonly property var joined: view.joined ?? []
     // The user took the joins back with "Undo these joins".
     property bool joinsUndone: false
+    // New entries matched to planned payments (US7.1, D-769), and whether
+    // the user took the matches back with "Undo these matches" (taking the
+    // joins back takes them back too: they were made after the joins).
+    readonly property var planned: view.planned ?? []
+    property bool matchesUndone: false
 
     // The user is finished here.
     signal done()
@@ -202,17 +207,101 @@ Kirigami.ScrollablePage {
 
             FormCard.FormButtonDelegate {
                 visible: !page.joinsUndone
+                descriptionItem.textFormat: Text.PlainText
                 icon.name: "edit-undo"
                 text: page.i18nContext.i18nc("@action:button", "Undo these joins")
-                description: page.i18nContext.i18nc("@info", "Takes them all apart again. The imported entries stay.")
+                description: page.planned.length > 0 && !page.matchesUndone
+                    ? page.i18nContext.i18nc("@info", "Takes them all apart again, and the planned payments found below with them. The imported entries stay.")
+                    : page.i18nContext.i18nc("@info", "Takes them all apart again. The imported entries stay.")
                 onClicked: {
                     ActionLog.taken("ImportDonePage_undoJoins")
                     const result = page.statementImport.undoJoins();
                     error.result = result;
                     if (result.code === undefined) {
                         page.joinsUndone = true;
+                        page.matchesUndone = true;
                     }
                 }
+            }
+        }
+
+        // New entries that fit a planned payment (US7.1, D-769, 2.4): each
+        // with the amount as the bank sent it, with one button that takes
+        // the matches back and keeps the entries.
+        FormCard.FormHeader {
+            visible: page.planned.length > 0
+            title: page.i18nContext.i18nc("@title:group", "Planned payments found")
+        }
+
+        FormCard.FormCard {
+            visible: page.planned.length > 0
+
+            FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
+                descriptionItem.textFormat: Text.PlainText
+                icon.name: page.matchesUndone ? "edit-undo" : "view-calendar-upcoming-events"
+                text: page.matchesUndone
+                    ? page.i18nContext.i18nc("@info", "The matches are taken back. The entries stay, and the planned payments wait again.")
+                    : page.i18nContext.i18ncp("@info", "%1 new entry is a payment you planned.", "%1 new entries are payments you planned.", page.planned.length)
+                description: page.matchesUndone ? "" : page.i18nContext.i18nc("@info", "Nothing was booked or changed in amount or date. An entry without a category got the plan's.")
+            }
+
+            Repeater {
+                model: page.matchesUndone ? [] : page.planned
+
+                delegate: ColumnLayout {
+                    id: plannedRow
+
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.FormTextDelegate {
+                        textItem.textFormat: Text.PlainText
+                        descriptionItem.textFormat: Text.PlainText
+                        icon.name: "checkmark"
+                        text: page.i18nContext.i18nc("@info %1 is the name of a planned payment, %2 an amount, %3 a date", "%1: %2 on %3, matched", plannedRow.modelData.name, plannedRow.modelData.amount, plannedRow.modelData.date)
+                        description: plannedRow.modelData.categorySet
+                            ? page.i18nContext.i18nc("@info", "It had no category and got the plan's.")
+                            : ""
+                    }
+                }
+            }
+
+            FormCard.FormDelegateSeparator {
+                visible: !page.matchesUndone
+            }
+
+            FormCard.FormButtonDelegate {
+                visible: !page.matchesUndone
+                icon.name: "edit-undo"
+                text: page.i18nContext.i18nc("@action:button", "Undo these matches")
+                description: page.i18nContext.i18nc("@info", "The entries stay; the planned payments wait for them again.")
+                onClicked: {
+                    ActionLog.taken("ImportDonePage_undoMatches")
+                    const result = page.statementImport.undoMatches();
+                    error.result = result;
+                    if (result.code === undefined) {
+                        page.matchesUndone = true;
+                    }
+                }
+            }
+        }
+
+        // Payments of planned payments that new entries fit, left for the
+        // user: two entries fit equally well, or one fits two payments.
+        FormCard.FormCard {
+            visible: (page.view.plannedNeedsYou ?? 0) > 0
+
+            FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
+                descriptionItem.textFormat: Text.PlainText
+                icon.name: "dialog-question"
+                text: page.i18nContext.i18ncp("@info", "%1 planned payment has entries that were not matched.", "%1 planned payments have entries that were not matched.", page.view.plannedNeedsYou ?? 0)
+                description: page.i18nContext.i18nc("@info", "More than one entry fits, or one entry fits two payments. Choose yourself: Accounts › Planned payments…")
             }
         }
 

@@ -33,6 +33,8 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a chart the user describes in a short text", "Custom chart");
         case "chart.candlestick":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: the balance per day, week or month with its start, highest, lowest and end", "Balance candles");
+        case "chart.flow":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: where money came from and where it went, as bands", "Where my money went");
         case "kpi.card":
             return i18nContext.i18nc("@item:inlistbox a part of the layout", "One figure");
         case "progress.bar":
@@ -69,6 +71,10 @@ QtObject {
             return i18nContext.i18nc("@item:inlistbox a part of the layout: a note with how many transactions have no category yet and the newest of them", "Transactions without a category");
         case "notice.alarms":
             return i18nContext.i18nc("@item:inlistbox a part of the layout: lines that say when a budget or an account crosses a limit the user set", "Warnings");
+        case "forecast.month":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: the balance now minus the planned payments still due this month", "Left this month");
+        case "plan.coming_up":
+            return i18nContext.i18nc("@item:inlistbox a part of the layout: the planned payments of the next 30 days", "Coming up");
         }
         return i18nContext.i18nc("@item:inlistbox a part of the layout that this version doesn't know", "Unknown");
     }
@@ -153,6 +159,10 @@ QtObject {
         // itself, so it needs no title.
         if (dataset === "net_worth_over_time" && shows !== "card") {
             return i18nContext.i18nc("@title", "What you are worth over time");
+        }
+        // The money flow names itself (US7, #821).
+        if (item?.type === "chart.flow") {
+            return i18nContext.i18nc("@title a chart of where money came from and where it went", "Where my money went");
         }
         // The balance as candles (US4.10).
         if (item?.type === "chart.candlestick") {

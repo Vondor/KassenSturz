@@ -90,18 +90,32 @@ pub fn columns_over_time(
 }
 
 /// The days a chart's columns need the book read for: `period`, and what
-/// the formulas of the columns name beyond it (like [`Formula::span`]).
+/// the formulas of the columns name beyond it (like [`Formula::span`]). A
+/// formula is also worked out month by month, and a period it names is
+/// relative to each month (`@"last month"` of the first month is the one
+/// before `period`), so the days its months reach are counted too (B-351).
 pub fn columns_span(columns: &[Column], period: Period) -> Result<Period, ReportError> {
     let mut span = period;
+    let months = period.months();
     for text in columns
         .iter()
         .filter_map(|column| column.formula.as_deref())
     {
-        let wanted = Formula::parse(text)?.span(period)?;
-        span = Period::new(
-            span.first().min(wanted.first()),
-            span.last().max(wanted.last()),
-        )?;
+        let formula = Formula::parse(text)?;
+        let mut figures = vec![period];
+        for &month in &months {
+            figures.push(Period::new(
+                month.max(period.first()),
+                month.last_of_month().min(period.last()),
+            )?);
+        }
+        for figure in figures {
+            let wanted = formula.span(figure)?;
+            span = Period::new(
+                span.first().min(wanted.first()),
+                span.last().max(wanted.last()),
+            )?;
+        }
     }
     Ok(span)
 }
@@ -269,10 +283,28 @@ pub fn columns_spending(
             .into_iter()
             .find(|each| each.currency == data.currency)
             .map_or(Money::zero(data.currency), |each| each.totals[0]);
+        // A formula that names the book's own categories (not only other
+        // columns) is money no column's members hold: its figure adds to the
+        // total, or a chart of formulas alone would say it spent nothing
+        // (B-359). One that names only columns adds nothing, as it is made
+        // of parts already counted.
+        let names: Vec<&str> = columns.iter().map(|column| column.name.as_str()).collect();
+        let mut total = once;
+        for (column, figure) in columns.iter().zip(&data.totals) {
+            let stands_alone = match column.formula.as_deref() {
+                Some(text) => Formula::parse(text)?.names_beyond(&names),
+                None => false,
+            };
+            if stands_alone {
+                total = total.checked_add(*figure).map_err(|_| {
+                    ReportError::Store(kassensturz_store::StoreError::AmountOverflow)
+                })?;
+            }
+        }
         results.push(SpendingByCategory {
             currency: data.currency,
             rows,
-            total: once,
+            total,
             hidden: Vec::new(),
             hidden_total: Money::zero(data.currency),
         });

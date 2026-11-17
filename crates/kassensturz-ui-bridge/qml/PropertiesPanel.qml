@@ -121,6 +121,14 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "What you are worth, month by month");
         case "cash_flow_by_month":
             return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in and out of your accounts, by month");
+        case "money_flow":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "Where your money came from and where it went");
+        case "moving_average":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "Money in, money out or what is left, with its moving average");
+        case "macd":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "Short-term against long-term trend (MACD)");
+        case "daily_balance":
+            return i18nContext.i18nc("@item:inlistbox what a chart shows", "An account's balance day by day, with averages and MACD");
         }
         return "";
     }
@@ -139,6 +147,14 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "Shows what each account held at the end of the period, and what you have, what you owe and what you are worth. Each currency is shown on its own; they are never added together.");
         case "net_worth_over_time":
             return i18nContext.i18nc("@info", "Shows what you have, what you owe and what you are worth at the end of each month. Each currency is shown on its own; they are never added together.");
+        case "moving_average":
+            return i18nContext.i18nc("@info", "Shows what is left, or money in, or money out, in each month, and next to it a moving average: the average of that month and the ones before it, which smooths out the ups and downs so you can see where things are heading. You choose how many months it spans. Months from before the period are used for the first averages but not shown. Each currency is shown on its own; they are never added together.");
+        case "macd":
+            return i18nContext.i18nc("@info", "Shows whether the recent months are doing better or worse than the longer run. The trend line is the average of the last few months less the average of the last many months; above zero means the recent months are better. The signal line is the average of the trend line over a few months, and the gap is the trend line less the signal line. You choose the lengths. Each currency is shown on its own; they are never added together.");
+        case "daily_balance":
+            return i18nContext.i18nc("@info", "Shows what the account held at the end of each day, as a stepped line, up to today. Two averages follow the balance and weigh the latest days most, by default over 12 and 26 days. The panel under it shows MACD, the short average less the long one: above zero, the balance has lately risen faster than its longer average. The signal line is the average of MACD, and the bars are MACD less the signal line. The averages start well before the period, so the first day is already settled. If the account's first entry is inside the period, the chart starts on that day. Without a chosen account, your checking, savings and cash accounts are added up. Each currency is shown on its own.");
+        case "money_flow":
+            return i18nContext.i18nc("@info", "Shows where the money of the period came from and where it went, as bands as wide as their amount. If you earned more than you spent, the rest is shown as left over; if you spent more, as taken from your reserves. Money moved between your own accounts is not counted. One currency is shown, with no conversion.");
         case "cash_flow_by_month":
             return i18nContext.i18nc("@info", "Shows the money that came into and went out of your checking, savings and cash accounts in each month, and what they held at the start and at the end. Moving money between two of them counts as neither, and starting balances are listed on their own.");
         }
@@ -178,7 +194,18 @@ ColumnLayout {
         case "legend":
             return i18nContext.i18nc("@option:check", "Show the legend");
         case "grouping":
+            // A daily balance's grouping says which panels it shows (D-794).
+            if (fields.some(field => field.key === "ema_fast")) {
+                return i18nContext.i18nc("@label:listbox which lines and panels a daily balance chart shows", "Show");
+            }
             return i18nContext.i18nc("@label:listbox how the figures are grouped", "Group by");
+        // The days of a daily balance's averages (US7, #1036).
+        case "ema_fast":
+            return i18nContext.i18nc("@label:listbox the days the short average of a daily balance spans", "Short average over");
+        case "ema_slow":
+            return i18nContext.i18nc("@label:listbox the days the long average of a daily balance spans", "Long average over");
+        case "ema_signal":
+            return i18nContext.i18nc("@label:listbox the days the signal line of a daily balance's MACD spans", "Signal line over");
         case "average":
             return i18nContext.i18nc("@label:listbox whether a chart shows the total spending or an average per month, quarter or year", "Show as");
         case "orientation":
@@ -189,6 +216,22 @@ ColumnLayout {
             return i18nContext.i18nc("@label:listbox which boxes of a candle chart are filled with color and which are hollow", "Candle boxes");
         case "show_hidden":
             return i18nContext.i18nc("@option:check", "Show hidden categories");
+        // The money-flow chart (US7, #821, D-758).
+        case "sub_categories":
+            return i18nContext.i18nc("@option:check a money-flow chart: sub-categories get a column of their own", "Show sub-categories");
+        case "payees":
+            return i18nContext.i18nc("@option:check a money-flow chart: who paid and who was paid get a column at each edge", "Show who paid and who was paid");
+        case "show_accounts":
+            return i18nContext.i18nc("@option:check a money-flow chart: the accounts get a column between the money that came in and the money that went out", "Show where the money was kept");
+        case "currency":
+            return i18nContext.i18nc("@label:textbox a money-flow chart: the currency it shows, as a code like EUR; empty for the one with the most money", "Currency (a code like EUR; empty: the one with most money)");
+        // The months of a trend (US7, #875).
+        case "trend_length":
+            return i18nContext.i18nc("@label:listbox the months a moving average, or MACD's short-term average, spans", "Average over");
+        case "trend_slow":
+            return i18nContext.i18nc("@label:listbox the months MACD's long-term average spans", "Long-term average over");
+        case "trend_signal":
+            return i18nContext.i18nc("@label:listbox the months MACD's signal line spans", "Signal line over");
         case "hide_note":
             return i18nContext.i18nc("@option:check hides the grey lines on a tile that say what it is filtered to", "Hide the grey filter notes");
         case "compare":
@@ -203,6 +246,8 @@ ColumnLayout {
             return i18nContext.i18nc("@label:textbox a formula that works out a figure", "Formula");
         case "target":
             return i18nContext.i18nc("@label:textbox a formula for what a full progress bar stands for", "Target");
+        case "month_start":
+            return i18nContext.i18nc("@label:listbox the day the month of the Left this month tile starts on", "Month starts on");
         }
         return "";
     }
@@ -219,7 +264,16 @@ ColumnLayout {
     }
 
     function wordName(word: string): string {
+        // Left this month's "Month starts on" (#921): a day of the month.
+        if (word.startsWith("day-")) {
+            const day = Number(word.slice(4));
+            return day === 1
+                ? i18nContext.i18nc("@item:inlistbox the month starts on day 1", "Day 1 (calendar month)")
+                : i18nContext.i18nc("@item:inlistbox %1 is a day of the month the month starts on, e.g. the salary day", "Day %1", day);
+        }
         switch (word) {
+        case "like-budgets":
+            return i18nContext.i18nc("@item:inlistbox the month starts on the day the user's salary-month budgets start on", "Like my budgets");
         case "category":
             return i18nContext.i18nc("@item:inlistbox", "Each category");
         case "top_level_category":
@@ -240,6 +294,8 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox candle boxes: every box filled, rising and falling differ by color only", "All filled");
         case "all-hollow":
             return i18nContext.i18nc("@item:inlistbox candle boxes: every box hollow, rising and falling differ by color only", "All hollow");
+        case "flow":
+            return i18nContext.i18nc("@item:inlistbox the one way the money flow is shown", "Bands from where it came to where it went");
         case "budget":
             return i18nContext.i18nc("@item:inlistbox", "Each budget");
         case "period":
@@ -297,6 +353,43 @@ ColumnLayout {
             return i18nContext.i18nc("@item:inlistbox a chart compares its spending with the average of earlier periods", "The average of the 6 periods before");
         case "average-12":
             return i18nContext.i18nc("@item:inlistbox a chart compares its spending with the average of earlier periods", "The average of the 12 periods before");
+        // The months of a trend (US7, #875).
+        case "2-months":
+        case "3-months":
+        case "4-months":
+        case "5-months":
+        case "6-months":
+        case "9-months":
+        case "12-months":
+        case "18-months":
+        case "24-months":
+        case "36-months":
+            return i18nContext.i18nc("@item:inlistbox a whole number of months; %1 is the number", "%1 months", word.split("-")[0]);
+        // The days of a daily balance's averages (US7, #1036).
+        case "3-days":
+        case "5-days":
+        case "7-days":
+        case "9-days":
+        case "10-days":
+        case "12-days":
+        case "14-days":
+        case "20-days":
+        case "26-days":
+        case "30-days":
+        case "50-days":
+        case "90-days":
+        case "100-days":
+        case "200-days":
+            return i18nContext.i18nc("@item:inlistbox a whole number of days; %1 is the number", "%1 days", word.split("-")[0]);
+        // What a daily balance shows (US7, #1036).
+        case "balance-averages-macd":
+            return i18nContext.i18nc("@item:inlistbox what a daily balance chart shows", "Balance, both averages and MACD");
+        case "balance-averages":
+            return i18nContext.i18nc("@item:inlistbox what a daily balance chart shows", "Balance and both averages");
+        case "balance":
+            return i18nContext.i18nc("@item:inlistbox what a daily balance chart shows", "Balance only");
+        case "macd":
+            return i18nContext.i18nc("@item:inlistbox what a daily balance chart shows", "MACD only");
         case "income":
         case "money_in":
             return i18nContext.i18nc("@item:inlistbox", "Money in");
@@ -353,8 +446,10 @@ ColumnLayout {
         return groups.concat(categories);
     }
 
+    // `words` is a field's list; a row whose field just went away has none
+    // for a moment (B-373).
     function wordOptions(words): var {
-        return words.map(word => ({word: word, name: wordName(word)}));
+        return (words ?? []).map(word => ({word: word, name: wordName(word)}));
     }
 
     spacing: Kirigami.Units.largeSpacing
@@ -418,7 +513,10 @@ ColumnLayout {
 
                 required property string key
                 readonly property bool shown: panel.fieldByKey[key] !== undefined
-                readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: ""})
+                // A row whose field went away, e.g. when a budget's category
+                // changed what the tile offers, keeps an empty field with no
+                // control, until the field comes back (B-373).
+                readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: "", word: "", words: [], ids: [], text: "", flag: false})
 
                 visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
                     // Uncoloured changes matter only while the chart compares (D-760).
@@ -436,7 +534,8 @@ ColumnLayout {
                     : modelData.kind === "formula" ? formulaBox
                     : modelData.kind === "spec" ? specBox
                     : modelData.kind === "ids" ? idsBox
-                    : modelData.kind === "alarms" ? alarmsBox : choiceBox
+                    : modelData.kind === "alarms" ? alarmsBox
+                    : modelData.kind === "" ? null : choiceBox
 
                 // The warnings tile's rules (US4.9, D-722).
                 Component {
@@ -691,8 +790,8 @@ ColumnLayout {
                         // draws then, and is kept for a longer period.
                         readonly property bool candle: row.modelData.key === "candle"
                         readonly property var words: candle
-                            ? row.modelData.words.filter(word => panel.candleWords.includes(word))
-                            : row.modelData.words
+                            ? (row.modelData.words ?? []).filter(word => panel.candleWords.includes(word))
+                            : (row.modelData.words ?? [])
                         model: panel.wordOptions(words)
                         textRole: "name"
                         valueRole: "word"

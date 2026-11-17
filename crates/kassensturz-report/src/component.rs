@@ -348,7 +348,8 @@ impl Component {
     }
 
     /// The component as a document writes it: `type`, `dataset`, `params`
-    /// and `props` with every property. A custom chart writes the `series` and
+    /// and `props` with every property. A component that shows no figures
+    /// writes no `dataset`, and `params` only if it has some (B-296). A custom chart writes the `series` and
     /// `categories` of its dataset only (D-504); the series' own filters are
     /// written only when they have a list (D-646).
     pub fn to_value(&self) -> Value {
@@ -395,6 +396,27 @@ impl Component {
             {
                 continue;
             }
+            // The lengths of a trend are written only for the datasets that
+            // have one (US7, D-777), so no other chart carries them.
+            if matches!(
+                property.key,
+                crate::schema::TREND_LENGTH_KEY
+                    | crate::schema::TREND_SLOW_KEY
+                    | crate::schema::TREND_SIGNAL_KEY
+            ) && !matches!(self.dataset.id, crate::MOVING_AVERAGE | crate::MACD)
+            {
+                continue;
+            }
+            // The lengths of a daily balance's averages likewise (D-794).
+            if matches!(
+                property.key,
+                crate::schema::EMA_FAST_KEY
+                    | crate::schema::EMA_SLOW_KEY
+                    | crate::schema::EMA_SIGNAL_KEY
+            ) && self.dataset.id != crate::DAILY_BALANCE
+            {
+                continue;
+            }
             // The total is the default and is not written (D-648).
             if property.key == crate::schema::AVERAGE_KEY
                 && matches!(setting, Setting::Word(word) if word == "total")
@@ -436,6 +458,11 @@ impl Component {
         object.insert("type".into(), self.kind.id().into());
         if !self.kind.shows_no_data() {
             object.insert("dataset".into(), self.dataset.id.into());
+            object.insert("params".into(), Value::Object(params));
+        } else if !params.is_empty() {
+            // A component without a dataset can still ask for something of
+            // its own, like the transactions tile's accounts, categories and
+            // rows (B-296): without them it would lose them on every save.
             object.insert("params".into(), Value::Object(params));
         }
         object.insert("props".into(), Value::Object(props));

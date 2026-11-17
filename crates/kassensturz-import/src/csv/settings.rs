@@ -513,7 +513,8 @@ impl Found {
             (None, true) => None,
             _ => return None,
         };
-        Some(CsvSettings {
+        let header_given = self.header;
+        let mut settings = CsvSettings {
             encoding: self.encoding.flatten(),
             delimiter: self.delimiter?,
             skip_lines: self.skip_lines.unwrap_or(0),
@@ -530,7 +531,17 @@ impl Found {
             status,
             currency: self.currency,
             account: self.account,
-        })
+        };
+        // Without a `header` line, the first row is a header only if the
+        // columns are named; with numbered columns it is a real row, which
+        // must never be dropped silently (B-281).
+        if header_given.is_none() {
+            let named = settings
+                .columns()
+                .any(|column| matches!(column, Column::Name(_)));
+            settings.header = named;
+        }
+        Some(settings)
     }
 }
 

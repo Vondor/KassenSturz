@@ -25,7 +25,7 @@ ColumnLayout {
     required property AiSettings settings
     // What the panel keeps for this message: its `kind` (`question`,
     // `answer`, `error`, `changes`, `changesDone`, `chart`, `chartFailed`,
-    // `noChange`, `note`, `page` or `issue`) and the fields
+    // `noChange`, `note`, `noteSuggestion`, `page` or `issue`) and the fields
     // of it.
     required property var message
 
@@ -152,6 +152,7 @@ ColumnLayout {
     AiErrorMessage {
         Layout.fillWidth: true
         ai: item.ai
+        settings: item.settings
         offerSettings: true
         onSettingsClicked: item.settingsClicked()
         visible: item.message.kind === "error"
@@ -204,6 +205,8 @@ ColumnLayout {
     // A chart the AI prepared, drawn from the book, with Keep, Change… and
     // Leave out (M6c.9, D-355).
     AiChartCard {
+        id: chartCard
+
         Layout.fillWidth: true
         // Shown for a chart only; the card is inside this message, which
         // is hidden with the rest of AI (D-013).
@@ -212,11 +215,19 @@ ColumnLayout {
         chat: item.chat
         setId: item.message.kind === "chart" ? item.message.setId : ""
         unverified: item.message.kind === "chart" ? (item.message.unverified ?? []) : []
-        outcome: item.message.kind === "chart" ? (item.message.outcome ?? "") : ""
         dashboardName: item.dashboardName
         onChangeClicked: (title, component, period) => item.chartChangeClicked(title, component, period)
         onAddToOverviewClicked: (component, period) => item.chartAddToOverviewClicked(component, period)
         onHandled: outcome => item.chartHandled(outcome)
+    }
+
+    // The card sets its own `outcome` when a button is pressed, which would
+    // end a plain binding; a Binding keeps following the message, so a chart
+    // taken back with Undo shows it (B-358).
+    Binding {
+        target: chartCard
+        property: "outcome"
+        value: item.message.kind === "chart" ? (item.message.outcome ?? "") : ""
     }
 
     // The AI's last attempt at a change was refused and nothing waits:
@@ -292,7 +303,9 @@ ColumnLayout {
         textFormat: Text.PlainText
         text: item.message.kind === "changesDone"
             ? (item.message.applied
-                ? item.i18nContext.i18nc("@info", "The prepared changes were made. You can take them back with Undo.")
+                ? (item.message.undone === true
+                    ? item.i18nContext.i18nc("@info", "The prepared changes were made, then taken back with Undo. They are no longer in your book.")
+                    : item.i18nContext.i18nc("@info", "The prepared changes were made. You can take them back with Undo."))
                 : item.i18nContext.i18nc("@info", "The prepared changes were thrown away. Nothing was changed."))
             : ""
     }
@@ -323,6 +336,95 @@ ColumnLayout {
             return hasId
                 ? item.i18nContext.i18nc("@info the AI opened a page", "The AI opened your Rules and selected one.")
                 : item.i18nContext.i18nc("@info the AI opened a page", "The AI opened your Rules.");
+        }
+    }
+
+    // A line the AI suggested for the user's "Notes for the AI" (US7, #808):
+    // shown word for word. Nothing is saved until the user presses the
+    // button; the AI cannot add to the notes by itself.
+    Kirigami.AbstractCard {
+        id: noteCard
+
+        // "" until the user decided: "added", "duplicate", "full",
+        // "refused" or "failed", or "dismissed".
+        property string result: ""
+
+        Layout.fillWidth: true
+        visible: item.message.kind === "noteSuggestion"
+
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Controls.Label {
+                Layout.fillWidth: true
+                font.bold: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: item.i18nContext.i18nc("@label a line the AI suggests for the user's notes", "The AI suggests this line for your notes")
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: item.message.kind === "noteSuggestion" ? item.message.line : ""
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                visible: noteCard.result === ""
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                text: item.i18nContext.i18nc("@info", "Nothing is saved yet. If you add it, the line goes with every later question to your AI.")
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                visible: noteCard.result !== ""
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                text: item.noteResultText(noteCard.result)
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                visible: noteCard.result === ""
+
+                Controls.Button {
+                    icon.name: "list-add"
+                    text: item.i18nContext.i18nc("@action:button adds the suggested line to the notes", "Add to my notes")
+                    onClicked: {
+                        ActionLog.taken("AiChatMessage_addNote")
+                        noteCard.result = item.settings.addNote(item.message.line);
+                    }
+                }
+
+                Controls.Button {
+                    icon.name: "dialog-cancel"
+                    text: item.i18nContext.i18nc("@action:button turns the suggested line down", "No thanks")
+                    onClicked: {
+                        ActionLog.taken("AiChatMessage_dismissNote")
+                        noteCard.result = "dismissed"
+                    }
+                }
+            }
+        }
+    }
+
+    // What to tell the user about the suggested line they decided on.
+    function noteResultText(result: string): string {
+        switch (result) {
+        case "added":
+            return item.i18nContext.i18nc("@info", "Added to your notes.");
+        case "duplicate":
+            return item.i18nContext.i18nc("@info", "This line is already in your notes.");
+        case "full":
+            return item.i18nContext.i18nc("@info", "Your notes are full. Shorten them in the AI settings, then ask again.");
+        case "dismissed":
+            return item.i18nContext.i18nc("@info", "Not added.");
+        default:
+            return item.i18nContext.i18nc("@info", "The line could not be added to your notes.");
         }
     }
 

@@ -19,6 +19,8 @@ Kirigami.ScrollablePage {
     required property AccountList accounts
     // Any register will do for the Transfers, which belong to the book.
     required property AccountRegister register
+    // The planned payments (US7.1, D-769).
+    required property PlannedPayments plans
     readonly property var sections: accounts.view.sections ?? []
     readonly property var closedAccounts: accounts.view.closed ?? []
     property bool showClosed: false
@@ -84,6 +86,19 @@ Kirigami.ScrollablePage {
                 monthlyMoves.show()
             }
         },
+        // Payments the user expects again and again (US7.1, D-769), and the
+        // ones that didn't come ("Did this happen?").
+        Kirigami.Action {
+            icon.name: "view-calendar-upcoming-events"
+            visible: page.sections.length > 0
+            text: (page.plans.view?.toConfirm ?? []).length > 0
+                ? page.i18nContext.i18ncp("@action:button %1 is how many planned payments wait for the user", "Planned payments (%1 to check)…", "Planned payments (%1 to check)…", page.plans.view.toConfirm.length)
+                : page.i18nContext.i18nc("@action:button", "Planned payments…")
+            onTriggered: {
+                ActionLog.taken("AccountsPage_plannedPayments")
+                plannedPayments.show()
+            }
+        },
         Kirigami.Action {
             icon.name: "view-visible"
             text: page.i18nContext.i18nc("@action:button", "Show closed accounts")
@@ -125,6 +140,13 @@ Kirigami.ScrollablePage {
     MonthlyMovesDialog {
         id: monthlyMoves
 
+        register: page.register
+    }
+
+    PlannedPaymentsDialog {
+        id: plannedPayments
+
+        plans: page.plans
         register: page.register
     }
 

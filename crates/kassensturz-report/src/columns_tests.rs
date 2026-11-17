@@ -8,7 +8,7 @@
 
 use kassensturz_core::{GroupId, GroupKind, GroupMember};
 
-use super::tests::{EUR, USD, autumn, sample};
+use super::tests::{EUR, USD, autumn, date, sample};
 use super::*;
 
 fn column(name: &str, members: &[GroupMember]) -> Column {
@@ -193,6 +193,44 @@ fn a_column_can_be_a_formula_that_names_the_other_columns() {
     assert_eq!(spending[0].total.minor_units(), 248_820);
     assert_eq!(spending[0].rows.len(), 4);
     assert_eq!(spending[0].rows[0].path, ["Twice the rent"]);
+}
+
+#[test]
+fn a_formula_that_names_a_category_adds_to_the_total_of_a_chart() {
+    // B-359: a chart of one formula column that names a category had a
+    // total of nothing, as no column's members held the money.
+    let sample = sample();
+    let source = Source::read(&sample.book, autumn()).expect("read");
+    let alone = [formula_column("Eating", "Food")];
+    let spending =
+        columns_spending(&source, autumn(), &Filter::default(), &alone, EUR).expect("spending");
+    assert_eq!(spending[0].rows[0].total.minor_units(), 8_820);
+    assert_eq!(spending[0].total.minor_units(), 8_820);
+    // A formula of columns only is made of parts already counted.
+    let made_of_columns = [
+        column("Home", &[GroupMember::Category(sample.rent)]),
+        formula_column("Twice the rent", "2 * Home"),
+    ];
+    let spending = columns_spending(&source, autumn(), &Filter::default(), &made_of_columns, EUR)
+        .expect("spending");
+    assert_eq!(spending[0].total.minor_units(), 240_000);
+}
+
+#[test]
+fn a_formula_period_relative_to_each_month_is_read_for_the_first_month_too() {
+    // B-351: "last month" worked out for August is July, which the read for
+    // August to October has to cover, or the chart fails with PeriodNotRead.
+    let sample = sample();
+    let columns = [
+        formula_column("Before", "Food@\"last month\""),
+        formula_column("Longer", "Food@\"last 90 days\""),
+    ];
+    let span = columns_span(&columns, autumn()).expect("span");
+    assert!(span.first() <= date(2026, 7, 1), "{span:?}");
+    let source = Source::read(&sample.book, span).expect("read");
+    let spending =
+        columns_spending(&source, autumn(), &Filter::default(), &columns, EUR).expect("spending");
+    assert_eq!(spending.len(), 1);
 }
 
 #[test]

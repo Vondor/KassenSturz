@@ -66,7 +66,7 @@ const ACCOUNT_CHECKING: DescribedIds = DescribedIds {
 /// The descriptions the fake model knows, in the order the testing guide
 /// and the local-model script list them. The first is the example the
 /// *Describe a chart* button puts into the question field.
-pub const DESCRIBED_CHARTS: [DescribedChart; 10] = [
+pub const DESCRIBED_CHARTS: [DescribedChart; 14] = [
     DescribedChart {
         description: "My spending on food each month this year, as bars",
         also: &["Meine Ausgaben für Essen in jedem Monat dieses Jahres, als Balken"],
@@ -140,6 +140,36 @@ pub const DESCRIBED_CHARTS: [DescribedChart; 10] = [
         refused_first: Some(
             r#"{"title":"Income and spending each month","data":"income_expense_by_month","show_as":"pie","period":"last-12-months"}"#,
         ),
+    },
+    DescribedChart {
+        description: "Where my money came from and where it went this month",
+        also: &[],
+        call: r#"{"title":"Money in and out this month","data":"money_flow","show_as":"auto","period":"this-month"}"#,
+        ids: None,
+        refused_first: None,
+    },
+    DescribedChart {
+        description: "What is left each month with its three-month average, for the last year",
+        also: &[],
+        call: r#"{"title":"Left each month and its average","data":"moving_average","show_as":"line","period":"last-12-months"}"#,
+        ids: None,
+        refused_first: None,
+    },
+    DescribedChart {
+        description: "Is my saving getting better or worse than the longer run? Show the trend for the last year",
+        also: &[],
+        call: r#"{"title":"Saving trend against the longer run","data":"macd","show_as":"line","period":"last-12-months"}"#,
+        ids: None,
+        refused_first: None,
+    },
+    // A daily balance with its averages and MACD (US7, #1036, D-794): the
+    // AI only chooses; KassenSturz works out every figure.
+    DescribedChart {
+        description: "Show me a MACD of my checking account for the last 6 months",
+        also: &["Zeig mir einen MACD meines Girokontos für die letzten 6 Monate"],
+        call: r#"{"title":"Checking account day by day, with MACD","data":"daily_balance","show_as":"line","group_by":"balance-averages-macd","period":"last-6-months","ema_fast":"12-days","ema_slow":"26-days","ema_signal":"9-days"}"#,
+        ids: Some(ACCOUNT_CHECKING),
+        refused_first: None,
     },
 ];
 

@@ -208,7 +208,24 @@ impl RegisterRow {
         ]
         .map(|text| text.to_lowercase())
         .join("\n");
-        words.iter().all(|word| haystack.contains(word.as_str()))
+        // An IBAN is found however it is typed (#898): a word made only of
+        // letters and digits is also looked for in the other party's IBAN
+        // with its spaces removed on both sides. Other text matches as before.
+        let compact_iban = [
+            &self.other_party_iban,
+            self.delivered.lines().next().unwrap_or_default(),
+        ]
+        .map(|iban| {
+            iban.chars()
+                .filter(|c| !c.is_whitespace())
+                .collect::<String>()
+                .to_lowercase()
+        })
+        .join("\n");
+        words.iter().all(|word| {
+            haystack.contains(word.as_str())
+                || (word.chars().all(char::is_alphanumeric) && compact_iban.contains(word.as_str()))
+        })
     }
 }
 
@@ -398,7 +415,12 @@ pub fn entries(book: &Book, account: AccountId) -> Result<Vec<Entry>, StoreError
         entries.push(Entry {
             transaction: entry.transaction,
             date: entry.booking_date,
-            other_party: entry.payee.unwrap_or_default(),
+            // A payee from before B-365 may hold hidden characters.
+            other_party: entry
+                .payee
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
             category,
             amount: entry.amount,
             kind,
@@ -468,7 +490,12 @@ pub fn latest_entries(
         found.push(Entry {
             transaction: entry.transaction,
             date: entry.booking_date,
-            other_party: entry.payee.unwrap_or_default(),
+            // A payee from before B-365 may hold hidden characters.
+            other_party: entry
+                .payee
+                .as_deref()
+                .map(kassensturz_store::shown_text)
+                .unwrap_or_default(),
             category,
             amount: entry.amount,
             kind,
@@ -665,7 +692,7 @@ pub fn imported_texts(
 /// `text` with every run of white space, e.g. the line breaks of a bank's
 /// remittance information, written as one space.
 fn one_line(text: Option<&str>) -> String {
-    text.unwrap_or_default()
+    kassensturz_store::shown_text(text.unwrap_or_default())
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
@@ -951,6 +978,51 @@ mod sort_tests {
         assert_eq!(row.tag_line(), "Holiday");
         // What the account held afterwards is not part of the row's text.
         assert!(!row.fits("100"));
+    }
+
+    /// #898: an IBAN is found with or without spaces, in either case, whole
+    /// or in part; other text keeps matching as before.
+    #[test]
+    fn the_quick_filter_finds_an_iban_however_it_is_typed() {
+        let row_with = |iban: &str, delivered: &str| RegisterRow {
+            id: String::new(),
+            date: "2026-03-05".into(),
+            other_party: "Corner Bakery".into(),
+            category: "Food".into(),
+            amount: Shown {
+                text: "-4 €".into(),
+                exact: "-3,80 €".into(),
+            },
+            incoming: false,
+            starting_balance: false,
+            kind: "simple",
+            balance: Shown::default(),
+            owes: false,
+            note: String::new(),
+            other_party_iban: iban.into(),
+            purpose: "Rent March".into(),
+            value_date: String::new(),
+            delivered: delivered.into(),
+            tags: Vec::new(),
+            waits_for: String::new(),
+        };
+        // The IBAN as the SWIFT registry writes it, in the shown column and
+        // (column hidden) in the text kept for searching.
+        let shown = row_with("DE89 3704 0044 0532 0130 00", "");
+        let hidden = row_with("", "DE89 3704 0044 0532 0130 00\nRent March");
+        for row in [&shown, &hidden] {
+            assert!(row.fits("3704 0044"));
+            assert!(row.fits("37040044"));
+            assert!(row.fits("de89370400440532013000"));
+            assert!(row.fits("DE89 3704 0044 0532 0130 00"));
+            assert!(row.fits("44053201"));
+            assert!(row.fits("37040044 bakery"));
+            assert!(!row.fits("37040045"));
+        }
+        // Plain text still matches as before and is not glued across spaces.
+        assert!(hidden.fits("rent march"));
+        assert!(!hidden.fits("0000rent"));
+        assert!(!row_with("", "").fits("37040044"));
     }
 }
 

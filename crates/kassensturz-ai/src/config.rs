@@ -392,7 +392,7 @@ mod tests {
             format!(
                 "[AI]\nEnabled=true\nProviderAddress=http://192.168.1.2:1234/v1\n\
                  ProviderModel=m\n{ALLOW_UNENCRYPTED_KEY}={allow}\n\
-                 ConsentAddress=http://192.168.1.2:1234/v1\nConsentStatement=1\n\
+                 ConsentAddress=http://192.168.1.2:1234/v1\nConsentStatement=2\n\
                  ConsentDay=2026-11-12\n"
             )
         };

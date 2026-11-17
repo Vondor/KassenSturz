@@ -5,7 +5,7 @@
 //! and the balance check (D-029).
 
 use kassensturz_core::{Date, Money, TransactionId, TransferMatch, Withdrawn};
-use kassensturz_store::{RecurringJoins, RuleRun};
+use kassensturz_store::{RecurringJoins, RuleRun, ScheduleMatchReport};
 
 /// One entry of the statements given to the pipeline: the statement's
 /// position in the list, then the entry's in that statement, both counted
@@ -38,6 +38,11 @@ pub struct ImportReport {
     /// ID the book no longer has, and its part is in the joined Transfer,
     /// which keeps the outgoing transaction's ID.
     pub joins: RecurringJoins,
+    /// The new entries matched to planned payments, and the occurrences
+    /// that need the user (D-769). Filled by [`crate::match_schedules`] and
+    /// by [`crate::preview_import`]; empty after [`crate::import_statements`]
+    /// alone.
+    pub schedules: ScheduleMatchReport,
     /// What the Rules did to the new transactions (D-088). A transaction in
     /// a suggested Transfer waits for the user's decision on it.
     pub rules: RuleRun,

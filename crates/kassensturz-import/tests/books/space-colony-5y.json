@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 13,
+  "version": 15,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -244,6 +244,8 @@
       ]
     }
   ],
+  "schedules": [],
+  "recurring_moves": [],
   "payees": [
     {
       "id": "019a0000-0000-7000-8000-00000000005f",
@@ -41059,7 +41061,7 @@
           "number": null,
           "status": "reconciled",
           "tags": [],
-          "delivered": {"bank_id": "ID-776", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Cinema night"},
+          "delivered": {"bank_id": "IQ-570", "booking_date": null, "value_date": null, "other_party_name": null, "other_party_iban": null, "remittance_information": "Cinema night"},
           "booked_by_rule": null
         }
       ]

@@ -12,6 +12,7 @@
 mod backup;
 mod backup_copies;
 mod bank_links;
+mod book_id;
 mod budgets;
 mod cached;
 mod category_groups;
@@ -19,14 +20,20 @@ mod details;
 mod error;
 mod fill;
 mod history;
+mod integrity;
 mod layout;
 mod lock;
+mod lockless;
 mod moving;
+mod names;
 mod originals;
 mod reader;
+mod recovery;
 mod recurring_moves;
 mod rules;
+mod schedules;
 mod tags;
+mod totals;
 mod transactions;
 mod transfers;
 mod unsorted;
@@ -44,8 +51,12 @@ use kassensturz_core::{
 use rusqlite::config::DbConfig;
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 
-pub use backup_copies::{BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of};
-pub use budgets::{check_budget_days, checked_budget_name};
+pub use backup_copies::{
+    BackupFile, CopyProblem, KeptCopy, PreparedRestore, backups_of, book_id_of_file,
+    newest_usable_backup, older_backups_of,
+};
+pub use book_id::BookId;
+pub use budgets::{check_budget_amount_size, check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
 pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
 /// The oldest layout this KassenSturz updates a book from, and the layout
@@ -56,14 +67,22 @@ pub use lock::Lock;
 pub use moving::{
     Difference, Interrupted, KEEP_MOVE_BACKUPS, MoveCause, MoveFailed, MoveNote, MovePlan,
     MoveRefused, MoveStep, MoveSteps, Moved, book_file_name, move_backup_stamp, move_backups_of,
-    plan_move, remove_left_book,
+    older_move_backups_of, plan_move, remove_left_book,
+};
+pub use names::{
+    MAX_ACCOUNT_NAME_CHARS, fitting_account_name, is_invisible, name_key, shown_text, stored_name,
 };
 pub use recurring_moves::{
     JoinedTransfers, NeedsYou, NewRecurringMove, NotJoined, RecurringJoin, RecurringJoins,
     RefusedJoin,
 };
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
+pub use schedules::{
+    AccountsForecast, NewSchedule, PlannedOccurrence, ScheduleMatchDone, ScheduleMatchReport,
+    ScheduleNeedsYou,
+};
 pub use tags::{TagUse, checked_tag_name};
+pub use totals::{MAX_CURRENCY_TOTAL, MAX_PLAN_AMOUNT};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};
 
@@ -97,9 +116,33 @@ pub struct Book {
     /// read-only folder). From then on every change is refused, so nothing
     /// is half written; the user opens the book again (D-732).
     write_failed: bool,
+    /// Whether another program replaced the book's file (B-289).
+    file_replaced: bool,
     /// The book's lock file, removed when the book is closed. Declared after
     /// `conn`, so the database is closed first. Books in memory have none.
     _lock: Option<HeldLock>,
+    /// Whether SQLite works here without file locks, because the system
+    /// refuses them in the book's folder (Q-570, D-776). The book's lock
+    /// file is then the only guard against a second writer.
+    without_file_locks: bool,
+    /// The private copy of the book a read-only book reads, where the
+    /// folder refuses locks. Declared after `conn`, so it is closed first.
+    _copy: Option<lockless::PrivateFolder>,
+    /// Whether opening took back a save that was cut short (B-364).
+    cut_short: Option<CutShortSave>,
+}
+
+/// A save that was cut short and taken back when the book was opened
+/// (B-364): the book is as it was before that save, so the changes of that
+/// save are not in it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CutShortSave {
+    /// Taken back in the book's folder; nothing else changed there.
+    TakenBack,
+    /// Taken back through a private copy, which took the book's place; the
+    /// book as the cut-short save left it, with its journal, is kept at
+    /// this path, which the user may delete once the book is checked.
+    KeptBeside(PathBuf),
 }
 
 /// One category in the category tree, as [`Book::categories`] lists them.
@@ -113,6 +156,15 @@ pub struct CategoryEntry {
 }
 
 impl Book {
+    /// The identity of this book: it stays with the book through a move, a
+    /// rename and a copy of the file, and its backups are tied to it
+    /// (D-806). Only a book of a layout before 34 has none, and it gets one
+    /// when it is opened.
+    #[must_use]
+    pub fn book_id(&self) -> Option<BookId> {
+        BookId::try_read(&self.conn)
+    }
+
     /// Creates a new, empty book at `path` and opens it on `computer`.
     ///
     /// Fails with [`StoreError::AlreadyExists`] if something is at `path`
@@ -142,9 +194,10 @@ impl Book {
 
     fn create_at(path: &Path, computer: &Computer) -> Result<Self, StoreError> {
         let lock = HeldLock::acquire(path, &computer.name)?;
-        let mut conn = connect(path)?;
+        let (mut conn, without_file_locks) = connect(path)?;
+        check_save(&conn, path, without_file_locks)?;
         layout::migrate(&mut conn, 0)?;
-        Self::finish(conn, Some(lock))
+        Self::finish(conn, Some(lock), without_file_locks)
     }
 
     /// Opens the existing book at `path` on `computer`.
@@ -203,15 +256,72 @@ impl Book {
         let path = std::path::absolute(path)?;
         let metadata = std::fs::metadata(&path).map_err(|error| match error.kind() {
             ErrorKind::NotFound => StoreError::NotFound,
-            kind => StoreError::Io(kind),
+            kind => lock::locked_instead(&path, StoreError::Io(kind)),
         })?;
         // Before SQLite opens the file, so another program's SQLite file is
         // never changed, not even its journal mode.
-        if !metadata.is_file() || !is_book_file(&path)? {
+        if !metadata.is_file()
+            || !is_book_file(&path).map_err(|error| lock::locked_instead(&path, error))?
+        {
             return Err(StoreError::NotABook);
         }
         let lock = lock(&path)?;
-        let mut conn = connect(&path)?;
+        // A book just taken over from a program that may be saving to it at
+        // this moment can be read half written: SQLite's locks don't reach
+        // across a network share, so what looks damaged may be a save that
+        // is a few hundred milliseconds from done. Its journal going away
+        // is waited for, and a book that still looks damaged is read again
+        // until it settles; only one that stays damaged is called so
+        // (B-353).
+        let settle_until = lock.taken_over().then(|| {
+            let until = std::time::Instant::now() + lock::SETTLE;
+            lock::wait_for_journal(&path, until);
+            until
+        });
+        // Before anything reads the book: a save that a killed program or a
+        // power cut left half done is taken back first, also where SQLite
+        // can't do that in the book's folder (B-364).
+        let cut_short = match recovery::finish_cut_short_save(&path)? {
+            recovery::Outcome::None => None,
+            recovery::Outcome::InPlace => Some(CutShortSave::TakenBack),
+            recovery::Outcome::ThroughCopy(kept) => Some(CutShortSave::KeptBeside(kept)),
+        };
+        loop {
+            match Self::read_checked(&path, computer, migrations, first_version) {
+                // A save still going on can also hold the file busy for a
+                // moment, which reads as "in use" (B-355 CI).
+                Err(StoreError::Corrupt(_) | StoreError::Locked(_))
+                    if settle_until.is_some_and(|until| std::time::Instant::now() < until) =>
+                {
+                    std::thread::sleep(lock::SETTLE_STEP);
+                }
+                result => {
+                    let (conn, without_file_locks) = result?;
+                    let mut book = Self::finish(conn, Some(lock), without_file_locks)?;
+                    book.cut_short = cut_short;
+                    return Ok(book);
+                }
+            }
+        }
+    }
+
+    /// Connects to the book at `path`, whose lock is taken, updates its
+    /// layout if it is older, and checks that nothing in it is damaged:
+    /// the part of [`Book::open_updating`] after the lock.
+    fn read_checked(
+        path: &Path,
+        computer: &Computer,
+        migrations: &[&str],
+        first_version: i32,
+    ) -> Result<(Connection, bool), StoreError> {
+        let (mut conn, without_file_locks) = connect(path)
+            .map_err(integrity::damaged_if_malformed)
+            .map_err(|error| lock::in_use_instead(path, error))?;
+        // Before anything is read from the book, and before any backup or
+        // migration writes to the file, so a file cut short or with a page
+        // SQLite can't parse is a damaged book, not a generic database
+        // error (B-291).
+        integrity::check_file(&conn)?;
         let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
         let current = first_version - 1 + i32::try_from(migrations.len()).expect("a short list");
         // Before the backup, a migration or any change, so SQL that another
@@ -222,8 +332,15 @@ impl Book {
         match version {
             same if same == current => {}
             older if (first_version..current).contains(&older) => {
-                backup::back_up(&conn, &path, &computer.backup_folder)
-                    .map_err(|error| StoreError::BackupFailed(Box::new(error)))?;
+                // The book passed its checks, so it may be written now.
+                check_save(&conn, path, without_file_locks)?;
+                backup::back_up(
+                    &conn,
+                    path,
+                    &computer.backup_folder,
+                    BookId::try_read(&conn).as_ref(),
+                )
+                .map_err(|error| StoreError::BackupFailed(Box::new(error)))?;
                 layout::migrate_with(&mut conn, migrations, first_version, older)?;
             }
             // A development build of the Alpha wrote it (D-045, D-135, D-536).
@@ -232,7 +349,17 @@ impl Book {
             }
             found => return Err(StoreError::UnsupportedLayout { found }),
         }
-        Self::finish(conn, Some(lock))
+        // After the layout is the current one, so the splits are where the
+        // check looks; nothing was changed in a book that fails it (B-291).
+        integrity::check_references(&conn)?;
+        integrity::check_balances(&conn)?;
+        integrity::check_conversions(&conn)?;
+        if version == current {
+            // Only now: a book that is refused is never written, not even
+            // SQLite's header (B-355).
+            check_save(&conn, path, without_file_locks)?;
+        }
+        Ok((conn, without_file_locks))
     }
 
     /// [`Book::open`] with the layouts `migrations`, for the tests of an
@@ -253,15 +380,40 @@ impl Book {
         )
     }
 
+    /// Whether this book works without file locks, because the system
+    /// refuses them in its folder (Q-570, D-776): the lock file is then the
+    /// only guard against a second writer, and the UI says so.
+    #[must_use]
+    pub fn without_file_locks(&self) -> bool {
+        self.without_file_locks
+    }
+
+    /// The save that was cut short and taken back when this book was
+    /// opened, if there was one (B-364), so the UI can say that its changes
+    /// are not in the book and where the cut-short file is kept.
+    #[must_use]
+    pub fn cut_short_save(&self) -> Option<&CutShortSave> {
+        self.cut_short.as_ref()
+    }
+
+    /// [`Book::cut_short_save`], told once: the next call returns `None`.
+    pub fn take_cut_short_save(&mut self) -> Option<CutShortSave> {
+        self.cut_short.take()
+    }
+
     /// Creates a new, empty book that lives in memory only: nothing is saved.
     pub fn create_in_memory() -> Result<Self, StoreError> {
         let mut conn = Connection::open_in_memory()?;
         harden(&conn)?;
         layout::migrate(&mut conn, 0)?;
-        Self::finish(conn, None)
+        Self::finish(conn, None, false)
     }
 
-    fn finish(conn: Connection, lock: Option<HeldLock>) -> Result<Self, StoreError> {
+    fn finish(
+        conn: Connection,
+        lock: Option<HeldLock>,
+        without_file_locks: bool,
+    ) -> Result<Self, StoreError> {
         conn.set_prepared_statement_cache_capacity(cached::CAPACITY);
         // SQLite checks foreign keys only if asked to, on every connection.
         conn.pragma_update(None, "foreign_keys", true)?;
@@ -280,7 +432,11 @@ impl Book {
             recording: false,
             filling: false,
             write_failed: false,
+            file_replaced: false,
             _lock: lock,
+            without_file_locks,
+            _copy: None,
+            cut_short: None,
         };
         book.prune_history()?;
         Ok(book)
@@ -440,7 +596,7 @@ impl Book {
                  VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     account.id.to_bytes(),
-                    account.name,
+                    names::stored_name(&account.name),
                     kind_to_text(account.kind),
                     account.currency.as_str(),
                     account.account_type.map(type_to_text),
@@ -458,9 +614,7 @@ impl Book {
     /// The checks `add_account`, `rename_account` and `move_category` share,
     /// on the account as it is going to be.
     fn check_account(&self, account: &Account) -> Result<(), StoreError> {
-        if account.name.trim().is_empty() {
-            return Err(StoreError::EmptyAccountName);
-        }
+        names::check_account_name(&account.name)?;
         if let Some(account_type) = account.account_type
             && account_type.kind() != account.kind
         {
@@ -536,18 +690,20 @@ impl Book {
         }
         // Accounts share one list; categories share one with their siblings,
         // the categories of the same kind inside the same category.
-        let wanted = account.name.trim().to_lowercase();
+        // Names that look the same are the same (B-272).
+        let wanted = names::name_key(&account.name);
         let clash = others.iter().find(|other| {
             let same_list = if account.kind.is_account() {
                 other.kind.is_account()
             } else {
                 other.kind == account.kind && other.parent == account.parent
             };
-            same_list && other.name.trim().to_lowercase() == wanted
+            same_list && names::name_key(&other.name) == wanted
         });
         if let Some(existing) = clash {
             return Err(StoreError::DuplicateAccountName {
                 existing: existing.id,
+                name: account.name.trim().to_owned(),
             });
         }
         Ok(())
@@ -607,7 +763,7 @@ impl Book {
         self.as_one_action(action, |book| {
             book.conn.execute(
                 "UPDATE accounts SET name = ?2 WHERE id = ?1",
-                params![id.to_bytes(), name],
+                params![id.to_bytes(), names::stored_name(name)],
             )?;
             Ok(())
         })
@@ -703,8 +859,8 @@ impl Book {
     }
 
     /// What keeps a category from being removed: `"subcategories"`,
-    /// `"transactions"`, `"rules"` or `"budgets"`, or `None` when nothing
-    /// uses it (D-253, D-345).
+    /// `"transactions"`, `"rules"`, `"budgets"` or `"schedules"`, or `None`
+    /// when nothing uses it (D-253, D-345, D-769).
     pub fn category_use(&self, id: AccountId) -> Result<Option<&'static str>, StoreError> {
         if !self.account(id)?.kind.is_category() {
             return Err(StoreError::NotACategory(id));
@@ -725,14 +881,16 @@ impl Book {
             Ok(Some("rules"))
         } else if used("SELECT EXISTS (SELECT 1 FROM budget_categories WHERE category_id = ?1)")? {
             Ok(Some("budgets"))
+        } else if used("SELECT EXISTS (SELECT 1 FROM schedules WHERE category_id = ?1)")? {
+            Ok(Some("schedules"))
         } else {
             Ok(None)
         }
     }
 
     /// Removes a category that nothing uses: no subcategory, no transaction
-    /// part, no Rule books to it or tests it, and it has no budget (D-253,
-    /// D-345). A category that is
+    /// part, no Rule books to it or tests it, it has no budget and no
+    /// planned payment uses it (D-253, D-345, D-769). A category that is
     /// used is refused with [`StoreError::CategoryInUse`], so no transaction
     /// ever loses its category. Undo brings it back.
     pub fn remove_category(&mut self, id: AccountId) -> Result<(), StoreError> {
@@ -1056,13 +1214,16 @@ impl Book {
 }
 
 /// Opens the SQLite database of the book at `path`, which must exist.
-fn connect(path: &Path) -> Result<Connection, StoreError> {
+fn connect(path: &Path) -> Result<(Connection, bool), StoreError> {
     // `path` is absolute, so it never begins with `file:` and SQLite never
     // takes it for a URI, as the bundled SQLite otherwise would whatever the
     // flags say. Without SQLITE_OPEN_CREATE, SQLite never creates a file.
     let flags = OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_NO_MUTEX;
-    let conn = Connection::open_with_flags(path, flags)?;
+    let (conn, without_file_locks) = lockless::open_writer(path, flags)?;
     harden(&conn)?;
+    if !without_file_locks {
+        lockless::check_write_lock(&conn, path)?;
+    }
     // A write waits for a reader such as `kassensturz-mcp` to finish its
     // short read instead of failing (Q-036, D-195).
     conn.busy_timeout(reader::BUSY_WAIT)?;
@@ -1073,7 +1234,24 @@ fn connect(path: &Path) -> Result<Connection, StoreError> {
     if !mode.eq_ignore_ascii_case("delete") {
         return Err(StoreError::JournalModeRefused { mode });
     }
-    Ok(conn)
+    // A save is on the disk when it returns (B-278). In this journal mode
+    // the save is done the moment SQLite deletes the journal, and FULL syncs
+    // the book but not the folder that deletion is written to: after a power
+    // cut the journal could come back and roll the save back. EXTRA also
+    // syncs that folder (sqlite.org/pragma.html#pragma_synchronous).
+    conn.pragma_update(None, "synchronous", "EXTRA")?;
+    Ok((conn, without_file_locks))
+}
+
+/// Tries a save on the book at `path` on a network share, with the settings
+/// it is saved with (B-304), unless it works without file locks. The save
+/// writes SQLite's header, so it runs only once the book has passed every
+/// check that can refuse it (B-355).
+fn check_save(conn: &Connection, path: &Path, without_file_locks: bool) -> Result<(), StoreError> {
+    if without_file_locks {
+        return Ok(());
+    }
+    lockless::check_save(conn, path)
 }
 
 /// Sets up `conn` so that a hostile book file can do as little as possible

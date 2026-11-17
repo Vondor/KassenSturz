@@ -19,7 +19,7 @@
 use std::collections::HashSet;
 use std::path::{Component, Path, PathBuf};
 
-use kassensturz_core::{Attachment, Date, TransactionId};
+use kassensturz_core::{Attachment, Date, Transaction, TransactionId};
 use kassensturz_store::{Book, StoreError};
 use serde_json::Value;
 
@@ -93,6 +93,9 @@ pub struct AttachBill {
     /// What the link is called, if the model named it; the page shows the
     /// file name otherwise.
     pub title: Option<String>,
+    /// The transaction as the user reviewed it: linking fails if it changed
+    /// since (B-338).
+    pub(super) reviewed: Transaction,
 }
 
 impl Known {
@@ -164,6 +167,7 @@ impl Known {
                 .to_owned(),
             link,
             title,
+            reviewed: stored.clone(),
         })
     }
 }

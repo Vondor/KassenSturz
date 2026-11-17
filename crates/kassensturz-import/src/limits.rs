@@ -41,7 +41,24 @@ impl Default for Limits {
     }
 }
 
+/// The most entries a bank statement file may have when it is imported into
+/// a book (B-362): far above a household's years of statements, which have a
+/// few thousand entries a year, and low enough that a file built to hold a
+/// million is refused before anything of it is written.
+pub const MAX_STATEMENT_ENTRIES: usize = 50_000;
+
 impl Limits {
+    /// The limits for a bank statement file the user imports into a book:
+    /// the [`Default`] ones with at most [`MAX_STATEMENT_ENTRIES`] entries
+    /// (B-362). A whole book, such as a KMyMoney file, keeps the default.
+    #[must_use]
+    pub fn for_statements() -> Self {
+        Self {
+            max_entries: MAX_STATEMENT_ENTRIES,
+            ..Self::default()
+        }
+    }
+
     /// Fails if a file of `bytes` is larger than allowed.
     pub fn check_file_size(&self, bytes: usize) -> Result<(), ImportError> {
         // A usize always fits into 64 bits on the platforms KassenSturz

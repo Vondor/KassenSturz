@@ -1,0 +1,61 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+# cargo-deny's checks for the fuzz targets' own lock file (fuzz/Cargo.lock,
+# D-787), run in CI beside the main one (D-026). It is the main allowlist plus
+# one exception, for `libfuzzer-sys` (docs/THIRD_PARTY.md).
+#
+# cargo-deny's checks, run in CI (D-026). Direct dependencies are approved one
+# by one and listed in docs/THIRD_PARTY.md; this allowlist covers the indirect
+# and test-only ones. Changing it is a dependency change that needs the
+# maintainer's approval (AGENTS.md §3.2).
+
+[graph]
+all-features = true
+
+[licenses]
+# The allowlist from docs/THIRD_PARTY.md. MPL-2.0 is only fine for files not
+# marked "Incompatible With Secondary Licenses", which cargo-deny can't see:
+# check that by hand when an MPL-2.0 crate shows up.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "BSL-1.0",
+    "CC0-1.0",
+    "Unlicense",
+    "Unicode-3.0",
+    "MPL-2.0",
+]
+# Test-only dependencies are covered too (D-026); cargo-deny skips them by
+# default.
+include-dev = true
+# The list is a policy, not an inventory of what's in use today.
+unused-allowed-license = "allow"
+# One crate outside the allowlist, approved by the maintainer with Q-122 A
+# (docs/THIRD_PARTY.md): Mozilla's certificate list as data, which
+# rustls-platform-verifier uses only on platforms KassenSturz doesn't build
+# for. cargo-deny checks every platform, so it shows up here.
+exceptions = [
+    # libfuzzer-sys is "(MIT OR Apache-2.0) AND NCSA": the NCSA part is LLVM's
+    # libFuzzer source, which it builds. A permissive, GPL-compatible license
+    # (the University of Illinois/NCSA license), used only by the fuzz
+    # targets, which no KassenSturz program or package contains.
+    { allow = ["NCSA"], crate = "libfuzzer-sys" },
+    { allow = ["CDLA-Permissive-2.0"], crate = "webpki-root-certs" },
+]
+
+[licenses.private]
+# KassenSturz's own crates (GPL-3.0-or-later, D-001) are never published.
+ignore = true
+
+[sources]
+# Crates come from crates.io only. A git dependency or another registry would
+# need its own decision first.
+unknown-registry = "deny"
+unknown-git = "deny"

@@ -280,3 +280,45 @@ fn failed_and_skipped_accounts_get_their_line_and_nothing_is_booked_for_them() {
         ]
     );
 }
+
+// US7.1 (D-769), where steps meet: a payment the fake bank sends that fits
+// a planned payment is matched after the update's import, as a change of
+// its own, so one Undo takes back only the match.
+#[test]
+fn an_update_matches_the_new_entries_to_planned_payments() {
+    let Sample {
+        mut book, current, ..
+    } = sample();
+    let form = crate::planned_payments::PlanForm {
+        name: "Pay".into(),
+        outgoing: false,
+        amount: "2500,00".into(),
+        first_due: "2026-10-01".into(),
+        party: "Example Employer".into(),
+        ..crate::planned_payments::new_form(&current.to_string(), &TestLocale)
+    };
+    crate::planned_payments::save(&mut book, "", &form, &TestLocale).expect("planned");
+    let before = book
+        .transactions_between(day(1, 1), day(12, 31))
+        .expect("read")
+        .len();
+    let summary = update(&mut book);
+    assert_eq!(summary.booked, 3);
+    assert_eq!(summary.planned, 1);
+    assert!(
+        crate::planned_payments::did_this_happen(&book, &TestLocale)
+            .expect("read")
+            .is_empty()
+    );
+    assert_eq!(book.decided_occurrences().expect("read").len(), 1);
+
+    book.undo().expect("undone");
+    assert!(book.decided_occurrences().expect("read").is_empty());
+    assert_eq!(
+        book.transactions_between(day(1, 1), day(12, 31))
+            .expect("read")
+            .len(),
+        before + 3,
+        "the booked entries stay"
+    );
+}

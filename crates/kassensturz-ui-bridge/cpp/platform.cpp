@@ -9,14 +9,21 @@
 #include <QtCore/QLocale>
 #include <QtCore/QProcess>
 #include <QtCore/QProcessEnvironment>
+#include <QtCore/QSocketNotifier>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QStorageInfo>
 #include <QtCore/QStringList>
 #include <QtCore/QSysInfo>
 #include <QtGui/QGuiApplication>
 #include <QtGui/QIcon>
+#include <QtGui/QSessionManager>
+
+#ifdef Q_OS_LINUX
+#include <sys/vfs.h>
+#endif
 
 #include <cerrno>
+#include <csignal>
 #include <cstdio>
 
 #ifdef KASSENSTURZ_WITH_DBUS
@@ -131,6 +138,87 @@ void quitApp()
     QCoreApplication::quit();
 }
 
+// Defined in Rust (`platform.rs`): asks an import under way to stop
+// (B-362). Only an atomic store, so a signal handler may call it.
+extern "C" void kassensturz_request_stop();
+
+#ifdef Q_OS_UNIX
+namespace
+{
+// The signal handler tells the event loop through this pipe: a handler may
+// only call a few functions, and `write` is one of them.
+int signalPipe[2] = {-1, -1};
+
+void onTerminationSignal(int)
+{
+    const int savedErrno = errno;
+    // An import that holds the event loop stops between two entries
+    // (B-362); the pipe below then ends the event loop.
+    kassensturz_request_stop();
+    const char byte = 1;
+    const ssize_t written = ::write(signalPipe[1], &byte, 1);
+    (void)written; // A full pipe already holds a wake-up.
+    errno = savedErrno;
+}
+}
+#endif
+
+void quitOnSignals()
+{
+#ifdef Q_OS_UNIX
+    if (signalPipe[0] != -1) {
+        return;
+    }
+    if (::pipe(signalPipe) != 0) {
+        signalPipe[0] = signalPipe[1] = -1;
+        return;
+    }
+    for (const int descriptor : signalPipe) {
+        ::fcntl(descriptor, F_SETFD, ::fcntl(descriptor, F_GETFD) | FD_CLOEXEC);
+        ::fcntl(descriptor, F_SETFL, ::fcntl(descriptor, F_GETFL) | O_NONBLOCK);
+    }
+    auto *notifier = new QSocketNotifier(signalPipe[0], QSocketNotifier::Read, QCoreApplication::instance());
+    QObject::connect(notifier, &QSocketNotifier::activated, notifier, [] {
+        char buffer[16];
+        while (::read(signalPipe[0], buffer, sizeof buffer) > 0) {
+        }
+        // The same way out as quitting from the menu: `main` then closes the
+        // book, which removes its lock file (B-276).
+        QCoreApplication::quit();
+    });
+    struct sigaction action;
+    sigemptyset(&action.sa_mask);
+    action.sa_handler = onTerminationSignal;
+    action.sa_flags = SA_RESTART;
+    for (const int number : {SIGTERM, SIGHUP, SIGINT}) {
+        ::sigaction(number, &action, nullptr);
+    }
+#endif
+}
+
+// Defined in Rust (`platform.rs`): closes the open book, which removes its
+// lock file.
+extern "C" void kassensturz_close_book_at_session_end();
+
+void closeBookOnSessionEnd()
+{
+    auto *app = qobject_cast<QGuiApplication *>(QCoreApplication::instance());
+    if (!app) {
+        return;
+    }
+    // Direct, so it runs in the signal's own call: after the session ends
+    // Windows may end the process at once.
+    QObject::connect(
+        app,
+        &QGuiApplication::commitDataRequest,
+        app,
+        [](QSessionManager &) {
+            kassensturz_close_book_at_session_end();
+            QCoreApplication::quit();
+        },
+        Qt::DirectConnection);
+}
+
 void useTestLocations()
 {
     QStandardPaths::setTestModeEnabled(true);
@@ -156,8 +244,45 @@ void loadKI18nQml()
     library->load();
 }
 
+#ifdef Q_OS_LINUX
+// The network file system the kernel itself names for `path`, from the magic
+// number statfs returns, or an empty string. In a snap AppArmor blocks the
+// mount table that QStorageInfo reads, but statfs still works (B-304).
+static QString networkTypeByStatfs(const QString &path)
+{
+    struct statfs info;
+    if (::statfs(QFile::encodeName(path).constData(), &info) != 0) {
+        return QString();
+    }
+    switch (static_cast<unsigned long>(info.f_type) & 0xFFFFFFFFUL) {
+    case 0xFE534D42UL: // SMB2 and SMB3
+        return QStringLiteral("smb3");
+    case 0xFF534D42UL: // CIFS
+        return QStringLiteral("cifs");
+    case 0x517BUL: // SMB
+        return QStringLiteral("smbfs");
+    case 0x6969UL: // NFS
+        return QStringLiteral("nfs");
+    case 0x00C36400UL: // Ceph
+        return QStringLiteral("ceph");
+    case 0x5346414FUL: // AFS
+        return QStringLiteral("afs");
+    case 0x564CUL: // NCP
+        return QStringLiteral("ncpfs");
+    default:
+        return QString();
+    }
+}
+#endif
+
 QString fileSystemType(const QString &path)
 {
+#ifdef Q_OS_LINUX
+    const QString network = networkTypeByStatfs(path);
+    if (!network.isEmpty()) {
+        return network;
+    }
+#endif
     const QStorageInfo storage(path);
     return storage.isValid() ? QString::fromUtf8(storage.fileSystemType()) : QString();
 }
@@ -325,6 +450,85 @@ QString portalHostPath(const QString &documentId)
 #else
     Q_UNUSED(documentId)
     return QString();
+#endif
+}
+
+namespace {
+#ifdef KASSENSTURZ_WITH_DBUS
+// The ID this app has in the document portal: the Flatpak's own, else the
+// one the app is built with.
+QString portalAppId()
+{
+    const QString id = qEnvironmentVariable("FLATPAK_ID");
+    return id.isEmpty() ? QStringLiteral("io.github.vondor.KassenSturz") : id;
+}
+#endif
+}
+
+QString portalDocuments()
+{
+#ifdef KASSENSTURZ_WITH_DBUS
+    // The portal's Documents interface answers List(app_id) with what the
+    // app may open: `a{say}`, the document's ID and its path on the host as a
+    // byte string ending with a NUL. Records end with U+001E, the ID and the
+    // path are told apart by U+001F. A call that fails answers nothing.
+    QDBusMessage call = QDBusMessage::createMethodCall(
+        QStringLiteral("org.freedesktop.portal.Documents"),
+        QStringLiteral("/org/freedesktop/portal/documents"),
+        QStringLiteral("org.freedesktop.portal.Documents"),
+        QStringLiteral("List"));
+    call << portalAppId();
+
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 2000);
+    if (reply.type() != QDBusMessage::ReplyMessage || reply.arguments().isEmpty()) {
+        return QString();
+    }
+    const QDBusArgument answer = reply.arguments().constFirst().value<QDBusArgument>();
+    QString found;
+    answer.beginMap();
+    while (!answer.atEnd()) {
+        QString key;
+        QByteArray value;
+        answer.beginMapEntry();
+        answer >> key >> value;
+        answer.endMapEntry();
+        if (value.endsWith('\0')) {
+            value.chop(1);
+        }
+        found += key + QChar(0x1f) + QFile::decodeName(value) + QChar(0x1e);
+    }
+    answer.endMap();
+    return found;
+#else
+    return QString();
+#endif
+}
+
+bool portalForget(const QString &documentId)
+{
+#ifdef KASSENSTURZ_WITH_DBUS
+    // RevokePermissions(doc_id, app_id, permissions) takes this app's own
+    // access to the document back. The files of the folder are not touched:
+    // the portal only stops showing the folder to this app. The caller asks
+    // List again to see whether it worked.
+    if (documentId.isEmpty()) {
+        return false;
+    }
+    QDBusMessage call = QDBusMessage::createMethodCall(
+        QStringLiteral("org.freedesktop.portal.Documents"),
+        QStringLiteral("/org/freedesktop/portal/documents"),
+        QStringLiteral("org.freedesktop.portal.Documents"),
+        QStringLiteral("RevokePermissions"));
+    call << documentId << portalAppId()
+         << QStringList{QStringLiteral("read"),
+                        QStringLiteral("write"),
+                        QStringLiteral("grant-permissions"),
+                        QStringLiteral("delete")};
+    const QDBusMessage reply = QDBusConnection::sessionBus().call(call, QDBus::Block, 2000);
+    return reply.type() == QDBusMessage::ReplyMessage;
+#else
+    Q_UNUSED(documentId)
+    return false;
 #endif
 }
 }

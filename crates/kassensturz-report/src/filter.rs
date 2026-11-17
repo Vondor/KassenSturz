@@ -264,6 +264,15 @@ pub struct Asked {
     /// The length of a candle chart's candles the user chose (Q-498);
     /// `None` for the automatic length and for every other component.
     pub candle: Option<crate::CandleLength>,
+    /// What a money-flow chart shows (US7, D-758); the default for every
+    /// other component.
+    pub flow: crate::FlowChoice,
+    /// The months of a trend (US7, D-777); the default for every other
+    /// component.
+    pub trend: crate::Trend,
+    /// The days of a daily balance's averages (US7, D-794); the default
+    /// for every other component.
+    pub ema: crate::Ema,
 }
 
 /// A note under a component about its filter (D-350). The component writes
@@ -417,6 +426,29 @@ impl Asked {
                 Some(Setting::Word(word)) => crate::CandleLength::read(word),
                 _ => None,
             },
+            flow: crate::FlowChoice::of(component),
+            trend: {
+                let word = |key: &str| match component.get(key) {
+                    Some(Setting::Word(word)) => word.as_str(),
+                    _ => "",
+                };
+                crate::Trend::read(
+                    word(crate::schema::TREND_LENGTH_KEY),
+                    word(crate::schema::TREND_SLOW_KEY),
+                    word(crate::schema::TREND_SIGNAL_KEY),
+                )
+            },
+            ema: {
+                let word = |key: &str| match component.get(key) {
+                    Some(Setting::Word(word)) => word.as_str(),
+                    _ => "",
+                };
+                crate::Ema::read(
+                    word(crate::schema::EMA_FAST_KEY),
+                    word(crate::schema::EMA_SLOW_KEY),
+                    word(crate::schema::EMA_SIGNAL_KEY),
+                )
+            },
         })
     }
 
@@ -440,6 +472,9 @@ impl Asked {
             average: self.average,
             compare: self.compare,
             candle: self.candle,
+            flow: self.flow.clone(),
+            trend: self.trend,
+            ema: self.ema,
         }
     }
 

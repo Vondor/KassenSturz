@@ -111,6 +111,13 @@ pub mod qobject {
         #[qinvokable]
         fn danger(self: &AiChat, id: &QString) -> QVariant;
 
+        /// Whether one of the user's own AI tools prepared the set `id`
+        /// through `kassensturz-mcp`, not the chat: the review then doesn't
+        /// speak of what the user wrote (B-371).
+        #[qinvokable]
+        #[cxx_name = "isFromOwnTool"]
+        fn is_from_own_tool(self: &AiChat, id: &QString) -> bool;
+
         /// The user corrects the change `slot` of the set `id` before
         /// confirming it (D-293): `fields` is a JSON object of the fields
         /// that change, in the words of `propose_changes`. The set's changes
@@ -164,6 +171,7 @@ pub mod qobject {
         /// The user took the changes they confirmed back with Undo: the
         /// model hears it with the next question.
         #[qinvokable]
+        #[cxx_name = "changesUndone"]
         fn changes_undone(self: Pin<&mut AiChat>);
 
         /// Starts a new conversation: forgets this one and every set that
@@ -185,6 +193,13 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "issueUsed"]
         fn issue_used(self: &AiChat, how: &QString);
+
+        /// Names the archive's folder for bills whose transaction has no
+        /// category, in the user's language (US7, #333): the window says it
+        /// once, since the bridge writes no text (D-034).
+        #[qinvokable]
+        #[cxx_name = "nameUnsortedFolder"]
+        fn name_unsorted_folder(self: &AiChat, name: &QString);
     }
 
     extern "RustQt" {
@@ -266,6 +281,10 @@ mod engine {
         off()
     }
 
+    pub(super) fn is_from_own_tool(_chat: &qobject::AiChat, _id: &str) -> bool {
+        false
+    }
+
     pub(super) fn confirm(_chat: Pin<&mut qobject::AiChat>, _id: &str) -> QVariant {
         off()
     }
@@ -280,7 +299,8 @@ pub(crate) mod engine {
     use kassensturz_ai_tools::refusal::RefusalReasons;
     use kassensturz_ai_tools::requests::RequestFolder;
     use kassensturz_ai_tools::{
-        ChangeError, ChangeSet, EditError, IssueDraft, PageTarget, ProposedChange, ToolError,
+        ChangeError, ChangeSet, EditError, IssueDraft, NoteSuggestion, PageTarget, ProposedChange,
+        ToolError,
     };
     use kassensturz_core::{Date, Report};
     use kassensturz_platform::Secret;
@@ -288,12 +308,12 @@ pub(crate) mod engine {
 
     use super::*;
     use crate::ai_chat::{
-        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction,
+        BasisView, CategoryChoice, ChangeRow, ChangeView, Command, Controls, Correction, Filing,
         FilterView, Review, Screen, Sets, Waiting, answer_from, category_choices, code_text,
-        confirm_in, corrected, hooks, outcome_of, rows_of,
+        confirm_with_bills_in, corrected, hooks, outcome_of, rows_of,
     };
     use crate::ai_requests::{Arrived, take_requests, tell_confirmed, tell_declined, tell_dropped};
-    use crate::ai_settings::{self, Store};
+    use crate::ai_settings::{self, Consent, Store};
     use crate::book_session::app_version;
     use crate::format::Locale;
     use crate::number_format::app_locale;
@@ -486,6 +506,9 @@ pub(crate) mod engine {
         if let Some(page) = &answer.page {
             fields.push(("page", page_object(page)));
         }
+        if let Some(note) = &answer.note {
+            fields.push(("noteSuggestion", note_object(note)));
+        }
         map(fields)
     }
 
@@ -508,6 +531,12 @@ pub(crate) mod engine {
             ("name", text(page.name())),
             ("id", text(page.id().unwrap_or_default())),
         ])
+    }
+
+    /// A line the AI suggested for the user's notes as QML reads it: its
+    /// `line`, word for word (US7, #808).
+    pub(crate) fn note_object(note: &NoteSuggestion) -> QVariant {
+        map([("line", text(&note.line))])
     }
 
     /// Charts that wait in the chat as QML reads them: each with an `id` and
@@ -589,6 +618,26 @@ pub(crate) mod engine {
                 ("yesNo", QVariant::from(&filter.yes_no)),
             ])
         }))
+    }
+
+    /// A plan as the review card reads it (US7, B-357, D-814).
+    fn plan_object(plan: &crate::ai_chat::PlanView) -> QVariant {
+        map([
+            ("name", text(&plan.name)),
+            ("account", text(&plan.account)),
+            ("outgoing", QVariant::from(&plan.outgoing)),
+            ("amount", text(&plan.amount)),
+            ("unit", text(plan.unit)),
+            ("every", QVariant::from(&plan.every)),
+            ("firstDue", text(&plan.first_due)),
+            ("ends", text(&plan.ends)),
+            ("tolerance", text(&plan.tolerance)),
+            ("category", text(&plan.category)),
+            ("party", text(&plan.party)),
+            ("paused", QVariant::from(&plan.paused)),
+            ("next", list(plan.next.iter().map(|day| text(day)))),
+            ("fromEntry", QVariant::from(&plan.from_entry)),
+        ])
     }
 
     /// One change's own fields.
@@ -771,6 +820,7 @@ pub(crate) mod engine {
                 component,
                 charts,
                 filters,
+                title_numbers,
             } => vec![
                 ("kind", text("newView")),
                 ("title", text(title)),
@@ -778,6 +828,10 @@ pub(crate) mod engine {
                 ("component", text(component)),
                 ("charts", list(charts.iter().map(|chart| text(chart)))),
                 ("filters", filter_list(filters)),
+                (
+                    "titleNumbers",
+                    list(title_numbers.iter().map(|number| text(number))),
+                ),
             ],
             ChangeView::EditView {
                 before,
@@ -785,6 +839,7 @@ pub(crate) mod engine {
                 period,
                 component,
                 filters,
+                title_numbers,
             } => vec![
                 ("kind", text("editView")),
                 ("before", text(before)),
@@ -792,6 +847,10 @@ pub(crate) mod engine {
                 ("period", text(period)),
                 ("component", text(component)),
                 ("filters", filter_list(filters)),
+                (
+                    "titleNumbers",
+                    list(title_numbers.iter().map(|number| text(number))),
+                ),
             ],
             ChangeView::DeleteView { name } => {
                 vec![("kind", text("deleteView")), ("name", text(name))]
@@ -946,6 +1005,36 @@ pub(crate) mod engine {
                 ("file", text(file)),
                 ("title", text(title)),
             ],
+            ChangeView::NewPlan { plan } => {
+                vec![("kind", text("newPlan")), ("plan", plan_object(plan))]
+            }
+            ChangeView::EditPlan { before, after } => vec![
+                ("kind", text("editPlan")),
+                ("before", plan_object(before)),
+                ("after", plan_object(after)),
+            ],
+            ChangeView::FileBill {
+                date,
+                payee,
+                account,
+                file,
+                title,
+                goes_to,
+                booked,
+                bill_total,
+                check,
+            } => vec![
+                ("kind", text("fileBill")),
+                ("date", text(date)),
+                ("payee", text(payee)),
+                ("account", text(account)),
+                ("file", text(file)),
+                ("title", text(title)),
+                ("goesTo", text(goes_to)),
+                ("booked", text(booked)),
+                ("billTotal", text(bill_total)),
+                ("check", text(check)),
+            ],
         }
     }
 
@@ -1004,7 +1093,14 @@ pub(crate) mod engine {
         // The fake model stands for a provider on another computer, so the
         // review of each request can be tried with it (D-210).
         let demo = ai_settings::demo_model();
-        let ask_first = demo.is_some() || store.form().place == Some(Place::AnotherComputer);
+        let form = store.form();
+        // Without consent nothing can go to a provider on another computer:
+        // say so before the review of the request, not after it (B-324).
+        // The chat then shows what would be sent (B-314).
+        if demo.is_none() && form.consent == Consent::Missing {
+            return error(&ErrorText::plain("ai.no-consent"));
+        }
+        let ask_first = demo.is_some() || form.place == Some(Place::AnotherComputer);
         let today = app_locale().today();
         let typed = (!key.is_empty()).then(|| Secret::new(key.to_owned()));
         let question = question.to_owned();
@@ -1142,6 +1238,10 @@ pub(crate) mod engine {
         id.parse().ok()
     }
 
+    pub(super) fn is_from_own_tool(chat: &qobject::AiChat, id: &str) -> bool {
+        id_of(id).is_some_and(|id| chat.state.sets.is_from_own_tool(id))
+    }
+
     pub(super) fn danger(chat: &qobject::AiChat, id: &str) -> QVariant {
         let danger = id_of(id)
             .and_then(|id| chat.state.sets.get(id))
@@ -1180,10 +1280,35 @@ pub(crate) mod engine {
         // The only call that applies a set: the confirm button's (D-200).
         // No book open any more means the set is out of date.
         let today = app_locale().today();
-        let result = session::with_book_mut(|book| {
-            confirm_in(book, set, kassensturz_core::ai_switch::permissions(), today)
+        // Bills from the receipt inbox are filed with the set (US7, #333).
+        let journal = crate::receipt_moves::journal();
+        let disk = crate::receipt_moves::disk();
+        let folders = kassensturz_core::ai_switch::inbox_folders();
+        let confirmed = session::with_book_mut(|book| {
+            let filing = journal
+                .as_ref()
+                .zip(folders)
+                .map(|(journal, (inbox, archive))| Filing {
+                    inbox,
+                    archive,
+                    mover: crate::receipt_moves::Mover {
+                        disk: &disk,
+                        journal,
+                    },
+                });
+            confirm_with_bills_in(
+                book,
+                set,
+                kassensturz_core::ai_switch::permissions(),
+                today,
+                filing.as_ref(),
+            )
         })
         .unwrap_or(Err(ChangeError::OutOfDate));
+        let (result, moved) = match confirmed {
+            Ok(moved) => (Ok(()), moved),
+            Err(error) => (Err(error), crate::receipt_moves::Moved::default()),
+        };
         if let Some(from) = &from
             && let Some(inbox) = chat.as_mut().rust_mut().state.inbox.as_mut()
         {
@@ -1198,7 +1323,7 @@ pub(crate) mod engine {
                 say("changes-applied", &[]);
                 crate::note!(ChangesApplied);
                 chat.as_mut().changed();
-                map([("ok", QVariant::from(&true))])
+                filed_object(&moved)
             }
             Err(failure) => {
                 let report = failure.report();
@@ -1207,6 +1332,40 @@ pub(crate) mod engine {
                 error(&code_text(&report))
             }
         }
+    }
+
+    /// A confirmed set as the review page reads it: `ok`, how many bills
+    /// were `filed`, the bills that `stayed` in the inbox (`file`, its name,
+    /// and `reason`), and the old copies left behind (`copiesLeft`, shown
+    /// paths) (US7, #333).
+    pub(super) fn filed_object(moved: &crate::receipt_moves::Moved) -> QVariant {
+        let count = |n: usize| QVariant::from(&i32::try_from(n).unwrap_or(i32::MAX));
+        map([
+            ("ok", QVariant::from(&true)),
+            ("made", QVariant::from(&moved.made)),
+            ("filed", count(moved.moved)),
+            (
+                "stayed",
+                list(moved.stayed.iter().map(|bill| {
+                    map([
+                        (
+                            "file",
+                            text(&bill.file.file_name().unwrap_or_default().to_string_lossy()),
+                        ),
+                        ("reason", text(bill.reason)),
+                    ])
+                })),
+            ),
+            (
+                "copiesLeft",
+                list(
+                    moved
+                        .copies_left
+                        .iter()
+                        .map(|path| text(&crate::receipt_moves::shown(path))),
+                ),
+            ),
+        ])
     }
 
     /// Corrects one change of a waiting set (D-293): the user's version is
@@ -1320,6 +1479,12 @@ pub(crate) mod engine {
             let Some(inbox) = inbox.as_mut() else {
                 return;
             };
+            let (inbox_folder, archive) = kassensturz_core::ai_switch::inbox_folders().unzip();
+            let folders = kassensturz_ai_tools::Folders {
+                bills: kassensturz_core::ai_switch::bill_folder(),
+                inbox: inbox_folder,
+                archive,
+            };
             session::with_book(|book| {
                 take_requests(
                     inbox,
@@ -1328,7 +1493,7 @@ pub(crate) mod engine {
                     sets,
                     kassensturz_core::ai_switch::permissions(),
                     app_locale().today(),
-                    kassensturz_core::ai_switch::bill_folder().as_deref(),
+                    &folders,
                 )
             })
             .unwrap_or_default()
@@ -1385,6 +1550,10 @@ impl qobject::AiChat {
 
     fn danger(&self, id: &QString) -> QVariant {
         engine::danger(self, &id.to_string())
+    }
+
+    fn is_from_own_tool(&self, id: &QString) -> bool {
+        engine::is_from_own_tool(self, &id.to_string())
     }
 
     fn confirm(self: Pin<&mut Self>, id: &QString) -> QVariant {
@@ -1482,6 +1651,10 @@ impl qobject::AiChat {
             _ => {}
         }
     }
+
+    fn name_unsorted_folder(&self, name: &QString) {
+        crate::receipt_moves::set_unsorted_name(&name.to_string());
+    }
 }
 
 /// The calls that have nothing to do in a build without AI.
@@ -1527,6 +1700,8 @@ impl qobject::AiChat {
     fn check_requests(self: Pin<&mut Self>) {}
 
     fn issue_used(&self, _how: &QString) {}
+
+    fn name_unsorted_folder(&self, _name: &QString) {}
 }
 
 #[cfg(all(test, feature = "ai"))]
@@ -1534,6 +1709,7 @@ mod tests {
     use cxx_qt_lib::{QString, QVariant};
     use kassensturz_ai::Finish;
     use kassensturz_ai_chat::{Answer, AnswerNote, LogEntry, Mode};
+    use kassensturz_ai_tools::NoteSuggestion;
 
     use super::engine::{
         changes_object, choices_object, danger_object, entry_object, finished_object,
@@ -1655,6 +1831,7 @@ mod tests {
             notes: Vec::new(),
             issue: None,
             page: None,
+            note: None,
         };
         let object = finished_object(&answer, &[(3, 2), (4, 1)], &[]);
         assert_eq!(
@@ -1705,6 +1882,7 @@ mod tests {
             notes: Vec::new(),
             issue: None,
             page: None,
+            note: None,
         };
         let charts = [
             ChartSet {
@@ -1799,6 +1977,7 @@ mod tests {
             notes: Vec::new(),
             issue: Some(issue.clone()),
             page: None,
+            note: None,
         };
         let object = finished_object(&answer, &[], &[]);
         assert_eq!(
@@ -1841,6 +2020,7 @@ mod tests {
             notes: Vec::new(),
             issue: None,
             page: Some(page.clone()),
+            note: None,
         };
         let object = finished_object(&answer, &[], &[]);
         assert_eq!(
@@ -1864,6 +2044,33 @@ mod tests {
         let read = super::engine::page_object(&PageTarget::Categories);
         assert_eq!(text_of(&read, "name"), "categories");
         assert_eq!(text_of(&read, "id"), "");
+    }
+
+    #[test]
+    fn a_suggested_note_reads_back_as_qml_reads_it() {
+        let note = NoteSuggestion {
+            line: "Corner Market is groceries.".into(),
+        };
+        let answer = Answer {
+            text: "I suggested a line.".into(),
+            unverified: Vec::new(),
+            finish: Finish::Done,
+            mode: Mode::Functions,
+            context_cut: false,
+            changes: Vec::new(),
+            title_numbers: Vec::new(),
+            chart_failed: None,
+            no_change: false,
+            notes: Vec::new(),
+            issue: None,
+            page: None,
+            note: Some(note.clone()),
+        };
+        let object = finished_object(&answer, &[], &[]);
+        assert!(keys(&object).contains(&"noteSuggestion".to_owned()));
+        let read = super::engine::note_object(&note);
+        assert_eq!(keys(&read), ["line"]);
+        assert_eq!(text_of(&read, "line"), "Corner Market is groceries.");
     }
 
     #[test]
@@ -2007,6 +2214,7 @@ mod tests {
                     values: vec!["<b>Food</b>".into(), "Rent".into()],
                     yes_no: false,
                 }],
+                title_numbers: vec!["4.512,30".into()],
             },
             ChangeView::NewBudget {
                 name: "<b>Weekly</b> shop".into(),
@@ -2055,6 +2263,7 @@ mod tests {
                 period: "last-12-months".into(),
                 component: r#"{"type":"chart.bar"}"#.into(),
                 filters: Vec::new(),
+                title_numbers: Vec::new(),
             },
             ChangeView::DeleteView {
                 name: "<b>Old</b> chart".into(),
@@ -2228,9 +2437,24 @@ mod tests {
         assert_eq!(text_of(&items[12], "category"), "");
         assert_eq!(
             own_keys(&items[13]),
-            ["charts", "component", "filters", "kind", "period", "title"]
+            [
+                "charts",
+                "component",
+                "filters",
+                "kind",
+                "period",
+                "title",
+                "titleNumbers"
+            ]
         );
         assert_eq!(list_of(&items[13], "charts").len(), 2);
+        // The numbers in the AI's title, for the review to mark (B-361).
+        let numbers: Vec<String> = list_of(&items[13], "titleNumbers")
+            .iter()
+            .filter_map(|number| number.value::<QString>())
+            .map(|number| number.to_string())
+            .collect();
+        assert_eq!(numbers, ["4.512,30"]);
         // What the chart's description leaves out, in words (D-729).
         let filters = list_of(&items[13], "filters");
         assert_eq!(filters.len(), 1);
@@ -2332,9 +2556,18 @@ mod tests {
         // Saved charts the AI changes or deletes (D-681).
         assert_eq!(
             own_keys(&items[16]),
-            ["before", "component", "filters", "kind", "period", "title"]
+            [
+                "before",
+                "component",
+                "filters",
+                "kind",
+                "period",
+                "title",
+                "titleNumbers"
+            ]
         );
         assert!(list_of(&items[16], "filters").is_empty());
+        assert!(list_of(&items[16], "titleNumbers").is_empty());
         assert_eq!(text_of(&items[16], "kind"), "editView");
         assert_eq!(text_of(&items[16], "before"), "Spending");
         assert_eq!(text_of(&items[16], "title"), "<b>Spending</b> by row");
@@ -2616,6 +2849,138 @@ mod tests {
     }
 
     #[test]
+    fn a_plan_change_reads_back_as_qml_reads_it() {
+        // US7, B-357, D-814: through the real proposal and the review's rows.
+        use kassensturz_ai_tools::propose;
+        use kassensturz_core::ai_switch::{Permission, Permissions};
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, ScheduleUnit,
+        };
+        use kassensturz_store::{Book, NewSchedule};
+
+        use crate::ai_chat::rows_of;
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let account = |name: &str, kind: AccountKind| Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = account("Checking", AccountKind::Asset);
+        let rent = account("Rent", AccountKind::Expense);
+        for account in [&checking, &rent] {
+            book.add_account(account).unwrap();
+        }
+        let gym = book
+            .add_schedule(&NewSchedule {
+                name: "<b>Gym</b>".into(),
+                account: checking.id,
+                amount: Money::from_minor_units(-2_500, eur),
+                tolerance: Money::zero(eur),
+                category: None,
+                party_iban: None,
+                party_name: None,
+                unit: ScheduleUnit::Month,
+                every: 1,
+                anchor: Date::constant(2026, 1, 5),
+                track_from: Date::constant(2026, 1, 5),
+                ends_on: None,
+            })
+            .unwrap();
+        let allowed = Permissions::NONE
+            .with(Permission::NewPlans, true)
+            .with(Permission::EditPlans, true);
+        let proposal = propose(
+            &book,
+            &serde_json::json!({
+                "new_plans": [{
+                    "name": "Rent",
+                    "account_id": checking.id.to_string(),
+                    "direction": "out",
+                    "amount": "850.00",
+                    "tolerance": "5.00",
+                    "category_id": rent.id.to_string(),
+                    "unit": "month",
+                    "first_due": "2026-11-01",
+                    "ends": "2027-10-31",
+                    "paid_to": "Habitat Ring",
+                }],
+                "edit_plans": [{"plan_id": gym.to_string(), "every": 3, "paused": true}],
+            }),
+            allowed,
+        )
+        .unwrap();
+        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 2);
+        let plan_keys = [
+            "account",
+            "amount",
+            "category",
+            "ends",
+            "every",
+            "firstDue",
+            "fromEntry",
+            "name",
+            "next",
+            "outgoing",
+            "party",
+            "paused",
+            "tolerance",
+            "unit",
+        ];
+        let new = &items[0];
+        assert_eq!(own_keys(new), ["kind", "plan"]);
+        assert_eq!(text_of(new, "kind"), "newPlan");
+        assert_eq!(text_of(new, "slot"), "new_plans/0");
+        let plan = object_of(new, "plan");
+        assert_eq!(keys(&plan), plan_keys);
+        assert_eq!(text_of(&plan, "name"), "Rent");
+        assert_eq!(text_of(&plan, "account"), "Checking");
+        assert!(flag_of(&plan, "outgoing"));
+        // No sign: the card says "out of".
+        assert!(!text_of(&plan, "amount").contains('-'));
+        assert!(text_of(&plan, "amount").contains("850"));
+        assert!(text_of(&plan, "tolerance").contains('5'));
+        assert_eq!(text_of(&plan, "unit"), "month");
+        assert_eq!(number_of(&plan, "every"), 1);
+        assert!(!text_of(&plan, "firstDue").is_empty());
+        assert!(!text_of(&plan, "ends").is_empty());
+        assert_eq!(text_of(&plan, "category"), "Rent");
+        assert_eq!(text_of(&plan, "party"), "Habitat Ring");
+        assert!(!flag_of(&plan, "paused"));
+        assert!(!flag_of(&plan, "fromEntry"));
+        assert!(list_of(&plan, "next").len() <= 3);
+
+        let edit = &items[1];
+        assert_eq!(own_keys(edit), ["after", "before", "kind"]);
+        assert_eq!(text_of(edit, "kind"), "editPlan");
+        assert_eq!(text_of(edit, "slot"), "edit_plans/0");
+        let before = object_of(edit, "before");
+        let after = object_of(edit, "after");
+        assert_eq!(keys(&before), plan_keys);
+        assert_eq!(keys(&after), plan_keys);
+        assert_eq!(text_of(&before, "name"), "<b>Gym</b>");
+        assert_eq!(number_of(&before, "every"), 1);
+        assert_eq!(number_of(&after, "every"), 3);
+        assert!(!flag_of(&before, "paused"));
+        assert!(flag_of(&after, "paused"));
+        assert_eq!(text_of(&before, "ends"), "");
+        assert_eq!(text_of(&before, "category"), "");
+    }
+
+    #[test]
     fn a_tag_change_reads_back_as_qml_reads_it() {
         // US5.2, D-744: through the real proposal and the review's rows.
         use kassensturz_ai_tools::propose;
@@ -2881,5 +3246,175 @@ mod tests {
         assert_eq!(text_of(change, "account"), "Checking");
         assert_eq!(text_of(change, "payee"), "Papierladen Nord");
         assert!(!text_of(change, "date").is_empty());
+    }
+    /// US7, #333: a bill from the receipt inbox through the real proposal
+    /// of the MCP way in, the window's leaving out of a differing total
+    /// (D-751) and the review's rows, read back as QML reads them; then
+    /// the confirm's answer.
+    #[test]
+    fn a_bill_to_file_reads_back_with_its_place_and_its_checked_total() {
+        use kassensturz_ai_tools::{Folders, PROPOSE_CHANGES, prepare_named_with_folders};
+        use kassensturz_core::ai_switch::Permissions;
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Transaction,
+            TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use super::engine::filed_object;
+        use crate::ai_chat::rows_of;
+        use crate::receipt_moves::{Moved, Stayed};
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let checking = Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: "Checking".into(),
+            kind: AccountKind::Asset,
+            currency: eur,
+            account_type: Some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        book.add_account(&checking).unwrap();
+        let paid = |payee: &str| {
+            Transaction::new(
+                TransactionId::generate(),
+                Date::constant(2026, 11, 5),
+                Some(payee.into()),
+                vec![
+                    Split::new(checking.id, Money::from_minor_units(-2450, eur)),
+                    Split::uncategorized(Money::from_minor_units(2450, eur)),
+                ],
+            )
+            .unwrap()
+        };
+        let (right, wrong) = (paid("Papierladen Nord"), paid("Bäckerei Süd"));
+        book.add_transaction(&right).unwrap();
+        book.add_transaction(&wrong).unwrap();
+        let folder = crate::test_folder::TestFolder::new();
+        let inbox = folder.join("Inbox");
+        std::fs::create_dir_all(&inbox).unwrap();
+        std::fs::write(inbox.join("RE-0042.pdf"), b"synthetic").unwrap();
+        std::fs::write(inbox.join("RE-0043.pdf"), b"synthetic too").unwrap();
+
+        let proposal = prepare_named_with_folders(
+            &book,
+            PROPOSE_CHANGES.name,
+            &serde_json::json!({"file_bills": [
+                {"transaction_id": right.id().to_string(), "file": "RE-0042.pdf",
+                 "bill_total": "24.50", "bill_currency": "EUR"},
+                {"transaction_id": wrong.id().to_string(), "file": "RE-0043.pdf",
+                 "title": "Brot", "bill_total": "23.50"},
+            ]}),
+            Permissions::all(),
+            Date::constant(2026, 11, 12),
+            &Folders {
+                bills: None,
+                inbox: Some(inbox.clone()),
+                archive: Some(folder.join("Archive")),
+            },
+        )
+        .unwrap();
+        let set = proposal
+            .changes
+            .leave_out_differing_bills(&book, Permissions::all())
+            .unwrap();
+        let rows = rows_of(&book, &set, &TestLocale).unwrap();
+        let items = elements(&changes_object(&rows)).expect("an array");
+        assert_eq!(items.len(), 2);
+        let (kept, left) = (&items[0], &items[1]);
+        assert_eq!(
+            own_keys(kept),
+            [
+                "account",
+                "billTotal",
+                "booked",
+                "check",
+                "date",
+                "file",
+                "goesTo",
+                "kind",
+                "payee",
+                "title"
+            ]
+        );
+        assert_eq!(text_of(kept, "kind"), "fileBill");
+        assert_eq!(text_of(kept, "slot"), "file_bills/0");
+        assert!(!flag_of(kept, "leftOut"));
+        assert_eq!(text_of(kept, "check"), "matches");
+        assert_eq!(text_of(kept, "file"), "RE-0042.pdf");
+        assert_eq!(text_of(kept, "account"), "Checking");
+        assert_eq!(text_of(kept, "booked"), text_of(kept, "billTotal"));
+        assert!(
+            text_of(kept, "booked").contains("24"),
+            "{}",
+            text_of(kept, "booked")
+        );
+        // No archive chosen: no place to show.
+        assert_eq!(text_of(kept, "goesTo"), "");
+        crate::receipt_moves::choose_archive_for_test(Some(folder.join("Archive")));
+        let rows = rows_of(&book, &set, &TestLocale).unwrap();
+        crate::receipt_moves::choose_archive_for_test(None);
+        let items = elements(&changes_object(&rows)).expect("an array");
+        assert_eq!(
+            text_of(&items[0], "goesTo"),
+            [
+                "Archive",
+                "Checking",
+                "Not sorted yet",
+                "261105_RE-0042.pdf"
+            ]
+            .iter()
+            .collect::<std::path::PathBuf>()
+            .to_string_lossy()
+        );
+        assert_eq!(
+            text_of(&items[1], "goesTo"),
+            ["Archive", "Checking", "Not sorted yet", "261105_Brot.pdf"]
+                .iter()
+                .collect::<std::path::PathBuf>()
+                .to_string_lossy()
+        );
+        assert_eq!(text_of(left, "slot"), "file_bills/1");
+        assert!(
+            flag_of(left, "leftOut"),
+            "a differing total starts left out"
+        );
+        assert_eq!(text_of(left, "check"), "differs");
+        assert_eq!(text_of(left, "title"), "Brot");
+        assert_ne!(text_of(left, "booked"), text_of(left, "billTotal"));
+
+        let answer = filed_object(&Moved {
+            moved: 1,
+            stayed: vec![Stayed {
+                file: inbox.join("RE-0043.pdf"),
+                reason: "changed",
+            }],
+            copies_left: vec![inbox.join("RE-0042.pdf")],
+            left_in_archive: Vec::new(),
+            made: true,
+        });
+        assert_eq!(
+            keys(&answer),
+            ["copiesLeft", "filed", "made", "ok", "stayed"]
+        );
+        assert!(flag_of(&answer, "ok"));
+        assert!(flag_of(&answer, "made"));
+        assert_eq!(number_of(&answer, "filed"), 1);
+        let stayed = list_of(&answer, "stayed");
+        assert_eq!(keys(&stayed[0]), ["file", "reason"]);
+        assert_eq!(text_of(&stayed[0], "file"), "RE-0043.pdf");
+        assert_eq!(text_of(&stayed[0], "reason"), "changed");
+        let copies = list_of(&answer, "copiesLeft");
+        assert_eq!(
+            copies[0].value::<QString>().unwrap().to_string(),
+            inbox.join("RE-0042.pdf").to_string_lossy()
+        );
     }
 }

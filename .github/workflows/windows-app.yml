@@ -7,17 +7,46 @@ name: Windows app
 # This file is separate from ci.yml on purpose: the run is long (20 to 30
 # minutes warm).
 #
-# For now it runs only when asked for (D-613): on a pull request with the
-# `windows` label, by hand (workflow_dispatch, also on main), and from the
-# release workflow for every pre-release tag, so no release ships without it.
-# The quick Windows lints and tests in ci.yml still run on every pull
-# request. D-613 is reversed (back to every pull request and every push to
-# main that touches the app) before Windows testers get builds.
+# It runs on every pull request and every push to main that touches more than
+# documentation, as before D-613; the reversal of D-613 (#509, US7) is made so
+# that Windows testers get builds from checked code. It is not a required
+# check. The same checks run for a pre-release tag through release.yml, so no
+# release ships without it. Craft's cache is still saved only from main.
 
 on:
   pull_request:
-    # `labeled`, so adding the `windows` label starts the build at once.
-    types: [opened, synchronize, reopened, labeled]
+    # Documentation, the other workflows and the snap packaging don't start
+    # it (D-791); its own workflow file and the Windows packaging do.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!LICENSES/**"
+      - "!*.md"
+      - "!REUSE.toml"
+      - "!CODEOWNERS"
+      - "!.github/ISSUE_TEMPLATE/**"
+      - "!.github/PULL_REQUEST_TEMPLATE.md"
+      - "!.github/FUNDING.yml"
+      - "!.github/workflows/**"
+      - "!packaging/snap/**"
+      - "docs/ERROR_CODES.md"
+      - ".github/workflows/windows-app.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!LICENSES/**"
+      - "!*.md"
+      - "!REUSE.toml"
+      - "!CODEOWNERS"
+      - "!.github/ISSUE_TEMPLATE/**"
+      - "!.github/PULL_REQUEST_TEMPLATE.md"
+      - "!.github/FUNDING.yml"
+      - "!.github/workflows/**"
+      - "!packaging/snap/**"
+      - "docs/ERROR_CODES.md"
+      - ".github/workflows/windows-app.yml"
   workflow_dispatch:
   # release.yml calls this workflow for a pre-release tag and attaches what
   # it uploads as release-asset-windows (D-551, D-554).
@@ -33,11 +62,10 @@ permissions:
 
 # In a call from release.yml, github.workflow is the caller's name, so a pull
 # request's own Windows run and the release workflow's call of it don't
-# cancel each other.
-# Adding another label to a pull request starts a run that does nothing; it
-# gets a group of its own, so it doesn't cancel a Windows build in progress.
+# cancel each other. A newer push to a pull request ends the older run; main's
+# runs are never cancelled, since they fill the caches.
 concurrency:
-  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}${{ github.event.action == 'labeled' && github.event.label.name != 'windows' && format('-{0}', github.run_id) || '' }}
+  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -55,12 +83,6 @@ env:
 jobs:
   windows-app:
     name: Windows app with KDE Craft (D-554)
-    # On a pull request only with the `windows` label (D-613); a label event
-    # starts it only for that label, not again for every other label added.
-    if: >-
-      github.event_name != 'pull_request' || (
-        contains(github.event.pull_request.labels.*.name, 'windows') &&
-        (github.event.action != 'labeled' || github.event.label.name == 'windows'))
     # Craft's binary cache is built for Visual Studio 2022; windows-latest has
     # only Visual Studio 2026, which Craft's cache doesn't cover (D-214).
     runs-on: windows-2022
@@ -151,6 +173,8 @@ jobs:
             !C:\CraftRoot\download
             !C:\CraftRoot\tmp
           key: craft-msvc2022-v2-${{ env.CRAFT_COMMIT }}-${{ env.CRAFT_BLUEPRINTS_COMMIT }}-${{ hashFiles('packaging/windows/craft/**/*.py') }}
+      - name: The Craft path patching still works on made-up bytes
+        run: python tools/windows-compiled-in-paths.py self-test
       - name: Name the build
         id: version
         shell: bash
@@ -176,6 +200,25 @@ jobs:
           Copy-Item $zip.FullName "$out\KassenSturz-$version-windows-x64.zip"
           Copy-Item $exe.FullName "$out\KassenSturz-$version-windows-x64-setup.exe"
           Get-ChildItem $out | Format-Table Name, Length
+      # Craft's build folder holds hundreds of programs nobody needs at run
+      # time (ffmpeg, openssl, sqlite3, windeployqt, ...). Only the programs
+      # in packaging/windows/allowed-executables.txt may be in the package
+      # (B-292); a new program needs a line there, made on purpose.
+      - name: Only the allowed programs are in the zip
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zip = (Get-ChildItem "$env:GITHUB_WORKSPACE\out\*.zip").FullName
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
+          try { $names = $archive.Entries | ForEach-Object { $_.FullName } } finally { $archive.Dispose() }
+          $found = $names | Where-Object { $_ -match '\.exe$' } | ForEach-Object {
+            # The path inside the package, whatever folder the zip puts it in.
+            if ($_ -match '(?i)(?:^|[\\/])(bin[\\/].*)$') { $matches[1].Replace('\', '/').ToLowerInvariant() } else { $_.Replace('\', '/').ToLowerInvariant() }
+          } | Sort-Object -Unique
+          $allowed = Get-Content "$env:GITHUB_WORKSPACE\packaging\windows\allowed-executables.txt" | Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object { $_.Trim().ToLowerInvariant() }
+          Write-Output "Programs in the zip ($($found.Count)):"; $found | ForEach-Object { Write-Output "  $_" }
+          $extra = $found | Where-Object { $allowed -notcontains $_ }
+          if ($extra) { Write-Output "Not allowed:"; $extra | ForEach-Object { Write-Output "  $_" }; throw "The zip holds programs that are not in packaging/windows/allowed-executables.txt" }
+          if ($found -notcontains 'bin/kassensturz.exe') { throw "bin/kassensturz.exe is not in the zip" }
       # The program from the zip, not from Craft's folder, so a library or QML
       # module the package lacks shows up here. Without a book it opens the
       # welcome screen; a QML error ends it at once (main.rs).
@@ -195,6 +238,36 @@ jobs:
           Write-Output "--- stderr"; Get-Content "$env:RUNNER_TEMP\ks-err.txt" -ErrorAction SilentlyContinue | Select-Object -First 80
           if (-not $running) { Write-Output "The app ended with code $($p.ExitCode)"; exit 1 }
           Write-Output "The app was still running after 30 seconds."
+      # A logoff or shutdown must end the app like quitting does, so the book
+      # is closed and its lock file removed (B-287). Windows sends the
+      # window the end of the session; the app must then end by itself, with
+      # status 0, and not be left for Windows to kill. This starts the app
+      # with a real window (the runner has a desktop) and sends exactly what
+      # Windows sends. It never passes without a window to send to.
+      - name: The app ends when the Windows session ends
+        run: |
+          $dir = "$env:RUNNER_TEMP\ks-zip"
+          $exe = Get-ChildItem $dir -Recurse -Filter kassensturz.exe | Select-Object -First 1
+          $env:APPDATA = "$env:RUNNER_TEMP\ks-appdata-end"
+          $env:LOCALAPPDATA = "$env:RUNNER_TEMP\ks-localappdata-end"
+          $env:KASSENSTURZ_TEST = "1"
+          Add-Type -Namespace Ks -Name Win -MemberDefinition '[DllImport("user32.dll")] public static extern System.IntPtr SendMessageW(System.IntPtr w, uint m, System.UIntPtr wp, System.IntPtr lp);'
+          $p = Start-Process $exe.FullName -PassThru -RedirectStandardError "$env:RUNNER_TEMP\ks-err-end.txt"
+          $handle = [System.IntPtr]::Zero
+          for ($i = 0; $i -lt 30 -and $handle -eq [System.IntPtr]::Zero -and -not $p.HasExited; $i++) {
+            Start-Sleep -Seconds 1
+            $p.Refresh()
+            $handle = $p.MainWindowHandle
+          }
+          if ($p.HasExited) { Write-Output "The app ended by itself with code $($p.ExitCode)"; Get-Content "$env:RUNNER_TEMP\ks-err-end.txt" -ErrorAction SilentlyContinue | Select-Object -First 60; exit 1 }
+          if ($handle -eq [System.IntPtr]::Zero) { Stop-Process -Id $p.Id -Force; throw "The app has no window to send the end of the session to" }
+          Start-Sleep -Seconds 5
+          # WM_QUERYENDSESSION (0x11), then WM_ENDSESSION (0x16) with the session ending.
+          [void][Ks.Win]::SendMessageW($handle, 0x11, [System.UIntPtr]::Zero, [System.IntPtr]::Zero)
+          [void][Ks.Win]::SendMessageW($handle, 0x16, [System.UIntPtr]1, [System.IntPtr]::Zero)
+          if (-not $p.WaitForExit(20000)) { Stop-Process -Id $p.Id -Force; throw "The app did not end within 20 seconds of the end of the session" }
+          Write-Output "The app ended with code $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) { Get-Content "$env:RUNNER_TEMP\ks-err-end.txt" -ErrorAction SilentlyContinue | Select-Object -First 60; throw "The app ended with code $($p.ExitCode), not 0" }
       # The installer as a tester runs it, but silent (/S): it must install
       # without administrator rights into the user's own folder, put an entry
       # in the Start menu, and its uninstaller must take both away again
@@ -217,6 +290,37 @@ jobs:
           if (Test-Path "$dir\bin\kassensturz.exe") { throw "kassensturz.exe is still there after uninstalling" }
           if (Test-Path $link) { throw "The Start menu entry is still there after uninstalling" }
           Write-Output "Removed again."
+      # The libraries come from Craft's build and have its folder (C:\Craft...)
+      # compiled in as a path; any user can create that folder on another
+      # computer (B-293, CWE-427). The recipe turns each such path into one
+      # below the NUL device before packing (tools/windows-compiled-in-paths.py)
+      # and the app points the OpenSSL and libxml2 variables at its install
+      # folder at start (install_paths.rs). Nothing may be left in the zip.
+      # The patching must not have touched what the app reads at run time: the
+      # German catalog is in the package and holds German text. This checks the
+      # file, not the loading (that needs a window to look at); the start
+      # step above shows that the app starts from the same package.
+      - name: The German catalog is in the package
+        run: |
+          $found = $null
+          foreach ($mo in (Get-ChildItem "$env:RUNNER_TEMP\ks-zip" -Recurse -Filter *.mo | Where-Object { $_.FullName -match '[\\/]de[\\/]' })) {
+            $text = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes($mo.FullName))
+            if ($text -match 'Haushaltsbuch') { $found = $mo; break }
+          }
+          if (-not $found) { throw "No German catalog with German text (.mo under a de folder) in the package" }
+          $mo = $found
+          Write-Output "German catalog: $($mo.FullName) ($($mo.Length) bytes)"
+      - name: No Craft folder is compiled into the package
+        run: python tools/windows-compiled-in-paths.py check "$env:RUNNER_TEMP\ks-zip"
+      # The Microsoft Store package (#927): the same programs as the zip, in
+      # an MSIX the Store signs itself, so it is built unsigned. The owner
+      # uploads it in Partner Center (docs/WINDOWS.md).
+      - name: Pack the Microsoft Store package
+        run: >
+          packaging\windows\msix\build-msix.ps1
+          -Root "$env:RUNNER_TEMP\ks-zip"
+          -Version "${{ steps.version.outputs.version }}"
+          -Out "$env:GITHUB_WORKSPACE\out\KassenSturz-${{ steps.version.outputs.version }}-windows-x64-store.msix"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: kassensturz-windows-${{ steps.version.outputs.version }}

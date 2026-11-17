@@ -16,8 +16,10 @@
 use crate::ReportError;
 use crate::catalog::{CATALOG, DatasetInfo, NO_DATASET};
 use crate::columns::MAX_COLUMNS;
+use crate::daily::{EMA_FAST_WORDS, EMA_SIGNAL_WORDS, EMA_SLOW_WORDS};
 use crate::filter::MAX_FILTER_IDS;
 use crate::formula::MAX_FORMULA_CHARS;
+use crate::trend::{TREND_LENGTH_WORDS, TREND_SIGNAL_WORDS, TREND_SLOW_WORDS};
 
 /// The `measure` of a key figure that shows the result of its formula.
 pub const FORMULA_MEASURE: &str = "formula";
@@ -123,6 +125,12 @@ pub enum ComponentType {
     /// It is in [`ComponentType::LIBRARY`] and not in [`ComponentType::ALL`]:
     /// the AI does not prepare it.
     ChartCandlestick,
+    /// `chart.flow`: where money came from and where it went in a period, as
+    /// bands of a width that is their amount (US7, #821, D-758,
+    /// `docs/MONEY_FLOW.md`). Drawn by `FlowChart.qml` from the dataset
+    /// `money_flow`. It is in [`ComponentType::LIBRARY`] and not yet in
+    /// [`ComponentType::ALL`].
+    ChartFlow,
     /// `table.transactions`: single transactions of the chosen accounts,
     /// categories and period, newest first, like an account's list (US4.7,
     /// D-716). It only shows them; a click opens the transaction. Its own
@@ -137,12 +145,27 @@ pub enum ComponentType {
     /// [`ComponentType::LIBRARY`] and never in [`ComponentType::ALL`]: the AI
     /// neither proposes it nor sees its rules.
     Alarms,
+    /// `forecast.month`: *Left this month*, the balance of the everyday
+    /// accounts once the planned payments still due this month are taken
+    /// off (US7, #725, D-770, `docs/SCHEDULES.md` 5). Only the balance and
+    /// the plans count, never a guess from past spending. It shows no
+    /// dataset; the `PlannedPayments` bridge object fills it. It is in
+    /// [`ComponentType::LIBRARY`] and never in [`ComponentType::ALL`]: the AI
+    /// neither proposes it nor sees the plans (the AI functions for plans
+    /// are a follow-up with their own human gate).
+    ForecastMonth,
+    /// `plan.coming_up`: *Coming up*, the planned payments of the next 30
+    /// days (US7, #795, D-769, `docs/SCHEDULES.md` 2.6). Like
+    /// [`ComponentType::ForecastMonth`] it shows no dataset, the
+    /// `PlannedPayments` bridge object fills it, and it is never in
+    /// [`ComponentType::ALL`].
+    ComingUp,
 }
 
 impl ComponentType {
     /// Every component that shows data, in the order the app offers them.
     /// The AI may pick any of these (D-282); the heading is not among them.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::ChartLine,
         Self::ChartBar,
         Self::ChartStackedBar,
@@ -152,6 +175,7 @@ impl ComponentType {
         Self::KpiCard,
         Self::ProgressBar,
         Self::TableRows,
+        Self::ChartFlow,
     ];
 
     /// Every component the grid editor's library offers: [`Self::ALL`] and
@@ -168,6 +192,7 @@ impl ComponentType {
         Self::KpiCard,
         Self::ProgressBar,
         Self::TableRows,
+        Self::ChartFlow,
         Self::Heading,
         Self::Separator,
         Self::FetchNotice,
@@ -185,6 +210,8 @@ impl ComponentType {
         Self::ChartCandlestick,
         Self::Transactions,
         Self::Alarms,
+        Self::ForecastMonth,
+        Self::ComingUp,
     ];
 
     /// Whether the component shows no figures of the book: its document names
@@ -206,6 +233,8 @@ impl ComponentType {
                 | Self::DashboardTabs
                 | Self::Transactions
                 | Self::Alarms
+                | Self::ForecastMonth
+                | Self::ComingUp
         )
     }
 
@@ -236,8 +265,11 @@ impl ComponentType {
             Self::DashboardTabs => "page.tabs",
             Self::CustomChart => "chart.custom",
             Self::ChartCandlestick => "chart.candlestick",
+            Self::ChartFlow => "chart.flow",
             Self::Transactions => "table.transactions",
             Self::Alarms => "notice.alarms",
+            Self::ForecastMonth => "forecast.month",
+            Self::ComingUp => "plan.coming_up",
         }
     }
 
@@ -265,6 +297,7 @@ impl ComponentType {
             // `ComponentType::datasets`), so no dataset lists this fit.
             Self::CustomChart => "custom",
             Self::ChartCandlestick => "candlestick",
+            Self::ChartFlow => "flow",
             Self::Heading
             | Self::Separator
             | Self::FetchNotice
@@ -278,7 +311,9 @@ impl ComponentType {
             | Self::FilterBar
             | Self::DashboardTabs
             | Self::Transactions
-            | Self::Alarms => "text",
+            | Self::Alarms
+            | Self::ForecastMonth
+            | Self::ComingUp => "text",
         }
     }
 
@@ -328,13 +363,16 @@ impl ComponentType {
             | Self::UnsortedNote
             | Self::PeriodHeader
             | Self::FilterBar
-            | Self::DashboardTabs => &[],
+            | Self::DashboardTabs
+            | Self::ComingUp => &[],
+            Self::ForecastMonth => &FORECAST_MONTH,
             Self::NetWorth | Self::IncomeSources => &NOTES_ONLY,
             Self::PeriodBox => &PERIOD_BOX,
             Self::BudgetProgress => &BUDGET_PROGRESS,
             Self::BankUpdateAll => &UPDATE_ALL,
             Self::CustomChart => &CUSTOM_CHART,
             Self::ChartCandlestick => &CANDLESTICK,
+            Self::ChartFlow => &FLOW,
             Self::Transactions => &TRANSACTIONS,
             Self::Alarms => &ALARMS,
         }
@@ -714,9 +752,97 @@ pub const CANDLE_FILL_WORDS: [&str; 4] = ["up-hollow", "down-hollow", "all-fille
 /// The words of `params.candle`, the default first.
 pub const CANDLE_WORDS: [&str; 4] = ["auto", "day", "week", "month"];
 
-const CHART: [Property; 17] = [
+/// `params.sub_categories` (US7, D-758): the money-flow chart gives
+/// sub-categories a column of their own behind their category.
+const FLOW_SUBS: Property = Property {
+    key: FLOW_SUBS_KEY,
+    place: Place::Params,
+    kind: Kind::Flag { default: false },
+};
+pub(crate) const FLOW_SUBS_KEY: &str = "sub_categories";
+/// `params.payees` (US7, D-758): the money-flow chart shows who paid and who
+/// was paid as a column at each edge.
+const FLOW_PAYEES: Property = Property {
+    key: FLOW_PAYEES_KEY,
+    place: Place::Params,
+    kind: Kind::Flag { default: false },
+};
+pub(crate) const FLOW_PAYEES_KEY: &str = "payees";
+/// `params.show_accounts` (US7, D-758): the money-flow chart shows the chosen
+/// accounts instead of *Your money*.
+const FLOW_ACCOUNTS: Property = Property {
+    key: FLOW_ACCOUNTS_KEY,
+    place: Place::Params,
+    kind: Kind::Flag { default: false },
+};
+pub(crate) const FLOW_ACCOUNTS_KEY: &str = "show_accounts";
+/// `params.currency` (US7, D-758): the currency the money-flow chart shows,
+/// by its ISO 4217 code. Empty, the default, takes the currency with the
+/// most money moved; there is no conversion.
+const FLOW_CURRENCY: Property = Property {
+    key: FLOW_CURRENCY_KEY,
+    place: Place::Params,
+    kind: Kind::Text,
+};
+pub(crate) const FLOW_CURRENCY_KEY: &str = "currency";
+
+/// `params.trend_length` (US7, #875, D-777): how many months a moving
+/// average spans, and MACD's short-term average. Only the trend datasets
+/// (`moving_average`, `macd`) read it.
+const TREND_LENGTH: Property = Property {
+    key: TREND_LENGTH_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&TREND_LENGTH_WORDS),
+};
+pub(crate) const TREND_LENGTH_KEY: &str = "trend_length";
+/// `params.trend_slow`: how many months MACD's long-term average spans.
+const TREND_SLOW: Property = Property {
+    key: TREND_SLOW_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&TREND_SLOW_WORDS),
+};
+pub(crate) const TREND_SLOW_KEY: &str = "trend_slow";
+/// `params.trend_signal`: how many months MACD's signal line spans.
+const TREND_SIGNAL: Property = Property {
+    key: TREND_SIGNAL_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&TREND_SIGNAL_WORDS),
+};
+pub(crate) const TREND_SIGNAL_KEY: &str = "trend_signal";
+
+/// `params.ema_fast` (US7, #1036, D-794): how many days the short average
+/// of a daily balance spans. Only `daily_balance` reads it, as its two
+/// companions below.
+const EMA_FAST: Property = Property {
+    key: EMA_FAST_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&EMA_FAST_WORDS),
+};
+pub(crate) const EMA_FAST_KEY: &str = "ema_fast";
+/// `params.ema_slow`: how many days the long average spans.
+const EMA_SLOW: Property = Property {
+    key: EMA_SLOW_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&EMA_SLOW_WORDS),
+};
+pub(crate) const EMA_SLOW_KEY: &str = "ema_slow";
+/// `params.ema_signal`: how many days MACD's signal line spans.
+const EMA_SIGNAL: Property = Property {
+    key: EMA_SIGNAL_KEY,
+    place: Place::Params,
+    kind: Kind::Choice(&EMA_SIGNAL_WORDS),
+};
+pub(crate) const EMA_SIGNAL_KEY: &str = "ema_signal";
+
+const CHART: [Property; 23] = [
     GROUPING,
     AVERAGE,
+    TREND_LENGTH,
+    TREND_SLOW,
+    TREND_SIGNAL,
+    EMA_FAST,
+    EMA_SLOW,
+    EMA_SIGNAL,
     GROUPS,
     CATEGORIES,
     ACCOUNTS,
@@ -737,11 +863,28 @@ const CHART: [Property; 17] = [
 /// length of a candle follows the period (D-719); which boxes are filled
 /// (D-748).
 const CANDLESTICK: [Property; 6] = [ACCOUNTS, TITLE, LEGEND, PERIOD, CANDLE, CANDLE_FILL];
+/// The money flow (US7, D-758): which accounts, categories and tags count,
+/// the title, the period, and what the chart shows.
+const FLOW: [Property; 10] = [
+    ACCOUNTS,
+    CATEGORIES,
+    TAGS,
+    TITLE,
+    PERIOD,
+    FLOW_SUBS,
+    FLOW_PAYEES,
+    FLOW_ACCOUNTS,
+    FLOW_CURRENCY,
+    HIDE_NOTE,
+];
 /// Bars: a chart's properties, the comparison of spending (US3.1a) and
 /// its uncoloured changes (D-760) after the average, and the way the bars go (D-679) after the legend.
-const BAR_CHART: [Property; 20] = [
+const BAR_CHART: [Property; 23] = [
     GROUPING,
     AVERAGE,
+    TREND_LENGTH,
+    TREND_SLOW,
+    TREND_SIGNAL,
     COMPARE_SPENDING,
     NEUTRAL,
     GROUPS,
@@ -790,9 +933,15 @@ const KPI_CARD: [Property; 8] = [
 const PROGRESS_BAR: [Property; 8] = [
     ACCOUNTS, TAGS, COMPARE, FORMULA, TARGET, TITLE, HIDE_NOTE, PERIOD,
 ];
-const TABLE: [Property; 17] = [
+const TABLE: [Property; 23] = [
     GROUPING,
     AVERAGE,
+    TREND_LENGTH,
+    TREND_SLOW,
+    TREND_SIGNAL,
+    EMA_FAST,
+    EMA_SLOW,
+    EMA_SIGNAL,
     COMPARE_SPENDING,
     NEUTRAL,
     GROUPS,
@@ -834,6 +983,56 @@ const ALARM_RULES: Property = Property {
     kind: Kind::Alarms,
 };
 const ALARMS: [Property; 2] = [ALARM_RULES, TITLE];
+
+/// The words of *Left this month*'s "Month starts on" (#921, Q-565): like
+/// the user's budgets (the default: the day their running salary-month
+/// budgets share, else the calendar month), or a fixed day of the month,
+/// `day-1` being the calendar month (D-645).
+pub const MONTH_STARTS: [&str; 32] = [
+    "like-budgets",
+    "day-1",
+    "day-2",
+    "day-3",
+    "day-4",
+    "day-5",
+    "day-6",
+    "day-7",
+    "day-8",
+    "day-9",
+    "day-10",
+    "day-11",
+    "day-12",
+    "day-13",
+    "day-14",
+    "day-15",
+    "day-16",
+    "day-17",
+    "day-18",
+    "day-19",
+    "day-20",
+    "day-21",
+    "day-22",
+    "day-23",
+    "day-24",
+    "day-25",
+    "day-26",
+    "day-27",
+    "day-28",
+    "day-29",
+    "day-30",
+    "day-31",
+];
+
+/// The key of *Left this month*'s "Month starts on".
+pub const MONTH_START_KEY: &str = "month_start";
+
+const MONTH_START: Property = Property {
+    key: MONTH_START_KEY,
+    place: Place::Props,
+    kind: Kind::Choice(&MONTH_STARTS),
+};
+/// *Left this month* (#921): the day its month starts on.
+const FORECAST_MONTH: [Property; 1] = [MONTH_START];
 
 /// The key of the warnings tile's rules.
 pub const ALARMS_KEY: &str = "alarms";

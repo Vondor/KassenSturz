@@ -10,8 +10,8 @@ use std::io::ErrorKind;
 use kassensturz_core::{
     AccountId, AccountKind, AccountType, BudgetId, CurrencyCode, Date, DatedRateId, ErrorParam,
     ErrorReport, GroupId, InstitutionId, Money, PayeeId, RecurringMoveError, RecurringMoveId,
-    Report, RuleError, RuleId, SplitId, TagId, TransactionError, TransactionId, TransferError,
-    ViewId,
+    Report, RuleError, RuleId, ScheduleError, ScheduleId, SplitId, TagId, TransactionError,
+    TransactionId, TransferError, ViewId,
 };
 
 use crate::Lock;
@@ -83,6 +83,16 @@ pub enum StoreError {
     UnknownAccount(AccountId),
     /// The account's name is empty.
     EmptyAccountName,
+    /// An account's or category's name can't be kept (B-272): `reason` is
+    /// `line-break` (a line break or another control character),
+    /// `invisible` (a character that shows as nothing, such as a zero-width
+    /// space) or `too-long` (more than `max_chars` characters).
+    AccountName {
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+        /// The most characters a name may have.
+        max_chars: usize,
+    },
     /// A bank link must name a bank account: an IBAN, or a bank code with an
     /// account number (D-148).
     IncompleteBankLink(AccountId),
@@ -213,6 +223,10 @@ pub enum StoreError {
     DuplicateAccountName {
         /// The account that has it.
         existing: AccountId,
+        /// The name, as the account being added or renamed has it, so the
+        /// user learns which one even when the book can't name `existing`,
+        /// e.g. after a new book from a file was taken back (B-283).
+        name: String,
     },
     /// The account's type doesn't fit its kind, e.g. a credit card that
     /// isn't money the user owes.
@@ -237,6 +251,13 @@ pub enum StoreError {
     /// A closed account takes no new transactions. The user can open it
     /// again.
     AccountClosed(AccountId),
+    /// Every part of a transaction is booked to this one account or
+    /// category, so no money moves anywhere: a Transfer from an account to
+    /// itself (B-270).
+    NothingMoves(AccountId),
+    /// Every part of a transaction typed in, not delivered by a bank, is
+    /// zero, so no money moves anywhere (B-270).
+    ZeroAmount,
     /// An account can only be closed when its balance is zero.
     AccountNotEmpty {
         /// The account.
@@ -250,8 +271,8 @@ pub enum StoreError {
     CategoryInUse {
         /// The category.
         category: AccountId,
-        /// What uses it: `subcategories`, `transactions`, `rules` or
-        /// `budgets`.
+        /// What uses it: `subcategories`, `transactions`, `rules`,
+        /// `budgets` or `schedules`.
         used_by: &'static str,
     },
     /// Only a category can sit inside another one; an account can't.
@@ -359,6 +380,18 @@ pub enum StoreError {
     RuleIdInUse(RuleId),
     /// The Rule's name is empty.
     EmptyRuleName,
+    /// A Rule's name or a payee typed in can't be kept (B-272): `reason` is
+    /// `line-break` (a line break or another control character) or
+    /// `invisible` (a character that shows as nothing or turns the text
+    /// around, such as a zero-width space or a right-to-left override), so
+    /// it could look like another. `field` says which: `rule-name` or
+    /// `payee`.
+    HiddenText {
+        /// Which text, as a keyword.
+        field: &'static str,
+        /// What is wrong, as a keyword.
+        reason: &'static str,
+    },
     /// Another Rule in the same place, the top level or inside the same
     /// Rule, already has this name, ignoring capitals.
     DuplicateRuleName {
@@ -399,6 +432,50 @@ pub enum StoreError {
         /// The side it arrives at.
         incoming: TransactionId,
     },
+    /// There's no planned payment with this ID (D-769).
+    UnknownSchedule(ScheduleId),
+    /// The planned payment can't be kept as it is (D-769).
+    Schedule(ScheduleError),
+    /// A planned payment's account is closed, so it can't get a new plan or
+    /// a booked entry (D-769).
+    ScheduleAccountClosed(AccountId),
+    /// A planned payment's amount isn't in its account's currency (D-027,
+    /// D-769).
+    ScheduleCurrencyDiffers {
+        /// The account.
+        account: AccountId,
+        /// The amount's currency.
+        currency: CurrencyCode,
+    },
+    /// A planned payment's category isn't a category in the plan's
+    /// currency (D-769).
+    ScheduleCategory(AccountId),
+    /// The book holds the most planned payments it may (D-769).
+    TooManySchedules {
+        /// The most it holds.
+        max: usize,
+    },
+    /// The planned payment has no occurrence counted on this date (D-769).
+    UnknownOccurrence {
+        /// The planned payment.
+        schedule: ScheduleId,
+        /// The counted date asked for.
+        due_on: Date,
+    },
+    /// The occurrence is matched or skipped already, or, to take a skip
+    /// back, not skipped (D-769).
+    OccurrenceDecided {
+        /// The planned payment.
+        schedule: ScheduleId,
+        /// Its counted date.
+        due_on: Date,
+    },
+    /// The entry is matched to an occurrence already (D-769).
+    ScheduleEntryTaken(TransactionId),
+    /// The entry can't be matched to the planned payment: it has no part in
+    /// the plan's account in its currency with money going the same way,
+    /// or it is a side of a Transfer (D-769).
+    ScheduleEntryNotFitting(TransactionId),
     /// There's no exchange rate with this ID.
     UnknownRate(DatedRateId),
     /// An exchange rate from a currency into the same currency.
@@ -439,6 +516,22 @@ pub enum StoreError {
     /// taken back: the book is as it was before that change), so no change
     /// is written until the book is opened again (D-732).
     WriteFailed,
+    /// The book is open without file locks (D-776), and its lock file is
+    /// gone or belongs to another program now, so this program may no
+    /// longer be the only writer. The change wasn't written; the book is as
+    /// it was. Close it and open it again.
+    LockLost,
+    /// The book's folder doesn't let SQLite lock files (a network share
+    /// mounted with byte-range locks, say), found when the book is opened
+    /// (B-304). The book isn't opened without locks there: two writers could
+    /// damage it. Copying it to a local folder is the way out.
+    LocksUnsupported,
+    /// The book's last save was cut short (the program was killed or the
+    /// computer lost power during it), and taking that save back failed
+    /// both in the book's folder and through a private copy (B-364). The
+    /// book wasn't changed: what taking it back needs is in the rollback
+    /// journal next to it, which must stay with the book.
+    UnfinishedSave,
 }
 
 /// What's wrong with data read from a book.
@@ -516,10 +609,22 @@ pub enum Corruption {
     /// A Rule sits in the wrong place in the tree of Rules: inside a Rule
     /// that doesn't exist, or inside itself.
     BadRuleTree(RuleId),
+    /// A planned payment, or what is stored about one of its occurrences,
+    /// has values that don't fit together, e.g. a unit or a status that
+    /// doesn't exist (D-769).
+    BadSchedule(ScheduleId),
     /// The book holds a table, index, trigger or view its layout doesn't
     /// have, lacks one of its own, or one was changed, e.g. by another
     /// program (B-245). It wasn't opened, so nothing in it ran.
     UnexpectedLayout,
+    /// SQLite finds the book's file damaged: a page it can't parse, e.g.
+    /// after a failing drive or a sync that cut a file short (B-291). It
+    /// wasn't opened and wasn't changed.
+    DamagedFile,
+    /// At least one transaction's parts don't add up to zero, so a figure
+    /// taken from the book would be wrong (B-291), e.g. because a byte of an
+    /// amount changed in the file. It wasn't opened and wasn't changed.
+    UnbalancedTransaction,
 }
 
 /// An error reported by SQLite. Its details are for logs, not for users.
@@ -559,6 +664,31 @@ fn refused_by_layout_23(error: &rusqlite::Error) -> bool {
         error,
         rusqlite::Error::SqliteFailure(_, Some(message)) if message.starts_with(DELIVERED_KEPT)
     )
+}
+
+impl StoreError {
+    /// The error's code for the developer log: the code of its report, but
+    /// for a database error with SQLite's kind of error after it, e.g.
+    /// `store.database.io`, so a log tells a disk error from a busy or
+    /// read-only book where the page says the same (B-364).
+    #[must_use]
+    pub fn log_code(&self) -> &'static str {
+        use rusqlite::ErrorCode as C;
+        let Self::Database(DatabaseError(error)) = self else {
+            return self.report().code;
+        };
+        match error.sqlite_error_code() {
+            Some(C::SystemIoFailure) => "store.database.io",
+            Some(C::ReadOnly) => "store.database.read-only",
+            Some(C::DatabaseBusy | C::DatabaseLocked) => "store.database.busy",
+            Some(C::CannotOpen) => "store.database.cannot-open",
+            Some(C::DatabaseCorrupt) => "store.database.corrupt",
+            Some(C::DiskFull) => "store.database.full",
+            Some(C::PermissionDenied) => "store.database.permission",
+            Some(_) => "store.database.other",
+            None => "store.database.rust",
+        }
+    }
 }
 
 impl Report for StoreError {
@@ -608,6 +738,9 @@ impl Report for StoreError {
                 new("store.unknown-account").with("account", P::Account(*account))
             }
             Self::EmptyAccountName => new("store.empty-account-name"),
+            Self::AccountName { reason, max_chars } => new("store.account-name")
+                .with("reason", P::Keyword(reason))
+                .with("max_chars", P::count(*max_chars)),
             Self::IncompleteBankLink(account) => {
                 new("store.incomplete-bank-link").with("account", P::Account(*account))
             }
@@ -673,9 +806,9 @@ impl Report for StoreError {
             Self::TooManyBudgets { limit, max } => new("store.budget-too-many")
                 .with("limit", P::Keyword(limit))
                 .with("max", P::count(*max)),
-            Self::DuplicateAccountName { existing } => {
-                new("store.duplicate-account-name").with("existing", P::Account(*existing))
-            }
+            Self::DuplicateAccountName { existing, name } => new("store.duplicate-account-name")
+                .with("existing", P::Account(*existing))
+                .with("name", P::Text(name.clone())),
             Self::AccountTypeMismatch { account_type, kind } => new("store.account-type-mismatch")
                 .with("account_type", P::AccountType(*account_type))
                 .with("kind", P::AccountKind(*kind)),
@@ -693,6 +826,10 @@ impl Report for StoreError {
             Self::AccountClosed(account) => {
                 new("store.account-closed").with("account", P::Account(*account))
             }
+            Self::NothingMoves(account) => {
+                new("store.nothing-moves").with("account", P::Account(*account))
+            }
+            Self::ZeroAmount => new("store.zero-amount"),
             Self::AccountNotEmpty { account, balance } => new("store.account-not-empty")
                 .with("account", P::Account(*account))
                 .with("balance", P::Money(*balance)),
@@ -775,6 +912,9 @@ impl Report for StoreError {
             Self::UnknownRule(rule) => new("store.unknown-rule").with("rule", P::Rule(*rule)),
             Self::RuleIdInUse(rule) => new("store.rule-id-in-use").with("rule", P::Rule(*rule)),
             Self::EmptyRuleName => new("store.empty-rule-name"),
+            Self::HiddenText { field, reason } => new("store.hidden-text")
+                .with("field", P::Keyword(field))
+                .with("reason", P::Keyword(reason)),
             Self::DuplicateRuleName { existing } => {
                 new("store.duplicate-rule-name").with("existing", P::Rule(*existing))
             }
@@ -806,6 +946,41 @@ impl Report for StoreError {
                     .with("outgoing", P::Transaction(*outgoing))
                     .with("incoming", P::Transaction(*incoming))
             }
+            Self::UnknownSchedule(id) => {
+                new("store.schedule-unknown").with("schedule", P::Text(id.to_string()))
+            }
+            Self::Schedule(error) => {
+                new("store.schedule-invalid").with("reason", P::Keyword(error.keyword()))
+            }
+            Self::ScheduleAccountClosed(account) => {
+                new("store.schedule-account-closed").with("account", P::Account(*account))
+            }
+            Self::ScheduleCurrencyDiffers { account, currency } => {
+                new("store.schedule-currency-differs")
+                    .with("account", P::Account(*account))
+                    .with("currency", P::Currency(*currency))
+            }
+            Self::ScheduleCategory(category) => {
+                new("store.schedule-category").with("category", P::Account(*category))
+            }
+            Self::TooManySchedules { max } => {
+                new("store.schedule-too-many").with("max", P::count(*max))
+            }
+            Self::UnknownOccurrence { schedule, due_on } => {
+                new("store.schedule-occurrence-unknown")
+                    .with("schedule", P::Text(schedule.to_string()))
+                    .with("due_on", P::Date(*due_on))
+            }
+            Self::OccurrenceDecided { schedule, due_on } => {
+                new("store.schedule-occurrence-decided")
+                    .with("schedule", P::Text(schedule.to_string()))
+                    .with("due_on", P::Date(*due_on))
+            }
+            Self::ScheduleEntryTaken(transaction) => {
+                new("store.schedule-entry-taken").with("transaction", P::Transaction(*transaction))
+            }
+            Self::ScheduleEntryNotFitting(transaction) => new("store.schedule-entry-not-fitting")
+                .with("transaction", P::Transaction(*transaction)),
             Self::UnknownRate(rate) => new("store.unknown-rate").with("rate", P::Rate(*rate)),
             Self::RateWithinOneCurrency(currency) => {
                 new("store.rate-within-one-currency").with("currency", P::Currency(*currency))
@@ -824,8 +999,18 @@ impl Report for StoreError {
             Self::AmountOverflow => new("store.amount-overflow"),
             Self::Corrupt(corruption) => corruption.report(),
             Self::Io(kind) => new("store.io").with("kind", P::Keyword(io_keyword(*kind))),
-            Self::Database(_) => new("store.database"),
+            // A full drive is said as such, with what to do (B-282), not
+            // as a database error the user can do nothing about.
+            Self::Database(DatabaseError(error)) => match error.sqlite_error_code() {
+                Some(rusqlite::ErrorCode::DiskFull) => {
+                    new("store.io").with("kind", P::Keyword(io_keyword(ErrorKind::StorageFull)))
+                }
+                _ => new("store.database"),
+            },
             Self::WriteFailed => new("store.write-failed"),
+            Self::LockLost => new("store.lock-lost"),
+            Self::LocksUnsupported => new("store.locks-unsupported"),
+            Self::UnfinishedSave => new("store.unfinished-save"),
         }
     }
 }
@@ -879,7 +1064,12 @@ impl Report for Corruption {
             Self::BadRuleTree(rule) => {
                 new("store.corrupt.bad-rule-tree").with("rule", P::Rule(*rule))
             }
+            Self::BadSchedule(schedule) => {
+                new("store.corrupt.bad-schedule").with("schedule", P::Text(schedule.to_string()))
+            }
             Self::UnexpectedLayout => new("store.corrupt.unexpected-layout"),
+            Self::DamagedFile => new("store.corrupt.damaged-file"),
+            Self::UnbalancedTransaction => new("store.corrupt.unbalanced-transaction"),
         }
     }
 }

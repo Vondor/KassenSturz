@@ -9,7 +9,7 @@ use kassensturz_core::{
     OriginalAmount, Split, Transaction, TransactionId,
 };
 use kassensturz_export::{AccountTransactions, Counterpart, ExportData};
-use kassensturz_pipeline::export_transactions;
+use kassensturz_pipeline::{DateRange, export_transactions, export_transactions_in};
 use kassensturz_store::{Book, StoreError};
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
@@ -276,6 +276,70 @@ fn an_amount_converted_from_marks_keeps_its_original_in_the_row() {
 }
 
 #[test]
+fn parts_on_one_account_on_two_days_each_keep_their_own_memo_and_original() {
+    // B-327 (#1082): the register makes one row per day, so each row takes
+    // only the parts booked to the account on its own day.
+    const DEM: CurrencyCode = match CurrencyCode::new("DEM") {
+        Ok(code) => code,
+        Err(_) => panic!("DEM is a valid code"),
+    };
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    book.use_currency(DEM).expect("currency used");
+    let checking = add(&mut book, "Checking account", AccountKind::Asset, None);
+    let groceries = add(&mut book, "Groceries", AccountKind::Expense, None);
+    let with_memo = |amount, memo: &str| {
+        let mut split = Split::new(checking, eur(amount));
+        split.imported = Some(ImportedDetails {
+            remittance_information: Some(memo.into()),
+            ..ImportedDetails::default()
+        });
+        split
+    };
+    let first = Split {
+        original: Some(OriginalAmount {
+            amount: Money::from_minor_units(-1_000, DEM),
+            rate: DEM
+                .withdrawn()
+                .expect("the table lists the mark")
+                .dated_rate(DatedRateId::generate()),
+        }),
+        ..with_memo(-511, "First instalment")
+    };
+    let second = Split {
+        own_date: Some(day(9)),
+        ..with_memo(-200, "Second instalment")
+    };
+    add_transaction(
+        &mut book,
+        day(3),
+        Some("Corner Grocery"),
+        vec![first, second, Split::new(groceries, eur(711))],
+    );
+
+    let accounts = only(export_transactions(&book, &[checking]).expect("gathered"));
+    let rows = &accounts[0].rows;
+    let summary: Vec<_> = rows
+        .iter()
+        .map(|row| (row.date, row.memo.as_deref(), row.amount))
+        .collect();
+    assert_eq!(
+        summary,
+        vec![
+            (day(3), Some("First instalment"), eur(-511)),
+            (day(9), Some("Second instalment"), eur(-200)),
+        ]
+    );
+    let original = rows[0]
+        .original
+        .as_ref()
+        .expect("the first part's original");
+    assert_eq!(original.amount, Money::from_minor_units(-1_000, DEM));
+    // The second part was typed in euros: its row has no original.
+    assert_eq!(rows[1].original, None);
+}
+
+#[test]
 fn a_long_note_the_user_wrote_reaches_the_csv_file_whole() {
     // B-257: the note was never exported, so a transaction entered by hand
     // with a long note had an empty memo and nothing else.
@@ -312,4 +376,117 @@ fn a_long_note_the_user_wrote_reaches_the_csv_file_whole() {
         text.ends_with(&format!(",-25.00,EUR,,,,\"{note}\"\r\n")),
         "{text:?}"
     );
+}
+
+/// A checking account and a savings account with entries on days 1, 5, 6
+/// (a Transfer) and 9 of October 2026.
+fn book_with_four_days() -> (Book, AccountId, AccountId) {
+    let mut book = Book::create_in_memory().expect("book created");
+    book.use_currency(EUR).expect("currency used");
+    let checking = add(&mut book, "Checking account", AccountKind::Asset, None);
+    let savings = add(&mut book, "Savings account", AccountKind::Asset, None);
+    let shop = add(&mut book, "Shopping", AccountKind::Expense, None);
+    for (date, cents) in [(1, -100), (5, -200), (9, -400)] {
+        add_transaction(
+            &mut book,
+            day(date),
+            Some("Corner Shop"),
+            vec![
+                Split::new(checking, eur(cents)),
+                Split::new(shop, eur(-cents)),
+            ],
+        );
+    }
+    add_transaction(
+        &mut book,
+        day(6),
+        None,
+        vec![
+            Split::new(checking, eur(-5000)),
+            Split::new(savings, eur(5000)),
+        ],
+    );
+    (book, checking, savings)
+}
+
+fn dates(accounts: &[AccountTransactions], index: usize) -> Vec<Date> {
+    accounts[index].rows.iter().map(|row| row.date).collect()
+}
+
+#[test]
+fn no_range_exports_every_day_as_before() {
+    let (book, checking, savings) = book_with_four_days();
+    let all = export_transactions(&book, &[checking, savings]).expect("gathered");
+    assert_eq!(
+        all,
+        export_transactions_in(&book, &[checking, savings], DateRange::default())
+            .expect("gathered")
+    );
+}
+
+#[test]
+fn a_range_includes_its_first_and_last_day() {
+    let (book, checking, _) = book_with_four_days();
+    let range = |from, until| DateRange { from, until };
+    let rows = |range| {
+        dates(
+            &only(export_transactions_in(&book, &[checking], range).expect("gathered")),
+            0,
+        )
+    };
+    // Both ends are inclusive.
+    assert_eq!(
+        rows(range(Some(day(5)), Some(day(9)))),
+        vec![day(5), day(6), day(9)]
+    );
+    assert_eq!(rows(range(Some(day(1)), Some(day(1)))), vec![day(1)]);
+    // Either end can be open.
+    assert_eq!(rows(range(Some(day(6)), None)), vec![day(6), day(9)]);
+    assert_eq!(rows(range(None, Some(day(5)))), vec![day(1), day(5)]);
+    // A range with no entries gives an account with no rows, not an error.
+    assert!(rows(range(Some(day(2)), Some(day(4)))).is_empty());
+    assert!(rows(range(Some(day(10)), None)).is_empty());
+    // A reversed range holds no day.
+    let reversed = range(Some(day(9)), Some(day(1)));
+    assert!(reversed.is_reversed());
+    assert!(!range(Some(day(1)), Some(day(9))).is_reversed());
+    assert!(rows(reversed).is_empty());
+}
+
+#[test]
+fn both_sides_of_a_transfer_are_in_a_range_that_holds_it() {
+    let (book, checking, savings) = book_with_four_days();
+    let range = DateRange {
+        from: Some(day(6)),
+        until: Some(day(6)),
+    };
+    let accounts =
+        only(export_transactions_in(&book, &[checking, savings], range).expect("gathered"));
+    assert_eq!(accounts.len(), 2);
+    assert_eq!(accounts[0].rows.len(), 1);
+    assert_eq!(accounts[0].rows[0].amount, eur(-5000));
+    assert_eq!(
+        accounts[0].rows[0].counterpart,
+        Counterpart::Transfer("Savings account".into())
+    );
+    assert_eq!(accounts[1].rows.len(), 1);
+    assert_eq!(accounts[1].rows[0].amount, eur(5000));
+    assert_eq!(
+        accounts[1].rows[0].counterpart,
+        Counterpart::Transfer("Checking account".into())
+    );
+}
+
+#[test]
+fn a_range_keeps_the_rows_as_they_are() {
+    // Cutting off the start leaves the amounts of what remains unchanged:
+    // they add up to the balance only when nothing before "from" is cut.
+    let (book, checking, _) = book_with_four_days();
+    let range = DateRange {
+        from: Some(day(6)),
+        until: None,
+    };
+    let kept = &only(export_transactions_in(&book, &[checking], range).expect("gathered"))[0];
+    let all = &only(export_transactions(&book, &[checking]).expect("gathered"))[0];
+    assert_eq!(kept.rows, all.rows[all.rows.len() - 2..]);
 }

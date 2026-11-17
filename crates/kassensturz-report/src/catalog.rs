@@ -10,8 +10,9 @@
 //! the rounding rule of every ratio (D-285).
 
 use crate::{
-    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, FORMULA_MEASURE,
-    INCOME_EXPENSE_BY_MONTH, NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY, Takes,
+    ACCOUNT_BALANCES, BUDGET_UTILIZATION, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, DAILY_BALANCE,
+    DAILY_PARTS, FORMULA_MEASURE, INCOME_EXPENSE_BY_MONTH, MACD, MONEY_FLOW, MOVING_AVERAGE,
+    NET_WORTH_OVER_TIME, SPENDING_BY_CATEGORY, TREND_SERIES, Takes,
 };
 
 /// One dataset a chart or card can show.
@@ -85,6 +86,68 @@ pub const CATALOG: &[DatasetInfo] = &[
         suits: &["line", "bar", "stacked_bar", "kpi", "progress", "table"],
         measures: &["income", "expenses", "net", "savings-rate", FORMULA_MEASURE],
         takes: Takes::ALL,
+        for_ai: true,
+    },
+    // Moving averages and MACD of the months above (US7, #875, D-777).
+    DatasetInfo {
+        id: MOVING_AVERAGE,
+        description: "What is left (money in less money out), money in or money out in each \
+             calendar month of a period, and next to each month the average of that month and the \
+             ones before it, over a number of months the user chooses (a moving average, which \
+             smooths out the ups and downs). The months an average needs from before the period \
+             are counted too, in full, and not shown; months before the first transaction count \
+             as zero. Each average is the exact sum divided once and rounded half away from zero \
+             to whole cents. Money moved between your own accounts and starting balances are not \
+             counted, and amounts in different currencies are never added together: there is one \
+             result per currency.",
+        groupings: &TREND_SERIES,
+        suits: &["line", "bar", "table"],
+        measures: &[],
+        takes: Takes::ALL,
+        for_ai: true,
+    },
+    DatasetInfo {
+        id: MACD,
+        description: "How the short-term trend of what is left (or of money in or money out) \
+             compares with its long-term trend, month by month (the MACD indicator). The trend \
+             line is the average of the last few months less the average of the last many months; \
+             the signal line is the average of the trend line over the last few months; the gap is \
+             the trend line less the signal line. Above zero means the recent months are better \
+             than the longer run, below zero worse. The lengths are chosen by the user. The months \
+             the averages need from before the period are counted too, in full, and not shown. \
+             Each figure is rounded once to whole cents. Money moved between your own accounts \
+             and starting balances are not counted, and amounts in different currencies are never \
+             added together: there is one result per currency.",
+        groupings: &TREND_SERIES,
+        suits: &["line", "bar", "table"],
+        measures: &[],
+        takes: Takes::ALL,
+        for_ai: true,
+    },
+    // The balance of an account day by day, with its averages and MACD
+    // (US7, #1036, D-794).
+    DatasetInfo {
+        id: DAILY_BALANCE,
+        description: "What the chosen account held at the end of each day of a period (without \
+             a choice, all checking, savings and cash accounts together), drawn as a stepped \
+             line, with two exponential moving averages of that balance (by default over 12 and \
+             26 days) and, in a second panel under it, the MACD indicator: the short average less \
+             the long one, its signal line (the average of MACD, by default over 9 days) and the \
+             histogram (MACD less the signal line). A day's balance counts what the bank booked \
+             by that day where the bank said so, otherwise what is dated up to that day, and \
+             starting balances count, exactly as account_balance gives it. The days shown end on \
+             the period's last day or today, whichever comes first, so the last day's balance is \
+             today's. The averages start well before the period and the days before it are not \
+             shown; they never start before the account's first entry, and when that entry lies \
+             inside the period the chart starts on its day. Each day's average is the day \
+             before's plus 2/(days+1) of the difference, rounded once a day to whole cents. At \
+             most 1100 days. Amounts in different currencies are never added together: there is \
+             one result per currency. group_by chooses the panels: balance-averages-macd (all), \
+             balance-averages, balance or macd.",
+        groupings: &DAILY_PARTS,
+        suits: &["line", "table"],
+        measures: &[],
+        takes: Takes::NO_CATEGORIES,
         for_ai: true,
     },
     DatasetInfo {
@@ -168,6 +231,31 @@ pub const CATALOG: &[DatasetInfo] = &[
         takes: Takes::NO_CATEGORIES,
         for_ai: true,
     },
+    // Where money came from and where it went (US7, #821, D-758): drawn as
+    // bands by the money-flow chart only, so no custom chart reads it. The AI
+    // may propose the chart with its defaults (US7, D-773).
+    DatasetInfo {
+        id: MONEY_FLOW,
+        description: "Where the money of a period came from and where it went, as bands whose \
+             width is their amount: income categories flow into one node, your money, and out \
+             into spending categories. If you earned more than you spent, the difference flows \
+             on to a node of what is left; if you spent more, a node of your reserves makes up \
+             the gap, so both sides always add up to the same total. A refund reduces the \
+             category it came back to, and a category whose net is money coming back is shown on \
+             the income side. Money you have not sorted into a category yet has a node of its \
+             own, unless what came in and what went out there is the same amount: the two \
+             cancel and no node is drawn, as for a refund. Sub-categories and the payees can be shown as further columns. At most 8 nodes \
+             stand in a column; the smallest are grouped as Other. Money that moves through \
+             several accounts counts once. One currency is shown. \
+             Money moved between your own accounts and starting balances are not counted, \
+             and amounts in different currencies are never added together: there is one result \
+             per currency.",
+        groupings: &["flow"],
+        suits: &["flow"],
+        measures: &[],
+        takes: Takes::ALL,
+        for_ai: true,
+    },
     // How much of each budget is spent and left (D-346, D-347), built in
     // M6c.4 and drawn since M6c.5 (D-378, D-381). The AI sees budgets only
     // with the Budgets row of the permission grid (D-358, M6c.11), so it
@@ -249,7 +337,12 @@ mod tests {
         }
         // The datasets of balances count everything booked to an account,
         // starting balances too, and say so; the others leave them out.
-        let balances = [ACCOUNT_BALANCES, NET_WORTH_OVER_TIME, CASH_FLOW_BY_MONTH];
+        let balances = [
+            ACCOUNT_BALANCES,
+            NET_WORTH_OVER_TIME,
+            CASH_FLOW_BY_MONTH,
+            DAILY_BALANCE,
+        ];
         for dataset in every() {
             let described = flat(dataset.description);
             if balances.contains(&dataset.id) {

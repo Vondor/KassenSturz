@@ -15,13 +15,16 @@
 //! from opening.
 
 use std::fs::{self, File, OpenOptions};
-use std::io::ErrorKind;
+use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::Timestamp;
-use rusqlite::{Connection, OpenFlags};
+use rusqlite::OpenFlags;
 
-use crate::backup::{self, exists, parse_name, partial_path, stamp_time, stem_of};
+use crate::backup::{
+    self, exists, parse_name, parse_older_name, partial_path, stamp_time, stem_of,
+};
+use crate::book_id::BookId;
 use crate::error::StoreError;
 use crate::{Book, is_book_file, layout};
 
@@ -38,22 +41,23 @@ pub struct BackupFile {
     pub made: Timestamp,
 }
 
-/// The backups of the book at `book` in `folder`, newest first: the files
-/// whose names the automatic backups get (`docs/BOOK_FORMAT.md`). Other
-/// files, the backups of other books and unfinished `.part` files are left
-/// out.
+/// The backups of the book with the identity `id` in `folder`, newest
+/// first: the files whose names the automatic backups get, with the book's
+/// tag in them (`docs/BOOK_FORMAT.md`, D-806). Other files, the backups of
+/// other books, even of books with the same name, the older backups without
+/// a tag ([`older_backups_of`]) and unfinished `.part` files are left out.
 ///
 /// # Errors
 ///
 /// [`StoreError::Io`] if the folder can't be read, with
 /// [`ErrorKind::NotFound`] if it isn't there.
-pub fn backups_of(book: &Path, folder: &Path) -> Result<Vec<BackupFile>, StoreError> {
-    let stem = stem_of(book)?;
+pub fn backups_of(id: &BookId, folder: &Path) -> Result<Vec<BackupFile>, StoreError> {
+    let tag = id.tag();
     let mut found: Vec<(Timestamp, u32, PathBuf)> = fs::read_dir(folder)?
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
-            let (stamp, number) = parse_name(&name, stem)?;
+            let (stamp, number) = parse_name(&name, &tag)?;
             let made = stamp_time(stamp)?;
             // A folder or a link with a backup's name isn't one.
             let is_file = entry.file_type().ok()?.is_file();
@@ -65,6 +69,98 @@ pub fn backups_of(book: &Path, folder: &Path) -> Result<Vec<BackupFile>, StoreEr
         .into_iter()
         .map(|(made, _, path)| BackupFile { path, made })
         .collect())
+}
+
+/// The older backups of a book called like the one at `book` in `folder`,
+/// newest first: files named `<name> <time>.ksz` from before books had an
+/// identity (layout 34, D-806), and the one made just before that update.
+/// Nothing tells whose they are, since a name isn't an identity, so they are
+/// never taken for the open book's own: the list to restore from shows them
+/// apart and the user chooses one on purpose. They are never removed.
+///
+/// # Errors
+///
+/// [`StoreError::Io`] if the folder can't be read, with
+/// [`ErrorKind::NotFound`] if it isn't there.
+pub fn older_backups_of(book: &Path, folder: &Path) -> Result<Vec<BackupFile>, StoreError> {
+    let stem = stem_of(book)?;
+    let mut found: Vec<(Timestamp, u32, PathBuf)> = fs::read_dir(folder)?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().into_string().ok()?;
+            let (stamp, number) = parse_older_name(&name, stem)?;
+            let made = stamp_time(stamp)?;
+            let is_file = entry.file_type().ok()?.is_file();
+            is_file.then(|| (made, number, entry.path()))
+        })
+        .collect();
+    found.sort_by_key(|entry| std::cmp::Reverse((entry.0, entry.1)));
+    Ok(found
+        .into_iter()
+        .map(|(made, _, path)| BackupFile { path, made })
+        .collect())
+}
+
+/// The identity of the book file at `book`, read without opening it as a
+/// book: `None` if it has none (a layout before 34) or can't be read.
+#[must_use]
+pub fn book_id_of_file(book: &Path) -> Option<BookId> {
+    let conn = crate::lockless::open_read_only(
+        book,
+        OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )
+    .ok()?;
+    BookId::try_read(&conn)
+}
+
+/// The newest backup of the book at `book` in `folder` that this KassenSturz
+/// can open, or `None` if there is none or the folder can't be read. It
+/// is what the page for a book made by a newer KassenSturz offers: the copy
+/// the newer version saved before it updated the book (B-285), found by the
+/// book's identity, which a newer layout keeps. A backup this version can't
+/// open (a newer layout, a damaged file) is passed over.
+pub fn newest_usable_backup(book: &Path, folder: &Path) -> Option<BackupFile> {
+    // A damaged file often can't tell who it is: then the backups made
+    // under the book's file name are the ones to look at (B-334).
+    let mut candidates = match book_id_of_file(book) {
+        Some(id) => backups_of(&id, folder).ok()?,
+        None => Vec::new(),
+    };
+    candidates.extend(older_backups_of(book, folder).ok()?);
+    if candidates.is_empty() {
+        candidates = backups_named_like(book, folder);
+    }
+    candidates.sort_by_key(|backup| std::cmp::Reverse(backup.made));
+    candidates
+        .into_iter()
+        .find(|backup| check_backup(&backup.path).is_ok())
+}
+
+/// The backups in `folder` made under the file name of `book` with any
+/// identity tag, newest first. For a damaged book that can't say which one
+/// it is (B-334); the checks of a restore still refuse another book's.
+fn backups_named_like(book: &Path, folder: &Path) -> Vec<BackupFile> {
+    let Ok(stem) = stem_of(book) else {
+        return Vec::new();
+    };
+    let Ok(entries) = fs::read_dir(folder) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(Timestamp, u32, PathBuf)> = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let name = entry.file_name().into_string().ok()?;
+            let (stamp, number) = crate::backup::parse_any_tagged_name(&name, stem)?;
+            let made = stamp_time(stamp)?;
+            let is_file = entry.file_type().ok()?.is_file();
+            is_file.then(|| (made, number, entry.path()))
+        })
+        .collect();
+    found.sort_by_key(|entry| std::cmp::Reverse((entry.0, entry.1)));
+    found
+        .into_iter()
+        .map(|(made, _, path)| BackupFile { path, made })
+        .collect()
 }
 
 /// What [`Book::keep_copy`] did.
@@ -129,7 +225,7 @@ impl Book {
     ///
     /// [`StoreError::Io`] if the folder can't be made or written to.
     pub fn back_up_now(&self, book: &Path, folder: &Path) -> Result<PathBuf, StoreError> {
-        backup::back_up(&self.conn, book, folder)
+        backup::back_up(&self.conn, book, folder, self.book_id().as_ref())
     }
 
     /// Makes a backup of this book, which is at `book`, in `folder`, the
@@ -152,7 +248,8 @@ impl Book {
         folder: &Path,
     ) -> Result<Option<BackupFile>, StoreError> {
         let now = Timestamp::now();
-        let recent = match backups_of(book, folder) {
+        let id = self.book_id().ok_or(StoreError::NotABook)?;
+        let recent = match backups_of(&id, folder) {
             Ok(found) => found.into_iter().any(|backup| {
                 backup.made <= now
                     && now.as_second() - backup.made.as_second() < backup::MONTHLY_SECONDS
@@ -163,7 +260,7 @@ impl Book {
         if recent {
             return Ok(None);
         }
-        let path = backup::back_up(&self.conn, book, folder)?;
+        let path = backup::back_up(&self.conn, book, folder, Some(&id))?;
         Ok(Some(BackupFile { path, made: now }))
     }
 
@@ -171,9 +268,16 @@ impl Book {
     /// folder the user chose, and removes that book's oldest copies there
     /// beyond the last `keep` (#806). If `backups`, the app's own backup
     /// folder, has a backup that `copies` lacks and that is newer than
-    /// every copy there, that backup is copied; else, if no copy there is
-    /// from the last day, a new one of the book as it is now. The folder is
-    /// never made: a missing one is a stick that isn't plugged in.
+    /// every copy there, that backup is copied. Then, if no copy there is
+    /// from the last day, also that one just copied, a new one of the book
+    /// as it is now is made in the same call (D-805), so an old backup never
+    /// stands in for today's state. The folder is never made: a missing one
+    /// is a stick that isn't plugged in.
+    ///
+    /// Returns the copy of the book as it is now when one was made, else
+    /// the copied backup, else the recent copy that was there. If the
+    /// backup was copied but the new copy can't be written, the error is
+    /// returned: the copied backup stays, and *Try again* makes the new one.
     ///
     /// # Errors
     ///
@@ -196,35 +300,47 @@ impl Book {
         if same_folder(&copies, backups) {
             return Err(StoreError::Io(ErrorKind::InvalidInput));
         }
-        let stem = stem_of(book)?;
-        let present = backups_of(book, &copies)?;
-        let newest_copy = present.first();
-        let newest_backup = backups_of(book, backups)
+        let id = self.book_id().ok_or(StoreError::NotABook)?;
+        let tag = id.tag();
+        let present = backups_of(&id, &copies)?;
+        let mut newest_copy = present.first().cloned();
+        let newest_backup = backups_of(&id, backups)
             .ok()
             .and_then(|found| found.into_iter().next());
+        let mut copied = None;
         if let Some(local) = newest_backup
-            && newest_copy.is_none_or(|copy| local.made > copy.made)
+            && newest_copy
+                .as_ref()
+                .is_none_or(|copy| local.made > copy.made)
         {
             let name = local
                 .path
                 .file_name()
                 .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
             if !exists(&copies.join(name))? {
-                let path = copy_file(&local.path, &copies, stem, keep)?;
-                return Ok(KeptCopy::Made(BackupFile {
+                let path = copy_file(&local.path, &copies, &tag, keep)?;
+                let file = BackupFile {
                     path,
                     made: local.made,
-                }));
+                };
+                newest_copy = Some(file.clone());
+                copied = Some(file);
             }
         }
+        // Copying an older backup keeps that state, but doesn't stand in
+        // for the book as it is now (D-805): without a copy from the last
+        // day, one is made in the same call.
         let now = Timestamp::now();
         if let Some(copy) = newest_copy
             && copy.made <= now
             && now.as_second() - copy.made.as_second() < RECENT_SECONDS
         {
-            return Ok(KeptCopy::Recent(copy.clone()));
+            return Ok(match copied {
+                Some(file) => KeptCopy::Made(file),
+                None => KeptCopy::Recent(copy),
+            });
         }
-        let path = backup::write_backup(&self.conn, book, &copies, keep)?;
+        let path = backup::write_backup(&self.conn, book, &copies, keep, Some(&id))?;
         Ok(KeptCopy::Made(BackupFile { path, made: now }))
     }
 }
@@ -240,8 +356,8 @@ fn same_folder(a: &Path, b: &Path) -> bool {
 
 /// Copies the finished backup `from` into `folder` under its own name,
 /// written as a `.part` file first, then removes the oldest copies of the
-/// book `stem` there beyond the last `keep`. Returns the copy's path.
-fn copy_file(from: &Path, folder: &Path, stem: &str, keep: usize) -> Result<PathBuf, StoreError> {
+/// book with the tag `tag` there beyond the last `keep`. Returns the copy's path.
+fn copy_file(from: &Path, folder: &Path, tag: &str, keep: usize) -> Result<PathBuf, StoreError> {
     let name = from
         .file_name()
         .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
@@ -263,15 +379,43 @@ fn copy_file(from: &Path, folder: &Path, stem: &str, keep: usize) -> Result<Path
         let _ = fs::remove_file(&partial);
         return Err(error);
     }
-    backup::prune(folder, stem, &path, keep);
+    backup::prune(folder, tag, &path, keep);
     Ok(path)
 }
 
-/// Copies the file `from` into `to` and makes sure the copy is on the disk.
-fn copy_and_sync(from: &Path, to: &Path) -> Result<(), StoreError> {
-    fs::copy(from, to)?;
+/// Brings the book at `path`, a copy of a backup from before books had an
+/// identity, to the current layout with the identity `id` in place of the
+/// one the update would make up (B-333). The copy is the user's own; the
+/// backup it was made from stays as it was.
+fn adopt_identity(path: &Path, id: &BookId) -> Result<(), StoreError> {
+    let mut conn = rusqlite::Connection::open(path)?;
+    let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    // The checks opening a book makes, before anything in the file runs.
+    layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, version)
+        .map_err(|_| StoreError::NotABook)?;
+    layout::migrate(&mut conn, version)?;
+    conn.execute(
+        "UPDATE book_identity SET book_id = ?1 WHERE id = 1",
+        [id.to_bytes().as_slice()],
+    )?;
+    drop(conn);
     // Windows syncs only files opened for writing.
-    OpenOptions::new().write(true).open(to)?.sync_all()?;
+    OpenOptions::new().write(true).open(path)?.sync_all()?;
+    Ok(())
+}
+
+/// Copies the file `from` into the file `to`, which the caller has made,
+/// and makes sure the copy is on the disk.
+///
+/// Only the bytes are copied, never the permissions: a backup the user made
+/// read-only must still restore, and a read-only copy could not be opened
+/// for writing or synced (#1113).
+fn copy_and_sync(from: &Path, to: &Path) -> Result<(), StoreError> {
+    let mut source = File::open(from)?;
+    // Windows syncs only files opened for writing.
+    let mut target = OpenOptions::new().write(true).truncate(true).open(to)?;
+    io::copy(&mut source, &mut target)?;
+    target.sync_all()?;
     Ok(())
 }
 
@@ -297,17 +441,25 @@ impl PreparedRestore {
     /// # Errors
     ///
     /// - [`StoreError::NotABook`] if `backup` isn't a book or fails the
-    ///   check;
+    ///   check, or is a backup of another book, one with another identity
+    ///   than `id`;
     /// - [`StoreError::UnsupportedLayout`] or
     ///   [`StoreError::DevelopmentLayout`] if this KassenSturz can't open
     ///   its layout;
     /// - [`StoreError::Io`] if it can't be read or copied.
     ///
     /// The book isn't changed in any of these cases.
-    pub fn new(backup: &Path, book: &Path) -> Result<Self, StoreError> {
+    pub fn new(backup: &Path, book: &Path, id: &BookId) -> Result<Self, StoreError> {
         let backup = std::path::absolute(backup)?;
         let book = std::path::absolute(book)?;
-        check_backup(&backup)?;
+        // A backup of another book never replaces this one (D-806). One
+        // from before books had an identity has none to compare: it comes
+        // from the list of older backups, which the user picks from on
+        // purpose.
+        let found = check_backup(&backup)?;
+        if found.as_ref().is_some_and(|found| found != id) {
+            return Err(StoreError::NotABook);
+        }
         let mut partial = book.as_os_str().to_owned();
         partial.push(".restore.part");
         let partial = PathBuf::from(partial);
@@ -323,6 +475,23 @@ impl PreparedRestore {
             .open(&partial)?;
         let prepared = Self { partial, book };
         copy_and_sync(&backup, &prepared.partial)?;
+        // The restored book keeps the book's own permissions, e.g. readable
+        // only by the user, whatever the backup file's were (#1113).
+        if let Ok(metadata) = fs::metadata(&prepared.book)
+            && !metadata.permissions().readonly()
+        {
+            fs::set_permissions(&prepared.partial, metadata.permissions())?;
+        }
+        if found.is_none() {
+            // The copy is the book's own from now on: it keeps the book's
+            // identity, or every backup tied to it, the one made just
+            // before this restore among them, would no longer be the
+            // book's (B-333).
+            if let Err(error) = adopt_identity(&prepared.partial, id) {
+                let _ = fs::remove_file(&prepared.partial);
+                return Err(error);
+            }
+        }
         Ok(prepared)
     }
 
@@ -346,14 +515,25 @@ impl Drop for PreparedRestore {
 }
 /// Checks that `backup` is a book this KassenSturz can open, reading it
 /// only.
-fn check_backup(backup: &Path) -> Result<(), StoreError> {
+fn check_backup(backup: &Path) -> Result<Option<BookId>, StoreError> {
     if !fs::metadata(backup)?.is_file() || !is_book_file(backup)? {
         return Err(StoreError::NotABook);
     }
-    let conn = Connection::open_with_flags(
+    // A backup that opens only to a damage message must never replace the
+    // book it was made to protect, so it faces the checks of opening: the
+    // file itself, its references, its balances and its conversions (B-298).
+    let damaged = |error: StoreError| match crate::integrity::damaged_if_malformed(error) {
+        StoreError::Corrupt(_) => StoreError::NotABook,
+        other => other,
+    };
+    // Where the folder refuses file locks this reads a private copy
+    // (Q-570, D-776).
+    let conn = crate::lockless::open_read_only(
         backup,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
-    )?;
+    )
+    .map_err(damaged)?;
+    crate::integrity::check_file(&conn).map_err(damaged)?;
     let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
     match version {
         known if (layout::FIRST_VERSION..=layout::VERSION).contains(&known) => {}
@@ -362,11 +542,10 @@ fn check_backup(backup: &Path) -> Result<(), StoreError> {
         }
         found => return Err(StoreError::UnsupportedLayout { found }),
     }
-    let check: String = conn.query_row("PRAGMA quick_check(1)", [], |row| row.get(0))?;
-    if check != "ok" {
-        return Err(StoreError::NotABook);
-    }
-    Ok(())
+    crate::integrity::check_references(&conn).map_err(damaged)?;
+    crate::integrity::check_balances(&conn).map_err(damaged)?;
+    crate::integrity::check_conversions(&conn).map_err(damaged)?;
+    Ok(BookId::try_read(&conn))
 }
 
 /// Makes sure the rename of the file at `path` is on the disk, where the
@@ -384,6 +563,7 @@ fn sync_folder(path: &Path) {
 #[cfg(test)]
 mod tests {
     use kassensturz_core::{Account, AccountId, AccountKind, CurrencyCode};
+    use rusqlite::Connection;
 
     use super::*;
     use crate::Computer;
@@ -431,6 +611,165 @@ mod tests {
             .collect();
         names.sort();
         names
+    }
+
+    /// B-285: the page for a book made by a newer KassenSturz offers the
+    /// newest backup this version can open, not a newer one's or a damaged one.
+    #[test]
+    fn the_newest_usable_backup_passes_over_ones_this_version_cannot_open() {
+        let folder = TempFolder::new();
+        let (book, path) = book_with(&folder, "Checking");
+        let backups = computer(&folder).backup_folder;
+        assert_eq!(newest_usable_backup(&path, &backups), None, "no folder");
+        let usable = book.back_up_now(&path, &backups).expect("backed up");
+        // A newer one, made by a newer layout: a copy with a higher version.
+        let tag = book.book_id().expect("an identity").tag();
+        let newer = backups.join(format!("Household [{tag}] 2099-01-01 00-00-00 UTC.ksz"));
+        fs::copy(&usable, &newer).expect("copied");
+        Connection::open(&newer)
+            .expect("opened")
+            .pragma_update(None, "user_version", crate::layout::VERSION + 1)
+            .expect("version set");
+        // And a damaged one, newer still.
+        fs::write(
+            backups.join(format!("Household [{tag}] 2100-01-01 00-00-00 UTC.ksz")),
+            "damaged",
+        )
+        .expect("written");
+        let found = newest_usable_backup(&path, &backups).expect("one is usable");
+        assert_eq!(found.path, usable);
+    }
+
+    /// B-328, #1080, D-806: two books with the same file name share nothing.
+    #[test]
+    fn two_books_with_the_same_name_keep_their_backups_apart() {
+        let (folder_a, folder_b) = (TempFolder::new(), TempFolder::new());
+        let (book_a, path_a) = book_with(&folder_a, "Alpha Checking");
+        let (book_b, path_b) = book_with(&folder_b, "Beta Checking");
+        assert_eq!(path_a.file_name(), path_b.file_name());
+        // One backup folder, as the app has.
+        let backups = computer(&folder_a).backup_folder;
+        let (id_a, id_b) = (
+            book_a.book_id().expect("an identity"),
+            book_b.book_id().expect("an identity"),
+        );
+        assert_ne!(id_a, id_b);
+
+        // The monthly backup: A's recent one doesn't stand in for B's.
+        let first_a = book_a
+            .keep_monthly_backup(&path_a, &backups)
+            .expect("backed up")
+            .expect("A got one");
+        let first_b = book_b
+            .keep_monthly_backup(&path_b, &backups)
+            .expect("backed up")
+            .expect("B got its own, not skipped for A's");
+        assert_ne!(first_a.path, first_b.path);
+        assert_eq!(backups_of(&id_a, &backups).expect("listed").len(), 1);
+        assert_eq!(backups_of(&id_b, &backups).expect("listed").len(), 1);
+
+        // Copies in a chosen folder: A's copy is no copy of B.
+        let stick = folder_a.join("Stick");
+        fs::create_dir(&stick).expect("folder made");
+        let copy_a = book_a
+            .keep_copy(&path_a, &backups, &stick, 5)
+            .expect("copy kept");
+        assert!(matches!(copy_a, KeptCopy::Made(_)), "{copy_a:?}");
+        let copy_b = book_b
+            .keep_copy(&path_b, &backups, &stick, 5)
+            .expect("copy kept");
+        assert!(
+            matches!(copy_b, KeptCopy::Made(_)),
+            "B isn't Recent for A's copy: {copy_b:?}"
+        );
+        assert_eq!(backups_of(&id_a, &stick).expect("listed").len(), 1);
+        assert_eq!(backups_of(&id_b, &stick).expect("listed").len(), 1);
+
+        // Pruning: many backups of B never remove A's.
+        for _ in 0..(backup::KEEP + 3) {
+            book_b.back_up_now(&path_b, &backups).expect("backed up");
+        }
+        assert_eq!(
+            backups_of(&id_b, &backups).expect("listed").len(),
+            backup::KEEP
+        );
+        assert!(first_a.path.exists(), "A's backup was pruned for B's");
+        assert_eq!(backups_of(&id_a, &backups).expect("listed").len(), 1);
+
+        // Restoring: B's list never holds A's backup, and A's backup is
+        // refused for B even if asked for by name.
+        let listed_b = backups_of(&id_b, &backups).expect("listed");
+        assert!(listed_b.iter().all(|file| file.path != first_a.path));
+        drop((book_a, book_b));
+        assert!(matches!(
+            PreparedRestore::new(&first_a.path, &path_b, &id_b),
+            Err(StoreError::NotABook)
+        ));
+        assert!(!folder_b.join("Household.ksz.restore.part").exists());
+        // Its own backup is fine.
+        PreparedRestore::new(&listed_b[0].path, &path_b, &id_b).expect("B's own backup");
+    }
+
+    /// D-806: a book that is moved or renamed keeps its backups, and a copy
+    /// of the file, being the same book, shares them.
+    #[test]
+    fn a_renamed_book_keeps_its_backups() {
+        let folder = TempFolder::new();
+        let (book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        let id = book.book_id().expect("an identity");
+        let made = book.back_up_now(&path, &backups).expect("backed up");
+        drop(book);
+        let renamed = folder.join("Giro 2027.ksz");
+        fs::rename(&path, &renamed).expect("renamed");
+        let book = Book::open(&renamed, &computer(&folder)).expect("opens");
+        assert_eq!(book.book_id(), Some(id.clone()), "the identity stays");
+        let found = backups_of(&id, &backups).expect("listed");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].path, made);
+        // New backups carry the new name, the same tag, and are one series.
+        let newer = book.back_up_now(&renamed, &backups).expect("backed up");
+        let name = newer.file_name().and_then(|n| n.to_str()).expect("a name");
+        assert!(
+            name.starts_with(&format!("Giro 2027 [{}] ", id.tag())),
+            "{name}"
+        );
+        assert_eq!(backups_of(&id, &backups).expect("listed").len(), 2);
+    }
+
+    /// D-806: a backup of a book from before layout 34 has no tag. It is
+    /// never taken for the open book's own, stays on disk, and a restore from
+    /// it is possible because it has no other identity to clash with.
+    #[test]
+    fn an_older_backup_is_listed_apart_and_never_removed() {
+        let folder = TempFolder::new();
+        let (book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        fs::create_dir_all(&backups).expect("folder made");
+        let older = backups.join("Household 2026-09-01 09-00-00 UTC.ksz");
+        // A real book in the old layout would have no `book_identity`: make
+        // a copy and drop it.
+        let any = book.back_up_now(&path, &backups).expect("backed up");
+        fs::copy(&any, &older).expect("copied");
+        Connection::open(&older)
+            .and_then(|conn| {
+                conn.execute_batch("DROP TABLE parked_ai_rule_marks; DROP TABLE book_identity; PRAGMA user_version = 33;")
+            })
+            .expect("made old");
+        fs::remove_file(&any).expect("removed");
+        let id = book.book_id().expect("an identity");
+        assert!(backups_of(&id, &backups).expect("listed").is_empty());
+        let listed = older_backups_of(&path, &backups).expect("listed");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].path, older);
+        // Many own backups later, it is still there.
+        for _ in 0..(backup::KEEP + 3) {
+            book.back_up_now(&path, &backups).expect("backed up");
+        }
+        assert!(older.exists());
+        drop(book);
+        // It has no identity to clash with, so the user can restore it.
+        PreparedRestore::new(&older, &path, &id).expect("an older backup restores");
     }
 
     #[test]
@@ -518,15 +857,20 @@ mod tests {
         let stick = folder.join("Stick");
         fs::create_dir(&stick).expect("folder made");
         // Made-up older copies of this book, and files that must stay.
+        let tag = book.book_id().expect("an identity").tag();
         for day in 1..=4 {
             fs::write(
-                stick.join(format!("Household 2026-10-0{day} 09-00-00 UTC.ksz")),
+                stick.join(format!("Household [{tag}] 2026-10-0{day} 09-00-00 UTC.ksz")),
                 "made up",
             )
             .expect("written");
         }
+        // Another book with the same name, and a copy from before books had
+        // an identity, stay too (D-806).
         let others = [
-            "Garden 2026-10-01 09-00-00 UTC.ksz",
+            "Garden [ffffffffffff] 2026-10-01 09-00-00 UTC.ksz",
+            "Household [ffffffffffff] 2026-10-01 09-00-00 UTC.ksz",
+            "Household 2026-10-01 09-00-00 UTC.ksz",
             "Household.ksz",
             "Notes.txt",
         ];
@@ -541,8 +885,8 @@ mod tests {
             panic!("no copy made: {kept:?}");
         };
         let mut expected: Vec<String> = [
-            "Household 2026-10-03 09-00-00 UTC.ksz".to_owned(),
-            "Household 2026-10-04 09-00-00 UTC.ksz".to_owned(),
+            format!("Household [{tag}] 2026-10-03 09-00-00 UTC.ksz"),
+            format!("Household [{tag}] 2026-10-04 09-00-00 UTC.ksz"),
             made.path
                 .file_name()
                 .and_then(|name| name.to_str())
@@ -584,6 +928,85 @@ mod tests {
             .expect("copy kept");
         assert!(matches!(again, KeptCopy::Recent(_)));
         assert_eq!(names_in(&stick).len(), 1);
+    }
+
+    /// A file name for a backup of `Household.ksz` made `days` ago.
+    fn backup_name_days_ago(book: &Book, days: i64) -> String {
+        let made =
+            Timestamp::from_second(Timestamp::now().as_second() - days * 86_400).expect("a time");
+        let tag = book.book_id().expect("an identity").tag();
+        format!(
+            "Household [{tag}] {}.ksz",
+            made.strftime("%Y-%m-%d %H-%M-%S UTC")
+        )
+    }
+
+    /// A real backup of the book, renamed as if made `days` ago.
+    fn old_backup(book: &Book, path: &Path, backups: &Path, days: i64) -> String {
+        let made = book.back_up_now(path, backups).expect("backed up");
+        let name = backup_name_days_ago(book, days);
+        fs::rename(&made, backups.join(&name)).expect("renamed");
+        name
+    }
+
+    /// The copy in `made` holds the book as it is now.
+    fn holds_now(made: &BackupFile) {
+        let copy = Book::open(&made.path, &computer(&TempFolder::new())).expect("the copy opens");
+        assert_eq!(account_names(&copy), ["Giro", "Savings"]);
+    }
+
+    #[test]
+    fn an_old_backup_copied_to_an_empty_folder_is_joined_by_a_copy_of_today() {
+        // #1081, D-805: a backup from 20 days ago lacks what was added
+        // since, so copying it alone would leave only the old state there.
+        let folder = TempFolder::new();
+        let (mut book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        let old = old_backup(&book, &path, &backups, 20);
+        add_account(&mut book, "Savings");
+        let stick = folder.join("Stick");
+        fs::create_dir(&stick).expect("folder made");
+
+        let kept = book
+            .keep_copy(&path, &backups, &stick, 5)
+            .expect("copy kept");
+        let KeptCopy::Made(made) = kept else {
+            panic!("no copy made: {kept:?}");
+        };
+        holds_now(&made);
+        let names = names_in(&stick);
+        assert_eq!(names.len(), 2, "{names:?}");
+        assert!(names.contains(&old), "the old backup is kept there too");
+        // Both are there now: nothing more until the next day.
+        let again = book
+            .keep_copy(&path, &backups, &stick, 5)
+            .expect("copy kept");
+        assert!(matches!(&again, KeptCopy::Recent(file) if file.path == made.path));
+        assert_eq!(names_in(&stick).len(), 2);
+    }
+
+    #[test]
+    fn a_copy_older_than_the_backup_both_over_a_day_old_gets_the_backup_and_today() {
+        let folder = TempFolder::new();
+        let (mut book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        let old = old_backup(&book, &path, &backups, 20);
+        add_account(&mut book, "Savings");
+        let stick = folder.join("Stick");
+        fs::create_dir(&stick).expect("folder made");
+        let older = backup_name_days_ago(&book, 30);
+        fs::write(stick.join(&older), "made up").expect("written");
+
+        let kept = book
+            .keep_copy(&path, &backups, &stick, 5)
+            .expect("copy kept");
+        let KeptCopy::Made(made) = kept else {
+            panic!("no copy made: {kept:?}");
+        };
+        holds_now(&made);
+        let names = names_in(&stick);
+        assert_eq!(names.len(), 3, "{names:?}");
+        assert!(names.contains(&old) && names.contains(&older));
     }
 
     #[test]
@@ -644,19 +1067,30 @@ mod tests {
     #[test]
     fn backups_are_listed_newest_first_and_other_files_are_left_out() {
         let folder = TempFolder::new();
+        let id = BookId::from_bytes(&[
+            0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ])
+        .expect("an ID");
         for name in [
-            "Household 2026-10-01 09-00-00 UTC.ksz",
-            "Household 2026-10-03 09-00-00 UTC.ksz",
-            "Household 2026-10-03 09-00-00 UTC 2.ksz",
-            "Household 2026-10-02 09-00-00 UTC.ksz.part",
-            "Garden 2026-10-04 09-00-00 UTC.ksz",
+            "Household [a1b2c3d4e5f6] 2026-10-01 09-00-00 UTC.ksz",
+            "Household [a1b2c3d4e5f6] 2026-10-03 09-00-00 UTC.ksz",
+            "Household [a1b2c3d4e5f6] 2026-10-03 09-00-00 UTC 2.ksz",
+            // The same book, renamed since.
+            "Giro [a1b2c3d4e5f6] 2026-10-06 09-00-00 UTC.ksz",
+            "Household [a1b2c3d4e5f6] 2026-10-02 09-00-00 UTC.ksz.part",
+            "Garden [a1b2c3d4e5f6] 2026-10-04 09-00-00 UTC.ksz.part",
+            // Another book with the same name, and an older backup without
+            // a tag: neither is listed as this book's (D-806).
+            "Household [ffffffffffff] 2026-10-07 09-00-00 UTC.ksz",
+            "Household 2026-10-08 09-00-00 UTC.ksz",
             "Household.ksz",
         ] {
             fs::write(folder.join(name), "made up").expect("written");
         }
-        fs::create_dir(folder.join("Household 2026-10-05 09-00-00 UTC.ksz")).expect("made");
+        fs::create_dir(folder.join("Household [a1b2c3d4e5f6] 2026-10-05 09-00-00 UTC.ksz"))
+            .expect("made");
 
-        let listed: Vec<String> = backups_of(Path::new("/books/Household.ksz"), folder.path())
+        let listed: Vec<String> = backups_of(&id, folder.path())
             .expect("listed")
             .into_iter()
             .map(|file| {
@@ -670,12 +1104,26 @@ mod tests {
         assert_eq!(
             listed,
             [
-                "Household 2026-10-03 09-00-00 UTC 2.ksz",
-                "Household 2026-10-03 09-00-00 UTC.ksz",
-                "Household 2026-10-01 09-00-00 UTC.ksz",
+                "Giro [a1b2c3d4e5f6] 2026-10-06 09-00-00 UTC.ksz",
+                "Household [a1b2c3d4e5f6] 2026-10-03 09-00-00 UTC 2.ksz",
+                "Household [a1b2c3d4e5f6] 2026-10-03 09-00-00 UTC.ksz",
+                "Household [a1b2c3d4e5f6] 2026-10-01 09-00-00 UTC.ksz",
             ]
         );
-        let missing = backups_of(Path::new("/books/Household.ksz"), &folder.join("gone"));
+        // The older ones, apart, for the user to choose from on purpose.
+        let older: Vec<String> = older_backups_of(Path::new("/books/Household.ksz"), folder.path())
+            .expect("listed")
+            .into_iter()
+            .map(|file| {
+                file.path
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .expect("name")
+                    .to_owned()
+            })
+            .collect();
+        assert_eq!(older, ["Household 2026-10-08 09-00-00 UTC.ksz"]);
+        let missing = backups_of(&id, &folder.join("gone"));
         assert!(matches!(missing, Err(StoreError::Io(ErrorKind::NotFound))));
     }
 
@@ -689,7 +1137,8 @@ mod tests {
 
         // Made ready while the book is open; then the book is backed up as
         // it is now, often enough that the backup restored is pruned.
-        let prepared = PreparedRestore::new(&backup, &path).expect("made ready");
+        let id = book.book_id().expect("an identity");
+        let prepared = PreparedRestore::new(&backup, &path, &id).expect("made ready");
         for _ in 0..backup::KEEP {
             book.back_up_now(&path, &backups).expect("backed up");
         }
@@ -702,9 +1151,63 @@ mod tests {
         // No `.part` is left next to the book, and the book as it was
         // before is the newest backup.
         assert!(!folder.join("Household.ksz.restore.part").exists());
-        let newest = backups_of(&path, &backups).expect("listed");
+        let newest = backups_of(&id, &backups).expect("listed");
         let before = Book::open(&newest[0].path, &computer(&TempFolder::new())).expect("opens");
         assert_eq!(account_names(&before), ["Giro", "Savings"]);
+    }
+
+    /// Sets or clears the read-only mark of the file at `path`.
+    fn set_read_only(path: &Path, read_only: bool) {
+        let mut permissions = fs::metadata(path).expect("metadata").permissions();
+        permissions.set_readonly(read_only);
+        fs::set_permissions(path, permissions).expect("permissions set");
+    }
+
+    /// #1113: a backup the user made read-only restores, and the restored
+    /// book is not read-only. Both kinds: one with the book's identity, and
+    /// an older one without, whose copy is opened for writing to take it.
+    #[test]
+    fn a_read_only_backup_restores_to_a_writable_book() {
+        let folder = TempFolder::new();
+        let (mut book, path) = book_with(&folder, "Giro");
+        let backups = computer(&folder).backup_folder;
+        let backup = book.back_up_now(&path, &backups).expect("backed up");
+        let older = backups.join("Household 2026-09-01 09-00-00 UTC.ksz");
+        fs::copy(&backup, &older).expect("copied");
+        Connection::open(&older)
+            .and_then(|conn| {
+                conn.execute_batch("DROP TABLE parked_ai_rule_marks; DROP TABLE book_identity; PRAGMA user_version = 33;")
+            })
+            .expect("made old");
+        add_account(&mut book, "Savings");
+        let id = book.book_id().expect("an identity");
+        drop(book);
+
+        for from in [&backup, &older] {
+            set_read_only(from, true);
+            let prepared = PreparedRestore::new(from, &path, &id).expect("made ready");
+            prepared.put_in_place().expect("put in place");
+            assert!(
+                !fs::metadata(&path)
+                    .expect("metadata")
+                    .permissions()
+                    .readonly(),
+                "{from:?}"
+            );
+            let mut restored = Book::open(&path, &computer(&folder)).expect("book opens");
+            assert_eq!(account_names(&restored), ["Giro"]);
+            add_account(&mut restored, "Savings");
+            drop(restored);
+            // The backup is left as the user made it.
+            assert!(
+                fs::metadata(from)
+                    .expect("metadata")
+                    .permissions()
+                    .readonly()
+            );
+            // So the folder can be removed on every system.
+            set_read_only(from, false);
+        }
     }
 
     #[test]
@@ -714,9 +1217,10 @@ mod tests {
         let backup = book
             .back_up_now(&path, &computer(&folder).backup_folder)
             .expect("backed up");
+        let id = book.book_id().expect("an identity");
         drop(book);
         let before = fs::read(&path).expect("book read");
-        let prepared = PreparedRestore::new(&backup, &path).expect("made ready");
+        let prepared = PreparedRestore::new(&backup, &path, &id).expect("made ready");
         assert!(folder.join("Household.ksz.restore.part").exists());
         drop(prepared);
         assert!(!folder.join("Household.ksz.restore.part").exists());
@@ -727,13 +1231,14 @@ mod tests {
     fn a_backup_that_isnt_a_usable_book_changes_nothing() {
         let folder = TempFolder::new();
         let (book, path) = book_with(&folder, "Giro");
+        let id = book.book_id().expect("an identity");
         drop(book);
         let before = fs::read(&path).expect("book read");
 
         let not_a_book = folder.join("Household 2026-10-01 09-00-00 UTC.ksz");
         fs::write(&not_a_book, "made up").expect("written");
         assert!(matches!(
-            PreparedRestore::new(&not_a_book, &path),
+            PreparedRestore::new(&not_a_book, &path, &id),
             Err(StoreError::NotABook)
         ));
 
@@ -744,12 +1249,12 @@ mod tests {
             .and_then(|conn| conn.pragma_update(None, "user_version", layout::VERSION + 1))
             .expect("version set");
         assert!(matches!(
-            PreparedRestore::new(&newer, &path),
+            PreparedRestore::new(&newer, &path, &id),
             Err(StoreError::UnsupportedLayout { .. })
         ));
 
         assert!(matches!(
-            PreparedRestore::new(&folder.join("gone.ksz"), &path),
+            PreparedRestore::new(&folder.join("gone.ksz"), &path, &id),
             Err(StoreError::Io(ErrorKind::NotFound))
         ));
         assert_eq!(fs::read(&path).expect("book read"), before);

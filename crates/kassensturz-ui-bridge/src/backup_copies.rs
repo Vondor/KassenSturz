@@ -17,7 +17,10 @@ use std::sync::Mutex;
 
 use kassensturz_core::Timestamp;
 use kassensturz_core::book_folder::FolderGrant;
-use kassensturz_store::{CopyProblem, KeptCopy, backups_of, move_backups_of};
+use kassensturz_store::{
+    BookId, CopyProblem, KeptCopy, backups_of, move_backups_of, older_backups_of,
+    older_move_backups_of,
+};
 
 use crate::session;
 use crate::settings::Settings;
@@ -207,62 +210,78 @@ pub struct Listed {
     pub made: Timestamp,
     /// Whether it is in the folder the user chose, not in the app's own.
     pub in_chosen: bool,
+    /// Whether it is from before books had an identity (layout 34, D-806):
+    /// it has the book's name but nothing says it is this book's, so the
+    /// page lists it apart.
+    pub older: bool,
 }
 
-/// The backups of the book at `book`, newest first: those in the app's own
-/// folder `backups` and those in the chosen folder. A copy with the same
-/// name in both is listed once, from the app's own folder. Also says why
+/// The backups of the book at `book`, which has the identity `id`, newest
+/// first: those in the app's own folder `backups` and those in the chosen
+/// folder. The book's own come first (tied to `id`, not to its name, D-806),
+/// then the older ones without an identity that have its name, flagged
+/// [`Listed::older`], for the page to list apart. A copy with the same name
+/// in both folders is listed once, from the app's own folder. Also says why
 /// the chosen folder couldn't be read, if it couldn't.
 pub fn listed(
     book: &Path,
+    id: &BookId,
     backups: &Path,
     chosen: Option<&Path>,
 ) -> (Vec<Listed>, Option<CopyProblem>) {
-    let mut found: Vec<Listed> = backups_of(book, backups)
+    let item = |file: kassensturz_store::BackupFile, in_chosen: bool, older: bool| Listed {
+        path: file.path,
+        made: file.made,
+        in_chosen,
+        older,
+    };
+    let mut found: Vec<Listed> = backups_of(id, backups)
         .unwrap_or_default()
         .into_iter()
-        .map(|file| Listed {
-            path: file.path,
-            made: file.made,
-            in_chosen: false,
-        })
+        .map(|file| item(file, false, false))
         .collect();
     // The backups made before a move of the book (D-731), kept apart from
     // the ten automatic ones but restored like them.
     found.extend(
-        move_backups_of(book, backups)
+        move_backups_of(id, backups)
             .unwrap_or_default()
             .into_iter()
-            .map(|file| Listed {
-                path: file.path,
-                made: file.made,
-                in_chosen: false,
-            }),
+            .map(|file| item(file, false, false)),
+    );
+    found.extend(
+        older_backups_of(book, backups)
+            .unwrap_or_default()
+            .into_iter()
+            .chain(older_move_backups_of(book, backups).unwrap_or_default())
+            .map(|file| item(file, false, true)),
     );
     let mut problem = None;
     if let Some(folder) = chosen {
-        match backups_of(book, folder) {
+        match backups_of(id, folder) {
             Ok(copies) => {
-                for copy in copies {
+                let older = older_backups_of(book, folder).unwrap_or_default();
+                for (copy, is_older) in copies
+                    .into_iter()
+                    .map(|copy| (copy, false))
+                    .chain(older.into_iter().map(|copy| (copy, true)))
+                {
                     let twin = found
                         .iter()
                         .any(|listed| listed.path.file_name() == copy.path.file_name());
                     if !twin {
-                        found.push(Listed {
-                            path: copy.path,
-                            made: copy.made,
-                            in_chosen: true,
-                        });
+                        found.push(item(copy, true, is_older));
                     }
                 }
             }
             Err(error) => problem = Some(CopyProblem::of(&error)),
         }
     }
-    // Newest first; within one second, by name, as the store lists them.
+    // The book's own first, then the older ones; newest first in each;
+    // within one second, by name, as the store lists them.
     found.sort_by(|a, b| {
-        b.made
-            .cmp(&a.made)
+        a.older
+            .cmp(&b.older)
+            .then_with(|| b.made.cmp(&a.made))
             .then_with(|| b.path.file_name().cmp(&a.path.file_name()))
     });
     (found, problem)
@@ -337,6 +356,35 @@ mod tests {
         assert!(codes.iter().all(|code| code.starts_with("backup-copy.")));
     }
 
+    /// A real book called `Household.ksz` in `folder`'s folder `dir`, and
+    /// its identity.
+    fn a_book(folder: &TestFolder, dir: &str) -> (PathBuf, BookId) {
+        let dir = folder.join(dir);
+        fs::create_dir_all(&dir).expect("made");
+        let path = dir.join("Household.ksz");
+        let computer = kassensturz_store::Computer {
+            name: "Laptop".into(),
+            backup_folder: folder.join("Backups"),
+        };
+        let book = kassensturz_store::Book::create(&path, &computer).expect("book made");
+        let id = book.book_id().expect("an identity");
+        (path, id)
+    }
+
+    fn file_names(found: &[Listed]) -> Vec<String> {
+        found
+            .iter()
+            .map(|listed| {
+                listed
+                    .path
+                    .file_name()
+                    .unwrap()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .collect()
+    }
+
     #[test]
     fn lists_both_folders_newest_first_and_each_copy_once() {
         let folder = TestFolder::new();
@@ -344,18 +392,34 @@ mod tests {
         let stick = folder.join("Stick");
         fs::create_dir(&own).expect("made");
         fs::create_dir(&stick).expect("made");
+        let (book, id) = a_book(&folder, "A");
+        let tag = id.tag();
         for (dir, name) in [
-            (&own, "Household 2026-10-01 09-00-00 UTC.ksz"),
-            (&own, "Household 2026-10-03 09-00-00 UTC.ksz"),
+            (
+                &own,
+                format!("Household [{tag}] 2026-10-01 09-00-00 UTC.ksz"),
+            ),
+            (
+                &own,
+                format!("Household [{tag}] 2026-10-03 09-00-00 UTC.ksz"),
+            ),
             // The same backup, copied to the stick.
-            (&stick, "Household 2026-10-03 09-00-00 UTC.ksz"),
-            (&stick, "Household 2026-10-02 09-00-00 UTC.ksz"),
-            (&stick, "Garden 2026-10-04 09-00-00 UTC.ksz"),
+            (
+                &stick,
+                format!("Household [{tag}] 2026-10-03 09-00-00 UTC.ksz"),
+            ),
+            (
+                &stick,
+                format!("Household [{tag}] 2026-10-02 09-00-00 UTC.ksz"),
+            ),
+            (
+                &stick,
+                "Garden [ffffffffffff] 2026-10-04 09-00-00 UTC.ksz".to_owned(),
+            ),
         ] {
             fs::write(dir.join(name), "made up").expect("written");
         }
-        let book = folder.join("Household.ksz");
-        let (found, problem) = listed(&book, &own, Some(&stick));
+        let (found, problem) = listed(&book, &id, &own, Some(&stick));
         assert_eq!(problem, None);
         let shown: Vec<(String, bool)> = found
             .iter()
@@ -374,14 +438,24 @@ mod tests {
         assert_eq!(
             shown,
             [
-                ("Household 2026-10-03 09-00-00 UTC.ksz".to_owned(), false),
-                ("Household 2026-10-02 09-00-00 UTC.ksz".to_owned(), true),
-                ("Household 2026-10-01 09-00-00 UTC.ksz".to_owned(), false),
+                (
+                    format!("Household [{tag}] 2026-10-03 09-00-00 UTC.ksz"),
+                    false
+                ),
+                (
+                    format!("Household [{tag}] 2026-10-02 09-00-00 UTC.ksz"),
+                    true
+                ),
+                (
+                    format!("Household [{tag}] 2026-10-01 09-00-00 UTC.ksz"),
+                    false
+                ),
             ]
         );
+        assert!(found.iter().all(|listed| !listed.older));
 
         // A stick that isn't plugged in: the app's own backups, and why.
-        let (found, problem) = listed(&book, &own, Some(&folder.join("Gone")));
+        let (found, problem) = listed(&book, &id, &own, Some(&folder.join("Gone")));
         assert_eq!(found.len(), 2);
         assert_eq!(problem, Some(CopyProblem::Missing));
     }
@@ -391,35 +465,77 @@ mod tests {
         let folder = TestFolder::new();
         let own = folder.join("Backups");
         fs::create_dir(&own).expect("made");
+        let (book, id) = a_book(&folder, "A");
+        let tag = id.tag();
         for name in [
-            "Household 2026-10-01 09-00-00 UTC.ksz",
-            "Household 2026-10-02 09-00-00 UTC before moving.ksz",
-            "Household 2026-10-02 09-00-00 UTC before moving 2.ksz",
-            "Garden 2026-10-03 09-00-00 UTC before moving.ksz",
-            "Household 2026-10-04 09-00-00 UTC before moving.ksz.part",
+            format!("Household [{tag}] 2026-10-01 09-00-00 UTC.ksz"),
+            format!("Household [{tag}] 2026-10-02 09-00-00 UTC vor dem Verschieben.ksz"),
+            format!("Household [{tag}] 2026-10-02 09-00-00 UTC vor dem Verschieben 2.ksz"),
+            "Garden [ffffffffffff] 2026-10-03 09-00-00 UTC vor dem Verschieben.ksz".to_owned(),
+            format!("Household [{tag}] 2026-10-04 09-00-00 UTC vor dem Verschieben.ksz.part"),
         ] {
             fs::write(own.join(name), "made up").expect("written");
         }
-        let (found, problem) = listed(&folder.join("Household.ksz"), &own, None);
+        let (found, problem) = listed(&book, &id, &own, None);
         assert_eq!(problem, None);
-        let shown: Vec<String> = found
-            .iter()
-            .map(|listed| {
-                listed
-                    .path
-                    .file_name()
-                    .unwrap()
-                    .to_string_lossy()
-                    .into_owned()
-            })
-            .collect();
         assert_eq!(
-            shown,
+            file_names(&found),
             [
-                "Household 2026-10-02 09-00-00 UTC before moving.ksz",
-                "Household 2026-10-02 09-00-00 UTC before moving 2.ksz",
-                "Household 2026-10-01 09-00-00 UTC.ksz",
+                format!("Household [{tag}] 2026-10-02 09-00-00 UTC vor dem Verschieben.ksz"),
+                format!("Household [{tag}] 2026-10-02 09-00-00 UTC vor dem Verschieben 2.ksz"),
+                format!("Household [{tag}] 2026-10-01 09-00-00 UTC.ksz"),
             ]
+        );
+    }
+
+    /// B-328, #1080, D-806: with two books of the same name, each page lists
+    /// its own book's backups only; the ones from before books had an
+    /// identity are listed after them, flagged, and never as the book's own.
+    #[test]
+    fn two_books_with_the_same_name_list_only_their_own_backups() {
+        let folder = TestFolder::new();
+        let own = folder.join("Backups");
+        fs::create_dir(&own).expect("made");
+        let (book_a, id_a) = a_book(&folder, "A");
+        let (book_b, id_b) = a_book(&folder, "B");
+        assert_eq!(book_a.file_name(), book_b.file_name());
+        let (tag_a, tag_b) = (id_a.tag(), id_b.tag());
+        for name in [
+            format!("Household [{tag_a}] 2026-10-05 09-00-00 UTC.ksz"),
+            format!("Household [{tag_b}] 2026-10-04 09-00-00 UTC.ksz"),
+            format!("Household [{tag_b}] 2026-10-03 09-00-00 UTC vor dem Verschieben.ksz"),
+            // From before books had an identity, the book's name only.
+            "Household 2026-10-02 09-00-00 UTC.ksz".to_owned(),
+            "Household 2026-10-01 09-00-00 UTC vor dem Verschieben.ksz".to_owned(),
+        ] {
+            fs::write(own.join(name), "made up").expect("written");
+        }
+        let (for_a, _) = listed(&book_a, &id_a, &own, None);
+        let (for_b, _) = listed(&book_b, &id_b, &own, None);
+        assert_eq!(
+            file_names(&for_a),
+            [
+                format!("Household [{tag_a}] 2026-10-05 09-00-00 UTC.ksz"),
+                "Household 2026-10-02 09-00-00 UTC.ksz".to_owned(),
+                "Household 2026-10-01 09-00-00 UTC vor dem Verschieben.ksz".to_owned(),
+            ]
+        );
+        assert_eq!(
+            for_a.iter().map(|listed| listed.older).collect::<Vec<_>>(),
+            [false, true, true]
+        );
+        assert_eq!(
+            file_names(&for_b),
+            [
+                format!("Household [{tag_b}] 2026-10-04 09-00-00 UTC.ksz"),
+                format!("Household [{tag_b}] 2026-10-03 09-00-00 UTC vor dem Verschieben.ksz"),
+                "Household 2026-10-02 09-00-00 UTC.ksz".to_owned(),
+                "Household 2026-10-01 09-00-00 UTC vor dem Verschieben.ksz".to_owned(),
+            ]
+        );
+        assert_eq!(
+            for_b.iter().map(|listed| listed.older).collect::<Vec<_>>(),
+            [false, false, true, true]
         );
     }
 }

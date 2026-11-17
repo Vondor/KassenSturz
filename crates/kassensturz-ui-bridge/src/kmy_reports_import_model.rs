@@ -100,7 +100,12 @@ pub(crate) fn line_object(line: &PreviewLine) -> QVariant {
 }
 
 /// The page's object; see the module's documentation.
-pub(crate) fn preview_object(file_name: &str, lines: &[PreviewLine], gone: &[String]) -> QVariant {
+pub(crate) fn preview_object(
+    file_name: &str,
+    lines: &[PreviewLine],
+    gone: &[String],
+    not_listed: usize,
+) -> QVariant {
     let ticked = |state: &str| {
         lines
             .iter()
@@ -113,6 +118,8 @@ pub(crate) fn preview_object(file_name: &str, lines: &[PreviewLine], gone: &[Str
         ("noLongerInFile", list(gone.iter().map(|name| text(name)))),
         ("added", count(ticked("new") + ticked("deleted-earlier"))),
         ("replaced", count(ticked("kept-yours"))),
+        // Reports of the file that aren't in the list at all (B-290).
+        ("notListed", count(not_listed)),
     ])
 }
 
@@ -134,6 +141,7 @@ impl qobject::KmyReportsImport {
                     &opened.file_name,
                     &opened.lines(&app_locale()),
                     &opened.plan.no_longer_in_file,
+                    opened.not_listed,
                 )
             });
         self.as_mut().rust_mut().preview = preview;
@@ -245,10 +253,11 @@ mod tests {
             line("Rockets", "kept-yours", true, false),
             line("Report 3", "already-here", false, false),
         ];
-        let preview = preview_object("colony.kmy", &lines, &["Old view".to_owned()]);
+        let preview = preview_object("colony.kmy", &lines, &["Old view".to_owned()], 3);
         assert_eq!(string(&preview, "fileName"), "colony.kmy");
         assert_eq!(get(&preview, "added").value::<i32>(), Some(1));
         assert_eq!(get(&preview, "replaced").value::<i32>(), Some(0));
+        assert_eq!(get(&preview, "notListed").value::<i32>(), Some(3));
         let gone: Vec<String> = items(&preview, "noLongerInFile")
             .iter()
             .map(|name| name.value::<QString>().expect("text").to_string())

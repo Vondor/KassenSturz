@@ -29,7 +29,7 @@ use rusqlite::{Connection, OpenFlags};
 
 use crate::lock::{self, lock_path};
 use crate::reader::BUSY_WAIT;
-use crate::{Book, Computer, StoreError, is_book_file};
+use crate::{Book, Computer, Corruption, StoreError, is_book_file};
 
 /// How many "before moving" backups of each book are kept, apart from the
 /// ten automatic ones (D-731).
@@ -465,6 +465,12 @@ impl Book {
             let cause = MoveCause::Store(StoreError::Io(ErrorKind::ResourceBusy));
             return Err(fail(self, MoveStep::Lock, cause, None));
         }
+        // A book without file locks whose lock file was taken away must not
+        // be moved, and its old file not removed, while another program may
+        // write to it (D-776).
+        if let Err(error) = self.check_lock_is_ours() {
+            return Err(fail(self, MoveStep::Lock, MoveCause::Store(error), None));
+        }
         let mut note = MoveNote {
             from: plan.from.clone(),
             to: plan.to.clone(),
@@ -717,14 +723,26 @@ pub fn remove_left_book(path: &Path, computer: &Computer) -> Result<(), StoreErr
         return Err(StoreError::NotABook);
     }
     for leftover in ["-journal", "-wal", "-shm"] {
-        if exists(&with_suffix(path, leftover)) {
-            // A journal means the book may need it to be whole; it stays.
+        let there = with_suffix(path, leftover);
+        // A journal means the book may need it to be whole; it stays. One
+        // with a zero header (a program killed before it was synced) leaves
+        // the book whole and doesn't count, as for readers (D-776).
+        let needed = if leftover == "-journal" {
+            crate::lockless::journal_is_hot(&there)
+        } else {
+            exists(&there)
+        };
+        if needed {
             return Err(StoreError::Io(ErrorKind::ResourceBusy));
         }
     }
     let lock_file = lock_path(path);
     if let Some(found) = lock::read(&lock_file)?
-        && (lock::held_here(&found) || found.computer.as_deref() != Some(computer.name.as_str()))
+        && (lock::held_here(&found)
+            || found.computer.as_deref() != Some(computer.name.as_str())
+            // A program of this computer that may still run, in another
+            // process-number space, is not "left behind" (D-776).
+            || found.stays_locked_here(path, &computer.name))
     {
         return Err(StoreError::Locked(found));
     }
@@ -737,11 +755,12 @@ pub fn remove_left_book(path: &Path, computer: &Computer) -> Result<(), StoreErr
 }
 
 /// The stamp of `name` if it is the name of a "before moving" backup of the
-/// book `stem` (`<stem> <stamp> before moving.ksz`, or `… before moving
-/// 2.ksz` and so on), for the list of backups (#806). The ten automatic
+/// book with the tag `tag` (`<name> [<tag>] <stamp> vor dem Verschieben.ksz`,
+/// or `… vor dem Verschieben 2.ksz` and so on), for the list of backups
+/// (#806, D-806). The ten automatic
 /// backups' names never match, nor theirs this one.
-pub fn move_backup_stamp<'a>(name: &'a str, stem: &str) -> Option<&'a str> {
-    move_backup_name(name, stem).map(|(stamp, _)| stamp)
+pub fn move_backup_stamp<'a>(name: &'a str, tag: &str) -> Option<&'a str> {
+    move_backup_name(name, tag).map(|(stamp, _)| stamp)
 }
 
 /// The "before moving" backups of the book at `book` in `folder`, newest
@@ -754,13 +773,39 @@ pub fn move_backup_stamp<'a>(name: &'a str, stem: &str) -> Option<&'a str> {
 ///
 /// [`StoreError::Io`] if the folder can't be read, with
 /// [`ErrorKind::NotFound`] if it isn't there.
-pub fn move_backups_of(book: &Path, folder: &Path) -> Result<Vec<crate::BackupFile>, StoreError> {
+pub fn move_backups_of(
+    id: &crate::BookId,
+    folder: &Path,
+) -> Result<Vec<crate::BackupFile>, StoreError> {
+    let tag = id.tag();
+    listed_move_backups(folder, |name| move_backup_name(name, &tag))
+}
+
+/// The "before moving" backups from before books had an identity, of a book
+/// called like the one at `book`, newest first, for the older backups in
+/// the list to restore from (D-806): whose they are can't be told.
+///
+/// # Errors
+///
+/// [`StoreError::Io`] if the folder can't be read, with
+/// [`ErrorKind::NotFound`] if it isn't there.
+pub fn older_move_backups_of(
+    book: &Path,
+    folder: &Path,
+) -> Result<Vec<crate::BackupFile>, StoreError> {
     let stem = crate::backup::stem_of(book)?;
+    listed_move_backups(folder, |name| older_move_backup_name(name, stem))
+}
+
+fn listed_move_backups(
+    folder: &Path,
+    parse: impl Fn(&str) -> Option<(&str, u32)>,
+) -> Result<Vec<crate::BackupFile>, StoreError> {
     let mut found: Vec<(Timestamp, u32, PathBuf)> = fs::read_dir(folder)?
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
-            let (stamp, number) = move_backup_name(&name, stem)?;
+            let (stamp, number) = parse(&name)?;
             let made = crate::backup::stamp_time(stamp)?;
             // A folder or a link with a backup's name isn't one.
             let is_file = entry.file_type().ok()?.is_file();
@@ -776,11 +821,19 @@ pub fn move_backups_of(book: &Path, folder: &Path) -> Result<Vec<crate::BackupFi
 
 /// The stamp and number of a "before moving" backup's name; the number is 1
 /// if the name has none.
-fn move_backup_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
-    let rest = name
-        .strip_prefix(stem)?
-        .strip_prefix(' ')?
-        .strip_suffix(EXTENSION)?;
+fn move_backup_name<'a>(name: &'a str, tag: &str) -> Option<(&'a str, u32)> {
+    move_backup_rest(crate::backup::after_tag(name, tag)?)
+}
+
+/// Like [`move_backup_name`] for a backup from before books had an
+/// identity, of the book called `stem`.
+fn older_move_backup_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
+    move_backup_rest(crate::backup::after_stem(name, stem)?)
+}
+
+/// The stamp and number in what follows a "before moving" backup's label.
+fn move_backup_rest(rest: &str) -> Option<(&str, u32)> {
+    let rest = rest.strip_suffix(EXTENSION)?;
     let stamp = rest.get(..STAMP_PATTERN.len())?;
     let is_stamp = stamp
         .bytes()
@@ -810,21 +863,20 @@ fn move_backup_name<'a>(name: &'a str, stem: &str) -> Option<(&'a str, u32)> {
 }
 
 /// Step 1: copies the book `reader` reads, which is at `book`, into
-/// `folder` as `<stem> <stamp> before moving.ksz`, then removes that book's
+/// `folder` as `<name> [<tag>] <stamp> vor dem Verschieben.ksz`, then removes that book's
 /// oldest "before moving" backups beyond the last [`KEEP_MOVE_BACKUPS`].
 fn back_up_before_moving(
     reader: &Connection,
     book: &Path,
     folder: &Path,
 ) -> Result<PathBuf, StoreError> {
-    let stem = book
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
+    // The book is open here, so it has its identity (D-806).
+    let id = crate::BookId::try_read(reader).ok_or(StoreError::NotABook)?;
+    let label = crate::backup::label_of(book, Some(&id))?;
     let folder = std::path::absolute(folder)?;
     fs::create_dir_all(&folder)?;
     let stamp = Timestamp::now().strftime(STAMP_FORMAT).to_string();
-    let (path, partial) = claim_backup(&folder, stem, &stamp)?;
+    let (path, partial) = claim_backup(&folder, &label, &stamp)?;
     let made = copy_into(reader, &partial).and_then(|()| {
         // Never over another file, should one have appeared.
         if exists(&path) {
@@ -836,18 +888,18 @@ fn back_up_before_moving(
         let _ = fs::remove_file(&partial);
         return Err(error);
     }
-    prune_move_backups(&folder, stem, &path);
+    prune_move_backups(&folder, &id.tag(), &path);
     Ok(path)
 }
 
 /// The first free name for a "before moving" backup, with the name the copy
 /// is written under first, claimed by creating an empty file.
-fn claim_backup(folder: &Path, stem: &str, stamp: &str) -> Result<(PathBuf, PathBuf), StoreError> {
+fn claim_backup(folder: &Path, label: &str, stamp: &str) -> Result<(PathBuf, PathBuf), StoreError> {
     for number in 1..=MAX_PER_SECOND {
         let name = if number == 1 {
-            format!("{stem} {stamp}{BEFORE_MOVING}{EXTENSION}")
+            format!("{label} {stamp}{BEFORE_MOVING}{EXTENSION}")
         } else {
-            format!("{stem} {stamp}{BEFORE_MOVING} {number}{EXTENSION}")
+            format!("{label} {stamp}{BEFORE_MOVING} {number}{EXTENSION}")
         };
         let path = folder.join(name);
         if exists(&path) {
@@ -867,11 +919,11 @@ fn claim_backup(folder: &Path, stem: &str, stamp: &str) -> Result<(PathBuf, Path
     Err(StoreError::Io(ErrorKind::AlreadyExists))
 }
 
-/// Removes the oldest "before moving" backups of the book `stem` until the
+/// Removes the oldest "before moving" backups of the book with the tag `tag` until the
 /// last [`KEEP_MOVE_BACKUPS`] are left, `just_made` always among them. Other
 /// files, the automatic backups among them, are left alone. Errors are
 /// ignored: a backup too many does no harm.
-fn prune_move_backups(folder: &Path, stem: &str, just_made: &Path) {
+fn prune_move_backups(folder: &Path, tag: &str, just_made: &Path) {
     let Ok(entries) = fs::read_dir(folder) else {
         return;
     };
@@ -879,7 +931,7 @@ fn prune_move_backups(folder: &Path, stem: &str, just_made: &Path) {
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let name = entry.file_name().into_string().ok()?;
-            let (stamp, number) = move_backup_name(&name, stem)?;
+            let (stamp, number) = move_backup_name(&name, tag)?;
             Some((stamp.to_owned(), number, entry.path()))
         })
         .filter(|(_, _, path)| path != just_made)
@@ -892,25 +944,24 @@ fn prune_move_backups(folder: &Path, stem: &str, just_made: &Path) {
 }
 
 /// A read-only connection to the book at `path`, beside the app's own.
-fn open_reader(path: &Path) -> Result<Connection, MoveCause> {
-    let conn = Connection::open_with_flags(
+fn open_reader(path: &Path) -> Result<crate::lockless::ReadOnly, MoveCause> {
+    // Where the folder refuses file locks this reads a private copy
+    // (Q-570, D-776).
+    let read = crate::lockless::open_read_only(
         path,
         OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
     )?;
-    conn.busy_timeout(BUSY_WAIT)?;
-    Ok(conn)
+    read.busy_timeout(BUSY_WAIT)?;
+    Ok(read)
 }
 
 /// Copies the database `reader` has open into `to`, the empty file claimed
 /// for it, and makes sure the copy is on the disk.
 fn copy_into(reader: &Connection, to: &Path) -> Result<(), StoreError> {
-    let name = to
-        .to_str()
-        .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
     // VACUUM INTO writes into an empty file, and reads the book in one read
     // transaction, so the copy is one state of it
     // (sqlite.org/lang_vacuum.html).
-    reader.execute("VACUUM INTO ?1", [name])?;
+    crate::backup::vacuum_into(reader, to)?;
     // Windows syncs only files opened for writing.
     OpenOptions::new().write(true).open(to)?.sync_all()?;
     Ok(())
@@ -943,7 +994,15 @@ fn check_copy(reader: &Connection, book: &Book, copy: &Path) -> Result<(), MoveC
     }
     // The balances, computed by KassenSturz's own code from each file
     // (AGENTS.md §2.1).
-    let copy_book = Book::open_to_read(copy)?;
+    let copy_book = match Book::open_to_read(copy) {
+        Ok(book) => book,
+        // A copy that doesn't pass the checks of every open (B-291) is
+        // damaged, however it got that way.
+        Err(StoreError::Corrupt(Corruption::DamagedFile | Corruption::UnbalancedTransaction)) => {
+            return differs(Difference::Damaged);
+        }
+        Err(error) => return Err(error.into()),
+    };
     let accounts = book.all_accounts()?;
     if copy_book.all_accounts()? != accounts {
         return differs(Difference::Accounts);

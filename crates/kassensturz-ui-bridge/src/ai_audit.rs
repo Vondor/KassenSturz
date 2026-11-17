@@ -125,13 +125,16 @@ mod tests {
     #[cfg(feature = "ai")]
     #[test]
     fn the_consent_dialog_has_a_sentence_for_every_word_of_the_statement() {
-        let page = qml("AiSettingsPage.qml");
+        // The dialog and the chat show the same statement (B-314).
+        let page = qml("AiConsentStatement.qml");
         for word in crate::ai_settings::statement_words() {
             assert!(
                 page.contains(&format!("case \"{word}\":")),
-                "AiSettingsPage.qml has no sentence for \"{word}\""
+                "AiConsentStatement.qml has no sentence for \"{word}\""
             );
         }
+        assert!(qml("AiSettingsPage.qml").contains("AiConsentStatement {"));
+        assert!(qml("AiErrorMessage.qml").contains("sourceComponent: AiConsentStatement {"));
     }
 
     /// Every `ai.`, `ai-chat.` and `ai-changes.` code has its message, in
@@ -228,8 +231,16 @@ mod tests {
         assert!(main.contains("root.attachChat(true)"));
         let closing = &main[main.find("onClosing: {").expect("closing")..];
         let closing = &closing[..closing.find("const maximized").unwrap()];
-        assert!(closing.contains("chatWindow.hide()"), "{closing}");
-        assert!(main.contains("chatPanel.parent = chatWindowHolder"));
+        assert!(
+            closing.contains("chatWindowLoader.item.hide()"),
+            "{closing}"
+        );
+        assert!(main.contains("chatPanel.parent = chatWindowLoader.item.holder"));
+        // B-286: with AI off the window isn't even created, as it would show
+        // in the accessibility tree.
+        let loader = &main[main.find("id: chatWindowLoader").expect("loader")..];
+        let loader = &loader[..loader.find("sourceComponent").unwrap()];
+        assert!(loader.contains("active: aiSwitch.enabled && root.chatDetached"));
         assert!(main.contains("chatPanel.parent = chatHolder"));
     }
 

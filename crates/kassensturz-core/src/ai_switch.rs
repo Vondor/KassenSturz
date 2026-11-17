@@ -34,6 +34,24 @@ pub const WRITE_TOOLS_KEY: &str = "McpWriteTools";
 /// it.
 pub const BILL_FOLDER_KEY: &str = "BillFolder";
 
+/// The key in [`GROUP`] of the receipt inbox (US7, #333, D-752): the
+/// folder the user drops new bills into. Kept per computer, as the
+/// system's folder chooser returned it.
+pub const INBOX_FOLDER_KEY: &str = "InboxFolder";
+
+/// The key in [`GROUP`] of the archive the receipt inbox files bills into
+/// (US7, #333, D-752), per computer like the inbox.
+pub const ARCHIVE_FOLDER_KEY: &str = "ArchiveFolder";
+
+/// The key in [`GROUP`] of the user's own "Notes for the AI" (US7, #808):
+/// free text the user wrote, kept per computer and never in a book.
+pub const NOTES_KEY: &str = "Notes";
+
+/// How many characters the notes may have. The notes go into every chat
+/// request, so a limit keeps them from using up a small model's context
+/// (D-052); about a page of text.
+pub const MAX_NOTES_CHARS: usize = 2000;
+
 /// One row of the permission grid in the AI settings (D-252).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Row {
@@ -135,11 +153,31 @@ pub enum Permission {
     /// the user chose. It reads the transactions, so it switches
     /// Transactions › Read on.
     AttachBills,
+    /// Move a bill from the receipt inbox into the archive and link it to
+    /// a transaction (Transactions, File bills from the inbox; US7, #333,
+    /// D-752). Offered to the user's own AI tools only, over MCP, and only
+    /// while both folders are chosen. Its own cell, off by default, apart
+    /// from Attach bills, so a user who allowed links never gets moves by
+    /// accident (D-739). It reads the transactions, so it switches
+    /// Transactions › Read on.
+    FileBills,
+    /// Prepare new planned payments (Planned payments, Add; US7, B-357,
+    /// D-814). Its own cell, off by default: a plan is what the user
+    /// expects in the future, so a user who allowed sorting never allowed
+    /// the AI to plan. The amount is one the user named or one an entry
+    /// was booked with, never one the model worked out. It reads the
+    /// transactions, so it switches Transactions › Read on.
+    NewPlans,
+    /// Change the amount, how often, the end, the name, the category or
+    /// the pause of planned payments (Planned payments, Change; US7,
+    /// B-357, D-814). It reads the transactions, so it switches
+    /// Transactions › Read on.
+    EditPlans,
 }
 
 impl Permission {
     /// Every permission, in the order the settings page shows them.
-    pub const ALL: [Self; 27] = [
+    pub const ALL: [Self; 30] = [
         Self::CategoriesRead,
         Self::NewCategories,
         Self::EditCategories,
@@ -167,6 +205,9 @@ impl Permission {
         Self::TagTransactions,
         Self::SplitTransactions,
         Self::AttachBills,
+        Self::FileBills,
+        Self::NewPlans,
+        Self::EditPlans,
     ];
 
     /// The key of this permission in [`GROUP`].
@@ -199,6 +240,9 @@ impl Permission {
             Self::TagTransactions => "AllowTagTransactions",
             Self::SplitTransactions => "AllowSplitTransactions",
             Self::AttachBills => "AllowAttachBills",
+            Self::FileBills => "AllowFileBills",
+            Self::NewPlans => "AllowNewPlans",
+            Self::EditPlans => "AllowEditPlans",
         }
     }
 
@@ -218,7 +262,10 @@ impl Permission {
             | Self::JoinTransfers
             | Self::TagTransactions
             | Self::SplitTransactions
-            | Self::AttachBills => Row::Transactions,
+            | Self::AttachBills
+            | Self::FileBills
+            | Self::NewPlans
+            | Self::EditPlans => Row::Transactions,
             Self::ChartsRead
             | Self::NewViews
             | Self::EditViews
@@ -263,6 +310,9 @@ impl Permission {
                 | Self::TagTransactions
                 | Self::SplitTransactions
                 | Self::AttachBills
+                | Self::FileBills
+                | Self::NewPlans
+                | Self::EditPlans
         )
     }
 
@@ -523,10 +573,27 @@ pub fn permissions_in(text: &str) -> Permissions {
 /// `\r`) are read back; any other escape leaves the folder unset, so a
 /// damaged file never names another folder.
 pub fn bill_folder_in(text: &str) -> Option<PathBuf> {
+    folder_in(text, BILL_FOLDER_KEY)
+}
+
+/// The receipt inbox of the settings file's `text` (US7, #333), read as
+/// [`bill_folder_in`] reads the bill folder.
+pub fn inbox_folder_in(text: &str) -> Option<PathBuf> {
+    folder_in(text, INBOX_FOLDER_KEY)
+}
+
+/// The archive of the receipt inbox in the settings file's `text` (US7,
+/// #333), read as [`bill_folder_in`] reads the bill folder.
+pub fn archive_folder_in(text: &str) -> Option<PathBuf> {
+    folder_in(text, ARCHIVE_FOLDER_KEY)
+}
+
+/// The folder under `key` of [`GROUP`], as [`bill_folder_in`] describes.
+fn folder_in(text: &str, key: &str) -> Option<PathBuf> {
     if !enabled_in(text) {
         return None;
     }
-    let raw = value_in(text, GROUP, BILL_FOLDER_KEY)?;
+    let raw = value_in(text, GROUP, key)?;
     let mut path = String::with_capacity(raw.len());
     let mut chars = raw.chars();
     while let Some(c) = chars.next() {
@@ -547,11 +614,66 @@ pub fn bill_folder_in(text: &str) -> Option<PathBuf> {
     path.is_absolute().then_some(path)
 }
 
+/// The user's "Notes for the AI" in the settings file's `text` (US7, #808):
+/// empty while AI is off or when there are none. KConfig's escapes of a
+/// written text (`\\`, `\s`, `\t`, `\n`, `\r`) are read back; an entry with
+/// any other escape counts as no notes, so a damaged file never sends
+/// something the user did not write. Control characters other than line
+/// breaks are dropped, and the text is cut at [`MAX_NOTES_CHARS`].
+pub fn notes_in(text: &str) -> String {
+    if !enabled_in(text) {
+        return String::new();
+    }
+    let Some(raw) = value_in(text, GROUP, NOTES_KEY) else {
+        return String::new();
+    };
+    let mut notes = String::with_capacity(raw.len());
+    let mut chars = raw.chars();
+    while let Some(c) = chars.next() {
+        let c = if c == '\\' {
+            match chars.next() {
+                Some('\\') => '\\',
+                Some('s') => ' ',
+                Some('t') => '\t',
+                Some('n') => '\n',
+                Some('r') => '\r',
+                _ => return String::new(),
+            }
+        } else {
+            c
+        };
+        if c == '\n' || c == '\t' || !c.is_control() {
+            notes.push(c);
+        }
+    }
+    notes
+        .chars()
+        .take(MAX_NOTES_CHARS)
+        .collect::<String>()
+        .trim()
+        .to_owned()
+}
+
+/// The user's notes in this user's settings, empty when there are none or
+/// AI is off.
+pub fn notes() -> String {
+    settings_file()
+        .and_then(|path| std::fs::read_to_string(path).ok())
+        .map_or_else(String::new, |text| notes_in(&text))
+}
+
 /// The bill folder in this user's settings, if one is chosen and AI is on.
 pub fn bill_folder() -> Option<PathBuf> {
     settings_file()
         .and_then(|path| std::fs::read_to_string(path).ok())
         .and_then(|text| bill_folder_in(&text))
+}
+
+/// The receipt inbox and its archive in this user's settings (US7, #333):
+/// `None` unless AI is on and both are chosen.
+pub fn inbox_folders() -> Option<(PathBuf, PathBuf)> {
+    let text = settings_file().and_then(|path| std::fs::read_to_string(path).ok())?;
+    Some((inbox_folder_in(&text)?, archive_folder_in(&text)?))
 }
 
 /// The value of `key` in `group` of the settings file's `text`, with the
@@ -581,18 +703,36 @@ pub fn enabled_at(path: &Path) -> bool {
     std::fs::read_to_string(path).is_ok_and(|text| enabled_in(&text))
 }
 
-/// Where KConfig keeps the app's settings file, where this build knows it.
-/// `None` elsewhere, which counts as off until the Windows and macOS
-/// packaging steps (M7) say where their settings go.
+/// Where KConfig keeps the app's settings file, where this build knows it:
+/// on Linux in `$XDG_CONFIG_HOME` or `~/.config`, and on Windows in
+/// `%LOCALAPPDATA%`, Qt's `GenericConfigLocation` there (B-322). `None`
+/// elsewhere, which counts as off until the macOS packaging says where its
+/// settings go.
 pub fn settings_file() -> Option<PathBuf> {
-    if cfg!(not(target_os = "linux")) {
-        return None;
-    }
-    let folder = match std::env::var_os("XDG_CONFIG_HOME") {
-        Some(folder) if !folder.is_empty() => PathBuf::from(folder),
-        _ => {
-            PathBuf::from(std::env::var_os("HOME").filter(|home| !home.is_empty())?).join(".config")
-        }
+    settings_file_for(std::env::consts::OS, |name| {
+        std::env::var_os(name).filter(|value| !value.is_empty())
+    })
+}
+
+/// [`settings_file`] on the system `os` (as `std::env::consts::OS` names
+/// it), with the environment read through `var`.
+///
+/// On Windows `XDG_CONFIG_HOME` comes first: Qt there doesn't read it, but
+/// the app's test profile sets it to the folder of the settings file it
+/// keeps for itself, so the switch reads that file in the test profile
+/// too (Q-399). Without it, `%LOCALAPPDATA%` is where KConfig writes.
+fn settings_file_for(
+    os: &str,
+    var: impl Fn(&str) -> Option<std::ffi::OsString>,
+) -> Option<PathBuf> {
+    let folder = match os {
+        "linux" => var("XDG_CONFIG_HOME")
+            .map(PathBuf::from)
+            .or_else(|| var("HOME").map(|home| PathBuf::from(home).join(".config")))?,
+        "windows" => var("XDG_CONFIG_HOME")
+            .or_else(|| var("LOCALAPPDATA"))
+            .map(PathBuf::from)?,
+        _ => return None,
     };
     Some(folder.join(FILE))
 }
@@ -763,6 +903,85 @@ mod tests {
     }
 
     #[test]
+    fn the_inbox_and_its_archive_are_read_like_the_bill_folder_and_only_while_ai_is_on() {
+        // An absolute path starts with a drive on Windows.
+        let root = if cfg!(windows) { "C:" } else { "" };
+        let on = "[AI]\nEnabled=true\n";
+        let both = format!(
+            "{on}InboxFolder={root}/home/sam/In\\sbox\nArchiveFolder={root}/home/sam/Filed\n"
+        );
+        assert_eq!(
+            inbox_folder_in(&both),
+            Some(PathBuf::from(format!("{root}/home/sam/In box")))
+        );
+        assert_eq!(
+            archive_folder_in(&both),
+            Some(PathBuf::from(format!("{root}/home/sam/Filed")))
+        );
+        assert_eq!(inbox_folder_in(on), None);
+        assert_eq!(
+            archive_folder_in("[AI]\nEnabled=true\nArchiveFolder=relative\n"),
+            None
+        );
+        let off = both.replace("Enabled=true", "Enabled=false");
+        assert_eq!(inbox_folder_in(&off), None);
+        assert_eq!(archive_folder_in(&off), None);
+        assert!(!Permission::FileBills.on_by_default());
+        assert!(Permission::FileBills.needs_read());
+        assert_eq!(Permission::FileBills.row(), Row::Transactions);
+        assert_ne!(Permission::FileBills.key(), Permission::AttachBills.key());
+    }
+
+    #[test]
+    fn the_settings_file_is_where_kconfig_keeps_it_on_each_system() {
+        // B-322: on Windows the switch used to read nothing, so AI stayed
+        // off there whatever the toggle wrote, and the consent couldn't be
+        // saved.
+        let env = |pairs: &'static [(&'static str, &'static str)]| {
+            move |name: &str| {
+                pairs
+                    .iter()
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| std::ffi::OsString::from(value))
+            }
+        };
+        assert_eq!(
+            settings_file_for("linux", env(&[("HOME", "/home/sam")])),
+            Some(Path::new("/home/sam/.config").join(FILE))
+        );
+        assert_eq!(
+            settings_file_for(
+                "linux",
+                env(&[("HOME", "/home/sam"), ("XDG_CONFIG_HOME", "/elsewhere")])
+            ),
+            Some(Path::new("/elsewhere").join(FILE))
+        );
+        assert_eq!(
+            settings_file_for(
+                "windows",
+                env(&[("LOCALAPPDATA", r"C:\Users\Sam\AppData\Local")])
+            ),
+            Some(Path::new(r"C:\Users\Sam\AppData\Local").join(FILE))
+        );
+        // The test profile's own settings folder wins on Windows too.
+        assert_eq!(
+            settings_file_for(
+                "windows",
+                env(&[
+                    ("LOCALAPPDATA", r"C:\Users\Sam\AppData\Local"),
+                    ("XDG_CONFIG_HOME", r"C:\Test\config")
+                ])
+            ),
+            Some(Path::new(r"C:\Test\config").join(FILE))
+        );
+        assert_eq!(settings_file_for("windows", env(&[])), None);
+        assert_eq!(
+            settings_file_for("macos", env(&[("HOME", "/Users/sam")])),
+            None
+        );
+    }
+
+    #[test]
     fn a_missing_file_is_off() {
         assert!(!enabled_at(Path::new("/nonexistent/kassensturzrc")));
     }
@@ -796,5 +1015,31 @@ mod tests {
         assert_eq!(read(""), None);
         assert_eq!(read(&format!("{root}/a\\x2fb")), None);
         assert_eq!(read(&format!("{root}/a\\")), None);
+    }
+
+    #[test]
+    fn the_notes_are_read_back_as_kconfig_wrote_them_and_only_while_ai_is_on() {
+        let on = "[AI]\nEnabled=true\n";
+        let read = |value: &str| notes_in(&format!("{on}Notes={value}\n"));
+        assert_eq!(notes_in(on), "");
+        assert_eq!(read("Salary comes on the 28th"), "Salary comes on the 28th");
+        // KConfig writes a line break as \n and a backslash as two.
+        assert_eq!(
+            read("Salary on the 28th\\nCorner Market is groceries"),
+            "Salary on the 28th\nCorner Market is groceries"
+        );
+        assert_eq!(read("a\\\\b"), "a\\b");
+        assert_eq!(read("Ümlaut and 日本"), "Ümlaut and 日本");
+        // Off, empty, an escape KassenSturz doesn't know, or a lone backslash.
+        assert_eq!(notes_in("[AI]\nEnabled=false\nNotes=hello\n"), "");
+        assert_eq!(read(""), "");
+        assert_eq!(read("a\\x41"), "");
+        assert_eq!(read("a\\"), "");
+        // Control characters go, line breaks stay, the length is limited.
+        assert_eq!(read("a\u{7}b\\nc"), "ab\nc");
+        assert_eq!(
+            read(&"x".repeat(MAX_NOTES_CHARS + 50)).chars().count(),
+            MAX_NOTES_CHARS
+        );
     }
 }

@@ -87,6 +87,17 @@ pub fn fields(component: &Component, form: NumberForm) -> Vec<Field> {
                     Some(Setting::Columns(columns)) if !columns.is_empty()
                 ),
                 "formula" => component.kind() == ComponentType::KpiCard && !uses,
+                // The months of a trend (US7, D-777): the length for both
+                // trend datasets, the long average and the signal for MACD.
+                "trend_length" => !matches!(
+                    component.dataset().id,
+                    kassensturz_report::MOVING_AVERAGE | kassensturz_report::MACD
+                ),
+                "trend_slow" | "trend_signal" => component.dataset().id != kassensturz_report::MACD,
+                // The days of a daily balance's averages (D-794).
+                "ema_fast" | "ema_slow" | "ema_signal" => {
+                    component.dataset().id != kassensturz_report::DAILY_BALANCE
+                }
                 "target" => !has_formula,
                 // A chart made of columns shows their totals, so it has no
                 // comparison of the dataset's own rows either (US3.1a).
@@ -437,10 +448,15 @@ pub fn preview(component: &Component) -> Preview {
         ComponentType::CustomChart => ("chart", "bar"),
         // The balance of the chosen accounts as candles (US4.10).
         ComponentType::ChartCandlestick => ("chart", "candlestick"),
+        // The money flow has one picture and no kind of chart to choose (US7).
+        ComponentType::ChartFlow => ("chart", "flow"),
         // Its own list, drawn by the page from `BookTransactions` (D-716).
         ComponentType::Transactions => ("transactions", ""),
         // Filled by its own `BookAlarms` from its rules (D-721).
         ComponentType::Alarms => ("alarms", ""),
+        // Filled by `PlannedPayments` (US7, D-769, D-770).
+        ComponentType::ForecastMonth => ("forecast-month", ""),
+        ComponentType::ComingUp => ("coming-up", ""),
     };
     let compare = word(component, "compare");
     let measure = match component.kind() {

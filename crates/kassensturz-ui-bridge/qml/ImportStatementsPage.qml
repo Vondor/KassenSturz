@@ -33,8 +33,39 @@ Kirigami.ScrollablePage {
 
     function choose(index: int) {
         error.result = statementImport.chooseStatement(index);
+        if (error.result.working === true) {
+            pending = "choose";
+            return;
+        }
         if (error.result.code === undefined) {
             chosen();
+        }
+    }
+
+    function workDone(what: string) {
+        chosen();
+    }
+
+    // What waits for the preview or import that runs on its thread
+    // (B-362): "" when nothing does.
+    property string pending: ""
+
+    Connections {
+        target: page.statementImport
+
+        function onDone(result: var) {
+            const what = page.pending;
+            if (what === "") {
+                return;
+            }
+            page.pending = "";
+            if (result.cancelled === true) {
+                return;
+            }
+            error.result = result;
+            if (result.code === undefined) {
+                page.workDone(what);
+            }
         }
     }
 

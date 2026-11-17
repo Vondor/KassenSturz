@@ -144,6 +144,23 @@ ColumnLayout {
         }
     }
 
+    // The user took back the changes the AI prepared with Undo (B-354): the
+    // latest kept chart or made changes say so, instead of still saying they
+    // are saved.
+    function markUndone() {
+        for (let i = messages.count - 1; i >= 0; i--) {
+            const message = messages.get(i).message;
+            if (message.kind === "chart" && (message.outcome === "kept" || message.outcome === "added")) {
+                messages.set(i, { message: { kind: "chart", setId: message.setId, unverified: message.unverified, outcome: "undone" } });
+                return;
+            }
+            if (message.kind === "changesDone" && message.applied && message.undone !== true) {
+                messages.set(i, { message: { kind: "changesDone", applied: true, undone: true } });
+                return;
+            }
+        }
+    }
+
     // The review screen or the user's choice ended with a set.
     function markHandled(setId: string, applied: bool) {
         for (let i = 0; i < messages.count; i++) {
@@ -270,6 +287,9 @@ ColumnLayout {
             if (result.page !== undefined) {
                 panel.add({ kind: "page", page: result.page.name, hasId: result.page.id !== "" });
                 panel.openPageRequested(result.page.name, result.page.id);
+            }
+            if (result.noteSuggestion !== undefined) {
+                panel.add({ kind: "noteSuggestion", line: result.noteSuggestion.line });
             }
             if (result.issue !== undefined) {
                 panel.add({
@@ -530,7 +550,9 @@ ColumnLayout {
     Timer {
         interval: 1000
         repeat: true
-        running: panel.chat.busy
+        // A request waiting for the user's look is not the AI being slow
+        // (B-375).
+        running: panel.chat.busy && !review.waiting
         onRunningChanged: {
             panel.waitedSeconds = 0;
             panel.keepsWaiting = running && panel.settings.slowAnswer() === "warn";

@@ -67,19 +67,24 @@ impl Book {
         Ok(rows)
     }
 
-    /// Adds a payee. The name can't be empty, and no two payees share one,
-    /// ignoring capitals and spaces around it, so the user can tell them
+    /// Adds a payee. The name can't be empty, and no two payees share one
+    /// that looks the same ([`crate::name_key`]), so the user can tell them
     /// apart; key words, if the payee is recognized by them, can't be
     /// empty either.
     pub fn add_payee(&mut self, payee: &Payee) -> Result<(), StoreError> {
         if payee.name.trim().is_empty() {
             return Err(StoreError::EmptyName);
         }
-        let wanted = payee.name.trim().to_lowercase();
+        // A look-alike name (B-272), unless another program's book is filled.
+        if !self.filling {
+            crate::names::check_hidden_text(&payee.name, "payee")?;
+        }
+        // Names that look the same are the same name (B-272, D-782).
+        let wanted = crate::names::name_key(&payee.name);
         if let Some(existing) = self
             .payees()?
             .into_iter()
-            .find(|other| other.id != payee.id && other.name.trim().to_lowercase() == wanted)
+            .find(|other| other.id != payee.id && crate::names::name_key(&other.name) == wanted)
         {
             return Err(StoreError::DuplicatePayeeName {
                 existing: existing.name,
@@ -175,7 +180,7 @@ impl Book {
 
     /// Adds a tag. The name can't be empty, longer than
     /// [`kassensturz_core::MAX_TAG_NAME_CHARS`] or on more than one line,
-    /// and no two tags share one, ignoring capitals and spaces around it; it
+    /// and no two tags share one that looks the same ([`crate::name_key`]); it
     /// is kept without those spaces. A book keeps at most
     /// [`kassensturz_core::MAX_TAGS_IN_BOOK`] tags (D-712).
     pub fn add_tag(&mut self, tag: &Tag) -> Result<(), StoreError> {

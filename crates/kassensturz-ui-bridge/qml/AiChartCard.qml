@@ -43,7 +43,7 @@ Kirigami.AbstractCard {
     signal handled(string outcome)
 
     // What the user did: empty while the chart waits, then `kept`, `added`,
-    // `builder`, `left` or `outOfDate`. A card made again for a chart that
+    // `builder`, `left`, `undone` or `outOfDate`. A card made again for a chart that
     // was dealt with starts with it and loads nothing.
     property string outcome: ""
     // The refusal of the book when keeping failed, as `FormError` shows it.
@@ -165,7 +165,7 @@ Kirigami.AbstractCard {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Warning
             visible: card.chart !== null && card.unverified.length > 0
-            text: visible ? Plain.plain(card.i18nContext.i18nc("@info %1 is a list of numbers", "Don't rely on the numbers in this title: they don't come from your book, so the AI may have made them up: %1", card.unverified.join(", "))) : ""
+            text: visible ? Plain.plain(card.i18nContext.i18nc("@info %1 is a list of numbers", "Check the numbers in this title before you keep it: the AI wrote them as text, so they are never worked out from your book, may be made up, and go along with any dashboard file you share: %1", card.unverified.join(", "))) : ""
         }
 
         Controls.Label {
@@ -244,12 +244,14 @@ Kirigami.AbstractCard {
 
         Controls.Label {
             Layout.fillWidth: true
-            visible: card.outcome === "kept" || card.outcome === "added" || card.outcome === "builder" || card.outcome === "left"
+            visible: card.outcome === "kept" || card.outcome === "added" || card.outcome === "undone" || card.outcome === "builder" || card.outcome === "left"
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
             textFormat: Text.PlainText
             text: card.outcome === "kept"
                 ? card.i18nContext.i18nc("@info", "Kept. The chart is saved in the Statistic Builder. You can take it back with Undo.")
+                : card.outcome === "undone"
+                    ? card.i18nContext.i18nc("@info", "Kept, then taken back with Undo. The chart is no longer saved.")
                 : card.outcome === "added"
                     ? card.i18nContext.i18nc("@info", "Kept and added to the Overview. You can take it back with Undo.")
                 : card.outcome === "builder"

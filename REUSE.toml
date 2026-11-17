@@ -61,7 +61,7 @@ SPDX-License-Identifier = "LicenseRef-SerpentSoftware-Logo"
 # Cargo's lock file, and the crate list for offline Flatpak builds that
 # flatpak-cargo-generator makes from it.
 [[annotations]]
-path = ["Cargo.lock", "packaging/flatpak/cargo-sources.json"]
+path = ["Cargo.lock", "fuzz/Cargo.lock", "packaging/flatpak/cargo-sources.json"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
@@ -78,6 +78,13 @@ SPDX-License-Identifier = "GPL-3.0-or-later"
 # a header of their own (AGENTS.md §9, D-091).
 [[annotations]]
 path = ["crates/kassensturz-import/tests/golden/**"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"
+
+# The made-up households that two earlier builds wrote, as SQL text, for the
+# upgrade test (D-787).
+[[annotations]]
+path = ["crates/kassensturz-store/tests/fixtures/**"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
@@ -113,9 +120,9 @@ path = [
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
 
-# Craft's list of files left out of the Windows packages (M7a.7): a small
-# configuration file.
+# Craft's list of files left out of the Windows packages (M7a.7) and the list
+# of programs the package may hold (B-292): small configuration files.
 [[annotations]]
-path = ["packaging/windows/craft/**/blacklist.txt"]
+path = ["packaging/windows/craft/**/blacklist.txt", "packaging/windows/allowed-executables.txt"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"

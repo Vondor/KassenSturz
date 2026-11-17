@@ -103,7 +103,7 @@ pub(crate) fn decode(
 }
 
 /// `input` read in a single-byte encoding.
-fn single_byte(input: &[u8], encoding: TextEncoding) -> Result<String, ImportError> {
+pub(crate) fn single_byte(input: &[u8], encoding: TextEncoding) -> Result<String, ImportError> {
     let mut text = String::with_capacity(input.len());
     for (at, &byte) in input.iter().enumerate() {
         let char = match (encoding, byte) {
@@ -200,23 +200,29 @@ pub(super) struct Rows<'a> {
     position: usize,
     line: u64,
     delimiter: char,
+    /// The most bytes one field may have (B-360).
+    max_field_bytes: usize,
 }
 
 impl<'a> Rows<'a> {
-    /// The rows of `text`, whose first line is `first_line` of the file.
-    pub fn new(text: &'a str, delimiter: char, first_line: u64) -> Self {
+    /// The rows of `text`, whose first line is `first_line` of the file,
+    /// none of whose fields may be longer than `max_field_bytes`.
+    pub fn new(text: &'a str, delimiter: char, first_line: u64, max_field_bytes: usize) -> Self {
         Self {
             text,
             position: 0,
             line: first_line,
             delimiter,
+            max_field_bytes,
         }
     }
 
     /// The next row, or `None` at the end of the text. A quote that is
     /// never closed, or text after a closing quote, fails with
     /// `import.malformed` and the row's line, as does a row with more than
-    /// [`MAX_COLUMNS`] fields.
+    /// [`MAX_COLUMNS`] fields. A field longer than the most bytes one may
+    /// have fails with `import.text-too-long` and the row's line, whether or
+    /// not a column of it is read, so no screen ever holds it (B-360).
     pub fn next_row(&mut self) -> Option<Result<Row<'a>, ImportError>> {
         if self.position >= self.text.len() {
             return None;
@@ -239,6 +245,13 @@ impl<'a> Rows<'a> {
             } else {
                 self.unquoted()
             };
+            if field.len() > self.max_field_bytes {
+                self.position = self.text.len();
+                return Some(Err(ImportError::TextTooLong {
+                    max_bytes: self.max_field_bytes,
+                    line: Some(line),
+                }));
+            }
             fields.push(field);
             let rest = self.rest();
             if rest.starts_with(self.delimiter) {

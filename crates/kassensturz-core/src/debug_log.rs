@@ -142,6 +142,10 @@ events! {
     ConsentGiven = "ai.consent-given",
     /// The user took that agreement back.
     ConsentTakenBack = "ai.consent-taken-back",
+    /// The agreement counts only until KassenSturz closes: its seal
+    /// couldn't be saved; the code says why, `ai.keychain` or
+    /// `ai.keepassxc`, and none when secrets are saved nowhere (B-324).
+    ConsentUntilClose = "ai.consent-until-close",
     /// The provider listed its models.
     ModelsListed = "ai.models-listed",
     /// The provider's models couldn't be listed; the code says why.
@@ -192,6 +196,9 @@ events! {
     /// the import (M6d.6a, Q-319 = A); the detail is KMyMoney's word for
     /// the period, [`Entry::days`] the import day and the two days.
     ImportPeriodFixed = "import.period-fixed",
+    /// A statement file wasn't imported; the code says why, e.g.
+    /// `import.too-many-entries` (B-364).
+    ImportRefused = "import.refused",
 }
 
 impl Event {

@@ -28,6 +28,11 @@ ColumnLayout {
     // Whether the message offers to add `/v1` to the address, for the
     // settings page.
     property bool offerV1: false
+    // The AI settings, for the chat: when a question was held back because
+    // the user hasn't agreed yet, what would be sent is shown right under
+    // the message (B-314). Null on the settings page, which has the consent
+    // dialog.
+    property var settings: null
 
     // The user wants the AI settings.
     signal settingsClicked()
@@ -55,6 +60,9 @@ ColumnLayout {
         case "ai.plain-http":
             return i18nContext.i18nc("@info", "This address is on another computer and starts with http://, which isn't encrypted, so KassenSturz won't send anything to it. Use the provider's https:// address. If the provider offers only http:// and runs in a network you trust, you can tick “Allow unencrypted connections” under the address in the AI settings.");
         case "ai.no-consent":
+            if (settings !== null) {
+                return i18nContext.i18nc("@info in the chat, above the list of what would be sent", "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Below is what would be sent; to agree, open the AI settings. Or use a provider on this computer.");
+            }
             return i18nContext.i18nc("@info", "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Read what is sent and agree below, or use a provider on this computer.");
         case "ai.settings-changed":
             return i18nContext.i18nc("@info", "The provider's settings changed after this request was prepared, so it wasn't sent. Look at the request again and send it.");
@@ -114,6 +122,8 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "These changes hold a kind of change that you have turned off in the AI settings since the AI prepared them. Nothing was changed. Turn it on again under “What the AI may do”, or ask the AI to prepare the changes again.");
         case "ai-changes.not-applied":
             return i18nContext.i18nc("@info", "Your book refused one of the changes, for example because a category of that name was added in the meantime. Nothing was changed. Ask the AI to prepare them again.");
+        case "ai-changes.amount-too-large":
+            return i18nContext.i18nc("@info", "An amount in these changes is too large: your book would hold more than KassenSturz can work with. Nothing was changed. Ask the AI to prepare them again with a smaller amount.");
         case "ai-changes.not-editable":
             return i18nContext.i18nc("@info", "This change can't be changed that way, so your change wasn't kept. Leave the change out, or take the AI's version.");
         case "ai-changes.edit-text":
@@ -158,5 +168,19 @@ ColumnLayout {
         // An InlineMessage shows markup as markup: nothing from a provider
         // may look like it (D-143).
         text: visible ? Plain.plain(message.messageFor(message.result)) : ""
+    }
+
+    // What would be sent, in the words of the consent dialog (B-314).
+    Loader {
+        Layout.fillWidth: true
+        Layout.leftMargin: Kirigami.Units.largeSpacing
+        Layout.rightMargin: Kirigami.Units.largeSpacing
+        active: message.settings !== null && message.result.code === "ai.no-consent"
+        visible: active
+
+        sourceComponent: AiConsentStatement {
+            ai: message.ai
+            settings: message.settings
+        }
     }
 }

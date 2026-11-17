@@ -265,8 +265,24 @@ fn a_transaction_keeps_its_notes_numbers_status_and_tags() {
         .with_attachments(shopping.attachments()[1..].to_vec());
     book.update_transaction(&changed).expect("changed");
     assert_eq!(book.transaction(shopping.id()).expect("read"), changed);
+    // The receipt inbox (US7, #333) asks which transactions link a file,
+    // and which links the book keeps at all.
+    let receipt = "receipts/2026-10-05-grocery.pdf";
+    assert!(book.transactions_linking(receipt).expect("read").is_empty());
+    assert_eq!(
+        book.attachment_links()
+            .expect("read")
+            .into_iter()
+            .collect::<Vec<_>>(),
+        ["https://example.com/order/4711"]
+    );
     book.undo().expect("undone");
     assert_eq!(book.transaction(shopping.id()).expect("read"), shopping);
+    assert_eq!(
+        book.transactions_linking(receipt).expect("read"),
+        [shopping.id()]
+    );
+    assert_eq!(book.attachment_links().expect("read").len(), 2);
 
     // An unknown tag, or a tag twice, is refused.
     let stray = Transaction::new(
@@ -286,4 +302,43 @@ fn a_transaction_keeps_its_notes_numbers_status_and_tags() {
         book.add_transaction(&stray),
         Err(StoreError::UnknownTag(_))
     ));
+}
+
+/// B-272, round 8: a payee typed in can't look like another.
+#[test]
+fn a_look_alike_payee_name_is_refused() {
+    let Sample { mut book, .. } = sample();
+    for (name, reason) in [("Shop\u{200B}", "invisible"), ("Shop\nlive", "line-break")] {
+        assert!(matches!(
+            book.add_payee(&payee(name, PayeeRecognition::ByName)),
+            Err(StoreError::HiddenText { field: "payee", reason: r }) if r == reason
+        ));
+    }
+    assert!(book.payees().expect("payees").is_empty());
+}
+
+/// D-782: a payee or tag whose name only looks different, through an
+/// accent typed on its own or a ligature, is taken.
+#[test]
+fn a_payee_or_tag_that_only_looks_different_is_taken() {
+    let Sample { mut book, .. } = sample();
+    book.add_payee(&payee("Caf\u{E9} Corner", PayeeRecognition::ByName))
+        .expect("payee added");
+    assert!(matches!(
+        book.add_payee(&payee("Cafe\u{301} corner", PayeeRecognition::ByName)),
+        Err(StoreError::DuplicatePayeeName { existing }) if existing == "Caf\u{E9} Corner"
+    ));
+    book.add_tag(&tag("Finanz")).expect("tag added");
+    assert!(matches!(
+        book.add_tag(&tag("\u{FB01}nanz")),
+        Err(StoreError::DuplicateTagName { existing }) if existing == "Finanz"
+    ));
+    let holiday = tag("Holiday");
+    book.add_tag(&holiday).expect("tag added");
+    assert!(matches!(
+        book.rename_tag(holiday.id, "FINANZ"),
+        Err(StoreError::DuplicateTagName { existing }) if existing == "Finanz"
+    ));
+    assert_eq!(book.payees().expect("payees").len(), 1);
+    assert_eq!(book.tags().expect("tags").len(), 2);
 }

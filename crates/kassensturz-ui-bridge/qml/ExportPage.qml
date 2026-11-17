@@ -8,7 +8,9 @@
 // from Rust (D-065); the sentences are written here (D-034).
 
 import QtQuick
+import QtQuick.Controls as Controls
 import QtQuick.Dialogs as Dialogs
+import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kirigamiaddons.formcard as FormCard
 import org.kde.ki18n
@@ -52,6 +54,39 @@ FormCard.FormCardPage {
         choices = dataExport.csvChoices();
         separator.currentIndex = separator.indexOfValue(choices.separator);
         decimalMark.currentIndex = decimalMark.indexOfValue(choices.decimalMark);
+    }
+
+    // A labelled text field for a day. Not FormTextFieldDelegate, which asks
+    // for the engine-wide KI18n context that the app doesn't use (D-074).
+    component DayRow: FormCard.AbstractFormDelegate {
+        id: row
+
+        property string label
+        property string key
+
+        // The delegate is a button; typing in it must not click it.
+        hoverEnabled: false
+        contentItem: ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            Controls.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                text: row.label
+                wrapMode: Text.Wrap
+            }
+
+            Controls.TextField {
+                Layout.fillWidth: true
+                text: page.choices[row.key] ?? ""
+                placeholderText: page.i18nContext.i18nc("@info:placeholder %1 is an example date", "All dates, or type one like %1", page.choices.dateExample ?? "")
+                onTextEdited: {
+                    const next = {};
+                    next[row.key] = text;
+                    page.choices = Object.assign({}, page.choices, next);
+                }
+            }
+        }
     }
 
     function chosenIds(): var {
@@ -140,6 +175,24 @@ FormCard.FormCardPage {
                     page.ticked = next;
                 }
             }
+        }
+    }
+
+    FormCard.FormSectionText {
+        text: page.i18nContext.i18nc("@info", "Only the days you give are included, both the first and the last day. Leave a day empty to go on from the start or up to the end. The lines are not changed: they add up to the balance only if nothing before the first day is left out.")
+    }
+
+    FormCard.FormCard {
+        DayRow {
+            label: page.i18nContext.i18nc("@label:textbox", "From this day on")
+            key: "from"
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        DayRow {
+            label: page.i18nContext.i18nc("@label:textbox", "Up to and including this day")
+            key: "until"
         }
     }
 

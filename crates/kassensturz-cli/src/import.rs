@@ -15,7 +15,7 @@ use kassensturz_import::{
 };
 use kassensturz_pipeline::{
     Choices, EntryOutcome, EntryRef, ImportReport, import_statements, join_recurring_moves,
-    preview_import,
+    match_schedules, preview_import,
 };
 use kassensturz_store::{Book, NotJoined};
 
@@ -25,6 +25,7 @@ use crate::error::CliError;
 use crate::history::change_text;
 use crate::lookup::{find_account, short_id};
 use crate::text::{counted, plain, table};
+use crate::transfer::today;
 
 /// The formats the tool recognizes by themselves: CAMT.053, MT940, OFX and
 /// the made-up test format so far. CSV files need settings
@@ -113,13 +114,15 @@ pub(crate) fn import_file(
     let dry_run = args.flag("dry-run");
     let last_change = book.change_to_undo()?.map(|change| change.id);
     let report = if dry_run {
-        preview_import(book, account.id, &chosen, &choices)?
+        preview_import(book, account.id, &chosen, &choices, today())?
     } else {
         let mut report =
             import_statements(book, account.id, &chosen, &choices, Some(Path::new(file)))?;
         // An action of its own, so `undo` takes back the joins first and
         // keeps the entries (D-749).
         join_recurring_moves(book, &mut report)?;
+        // And the matches of planned payments after them (D-769).
+        match_schedules(book, &mut report, today())?;
         report
     };
     let shown = Shown {
@@ -318,6 +321,7 @@ impl Shown<'_> {
         }
         self.write_similar(out)?;
         self.write_joins(out)?;
+        self.write_plans(out)?;
         self.write_transfers(out)?;
         self.write_rules(out)?;
         for check in &report.balances {
@@ -439,6 +443,72 @@ impl Shown<'_> {
                         .collect::<Vec<_>>()
                         .join("; "),
                     why,
+                ]);
+            }
+            write!(out, "{}", indented(&table(&rows, &[])))?;
+        }
+        Ok(())
+    }
+
+    /// The new entries matched to planned payments, and the payments that
+    /// need the user (D-769).
+    fn write_plans(&self, out: &mut dyn Write) -> Result<(), CliError> {
+        let plans = &self.report.schedules;
+        let name = |id| {
+            self.book
+                .schedule(id)
+                .map_or_else(|_| id.to_string(), |plan| plain(&plan.name))
+        };
+        if !plans.matched.is_empty() {
+            writeln!(
+                out,
+                "{} {} to planned payments:",
+                if self.dry_run {
+                    "Would match"
+                } else {
+                    "Matched"
+                },
+                counted(plans.matched.len(), "entry", "entries")
+            )?;
+            let mut rows = vec![header(&["Planned payment", "Due", "Entry", "Category"])];
+            for found in &plans.matched {
+                rows.push(vec![
+                    name(found.occurrence.schedule),
+                    found.occurrence.due.date.to_string(),
+                    self.describe(found.transaction),
+                    if found.category_set {
+                        "the plan's"
+                    } else {
+                        "kept"
+                    }
+                    .to_owned(),
+                ]);
+            }
+            write!(out, "{}", indented(&table(&rows, &[])))?;
+            if !self.dry_run {
+                writeln!(
+                    out,
+                    "`undo` takes these matches back and keeps the imported entries."
+                )?;
+            }
+        }
+        if !plans.needs_you.is_empty() {
+            writeln!(
+                out,
+                "These fit a planned payment but weren't matched, as more than one fits; \
+                 match one with `schedule match`:"
+            )?;
+            let mut rows = vec![header(&["Planned payment", "Due", "Entries"])];
+            for needs in &plans.needs_you {
+                rows.push(vec![
+                    name(needs.occurrence.schedule),
+                    needs.occurrence.due.date.to_string(),
+                    needs
+                        .transactions
+                        .iter()
+                        .map(|&id| self.describe(id))
+                        .collect::<Vec<_>>()
+                        .join("; "),
                 ]);
             }
             write!(out, "{}", indented(&table(&rows, &[])))?;

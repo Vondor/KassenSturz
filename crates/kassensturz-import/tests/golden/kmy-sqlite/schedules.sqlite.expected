@@ -1,0 +1,40 @@
+recognized: maybe
+book
+  account "A000001": "Girokonto Eins", asset, type checking, EUR with 2 decimal places, inside -
+  account "A000002": "Girokonto Zwei", asset, type checking, EUR with 2 decimal places, inside -
+  account "A000003": "Rent", expense, type -, EUR with 2 decimal places, inside -
+  account "A000004": "Insurance", expense, type -, EUR with 2 decimal places, inside -
+  account "A000005": "Salary", income, type -, EUR with 2 decimal places, inside -
+  account "A000006": "Gym", expense, type -, EUR with 2 decimal places, inside -
+  payee "P000001": "Beispiel Hausverwaltung", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000002": "Beispiel Versicherung", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000003": "Beispiel Fitness", address -, email -, phone -, reference -, recognized never ignoring case
+  payee "P000004": "Beispiel Arbeitgeber", address -, email -, phone -, reference -, recognized never ignoring case
+  transaction 1 on 2026-11-10, payee "Beispiel Versicherung", note "Hausratversicherung", entered 2026-11-14
+    part "A000002": -9.90 EUR, in the account -, bank id -, other party - -, text "Hausratversicherung"
+    part "A000004": 9.90 EUR, in the account -, note "Hausratversicherung"
+  schedule "SCH000001": "Miete", every 1 month, first due 2026-12-01, ends -, last payment -, last day of month false, fixed amount true, enters itself false, weekend After
+  transaction 0 on 2026-12-01, payee "Beispiel Hausverwaltung", note "Miete"
+    part "A000001": -850.00 EUR, in the account -, bank id -, other party - -, text "Miete"
+    part "A000003": 850.00 EUR, in the account -, note "Miete"
+  schedule "SCH000002": "Versicherung jährlich", every 1 year, first due 2027-01-15, ends -, last payment -, last day of month false, fixed amount true, enters itself false, weekend Unchanged
+  transaction 0 on 2027-01-15, payee "Beispiel Versicherung", note "Versicherung jährlich"
+    part "A000001": -120.00 EUR, in the account -, bank id -, other party - -, text "Versicherung jährlich"
+    part "A000004": 120.00 EUR, in the account -, note "Versicherung jährlich"
+  schedule "SCH000003": "Fitnessstudio", every 2 week, first due 2026-11-20, ends 2027-03-31, last payment -, last day of month false, fixed amount true, enters itself false, weekend Before
+  transaction 0 on 2026-11-20, payee "Beispiel Fitness", note "Fitnessstudio"
+    part "A000001": -15.00 EUR, in the account -, bank id -, other party - -, text "Fitnessstudio"
+    part "A000006": 15.00 EUR, in the account -, note "Fitnessstudio"
+  schedule "SCH000004": "Gehalt", every 1 month, first due 2026-11-28, ends -, last payment -, last day of month false, fixed amount true, enters itself false, weekend Unchanged
+  transaction 0 on 2026-11-28, payee "Beispiel Arbeitgeber", note "Gehalt"
+    part "A000001": 2000.00 EUR, in the account -, bank id -, other party - -, text "Gehalt"
+    part "A000005": -2000.00 EUR, in the account -, note "Gehalt"
+  schedule "SCH000005": "Sparen (automatisch)", every 1 month, first due 2026-12-05, ends -, last payment -, last day of month false, fixed amount true, enters itself true, weekend After
+  transaction 0 on 2026-12-05, payee -, note "Sparen (automatisch)"
+    part "A000001": -100.00 EUR, in the account -, bank id -, other party - -, text "Sparen (automatisch)"
+    part "A000002": 100.00 EUR, in the account -, bank id -, other party - -, text "Sparen (automatisch)"
+  schedule "SCH000006": "Hausratversicherung", every 1 month, first due 2026-11-10, ends -, last payment 2026-11-10, last day of month false, fixed amount true, enters itself false, weekend After
+  transaction 0 on 2026-12-10, payee "Beispiel Versicherung", note "Hausratversicherung"
+    part "A000002": -9.90 EUR, in the account -, bank id -, other party - -, text "Hausratversicherung"
+    part "A000004": 9.90 EUR, in the account -, note "Hausratversicherung"
+  skipped owner: 1

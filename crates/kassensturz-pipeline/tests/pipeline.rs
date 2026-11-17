@@ -21,6 +21,9 @@ use kassensturz_pipeline::{
 };
 use kassensturz_store::{Action, Book, StoreError};
 
+/// The day a preview matches planned payments for; these books have none.
+const PREVIEW_DAY: kassensturz_core::Date = kassensturz_core::Date::constant(2026, 11, 13);
+
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
     Ok(code) => code,
     Err(_) => panic!("EUR is a valid code"),
@@ -311,7 +314,9 @@ fn entries_that_look_like_a_transaction_the_account_has_wait_for_the_user() {
     let statements = [statement(vec![
         // Monday: one business day after the typed-in one.
         entry(12, -2500, "", "Bakery"),
-        // With a bank ID, against one typed in without: still similar.
+        // With a bank ID, against one typed in without: it would be
+        // similar, but the one typed in is already the Monday's: one
+        // transaction in the book stands for one entry only (B-277).
         entry(13, -2500, "B9", "Bakery"),
         // Thursday is four business days later: not similar.
         entry(15, -2500, "", "Bakery"),
@@ -325,8 +330,14 @@ fn entries_that_look_like_a_transaction_the_account_has_wait_for_the_user() {
         entry(14, -350, "", "Cafe"),
         entry(14, -350, "", "Cafe"),
     ])];
-    let report =
-        preview_import(&mut book, checking, &statements, &Choices::default()).expect("previewed");
+    let report = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
     let similar: Vec<(EntryRef, Vec<TransactionId>)> = report
         .entries
         .iter()
@@ -335,19 +346,12 @@ fn entries_that_look_like_a_transaction_the_account_has_wait_for_the_user() {
             _ => None,
         })
         .collect();
-    assert_eq!(
-        similar,
-        [
-            (at(0, 0), vec![bakery]),
-            (at(0, 1), vec![bakery]),
-            (at(0, 5), vec![shoes]),
-        ]
-    );
+    assert_eq!(similar, [(at(0, 0), vec![bakery]), (at(0, 5), vec![shoes])]);
     assert_eq!(
         report.summary(),
         Summary {
-            imported: 5,
-            to_decide: 3,
+            imported: 6,
+            to_decide: 2,
             duplicates: 0,
             pending: 0,
         }
@@ -355,21 +359,26 @@ fn entries_that_look_like_a_transaction_the_account_has_wait_for_the_user() {
 
     // The user decides to import one of them anyway.
     let choices = Choices {
-        import_similar: HashSet::from([at(0, 1)]),
+        import_similar: HashSet::from([at(0, 0)]),
     };
     let report =
         import_statements(&mut book, checking, &statements, &choices, None).expect("imported");
     let EntryOutcome::Imported {
         transaction,
         similar,
-    } = &report.entries[1].outcome
+    } = &report.entries[0].outcome
     else {
-        panic!("imported as chosen: {:?}", report.entries[1]);
+        panic!("imported as chosen: {:?}", report.entries[0]);
     };
     assert_eq!(similar, &[bakery]);
     assert!(book.transaction(*transaction).is_ok());
-    assert_eq!(report.summary().to_decide, 2);
-    assert_eq!(report.summary().imported, 6);
+    // What the preview said about the others stays as it was.
+    assert!(matches!(
+        report.entries[1].outcome,
+        EntryOutcome::Imported { ref similar, .. } if similar.is_empty()
+    ));
+    assert_eq!(report.summary().to_decide, 1);
+    assert_eq!(report.summary().imported, 7);
 }
 
 #[test]
@@ -622,8 +631,14 @@ fn a_preview_shows_what_the_import_would_do_and_changes_nothing() {
         date: october(5),
     });
 
-    let preview =
-        preview_import(&mut book, checking, &statements, &Choices::default()).expect("previewed");
+    let preview = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
     assert_eq!(book.history().expect("history read"), history);
     assert_eq!(book.balance(checking).expect("balance"), balance);
     assert!(book.transaction(preview.imported()[0]).is_err());
@@ -819,8 +834,14 @@ fn a_statement_in_marks_comes_into_an_account_in_euros() {
         109_997,
     )];
 
-    let preview =
-        preview_import(&mut book, checking, &statements, &Choices::default()).expect("previewed");
+    let preview = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
     let report = import(&mut book, checking, &statements);
     assert_eq!(preview.balances, report.balances);
     let mark = DEM.withdrawn().expect("the table lists the mark");
@@ -879,10 +900,405 @@ fn a_statement_in_marks_comes_into_an_account_in_euros() {
     assert_eq!(again.summary().imported, 0);
     let kiosk = report.imported()[0];
     let later = [statement_in_marks(vec![in_marks(2, -1, "")], 99_999)];
-    let preview =
-        preview_import(&mut book, checking, &later, &Choices::default()).expect("previewed");
+    let preview = preview_import(
+        &mut book,
+        checking,
+        &later,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
     assert!(matches!(
         &preview.entries[0].outcome,
         EntryOutcome::Similar(similar) if similar.contains(&kiosk)
     ));
+}
+
+/// The register of `account`: how many rows and what they add up to.
+fn register_total(book: &Book, account: AccountId) -> (usize, i64) {
+    let rows = book.register(account).expect("register read");
+    let total = rows.iter().map(|row| row.amount.minor_units()).sum();
+    (rows.len(), total)
+}
+
+/// B-332: a bank may give a later payment a reference it used before, e.g.
+/// a counter per day. An entry with a known bank ID and amount is a
+/// duplicate only on the same bank date; a few banking days apart the user
+/// decides, and further apart it is another payment.
+#[test]
+fn a_reused_bank_reference_on_another_date_is_never_skipped() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let first = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(1, -80000, "0001", "Landlord")])],
+    );
+    let booked = first.imported()[0];
+    // The next rent, four weeks later with the same reference: imported.
+    let later = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(29, -80000, "0001", "Landlord")])],
+    );
+    assert_eq!(later.summary().imported, 1, "{:?}", later.entries);
+    assert_eq!(register_total(&book, checking), (2, -160000));
+    // One banking day after the first: maybe the same booking with a
+    // corrected date, so the user sees it next to it.
+    let close = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(2, -80000, "0001", "Landlord")])],
+    );
+    assert_eq!(
+        close.entries[0].outcome,
+        EntryOutcome::Similar(vec![booked])
+    );
+    // The very same entry again stays a duplicate.
+    let again = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(1, -80000, "0001", "Landlord")])],
+    );
+    assert_eq!(
+        again.entries[0].outcome,
+        EntryOutcome::Duplicate(Duplicate::InBook(booked))
+    );
+    assert_eq!(register_total(&book, checking), (2, -160000));
+
+    // Within one import: two payments with one reference on two dates both
+    // come in, the same entry twice only once.
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let both = import(
+        &mut book,
+        checking,
+        &[
+            statement(vec![
+                entry(5, -1500, "0002", "Club"),
+                entry(26, -1500, "0002", "Club"),
+            ]),
+            statement(vec![entry(26, -1500, "0002", "Club")]),
+        ],
+    );
+    assert_eq!(
+        both.summary(),
+        Summary {
+            imported: 2,
+            to_decide: 0,
+            duplicates: 1,
+            pending: 0,
+        }
+    );
+    assert_eq!(register_total(&book, checking), (2, -3000));
+}
+
+/// B-277: one transaction in the book stands for at most one entry. Two
+/// genuinely identical payments both stay: in a new book, next to one the
+/// book has, and when the same two come again.
+#[test]
+fn a_left_out_entry_shows_every_transaction_it_looks_like() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    // Two lookalikes in the book, one entry in the statement: it stands for
+    // one of them, but the user sees both to decide.
+    let monday = typed(&mut book, checking, groceries, 1, -450);
+    let tuesday = typed(&mut book, checking, groceries, 2, -450);
+    let statements = [statement(vec![entry(2, -450, "", "Kiosk")])];
+    let report = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
+    assert_eq!(
+        report.entries[0].outcome,
+        EntryOutcome::Similar(vec![monday, tuesday])
+    );
+}
+
+#[test]
+fn two_identical_payments_both_stay() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    // #977's case: one -4.50 in the book on Thursday, two on Friday in the
+    // statement. Only one of them can be the one in the book.
+    let booked = typed(&mut book, checking, groceries, 1, -450);
+    let statements = [statement(vec![
+        entry(2, -450, "", "Kiosk"),
+        entry(2, -450, "", "Kiosk"),
+    ])];
+    let report = preview_import(
+        &mut book,
+        checking,
+        &statements,
+        &Choices::default(),
+        PREVIEW_DAY,
+    )
+    .expect("previewed");
+    assert_eq!(
+        report.entries[0].outcome,
+        EntryOutcome::Similar(vec![booked])
+    );
+    assert!(matches!(
+        report.entries[1].outcome,
+        EntryOutcome::Imported { ref similar, .. } if similar.is_empty()
+    ));
+    let report = import(&mut book, checking, &statements);
+    assert_eq!(report.summary().imported, 1);
+    assert_eq!(register_total(&book, checking), (2, -900));
+
+    // Two coffees on one day in a new account's first statement both come
+    // in, and the same statement again adds nothing: each coffee in the
+    // book is one of them.
+    let coffees = [statement(vec![
+        entry(14, -350, "", "Cafe"),
+        entry(14, -350, "", "Cafe"),
+    ])];
+    let report = import(&mut book, checking, &coffees);
+    assert_eq!(report.summary().imported, 2);
+    let report = import(&mut book, checking, &coffees);
+    assert_eq!(
+        report.summary(),
+        Summary {
+            imported: 0,
+            to_decide: 2,
+            duplicates: 0,
+            pending: 0,
+        }
+    );
+    let EntryOutcome::Similar(first) = &report.entries[0].outcome else {
+        panic!("{:?}", report.entries[0]);
+    };
+    let EntryOutcome::Similar(second) = &report.entries[1].outcome else {
+        panic!("{:?}", report.entries[1]);
+    };
+    // Each entry shows the user both coffees in the book to choose from.
+    assert_eq!(first.len(), 2, "{first:?}");
+    assert_eq!(first, second);
+    assert_eq!(register_total(&book, checking), (4, -1600));
+}
+
+/// B-277: the same file twice doubles nothing, with bank IDs or without.
+#[test]
+fn the_same_file_imported_twice_doubles_nothing() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let statements = [statement(vec![
+        entry(5, -2000, "A1", "Shop"),
+        entry(5, -2000, "A2", "Shop"),
+        entry(6, -350, "", "Cafe"),
+        entry(6, -350, "", "Cafe"),
+        entry(7, 150_000, "", "Example Employer"),
+    ])];
+    assert_eq!(
+        import(&mut book, checking, &statements).summary().imported,
+        5
+    );
+    let after_first = register_total(&book, checking);
+    let report = import(&mut book, checking, &statements);
+    assert_eq!(
+        report.summary(),
+        Summary {
+            imported: 0,
+            to_decide: 3,
+            duplicates: 2,
+            pending: 0,
+        }
+    );
+    assert_eq!(register_total(&book, checking), after_first);
+}
+
+/// B-277: a statement that overlaps the last one adds only its new
+/// entries, also one that looks like an entry of the overlap.
+#[test]
+fn an_overlapping_statement_adds_only_the_new_entries() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let first = [statement(vec![
+        entry(5, -2000, "", "Shop"),
+        entry(6, -350, "", "Cafe"),
+    ])];
+    import(&mut book, checking, &first);
+    // The overlap repeats the two; the 7th has a second coffee of the same
+    // price a day later, which the one in the book is not.
+    let second = [statement(vec![
+        entry(5, -2000, "", "Shop"),
+        entry(6, -350, "", "Cafe"),
+        entry(7, -350, "", "Cafe"),
+        entry(8, -1234, "", "Pharmacy"),
+    ])];
+    let report = import(&mut book, checking, &second);
+    assert_eq!(
+        report.summary(),
+        Summary {
+            imported: 2,
+            to_decide: 2,
+            duplicates: 0,
+            pending: 0,
+        }
+    );
+    assert!(matches!(
+        report.entries[1].outcome,
+        EntryOutcome::Similar(_)
+    ));
+    assert!(matches!(
+        report.entries[2].outcome,
+        EntryOutcome::Imported { .. }
+    ));
+    assert_eq!(
+        register_total(&book, checking),
+        (4, -2000 - 350 - 350 - 1234)
+    );
+
+    // The closer entry takes the one in the book, wherever it is in the
+    // statement: the same overlap with the new coffee first.
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    import(&mut book, checking, &first);
+    let reordered = [statement(vec![
+        entry(7, -350, "", "Cafe"),
+        entry(6, -350, "", "Cafe"),
+    ])];
+    let report = import(&mut book, checking, &reordered);
+    assert!(matches!(
+        report.entries[0].outcome,
+        EntryOutcome::Imported { .. }
+    ));
+    assert!(matches!(
+        report.entries[1].outcome,
+        EntryOutcome::Similar(_)
+    ));
+}
+
+/// B-277 and B-279: an entry the bank delivers again with its ID but
+/// another amount, e.g. corrected, is never skipped without a word. Against
+/// the book the user decides, and against an earlier entry of the same
+/// import it is another entry.
+#[test]
+fn a_corrected_amount_is_never_silently_hidden() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let first = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(5, -1000, "C7", "Shop")])],
+    );
+    let booked = first.imported()[0];
+    let corrected = [statement(vec![entry(5, -1200, "C7", "Shop")])];
+    let report = import(&mut book, checking, &corrected);
+    assert_eq!(
+        report.entries[0].outcome,
+        EntryOutcome::Similar(vec![booked]),
+        "the user sees it next to the one in the book"
+    );
+    assert_eq!(report.summary().to_decide, 1);
+    let choices = Choices {
+        import_similar: HashSet::from([at(0, 0)]),
+    };
+    import_statements(&mut book, checking, &corrected, &choices, None).expect("imported");
+    assert_eq!(register_total(&book, checking), (2, -2200));
+    // The same entry with the same amount stays a duplicate.
+    let again = import(
+        &mut book,
+        checking,
+        &[statement(vec![entry(5, -1000, "C7", "Shop")])],
+    );
+    assert_eq!(again.summary().duplicates, 1);
+    // And so does the corrected one, now that the book has it too.
+    assert_eq!(
+        import(&mut book, checking, &corrected).summary().duplicates,
+        1
+    );
+
+    // Two entries of one import with one ID but two amounts both come in.
+    let both = import(
+        &mut book,
+        checking,
+        &[statement(vec![
+            entry(12, -500, "C8", "Shop"),
+            entry(12, -700, "C8", "Shop"),
+            entry(12, -700, "C8", "Shop"),
+        ])],
+    );
+    assert_eq!(
+        both.summary(),
+        Summary {
+            imported: 2,
+            to_decide: 0,
+            duplicates: 1,
+            pending: 0,
+        }
+    );
+    assert_eq!(register_total(&book, checking), (4, -3400));
+}
+
+/// B-365 (round 7, B6): a bank's text that turns itself around with a
+/// direction override showed "Bäcker Gaben" in the register. The payee the
+/// transaction gets is the name without such characters, like a typed one
+/// must be (B-272); what the bank delivered stays as delivered (D-375).
+#[test]
+fn a_payee_with_characters_that_turn_it_around_is_imported_without_them() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let turned = "Bäcker \u{202E}nebaG\u{202C}";
+    let isolated = "\u{2067}Mallory\u{2069}";
+    let hidden_only = "\u{200B}\u{202E}";
+    let report = import(
+        &mut book,
+        checking,
+        &[statement(vec![
+            entry(5, -350, "B1", turned),
+            entry(6, -420, "B2", isolated),
+            entry(7, -100, "B3", hidden_only),
+        ])],
+    );
+    let ids = report.imported();
+    assert_eq!(ids.len(), 3);
+    let payees: Vec<Option<String>> = ids
+        .iter()
+        .map(|id| {
+            book.transaction(*id)
+                .expect("read")
+                .payee()
+                .map(str::to_owned)
+        })
+        .collect();
+    assert_eq!(
+        payees,
+        [
+            Some("Bäcker nebaG".to_owned()),
+            Some("Mallory".to_owned()),
+            None
+        ]
+    );
+    // The delivered name and text stay as the bank wrote them.
+    let first = book.transaction(ids[0]).expect("read");
+    let delivered = first
+        .splits()
+        .iter()
+        .find_map(|split| split.imported.as_ref())
+        .expect("delivered");
+    assert_eq!(delivered.other_party_name.as_deref(), Some(turned));
+    assert_eq!(
+        delivered.remittance_information.as_deref(),
+        Some(format!("{turned} card payment").as_str())
+    );
 }

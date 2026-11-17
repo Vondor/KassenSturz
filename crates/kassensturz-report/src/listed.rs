@@ -63,8 +63,10 @@ pub struct ListedTransactions {
 /// The transactions booked in `period` that pass `filter`, newest first,
 /// at most `limit` (and never more than [`MAX_LISTED`]) of them.
 ///
-/// - A transaction counts by its booking date, as every figure does
-///   (D-108); its row shows the date of the side it is listed from.
+/// - A row counts by the date of the side it is listed from (D-108), and
+///   only a side that shows a day of the period is listed, so a Transfer
+///   whose sides fall on different days is never put on a day outside the
+///   period, and never missing from one it is shown on (B-348).
 /// - With an accounts filter only the chosen accounts' sides are listed;
 ///   without one, every open account's. A transaction with no such side is
 ///   left out, and so is an account's starting balance.
@@ -105,9 +107,6 @@ pub fn listed_transactions(
     };
     let mut found = Vec::new();
     for transaction in source.transactions() {
-        if !period.contains(transaction.booking_date()) {
-            continue;
-        }
         let mut own: Vec<AccountId> = Vec::new();
         let mut starting = false;
         for split in transaction.splits() {
@@ -138,7 +137,12 @@ pub fn listed_transactions(
                 None => !kind_of(id)?.closed,
             };
             if listed {
-                sides.push(side(transaction, id, accounts)?);
+                // Only a side that shows a day of the period counts, so no
+                // row shows a date outside it (B-348).
+                let row = side(transaction, id, accounts)?;
+                if period.contains(row.date) {
+                    sides.push(row);
+                }
             }
         }
         // The later date first; on one date the side money reached.

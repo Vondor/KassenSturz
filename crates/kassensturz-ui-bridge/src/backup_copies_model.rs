@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::{QString, QVariant};
 use kassensturz_core::Timestamp;
+use kassensturz_store::Book;
 
 use crate::backup_copies::{self, CHOICES, Listed, Outcome};
 use crate::locale::QtLocale;
@@ -81,7 +82,8 @@ pub mod qobject {
 
         /// The backups of the open book, newest first: `items`, each with
         /// `path` (to hand to `BookSession.restoreBackup`), `when` and
-        /// `inChosen`, and `problem`, the code for why the chosen folder
+        /// `inChosen`, `older` (from before books had an identity: listed
+        /// apart, D-806) and `problem`, the code for why the chosen folder
         /// couldn't be read, or "".
         #[qinvokable]
         fn backups(self: &BackupCopies) -> QVariant;
@@ -109,7 +111,7 @@ impl cxx_qt::Initialize for qobject::BackupCopies {
 impl qobject::BackupCopies {
     fn choose(mut self: Pin<&mut Self>, path: &QString) -> QVariant {
         let chosen = PathBuf::from(path.to_string());
-        let code = match platform::choose_folder(&chosen) {
+        let code = match platform::choose_folder(&chosen, false) {
             Err(refused) => Some(refused.code()),
             Ok(grant) if is_own_backup_folder(&grant.path) => Some("backup-copy.same-folder"),
             Ok(grant) => (!backup_copies::choose(&Settings::user(), &grant))
@@ -177,8 +179,11 @@ impl qobject::BackupCopies {
             return backups_object(&[], None, QtLocale::date_time);
         };
         let chosen = backup_copies::chosen(&Settings::user()).map(|chosen| chosen.path);
+        let Some(id) = session::with_book(Book::book_id).flatten() else {
+            return backups_object(&[], None, QtLocale::date_time);
+        };
         let (found, problem) =
-            backup_copies::listed(&book, &own_backup_folder(), chosen.as_deref());
+            backup_copies::listed(&book, &id, &own_backup_folder(), chosen.as_deref());
         backups_object(
             &found,
             problem.map(backup_copies::problem_code),
@@ -237,6 +242,7 @@ fn backups_object(
                     ("path", text(&listed.path.to_string_lossy())),
                     ("when", text(&date_time(listed.made))),
                     ("inChosen", QVariant::from(&listed.in_chosen)),
+                    ("older", QVariant::from(&listed.older)),
                 ])
             })),
         ),
@@ -294,11 +300,13 @@ mod tests {
                 path: PathBuf::from("/data/backups/Household 2026-10-03 09-00-00 UTC.ksz"),
                 made: stamp(1_791_018_000),
                 in_chosen: false,
+                older: false,
             },
             Listed {
                 path: PathBuf::from("/media/Stick/Household 2026-10-02 09-00-00 UTC.ksz"),
                 made: stamp(1_790_931_600),
                 in_chosen: true,
+                older: true,
             },
         ];
         let object = backups_object(&found, Some("backup-copy.missing"), shown);
@@ -306,7 +314,7 @@ mod tests {
         assert_eq!(text_of(&object, "problem"), "backup-copy.missing");
         let items = list_of(&object, "items");
         assert_eq!(items.len(), 2);
-        assert_eq!(keys(&items[0]), ["inChosen", "path", "when"]);
+        assert_eq!(keys(&items[0]), ["inChosen", "older", "path", "when"]);
         assert_eq!(
             text_of(&items[1], "path"),
             "/media/Stick/Household 2026-10-02 09-00-00 UTC.ksz"
@@ -314,6 +322,8 @@ mod tests {
         assert_eq!(text_of(&items[1], "when"), "at 1790931600");
         assert!(!flag_of(&items[0], "inChosen"));
         assert!(flag_of(&items[1], "inChosen"));
+        assert!(!flag_of(&items[0], "older"));
+        assert!(flag_of(&items[1], "older"));
 
         let empty = backups_object(&[], None, shown);
         assert!(list_of(&empty, "items").is_empty());

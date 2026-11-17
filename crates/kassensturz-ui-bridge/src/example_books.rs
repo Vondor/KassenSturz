@@ -224,9 +224,12 @@ fn prepare(id: &str, stem: &str, today: Date) -> Result<book_from_file::Prepared
             let moved = dating.apply_to_export(export);
             book_from_file::read_bundled_export(stem, moved.as_deref().unwrap_or(export))
         }
+        // A KMyMoney book gets its dashboards here (#829, D-788); a complete
+        // export already holds them.
         None => book_from_file::read_bundled_kmy_sqlite(stem, example.bytes, |book| {
             dating.apply_to_book(book);
-        }),
+        })
+        .map(|prepared| prepared.with_dashboards(kassensturz_pipeline::example_dashboards(id))),
     }
     .map_err(ExampleError::Fill)
 }
@@ -358,22 +361,83 @@ mod tests {
     }
 
     /// M6-B138: Flower Utopia comes with its budgets and its saved
-    /// Overview, which only its complete export holds.
+    /// dashboards, which only its complete export holds.
     #[test]
-    fn flower_utopia_comes_with_its_budgets_and_overview() {
+    fn flower_utopia_comes_with_its_budgets_and_dashboards() {
         let folder = TestFolder::new();
         let books = Books::in_folder(folder.path(), "Desk");
         let (open, created) =
             create(&books, "flower-utopia", "Example", &TestLocale).expect("made");
         assert!(created.transactions > 30);
         assert!(open.book.budgets().expect("budgets").len() >= 5);
-        assert_eq!(open.book.views(None).expect("views").len(), 1);
-        // The other books are plain KMyMoney books: no budgets, no views.
+        // The other books are plain KMyMoney books: no budgets.
         drop(open);
         let folder = TestFolder::new();
         let books = Books::in_folder(folder.path(), "Desk");
         let (plain, _) = create(&books, "suburban-family", "Example", &TestLocale).expect("made");
         assert!(plain.book.budgets().expect("budgets").is_empty());
+    }
+
+    /// #829, D-788: every example book opens on its own Overview, with its
+    /// other three dashboards as tabs, every one of them readable, and the
+    /// tiles that name an account or a category name one of the book's.
+    #[test]
+    fn every_example_book_comes_with_its_four_dashboards() {
+        use kassensturz_report::Document;
+
+        for example in all() {
+            let folder = TestFolder::new();
+            let books = Books::in_folder(folder.path(), "Desk");
+            let (open, _) = create(&books, example.id, "Example", &TestLocale).expect("made");
+            let listed = crate::dashboards::list(&open.book, "Overview").expect("listed");
+            assert_eq!(listed.len(), 4, "{}", example.id);
+            assert!(listed[0].is_default, "{}", example.id);
+            assert!(
+                listed[0].id.is_some(),
+                "{}: stored, not built in",
+                example.id
+            );
+            assert_eq!(
+                listed[0].template.as_deref(),
+                Some(kassensturz_report::templates::OVERVIEW),
+                "{}",
+                example.id
+            );
+            assert!(listed.iter().all(|dashboard| !dashboard.damaged));
+            let mut ids: Vec<String> = open
+                .book
+                .accounts(true)
+                .expect("accounts")
+                .into_iter()
+                .map(|account| account.id.to_string())
+                .collect();
+            ids.extend(
+                open.book
+                    .categories()
+                    .expect("categories")
+                    .into_iter()
+                    .map(|entry| entry.category.id.to_string()),
+            );
+            for view in open
+                .book
+                .views(Some(kassensturz_core::ViewKind::Dashboard))
+                .expect("views")
+            {
+                let document = Document::read(&view.document).expect("reads");
+                assert!(!view.document.contains("@account:"), "{}", example.id);
+                assert!(!view.document.contains("@category:"), "{}", example.id);
+                let value: serde_json::Value =
+                    serde_json::from_str(&document.to_json()).expect("JSON");
+                for component in value["components"].as_array().expect("components") {
+                    for key in ["accounts", "categories"] {
+                        for id in component["params"][key].as_array().into_iter().flatten() {
+                            let id = id.as_str().expect("an id");
+                            assert!(ids.iter().any(|known| known == id), "{}: {id}", example.id);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #[test]

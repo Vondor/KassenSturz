@@ -33,10 +33,17 @@
 //!    back the joins and leaves the imported entries. Since a Rule never
 //!    sorted those sides, this is D-030's order as D-749 amends it:
 //!    duplicates, remembered moves, suggestions, Rules.
+//! 8. The new entries that fit an occurrence of a planned payment are
+//!    matched to it ([`match_schedules`], D-769), as a user action of its
+//!    own after the joins, so one Undo takes back the matches and leaves
+//!    the entries. A match gives an entry the plan's category only where
+//!    the Rules left its part without one (D-031). D-030's order is then:
+//!    duplicates, remembered moves, suggestions, Rules, planned payments.
 //!
 //! [`preview_import`] runs exactly these steps and takes them back, so the
-//! user sees what an import would do, Rules, Transfers and joins included,
-//! before [`import_statements`] and [`join_recurring_moves`] do it. Every
+//! user sees what an import would do, Rules, Transfers, joins and plan
+//! matches included, before [`import_statements`], [`join_recurring_moves`]
+//! and [`match_schedules`] do it. Every
 //! front end calls these (the command-line tool now, the app from M3, bank
 //! connections from M4), so none of them has to repeat the order.
 //!
@@ -55,30 +62,33 @@
 mod book;
 mod entries;
 mod error;
+mod example_dashboards;
 mod export;
 mod imported_book;
 mod kmy_reports;
 mod kmy_reports_into;
 mod report;
+pub mod stop;
 
 use std::collections::HashSet;
 use std::path::Path;
 
 use kassensturz_core::{
-    AccountId, Changeover, Currency, CurrencyCode, DatedRateId, ImportedDetails, Money,
+    AccountId, Changeover, Currency, CurrencyCode, Date, DatedRateId, ImportedDetails, Money,
     OriginalAmount, RoundingMode, Split, Transaction, TransactionId, Withdrawn,
 };
 use kassensturz_import::{Entry, EntryStatus, ImportError, Statement};
-use kassensturz_store::{Action, Book, RecurringJoins, RuleRun, StoreError};
+use kassensturz_store::{Action, Book, RecurringJoins, RuleRun, ScheduleMatchReport, StoreError};
 
 use entries::{Decision, bank_date, decide};
 
 pub use book::{export_book, fill_book};
 pub use error::PipelineError;
-pub use export::export_transactions;
+pub use example_dashboards::{example_dashboards, resolve_names};
+pub use export::{DateRange, export_transactions, export_transactions_in};
 pub use imported_book::{
     BookImportReport, PatternLeftOut, RuleScope, fill_book_from, fill_book_from_on,
-    fill_book_from_with,
+    fill_book_from_with, fill_book_from_with_dashboards,
 };
 pub use kmy_reports::{
     FIXED_PERIODS, FixedPeriod, Found, MappedReport, Outcome, ReportBook, ReportLine, map_report,
@@ -106,16 +116,19 @@ pub struct Choices {
 /// taken back (`Book::dry_run`). Nothing is recorded in the history.
 ///
 /// The IDs of the new transactions in the report don't exist in the book
-/// afterwards; the real import gives them new ones.
+/// afterwards; the real import gives them new ones. `today` is the day the
+/// planned payments are matched for ([`match_schedules`]).
 pub fn preview_import(
     book: &mut Book,
     account: AccountId,
     statements: &[Statement],
     choices: &Choices,
+    today: Date,
 ) -> Result<ImportReport, PipelineError> {
     book.dry_run(|book| {
         let mut report = run(book, account, statements, choices)?;
         join_recurring_moves(book, &mut report)?;
+        match_schedules(book, &mut report, today)?;
         Ok(report)
     })
 }
@@ -152,7 +165,11 @@ pub fn import_statements(
         if let Some(file) = file {
             book.note_file(file)?;
         }
-        run(book, account, statements, choices)
+        let report = run(book, account, statements, choices)?;
+        // From here the import is saved whole: a cancel comes too late
+        // (B-367).
+        stop::check_before_saving()?;
+        Ok(report)
     })
 }
 
@@ -228,7 +245,14 @@ fn run(
     let held = book.account_parts(account.id)?;
     let mut entries = Vec::new();
     let mut added = Vec::new();
-    for (at, decision) in decide(statements, &held, choices) {
+    let decisions = decide(statements, &held, choices);
+    stop::set_total(decisions.len());
+    for (at, decision) in decisions {
+        // Between entries: a SIGTERM or a cancel during a long import ends
+        // it, and the import's transaction leaves the book as it was
+        // (B-362).
+        stop::check()?;
+        stop::one_done();
         let outcome = match decision {
             Decision::Import { similar } => {
                 let entry = &statements[at.statement].entries[at.entry];
@@ -251,6 +275,9 @@ fn run(
         entries.push(EntryResult { entry: at, outcome });
     }
 
+    // Looking for Transfers and running the Rules take seconds in a large
+    // import, and a cancel during them still takes it all back (B-367).
+    stop::check()?;
     let (transfers, rules) = if added.is_empty() {
         (Vec::new(), RuleRun::default())
     } else {
@@ -263,7 +290,10 @@ fn run(
                     || new.contains(&found.incoming.transaction)
             })
             .collect();
-        (transfers, book.run_rules_on(&added)?)
+        stop::check()?;
+        let rules = book.run_rules_on(&added)?;
+        stop::check()?;
+        (transfers, rules)
     };
 
     let parts = book.account_parts(account.id)?;
@@ -306,6 +336,7 @@ fn run(
         balances,
         converted_from,
         joins: RecurringJoins::default(),
+        schedules: ScheduleMatchReport::default(),
     })
 }
 
@@ -340,6 +371,30 @@ pub fn join_recurring_moves(
             && !joined.contains(&found.incoming.transaction)
     });
     report.joins = joins;
+    Ok(())
+}
+
+/// The step after the joins (D-769): matches the new transactions of
+/// `report` that fit an occurrence of a planned payment, as the user action
+/// `Action::MatchSchedules` (`Book::match_schedules`), on `today`, and
+/// notes them, and the occurrences that need the user, in
+/// [`ImportReport::schedules`].
+///
+/// Run it right after [`join_recurring_moves`], outside any other action,
+/// so one Undo takes back the matches and leaves the imported entries. A
+/// match never changes an amount, a date or a part; it gives an entry the
+/// plan's category only where the Rules left its part without one.
+/// Nothing is matched, and nothing recorded, when no plan fits.
+pub fn match_schedules(
+    book: &mut Book,
+    report: &mut ImportReport,
+    today: Date,
+) -> Result<(), PipelineError> {
+    let new: HashSet<TransactionId> = report.imported().into_iter().collect();
+    if new.is_empty() {
+        return Ok(());
+    }
+    report.schedules = book.match_schedules(today, Some(&new))?;
     Ok(())
 }
 
@@ -404,6 +459,16 @@ fn convert(
     Ok(converted)
 }
 
+/// The payee a delivered name becomes (B-365): without characters that
+/// show as nothing or turn the text around, the way a typed payee must be
+/// (B-272), so the register shows what the bank meant and not a reversed
+/// or hidden text. The name as delivered stays with the account's part
+/// (D-375). `None` for a name that is nothing but such characters.
+pub(crate) fn payee_from(delivered: Option<&str>) -> Option<String> {
+    let shown = kassensturz_store::shown_text(delivered?);
+    (!shown.trim().is_empty()).then_some(shown)
+}
+
 /// The transaction an entry becomes: the account's part, with everything
 /// the bank delivered, and one part without a category (D-083). An entry
 /// in a withdrawn currency comes to the `converted` amount, and the
@@ -444,7 +509,7 @@ fn transaction_for(
     let transaction = Transaction::new(
         TransactionId::generate(),
         entry.booking_date,
-        entry.other_party_name.clone(),
+        payee_from(entry.other_party_name.as_deref()),
         vec![own, Split::uncategorized(open)],
     )
     // Two parts in one currency that cancel out, the first with an account,

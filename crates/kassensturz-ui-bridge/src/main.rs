@@ -76,10 +76,13 @@ mod folder_choice_model;
 mod format;
 mod formulas;
 mod formulas_model;
+mod granted_folders;
 mod grid_editor;
 mod grid_editor_model;
 mod history;
 mod history_model;
+mod install_paths;
+mod invokable_names_audit;
 mod kmy_reports_import;
 mod kmy_reports_import_model;
 mod language;
@@ -87,6 +90,7 @@ mod language_model;
 mod locale;
 mod monthly_moves;
 mod network_guard;
+mod network_notice;
 mod number_format;
 mod number_format_model;
 mod overview;
@@ -97,9 +101,12 @@ mod parts_entry;
 mod period_range;
 mod period_range_model;
 mod plain_text_audit;
+mod planned_payments;
+mod planned_payments_model;
 mod platform;
 mod properties;
 mod properties_model;
+mod receipt_moves;
 mod register;
 mod register_columns;
 mod register_model;
@@ -137,6 +144,9 @@ fn main() {
     // Before anything changes the environment: a restart in another language
     // starts the app the way it was started (Q-395).
     restart::remember_at_start();
+    // Then, before any library starts: none looks in a folder compiled in
+    // that a user could create (B-293).
+    install_paths::apply_at_start();
     // Then: in a test, every folder the app uses moves to the test
     // folder before anything reads one (Q-399).
     if test_profile::apply_at_start() && cfg!(windows) {
@@ -155,6 +165,11 @@ fn main() {
     platform::follow_system_colours();
     platform::start_in_user_folder();
     platform::set_window_icon();
+    // SIGTERM (logout, shutdown, pkill) ends the app like quitting does, so
+    // the book's lock file doesn't stay behind (B-276).
+    platform::quit_on_signals();
+    // A Windows logoff or shutdown does the same (B-287).
+    platform::close_book_on_session_end();
     platform::load_ki18n_qml();
     // The week words of formulas start on the locale's first day (D-740).
     kassensturz_report::set_first_weekday(locale::QtLocale::first_weekday());
@@ -185,6 +200,9 @@ fn main() {
     // Qt objects go in reverse order of creation: the engine before the app.
     drop(engine);
     drop(app);
+    // A preview or import still running on its thread stops at its next
+    // entry, writes nothing and closes the book it holds (B-362).
+    statement_import_model::finish_work_before_quitting();
     // `exit` doesn't drop what the thread keeps, so the book is closed here,
     // which removes its lock file (D-038).
     session::close();

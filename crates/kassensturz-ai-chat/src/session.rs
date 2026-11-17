@@ -16,10 +16,10 @@ use kassensturz_ai::{
 use kassensturz_ai_tools::refusal::{REFUSAL_KEYWORDS, RefusalReasons};
 use kassensturz_ai_tools::{
     ChangeSet, DRAFT_ISSUE, Figures, Function, IssueContext, IssueDraft, MAX_VIEWS_PER_ANSWER,
-    OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange, ToolError,
-    Unverified, check_numbers, description_titles, draft_issue, open_page_allowed, propose_on,
-    propose_spec, propose_view_spec, propose_view_text, readable_functions, unique_codes,
-    view_choices,
+    NoteSuggestion, OPEN_PAGE, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, PageTarget, ProposedChange,
+    SUGGEST_NOTE, ToolError, Unverified, check_numbers, description_titles, draft_issue,
+    open_page_allowed, propose_on, propose_spec, propose_view_spec, propose_view_text,
+    readable_functions, suggest_note, unique_codes, view_choices,
 };
 #[cfg(feature = "debug-log")]
 use kassensturz_ai_tools::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
@@ -243,8 +243,8 @@ pub struct Answer {
     /// Nothing in them is applied: only the review screen's confirm does.
     pub changes: Vec<ChangeSet>,
     /// For each set of `changes`, the numbers in the titles of its new
-    /// charts that no function produced, marked like those of an answer
-    /// (D-188, D-402).
+    /// charts that the user didn't write, whether a function produced them
+    /// or not (D-188, D-402, B-361).
     pub title_numbers: Vec<Vec<Unverified>>,
     /// Set when the model's attempts at a chart ran out (D-402).
     pub chart_failed: Option<ChartFailed>,
@@ -261,6 +261,10 @@ pub struct Answer {
     /// it asked for several (D-265). Opening it changes nothing in the
     /// book; the front end opens it when the answer is shown and says so.
     pub page: Option<PageTarget>,
+    /// The line the model suggested for the user's notes, the last one if
+    /// it suggested several (US7, #808). Nothing is saved: the front end
+    /// shows it word for word and saves it only when the user confirms.
+    pub note: Option<NoteSuggestion>,
     /// Fixed notes KassenSturz adds under the answer where the answer
     /// claims something that did not happen or was not checked (#848,
     /// #849, #862). The front end writes their text.
@@ -342,6 +346,9 @@ pub struct ChatSession {
     history: Vec<Message>,
     /// Every figure the functions, the user and the build produced so far.
     figures: Figures,
+    /// Only the figures the user's own words and the build hold: a chart's
+    /// title may repeat these, but no figure of the book (B-361, A7).
+    said: Figures,
     log: Vec<LogEntry>,
     /// What the user did with prepared changes since the last question, to
     /// tell the model with the next one.
@@ -372,6 +379,11 @@ pub struct ChatSession {
     /// Which changes the model may prepare, fixed for tests; `None` reads
     /// the user's settings for each request (D-239).
     permissions: Option<Permissions>,
+    /// The user's notes, fixed for tests; `None` reads the user's settings
+    /// for each request (US7, #808).
+    notes: Option<String>,
+    /// The note line the model suggested for the question under way.
+    note: Option<NoteSuggestion>,
 }
 
 impl ChatSession {
@@ -387,6 +399,7 @@ impl ChatSession {
             test_found_no_functions: false,
             overview_from_test: false,
             history: Vec::new(),
+            said: figures.clone(),
             figures,
             log: Vec::new(),
             outcomes: Vec::new(),
@@ -401,7 +414,23 @@ impl ChatSession {
             debug_log: DebugLog::none(),
             screen: None,
             permissions: None,
+            notes: None,
+            note: None,
         }
+    }
+
+    /// The conversation with the user's notes fixed to `notes`, instead of
+    /// read from the user's settings for each request.
+    #[must_use]
+    pub fn with_notes(mut self, notes: impl Into<String>) -> Self {
+        self.notes = Some(notes.into());
+        self
+    }
+
+    /// The user's "Notes for the AI" now (US7, #808). Asked again for each
+    /// request: the user may change them while the chat is open.
+    fn notes(&self) -> String {
+        self.notes.clone().unwrap_or_else(ai_switch::notes)
     }
 
     /// The conversation with the permissions fixed to `permissions`,
@@ -417,11 +446,13 @@ impl ChatSession {
     /// question runs.
     /// Bills are attached only by the user's own AI tools over MCP, which
     /// read the bill themselves: the chat reads no PDF, so it is never
-    /// offered `attach_bills` (Q-506, D-739).
+    /// offered `attach_bills` (Q-506, D-739), nor `file_bills` from the
+    /// receipt inbox (D-752).
     fn permissions(&self) -> Permissions {
         self.permissions
             .unwrap_or_else(ai_switch::permissions)
             .with(ai_switch::Permission::AttachBills, false)
+            .with(ai_switch::Permission::FileBills, false)
     }
 
     /// The conversation, writing to `log` while the developer mode is on
@@ -544,10 +575,12 @@ impl ChatSession {
         );
         self.follow_the_test(hooks);
         self.figures.add_text(question);
+        self.said.add_text(question);
         self.history.push(Message::user(question));
         self.proposed.clear();
         self.issue = None;
         self.page = None;
+        self.note = None;
         self.view_refusals = 0;
         self.chart_failed = None;
         self.last_change_refused = false;
@@ -587,13 +620,29 @@ impl ChatSession {
             // or off while a question runs.
             let log_readable = self.log_readable();
             let permissions = self.permissions();
+            let notes = self.notes();
+            self.figures.add_text(&notes);
+            self.said.add_text(&notes);
+            let notes = prompt::notes_block(&notes);
             let (system, functions) = match &overview {
                 Some(overview) => (
-                    prompt::with_overview(&self.build, today, overview, language),
+                    format!(
+                        "{}{notes}",
+                        prompt::with_overview(&self.build, today, overview, language)
+                    ),
                     Vec::new(),
                 ),
                 None => (
-                    prompt::with_functions(&self.build, today, log_readable, permissions, language),
+                    format!(
+                        "{}{notes}",
+                        prompt::with_functions(
+                            &self.build,
+                            today,
+                            log_readable,
+                            permissions,
+                            language
+                        )
+                    ),
                     if closing {
                         Vec::new()
                     } else {
@@ -702,6 +751,7 @@ impl ChatSession {
                     && self.proposed.is_empty()
                     && self.issue.is_none()
                     && self.page.is_none()
+                    && self.note.is_none()
                     && self.chart_failed.is_none()
                 {
                     return Err(ChatError::EmptyAnswer);
@@ -767,6 +817,7 @@ impl ChatSession {
                     chart_failed: self.chart_failed.take(),
                     issue: self.issue.take(),
                     page: self.page.take(),
+                    note: self.note.take(),
                 });
             }
             if closing {
@@ -872,6 +923,13 @@ impl ChatSession {
                                 output
                             },
                         )
+                    } else if call.name == SUGGEST_NOTE.name {
+                        // Shown word for word; saved only when the user
+                        // confirms (T-64).
+                        suggest_note(&arguments, &self.notes()).map(|(note, output)| {
+                            self.note = Some(note);
+                            output
+                        })
                     } else if call.name == OPEN_PAGE.name {
                         // Shown to the user when the answer is ready; changes
                         // nothing (T-36).
@@ -938,9 +996,12 @@ impl ChatSession {
         Message::tool_result(call.id.clone(), result)
     }
 
-    /// The numbers in the titles of the new charts of `set` that no function
-    /// produced (D-188, D-402). A title is the model's text: it is shown as
-    /// plain text and marked like an answer.
+    /// The numbers in the titles of the new charts of `set` that the user
+    /// didn't write (D-188, D-402). A title is the model's text: it is shown
+    /// as plain text and marked. Unlike in an answer, a figure a function
+    /// produced is marked too: a title stays as it is, is never worked out
+    /// again from the book, and goes along with a dashboard file the user
+    /// shares, so a real balance there is marked as well (B-361, attack A7).
     fn title_numbers(&self, set: &ChangeSet) -> Vec<Unverified> {
         set.changes()
             .iter()
@@ -961,7 +1022,7 @@ impl ChatSession {
                     .cloned()
                     .into_iter()
                     .chain(description.map(description_titles).unwrap_or_default())
-                    .flat_map(|text| check_numbers(&text, &self.figures))
+                    .flat_map(|text| check_numbers(&text, &self.said))
                     .collect::<Vec<_>>()
             })
             .collect()
@@ -1092,12 +1153,16 @@ pub fn sample_request(
     let permissions = ai_switch::permissions();
     provider.prepare(
         vec![
-            Message::system(prompt::with_functions(
-                build,
-                today,
-                false,
-                permissions,
-                prompt::question_language(question),
+            Message::system(format!(
+                "{}{}",
+                prompt::with_functions(
+                    build,
+                    today,
+                    false,
+                    permissions,
+                    prompt::question_language(question),
+                ),
+                prompt::notes_block(&ai_switch::notes())
             )),
             Message::user(question),
         ],
@@ -1162,6 +1227,7 @@ fn function_specs(log_readable: bool, permissions: Permissions) -> Vec<FunctionS
     }));
     specs.push(spec(&DRAFT_ISSUE));
     specs.push(spec(&OPEN_PAGE));
+    specs.push(spec(&SUGGEST_NOTE));
     #[cfg(feature = "debug-log")]
     if log_readable {
         specs.push(spec(&READ_DEBUG_LOG));
@@ -1315,6 +1381,11 @@ fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
         if let Some(shape) = error.expected_shape() {
             object.insert("expected_shape".into(), json!(shape));
         }
+        // A whole number outside its range: the range (#1118).
+        if let Some((min, max)) = error.range() {
+            object.insert("min".into(), json!(min));
+            object.insert("max".into(), json!(max));
+        }
         if let Some(ways) = error.only_for_show_as() {
             // A general list of the argument's words would mislead: the
             // chosen way of drawing takes none of them.
@@ -1368,14 +1439,20 @@ mod tests {
             .with_permissions(Permissions::all());
         let permissions = session.permissions();
         assert!(!permissions.allows(ai_switch::Permission::AttachBills));
+        assert!(!permissions.allows(ai_switch::Permission::FileBills));
         assert!(permissions.allows(ai_switch::Permission::SplitTransactions));
         let specs = function_specs(false, permissions);
-        assert!(specs.iter().all(|spec| spec.name != "bill_folder"));
+        assert!(
+            specs
+                .iter()
+                .all(|spec| spec.name != "bill_folder" && spec.name != "inbox")
+        );
         let propose = specs
             .iter()
             .find(|spec| spec.name == "propose_changes")
             .expect("offered");
         assert!(!propose.parameters.to_string().contains("attach_bills"));
+        assert!(!propose.parameters.to_string().contains("file_bills"));
     }
 
     #[test]
@@ -1510,7 +1587,7 @@ mod tests {
             .iter()
             .fold(Permissions::all(), |p, field| p.with_lock(*field, false));
         let specs = function_specs(false, everything);
-        assert_eq!(specs.len(), FUNCTIONS.len() + 4);
+        assert_eq!(specs.len(), FUNCTIONS.len() + 5);
         assert_eq!(specs[FUNCTIONS.len()].name, PROPOSE_CHANGES.name);
         // A chart has its own function, offered with Charts › Add (D-352).
         let all_specs = specs.clone();
@@ -1524,13 +1601,13 @@ mod tests {
         );
         assert_eq!(specs[FUNCTIONS.len() + 1].name, DRAFT_ISSUE.name);
         assert_eq!(specs[FUNCTIONS.len() + 2].name, OPEN_PAGE.name);
-        for (spec, function) in
-            specs.iter().zip(
-                FUNCTIONS
-                    .iter()
-                    .chain([&PROPOSE_CHANGES, &DRAFT_ISSUE, &OPEN_PAGE]),
-            )
-        {
+        assert_eq!(specs[FUNCTIONS.len() + 3].name, SUGGEST_NOTE.name);
+        for (spec, function) in specs.iter().zip(FUNCTIONS.iter().chain([
+            &PROPOSE_CHANGES,
+            &DRAFT_ISSUE,
+            &OPEN_PAGE,
+            &SUGGEST_NOTE,
+        ])) {
             assert_eq!(spec.name, function.name);
             assert_eq!(
                 spec.parameters,

@@ -19,7 +19,7 @@ use crate::amount::{money_text, parse_amount};
 use crate::args::Arguments;
 use crate::error::CliError;
 use crate::input::{parse_currency, parse_date};
-use crate::lookup::{find_account, find_category, short_id};
+use crate::lookup::{as_typed_if_several, find_account, find_category, normalized, short_id};
 use crate::text::{plain, table};
 
 /// The options that say what a Rule is, shared by `rule add` and `rule
@@ -429,16 +429,19 @@ fn date_and_payee(book: &Book, id: TransactionId) -> Result<(String, String), Cl
 pub(crate) fn find_rule(book: &Book, name: &str) -> Result<Rule, CliError> {
     let mut candidates = Vec::new();
     collect(&book.rules()?, "", &mut candidates);
-    let wanted = name.trim().to_lowercase();
+    // Compared as the book compares names (D-782), see `lookup`.
+    let wanted = normalized(name);
     let mut matches: Vec<&(Rule, String)> = candidates
         .iter()
-        .filter(|(_, path)| path.trim().to_lowercase() == wanted)
+        .filter(|(_, path)| normalized(path) == wanted)
         .collect();
+    matches = as_typed_if_several(matches, name, |(_, path)| path);
     if matches.is_empty() {
         matches = candidates
             .iter()
-            .filter(|(rule, _)| rule.name.trim().to_lowercase() == wanted)
+            .filter(|(rule, _)| normalized(&rule.name) == wanted)
             .collect();
+        matches = as_typed_if_several(matches, name, |(rule, _)| &rule.name);
     }
     match matches.as_slice() {
         [] => Err(CliError::message(format!(

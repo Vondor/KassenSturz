@@ -11,12 +11,15 @@
 use core::pin::Pin;
 use std::path::{Path, PathBuf};
 
-use cxx_qt::CxxQtType;
+use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
-use kassensturz_store::{Book, Lock, PreparedRestore, StoreError};
+use kassensturz_core::Timestamp;
+use kassensturz_store::{
+    Book, Corruption, CutShortSave, Lock, PreparedRestore, StoreError, newest_usable_backup,
+};
 
 use crate::backup_copies;
-use crate::books::{Books, OpenBook, Problem};
+use crate::books::{Books, OpenBook, OpenKind, Problem};
 use crate::locale::QtLocale;
 use crate::platform;
 use crate::session;
@@ -44,10 +47,21 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         #[qproperty(bool, open, READ, NOTIFY)]
+        #[qproperty(bool, opening, READ, NOTIFY)]
         #[qproperty(QString, file_name, cxx_name = "fileName", READ, NOTIFY)]
         #[qproperty(QString, folder, READ, NOTIFY)]
         #[qproperty(QString, folder_url, cxx_name = "folderUrl", READ, NOTIFY)]
         #[qproperty(bool, network_drive, cxx_name = "networkDrive", READ, NOTIFY)]
+        #[qproperty(bool, network_note_shown, cxx_name = "networkNoteShown", READ, NOTIFY)]
+        #[qproperty(bool, without_file_locks, cxx_name = "withoutFileLocks", READ, NOTIFY)]
+        #[qproperty(
+            bool,
+            cut_short_note_shown,
+            cxx_name = "cutShortNoteShown",
+            READ,
+            NOTIFY
+        )]
+        #[qproperty(QString, cut_short_kept, cxx_name = "cutShortKept", READ, NOTIFY)]
         #[qproperty(QString, backup_folder, cxx_name = "backupFolder", READ, CONSTANT)]
         #[qproperty(QString, version, READ, CONSTANT)]
         #[qproperty(bool, from_pull_request, cxx_name = "fromPullRequest", READ, CONSTANT)]
@@ -88,6 +102,17 @@ pub mod qobject {
         /// Tries to open the book `problem` is about again.
         #[qinvokable]
         fn retry(self: Pin<&mut BookSession>);
+
+        /// Hides the note that the open book is on a network drive, for this
+        /// book, from now on (B-321, D-802).
+        #[qinvokable]
+        #[cxx_name = "hideNetworkNote"]
+        fn hide_network_note(self: Pin<&mut BookSession>);
+
+        /// Hides the note that the last save was cut short (B-364).
+        #[qinvokable]
+        #[cxx_name = "hideCutShortNote"]
+        fn hide_cut_short_note(self: Pin<&mut BookSession>);
 
         /// Forgets `problem`, e.g. when the user goes back to the book that
         /// is open.
@@ -131,7 +156,7 @@ pub mod qobject {
 
         /// If writing to the open book failed because of the drive, closes
         /// the book, so nothing more is written and its lock is released,
-        /// and shows `problem` (`book.write-failed`). Returns whether it did
+        /// and shows `problem` (`book.write-failed`, or `book.replaced` when another program replaced the file). Returns whether it did
         /// (D-732). Cheap, so a timer may ask often.
         #[qinvokable]
         #[cxx_name = "checkWriteHealth"]
@@ -157,16 +182,31 @@ pub mod qobject {
     }
 
     impl cxx_qt::Initialize for BookSession {}
+
+    impl cxx_qt::Threading for BookSession {}
 }
 
 /// The Rust side of [`qobject::BookSession`].
 #[derive(Default)]
 pub struct BookSessionRust {
     open: bool,
+    /// Whether a book is being opened on a worker thread: a slow drive
+    /// then never freezes the window (B-326).
+    opening: bool,
     file_name: QString,
     folder: QString,
     folder_url: QString,
     network_drive: bool,
+    /// Whether the note about the network drive is shown: the book is on
+    /// one and the user didn't hide the note for it (B-321, D-802).
+    network_note_shown: bool,
+    without_file_locks: bool,
+    /// Whether the note is shown that opening the book took back a save
+    /// that was cut short, so its changes are missing (B-364).
+    cut_short_note_shown: bool,
+    /// The file name of the book as the cut-short save left it, kept next
+    /// to the book; empty if none was kept.
+    cut_short_kept: QString,
     backup_folder: QString,
     version: QString,
     from_pull_request: bool,
@@ -203,7 +243,7 @@ impl cxx_qt::Initialize for qobject::BookSession {
         state.folder_url = folder_url;
         state.version = QString::from(version_label().as_str());
         state.from_pull_request = from_pull_request();
-        state.use_folders = platform::in_flatpak_sandbox() && platform::can_choose_book_folder();
+        state.use_folders = platform::in_sandbox() && platform::can_choose_book_folder();
         state.books = Some(books);
     }
 }
@@ -211,8 +251,9 @@ impl cxx_qt::Initialize for qobject::BookSession {
 impl qobject::BookSession {
     fn open_last(self: Pin<&mut Self>, name: &QString) {
         let name = name.to_string();
-        self.attempt(Attempt::OpenLast(name.clone()), |books| {
-            books.open_last(&name)
+        self.attempt(Attempt::OpenLast(name.clone()), |books| OpenKind::Last {
+            last: books.last_book(),
+            name,
         });
     }
 
@@ -224,14 +265,14 @@ impl qobject::BookSession {
             // It is the book that is open.
             return;
         }
-        self.attempt(Attempt::Open(path.clone()), |books| books.open(&path));
+        self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Open(path));
     }
 
     fn create_file(self: Pin<&mut Self>, file: &QUrl) {
         let Some(path) = local_path(file) else {
             return;
         };
-        self.attempt(Attempt::Open(path.clone()), |books| books.create(&path));
+        self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Create(path));
     }
 
     fn adopt_open_book(mut self: Pin<&mut Self>) {
@@ -249,8 +290,8 @@ impl qobject::BookSession {
             return;
         };
         let (path, lock) = (path.clone(), lock.clone());
-        self.attempt(Attempt::Open(path.clone()), |books| {
-            books.open_anyway(&path, &lock)
+        self.attempt(Attempt::Open(path.clone()), |_| {
+            OpenKind::OpenAnyway(path, lock)
         });
     }
 
@@ -262,7 +303,7 @@ impl qobject::BookSession {
             }
             Some(Attempt::Open(path) | Attempt::Locked(path, _)) => {
                 let path = path.clone();
-                self.attempt(Attempt::Open(path.clone()), |books| books.open(&path));
+                self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Open(path));
             }
             None => {}
         }
@@ -280,7 +321,7 @@ impl qobject::BookSession {
         if session::path().as_deref() == Some(path.as_path()) {
             return;
         }
-        self.attempt(Attempt::Open(path.clone()), |books| books.open(&path));
+        self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Open(path));
     }
 
     fn create_in(self: Pin<&mut Self>, folder: &QString, name: &QString) -> QVariant {
@@ -290,21 +331,50 @@ impl qobject::BookSession {
                 ("code", variant::text("name.invalid")),
             ]);
         };
-        self.attempt(Attempt::Open(path.clone()), |books| books.create(&path));
+        self.attempt(Attempt::Open(path.clone()), |_| OpenKind::Create(path));
         variant::map([("ok", QVariant::from(&true))])
     }
 
     fn check_write_health(mut self: Pin<&mut Self>) -> bool {
+        // Another computer took the book over with "open anyway": nothing
+        // more may be written here (B-306, D-798).
+        if session::with_book(Book::lock_taken_over).unwrap_or(false) {
+            let Some(path) = session::path() else {
+                return false;
+            };
+            // Closing doesn't touch a lock file that isn't ours.
+            session::close();
+            let problem = Problem::Store {
+                path: path.clone(),
+                error: StoreError::LockLost,
+            };
+            let shown = self.problem_map(&problem);
+            let mut state = self.as_mut().rust_mut();
+            state.open = false;
+            state.last_attempt = Some(Attempt::Open(path));
+            self.as_mut().open_changed();
+            self.as_mut().set_problem(shown);
+            self.as_mut().failed();
+            return true;
+        }
         if !session::with_book(Book::write_failed).unwrap_or(false) {
             return false;
         }
         let Some(path) = session::path() else {
             return false;
         };
+        // Another program's replacing of the file (a sync program) is told
+        // apart from a drive that went (B-289).
+        let replaced = session::with_book(Book::file_replaced).unwrap_or(false);
         // Closing drops the lock; the change that failed was taken back, so
         // the file is as it was before it.
         session::close();
-        let shown = self.problem_map(&Problem::WriteFailed { path: path.clone() });
+        let problem = if replaced {
+            Problem::Replaced { path: path.clone() }
+        } else {
+            Problem::WriteFailed { path: path.clone() }
+        };
+        let shown = self.problem_map(&problem);
         let mut state = self.as_mut().rust_mut();
         state.open = false;
         state.last_attempt = Some(Attempt::Open(path));
@@ -316,6 +386,15 @@ impl qobject::BookSession {
 
     fn show_moved_book(self: Pin<&mut Self>) {
         self.show_open_book();
+    }
+
+    fn hide_network_note(mut self: Pin<&mut Self>) {
+        if let Some(path) = session::path() {
+            crate::network_notice::hide_for(&Settings::user(), &path);
+        }
+        // Gone for this run too, even if the settings couldn't be written.
+        self.as_mut().rust_mut().network_note_shown = false;
+        self.as_mut().network_note_shown_changed();
     }
 
     fn dismiss_problem(mut self: Pin<&mut Self>) {
@@ -342,13 +421,16 @@ impl qobject::BookSession {
         // Only a backup the page lists, never any file QML names.
         let wanted = PathBuf::from(path.to_string());
         let chosen = backup_copies::chosen(&Settings::user()).map(|chosen| chosen.path);
-        let (listed, _) = backup_copies::listed(&book, &backups, chosen.as_deref());
+        let Some(id) = session::with_book(Book::book_id).flatten() else {
+            return refused("restore.no-book");
+        };
+        let (listed, _) = backup_copies::listed(&book, &id, &backups, chosen.as_deref());
         if !listed.iter().any(|listed| listed.path == wanted) {
             return refused("restore.not-listed");
         }
         // Checked and copied next to the book first, so the backup below
         // can't prune the one being restored.
-        let prepared = match PreparedRestore::new(&wanted, &book) {
+        let prepared = match PreparedRestore::new(&wanted, &book, &id) {
             Ok(prepared) => prepared,
             Err(
                 StoreError::NotABook
@@ -357,6 +439,11 @@ impl qobject::BookSession {
             ) => return refused("restore.not-usable"),
             Err(_) => return refused("restore.failed"),
         };
+        // Another computer took the book over (D-798): putting a backup in
+        // place would replace the file it writes (B-342).
+        if session::with_book(|open| open.lock_taken_over()).unwrap_or(false) {
+            return refused("restore.lock-lost");
+        }
         if !matches!(
             session::with_book(|open| open.back_up_now(&book, &backups)),
             Some(Ok(_))
@@ -367,26 +454,58 @@ impl qobject::BookSession {
         let placed = prepared.put_in_place();
         // The book opens again either way: restored, or as it was.
         self.as_mut()
-            .attempt(Attempt::Open(book.clone()), |books| books.open(&book));
+            .attempt(Attempt::Open(book.clone()), |_| OpenKind::Open(book));
         match placed {
             Ok(()) => variant::map([("ok", QVariant::from(&true))]),
             Err(_) => refused("restore.failed"),
         }
     }
 
-    /// Opens a book with `open`. If that fails, the book that was open stays
-    /// open, and `problem` says why.
-    fn attempt(
-        mut self: Pin<&mut Self>,
-        attempt: Attempt,
-        open: impl FnOnce(&Books) -> Result<OpenBook, Problem>,
-    ) {
+    /// Opens a book as `kind` says, on a worker thread, so a slow drive
+    /// never freezes the window (B-326). While it runs, `opening` is true
+    /// and a new attempt is ignored. If it fails, the book that was open
+    /// stays open, and `problem` says why.
+    fn attempt(mut self: Pin<&mut Self>, attempt: Attempt, kind: impl FnOnce(&Books) -> OpenKind) {
+        if self.rust().opening {
+            return;
+        }
         let Some(books) = self.rust().books.as_ref() else {
             return;
         };
-        match open(books) {
+        let job = books.job();
+        let kind = kind(books);
+        self.as_mut().rust_mut().opening = true;
+        self.as_mut().opening_changed();
+        let thread = self.qt_thread();
+        std::thread::spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| job.run(kind)));
+            // A window that is closing has no one left to tell.
+            let _ = match result {
+                Ok(result) => thread.queue(move |qobject| qobject.finish(attempt, result)),
+                // Never leave the window waiting for a book that can't come.
+                Err(_) => thread.queue(|qobject| qobject.stop_opening()),
+            };
+        });
+    }
+
+    /// The worker is done, whatever it found.
+    fn stop_opening(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().opening = false;
+        self.as_mut().opening_changed();
+    }
+
+    /// What the worker thread found: the book opened, or the problem.
+    fn finish(mut self: Pin<&mut Self>, attempt: Attempt, result: Result<OpenBook, Problem>) {
+        self.as_mut().stop_opening();
+        match result {
             Ok(book) => {
-                let backups = books.backup_folder().to_owned();
+                let backups = {
+                    let Some(books) = self.rust().books.as_ref() else {
+                        return;
+                    };
+                    books.remember_opened(&book);
+                    books.backup_folder().to_owned()
+                };
                 session::set(book);
                 // A backup in the app's own folder at least once a month
                 // (B-255), then a copy in the folder the user chose, at
@@ -431,7 +550,7 @@ impl qobject::BookSession {
         if let Some(folder) = problem.path().and_then(Path::parent) {
             entries.push(("folder".into(), qtext(&display(folder))));
         }
-        if let Problem::Locked { lock, .. } = problem {
+        if let Problem::Locked { path, lock } = problem {
             if let Some(computer) = &lock.computer {
                 entries.push(("computer".into(), qtext(computer)));
                 let here = self
@@ -440,16 +559,44 @@ impl qobject::BookSession {
                     .as_ref()
                     .is_some_and(|books| books.computer_name() == computer);
                 entries.push(("here".into(), QVariant::from(&here)));
+                // Opening it anyway is refused, so the page shows the way
+                // out (close it there, or restart) instead of the button.
+                let running = self
+                    .rust()
+                    .books
+                    .as_ref()
+                    .is_some_and(|books| lock.stays_locked_here(path, books.computer_name()));
+                entries.push(("stillRunning".into(), QVariant::from(&running)));
             }
             if let Some(since) = lock.since {
                 entries.push(("since".into(), qtext(&QtLocale::date_time(since))));
             }
+        }
+        // A book made by a newer KassenSturz: the copy it saved before it
+        // updated the book, if this one can open it (B-285). The page says
+        // where the backup folder is (`backupFolder` of the session).
+        let backups = self
+            .rust()
+            .books
+            .as_ref()
+            .map(|books| books.backup_folder().to_owned());
+        if let Some((name, made)) = backups
+            .as_deref()
+            .and_then(|folder| newer_layout_backup(problem, folder))
+        {
+            entries.push(("backupName".into(), qtext(&name)));
+            entries.push(("backupWhen".into(), qtext(&QtLocale::date_time(made))));
         }
         let mut map = QMap::<QMapPair_QString_QVariant>::default();
         for (key, value) in entries {
             map.insert(QString::from(key.as_str()), value);
         }
         QVariant::from(&map)
+    }
+
+    fn hide_cut_short_note(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().cut_short_note_shown = false;
+        self.as_mut().cut_short_note_shown_changed();
     }
 
     /// Shows where the open book is.
@@ -465,17 +612,38 @@ impl qobject::BookSession {
         let folder_url = folder_url(&opened_at);
         let folder = shown_folder_text(&path, opened_at);
         let network_drive = session::on_network_drive();
+        let network_note_shown =
+            network_drive && crate::network_notice::shown_for(&Settings::user(), &path);
+        let without_file_locks = session::without_file_locks();
+        // Told once per opening: showing the book again, e.g. after it was
+        // moved, doesn't bring a hidden note back (B-364).
+        let cut_short = session::with_book_mut(Book::take_cut_short_save).flatten();
+        let cut_short_kept = match &cut_short {
+            Some(CutShortSave::KeptBeside(kept)) => kept
+                .file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_default(),
+            _ => String::new(),
+        };
         let mut state = self.as_mut().rust_mut();
         state.open = true;
         state.file_name = QString::from(file_name.as_str());
         state.folder = QString::from(folder.as_str());
         state.folder_url = folder_url;
         state.network_drive = network_drive;
+        state.network_note_shown = network_note_shown;
+        state.without_file_locks = without_file_locks;
+        state.cut_short_note_shown = cut_short.is_some();
+        state.cut_short_kept = QString::from(cut_short_kept.as_str());
         self.as_mut().open_changed();
         self.as_mut().file_name_changed();
         self.as_mut().folder_changed();
         self.as_mut().folder_url_changed();
         self.as_mut().network_drive_changed();
+        self.as_mut().network_note_shown_changed();
+        self.as_mut().without_file_locks_changed();
+        self.as_mut().cut_short_note_shown_changed();
+        self.as_mut().cut_short_kept_changed();
     }
 
     fn set_problem(mut self: Pin<&mut Self>, problem: QVariant) {
@@ -584,6 +752,27 @@ fn qtext(value: &str) -> QVariant {
     QVariant::from(&QString::from(value))
 }
 
+/// For a book that only a newer KassenSturz can open, or one that is
+/// damaged (a page SQLite can't read, or transactions that don't add up,
+/// B-291): the file name and time of the newest backup in `backups` that
+/// this one can open. For the first, the copy the newer version saved
+/// before it updated the book (B-285).
+fn newer_layout_backup(problem: &Problem, backups: &Path) -> Option<(String, Timestamp)> {
+    let Problem::Store { path, error } = problem else {
+        return None;
+    };
+    if !matches!(
+        error,
+        StoreError::UnsupportedLayout { .. }
+            | StoreError::Corrupt(Corruption::DamagedFile | Corruption::UnbalancedTransaction)
+    ) {
+        return None;
+    }
+    let backup = newest_usable_backup(path, backups)?;
+    let name = backup.path.file_name()?.to_string_lossy().into_owned();
+    Some((name, backup.made))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -598,6 +787,60 @@ mod tests {
             crate::book_move::shown_folder_of(book).text
         );
         assert_eq!(shown_folder_text(book, "/data/Books".into()), "/data/Books");
+    }
+
+    /// B-285: a book that only a newer KassenSturz opens points to the copy
+    /// that version saved before it updated the book, made here the way the
+    /// app makes backups; other problems and other books' backups don't.
+    #[test]
+    fn a_book_of_a_newer_version_points_to_its_backup() {
+        use crate::test_folder::TestFolder;
+        use kassensturz_store::Computer;
+
+        let folder = TestFolder::new();
+        let backups = folder.join("backups");
+        let path = folder.join("Household.ksz");
+        let computer = Computer {
+            name: "Laptop".to_owned(),
+            backup_folder: backups.clone(),
+        };
+        let book = Book::create(&path, &computer).expect("book made");
+        let backup = book.back_up_now(&path, &backups).expect("backed up");
+        let newer = |path: &Path| Problem::Store {
+            path: path.to_owned(),
+            error: StoreError::UnsupportedLayout { found: 99 },
+        };
+        let (name, made) = newer_layout_backup(&newer(&path), &backups).expect("points to it");
+        assert_eq!(
+            Some(name.as_str()),
+            backup.file_name().and_then(|n| n.to_str())
+        );
+        assert!(made.as_second() > 0);
+        // Another book's backup isn't offered, and neither for other problems.
+        assert_eq!(
+            newer_layout_backup(&newer(&folder.join("Other.ksz")), &backups),
+            None
+        );
+        // A damaged book points to it too (B-291).
+        for error in [
+            StoreError::Corrupt(Corruption::DamagedFile),
+            StoreError::Corrupt(Corruption::UnbalancedTransaction),
+        ] {
+            let damaged = Problem::Store {
+                path: path.clone(),
+                error,
+            };
+            assert!(newer_layout_backup(&damaged, &backups).is_some());
+        }
+        let not_a_book = Problem::Store {
+            path: path.clone(),
+            error: StoreError::NotABook,
+        };
+        assert_eq!(newer_layout_backup(&not_a_book, &backups), None);
+        assert_eq!(
+            newer_layout_backup(&newer(&path), &folder.join("none")),
+            None
+        );
     }
 
     #[test]

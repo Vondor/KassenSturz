@@ -183,6 +183,12 @@ QtObject {
         return {};
     }
 
+    // Whether the user's own AI tool prepared a set (B-371): the fake sets
+    // all come from the chat.
+    function isFromOwnTool(setId) {
+        return false;
+    }
+
     function confirm(setId) {
         confirmed = confirmed.concat([setId]);
         return {ok: true};
@@ -196,4 +202,11 @@ QtObject {
         discarded = discarded.concat([setId]);
         discardedReasons = discardedReasons.concat([reasons]);
     }
+
+    // The answers to a request shown for a look (AiRequestReview.qml, B-375).
+    property var reviewAnswers: []
+
+    function reviewSend() { reviewAnswers = reviewAnswers.concat(["send"]); }
+    function reviewStop() { reviewAnswers = reviewAnswers.concat(["stop"]); }
+    function reviewLeaveOut(phrase) { reviewAnswers = reviewAnswers.concat(["leave out " + phrase]); }
 }

@@ -356,13 +356,18 @@ mod path_audit {
     /// how many there are. A new one fails here until it is checked against
     /// the test profile and added: a later path can't slip past it.
     const READS: &[(&str, usize)] = &[
-        // Follows XDG_CONFIG_HOME, checked above.
-        ("kassensturz-core/src/ai_switch.rs", 2),
+        // Follows XDG_CONFIG_HOME, checked above, and on Windows without it
+        // LOCALAPPDATA (B-322), moved by the profile too; 9 of the 11 are
+        // its tests.
+        ("kassensturz-core/src/ai_switch.rs", 11),
         // Follows XDG_DATA_HOME, or on Windows LOCALAPPDATA (D-556), both
         // moved by the profile, checked above; 5 of the 8 are its tests.
         ("kassensturz-core/src/debug_log.rs", 8),
-        // Follows XDG_DATA_HOME, checked above.
-        ("kassensturz-ai-tools/src/requests.rs", 2),
+        // Follows XDG_DATA_HOME, or on Windows LOCALAPPDATA (B-377), both
+        // moved by the profile, checked above; its tests give `place_for`
+        // made-up variables and read none.
+        ("kassensturz-ai-tools/src/requests.rs", 3),
+        ("kassensturz-ai-tools/src/requests/tests.rs", 9),
         // The MCP server's `$HOME` in a `LastBook` it reads from the
         // settings file `ai_switch::settings_file` finds; while a test app
         // runs, the server moves its folders as the app does (M6-B208).
@@ -377,6 +382,9 @@ mod path_audit {
         ("kassensturz-cli/tests/commands.rs", 2),
         // KeePassXC's socket in XDG_RUNTIME_DIR, not a place for data.
         ("kassensturz-platform/src/keepassxc.rs", 1),
+        // Lock-less open in a snap: the private copy for read-only access
+        // goes under the app's own runtime folder (D-776).
+        ("kassensturz-store/src/lockless.rs", 1),
         // A test of the settings file's `$HOME` paths.
         ("kassensturz-ui-bridge/src/settings.rs", 1),
         // The test profile itself, and where it is in the core, which the

@@ -214,6 +214,7 @@ Flickable {
                 ? widget.i18nContext.i18ncp("@info", "%1 account updated", "%1 accounts updated", widget.summary.updated)
                     + ", " + widget.i18nContext.i18ncp("@info", "%1 transaction booked.", "%1 transactions booked.", widget.summary.booked)
                     + (widget.summary.joined > 0 ? " " + widget.i18nContext.i18ncp("@info", "%1 monthly move was joined by itself; Undo takes it apart.", "%1 monthly moves were joined by themselves; Undo takes them apart.", widget.summary.joined) : "")
+                    + ((widget.summary.planned ?? 0) > 0 ? " " + widget.i18nContext.i18ncp("@info", "%1 planned payment came as expected.", "%1 planned payments came as expected.", widget.summary.planned) : "")
                     + (widget.summary.toCheck > 0 ? " " + widget.i18nContext.i18ncp("@info", "%1 to check.", "%1 to check.", widget.summary.toCheck) : "")
                 : ""
         }

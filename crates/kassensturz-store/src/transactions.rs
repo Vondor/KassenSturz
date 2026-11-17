@@ -111,9 +111,14 @@ impl Book {
     /// converted out of a withdrawn currency, must be in a currency in use in
     /// this book too (D-104). A closed account takes no new transactions
     /// (D-081). Neither the transaction's ID nor its parts' may be in use
-    /// already.
+    /// already. Not every part may be booked to one and the same account
+    /// or category, since then no money moves ([`StoreError::NothingMoves`],
+    /// B-270), and not every part may be zero unless a bank delivered it
+    /// ([`StoreError::ZeroAmount`]), except while a new book is filled
+    /// ([`Book::fill_new`]).
     pub fn add_transaction(&mut self, transaction: &Transaction) -> Result<(), StoreError> {
         let accounts = self.check_transaction(transaction)?;
+        self.check_typed_payees(transaction, None)?;
         let exists: Option<i64> = self
             .conn
             .query_row_cached(
@@ -177,6 +182,7 @@ impl Book {
         let stored = self.transaction(transaction.id())?;
         let kept_marks = self.kept_rule_marks(&stored, transaction)?;
         let accounts = self.check_transaction(transaction)?;
+        self.check_typed_payees(transaction, Some(&stored))?;
         check_imported_unchanged(&stored, transaction)?;
         check_originals_unchanged(&stored, transaction)?;
         let before = account_totals(&stored)?;
@@ -398,6 +404,23 @@ impl Book {
         )
     }
 
+    /// The transactions booked from `first` to `last`, plus those with a
+    /// part that shows a date of its own in that range, sorted and checked
+    /// as [`Book::transactions`] does. A Transfer whose sides show other
+    /// days than its booking date is read when any side falls in the range,
+    /// for a list that shows each account's own date (D-108, B-348).
+    pub fn transactions_with_a_date_between(
+        &self,
+        first: Date,
+        last: Date,
+    ) -> Result<Vec<Transaction>, StoreError> {
+        self.transactions_where(
+            "WHERE t.booking_date BETWEEN ?1 AND ?2 OR t.id IN \
+             (SELECT transaction_id FROM splits WHERE own_date BETWEEN ?1 AND ?2)",
+            params![date_to_text(first)?, date_to_text(last)?],
+        )
+    }
+
     /// The transactions with a part booked to `account`, sorted and checked
     /// as [`Book::transactions`] does. They are read in a few queries instead
     /// of one by one, so a register with thousands of lines opens quickly.
@@ -489,6 +512,34 @@ impl Book {
                 .map(|transaction| transaction.with_tags(tagged))
             })
             .collect()
+    }
+
+    /// The transactions that keep a link to `link` among their attachments
+    /// (D-132), such as a bill the receipt inbox filed (US7, #333): the
+    /// receipt inbox checks with it that a bill isn't filed twice, and
+    /// settles a move a crash left open by whether the book links it.
+    pub fn transactions_linking(&self, link: &str) -> Result<Vec<TransactionId>, StoreError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT DISTINCT transaction_id FROM attachments WHERE link = ?1
+             ORDER BY transaction_id",
+        )?;
+        let ids = statement
+            .query_map([link], |row| row.get::<_, [u8; 16]>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ids.into_iter().map(TransactionId::from_bytes).collect())
+    }
+
+    /// Every link the book's transactions keep, once each (D-132): the
+    /// receipt inbox tells by it which filed bills an Undo unlinked on a
+    /// computer that has no journal of their moves (US7, #333).
+    pub fn attachment_links(&self) -> Result<std::collections::BTreeSet<String>, StoreError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT DISTINCT link FROM attachments")?;
+        let links = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<_, _>>()?;
+        Ok(links)
     }
 
     /// The attachments of the transactions `filter` (a clause over
@@ -778,6 +829,44 @@ impl Book {
 
     /// The checks `add_transaction` and `update_transaction` share. Returns
     /// the accounts the transaction's parts are booked to.
+    /// Refuses a payee typed in that could look like another, with a line
+    /// break or a character that shows as nothing or turns the text around
+    /// ([`StoreError::HiddenText`], B-272). A transaction a bank delivered
+    /// keeps the payee as the bank wrote it, another program's book is
+    /// filled as it is, and on a change only a payee that changed is looked
+    /// at, so one kept from before can still be edited otherwise.
+    fn check_typed_payees(
+        &self,
+        transaction: &Transaction,
+        stored: Option<&Transaction>,
+    ) -> Result<(), StoreError> {
+        if self.filling
+            || transaction
+                .splits()
+                .iter()
+                .any(|split| split.imported.is_some())
+        {
+            return Ok(());
+        }
+        if let Some(payee) = transaction.payee()
+            && stored.and_then(Transaction::payee) != Some(payee)
+        {
+            crate::names::check_hidden_text(payee, "payee")?;
+        }
+        for split in transaction.splits() {
+            let Some(payee) = split.own_payee.as_deref() else {
+                continue;
+            };
+            let before = stored
+                .and_then(|stored| stored.splits().iter().find(|old| old.id == split.id))
+                .and_then(|old| old.own_payee.as_deref());
+            if before != Some(payee) {
+                crate::names::check_hidden_text(payee, "payee")?;
+            }
+        }
+        Ok(())
+    }
+
     fn check_transaction(
         &self,
         transaction: &Transaction,
@@ -847,6 +936,29 @@ impl Book {
                 });
             }
             accounts.insert(id, account);
+        }
+        // Every part in one account or category moves nothing (B-270), e.g.
+        // a Transfer from an account to itself. A book another program kept
+        // may hold such a transaction, so filling a new book still takes it.
+        if !self.filling
+            && let [first, rest @ ..] = transaction.splits()
+            && let Some(id) = first.account
+            && rest.iter().all(|split| split.account == Some(id))
+        {
+            return Err(StoreError::NothingMoves(id));
+        }
+        // A transaction of 0.00 moves nothing either. A bank may deliver
+        // one, e.g. a notice that a statement period closed, and such an
+        // entry stays as the bank delivered it, so only one typed in or
+        // prepared by hand or by the AI is refused.
+        if !self.filling
+            && transaction.splits().iter().all(|split| {
+                split.amount.is_zero()
+                    && split.account_amount().is_zero()
+                    && split.imported.is_none()
+            })
+        {
+            return Err(StoreError::ZeroAmount);
         }
         Ok(accounts)
     }

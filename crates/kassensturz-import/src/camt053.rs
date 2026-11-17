@@ -28,6 +28,8 @@ use crate::importer::{ImportKind, Imported, Importer, ImporterInfo, Recognition}
 use crate::limits::Limits;
 use crate::statement::{Balance, Entry, EntryStatus, Statement, StatementAccount};
 
+mod encoding;
+
 /// What every CAMT.053 namespace starts with; a version number follows.
 const NAMESPACE: &str = "urn:iso:std:iso:20022:tech:xsd:camt.053.001.";
 
@@ -48,7 +50,9 @@ impl Importer for Camt053 {
     }
 
     fn recognize(&self, start: &[u8]) -> Recognition {
-        if find(start, NAMESPACE.as_bytes()) {
+        let found = find(start, NAMESPACE.as_bytes())
+            || encoding::utf16_start(start).is_some_and(|text| text.contains(NAMESPACE));
+        if found {
             Recognition::Yes
         } else {
             Recognition::No
@@ -56,11 +60,8 @@ impl Importer for Camt053 {
     }
 
     fn read(&self, input: &[u8], limits: &Limits) -> Result<Imported, ImportError> {
-        let text = std::str::from_utf8(input).map_err(|error| ImportError::Malformed {
-            line: Some(line_at(input, error.valid_up_to())),
-        })?;
-        let text = text.strip_prefix('\u{feff}').unwrap_or(text);
-        Parser::new(text, limits).run()
+        let text = encoding::decode(input)?;
+        Parser::new(&text, limits).run()
     }
 }
 
@@ -368,15 +369,9 @@ impl<'a> Parser<'a> {
                 }
                 Event::Decl(declaration) => {
                     let version = declaration.version().is_ok_and(|version| version == "1.0");
-                    let encoding = match declaration.encoding() {
-                        None => true,
-                        // ISO 20022 files are UTF-8, and the bytes were
-                        // already read as such (D-091).
-                        Some(encoding) => {
-                            encoding.is_ok_and(|encoding| encoding.eq_ignore_ascii_case("utf-8"))
-                        }
-                    };
-                    if !(version && encoding) {
+                    // The encoding was read from the declaration and the
+                    // bytes before the text got here (B-280).
+                    if !version {
                         return Err(self.malformed());
                     }
                 }
@@ -412,6 +407,15 @@ impl<'a> Parser<'a> {
             1 if name != "BkToCstmrStmt" => return Err(self.malformed()),
             _ => {}
         }
+        // An element of another namespace, e.g. a bank tool's extension, is
+        // never read as a statement's own element, even when its local name
+        // is one, nor is anything inside it (#1112). `{` cannot start an XML
+        // name, so the mark cannot meet a real one.
+        let name = if in_camt053 {
+            name
+        } else {
+            format!("{{other}}{name}")
+        };
         self.path.push(name);
         self.text.clear();
         self.attribute = None;
@@ -474,7 +478,7 @@ impl<'a> Parser<'a> {
         let position = self.position();
         if let Some(field) = self.field.take() {
             let text = std::mem::take(&mut self.text);
-            self.keep(field, text, position);
+            self.keep(field, text, position)?;
         }
         let below = self.below_statement();
         let below: Option<Vec<&str>> = below
@@ -520,7 +524,14 @@ impl<'a> Parser<'a> {
     }
 
     /// Stores the text of a finished element where it belongs.
-    fn keep(&mut self, field: Field, text: String, position: usize) {
+    ///
+    /// An amount or a credit/debit mark may come only once per entry and
+    /// balance: a second one is refused rather than guessed between, so an
+    /// amount never changes without the user seeing it (#1112).
+    fn keep(&mut self, field: Field, text: String, position: usize) -> Result<(), ImportError> {
+        let twice = || ImportError::Malformed {
+            line: Some(line_at(self.input.as_bytes(), position)),
+        };
         let raw = |text: String| Raw { text, position };
         // A text that is only whitespace, as pretty-printing leaves around
         // an empty element, is no text.
@@ -553,11 +564,17 @@ impl<'a> Parser<'a> {
             }
             Field::BalanceAmount => {
                 if let Some(balance) = self.balance.as_mut() {
+                    if balance.amount.is_some() {
+                        return Err(twice());
+                    }
                     balance.amount = Some(amount(text, attribute));
                 }
             }
             Field::BalanceIndicator => {
                 if let Some(balance) = self.balance.as_mut() {
+                    if balance.indicator.is_some() {
+                        return Err(twice());
+                    }
                     balance.indicator = Some(raw(text));
                 }
             }
@@ -568,11 +585,17 @@ impl<'a> Parser<'a> {
             }
             Field::EntryAmount => {
                 if let Some(entry) = self.entry.as_mut() {
+                    if entry.amount.is_some() {
+                        return Err(twice());
+                    }
                     entry.amount = Some(amount(text, attribute));
                 }
             }
             Field::EntryIndicator => {
                 if let Some(entry) = self.entry.as_mut() {
+                    if entry.indicator.is_some() {
+                        return Err(twice());
+                    }
                     entry.indicator = Some(raw(text));
                 }
             }
@@ -642,6 +665,7 @@ impl<'a> Parser<'a> {
                 }
             }
         }
+        Ok(())
     }
 
     /// Turns what the file says about one statement into numbers and dates.

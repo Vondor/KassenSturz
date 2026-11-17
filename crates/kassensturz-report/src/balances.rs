@@ -62,6 +62,9 @@ pub(crate) struct Holdings {
     movements: Vec<Movement>,
     /// Every rate of the book's price table (D-028).
     rates: Vec<DatedRate>,
+    /// The day each own account's first entry counts on, also one from
+    /// before the period; an account without an entry has none (D-794).
+    first: HashMap<AccountId, Date>,
 }
 
 /// A moment a balance is taken at: the start or the end of a day.
@@ -117,10 +120,15 @@ impl Holdings {
         }
         let mut opening = HashMap::new();
         let mut movements = Vec::new();
+        let mut first = HashMap::new();
         for account in accounts.iter().filter(|account| account.kind.is_account()) {
             let mut before = Money::zero(account.currency);
             for part in book.account_parts(account.id)? {
                 let day = part.bank_date();
+                first
+                    .entry(account.id)
+                    .and_modify(|seen: &mut Date| *seen = (*seen).min(day))
+                    .or_insert(day);
                 if day < period.first() {
                     before = before.checked_add(part.amount).map_err(overflow)?;
                 } else if day <= period.last() {
@@ -135,7 +143,10 @@ impl Holdings {
             }
             opening.insert(account.id, before);
         }
-        Ok(Self::new(opening, movements, book.all_rates()?))
+        Ok(Self {
+            first,
+            ..Self::new(opening, movements, book.all_rates()?)
+        })
     }
 
     /// Holdings of these balances before the period, parts and rates.
@@ -145,11 +156,24 @@ impl Holdings {
         rates: Vec<DatedRate>,
     ) -> Self {
         movements.sort_by_key(|movement| movement.day);
+        // Without the book, the first entry of an account is the first of
+        // these parts.
+        let mut first = HashMap::new();
+        for movement in &movements {
+            first.entry(movement.account).or_insert(movement.day);
+        }
         Self {
             opening,
             movements,
             rates,
+            first,
         }
+    }
+
+    /// The day `account`'s first entry counts on, or `None` if it has none
+    /// (D-794).
+    pub(crate) fn first_entry(&self, account: AccountId) -> Option<Date> {
+        self.first.get(&account).copied()
     }
 
     /// The parts booked to own accounts on the days of the period, oldest

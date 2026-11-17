@@ -22,7 +22,8 @@ use kassensturz_import::{
     RECOGNITION_BYTES, Recognition, Replacement, SkippedData, UnlistedCurrency, import, read_file,
 };
 use kassensturz_pipeline::{
-    BookImportReport, PipelineError, ReportLine, RuleScope, fill_book, fill_book_from_on,
+    BookImportReport, Outcome, PipelineError, ReportLine, RuleScope, fill_book,
+    fill_book_from_with_dashboards,
 };
 use kassensturz_store::{Book, StoreError};
 
@@ -237,6 +238,10 @@ pub struct Prepared {
     /// extension.
     pub stem: String,
     source: Source,
+    /// Dashboards a KMyMoney book gets on top of its own reports, naming
+    /// its accounts and categories (`@account:Name@`, #829, D-788): only
+    /// the example books have them.
+    dashboards: Vec<String>,
 }
 
 #[derive(Debug)]
@@ -289,6 +294,14 @@ pub struct SuggestionView {
 }
 
 impl Prepared {
+    /// The same, with `dashboards` stored when a KMyMoney book is filled
+    /// (#829, D-788); see [`kassensturz_pipeline::fill_book_from_with_dashboards`].
+    /// A complete export keeps only its own.
+    pub fn with_dashboards(mut self, dashboards: Vec<String>) -> Self {
+        self.dashboards = dashboards;
+        self
+    }
+
     /// What the screen shows.
     pub fn view(&self, locale: &impl Locale) -> PreparedView {
         match &self.source {
@@ -417,6 +430,7 @@ pub fn read(path: &Path) -> Result<Prepared, FromFileError> {
         file_name,
         stem,
         source,
+        dashboards: Vec::new(),
     })
 }
 
@@ -440,6 +454,7 @@ pub fn read_bundled_kmy_sqlite(
         file_name: stem.to_owned(),
         stem: stem.to_owned(),
         source: Source::Other(book),
+        dashboards: Vec::new(),
     })
 }
 
@@ -453,6 +468,7 @@ pub fn read_bundled_export(stem: &str, bytes: &[u8]) -> Result<Prepared, FromFil
         file_name: stem.to_owned(),
         stem: stem.to_owned(),
         source: Source::Export(Box::new(data)),
+        dashboards: Vec::new(),
     })
 }
 
@@ -592,13 +608,16 @@ pub struct Created {
     pub transactions: usize,
     /// How many exchange rates came with it.
     pub rates: usize,
+    /// How many planned payments came with it.
+    pub schedules: usize,
     /// How many transactions have no category yet, as in the file (D-101).
     pub uncategorized: usize,
     /// How many didn't add up in the file and got a part without a category
     /// for the rest.
     pub completed: usize,
-    /// Accounts and categories that got a number after their name, because
-    /// it was taken: the new name.
+    /// Accounts and categories that got a new name: a number or their
+    /// bank's name after it, because the name was taken (B-283), or a
+    /// cleaned name that fits on one line (B-272): the new name.
     pub renamed: Vec<String>,
     /// Categories now at the top level, because they sat inside one in
     /// another currency.
@@ -698,7 +717,14 @@ pub fn fill(
             })
         }
         Source::Other(imported) => {
-            let report = fill_book_from_on(book, imported, replaced, scope, locale.today())?;
+            let report = fill_book_from_with_dashboards(
+                book,
+                imported,
+                replaced,
+                scope,
+                locale.today(),
+                &prepared.dashboards,
+            )?;
             note_fixed_periods(&report.reports);
             created_text(book, &report, locale)
         }
@@ -721,6 +747,18 @@ pub(crate) fn note_fixed_periods<'a>(lines: impl IntoIterator<Item = &'a ReportL
     }
     #[cfg(not(feature = "debug-log"))]
     let _ = lines;
+}
+
+/// How many reports of the file got no line in the summary: the file's count
+/// of reports left out, less the ones that have a line saying `not-kept`
+/// (B-290). They are over the limit of 500 (`MAX_REPORTS`), or records of the
+/// file that weren't a report KassenSturz could read.
+pub(crate) fn reports_not_listed(left_out: usize, lines: &[ReportLine]) -> usize {
+    let listed = lines
+        .iter()
+        .filter(|line| line.outcome == Outcome::NotKept)
+        .count();
+    left_out.saturating_sub(listed)
 }
 
 /// The summary lines of the reports, in the user's date format.
@@ -752,6 +790,7 @@ fn created_text(
         categories: report.categories,
         transactions: report.transactions,
         rates: report.rates,
+        schedules: report.schedules,
         uncategorized: report.uncategorized,
         completed: report.completed,
         renamed: report
@@ -782,12 +821,19 @@ fn created_text(
             })
             .collect(),
         // The reports not kept are listed under *Reports* with why, so
-        // *Left out* doesn't count them again (M6d.6b).
+        // *Left out* doesn't count them again (M6d.6b). The ones that never
+        // got a line, because the file has more than `MAX_REPORTS` (B-290),
+        // are counted here instead: nothing is dropped without being said.
         skipped: report
             .skipped
             .iter()
-            .filter(|skipped| skipped.what != SkippedData::Reports || report.reports.is_empty())
-            .map(|skipped| (skipped.what.keyword(), skipped.count))
+            .filter_map(|skipped| {
+                if skipped.what != SkippedData::Reports || report.reports.is_empty() {
+                    return Some((skipped.what.keyword(), skipped.count));
+                }
+                let not_listed = reports_not_listed(skipped.count, &report.reports);
+                (not_listed > 0).then_some(("reports-not-listed", not_listed))
+            })
             .collect(),
         transfers: report.transfers.len(),
         rules: report.rules,
@@ -814,6 +860,7 @@ mod tests {
     use crate::register::tests::TestLocale;
     use crate::register::{Sort, register_view};
     use crate::test_folder::TestFolder;
+    use kassensturz_pipeline::fill_book_from_on;
 
     fn golden(folder: &str, name: &str) -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -824,6 +871,61 @@ mod tests {
 
     fn empty() -> Book {
         Book::create_in_memory().expect("book in memory")
+    }
+
+    // B-290: reports beyond the limit of 500 have no line in the summary, so
+    // the page says how many there were instead of dropping them silently.
+    // The sample's own reports and a file that had 12 more than were read.
+    #[test]
+    fn reports_over_the_limit_are_counted_on_the_page_not_dropped() {
+        let bytes = std::fs::read(golden("kmy", "reports-anon.kmy")).expect("the sample");
+        let Imported::Book(mut imported) = import(&Kmy, &bytes, &Limits::default()).expect("read")
+        else {
+            panic!("a book");
+        };
+        imported.skipped.push(kassensturz_import::Skipped {
+            what: SkippedData::Reports,
+            count: 12,
+        });
+        imported.skipped.sort_by_key(|skipped| skipped.what);
+        let mut book = empty();
+        let report = fill_book_from_on(
+            &mut book,
+            &imported,
+            &HashMap::new(),
+            RuleScope::default(),
+            TestLocale.today(),
+        )
+        .expect("filled");
+        let created = created_text(&book, &report, &TestLocale).expect("text");
+        let not_listed: Vec<usize> = created
+            .skipped
+            .iter()
+            .filter(|(what, _)| *what == "reports-not-listed")
+            .map(|(_, count)| *count)
+            .collect();
+        assert_eq!(not_listed, [12]);
+        // Without the extra ones nothing is said.
+        let mut plain = empty();
+        let Imported::Book(imported) = import(&Kmy, &bytes, &Limits::default()).expect("read")
+        else {
+            panic!("a book");
+        };
+        let report = fill_book_from_on(
+            &mut plain,
+            &imported,
+            &HashMap::new(),
+            RuleScope::default(),
+            TestLocale.today(),
+        )
+        .expect("filled");
+        let created = created_text(&plain, &report, &TestLocale).expect("text");
+        assert!(
+            !created
+                .skipped
+                .iter()
+                .any(|(what, _)| what.starts_with("reports"))
+        );
     }
 
     fn code(book: &Book, error: &FromFileError) -> String {
@@ -1224,6 +1326,7 @@ mod tests {
             &book,
             &ids,
             &CsvForm::usual(&TestLocale),
+            &TestLocale,
             &folder.join("all.csv"),
         )
         .expect("saved");

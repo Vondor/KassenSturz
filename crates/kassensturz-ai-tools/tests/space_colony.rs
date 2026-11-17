@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-use kassensturz_ai_tools::{FUNCTIONS, Figures, ToolError, call, check_numbers, overview};
+use kassensturz_ai_tools::{FUNCTIONS, Figures, call, check_numbers, overview};
 use kassensturz_core::{AccountKind, Date, Money};
 use kassensturz_import::{Imported, KmySqlite, Limits, import};
 use kassensturz_pipeline::fill_book_from;
@@ -302,7 +302,11 @@ fn an_answer_quoting_the_results_passes_the_number_check() {
                 let id = book.accounts(false).expect("accounts")[0].id.to_string();
                 json!({ "account_id": id })
             }
-            "category_totals" | "payee_totals" => {
+            "daily_balances" => {
+                let id = book.accounts(false).expect("accounts")[0].id.to_string();
+                json!({ "account_id": id, "from": "2026-10-01", "to": "2026-10-31" })
+            }
+            "category_totals" | "payee_totals" | "monthly_totals" => {
                 json!({ "from": "2026-10-01", "to": "2026-10-31" })
             }
             _ => json!({}),
@@ -478,8 +482,10 @@ fn a_sort_and_a_size_that_are_not_plain_are_refused() {
     ] {
         let error = call(&book, "search_transactions", &arguments, TODAY)
             .expect_err(&arguments.to_string());
-        assert!(
-            matches!(error, ToolError::BadArgument { .. }),
+        // Reported as a bad argument, whichever hint it carries (#1118).
+        assert_eq!(
+            error.model_report().code,
+            "ai-tools.bad-argument",
             "{arguments}: {error:?}"
         );
     }

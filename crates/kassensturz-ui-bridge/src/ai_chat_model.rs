@@ -116,7 +116,7 @@ pub mod qobject {
         /// speak of what the user wrote (B-371).
         #[qinvokable]
         #[cxx_name = "fromOwnTool"]
-        fn from_own_tool(self: &AiChat, id: &QString) -> bool;
+        fn is_from_own_tool(self: &AiChat, id: &QString) -> bool;
 
         /// The user corrects the change `slot` of the set `id` before
         /// confirming it (D-293): `fields` is a JSON object of the fields
@@ -281,7 +281,7 @@ mod engine {
         off()
     }
 
-    pub(super) fn from_own_tool(_chat: &qobject::AiChat, _id: &str) -> bool {
+    pub(super) fn is_from_own_tool(_chat: &qobject::AiChat, _id: &str) -> bool {
         false
     }
 
@@ -1238,8 +1238,8 @@ pub(crate) mod engine {
         id.parse().ok()
     }
 
-    pub(super) fn from_own_tool(chat: &qobject::AiChat, id: &str) -> bool {
-        id_of(id).is_some_and(|id| chat.state.sets.from_own_tool(id))
+    pub(super) fn is_from_own_tool(chat: &qobject::AiChat, id: &str) -> bool {
+        id_of(id).is_some_and(|id| chat.state.sets.is_from_own_tool(id))
     }
 
     pub(super) fn danger(chat: &qobject::AiChat, id: &str) -> QVariant {
@@ -1552,8 +1552,8 @@ impl qobject::AiChat {
         engine::danger(self, &id.to_string())
     }
 
-    fn from_own_tool(&self, id: &QString) -> bool {
-        engine::from_own_tool(self, &id.to_string())
+    fn is_from_own_tool(&self, id: &QString) -> bool {
+        engine::is_from_own_tool(self, &id.to_string())
     }
 
     fn confirm(self: Pin<&mut Self>, id: &QString) -> QVariant {

@@ -302,7 +302,7 @@ impl Sets {
     /// Whether the set `id` waits for one of the user's own AI tools, which
     /// prepared it through `kassensturz-mcp`, rather than for the chat
     /// (B-371).
-    pub fn from_own_tool(&self, id: u64) -> bool {
+    pub fn is_from_own_tool(&self, id: u64) -> bool {
         self.sets
             .get(&id)
             .is_some_and(|waiting| waiting.from.is_some())
@@ -2339,9 +2339,9 @@ mod tests {
         let mut sets = Sets::default();
         let chat = sets.add(proposal());
         let tool = sets.add_requested(proposal(), RequestId::new());
-        assert!(!sets.from_own_tool(chat));
-        assert!(sets.from_own_tool(tool));
-        assert!(!sets.from_own_tool(tool + 1));
+        assert!(!sets.is_from_own_tool(chat));
+        assert!(sets.is_from_own_tool(tool));
+        assert!(!sets.is_from_own_tool(tool + 1));
     }
 
     /// B-361 (A7): a chart an outside AI proposed through the MCP server

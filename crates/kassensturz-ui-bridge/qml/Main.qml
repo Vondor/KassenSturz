@@ -1358,6 +1358,12 @@ Kirigami.ApplicationWindow {
         drawer: chatDrawer
     }
 
+    // In a wide window the drawers' buttons sit in the pages' headers.
+    HeaderHandleNames {
+        pages: root.pageStack
+        scope: root.contentItem.parent ?? root.contentItem
+    }
+
     // Opens and closes the chat sidebar from the keyboard. The menu has no entry
     // for it any more: the sidebar's handle is the way to it (#207). Dead while
     // the switch is off (D-013).

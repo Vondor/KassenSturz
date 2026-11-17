@@ -38,7 +38,7 @@ Die **eingerahmten Texte** liest die Testleitung **wörtlich vor**, damit jeder 
 
 > Bevor wir anfangen, eine Frage: Ich würde gern **Ton und Bildschirm aufnehmen**, damit ich mir später in Ruhe anhören kann, was Sie gesagt haben, und nicht alles mitschreiben muss.
 >
-> Die Aufnahme höre und sehe nur ich. Sie wird nicht veröffentlicht, nicht weitergegeben und nach der Auswertung gelöscht, spätestens nach ____ Wochen. Ihr Name steht nicht darauf.
+> Die Aufnahme höre und sehe nur ich. Sie wird nicht veröffentlicht, nicht weitergegeben und nach der Auswertung gelöscht, spätestens nach 4 Wochen. Ihr Name steht nicht darauf.
 >
 > **Nein sagen ist völlig in Ordnung.** Der Test läuft dann genauso, ich schreibe nur mit. Sie können die Aufnahme auch jederzeit stoppen lassen, einfach „Stopp“ sagen.
 >

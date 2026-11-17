@@ -1668,6 +1668,7 @@ mod write_tools_tests {
         );
     }
 
+    #[cfg(feature = "ai")]
     #[test]
     fn the_write_tools_are_off_until_turned_on_and_the_mcp_server_reads_them() {
         use kassensturz_core::ai_switch::write_tools_in as server_reads;

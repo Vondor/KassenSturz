@@ -10,6 +10,8 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
 3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the [user guide](docs/user/USER_GUIDE.de.md) (German) explains how to use KassenSturz. [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
 
+Code signing: KassenSturz uses the SignPath Foundation for code signing of its Windows installers, with a free certificate. Until the project is accepted by SignPath Foundation, the installer is not signed yet. See [the code signing policy](docs/CODE_SIGNING_POLICY.md).
+
 ## Goals
 
 - Simple, plain-language interface with progressive disclosure

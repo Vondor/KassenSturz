@@ -446,8 +446,10 @@ ColumnLayout {
         return groups.concat(categories);
     }
 
+    // `words` is a field's list; a row whose field just went away has none
+    // for a moment (B-373).
     function wordOptions(words): var {
-        return words.map(word => ({word: word, name: wordName(word)}));
+        return (words ?? []).map(word => ({word: word, name: wordName(word)}));
     }
 
     spacing: Kirigami.Units.largeSpacing
@@ -511,7 +513,10 @@ ColumnLayout {
 
                 required property string key
                 readonly property bool shown: panel.fieldByKey[key] !== undefined
-                readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: ""})
+                // A row whose field went away, e.g. when a budget's category
+                // changed what the tile offers, keeps an empty field with no
+                // control, until the field comes back (B-373).
+                readonly property var modelData: panel.fieldByKey[key] ?? ({key: key, kind: "", word: "", words: [], ids: [], text: "", flag: false})
 
                 visible: shown && (panel.only.length === 0 || panel.only.includes(modelData.key))
                     // Uncoloured changes matter only while the chart compares (D-760).
@@ -529,7 +534,8 @@ ColumnLayout {
                     : modelData.kind === "formula" ? formulaBox
                     : modelData.kind === "spec" ? specBox
                     : modelData.kind === "ids" ? idsBox
-                    : modelData.kind === "alarms" ? alarmsBox : choiceBox
+                    : modelData.kind === "alarms" ? alarmsBox
+                    : modelData.kind === "" ? null : choiceBox
 
                 // The warnings tile's rules (US4.9, D-722).
                 Component {
@@ -784,8 +790,8 @@ ColumnLayout {
                         // draws then, and is kept for a longer period.
                         readonly property bool candle: row.modelData.key === "candle"
                         readonly property var words: candle
-                            ? row.modelData.words.filter(word => panel.candleWords.includes(word))
-                            : row.modelData.words
+                            ? (row.modelData.words ?? []).filter(word => panel.candleWords.includes(word))
+                            : (row.modelData.words ?? [])
                         model: panel.wordOptions(words)
                         textRole: "name"
                         valueRole: "word"

@@ -335,3 +335,57 @@ fn removed_views_are_those_the_history_still_shows_removed() {
         Vec::<String>::new()
     );
 }
+
+// B-374: a tile added on one computer is still in the dashboard after
+// another computer took the book over, changed something and undid it, and
+// the book was opened here again. Undo takes back only the newest change,
+// whose rows it recorded; a change that touched no dashboard leaves them.
+#[test]
+fn a_tile_survives_a_take_over_a_change_and_its_undo_elsewhere() {
+    let folder = TempFolder::new();
+    let path = folder.join("Shared.ksz");
+    let here = Computer {
+        name: "Laptop".into(),
+        backup_folder: folder.join("Backups"),
+    };
+    let there = Computer {
+        name: "Desktop".into(),
+        backup_folder: folder.join("Backups there"),
+    };
+    let with_tile = r#"{"format":"kassensturz-dashboard","version":1,"kind":"dashboard","name":"Overview","components":[{"id":"a"},{"id":"small"}]}"#;
+    let (id, first) = {
+        let mut first = Book::create(&path, &here).expect("created");
+        let id = first
+            .add_view(&document("dashboard", "Overview"))
+            .expect("added");
+        first.edit_view(id, with_tile).expect("tile added");
+        (id, first)
+    };
+
+    // The other computer takes the book over while it is open here.
+    let Err(StoreError::Locked(seen)) = Book::open(&path, &there) else {
+        panic!("expected the book to be open here");
+    };
+    {
+        let mut second = Book::open_anyway(&path, &there, &seen).expect("taken over");
+        assert_eq!(second.view(id).expect("read").document, with_tile);
+        let euro = kassensturz_core::CurrencyCode::new("EUR").expect("valid code");
+        second.use_currency(euro).expect("changed");
+        assert_eq!(
+            second.change_to_undo().expect("read").map(|c| c.action),
+            Some(Action::UseCurrency)
+        );
+        second.undo().expect("undone");
+        assert_eq!(second.view(id).expect("read").document, with_tile);
+    }
+    drop(first);
+
+    // Opened here again: the tile is there, and the next undo would take
+    // back the tile's own change, by name.
+    let book = Book::open(&path, &here).expect("opened again");
+    assert_eq!(book.view(id).expect("read").document, with_tile);
+    assert_eq!(
+        book.change_to_undo().expect("read").map(|c| c.action),
+        Some(Action::EditView)
+    );
+}

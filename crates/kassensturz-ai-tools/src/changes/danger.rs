@@ -50,7 +50,7 @@ impl ChangeSet {
         };
         for change in self.changes() {
             match change {
-                ProposedChange::SortWithRules(sort) => danger.touched += sort.changes.len(),
+                ProposedChange::SortWithRules(sort) => danger.touched += sort.touched(),
                 _ => danger.touched += 1,
             }
             match change {

@@ -217,7 +217,10 @@ fn a_proposal_changes_nothing_and_applying_it_is_one_change_that_undo_takes_back
     let ProposedChange::NewRule(rule) = &changes[1] else {
         panic!("then the Rule");
     };
-    assert_eq!(rule.category, ["Food", "Pets"]);
+    assert_eq!(
+        rule.category.as_deref(),
+        Some(&["Food".to_owned(), "Pets".to_owned()][..])
+    );
     assert_eq!(rule.rule.actions.book_to, Some(BookTo::Category(pets.id)));
     let ProposedChange::Categorize(moved) = &changes[2] else {
         panic!("then the transaction");
@@ -3018,7 +3021,10 @@ fn an_edited_set_is_applied_as_the_ai_change_the_user_corrected_and_one_undo_tak
     assert_eq!(rule.rule.name, "Vet");
     assert_eq!(rule.rule.match_mode, MatchMode::Any);
     assert_eq!(rule.rule.conditions.len(), 2);
-    assert_eq!(rule.category, ["Food", "Groceries"]);
+    assert_eq!(
+        rule.category.as_deref(),
+        Some(&["Food".to_owned(), "Groceries".to_owned()][..])
+    );
     let ProposedChange::Categorize(sorted) = &changes[2] else {
         panic!("then the transaction");
     };
@@ -3310,6 +3316,7 @@ mod joins;
 mod races;
 mod rule_batches;
 mod rule_conditions;
+mod rule_tags;
 mod rule_tools;
 mod saved_views;
 mod shape_hints;

@@ -108,7 +108,7 @@ Kein Fund hat eine PIN verraten. Nur bei einem (B-252) hätten Daten Ihren Compu
 
 ## Was KassenSturz noch nicht kann (ehrlich gesagt)
 
-- **Es ist eine Testversion.** KassenSturz ist in der Alpha-Phase. Bitte benutzen Sie zum Testen ausgedachte Zahlen oder ein Beispielbuch, nicht Ihr echtes Haushaltsbuch.
+- **Es ist eine Testversion.** KassenSturz ist in der Beta-Phase. Bitte benutzen Sie zum Testen ausgedachte Zahlen oder ein Beispielbuch, nicht Ihr echtes Haushaltsbuch.
 - **Keine Prüfung durch eine externe Sicherheitsfirma.** KassenSturz wird zum größten Teil von KI-Programmen gebaut und geprüft, unter Aufsicht eines Menschen, der jede wichtige Entscheidung trifft. Eine gezielte zusätzliche Prüfung der heikelsten Teile (Geld, Passwortspeicher, Bank) ist vor der fertigen Version geplant.
 - **Das Buch ist nicht verschlüsselt.** Es enthält keine PIN, aber Ihre Buchungen. Wer eine Kopie der Datei bekommt, kann sie lesen. Schützen Sie Ihren Computer mit einem Passwort und, wenn möglich, mit verschlüsselter Festplatte; Gleiches gilt für Sicherungen und Sync-Ordner.
 - **Schadprogramme auf Ihrem Computer** kann KassenSturz nicht abwehren. Ein Programm, das als Sie läuft, kann Ihre Dateien lesen. Halten Sie Ihr System aktuell.

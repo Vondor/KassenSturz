@@ -199,6 +199,7 @@ fn read_rule(book: &Book, args: &Arguments, id: RuleId, name: &str) -> Result<Ru
         actions: Actions {
             book_to,
             payee: args.value("payee")?.map(str::to_owned),
+            tags: Vec::new(),
         },
     })
 }

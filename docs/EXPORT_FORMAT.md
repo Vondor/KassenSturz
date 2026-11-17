@@ -381,7 +381,7 @@ A book with one account, one category in one group, and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 15,
+  "version": 16,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -422,6 +422,8 @@ A book with one account, one category in one group, and one transaction:
       "note": null,
       "entered": null,
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000004", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-4.50", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},

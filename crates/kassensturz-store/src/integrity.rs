@@ -22,7 +22,32 @@ use crate::error::{Corruption, StoreError};
 /// index entry once; a book of 80 000 parts (16 MB) takes some 40 ms, and a
 /// page SQLite can't parse, which would otherwise come up only at the next
 /// save as a generic database error, is found here.
+///
+/// A file cut short by a few bytes can pass it when its last page holds
+/// little, e.g. an empty table's root, since SQLite reads the missing end
+/// as zeros. Books are kept without a write-ahead log, so the file always
+/// holds every page its header counts; one shorter than that is damaged.
 pub(crate) fn check_file(conn: &Connection) -> Result<(), StoreError> {
+    if let Some(path) = conn.path().filter(|path| !path.is_empty())
+        && let Ok(metadata) = std::fs::metadata(path)
+    {
+        let pages = conn.query_row("PRAGMA page_count", [], |row| row.get::<_, i64>(0));
+        let size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0));
+        let needed = |pages: i64, size: i64| {
+            u64::try_from(pages)
+                .unwrap_or(0)
+                .saturating_mul(u64::try_from(size).unwrap_or(0))
+        };
+        match (pages, size) {
+            (Ok(pages), Ok(size)) if metadata.len() < needed(pages, size) => {
+                return Err(StoreError::Corrupt(Corruption::DamagedFile));
+            }
+            (Err(error), _) | (_, Err(error)) if is_damage(&error) => {
+                return Err(StoreError::Corrupt(Corruption::DamagedFile));
+            }
+            _ => {}
+        }
+    }
     let first = conn.query_row("PRAGMA integrity_check(1)", [], |row| {
         row.get::<_, String>(0)
     });

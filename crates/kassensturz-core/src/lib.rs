@@ -67,8 +67,8 @@ pub use recurring_move::{
 };
 pub use rounding::RoundingMode;
 pub use rules::{
-    Actions, AmountTest, BookTo, Condition, MatchMode, Rule, RuleError, RuleFacts, RuleId,
-    RuleNode, RuleOutcome, RuleSet, TextField, TextOperator,
+    Actions, AmountTest, BookTo, Condition, MAX_TAGS_ON_RULE, MatchMode, Rule, RuleError,
+    RuleFacts, RuleId, RuleNode, RuleOutcome, RuleSet, RuleTag, TextField, TextOperator,
 };
 pub use schedule::{
     Decided, Due, Forecast, ForecastError, LOOK_BACK_YEARS, MAX_DUE_DATES, MAX_DUE_YEARS,

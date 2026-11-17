@@ -235,11 +235,7 @@ impl Book {
                         params![split.to_bytes(), rule.map(RuleId::to_bytes)],
                     )?;
                 }
-                book.conn.execute_cached(
-                    "DELETE FROM transaction_tags WHERE transaction_id = ?1",
-                    [id],
-                )?;
-                insert_transaction_tags(&book.conn, transaction)?;
+                rewrite_transaction_tags(&book.conn, transaction)?;
                 book.conn
                     .execute_cached("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
                 insert_attachments(&book.conn, transaction)
@@ -1111,6 +1107,61 @@ pub(crate) fn insert_transaction_tags(
             tag.to_bytes(),
             position,
         ])?;
+    }
+    Ok(())
+}
+
+/// Writes the tags on the whole of `transaction` again after the user
+/// changed it (D-712, D-827). A tag it keeps keeps its row, and with it who
+/// added it, a Rule or the user. A tag it lost is remembered as taken off
+/// by the user, so no Rule puts it back; a tag the user put back is no
+/// longer remembered so.
+pub(crate) fn rewrite_transaction_tags(
+    conn: &Connection,
+    transaction: &Transaction,
+) -> Result<(), StoreError> {
+    let id = transaction.id().to_bytes();
+    type Kept = ([u8; 16], i64, Option<[u8; 16]>);
+    let mut statement = conn.prepare_cached(
+        "SELECT tag_id, id, by_rule, rule_id FROM transaction_tags WHERE transaction_id = ?1",
+    )?;
+    let old: HashMap<[u8; 16], Kept> = statement
+        .query_map([id], |row| {
+            Ok((row.get(0)?, (row.get(1)?, row.get(2)?, row.get(3)?)))
+        })?
+        .collect::<Result<_, _>>()?;
+    drop(statement);
+    conn.execute_cached(
+        "DELETE FROM transaction_tags WHERE transaction_id = ?1",
+        [id],
+    )?;
+    let mut insert = conn.prepare_cached(
+        "INSERT INTO transaction_tags (id, transaction_id, tag_id, position, by_rule, rule_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+    )?;
+    for (position, tag) in (0_i64..).zip(transaction.tags()) {
+        let tag = tag.to_bytes();
+        let (row, by_rule, rule) = old
+            .get(&tag)
+            .copied()
+            .unwrap_or_else(|| (uuid::Uuid::now_v7().into_bytes(), 0, None));
+        insert.execute(params![row, id, tag, position, by_rule, rule])?;
+        conn.execute_cached(
+            "DELETE FROM removed_transaction_tags WHERE transaction_id = ?1 AND tag_id = ?2",
+            params![id, tag],
+        )?;
+    }
+    let kept: Vec<[u8; 16]> = transaction
+        .tags()
+        .iter()
+        .map(|tag| tag.to_bytes())
+        .collect();
+    for tag in old.keys().filter(|tag| !kept.contains(tag)) {
+        conn.execute_cached(
+            "INSERT OR IGNORE INTO removed_transaction_tags (id, transaction_id, tag_id)
+             VALUES (?1, ?2, ?3)",
+            params![uuid::Uuid::now_v7().into_bytes(), id, tag],
+        )?;
     }
     Ok(())
 }

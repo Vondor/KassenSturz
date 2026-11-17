@@ -2886,6 +2886,7 @@ impl Known {
             actions: Actions {
                 book_to: Some(BookTo::Category(category)),
                 payee: None,
+                tags: Vec::new(),
             },
         };
         rule.check().map_err(rule_refused)?;
@@ -3135,6 +3136,12 @@ fn rule_refused(error: RuleError) -> ToolError {
         | RuleError::AmountRangeCurrencies { condition, .. }
         | RuleError::DateRangeReversed { condition, .. } => (Some(condition + 1), "invalid"),
         RuleError::EmptyPayee(_) => (None, "invalid"),
+        // Checked against the tags' own arguments first (D-827).
+        RuleError::TooManyTags(_) | RuleError::DuplicateTag(_) => {
+            return ToolError::BadArgument {
+                argument: "add_tag_ids",
+            };
+        }
     };
     ToolError::BadCondition { condition, reason }
 }

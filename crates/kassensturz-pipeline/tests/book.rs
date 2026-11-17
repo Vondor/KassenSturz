@@ -115,6 +115,7 @@ fn rule(name: &str, conditions: Vec<Condition>, book_to: Option<BookTo>) -> Rule
         actions: Actions {
             book_to,
             payee: None,
+            tags: Vec::new(),
         },
     }
 }

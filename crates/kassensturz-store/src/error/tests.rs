@@ -106,6 +106,8 @@ fn examples() -> Vec<ErrorReport> {
         RuleError::AmountRangeCurrencies { rule, condition: 0 },
         RuleError::DateRangeReversed { rule, condition: 0 },
         RuleError::EmptyPayee(rule),
+        RuleError::TooManyTags(rule),
+        RuleError::DuplicateTag(rule),
         // `StoreError::Rule` reports the code of the error it holds.
     ];
     let corruptions = [

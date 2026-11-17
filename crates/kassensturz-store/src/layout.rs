@@ -35,9 +35,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 12] = [
+pub(crate) const MIGRATIONS: [&str; 13] = [
     LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30, LAYOUT_31,
-    LAYOUT_32, LAYOUT_33, LAYOUT_34, LAYOUT_35,
+    LAYOUT_32, LAYOUT_33, LAYOUT_34, LAYOUT_35, LAYOUT_36,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
@@ -1218,6 +1218,75 @@ INSERT INTO book_identity (id, book_id) VALUES (1, randomblob(16));
 const LAYOUT_35: &str = "
 CREATE TABLE parked_ai_rule_marks (
     rule_id BLOB PRIMARY KEY NOT NULL CHECK (length(rule_id) = 16)
+) STRICT;
+";
+
+/// Layout 36 (D-827, D-828): Rules that add tags.
+///
+/// - `rule_tags`, built like `transaction_tags`: which tags each Rule adds
+///   to the transactions it matches, in the user's order, each once.
+///   Removing the Rule removes its rows; a tag a Rule names is removed from
+///   it by KassenSturz when the tag goes, as from transactions.
+/// - `transaction_tags` gets `by_rule` (1 if a Rule added the tag, 0 if the
+///   user did) and `rule_id` (which Rule; NULL when that Rule was removed
+///   since, and always for a tag the user added). Every tag a book of
+///   layout 35 holds was put there by the user, so it gets `by_rule` 0.
+/// - `removed_transaction_tags`: the tags the user took off a transaction,
+///   so no Rule puts them back. Removing the transaction removes its rows;
+///   putting the tag back by hand removes the row.
+/// - `changed_rule_tags` and `changed_removed_transaction_tags`, their
+///   change history (D-066), and the two new columns in
+///   `changed_transaction_tags`, where every kept row gets `by_rule` 0 as
+///   well, so Undo and Redo of a change made before the update still work.
+///
+/// No action is added, so `changes` stays as it is. Nothing else a book of
+/// layout 35 holds changes: no Rule adds a tag yet.
+const LAYOUT_36: &str = "
+CREATE TABLE rule_tags (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    rule_id BLOB NOT NULL REFERENCES rules (id) ON DELETE CASCADE,
+    tag_id BLOB NOT NULL REFERENCES tags (id),
+    position INTEGER NOT NULL CHECK (position >= 0),
+    UNIQUE (rule_id, tag_id)
+) STRICT;
+CREATE INDEX rule_tags_by_tag ON rule_tags (tag_id);
+
+CREATE TABLE changed_rule_tags (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    rule_id BLOB,
+    tag_id BLOB,
+    position INTEGER,
+    PRIMARY KEY (change_id, id, side)
+) STRICT;
+
+ALTER TABLE transaction_tags
+    ADD COLUMN by_rule INTEGER NOT NULL DEFAULT 0 CHECK (by_rule IN (0, 1));
+ALTER TABLE transaction_tags
+    ADD COLUMN rule_id BLOB REFERENCES rules (id) ON DELETE SET NULL
+        CHECK (rule_id IS NULL OR by_rule = 1);
+CREATE INDEX transaction_tags_by_rule ON transaction_tags (rule_id);
+
+ALTER TABLE changed_transaction_tags ADD COLUMN by_rule INTEGER;
+ALTER TABLE changed_transaction_tags ADD COLUMN rule_id BLOB;
+UPDATE changed_transaction_tags SET by_rule = 0;
+
+CREATE TABLE removed_transaction_tags (
+    id BLOB PRIMARY KEY NOT NULL CHECK (length(id) = 16),
+    transaction_id BLOB NOT NULL REFERENCES transactions (id) ON DELETE CASCADE,
+    tag_id BLOB NOT NULL REFERENCES tags (id),
+    UNIQUE (transaction_id, tag_id)
+) STRICT;
+CREATE INDEX removed_transaction_tags_by_tag ON removed_transaction_tags (tag_id);
+
+CREATE TABLE changed_removed_transaction_tags (
+    change_id BLOB NOT NULL REFERENCES changes (id) ON DELETE CASCADE,
+    side TEXT NOT NULL CHECK (side IN ('before', 'after')),
+    id BLOB NOT NULL,
+    transaction_id BLOB,
+    tag_id BLOB,
+    PRIMARY KEY (change_id, id, side)
 ) STRICT;
 ";
 
@@ -2420,6 +2489,101 @@ mod tests {
             drop(Book::open(&path, &computer).expect("opened again"));
             assert_eq!(files_in(&computer.backup_folder).len(), 1);
         }
+    }
+
+    #[test]
+    fn layout_36_lets_rules_add_tags_and_keeps_the_tags_and_their_history() {
+        // Books of layout 30 (the first with tags on a whole transaction)
+        // and 35, each with such a tag, added in a change the history
+        // recorded, as an older KassenSturz wrote them (D-827, D-828). The
+        // update from every earlier layout is tested by the tests of the
+        // layouts before.
+        for version in [30, 35] {
+            let folder = TempFolder::new();
+            let path = folder.join("Household.ksz");
+            let checking = old_book(&path, version);
+            let tag = uuid::Uuid::now_v7().into_bytes();
+            let row = uuid::Uuid::now_v7().into_bytes();
+            {
+                let conn = Connection::open(&path).expect("book opened");
+                let transaction: [u8; 16] = conn
+                    .query_row("SELECT id FROM transactions", [], |row| row.get(0))
+                    .expect("the transaction");
+                let change = uuid::Uuid::now_v7().into_bytes();
+                let made_at = kassensturz_core::Timestamp::from_second(
+                    kassensturz_core::Timestamp::now().as_second(),
+                )
+                .expect("now");
+                conn.execute_batch(&format!(
+                    "INSERT INTO tags (id, name) VALUES (X'{tag}', 'Holiday');
+                     INSERT INTO transaction_tags (id, transaction_id, tag_id, position)
+                         VALUES (X'{row}', X'{transaction}', X'{tag}', 0);
+                     INSERT INTO changes (id, sequence, action, made_at, undone)
+                         VALUES (X'{change}', 1, 'edit_transaction', '{made_at}', 0);
+                     INSERT INTO changed_transaction_tags
+                         (change_id, side, id, transaction_id, tag_id, position)
+                         VALUES (X'{change}', 'after', X'{row}', X'{transaction}', X'{tag}', 0);",
+                    tag = hex(&tag),
+                    row = hex(&row),
+                    transaction = hex(&transaction),
+                    change = hex(&change),
+                ))
+                .expect("tagged");
+            }
+
+            let computer = computer(&folder);
+            let mut book = Book::open(&path, &computer).expect("book updated");
+            assert_eq!(
+                pragma(&book.conn, "user_version"),
+                VERSION,
+                "from {version}"
+            );
+            // Updated after a backup, which keeps the old layout.
+            let backups = files_in(&computer.backup_folder);
+            assert_eq!(backups.len(), 1, "from {version}");
+            let backup = Connection::open(&backups[0]).expect("backup opened");
+            assert_eq!(pragma(&backup, "user_version"), version);
+            assert!(
+                !schema(&backup)
+                    .iter()
+                    .any(|(_, name, _)| name == "rule_tags")
+            );
+            drop(backup);
+            // The tag is the user's, also in the history; nothing else is
+            // there yet.
+            assert_eq!(count(&book.conn, "rule_tags"), 0);
+            assert_eq!(count(&book.conn, "removed_transaction_tags"), 0);
+            let by_rule: (i64, Option<Vec<u8>>) = book
+                .conn
+                .query_row("SELECT by_rule, rule_id FROM transaction_tags", [], |row| {
+                    Ok((row.get(0)?, row.get(1)?))
+                })
+                .expect("the tag");
+            assert_eq!(by_rule, (0, None));
+            let kept: i64 = book
+                .conn
+                .query_row(
+                    "SELECT by_rule FROM main.changed_transaction_tags",
+                    [],
+                    |row| row.get(0),
+                )
+                .expect("the kept row");
+            assert_eq!(kept, 0);
+            // The change made before the update is undone and made again.
+            book.undo().expect("undone");
+            assert_eq!(count(&book.conn, "transaction_tags"), 0);
+            book.redo().expect("made again");
+            assert_eq!(count(&book.conn, "transaction_tags"), 1);
+            assert_eq!(book.tag_sources_of(None).expect("read").len(), 1);
+            let _ = checking;
+            drop(book);
+            drop(Book::open(&path, &computer).expect("opened again"));
+            assert_eq!(files_in(&computer.backup_folder).len(), 1);
+        }
+    }
+
+    fn hex(bytes: &[u8]) -> String {
+        bytes.iter().map(|byte| format!("{byte:02x}")).collect()
     }
 
     #[test]

@@ -651,6 +651,7 @@ fn with_rules() -> (Sample, Vec<Rule>) {
             actions: Actions {
                 book_to: Some(BookTo::Category(sample.groceries)),
                 payee: None,
+                tags: Vec::new(),
             },
         };
         sample.book.add_rule(&rule, None).expect("Rule");
@@ -898,6 +899,7 @@ fn a_rule_change_is_refused_when_it_cannot_be_reviewed_or_made_right() {
         actions: Actions {
             book_to: Some(BookTo::Transfer(checking)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&iban, None).expect("Rule");
@@ -1262,6 +1264,7 @@ fn only_an_empty_category_is_deleted_and_undo_brings_it_back() {
         actions: Actions {
             book_to: Some(BookTo::Category(salary)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&rule, None).expect("added");

@@ -43,6 +43,10 @@ fn examples() -> Vec<ExportError> {
             split: SplitId::generate(),
             tag: kassensturz_core::TagId::generate(),
         },
+        ExportError::TagMarkWithoutTag {
+            transaction: kassensturz_core::TransactionId::generate(),
+            tag: kassensturz_core::TagId::generate(),
+        },
         ExportError::RulesTooDeep { max: 32 },
         ExportError::TooLarge { max: 1024 },
         ExportError::NotJson { line: 3, column: 7 },

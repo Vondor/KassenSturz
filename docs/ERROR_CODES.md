@@ -85,6 +85,8 @@ A Rule that can't be used as it is (D-014, D-088). `store.rule` isn't a code of 
 | `rule.amount-range-currencies` | `rule`, `condition` | | The two amounts in condition {condition} of {rule} are in different currencies. Use one currency for both. |
 | `rule.date-range-reversed` | `rule`, `condition` | | In condition {condition} of {rule}, the last day is before the first. Swap them. |
 | `rule.empty-payee` | `rule` | | {rule} would set an empty payee. Type the payee, or leave that action out. |
+| `rule.too-many-tags` | `rule` | | {rule} adds more than 20 tags. Take some of them off the Rule. |
+| `rule.duplicate-tag` | `rule` | | {rule} names the same tag twice. Take one of them off. |
 
 ## Books (`kassensturz-store`)
 
@@ -297,6 +299,7 @@ Data couldn't be written to a file (D-099), or a complete export couldn't be rea
 | `export.unlisted-currency` | `currency`, `path?` | | An amount is in {currency}, but the book's list of currencies doesn't have it, so its decimal places aren't known. In a complete export being read, {path} says where. Correct the file, or report it if KassenSturz wrote it. Nothing was exported or read. |
 | `export.mark-without-part` | `split` | | A part is marked as booked by a Rule, but no transaction has it. This is a mistake in KassenSturz; please report it. Nothing was exported. |
 | `export.unlisted-tag` | `split`, `tag` | | A part carries a tag the book doesn't list. This is a mistake in KassenSturz: nothing was exported. |
+| `export.tag-mark-without-tag` | `transaction`, `tag` | | A transaction's tag is marked as added by a Rule or as taken off, but that doesn't fit the transaction's tags. This is a mistake in KassenSturz: nothing was exported. |
 | `export.rules-too-deep` | `max` | | Rules sit inside each other more than {max} levels deep, more than a complete export can hold. Move some of them up a level and try again. Nothing was exported or read. |
 | `export.too-large` | `max` | | The file is larger than a complete export can be ({max} bytes), so it wasn't read. Check that it is the right file. |
 | `export.not-json` | `line`, `column` | | This file isn't a complete export: it isn't JSON, or it is cut off, at line {line}, column {column}. Choose the file KassenSturz exported, or export the book again. Nothing was read. |

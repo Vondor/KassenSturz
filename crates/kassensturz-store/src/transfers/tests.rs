@@ -530,6 +530,7 @@ fn own_transfer_rule(book: &mut Book, category: AccountId) -> Rule {
         actions: Actions {
             book_to: Some(BookTo::Category(category)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&rule, None).expect("Rule added");

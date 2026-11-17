@@ -198,6 +198,7 @@ fn sorting_again_takes_only_what_rules_sorted_and_the_user_left_alone() {
         actions: Actions {
             book_to: Some(BookTo::Category(food)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&everything, None).expect("added");

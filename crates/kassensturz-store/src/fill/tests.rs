@@ -49,6 +49,7 @@ fn rule(name: &str, book_to: AccountId) -> Rule {
         actions: Actions {
             book_to: Some(BookTo::Category(book_to)),
             payee: None,
+            tags: Vec::new(),
         },
     }
 }

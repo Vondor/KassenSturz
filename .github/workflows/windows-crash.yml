@@ -5,7 +5,8 @@ name: Windows crash and lock tests
 # force in the middle of saving (TerminateProcess), checks that every save it
 # reported is there exactly once and every balance is the sum of its parts,
 # finds the lock a killed program leaves behind, works in folders with spaces
-# and umlauts, imports a UTF-16 CAMT file (B-280, #978) and checks that saves are synced to disk (B-278).
+# and umlauts, imports a UTF-16 CAMT file (B-280, #978), checks that saves are synced to disk (B-278)
+# and runs the MCP request folder's tests on NTFS (B-377).
 #
 # It is separate from the long release-only Windows app build
 # (windows-app.yml) and builds only the command-line tool and the store, so it
@@ -74,6 +75,13 @@ jobs:
       # The book lock, as the store tests have it.
       - name: Book lock
         run: cargo test -p kassensturz-store --lib --locked lock
+        env:
+          CARGO_INCREMENTAL: "0"
+      # B-377: the request folder through which the user's own AI tools
+      # hand prepared changes to the app, on real NTFS (junctions refused,
+      # an answer replaced while the server reads the last one).
+      - name: MCP request folder (B-377)
+        run: cargo test -p kassensturz-ai-tools --lib --locked requests
         env:
           CARGO_INCREMENTAL: "0"
       - name: Save Cargo's cache

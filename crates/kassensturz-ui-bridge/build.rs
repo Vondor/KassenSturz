@@ -135,6 +135,7 @@ fn main() {
                 "qml/OverviewPage.qml",
                 "qml/DashboardTabs.qml",
                 "qml/DashboardMenu.qml",
+                "qml/DrawerHandleName.qml",
                 "qml/NewDashboardDialog.qml",
                 "qml/TemplatePicture.qml",
                 "qml/PartRow.qml",

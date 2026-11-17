@@ -202,6 +202,17 @@ Window {
 
             // A refused change shows a message and nothing else.
             fake.view = Object.assign({}, fake.view, {error: {code: "report.document-invalid", reason: "bad-choice", path: "params.grouping"}});
+
+            // A field that goes away, as when a budget tile's category
+            // changes, leaves its row without a control and without a
+            // TypeError for its missing words (B-373); it comes back as it was.
+            const all = fake.view.fields;
+            fake.view = Object.assign({}, fake.view, {fields: all.filter(field => field.key !== "grouping")});
+            const gone = window.find(panel, "ComboBox", []).filter(box => box.visible && box.textRole === "name");
+            window.check(gone.length === 0, "no choice box once its field is gone, got " + gone.length);
+            fake.view = Object.assign({}, fake.view, {fields: all});
+            const back = window.find(panel, "ComboBox", []).filter(box => box.visible && box.textRole === "name");
+            window.check(back.length === 1 && back[0].count === 2, "the choice box is back with its two words");
             Qt.exit(window.failed ? 1 : 0);
         }
     }

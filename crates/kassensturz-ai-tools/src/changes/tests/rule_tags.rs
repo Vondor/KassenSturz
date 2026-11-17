@@ -35,7 +35,10 @@ fn only_rule(proposal: &Proposal) -> &NewRule {
 #[test]
 fn a_new_rule_may_only_add_tags_and_then_never_sorts() {
     let Sample {
-        mut book, unsorted, checking, ..
+        mut book,
+        unsorted,
+        checking,
+        ..
     } = sample();
     let animals = tag(&mut book, "Animals");
     let call = json!({"new_rules": [{
@@ -239,8 +242,8 @@ fn the_sort_counts_what_it_tags_and_a_check_says_so() {
         "{}",
         proposal.changes.summary()
     );
-    let counted = crate::check_only_answer(&sample.book, &proposal, Permissions::all())
-        .expect("checked");
+    let counted =
+        crate::check_only_answer(&sample.book, &proposal, Permissions::all()).expect("checked");
     assert_eq!(counted["would_sort"], json!(1), "{counted}");
     assert_eq!(counted["would_tag"], json!(1), "{counted}");
     proposal

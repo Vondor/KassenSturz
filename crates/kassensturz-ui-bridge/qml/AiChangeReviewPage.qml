@@ -919,9 +919,22 @@ Kirigami.ScrollablePage {
 
                     Controls.Label {
                         Layout.fillWidth: true
+                        visible: modelData.bookTo !== ""
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
                         text: page.i18nContext.i18nc("@info %1 is the path of a category", "Books matching transactions to %1.", modelData.bookTo)
+                    }
+
+                    // The tags it adds (D-827); one with no category only
+                    // tags, and the Rules after it still sort.
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: (modelData.tags ?? []).length > 0
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.bookTo === ""
+                            ? page.i18nContext.i18nc("@info %1 is a list of tag names", "Only adds the tags %1 to matching transactions; the next Rules still sort them.", Array.from(modelData.tags ?? []).join(", "))
+                            : page.i18nContext.i18nc("@info %1 is a list of tag names", "Also adds the tags %1.", Array.from(modelData.tags ?? []).join(", "))
                     }
 
                     Controls.Label {
@@ -998,6 +1011,23 @@ Kirigami.ScrollablePage {
                         text: modelData.beforeBookTo !== modelData.bookTo
                             ? page.i18nContext.i18nc("@info %1 and %2 are paths of categories", "Books matching transactions to %2 (before: %1).", modelData.beforeBookTo, modelData.bookTo)
                             : page.i18nContext.i18nc("@info %1 is the path of a category", "Books matching transactions to %1.", modelData.bookTo)
+                    }
+
+                    // The tags it adds, before and after (D-827).
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        readonly property string before: Array.from(modelData.beforeTags ?? []).join(", ")
+                        readonly property string after: Array.from(modelData.tags ?? []).join(", ")
+                        visible: before !== "" || after !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: before === after
+                            ? page.i18nContext.i18nc("@info %1 is a list of tag names", "Adds the tags %1.", after)
+                            : after === ""
+                                ? page.i18nContext.i18nc("@info %1 is a list of tag names", "Adds no tags anymore (before: %1).", before)
+                                : before === ""
+                                    ? page.i18nContext.i18nc("@info %1 is a list of tag names", "Adds the tags %1 (before: none).", after)
+                                    : page.i18nContext.i18nc("@info %1 and %2 are lists of tag names", "Adds the tags %2 (before: %1).", before, after)
                     }
 
                     Controls.Label {

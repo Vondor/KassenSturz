@@ -398,6 +398,8 @@ pub fn details(
         .map(kassensturz_store::shown_text)
         .filter(|name| *name != other_party)
         .unwrap_or_default();
+    let mut whole_tags = tags::texts(&names, transaction.tags());
+    tags::mark_rules(book, transaction.id(), &mut whole_tags)?;
     Ok(EntryForm {
         id: transaction.id().to_string(),
         kind: kind.key(),
@@ -412,7 +414,7 @@ pub fn details(
         },
         date: locale.short_date(date),
         note: transaction.note().unwrap_or_default().to_owned(),
-        tags: tags::texts(&names, transaction.tags()),
+        tags: whole_tags,
         part_tags: tags::texts(
             &names,
             &transaction
@@ -2218,5 +2220,69 @@ mod tests {
             .expect("details")
             .bills;
         assert_eq!(back, bills);
+    }
+
+    /// A tag a Rule added says which Rule (D-827), and keeps saying so when
+    /// the user saves the entry with its tags as they are.
+    #[test]
+    fn a_tag_a_rule_added_names_the_rule() {
+        let (mut book, checking) = book_with_checking();
+        let groceries = category_id(&book, "Food › Groceries");
+        let monthly = kassensturz_core::Tag {
+            id: kassensturz_core::TagId::generate(),
+            name: "Monthly".into(),
+        };
+        book.add_tag(&monthly).expect("tag");
+        add(
+            &mut book,
+            &paid(&checking, "30", "Corner Grocery", &groceries),
+            &TestLocale,
+        )
+        .expect("added");
+        let rule = kassensturz_core::Rule {
+            id: kassensturz_core::RuleId::generate(),
+            name: "Grocer tag".into(),
+            match_mode: kassensturz_core::MatchMode::All,
+            conditions: vec![kassensturz_core::Condition::Text {
+                field: kassensturz_core::TextField::Payee,
+                operator: kassensturz_core::TextOperator::Contains,
+                value: "grocery".into(),
+                case_sensitive: false,
+            }],
+            actions: kassensturz_core::Actions {
+                book_to: None,
+                payee: None,
+                tags: vec![monthly.id],
+            },
+        };
+        book.add_rule(&rule, None).expect("Rule");
+        book.run_rules().expect("run");
+        let id = transaction_at(&book, &checking, true);
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.tags.len(), 1);
+        assert_eq!(form.tags[0].rule.as_deref(), Some("Grocer tag"));
+
+        // Saved with its tags as they are, the tag is still the Rule's.
+        let kept = [TagInput {
+            id: &form.tags[0].id,
+            name: "",
+        }];
+        edit(
+            &mut book,
+            &id,
+            &NewEntry {
+                tags: Some(&kept),
+                ..paid(&checking, "31", "Corner Grocery", &groceries)
+            },
+            &TestLocale,
+        )
+        .expect("edited");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.tags[0].rule.as_deref(), Some("Grocer tag"));
+
+        // A removed Rule leaves the tag marked as a Rule's, without a name.
+        book.remove_rule(rule.id).expect("removed");
+        let form = details(&book, &checking, &id, &TestLocale).expect("details");
+        assert_eq!(form.tags[0].rule.as_deref(), Some(""));
     }
 }

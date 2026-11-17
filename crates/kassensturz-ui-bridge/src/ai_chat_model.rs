@@ -661,6 +661,7 @@ pub(crate) mod engine {
                 match_all,
                 conditions,
                 inside,
+                tags,
                 catches,
             } => vec![
                 ("kind", text("newRule")),
@@ -669,6 +670,7 @@ pub(crate) mod engine {
                 ("matchAll", QVariant::from(match_all)),
                 ("conditions", list(conditions.iter().map(condition_object))),
                 ("inside", text(inside)),
+                ("tags", list(tags.iter().map(|tag| text(tag)))),
                 ("catches", whole(*catches)),
             ],
             ChangeView::EditCategory { before, after } => vec![
@@ -683,6 +685,8 @@ pub(crate) mod engine {
                 book_to,
                 match_all,
                 conditions,
+                before_tags,
+                tags,
                 catches,
             } => vec![
                 ("kind", text("editRule")),
@@ -692,6 +696,8 @@ pub(crate) mod engine {
                 ("bookTo", text(book_to)),
                 ("matchAll", QVariant::from(match_all)),
                 ("conditions", list(conditions.iter().map(condition_object))),
+                ("beforeTags", list(before_tags.iter().map(|tag| text(tag)))),
+                ("tags", list(tags.iter().map(|tag| text(tag)))),
                 ("catches", whole(*catches)),
             ],
             ChangeView::MoveRule { name, from, to } => vec![
@@ -934,6 +940,7 @@ pub(crate) mod engine {
                 ("ruleName", text(rule_name)),
                 ("sortAgain", QVariant::from(sort_again)),
                 ("changed", whole(applied.changed)),
+                ("tagged", whole(applied.tagged)),
                 ("transfers", whole(applied.transfers)),
                 ("noRate", whole(applied.no_rate)),
                 ("closed", whole(applied.closed)),
@@ -1720,7 +1727,7 @@ mod tests {
     };
     use crate::rules::ConditionForm;
     use crate::variant::read_back::{
-        elements, flag_of, keys, list_of, number_of, object_of, text_of,
+        elements, flag_of, keys, list_of, number_of, object_of, text_of, texts_of,
     };
 
     #[test]
@@ -2118,6 +2125,7 @@ mod tests {
                     ..ConditionForm::default()
                 }],
                 inside: "Food".into(),
+                tags: vec!["Monthly".into()],
                 catches: 4,
             },
             ChangeView::EditCategory {
@@ -2131,6 +2139,8 @@ mod tests {
                 book_to: "Food".into(),
                 match_all: false,
                 conditions: Vec::new(),
+                before_tags: Vec::new(),
+                tags: vec!["Monthly".into()],
                 catches: 0,
             },
             ChangeView::MoveRule {
@@ -2307,7 +2317,8 @@ mod tests {
                 "leftOut",
                 "matchAll",
                 "name",
-                "slot"
+                "slot",
+                "tags"
             ]
         );
         assert_eq!(text_of(&items[1], "slot"), "new_rules/1");
@@ -2342,10 +2353,12 @@ mod tests {
                 "inside",
                 "kind",
                 "matchAll",
-                "name"
+                "name",
+                "tags"
             ]
         );
         assert!(flag_of(&items[1], "matchAll"));
+        assert_eq!(texts_of(&items[1], "tags"), ["Monthly"]);
         assert_eq!(number_of(&items[1], "catches"), 4);
         assert_eq!(text_of(&items[1], "inside"), "Food");
         let conditions = list_of(&items[1], "conditions");
@@ -2359,14 +2372,18 @@ mod tests {
             [
                 "beforeBookTo",
                 "beforeName",
+                "beforeTags",
                 "bookTo",
                 "catches",
                 "conditions",
                 "kind",
                 "matchAll",
-                "name"
+                "name",
+                "tags"
             ]
         );
+        assert!(texts_of(&items[3], "beforeTags").is_empty());
+        assert_eq!(texts_of(&items[3], "tags"), ["Monthly"]);
         assert_eq!(text_of(&items[3], "beforeName"), "Grocer");
         assert_eq!(number_of(&items[3], "catches"), 0);
         assert!(!flag_of(&items[3], "matchAll"));
@@ -2674,6 +2691,7 @@ mod tests {
                 actions: Actions {
                     book_to: Some(BookTo::Category(pets.id)),
                     payee: None,
+                    tags: Vec::new(),
                 },
             },
             None,
@@ -2702,9 +2720,11 @@ mod tests {
                 "other",
                 "ruleName",
                 "sortAgain",
+                "tagged",
                 "transfers"
             ]
         );
+        assert_eq!(number_of(sort, "tagged"), 0);
         assert_eq!(text_of(sort, "kind"), "sortWithRules");
         assert_eq!(text_of(sort, "slot"), "sort_with_rules/0");
         assert_eq!(text_of(sort, "ruleName"), "");

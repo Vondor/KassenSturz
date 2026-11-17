@@ -1339,7 +1339,14 @@ pub(crate) fn read_tags(value: &QVariant) -> Vec<(String, String)> {
 pub(crate) fn tags_object(tags: &[TagText]) -> QVariant {
     list(
         tags.iter()
-            .map(|tag| map([("id", text(&tag.id)), ("name", text(&tag.name))]))
+            .map(|tag| {
+                map([
+                    ("id", text(&tag.id)),
+                    ("name", text(&tag.name)),
+                    ("byRule", QVariant::from(&tag.rule.is_some())),
+                    ("rule", text(tag.rule.as_deref().unwrap_or_default())),
+                ])
+            })
             .collect::<Vec<_>>(),
     )
 }
@@ -1688,13 +1695,22 @@ mod tests {
             other_account: String::new(),
             date: "2026-10-08".into(),
             note: "Bought for the picnic".into(),
-            tags: vec![TagText {
-                id: "tag-1".into(),
-                name: "Holiday".into(),
-            }],
+            tags: vec![
+                TagText {
+                    id: "tag-1".into(),
+                    name: "Holiday".into(),
+                    rule: None,
+                },
+                TagText {
+                    id: "tag-3".into(),
+                    name: "Monthly".into(),
+                    rule: Some("Rent".into()),
+                },
+            ],
             part_tags: vec![TagText {
                 id: "tag-2".into(),
                 name: "Tax".into(),
+                rule: None,
             }],
             imported: true,
             delivered_name: "CORNER GROCERY".into(),
@@ -1732,19 +1748,27 @@ mod tests {
         // The tags as TagField.qml reads them (D-712), and back as the form
         // gives them.
         let tags = elements(&crate::variant::read_back::object_of(&form, "tags")).expect("a list");
-        assert_eq!(keys(&tags[0]), ["id", "name"]);
+        assert_eq!(keys(&tags[0]), ["byRule", "id", "name", "rule"]);
         assert_eq!(text_of(&tags[0], "name"), "Holiday");
+        assert!(!flag_of(&tags[0], "byRule"));
+        // Which Rule added a tag (D-827).
+        assert!(flag_of(&tags[1], "byRule"));
+        assert_eq!(text_of(&tags[1], "rule"), "Rent");
         let part_tags =
             elements(&crate::variant::read_back::object_of(&form, "partTags")).expect("a list");
         assert_eq!(text_of(&part_tags[0], "id"), "tag-2");
         assert_eq!(
             read_tags(&crate::variant::read_back::object_of(&form, "tags")),
-            [("tag-1".to_owned(), "Holiday".to_owned())]
+            [
+                ("tag-1".to_owned(), "Holiday".to_owned()),
+                ("tag-3".to_owned(), "Monthly".to_owned())
+            ]
         );
         let choices = elements(&tag_choices_object(&[TagChoice {
             tag: TagText {
                 id: "tag-1".into(),
                 name: "Holiday".into(),
+                rule: None,
             },
             transactions: 2,
             parts: 3,

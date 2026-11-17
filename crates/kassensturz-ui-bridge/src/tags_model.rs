@@ -153,6 +153,7 @@ mod tests {
             tag: TagText {
                 id: "tag-1".into(),
                 name: "Holiday".into(),
+                rule: None,
             },
             transactions: 3,
             parts: 2,

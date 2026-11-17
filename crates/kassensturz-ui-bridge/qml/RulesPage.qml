@@ -100,6 +100,14 @@ Kirigami.Page {
         if (row.payee !== "") {
             does.push(i18nContext.i18nc("@info %1 is a name", "Shows the name %1 as From or To", row.payee));
         }
+        // The tags it adds (D-827); a Rule that only tags says so, since
+        // the Rules after it still sort what it fits.
+        if ((row.tags ?? []).length > 0) {
+            const names = Array.from(row.tags).join(", ");
+            does.push(row.onlyTags
+                ? i18nContext.i18nc("@info %1 is a list of tag names", "Only adds the tags %1, the next Rules still sort", names)
+                : i18nContext.i18nc("@info %1 is a list of tag names", "Adds the tags %1", names));
+        }
         const summary = does.length > 0 ? does.join(", ") : i18nContext.i18nc("@info", "Leaves it as it is");
         // A Rule the AI made or changed says so until the user opens it
         // (B-249).

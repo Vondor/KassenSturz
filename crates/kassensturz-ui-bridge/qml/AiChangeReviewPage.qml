@@ -62,6 +62,10 @@ Kirigami.ScrollablePage {
     // The keywords of the reasons the user picked for throwing the set away
     // (D-678). Optional.
     property var reasons: []
+    // Whether one of the user's own AI tools prepared these changes through
+    // kassensturz-mcp: then there was no message of the user's that an
+    // amount came from (B-371).
+    readonly property bool fromOwnTool: chat.fromOwnTool(setId)
     // The reasons the user may pick, keyword and label; the keywords are
     // those of `kassensturz_ai_tools::refusal::RefusalReason`.
     readonly property var reasonChoices: [

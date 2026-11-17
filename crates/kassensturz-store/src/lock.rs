@@ -71,7 +71,7 @@ struct Holder {
 impl Lock {
     /// The lock of a lock file that is there but can't be read: all that is
     /// known is that the book is in use (B-315).
-    fn unreadable() -> Self {
+    pub(crate) fn unreadable() -> Self {
         Self {
             computer: None,
             since: None,

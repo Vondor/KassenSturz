@@ -177,9 +177,10 @@ fn a_book_that_is_being_written_is_not_read_half_way() {
     // A journal beside the book means a write is under way.
     std::fs::write(journal_of(&path), b"journal").expect("journal made");
     let started = std::time::Instant::now();
+    // It is "in use" (B-368).
     match Book::open_to_read(&path) {
-        Err(StoreError::Io(std::io::ErrorKind::WouldBlock)) => {}
-        other => panic!("expected a busy book, got {:?}", other.map(|_| ())),
+        Err(StoreError::Locked(_)) => {}
+        other => panic!("expected a book in use, got {:?}", other.map(|_| ())),
     }
     assert!(started.elapsed() >= COPY_WAIT, "it tried more than once");
     std::fs::remove_file(journal_of(&path)).expect("journal removed");
@@ -422,13 +423,14 @@ fn a_journal_with_a_zero_header_does_not_keep_readers_waiting() {
     assert!(Book::open_to_read(&path).is_ok());
     std::fs::write(journal_of(&path), []).expect("journal emptied");
     assert!(Book::open_to_read(&path).is_ok());
-    // A journal with its header written is a write under way.
+    // A journal with its header written is a write under way: the book is
+    // in use (B-368).
     let mut hot = vec![0u8; 512];
     hot[..8].copy_from_slice(&[0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7]);
     std::fs::write(journal_of(&path), hot).expect("journal made");
     assert!(matches!(
         Book::open_to_read(&path),
-        Err(StoreError::Io(std::io::ErrorKind::WouldBlock))
+        Err(StoreError::Locked(_))
     ));
 }
 

@@ -23651,3 +23651,15 @@ msgstr "Tę kwotę AI wzięło z tego, co napisałeś. Zaplanowana płatność m
 msgctxt "@info"
 msgid "A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
 msgstr "Zaplanowana płatność mówi tylko, czego się spodziewasz: nie przesuwa pieniędzy i nie tworzy transakcji, a prognoza ją uwzględnia. „Cofnij” ją wycofa."
+
+#: crates/kassensturz-ui-bridge/qml/AiPlanChange.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your AI tool gave this amount; it doesn't come from your book. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
+msgstr "Tę kwotę podało Twoje narzędzie AI; nie pochodzi ona z Twojej księgi. Zaplanowana płatność mówi tylko, czego się spodziewasz: nie przesuwa pieniędzy i nie tworzy transakcji, a prognoza ją uwzględnia. „Cofnij” ją wycofa."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your AI tool gave this amount; it doesn't come from your book. A budget only shows how your spending compares; it changes no booking. Undo takes it back."
+msgstr "Tę kwotę podało Twoje narzędzie AI; nie pochodzi ona z Twojej księgi. Budżet pokazuje tylko, jak wypadają Twoje wydatki; nie zmienia żadnej transakcji. „Cofnij” go wycofa."

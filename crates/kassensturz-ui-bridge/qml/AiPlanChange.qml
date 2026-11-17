@@ -170,6 +170,8 @@ Kirigami.AbstractCard {
             textFormat: Text.PlainText
             text: card.plan.fromEntry
                 ? card.i18nContext.i18nc("@info", "KassenSturz took the amount from an entry in your book, not the AI. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back.")
+                : (card.isNew || card.before.amount !== card.plan.amount) && card.review.fromOwnTool
+                ? card.i18nContext.i18nc("@info", "Your AI tool gave this amount; it doesn't come from your book. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back.")
                 : card.isNew || card.before.amount !== card.plan.amount
                 ? card.i18nContext.i18nc("@info", "The AI took this amount from what you wrote. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back.")
                 : card.i18nContext.i18nc("@info", "A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back.")

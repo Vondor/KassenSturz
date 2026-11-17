@@ -25806,3 +25806,15 @@ msgstr "Die KI hat diesen Betrag aus Ihrer Nachricht übernommen. Eine geplante 
 msgctxt "@info"
 msgid "A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
 msgstr "Eine geplante Zahlung sagt nur, was Sie erwarten: Sie bewegt kein Geld und legt keine Buchung an, und „Übrig in diesem Monat“ rechnet sie mit ein. Rückgängig nimmt sie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/AiPlanChange.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your AI tool gave this amount; it doesn't come from your book. A plan only says what you expect: it moves no money and makes no entry, and the forecast counts it. Undo takes it back."
+msgstr "Diesen Betrag hat Ihr KI-Programm angegeben; er stammt nicht aus Ihrem Buch. Eine geplante Zahlung sagt nur, was Sie erwarten: Sie bewegt kein Geld und legt keine Buchung an, und „Übrig in diesem Monat“ rechnet sie mit ein. Rückgängig nimmt sie zurück."
+
+#: crates/kassensturz-ui-bridge/qml/AiBudgetChange.qml
+#, kde-format
+msgctxt "@info"
+msgid "Your AI tool gave this amount; it doesn't come from your book. A budget only shows how your spending compares; it changes no booking. Undo takes it back."
+msgstr "Diesen Betrag hat Ihr KI-Programm angegeben; er stammt nicht aus Ihrem Buch. Ein Budget zeigt nur, wie Ihre Ausgaben im Vergleich stehen; es ändert keine Buchung. „Rückgängig“ nimmt es zurück."

@@ -48,7 +48,7 @@ If `po/<language code>/` does not exist yet, the file is made from the German on
 3. Replace every German `msgstr` with a translation into the new language. Every `msgstr` must be filled in: an empty one counts as missing. Give an entry with `msgid_plural` exactly as many `msgstr[n]` lines as the language has plural forms, and translate the English `msgid`, not the German text.
 4. Then follow "How to do a complete check" below, which here means the AI assistant translates the whole file piece by piece and the person spot-checks it in good faith (the rules above apply unchanged).
 
-The project's own check (`tools/check-translations.sh`, run by CI) fails while a text is missing, so a new language is merged only as a complete file. The app finds the new file by itself; nothing else has to be registered.
+The project's own check (`tools/check-translations.sh`, run by CI) fails while a text is missing, so a new language is merged only as a complete file. The app finds the new file by itself when the system is in that language. To make it a choice in Settings and on the first page, the language also needs an entry in `Language` (`crates/kassensturz-ui-bridge/src/language.rs`) and in the language lists of `SettingsLookPage.qml` and `WelcomePage.qml`, named in itself (for example "Français"); a test fails while one is missing (B-379). A volunteer doesn't have to do this part: the pull request that adds the file does it.
 
 ## How to send it back
 

@@ -273,6 +273,15 @@ pub mod qobject {
         #[cxx_name = "stopUpdateAll"]
         fn stop_update_all(self: &BankConnection);
 
+        /// *Seen*: the user has read the summary of the last *Update all
+        /// accounts*. It is cleared, and so is how that update ended, so the
+        /// tile's status icon no longer shows its notices or failed
+        /// accounts (B-378): it then reads as if no update ran in this
+        /// session.
+        #[qinvokable]
+        #[cxx_name = "summarySeen"]
+        fn summary_seen(self: Pin<&mut BankConnection>);
+
         /// Sends the PIN the user typed, to be kept as `mode` says (`ask`,
         /// `remember`, `save`).
         #[qinvokable]
@@ -662,6 +671,13 @@ impl qobject::BankConnection {
 
     fn stop_update_all(&self) {
         self.stop.store(true, Ordering::SeqCst);
+    }
+
+    fn summary_seen(mut self: Pin<&mut Self>) {
+        // First, so the screens that ask again when the summary changes
+        // already read the cleared run.
+        forget_run(&mut self.as_mut().rust_mut());
+        self.as_mut().set_update_summary(map([]));
     }
 
     fn answer_pin(&self, pin: &QString, mode: &QString) {
@@ -1158,6 +1174,12 @@ fn last_run(booked: Option<&Summary>) -> UpdateRun {
         },
         None => UpdateRun::Failed,
     }
+}
+
+/// Forgets how the last *Update all accounts* ended, once the user has seen
+/// its summary (B-378).
+fn forget_run(model: &mut BankConnectionRust) {
+    model.last_run = None;
 }
 
 /// The widget's state before it is pressed, with its status (`status`,
@@ -1827,6 +1849,30 @@ mod tests {
             }
         );
         assert_eq!(last_run(None), UpdateRun::Failed);
+        // *Seen* forgets the run, so its notices no longer badge the
+        // icon (B-378).
+        let mut model = BankConnectionRust {
+            last_run: Some(last_run(Some(&booked))),
+            ..BankConnectionRust::default()
+        };
+        assert_eq!(
+            text_of(&state_object(&state, model.last_run), "status"),
+            "failed"
+        );
+        model.last_run = Some(UpdateRun::Done {
+            failed: 0,
+            to_check: 1,
+        });
+        assert_eq!(
+            text_of(&state_object(&state, model.last_run), "status"),
+            "to-do"
+        );
+        forget_run(&mut model);
+        assert_eq!(model.last_run, None);
+        assert_eq!(
+            text_of(&state_object(&state, model.last_run), "status"),
+            "fine"
+        );
         let summary = summary_object(&booked);
         assert_eq!(number_of(&summary, "updated"), 1);
         assert_eq!(number_of(&summary, "booked"), 3);

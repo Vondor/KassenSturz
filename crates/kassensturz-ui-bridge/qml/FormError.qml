@@ -876,6 +876,77 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This bank gives its customers a customer ID next to the login name. Type it too; you find it in your bank's letters.");
         case "input.empty-pin":
             return i18nContext.i18nc("@info", "Type your PIN. KassenSturz keeps it only as long as you choose below.");
+        // Adding a plugin file (#791, docs/ERROR_CODES.md "Plugins" and
+        // "Running plugins"). Names and keys come from the file.
+        case "plugin.manifest-too-big":
+            return i18nContext.i18nc("@info %1 is a number of bytes", "This plugin's description of itself is larger than %1 bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version.", result.max_bytes);
+        case "plugin.manifest-malformed":
+        case "plugin.not-a-plugin":
+            return i18nContext.i18nc("@info", "This file isn't a KassenSturz plugin, or it is cut off or damaged. Download the plugin again.");
+        case "plugin.manifest-invalid":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This plugin's description of itself has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.", result.key);
+        case "plugin.unsupported-manifest-version":
+            return i18nContext.i18nc("@info %1 is a version number", "This plugin was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the plugin.", result.version);
+        case "plugin.api-unsupported":
+            return i18nContext.i18nc("@info %1 and %2 make a version number", "This plugin was made for a different KassenSturz (plugin API %1.%2). Look for a version of the plugin made for this KassenSturz.", result.major, result.minor);
+        case "plugin.api-too-new":
+            return i18nContext.i18nc("@info %1 and %2 make a version number", "This plugin needs a newer KassenSturz (plugin API %1.%2). Update KassenSturz, then add the plugin again.", result.major, result.minor);
+        case "plugin.unknown-extension-point":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This plugin wants to add something KassenSturz doesn't offer (\"%1\"). Update KassenSturz, or ask the plugin's author.", result.name);
+        case "plugin.unknown-permission":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This plugin asks for a permission KassenSturz doesn't know (\"%1\"). Update KassenSturz, or ask the plugin's author.", result.name);
+        case "plugin.permission-not-allowed":
+            return i18nContext.i18nc("@info", "This plugin asks for more than its kind of plugin may have, so KassenSturz doesn't add it. Ask the plugin's author.");
+        case "plugin.data-only-mixed":
+            return i18nContext.i18nc("@info", "A plugin that changes the app's look or layout can't also run code, so KassenSturz doesn't add this one. Ask the plugin's author.");
+        case "plugin.data-only-has-code":
+            return i18nContext.i18nc("@info", "A plugin that changes the app's look or layout may not contain code, and this one does, so KassenSturz doesn't add it. Ask the plugin's author.");
+        case "plugin.file-too-big":
+            return i18nContext.i18nc("@info %1 is a number of bytes", "This plugin file is larger than %1 bytes, so KassenSturz doesn't read it. Check that you picked a plugin file.", result.max_bytes);
+        case "plugin.manifest-missing":
+            return i18nContext.i18nc("@info", "This file is a WebAssembly module but not a KassenSturz plugin: it doesn't describe itself. Ask the plugin's author.");
+        case "plugin.manifest-twice":
+            return i18nContext.i18nc("@info", "This plugin describes itself twice, so KassenSturz can't tell which description is true and doesn't add it. Ask the plugin's author.");
+        case "plugin.unknown-section":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This plugin holds a part this KassenSturz doesn't know (\"%1\"). Update KassenSturz, or ask the plugin's author.", result.name);
+        case "plugin-host.ai-off":
+            return i18nContext.i18nc("@info", "This kind of plugin is switched off in Settings, so KassenSturz doesn't use it.");
+        case "plugin-host.module-invalid":
+            return i18nContext.i18nc("@info", "This plugin's code is damaged or uses something KassenSturz doesn't run. Download the plugin again, or ask its author.");
+        case "plugin-host.import-not-allowed":
+            return i18nContext.i18nc("@info %1 and %2 are words from the plugin file", "This plugin wants to reach something KassenSturz doesn't give plugins (\"%1\" \"%2\"), so it isn't started. Ask the plugin's author.", result.module, result.name);
+        case "plugin-host.start-failed":
+            return i18nContext.i18nc("@info", "This plugin failed while starting, or asked for more memory than KassenSturz gives a plugin. Ask the plugin's author.");
+        case "plugin-host.export-missing":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This plugin lacks a part KassenSturz needs (\"%1\"). Ask the plugin's author.", result.name);
+        case "plugin-host.export-wrong-type":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "A part of this plugin doesn't fit what KassenSturz expects (\"%1\"). Ask the plugin's author.", result.name);
+        case "plugin-host.no-code":
+            return i18nContext.i18nc("@info", "This plugin only changes the app's look or layout and can't do this.");
+        case "plugin-host.input-too-big":
+            return i18nContext.i18nc("@info %1 is a number of bytes", "This is more than %1 bytes, more than KassenSturz hands a plugin. Try a smaller file or a shorter period.", result.max_bytes);
+        case "plugin-host.input-not-accepted":
+            return i18nContext.i18nc("@info", "The plugin gave KassenSturz no room for its input, so it was stopped. Load it again, or ask the plugin's author.");
+        case "plugin-host.output-too-big":
+            return i18nContext.i18nc("@info %1 is a number of bytes", "The plugin's answer is larger than %1 bytes, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author.", result.max_bytes);
+        case "plugin-host.output-invalid":
+            return i18nContext.i18nc("@info", "The plugin's answer was damaged, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author.");
+        case "plugin-host.ran-too-long":
+            return i18nContext.i18nc("@info", "The plugin worked too long and was stopped. Nothing was changed. Try a smaller file or a shorter period, or ask the plugin's author.");
+        case "plugin-host.trapped":
+            return i18nContext.i18nc("@info", "The plugin failed and was stopped. Nothing was changed. Ask the plugin's author.");
+        case "plugin-host.stopped":
+            return i18nContext.i18nc("@info", "The plugin was stopped earlier. Load it again to use it.");
+        case "input.plugin-file-unreadable":
+            return i18nContext.i18nc("@info", "KassenSturz couldn't read this file. Check that it is still there, then choose it again.");
+        case "input.plugin-no-folder":
+            return i18nContext.i18nc("@info", "KassenSturz couldn't make its folder for plugins. Check that your disk isn't full, then try again.");
+        case "input.plugin-not-saved":
+            return i18nContext.i18nc("@info", "KassenSturz couldn't save the plugin. Check that your disk isn't full, then try again. Nothing was changed.");
+        case "input.plugin-replace-not-confirmed":
+            return i18nContext.i18nc("@info", "A version of this plugin is added already. Choose \"Replace it\" to use the new one instead.");
+        case "input.plugin-not-removed":
+            return i18nContext.i18nc("@info", "KassenSturz couldn't remove the plugin. Check that the file isn't open in another program, then try again.");
         default:
             return i18nContext.i18nc("@info %1 is an error code", "Something went wrong (%1). Please report this, so it can be fixed.", result.code);
         }

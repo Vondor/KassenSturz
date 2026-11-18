@@ -132,7 +132,7 @@ kassensturz/
 - Narrow, permission-checked data access. No raw SQL access.
 - A plugin file is one WebAssembly module with its manifest in a custom section (D-849). The host runs it in wasmi, an interpreter (Q-633), with no imports, bytes in and out, and limits on memory, table and time (D-850).
 - WASM only, for sandboxing and cross-platform portability. Out-of-process (JSON-RPC) plugins are not part of v1: they can't be sandboxed, so the permission model couldn't be enforced for them (D-007).
-- Users add a downloaded plugin file, in KassenSturz's plugin package format (defined with the plugin host), in the **Plugins** tab, which shows the permissions it requests. No plugin store in v1: a store run by the project would be a hosted service (AGENTS.md §3.3).
+- Users add a downloaded plugin file, in KassenSturz's plugin package format (defined with the plugin host), in the **Plugins** tab (Settings › Plugins), which shows the permissions it requests; KassenSturz checks the file by loading it once and keeps a copy as `<id>.wasm` in its own `plugins` folder, which is the only record of what is installed (D-851). No plugin store in v1: a store run by the project would be a hosted service (AGENTS.md §3.3).
 - The Importer part of the plugin interface is defined during M1–M2 as a native Rust trait: built-in importers implement it directly, and the WASM plugin API mirrors it once it exists (D-069, D-071).
 
 ## Transactions and Parts (splits)

@@ -1621,10 +1621,13 @@ dependencies = [
  "kassensturz-import",
  "kassensturz-pipeline",
  "kassensturz-platform",
+ "kassensturz-plugin-api",
+ "kassensturz-plugin-host",
  "kassensturz-report",
  "kassensturz-store",
  "proptest",
  "serde_json",
+ "wat",
 ]
 
 [[package]]

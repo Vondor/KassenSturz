@@ -105,6 +105,8 @@ mod plain_text_audit;
 mod planned_payments;
 mod planned_payments_model;
 mod platform;
+mod plugins;
+mod plugins_model;
 mod properties;
 mod properties_model;
 mod receipt_moves;

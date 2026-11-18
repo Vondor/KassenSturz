@@ -28,8 +28,8 @@ FormCard.FormCardPage {
     property bool aiNotSaved: false
 
     signal saveCopyClicked()
-    // The user opens a group of settings: "book", "bank", "look", "backups"
-    // or "advanced" (D-795).
+    // The user opens a group of settings: "book", "bank", "look", "backups",
+    // "plugins" or "advanced" (D-795).
     signal groupClicked(string group)
     // The user wants the help page on patterns and formulas.
     signal helpClicked()
@@ -121,6 +121,18 @@ FormCard.FormCardPage {
             onClicked: {
                 ActionLog.taken("SettingsPage_backupsUndo")
                 page.groupClicked("backups")
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            icon.name: "preferences-plugin"
+            text: page.i18nContext.i18nc("@action:button a group of settings", "Plugins")
+            description: page.i18nContext.i18nc("@info what a group of settings holds", "Add a plugin file you downloaded, see what it may do")
+            onClicked: {
+                ActionLog.taken("SettingsPage_plugins")
+                page.groupClicked("plugins")
             }
         }
 

@@ -2228,23 +2228,6 @@ msgstr ""
 "https://, enthält den Namen des Servers und keinen Anmeldenamen, kein "
 "Passwort und keinen Teil mit ? oder #, zum Beispiel %1."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:56
-#, kde-format
-msgctxt "@info"
-msgid ""
-"This address is on another computer and starts with http://, which isn't "
-"encrypted, so KassenSturz won't send anything to it. Use the provider's "
-"https:// address. If the provider offers only http:// and runs in a network "
-"you trust, you can tick “Allow unencrypted connections” under the address in "
-"the AI settings."
-msgstr ""
-"Diese Adresse liegt auf einem anderen Computer und beginnt mit http://, was "
-"nicht verschlüsselt ist. KassenSturz sendet deshalb nichts dorthin. "
-"Verwenden Sie die https://-Adresse des Anbieters. Bietet der Anbieter nur "
-"http:// an und läuft er in einem Netzwerk, dem Sie vertrauen, können Sie in "
-"den KI-Einstellungen unter der Adresse „Unverschlüsselte Verbindungen "
-"erlauben“ ankreuzen."
-
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:58
 #, kde-format
 msgctxt "@info"
@@ -26845,3 +26828,28 @@ msgstr "Entfernen"
 msgctxt "@action:button keep a plugin"
 msgid "Keep it"
 msgstr "Behalten"
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz won't use this address yet: it is on another computer and starts"
+" with http://, so what is sent to it travels unencrypted. Anyone on the same"
+" network, for example on your Wi-Fi, could read it, your questions and the "
+"provider's key included. Use the provider's https:// address. If the "
+"provider offers only http:// and runs in a network you trust, you can allow "
+"unencrypted connections in the AI settings."
+msgstr ""
+"KassenSturz verwendet diese Adresse noch nicht: Sie liegt auf einem anderen "
+"Computer und beginnt mit http://, deshalb wird alles, was dorthin geht, "
+"unverschlüsselt übertragen. Jeder im selben Netzwerk, zum Beispiel in Ihrem "
+"WLAN, könnte es mitlesen, auch Ihre Fragen und den Schlüssel des Anbieters. "
+"Verwenden Sie die https://-Adresse des Anbieters. Bietet der Anbieter nur "
+"http:// an und läuft er in einem Netzwerk, dem Sie vertrauen, können Sie in "
+"den KI-Einstellungen unverschlüsselte Verbindungen erlauben."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
+#, kde-format
+msgctxt "@action:button ticks the box of the same name in the AI settings"
+msgid "Allow unencrypted connections"
+msgstr "Unverschlüsselte Verbindungen erlauben"

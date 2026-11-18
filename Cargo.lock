@@ -1571,6 +1571,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-plugin-formats"
+version = "0.261025.0"
+dependencies = [
+ "kassensturz-core",
+ "kassensturz-export",
+ "kassensturz-import",
+ "kassensturz-plugin-api",
+ "kassensturz-plugin-host",
+ "serde_json",
+ "wat",
+]
+
+[[package]]
 name = "kassensturz-plugin-host"
 version = "0.261025.0"
 dependencies = [

@@ -32,6 +32,7 @@ kassensturz-charts = { path = "crates/kassensturz-charts" }
 kassensturz-pipeline = { path = "crates/kassensturz-pipeline", default-features = false }
 kassensturz-platform = { path = "crates/kassensturz-platform" }
 kassensturz-plugin-api = { path = "crates/kassensturz-plugin-api" }
+kassensturz-plugin-formats = { path = "crates/kassensturz-plugin-formats" }
 kassensturz-plugin-host = { path = "crates/kassensturz-plugin-host" }
 kassensturz-report = { path = "crates/kassensturz-report" }
 kassensturz-store = { path = "crates/kassensturz-store", default-features = false }

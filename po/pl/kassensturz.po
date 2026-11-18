@@ -23890,3 +23890,70 @@ msgctxt ""
 "passed with no entry"
 msgid "planned income that is overdue and not confirmed yet"
 msgstr "zaplanowane wpływy, które są zaległe i jeszcze niepotwierdzone"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml
+msgctxt "@info"
+msgid "%1 planned payment may have a new amount."
+msgid_plural "%1 planned payments may have a new amount."
+msgstr[0] "%1 zaplanowana płatność może mieć nową kwotę."
+msgstr[1] "%1 zaplanowane płatności mogą mieć nową kwotę."
+msgstr[2] "%1 zaplanowanych płatności może mieć nową kwotę."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml
+msgctxt "@info"
+msgid ""
+"An entry names the same person or company with another amount, so it was not"
+" matched and nothing was changed. To check it: Accounts › Planned payments…"
+msgstr ""
+"Wpis wskazuje tę samą osobę lub firmę, ale z inną kwotą, więc nie został "
+"przypisany i nic nie zmieniono. Aby to sprawdzić: Konta › Zaplanowane "
+"płatności…"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml
+msgctxt ""
+"@info %1 is the name of a planned payment, %2 an amount, %3 a date, %4 the "
+"planned amount"
+msgid "%1: %2 on %3, planned %4"
+msgstr "%1: %2 dnia %3, zaplanowano %4"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@info %1 is an amount, %2 a date"
+msgid ""
+"An entry of %1 on %2 names the same person or company. It may be this "
+"payment with a new amount."
+msgstr ""
+"Wpis na %1 z dnia %2 wskazuje tę samą osobę lub firmę. Może to być ta "
+"płatność z nową kwotą."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@action:button %1 is an amount"
+msgid "It's this one, %1"
+msgstr "To ta, %1"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@title:window %1 is an amount"
+msgid "Expect %1 from now on?"
+msgstr "Od teraz oczekiwać %1?"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@info %1 is the name of a planned payment, %2 and %3 amounts"
+msgid ""
+"“%1” is planned with %2, and this entry has %3. If the amount has changed "
+"for good, for example a new salary or rent, KassenSturz can expect the new "
+"amount from now on. Payments already matched keep their own amounts, and "
+"Undo takes the change back."
+msgstr ""
+"„%1” jest zaplanowana na %2, a ten wpis ma %3. Jeśli kwota zmieniła się na "
+"stałe, na przykład nowa pensja lub nowy czynsz, KassenSturz może od teraz "
+"oczekiwać nowej kwoty. Płatności już przypisane zachowują własne kwoty, a "
+"Cofnij wycofuje tę zmianę."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@action:button %1 is an amount"
+msgid "Expect %1"
+msgstr "Oczekuj %1"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@action:button %1 is an amount"
+msgid "Keep %1"
+msgstr "Zostaw %1"

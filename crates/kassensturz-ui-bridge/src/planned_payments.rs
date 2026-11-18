@@ -130,6 +130,33 @@ pub struct PaymentText {
     pub due_on: String,
     /// `matched`, `skipped`, `upcoming`, `due` or `overdue`.
     pub state: &'static str,
+    /// The entry that came from the plan's party with another amount, if
+    /// one did (#1143): it may be this payment, changed.
+    pub changed: Option<ChangedText>,
+}
+
+/// An entry that fits a payment but for its amount (#1143), as "Did this
+/// happen?" offers it.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ChangedText {
+    /// The transaction's ID as text.
+    pub transaction_id: String,
+    /// Its amount in the plan's account, without its sign.
+    pub amount: Shown,
+    /// The day the account shows it on, as the locale writes dates.
+    pub date: String,
+}
+
+/// After the user matched or booked an entry with another amount than the
+/// plan's (#1143): what "Expect … from now on?" asks about. Nothing is
+/// changed until the user says so ([`expect_amount`]).
+#[derive(Debug, PartialEq, Eq)]
+pub struct NewAmount {
+    /// The entry's ID as text.
+    pub transaction_id: String,
+    /// The entry's amount and the plan's, both without their signs.
+    pub amount: Shown,
+    pub planned: Shown,
 }
 
 /// The form for a new or changed plan, as typed.
@@ -345,22 +372,54 @@ fn payments(
             due: locale.short_date(found.due.date),
             due_on: found.due.counted.to_string(),
             state: found.state.word(),
+            changed: None,
         });
     }
     Ok(shown)
 }
 
 /// The payments whose day passed without an entry ("Did this happen?",
-/// 2.5), from the last three months, oldest first.
+/// 2.5), from the last three months, oldest first; and the open ones an
+/// entry of the plan's party fits but for its amount (#1143), even before
+/// their day passed, each with that entry, so the user can say whether it
+/// is the payment, changed.
 pub fn did_this_happen(book: &Book, locale: &impl Locale) -> Result<Vec<PaymentText>, PlansError> {
     let today = locale.today();
-    payments(
+    let from = days_from(today, -DID_THIS_HAPPEN_DAYS);
+    let changes: Vec<_> = book
+        .schedule_amount_changes(today, None)?
+        .into_iter()
+        .filter(|change| change.occurrence.due.date >= from)
+        .collect();
+    let mut shown = payments(
         book,
-        days_from(today, -DID_THIS_HAPPEN_DAYS),
-        today,
-        &[OccurrenceState::Overdue],
+        from,
+        days_from(today, COMING_UP_DAYS),
+        &[
+            OccurrenceState::Overdue,
+            OccurrenceState::Due,
+            OccurrenceState::Upcoming,
+        ],
         locale,
-    )
+    )?;
+    for payment in &mut shown {
+        let Some(change) = changes.iter().find(|change| {
+            change.occurrence.schedule.to_string() == payment.plan_id
+                && change.occurrence.due.counted.to_string() == payment.due_on
+        }) else {
+            continue;
+        };
+        let transaction = book.transaction(change.transaction)?;
+        payment.changed = Some(ChangedText {
+            transaction_id: change.transaction.to_string(),
+            amount: size_text(book, change.amount, locale)?,
+            date: locale.short_date(transaction.booking_date()),
+        });
+    }
+    shown.retain(|payment| {
+        payment.changed.is_some() || payment.state == OccurrenceState::Overdue.word()
+    });
+    Ok(shown)
 }
 
 /// The payments still to come in the next `days` days ("Coming up", 2.6),
@@ -730,7 +789,8 @@ pub fn book_form(
 
 /// "Book it": books the payment of `id` counted on `due_on` as a new entry
 /// in the plan's account, on the typed date with the typed amount (the
-/// money going the plan's way). One action. Returns the entry's ID.
+/// money going the plan's way). One action. Returns the entry's ID, and
+/// what to ask when the typed amount isn't the plan's ([`new_amount`]).
 pub fn book_it(
     book: &mut Book,
     id: &str,
@@ -738,7 +798,7 @@ pub fn book_it(
     date: &str,
     amount: &str,
     locale: &impl Locale,
-) -> Result<String, PlansError> {
+) -> Result<(String, Option<NewAmount>), PlansError> {
     let plan = plan(book, id)?;
     let due_on = due_day(due_on)?;
     let date = locale.read_date(date.trim()).ok_or(PlansError::Date)?;
@@ -750,7 +810,10 @@ pub fn book_it(
         size
     };
     let booked = book.book_schedule_occurrence(plan.id, due_on, date, amount)?;
-    Ok(booked.to_string())
+    Ok((
+        booked.to_string(),
+        new_amount(book, plan.id, booked, locale)?,
+    ))
 }
 
 /// The entries the user may pick for "Match an entry…" for the payment of
@@ -817,16 +880,48 @@ pub fn entry_choices(
 }
 
 /// "Match an entry…": the entry `transaction` the user picked is the
-/// payment of `id` counted on `due_on`. One action.
+/// payment of `id` counted on `due_on`. One action. Returns what to ask
+/// when the entry's amount isn't the plan's ([`new_amount`]).
 pub fn match_entry(
     book: &mut Book,
     id: &str,
     due_on: &str,
     transaction: &str,
-) -> Result<(), PlansError> {
+    locale: &impl Locale,
+) -> Result<Option<NewAmount>, PlansError> {
     let plan = plan(book, id)?;
     let transaction = transaction_id(transaction)?;
     book.match_schedule_occurrence(plan.id, due_day(due_on)?, transaction)?;
+    new_amount(book, plan.id, transaction, locale)
+}
+
+/// What "Expect … from now on?" asks after the entry `transaction` was
+/// matched to or booked for the plan `id` (#1143): `None` when its amount
+/// is the plan's, within the tolerance.
+fn new_amount(
+    book: &Book,
+    id: ScheduleId,
+    transaction: TransactionId,
+    locale: &impl Locale,
+) -> Result<Option<NewAmount>, PlansError> {
+    let Some(amount) = book.new_schedule_amount(id, transaction)? else {
+        return Ok(None);
+    };
+    Ok(Some(NewAmount {
+        transaction_id: transaction.to_string(),
+        amount: size_text(book, amount, locale)?,
+        planned: size_text(book, book.schedule(id)?.amount, locale)?,
+    }))
+}
+
+/// "Expect … from now on": the plan `id` expects the amount of the entry
+/// `transaction` from now on (#1143), read from the entry, never typed.
+/// One action, which Undo takes back; the payments matched before keep
+/// their own entries' amounts.
+pub fn expect_amount(book: &mut Book, id: &str, transaction: &str) -> Result<(), PlansError> {
+    let plan = plan(book, id)?;
+    let transaction = transaction_id(transaction)?;
+    book.set_schedule_amount_from_entry(plan.id, transaction)?;
     Ok(())
 }
 

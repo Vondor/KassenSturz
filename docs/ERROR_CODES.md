@@ -624,7 +624,7 @@ Why a plugin file can't be added: its manifest (D-847) or the permissions it ask
 
 ## Running plugins (`kassensturz-plugin-host`)
 
-Why a plugin couldn't be loaded or stopped while it ran (D-850). A refused plugin file reports its `plugin.*` code instead. `{module}` and `{name}` are text from the plugin file, shown as plain text. After `plugin-host.ran-too-long`, `plugin-host.trapped` or `plugin-host.input-not-accepted` the plugin takes no more calls until it is loaded again.
+Why a plugin couldn't be loaded or stopped while it ran (D-850). A refused plugin file reports its `plugin.*` code instead. A plugin importer or exporter that fails reports these codes too, not an `import.` or `export.` one, since the plugin, not the file, is at fault (D-852); a plugin importer that refuses a file says so with `import.malformed`, and a statement in a currency that isn't current gives `import.unknown-currency`. `{module}` and `{name}` are text from the plugin file, shown as plain text. After `plugin-host.ran-too-long`, `plugin-host.trapped` or `plugin-host.input-not-accepted` the plugin takes no more calls until it is loaded again.
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|

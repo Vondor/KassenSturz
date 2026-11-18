@@ -47,6 +47,10 @@ pub enum ExportError {
     /// The exporter was given data of another kind than it writes, e.g. a
     /// whole book for CSV.
     WrongKind,
+    /// A plugin exporter failed or answered something KassenSturz can't use
+    /// (#791). It reports the plugin host's own code (`plugin-host.*` in
+    /// `docs/ERROR_CODES.md`), not an `export.` one.
+    Plugin(ErrorReport),
     /// An amount is in a currency the book's data doesn't list, so its
     /// decimal places aren't known.
     UnlistedCurrency {
@@ -208,6 +212,7 @@ impl Report for ExportError {
                     .with("digits", ErrorParam::Number((*digits).into()))
             }
             Self::WrongKind => ErrorReport::new("export.wrong-kind"),
+            Self::Plugin(report) => report.clone(),
             Self::UnlistedCurrency { currency, path } => {
                 let report = ErrorReport::new("export.unlisted-currency")
                     .with("currency", ErrorParam::Currency(*currency));

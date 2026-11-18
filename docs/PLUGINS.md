@@ -123,6 +123,67 @@ In **Settings › Plugins** the user chooses a downloaded plugin file. KassenStu
 - While "AI features" is off, AI provider plugins are not listed and can't be added (D-013).
 - A copy that no longer loads, e.g. after an update of KassenSturz, stays in the list with the reason, so it can be removed.
 
-## 8. Still to come (#791)
+## 8. Importers and exporters (D-852)
 
-The calls and host functions of each extension point, the data of themes and UI density, one example plugin per extension point, and a "write your own plugin" guide.
+A plugin importer or exporter is used exactly like a built-in one (D-069): it shows in the same lists, and what it reads goes through the same checks and the same import preview. Its ID there is the plugin's ID. Everything goes in and out as UTF-8 JSON. **Amounts are whole numbers of minor units written as text**, such as `"-2345"` for −23.45 EUR: an optional `-` and digits, no leading zeros, within 64 bits. Never a JSON number, which many languages read as floating point (AGENTS.md §3.1 rule 1). Dates are `YYYY-MM-DD`; currencies are ISO 4217 codes.
+
+KassenSturz reads every answer strictly: a key it doesn't know, a value of the wrong type, or `null` where a key may only be left out makes the whole answer unusable (`plugin-host.output-invalid`), and nothing of it is used.
+
+**An importer** exports three calls (section 6):
+
+| Call | In | Out |
+|---|---|---|
+| `ks_importer_info` | nothing | `{"extensions": ["csv"]}`: 0 to 8 file name extensions, lowercase letters and digits, without the dot, none twice. |
+| `ks_importer_recognize` | the file's first bytes, at most 4096 | `{"recognition": "yes"}`, `"maybe"` or `"no"`. Any other answer, or a failure, counts as `"no"`; the user can always pick the importer anyway. |
+| `ks_importer_read` | the whole file | `{"statements": [...]}`, or `{"error": "malformed", "line": 7}` when the file isn't one it can read (`line`, counted from 1, may be left out). |
+
+A statement:
+
+```json
+{
+  "account": {"iban": "DE89370400440532013000"},
+  "currency": "EUR",
+  "opening_balance": {"amount": "100000", "date": "2026-10-31"},
+  "closing_balance": {"amount": "97655", "date": "2026-11-02"},
+  "entries": [
+    {"status": "booked", "booking_date": "2026-11-01", "amount": "-2345",
+     "other_party_name": "Example Bakery", "remittance_information": "Bread"}
+  ]
+}
+```
+
+`account` holds `iban` and `number`, each optional. `opening_balance` and `closing_balance` may be left out. An entry needs `status` (`"booked"` or `"pending"`), `booking_date` and `amount`; `bank_id`, `value_date`, `other_party_name`, `other_party_iban` and `remittance_information` may be left out. Every amount is in the statement's currency. A plugin importer reads bank statements only: a whole book from another program is the built-in importers' job. The limits on entries and text that hold for every importer hold for plugins too.
+
+**An exporter** exports two calls:
+
+| Call | In | Out |
+|---|---|---|
+| `ks_exporter_info` | nothing | `{"extension": "csv"}`: the file name extension it writes. |
+| `ks_exporter_write` | the transactions, as below | the bytes of the file, which KassenSturz writes where the user chose. |
+
+What it gets, with every key there and `null` where there is nothing:
+
+```json
+{"accounts": [{
+  "name": "Checking",
+  "currency": "EUR",
+  "minor_digits": 2,
+  "rows": [{
+    "date": "2026-11-01",
+    "payee": "Example Bakery",
+    "counterpart": {"kind": "category", "name": "Food"},
+    "memo": null,
+    "note": "Sunday",
+    "amount": "-2345",
+    "original": {"amount": "-2500", "currency": "USD", "minor_digits": 2}
+  }]
+}]}
+```
+
+`counterpart` is `{"kind": "uncategorized"}`, `{"kind": "category", "name": ...}`, `{"kind": "transfer", "account": ...}` or `{"kind": "parts", "count": ...}`. `original` is the amount in another currency, if there was one. A plugin exporter writes transactions only, never a whole book.
+
+Neither an importer nor an exporter needs a permission for this: it gets only the file or the transactions the user picked (D-848).
+
+## 9. Still to come (#791)
+
+The calls and host functions of the other extension points, the data of themes and UI density, one example plugin per extension point, and a "write your own plugin" guide.

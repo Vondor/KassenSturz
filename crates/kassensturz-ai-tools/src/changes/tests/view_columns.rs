@@ -267,3 +267,31 @@ fn twelve_columns_with_long_formulas_fit_in_one_call() {
         Some("ai-tools.call-too-big")
     );
 }
+
+#[test]
+fn a_column_may_name_the_plans() {
+    // D-826: what the plans still expect, next to the money out so far.
+    let Sample { book, .. } = sample();
+    let proposal = call(
+        &book,
+        &bars(json!([
+            {"name": "Money out", "formula": "=Spending.ALL"},
+            {"name": "Still to go out", "formula": "=Plans.OUT_DUE + Plans.OUT_OVERDUE"},
+        ])),
+    )
+    .expect("prepared");
+    let [ProposedChange::NewView(new)] = proposal.changes.changes() else {
+        panic!("one chart, not {:?}", proposal.changes.changes());
+    };
+    let component: Value = serde_json::from_str(&new.component_json()).expect("JSON");
+    assert_eq!(
+        component["params"]["columns"][1]["formula"],
+        json!("=Plans.OUT_DUE + Plans.OUT_OVERDUE")
+    );
+    // A figure the plans don't have is refused at its character.
+    let refused = call(
+        &book,
+        &bars(json!([{"name": "Soon", "formula": "=Plans.SOON"}])),
+    );
+    assert!(refused.is_err(), "{refused:?}");
+}

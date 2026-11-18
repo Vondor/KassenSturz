@@ -763,10 +763,20 @@ pub enum ChangeView {
         account: String,
         /// What it did to that account, exact, in the user's format.
         amount: String,
-        /// The names of the tags put on it.
+        /// The names of the book's tags put on it.
         added: Vec<String>,
+        /// The names of the set's new tags put on it (D-830), which the
+        /// review marks as new.
+        added_new: Vec<String>,
         /// The names of the tags taken off it.
         removed: Vec<String>,
+    },
+    /// A new tag the set makes for the transactions it tags (D-830).
+    NewTag {
+        /// Its name, as the book will keep it.
+        name: String,
+        /// How many transactions of the set get it.
+        uses: usize,
     },
     /// A transaction broken into parts, or joined back into one (US5.1,
     /// D-737), with the transaction as the register shows it. Its account's
@@ -1352,7 +1362,12 @@ fn view_of(
                 .text(tag.amount)
                 .exact,
             added: tag.added.clone(),
+            added_new: tag.added_new.clone(),
             removed: tag.removed.clone(),
+        },
+        ProposedChange::NewTag(new) => ChangeView::NewTag {
+            name: new.name.clone(),
+            uses: new.uses,
         },
         ProposedChange::SplitTransaction(split) => ChangeView::SplitTransaction {
             date: locale.short_date(split.date),

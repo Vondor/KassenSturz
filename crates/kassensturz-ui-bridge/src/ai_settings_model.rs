@@ -166,6 +166,15 @@ pub mod qobject {
         #[cxx_name = "setWriteTools"]
         fn set_write_tools(self: &AiSettings, on: bool) -> bool;
 
+        /// Why the user's own AI tools can't hand their changes to the
+        /// window on this computer (B-377): `none` when this system has no
+        /// request folder yet, `unusable` when it can't be made or used,
+        /// empty when it works and in a build without AI. Makes the folder
+        /// if needed, as the app does once the write tools are on.
+        #[qinvokable]
+        #[cxx_name = "writeToolsProblem"]
+        fn write_tools_problem(self: &AiSettings) -> QString;
+
         /// The user's "Notes for the AI" (US7, #808): text they wrote,
         /// empty for none; empty in a build without AI.
         #[qinvokable]
@@ -800,6 +809,10 @@ impl qobject::AiSettings {
         keep_write_tools(&crate::settings::Settings::user(), on)
     }
 
+    fn write_tools_problem(&self) -> QString {
+        QString::from(request_folder_problem(default_request_folder()))
+    }
+
     fn notes(&self) -> QString {
         QString::from(notes_in(&crate::settings::Settings::user()).as_str())
     }
@@ -1092,6 +1105,37 @@ fn keep_write_tools(settings: &crate::settings::Settings, on: bool) -> bool {
 #[cfg(not(feature = "ai"))]
 fn keep_write_tools(_settings: &crate::settings::Settings, _on: bool) -> bool {
     false
+}
+
+/// The request folder's place on this computer, `None` where there is none
+/// (B-377).
+#[cfg(feature = "ai")]
+fn default_request_folder() -> Option<std::path::PathBuf> {
+    kassensturz_ai_tools::requests::RequestFolder::default_place()
+}
+
+#[cfg(not(feature = "ai"))]
+fn default_request_folder() -> Option<std::path::PathBuf> {
+    None
+}
+
+/// Why the request folder at `place` can't carry the AI tools' changes:
+/// `none` without a place, `unusable` when it can't be opened, empty when
+/// it can (B-377). The same open the window's inbox makes.
+#[cfg(feature = "ai")]
+fn request_folder_problem(place: Option<std::path::PathBuf>) -> &'static str {
+    match place {
+        None => "none",
+        Some(place) => match kassensturz_ai_tools::requests::RequestFolder::open(place) {
+            Ok(_) => "",
+            Err(_) => "unusable",
+        },
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn request_folder_problem(_place: Option<std::path::PathBuf>) -> &'static str {
+    ""
 }
 
 /// The most characters the notes may have; none in a build without AI.
@@ -1605,6 +1649,27 @@ mod write_tools_tests {
 
     #[cfg(feature = "ai")]
     #[test]
+    fn the_settings_page_says_when_the_request_folder_cant_be_used() {
+        let scratch = TestFolder::new();
+        // A usable place: no problem, and the folder is there afterwards.
+        let place = scratch.join("data").join("mcp-requests");
+        assert_eq!(request_folder_problem(Some(place.clone())), "");
+        assert!(place.is_dir());
+        // No place on this system (macOS until its packaging, B-377).
+        assert_eq!(request_folder_problem(None), "none");
+        // A file where the folder should be: it can't be used.
+        let file = scratch.join("a-file");
+        std::fs::write(&file, b"x").expect("file written");
+        assert_eq!(request_folder_problem(Some(file)), "unusable");
+        // Linux and Windows have a place now; only other systems have none.
+        assert_eq!(
+            default_request_folder().is_some(),
+            cfg!(any(target_os = "linux", windows))
+        );
+    }
+
+    #[cfg(feature = "ai")]
+    #[test]
     fn the_write_tools_are_off_until_turned_on_and_the_mcp_server_reads_them() {
         use kassensturz_core::ai_switch::write_tools_in as server_reads;
         let folder = TestFolder::new();
@@ -1687,6 +1752,8 @@ mod write_tools_tests {
         assert!(!keep_write_tools(&settings, true));
         assert!(!write_tools_in(&settings));
         assert!(!file.exists());
+        // No AI, so no message about the request folder either.
+        assert_eq!(request_folder_problem(None), "");
     }
 }
 

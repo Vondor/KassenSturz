@@ -83,7 +83,7 @@ pub use changes::{
     EditAccount, EditBudget, EditError, EditPlan, EditTransaction, FieldEdit, FieldValue, FileBill,
     Folders, INBOX, JoinTransfer, MAX_AI_DESCRIPTION_BYTES, MAX_BILL_BYTES, MAX_CHANGES,
     MAX_FILED_BYTES, MAX_VIEW_ACCOUNTS, MAX_VIEW_CALL_BYTES, MAX_VIEW_CATEGORIES,
-    MAX_VIEWS_PER_ANSWER, NewAccount, NewBudget, NewCategory, NewCounts, NewPlan, NewRule,
+    MAX_VIEWS_PER_ANSWER, NewAccount, NewBudget, NewCategory, NewCounts, NewPlan, NewRule, NewTag,
     NewTransaction, PROPOSE_CHANGES, PROPOSE_VIEW_NAME, Proposal, ProposeSpec, ProposedChange,
     SHOW_AS_CUSTOM, Slot, SortWithRules, SplitPart, SplitTransaction, TagTransaction, TotalCheck,
     adds_allowed, bill_folder_answer, bill_path, check_only_answer, description_titles,

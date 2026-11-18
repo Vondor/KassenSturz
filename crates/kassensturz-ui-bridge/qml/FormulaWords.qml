@@ -22,9 +22,29 @@ QtObject {
             : i18nContext.i18nc("@info a name in a list of what a formula counts: all money spent", "all spending");
     }
 
+    // A figure of the planned payments in words (D-826): what the plans
+    // still expect from today up to `lastDay`, or what is overdue, which
+    // the forecast lists as "Did this happen?".
+    function planName(kind: string, lastDay: string): string {
+        switch (kind) {
+        case "plans-out-due":
+            return i18nContext.i18nc("@info a name in a list of what a formula counts; %1 is a date", "what your planned payments still expect to go out until %1", lastDay);
+        case "plans-in-due":
+            return i18nContext.i18nc("@info a name in a list of what a formula counts; %1 is a date", "planned income still expected until %1", lastDay);
+        case "plans-out-overdue":
+            return i18nContext.i18nc("@info a name in a list of what a formula counts: planned payments whose day passed with no entry", "planned payments that are overdue and not confirmed yet");
+        default:
+            return i18nContext.i18nc("@info a name in a list of what a formula counts: planned income whose day passed with no entry", "planned income that is overdue and not confirmed yet");
+        }
+    }
+
     // The words of "counts Pets (with Vet), Travel".
     function counts(lines: var): string {
         const parts = lines.map(line => {
+            if (line.all.startsWith("plans-")) {
+                // Its days are in its words: from today on.
+                return planName(line.all, line.lastDay);
+            }
             let name = line.all ? allName(line.all) : line.name;
             if (line.inside.length > 0) {
                 const more = line.insideMore > 0

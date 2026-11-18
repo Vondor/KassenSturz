@@ -15,6 +15,7 @@ Ein Name steht für eine Kategorie oder eine Ihrer Gruppen und ergibt deren Summ
 - Ein Pfad für eine Kategorie in einer anderen: `'Alltag > Haustiere'`.
 - Gibt es eine Einnahmen- und eine Ausgabenkategorie desselben Namens, setzen Sie `Income.` oder `Spending.` davor: `Spending.Haustiere`.
 - **Alles ausgegeben, alles eingenommen:** `Spending.ALL` und `Income.ALL`, auch das noch nicht Zugeordnete.
+- **Ihre geplanten Zahlungen:** `Plans.OUT_DUE` ist, was Ihre geplanten Zahlungen von heute bis zum Ende des Zeitraums noch abbuchen werden, `Plans.IN_DUE` das geplante Geld, das noch nicht eingegangen ist. Beide zählen genauso wie die Kachel **Übrig in diesem Monat**. `Plans.OUT_OVERDUE` und `Plans.IN_OVERDUE` sind die Pläne, deren Tag schon einige Tage vorbei ist, ohne dass eine Buchung kam (die Kachel fragt bei ihnen „Ist das passiert?“); oft sind sie bezahlt und nur noch nicht eingelesen, deshalb entscheiden Sie, ob Ihre Formel sie abzieht. Es zählen nur die Pläne der Konten des Diagramms; pausierte und beendete Pläne zählen nichts.
 
 Konten sind keine Namen. Alle Namen einer Formel müssen **dieselbe Währung** haben.
 
@@ -64,6 +65,7 @@ Als Trennzeichen zwischen den Teilen gilt bei deutscher Zahlendarstellung `;` un
 Beispiele:
 
 - Wie viel Prozent der Ausgaben sind Lebensmittel? `=PERCENT_OF(Lebensmittel; Spending.ALL)`
+- Was am Monatsende wohl übrig bleibt, auf einer Zahl für diesen Monat: `=Income.Gehalt@"last month" - Spending.ALL - Plans.OUT_DUE`. Mit `- Plans.OUT_OVERDUE` ziehen Sie auch die überfälligen Pläne ab.
 - Hat sich Reisen verändert? `=CHANGE(Reisen; Reisen@"last year")`
 - Nur ein Überschuss, nie ein Minus: `=IF(Gehalt - Miete > 0; Gehalt - Miete; 0)`
 

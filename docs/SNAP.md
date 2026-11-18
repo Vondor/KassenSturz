@@ -38,6 +38,7 @@ Flatseal's role for the Flatpak is played by snapd itself:
 
 - **Command line:** `snap connections kassensturz` lists every interface and whether it is connected; `sudo snap connect kassensturz:removable-media` and `sudo snap disconnect kassensturz:home` change it. The change applies at the next start of the app.
 - **Graphical:** KDE Discover (the app's page, *Permissions*), Ubuntu's *Settings > Applications*, and the Snap Store app show the same switches.
+- **Installing a newer snap file by hand:** installing a file with `sudo snap install --dangerous kassensturz_*.snap` (tester builds) connects `home` again, even if you had run `sudo snap disconnect kassensturz:home` before. After each such install, check `snap connections kassensturz` and disconnect `home` again if you want to test without it (VM check (b) below), then restart the app.
 - **What happens without them:** with `home` disconnected, a folder chosen in the file chooser is used through the portal, and the book works without file locks (below). Nothing is lost; the book shows the plain note "less protection here: open it in only one program at a time". Connect `home` again and restart: the book opens in its real folder, with locks.
 
 ### Books without file locks (D-776)
@@ -82,6 +83,7 @@ The Snap Store terms (canonical.com) could not be read from this build environme
 2. The login as CI secret: run `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -` and store the output as the secret `SNAPCRAFT_STORE_CREDENTIALS` of the environment `release`. Until then the upload job only warns.
 3. Optionally a request to the store for auto-connection of `password-manager-service` and `pcscd` (section 4), or leave it manual.
 4. Read the terms (section 7).
+5. The store page. `snapcraft.yaml` carries every store key the reference offers (title, summary, description, license, website, source-code, issues, contact, donation, icon). The category and the screenshots exist only on snapcraft.io. The store copies the file's metadata into the listing only for a stable release, and only while the listing has not been edited on the web; once someone saves the listing on the web, the web page owns it and the file's texts no longer reach it. Keep the two the same.
 
 ## Folder checks for the VM rounds
 

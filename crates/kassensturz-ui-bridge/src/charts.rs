@@ -20,8 +20,8 @@ use kassensturz_charts::{
 use kassensturz_core::{CurrencyCode, Date, ErrorReport, GroupMember, Money, Report};
 use kassensturz_report::{
     ACCOUNT_BALANCES, Average, CASH_FLOW_BY_MONTH, CATEGORY_OVER_TIME, CandleLength, Column,
-    CompareWith, DAILY_BALANCE, DAILY_PARTS, DailyParts, Filter, INCOME_EXPENSE_BY_MONTH, Level,
-    MACD, MONEY_FLOW, MOVING_AVERAGE, NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period,
+    CompareWith, DAILY_BALANCE, DAILY_PARTS, DailyParts, Filter, Formula, INCOME_EXPENSE_BY_MONTH,
+    Level, MACD, MONEY_FLOW, MOVING_AVERAGE, NET_WORTH_OVER_TIME, Overlap, Per, Percent, Period,
     ReportError, SPENDING_BY_CATEGORY, SharedCategory, Shown, Source, TextFormat, TrendSeries,
     account_balances as balances_dataset, balance_candles as candles_dataset,
     cash_flow_by_month as cash_flow_dataset, category_over_time as over_time_dataset,
@@ -376,6 +376,10 @@ pub fn charts(
         // The pairs that look like moves between own accounts are drawn as
         // assumed moves (US7, #1035); a read with them is not kept.
         std::rc::Rc::new(Source::read_with_moves(book, span)?)
+    } else if columns_name_plans(&request.columns) {
+        // A column's formula names a figure of the plans (D-826), which
+        // depends on today: a read with them is not kept.
+        std::rc::Rc::new(Source::read_with_plans(book, span, locale.today())?)
     } else if request.columns.is_empty() && is_financial(&request.dataset) {
         session::cached_source(book, span, true, || Source::read_with_balances(book, span))?
     } else {
@@ -690,6 +694,14 @@ fn formula_columns(chosen: &[(String, Vec<String>, String)]) -> Vec<Column> {
             formula: (!formula.is_empty()).then(|| formula.clone()),
         })
         .collect()
+}
+
+/// Whether a column's formula names a figure of the plans (D-826). A
+/// formula with a mistake names nothing: it fails on its own column.
+fn columns_name_plans(chosen: &[(String, Vec<String>, String)]) -> bool {
+    chosen.iter().any(|(_, _, formula)| {
+        !formula.is_empty() && Formula::parse(formula).is_ok_and(|parsed| parsed.names_plans())
+    })
 }
 
 /// The currency of a result with no money at all: the first the book uses.

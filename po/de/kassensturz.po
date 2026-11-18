@@ -3599,6 +3599,18 @@ msgctxt "@option:check"
 msgid "Let my AI tools prepare changes"
 msgstr "Meine KI-Programme dürfen Änderungen vorbereiten"
 
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:769
+#, kde-format
+msgctxt "@info"
+msgid "On this system your AI tools can't prepare changes yet. They can still read the parts of your book you allowed above."
+msgstr "Auf diesem System können Ihre KI-Programme noch keine Änderungen vorbereiten. Die oben erlaubten Teile Ihres Buches können sie weiterhin lesen."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:769
+#, kde-format
+msgctxt "@info"
+msgid "Your AI tools can't prepare changes right now: KassenSturz can't create or open its folder for them in your user data folder. Check that you may write there, for example that the disk isn't full, then switch this off and on again."
+msgstr "Ihre KI-Programme können gerade keine Änderungen vorbereiten: KassenSturz kann seinen Ordner dafür in Ihrem Benutzerdatenordner nicht anlegen oder öffnen. Prüfen Sie, ob Sie dort schreiben dürfen, zum Beispiel ob die Festplatte voll ist, und schalten Sie dies dann aus und wieder ein."
+
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:673
 #, kde-format
 msgctxt "@title:window"
@@ -22059,7 +22071,7 @@ msgstr "Buchungen, die andere Schlagwörter bekommen"
 #, kde-format
 msgctxt "@info %1 is a list of tag names"
 msgid "Tags put on: %1"
-msgstr "Neue Schlagwörter: %1"
+msgstr "Schlagwörter dazu: %1"
 
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml:1261
 #, kde-format
@@ -25940,3 +25952,75 @@ msgstr "%1 wurde von einer Regel hinzugefügt, die inzwischen entfernt wurde."
 msgctxt "@info"
 msgid "Type to find a tag, then press Enter."
 msgstr "Tippen Sie, um ein Schlagwort zu finden, und drücken Sie dann die Eingabetaste."
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info a kind of prepared change"
+msgid "New tag"
+msgstr "Neues Schlagwort"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@title:group"
+msgid "New tags"
+msgstr "Neue Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info a tag the AI makes"
+msgid "New"
+msgstr "Neu"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "New tags put on: %1"
+msgstr "Neu angelegte Schlagwörter dazu: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "You don't have this tag yet. It is made only if you apply these changes, and goes on %1 transaction below."
+msgid_plural "You don't have this tag yet. It is made only if you apply these changes, and goes on %1 transactions below."
+msgstr[0] "Dieses Schlagwort haben Sie noch nicht. Es wird nur angelegt, wenn Sie diese Änderungen übernehmen, und kommt an %1 Buchung unten."
+msgstr[1] "Dieses Schlagwort haben Sie noch nicht. Es wird nur angelegt, wenn Sie diese Änderungen übernehmen, und kommt an %1 Buchungen unten."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:239
+#, kde-format
+msgctxt ""
+"@info %1 is a character position; OUT_DUE, IN_DUE, OUT_OVERDUE and "
+"IN_OVERDUE are formula words, not translated"
+msgid ""
+"Planned payments have no figure of that name at character %1. Write Plans."
+"OUT_DUE, Plans.IN_DUE, Plans.OUT_OVERDUE or Plans.IN_OVERDUE."
+msgstr ""
+"Geplante Zahlungen haben an Zeichen %1 keine Zahl dieses Namens. Schreiben "
+"Sie Plans.OUT_DUE, Plans.IN_DUE, Plans.OUT_OVERDUE oder Plans.IN_OVERDUE."
+
+#: crates/kassensturz-ui-bridge/qml/FormulaWords.qml:31
+#, kde-format
+msgctxt "@info a name in a list of what a formula counts; %1 is a date"
+msgid "what your planned payments still expect to go out until %1"
+msgstr "was Ihre geplanten Zahlungen bis %1 noch abbuchen werden"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaWords.qml:33
+#, kde-format
+msgctxt "@info a name in a list of what a formula counts; %1 is a date"
+msgid "planned income still expected until %1"
+msgstr "geplante Einnahmen, die bis %1 noch erwartet werden"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaWords.qml:35
+#, kde-format
+msgctxt ""
+"@info a name in a list of what a formula counts: planned payments whose day "
+"passed with no entry"
+msgid "planned payments that are overdue and not confirmed yet"
+msgstr "geplante Zahlungen, die überfällig und noch nicht bestätigt sind"
+
+#: crates/kassensturz-ui-bridge/qml/FormulaWords.qml:37
+#, kde-format
+msgctxt ""
+"@info a name in a list of what a formula counts: planned income whose day "
+"passed with no entry"
+msgid "planned income that is overdue and not confirmed yet"
+msgstr "geplante Einnahmen, die überfällig und noch nicht bestätigt sind"

@@ -78,8 +78,8 @@ pub use recurring_moves::{
 };
 pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip, RuleTagging};
 pub use schedules::{
-    AccountsForecast, NewSchedule, PlannedOccurrence, ScheduleMatchDone, ScheduleMatchReport,
-    ScheduleNeedsYou,
+    AccountsForecast, ExpectedPlans, NewSchedule, PlannedOccurrence, ScheduleMatchDone,
+    ScheduleMatchReport, ScheduleNeedsYou,
 };
 pub use tags::{TagAddedBy, TagUse, checked_tag_name};
 pub use totals::{MAX_CURRENCY_TOTAL, MAX_PLAN_AMOUNT};

@@ -1184,8 +1184,12 @@ fn a_model_is_offered_only_the_lists_the_user_allows() {
         !p.is_read()
             && !matches!(
                 p,
-                // Chart descriptions prepare nothing alone (D-729).
-                Permission::NewViews | Permission::EditViews | Permission::CustomCharts
+                // Chart descriptions prepare nothing alone (D-729), and
+                // neither does making tags without tagging (D-830).
+                Permission::NewViews
+                    | Permission::EditViews
+                    | Permission::CustomCharts
+                    | Permission::NewTags
             )
     }) {
         let none = Field::ALL

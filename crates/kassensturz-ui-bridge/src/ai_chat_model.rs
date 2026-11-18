@@ -961,6 +961,7 @@ pub(crate) mod engine {
                 account,
                 amount,
                 added,
+                added_new,
                 removed,
             } => vec![
                 ("kind", text("tagTransaction")),
@@ -969,7 +970,13 @@ pub(crate) mod engine {
                 ("account", text(account)),
                 ("amount", text(amount)),
                 ("added", list(added.iter().map(|name| text(name)))),
+                ("addedNew", list(added_new.iter().map(|name| text(name)))),
                 ("removed", list(removed.iter().map(|name| text(name)))),
+            ],
+            ChangeView::NewTag { name, uses } => vec![
+                ("kind", text("newTag")),
+                ("name", text(name)),
+                ("uses", whole(*uses)),
             ],
             ChangeView::SplitTransaction {
                 date,
@@ -3076,7 +3083,7 @@ mod tests {
         assert_eq!(
             own_keys(change),
             [
-                "account", "added", "amount", "date", "kind", "payee", "removed"
+                "account", "added", "addedNew", "amount", "date", "kind", "payee", "removed"
             ]
         );
         assert_eq!(text_of(change, "kind"), "tagTransaction");
@@ -3096,6 +3103,87 @@ mod tests {
         assert_eq!(removed[0].value::<QString>().unwrap().to_string(), "Tax");
         // Nothing of it can be edited, only left out.
         assert!(list_of(change, "fields").is_empty());
+    }
+
+    #[test]
+    fn a_new_tag_and_its_use_read_back_as_qml_reads_them() {
+        // D-830: through the real proposal and the review's rows.
+        use kassensturz_ai_tools::propose;
+        use kassensturz_core::ai_switch::Permissions;
+        use kassensturz_core::{
+            Account, AccountKind, AccountType, CurrencyCode, Date, Money, Split, Transaction,
+            TransactionId,
+        };
+        use kassensturz_store::Book;
+
+        use crate::ai_chat::rows_of;
+        use crate::register::tests::TestLocale;
+
+        let eur = CurrencyCode::new("EUR").unwrap();
+        let mut book = Book::create_in_memory().unwrap();
+        book.use_currency(eur).unwrap();
+        let account = |name: &str, kind: AccountKind| Account {
+            id: kassensturz_core::AccountId::generate(),
+            name: name.into(),
+            kind,
+            currency: eur,
+            account_type: kind.is_account().then_some(AccountType::Checking),
+            parent: None,
+            closed: false,
+            number: None,
+            notes: None,
+            institution: None,
+        };
+        let checking = account("Checking", AccountKind::Asset);
+        let fees = account("Bank fees", AccountKind::Expense);
+        for account in [&checking, &fees] {
+            book.add_account(account).unwrap();
+        }
+        let transaction = Transaction::new(
+            TransactionId::generate(),
+            Date::constant(2026, 9, 30),
+            Some("Example Bank".into()),
+            vec![
+                Split::new(checking.id, Money::from_minor_units(-990, eur)),
+                Split::new(fees.id, Money::from_minor_units(990, eur)),
+            ],
+        )
+        .unwrap();
+        book.add_transaction(&transaction).unwrap();
+
+        let proposal = propose(
+            &book,
+            &serde_json::json!({
+                "new_tags": [{"key": "tax", "name": "<b>Tax relevant</b>"}],
+                "tag_transactions": [{
+                    "transaction_id": transaction.id().to_string(),
+                    "add_new_tags": ["tax"],
+                }],
+            }),
+            Permissions::all(),
+        )
+        .unwrap();
+        let rows = rows_of(&book, &proposal.changes, &TestLocale).unwrap();
+        let object = changes_object(&rows);
+        let items = elements(&object).expect("an array");
+        assert_eq!(items.len(), 2);
+        let new = &items[0];
+        assert_eq!(own_keys(new), ["kind", "name", "uses"]);
+        assert_eq!(text_of(new, "kind"), "newTag");
+        assert_eq!(text_of(new, "slot"), "new_tags/0");
+        assert_eq!(text_of(new, "name"), "<b>Tax relevant</b>");
+        assert_eq!(number_of(new, "uses"), 1);
+        // A new tag can only be left out, not edited.
+        assert!(list_of(new, "fields").is_empty());
+        let tagged = &items[1];
+        assert_eq!(text_of(tagged, "kind"), "tagTransaction");
+        assert!(list_of(tagged, "added").is_empty());
+        let added = list_of(tagged, "addedNew");
+        assert_eq!(added.len(), 1);
+        assert_eq!(
+            added[0].value::<QString>().unwrap().to_string(),
+            "<b>Tax relevant</b>"
+        );
     }
 
     #[test]

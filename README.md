@@ -10,6 +10,8 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
 3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the [user guide](docs/user/USER_GUIDE.de.md) (German) explains how to use KassenSturz. [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
 
+Code signing: KassenSturz uses the SignPath Foundation for code signing of its Windows installers, with a free certificate. Until the project is accepted by SignPath Foundation, the installer is not signed yet. See [the code signing policy](docs/CODE_SIGNING_POLICY.md).
+
 ## Goals
 
 - Simple, plain-language interface with progressive disclosure
@@ -23,7 +25,7 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 
 ## Status
 
-Alpha (the release stages are in [`AGENTS.md`](AGENTS.md#release-stages-d-274)): only the maintainer and the project's AI agents test it, with made-up books, and the book format may still change. Where the work stands is in [`docs/ROADMAP.md`](docs/ROADMAP.md). Test builds are published as pre-releases on the [releases page](https://github.com/Vondor/KassenSturz/releases); there is no stable release yet. Builds are numbered `0.YYMMDD.N` (build date and a counter) until the first stable release, 1.0. To connect an AI, see [Connect an AI](docs/user/CONNECT_AN_AI.md), which also has the command that lets Claude Desktop or Claude Code read your book.
+Beta since 17 Nov 2026 (the release stages are in [`AGENTS.md`](AGENTS.md#release-stages-d-274), D-824): the feature set is complete and invited testers try it, with made-up example books. The book format is no longer changed freely: every change to the book or settings format is a migration with an automatic backup and a test, so a book made by an earlier Beta build opens in every later one. Where the work stands is in [`docs/ROADMAP.md`](docs/ROADMAP.md). Test builds are published as pre-releases on the [releases page](https://github.com/Vondor/KassenSturz/releases); there is no stable release yet. Builds are numbered `0.YYMMDD.N` (build date and a counter) until the first stable release, 1.0. To connect an AI, see [Connect an AI](docs/user/CONNECT_AN_AI.md), which also has the command that lets Claude Desktop or Claude Code read your book.
 
 What the app does today, with all numbers worked out by the core and shown in your regional format:
 
@@ -195,6 +197,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 - [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md): third-party dependencies, licenses and reused code
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md): what KassenSturz protects, from whom, and how
 - [`docs/FINTS_PRODUCT_ID.md`](docs/FINTS_PRODUCT_ID.md): how to handle a FinTS product registration number, for KassenSturz and other open-source programs (German: [`FINTS_PRODUCT_ID.de.md`](docs/FINTS_PRODUCT_ID.de.md))
+- [`docs/PRIVACY.md`](docs/PRIVACY.md): the privacy policy, what stays on your computer and when something is sent (German: [`PRIVACY.de.md`](docs/PRIVACY.de.md))
 - [`docs/SECURITY_OVERVIEW.en.md`](docs/SECURITY_OVERVIEW.en.md): how safe KassenSturz is, in plain words, with what was attacked and fixed (German: [`SECURITY_OVERVIEW.de.md`](docs/SECURITY_OVERVIEW.de.md))
 - [`docs/WINDOWS.md`](docs/WINDOWS.md): the Windows packages, the Microsoft Store package and the steps to sign the installer
 - [`docs/CODE_SIGNING_POLICY.md`](docs/CODE_SIGNING_POLICY.md): which files are signed, who approves it and how (free code signing provided by SignPath.io, certificate by SignPath Foundation)

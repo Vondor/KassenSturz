@@ -25,7 +25,7 @@ use crate::error::ToolError;
 
 /// The lists of a call in the order [`super::build`] turns their items into
 /// changes, one change for each item.
-const ORDER: [&str; 26] = [
+const ORDER: [&str; 27] = [
     "new_categories",
     "edit_categories",
     "edit_rules",
@@ -40,6 +40,7 @@ const ORDER: [&str; 26] = [
     "new_transactions",
     "delete_transactions",
     "join_transfers",
+    "new_tags",
     "tag_transactions",
     "split_transactions",
     "attach_bills",
@@ -53,6 +54,22 @@ const ORDER: [&str; 26] = [
     "edit_plans",
     "sort_with_rules",
 ];
+
+/// The keys of new tags (D-830) that the item `item` of `tag_transactions`
+/// puts on.
+fn new_tag_keys(item: &Value) -> impl Iterator<Item = &str> {
+    item.get("add_new_tags")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(str::trim)
+}
+
+/// The key of the item `item` of `new_tags`.
+fn key_of(item: &Value) -> Option<&str> {
+    item.get("key").and_then(Value::as_str).map(str::trim)
+}
 
 /// The fields the user may change in an item of each list (D-293). Every
 /// change can be left out; only these can be edited.
@@ -171,6 +188,65 @@ impl Call {
     }
 
     /// The call as the user leaves it.
+    /// Leaves out every new tag (D-830) that no tag change the user keeps
+    /// puts on, so leaving out the last transaction that gets one doesn't
+    /// leave an unused tag behind, which the checks refuse.
+    fn without_unused_new_tags(&mut self) {
+        let kept: Vec<Value> = (0..self.ai_items("tag_transactions").len())
+            .filter_map(|index| {
+                let slot = Slot {
+                    list: "tag_transactions",
+                    index,
+                };
+                match self.edits.get(&slot) {
+                    Some(edited) => edited.clone(),
+                    None => self.ai_item(slot).cloned(),
+                }
+            })
+            .collect();
+        let used: Vec<&str> = kept.iter().flat_map(new_tag_keys).collect();
+        let unused: Vec<Slot> = self
+            .ai_items("new_tags")
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| key_of(item).is_none_or(|key| !used.contains(&key)))
+            .map(|(index, _)| Slot {
+                list: "new_tags",
+                index,
+            })
+            .collect();
+        for slot in unused {
+            self.edits.insert(slot, None);
+        }
+    }
+
+    /// Takes back the leaving out of each new tag (D-830) that the tag
+    /// change in `slot` puts on, when the user takes that change back.
+    fn with_new_tags_of(&mut self, slot: Slot) {
+        if slot.list != "tag_transactions" {
+            return;
+        }
+        let Some(item) = self.ai_item(slot).cloned() else {
+            return;
+        };
+        let wanted: Vec<&str> = new_tag_keys(&item).collect();
+        let back: Vec<Slot> = self
+            .ai_items("new_tags")
+            .iter()
+            .enumerate()
+            .filter(|(_, tag)| key_of(tag).is_some_and(|key| wanted.contains(&key)))
+            .map(|(index, _)| Slot {
+                list: "new_tags",
+                index,
+            })
+            .collect();
+        for slot in back {
+            if self.edits.get(&slot) == Some(&None) {
+                self.edits.remove(&slot);
+            }
+        }
+    }
+
     fn as_edited(&self) -> Value {
         let mut call = Map::new();
         for list in ORDER {
@@ -226,7 +302,7 @@ impl From<ToolError> for EditError {
             // The user picks a new category from the set, so a key that
             // isn't there any more was left out.
             ToolError::BadArgument {
-                argument: "new_category" | "new_parent" | "new_parent_rule",
+                argument: "new_category" | "new_parent" | "new_parent_rule" | "add_new_tags",
             } => Self::InUse,
             ToolError::NotAllowed { .. } => Self::NotAllowed,
             other => Self::Refused(other),
@@ -408,6 +484,7 @@ impl ChangeSet {
         }
         let mut call = self.call.clone();
         call.edits.insert(slot, None);
+        call.without_unused_new_tags();
         Self::checked(book, call, allowed)
     }
 
@@ -423,6 +500,7 @@ impl ChangeSet {
         if call.edits.remove(&slot).is_none() {
             return Err(EditError::NotEditable);
         }
+        call.with_new_tags_of(slot);
         Self::checked(book, call, allowed)
     }
 
@@ -475,6 +553,7 @@ pub(super) fn list_of(change: &ProposedChange) -> &'static str {
         ProposedChange::EditPlan(_) => super::planned::EDIT_LIST,
         ProposedChange::SortWithRules(_) => super::sort_rules::LIST,
         ProposedChange::JoinTransfer(_) => super::joins::LIST,
+        ProposedChange::NewTag(_) => super::tags::NEW_LIST,
         ProposedChange::TagTransaction(_) => super::tags::LIST,
         ProposedChange::SplitTransaction(_) => super::splits::LIST,
         ProposedChange::AttachBill(_) => super::bills::LIST,

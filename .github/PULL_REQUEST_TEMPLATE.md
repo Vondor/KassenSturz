@@ -14,6 +14,7 @@
 - [ ] Docs updated (`docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/GLOSSARY.md`, etc. as relevant)
 - [ ] `docs/DECISIONS.md` updated if this makes or changes a decision
 - [ ] No `TODO` without an issue reference
+- [ ] A change to the book or settings format is a migration with an automatic backup and a test from every earlier Beta format, or none is made (Beta, D-274, D-824)
 - [ ] SPDX header on every new source file, checked by `reuse lint`
 - [ ] Every commit is signed off under the DCO (`git commit -s`, see D-040)
 - [ ] Labels set: a milestone, the areas, a kind, and `human-gate` if one is ticked below (AGENTS.md §9.3)

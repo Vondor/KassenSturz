@@ -252,7 +252,7 @@ fn did_this_happen_offers_match_skip_and_book_each_taken_back_by_undo() {
     assert_eq!(choices[0].date, "2026-10-02");
     assert_eq!(choices[0].payee, "Landlord");
     assert_eq!(choices[0].amount.exact, "-750,00 €");
-    match_entry(&mut household.book, &id, "2026-10-01", &paid).expect("matched");
+    match_entry(&mut household.book, &id, "2026-10-01", &paid, &TestLocale).expect("matched");
     assert_eq!(
         did_this_happen(&household.book, &TestLocale)
             .expect("read")
@@ -289,7 +289,7 @@ fn did_this_happen_offers_match_skip_and_book_each_taken_back_by_undo() {
         ("750,00".to_owned(), "2026-10-19".to_owned())
     );
     let parts_before = household.book.account_parts(checking).expect("read").len();
-    let booked = book_it(
+    let (booked, asked) = book_it(
         &mut household.book,
         &id,
         "2026-09-01",
@@ -298,6 +298,12 @@ fn did_this_happen_offers_match_skip_and_book_each_taken_back_by_undo() {
         &TestLocale,
     )
     .expect("booked");
+    // A cent more than the plan: "Expect … from now on?" is asked, nothing
+    // changed (#1143).
+    let asked = asked.expect("a new amount to ask about");
+    assert_eq!(asked.transaction_id, booked);
+    assert_eq!(asked.amount.exact, "750,01 €");
+    assert_eq!(asked.planned.exact, "750,00 €");
     assert!(
         did_this_happen(&household.book, &TestLocale)
             .expect("read")
@@ -338,6 +344,153 @@ fn did_this_happen_offers_match_skip_and_book_each_taken_back_by_undo() {
     );
 }
 
+/// An entry of `minor_units` in `account` on `on` as a bank delivers it,
+/// from the other party with `iban`.
+fn bank_entry(
+    book: &mut Book,
+    account: AccountId,
+    minor_units: i64,
+    on: Date,
+    iban: &str,
+) -> String {
+    let delivered = kassensturz_core::ImportedDetails {
+        bank_id: Some(format!("{on}-{minor_units}")),
+        booking_date: Some(on),
+        value_date: Some(on),
+        other_party_name: Some("Example Landlord".into()),
+        other_party_iban: Some(iban.into()),
+        remittance_information: None,
+    };
+    let transaction = Transaction::new(
+        TransactionId::generate(),
+        on,
+        Some("Example Landlord".into()),
+        vec![
+            Split {
+                imported: Some(delivered),
+                ..Split::new(account, eur(minor_units))
+            },
+            Split::uncategorized(eur(-minor_units)),
+        ],
+    )
+    .expect("balanced");
+    book.add_transaction(&transaction).expect("added");
+    transaction.id().to_string()
+}
+
+// The rent rose to 780,00 € (#1143): "Did this happen?" offers the
+// landlord's entry for October and for tomorrow's payment, matching one
+// asks "Expect … from now on?", and only the user's yes changes the plan,
+// which one Undo takes back.
+#[test]
+fn a_changed_amount_is_offered_asked_and_taken_only_on_the_users_word() {
+    let mut household = household();
+    let checking = household.checking;
+    let rent = rent_form(&household);
+    let id = save(&mut household.book, "", &rent, &TestLocale).expect("saved");
+    let october = bank_entry(
+        &mut household.book,
+        checking,
+        -78_000,
+        day(2026, 10, 1),
+        LANDLORD_IBAN,
+    );
+    // Tomorrow's payment of a second plan, paid a day early with more.
+    let garage = PlanForm {
+        name: "Garage".into(),
+        amount: "50,00".into(),
+        category_id: String::new(),
+        first_due: "2026-10-20".into(),
+        ..rent.clone()
+    };
+    let garage_id = save(&mut household.book, "", &garage, &TestLocale).expect("saved");
+    let early = bank_entry(
+        &mut household.book,
+        checking,
+        -5_500,
+        day(2026, 10, 19),
+        LANDLORD_IBAN,
+    );
+
+    let open = did_this_happen(&household.book, &TestLocale).expect("read");
+    let shown: Vec<(&str, &str, Option<&str>)> = open
+        .iter()
+        .map(|payment| {
+            (
+                payment.due_on.as_str(),
+                payment.state,
+                payment
+                    .changed
+                    .as_ref()
+                    .map(|changed| changed.transaction_id.as_str()),
+            )
+        })
+        .collect();
+    assert_eq!(
+        shown,
+        [
+            ("2026-09-01", "overdue", None),
+            ("2026-10-01", "overdue", Some(october.as_str())),
+            ("2026-10-20", "upcoming", Some(early.as_str())),
+        ]
+    );
+    let changed = open[1].changed.as_ref().expect("changed");
+    assert_eq!(changed.amount.exact, "780,00 €");
+    assert_eq!(changed.date, "2026-10-01");
+    assert_eq!(open[1].amount.exact, "750,00 €", "still the plan's amount");
+    assert_eq!(open[2].plan_id, garage_id);
+
+    // Matching it asks; nothing changes until the user says so.
+    let asked = match_entry(
+        &mut household.book,
+        &id,
+        "2026-10-01",
+        &october,
+        &TestLocale,
+    )
+    .expect("matched")
+    .expect("a new amount to ask about");
+    assert_eq!(asked.transaction_id, october);
+    assert_eq!(asked.amount.exact, "780,00 €");
+    assert_eq!(asked.planned.exact, "750,00 €");
+    let amount_of = |book: &Book, id: &str| {
+        list(book, &TestLocale)
+            .expect("listed")
+            .into_iter()
+            .find(|plan| plan.id == id)
+            .expect("the plan")
+            .amount
+            .exact
+    };
+    assert_eq!(amount_of(&household.book, &id), "750,00 €");
+    let before = changes(&household.book);
+    expect_amount(&mut household.book, &id, &october).expect("changed");
+    assert_eq!(changes(&household.book), before + 1);
+    assert_eq!(amount_of(&household.book, &id), "780,00 €");
+    // The entry has the plan's amount now: nothing more to ask.
+    assert_eq!(
+        new_amount(
+            &household.book,
+            plan(&household.book, &id).expect("plan").id,
+            transaction_id(&october).expect("id"),
+            &TestLocale
+        )
+        .expect("read"),
+        None
+    );
+    household.book.undo().expect("undone");
+    assert_eq!(amount_of(&household.book, &id), "750,00 €");
+    // An entry that is not the plan's kind of payment is refused.
+    let refund = entry(
+        &mut household.book,
+        checking,
+        75_000,
+        day(2026, 10, 2),
+        "Refund",
+    );
+    assert!(expect_amount(&mut household.book, &id, &refund).is_err());
+}
+
 #[test]
 fn coming_up_lists_the_open_payments_of_the_next_days() {
     let mut household = household();
@@ -366,7 +519,7 @@ fn removing_a_plan_keeps_its_entries_and_undo_brings_back_its_matches() {
         day(2026, 10, 1),
         "Landlord",
     );
-    match_entry(&mut household.book, &id, "2026-10-01", &paid).expect("matched");
+    match_entry(&mut household.book, &id, "2026-10-01", &paid, &TestLocale).expect("matched");
     let parts = household.book.account_parts(checking).expect("read").len();
 
     remove(&mut household.book, &id).expect("removed");

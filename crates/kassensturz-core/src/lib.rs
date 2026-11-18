@@ -71,13 +71,14 @@ pub use rules::{
     RuleNode, RuleOutcome, RuleSet, TextField, TextOperator,
 };
 pub use schedule::{
-    Decided, Due, Forecast, ForecastError, LOOK_BACK_YEARS, MAX_DUE_DATES, MAX_DUE_YEARS,
-    MAX_FORECAST_MONTHS, MAX_SCHEDULE_EVERY, MAX_SCHEDULE_NAME_CHARS, MAX_SCHEDULE_PARTY_CHARS,
-    MAX_SCHEDULES, MonthPlan, OccurrenceState, OpenOccurrence, Schedule, ScheduleEntry,
-    ScheduleError, ScheduleId, ScheduleMatch, ScheduleMatches, ScheduleUnit, StillExpected,
-    UnclearOccurrence, add_banking_days, banking_day, cut_party, due_dates, due_window_end,
-    entry_fits, forecast, forecast_from_day, forecast_with_entries_ahead, match_schedules,
-    still_expected, sub_banking_days,
+    AmountChange, Decided, Due, Forecast, ForecastError, LOOK_BACK_YEARS, MAX_DUE_DATES,
+    MAX_DUE_YEARS, MAX_FORECAST_MONTHS, MAX_SCHEDULE_EVERY, MAX_SCHEDULE_NAME_CHARS,
+    MAX_SCHEDULE_PARTY_CHARS, MAX_SCHEDULES, MonthPlan, OccurrenceState, OpenOccurrence, Schedule,
+    ScheduleEntry, ScheduleError, ScheduleId, ScheduleMatch, ScheduleMatches, ScheduleUnit,
+    StillExpected, UnclearOccurrence, add_banking_days, amount_changes, amount_differs,
+    banking_day, cut_party, due_dates, due_window_end, entry_fits, entry_fits_but_amount, forecast,
+    forecast_from_day, forecast_with_entries_ahead, match_schedules, still_expected,
+    sub_banking_days,
 };
 pub use transaction::{
     Attachment, ForeignAmount, ImportedDetails, OriginalAmount, PartStatus, Split, SplitId,

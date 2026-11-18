@@ -15,17 +15,22 @@
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
-    AccountId, AccountKind, AccountType, CurrencyCode, Date, Decided, Due, Forecast, ForecastError,
-    LOOK_BACK_YEARS, MAX_BUSINESS_DAYS, MAX_SCHEDULES, Money, OccurrenceState, OpenOccurrence,
-    OtherParty, Schedule, ScheduleEntry, ScheduleError, ScheduleId, ScheduleUnit, Split,
-    StillExpected, Transaction, TransactionId, add_banking_days, cut_party, due_dates,
-    forecast_with_entries_ahead, match_schedules, still_expected,
+    AccountId, AccountKind, AccountType, AmountChange, CurrencyCode, Date, Decided, Due, Forecast,
+    ForecastError, LOOK_BACK_YEARS, MAX_BUSINESS_DAYS, MAX_SCHEDULES, Money, OccurrenceState,
+    OpenOccurrence, OtherParty, Schedule, ScheduleEntry, ScheduleError, ScheduleId, ScheduleUnit,
+    Split, StillExpected, Transaction, TransactionId, add_banking_days, amount_changes,
+    amount_differs, cut_party, due_dates, forecast_with_entries_ahead, match_schedules,
+    still_expected,
 };
 use rusqlite::{OptionalExtension, params};
 
 use crate::cached::Cached;
 use crate::error::{Corruption, StoreError};
 use crate::{Action, Book, currency_from_text, date_from_text, date_to_text};
+
+/// The expected plans, their open occurrences and the entries that may be
+/// matched to them, as [`Book::match_schedules`] reads them.
+type Matchable = (Vec<Schedule>, Vec<OpenOccurrence>, Vec<ScheduleEntry>);
 
 /// The columns [`read_schedule`] expects, in its order.
 const COLUMNS: &str = "id, name, account_id, amount, currency, tolerance, category_id,
@@ -233,6 +238,10 @@ pub struct ScheduleMatchReport {
     pub matched: Vec<ScheduleMatchDone>,
     /// The occurrences left for the user.
     pub needs_you: Vec<ScheduleNeedsYou>,
+    /// The open payments that an entry fits but for its amount (#1143),
+    /// left for the user: nothing was matched or changed for them
+    /// ([`Book::schedule_amount_changes`]).
+    pub amount_changes: Vec<AmountChange>,
 }
 
 /// The forecast for some accounts in one currency (D-770).
@@ -916,30 +925,14 @@ impl Book {
         Ok(true)
     }
 
-    /// Matches the entries that fit open occurrences of the expected plans
-    /// (D-769, 3.4 and 3.5), as one user action of its own,
-    /// [`Action::MatchSchedules`]: one Undo takes back the matches, and the
-    /// categories they gave, and leaves the entries. Nothing is recorded
-    /// when nothing fits.
-    ///
-    /// It looks at every open occurrence from [`LOOK_BACK_YEARS`] before
-    /// `today` up to [`MAX_BUSINESS_DAYS`] banking days after it, so a late
-    /// file for an old month matches too, and running it twice matches
-    /// nothing new. With `involving`, only matches of those entries are
-    /// made, e.g. the ones an import added, so an entry whose match the
-    /// user took back is not matched again behind their back; occurrences
-    /// that need the user are reported only when one of their entries is
-    /// among them. Which entries fit is [`match_schedules`]'s decision, on
-    /// all entries of the plans' accounts, so a new entry never wins over
-    /// an old one that fits as well.
-    pub fn match_schedules(
-        &mut self,
-        today: Date,
-        involving: Option<&HashSet<TransactionId>>,
-    ) -> Result<ScheduleMatchReport, StoreError> {
+    /// The expected plans, their open occurrences from [`LOOK_BACK_YEARS`]
+    /// before `today` up to [`MAX_BUSINESS_DAYS`] banking days after it,
+    /// and the entries of the plans' accounts that may be matched; `None`
+    /// when there is no plan or no open occurrence.
+    fn open_and_entries(&self, today: Date) -> Result<Option<Matchable>, StoreError> {
         let plans = self.active_schedules()?;
         if plans.is_empty() {
-            return Ok(ScheduleMatchReport::default());
+            return Ok(None);
         }
         let decided = self.decided_occurrences()?;
         let from = years_from(today, -LOOK_BACK_YEARS).ok_or_else(|| out_of_calendar(today))?;
@@ -957,7 +950,7 @@ impl Book {
             }
         }
         if open.is_empty() {
-            return Ok(ScheduleMatchReport::default());
+            return Ok(None);
         }
         let taken = self.not_matchable()?;
         let accounts = self.account_ids()?;
@@ -973,11 +966,123 @@ impl Book {
                 }
             }
         }
+        Ok(Some((plans, open, entries)))
+    }
+
+    /// The open payments of the expected plans that an entry fits but for
+    /// its amount (#1143): the plan remembers the other party, an entry of
+    /// that party came within the banking days a match allows, and its
+    /// amount is further from the plan's than the tolerance allows, e.g. a
+    /// salary that rose. Nothing is matched or changed: the user decides
+    /// whether the entry is the payment ([`Book::match_schedule_occurrence`])
+    /// and whether the plan expects the new amount from now on
+    /// ([`Book::set_schedule_amount_from_entry`]).
+    ///
+    /// It looks at the same payments and entries as
+    /// [`Book::match_schedules`] and never guesses between two
+    /// ([`kassensturz_core::amount_changes`]). With `involving`, only
+    /// changes of those entries are listed, e.g. the ones an import added.
+    pub fn schedule_amount_changes(
+        &self,
+        today: Date,
+        involving: Option<&HashSet<TransactionId>>,
+    ) -> Result<Vec<AmountChange>, StoreError> {
+        let Some((plans, open, entries)) = self.open_and_entries(today)? else {
+            return Ok(Vec::new());
+        };
+        Ok(amount_changes(&plans, &open, &entries)
+            .into_iter()
+            .filter(|change| involving.is_none_or(|ids| ids.contains(&change.transaction)))
+            .collect())
+    }
+
+    /// The entry `transaction`'s amount in the account of the plan
+    /// `schedule`, if it is a new amount for the plan (#1143): its one part
+    /// among the user's accounts is in the plan's account, in the plan's
+    /// currency, with money going the plan's way, and further from the
+    /// plan's amount than the tolerance allows. `None` when the entry has
+    /// the plan's amount (within the tolerance) or is no payment the plan
+    /// could have.
+    pub fn new_schedule_amount(
+        &self,
+        schedule: ScheduleId,
+        transaction: TransactionId,
+    ) -> Result<Option<Money>, StoreError> {
+        let plan = self.schedule(schedule)?;
+        let stored = self.transaction(transaction)?;
+        let accounts = self.account_ids()?;
+        Ok(Self::as_entry(&stored, plan.account, &accounts)
+            .map(|entry| entry.amount)
+            .filter(|amount| amount_differs(&plan, *amount)))
+    }
+
+    /// The plan `schedule` expects the amount of the entry `transaction`
+    /// from now on (#1143, the user's "Expect … from now on"): the user
+    /// action [`Action::EditSchedule`], as the form's Edit is, so one Undo
+    /// takes it back and the history shows the old and new amount. The
+    /// amount is read from the entry, never typed or computed. Everything
+    /// else of the plan stays, its tolerance too; payments already matched
+    /// or skipped stay as they are, so the entries of past months keep their
+    /// own amounts. The entry must be a payment the plan could have
+    /// ([`StoreError::ScheduleEntryNotFitting`]); nothing is recorded when
+    /// it has the plan's amount already.
+    pub fn set_schedule_amount_from_entry(
+        &mut self,
+        schedule: ScheduleId,
+        transaction: TransactionId,
+    ) -> Result<(), StoreError> {
+        let plan = self.schedule(schedule)?;
+        let stored = self.transaction(transaction)?;
+        let accounts = self.account_ids()?;
+        let amount = Self::as_entry(&stored, plan.account, &accounts)
+            .map(|entry| entry.amount)
+            .filter(|amount| {
+                amount.currency() == plan.amount.currency()
+                    && amount.is_negative() == plan.amount.is_negative()
+            })
+            .ok_or(StoreError::ScheduleEntryNotFitting(transaction))?;
+        if amount == plan.amount {
+            return Ok(());
+        }
+        self.edit_schedule(&Schedule { amount, ..plan })
+    }
+
+    /// Matches the entries that fit open occurrences of the expected plans
+    /// (D-769, 3.4 and 3.5), as one user action of its own,
+    /// [`Action::MatchSchedules`]: one Undo takes back the matches, and the
+    /// categories they gave, and leaves the entries. Nothing is recorded
+    /// when nothing fits.
+    ///
+    /// It looks at every open occurrence from [`LOOK_BACK_YEARS`] before
+    /// `today` up to [`MAX_BUSINESS_DAYS`] banking days after it, so a late
+    /// file for an old month matches too, and running it twice matches
+    /// nothing new. With `involving`, only matches of those entries are
+    /// made, e.g. the ones an import added, so an entry whose match the
+    /// user took back is not matched again behind their back; occurrences
+    /// that need the user are reported only when one of their entries is
+    /// among them. Which entries fit is [`match_schedules`]'s decision, on
+    /// all entries of the plans' accounts, so a new entry never wins over
+    /// an old one that fits as well. The report also lists the payments an
+    /// entry fits but for its amount (#1143), for the user to decide.
+    pub fn match_schedules(
+        &mut self,
+        today: Date,
+        involving: Option<&HashSet<TransactionId>>,
+    ) -> Result<ScheduleMatchReport, StoreError> {
+        let Some((plans, open, entries)) = self.open_and_entries(today)? else {
+            return Ok(ScheduleMatchReport::default());
+        };
         let found = match_schedules(&plans, &open, &entries);
         let wanted = |ids: &[TransactionId]| {
             involving.is_none_or(|involving| ids.iter().any(|id| involving.contains(id)))
         };
-        let mut report = ScheduleMatchReport::default();
+        let mut report = ScheduleMatchReport {
+            amount_changes: amount_changes(&plans, &open, &entries)
+                .into_iter()
+                .filter(|change| wanted(&[change.transaction]))
+                .collect(),
+            ..ScheduleMatchReport::default()
+        };
         for unclear in found.unclear {
             if wanted(&unclear.transactions) {
                 report.needs_you.push(ScheduleNeedsYou {

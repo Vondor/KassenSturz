@@ -720,6 +720,142 @@ fn the_user_matches_skips_and_books_payments() {
     assert_eq!(contents(&book), open);
 }
 
+// The rent rose (#1143): November's entry from the landlord is no match,
+// but is suggested as a changed amount; the user matches it and lets the
+// plan expect it from now on, one Undo each.
+#[test]
+fn a_changed_amount_is_suggested_and_taken_only_on_the_users_word() {
+    let household = household();
+    let plan = rent_plan(&household);
+    let (checking, savings) = (household.checking, household.savings);
+    let mut book = household.book;
+    let id = book.add_schedule(&plan).expect("planned");
+    let october = entry(
+        &mut book,
+        checking,
+        -75_000,
+        date(2026, 10, 1),
+        Some(LANDLORD_IBAN),
+    );
+    let raised = entry(
+        &mut book,
+        checking,
+        -78_000,
+        date(2026, 11, 2),
+        Some(LANDLORD_IBAN),
+    );
+    let today = date(2026, 11, 5);
+    let report = book.match_schedules(today, None).expect("matched");
+    let matched: Vec<TransactionId> = report.matched.iter().map(|done| done.transaction).collect();
+    assert_eq!(matched, [october]);
+    // The import's report names it too, and only for the entries asked
+    // about.
+    assert_eq!(report.amount_changes.len(), 1);
+    assert_eq!(report.amount_changes[0].transaction, raised);
+
+    let changes = book.schedule_amount_changes(today, None).expect("read");
+    assert_eq!(changes.len(), 1);
+    assert_eq!(changes[0].occurrence.schedule, id);
+    assert_eq!(changes[0].occurrence.due.counted, date(2026, 11, 1));
+    assert_eq!(changes[0].transaction, raised);
+    assert_eq!(changes[0].amount, eur(-78_000));
+    // Only the entries asked about.
+    let others = HashSet::from([october]);
+    assert!(
+        book.schedule_amount_changes(today, Some(&others))
+            .expect("read")
+            .is_empty()
+    );
+    assert_eq!(
+        book.new_schedule_amount(id, raised).expect("read"),
+        Some(eur(-78_000))
+    );
+    assert_eq!(book.new_schedule_amount(id, october).expect("read"), None);
+
+    // Reading changed nothing; the user matches it by hand.
+    let before = contents(&book);
+    book.match_schedule_occurrence(id, date(2026, 11, 1), raised)
+        .expect("matched");
+    assert!(
+        book.schedule_amount_changes(today, None)
+            .expect("read")
+            .is_empty()
+    );
+
+    // An entry the plan could never have is refused; the plan's own amount
+    // records nothing.
+    let elsewhere = entry(&mut book, savings, -78_000, date(2026, 11, 2), None);
+    assert!(matches!(
+        book.set_schedule_amount_from_entry(id, elsewhere),
+        Err(StoreError::ScheduleEntryNotFitting(_))
+    ));
+    // Takes the savings entry back again.
+    book.undo().expect("undone");
+    let matched_by_hand = book.change_to_undo().expect("history");
+    book.set_schedule_amount_from_entry(id, october)
+        .expect("nothing to change");
+    assert_eq!(book.change_to_undo().expect("history"), matched_by_hand);
+
+    // From now on the plan expects the new amount; its tolerance and what
+    // was decided before stay.
+    book.set_schedule_amount_from_entry(id, raised)
+        .expect("changed");
+    let changed = book.schedule(id).expect("plan");
+    assert_eq!(changed.amount, eur(-78_000));
+    assert_eq!(changed.tolerance, eur(50));
+    assert_eq!(changed.party_iban.as_deref(), Some(LANDLORD_IBAN));
+    assert_eq!(
+        book.change_to_undo()
+            .expect("history")
+            .map(|change| change.action),
+        Some(Action::EditSchedule)
+    );
+    let decided = book.decided_occurrences().expect("decided");
+    assert_eq!(
+        decided.get(&(id, date(2026, 10, 1))),
+        Some(&Decided::Matched(october))
+    );
+    assert_eq!(
+        decided.get(&(id, date(2026, 11, 1))),
+        Some(&Decided::Matched(raised))
+    );
+    assert_eq!(book.new_schedule_amount(id, raised).expect("read"), None);
+    // One Undo each: the amount, then the match.
+    book.undo().expect("undone");
+    assert_eq!(book.schedule(id).expect("plan").amount, eur(-75_000));
+    book.undo().expect("undone");
+    assert_eq!(contents(&book), before);
+}
+
+#[test]
+fn a_plan_that_remembers_no_party_suggests_no_changed_amount() {
+    let household = household();
+    let plan = NewSchedule {
+        party_iban: None,
+        ..rent_plan(&household)
+    };
+    let checking = household.checking;
+    let mut book = household.book;
+    let id = book.add_schedule(&plan).expect("planned");
+    let raised = entry(
+        &mut book,
+        checking,
+        -78_000,
+        date(2026, 11, 2),
+        Some(LANDLORD_IBAN),
+    );
+    assert!(
+        book.schedule_amount_changes(date(2026, 11, 5), None)
+            .expect("read")
+            .is_empty()
+    );
+    // Matched by hand, it still asks.
+    assert_eq!(
+        book.new_schedule_amount(id, raised).expect("read"),
+        Some(eur(-78_000))
+    );
+}
+
 #[test]
 fn the_forecast_counts_the_expected_payments_of_the_chosen_accounts() {
     let household = household();

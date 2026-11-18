@@ -114,6 +114,15 @@ A call: KassenSturz calls `ks_alloc(len)`, copies the input there, calls the exp
 
 Every refusal has an error code (`plugin.*` and `plugin-host.*` in `docs/ERROR_CODES.md`).
 
-## 7. Still to come (#791)
+## 7. Adding a plugin (D-851)
 
-The **Plugins** tab, the calls and host functions of each extension point, the data of themes and UI density, one example plugin per extension point, and a "write your own plugin" guide.
+In **Settings › Plugins** the user chooses a downloaded plugin file. KassenSturz reads it (at most 16 MiB), loads it once to check it, without calling anything, and shows what the manifest says: name, version, author, description, what it adds (its extension points) and what it may do (its permissions), plus homepage and license. A plugin that may use the network gets a plain warning. Only after a second click is a copy saved, as `<id>.wasm` in the `plugins` folder of the app's data folder; the downloaded file can then be moved or deleted.
+
+- A plugin whose ID is added already replaces the old copy only after the user confirms it; the page names both versions.
+- Removing a plugin deletes only its copy.
+- While "AI features" is off, AI provider plugins are not listed and can't be added (D-013).
+- A copy that no longer loads, e.g. after an update of KassenSturz, stays in the list with the reason, so it can be removed.
+
+## 8. Still to come (#791)
+
+The calls and host functions of each extension point, the data of themes and UI density, one example plugin per extension point, and a "write your own plugin" guide.

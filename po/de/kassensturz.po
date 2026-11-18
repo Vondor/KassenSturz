@@ -26389,3 +26389,459 @@ msgstr "Zurück"
 msgctxt "@action:button"
 msgid "Next"
 msgstr "Weiter"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:882
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This plugin's description of itself is larger than %1 bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version."
+msgstr "Die Selbstbeschreibung dieses Plugins ist größer als %1 Bytes, deshalb liest KassenSturz sie nicht. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:885
+#, kde-format
+msgctxt "@info"
+msgid "This file isn't a KassenSturz plugin, or it is cut off or damaged. Download the plugin again."
+msgstr "Diese Datei ist kein KassenSturz-Plugin, oder sie ist unvollständig oder beschädigt. Laden Sie das Plugin erneut herunter."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:887
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin's description of itself has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Die Selbstbeschreibung dieses Plugins hat einen Fehler bei „%1“, deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:889
+#, kde-format
+msgctxt "@info %1 is a version number"
+msgid "This plugin was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the plugin."
+msgstr "Dieses Plugin wurde in einem Format erstellt, das dieses KassenSturz nicht kennt (Version %1). Aktualisieren Sie KassenSturz, oder suchen Sie eine ältere Version des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:891
+#, kde-format
+msgctxt "@info %1 and %2 make a version number"
+msgid "This plugin was made for a different KassenSturz (plugin API %1.%2). Look for a version of the plugin made for this KassenSturz."
+msgstr "Dieses Plugin wurde für ein anderes KassenSturz erstellt (Plugin-API %1.%2). Suchen Sie eine Version des Plugins für dieses KassenSturz."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:893
+#, kde-format
+msgctxt "@info %1 and %2 make a version number"
+msgid "This plugin needs a newer KassenSturz (plugin API %1.%2). Update KassenSturz, then add the plugin again."
+msgstr "Dieses Plugin braucht ein neueres KassenSturz (Plugin-API %1.%2). Aktualisieren Sie KassenSturz und fügen Sie das Plugin dann erneut hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:895
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin wants to add something KassenSturz doesn't offer (\"%1\"). Update KassenSturz, or ask the plugin's author."
+msgstr "Dieses Plugin möchte etwas hinzufügen, das KassenSturz nicht anbietet („%1“). Aktualisieren Sie KassenSturz, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:897
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin asks for a permission KassenSturz doesn't know (\"%1\"). Update KassenSturz, or ask the plugin's author."
+msgstr "Dieses Plugin bittet um eine Berechtigung, die KassenSturz nicht kennt („%1“). Aktualisieren Sie KassenSturz, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:899
+#, kde-format
+msgctxt "@info"
+msgid "This plugin asks for more than its kind of plugin may have, so KassenSturz doesn't add it. Ask the plugin's author."
+msgstr "Dieses Plugin bittet um mehr, als diese Art von Plugin haben darf, deshalb fügt KassenSturz es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:901
+#, kde-format
+msgctxt "@info"
+msgid "A plugin that changes the app's look or layout can't also run code, so KassenSturz doesn't add this one. Ask the plugin's author."
+msgstr "Ein Plugin, das das Aussehen oder die Anordnung der App ändert, kann nicht zugleich Code ausführen, deshalb fügt KassenSturz dieses nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:903
+#, kde-format
+msgctxt "@info"
+msgid "A plugin that changes the app's look or layout may not contain code, and this one does, so KassenSturz doesn't add it. Ask the plugin's author."
+msgstr "Ein Plugin, das das Aussehen oder die Anordnung der App ändert, darf keinen Code enthalten, und dieses enthält welchen, deshalb fügt KassenSturz es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:905
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This plugin file is larger than %1 bytes, so KassenSturz doesn't read it. Check that you picked a plugin file."
+msgstr "Diese Plugin-Datei ist größer als %1 Bytes, deshalb liest KassenSturz sie nicht. Prüfen Sie, ob Sie eine Plugin-Datei gewählt haben."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:907
+#, kde-format
+msgctxt "@info"
+msgid "This file is a WebAssembly module but not a KassenSturz plugin: it doesn't describe itself. Ask the plugin's author."
+msgstr "Diese Datei ist ein WebAssembly-Modul, aber kein KassenSturz-Plugin: Sie beschreibt sich nicht selbst. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:909
+#, kde-format
+msgctxt "@info"
+msgid "This plugin describes itself twice, so KassenSturz can't tell which description is true and doesn't add it. Ask the plugin's author."
+msgstr "Dieses Plugin beschreibt sich zweimal, deshalb kann KassenSturz nicht erkennen, welche Beschreibung stimmt, und fügt es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:911
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin holds a part this KassenSturz doesn't know (\"%1\"). Update KassenSturz, or ask the plugin's author."
+msgstr "Dieses Plugin enthält einen Teil, den dieses KassenSturz nicht kennt („%1“). Aktualisieren Sie KassenSturz, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:913
+#, kde-format
+msgctxt "@info"
+msgid "This kind of plugin is switched off in Settings, so KassenSturz doesn't use it."
+msgstr "Diese Art von Plugin ist in den Einstellungen ausgeschaltet, deshalb verwendet KassenSturz es nicht."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:915
+#, kde-format
+msgctxt "@info"
+msgid "This plugin's code is damaged or uses something KassenSturz doesn't run. Download the plugin again, or ask its author."
+msgstr "Der Code dieses Plugins ist beschädigt oder nutzt etwas, das KassenSturz nicht ausführt. Laden Sie das Plugin erneut herunter, oder fragen Sie seinen Autor."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:917
+#, kde-format
+msgctxt "@info %1 and %2 are words from the plugin file"
+msgid "This plugin wants to reach something KassenSturz doesn't give plugins (\"%1\" \"%2\"), so it isn't started. Ask the plugin's author."
+msgstr "Dieses Plugin möchte auf etwas zugreifen, das KassenSturz Plugins nicht gibt („%1“ „%2“), deshalb wird es nicht gestartet. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:919
+#, kde-format
+msgctxt "@info"
+msgid "This plugin failed while starting, or asked for more memory than KassenSturz gives a plugin. Ask the plugin's author."
+msgstr "Dieses Plugin ist beim Starten gescheitert oder hat mehr Speicher verlangt, als KassenSturz einem Plugin gibt. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:921
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin lacks a part KassenSturz needs (\"%1\"). Ask the plugin's author."
+msgstr "Diesem Plugin fehlt ein Teil, den KassenSturz braucht („%1“). Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:923
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "A part of this plugin doesn't fit what KassenSturz expects (\"%1\"). Ask the plugin's author."
+msgstr "Ein Teil dieses Plugins passt nicht zu dem, was KassenSturz erwartet („%1“). Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:925
+#, kde-format
+msgctxt "@info"
+msgid "This plugin only changes the app's look or layout and can't do this."
+msgstr "Dieses Plugin ändert nur das Aussehen oder die Anordnung der App und kann das nicht."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:927
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This is more than %1 bytes, more than KassenSturz hands a plugin. Try a smaller file or a shorter period."
+msgstr "Das sind mehr als %1 Bytes, mehr als KassenSturz einem Plugin übergibt. Versuchen Sie es mit einer kleineren Datei oder einem kürzeren Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:929
+#, kde-format
+msgctxt "@info"
+msgid "The plugin gave KassenSturz no room for its input, so it was stopped. Load it again, or ask the plugin's author."
+msgstr "Das Plugin hat KassenSturz keinen Platz für seine Eingabe gegeben, deshalb wurde es angehalten. Laden Sie es erneut, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:931
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "The plugin's answer is larger than %1 bytes, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author."
+msgstr "Die Antwort des Plugins ist größer als %1 Bytes, deshalb hat KassenSturz sie nicht übernommen. Nichts wurde geändert. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:933
+#, kde-format
+msgctxt "@info"
+msgid "The plugin's answer was damaged, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author."
+msgstr "Die Antwort des Plugins war beschädigt, deshalb hat KassenSturz sie nicht übernommen. Nichts wurde geändert. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:935
+#, kde-format
+msgctxt "@info"
+msgid "The plugin worked too long and was stopped. Nothing was changed. Try a smaller file or a shorter period, or ask the plugin's author."
+msgstr "Das Plugin hat zu lange gearbeitet und wurde angehalten. Nichts wurde geändert. Versuchen Sie es mit einer kleineren Datei oder einem kürzeren Zeitraum, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:937
+#, kde-format
+msgctxt "@info"
+msgid "The plugin failed and was stopped. Nothing was changed. Ask the plugin's author."
+msgstr "Das Plugin ist gescheitert und wurde angehalten. Nichts wurde geändert. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:939
+#, kde-format
+msgctxt "@info"
+msgid "The plugin was stopped earlier. Load it again to use it."
+msgstr "Das Plugin wurde vorhin angehalten. Laden Sie es erneut, um es zu verwenden."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:941
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't read this file. Check that it is still there, then choose it again."
+msgstr "KassenSturz konnte diese Datei nicht lesen. Prüfen Sie, ob sie noch da ist, und wählen Sie sie dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:943
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't make its folder for plugins. Check that your disk isn't full, then try again."
+msgstr "KassenSturz konnte seinen Ordner für Plugins nicht anlegen. Prüfen Sie, ob Ihr Datenträger voll ist, und versuchen Sie es dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:945
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't save the plugin. Check that your disk isn't full, then try again. Nothing was changed."
+msgstr "KassenSturz konnte das Plugin nicht speichern. Prüfen Sie, ob Ihr Datenträger voll ist, und versuchen Sie es dann erneut. Nichts wurde geändert."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:947
+#, kde-format
+msgctxt "@info"
+msgid "A version of this plugin is added already. Choose \"Replace it\" to use the new one instead."
+msgstr "Eine Version dieses Plugins ist schon hinzugefügt. Wählen Sie „Ersetzen“, um stattdessen die neue zu verwenden."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:949
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't remove the plugin. Check that the file isn't open in another program, then try again."
+msgstr "KassenSturz konnte das Plugin nicht entfernen. Prüfen Sie, ob die Datei in einem anderen Programm geöffnet ist, und versuchen Sie es dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:33
+#, kde-format
+msgctxt "@info %1 is a plugin's name, %2 its version"
+msgid "%1, version %2"
+msgstr "%1, Version %2"
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:38
+#, kde-format
+msgctxt "@info %1 is who made a plugin, as the plugin says"
+msgid "Made by %1, as the plugin says"
+msgstr "Von %1, laut dem Plugin"
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:50
+#, kde-format
+msgctxt "@title:group"
+msgid "What it adds"
+msgstr "Was es hinzufügt"
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:57
+#, kde-format
+msgctxt "@title:group"
+msgid "What it may do"
+msgstr "Was es darf"
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:59
+#, kde-format
+msgctxt "@info"
+msgid "Nothing beyond what it adds: it can't read your book or use the internet."
+msgstr "Nichts über das hinaus, was es hinzufügt: Es kann Ihr Buch nicht lesen und das Internet nicht nutzen."
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:73
+#, kde-format
+msgctxt "@info %1 is a license name, as the plugin says"
+msgid "License: %1"
+msgstr "Lizenz: %1"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:131
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Plugins"
+msgstr "Plugins"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:132
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Add a plugin file you downloaded, see what it may do"
+msgstr "Eine heruntergeladene Plugin-Datei hinzufügen, sehen, was sie darf"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:36
+#, kde-format
+msgctxt "@title"
+msgid "Plugins"
+msgstr "Plugins"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:48
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Reads another kind of bank file"
+msgstr "Liest eine weitere Art von Bankdatei"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:50
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Saves your data in another kind of file"
+msgstr "Speichert Ihre Daten in einer weiteren Art von Datei"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:52
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Adds a report"
+msgstr "Fügt einen Bericht hinzu"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:54
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Reacts to new transactions, for example after an import"
+msgstr "Reagiert auf neue Buchungen, zum Beispiel nach einem Import"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:58
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Connects another language model, for the chat and suggestions"
+msgstr "Verbindet ein weiteres Sprachmodell, für den Chat und Vorschläge"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:60
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Changes the colors and fonts"
+msgstr "Ändert die Farben und Schriften"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:62
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Changes how much the screens explain"
+msgstr "Ändert, wie viel die Seiten erklären"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:71
+#, kde-format
+msgctxt "@item what a plugin may do"
+msgid "Read your book: accounts, categories, transactions, plans, budgets and tags"
+msgstr "Ihr Buch lesen: Konten, Kategorien, Buchungen, Pläne, Budgets und Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:73
+#, kde-format
+msgctxt "@item what a plugin may do"
+msgid "Suggest changes to your book, which you check and confirm first"
+msgstr "Änderungen an Ihrem Buch vorschlagen, die Sie zuerst prüfen und bestätigen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:75
+#, kde-format
+msgctxt "@item what a plugin may do"
+msgid "Connect to other computers over the internet"
+msgstr "Sich über das Internet mit anderen Computern verbinden"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:91
+#, kde-format
+msgctxt "@title:group"
+msgid "What plugins are"
+msgstr "Was Plugins sind"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:95
+#, kde-format
+msgctxt "@info"
+msgid "A plugin adds something to KassenSturz, for example a way to read another bank's files. You add a plugin file you downloaded; there is no shop. Before you add it, you see what it asks to be allowed. A plugin runs closed off from the rest of your computer: it can't open your files, and it can only use what it asked for here."
+msgstr "Ein Plugin fügt KassenSturz etwas hinzu, zum Beispiel eine Möglichkeit, die Dateien einer weiteren Bank zu lesen. Sie fügen eine heruntergeladene Plugin-Datei hinzu; einen Shop gibt es nicht. Bevor Sie es hinzufügen, sehen Sie, was es dürfen möchte. Ein Plugin läuft abgeschottet vom Rest Ihres Computers: Es kann Ihre Dateien nicht öffnen und nur das nutzen, worum es hier gebeten hat."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:99
+#, kde-format
+msgctxt "@info"
+msgid "Only add plugins from people you trust. Plugins can't do anything yet in this version: you can add and look at them already, and what each kind does comes with the next updates."
+msgstr "Fügen Sie nur Plugins von Menschen hinzu, denen Sie vertrauen. In dieser Version können Plugins noch nichts tun: Sie können sie schon hinzufügen und ansehen, und was jede Art tut, kommt mit den nächsten Updates."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:113
+#, kde-format
+msgctxt "@info"
+msgid "The plugin was added. The file you downloaded is unchanged; you can delete it."
+msgstr "Das Plugin wurde hinzugefügt. Die heruntergeladene Datei ist unverändert; Sie können sie löschen."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:122
+#, kde-format
+msgctxt "@action:button"
+msgid "Add a plugin file…"
+msgstr "Plugin-Datei hinzufügen…"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:123
+#, kde-format
+msgctxt "@info"
+msgid "You see what it asks for before anything is added."
+msgstr "Sie sehen, worum es bittet, bevor etwas hinzugefügt wird."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:134
+#, kde-format
+msgctxt "@title:group"
+msgid "Add this plugin?"
+msgstr "Dieses Plugin hinzufügen?"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:148
+#, kde-format
+msgctxt "@info"
+msgid "This plugin may send data over the internet. KassenSturz still asks you before anything about your money leaves your computer."
+msgstr "Dieses Plugin darf Daten über das Internet senden. KassenSturz fragt Sie trotzdem, bevor etwas über Ihr Geld Ihren Computer verlässt."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:155
+#, kde-format
+msgctxt "@info"
+msgid "You already added a plugin with this name. Adding this one replaces it."
+msgstr "Sie haben schon ein Plugin mit diesem Namen hinzugefügt. Wenn Sie dieses hinzufügen, ersetzt es das alte."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:156
+#, kde-format
+msgctxt "@info %1 is a version number"
+msgid "You already added this plugin in version %1. Adding this one replaces it."
+msgstr "Sie haben dieses Plugin schon in Version %1 hinzugefügt. Wenn Sie dieses hinzufügen, ersetzt es das alte."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:164
+#, kde-format
+msgctxt "@action:button"
+msgid "Replace it"
+msgstr "Ersetzen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:165
+#, kde-format
+msgctxt "@action:button"
+msgid "Add it"
+msgstr "Hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:176
+#, kde-format
+msgctxt "@action:button"
+msgid "Don't add it"
+msgstr "Nicht hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:185
+#, kde-format
+msgctxt "@title:group"
+msgid "Your plugins"
+msgstr "Ihre Plugins"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:192
+#, kde-format
+msgctxt "@info"
+msgid "You haven't added any plugins."
+msgstr "Sie haben noch keine Plugins hinzugefügt."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:223
+#, kde-format
+msgctxt "@info"
+msgid "This plugin can't be used any more, for example because it was made for another version of KassenSturz. Remove it, and look for a newer version of it."
+msgstr "Dieses Plugin kann nicht mehr verwendet werden, zum Beispiel weil es für eine andere Version von KassenSturz erstellt wurde. Entfernen Sie es, und suchen Sie eine neuere Version davon."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:235
+#, kde-format
+msgctxt "@action:button"
+msgid "Remove this plugin…"
+msgstr "Dieses Plugin entfernen…"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:252
+#, kde-format
+msgctxt "@title:window"
+msgid "Add a plugin file"
+msgstr "Plugin-Datei hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:255
+#, kde-format
+msgctxt "@item:inlistbox a file type"
+msgid "Plugin files (*.wasm)"
+msgstr "Plugin-Dateien (*.wasm)"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:274
+#, kde-format
+msgctxt "@title:window"
+msgid "Remove this plugin?"
+msgstr "Dieses Plugin entfernen?"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:275
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz deletes its copy of the plugin. Your book isn't changed. To use the plugin again, you add its file again."
+msgstr "KassenSturz löscht seine Kopie des Plugins. Ihr Buch wird nicht geändert. Um das Plugin wieder zu verwenden, fügen Sie seine Datei erneut hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:279
+#, kde-format
+msgctxt "@action:button"
+msgid "Remove it"
+msgstr "Entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:291
+#, kde-format
+msgctxt "@action:button keep a plugin"
+msgid "Keep it"
+msgstr "Behalten"

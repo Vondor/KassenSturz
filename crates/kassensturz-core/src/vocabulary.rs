@@ -126,6 +126,7 @@ pub const DETAILS: &[&str] = &[
     "SettingsBankPage",
     "SettingsBookPage",
     "SettingsLookPage",
+    "SettingsPluginsPage",
     "SettingsPage",
     "SpecPage",
     "StatisticsPage",

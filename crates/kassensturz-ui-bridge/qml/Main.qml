@@ -2194,6 +2194,7 @@ Kirigami.ApplicationWindow {
                 bank: settingsBankPage,
                 look: settingsLookPage,
                 backups: settingsBackupPage,
+                plugins: settingsPluginsPage,
                 advanced: settingsAdvancedPage,
             }[group])
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
@@ -2235,6 +2236,14 @@ Kirigami.ApplicationWindow {
             numberFormat: numberFormatSettings
             chartPalette: chartPaletteSettings
             language: languageSettings
+        }
+    }
+
+    Component {
+        id: settingsPluginsPage
+
+        SettingsPluginsPage {
+            ai: aiSwitch
         }
     }
 

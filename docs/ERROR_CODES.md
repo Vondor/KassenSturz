@@ -628,7 +628,7 @@ Why a plugin couldn't be loaded or stopped while it ran (D-850). A refused plugi
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
-| `plugin-host.ai-off` | | | This plugin belongs to the AI features, which are switched off. Turn on "AI features" in Settings to use it. |
+| `plugin-host.ai-off` | | | This kind of plugin is switched off in Settings, so KassenSturz doesn't use it. (The message doesn't name AI: nothing does while AI is off, D-013.) |
 | `plugin-host.module-invalid` | | | This plugin's code is damaged or uses something KassenSturz doesn't run. Download the plugin again, or ask its author. |
 | `plugin-host.import-not-allowed` | `module`, `name` | | This plugin wants to reach something KassenSturz doesn't give plugins ("{module}" "{name}"), so it isn't started. Ask the plugin's author. |
 | `plugin-host.start-failed` | | | This plugin failed while starting, or asked for more memory than KassenSturz gives a plugin. Ask the plugin's author. |

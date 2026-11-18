@@ -462,6 +462,10 @@ Kirigami.ApplicationWindow {
         id: testProfile
     }
 
+    InstallKind {
+        id: installKind
+    }
+
     Connections {
         target: root.pageStack
 
@@ -2194,6 +2198,7 @@ Kirigami.ApplicationWindow {
             }[group])
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
             onHelpClicked: root.pushPage(helpPage)
+            onTestingGuideClicked: root.pushPage(testingGuidePage)
         }
     }
 
@@ -2278,6 +2283,21 @@ Kirigami.ApplicationWindow {
         id: helpPage
 
         HelpPage {}
+    }
+
+    // The testing guide for testers (#1030, D-792), from Settings › About.
+    Component {
+        id: testingGuidePage
+
+        TestingGuidePage {
+            version: bookSession.version
+            fromPullRequest: bookSession.fromPullRequest
+            installKind: installKind.kind
+            developerOn: developerMode.on
+            onExampleBookClicked: root.chooseExampleBook()
+            onShowLogClicked: Qt.openUrlExternally(developerMode.folderUrl())
+            onDoneClicked: root.pageStack.pop()
+        }
     }
 
     Component {

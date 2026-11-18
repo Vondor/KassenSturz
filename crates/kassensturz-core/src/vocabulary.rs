@@ -130,6 +130,7 @@ pub const DETAILS: &[&str] = &[
     "SpecPage",
     "StatisticsPage",
     "TagsPage",
+    "TestingGuidePage",
     "TransactionPage",
     "WelcomePage",
     "WizardAccountsPage",

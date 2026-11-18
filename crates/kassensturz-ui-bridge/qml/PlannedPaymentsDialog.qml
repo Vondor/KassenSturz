@@ -154,7 +154,7 @@ Kirigami.Dialog {
                     Controls.Button {
                         icon.name: "dialog-ok"
                         visible: (payment.modelData.changedId ?? "") !== ""
-                        text: dialog.i18nContext.i18nc("@action:button %1 is an amount", "It's this one, %1", payment.modelData.changedAmount ?? "")
+                        text: Plain.plain(dialog.i18nContext.i18nc("@action:button %1 is an amount", "It's this one, %1", payment.modelData.changedAmount ?? ""))
                         onClicked: {
                             ActionLog.taken("PlannedPaymentsDialog_matchChanged")
                             const data = payment.modelData;

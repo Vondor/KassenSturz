@@ -23957,3 +23957,283 @@ msgstr "Oczekuj %1"
 msgctxt "@action:button %1 is an amount"
 msgid "Keep %1"
 msgstr "Zostaw %1"
+
+msgctxt "@action:button opens the testing guide"
+msgid "Testing KassenSturz"
+msgstr "Testowanie KassenSturz"
+
+msgctxt "@info"
+msgid "For testers: check the install, try the first steps and write down a problem"
+msgstr "Dla testerów: sprawdź instalację, wypróbuj pierwsze kroki i zapisz problem"
+
+msgctxt "@title"
+msgid "Testing KassenSturz"
+msgstr "Testowanie KassenSturz"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Flatpak"
+msgstr "Flatpak"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Snap"
+msgstr "Snap"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Windows"
+msgstr "Windows"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "macOS"
+msgstr "macOS"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Another way, for example a package of your Linux distribution"
+msgstr "W inny sposób, na przykład jako pakiet Twojej dystrybucji Linuksa"
+
+msgctxt "@info the first line of a tester's note"
+msgid "KassenSturz: a problem while testing"
+msgstr "KassenSturz: problem podczas testowania"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "Title: %1"
+msgstr "Tytuł: %1"
+
+msgctxt "@info a line of a tester's note, %1 is a part of the app"
+msgid "Where: %1"
+msgstr "Gdzie: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What I wanted to do: %1"
+msgstr "Co chciałem zrobić: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What I expected: %1"
+msgstr "Czego się spodziewałem: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What happened: %1"
+msgstr "Co się stało: %1"
+
+msgctxt "@info a line of a tester's note, %1 is always, sometimes or once"
+msgid "How often: %1"
+msgstr "Jak często: %1"
+
+msgctxt "@info a line of a tester's note, %1 is how much it gets in the way"
+msgid "How bad: %1"
+msgstr "Jak poważne: %1"
+
+msgctxt "@info a line of a tester's note"
+msgid "Real data in this note: yes"
+msgstr "Prawdziwe dane w tej notatce: tak"
+
+msgctxt "@info a line of a tester's note"
+msgid "Real data in this note: no"
+msgstr "Prawdziwe dane w tej notatce: nie"
+
+msgctxt "@info a line of a tester's note, %1 is the version"
+msgid "Version: %1"
+msgstr "Wersja: %1"
+
+msgctxt "@info a line of a tester's note, %1 is how KassenSturz was installed"
+msgid "Installed as: %1"
+msgstr "Zainstalowano jako: %1"
+
+msgctxt "@info a line of a tester's note"
+msgid "Developer mode: on, a log was written"
+msgstr "Tryb dewelopera: włączony, zapisano dziennik"
+
+msgctxt "@info a line of a tester's note"
+msgid "Developer mode: off, no log"
+msgstr "Tryb dewelopera: wyłączony, brak dziennika"
+
+msgctxt "@info %1 is the step on show, %2 how many there are"
+msgid "Step %1 of %2"
+msgstr "Krok %1 z %2"
+
+msgctxt "@title:group"
+msgid "Is KassenSturz installed correctly?"
+msgstr "Czy KassenSturz jest poprawnie zainstalowany?"
+
+msgctxt "@info"
+msgid "If you can read this, KassenSturz has started. Compare the version below with the release you downloaded: they should be the same."
+msgstr "Jeśli to czytasz, KassenSturz się uruchomił. Porównaj wersję poniżej z wydaniem, które pobrałeś: powinny być takie same."
+
+msgctxt "@label how KassenSturz was installed"
+msgid "Installed as"
+msgstr "Zainstalowano jako"
+
+msgctxt "@label"
+msgid "Developer mode"
+msgstr "Tryb dewelopera"
+
+msgctxt "@info"
+msgid "On: KassenSturz writes a log for the test."
+msgstr "Włączony: KassenSturz zapisuje dziennik na potrzeby testu."
+
+msgctxt "@info"
+msgid "Off. If your install sheet asks for it, close KassenSturz and start it in developer mode, the way the sheet shows."
+msgstr "Wyłączony. Jeśli Twoja instrukcja instalacji tego wymaga, zamknij KassenSturz i uruchom go w trybie dewelopera, tak jak pokazuje instrukcja."
+
+msgctxt "@title:group"
+msgid "The first things to try"
+msgstr "Co wypróbować najpierw"
+
+msgctxt "@info"
+msgid "Use an example book: its people, accounts and amounts are made up, so nothing of yours is in it. Please don't type in anything from your own bank accounts."
+msgstr "Użyj przykładowej księgi: jej osoby, konta i kwoty są zmyślone, więc nie ma w niej nic Twojego. Nie wpisuj niczego ze swoich prawdziwych kont bankowych."
+
+msgctxt "@action:button"
+msgid "Open an example book…"
+msgstr "Otwórz przykładową księgę…"
+
+msgctxt "@info a thing to try while testing"
+msgid "1. Look at the start screen: what do you have, and where does the money go?"
+msgstr "1. Obejrzyj ekran startowy: co masz i na co idą pieniądze?"
+
+msgctxt "@info a thing to try while testing"
+msgid "2. Add an account with a made-up balance."
+msgstr "2. Dodaj konto ze zmyślonym saldem."
+
+msgctxt "@info a thing to try while testing"
+msgid "3. Enter a transaction, then take it back with Undo."
+msgstr "3. Wprowadź transakcję, a potem wycofaj ją przyciskiem „Cofnij”."
+
+msgctxt "@info a thing to try while testing"
+msgid "4. Open an account and find one of its transactions."
+msgstr "4. Otwórz konto i znajdź jedną z jego transakcji."
+
+msgctxt "@info a thing to try while testing"
+msgid "5. In Settings, change the language or how amounts look."
+msgstr "5. W Ustawieniach zmień język albo wygląd kwot."
+
+msgctxt "@info"
+msgid "Something unclear, slow or wrong? That is exactly what we are looking for. The next step helps you write it down."
+msgstr "Coś jest niejasne, wolne albo błędne? Właśnie tego szukamy. Następny krok pomoże Ci to zapisać."
+
+msgctxt "@title:group"
+msgid "Write down a problem"
+msgstr "Zapisz problem"
+
+msgctxt "@info"
+msgid "Write only about made-up data: no names, amounts, account numbers or IBANs from your own book. The note stays on this computer until you copy it and send it yourself."
+msgstr "Pisz tylko o zmyślonych danych: bez imion, kwot, numerów kont ani numerów IBAN z Twojej własnej księgi. Notatka zostaje na tym komputerze, dopóki sam jej nie skopiujesz i nie wyślesz."
+
+msgctxt "@label a short name for the problem"
+msgid "Title"
+msgstr "Tytuł"
+
+msgctxt "@label:listbox"
+msgid "Where in KassenSturz"
+msgstr "Gdzie w KassenSturz"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Installing or starting"
+msgstr "Instalacja lub uruchamianie"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Start screen"
+msgstr "Ekran startowy"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Accounts"
+msgstr "Konta"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Transactions and transfers"
+msgstr "Transakcje i przelewy"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Importing a file"
+msgstr "Import pliku"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Charts and reports"
+msgstr "Wykresy i raporty"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Budgets and plans"
+msgstr "Budżety i plany"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Settings"
+msgstr "Ustawienia"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Somewhere else"
+msgstr "Gdzie indziej"
+
+msgctxt "@label"
+msgid "What did you want to do?"
+msgstr "Co chciałeś zrobić?"
+
+msgctxt "@label"
+msgid "What did you expect?"
+msgstr "Czego się spodziewałeś?"
+
+msgctxt "@label"
+msgid "What happened? Copy every message word for word."
+msgstr "Co się stało? Przepisz każdy komunikat słowo w słowo."
+
+msgctxt "@label:listbox"
+msgid "Does it happen again?"
+msgstr "Czy to się powtarza?"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Always"
+msgstr "Zawsze"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Sometimes"
+msgstr "Czasami"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Only once"
+msgstr "Tylko raz"
+
+msgctxt "@label:listbox"
+msgid "How bad is it?"
+msgstr "Jak poważne to jest?"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "It stops me"
+msgstr "Blokuje mnie"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "It is annoying"
+msgstr "Przeszkadza"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "A small thing"
+msgstr "Drobiazg"
+
+msgctxt "@option:check"
+msgid "This note has data from my own book in it"
+msgstr "Ta notatka zawiera dane z mojej własnej księgi"
+
+msgctxt "@title:group"
+msgid "Your note"
+msgstr "Twoja notatka"
+
+msgctxt "@label"
+msgid "Your note, as it is copied"
+msgstr "Twoja notatka w postaci, w jakiej zostanie skopiowana"
+
+msgctxt "@action:button"
+msgid "Copy the note"
+msgstr "Skopiuj notatkę"
+
+msgctxt "@info"
+msgid "The note is on the clipboard. Paste it into your e-mail or message."
+msgstr "Notatka jest w schowku. Wklej ją do swojego e-maila lub wiadomości."
+
+msgctxt "@info"
+msgid "Send the note only to the person who invited you to test, the way they told you, for example by e-mail. If developer mode is on, they may ask you for the log as well. If your note has data from your own book in it, it stays with that person only and is deleted after the round."
+msgstr "Wyślij notatkę tylko osobie, która zaprosiła Cię do testów, w sposób, jaki Ci wskazała, na przykład e-mailem. Jeśli tryb dewelopera jest włączony, może poprosić Cię także o dziennik. Jeśli Twoja notatka zawiera dane z Twojej własnej księgi, zostaje tylko u tej osoby i jest usuwana po rundzie."
+
+msgctxt "@action:button"
+msgid "Back"
+msgstr "Wstecz"
+
+msgctxt "@action:button"
+msgid "Next"
+msgstr "Dalej"

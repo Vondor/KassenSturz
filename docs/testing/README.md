@@ -16,7 +16,7 @@ Everything a person needs to test KassenSturz without help from the code. German
 
 The example books, their matching bank statements and the facilitator's answer sheets come from step M7a.8. The generator is `tools/example-books/generate.py`; the files are under `crates/kassensturz-import/tests/books/examples/` (the books are Suburban Family, Flower Utopia, Space Colony and USSR Government Agent; in German "Vorstadtfamilie", "Blumen-Utopia", "Weltraumkolonie" and "UdSSR-Agent").
 
-- **Bank files for card 5** (the facilitator puts the matching ones on the tester's computer): `statements/<book>.csv` with its column settings `statements/<book>.csv.settings`, and `statements/<book>.camt053.xml`. `<book>` is `suburban-family`, `flower-utopia`, `space-colony` or `udssr-agent`.
+- **Bank files for card 5** (the facilitator puts the matching ones on the tester's computer): `statements/<book>.csv` with its column settings `statements/<book>.csv.settings`, and `statements/<book>.camt053.xml`. `<book>` is `suburban-family`, `suburban-family-en` (the English Suburban Family, offered when the app is not in German, D-843), `flower-utopia`, `space-colony` or `udssr-agent`.
 - **Answer sheets for cards 4 and 5** (German, facilitator only, never shown to the tester): `answers/<book>.md`. They are written by a test from the real import and report code. The CSV and the CAMT file give different counts on purpose (the CSV has no bank number, so the line already in the book is shown as "looks the same", not as a duplicate).
 
 ## Before every round: match the statements to the month

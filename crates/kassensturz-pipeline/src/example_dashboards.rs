@@ -73,6 +73,30 @@ const GERMAN: Words = Words {
     food_goal: "",
 };
 
+const ENGLISH: Words = Words {
+    overview: "Overview",
+    welcome: "",
+    spending: "Spending",
+    spending_heading: "What the money was spent on",
+    compared_title: "Compared with a year earlier",
+    by_month_title: "The three big areas, month by month",
+    food_title: "Food, month by month",
+    average_title: "On average per month this year",
+    this_year_title: "Spent this year",
+    money: "Money in and out",
+    money_heading: "Where the money came from and where it went",
+    candles_title: "Balance, month by month",
+    last_year: "Last year",
+    plans: "Worth and plans",
+    plans_heading: "What there is, what is coming and what to watch",
+    goal_title: "Monthly goal for food",
+    warnings_title: "Warnings",
+    account: "",
+    categories: ["", "", ""],
+    below: "",
+    food_goal: "",
+};
+
 /// The words of the example book `slug`, as `ExampleBookChooser.qml` and
 /// `example_books.rs` in the bridge know the slugs; `None` for another.
 fn words(slug: &str) -> Option<Words> {
@@ -107,28 +131,22 @@ fn words(slug: &str) -> Option<Words> {
             food_goal: "200",
             ..GERMAN
         },
+        // The English Suburban Family (D-843): the German book's figures.
+        "suburban-family-en" => Words {
+            welcome: "Welcome to the Summerfield family! Here is how the household money stands.",
+            account: "Checking account",
+            categories: ["Food", "Home", "Free time"],
+            below: "2000.00",
+            food_goal: "1500",
+            ..ENGLISH
+        },
         "space-colony" => Words {
-            overview: "Overview",
             welcome: "Welcome to the colony! Here is how the household money stands.",
-            spending: "Spending",
-            spending_heading: "What the money was spent on",
-            compared_title: "Compared with a year earlier",
-            by_month_title: "The three big areas, month by month",
-            food_title: "Food, month by month",
-            average_title: "On average per month this year",
-            this_year_title: "Spent this year",
-            money: "Money in and out",
-            money_heading: "Where the money came from and where it went",
-            candles_title: "Balance, month by month",
-            last_year: "Last year",
-            plans: "Worth and plans",
-            plans_heading: "What there is, what is coming and what to watch",
-            goal_title: "Monthly goal for food",
-            warnings_title: "Warnings",
             account: "Everyday Checking",
             categories: ["Food", "Habitat", "Leisure"],
             below: "1000.00",
             food_goal: "700",
+            ..ENGLISH
         },
         _ => return None,
     })

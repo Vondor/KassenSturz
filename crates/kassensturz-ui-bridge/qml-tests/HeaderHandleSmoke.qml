@@ -6,7 +6,8 @@
 // shows the drawers' buttons in the page's header instead of their handles,
 // and checks that it finds the menu's and the sidebar's button there, and
 // still after a page is pushed, so that each gets its drawer's words as its
-// name.
+// name, and that the sidebar's button shows those words, highlighted
+// (B-385).
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -60,6 +61,7 @@ Kirigami.ApplicationWindow {
 
         pages: window.pageStack
         scope: window.contentItem.parent ?? window.contentItem
+        labelled: side
     }
 
     Component {
@@ -81,6 +83,12 @@ Kirigami.ApplicationWindow {
                 window.check(drawers.indexOf(window.globalDrawer) >= 0, "the menu's button in the header is found (" + names.named.length + " found)");
                 window.check(drawers.indexOf(side) >= 0, "the sidebar's button in the header is found");
                 window.check(names.words(window.globalDrawer) === "Hide the menu" && names.words(side) === "Open the chat", "the words follow the drawers");
+                const chat = names.named.filter(button => button.drawer === side);
+                const menu = names.named.filter(button => button.drawer === window.globalDrawer);
+                // The chat's button shows its words beside the icon and stands
+                // out (B-385, D-861); the menu's stays an icon.
+                window.check(chat.length > 0 && chat.every(button => button.text === "Open the chat" && button.highlighted === true), "the sidebar's button shows its words, highlighted");
+                window.check(menu.every(button => button.text === "" && button.highlighted !== true), "the menu's button stays a plain icon");
                 window.step = names.named.length;
                 window.pageStack.push(second);
                 break;

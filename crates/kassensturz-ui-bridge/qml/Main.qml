@@ -1360,12 +1360,15 @@ Kirigami.ApplicationWindow {
 
     DrawerHandleName {
         drawer: chatDrawer
+        highlighted: true
     }
 
     // In a wide window the drawers' buttons sit in the pages' headers.
     HeaderHandleNames {
         pages: root.pageStack
         scope: root.contentItem.parent ?? root.contentItem
+        // The chat's button shows its words and stands out (B-385, D-861).
+        labelled: chatDrawer
     }
 
     // Opens and closes the chat sidebar from the keyboard. The menu has no entry
@@ -1505,7 +1508,10 @@ Kirigami.ApplicationWindow {
         handleClosedIcon.source: "dialog-messages"
         handleOpenIcon.source: "go-next"
         handleOpenToolTip: root.i18nContext.i18nc("@action:button close the chat sidebar", "Close the chat")
-        handleClosedToolTip: root.i18nContext.i18nc("@info:tooltip the button that opens the chat sidebar", "Open the chat")
+        // The closed handle is the way into the chat, so it says so in words
+        // in the header (B-385, D-861): "Ask AI" beside a speech bubble,
+        // highlighted (HeaderHandleNames.qml). The same words are its name.
+        handleClosedToolTip: root.i18nContext.i18nc("@action:button opens the chat sidebar, where the user asks the AI a question", "Ask AI")
         width: Math.max(root.chatMinWidth, Math.min(root.chatWidth, root.chatMaxWidth))
         drawerOpen: false
         topPadding: 0

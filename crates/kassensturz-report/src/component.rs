@@ -351,7 +351,8 @@ impl Component {
     /// and `props` with every property. A component that shows no figures
     /// writes no `dataset`, and `params` only if it has some (B-296). A custom chart writes the `series` and
     /// `categories` of its dataset only (D-504); the series' own filters are
-    /// written only when they have a list (D-646).
+    /// written only when they have a list (D-646), and so are the
+    /// transactions tile's tags (D-838).
     pub fn to_value(&self) -> Value {
         let mut params = Map::new();
         let mut props = Map::new();
@@ -392,6 +393,16 @@ impl Component {
             // A series' own filter is written only when it has a list
             // (D-646), so documents without one read as they always did.
             if crate::is_series_filter(property.key)
+                && matches!(setting, Setting::Ids(ids) if ids.is_empty())
+            {
+                continue;
+            }
+            // The transactions tile's own tags likewise (D-838): a tile
+            // with none is written as before, so a document an older
+            // version wrote, and that version reading a newer one, stay
+            // as they were until the user ticks a tag.
+            if self.kind == ComponentType::Transactions
+                && property.key == crate::schema::TAGS_KEY
                 && matches!(setting, Setting::Ids(ids) if ids.is_empty())
             {
                 continue;

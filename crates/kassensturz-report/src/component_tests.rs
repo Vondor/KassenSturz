@@ -124,7 +124,7 @@ fn every_component_keeps_its_own_params_through_a_document() {
             let again = Component::from_value(&component.to_value()).unwrap();
             assert_eq!(again, component, "{} {dataset_id}", kind.id());
             if kind == ComponentType::Transactions {
-                assert_eq!(changed, 3, "accounts, categories and rows");
+                assert_eq!(changed, 4, "accounts, categories, tags and rows");
             }
         }
     }

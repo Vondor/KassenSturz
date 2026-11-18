@@ -289,6 +289,7 @@ ColumnLayout {
             readonly property int total: listedFeed.view?.total ?? 0
             readonly property bool failed: listedFeed.view?.error !== undefined
             readonly property bool narrowed: (listedFeed.view?.filter?.filtered ?? []).indexOf("categories") >= 0
+            readonly property bool tagged: (listedFeed.view?.filter?.filtered ?? []).indexOf("tags") >= 0
 
             function ask() {
                 listedFeed.setScope(scope);
@@ -319,7 +320,11 @@ ColumnLayout {
                 textFormat: Text.PlainText
                 wrapMode: Text.Wrap
                 color: Kirigami.Theme.disabledTextColor
-                text: listed.narrowed
+                text: listed.tagged && listed.narrowed
+                    ? preview.i18nContext.i18nc("@info", "No transactions with these tags in these categories in this period.")
+                    : listed.tagged
+                    ? preview.i18nContext.i18nc("@info", "No transactions with these tags in this period.")
+                    : listed.narrowed
                     ? preview.i18nContext.i18nc("@info", "No transactions in these categories in this period.")
                     : preview.i18nContext.i18nc("@info", "No transactions in this period.")
             }

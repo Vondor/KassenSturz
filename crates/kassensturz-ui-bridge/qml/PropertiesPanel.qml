@@ -188,6 +188,10 @@ ColumnLayout {
         case "budgets":
             return i18nContext.i18nc("@label which budgets the budget bars show", "Which budgets");
         case "tags":
+            // The transactions list finds by tag and adds nothing up (D-838).
+            if (view.preview?.shows === "transactions") {
+                return i18nContext.i18nc("@label which tags the transactions a list shows must carry, on the whole transaction or a part", "Only these tags");
+            }
             return i18nContext.i18nc("@label which tags the money of a chart, table or card is limited to", "Only count these tags");
         case "alarms":
             return i18nContext.i18nc("@label the rules of the warnings tile", "Warnings");

@@ -19084,6 +19084,18 @@ msgstr "Brak transakcji w tych kategoriach w tym okresie."
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml
 #, kde-format
 msgctxt "@info"
+msgid "No transactions with these tags in these categories in this period."
+msgstr "Brak transakcji z tymi tagami w tych kategoriach w tym okresie."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid "No transactions with these tags in this period."
+msgstr "Brak transakcji z tymi tagami w tym okresie."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
 msgid "No transactions in this period."
 msgstr "Brak transakcji w tym okresie."
 
@@ -19853,6 +19865,12 @@ msgstr "tagi: %1"
 msgctxt "@label which tags the money of a chart, table or card is limited to"
 msgid "Only count these tags"
 msgstr "Licz tylko te tagi"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@label which tags the transactions a list shows must carry, on the whole transaction or a part"
+msgid "Only these tags"
+msgstr "Tylko te tagi"
 
 #, kde-format
 msgctxt "@info"

@@ -1548,6 +1548,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kassensturz-plugin-api"
+version = "0.261025.0"
+dependencies = [
+ "kassensturz-core",
+ "serde_json",
+]
+
+[[package]]
 name = "kassensturz-report"
 version = "0.261025.0"
 dependencies = [

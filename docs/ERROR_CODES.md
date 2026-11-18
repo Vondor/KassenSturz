@@ -1,6 +1,6 @@
 # Error codes
 
-KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform`, `kassensturz-report` and `kassensturz-ai-tools` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
+KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform`, `kassensturz-report`, `kassensturz-ai-tools` and `kassensturz-plugin-api` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
 
 - a **code**, such as `store.account-closed`;
 - named, typed **parameters**, such as the account that is closed;
@@ -15,7 +15,7 @@ This list is the reference for that. A test in `kassensturz-store` (`src/error/t
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform`, `report`, `ai` or `ai-tools`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform`, `report`, `ai`, `ai-tools` or `plugin`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -598,3 +598,20 @@ Why a chart model couldn't be made (M6a.3, D-276).
 | `charts.kind-not-supported` | `kind` | `line`, `bar`, `stacked-bar`, `area`, `pie`, `donut` | This information can't be shown as a {kind} chart. Choose another kind of chart. |
 | `charts.value-too-large` | | | An amount is too large to be drawn exactly. The table below the chart still shows it. |
 | `charts.amount-overflow` | | | The marks of the chart's axis are too large for KassenSturz to work with. Choose a shorter period. |
+
+## Plugins (`kassensturz-plugin-api`)
+
+Why a plugin file can't be added: its manifest (D-847) or the permissions it asks for (D-848) are refused, and nothing of the plugin is used (#791). `{key}` and `{name}` are text from the plugin file, shown as plain text.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `plugin.manifest-too-big` | `max_bytes` | | This plugin's description of itself is larger than {max_bytes} bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version. |
+| `plugin.manifest-malformed` | | | This file isn't a KassenSturz plugin, or it is damaged. Download the plugin again. |
+| `plugin.manifest-invalid` | `reason`, `key` | `missing`, `unknown-key`, `wrong-type`, `empty`, `too-long`, `too-many`, `bad-characters`, `malformed`, `duplicate` | This plugin's description of itself has a mistake in "{key}" ({reason}), so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.unsupported-manifest-version` | `version` | | This plugin was made in a format this KassenSturz doesn't know (version {version}). Update KassenSturz, or look for an older version of the plugin. |
+| `plugin.api-unsupported` | `major`, `minor` | | This plugin was made for a different KassenSturz (plugin API {major}.{minor}). Look for a version of the plugin made for this KassenSturz. |
+| `plugin.api-too-new` | `major`, `minor` | | This plugin needs a newer KassenSturz (plugin API {major}.{minor}). Update KassenSturz, then add the plugin again. |
+| `plugin.unknown-extension-point` | `name` | | This plugin wants to add something KassenSturz doesn't offer ("{name}"). Update KassenSturz, or ask the plugin's author. |
+| `plugin.unknown-permission` | `name` | | This plugin asks for a permission KassenSturz doesn't know ("{name}"). Update KassenSturz, or ask the plugin's author. |
+| `plugin.permission-not-allowed` | `permission` | `read_book`, `propose_changes`, `network` | This plugin asks for more than its kind of plugin may have ({permission}), so KassenSturz doesn't add it. Ask the plugin's author. |
+| `plugin.data-only-mixed` | | | A plugin that changes the app's look or layout can't also run code, so KassenSturz doesn't add this one. Ask the plugin's author. |

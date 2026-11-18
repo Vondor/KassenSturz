@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-plugin-api"
+description = "The plugin API v1: the manifest a plugin ships, its API version, extension points and permissions (D-007, D-753, D-847, D-848)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+kassensturz-core.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

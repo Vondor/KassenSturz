@@ -747,6 +747,14 @@ pub fn remove_left_book(path: &Path, computer: &Computer) -> Result<(), StoreErr
         return Err(StoreError::Locked(found));
     }
     fs::remove_file(path)?;
+    // A journal with a zero header (checked above) belongs to the book just
+    // removed and means nothing without it, so it goes too and no stray file
+    // stays behind (#1011). It does no harm if it stays, so a failure here
+    // doesn't undo what was done.
+    let journal = with_suffix(path, "-journal");
+    if fs::symlink_metadata(&journal).is_ok_and(|metadata| metadata.is_file()) {
+        let _ = fs::remove_file(&journal);
+    }
     match fs::remove_file(&lock_file) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),

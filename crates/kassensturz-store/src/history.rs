@@ -1550,7 +1550,7 @@ impl Book {
     where
         E: From<StoreError>,
     {
-        if self.write_failed {
+        if self.write_failed() {
             return Err(StoreError::WriteFailed.into());
         }
         self.check_lock_is_ours()?;
@@ -1593,18 +1593,40 @@ impl Book {
     /// Whether writing to the book's file failed because of the drive, so
     /// no change is written anymore (D-732). The change that failed was taken
     /// back; the book is as it was before it. Open the book again to go on.
+    ///
+    /// A book open without file locks whose file another program replaced
+    /// counts too, before anything was written ([`Book::file_replaced`]).
     #[must_use]
     pub fn write_failed(&self) -> bool {
-        self.write_failed
+        self.write_failed || self.replaced_without_file_locks()
     }
 
     /// Whether writing failed because another program replaced the book's
     /// file while it was open, e.g. a sync program putting another
     /// computer's copy over it (B-289). The change that failed was not
-    /// written to the file now at the book's path.
+    /// written to the file now at the book's path. For a book open without
+    /// file locks (D-776), where SQLite can't notice it, the book looks
+    /// itself: a file at the book's path that isn't the one it opened means
+    /// it was replaced, and no change is written from then on (#1011). The UI
+    /// asks every two seconds, so the user hears of it before the next
+    /// change.
     #[must_use]
     pub fn file_replaced(&self) -> bool {
-        self.file_replaced
+        self.file_replaced || self.replaced_without_file_locks()
+    }
+
+    /// Whether the book, opened without file locks, is no longer the file at
+    /// its path, while some file is there. A path with nothing at it is the
+    /// drive's matter (D-732), as for [`Book::file_replaced`]. One look at
+    /// the file's numbers, only in that mode.
+    fn replaced_without_file_locks(&self) -> bool {
+        let Some(opened) = self.opened_file else {
+            return false;
+        };
+        self.conn
+            .path()
+            .and_then(|path| crate::lockless::file_id(std::path::Path::new(path)))
+            .is_some_and(|now| now != opened)
     }
 
     /// Remembers that `error` is the drive's, not the change's.

@@ -141,6 +141,8 @@ impl Book {
             file_replaced: false,
             _lock: None,
             without_file_locks: copy.is_some(),
+            // Read-only: it writes nothing a replaced file could get.
+            opened_file: None,
             _copy: copy,
             cut_short: None,
         })

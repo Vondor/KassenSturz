@@ -2,18 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! A newer build opens a book an older build made (D-787, US7 Phase 3 round
-//! 1, section C). The two books are made-up households that the builds
-//! 0.261112.51 (layout 30) and 0.261113.45 (layout 32) wrote with their own
-//! code, kept as SQL text (`tests/fixtures/`) so a reviewer can read them.
-//! The rule: the new build either converts the book and every balance stays
-//! as it was, with a backup in the old layout, or it refuses it with a clear
-//! error and the file is left byte for byte as it was. It never damages it.
+//! 1, section C). The books are made-up households that the builds
+//! 0.261112.51 (layout 30) and 0.261113.45 (layout 32) of the Alpha and the
+//! first Beta release 0.261117.8 (layout 35) wrote with their own code, kept
+//! as SQL text (`tests/fixtures/`) so a reviewer can read them. The rule: the
+//! new build either converts the book and every balance stays as it was,
+//! with a backup in the old layout, or it refuses it with a clear error and
+//! the file is left byte for byte as it was. It never damages it. A Beta
+//! book must be converted: from the first Beta on every layout has a
+//! migration (D-274).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use kassensturz_core::{AccountId, Date, Money, Split, Transaction, TransactionId};
-use kassensturz_store::{Book, Computer, StoreError, older_backups_of};
+use kassensturz_store::{Book, Computer, StoreError, backups_of, older_backups_of};
 
 struct TempFolder(PathBuf);
 
@@ -208,9 +211,61 @@ fn a_book_of_build_0_261113_45_is_converted_or_refused_never_damaged() {
     check_one("alpha-0.261113.45.sql", 32);
 }
 
+/// The first Beta release, 0.261117.8, wrote this book in layout 35 with a
+/// tag on one entry and the book's identity (layout 34, D-806). This build
+/// must convert it: it keeps its identity, its figures and its tag, and a
+/// backup in layout 35 is kept under that identity.
+#[test]
+fn a_book_of_the_first_beta_release_0_261117_8_is_converted() {
+    let folder = TempFolder::new();
+    let path = old_book(&folder, "beta-0.261117.8.sql", 35);
+    let computer = folder.computer();
+    let book = Book::open(&path, &computer).expect("a Beta book is converted");
+    assert_the_household(&book);
+    assert_eq!(user_version(&path), kassensturz_store::LAYOUT);
+    let id = book.book_id().expect("the book kept its identity");
+
+    // The entry of 47.10 still has the tag the user gave it.
+    let tags = book.tags().expect("tags");
+    let [holiday] = tags.as_slice() else {
+        panic!("one tag expected: {tags:?}");
+    };
+    assert_eq!(holiday.name, "Holiday");
+    let tagged: Vec<_> = book
+        .transactions()
+        .expect("transactions")
+        .into_iter()
+        .filter(|transaction| transaction.tags().contains(&holiday.id))
+        .collect();
+    assert_eq!(tagged.len(), 1);
+    assert!(
+        tagged[0]
+            .splits()
+            .iter()
+            .any(|split| split.amount.minor_units() == 4_710)
+    );
+    drop(book);
+
+    let backups = backups_of(&id, &computer.backup_folder).expect("listed");
+    assert!(
+        backups
+            .iter()
+            .any(|backup| user_version(&backup.path) == 35),
+        "no backup in layout 35"
+    );
+    let again = Book::open(&path, &computer).expect("opens again");
+    assert_eq!(again.book_id(), Some(id));
+    assert_the_household(&again);
+    edit_save_and_reopen(again, &path, &computer);
+}
+
 #[test]
 fn a_book_of_an_older_layout_than_this_build_knows_is_refused_untouched() {
-    for fixture in ["alpha-0.261112.51.sql", "alpha-0.261113.45.sql"] {
+    for fixture in [
+        "alpha-0.261112.51.sql",
+        "alpha-0.261113.45.sql",
+        "beta-0.261117.8.sql",
+    ] {
         let folder = TempFolder::new();
         let path = old_book(&folder, fixture, kassensturz_store::FIRST_LAYOUT - 1);
         let before = fs::read(&path).expect("book read");

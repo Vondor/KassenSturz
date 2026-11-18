@@ -247,10 +247,19 @@ fn the_book_has_no_place_for_ai_settings_or_consent() {
     // consent, because its layout has no place for either. The settings
     // live in the app's file outside the book (D-168).
     let store = repository().join("crates/kassensturz-store/src");
+    // Every layout since the first Beta is in `layout.rs`; the folder held
+    // the Alpha's development layouts until M7a.6 removed them, and any file
+    // that comes there later is checked too.
     let mut layouts = vec![store.join("layout.rs")];
-    files(&store.join("layout"), "rs", &mut layouts);
-    files(&store.join("layout"), "sql", &mut layouts);
-    assert!(layouts.len() > 1, "the layouts were not found");
+    let folder = store.join("layout");
+    if folder.is_dir() {
+        files(&folder, "rs", &mut layouts);
+        files(&folder, "sql", &mut layouts);
+    }
+    assert!(
+        read(&layouts[0]).contains("CREATE TABLE"),
+        "the layouts were not found"
+    );
     for file in layouts {
         let text = read(&file).to_lowercase();
         for word in ["consent", "provider", "api_key", "ai_enabled", "mcp"] {

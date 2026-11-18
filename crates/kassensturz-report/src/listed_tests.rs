@@ -448,3 +448,267 @@ fn a_transfer_over_a_month_boundary_shows_no_date_outside_the_period() {
     assert_eq!((rows.len(), rows[0].date), (1, date(2026, 10, 31)));
     assert!(tile_rows(&f, october.0, october.1, &only(&[savings])).is_empty());
 }
+
+fn tag(book: &mut Book, name: &str) -> kassensturz_core::TagId {
+    let id = kassensturz_core::TagId::generate();
+    book.add_tag(&kassensturz_core::Tag {
+        id,
+        name: name.into(),
+    })
+    .expect("tag added");
+    id
+}
+
+fn tagged(split: Split, tags: &[kassensturz_core::TagId]) -> Split {
+    Split {
+        tags: tags.to_vec(),
+        ..split
+    }
+}
+
+fn add_entry(book: &mut Book, transaction: Transaction) -> TransactionId {
+    book.add_transaction(&transaction).expect("added");
+    transaction.id()
+}
+
+/// The listed transactions' IDs, sorted, so a test names the set.
+fn ids(listed: &ListedTransactions) -> Vec<TransactionId> {
+    let mut ids: Vec<_> = listed.rows.iter().map(|row| row.transaction).collect();
+    ids.sort();
+    ids
+}
+
+fn sorted(mut ids: Vec<TransactionId>) -> Vec<TransactionId> {
+    ids.sort();
+    ids
+}
+
+/// The book of the tag tests (D-838): a tag on a whole bill, on one part,
+/// on a Transfer, on the account side only, and nowhere.
+struct Tagged {
+    f: Fixture,
+    tax: kassensturz_core::TagId,
+    holiday: kassensturz_core::TagId,
+    /// Rent, the whole transaction tagged Tax.
+    rent_bill: TransactionId,
+    /// Groceries tagged Tax plus rent untagged.
+    groceries_part: TransactionId,
+    /// A Transfer tagged Tax.
+    transfer: TransactionId,
+    /// Groceries untagged plus rent tagged Tax.
+    rent_part: TransactionId,
+    /// Groceries, only the account's own side tagged Tax.
+    account_side: TransactionId,
+    /// Groceries tagged Holiday.
+    holiday_shop: TransactionId,
+}
+
+fn tagged_book() -> Tagged {
+    let mut f = fixture();
+    let tax = tag(&mut f.book, "Tax");
+    let holiday = tag(&mut f.book, "Holiday");
+    let (checking, savings, groceries, rent) = (f.checking, f.savings, f.groceries, f.rent);
+    let entry = |day: i8, splits: Vec<Split>| {
+        Transaction::new(TransactionId::generate(), date(2026, 11, day), None, splits)
+            .expect("balanced")
+    };
+    let rent_bill = add_entry(
+        &mut f.book,
+        entry(
+            2,
+            vec![
+                Split::new(checking, money(-50_000)),
+                Split::new(rent, money(50_000)),
+            ],
+        )
+        .with_tags(vec![tax]),
+    );
+    let groceries_part = add_entry(
+        &mut f.book,
+        entry(
+            3,
+            vec![
+                Split::new(checking, money(-5_000)),
+                tagged(Split::new(groceries, money(3_000)), &[tax]),
+                Split::new(rent, money(2_000)),
+            ],
+        ),
+    );
+    let transfer = add_entry(
+        &mut f.book,
+        entry(
+            4,
+            vec![
+                Split::new(checking, money(-10_000)),
+                Split::new(savings, money(10_000)),
+            ],
+        )
+        .with_tags(vec![tax]),
+    );
+    let rent_part = add_entry(
+        &mut f.book,
+        entry(
+            5,
+            vec![
+                Split::new(checking, money(-5_000)),
+                Split::new(groceries, money(1_000)),
+                tagged(Split::new(rent, money(4_000)), &[tax]),
+            ],
+        ),
+    );
+    let account_side = add_entry(
+        &mut f.book,
+        entry(
+            6,
+            vec![
+                tagged(Split::new(checking, money(-700)), &[tax]),
+                Split::new(groceries, money(700)),
+            ],
+        ),
+    );
+    let holiday_shop = add_entry(
+        &mut f.book,
+        entry(
+            7,
+            vec![
+                Split::new(checking, money(-900)),
+                tagged(Split::new(groceries, money(900)), &[holiday]),
+            ],
+        ),
+    );
+    // Nothing tagged: never listed by a tag.
+    add_entry(
+        &mut f.book,
+        entry(
+            8,
+            vec![
+                Split::new(checking, money(-1_100)),
+                Split::new(groceries, money(1_100)),
+            ],
+        ),
+    );
+    Tagged {
+        f,
+        tax,
+        holiday,
+        rent_bill,
+        groceries_part,
+        transfer,
+        rent_part,
+        account_side,
+        holiday_shop,
+    }
+}
+
+#[test]
+fn a_tag_alone_lists_every_transaction_that_carries_it_anywhere_transfers_included() {
+    let t = tagged_book();
+    let filter = Filter {
+        tags: Some(vec![t.tax]),
+        ..Filter::default()
+    };
+    let listed = list(&t.f, &filter, MAX_LISTED);
+    assert_eq!(
+        ids(&listed),
+        sorted(vec![
+            t.rent_bill,
+            t.groceries_part,
+            t.transfer,
+            t.rent_part,
+            t.account_side
+        ])
+    );
+    assert_eq!(listed.total, 5);
+    // A row still shows the whole amount of its account, not the tagged part.
+    let row = listed
+        .rows
+        .iter()
+        .find(|row| row.transaction == t.groceries_part)
+        .expect("listed");
+    assert_eq!(row.amount, money(-5_000));
+    assert_eq!(row.other, OtherSide::Parts);
+    // The Transfer between two listed accounts stays one row (D-108).
+    assert_eq!(
+        listed
+            .rows
+            .iter()
+            .filter(|row| row.transaction == t.transfer)
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn several_tags_are_any_of_them_and_an_empty_list_lists_nothing() {
+    let t = tagged_book();
+    let either = Filter {
+        tags: Some(vec![t.holiday, t.tax]),
+        ..Filter::default()
+    };
+    assert_eq!(list(&t.f, &either, MAX_LISTED).total, 6);
+    let holiday = Filter {
+        tags: Some(vec![t.holiday]),
+        ..Filter::default()
+    };
+    assert_eq!(ids(&list(&t.f, &holiday, MAX_LISTED)), [t.holiday_shop]);
+    let nothing = Filter {
+        tags: Some(Vec::new()),
+        ..Filter::default()
+    };
+    assert_eq!(list(&t.f, &nothing, MAX_LISTED).total, 0);
+}
+
+#[test]
+fn a_tag_with_categories_needs_one_part_in_a_category_that_carries_it() {
+    let t = tagged_book();
+    // Food holds Groceries. Only the bill whose groceries part is tagged:
+    // not the one whose rent part is, nor the one tagged on the account's
+    // side, nor the Transfer, which has no category.
+    let food = Filter {
+        categories: Some(vec![t.f.food]),
+        tags: Some(vec![t.tax]),
+        ..Filter::default()
+    };
+    assert_eq!(ids(&list(&t.f, &food, MAX_LISTED)), [t.groceries_part]);
+    // Rent: the bill tagged as a whole counts its rent part, and so does
+    // the bill whose rent part carries the tag; the untagged rent part of
+    // the groceries bill does not.
+    let rent = Filter {
+        categories: Some(vec![t.f.rent]),
+        tags: Some(vec![t.tax]),
+        ..Filter::default()
+    };
+    assert_eq!(
+        ids(&list(&t.f, &rent, MAX_LISTED)),
+        sorted(vec![t.rent_bill, t.rent_part])
+    );
+    // OR within each list, AND between them (D-841).
+    let both = Filter {
+        categories: Some(vec![t.f.food, t.f.rent]),
+        tags: Some(vec![t.tax, t.holiday]),
+        ..Filter::default()
+    };
+    assert_eq!(
+        ids(&list(&t.f, &both, MAX_LISTED)),
+        sorted(vec![
+            t.rent_bill,
+            t.groceries_part,
+            t.rent_part,
+            t.holiday_shop
+        ])
+    );
+}
+
+#[test]
+fn a_tag_with_an_accounts_filter_lists_only_their_sides() {
+    let t = tagged_book();
+    let filter = Filter {
+        accounts: Some(vec![t.f.savings]),
+        tags: Some(vec![t.tax]),
+        ..Filter::default()
+    };
+    let listed = list(&t.f, &filter, MAX_LISTED);
+    assert_eq!(ids(&listed), [t.transfer]);
+    assert_eq!(listed.rows[0].account, t.f.savings);
+    assert_eq!(listed.rows[0].amount, money(10_000));
+}

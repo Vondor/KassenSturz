@@ -19084,6 +19084,18 @@ msgstr "Brak transakcji w tych kategoriach w tym okresie."
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml
 #, kde-format
 msgctxt "@info"
+msgid "No transactions with these tags in these categories in this period."
+msgstr "Brak transakcji z tymi tagami w tych kategoriach w tym okresie."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid "No transactions with these tags in this period."
+msgstr "Brak transakcji z tymi tagami w tym okresie."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
 msgid "No transactions in this period."
 msgstr "Brak transakcji w tym okresie."
 
@@ -19853,6 +19865,12 @@ msgstr "tagi: %1"
 msgctxt "@label which tags the money of a chart, table or card is limited to"
 msgid "Only count these tags"
 msgstr "Licz tylko te tagi"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@label which tags the transactions a list shows must carry, on the whole transaction or a part"
+msgid "Only these tags"
+msgstr "Tylko te tagi"
 
 #, kde-format
 msgctxt "@info"
@@ -23694,6 +23712,112 @@ msgctxt "@info:tooltip the button that opens the chat sidebar"
 msgid "Open the chat"
 msgstr "Otwórz czat"
 
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Only adds the tags %1 to matching transactions; the next Rules still sort them."
+msgstr "Dodaje do pasujących transakcji tylko tagi %1; kolejne reguły nadal je przypisują."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Also adds the tags %1."
+msgstr "Dodaje też tagi %1."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1."
+msgstr "Dodaje tagi %1."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds no tags anymore (before: %1)."
+msgstr "Nie dodaje już tagów (wcześniej: %1)."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1 (before: none)."
+msgstr "Dodaje tagi %1 (wcześniej: żadnych)."
+
+#, kde-format
+msgctxt "@info %1 and %2 are lists of tag names"
+msgid "Adds the tags %2 (before: %1)."
+msgstr "Dodaje tagi %2 (wcześniej: %1)."
+
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 transaction gets tags from your Rules. A tag you took off yourself is not put back."
+msgid_plural "%1 transactions get tags from your Rules. A tag you took off yourself is not put back."
+msgstr[0] "%1 transakcja dostaje tagi z Twoich reguł. Tag, który sam usunąłeś, nie wraca."
+msgstr[1] "%1 transakcje dostają tagi z Twoich reguł. Tag, który sam usunąłeś, nie wraca."
+msgstr[2] "%1 transakcji dostaje tagi z Twoich reguł. Tag, który sam usunąłeś, nie wraca."
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Add tags:"
+msgstr "Dodaj tagi:"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Tags the Rule adds"
+msgstr "Tagi dodawane przez regułę"
+
+#, kde-format
+msgctxt "@info"
+msgid "This Rule only adds tags. The Rules after it still sort the transaction. A tag you take off a transaction yourself is not put back."
+msgstr "Ta reguła tylko dodaje tagi. Reguły po niej nadal przypisują transakcję. Tag, który sam usuniesz z transakcji, nie wraca."
+
+#, kde-format
+msgctxt "@info"
+msgid "Tags are only added, never taken off. A tag you take off a transaction yourself is not put back. Make new tags on the Tags page."
+msgstr "Tagi są tylko dodawane, nigdy usuwane. Tag, który sam usuniesz z transakcji, nie wraca. Nowe tagi tworzysz na stronie Tagi."
+
+#, kde-format
+msgctxt "@action:button %1 is a number"
+msgid "Tag %1 transaction"
+msgid_plural "Tag %1 transactions"
+msgstr[0] "Otaguj %1 transakcję"
+msgstr[1] "Otaguj %1 transakcje"
+msgstr[2] "Otaguj %1 transakcji"
+
+#, kde-format
+msgctxt "@info"
+msgid "There is nothing to sort, only tags to add."
+msgstr "Nie ma nic do przypisania, tylko tagi do dodania."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Only adds the tags %1, the next Rules still sort"
+msgstr "Dodaje tylko tagi %1, kolejne reguły nadal przypisują"
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1"
+msgstr "Dodaje tagi %1"
+
+#, kde-format
+msgctxt "@info:tooltip %1 is the name of a Rule"
+msgid "Added by the Rule %1"
+msgstr "Dodany przez regułę %1"
+
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Added by a Rule that was removed since"
+msgstr "Dodany przez regułę, która została już usunięta"
+
+#, kde-format
+msgctxt "@info %1 is a tag, %2 the name of a Rule"
+msgid "%1 was added by the Rule %2."
+msgstr "%1 został dodany przez regułę %2."
+
+#, kde-format
+msgctxt "@info %1 is a tag"
+msgid "%1 was added by a Rule that was removed since."
+msgstr "%1 został dodany przez regułę, która została już usunięta."
+
+#, kde-format
+msgctxt "@info"
+msgid "Type to find a tag, then press Enter."
+msgstr "Wpisz, aby znaleźć tag, a potem naciśnij Enter."
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
 #, kde-format
 msgctxt "@info a kind of prepared change"
@@ -23766,3 +23890,350 @@ msgctxt ""
 "passed with no entry"
 msgid "planned income that is overdue and not confirmed yet"
 msgstr "zaplanowane wpływy, które są zaległe i jeszcze niepotwierdzone"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml
+msgctxt "@info"
+msgid "%1 planned payment may have a new amount."
+msgid_plural "%1 planned payments may have a new amount."
+msgstr[0] "%1 zaplanowana płatność może mieć nową kwotę."
+msgstr[1] "%1 zaplanowane płatności mogą mieć nową kwotę."
+msgstr[2] "%1 zaplanowanych płatności może mieć nową kwotę."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml
+msgctxt "@info"
+msgid ""
+"An entry names the same person or company with another amount, so it was not"
+" matched and nothing was changed. To check it: Accounts › Planned payments…"
+msgstr ""
+"Wpis wskazuje tę samą osobę lub firmę, ale z inną kwotą, więc nie został "
+"przypisany i nic nie zmieniono. Aby to sprawdzić: Konta › Zaplanowane "
+"płatności…"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml
+msgctxt ""
+"@info %1 is the name of a planned payment, %2 an amount, %3 a date, %4 the "
+"planned amount"
+msgid "%1: %2 on %3, planned %4"
+msgstr "%1: %2 dnia %3, zaplanowano %4"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@info %1 is an amount, %2 a date"
+msgid ""
+"An entry of %1 on %2 names the same person or company. It may be this "
+"payment with a new amount."
+msgstr ""
+"Wpis na %1 z dnia %2 wskazuje tę samą osobę lub firmę. Może to być ta "
+"płatność z nową kwotą."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@action:button %1 is an amount"
+msgid "It's this one, %1"
+msgstr "To ta, %1"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@title:window %1 is an amount"
+msgid "Expect %1 from now on?"
+msgstr "Od teraz oczekiwać %1?"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@info %1 is the name of a planned payment, %2 and %3 amounts"
+msgid ""
+"“%1” is planned with %2, and this entry has %3. If the amount has changed "
+"for good, for example a new salary or rent, KassenSturz can expect the new "
+"amount from now on. Payments already matched keep their own amounts, and "
+"Undo takes the change back."
+msgstr ""
+"„%1” jest zaplanowana na %2, a ten wpis ma %3. Jeśli kwota zmieniła się na "
+"stałe, na przykład nowa pensja lub nowy czynsz, KassenSturz może od teraz "
+"oczekiwać nowej kwoty. Płatności już przypisane zachowują własne kwoty, a "
+"Cofnij wycofuje tę zmianę."
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@action:button %1 is an amount"
+msgid "Expect %1"
+msgstr "Oczekuj %1"
+
+#: crates/kassensturz-ui-bridge/qml/PlannedPaymentsDialog.qml
+msgctxt "@action:button %1 is an amount"
+msgid "Keep %1"
+msgstr "Zostaw %1"
+
+msgctxt "@action:button opens the testing guide"
+msgid "Testing KassenSturz"
+msgstr "Testowanie KassenSturz"
+
+msgctxt "@info"
+msgid "For testers: check the install, try the first steps and write down a problem"
+msgstr "Dla testerów: sprawdź instalację, wypróbuj pierwsze kroki i zapisz problem"
+
+msgctxt "@title"
+msgid "Testing KassenSturz"
+msgstr "Testowanie KassenSturz"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Flatpak"
+msgstr "Flatpak"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Snap"
+msgstr "Snap"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Windows"
+msgstr "Windows"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "macOS"
+msgstr "macOS"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Another way, for example a package of your Linux distribution"
+msgstr "W inny sposób, na przykład jako pakiet Twojej dystrybucji Linuksa"
+
+msgctxt "@info the first line of a tester's note"
+msgid "KassenSturz: a problem while testing"
+msgstr "KassenSturz: problem podczas testowania"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "Title: %1"
+msgstr "Tytuł: %1"
+
+msgctxt "@info a line of a tester's note, %1 is a part of the app"
+msgid "Where: %1"
+msgstr "Gdzie: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What I wanted to do: %1"
+msgstr "Co chciałem zrobić: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What I expected: %1"
+msgstr "Czego się spodziewałem: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What happened: %1"
+msgstr "Co się stało: %1"
+
+msgctxt "@info a line of a tester's note, %1 is always, sometimes or once"
+msgid "How often: %1"
+msgstr "Jak często: %1"
+
+msgctxt "@info a line of a tester's note, %1 is how much it gets in the way"
+msgid "How bad: %1"
+msgstr "Jak poważne: %1"
+
+msgctxt "@info a line of a tester's note"
+msgid "Real data in this note: yes"
+msgstr "Prawdziwe dane w tej notatce: tak"
+
+msgctxt "@info a line of a tester's note"
+msgid "Real data in this note: no"
+msgstr "Prawdziwe dane w tej notatce: nie"
+
+msgctxt "@info a line of a tester's note, %1 is the version"
+msgid "Version: %1"
+msgstr "Wersja: %1"
+
+msgctxt "@info a line of a tester's note, %1 is how KassenSturz was installed"
+msgid "Installed as: %1"
+msgstr "Zainstalowano jako: %1"
+
+msgctxt "@info a line of a tester's note"
+msgid "Developer mode: on, a log was written"
+msgstr "Tryb dewelopera: włączony, zapisano dziennik"
+
+msgctxt "@info a line of a tester's note"
+msgid "Developer mode: off, no log"
+msgstr "Tryb dewelopera: wyłączony, brak dziennika"
+
+msgctxt "@info %1 is the step on show, %2 how many there are"
+msgid "Step %1 of %2"
+msgstr "Krok %1 z %2"
+
+msgctxt "@title:group"
+msgid "Is KassenSturz installed correctly?"
+msgstr "Czy KassenSturz jest poprawnie zainstalowany?"
+
+msgctxt "@info"
+msgid "If you can read this, KassenSturz has started. Compare the version below with the release you downloaded: they should be the same."
+msgstr "Jeśli to czytasz, KassenSturz się uruchomił. Porównaj wersję poniżej z wydaniem, które pobrałeś: powinny być takie same."
+
+msgctxt "@label how KassenSturz was installed"
+msgid "Installed as"
+msgstr "Zainstalowano jako"
+
+msgctxt "@label"
+msgid "Developer mode"
+msgstr "Tryb dewelopera"
+
+msgctxt "@info"
+msgid "On: KassenSturz writes a log for the test."
+msgstr "Włączony: KassenSturz zapisuje dziennik na potrzeby testu."
+
+msgctxt "@info"
+msgid "Off. If your install sheet asks for it, close KassenSturz and start it in developer mode, the way the sheet shows."
+msgstr "Wyłączony. Jeśli Twoja instrukcja instalacji tego wymaga, zamknij KassenSturz i uruchom go w trybie dewelopera, tak jak pokazuje instrukcja."
+
+msgctxt "@title:group"
+msgid "The first things to try"
+msgstr "Co wypróbować najpierw"
+
+msgctxt "@info"
+msgid "Use an example book: its people, accounts and amounts are made up, so nothing of yours is in it. Please don't type in anything from your own bank accounts."
+msgstr "Użyj przykładowej księgi: jej osoby, konta i kwoty są zmyślone, więc nie ma w niej nic Twojego. Nie wpisuj niczego ze swoich prawdziwych kont bankowych."
+
+msgctxt "@action:button"
+msgid "Open an example book…"
+msgstr "Otwórz przykładową księgę…"
+
+msgctxt "@info a thing to try while testing"
+msgid "1. Look at the start screen: what do you have, and where does the money go?"
+msgstr "1. Obejrzyj ekran startowy: co masz i na co idą pieniądze?"
+
+msgctxt "@info a thing to try while testing"
+msgid "2. Add an account with a made-up balance."
+msgstr "2. Dodaj konto ze zmyślonym saldem."
+
+msgctxt "@info a thing to try while testing"
+msgid "3. Enter a transaction, then take it back with Undo."
+msgstr "3. Wprowadź transakcję, a potem wycofaj ją przyciskiem „Cofnij”."
+
+msgctxt "@info a thing to try while testing"
+msgid "4. Open an account and find one of its transactions."
+msgstr "4. Otwórz konto i znajdź jedną z jego transakcji."
+
+msgctxt "@info a thing to try while testing"
+msgid "5. In Settings, change the language or how amounts look."
+msgstr "5. W Ustawieniach zmień język albo wygląd kwot."
+
+msgctxt "@info"
+msgid "Something unclear, slow or wrong? That is exactly what we are looking for. The next step helps you write it down."
+msgstr "Coś jest niejasne, wolne albo błędne? Właśnie tego szukamy. Następny krok pomoże Ci to zapisać."
+
+msgctxt "@title:group"
+msgid "Write down a problem"
+msgstr "Zapisz problem"
+
+msgctxt "@info"
+msgid "Write only about made-up data: no names, amounts, account numbers or IBANs from your own book. The note stays on this computer until you copy it and send it yourself."
+msgstr "Pisz tylko o zmyślonych danych: bez imion, kwot, numerów kont ani numerów IBAN z Twojej własnej księgi. Notatka zostaje na tym komputerze, dopóki sam jej nie skopiujesz i nie wyślesz."
+
+msgctxt "@label a short name for the problem"
+msgid "Title"
+msgstr "Tytuł"
+
+msgctxt "@label:listbox"
+msgid "Where in KassenSturz"
+msgstr "Gdzie w KassenSturz"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Installing or starting"
+msgstr "Instalacja lub uruchamianie"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Start screen"
+msgstr "Ekran startowy"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Accounts"
+msgstr "Konta"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Transactions and transfers"
+msgstr "Transakcje i przelewy"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Importing a file"
+msgstr "Import pliku"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Charts and reports"
+msgstr "Wykresy i raporty"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Budgets and plans"
+msgstr "Budżety i plany"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Settings"
+msgstr "Ustawienia"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Somewhere else"
+msgstr "Gdzie indziej"
+
+msgctxt "@label"
+msgid "What did you want to do?"
+msgstr "Co chciałeś zrobić?"
+
+msgctxt "@label"
+msgid "What did you expect?"
+msgstr "Czego się spodziewałeś?"
+
+msgctxt "@label"
+msgid "What happened? Copy every message word for word."
+msgstr "Co się stało? Przepisz każdy komunikat słowo w słowo."
+
+msgctxt "@label:listbox"
+msgid "Does it happen again?"
+msgstr "Czy to się powtarza?"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Always"
+msgstr "Zawsze"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Sometimes"
+msgstr "Czasami"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Only once"
+msgstr "Tylko raz"
+
+msgctxt "@label:listbox"
+msgid "How bad is it?"
+msgstr "Jak poważne to jest?"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "It stops me"
+msgstr "Blokuje mnie"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "It is annoying"
+msgstr "Przeszkadza"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "A small thing"
+msgstr "Drobiazg"
+
+msgctxt "@option:check"
+msgid "This note has data from my own book in it"
+msgstr "Ta notatka zawiera dane z mojej własnej księgi"
+
+msgctxt "@title:group"
+msgid "Your note"
+msgstr "Twoja notatka"
+
+msgctxt "@label"
+msgid "Your note, as it is copied"
+msgstr "Twoja notatka w postaci, w jakiej zostanie skopiowana"
+
+msgctxt "@action:button"
+msgid "Copy the note"
+msgstr "Skopiuj notatkę"
+
+msgctxt "@info"
+msgid "The note is on the clipboard. Paste it into your e-mail or message."
+msgstr "Notatka jest w schowku. Wklej ją do swojego e-maila lub wiadomości."
+
+msgctxt "@info"
+msgid "Send the note only to the person who invited you to test, the way they told you, for example by e-mail. If developer mode is on, they may ask you for the log as well. If your note has data from your own book in it, it stays with that person only and is deleted after the round."
+msgstr "Wyślij notatkę tylko osobie, która zaprosiła Cię do testów, w sposób, jaki Ci wskazała, na przykład e-mailem. Jeśli tryb dewelopera jest włączony, może poprosić Cię także o dziennik. Jeśli Twoja notatka zawiera dane z Twojej własnej księgi, zostaje tylko u tej osoby i jest usuwana po rundzie."
+
+msgctxt "@action:button"
+msgid "Back"
+msgstr "Wstecz"
+
+msgctxt "@action:button"
+msgid "Next"
+msgstr "Dalej"

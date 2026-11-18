@@ -12,8 +12,8 @@
 
 use std::collections::HashMap;
 
-use kassensturz_core::{Tag, TagId};
-use kassensturz_store::{Book, StoreError};
+use kassensturz_core::{RuleId, Tag, TagId, TransactionId};
+use kassensturz_store::{Book, StoreError, TagAddedBy};
 
 /// A tag as the screens show it.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -22,6 +22,10 @@ pub struct TagText {
     pub id: String,
     /// Its name.
     pub name: String,
+    /// On the whole of a transaction: `Some` with the name of the Rule
+    /// that added it, empty if that Rule was removed since; `None` if the
+    /// user added it (D-827).
+    pub rule: Option<String>,
 }
 
 /// A tag as a screen gives it back: an existing one by `id`, or a new one
@@ -57,6 +61,7 @@ pub fn tag_choices(book: &Book) -> Result<Vec<TagChoice>, StoreError> {
                 tag: TagText {
                     id: tag.id.to_string(),
                     name: tag.name,
+                    rule: None,
                 },
                 transactions: used.transactions,
                 parts: used.parts,
@@ -83,9 +88,45 @@ pub fn texts(names: &HashMap<TagId, String>, tags: &[TagId]) -> Vec<TagText> {
             names.get(tag).map(|name| TagText {
                 id: tag.to_string(),
                 name: name.clone(),
+                rule: None,
             })
         })
         .collect()
+}
+
+/// Marks which of `texts`, the tags on the whole of `transaction`, a Rule
+/// added, with that Rule's name (D-827).
+pub fn mark_rules(
+    book: &Book,
+    transaction: TransactionId,
+    texts: &mut [TagText],
+) -> Result<(), StoreError> {
+    let sources = book.tag_sources(transaction)?;
+    if !sources
+        .iter()
+        .any(|(_, by)| matches!(by, TagAddedBy::Rule(_)))
+    {
+        return Ok(());
+    }
+    let mut rule_names = HashMap::new();
+    fn walk(nodes: &[kassensturz_core::RuleNode], names: &mut HashMap<RuleId, String>) {
+        for node in nodes {
+            names.insert(node.rule.id, node.rule.name.clone());
+            walk(&node.sub_rules, names);
+        }
+    }
+    walk(&book.rules()?, &mut rule_names);
+    for text in texts {
+        if let Some((_, TagAddedBy::Rule(rule))) =
+            sources.iter().find(|(tag, _)| tag.to_string() == text.id)
+        {
+            text.rule = Some(
+                rule.and_then(|rule| rule_names.get(&rule).cloned())
+                    .unwrap_or_default(),
+            );
+        }
+    }
+    Ok(())
 }
 
 /// The tags a screen gave back, as IDs, in their order and each once. A

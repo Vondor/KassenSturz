@@ -76,12 +76,12 @@ pub use recurring_moves::{
     JoinedTransfers, NeedsYou, NewRecurringMove, NotJoined, RecurringJoin, RecurringJoins,
     RefusedJoin,
 };
-pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip};
+pub use rules::{ApplyRules, RuleChange, RuleMark, RuleMatch, RuleRun, RuleSkip, RuleTagging};
 pub use schedules::{
     AccountsForecast, ExpectedPlans, NewSchedule, PlannedOccurrence, ScheduleMatchDone,
     ScheduleMatchReport, ScheduleNeedsYou,
 };
-pub use tags::{TagUse, checked_tag_name};
+pub use tags::{TagAddedBy, TagUse, checked_tag_name};
 pub use totals::{MAX_CURRENCY_TOTAL, MAX_PLAN_AMOUNT};
 pub use transactions::{AccountPart, PartOutline, RegisterEntry, TransactionOutline};
 pub use transfers::{MAX_TRANSFER_PARTNERS, SideSorting, TransferPartner};

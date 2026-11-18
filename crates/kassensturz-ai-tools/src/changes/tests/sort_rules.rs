@@ -107,6 +107,7 @@ fn first_rule(book: &mut Book, name: &str, payee: &str, to: BookTo) {
         actions: Actions {
             book_to: Some(to),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&rule, None).expect("Rule");
@@ -195,6 +196,7 @@ fn sorting_again_follows_a_changed_rule_but_never_what_the_user_sorted() {
             actions: Actions {
                 book_to: Some(BookTo::Category(food)),
                 payee: None,
+                tags: Vec::new(),
             },
             ..rule.clone()
         })
@@ -421,6 +423,7 @@ fn the_user_switches_sorting_again_on_in_the_review() {
         actions: Actions {
             book_to: Some(BookTo::Category(food)),
             payee: None,
+            tags: Vec::new(),
         },
         ..rules[1].clone()
     })

@@ -137,6 +137,16 @@ pub fn check_only_answer(
             .any(|change| matches!(change, ProposedChange::SortWithRules(_)))
         {
             answer.insert("would_sort".into(), json!(would_sort));
+            // And how many would get a tag a Rule adds (D-827).
+            let would_tag: usize = set
+                .changes()
+                .iter()
+                .map(|change| match change {
+                    ProposedChange::SortWithRules(sort) => sort.tagged.len(),
+                    _ => 0,
+                })
+                .sum();
+            answer.insert("would_tag".into(), json!(would_tag));
         }
     }
     answer.insert("check_only".into(), json!(true));

@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 15,
+  "version": 16,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -316,6 +316,7 @@
       "category": "019a0000-0000-7000-8000-000000000010",
       "transfer_account": null,
       "payee": "Baumarkt Eisenkraut",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -330,6 +331,7 @@
       "category": "019a0000-0000-7000-8000-00000000000d",
       "transfer_account": null,
       "payee": "Bäckerei Kornblume",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -344,6 +346,7 @@
       "category": "019a0000-0000-7000-8000-000000000016",
       "transfer_account": null,
       "payee": "Druckerei Tintenfass",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -358,6 +361,7 @@
       "category": "019a0000-0000-7000-8000-00000000000b",
       "transfer_account": null,
       "payee": "Erdenwerk Moorkamp",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -372,6 +376,7 @@
       "category": "019a0000-0000-7000-8000-00000000000f",
       "transfer_account": null,
       "payee": "Gartenbank Sonnenau",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -386,6 +391,7 @@
       "category": "019a0000-0000-7000-8000-00000000000e",
       "transfer_account": null,
       "payee": "Getränke Quellwiese",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -400,6 +406,7 @@
       "category": "019a0000-0000-7000-8000-000000000013",
       "transfer_account": null,
       "payee": "Gärtnerei Hohlweg",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -414,6 +421,7 @@
       "category": "019a0000-0000-7000-8000-000000000008",
       "transfer_account": null,
       "payee": "Marktbesucher",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -428,6 +436,7 @@
       "category": "019a0000-0000-7000-8000-000000000006",
       "transfer_account": null,
       "payee": "Mitglieder Sammelbeitrag",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -442,6 +451,7 @@
       "category": "019a0000-0000-7000-8000-000000000013",
       "transfer_account": null,
       "payee": "Samenhaus Löwenzahn",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -456,6 +466,7 @@
       "category": "019a0000-0000-7000-8000-000000000012",
       "transfer_account": null,
       "payee": "Schreinerei Holzwurm",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -470,6 +481,7 @@
       "category": "019a0000-0000-7000-8000-000000000011",
       "transfer_account": null,
       "payee": "Stadt Sonnenau Grünflächenamt",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -484,6 +496,7 @@
       "category": "019a0000-0000-7000-8000-00000000000a",
       "transfer_account": null,
       "payee": "Stiftung Grünes Band",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -498,6 +511,7 @@
       "category": "019a0000-0000-7000-8000-000000000014",
       "transfer_account": null,
       "payee": "Versicherung Sternschnuppe",
+      "tags": [],
       "sub_rules": []
     },
     {
@@ -512,6 +526,7 @@
       "category": "019a0000-0000-7000-8000-000000000015",
       "transfer_account": null,
       "payee": "Wasserwerk Sonnenau",
+      "tags": [],
       "sub_rules": []
     }
   ],
@@ -524,6 +539,8 @@
       "note": "Anfangsbestand",
       "entered": "2024-11-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -582,6 +599,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2024-11-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000044", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -610,6 +629,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2024-11-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000047", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -638,6 +659,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2024-11-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000004a", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "10.15", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -666,6 +689,8 @@
       "note": "Wasser Gießen",
       "entered": "2024-11-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000004d", "account": "019a0000-0000-7000-8000-000000000015", "amount": "12.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -694,6 +719,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2024-11-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000050", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "19.76", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -722,6 +749,8 @@
       "note": "Kontoführung",
       "entered": "2024-11-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000053", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -750,6 +779,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2024-11-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000056", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -778,6 +809,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2024-11-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000059", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -806,6 +839,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2024-12-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000005c", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -834,6 +869,8 @@
       "note": "Adventsmarkt: Kränze und Gestecke",
       "entered": "2024-12-06",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000005f", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-118.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Adventsmarkt: Kränze und Gestecke", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -862,6 +899,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2024-12-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000062", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "10.73", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -890,6 +929,8 @@
       "note": "Weihnachtsspende",
       "entered": "2024-12-15",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000065", "account": "019a0000-0000-7000-8000-000000000007", "amount": "-43.75", "foreign": null, "original": null, "date": null, "payee": null, "note": "Weihnachtsspende", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -918,6 +959,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2024-12-17",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -960,6 +1003,8 @@
       "note": "Wasser Gießen",
       "entered": "2024-12-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000006b", "account": "019a0000-0000-7000-8000-000000000015", "amount": "6.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -988,6 +1033,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2024-12-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000006e", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "15.23", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1016,6 +1063,8 @@
       "note": "Kontoführung",
       "entered": "2024-12-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000071", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1044,6 +1093,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2024-12-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000074", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1072,6 +1123,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-01-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000077", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1100,6 +1153,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-01-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000007a", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1128,6 +1183,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-01-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000007d", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "11.91", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1156,6 +1213,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-01-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000080", "account": "019a0000-0000-7000-8000-000000000015", "amount": "6.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1184,6 +1243,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-01-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000083", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "22.88", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1212,6 +1273,8 @@
       "note": "Kontoführung",
       "entered": "2025-01-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000086", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1240,6 +1303,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-01-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000089", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1268,6 +1333,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-01-31",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000008c", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1296,6 +1363,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-01-31",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000008f", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1324,6 +1393,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-02-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000092", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.44", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1352,6 +1423,8 @@
       "note": "Gewächshaustür repariert",
       "entered": "2025-02-12",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000095", "account": "019a0000-0000-7000-8000-000000000012", "amount": "54.75", "foreign": null, "original": null, "date": null, "payee": null, "note": "Gewächshaustür repariert", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1380,6 +1453,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-02-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000098", "account": "019a0000-0000-7000-8000-000000000015", "amount": "6.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1408,6 +1483,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-02-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000009b", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "29.87", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1436,6 +1513,8 @@
       "note": "Kontoführung",
       "entered": "2025-02-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000009e", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1464,6 +1543,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-02-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000a1", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1492,6 +1573,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-02-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000a4", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1520,6 +1603,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-02-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000a7", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1548,6 +1633,8 @@
       "note": "Saatgut Frühjahr",
       "entered": "2025-03-06",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000aa", "account": "019a0000-0000-7000-8000-000000000013", "amount": "89.30", "foreign": null, "original": null, "date": null, "payee": null, "note": "Saatgut Frühjahr", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1576,6 +1663,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-03-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000ad", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "8.57", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1604,6 +1693,8 @@
       "note": "Blumenerde, 4 Säcke",
       "entered": "2025-03-12",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000b0", "account": "019a0000-0000-7000-8000-00000000000b", "amount": "64.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Blumenerde, 4 Säcke", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1632,6 +1723,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-03-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000b3", "account": "019a0000-0000-7000-8000-000000000015", "amount": "9.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1660,6 +1753,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-03-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000b6", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "31.65", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1688,6 +1783,8 @@
       "note": "Kontoführung",
       "entered": "2025-03-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000b9", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1716,6 +1813,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-03-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000bc", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1744,6 +1843,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-04-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000bf", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1772,6 +1873,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-04-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000c2", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1800,6 +1903,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-04-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000c5", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "11.35", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1828,6 +1933,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-04-18",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000c8", "account": "019a0000-0000-7000-8000-000000000015", "amount": "18.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1856,6 +1963,8 @@
       "note": "Gießkannen und Handschaufeln",
       "entered": "2025-04-18",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000cb", "account": "019a0000-0000-7000-8000-000000000010", "amount": "49.85", "foreign": null, "original": null, "date": null, "payee": null, "note": "Gießkannen und Handschaufeln", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1884,6 +1993,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-04-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000ce", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "24.51", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1912,6 +2023,8 @@
       "note": "Kontoführung",
       "entered": "2025-04-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000d1", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1940,6 +2053,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-04-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000d4", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1968,6 +2083,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-05-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000d7", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -1996,6 +2113,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-05-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000da", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2024,6 +2143,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-05-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000dd", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.03", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2052,6 +2173,8 @@
       "note": "Pflanzenmarkt Mai: Setzlinge",
       "entered": "2025-05-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000e0", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-156.23", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pflanzenmarkt Mai: Setzlinge", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2080,6 +2203,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2025-05-16",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -2122,6 +2247,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-05-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000e6", "account": "019a0000-0000-7000-8000-000000000015", "amount": "29.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2150,6 +2277,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-05-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000e9", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "21.08", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2178,6 +2307,8 @@
       "note": "Kontoführung",
       "entered": "2025-05-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000ec", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2206,6 +2337,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-05-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000ef", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2234,6 +2367,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-05-30",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000f2", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2262,6 +2397,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-06-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000f5", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2290,6 +2427,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-06-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000f8", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "10.89", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2318,6 +2457,8 @@
       "note": "Markttag Juni: Sommerblumen",
       "entered": "2025-06-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000000fb", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-110.61", "foreign": null, "original": null, "date": null, "payee": null, "note": "Markttag Juni: Sommerblumen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2346,6 +2487,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2025-06-17",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -2388,6 +2531,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-06-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000101", "account": "019a0000-0000-7000-8000-000000000015", "amount": "39.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2416,6 +2561,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-06-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000104", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "28.41", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2444,6 +2591,8 @@
       "note": "Kontoführung",
       "entered": "2025-06-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000107", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2472,6 +2621,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-06-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000010a", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2500,6 +2651,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-07-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000010d", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2528,6 +2681,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-07-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000110", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2556,6 +2711,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-07-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000113", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.22", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2584,6 +2741,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-07-18",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000116", "account": "019a0000-0000-7000-8000-000000000015", "amount": "46.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2612,6 +2771,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-07-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000119", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "26.14", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2640,6 +2801,8 @@
       "note": "Kontoführung",
       "entered": "2025-07-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000011c", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2668,6 +2831,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-07-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000011f", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2696,6 +2861,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-08-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000122", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2724,6 +2891,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-08-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000125", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2752,6 +2921,8 @@
       "note": "Getränke Sommerfest",
       "entered": "2025-08-08",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000128", "account": "019a0000-0000-7000-8000-00000000000e", "amount": "148.60", "foreign": null, "original": null, "date": null, "payee": null, "note": "Getränke Sommerfest", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2780,6 +2951,8 @@
       "note": "Eis und Luftballons",
       "entered": "2025-08-08",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000012b", "account": "019a0000-0000-7000-8000-00000000000e", "amount": "32.40", "foreign": null, "original": null, "date": null, "payee": null, "note": "Eis und Luftballons", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2808,6 +2981,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-08-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000012e", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "11.53", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2836,6 +3011,8 @@
       "note": "Markttag August: Sträuße und Setzlinge",
       "entered": "2025-08-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000131", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-143.71", "foreign": null, "original": null, "date": null, "payee": null, "note": "Markttag August: Sträuße und Setzlinge", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2864,6 +3041,8 @@
       "note": "Haftpflicht Gartengemeinschaft",
       "entered": "2025-08-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000134", "account": "019a0000-0000-7000-8000-000000000014", "amount": "96.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Haftpflicht Gartengemeinschaft", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2892,6 +3071,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2025-08-15",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -2934,6 +3115,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-08-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000013a", "account": "019a0000-0000-7000-8000-000000000015", "amount": "41.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2962,6 +3145,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-08-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000013d", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "15.32", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -2990,6 +3175,8 @@
       "note": "Kontoführung",
       "entered": "2025-08-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000140", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3018,6 +3205,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-08-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000143", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3046,6 +3235,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-09-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000146", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3074,6 +3265,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-09-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000149", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3102,6 +3295,8 @@
       "note": "Blumenzwiebeln für das Frühjahr",
       "entered": "2025-09-05",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000014c", "account": "019a0000-0000-7000-8000-000000000013", "amount": "143.20", "foreign": null, "original": null, "date": null, "payee": null, "note": "Blumenzwiebeln für das Frühjahr", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3130,6 +3325,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-09-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000014f", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.19", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3158,6 +3355,8 @@
       "note": "Markttag September: Herbststräuße",
       "entered": "2025-09-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000152", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-169.22", "foreign": null, "original": null, "date": null, "payee": null, "note": "Markttag September: Herbststräuße", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3186,6 +3385,8 @@
       "note": "Förderung Gemeinschaftsgärten",
       "entered": "2025-09-16",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000155", "account": "019a0000-0000-7000-8000-00000000000a", "amount": "-250.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Förderung Gemeinschaftsgärten", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3214,6 +3415,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2025-09-17",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -3256,6 +3459,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-09-19",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000015b", "account": "019a0000-0000-7000-8000-000000000015", "amount": "36.40", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3284,6 +3489,8 @@
       "note": "Flyer Herbstmarkt",
       "entered": "2025-09-22",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000015e", "account": "019a0000-0000-7000-8000-000000000016", "amount": "24.90", "foreign": null, "original": null, "date": null, "payee": null, "note": "Flyer Herbstmarkt", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3312,6 +3519,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-09-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000161", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "15.58", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3340,6 +3549,8 @@
       "note": "Kontoführung",
       "entered": "2025-09-26",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000164", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3368,6 +3579,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-09-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000167", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3396,6 +3609,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-10-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000016a", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3424,6 +3639,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-10-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000016d", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3452,6 +3669,8 @@
       "note": "Blumenerde, 4 Säcke",
       "entered": "2025-10-04",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000170", "account": "019a0000-0000-7000-8000-00000000000b", "amount": "64.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Blumenerde, 4 Säcke", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3480,6 +3699,8 @@
       "note": "Herbstastern",
       "entered": "2025-10-06",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000173", "account": "019a0000-0000-7000-8000-000000000013", "amount": "31.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Herbstastern", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3508,6 +3729,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-10-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000176", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "10.12", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3536,6 +3759,8 @@
       "note": "Herbstmarkt Oktober",
       "entered": "2025-10-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000179", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-114.42", "foreign": null, "original": null, "date": null, "payee": null, "note": "Herbstmarkt Oktober", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3564,6 +3789,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2025-10-17",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -3606,6 +3833,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-10-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000017f", "account": "019a0000-0000-7000-8000-000000000015", "amount": "29.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3634,6 +3863,8 @@
       "note": "Spende eines Nachbarn",
       "entered": "2025-10-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000182", "account": "019a0000-0000-7000-8000-000000000007", "amount": "-50.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Spende eines Nachbarn", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3662,6 +3893,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-10-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000185", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "16.96", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3690,6 +3923,8 @@
       "note": "Kontoführung",
       "entered": "2025-10-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000188", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3718,6 +3953,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-10-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000018b", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3746,6 +3983,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-10-31",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000018e", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3774,6 +4013,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-10-31",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000191", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3802,6 +4043,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-11-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000194", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "11.37", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3830,6 +4073,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-11-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000197", "account": "019a0000-0000-7000-8000-000000000015", "amount": "12.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3858,6 +4103,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-11-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000019a", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "20.84", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3886,6 +4133,8 @@
       "note": "Kontoführung",
       "entered": "2025-11-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000019d", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3914,6 +4163,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-11-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001a0", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3942,6 +4193,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2025-12-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001a3", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3970,6 +4223,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2025-12-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001a6", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -3998,6 +4253,8 @@
       "note": "Adventsmarkt: Kränze und Gestecke",
       "entered": "2025-12-06",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001a9", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-110.90", "foreign": null, "original": null, "date": null, "payee": null, "note": "Adventsmarkt: Kränze und Gestecke", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4026,6 +4283,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2025-12-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001ac", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.15", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4054,6 +4313,8 @@
       "note": "Weihnachtsspende",
       "entered": "2025-12-15",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001af", "account": "019a0000-0000-7000-8000-000000000007", "amount": "-30.93", "foreign": null, "original": null, "date": null, "payee": null, "note": "Weihnachtsspende", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4082,6 +4343,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2025-12-17",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -4124,6 +4387,8 @@
       "note": "Wasser Gießen",
       "entered": "2025-12-19",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001b5", "account": "019a0000-0000-7000-8000-000000000015", "amount": "6.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4152,6 +4417,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2025-12-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001b8", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "22.01", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4180,6 +4447,8 @@
       "note": "Kontoführung",
       "entered": "2025-12-26",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001bb", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4208,6 +4477,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2025-12-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001be", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4236,6 +4507,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-01-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001c1", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4264,6 +4537,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-01-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001c4", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4292,6 +4567,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-01-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001c7", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "8.82", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4320,6 +4597,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-01-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001ca", "account": "019a0000-0000-7000-8000-000000000015", "amount": "6.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4348,6 +4627,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-01-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001cd", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "16.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4376,6 +4657,8 @@
       "note": "Kontoführung",
       "entered": "2026-01-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001d0", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4404,6 +4687,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-01-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001d3", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4432,6 +4717,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-01-30",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001d6", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4460,6 +4747,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-02-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001d9", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4488,6 +4777,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-02-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001dc", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "12.16", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4516,6 +4807,8 @@
       "note": "Zaun ausgebessert",
       "entered": "2026-02-12",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001df", "account": "019a0000-0000-7000-8000-000000000012", "amount": "89.81", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zaun ausgebessert", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4544,6 +4837,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-02-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001e2", "account": "019a0000-0000-7000-8000-000000000015", "amount": "6.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4572,6 +4867,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-02-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001e5", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "29.41", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4600,6 +4897,8 @@
       "note": "Kontoführung",
       "entered": "2026-02-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001e8", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4628,6 +4927,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-02-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001eb", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4656,6 +4957,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-02-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001ee", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4684,6 +4987,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-03-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001f1", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4712,6 +5017,8 @@
       "note": "Saatgut Frühjahr",
       "entered": "2026-03-06",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001f4", "account": "019a0000-0000-7000-8000-000000000013", "amount": "59.88", "foreign": null, "original": null, "date": null, "payee": null, "note": "Saatgut Frühjahr", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4740,6 +5047,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-03-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001f7", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.68", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4768,6 +5077,8 @@
       "note": "Blumenerde, 4 Säcke",
       "entered": "2026-03-12",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001fa", "account": "019a0000-0000-7000-8000-00000000000b", "amount": "64.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Blumenerde, 4 Säcke", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4796,6 +5107,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-03-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000001fd", "account": "019a0000-0000-7000-8000-000000000015", "amount": "9.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4824,6 +5137,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-03-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000200", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "16.43", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4852,6 +5167,8 @@
       "note": "Kontoführung",
       "entered": "2026-03-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000203", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4880,6 +5197,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-03-27",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000206", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4908,6 +5227,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-04-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000209", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4936,6 +5257,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-04-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000020c", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4964,6 +5287,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-04-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000020f", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "11.04", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -4992,6 +5317,8 @@
       "note": "Gießkannen und Handschaufeln",
       "entered": "2026-04-18",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000212", "account": "019a0000-0000-7000-8000-000000000010", "amount": "58.35", "foreign": null, "original": null, "date": null, "payee": null, "note": "Gießkannen und Handschaufeln", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5020,6 +5347,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-04-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000215", "account": "019a0000-0000-7000-8000-000000000015", "amount": "18.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5048,6 +5377,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-04-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000218", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "26.07", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5076,6 +5407,8 @@
       "note": "Kontoführung",
       "entered": "2026-04-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000021b", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5104,6 +5437,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-04-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000021e", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5132,6 +5467,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-05-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000221", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5160,6 +5497,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-05-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000224", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5188,6 +5527,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-05-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000227", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.06", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5216,6 +5557,8 @@
       "note": "Pflanzenmarkt Mai: Setzlinge",
       "entered": "2026-05-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000022a", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-162.72", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pflanzenmarkt Mai: Setzlinge", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5244,6 +5587,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2026-05-15",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -5286,6 +5631,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-05-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000230", "account": "019a0000-0000-7000-8000-000000000015", "amount": "29.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5314,6 +5661,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-05-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000233", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "23.28", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5342,6 +5691,8 @@
       "note": "Kontoführung",
       "entered": "2026-05-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000236", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5370,6 +5721,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-05-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000239", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5398,6 +5751,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-06-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000023c", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5426,6 +5781,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-06-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000023f", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5454,6 +5811,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-06-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000242", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "11.03", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5482,6 +5841,8 @@
       "note": "Markttag Juni: Sommerblumen",
       "entered": "2026-06-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000245", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-144.39", "foreign": null, "original": null, "date": null, "payee": null, "note": "Markttag Juni: Sommerblumen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5510,6 +5871,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2026-06-17",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -5552,6 +5915,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-06-19",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000024b", "account": "019a0000-0000-7000-8000-000000000015", "amount": "39.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5580,6 +5945,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-06-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000024e", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "30.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5608,6 +5975,8 @@
       "note": "Kontoführung",
       "entered": "2026-06-26",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000251", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5636,6 +6005,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-06-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000254", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5664,6 +6035,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-07-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000257", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5692,6 +6065,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-07-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000025a", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5720,6 +6095,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-07-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000025d", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "10.56", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5748,6 +6125,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-07-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000260", "account": "019a0000-0000-7000-8000-000000000015", "amount": "46.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5776,6 +6155,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-07-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000263", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "24.27", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5804,6 +6185,8 @@
       "note": "Kontoführung",
       "entered": "2026-07-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000266", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5832,6 +6215,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-07-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000269", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5860,6 +6245,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-07-31",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000026c", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5888,6 +6275,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-07-31",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000026f", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5916,6 +6305,8 @@
       "note": "Getränke Sommerfest",
       "entered": "2026-08-08",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000272", "account": "019a0000-0000-7000-8000-00000000000e", "amount": "148.60", "foreign": null, "original": null, "date": null, "payee": null, "note": "Getränke Sommerfest", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5944,6 +6335,8 @@
       "note": "Eis und Luftballons",
       "entered": "2026-08-08",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000275", "account": "019a0000-0000-7000-8000-00000000000e", "amount": "32.40", "foreign": null, "original": null, "date": null, "payee": null, "note": "Eis und Luftballons", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -5972,6 +6365,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-08-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000278", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "8.71", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6000,6 +6395,8 @@
       "note": "Markttag August: Sträuße und Setzlinge",
       "entered": "2026-08-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000027b", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-100.12", "foreign": null, "original": null, "date": null, "payee": null, "note": "Markttag August: Sträuße und Setzlinge", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6028,6 +6425,8 @@
       "note": "Haftpflicht Gartengemeinschaft",
       "entered": "2026-08-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000027e", "account": "019a0000-0000-7000-8000-000000000014", "amount": "96.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Haftpflicht Gartengemeinschaft", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6056,6 +6455,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2026-08-17",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -6098,6 +6499,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-08-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000284", "account": "019a0000-0000-7000-8000-000000000015", "amount": "41.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6126,6 +6529,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-08-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000287", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "19.19", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6154,6 +6559,8 @@
       "note": "Kontoführung",
       "entered": "2026-08-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000028a", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6182,6 +6589,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-08-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000028d", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6210,6 +6619,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-09-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000290", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6238,6 +6649,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-09-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000293", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6266,6 +6679,8 @@
       "note": "Blumenzwiebeln für das Frühjahr",
       "entered": "2026-09-05",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000296", "account": "019a0000-0000-7000-8000-000000000013", "amount": "143.20", "foreign": null, "original": null, "date": null, "payee": null, "note": "Blumenzwiebeln für das Frühjahr", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6294,6 +6709,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-09-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000299", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.81", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6322,6 +6739,8 @@
       "note": "Markttag September: Herbststräuße",
       "entered": "2026-09-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000029c", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-82.73", "foreign": null, "original": null, "date": null, "payee": null, "note": "Markttag September: Herbststräuße", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6350,6 +6769,8 @@
       "note": "Förderung Gemeinschaftsgärten",
       "entered": "2026-09-16",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000029f", "account": "019a0000-0000-7000-8000-00000000000a", "amount": "-250.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Förderung Gemeinschaftsgärten", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6378,6 +6799,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2026-09-17",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -6420,6 +6843,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-09-18",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002a5", "account": "019a0000-0000-7000-8000-000000000015", "amount": "36.40", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6448,6 +6873,8 @@
       "note": "Flyer Herbstmarkt",
       "entered": "2026-09-22",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002a8", "account": "019a0000-0000-7000-8000-000000000016", "amount": "24.90", "foreign": null, "original": null, "date": null, "payee": null, "note": "Flyer Herbstmarkt", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6476,6 +6903,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-09-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002ab", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "31.46", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6504,6 +6933,8 @@
       "note": "Kontoführung",
       "entered": "2026-09-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002ae", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6532,6 +6963,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-09-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002b1", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6560,6 +6993,8 @@
       "note": "Pacht Gartenfläche",
       "entered": "2026-10-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002b4", "account": "019a0000-0000-7000-8000-000000000011", "amount": "52.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pacht Gartenfläche", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6588,6 +7023,8 @@
       "note": "Beiträge 24 Mitglieder × 6 €",
       "entered": "2026-10-02",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002b7", "account": "019a0000-0000-7000-8000-000000000006", "amount": "-144.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Beiträge 24 Mitglieder × 6 €", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6616,6 +7053,8 @@
       "note": "Blumenerde, 4 Säcke",
       "entered": "2026-10-04",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002ba", "account": "019a0000-0000-7000-8000-00000000000b", "amount": "64.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Blumenerde, 4 Säcke", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6644,6 +7083,8 @@
       "note": "Herbstastern",
       "entered": "2026-10-06",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002bd", "account": "019a0000-0000-7000-8000-000000000013", "amount": "31.80", "foreign": null, "original": null, "date": null, "payee": null, "note": "Herbstastern", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6672,6 +7113,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-10-10",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002c0", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.53", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6700,6 +7143,8 @@
       "note": "Herbstmarkt Oktober",
       "entered": "2026-10-14",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002c3", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-84.78", "foreign": null, "original": null, "date": null, "payee": null, "note": "Herbstmarkt Oktober", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6728,6 +7173,8 @@
       "note": "Einzahlung Kasse",
       "entered": "2026-10-16",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -6770,6 +7217,8 @@
       "note": "Spende eines Nachbarn",
       "entered": "2026-10-20",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002c9", "account": "019a0000-0000-7000-8000-000000000007", "amount": "-50.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Spende eines Nachbarn", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6798,6 +7247,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-10-24",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002cc", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "26.00", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6826,6 +7277,8 @@
       "note": "Kontoführung",
       "entered": "2026-10-28",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002cf", "account": "019a0000-0000-7000-8000-00000000000f", "amount": "3.50", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kontoführung", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6854,6 +7307,8 @@
       "note": "Zinsen Rücklage",
       "entered": "2026-10-29",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002d2", "account": "019a0000-0000-7000-8000-000000000009", "amount": "-4.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Zinsen Rücklage", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6882,6 +7337,8 @@
       "note": "Wasser Gießen",
       "entered": "2026-10-30",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002d5", "account": "019a0000-0000-7000-8000-000000000015", "amount": "29.10", "foreign": null, "original": null, "date": null, "payee": null, "note": "Wasser Gießen", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6910,6 +7367,8 @@
       "note": "Kaffee für den Arbeitseinsatz",
       "entered": "2026-11-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002d8", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "7.95", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee für den Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6938,6 +7397,8 @@
       "note": "Pflanzenverkauf am Gartentor",
       "entered": "2026-11-01",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002db", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-26.32", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pflanzenverkauf am Gartentor", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6966,6 +7427,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-11-07",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002de", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.71", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -6994,6 +7457,8 @@
       "note": "Kuchen Arbeitseinsatz",
       "entered": "2026-11-15",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002e1", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "31.59", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kuchen Arbeitseinsatz", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -7022,6 +7487,8 @@
       "note": "Pflanzenverkauf am Gartentor",
       "entered": "2026-11-21",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002e4", "account": "019a0000-0000-7000-8000-000000000008", "amount": "-39.89", "foreign": null, "original": null, "date": null, "payee": null, "note": "Pflanzenverkauf am Gartentor", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -7050,6 +7517,8 @@
       "note": "Kaffee, Tee und Kekse",
       "entered": "2026-11-26",
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-0000000002e7", "account": "019a0000-0000-7000-8000-00000000000d", "amount": "9.92", "foreign": null, "original": null, "date": null, "payee": null, "note": "Kaffee, Tee und Kekse", "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},

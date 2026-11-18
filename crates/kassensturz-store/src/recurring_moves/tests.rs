@@ -147,6 +147,7 @@ fn salary_rule(book: &mut Book, salary: AccountId) {
             actions: Actions {
                 book_to: Some(BookTo::Category(salary)),
                 payee: None,
+                tags: Vec::new(),
             },
         },
         None,

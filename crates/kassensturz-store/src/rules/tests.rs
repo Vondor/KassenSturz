@@ -66,6 +66,7 @@ fn rule(name: &str, conditions: Vec<Condition>, book_to: Option<BookTo>) -> Rule
         actions: Actions {
             book_to,
             payee: None,
+            tags: Vec::new(),
         },
     }
 }
@@ -297,6 +298,7 @@ fn a_rule_can_be_changed_in_place() {
     changed.actions = Actions {
         book_to: Some(BookTo::Category(groceries)),
         payee: Some("Supermarket".into()),
+        tags: Vec::new(),
     };
     book.update_rule(&changed).expect("changed");
     let tree = book.rules().expect("Rules");
@@ -814,6 +816,7 @@ fn a_rule_can_make_a_transfer_into_an_own_account() {
         actions: Actions {
             book_to: Some(BookTo::Transfer(cash)),
             payee: Some("Cash withdrawal".into()),
+            tags: Vec::new(),
         },
         ..rule("ATM", vec![name_contains("ATM")], None)
     };
@@ -833,6 +836,7 @@ fn a_rule_can_make_a_transfer_into_an_own_account() {
         actions: Actions {
             book_to: Some(BookTo::Transfer(checking)),
             payee: None,
+            tags: Vec::new(),
         },
         ..rule("Back", vec![name_contains("Refund")], None)
     };
@@ -1850,4 +1854,337 @@ fn a_rule_the_ai_made_keeps_its_mark_through_undo_closing_and_redo() {
     // Opening it takes the mark off, as before.
     book.mark_rule_checked(made.id).expect("opened");
     assert!(book.unchecked_ai_rules().expect("read").is_empty());
+}
+
+// Rules that add tags (D-827, D-828).
+
+fn tag(book: &mut Book, name: &str) -> TagId {
+    let id = TagId::generate();
+    book.add_tag(&kassensturz_core::Tag {
+        id,
+        name: name.into(),
+    })
+    .expect("tag added");
+    id
+}
+
+fn tagging(name: &str, other_party: &str, tags: Vec<TagId>) -> Rule {
+    let mut rule = rule(name, vec![name_contains(other_party)], None);
+    rule.actions.tags = tags;
+    rule
+}
+
+fn tags_of(book: &Book, transaction: TransactionId) -> Vec<(TagId, crate::TagAddedBy)> {
+    book.tag_sources(transaction).expect("tags read")
+}
+
+#[test]
+fn a_rule_that_only_tags_leaves_the_sorting_to_a_later_rule() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let taxes = tag(&mut book, "Tax relevant");
+    // Placed first: it doesn't decide, so the sorting Rule after it still
+    // sorts, and it tags whatever sorts the transaction.
+    let only_tags = tagging("Tax: pension", "Lumen Life|Orbit Mutual", vec![taxes]);
+    let only_tags = Rule {
+        conditions: vec![Condition::Text {
+            field: TextField::OtherPartyName,
+            operator: TextOperator::Matches,
+            value: "Lumen Life|Orbit Mutual".into(),
+            case_sensitive: false,
+        }],
+        ..only_tags
+    };
+    book.add_rule(&only_tags, None).expect("added");
+    let sorting = rule(
+        "Pension insurance",
+        vec![Condition::Text {
+            field: TextField::OtherPartyName,
+            operator: TextOperator::Matches,
+            value: "Lumen Life|Orbit Mutual|Nova Assurance".into(),
+            case_sensitive: false,
+        }],
+        Some(BookTo::Category(groceries)),
+    );
+    book.add_rule(&sorting, None).expect("added");
+
+    let lumen = imported(&mut book, checking, -9_000, 3, "Lumen Life");
+    let nova = imported(&mut book, checking, -7_000, 4, "Nova Assurance");
+    let run = book.run_rules_on(&[lumen.id(), nova.id()]).expect("ran");
+    assert_eq!(other_side(&book, &lumen, checking), Some(groceries));
+    assert_eq!(other_side(&book, &nova, checking), Some(groceries));
+    assert_eq!(
+        changed(&run),
+        [(lumen.id(), sorting.id), (nova.id(), sorting.id)]
+    );
+    assert_eq!(run.tagged.len(), 1);
+    assert_eq!(run.tagged[0].transaction, lumen.id());
+    assert_eq!(
+        tags_of(&book, lumen.id()),
+        [(taxes, crate::TagAddedBy::Rule(Some(only_tags.id)))]
+    );
+    assert!(tags_of(&book, nova.id()).is_empty());
+    // A Rule that only tags is never the one that sorted.
+    assert_eq!(
+        book.rule_mark(lumen.id())
+            .expect("mark")
+            .and_then(|m| m.rule),
+        Some(sorting.id)
+    );
+
+    // Running again adds nothing.
+    let again = book.apply_rules(ApplyRules::default()).expect("ran");
+    assert!(again.changes_nothing());
+}
+
+#[test]
+fn a_tag_taken_off_by_hand_is_not_put_back_and_comes_back_by_hand() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let taxes = tag(&mut book, "Tax relevant");
+    book.add_rule(&tagging("Tax", "Lumen Life", vec![taxes]), None)
+        .expect("added");
+    let first = imported(&mut book, checking, -9_000, 3, "Lumen Life");
+    let second = imported(&mut book, checking, -9_000, 5, "Lumen Life");
+    let run = book.apply_rules(ApplyRules::default()).expect("ran");
+    assert_eq!(run.tagged.len(), 2);
+
+    // The user takes it off one of them.
+    let stored = book.transaction(first.id()).expect("read");
+    book.update_transaction(&stored.clone().with_tags(Vec::new()))
+        .expect("changed");
+    let again = book.apply_rules(ApplyRules::default()).expect("ran");
+    assert!(again.changes_nothing(), "{again:?}");
+    assert!(tags_of(&book, first.id()).is_empty());
+    assert_eq!(tags_of(&book, second.id()).len(), 1);
+    assert_eq!(
+        book.removed_transaction_tags().expect("read"),
+        HashSet::from([(first.id(), taxes)])
+    );
+
+    // A change that keeps the tag keeps who added it.
+    let kept = book.transaction(second.id()).expect("read");
+    book.update_transaction(&kept.with_note(Some("Checked".into())))
+        .expect("changed");
+    assert!(matches!(
+        tags_of(&book, second.id())[0].1,
+        crate::TagAddedBy::Rule(Some(_))
+    ));
+
+    // Put back by hand: the user's own, and nothing is remembered.
+    book.update_transaction(&stored.with_tags(vec![taxes]))
+        .expect("changed");
+    assert_eq!(
+        tags_of(&book, first.id()),
+        [(taxes, crate::TagAddedBy::User)]
+    );
+    assert!(book.removed_transaction_tags().expect("read").is_empty());
+}
+
+#[test]
+fn a_sub_rule_adds_its_tags_to_its_parents() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let (shop, fresh) = (tag(&mut book, "Shop"), tag(&mut book, "Fresh food"));
+    let mut parent = rule(
+        "Market",
+        vec![name_contains("Fresho")],
+        Some(BookTo::Category(groceries)),
+    );
+    parent.actions.tags = vec![shop];
+    book.add_rule(&parent, None).expect("added");
+    let mut sub = rule("Vegetables", vec![name_contains("Veg")], None);
+    sub.actions.tags = vec![fresh, shop];
+    book.add_rule(&sub, Some(parent.id)).expect("added");
+    let bought = imported(&mut book, checking, -2_000, 3, "Fresho Veg");
+    book.run_rules_on(&[bought.id()]).expect("ran");
+    assert_eq!(
+        tags_of(&book, bought.id()),
+        [
+            (shop, crate::TagAddedBy::Rule(Some(parent.id))),
+            (fresh, crate::TagAddedBy::Rule(Some(sub.id))),
+        ]
+    );
+    assert_eq!(other_side(&book, &bought, checking), Some(groceries));
+}
+
+#[test]
+fn a_transaction_sorted_by_hand_gets_tags_and_keeps_its_category() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    let shop = tag(&mut book, "Shop");
+    let mut sorting = rule(
+        "Market",
+        vec![name_contains("Fresho")],
+        Some(BookTo::Category(groceries)),
+    );
+    sorting.actions.tags = vec![shop];
+    book.add_rule(&sorting, None).expect("added");
+    let bought = imported(&mut book, checking, -2_000, 3, "Fresho");
+    // The user sorts it elsewhere first.
+    let stored = book.transaction(bought.id()).expect("read");
+    let splits = stored
+        .splits()
+        .iter()
+        .map(|split| {
+            let mut split = split.clone();
+            if split.account.is_none() {
+                split.account = Some(salary);
+            }
+            split
+        })
+        .collect();
+    let sorted = Transaction::new(stored.id(), stored.booking_date(), None, splits)
+        .expect("balanced")
+        .with_details_of(&stored);
+    book.update_transaction(&sorted).expect("sorted");
+    let run = book
+        .apply_rules(ApplyRules {
+            rule: None,
+            resort: true,
+        })
+        .expect("ran");
+    assert!(run.changed.is_empty());
+    assert_eq!(other_side(&book, &bought, checking), Some(salary));
+    assert_eq!(tags_of(&book, bought.id()).len(), 1);
+}
+
+#[test]
+fn only_rules_that_only_tag_tag_a_transfer() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        ..
+    } = sample();
+    let savings = account(&mut book, "Savings", AccountKind::Asset, EUR);
+    let (moved, sorted) = (tag(&mut book, "Saving"), tag(&mut book, "Sorted"));
+    let mut sorting = rule(
+        "Everything",
+        vec![Condition::Amount(AmountTest::MoneyOut)],
+        Some(BookTo::Category(groceries)),
+    );
+    sorting.actions.tags = vec![sorted];
+    book.add_rule(&sorting, None).expect("added");
+    let mut only_tags = rule("Saving", vec![Condition::Account(savings)], None);
+    only_tags.actions.tags = vec![moved];
+    book.add_rule(&only_tags, None).expect("added");
+    let transfer = transaction(
+        date(2026, 10, 1),
+        "Monthly saving",
+        &[(checking, eur(-10_000)), (savings, eur(10_000))],
+    );
+    book.add_transaction(&transfer).expect("added");
+    book.apply_rules(ApplyRules::default()).expect("ran");
+    assert_eq!(
+        tags_of(&book, transfer.id()),
+        [(moved, crate::TagAddedBy::Rule(Some(only_tags.id)))]
+    );
+}
+
+#[test]
+fn a_split_transaction_gets_the_tag_on_the_whole() {
+    let Sample {
+        mut book,
+        checking,
+        groceries,
+        salary,
+    } = sample();
+    let shop = tag(&mut book, "Shop");
+    let mut only_tags = rule("Shop", vec![Condition::Account(checking)], None);
+    only_tags.actions.tags = vec![shop];
+    book.add_rule(&only_tags, None).expect("added");
+    let split = transaction(
+        date(2026, 10, 2),
+        "Fresho",
+        &[
+            (checking, eur(-3_000)),
+            (groceries, eur(2_000)),
+            (salary, eur(1_000)),
+        ],
+    );
+    book.add_transaction(&split).expect("added");
+    book.apply_rules(ApplyRules::default()).expect("ran");
+    let stored = book.transaction(split.id()).expect("read");
+    assert_eq!(stored.tags(), [shop]);
+    assert!(stored.splits().iter().all(|part| part.tags.is_empty()));
+}
+
+#[test]
+fn undo_takes_the_tags_of_a_run_back() {
+    let Sample {
+        mut book, checking, ..
+    } = sample();
+    let taxes = tag(&mut book, "Tax relevant");
+    let only_tags = tagging("Tax", "Lumen Life", vec![taxes]);
+    book.add_rule(&only_tags, None).expect("added");
+    let paid = imported(&mut book, checking, -9_000, 3, "Lumen Life");
+    let before = history_length(&book);
+    book.apply_rules(ApplyRules::default()).expect("ran");
+    assert_eq!(history_length(&book), before + 1);
+    book.undo().expect("undone");
+    assert!(tags_of(&book, paid.id()).is_empty());
+    book.redo().expect("made again");
+    assert_eq!(tags_of(&book, paid.id()).len(), 1);
+
+    // A Rule removed later leaves its tags, which no longer say which Rule.
+    book.remove_rule(only_tags.id).expect("removed");
+    assert_eq!(
+        tags_of(&book, paid.id()),
+        [(taxes, crate::TagAddedBy::Rule(None))]
+    );
+}
+
+#[test]
+fn removing_a_tag_takes_it_off_every_rule_and_keeps_the_rules() {
+    let Sample { mut book, .. } = sample();
+    let (taxes, other) = (tag(&mut book, "Tax relevant"), tag(&mut book, "Other"));
+    let only_tags = tagging("Tax", "Lumen Life", vec![taxes, other]);
+    book.add_rule(&only_tags, None).expect("added");
+    book.remove_tag(taxes).expect("removed");
+    assert_eq!(
+        book.rule(only_tags.id).expect("still there").actions.tags,
+        [other]
+    );
+    book.undo().expect("undone");
+    assert_eq!(
+        book.rule(only_tags.id).expect("there").actions.tags,
+        [taxes, other]
+    );
+
+    // Merging gives the Rule the tag merged into, once.
+    book.merge_tags(other, taxes).expect("merged");
+    assert_eq!(
+        book.rule(only_tags.id).expect("there").actions.tags,
+        [taxes]
+    );
+}
+
+#[test]
+fn a_rule_names_known_tags_only_and_each_once() {
+    let Sample { mut book, .. } = sample();
+    let taxes = tag(&mut book, "Tax relevant");
+    let unknown = tagging("Tax", "Lumen Life", vec![TagId::generate()]);
+    assert!(matches!(
+        book.add_rule(&unknown, None),
+        Err(StoreError::UnknownTag(_))
+    ));
+    let twice = tagging("Tax", "Lumen Life", vec![taxes, taxes]);
+    assert!(matches!(
+        book.add_rule(&twice, None),
+        Err(StoreError::Rule(RuleError::DuplicateTag(_)))
+    ));
 }

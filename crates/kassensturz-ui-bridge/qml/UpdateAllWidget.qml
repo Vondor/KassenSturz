@@ -319,7 +319,7 @@ Flickable {
             icon.name: "dialog-ok"
             onClicked: {
                 ActionLog.taken("UpdateAllWidget_seen")
-                widget.bank.updateSummary = ({})
+                widget.bank.summarySeen()
             }
         }
     }

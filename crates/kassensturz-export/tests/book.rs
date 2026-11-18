@@ -23,8 +23,8 @@ use kassensturz_core::{
 };
 use kassensturz_export::{
     BookData, BookExport, BookedByRule, CsvExport, Expected, ExportData, ExportError, ExportKind,
-    Exporter, ExporterInfo, MAX_RULE_DEPTH, ScheduleData, ViewData, export, export_file, read_book,
-    read_book_file,
+    Exporter, ExporterInfo, MAX_RULE_DEPTH, ScheduleData, TagByRule, ViewData, export, export_file,
+    read_book, read_book_file,
 };
 
 const EUR: CurrencyCode = match CurrencyCode::new("EUR") {
@@ -121,6 +121,7 @@ fn rule(n: u8, name: &str, conditions: Vec<Condition>, book_to: Option<BookTo>) 
         actions: Actions {
             book_to,
             payee: None,
+            tags: Vec::new(),
         },
     }
 }
@@ -258,6 +259,7 @@ fn sample() -> BookData {
         Some(BookTo::Category(AccountId::from_bytes(id(bakery)))),
     );
     bread.actions.payee = Some("Bakery".into());
+    bread.actions.tags = vec![TagId::from_bytes(id(83))];
     let cash_rule = rule(
         23,
         "Cash",
@@ -383,6 +385,15 @@ fn sample() -> BookData {
                 rule: None,
             },
         ],
+        tags_by_rule: vec![TagByRule {
+            transaction: TransactionId::from_bytes(id(34)),
+            tag: TagId::from_bytes(id(83)),
+            rule: Some(RuleId::from_bytes(id(22))),
+        }],
+        tags_taken_off: vec![(
+            TransactionId::from_bytes(id(70)),
+            TagId::from_bytes(id(84)),
+        )],
         institutions: vec![Institution {
             id: InstitutionId::from_bytes(id(bank)),
             name: "Musterbank \"Musterstadt\"".into(),
@@ -745,6 +756,8 @@ fn values_that_may_be_empty_can_be_left_out() {
                 vec![split(5, Some(1), eur(-500)), split(6, None, eur(500))],
             )],
             rule_marks: vec![],
+            tags_by_rule: vec![],
+            tags_taken_off: vec![],
             institutions: Vec::new(),
             payees: Vec::new(),
             tags: Vec::new(),
@@ -777,6 +790,96 @@ fn without_recurring_moves(file: &str) -> String {
     format!("{before}{after}")
 }
 
+/// `file`, a golden file, without what version 16 added (D-827): the tags
+/// of each Rule, and on each transaction which tags a Rule added and which
+/// the user took off.
+fn without_rule_tags(file: &str) -> String {
+    let lines: Vec<&str> = file.split('\n').collect();
+    let mut kept = Vec::with_capacity(lines.len());
+    let mut index = 0;
+    while index < lines.len() {
+        let line = lines[index].trim_start();
+        let next = lines.get(index + 1).map_or("", |next| next.trim_start());
+        if line.starts_with("\"tags_taken_off\":")
+            || (line.starts_with("\"tags\":") && next.starts_with("\"sub_rules\":"))
+        {
+            index += 1;
+            continue;
+        }
+        if line.starts_with("\"tags_by_rule\":") {
+            if !line.ends_with("[],") {
+                while lines[index].trim_start() != "]," {
+                    index += 1;
+                }
+            }
+            index += 1;
+            continue;
+        }
+        kept.push(lines[index]);
+        index += 1;
+    }
+    kept.join("\n")
+}
+
+#[test]
+fn rule_tags_come_with_version_16() {
+    let file = golden();
+    let book = read_book(file.as_bytes()).expect("read");
+    assert_eq!(book.tags_by_rule, sample().tags_by_rule);
+    assert_eq!(book.tags_taken_off, sample().tags_taken_off);
+    let bread = &book.rules[0].sub_rules[0].rule;
+    assert_eq!(bread.actions.tags, [TagId::from_bytes(id(83))]);
+
+    // A file of version 15 has none of it, and refuses the new keys.
+    let older = without_rule_tags(&file).replacen("\"version\": 16", "\"version\": 15", 1);
+    let read = read_book(older.as_bytes()).expect("read");
+    assert!(read.tags_by_rule.is_empty() && read.tags_taken_off.is_empty());
+    assert!(read.rules[0].sub_rules[0].rule.actions.tags.is_empty());
+    let with_keys = file.replacen("\"version\": 16", "\"version\": 15", 1);
+    assert!(read_book(with_keys.as_bytes()).is_err());
+
+    // A mark names a tag its transaction carries, once; a tag taken off is
+    // one it doesn't carry.
+    let marked = "{\"tag\": \"019a0000-0000-7000-8000-000000000053\", \"rule\"";
+    let unknown = file.replacen(
+        marked,
+        "{\"tag\": \"019a0000-0000-7000-8000-000000000054\", \"rule\"",
+        1,
+    );
+    assert_eq!(
+        read_book(unknown.as_bytes()),
+        bad("transactions[1].tags_by_rule[0].tag", Expected::Id)
+    );
+    let carried = file.replacen(
+        "\"tags_taken_off\": [],\n      \"attachments\": [\n        {\"link\": \"receipts",
+        "\"tags_taken_off\": [\"019a0000-0000-7000-8000-000000000053\"],\n      \"attachments\": [\n        {\"link\": \"receipts",
+        1,
+    );
+    assert_ne!(carried, file);
+    assert_eq!(
+        read_book(carried.as_bytes()),
+        bad("transactions[1].tags_taken_off[0]", Expected::Id)
+    );
+    // A Rule names a tag of the file, once.
+    let twice = file.replacen(
+        "\"tags\": [\"019a0000-0000-7000-8000-000000000053\"],\n          \"sub_rules\"",
+        "\"tags\": [\"019a0000-0000-7000-8000-000000000053\", \"019a0000-0000-7000-8000-000000000053\"],\n          \"sub_rules\"",
+        1,
+    );
+    assert_eq!(
+        read_book(twice.as_bytes()),
+        bad("rules[0].sub_rules[0].tags[1]", Expected::Id)
+    );
+
+    // Written, a mark for a tag the transaction doesn't carry is refused.
+    let mut data = sample();
+    data.tags_by_rule[0].tag = TagId::from_bytes(id(84));
+    assert!(matches!(
+        export(&BookExport, &ExportData::Book(data)),
+        Err(ExportError::TagMarkWithoutTag { .. })
+    ));
+}
+
 /// The golden file with `from` replaced by `to`, once.
 fn changed(from: &str, to: &str) -> Vec<u8> {
     let file = golden();
@@ -803,13 +906,13 @@ fn what_is_not_a_complete_export_is_refused() {
     assert_eq!(read_book(b"[1, 2]"), Err(ExportError::NotABook));
     assert_eq!(read_book(b"{\"name\": \"x\"}"), Err(ExportError::NotABook));
     assert_eq!(
-        read_book(&changed("\"version\": 15", "\"version\": 16")),
-        Err(ExportError::NewerVersion { version: 16 })
+        read_book(&changed("\"version\": 16", "\"version\": 17")),
+        Err(ExportError::NewerVersion { version: 17 })
     );
     for version in ["\"2\"", "0", "-1", "2.5"] {
         assert_eq!(
             read_book(&changed(
-                "\"version\": 15",
+                "\"version\": 16",
                 &format!("\"version\": {version}")
             )),
             bad("version", Expected::Number),
@@ -1861,7 +1964,8 @@ fn a_budget_keeps_its_name_from_version_11() {
 /// one given twice, is refused.
 #[test]
 fn a_transaction_has_tags_on_the_whole_from_version_13() {
-    let file = golden();
+    // As a file of version 15 has it, without the tags of Rules.
+    let file = without_rule_tags(&golden()).replacen("\"version\": 16", "\"version\": 15", 1);
     let tagged = "\"tags\": [\"019a0000-0000-7000-8000-000000000053\"],\n";
     let book = read_book(file.as_bytes()).expect("read");
     let kids = TagId::from_bytes(id(83));
@@ -1915,7 +2019,11 @@ fn planned_payments_come_with_version_14() {
     assert_eq!(book.schedules.len(), 2);
     assert_eq!(book.schedules[0].decided.len(), 2);
 
-    let older = without_recurring_moves(&file).replacen("\"version\": 15", "\"version\": 13", 1);
+    let older = without_recurring_moves(&without_rule_tags(&file)).replacen(
+        "\"version\": 16",
+        "\"version\": 13",
+        1,
+    );
     assert_eq!(
         read_book(older.as_bytes()),
         Err(ExportError::UnknownValue {
@@ -1995,7 +2103,7 @@ fn monthly_moves_come_with_version_15() {
     assert_eq!(book.recurring_moves, sample().recurring_moves);
     assert_eq!(book.recurring_moves.len(), 2);
 
-    let older = file.replacen("\"version\": 15", "\"version\": 14", 1);
+    let older = without_rule_tags(&file).replacen("\"version\": 16", "\"version\": 14", 1);
     assert_eq!(
         read_book(older.as_bytes()),
         Err(ExportError::UnknownValue {

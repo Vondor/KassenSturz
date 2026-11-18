@@ -249,6 +249,8 @@ impl Report for RuleError {
                 condition: index,
             } => condition("rule.date-range-reversed", rule, index),
             Self::EmptyPayee(id) => rule("rule.empty-payee", id),
+            Self::TooManyTags(id) => rule("rule.too-many-tags", id),
+            Self::DuplicateTag(id) => rule("rule.duplicate-tag", id),
         }
     }
 }

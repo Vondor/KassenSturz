@@ -135,6 +135,7 @@ fn a_rule_shown_cut_keeps_what_the_model_cannot_see() {
         actions: Actions {
             book_to: Some(BookTo::Category(food)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&rule, None).expect("Rule");
@@ -303,6 +304,7 @@ fn list_rules_shows_one_rule_by_its_id_with_its_sub_rules() {
         actions: Actions {
             book_to: Some(BookTo::Category(groceries)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&sub, Some(rules[0].id)).expect("sub-Rule");

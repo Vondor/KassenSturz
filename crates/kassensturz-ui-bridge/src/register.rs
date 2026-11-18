@@ -959,6 +959,7 @@ mod sort_tests {
             tags: vec![TagText {
                 id: "tag-1".into(),
                 name: "Holiday".into(),
+                rule: None,
             }],
             waits_for: String::new(),
         };

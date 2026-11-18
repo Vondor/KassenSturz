@@ -21,13 +21,14 @@ use crate::format::Locale;
 use crate::locale::QtLocale;
 use crate::number_format::{UserLocale, app_locale};
 use crate::overview_model::latest_row_object;
-use crate::register_model::{field, flag};
+use crate::register_model::{field, flag, tags_object};
 use crate::rules::{
     self, Applied, Choice, Choices, ConditionForm, Rebooked, RuleEditError, RuleForm, RuleRow,
     Suggestion,
 };
 use crate::session;
 use crate::settings::Settings;
+use crate::tags::TagText;
 use crate::variant::{error_object, list, map, text};
 
 #[cxx_qt::bridge]
@@ -407,6 +408,8 @@ fn row_object(row: &RuleRow) -> QVariant {
         ("bookToKind", text(row.book_to_kind)),
         ("bookTo", text(&row.book_to)),
         ("payee", text(&row.payee)),
+        ("tags", list(row.tags.iter().map(|name| text(name)))),
+        ("onlyTags", QVariant::from(&row.only_tags)),
         ("conditions", int(row.conditions)),
         ("madeByAi", QVariant::from(&row.made_by_ai)),
     ])
@@ -424,6 +427,7 @@ fn suggestion_object(suggestion: &Suggestion) -> QVariant {
 fn applied_object(applied: &Applied) -> QVariant {
     map([
         ("changed", int(applied.changed)),
+        ("tagged", int(applied.tagged)),
         ("transfers", int(applied.transfers)),
         ("noRate", int(applied.no_rate)),
         ("closed", int(applied.closed)),
@@ -454,6 +458,7 @@ fn choices_object(choices: &Choices) -> QVariant {
     map([
         ("categories", list(choices.categories.iter().map(choice))),
         ("accounts", list(choices.accounts.iter().map(choice))),
+        ("tags", tags_object(&choices.tags)),
         ("currency", text(&choices.currency)),
     ])
 }
@@ -471,6 +476,7 @@ fn form_object(form: &RuleForm) -> QVariant {
         ("bookToKind", text(&form.book_to_kind)),
         ("bookTo", text(&form.book_to)),
         ("payee", text(&form.payee)),
+        ("tags", tags_object(&form.tags)),
     ])
 }
 
@@ -532,6 +538,22 @@ fn read_form(form: &QVariant) -> RuleForm {
         book_to_kind: field(&map, "bookToKind"),
         book_to: field(&map, "bookTo"),
         payee: field(&map, "payee"),
+        tags: map
+            .get(&QString::from("tags"))
+            .and_then(|value| value.value::<QList<QVariant>>())
+            .unwrap_or_default()
+            .iter()
+            .map(|tag| {
+                let tag = tag
+                    .value::<QMap<QMapPair_QString_QVariant>>()
+                    .unwrap_or_default();
+                TagText {
+                    id: field(&tag, "id"),
+                    name: field(&tag, "name"),
+                    rule: None,
+                }
+            })
+            .collect(),
     }
 }
 
@@ -544,7 +566,7 @@ mod tests {
     use crate::first_start::tests::started;
     use crate::register::tests::TestLocale;
     use crate::transaction_entry::{self, NewEntry};
-    use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of};
+    use crate::variant::read_back::{flag_of, keys, list_of, number_of, text_of, texts_of};
 
     fn eur() -> CurrencyCode {
         CurrencyCode::new("EUR").expect("EUR is a valid code")
@@ -670,9 +692,11 @@ mod tests {
                 "id",
                 "madeByAi",
                 "name",
+                "onlyTags",
                 "payee",
                 "position",
-                "siblings"
+                "siblings",
+                "tags"
             ]
         );
         assert_eq!(text_of(&listed[0], "id"), rows[0].id);
@@ -718,7 +742,11 @@ mod tests {
     fn the_choices_read_back_as_qml_reads_them() {
         let (book, account) = book_with_rules();
         let choices = choices_object(&rules::choices(&book, eur()).expect("choices"));
-        assert_eq!(keys(&choices), ["accounts", "categories", "currency"]);
+        assert_eq!(
+            keys(&choices),
+            ["accounts", "categories", "currency", "tags"]
+        );
+        assert!(list_of(&choices, "tags").is_empty());
         assert_eq!(text_of(&choices, "currency"), "EUR");
 
         let accounts = list_of(&choices, "accounts");
@@ -760,7 +788,8 @@ mod tests {
                 "matchAll",
                 "name",
                 "parent",
-                "payee"
+                "payee",
+                "tags"
             ]
         );
         assert_eq!(text_of(&shown, "id"), id);
@@ -830,11 +859,12 @@ mod tests {
                 "examples",
                 "noRate",
                 "other",
+                "tagged",
                 "transfers"
             ]
         );
         assert_eq!(number_of(&shown, "changed"), 1);
-        for key in ["closed", "noRate", "other", "transfers"] {
+        for key in ["closed", "noRate", "other", "tagged", "transfers"] {
             assert_eq!(number_of(&shown, key), 0, "{key}");
         }
         let examples = list_of(&shown, "examples");
@@ -865,5 +895,70 @@ mod tests {
         let shown = applied_object(&done);
         assert_eq!(number_of(&shown, "changed"), 1);
         assert!(list_of(&shown, "examples").is_empty());
+    }
+
+    /// A Rule's tags (D-827): the editor offers the book's tags, the form
+    /// takes them out and back in, the list names them and says when a
+    /// Rule only tags, and "Apply all" counts what it tags.
+    #[test]
+    fn a_rules_tags_read_back_as_qml_reads_them() {
+        let (mut book, account) = book_with_rules();
+        let monthly = kassensturz_core::Tag {
+            id: kassensturz_core::TagId::generate(),
+            name: "Monthly".into(),
+        };
+        book.add_tag(&monthly).expect("tag");
+        let choices = choices_object(&rules::choices(&book, eur()).expect("choices"));
+        let offered = list_of(&choices, "tags");
+        assert_eq!(offered.len(), 1);
+        assert_eq!(text_of(&offered[0], "id"), monthly.id.to_string());
+        assert_eq!(text_of(&offered[0], "name"), "Monthly");
+
+        let mut form = payee_is("Canteen tags", "Canteen", "");
+        form.book_to_kind = String::new();
+        form.tags = vec![TagText {
+            id: monthly.id.to_string(),
+            name: "Monthly".into(),
+            rule: None,
+        }];
+        let shown = form_object(&form);
+        let tags = list_of(&shown, "tags");
+        assert_eq!(keys(&tags[0]), ["byRule", "id", "name", "rule"]);
+        assert!(!flag_of(&tags[0], "byRule"));
+        assert_eq!(read_form(&shown), form, "the screen sends the tags back");
+        let id = rules::add_rule(&mut book, &form, &TestLocale)
+            .expect("a Rule that only tags")
+            .to_string();
+        assert_eq!(
+            rules::form_of(&book, &id, &TestLocale).expect("form").tags,
+            form.tags
+        );
+        // A tag the book doesn't have is refused.
+        let mut unknown = form.clone();
+        unknown.name = "Unknown".into();
+        unknown.tags[0].id = kassensturz_core::TagId::generate().to_string();
+        assert!(rules::add_rule(&mut book, &unknown, &TestLocale).is_err());
+
+        let rows = rules::view(&book).expect("view");
+        let listed = list_of(&view_object(&rows, &[]), "rows");
+        let tagger = listed
+            .iter()
+            .find(|row| text_of(row, "id") == id)
+            .expect("listed");
+        assert_eq!(texts_of(tagger, "tags"), ["Monthly"]);
+        assert!(flag_of(tagger, "onlyTags"));
+        assert!(!flag_of(&listed[0], "onlyTags"));
+
+        // The Canteen entries get the tag; nothing is sorted.
+        let preview = rules::preview_apply(&book, "", false, &TestLocale).expect("preview");
+        let shown = applied_object(&preview);
+        assert_eq!(number_of(&shown, "changed"), 0);
+        assert_eq!(
+            number_of(&shown, "tagged"),
+            i32::try_from(rules::SUGGEST_AFTER).expect("a small number")
+        );
+        let done = rules::apply(&mut book, "", false).expect("applied");
+        assert_eq!(done.tagged, rules::SUGGEST_AFTER);
+        let _ = account;
     }
 }

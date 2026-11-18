@@ -1,7 +1,7 @@
 # The example books
 
-`generate.py` writes three made-up German example books and the bank files for
-all four example books (M7a.8, D-561). Everything in them is invented: no real
+`generate.py` writes three made-up German example books, the English Suburban
+Family (D-843) and the bank files for all five example books (M7a.8, D-561). Everything in them is invented: no real
 person, bank, agency or brand, and only example IBANs from the SWIFT registry
 (D-055). The amounts are in believable ranges; the public sources used for that
 are named at the top of the script.
@@ -9,6 +9,7 @@ are named at the top of the script.
 | Book | File | What it is |
 |---|---|---|
 | Suburban Family (suggested start) | `suburban-family-v15.sqlite` | A family of five in North Rhine-Westphalia: a nurse at a public hospital (TVöD-P), a teacher at a Gymnasium (civil servant, A 13), both 40, three children, a terraced house with a mortgage and two cars. Girokonto, Sparkonto, Kreditkarte, Bargeld, the default German categories, Umbuchungen (the credit card paid off every month, cash withdrawn, a monthly saving). |
+| Suburban Family, English (suggested start when the app is not in German) | `suburban-family-en-v15.sqlite` | The same household, accounts, amounts and dates as the German book, with every name and memo in English (the Summerfield family in the made-up town of Sunmere; the categories are the app's English default ones). Its statements are an English bank's: a comma-separated CSV with a decimal point and ISO dates. The chooser offers it instead of the German book whenever the app runs in a language other than German (D-843). |
 | Flower Utopia | `flower-utopia-v15.sqlite`, `flower-utopia.json` | A small garden cooperative with a shared cash box (Gemeinschaftskasse), Transfers from the cash box to the club account after each market, and a food category. The `.json` is the complete export with five monthly budgets and a saved Overview with charts (a KMyMoney file cannot hold them). |
 | UdSSR Government Agent | `udssr-agent-v15.sqlite` | A fictional 1980s agent of the made-up "Hauptverwaltung für Windstille": rubles, dollars, pounds and francs with agency rates, and a monthly Transfer to the savings book. Only current currency codes are used (D-077). The dates are recent. |
 | Space Colony | `../space-colony-5y-v15.sqlite` | The older five-year book. It is read, never changed; only its bank files are made here. Its amounts were compared with the few public analogue figures found and left as they are (D-563). |
@@ -16,10 +17,11 @@ are named at the top of the script.
 All files are in `crates/kassensturz-import/tests/books/examples/`:
 
 ```
-suburban-family-v15.sqlite  flower-utopia-v15.sqlite  udssr-agent-v15.sqlite
+suburban-family-v15.sqlite  suburban-family-en-v15.sqlite
+flower-utopia-v15.sqlite    udssr-agent-v15.sqlite
 flower-utopia.json          reference-month.txt
-statements/<book>.csv  <book>.csv.settings  <book>.camt053.xml   (all four books)
-answers/<book>.md                                                   (all four books)
+statements/<book>.csv  <book>.csv.settings  <book>.camt053.xml   (all five books)
+answers/<book>.md                                                   (all five books)
 ```
 
 ## Make them again
@@ -53,7 +55,8 @@ in the book*; a CSV line has none, so it is shown as *looks the same* and the
 user decides (D-092). `<book>.csv.settings` holds the CSV settings the command
 line takes; in the app the user maps the columns Buchungstag, Valuta, Name
 Zahlungsbeteiligter, IBAN Zahlungsbeteiligter, Verwendungszweck, Betrag and
-Währung.
+Währung (for the English book: Booking date, Value date, Payee, Payee IBAN,
+Reference, Amount and Currency).
 
 ## The answer sheets
 
@@ -63,4 +66,5 @@ importer, the real report code (last month's food spending, income and
 expenses) and the real statement import with its duplicate check and balance
 check. Nobody writes them by hand. The test fails if a book, a statement or a
 sheet changes without the others, and it checks that every book has food
-spending last month and at least one Transfer.
+spending last month and at least one Transfer. The English book's sheet is in
+English, the others are in German.

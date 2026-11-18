@@ -67,6 +67,15 @@ Kirigami.Dialog {
         error.result = result.code !== undefined ? result : ({});
     }
 
+    // After a match or "Book it" with another amount than the plan's
+    // (#1143): ask whether the plan should expect it from now on. Nothing
+    // changes without the user's yes.
+    function askAmount(payment: var, result: var) {
+        if (result.newAmount !== undefined) {
+            amountPrompt.ask(payment, result.newAmount);
+        }
+    }
+
     title: i18nContext.i18nc("@title:window", "Planned payments")
     standardButtons: Kirigami.Dialog.Close
     preferredWidth: Kirigami.Units.gridUnit * 32
@@ -131,12 +140,33 @@ Kirigami.Dialog {
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     font: Kirigami.Theme.smallFont
-                    text: dialog.i18nContext.i18nc("@info %1 is the name of an account", "No entry in %1 fits it yet.", payment.modelData.account)
+                    text: (payment.modelData.changedId ?? "") !== ""
+                        ? dialog.i18nContext.i18nc("@info %1 is an amount, %2 a date", "An entry of %1 on %2 names the same person or company. It may be this payment with a new amount.", payment.modelData.changedAmount, payment.modelData.changedDate)
+                        : dialog.i18nContext.i18nc("@info %1 is the name of an account", "No entry in %1 fits it yet.", payment.modelData.account)
                 }
 
                 Flow {
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.smallSpacing
+
+                    // The entry of the plan's other party with another amount
+                    // (#1143): the user says it is this payment.
+                    Controls.Button {
+                        icon.name: "dialog-ok"
+                        visible: (payment.modelData.changedId ?? "") !== ""
+                        text: Plain.plain(dialog.i18nContext.i18nc("@action:button %1 is an amount", "It's this one, %1", payment.modelData.changedAmount ?? ""))
+                        onClicked: {
+                            ActionLog.taken("PlannedPaymentsDialog_matchChanged")
+                            const data = payment.modelData;
+                            // Later: reading again destroys this button while
+                            // its click is still being handled (M6-B242).
+                            Qt.callLater(() => {
+                                const result = dialog.plans.matchEntry(data.planId, data.dueOn, data.changedId);
+                                dialog.changed(result);
+                                dialog.askAmount(data, result);
+                            });
+                        }
+                    }
 
                     Controls.Button {
                         icon.name: "edit-link"
@@ -377,6 +407,50 @@ Kirigami.Dialog {
         ]
     }
 
+    // "Expect … from now on?" (#1143): the entry the user just matched or
+    // booked has another amount than the plan. Only the user's yes changes
+    // the plan, as one change that Undo takes back; "Keep" changes nothing
+    // and stores nothing.
+    Kirigami.PromptDialog {
+        id: amountPrompt
+
+        objectName: "plannedAmountPrompt"
+
+        property var payment: ({})
+        property var newAmount: ({})
+
+        function ask(chosen: var, asked: var) {
+            payment = chosen;
+            newAmount = asked;
+            open();
+        }
+
+        title: dialog.i18nContext.i18nc("@title:window %1 is an amount", "Expect %1 from now on?", Plain.plain(newAmount.exactAmount ?? ""))
+        subtitle: dialog.i18nContext.i18nc("@info %1 is the name of a planned payment, %2 and %3 amounts", "“%1” is planned with %2, and this entry has %3. If the amount has changed for good, for example a new salary or rent, KassenSturz can expect the new amount from now on. Payments already matched keep their own amounts, and Undo takes the change back.", Plain.plain(payment.name ?? ""), newAmount.exactPlanned ?? "", newAmount.exactAmount ?? "")
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: dialog.i18nContext.i18nc("@action:button %1 is an amount", "Expect %1", Plain.plain(amountPrompt.newAmount.exactAmount ?? ""))
+                icon.name: "dialog-ok-apply"
+                onTriggered: {
+                    ActionLog.taken("PlannedPaymentsDialog_expectAmount")
+                    const plan = amountPrompt.payment.planId;
+                    const entry = amountPrompt.newAmount.transactionId;
+                    amountPrompt.close();
+                    Qt.callLater(() => dialog.changed(dialog.plans.expectAmount(plan, entry)));
+                }
+            },
+            Kirigami.Action {
+                text: dialog.i18nContext.i18nc("@action:button %1 is an amount", "Keep %1", Plain.plain(amountPrompt.newAmount.exactPlanned ?? ""))
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    ActionLog.taken("PlannedPaymentsDialog_keepAmount")
+                    amountPrompt.close()
+                }
+            }
+        ]
+    }
+
     // "Book it" (2.5): a new entry from the plan, the amount and date as the
     // user leaves them.
     Kirigami.Dialog {
@@ -406,7 +480,9 @@ Kirigami.Dialog {
                     if (result.code !== undefined) {
                         bookError.result = result;
                     } else {
+                        const data = bookDialog.payment;
                         bookDialog.close();
+                        dialog.askAmount(data, result);
                     }
                 }
             },
@@ -508,7 +584,9 @@ Kirigami.Dialog {
                         if (result.code !== undefined) {
                             matchError.result = result;
                         } else {
+                            const data = matchDialog.payment;
                             matchDialog.close();
+                            dialog.askAmount(data, result);
                         }
                     }
                 }

@@ -31,6 +31,8 @@ pub enum Language {
     English,
     /// German.
     German,
+    /// Polish (B-379).
+    Polish,
 }
 
 impl Choice for Language {
@@ -39,6 +41,7 @@ impl Choice for Language {
         (Self::System, "system"),
         (Self::English, "en"),
         (Self::German, "de"),
+        (Self::Polish, "pl"),
     ];
 }
 
@@ -71,20 +74,29 @@ impl Language {
         match self {
             Self::English => Some(AnswerLanguage::English),
             Self::German => Some(AnswerLanguage::German),
-            Self::System => ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
-                .iter()
-                .filter_map(|name| std::env::var(name).ok())
-                .find(|value| !value.is_empty() && value != "C" && value != "POSIX")
-                .and_then(|value| {
-                    let code = value.to_ascii_lowercase();
-                    if code.starts_with("de") {
-                        Some(AnswerLanguage::German)
-                    } else if code.starts_with("en") {
-                        Some(AnswerLanguage::English)
-                    } else {
-                        None
-                    }
-                }),
+            Self::Polish => Some(AnswerLanguage::Polish),
+            Self::System => system_language().and_then(|code| {
+                if code.starts_with("de") {
+                    Some(AnswerLanguage::German)
+                } else if code.starts_with("pl") {
+                    Some(AnswerLanguage::Polish)
+                } else if code.starts_with("en") {
+                    Some(AnswerLanguage::English)
+                } else {
+                    None
+                }
+            }),
+        }
+    }
+
+    /// Whether the screens are in German: the choice, or for the system's
+    /// the language of its environment. The example-book chooser offers
+    /// the German Suburban Family then, the English one otherwise (D-843).
+    pub fn is_german(self) -> bool {
+        match self {
+            Self::English | Self::Polish => false,
+            Self::German => true,
+            Self::System => system_language().is_some_and(|code| code.starts_with("de")),
         }
     }
 
@@ -94,8 +106,19 @@ impl Language {
             Self::System => None,
             Self::English => Some("en_US.UTF-8"),
             Self::German => Some("de_DE.UTF-8"),
+            Self::Polish => Some("pl_PL.UTF-8"),
         }
     }
+}
+
+/// The system's language as its environment names it, in lower case, e.g.
+/// `de_de.utf-8`; none if nothing or only the plain "C" locale is set.
+fn system_language() -> Option<String> {
+    ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
+        .iter()
+        .filter_map(|name| std::env::var(name).ok())
+        .find(|value| !value.is_empty() && value != "C" && value != "POSIX")
+        .map(|value| value.to_ascii_lowercase())
 }
 
 /// The language that was in effect when the app started.
@@ -174,6 +197,17 @@ mod tests {
             Language::English.answer_language(),
             Some(AnswerLanguage::English)
         );
+        assert_eq!(
+            Language::Polish.answer_language(),
+            Some(AnswerLanguage::Polish)
+        );
+    }
+
+    #[test]
+    fn a_chosen_language_says_whether_the_screens_are_german() {
+        assert!(Language::German.is_german());
+        assert!(!Language::English.is_german());
+        assert!(!Language::Polish.is_german());
     }
 
     #[test]
@@ -223,6 +257,7 @@ mod tests {
         assert_eq!(Language::System.code(), None);
         assert_eq!(Language::English.code(), Some("en"));
         assert_eq!(Language::German.code(), Some("de"));
+        assert_eq!(Language::Polish.code(), Some("pl"));
     }
 
     #[test]
@@ -248,6 +283,50 @@ mod tests {
             assert!(
                 po.join(key).join("kassensturz.po").is_file(),
                 "no translation for {key}"
+            );
+        }
+    }
+
+    /// The other way round (B-379): every translation that ships in `po/`
+    /// is a language the user can choose, in Settings and on the first
+    /// page, so a new one can't ship without its choice. The lists are in
+    /// QML, as each language is named in itself there.
+    #[test]
+    fn every_translation_is_a_language_to_choose() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let pages: Vec<(&str, String)> = ["qml/SettingsLookPage.qml", "qml/WelcomePage.qml"]
+            .into_iter()
+            .map(|page| {
+                let text = std::fs::read_to_string(root.join(page)).expect("page readable");
+                (page, text)
+            })
+            .collect();
+        let mut found = 0;
+        for entry in std::fs::read_dir(root.join("../../po")).expect("po readable") {
+            let entry = entry.expect("po entry");
+            if !entry.path().join("kassensturz.po").is_file() {
+                continue;
+            }
+            let code = entry.file_name().to_string_lossy().into_owned();
+            found += 1;
+            assert!(
+                Language::CHOICES.iter().any(|(_, key)| *key == code),
+                "po/{code} ships, but Language has no choice for it"
+            );
+            for (page, text) in &pages {
+                assert!(
+                    text.contains(&format!("{{ value: \"{code}\", text: ")),
+                    "po/{code} ships, but {page} doesn't offer it"
+                );
+            }
+        }
+        assert!(found >= 2, "found only {found} translations");
+        // English is the source language and has no po file, but is always
+        // a choice too.
+        for (page, text) in &pages {
+            assert!(
+                text.contains("{ value: \"en\", text: \"English\" }"),
+                "{page}"
             );
         }
     }

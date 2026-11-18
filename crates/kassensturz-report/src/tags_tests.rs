@@ -482,10 +482,11 @@ fn the_kinds_that_count_parts_take_tags_and_the_others_do_not() {
     for kind in ComponentType::ALL {
         assert!(has_tags(kind), "{kind:?}");
     }
+    // The transactions tile lists by tag (D-838), and so takes them.
+    assert!(has_tags(ComponentType::Transactions));
     for kind in [
         ComponentType::BudgetProgress,
         ComponentType::ChartCandlestick,
-        ComponentType::Transactions,
         ComponentType::NetWorth,
         ComponentType::IncomeSources,
         ComponentType::CustomChart,
@@ -509,4 +510,127 @@ fn the_kinds_that_count_parts_take_tags_and_the_others_do_not() {
         assert_eq!(takes(id), Some(false), "{id}");
     }
     assert_eq!(Dimension::Tags.word(), "tags");
+}
+
+/// A dashboard of transactions tiles and a pie, all with the same tag and
+/// some with a category too (D-838).
+fn listing_dashboard(tag: TagId, category: AccountId) -> Document {
+    let (tag, category) = (tag.to_string(), category.to_string());
+    let text = json!({
+        "format": FORMAT, "version": VERSION, "kind": "dashboard", "name": "Taxes",
+        "components": [
+            {"id": "tagged", "type": "table.transactions",
+             "params": {"tags": [tag]},
+             "frame": {"col": 0, "row": 0, "cols": 6, "rows": 5}},
+            {"id": "tagged-in", "type": "table.transactions",
+             "params": {"tags": [tag], "categories": [category]},
+             "frame": {"col": 6, "row": 0, "cols": 6, "rows": 5}},
+            {"id": "pie-in", "type": "chart.pie", "dataset": "spending_by_category",
+             "params": {"tags": [tag], "categories": [category]},
+             "frame": {"col": 0, "row": 5, "cols": 6, "rows": 4}}
+        ]
+    })
+    .to_string();
+    Document::read(&text).expect("a valid dashboard")
+}
+
+#[test]
+fn a_transactions_tiles_own_tags_list_by_tag_and_agree_with_a_chart() {
+    let mut f = fixture();
+    let bill = entry(
+        date(2026, 11, 3),
+        vec![
+            Split::new(f.checking, money(-9_000)),
+            Split::new(f.food, money(6_000)),
+            tagged(Split::new(f.gifts, money(3_000)), &[f.tax]),
+        ],
+    );
+    let moved = entry(
+        date(2026, 11, 4),
+        vec![
+            Split::new(f.checking, money(-2_000)),
+            Split::new(f.savings, money(2_000)),
+        ],
+    )
+    .with_tags(vec![f.tax]);
+    let (bill_id, moved_id) = (bill.id(), moved.id());
+    add(&mut f.book, bill);
+    add(&mut f.book, moved);
+    add(
+        &mut f.book,
+        entry(
+            date(2026, 11, 5),
+            vec![
+                Split::new(f.checking, money(-1_000)),
+                Split::new(f.gifts, money(1_000)),
+            ],
+        ),
+    );
+    let source = Source::read(&f.book, november()).expect("read");
+    let listed = |page: &Document, id: &str| {
+        let applied = page
+            .asked(id, &Filters::default())
+            .expect("a tile asks")
+            .apply(&source)
+            .expect("applied");
+        assert!(applied.filtered.contains(&Dimension::Tags), "{id}");
+        assert_eq!(applied.notes, [], "{id}");
+        let mut ids: Vec<TransactionId> =
+            crate::listed_transactions(&source, november(), &applied.filter, 200)
+                .expect("listed")
+                .rows
+                .iter()
+                .map(|row| row.transaction)
+                .collect();
+        ids.sort();
+        (ids, applied.filter)
+    };
+    let spent = |filter: &Filter| {
+        spending_by_category(&source, november(), filter, Level::Each)
+            .unwrap()
+            .iter()
+            .map(|currency| currency.total.minor_units())
+            .sum::<i64>()
+    };
+
+    // The tag alone: the bill with a tagged part and the tagged Transfer.
+    let page = listing_dashboard(f.tax, f.gifts);
+    let (all, _) = listed(&page, "tagged");
+    let mut both = vec![bill_id, moved_id];
+    both.sort();
+    assert_eq!(all, both);
+    // With Gifts: the bill whose gifts part is tagged, and the pie with the
+    // same settings counts exactly that part.
+    let (in_gifts, filter) = listed(&page, "tagged-in");
+    assert_eq!(in_gifts, [bill_id]);
+    let pie = page
+        .asked("pie-in", &Filters::default())
+        .unwrap()
+        .apply(&source)
+        .unwrap();
+    assert_eq!(pie.filter, filter);
+    assert_eq!(spent(&pie.filter), 3_000);
+    // With Food, whose part is not tagged: the list finds nothing and the
+    // pie counts nothing.
+    let page = listing_dashboard(f.tax, f.food);
+    let (in_food, filter) = listed(&page, "tagged-in");
+    assert_eq!(in_food, []);
+    assert_eq!(spent(&filter), 0);
+}
+
+#[test]
+fn a_transactions_tile_writes_its_tags_only_once_one_is_ticked() {
+    // A tile with no tags is written as before D-838, so the document an
+    // older version reads is unchanged; a ticked tag is written and read
+    // back.
+    let mut tile = Component::new(ComponentType::Transactions, "").expect("a tile");
+    let value = tile.to_value();
+    assert!(value["params"].get("tags").is_none(), "{value}");
+    assert_eq!(Component::from_value(&value).unwrap(), tile);
+    let tax = TagId::generate().to_string();
+    tile.set("tags", Setting::Ids(vec![tax.clone()]))
+        .expect("set");
+    let value = tile.to_value();
+    assert_eq!(value["params"]["tags"], json!([tax]));
+    assert_eq!(Component::from_value(&value).unwrap(), tile);
 }

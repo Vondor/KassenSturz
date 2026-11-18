@@ -2252,7 +2252,7 @@ fn a_file_that_does_not_make_a_book_leaves_nothing_behind() {
     .expect("written");
     std::fs::write(
         new.0.join("busy.json"),
-        written.replace("\"version\": 15", "\"version\": 16"),
+        written.replace("\"version\": 16", "\"version\": 17"),
     )
     .expect("written");
     for (from, code) in [
@@ -2815,6 +2815,73 @@ fn schedule_due_refuses_a_range_it_would_not_look_at_whole() {
         none,
         "No payments are planned from 2026-01-01 to 2026-01-30.\n"
     );
+}
+
+// A salary that rose (#1143): the import names the entry but doesn't
+// match it; matching it by hand offers the new amount, and `schedule
+// amount` takes it, which `undo` takes back.
+#[test]
+fn a_changed_amount_is_offered_and_taken_only_on_the_users_word() {
+    let session = household();
+    let today = today();
+    session.ok(&[
+        "schedule",
+        "add",
+        "Checking account",
+        "2200",
+        "Salary",
+        "--from",
+        &today,
+        "--party",
+        "Example Employer",
+    ]);
+    let salary = plan_id(&session, "Salary");
+    let file = statement_file(
+        &session,
+        "salary.kstest",
+        &[
+            "account;DE89370400440532013000;;EUR",
+            &format!("entry;booked;{today};;2350.00;S1;Example Employer;;Salary"),
+        ],
+    );
+    let import = session.ok(&["import", &file, "--account", "Checking account"]);
+    assert!(!import.contains("to planned payments:"), "{import}");
+    assert!(
+        import.contains("These come from a planned payment's party with another amount"),
+        "{import}"
+    );
+    assert!(import.contains("2200.00 EUR"), "{import}");
+    let transaction = last_added(&session.ok(&["register", "Checking account"]));
+    let due_on = session.ok(&[
+        "schedule",
+        "due",
+        "--from",
+        &today,
+        "--to",
+        &in_three_days(),
+    ]);
+    let counted = due_on
+        .lines()
+        .find(|line| line.ends_with(&salary))
+        .and_then(|line| line.split_whitespace().nth(1))
+        .unwrap_or_else(|| panic!("no salary due: {due_on}"))
+        .to_owned();
+    let matched = session.ok(&["schedule", "match", &salary, &counted, &transaction]);
+    assert!(
+        matched.contains("isn't the plan's 2200.00 EUR"),
+        "{matched}"
+    );
+    assert!(matched.contains("`schedule amount"), "{matched}");
+    // Nothing changed by itself.
+    assert!(session.ok(&["schedule", "list"]).contains("2200.00 EUR"));
+    let taken = session.ok(&["schedule", "amount", &salary, &transaction]);
+    assert!(
+        taken.starts_with("The plan expects 2350.00 EUR from now on."),
+        "{taken}"
+    );
+    assert!(session.ok(&["schedule", "list"]).contains("2350.00 EUR"));
+    session.ok(&["undo"]);
+    assert!(session.ok(&["schedule", "list"]).contains("2200.00 EUR"));
 }
 
 #[test]

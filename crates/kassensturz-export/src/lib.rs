@@ -37,7 +37,7 @@ mod replace;
 
 pub use book::{
     BookData, BookExport, BookedByRule, FORMAT, MAX_FILE_BYTES, MAX_RULE_DEPTH, ScheduleData,
-    VERSION, ViewData, read_book, read_book_file,
+    TagByRule, VERSION, ViewData, read_book, read_book_file,
 };
 pub use csv::{CsvExport, CsvExportSettings, DecimalMark, Separator};
 pub use data::{AccountTransactions, Counterpart, ExportData, OriginalRow, TransactionRow};

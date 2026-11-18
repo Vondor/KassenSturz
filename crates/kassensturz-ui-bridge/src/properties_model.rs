@@ -1217,6 +1217,33 @@ mod tests {
     }
 
     #[test]
+    fn the_transactions_tile_offers_its_own_tags_and_the_preview_names_it() {
+        // Its own accounts, categories and tags (D-838), read back the way
+        // QML reads them; the panel names the tags field by `shows`.
+        let tile = component(ComponentType::Transactions, "");
+        let view = view_object(Some(&tile), None, NumberForm::DecimalComma);
+        let fields = list_of(&view, "fields");
+        let order: Vec<String> = fields.iter().map(|f| text_of(f, "key")).collect();
+        assert_eq!(
+            order,
+            [
+                "accounts",
+                "categories",
+                "tags",
+                "rows",
+                "title",
+                "hide_note"
+            ]
+        );
+        let tags = &fields[2];
+        assert_eq!(text_of(tags, "kind"), "ids");
+        assert_eq!(text_of(tags, "place"), "params");
+        assert!(list_of(tags, "ids").is_empty());
+        let preview = object_of(&view, "preview");
+        assert_eq!(text_of(&preview, "shows"), "transactions");
+    }
+
+    #[test]
     fn a_tile_with_nothing_to_set_says_so_and_every_tile_with_grey_marks_can_hide_them() {
         // The filter bar, the period header, the tabs and the notes have no
         // settings, no choice of data and no period (US1.8, #522).

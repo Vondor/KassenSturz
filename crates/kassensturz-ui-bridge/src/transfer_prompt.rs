@@ -491,6 +491,7 @@ mod tests {
             actions: kassensturz_core::Actions {
                 book_to: Some(kassensturz_core::BookTo::Category(category)),
                 payee: None,
+                tags: Vec::new(),
             },
         };
         book.add_rule(&rule, None).expect("Rule added");

@@ -665,6 +665,175 @@ fn a_late_file_matches_the_old_month_once() {
     );
 }
 
+// --- a changed amount (#1143) ---
+
+/// A salary of 2.200,00 € from an employer the plan remembers by name, due
+/// on Fri 27 Nov 2026.
+fn salary(account: AccountId) -> Schedule {
+    let mut salary = monthly(account, 220_000, day(2026, 11, 27));
+    salary.name = "Salary".to_owned();
+    salary.party_name = Some("Example Employer".to_owned());
+    salary
+}
+
+fn from_employer(account: AccountId, minor_units: i64, on: Date) -> ScheduleEntry {
+    let mut paid = entry(account, minor_units, on);
+    paid.party = OtherParty::new(None, Some("Example Employer"));
+    paid
+}
+
+#[test]
+fn an_amount_differs_only_beyond_the_tolerance_and_the_same_way() {
+    let checking = AccountId::generate();
+    let mut power = monthly(checking, -6_000, day(2026, 11, 16));
+    assert!(!amount_differs(&power, eur(-6_000)));
+    assert!(amount_differs(&power, eur(-6_001)));
+    assert!(amount_differs(&power, eur(-5_999)));
+    power.tolerance = eur(500);
+    assert!(!amount_differs(&power, eur(-6_500)));
+    assert!(!amount_differs(&power, eur(-5_500)));
+    assert!(amount_differs(&power, eur(-6_501)));
+    // Money going the other way, nothing, or another currency is no new
+    // amount for this plan.
+    assert!(!amount_differs(&power, eur(7_000)));
+    assert!(!amount_differs(&power, eur(0)));
+    assert!(!amount_differs(
+        &power,
+        Money::from_minor_units(-7_000, USD)
+    ));
+}
+
+#[test]
+fn an_entry_of_the_remembered_party_fits_but_for_its_amount() {
+    let checking = AccountId::generate();
+    let mut plan = salary(checking);
+    let due = due_dates(&plan, day(2026, 11, 1), day(2026, 11, 30))[0];
+    let near = |plan: &Schedule, paid: &ScheduleEntry| entry_fits_but_amount(plan, due, paid);
+    // Raised: fits but for the amount, and is no match.
+    let raised = from_employer(checking, 235_000, day(2026, 11, 26));
+    assert_eq!(near(&plan, &raised), Some((1, 1)));
+    assert_eq!(entry_fits(&plan, due, &raised), None);
+    // The planned amount is a match, not a change.
+    assert_eq!(
+        near(&plan, &from_employer(checking, 220_000, day(2026, 11, 27))),
+        None
+    );
+    // Another party, another account, money the other way, outside the
+    // window: no.
+    let mut other = raised.clone();
+    other.party = OtherParty::new(None, Some("Someone Else"));
+    assert_eq!(near(&plan, &other), None);
+    assert_eq!(
+        near(
+            &plan,
+            &from_employer(AccountId::generate(), 235_000, day(2026, 11, 26))
+        ),
+        None
+    );
+    assert_eq!(
+        near(&plan, &from_employer(checking, -235_000, day(2026, 11, 26))),
+        None
+    );
+    assert_eq!(
+        near(&plan, &from_employer(checking, 235_000, day(2026, 12, 3))),
+        None
+    );
+    // A plan that remembers no party can't tell its payment from any other
+    // entry: never.
+    plan.party_name = None;
+    assert_eq!(near(&plan, &raised), None);
+    // An IBAN it remembers must be the entry's.
+    plan.party_iban = Some(LANDLORD_IBAN.to_owned());
+    let mut by_iban = raised.clone();
+    by_iban.party = OtherParty::new(Some("DE89370400440532013000"), None);
+    assert_eq!(near(&plan, &by_iban), Some((1, 1)));
+    assert_eq!(near(&plan, &raised), None);
+}
+
+#[test]
+fn a_changed_amount_is_suggested_only_when_nothing_else_is_as_likely() {
+    let checking = AccountId::generate();
+    let plan = salary(checking);
+    let plans = std::slice::from_ref(&plan);
+    let occurrences = open(&plan, day(2026, 11, 1), day(2026, 11, 30));
+    let raised = from_employer(checking, 235_000, day(2026, 11, 27));
+    let found = amount_changes(plans, &occurrences, std::slice::from_ref(&raised));
+    assert_eq!(
+        found,
+        [AmountChange {
+            occurrence: occurrences[0],
+            transaction: raised.transaction,
+            amount: eur(235_000),
+        }]
+    );
+
+    // An entry that fits the plan is the payment: no suggestion, not even
+    // for the other entry.
+    let exact = from_employer(checking, 220_000, day(2026, 11, 26));
+    assert!(amount_changes(plans, &occurrences, &[raised.clone(), exact]).is_empty());
+
+    // Two entries as close: no guess.
+    let bonus = from_employer(checking, 50_000, day(2026, 11, 27));
+    assert!(amount_changes(plans, &occurrences, &[raised.clone(), bonus]).is_empty());
+
+    // A closer one wins over a farther one.
+    let later = from_employer(checking, 50_000, day(2026, 12, 1));
+    let found = amount_changes(plans, &occurrences, &[later.clone(), raised.clone()]);
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].transaction, raised.transaction);
+
+    // An entry that fits a payment of another plan is that payment's.
+    let mut other = monthly(checking, 235_000, day(2026, 11, 27));
+    other.name = "Rent paid back".to_owned();
+    let mut both = occurrences.clone();
+    both.extend(open(&other, day(2026, 11, 1), day(2026, 11, 30)));
+    assert!(
+        amount_changes(&[plan.clone(), other], &both, std::slice::from_ref(&raised)).is_empty()
+    );
+
+    // One entry near two payments of a weekly plan: neither.
+    let mut weekly = plan.clone();
+    weekly.id = ScheduleId::generate();
+    weekly.unit = ScheduleUnit::Week;
+    weekly.anchor = day(2026, 11, 23);
+    weekly.track_from = weekly.anchor;
+    let weeks = open(&weekly, day(2026, 11, 23), day(2026, 12, 4));
+    // Wed 25 Nov is two banking days after Mon 23 Nov and three before
+    // Mon 30 Nov.
+    let between = from_employer(checking, 235_000, day(2026, 11, 25));
+    assert_eq!(weeks.len(), 2);
+    assert!(amount_changes(std::slice::from_ref(&weekly), &weeks, &[between]).is_empty());
+}
+
+#[test]
+fn a_changed_amount_does_not_depend_on_order() {
+    let checking = AccountId::generate();
+    let plan = salary(checking);
+    let mut rent = monthly(checking, -85_000, day(2026, 11, 2));
+    rent.party_name = Some("Example Landlord".to_owned());
+    let mut occurrences = open(&plan, day(2026, 10, 1), day(2026, 11, 30));
+    occurrences.extend(open(&rent, day(2026, 10, 1), day(2026, 11, 30)));
+    let mut landlord = entry(checking, -90_000, day(2026, 11, 2));
+    landlord.party = OtherParty::new(None, Some("Example Landlord"));
+    // The salary counts from 27 Nov: an October entry is no payment of it.
+    let entries = vec![
+        from_employer(checking, 235_000, day(2026, 10, 27)),
+        from_employer(checking, 236_000, day(2026, 11, 27)),
+        landlord.clone(),
+    ];
+    let found = amount_changes(&[plan.clone(), rent.clone()], &occurrences, &entries);
+    let suggested: Vec<TransactionId> = found.iter().map(|change| change.transaction).collect();
+    assert_eq!(suggested, [landlord.transaction, entries[1].transaction]);
+    let mut reversed_entries = entries.clone();
+    reversed_entries.reverse();
+    let mut reversed = occurrences.clone();
+    reversed.reverse();
+    assert_eq!(
+        amount_changes(&[rent, plan], &reversed, &reversed_entries),
+        found
+    );
+}
+
 proptest! {
     #[test]
     fn matching_does_not_depend_on_order_and_takes_each_entry_once(

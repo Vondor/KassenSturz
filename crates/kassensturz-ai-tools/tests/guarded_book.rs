@@ -145,6 +145,7 @@ fn guarded_book_with(hostile: &str) -> (Book, Ids) {
         actions: Actions {
             book_to: Some(BookTo::Category(groceries.id)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&rule, None).expect("a Rule");

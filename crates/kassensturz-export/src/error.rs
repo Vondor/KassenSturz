@@ -7,7 +7,7 @@
 use std::io::ErrorKind;
 
 use kassensturz_core::{
-    CurrencyCode, ErrorParam, ErrorReport, Report, SplitId, TagId, TransactionError,
+    CurrencyCode, ErrorParam, ErrorReport, Report, SplitId, TagId, TransactionError, TransactionId,
 };
 
 /// Why data can't be exported, or a complete export can't be read back.
@@ -61,6 +61,15 @@ pub enum ExportError {
     UnlistedTag {
         /// The part.
         split: SplitId,
+        /// The tag.
+        tag: TagId,
+    },
+    /// A tag on a transaction is marked as added by a Rule, or as taken off
+    /// by the user, but the transaction doesn't carry it, or carries it
+    /// although it was taken off, or the book doesn't list it (D-827).
+    TagMarkWithoutTag {
+        /// The transaction.
+        transaction: TransactionId,
         /// The tag.
         tag: TagId,
     },
@@ -212,6 +221,11 @@ impl Report for ExportError {
             Self::UnlistedTag { split, tag } => ErrorReport::new("export.unlisted-tag")
                 .with("split", ErrorParam::Split(*split))
                 .with("tag", ErrorParam::Text(tag.to_string())),
+            Self::TagMarkWithoutTag { transaction, tag } => {
+                ErrorReport::new("export.tag-mark-without-tag")
+                    .with("transaction", ErrorParam::Transaction(*transaction))
+                    .with("tag", ErrorParam::Text(tag.to_string()))
+            }
             Self::RulesTooDeep { max } => {
                 ErrorReport::new("export.rules-too-deep").with("max", ErrorParam::count(*max))
             }

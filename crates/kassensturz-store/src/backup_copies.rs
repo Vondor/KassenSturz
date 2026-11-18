@@ -753,7 +753,7 @@ mod tests {
         fs::copy(&any, &older).expect("copied");
         Connection::open(&older)
             .and_then(|conn| {
-                conn.execute_batch("DROP TABLE parked_ai_rule_marks; DROP TABLE book_identity; PRAGMA user_version = 33;")
+                conn.execute_batch("DROP INDEX transaction_tags_by_rule; ALTER TABLE transaction_tags DROP COLUMN rule_id; ALTER TABLE transaction_tags DROP COLUMN by_rule; ALTER TABLE changed_transaction_tags DROP COLUMN rule_id; ALTER TABLE changed_transaction_tags DROP COLUMN by_rule; DROP TABLE rule_tags; DROP TABLE changed_rule_tags; DROP TABLE removed_transaction_tags; DROP TABLE changed_removed_transaction_tags; DROP TABLE parked_ai_rule_marks; DROP TABLE book_identity; PRAGMA user_version = 33;")
             })
             .expect("made old");
         fs::remove_file(&any).expect("removed");
@@ -1176,7 +1176,7 @@ mod tests {
         fs::copy(&backup, &older).expect("copied");
         Connection::open(&older)
             .and_then(|conn| {
-                conn.execute_batch("DROP TABLE parked_ai_rule_marks; DROP TABLE book_identity; PRAGMA user_version = 33;")
+                conn.execute_batch("DROP INDEX transaction_tags_by_rule; ALTER TABLE transaction_tags DROP COLUMN rule_id; ALTER TABLE transaction_tags DROP COLUMN by_rule; ALTER TABLE changed_transaction_tags DROP COLUMN rule_id; ALTER TABLE changed_transaction_tags DROP COLUMN by_rule; DROP TABLE rule_tags; DROP TABLE changed_rule_tags; DROP TABLE removed_transaction_tags; DROP TABLE changed_removed_transaction_tags; DROP TABLE parked_ai_rule_marks; DROP TABLE book_identity; PRAGMA user_version = 33;")
             })
             .expect("made old");
         add_account(&mut book, "Savings");

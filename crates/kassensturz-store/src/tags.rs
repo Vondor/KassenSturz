@@ -11,12 +11,21 @@
 
 use std::collections::HashMap;
 
-use kassensturz_core::{MAX_TAG_NAME_CHARS, MAX_TAGS_IN_BOOK, TagId};
+use kassensturz_core::{MAX_TAG_NAME_CHARS, MAX_TAGS_IN_BOOK, RuleId, TagId, TransactionId};
 use rusqlite::{OptionalExtension, params};
 
 use crate::cached::Cached;
 use crate::error::StoreError;
 use crate::{Action, Book};
+
+/// Who put a tag on a whole transaction (D-827).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TagAddedBy {
+    /// The user, by hand or by confirming a change the AI prepared.
+    User,
+    /// A Rule; `None` if that Rule was removed since.
+    Rule(Option<RuleId>),
+}
 
 /// How many transactions and parts carry one tag, for the list of tags
 /// (D-712).
@@ -126,6 +135,14 @@ impl Book {
                 .execute("DELETE FROM split_tags WHERE tag_id = ?1", [id])?;
             book.conn
                 .execute("DELETE FROM transaction_tags WHERE tag_id = ?1", [id])?;
+            // The Rules that add it and the memory of where the user took
+            // it off go with it; the Rules themselves stay (D-827).
+            book.conn
+                .execute("DELETE FROM rule_tags WHERE tag_id = ?1", [id])?;
+            book.conn.execute(
+                "DELETE FROM removed_transaction_tags WHERE tag_id = ?1",
+                [id],
+            )?;
             book.conn.execute("DELETE FROM tags WHERE id = ?1", [id])?;
             Ok(())
         })
@@ -145,6 +162,8 @@ impl Book {
             for (table, owner) in [
                 ("split_tags", "split_id"),
                 ("transaction_tags", "transaction_id"),
+                ("rule_tags", "rule_id"),
+                ("removed_transaction_tags", "transaction_id"),
             ] {
                 book.conn.execute(
                     &format!(
@@ -158,10 +177,62 @@ impl Book {
                     params![from, into],
                 )?;
             }
+            // A transaction that carries `into` now has nothing to remember
+            // about taking it off (D-827).
+            book.conn.execute(
+                "DELETE FROM removed_transaction_tags WHERE tag_id = ?1 AND transaction_id IN
+                     (SELECT transaction_id FROM transaction_tags WHERE tag_id = ?1)",
+                [into],
+            )?;
             book.conn
                 .execute("DELETE FROM tags WHERE id = ?1", [from])?;
             Ok(())
         })
+    }
+
+    /// Who added each tag on the whole of `transaction`, in the
+    /// transaction's order (D-827).
+    pub fn tag_sources(
+        &self,
+        transaction: TransactionId,
+    ) -> Result<Vec<(TagId, TagAddedBy)>, StoreError> {
+        Ok(self
+            .tag_sources_of(Some(transaction))?
+            .remove(&transaction)
+            .unwrap_or_default())
+    }
+
+    /// Who added each tag on the whole of every transaction, or of `only`,
+    /// each list in the transaction's order (D-827).
+    pub fn tag_sources_of(
+        &self,
+        only: Option<TransactionId>,
+    ) -> Result<HashMap<TransactionId, Vec<(TagId, TagAddedBy)>>, StoreError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT transaction_id, tag_id, by_rule, rule_id FROM transaction_tags
+             WHERE ?1 IS NULL OR transaction_id = ?1
+             ORDER BY transaction_id, position",
+        )?;
+        let rows = statement
+            .query_map([only.map(TransactionId::to_bytes)], |row| {
+                let by_rule: i64 = row.get(2)?;
+                let rule = row.get::<_, Option<[u8; 16]>>(3)?.map(RuleId::from_bytes);
+                Ok((
+                    TransactionId::from_bytes(row.get(0)?),
+                    TagId::from_bytes(row.get(1)?),
+                    if by_rule == 1 {
+                        TagAddedBy::Rule(rule)
+                    } else {
+                        TagAddedBy::User
+                    },
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut sources: HashMap<TransactionId, Vec<(TagId, TagAddedBy)>> = HashMap::new();
+        for (transaction, tag, by) in rows {
+            sources.entry(transaction).or_default().push((tag, by));
+        }
+        Ok(sources)
     }
 
     /// How many transactions and parts carry each tag that is used; a tag

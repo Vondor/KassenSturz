@@ -44,9 +44,10 @@ use kassensturz_report::{
 };
 use kassensturz_store::Book;
 
-/// One example book: its slug, German title, the KMyMoney file it is read
-/// from (relative to `tests/books/`), the account the statements belong to,
-/// the food category (top level) and the book's own currency.
+/// One example book: its slug, title, the KMyMoney file it is read from
+/// (relative to `tests/books/`), the account the statements belong to, the
+/// food category (top level), the book's own currency, and whether its
+/// answer sheet is in English (the English book, D-843) or German.
 struct Example {
     slug: &'static str,
     title: &'static str,
@@ -54,9 +55,10 @@ struct Example {
     account: &'static str,
     food: &'static str,
     currency: &'static str,
+    english: bool,
 }
 
-const EXAMPLES: [Example; 4] = [
+const EXAMPLES: [Example; 5] = [
     Example {
         slug: "suburban-family",
         title: "Suburban Family (Familie Sommerfeld)",
@@ -64,6 +66,16 @@ const EXAMPLES: [Example; 4] = [
         account: "Girokonto",
         food: "Essen",
         currency: "EUR",
+        english: false,
+    },
+    Example {
+        slug: "suburban-family-en",
+        title: "Suburban Family (English, the Summerfield Family)",
+        file: "examples/suburban-family-en-v15.sqlite",
+        account: "Checking account",
+        food: "Food",
+        currency: "EUR",
+        english: true,
     },
     Example {
         slug: "flower-utopia",
@@ -72,6 +84,7 @@ const EXAMPLES: [Example; 4] = [
         account: "Vereinskonto",
         food: "Essen und Trinken",
         currency: "EUR",
+        english: false,
     },
     Example {
         slug: "udssr-agent",
@@ -80,6 +93,7 @@ const EXAMPLES: [Example; 4] = [
         account: "Gehaltskonto",
         food: "Verpflegung",
         currency: "RUB",
+        english: false,
     },
     Example {
         slug: "space-colony",
@@ -88,6 +102,7 @@ const EXAMPLES: [Example; 4] = [
         account: "Everyday Checking",
         food: "Food",
         currency: "EUR",
+        english: false,
     },
 ];
 
@@ -137,6 +152,15 @@ fn code(text: &str) -> CurrencyCode {
 
 /// An amount as a German reader writes it: `1.234,56 EUR`.
 fn german(money: Money) -> String {
+    written(money, '.', ',')
+}
+
+/// An amount as an English reader writes it: `1,234.56 EUR`.
+fn english(money: Money) -> String {
+    written(money, ',', '.')
+}
+
+fn written(money: Money, group: char, decimal: char) -> String {
     let minor = money.minor_units();
     let sign = if minor < 0 { "-" } else { "" };
     let minor = minor.unsigned_abs();
@@ -144,12 +168,16 @@ fn german(money: Money) -> String {
     let mut grouped = String::new();
     for (place, digit) in whole.chars().rev().enumerate() {
         if place > 0 && place % 3 == 0 {
-            grouped.push('.');
+            grouped.push(group);
         }
         grouped.push(digit);
     }
     let grouped: String = grouped.chars().rev().collect();
-    format!("{sign}{grouped},{:02} {}", minor % 100, money.currency())
+    format!(
+        "{sign}{grouped}{decimal}{:02} {}",
+        minor % 100,
+        money.currency()
+    )
 }
 
 const MONTHS: [&str; 12] = [
@@ -165,6 +193,21 @@ const MONTHS: [&str; 12] = [
     "Oktober",
     "November",
     "Dezember",
+];
+
+const MONTHS_EN: [&str; 12] = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
 ];
 
 /// Card 4: last month's food total in the book's own currency, and what
@@ -270,9 +313,10 @@ fn answer_sheet(example: &Example) -> String {
     let book = the_book(example);
     let card4 = overview(&book, example, today);
     let last = Period::last_month(today).expect("last month").first();
+    let months = if example.english { MONTHS_EN } else { MONTHS };
     let last_name = format!(
         "{} {}",
-        MONTHS[usize::from(last.month().unsigned_abs()) - 1],
+        months[usize::from(last.month().unsigned_abs()) - 1],
         last.year()
     );
 
@@ -308,6 +352,9 @@ fn answer_sheet(example: &Example) -> String {
         .income
         .checked_sub(card4.expenses)
         .expect("a difference");
+    if example.english {
+        return english_sheet(example, &card4, net, &last_name, &camt, &csv);
+    }
     let mut sheet = String::new();
     let _ = write!(
         sheet,
@@ -367,6 +414,76 @@ Verwendungszweck, Betrag, Währung) stehen in `{slug}.csv.settings`.\n",
     sheet
 }
 
+/// The answer sheet of the English book (D-843): the same figures and
+/// checks as the German sheets, in English.
+fn english_sheet(
+    example: &Example,
+    card4: &Overview,
+    net: Money,
+    last_name: &str,
+    camt: &Imports,
+    csv: &Imports,
+) -> String {
+    let (year, month) = reference();
+    let mut sheet = String::new();
+    let _ = write!(
+        sheet,
+        "# Answer sheet: {title}\n\n\
+This sheet is written by the test `example_books` (`crates/kassensturz-pipeline/tests/example_books.rs`) \
+from the real import and report code, not by hand. The book and the \
+statements are made by `tools/example-books/generate.py`; nothing in them \
+belongs to a real person.\n\n\
+Reference month: {year}-{month:02} (last month is {last_name}). The book goes \
+back about two years. If you make it in a later month, KassenSturz moves every \
+date by whole months so that the reference month is the running month; the \
+figures below are then those of the month before the running one. KassenSturz \
+leaves out bookings after today. The statements match the book only in the \
+reference month itself.\n\n\
+## Card 4: Overview\n\n\
+- Spent on \u{201c}{food}\u{201d} in {last_name}: **{food_total}**\n\
+- Money in during {last_name}: {income}; money out: {expenses}; \
+difference: {net}\n\
+- Did more come in than go out? **{more}**\n\n\
+## Card 5: Read a bank statement (account \u{201c}{account}\u{201d})\n\n\
+Both files are in `crates/kassensturz-import/tests/books/examples/statements/` \
+and hold the same {lines} lines; exactly one of them is already in the book.\n\n\
+| File | Lines | new | already in the book (duplicate) | looks the same (you decide) | closing balance from the bank | balance after reading |\n\
+|---|---|---|---|---|---|---|\n\
+| `{slug}.camt053.xml` | {lines} | {c_new} | {c_dup} | {c_sim} | {closing} | {after} |\n\
+| `{slug}.csv` | {lines} | {s_new} | {s_dup} | {s_sim} | (a CSV file has none) | – |\n\n\
+A CAMT file carries the bank's number for every line, so KassenSturz safely \
+finds the line that is already there as a duplicate. A CSV file has no such \
+number; the line that is already there has the same amount and almost the same \
+date as a booking in the book, so it is only shown as \u{201c}looks the \
+same\u{201d} and you decide whether to read it anyway. The other {new_lines} \
+lines are new. Reading the CAMT file first and the CSV file after it, \
+KassenSturz finds every line already in the book.\n\n\
+The CSV settings (delimiter \u{201c},\u{201d}, decimal point, year-month-day, \
+columns Booking date, Value date, Payee, Payee IBAN, Reference, Amount, \
+Currency) are in `{slug}.csv.settings`.\n",
+        title = example.title,
+        food = example.food,
+        food_total = english(card4.food),
+        income = english(card4.income),
+        expenses = english(card4.expenses),
+        net = english(net),
+        more = if net.minor_units() > 0 { "Yes" } else { "No" },
+        account = example.account,
+        slug = example.slug,
+        lines = camt.lines,
+        c_new = camt.new,
+        c_dup = camt.duplicates,
+        c_sim = camt.similar,
+        closing = english(camt.bank_closing.expect("a closing balance")),
+        after = english(camt.balance_after),
+        s_new = csv.new,
+        s_dup = csv.duplicates,
+        s_sim = csv.similar,
+        new_lines = camt.lines - 1,
+    );
+    sheet
+}
+
 /// Compares `text` with the committed file, or writes it when blessing.
 fn check_file(path: &PathBuf, text: &str) {
     if bless() {
@@ -396,6 +513,11 @@ fn check_example(slug: &str) {
 #[test]
 fn suburban_family_answer_sheet() {
     check_example("suburban-family");
+}
+
+#[test]
+fn english_suburban_family_answer_sheet() {
+    check_example("suburban-family-en");
 }
 
 #[test]
@@ -463,7 +585,10 @@ const BUDGETS: [(&str, i64); 5] = [
 ];
 
 fn flower_utopia_with_budgets() -> Book {
-    let example = &EXAMPLES[1];
+    let example = EXAMPLES
+        .iter()
+        .find(|example| example.slug == "flower-utopia")
+        .expect("Flower Utopia");
     let mut book = the_book(example);
     let categories: HashMap<String, _> = book
         .categories()
@@ -626,7 +751,7 @@ fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
             .into_iter()
             .map(|account| account.id.to_string())
             .collect();
-        let overview_name = if example.slug == "space-colony" {
+        let overview_name = if example.slug == "space-colony" || example.english {
             "Overview"
         } else {
             "Übersicht"

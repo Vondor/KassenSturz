@@ -116,6 +116,7 @@ Kirigami.ScrollablePage {
         bookToKind = form.bookToKind ?? "";
         bookTo = form.bookTo ?? "";
         payeeField.text = form.payee ?? "";
+        ruleTagField.tags = form.tags ?? [];
     }
 
     property bool matchAll: true
@@ -157,6 +158,7 @@ Kirigami.ScrollablePage {
             bookToKind: bookToKind,
             bookTo: bookTo,
             payee: payeeField.text,
+            tags: ruleTagField.tags,
         };
     }
 
@@ -372,6 +374,28 @@ Kirigami.ScrollablePage {
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Show this name as From or To:")
                 placeholderText: page.i18nContext.i18nc("@info:placeholder", "Leave empty to keep it")
                 Accessible.name: page.i18nContext.i18nc("@label:textbox", "The name to show")
+            }
+
+            // The tags it adds to the whole transaction (D-827): only tags
+            // the book has, chosen from the list.
+            TagField {
+                id: ruleTagField
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Add tags:")
+                accessibleName: page.i18nContext.i18nc("@label:textbox", "Tags the Rule adds")
+                choices: page.choices.tags ?? []
+                canCreate: false
+            }
+
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 20
+                textFormat: Text.PlainText
+                text: page.bookToKind === "" && payeeField.text.trim() === "" && ruleTagField.tags.length > 0
+                    ? page.i18nContext.i18nc("@info", "This Rule only adds tags. The Rules after it still sort the transaction. A tag you take off a transaction yourself is not put back.")
+                    : page.i18nContext.i18nc("@info", "Tags are only added, never taken off. A tag you take off a transaction yourself is not put back. Make new tags on the Tags page.")
+                wrapMode: Text.Wrap
+                font: Kirigami.Theme.smallFont
             }
         }
 

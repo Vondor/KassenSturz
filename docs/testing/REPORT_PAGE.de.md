@@ -13,7 +13,7 @@ Schicken Sie den ausgefüllten Fragebogen und Ihre Fehlerberichte **direkt und n
 
 ## Was gehört in einen Bericht?
 
-Ein Blatt pro Problem:
+Ein Blatt pro Problem. KassenSturz kann es Ihnen abnehmen: Unter **Einstellungen › KassenSturz testen** hilft Schritt 3, eine Notiz mit diesen Feldern zu schreiben, mit Versionsnummer und Art der Installation. Mit „Notiz kopieren“ kommt sie in die Zwischenablage, und Sie fügen sie in Ihre E-Mail ein. Das Programm verschickt nichts selbst.
 
 | Feld | Was hier hinein gehört |
 |---|---|

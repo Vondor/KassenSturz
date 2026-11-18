@@ -1,6 +1,6 @@
 # KassenSturz as a snap
 
-**Status:** built for #892 (US7, D-765). `packaging/snap/snapcraft.yaml` and `.github/workflows/snap.yml` are in; **the snap has not run on a real desktop yet**, only in CI's install check. Publishing is the maintainer's step (AGENTS.md §3.2). All names here are invented or the project's own.
+**Status:** in the Snap Store's `beta` channel since release `v0.261117.8` (revision 1, uploaded by `release.yml`, #892, D-765). The snap ran on a real desktop in the US7 test rounds (Kubuntu VM). Publishing stays the maintainer's step (AGENTS.md §3.2): only his release tag uploads. How users install it: [`INSTALL.md`](INSTALL.md). All names here are invented or the project's own.
 
 ## 1. What a user gets
 
@@ -63,7 +63,7 @@ Data outside home (e.g. `/srv/data/Nextcloud/`): choose the folder in the file c
 
 ## 5. Known gaps and risks
 
-- **Not run on a real desktop.** CI proves build, install and a first window under a virtual display. Wayland, GPU, portals, the keyring and a card reader still need a person.
+- **Removing the snap deletes its folder.** `snap remove` deletes `~/snap/kassensturz/`, where the book of the first start and its backups lie; snapd keeps an automatic snapshot for 31 days (`snap saved`, `snap restore`). `INSTALL.md` tells users to move their books out first. A card reader on a real desktop is still unchecked.
 - **Qt and Frameworks versions.** `CMakeLists.txt` asks for Qt 6.11 and KF 6.29. `kf6-core24` is built by KDE neon and its stable channel may be older (the `kf6-core24-sdk` of June 2026 had Qt 6.11.1 and KF 6.27). If CI fails with "Could not find KF6 6.29", either the stable content snap is waited for or the minimum used for the snap is lowered; that is a decision for the maintainer, not made here.
 - **Layout paths.** AqBanking's plug-in folders are bound with `layout`. If a library installs under a multiarch folder, the install check's library listing shows it, and the layout is fixed.
 - **Online build.** The snap build downloads crates and rustup; a store-side "remote build" is not used. Reproducibility comes from `Cargo.lock` and the pinned tarball checksums.
@@ -71,19 +71,19 @@ Data outside home (e.g. `/srv/data/Nextcloud/`): choose the folder in the file c
 
 ## 6. Channels
 
-`edge` for main builds, `beta` for pre-releases, `stable` at Gold (issue #892). Only the pre-release part is built: `release.yml` uploads a tag's snap to `beta` when the store login exists. A main build is **not** uploaded, because that would publish without the maintainer's tag (§3.2); proposed in section 8.
+`beta` for pre-releases, `stable` at Gold (issue #892): `release.yml` uploads a tag's snap to `beta`. A main build is **not** uploaded to `edge`, because that would publish without the maintainer's tag (§3.2); test rounds install the main build's CI artifact instead. Whether main builds go to `edge` after all is open question Q-632 (safe default: no).
 
 ## 7. Canonical's terms
 
-The Snap Store terms (canonical.com) could not be read from this build environment (the host is outside its network allow-list), so **the legal check of #892 is still open**: the maintainer reads the Snap Store Terms of Service and the publisher rules and tells us if anything conflicts with GPL-3.0-or-later, AI-made packaging or this project's rules. The packaging itself contains nothing beyond a free-software snap.
+The Snap Store terms (canonical.com) could not be read from this build environment (the host is outside its network allow-list, checked again on 18 Nov 2026), so **the legal check of #892 is still open**: the maintainer reads the Snap Store Terms of Service and the publisher rules and tells us if anything conflicts with GPL-3.0-or-later, AI-made packaging or this project's rules. The packaging itself contains nothing beyond a free-software snap.
 
 ## 8. What needs the maintainer
 
-1. A Snapcraft (Ubuntu One) account and the registration of the snap's name. The name in the file, `kassensturz`, is provisional; the store may already hold it.
-2. The login as CI secret: run `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -` and store the output as the secret `SNAPCRAFT_STORE_CREDENTIALS` of the environment `release`. Until then the upload job only warns.
+1. Done: the Snapcraft account and the name `kassensturz` are registered.
+2. Done: the login is the secret `SNAPCRAFT_STORE_CREDENTIALS` of the environment `release`; release `v0.261117.8` uploaded with it. Without it the upload job only warns. A login made with `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -` is limited to `beta`, so `stable` at Gold then needs a new one.
 3. Optionally a request to the store for auto-connection of `password-manager-service` and `pcscd` (section 4), or leave it manual.
 4. Read the terms (section 7).
-5. The store page. `snapcraft.yaml` carries every store key the reference offers (title, summary, description, license, website, source-code, issues, contact, donation, icon). The category and the screenshots exist only on snapcraft.io. The store copies the file's metadata into the listing only for a stable release, and only while the listing has not been edited on the web; once someone saves the listing on the web, the web page owns it and the file's texts no longer reach it. Keep the two the same.
+5. Done for the Beta: the listing was filled in on snapcraft.io. `snapcraft.yaml` carries every store key the reference offers (title, summary, description, license, website, source-code, issues, contact, donation, icon). The category and the screenshots exist only on snapcraft.io. The store copies the file's metadata into the listing only for a stable release, and only while the listing has not been edited on the web; once someone saves the listing on the web, the web page owns it and the file's texts no longer reach it. Keep the two the same.
 
 ## Folder checks for the VM rounds
 

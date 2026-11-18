@@ -305,6 +305,43 @@ Kirigami.ScrollablePage {
             }
         }
 
+        // New entries of a planned payment's other party with another amount
+        // (#1143): not matched, nothing changed; the user checks them under
+        // "Did this happen?", where one click matches it and asks whether
+        // the plan should expect the new amount.
+        FormCard.FormCard {
+            visible: (page.view.plannedChanged ?? []).length > 0
+
+            FormCard.FormTextDelegate {
+                textItem.textFormat: Text.PlainText
+                descriptionItem.textFormat: Text.PlainText
+                icon.name: "dialog-question"
+                text: page.i18nContext.i18ncp("@info", "%1 planned payment may have a new amount.", "%1 planned payments may have a new amount.", (page.view.plannedChanged ?? []).length)
+                description: page.i18nContext.i18nc("@info", "An entry names the same person or company with another amount, so it was not matched and nothing was changed. To check it: Accounts › Planned payments…")
+            }
+
+            Repeater {
+                model: page.view.plannedChanged ?? []
+
+                delegate: ColumnLayout {
+                    id: changedRow
+
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    spacing: 0
+
+                    FormCard.FormDelegateSeparator {}
+
+                    FormCard.FormTextDelegate {
+                        textItem.textFormat: Text.PlainText
+                        icon.name: "view-calendar-upcoming-events"
+                        text: page.i18nContext.i18nc("@info %1 is the name of a planned payment, %2 an amount, %3 a date, %4 the planned amount", "%1: %2 on %3, planned %4", changedRow.modelData.name, changedRow.modelData.amount, changedRow.modelData.date, changedRow.modelData.planned)
+                    }
+                }
+            }
+        }
+
         // Sides that fit a monthly move but were left for the user.
         FormCard.FormHeader {
             visible: (page.view.needsYou ?? 0) > 0

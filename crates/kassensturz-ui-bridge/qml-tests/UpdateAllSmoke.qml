@@ -185,6 +185,7 @@ Kirigami.ApplicationWindow {
             window.check(window.opened[0] === "a1/t2", "a notice opens its transaction, got " + window.opened);
 
             window.button("Seen").clicked();
+            window.check(bank.calls.includes("summarySeen"), "Seen tells the bank, so the status icon forgets the run (B-378)");
             window.check(bank.updateSummary.accounts === undefined, "Seen clears the summary");
             window.check(window.button("Update all accounts") !== undefined, "the button is back");
 

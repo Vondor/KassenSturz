@@ -38,6 +38,10 @@ Dieses Handbuch gibt es auch [auf Englisch](../en/README.md).
 19. [Wenn etwas nicht klappt](19-probleme.md)
 20. [Wörter in der App, erklärt](20-woerter.md)
 
+**Vorausplanen**
+
+21. [Geplante Zahlungen](21-geplante-zahlungen.md)
+
 Das ältere, kürzere [Benutzerhandbuch](../USER_GUIDE.de.md) wird von diesem Handbuch abgelöst und bleibt nur als Kurzfassung stehen.
 
 Wie sicher Ihre Daten bei KassenSturz sind, was wir angegriffen und was wir behoben haben, steht auf der Seite [Wie sicher ist KassenSturz?](../../SECURITY_OVERVIEW.de.md)

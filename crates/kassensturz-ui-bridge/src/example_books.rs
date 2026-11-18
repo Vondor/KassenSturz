@@ -30,10 +30,26 @@ use crate::book_from_file::{self, Created, FromFileError};
 use crate::books::{Books, Filled, OpenBook, ProblemText};
 use crate::format::Locale;
 
+/// In which language of the app the chooser offers an example book.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Offered {
+    /// Whatever language the app runs in.
+    Always,
+    /// Only when the app runs in German.
+    InGerman,
+    /// Only when the app runs in any other language (D-843).
+    NotInGerman,
+}
+
 /// One example book that is bundled with the app.
 pub struct Example {
     /// What QML calls it, e.g. `space-colony`.
     pub id: &'static str,
+    /// Whether it is the one suggested to start with (D-540 plan, M7a.2): a
+    /// household most people recognize.
+    pub suggested: bool,
+    /// When the chooser offers it.
+    offered: Offered,
     /// The KMyMoney SQLite book.
     bytes: &'static [u8],
     /// The book as a complete export, if it has one: it holds what a
@@ -42,24 +58,36 @@ pub struct Example {
     export: Option<&'static [u8]>,
 }
 
-/// The id of the book suggested to start with (D-540 plan, M7a.2): a
-/// household most people recognize.
-pub const SUGGESTED: &str = "suburban-family";
-
 /// The bundled books, in the order the chooser shows them: the suggested
 /// start first. The ids are the ones `ExampleBookChooser.qml` and the test
 /// below know. The bank files that go with them are in the same folder
-/// (`examples/statements/`, M7a.8).
+/// (`examples/statements/`, M7a.8). Suburban Family comes in German and in
+/// English with the same amounts; the chooser offers the one in the app's
+/// language, and English for any language but German (D-843). The others
+/// are in one language each.
 static EXAMPLES: &[Example] = &[
     Example {
         id: "suburban-family",
+        suggested: true,
+        offered: Offered::InGerman,
         bytes: include_bytes!(
             "../../kassensturz-import/tests/books/examples/suburban-family-v15.sqlite"
         ),
         export: None,
     },
     Example {
+        id: "suburban-family-en",
+        suggested: true,
+        offered: Offered::NotInGerman,
+        bytes: include_bytes!(
+            "../../kassensturz-import/tests/books/examples/suburban-family-en-v15.sqlite"
+        ),
+        export: None,
+    },
+    Example {
         id: "flower-utopia",
+        suggested: false,
+        offered: Offered::Always,
         bytes: include_bytes!(
             "../../kassensturz-import/tests/books/examples/flower-utopia-v15.sqlite"
         ),
@@ -69,11 +97,15 @@ static EXAMPLES: &[Example] = &[
     },
     Example {
         id: "space-colony",
+        suggested: false,
+        offered: Offered::Always,
         bytes: include_bytes!("../../kassensturz-import/tests/books/space-colony-5y-v15.sqlite"),
         export: None,
     },
     Example {
         id: "udssr-agent",
+        suggested: false,
+        offered: Offered::Always,
         bytes: include_bytes!(
             "../../kassensturz-import/tests/books/examples/udssr-agent-v15.sqlite"
         ),
@@ -81,9 +113,21 @@ static EXAMPLES: &[Example] = &[
     },
 ];
 
-/// The bundled books.
+/// The bundled books, in every language.
 pub fn all() -> &'static [Example] {
     EXAMPLES
+}
+
+/// The bundled books the chooser offers when the app runs in German
+/// (`german`) or in another language, in the order to show them (D-843).
+pub fn offered(german: bool) -> impl Iterator<Item = &'static Example> {
+    EXAMPLES
+        .iter()
+        .filter(move |example| match example.offered {
+            Offered::Always => true,
+            Offered::InGerman => german,
+            Offered::NotInGerman => !german,
+        })
 }
 
 /// Why an example book wasn't made.
@@ -283,18 +327,106 @@ mod tests {
     /// description there would show as an empty row.
     const KNOWN: &[&str] = &[
         "suburban-family",
+        "suburban-family-en",
         "flower-utopia",
         "space-colony",
         "udssr-agent",
     ];
 
     #[test]
-    fn every_bundled_book_has_a_known_id_and_the_suggested_one_is_known() {
+    fn every_bundled_book_has_a_known_id() {
         assert!(!all().is_empty());
         for example in all() {
             assert!(KNOWN.contains(&example.id), "{}", example.id);
         }
-        assert!(KNOWN.contains(&SUGGESTED));
+    }
+
+    /// D-843: in either language the chooser offers four books, one
+    /// Suburban Family in that language first and suggested, and the
+    /// other three as they are.
+    #[test]
+    fn the_chooser_offers_suburban_family_in_the_apps_language() {
+        for (german, first) in [(true, "suburban-family"), (false, "suburban-family-en")] {
+            let ids: Vec<&str> = offered(german).map(|example| example.id).collect();
+            assert_eq!(
+                ids,
+                [first, "flower-utopia", "space-colony", "udssr-agent"],
+                "german: {german}"
+            );
+            let suggested: Vec<&str> = offered(german)
+                .filter(|example| example.suggested)
+                .map(|example| example.id)
+                .collect();
+            assert_eq!(suggested, [first]);
+        }
+    }
+
+    /// D-843, where the generator meets the bridge: the English book is the
+    /// German one in English. The same accounts, categories and bookings
+    /// with the same amounts on the same days, and no German name left.
+    #[test]
+    fn the_english_suburban_family_is_the_german_one_in_english() {
+        let made = |id: &str| {
+            let folder = TestFolder::new();
+            let books = Books::in_folder(folder.path(), "Desk");
+            let (open, _) = create_on(
+                &books,
+                id,
+                "Example",
+                &TestLocale,
+                Date::constant(2026, 11, 20),
+            )
+            .expect("made");
+            let mut names: Vec<String> = open
+                .book
+                .accounts(true)
+                .expect("accounts")
+                .into_iter()
+                .map(|account| account.name)
+                .collect();
+            names.extend(
+                open.book
+                    .categories()
+                    .expect("categories")
+                    .into_iter()
+                    .map(|entry| entry.category.name),
+            );
+            let mut bookings: Vec<(Date, i64)> = open
+                .book
+                .transactions()
+                .expect("transactions")
+                .iter()
+                .flat_map(|transaction| {
+                    transaction
+                        .splits()
+                        .iter()
+                        .map(|part| (transaction.booking_date(), part.amount.minor_units()))
+                        .collect::<Vec<_>>()
+                })
+                .collect();
+            bookings.sort_unstable();
+            (names, bookings)
+        };
+        let (german_names, german) = made("suburban-family");
+        let (english_names, english) = made("suburban-family-en");
+        assert_eq!(german, english);
+        assert_eq!(german_names.len(), english_names.len());
+        for name in [
+            "Checking account",
+            "Credit card",
+            "Food",
+            "Groceries",
+            "Home",
+        ] {
+            assert!(english_names.iter().any(|known| known == name), "{name}");
+        }
+        for name in &english_names {
+            assert!(!german_names.contains(name), "{name}");
+            assert!(
+                !name.contains(['ä', 'ö', 'ü', 'ß', 'Ä', 'Ö', 'Ü']),
+                "{name}"
+            );
+        }
     }
 
     #[test]

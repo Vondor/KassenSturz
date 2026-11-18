@@ -22,6 +22,8 @@ pub enum AnswerLanguage {
     English,
     /// German.
     German,
+    /// Polish.
+    Polish,
 }
 
 impl AnswerLanguage {
@@ -29,6 +31,7 @@ impl AnswerLanguage {
         match self {
             Self::English => "English",
             Self::German => "German",
+            Self::Polish => "Polish",
         }
     }
 }

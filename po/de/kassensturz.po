@@ -21238,6 +21238,18 @@ msgstr "Keine Buchungen in diesen Kategorien in diesem Zeitraum."
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml
 #, kde-format
 msgctxt "@info"
+msgid "No transactions with these tags in these categories in this period."
+msgstr "Keine Buchungen mit diesen Schlagwörtern in diesen Kategorien in diesem Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
+msgid "No transactions with these tags in this period."
+msgstr "Keine Buchungen mit diesen Schlagwörtern in diesem Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+#, kde-format
+msgctxt "@info"
 msgid "No transactions in this period."
 msgstr "Keine Buchungen in diesem Zeitraum."
 
@@ -22001,6 +22013,12 @@ msgstr "Schlagwörter: %1"
 msgctxt "@label which tags the money of a chart, table or card is limited to"
 msgid "Only count these tags"
 msgstr "Nur diese Schlagwörter zählen"
+
+#: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml
+#, kde-format
+msgctxt "@label which tags the transactions a list shows must carry, on the whole transaction or a part"
+msgid "Only these tags"
+msgstr "Nur diese Schlagwörter"
 
 #, kde-format
 msgctxt "@info"

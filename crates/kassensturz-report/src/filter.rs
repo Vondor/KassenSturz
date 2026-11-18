@@ -47,7 +47,9 @@ pub struct Filter {
     /// category yet), each once, in the transaction's currency, so a tag on
     /// the whole transaction never counts its account side, and a Transfer,
     /// which has none, counts nothing. A part with two of the tags counts
-    /// once.
+    /// once. The transactions tile lists by its own rule instead
+    /// ([`crate::listed_transactions`], D-838): it adds nothing up, so a
+    /// tagged Transfer is listed.
     pub tags: Option<Vec<TagId>>,
 }
 
@@ -369,12 +371,10 @@ pub fn takes(component: &Component) -> Takes {
     match component.kind() {
         ComponentType::NetWorth => Takes::NO_CATEGORIES,
         ComponentType::IncomeSources => Takes::ALL,
-        // Its list keeps whole transactions and has no tags to choose
-        // (D-716), so a tag never narrows it.
-        ComponentType::Transactions => Takes {
-            tags: false,
-            ..Takes::ALL
-        },
+        // Its list keeps whole transactions and takes its own tags too
+        // (D-838, amends D-716), by the list's own rule in
+        // `listed_transactions`: it finds, it never adds up.
+        ComponentType::Transactions => Takes::ALL,
         kind if kind.shows_no_data() => Takes::NOTHING,
         _ => component.dataset().takes,
     }

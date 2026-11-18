@@ -132,7 +132,7 @@ pub enum ComponentType {
     /// [`ComponentType::ALL`].
     ChartFlow,
     /// `table.transactions`: single transactions of the chosen accounts,
-    /// categories and period, newest first, like an account's list (US4.7,
+    /// categories, tags (D-838) and period, newest first, like an account's list (US4.7,
     /// D-716). It only shows them; a click opens the transaction. Its own
     /// bridge object fills it, so its document names no dataset, and like
     /// the income sources it takes every shared filter. It is in
@@ -528,7 +528,8 @@ const ACCOUNTS: Property = Property {
 };
 /// `params.tags` (US5.2, D-714): only the parts that carry one of these
 /// tags count, so the component shows a sum by tag. Empty means every part.
-/// The filter bar has no tags, so this is the component's own only.
+/// The filter bar has no tags, so this is the component's own only. On the
+/// transactions tile it chooses which transactions are listed (D-838).
 const TAGS: Property = Property {
     key: TAGS_KEY,
     place: Place::Params,
@@ -1047,9 +1048,10 @@ const ROWS: Property = Property {
     kind: Kind::Choice(&crate::LISTED_ROWS),
 };
 
-/// The transactions tile (US4.7, D-716): its own accounts and categories,
-/// how many rows, a title, the grey notes switch and the period.
-const TRANSACTIONS: [Property; 6] = [ACCOUNTS, CATEGORIES, ROWS, TITLE, HIDE_NOTE, PERIOD];
+/// The transactions tile (US4.7, D-716): its own accounts, categories and
+/// tags (D-838), how many rows, a title, the grey notes switch and the
+/// period.
+const TRANSACTIONS: [Property; 7] = [ACCOUNTS, CATEGORIES, TAGS, ROWS, TITLE, HIDE_NOTE, PERIOD];
 
 fn invalid(reason: &'static str, path: String) -> ReportError {
     ReportError::DocumentInvalid { reason, path }

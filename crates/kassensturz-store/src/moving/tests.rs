@@ -639,6 +639,31 @@ fn only_a_book_that_isnt_open_elsewhere_is_removed() {
     assert!(!lock_path(&setup.from).exists());
 }
 
+/// A journal with a zero header next to a left book (a program killed
+/// before its save began) goes with the book, so nothing stray stays; a
+/// journal the book may need keeps both (#1011, D-776).
+#[test]
+fn a_left_books_empty_journal_goes_with_it_and_a_needed_one_keeps_it() {
+    let setup = Setup::new();
+    let journal = with_suffix(&setup.from, "-journal");
+    fs::write(&journal, [1u8; 512]).expect("written");
+    assert!(matches!(
+        remove_left_book(&setup.from, &setup.computer),
+        Err(StoreError::Io(ErrorKind::ResourceBusy))
+    ));
+    assert!(setup.from.exists());
+    assert!(journal.exists());
+
+    fs::write(&journal, [0u8; 512]).expect("written");
+    remove_left_book(&setup.from, &setup.computer).expect("removed");
+    assert!(!setup.from.exists());
+    assert!(!journal.exists());
+    assert_eq!(
+        names_in(setup.from.parent().expect("folder")),
+        Vec::<String>::new()
+    );
+}
+
 #[test]
 fn another_writer_waits_while_the_move_holds_the_lock_and_a_reader_reads() {
     let setup = Setup::new();

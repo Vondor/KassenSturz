@@ -352,7 +352,7 @@ jobs:
   # login. It is off until he sets the repository variable STORE_UPLOAD
   # (docs/WINDOWS.md, section 2):
   #   - `draft`: the package goes up as a draft submission; he presses
-  #     "Submit" in Partner Center (the default, Q-631);
+  #     "Submit" in Partner Center (the maintainer's choice, Q-631);
   #   - `submit`: the submission goes to Microsoft's certification at once;
   #     with the variable STORE_FLIGHT_ID it goes to that package flight only.
   # Its result does not change the GitHub release, which is already published.

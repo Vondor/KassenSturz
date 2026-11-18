@@ -50,7 +50,7 @@ It is **off** until you set the repository variable `STORE_UPLOAD` (Settings →
 | `STORE_UPLOAD` | What happens |
 |---|---|
 | not set (default) | the job is skipped; upload by hand as below |
-| `draft` | the package goes up as a **draft** submission; you open the app in Partner Center, look at it and press *Submit* (recommended until Q-631 is answered) |
+| `draft` | the package goes up as a **draft** submission; you open the app in Partner Center, look at it and press *Submit* (the maintainer's choice, D-844, Q-631) |
 | `submit` | the submission goes to Microsoft's certification at once; certification still takes Microsoft's usual time |
 
 An optional variable `STORE_FLIGHT_ID` (a package flight's ID from Partner Center) sends the package to that flight only, i.e. to the testers in its group, instead of to everyone who can see the listing.

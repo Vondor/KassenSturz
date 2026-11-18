@@ -71,7 +71,7 @@ Data outside home (e.g. `/srv/data/Nextcloud/`): choose the folder in the file c
 
 ## 6. Channels
 
-`beta` for pre-releases, `stable` at Gold (issue #892): `release.yml` uploads a tag's snap to `beta`. A main build is **not** uploaded to `edge`, because that would publish without the maintainer's tag (§3.2); test rounds install the main build's CI artifact instead. Whether main builds go to `edge` after all is open question Q-632 (safe default: no).
+`beta` for pre-releases, `stable` at Gold (issue #892): `release.yml` uploads a tag's snap to `beta`. A main build is **not** uploaded to `edge`, because that would publish without the maintainer's tag (§3.2); test rounds install the main build's CI artifact instead. The maintainer kept it that way (D-845, Q-632): no `edge` uploads.
 
 ## 7. Canonical's terms
 

@@ -6,9 +6,10 @@
 //! This crate holds what a plugin and KassenSturz agree on before any plugin
 //! code runs: the [`Manifest`] a plugin ships (D-847), the [`ApiVersion`] it
 //! targets, the [`ExtensionPoint`]s it fills and the [`Permission`]s it asks
-//! for (D-848). It reads and checks a manifest and refuses anything it does
-//! not fully understand; it runs no plugin. The host that loads and sandboxes
-//! the WASM modules is a separate crate (`kassensturz-plugin-host`, step 2).
+//! for (D-848), and the plugin file that carries them (D-849). It reads and
+//! checks a plugin file and refuses anything it does not fully understand; it
+//! runs no plugin. The host that loads and sandboxes the WASM modules is
+//! `kassensturz-plugin-host` (D-850).
 //!
 //! A manifest is untrusted input (AGENTS.md §8): its texts are data that the
 //! UI shows as plain text, never as markup or instructions.
@@ -19,6 +20,7 @@
 
 mod error;
 mod manifest;
+mod package;
 mod permission;
 mod version;
 
@@ -27,8 +29,11 @@ pub use manifest::{
     MANIFEST_VERSION, MAX_DESCRIPTION_CHARS, MAX_MANIFEST_BYTES, MAX_NAME_CHARS, Manifest,
     PluginId, PluginVersion,
 };
+pub use package::{MANIFEST_SECTION, MAX_PLUGIN_BYTES, Package};
 pub use permission::{ExtensionPoint, Permission};
 pub use version::{API_VERSION, ApiVersion};
 
+#[cfg(test)]
+mod package_tests;
 #[cfg(test)]
 mod tests;

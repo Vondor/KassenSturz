@@ -37,7 +37,7 @@ There is no permission for files: an importer gets the bytes of the file the use
 
 ## 4. The manifest (D-847)
 
-Every plugin carries one manifest: a JSON object of at most 16 KiB. Where it sits inside the plugin file is defined with the package format (*not built yet*, #791 step 2).
+Every plugin carries one manifest: a JSON object of at most 16 KiB, in the custom section `kassensturz-manifest` of the plugin file (section 5).
 
 ```json
 {
@@ -73,6 +73,47 @@ Every plugin carries one manifest: a JSON object of at most 16 KiB. Where it sit
 
 All texts of a manifest are untrusted (AGENTS.md §8): KassenSturz shows them as plain text, never as markup or instructions.
 
-## 5. Still to come (#791)
+## 5. The plugin file (D-849)
 
-The host that loads and sandboxes the modules and the package format (step 2, waiting for the choice of WASM runtime, a new direct dependency), the **Plugins** tab, the calls of each extension point, one example plugin per extension point, and a "write your own plugin" guide.
+A plugin file is **one WebAssembly module** (binary format version 1), at most 16 MiB. Any file name works; `.wasm` is usual.
+
+- The manifest is the custom section `kassensturz-manifest`, exactly once.
+- Other custom sections (such as `name` or `producers`, which compilers write) are ignored. A custom section whose name starts with `kassensturz-` and that this KassenSturz doesn't know refuses the file, so a later API version's data is never silently skipped.
+- A **data-only** plugin (`theme`, `ui_density`) is a module without code: no function, code or start section. Where its data sits comes with those extension points (*not built yet*).
+- KassenSturz reads the manifest without running or compiling anything, so the Plugins tab can show it first.
+
+With a Rust plugin, one way to add the section is a static in the plugin's source:
+
+```rust
+#[unsafe(link_section = "kassensturz-manifest")]
+pub static MANIFEST: [u8; 123] = *br#"{"manifest_version":1, ...}"#;
+```
+
+where the array length is the manifest's length in bytes.
+
+## 6. How KassenSturz runs a plugin (D-850)
+
+The runtime is **wasmi**, an interpreter (Q-633): no compiler comes into the app.
+
+**What the module must export:**
+
+| Export | Kind | What it is |
+|---|---|---|
+| `memory` | memory | The one memory, through which bytes go in and out. |
+| `ks_alloc` | `(len: i32) -> i32` | Gives the host room for `len` bytes and returns the address. |
+| the calls of its extension points | `(ptr: i32, len: i32) -> i64` | Each takes the input at `ptr` with `len` bytes, and returns the output's address in the high 32 bits and its length in the low 32 bits. Which names each extension point calls, and what goes in and out, comes with that extension point (*not built yet*). |
+
+A call: KassenSturz calls `ks_alloc(len)`, copies the input there, calls the export, and copies the output out of the plugin's memory. The plugin never sees KassenSturz's memory. Input and output are bytes; the extension points will use UTF-8 JSON, with amounts as text in minor units, never as floating point (AGENTS.md §3.1 rule 1).
+
+**What the plugin gets: nothing it isn't given.**
+
+- **No imports.** API 1.0 offers no host function, so a module that imports anything is refused. Later steps add functions in the module `kassensturz`, each behind a permission of section 3. There is no WASI: no files, clock, randomness or network.
+- **Limits.** At most one memory of 64 MiB, one table of 10 000 elements, one instance, and fuel for about a billion instructions per call (also for the module's start function). A plugin that grows its memory past the limit gets `-1` from `memory.grow`; one that runs out of fuel is stopped. At most 16 MiB go in and come out per call.
+- **One strike.** After a trap, running out of fuel, or giving no room for its input, the plugin takes no more calls until it is loaded again, since its state can't be trusted.
+- **AI off means not loaded.** A plugin with the `ai_provider` extension point is never loaded while "AI features" is off (D-013, D-754).
+
+Every refusal has an error code (`plugin.*` and `plugin-host.*` in `docs/ERROR_CODES.md`).
+
+## 7. Still to come (#791)
+
+The **Plugins** tab, the calls and host functions of each extension point, the data of themes and UI density, one example plugin per extension point, and a "write your own plugin" guide.

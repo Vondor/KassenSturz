@@ -26,7 +26,7 @@ kassensturz/
 │   ├── kassensturz-bank/           # read-only bank connections: the Bank trait, IBAN → bank setup, PIN session, fetched data → Statement, fake bank for tests — see D-053, D-060, D-145, D-146
 │   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060; gwengui/ holds the C++ library for Gwenhywfar's Qt dialogs (Q-035)
 │   ├── kassensturz-plugin-api/     # the plugin API v1: manifest, API version, extension points, permissions (#791, D-753, D-847, D-848)
-│   ├── kassensturz-plugin-host/    # loads and sandboxes WASM plugins (D-007; in 1.0, built during the Beta, D-753; not built yet)
+│   ├── kassensturz-plugin-host/    # loads plugin files and runs their WASM in wasmi with memory, table and fuel limits and no imports (D-007, D-753, D-850)
 │   ├── kassensturz-platform/       # keychain, config paths, notifications behind traits
 │   ├── kassensturz-charts/         # the chart model types of the ChartProvider boundary (text labels, drawing values, text table; no Qt) — D-276; KQuickCharts itself is a QML module (D-275)
 │   ├── kassensturz-report/         # the report designer's reporting layer: read-only datasets, periods, filters, exact totals, calculated metrics, the dashboard document and its limits (M6, D-277, D-278)
@@ -130,6 +130,7 @@ kassensturz/
 - Extension points of API v1: Importer, Exporter, Report, Automation (AGENTS.md §7), AI provider (D-754), Theme and UI density (D-756). Settings pages, Wizards and Dashboard widgets come with API v1.1 after Gold (#818, D-756, D-759).
 - Versioned API (`MAJOR.MINOR`, `kassensturz-plugin-api`). The manifest (D-847, `docs/PLUGINS.md`) declares ID, name, version, target API version, extension points and permissions; the permissions each extension point may ask for are fixed (D-848).
 - Narrow, permission-checked data access. No raw SQL access.
+- A plugin file is one WebAssembly module with its manifest in a custom section (D-849). The host runs it in wasmi, an interpreter (Q-633), with no imports, bytes in and out, and limits on memory, table and time (D-850).
 - WASM only, for sandboxing and cross-platform portability. Out-of-process (JSON-RPC) plugins are not part of v1: they can't be sandboxed, so the permission model couldn't be enforced for them (D-007).
 - Users add a downloaded plugin file, in KassenSturz's plugin package format (defined with the plugin host), in the **Plugins** tab, which shows the permissions it requests. No plugin store in v1: a store run by the project would be a hosted service (AGENTS.md §3.3).
 - The Importer part of the plugin interface is defined during M1–M2 as a native Rust trait: built-in importers implement it directly, and the WASM plugin API mirrors it once it exists (D-069, D-071).

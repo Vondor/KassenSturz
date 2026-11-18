@@ -1,6 +1,6 @@
 # Error codes
 
-KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform`, `kassensturz-report`, `kassensturz-ai-tools` and `kassensturz-plugin-api` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
+KassenSturz's Rust crates never produce user-facing text (D-034). Every error in `kassensturz-core`, `kassensturz-store`, `kassensturz-import`, `kassensturz-export`, `kassensturz-bank`, `kassensturz-platform`, `kassensturz-report`, `kassensturz-ai-tools`, `kassensturz-plugin-api` and `kassensturz-plugin-host` turns into an error report (`kassensturz_core::ErrorReport`, through the `Report` trait):
 
 - a **code**, such as `store.account-closed`;
 - named, typed **parameters**, such as the account that is closed;
@@ -15,7 +15,7 @@ This list is the reference for that. A test in `kassensturz-store` (`src/error/t
 ## Rules
 
 - **Codes are stable.** A code keeps its meaning. One that is no longer needed is retired, never given to another error. Before 0.1, codes can still change, like the book's layout (D-045).
-- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform`, `report`, `ai`, `ai-tools` or `plugin`. Damage found in a book starts with `store.corrupt`.
+- **Codes** are lowercase words joined by hyphens, in parts separated by dots. The first part says where the error comes from: `money`, `decimal`, `currency`, `transaction`, `transfer`, `rule` (core), `store`, `import`, `export`, `bank`, `platform`, `report`, `ai`, `ai-tools`, `plugin` or `plugin-host`. Damage found in a book starts with `store.corrupt`.
 - **Parameters** are listed in the order the report gives them. A name ending in `?` is optional: the report leaves it out when it isn't known.
 - **Parameter types** (`ErrorParam`):
   - Amounts (`Money`), currencies, dates and timestamps stay typed. The UI formats them for the user's locale (D-002, D-065) and shows timestamps in the user's time zone.
@@ -615,3 +615,30 @@ Why a plugin file can't be added: its manifest (D-847) or the permissions it ask
 | `plugin.unknown-permission` | `name` | | This plugin asks for a permission KassenSturz doesn't know ("{name}"). Update KassenSturz, or ask the plugin's author. |
 | `plugin.permission-not-allowed` | `permission` | `read_book`, `propose_changes`, `network` | This plugin asks for more than its kind of plugin may have ({permission}), so KassenSturz doesn't add it. Ask the plugin's author. |
 | `plugin.data-only-mixed` | | | A plugin that changes the app's look or layout can't also run code, so KassenSturz doesn't add this one. Ask the plugin's author. |
+| `plugin.file-too-big` | `max_bytes` | | This plugin file is larger than {max_bytes} bytes, so KassenSturz doesn't read it. Check that you picked a plugin file. |
+| `plugin.not-a-plugin` | | | This file isn't a KassenSturz plugin, or it is cut off or damaged. Download the plugin again. |
+| `plugin.manifest-missing` | | | This file is a WebAssembly module but not a KassenSturz plugin: it doesn't describe itself. Ask the plugin's author. |
+| `plugin.manifest-twice` | | | This plugin describes itself twice, so KassenSturz can't tell which description is true and doesn't add it. Ask the plugin's author. |
+| `plugin.unknown-section` | `name` | | This plugin holds a part this KassenSturz doesn't know ("{name}"). Update KassenSturz, or ask the plugin's author. |
+| `plugin.data-only-has-code` | | | A plugin that changes the app's look or layout may not contain code, and this one does, so KassenSturz doesn't add it. Ask the plugin's author. |
+
+## Running plugins (`kassensturz-plugin-host`)
+
+Why a plugin couldn't be loaded or stopped while it ran (D-850). A refused plugin file reports its `plugin.*` code instead. `{module}` and `{name}` are text from the plugin file, shown as plain text. After `plugin-host.ran-too-long`, `plugin-host.trapped` or `plugin-host.input-not-accepted` the plugin takes no more calls until it is loaded again.
+
+| Code | Parameters | Keywords | What happened, and what the user can do |
+|---|---|---|---|
+| `plugin-host.ai-off` | | | This plugin belongs to the AI features, which are switched off. Turn on "AI features" in Settings to use it. |
+| `plugin-host.module-invalid` | | | This plugin's code is damaged or uses something KassenSturz doesn't run. Download the plugin again, or ask its author. |
+| `plugin-host.import-not-allowed` | `module`, `name` | | This plugin wants to reach something KassenSturz doesn't give plugins ("{module}" "{name}"), so it isn't started. Ask the plugin's author. |
+| `plugin-host.start-failed` | | | This plugin failed while starting, or asked for more memory than KassenSturz gives a plugin. Ask the plugin's author. |
+| `plugin-host.export-missing` | `name` | | This plugin lacks a part KassenSturz needs ("{name}"). Ask the plugin's author. |
+| `plugin-host.export-wrong-type` | `name` | | A part of this plugin doesn't fit what KassenSturz expects ("{name}"). Ask the plugin's author. |
+| `plugin-host.no-code` | | | This plugin only changes the app's look or layout and can't do this. |
+| `plugin-host.input-too-big` | `max_bytes` | | This is more than {max_bytes} bytes, more than KassenSturz hands a plugin. Try a smaller file or a shorter period. |
+| `plugin-host.input-not-accepted` | | | The plugin gave KassenSturz no room for its input, so it was stopped. Load it again, or ask the plugin's author. |
+| `plugin-host.output-too-big` | `max_bytes` | | The plugin's answer is larger than {max_bytes} bytes, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author. |
+| `plugin-host.output-invalid` | | | The plugin's answer was damaged, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author. |
+| `plugin-host.ran-too-long` | | | The plugin worked too long and was stopped. Nothing was changed. Try a smaller file or a shorter period, or ask the plugin's author. |
+| `plugin-host.trapped` | | | The plugin failed and was stopped. Nothing was changed. Ask the plugin's author. |
+| `plugin-host.stopped` | | | The plugin was stopped earlier. Load it again to use it. |

@@ -59,6 +59,24 @@ pub enum PluginError {
     /// A theme or UI density plugin also names an extension point that runs
     /// code (D-756).
     DataOnlyMixed,
+    /// The plugin file is bigger than KassenSturz reads (D-849).
+    FileTooBig {
+        /// The most bytes a plugin file may have.
+        max_bytes: usize,
+    },
+    /// The file isn't a WebAssembly module, or it is cut off or damaged.
+    NotAPlugin,
+    /// The module has no manifest section.
+    ManifestMissing,
+    /// The module has two manifest sections.
+    ManifestTwice,
+    /// The module has a KassenSturz section this version doesn't know.
+    UnknownSection {
+        /// The section's name, as the file has it.
+        name: String,
+    },
+    /// A theme or UI density plugin holds code (D-756).
+    DataOnlyHasCode,
 }
 
 impl core::fmt::Display for PluginError {
@@ -95,6 +113,14 @@ impl Report for PluginError {
                     .with("permission", ErrorParam::Keyword(permission.key()))
             }
             Self::DataOnlyMixed => ErrorReport::new("plugin.data-only-mixed"),
+            Self::FileTooBig { max_bytes } => ErrorReport::new("plugin.file-too-big")
+                .with("max_bytes", ErrorParam::count(*max_bytes)),
+            Self::NotAPlugin => ErrorReport::new("plugin.not-a-plugin"),
+            Self::ManifestMissing => ErrorReport::new("plugin.manifest-missing"),
+            Self::ManifestTwice => ErrorReport::new("plugin.manifest-twice"),
+            Self::UnknownSection { name } => ErrorReport::new("plugin.unknown-section")
+                .with("name", ErrorParam::Text(name.clone())),
+            Self::DataOnlyHasCode => ErrorReport::new("plugin.data-only-has-code"),
         }
     }
 }
@@ -132,6 +158,12 @@ mod tests {
             PluginError::UnknownExtensionPoint { name: "x".into() },
             PluginError::UnknownPermission { name: "x".into() },
             PluginError::DataOnlyMixed,
+            PluginError::FileTooBig { max_bytes: 1 },
+            PluginError::NotAPlugin,
+            PluginError::ManifestMissing,
+            PluginError::ManifestTwice,
+            PluginError::UnknownSection { name: "x".into() },
+            PluginError::DataOnlyHasCode,
         ];
         for reason in [
             "missing",

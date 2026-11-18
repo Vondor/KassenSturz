@@ -159,7 +159,7 @@ pub struct TagTransaction {
 
 /// The tag IDs of the list `name` of `item`, each a tag of the book, each
 /// once.
-fn tag_ids(
+pub(super) fn tag_ids(
     item: &Object<'_>,
     name: &'static str,
     known: &[kassensturz_core::Tag],

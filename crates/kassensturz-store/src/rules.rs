@@ -19,8 +19,8 @@ use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{
     Account, AccountId, Actions, AmountTest, BookTo, Condition, CurrencyCode, ForeignAmount,
-    MatchMode, Money, Rule, RuleFacts, RuleId, RuleNode, RuleSet, Split, SplitId, TextField,
-    TextOperator, Transaction, TransactionId, TransferError,
+    MAX_TAGS_ON_TRANSACTION, MatchMode, Money, Rule, RuleFacts, RuleId, RuleNode, RuleSet, RuleTag,
+    Split, SplitId, TagId, TextField, TextOperator, Transaction, TransactionId, TransferError,
 };
 use rusqlite::{OptionalExtension, params};
 
@@ -39,6 +39,29 @@ pub struct RuleRun {
     /// The transactions a Rule matched but couldn't change, oldest first,
     /// e.g. because an exchange rate is missing. They stay as they are.
     pub skipped: Vec<RuleSkip>,
+    /// The transactions the Rules add tags to, oldest first (D-827).
+    pub tagged: Vec<RuleTagging>,
+}
+
+impl RuleRun {
+    /// Whether the run changes nothing: no category, payee or tag.
+    pub fn changes_nothing(&self) -> bool {
+        self.changed.is_empty() && self.tagged.is_empty()
+    }
+}
+
+/// The tags the Rules add to one transaction (D-827).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuleTagging {
+    /// The transaction.
+    pub transaction: TransactionId,
+    /// The user's account whose register shows it: the first of its parts
+    /// the Rules looked at.
+    pub account: AccountId,
+    /// The tags added, each with the Rule that adds it, in the order the
+    /// Rules are checked. Never empty, and never a tag the transaction
+    /// carries or one the user took off it.
+    pub tags: Vec<RuleTag>,
 }
 
 /// One transaction the Rules match ([`Book::rule_matches`]).
@@ -113,6 +136,40 @@ pub struct RuleMark {
     pub split: SplitId,
     /// The Rule that decided, or `None` if it was removed since.
     pub rule: Option<RuleId>,
+}
+
+/// What the Rules need to know about the book to tag its transactions.
+struct TagLists<'a> {
+    /// Transactions that look like one side of a Transfer.
+    suggested: &'a HashSet<TransactionId>,
+    /// Sides of a remembered monthly move.
+    waiting: &'a HashSet<TransactionId>,
+    /// Whether an account is one of the user's own.
+    is_account: &'a dyn Fn(AccountId) -> bool,
+}
+
+/// `rule` and every Rule below it in `tree`; empty if it isn't there.
+fn rule_and_sub_rules(tree: &[RuleNode], rule: RuleId) -> HashSet<RuleId> {
+    fn all(node: &RuleNode, into: &mut HashSet<RuleId>) {
+        into.insert(node.rule.id);
+        for sub in &node.sub_rules {
+            all(sub, into);
+        }
+    }
+    fn find(nodes: &[RuleNode], rule: RuleId) -> Option<&RuleNode> {
+        nodes.iter().find_map(|node| {
+            if node.rule.id == rule {
+                Some(node)
+            } else {
+                find(&node.sub_rules, rule)
+            }
+        })
+    }
+    let mut found = HashSet::new();
+    if let Some(node) = find(tree, rule) {
+        all(node, &mut found);
+    }
+    found
 }
 
 /// A change the Rules make to one transaction.
@@ -300,7 +357,11 @@ impl Book {
             .optional()?
             .ok_or(StoreError::UnknownRule(id))?;
         let mut conditions = self.conditions(Some(id))?;
-        row.into_rule(conditions.remove(&id).unwrap_or_default())
+        let mut tags = self.rule_tags(Some(id))?;
+        row.into_rule(
+            conditions.remove(&id).unwrap_or_default(),
+            tags.remove(&id).unwrap_or_default(),
+        )
     }
 
     /// Every Rule as a tree, each list in the user's order.
@@ -313,6 +374,7 @@ impl Book {
             .collect::<Result<Vec<_>, _>>()?;
         drop(statement);
         let mut conditions = self.conditions(None)?;
+        let mut tags = self.rule_tags(None)?;
         let mut children: HashMap<Option<RuleId>, Vec<(i64, Rule)>> = HashMap::new();
         let count = rows.len();
         let ids: HashSet<RuleId> = rows.iter().map(|row| row.id).collect();
@@ -324,7 +386,8 @@ impl Book {
             }
             let (parent, position) = (row.parent, row.position);
             let own = conditions.remove(&row.id).unwrap_or_default();
-            let rule = row.into_rule(own)?;
+            let own_tags = tags.remove(&row.id).unwrap_or_default();
+            let rule = row.into_rule(own, own_tags)?;
             children.entry(parent).or_default().push((position, rule));
         }
         let mut sorted: HashMap<Option<RuleId>, Vec<Rule>> = children
@@ -542,13 +605,11 @@ impl Book {
     /// category open, so a later run can still book that transaction.
     pub fn run_rules(&mut self) -> Result<RuleRun, StoreError> {
         let (run, planned) = self.plan(&self.rules()?, Scope::Uncategorized, None)?;
-        if planned.is_empty() {
+        if planned.is_empty() && run.tagged.is_empty() {
             return Ok(run);
         }
         self.as_one_action(Action::RunRules, |book| {
-            for change in &planned {
-                book.write_planned(change)?;
-            }
+            book.write_run(&run, &planned)?;
             Ok(run)
         })
     }
@@ -561,13 +622,11 @@ impl Book {
     pub fn run_rules_on(&mut self, transactions: &[TransactionId]) -> Result<RuleRun, StoreError> {
         let only: HashSet<TransactionId> = transactions.iter().copied().collect();
         let (run, planned) = self.plan(&self.rules()?, Scope::Only(&only), None)?;
-        if planned.is_empty() {
+        if planned.is_empty() && run.tagged.is_empty() {
             return Ok(run);
         }
         self.as_one_action(Action::RunRules, |book| {
-            for change in &planned {
-                book.write_planned(change)?;
-            }
+            book.write_run(&run, &planned)?;
             Ok(run)
         })
     }
@@ -603,13 +662,11 @@ impl Book {
     /// (D-630). A Rule that doesn't exist is refused.
     pub fn apply_rules(&mut self, apply: ApplyRules) -> Result<RuleRun, StoreError> {
         let (run, planned) = self.plan_apply(apply)?;
-        if planned.is_empty() {
+        if planned.is_empty() && run.tagged.is_empty() {
             return Ok(run);
         }
         self.as_one_action(Action::RunRules, |book| {
-            for change in &planned {
-                book.write_planned(change)?;
-            }
+            book.write_run(&run, &planned)?;
             Ok(run)
         })
     }
@@ -766,7 +823,176 @@ impl Book {
                 });
             }
         }
+        if !matches!(scope, Scope::BookedBy(_)) {
+            let only = match scope {
+                Scope::Only(only) => Some(only),
+                _ => None,
+            };
+            let from = decided_by.map(|rule| rule_and_sub_rules(tree, rule));
+            let lists = TagLists {
+                suggested: &suggested,
+                waiting: &waiting,
+                is_account: &is_account,
+            };
+            self.plan_tags(&rules, only, from.as_ref(), &lists, &mut run)?;
+        }
         Ok((run, planned))
+    }
+
+    /// Adds to `run` the tags the Rules add to the book's transactions, or
+    /// to those in `only` (D-827). With `from`, only tags of those Rules.
+    ///
+    /// Every transaction with a part in one of the user's accounts counts,
+    /// whoever sorted it: a tag never changes a category, so one the user
+    /// sorted by hand gets the tags too (D-827). A Transfer between the
+    /// user's own accounts, or a transaction that looks like one side of
+    /// one, gets only the tags of Rules that only add tags, since no Rule
+    /// sorts it; it is checked from each of its own parts. A tag the
+    /// transaction carries, or one the user took off it, isn't added; nor
+    /// is one past the most a transaction carries, which is reported as
+    /// skipped.
+    fn plan_tags(
+        &self,
+        rules: &RuleSet,
+        only: Option<&HashSet<TransactionId>>,
+        from: Option<&HashSet<RuleId>>,
+        lists: &TagLists<'_>,
+        run: &mut RuleRun,
+    ) -> Result<(), StoreError> {
+        let removed = self.removed_transaction_tags()?;
+        let mut transactions = match only {
+            Some(only) => {
+                let mut ids: Vec<TransactionId> = only.iter().copied().collect();
+                ids.sort_unstable();
+                // An ID the book doesn't have is left out, as for sorting.
+                let mut found = Vec::with_capacity(ids.len());
+                for id in ids {
+                    match self.transaction(id) {
+                        Ok(transaction) => found.push(transaction),
+                        Err(StoreError::UnknownTransaction(_)) => {}
+                        Err(error) => return Err(error),
+                    }
+                }
+                found
+            }
+            None => self.transactions()?,
+        };
+        transactions.sort_by_key(|transaction| (transaction.booking_date(), transaction.id()));
+        for transaction in &transactions {
+            let id = transaction.id();
+            let own: Vec<(&Split, AccountId)> = transaction
+                .splits()
+                .iter()
+                .filter_map(|part| {
+                    part.account
+                        .filter(|&account| (lists.is_account)(account))
+                        .map(|account| (part, account))
+                })
+                .collect();
+            let Some(&(_, first_account)) = own.first() else {
+                continue;
+            };
+            let with_deciding =
+                own.len() == 1 && !lists.suggested.contains(&id) && !lists.waiting.contains(&id);
+            let mut found: Vec<RuleTag> = Vec::new();
+            for &(part, account) in &own {
+                if part.foreign.is_some() {
+                    continue;
+                }
+                let facts = RuleFacts {
+                    account,
+                    amount: part.amount,
+                    booking_date: transaction.date_of(part),
+                    payee: transaction.payee_of(part),
+                    imported: part.imported.as_ref(),
+                };
+                for tagged in rules.tags(&facts, with_deciding) {
+                    if !found.iter().any(|known| known.tag == tagged.tag) {
+                        found.push(tagged);
+                    }
+                }
+            }
+            found.retain(|tagged| {
+                from.is_none_or(|from| from.contains(&tagged.rule))
+                    && !transaction.tags().contains(&tagged.tag)
+                    && !removed.contains(&(id, tagged.tag))
+            });
+            let room = MAX_TAGS_ON_TRANSACTION.saturating_sub(transaction.tags().len());
+            if found.len() > room {
+                run.skipped.push(RuleSkip {
+                    transaction: id,
+                    rule: found[room].rule,
+                    reason: StoreError::TooManyTags {
+                        limit: "transaction",
+                        max: MAX_TAGS_ON_TRANSACTION,
+                    },
+                });
+                found.truncate(room);
+            }
+            if !found.is_empty() {
+                run.tagged.push(RuleTagging {
+                    transaction: id,
+                    account: first_account,
+                    tags: found,
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes the tags of `run` onto their transactions, after their own,
+    /// as added by a Rule (D-827).
+    fn write_tags(&self, run: &RuleRun) -> Result<(), StoreError> {
+        for tagging in &run.tagged {
+            let id = tagging.transaction.to_bytes();
+            let next: i64 = self.conn.query_row(
+                "SELECT coalesce(max(position) + 1, 0) FROM transaction_tags
+                 WHERE transaction_id = ?1",
+                [id],
+                |row| row.get(0),
+            )?;
+            for (position, tagged) in (next..).zip(&tagging.tags) {
+                self.conn.execute(
+                    "INSERT INTO transaction_tags
+                         (id, transaction_id, tag_id, position, by_rule, rule_id)
+                     VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+                    params![
+                        uuid::Uuid::now_v7().into_bytes(),
+                        id,
+                        tagged.tag.to_bytes(),
+                        position,
+                        tagged.rule.to_bytes(),
+                    ],
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes what a run of the Rules does: categories and payees, then
+    /// tags.
+    fn write_run(&self, run: &RuleRun, planned: &[Planned]) -> Result<(), StoreError> {
+        for change in planned {
+            self.write_planned(change)?;
+        }
+        self.write_tags(run)
+    }
+
+    /// The tags the user took off each transaction, which no Rule puts
+    /// back (D-827).
+    pub fn removed_transaction_tags(&self) -> Result<HashSet<(TransactionId, TagId)>, StoreError> {
+        let mut statement = self
+            .conn
+            .prepare_cached("SELECT transaction_id, tag_id FROM removed_transaction_tags")?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    TransactionId::from_bytes(row.get(0)?),
+                    TagId::from_bytes(row.get(1)?),
+                ))
+            })?
+            .collect::<Result<_, _>>()?;
+        Ok(rows)
     }
 
     /// `transaction` with `actions` applied to its `part`, the one the Rules
@@ -1034,6 +1260,9 @@ impl Book {
                 | Condition::Text { .. } => {}
             }
         }
+        for &tag in &rule.actions.tags {
+            self.check_tag_known(tag)?;
+        }
         Ok(())
     }
 
@@ -1097,6 +1326,29 @@ impl Book {
                 row.date_last,
                 row.account,
             ])?;
+        }
+        drop(insert);
+        // A tag the Rule keeps keeps its row, so the history records only
+        // the tags that really changed (D-827).
+        let mut statement = self
+            .conn
+            .prepare("SELECT tag_id, id FROM rule_tags WHERE rule_id = ?1")?;
+        let kept: HashMap<[u8; 16], [u8; 16]> = statement
+            .query_map([id], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .collect::<Result<_, _>>()?;
+        drop(statement);
+        self.conn
+            .execute("DELETE FROM rule_tags WHERE rule_id = ?1", [id])?;
+        for (position, tag) in (0_i64..).zip(&rule.actions.tags) {
+            let tag = tag.to_bytes();
+            let row = kept
+                .get(&tag)
+                .copied()
+                .unwrap_or_else(|| uuid::Uuid::now_v7().into_bytes());
+            self.conn.execute(
+                "INSERT INTO rule_tags (id, rule_id, tag_id, position) VALUES (?1, ?2, ?3, ?4)",
+                params![row, id, tag, position],
+            )?;
         }
         Ok(())
     }
@@ -1171,6 +1423,29 @@ impl Book {
                 .push(row.into_condition(rule)?);
         }
         Ok(conditions)
+    }
+
+    /// The tags of every Rule, or of `only`, each list in the user's order
+    /// (D-827).
+    fn rule_tags(&self, only: Option<RuleId>) -> Result<HashMap<RuleId, Vec<TagId>>, StoreError> {
+        let mut statement = self.conn.prepare_cached(
+            "SELECT rule_id, tag_id FROM rule_tags
+             WHERE ?1 IS NULL OR rule_id = ?1
+             ORDER BY rule_id, position",
+        )?;
+        let rows = statement
+            .query_map([only.map(RuleId::to_bytes)], |row| {
+                Ok((
+                    RuleId::from_bytes(row.get(0)?),
+                    TagId::from_bytes(row.get(1)?),
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut tags: HashMap<RuleId, Vec<TagId>> = HashMap::new();
+        for (rule, tag) in rows {
+            tags.entry(rule).or_default().push(tag);
+        }
+        Ok(tags)
     }
 }
 
@@ -1247,7 +1522,7 @@ impl RuleRow {
         })
     }
 
-    fn into_rule(self, conditions: Vec<Condition>) -> Result<Rule, StoreError> {
+    fn into_rule(self, conditions: Vec<Condition>, tags: Vec<TagId>) -> Result<Rule, StoreError> {
         let bad = || StoreError::Corrupt(Corruption::BadRule(self.id));
         let match_mode = match self.match_mode.as_str() {
             "all" => MatchMode::All,
@@ -1268,6 +1543,7 @@ impl RuleRow {
             actions: Actions {
                 book_to,
                 payee: self.payee,
+                tags,
             },
         })
     }

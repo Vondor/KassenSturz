@@ -25849,6 +25849,110 @@ msgctxt "@info:tooltip the button that opens the chat sidebar"
 msgid "Open the chat"
 msgstr "Chat öffnen"
 
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Only adds the tags %1 to matching transactions; the next Rules still sort them."
+msgstr "Fügt passenden Buchungen nur die Schlagwörter %1 hinzu; die nächsten Regeln ordnen sie weiterhin zu."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Also adds the tags %1."
+msgstr "Fügt auch die Schlagwörter %1 hinzu."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1."
+msgstr "Fügt die Schlagwörter %1 hinzu."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds no tags anymore (before: %1)."
+msgstr "Fügt keine Schlagwörter mehr hinzu (vorher: %1)."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1 (before: none)."
+msgstr "Fügt die Schlagwörter %1 hinzu (vorher: keine)."
+
+#, kde-format
+msgctxt "@info %1 and %2 are lists of tag names"
+msgid "Adds the tags %2 (before: %1)."
+msgstr "Fügt die Schlagwörter %2 hinzu (vorher: %1)."
+
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 transaction gets tags from your Rules. A tag you took off yourself is not put back."
+msgid_plural "%1 transactions get tags from your Rules. A tag you took off yourself is not put back."
+msgstr[0] "%1 Buchung bekommt Schlagwörter von Ihren Regeln. Ein Schlagwort, das Sie selbst weggenommen haben, kommt nicht zurück."
+msgstr[1] "%1 Buchungen bekommen Schlagwörter von Ihren Regeln. Ein Schlagwort, das Sie selbst weggenommen haben, kommt nicht zurück."
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Add tags:"
+msgstr "Schlagwörter hinzufügen:"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Tags the Rule adds"
+msgstr "Schlagwörter, die die Regel hinzufügt"
+
+#, kde-format
+msgctxt "@info"
+msgid "This Rule only adds tags. The Rules after it still sort the transaction. A tag you take off a transaction yourself is not put back."
+msgstr "Diese Regel fügt nur Schlagwörter hinzu. Die Regeln danach ordnen die Buchung weiterhin zu. Ein Schlagwort, das Sie selbst von einer Buchung wegnehmen, kommt nicht zurück."
+
+#, kde-format
+msgctxt "@info"
+msgid "Tags are only added, never taken off. A tag you take off a transaction yourself is not put back. Make new tags on the Tags page."
+msgstr "Schlagwörter werden nur hinzugefügt, nie weggenommen. Ein Schlagwort, das Sie selbst von einer Buchung wegnehmen, kommt nicht zurück. Neue Schlagwörter legen Sie auf der Seite Schlagwörter an."
+
+#, kde-format
+msgctxt "@action:button %1 is a number"
+msgid "Tag %1 transaction"
+msgid_plural "Tag %1 transactions"
+msgstr[0] "%1 Buchung verschlagworten"
+msgstr[1] "%1 Buchungen verschlagworten"
+
+#, kde-format
+msgctxt "@info"
+msgid "There is nothing to sort, only tags to add."
+msgstr "Es gibt nichts zuzuordnen, nur Schlagwörter hinzuzufügen."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Only adds the tags %1, the next Rules still sort"
+msgstr "Fügt nur die Schlagwörter %1 hinzu, die nächsten Regeln ordnen weiter zu"
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1"
+msgstr "Fügt die Schlagwörter %1 hinzu"
+
+#, kde-format
+msgctxt "@info:tooltip %1 is the name of a Rule"
+msgid "Added by the Rule %1"
+msgstr "Hinzugefügt von der Regel %1"
+
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Added by a Rule that was removed since"
+msgstr "Hinzugefügt von einer Regel, die inzwischen entfernt wurde"
+
+#, kde-format
+msgctxt "@info %1 is a tag, %2 the name of a Rule"
+msgid "%1 was added by the Rule %2."
+msgstr "%1 wurde von der Regel %2 hinzugefügt."
+
+#, kde-format
+msgctxt "@info %1 is a tag"
+msgid "%1 was added by a Rule that was removed since."
+msgstr "%1 wurde von einer Regel hinzugefügt, die inzwischen entfernt wurde."
+
+#, kde-format
+msgctxt "@info"
+msgid "Type to find a tag, then press Enter."
+msgstr "Tippen Sie, um ein Schlagwort zu finden, und drücken Sie dann die Eingabetaste."
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
 #, kde-format
 msgctxt "@info a kind of prepared change"

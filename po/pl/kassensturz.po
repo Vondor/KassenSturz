@@ -23694,6 +23694,112 @@ msgctxt "@info:tooltip the button that opens the chat sidebar"
 msgid "Open the chat"
 msgstr "Otwórz czat"
 
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Only adds the tags %1 to matching transactions; the next Rules still sort them."
+msgstr "Dodaje do pasujących transakcji tylko tagi %1; kolejne reguły nadal je przypisują."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Also adds the tags %1."
+msgstr "Dodaje też tagi %1."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1."
+msgstr "Dodaje tagi %1."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds no tags anymore (before: %1)."
+msgstr "Nie dodaje już tagów (wcześniej: %1)."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1 (before: none)."
+msgstr "Dodaje tagi %1 (wcześniej: żadnych)."
+
+#, kde-format
+msgctxt "@info %1 and %2 are lists of tag names"
+msgid "Adds the tags %2 (before: %1)."
+msgstr "Dodaje tagi %2 (wcześniej: %1)."
+
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "%1 transaction gets tags from your Rules. A tag you took off yourself is not put back."
+msgid_plural "%1 transactions get tags from your Rules. A tag you took off yourself is not put back."
+msgstr[0] "%1 transakcja dostaje tagi z Twoich reguł. Tag, który sam usunąłeś, nie wraca."
+msgstr[1] "%1 transakcje dostają tagi z Twoich reguł. Tag, który sam usunąłeś, nie wraca."
+msgstr[2] "%1 transakcji dostaje tagi z Twoich reguł. Tag, który sam usunąłeś, nie wraca."
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Add tags:"
+msgstr "Dodaj tagi:"
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Tags the Rule adds"
+msgstr "Tagi dodawane przez regułę"
+
+#, kde-format
+msgctxt "@info"
+msgid "This Rule only adds tags. The Rules after it still sort the transaction. A tag you take off a transaction yourself is not put back."
+msgstr "Ta reguła tylko dodaje tagi. Reguły po niej nadal przypisują transakcję. Tag, który sam usuniesz z transakcji, nie wraca."
+
+#, kde-format
+msgctxt "@info"
+msgid "Tags are only added, never taken off. A tag you take off a transaction yourself is not put back. Make new tags on the Tags page."
+msgstr "Tagi są tylko dodawane, nigdy usuwane. Tag, który sam usuniesz z transakcji, nie wraca. Nowe tagi tworzysz na stronie Tagi."
+
+#, kde-format
+msgctxt "@action:button %1 is a number"
+msgid "Tag %1 transaction"
+msgid_plural "Tag %1 transactions"
+msgstr[0] "Otaguj %1 transakcję"
+msgstr[1] "Otaguj %1 transakcje"
+msgstr[2] "Otaguj %1 transakcji"
+
+#, kde-format
+msgctxt "@info"
+msgid "There is nothing to sort, only tags to add."
+msgstr "Nie ma nic do przypisania, tylko tagi do dodania."
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Only adds the tags %1, the next Rules still sort"
+msgstr "Dodaje tylko tagi %1, kolejne reguły nadal przypisują"
+
+#, kde-format
+msgctxt "@info %1 is a list of tag names"
+msgid "Adds the tags %1"
+msgstr "Dodaje tagi %1"
+
+#, kde-format
+msgctxt "@info:tooltip %1 is the name of a Rule"
+msgid "Added by the Rule %1"
+msgstr "Dodany przez regułę %1"
+
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Added by a Rule that was removed since"
+msgstr "Dodany przez regułę, która została już usunięta"
+
+#, kde-format
+msgctxt "@info %1 is a tag, %2 the name of a Rule"
+msgid "%1 was added by the Rule %2."
+msgstr "%1 został dodany przez regułę %2."
+
+#, kde-format
+msgctxt "@info %1 is a tag"
+msgid "%1 was added by a Rule that was removed since."
+msgstr "%1 został dodany przez regułę, która została już usunięta."
+
+#, kde-format
+msgctxt "@info"
+msgid "Type to find a tag, then press Enter."
+msgstr "Wpisz, aby znaleźć tag, a potem naciśnij Enter."
+
 #: crates/kassensturz-ui-bridge/qml/AiChangeReviewPage.qml
 #, kde-format
 msgctxt "@info a kind of prepared change"

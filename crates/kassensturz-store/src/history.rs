@@ -336,7 +336,7 @@ pub(crate) struct Recorded {
 
 /// Every table that holds the book's data. Only the history's own tables
 /// aren't recorded: `changes`, the `changed_` tables and `history_settings`.
-pub(crate) const RECORDED: [Recorded; 29] = [
+pub(crate) const RECORDED: [Recorded; 31] = [
     Recorded {
         name: "settings",
         key: "id",
@@ -523,6 +523,27 @@ pub(crate) const RECORDED: [Recorded; 29] = [
         columns: &[
             ("id", "BLOB"),
             ("transaction_id", "BLOB"),
+            ("tag_id", "BLOB"),
+            ("position", "INTEGER"),
+            ("by_rule", "INTEGER"),
+            ("rule_id", "BLOB"),
+        ],
+    },
+    Recorded {
+        name: "removed_transaction_tags",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("transaction_id", "BLOB"),
+            ("tag_id", "BLOB"),
+        ],
+    },
+    Recorded {
+        name: "rule_tags",
+        key: "id",
+        columns: &[
+            ("id", "BLOB"),
+            ("rule_id", "BLOB"),
             ("tag_id", "BLOB"),
             ("position", "INTEGER"),
         ],

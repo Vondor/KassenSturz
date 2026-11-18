@@ -160,6 +160,7 @@ fn an_imported_rule_with_a_pattern_can_be_edited_with_its_conditions() {
         actions: Actions {
             book_to: Some(BookTo::Category(groceries)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&imported, None).expect("Rule");
@@ -391,6 +392,7 @@ fn a_fifty_rule_overhaul_is_one_set() {
             actions: Actions {
                 book_to: Some(BookTo::Category(groceries)),
                 payee: None,
+                tags: Vec::new(),
             },
         };
         book.add_rule(&rule, None).expect("Rule");

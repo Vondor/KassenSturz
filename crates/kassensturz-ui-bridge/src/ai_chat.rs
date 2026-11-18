@@ -470,6 +470,8 @@ pub enum ChangeView {
         conditions: Vec<ConditionForm>,
         /// The name of the Rule it sits inside; empty for a top-level Rule.
         inside: String,
+        /// The names of the tags it adds (D-827).
+        tags: Vec<String>,
         /// How many transactions already in the book its conditions catch
         /// (B-249).
         catches: usize,
@@ -495,6 +497,10 @@ pub enum ChangeView {
         match_all: bool,
         /// Its conditions after the change.
         conditions: Vec<ConditionForm>,
+        /// The names of the tags it added before (D-827).
+        before_tags: Vec<String>,
+        /// The names of the tags it adds after the change.
+        tags: Vec<String>,
         /// How many transactions already in the book its conditions catch
         /// after the change (B-249).
         catches: usize,
@@ -1047,9 +1053,12 @@ fn view_of(
         ProposedChange::NewRule(new) => new_rule_view(
             book,
             &new.rule,
-            &new.category,
-            new.inside.as_deref().unwrap_or_default(),
-            new.catches,
+            NewRuleParts {
+                category: new.category.as_deref().unwrap_or_default(),
+                inside: new.inside.as_deref().unwrap_or_default(),
+                tags: &new.tags,
+                catches: new.catches,
+            },
             locale,
         )?,
         ProposedChange::EditCategory(edit) => ChangeView::EditCategory {
@@ -1071,6 +1080,8 @@ fn view_of(
                 .unwrap_or_default(),
             match_all: edit.rule.match_mode == MatchMode::All,
             conditions: condition_forms(book, &edit.rule, locale)?,
+            before_tags: edit.before_tags.clone(),
+            tags: edit.tags.clone(),
             catches: edit.catches,
         },
         ProposedChange::MoveRule(moved) => ChangeView::MoveRule {
@@ -1539,6 +1550,7 @@ fn sorted_by_rules(
 ) -> Result<Applied, StoreError> {
     Ok(Applied {
         changed: sort.changes.len(),
+        tagged: sort.tagged.len(),
         transfers: sort.transfers,
         no_rate: sort.no_rate,
         closed: sort.closed,
@@ -1660,21 +1672,29 @@ fn field_text(book: &Book, value: &FieldValue, locale: &impl Locale) -> Result<S
     })
 }
 
+/// What [`new_rule_view`] writes besides the Rule itself.
+struct NewRuleParts<'a> {
+    /// The category's path, empty for a Rule that only adds tags.
+    category: &'a [String],
+    inside: &'a str,
+    tags: &'a [String],
+    catches: usize,
+}
+
 fn new_rule_view(
     book: &Book,
     rule: &Rule,
-    category: &[String],
-    inside: &str,
-    catches: usize,
+    parts: NewRuleParts<'_>,
     locale: &impl Locale,
 ) -> Result<ChangeView, StoreError> {
     Ok(ChangeView::NewRule {
         name: rule.name.clone(),
-        book_to: category.join(" › "),
+        book_to: parts.category.join(" › "),
         match_all: rule.match_mode == MatchMode::All,
         conditions: condition_forms(book, rule, locale)?,
-        inside: inside.to_owned(),
-        catches,
+        inside: parts.inside.to_owned(),
+        tags: parts.tags.to_vec(),
+        catches: parts.catches,
     })
 }
 

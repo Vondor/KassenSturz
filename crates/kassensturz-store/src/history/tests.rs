@@ -372,6 +372,7 @@ fn every_change_can_be_undone_and_redone() {
         actions: Actions {
             book_to: Some(BookTo::Category(food)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&shops, None).expect("added");
@@ -383,6 +384,7 @@ fn every_change_can_be_undone_and_redone() {
         actions: Actions {
             book_to: Some(BookTo::Category(groceries)),
             payee: Some("Grocery store".into()),
+            tags: Vec::new(),
         },
         ..shops.clone()
     };

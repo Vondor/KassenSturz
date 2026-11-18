@@ -33,6 +33,8 @@ ColumnLayout {
     property int limit: 20
     // The longest name a tag can have (MAX_TAG_NAME_CHARS).
     readonly property int nameLimit: 60
+    // Whether a name the book doesn't have is offered as "Create …".
+    property bool canCreate: true
     // What the box is called for a screen reader.
     property string accessibleName: i18nContext.i18nc("@label:textbox", "Tags:")
 
@@ -61,7 +63,7 @@ ColumnLayout {
             .filter(choice => !chosen(choice.name) && choice.name.toLowerCase().indexOf(lower) >= 0)
             .map(choice => ({ id: choice.id, name: choice.name, create: false }));
         const known = choices.some(choice => choice.name.trim().toLowerCase() === lower);
-        if (typed !== "" && !known && !chosen(typed)) {
+        if (canCreate && typed !== "" && !known && !chosen(typed)) {
             found.push({ id: "", name: typed, create: true });
         }
         return found;
@@ -117,7 +119,17 @@ ColumnLayout {
                 text: Plain.plain(modelData.name)
                 checkable: false
                 closable: true
+                // A tag a Rule added says so, and which Rule (D-827).
+                readonly property string addedBy: modelData.byRule !== true
+                    ? ""
+                    : modelData.rule !== undefined && modelData.rule !== ""
+                        ? field.i18nContext.i18nc("@info:tooltip %1 is the name of a Rule", "Added by the Rule %1", modelData.rule)
+                        : field.i18nContext.i18nc("@info:tooltip", "Added by a Rule that was removed since")
+                icon.name: addedBy !== "" ? "view-filter" : ""
+                Controls.ToolTip.visible: addedBy !== "" && hovered
+                Controls.ToolTip.text: Plain.plain(addedBy)
                 Accessible.name: field.i18nContext.i18nc("@action:button %1 is a tag", "Take away the tag %1", modelData.name)
+                Accessible.description: addedBy
                 // The chip itself takes the tag away too, so Space on a
                 // chip with the focus does what its close button does.
                 onClicked: {
@@ -139,6 +151,20 @@ ColumnLayout {
         }
     }
 
+    // Which of the tags Rules added, in words, so it shows without
+    // hovering (D-827).
+    Controls.Label {
+        Layout.fillWidth: true
+        readonly property var byRule: field.tags.filter(tag => tag.byRule === true)
+        visible: byRule.length > 0
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
+        font: Kirigami.Theme.smallFont
+        text: byRule.map(tag => tag.rule !== undefined && tag.rule !== ""
+            ? field.i18nContext.i18nc("@info %1 is a tag, %2 the name of a Rule", "%1 was added by the Rule %2.", tag.name, tag.rule)
+            : field.i18nContext.i18nc("@info %1 is a tag", "%1 was added by a Rule that was removed since.", tag.name)).join(" ")
+    }
+
     Controls.TextField {
         id: input
 
@@ -149,7 +175,9 @@ ColumnLayout {
             ? field.i18nContext.i18nc("@info:placeholder", "Add a tag, for example Holiday")
             : field.i18nContext.i18nc("@info:placeholder %1 is a number", "At most %1 tags", field.limit)
         Accessible.name: field.accessibleName
-        Accessible.description: field.i18nContext.i18nc("@info", "Type to find a tag or to make a new one, then press Enter.")
+        Accessible.description: field.canCreate
+            ? field.i18nContext.i18nc("@info", "Type to find a tag or to make a new one, then press Enter.")
+            : field.i18nContext.i18nc("@info", "Type to find a tag, then press Enter.")
 
         onTextChanged: {
             list.currentIndex = 0;

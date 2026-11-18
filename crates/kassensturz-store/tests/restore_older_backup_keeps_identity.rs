@@ -45,7 +45,7 @@ fn restoring_an_older_backup_keeps_the_backup_of_the_book_as_it_was_reachable() 
     let older = backups.join("Household 2026-09-01 09-00-00 UTC.ksz");
     fs::copy(&any, &older).expect("copied");
     rusqlite::Connection::open(&older)
-        .and_then(|conn| conn.execute_batch("DROP TABLE parked_ai_rule_marks; DROP TABLE book_identity; PRAGMA user_version = 33;"))
+        .and_then(|conn| conn.execute_batch("DROP INDEX transaction_tags_by_rule; ALTER TABLE transaction_tags DROP COLUMN rule_id; ALTER TABLE transaction_tags DROP COLUMN by_rule; ALTER TABLE changed_transaction_tags DROP COLUMN rule_id; ALTER TABLE changed_transaction_tags DROP COLUMN by_rule; DROP TABLE rule_tags; DROP TABLE changed_rule_tags; DROP TABLE removed_transaction_tags; DROP TABLE changed_removed_transaction_tags; DROP TABLE parked_ai_rule_marks; DROP TABLE book_identity; PRAGMA user_version = 33;"))
         .expect("made old");
     let id_before = book.book_id().expect("an identity");
     assert_eq!(

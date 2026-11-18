@@ -340,6 +340,8 @@ fn fill(
         rules,
         transactions,
         rule_marks: Vec::new(),
+        tags_by_rule: Vec::new(),
+        tags_taken_off: Vec::new(),
         institutions,
         payees,
         tags,
@@ -740,6 +742,7 @@ impl Mapper {
                     actions: Actions {
                         book_to: Some(book_to),
                         payee: Some(wanted.payee.clone()),
+                        tags: Vec::new(),
                     },
                 },
                 sub_rules: Vec::new(),

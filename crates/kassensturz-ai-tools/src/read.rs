@@ -1150,11 +1150,22 @@ pub(crate) fn search_transactions(
     if let Some(tag) = search.tag {
         tag_name(book, tag)?;
     }
-    let tag_names: HashMap<TagId, String> = book
-        .tags()?
-        .into_iter()
-        .map(|tag| (tag.id, tag.name))
-        .collect();
+    let tag_names = TagNames {
+        names: book
+            .tags()?
+            .into_iter()
+            .map(|tag| (tag.id, tag.name))
+            .collect(),
+        by_rule: book
+            .tag_sources_of(None)?
+            .into_iter()
+            .flat_map(|(transaction, tags)| {
+                tags.into_iter()
+                    .filter(|(_, by)| matches!(by, kassensturz_store::TagAddedBy::Rule(_)))
+                    .map(move |(tag, _)| (transaction, tag))
+            })
+            .collect(),
+    };
     let transactions = match search.account {
         Some(account) => book.transactions_of(account)?,
         None => book.transactions()?,
@@ -1330,7 +1341,7 @@ fn search_row(
     (date, transaction, part, account): (Date, &Transaction, &Split, &Account),
     marks: Option<&Marks>,
     possible_transfer: bool,
-    tag_names: &HashMap<TagId, String>,
+    tag_names: &TagNames,
     matched_part: Option<usize>,
 ) -> Result<Value, ToolError> {
     let mut row = Map::new();
@@ -1383,8 +1394,18 @@ fn search_row(
     let tags: Vec<(TagId, &String)> = transaction
         .all_tags()
         .into_iter()
-        .filter_map(|id| tag_names.get(&id).map(|name| (id, name)))
+        .filter_map(|id| tag_names.names.get(&id).map(|name| (id, name)))
         .collect();
+    // The tags on the whole that a Rule added; the others the user did
+    // (D-827).
+    let by_rule: Vec<Value> = tags
+        .iter()
+        .filter(|(id, _)| tag_names.by_rule.contains(&(transaction.id(), *id)))
+        .map(|(id, _)| Value::String(id.to_string()))
+        .collect();
+    if !by_rule.is_empty() {
+        row.insert("rule_tag_ids".into(), Value::Array(by_rule));
+    }
     if !tags.is_empty() {
         row.insert(
             "tags".into(),
@@ -1601,6 +1622,13 @@ pub(crate) fn list_categories(book: &Book, w: &mut Writer<'_>) -> Result<Value, 
     Ok(Value::Object(result))
 }
 
+/// The book's tags by their IDs, and which tags on a whole transaction a
+/// Rule added (D-827), for `search_transactions`.
+struct TagNames {
+    names: HashMap<TagId, String>,
+    by_rule: std::collections::HashSet<(kassensturz_core::TransactionId, TagId)>,
+}
+
 /// `list_rules`: the Rules that sort new transactions (D-015), each with
 /// its sub-Rules. With `only`, just that Rule (at any depth) with the
 /// sub-Rules inside it (US3.6, D-698); one the book does not have is
@@ -1619,7 +1647,18 @@ pub(crate) fn list_rules(
     let mut budget = MAX_RULES;
     let mut total = 0;
     count_rules(&tree, &mut total);
-    let rules = rule_rows(w, names, &tree, 1, &mut budget)?;
+    let tags: HashMap<TagId, String> = book
+        .tags()?
+        .into_iter()
+        .map(|tag| (tag.id, tag.name))
+        .collect();
+    let set = kassensturz_core::RuleSet::new(&tree).ok();
+    let context = RuleRows {
+        names,
+        tags: &tags,
+        set: set.as_ref(),
+    };
+    let rules = rule_rows(w, &context, &tree, 1, &mut budget)?;
     let mut result = Map::new();
     result.insert("rules".into(), Value::Array(rules));
     // Rules past the limit, or deeper than the depth limit.
@@ -1647,13 +1686,23 @@ fn count_rules(nodes: &[RuleNode], total: &mut usize) {
     }
 }
 
+/// What `list_rules` needs besides the Rules: the names of categories,
+/// accounts and tags, and the Rules ready to run, which say which Rules
+/// only add tags (D-827).
+struct RuleRows<'a> {
+    names: &'a Names,
+    tags: &'a HashMap<TagId, String>,
+    set: Option<&'a kassensturz_core::RuleSet>,
+}
+
 fn rule_rows(
     w: &mut Writer<'_>,
-    names: &Names,
+    context: &RuleRows<'_>,
     nodes: &[RuleNode],
     depth: usize,
     budget: &mut usize,
 ) -> Result<Vec<Value>, ToolError> {
+    let names = context.names;
     let mut rows = Vec::new();
     for node in nodes {
         if *budget == 0 {
@@ -1694,8 +1743,38 @@ fn rule_rows(
         if let Some(payee) = &rule.actions.payee {
             row.insert("payee".into(), w.text(payee));
         }
+        // The tags it adds to what it matches, each with its ID (D-827).
+        let tags: Vec<(TagId, &String)> = rule
+            .actions
+            .tags
+            .iter()
+            .filter_map(|id| context.tags.get(id).map(|name| (*id, name)))
+            .collect();
+        if !tags.is_empty() {
+            row.insert(
+                "tags".into(),
+                Value::Array(tags.iter().map(|(_, name)| w.text(name)).collect()),
+            );
+            row.insert(
+                "tag_ids".into(),
+                Value::Array(
+                    tags.iter()
+                        .map(|(id, _)| Value::String(id.to_string()))
+                        .collect(),
+                ),
+            );
+        }
+        // A Rule that only adds tags never decides where a transaction
+        // goes, so the Rules after it still sort it.
+        if context
+            .set
+            .and_then(|set| set.is_tag_only(rule.id))
+            .unwrap_or(false)
+        {
+            row.insert("only_adds_tags".into(), Value::Bool(true));
+        }
         if !node.sub_rules.is_empty() && depth < MAX_RULE_DEPTH {
-            let sub = rule_rows(w, names, &node.sub_rules, depth + 1, budget)?;
+            let sub = rule_rows(w, context, &node.sub_rules, depth + 1, budget)?;
             row.insert("sub_rules".into(), Value::Array(sub));
         }
         rows.push(Value::Object(row));

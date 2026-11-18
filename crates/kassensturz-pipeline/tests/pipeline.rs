@@ -402,6 +402,7 @@ fn transfers_are_suggested_and_the_rules_run_on_the_new_transactions_only() {
         actions: Actions {
             book_to,
             payee: None,
+            tags: Vec::new(),
         },
     };
     // The savings side of a Transfer is in the book already, and so is a
@@ -487,6 +488,7 @@ fn a_side_a_rule_sorted_before_the_other_statement_came_is_suggested() {
         actions: Actions {
             book_to: Some(BookTo::Category(groceries)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&own, None).expect("added");

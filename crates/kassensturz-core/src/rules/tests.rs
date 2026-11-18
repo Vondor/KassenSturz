@@ -64,6 +64,7 @@ fn rule(conditions: Vec<Condition>, book_to: Option<BookTo>) -> Rule {
         actions: Actions {
             book_to,
             payee: None,
+            tags: Vec::new(),
         },
     }
 }
@@ -306,6 +307,7 @@ fn a_matching_sub_rule_refines_its_parent() {
         Actions {
             book_to: Some(BookTo::Category(groceries)),
             payee: Some("Supermarket".into()),
+            tags: Vec::new(),
         }
     );
 }
@@ -536,4 +538,118 @@ fn a_pasted_pattern_cannot_hang_the_app() {
         run(&rules, &facts(AccountId::generate(), Some(&details))),
         None
     );
+}
+
+// Rules that add tags (D-827).
+
+fn tagging(tags: Vec<TagId>, book_to: Option<BookTo>) -> Rule {
+    let mut rule = rule(
+        vec![text(
+            TextField::OtherPartyName,
+            TextOperator::Contains,
+            "FRESHO",
+        )],
+        book_to,
+    );
+    rule.actions.tags = tags;
+    rule
+}
+
+#[test]
+fn a_rule_that_only_tags_never_decides() {
+    let account = AccountId::generate();
+    let food = AccountId::generate();
+    let delivered = delivered();
+    let facts = facts(account, Some(&delivered));
+    let (shop, taxes) = (TagId::generate(), TagId::generate());
+    let only_tags = tagging(vec![taxes], None);
+    let sorting = tagging(vec![shop], Some(BookTo::Category(food)));
+    let rules = [leaf(only_tags.clone()), leaf(sorting.clone())];
+    let set = RuleSet::new(&rules).expect("valid");
+    assert_eq!(set.is_tag_only(only_tags.id), Some(true));
+    assert_eq!(set.is_tag_only(sorting.id), Some(false));
+    assert_eq!(set.is_tag_only(RuleId::generate()), None);
+
+    let outcome = set.evaluate(&facts).expect("a Rule decides");
+    assert_eq!(outcome.rules, [sorting.id]);
+    assert_eq!(outcome.actions.book_to, Some(BookTo::Category(food)));
+    assert_eq!(
+        set.tags(&facts, true),
+        [
+            RuleTag {
+                tag: taxes,
+                rule: only_tags.id
+            },
+            RuleTag {
+                tag: shop,
+                rule: sorting.id
+            },
+        ]
+    );
+    // As for a Transfer: only Rules that only tag count.
+    assert_eq!(
+        set.tags(&facts, false),
+        [RuleTag {
+            tag: taxes,
+            rule: only_tags.id
+        }]
+    );
+    // Alone, it matches but nothing decides.
+    assert_eq!(run(&[leaf(only_tags)], &facts), None);
+}
+
+#[test]
+fn a_parent_with_tags_and_sorting_sub_rules_still_decides() {
+    let account = AccountId::generate();
+    let food = AccountId::generate();
+    let delivered = delivered();
+    let facts = facts(account, Some(&delivered));
+    let (shop, fresh) = (TagId::generate(), TagId::generate());
+    let parent = tagging(vec![shop], None);
+    let sub = tagging(vec![fresh, shop], Some(BookTo::Category(food)));
+    let later = tagging(vec![TagId::generate()], Some(BookTo::Category(account)));
+    let rules = [
+        RuleNode {
+            rule: parent.clone(),
+            sub_rules: vec![leaf(sub.clone())],
+        },
+        leaf(later),
+    ];
+    let set = RuleSet::new(&rules).expect("valid");
+    assert_eq!(set.is_tag_only(parent.id), Some(false));
+    let outcome = set.evaluate(&facts).expect("decided");
+    assert_eq!(outcome.rules, [parent.id, sub.id]);
+    assert_eq!(outcome.actions.tags, [shop, fresh]);
+    // The parent's and the sub-Rule's tags, each once; the later sorting
+    // Rule doesn't count, since the first one decided.
+    assert_eq!(
+        set.tags(&facts, true),
+        [
+            RuleTag {
+                tag: shop,
+                rule: parent.id
+            },
+            RuleTag {
+                tag: fresh,
+                rule: sub.id
+            },
+        ]
+    );
+}
+
+#[test]
+fn a_rule_names_each_tag_once_and_not_too_many() {
+    let tag = TagId::generate();
+    let twice = tagging(vec![tag, tag], None);
+    assert_eq!(twice.check(), Err(RuleError::DuplicateTag(twice.id)));
+    let many = tagging(
+        (0..=MAX_TAGS_ON_RULE).map(|_| TagId::generate()).collect(),
+        None,
+    );
+    assert_eq!(many.check(), Err(RuleError::TooManyTags(many.id)));
+    let enough = tagging(
+        (0..MAX_TAGS_ON_RULE).map(|_| TagId::generate()).collect(),
+        None,
+    );
+    assert_eq!(enough.check(), Ok(()));
 }

@@ -1988,6 +1988,7 @@ mod tests {
                 actions: Actions {
                     book_to: Some(BookTo::Category(groceries)),
                     payee: Some("Bookshop".into()),
+                    tags: Vec::new(),
                 },
             },
             None,
@@ -2113,6 +2114,7 @@ mod tests {
                 actions: Actions {
                     book_to: Some(BookTo::Category(groceries)),
                     payee: None,
+                    tags: Vec::new(),
                 },
             },
             None,

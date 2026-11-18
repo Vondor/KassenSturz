@@ -29,6 +29,7 @@ use crate::overview::LatestRow;
 use crate::parse::{AmountInputError, AmountReader};
 use crate::register::{AmountWriter, entries};
 use crate::settings::Settings;
+use crate::tags::{self, TagText};
 use crate::transaction_entry::typed_amount;
 
 /// How often the user has to sort a payee into the same category by hand
@@ -124,6 +125,9 @@ pub struct RuleForm {
     pub book_to: String,
     /// The payee to set; empty to leave it.
     pub payee: String,
+    /// The tags it adds to the whole transaction, in their order (D-827).
+    /// Only tags the book has: the editor doesn't make new ones.
+    pub tags: Vec<TagText>,
 }
 
 /// One Rule in the list.
@@ -145,6 +149,11 @@ pub struct RuleRow {
     pub book_to: String,
     /// The payee it sets, empty for none.
     pub payee: String,
+    /// The names of the tags it adds, in their order (D-827).
+    pub tags: Vec<String>,
+    /// Whether it only adds tags: then it never decides where a
+    /// transaction goes, and the Rules after it still sort it (D-827).
+    pub only_tags: bool,
     /// How many conditions it has.
     pub conditions: usize,
     /// Whether the AI made or changed it and the user hasn't opened it
@@ -173,6 +182,8 @@ pub struct Choices {
     pub categories: Vec<Choice>,
     /// The user's open accounts.
     pub accounts: Vec<Choice>,
+    /// The book's tags, by name, for the tags a Rule adds (D-827).
+    pub tags: Vec<TagText>,
     /// The currency amounts are in unless a condition says otherwise.
     pub currency: String,
 }
@@ -205,6 +216,8 @@ pub struct Rebooked {
 pub struct Applied {
     /// How many transactions are sorted.
     pub changed: usize,
+    /// How many transactions get a tag a Rule adds (D-827), sorted or not.
+    pub tagged: usize,
     /// How many a Rule fits but that stay as they are because they look
     /// like one side of a Transfer, which the user decides first (D-030).
     pub transfers: usize,
@@ -273,6 +286,8 @@ pub fn view(book: &Book) -> Result<Vec<RuleRow>, StoreError> {
     let tree = book.rules()?;
     let paths = category_paths(book)?;
     let unchecked = book.unchecked_ai_rules()?;
+    let tag_names = tags::names(book)?;
+    let set = RuleSet::new(&tree).ok();
     let accounts: HashMap<AccountId, Account> = book
         .all_accounts()?
         .into_iter()
@@ -299,6 +314,14 @@ pub fn view(book: &Book) -> Result<Vec<RuleRow>, StoreError> {
                 book_to_kind,
                 book_to: book_to.unwrap_or_default(),
                 payee: rule.actions.payee.clone().unwrap_or_default(),
+                tags: tags::texts(&tag_names, &rule.actions.tags)
+                    .into_iter()
+                    .map(|tag| tag.name)
+                    .collect(),
+                only_tags: set
+                    .as_ref()
+                    .and_then(|set| set.is_tag_only(rule.id))
+                    .unwrap_or(false),
                 conditions: rule.conditions.len(),
                 made_by_ai: unchecked.contains(&rule.id),
             }
@@ -330,9 +353,20 @@ pub fn choices(book: &Book, fallback: CurrencyCode) -> Result<Choices, StoreErro
             income: false,
         })
         .collect();
+    let mut tag_choices: Vec<TagText> = book
+        .tags()?
+        .into_iter()
+        .map(|tag| TagText {
+            id: tag.id.to_string(),
+            name: tag.name,
+            rule: None,
+        })
+        .collect();
+    tag_choices.sort_by_key(|tag| kassensturz_store::name_key(&tag.name));
     Ok(Choices {
         categories,
         accounts,
+        tags: tag_choices,
         currency: usual_currency(book, fallback)?.to_string(),
     })
 }
@@ -414,6 +448,7 @@ pub fn form_of(book: &Book, id: &str, locale: &impl Locale) -> Result<RuleForm, 
         book_to_kind: book_to_kind.into(),
         book_to,
         payee: rule.actions.payee.clone().unwrap_or_default(),
+        tags: tags::texts(&tags::names(book)?, &rule.actions.tags),
     })
 }
 
@@ -569,6 +604,19 @@ fn rule_of(
         _ => None,
     };
     let payee = form.payee.trim();
+    // Only tags the book has; the editor offers no others.
+    let known = book.tags()?;
+    let mut tags = Vec::with_capacity(form.tags.len());
+    for tag in &form.tags {
+        let id = known
+            .iter()
+            .find(|known| known.id.to_string() == tag.id)
+            .map(|known| known.id)
+            .ok_or(RuleEditError::NoSuchEntry)?;
+        if !tags.contains(&id) {
+            tags.push(id);
+        }
+    }
     Ok((
         Rule {
             id,
@@ -582,6 +630,7 @@ fn rule_of(
             actions: kassensturz_core::Actions {
                 book_to,
                 payee: (!payee.is_empty()).then(|| payee.to_owned()),
+                tags,
             },
         },
         parent,
@@ -778,6 +827,7 @@ fn apply_rules_of(book: &Book, rule: &str, resort: bool) -> Result<ApplyRules, R
 fn applied_of(run: &RuleRun) -> Applied {
     let mut applied = Applied {
         changed: run.changed.len(),
+        tagged: run.tagged.len(),
         ..Applied::default()
     };
     for skip in &run.skipped {

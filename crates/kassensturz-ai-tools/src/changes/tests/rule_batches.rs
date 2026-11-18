@@ -131,6 +131,7 @@ fn a_rule_the_ai_cannot_rewrite_says_which_argument_and_why() {
         actions: Actions {
             book_to: Some(BookTo::Category(food)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&imported, None).expect("Rule");
@@ -146,6 +147,7 @@ fn a_rule_the_ai_cannot_rewrite_says_which_argument_and_why() {
         actions: Actions {
             book_to: Some(BookTo::Transfer(checking)),
             payee: None,
+            tags: Vec::new(),
         },
         ..rules[1].clone()
     };

@@ -20,6 +20,7 @@ use regex::{Regex, RegexBuilder};
 use crate::Date;
 use crate::account::AccountId;
 use crate::currency::CurrencyCode;
+use crate::details::TagId;
 use crate::id::define_id;
 use crate::money::Money;
 use crate::transaction::ImportedDetails;
@@ -161,7 +162,11 @@ pub enum BookTo {
     Transfer(AccountId),
 }
 
-/// What a Rule does to a transaction it matches (D-031). Either part can be
+/// The most tags one Rule adds, as many as a transaction can carry
+/// (D-827).
+pub const MAX_TAGS_ON_RULE: usize = crate::details::MAX_TAGS_ON_TRANSACTION;
+
+/// What a Rule does to a transaction it matches (D-031). Every part can be
 /// missing: a parent Rule may leave the category to its sub-Rules.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Actions {
@@ -170,20 +175,32 @@ pub struct Actions {
     /// The payee to show, e.g. "Supermarket" for "FRESHO MARKT 1234 SAGT
     /// DANKE". Never empty.
     pub payee: Option<String>,
+    /// The tags it adds to the whole transaction, in the user's order, each
+    /// once (D-827). A Rule only adds tags, never takes one off.
+    pub tags: Vec<TagId>,
 }
 
 impl Actions {
-    /// These actions refined by a sub-Rule's: each action the sub-Rule has
-    /// replaces this Rule's, the others stay (D-014).
+    /// These actions refined by a sub-Rule's: the category or account and
+    /// the payee the sub-Rule has replace this Rule's, the others stay
+    /// (D-014); the sub-Rule's tags are added to this Rule's (D-827).
     #[must_use]
     pub fn refined_by(self, sub: Self) -> Self {
+        let mut tags = self.tags;
+        for tag in sub.tags {
+            if !tags.contains(&tag) {
+                tags.push(tag);
+            }
+        }
         Self {
             book_to: sub.book_to.or(self.book_to),
             payee: sub.payee.or(self.payee),
+            tags,
         }
     }
 
-    /// Whether there is nothing to do.
+    /// Whether there is nothing to sort: no category or account and no
+    /// payee. Tags don't count, since they don't sort (D-827).
     pub fn is_empty(&self) -> bool {
         self.book_to.is_none() && self.payee.is_none()
     }
@@ -255,6 +272,16 @@ impl RuleFacts<'_> {
     }
 }
 
+/// A tag a Rule adds, and the Rule that adds it (D-827).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct RuleTag {
+    /// The tag.
+    pub tag: TagId,
+    /// The Rule whose tags name it: of the Rules that matched and name it,
+    /// the first one checked.
+    pub rule: RuleId,
+}
+
 /// What the Rules do to one transaction.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuleOutcome {
@@ -296,16 +323,88 @@ impl RuleSet {
     /// them further. A Rule that matches but has no actions, and no
     /// sub-Rule that has any, still decides, so the transaction stays as it
     /// is.
+    ///
+    /// A Rule that only adds tags ([`RuleSet::is_tag_only`]) never decides:
+    /// it is passed over here, and its tags come from [`RuleSet::tags`]
+    /// (D-827). The outcome's actions carry the tags of the Rules that
+    /// decided.
     pub fn evaluate(&self, facts: &RuleFacts<'_>) -> Option<RuleOutcome> {
         let mut rules = Vec::new();
         let mut actions = Actions::default();
         let mut level = &self.nodes;
-        while let Some(node) = level.iter().find(|node| node.matches(facts)) {
+        while let Some(node) = level
+            .iter()
+            .find(|node| !node.tag_only && node.matches(facts))
+        {
             rules.push(node.id);
             actions = actions.refined_by(node.actions.clone());
             level = &node.sub_rules;
         }
         (!rules.is_empty()).then_some(RuleOutcome { rules, actions })
+    }
+
+    /// The tags the Rules add to the transaction `facts` describes, each
+    /// once and with the first Rule checked that names it, in the order the
+    /// Rules are checked (D-827).
+    ///
+    /// Every Rule that only adds tags and matches adds its tags, wherever
+    /// it stands, and so do its matching sub-Rules; it doesn't stop later
+    /// Rules from being checked. With `with_deciding`, the Rules that
+    /// decide ([`RuleSet::evaluate`]) add their tags too: the one that
+    /// matched at each level down to the deepest. Without it only Rules
+    /// that only add tags count, as for a Transfer between the user's own
+    /// accounts, which no Rule sorts.
+    pub fn tags(&self, facts: &RuleFacts<'_>, with_deciding: bool) -> Vec<RuleTag> {
+        let mut found = Vec::new();
+        collect_tags(&self.nodes, facts, with_deciding, &mut found);
+        found
+    }
+
+    /// Whether the Rule `rule` only adds tags: it and all of its sub-Rules
+    /// set no category, account or payee, and at least one of them adds a
+    /// tag. Such a Rule never decides how a transaction is sorted, so a
+    /// later Rule still can (D-827). `None` if the set has no such Rule.
+    pub fn is_tag_only(&self, rule: RuleId) -> Option<bool> {
+        fn find(nodes: &[Compiled], rule: RuleId) -> Option<bool> {
+            nodes.iter().find_map(|node| {
+                if node.id == rule {
+                    Some(node.tag_only)
+                } else {
+                    find(&node.sub_rules, rule)
+                }
+            })
+        }
+        find(&self.nodes, rule)
+    }
+}
+
+/// Adds to `found` the tags the Rules of one level add (see
+/// [`RuleSet::tags`]).
+fn collect_tags(
+    level: &[Compiled],
+    facts: &RuleFacts<'_>,
+    with_deciding: bool,
+    found: &mut Vec<RuleTag>,
+) {
+    let mut decided = false;
+    for node in level {
+        if !node.tag_only && (decided || !with_deciding) {
+            continue;
+        }
+        if !node.matches(facts) {
+            continue;
+        }
+        for &tag in &node.actions.tags {
+            if !found.iter().any(|known| known.tag == tag) {
+                found.push(RuleTag { tag, rule: node.id });
+            }
+        }
+        if node.tag_only {
+            collect_tags(&node.sub_rules, facts, true, found);
+        } else {
+            decided = true;
+            collect_tags(&node.sub_rules, facts, with_deciding, found);
+        }
     }
 }
 
@@ -317,6 +416,8 @@ struct Compiled {
     conditions: Vec<CompiledCondition>,
     actions: Actions,
     sub_rules: Vec<Compiled>,
+    /// Whether it and its sub-Rules only add tags (D-827).
+    tag_only: bool,
 }
 
 impl Compiled {
@@ -415,9 +516,20 @@ fn compile_nodes(nodes: &[RuleNode]) -> Result<Vec<Compiled>, RuleError> {
         .map(|node| {
             let mut compiled = compile(&node.rule)?;
             compiled.sub_rules = compile_nodes(&node.sub_rules)?;
+            compiled.tag_only = only_tags(&compiled) && adds_a_tag(&compiled);
             Ok(compiled)
         })
         .collect()
+}
+
+/// Whether `rule` and its sub-Rules set no category, account or payee.
+fn only_tags(rule: &Compiled) -> bool {
+    rule.actions.is_empty() && rule.sub_rules.iter().all(only_tags)
+}
+
+/// Whether `rule` or one of its sub-Rules adds a tag.
+fn adds_a_tag(rule: &Compiled) -> bool {
+    !rule.actions.tags.is_empty() || rule.sub_rules.iter().any(adds_a_tag)
 }
 
 /// Checks `rule` and prepares it, without its sub-Rules.
@@ -434,6 +546,17 @@ fn compile(rule: &Rule) -> Result<Compiled, RuleError> {
     {
         return Err(RuleError::EmptyPayee(id));
     }
+    let tags = &rule.actions.tags;
+    if tags.len() > MAX_TAGS_ON_RULE {
+        return Err(RuleError::TooManyTags(id));
+    }
+    if tags
+        .iter()
+        .enumerate()
+        .any(|(index, tag)| tags[..index].contains(tag))
+    {
+        return Err(RuleError::DuplicateTag(id));
+    }
     let conditions = rule
         .conditions
         .iter()
@@ -446,6 +569,7 @@ fn compile(rule: &Rule) -> Result<Compiled, RuleError> {
         conditions,
         actions: rule.actions.clone(),
         sub_rules: Vec::new(),
+        tag_only: false,
     })
 }
 
@@ -558,6 +682,10 @@ pub enum RuleError {
     },
     /// The payee a Rule sets is empty or only spaces.
     EmptyPayee(RuleId),
+    /// A Rule adds more than [`MAX_TAGS_ON_RULE`] tags (D-827).
+    TooManyTags(RuleId),
+    /// A Rule names the same tag twice (D-827).
+    DuplicateTag(RuleId),
 }
 
 #[cfg(test)]

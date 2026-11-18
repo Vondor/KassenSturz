@@ -176,7 +176,8 @@ pub const FUNCTIONS: &[Function] = &[
             currencies are grouped by currency. For the biggest expenses use \
             \"sort\" \"largest_out\" with \"skip_transfers\". Sorting and filtering are done here, \
             so use them instead of sorting rows yourself. A row has \"tags\" and \
-            \"tag_ids\" when the transaction carries tags, and \"parts\" when it is split \
+            \"tag_ids\" when the transaction carries tags (\"rule_tag_ids\": those a Rule \
+            added, the others the user did), and \"parts\" when it is split \
             into parts: each with its category (or \"unsorted\"), amount as seen from the \
             account and \"name\". min_amount and max_amount also find a split by one part's \
             amount; \"matched_part\" then names that part, from 1. \"reference\" finds the \
@@ -195,7 +196,9 @@ pub const FUNCTIONS: &[Function] = &[
     Function {
         name: "list_rules",
         description: "Lists the user's Rules, which sort new transactions into categories: \
-            what each one looks for, what it books to, and its sub-Rules. \
+            what each one looks for, what it books to, the tags it adds (\"tag_ids\") and \
+            its sub-Rules. \"only_adds_tags\": true means it only tags and never decides the \
+            category. \
             \"conditions_complete\": false means some condition can't be shown or written \
             back exactly (an IBAN, an amount, a date, an account, or a text cut short), so \
             propose_changes can rename the Rule, change its category and add or remove single \

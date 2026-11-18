@@ -106,6 +106,12 @@ Kirigami.ApplicationWindow {
         onOpened: {
             bookMover.refresh();
             root.showBook();
+            // A book the Store app kept where Windows deletes it with the
+            // app: offered a move once a start (D-856).
+            if ((bookMover.place?.offerMove ?? false) && !bookInPackage.asked) {
+                bookInPackage.asked = true;
+                Qt.callLater(bookInPackage.ask);
+            }
             root.tellSettledBills(changeHistory.settleBills());
         }
         onFailed: root.showProblem()
@@ -160,6 +166,17 @@ Kirigami.ApplicationWindow {
 
         bookMove: bookMover
         onSettleFailed: reason => root.showPassiveNotification(reason, 10000)
+    }
+
+    // A book in the folder Windows deletes with the Store app (D-856).
+    BookInPackageDialog {
+        id: bookInPackage
+
+        // Asked once a start, also when another book opens later.
+        property bool asked: false
+
+        bookMove: bookMover
+        onMoveChosen: root.pushPage(bookMovePage, { startOwn: true })
     }
 
     // The first start (M3.4).

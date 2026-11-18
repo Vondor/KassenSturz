@@ -117,9 +117,8 @@ flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz
 ## Das erste Mal öffnen (beide Wege)
 
 1. Auf der ersten Seite **Willkommen bei KassenSturz** wählen Sie Ihre Sprache und Währung. Meist ist schon alles richtig eingestellt; klicken Sie **Weiter**.
-2. Auf der Seite **Wie möchten Sie anfangen?** wählen Sie für Karte 1 **Mit meinen eigenen Konten**. Wollen Sie lieber nur herumschauen, wählen Sie **Ein Beispielbuch ausprobieren** und dann die *Vorstadtfamilie* (empfohlener Einstieg).
-3. Bei **Mit meinen eigenen Konten** legen Sie ein Konto an und **denken sich einen Kontostand aus**. Tragen Sie keine echten Zahlen ein. Mit **Haushaltsbuch anlegen** geht es weiter. Wie neue Buchungen hineinkommen, wählen Sie als Nächstes (zum Beispiel **Ich tippe sie selbst ein**).
-4. Sie sind fertig, wenn Sie die **Übersicht** sehen. Notieren Sie im [Installationsprotokoll](INSTALL_LOG.de.md), wie viele Minuten Sie insgesamt gebraucht haben. Das ist das Ergebnis von Karte 1.
+2. Auf der Seite **Wie möchten Sie anfangen?** wählen Sie **Ein Beispielbuch ausprobieren** und dann die *Vorstadtfamilie*. Mit diesem Buch arbeiten Sie auch im Termin. Tragen Sie keine echten Zahlen ein.
+3. Sie sind fertig, wenn Sie die **Übersicht** sehen. Notieren Sie im [Installationsprotokoll](INSTALL_LOG.de.md), wie viele Minuten Sie insgesamt gebraucht haben.
 
 *(Bildschirmfoto folgt: Die Seiten des Einrichtungsassistenten und die Übersicht.)*
 
@@ -130,6 +129,8 @@ flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz
 ```sh
 sudo snap remove kassensturz
 ```
+
+**Achtung:** Dabei löscht Snap auch die Daten der App, also Ihr Testbuch und die Sicherungen in `~/snap/kassensturz`. Snap legt zwar meist eine Sicherung („Snapshot“) an, verlassen Sie sich aber nicht darauf. Für den Test ist das unproblematisch (Beispielbuch). **Schicken Sie das Protokoll deshalb vorher an die Testleitung.** Wollen Sie ein Buch behalten, kopieren Sie es vorher an einen anderen Ort.
 
 **Weg B (Flatpak):**
 

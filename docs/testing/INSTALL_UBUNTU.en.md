@@ -28,8 +28,8 @@ Open a **terminal** with Ctrl+Alt+T; paste each line (Ctrl+Shift+V) and press En
 - B4. **Install:** `cd ~/Downloads` then `flatpak install --user KassenSturz-0.261117.8-x86_64.flatpak` (type `KassenSturz-` and press Tab to complete the name).
 - B5. **Start in developer mode, not from the menu:** `flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz`. "Entwicklermodus" should show in the window title.
 
-**First start (both ways):** page 1 (language and currency), then **Continue**; on "How would you like to start?" choose **My own accounts** for card 1 (German: "Mit meinen eigenen Konten"), or "Try an example book" ("Ein Beispielbuch ausprobieren", recommended: Suburban Family) just to look around. Create an account with an **invented** balance, then "Create my household book" ("Haushaltsbuch anlegen"). Done when you see the **overview**; note the total minutes in the [step log](INSTALL_LOG.en.md) (card 1).
+**First start (both ways):** page 1 (language and currency), then **Continue**; on "How would you like to start?" choose "Try an example book" ("Ein Beispielbuch ausprobieren") and then Suburban Family; this is the book used in the session. Use no real numbers. Done when you see the **overview**; note the total minutes in the [step log](INSTALL_LOG.en.md).
 
-**Remove:** way A `sudo snap remove kassensturz`; way B `flatpak uninstall --user io.github.vondor.KassenSturz`.
+**Remove:** way A `sudo snap remove kassensturz`; way B `flatpak uninstall --user io.github.vondor.KassenSturz`. **Warning (way A):** snap also deletes the app's data, so the test book and its backups in `~/snap/kassensturz` (snap usually keeps a snapshot, but don't rely on it). Send the log to the facilitator first; copy a book you want to keep elsewhere first. Way B keeps the test books under `~/.var/app/io.github.vondor.KassenSturz/`.
 
 > **Stuck?** Note the step in the [step log](INSTALL_LOG.en.md) and send it to the facilitator.

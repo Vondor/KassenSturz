@@ -1,91 +1,90 @@
 # KassenSturz ausprobieren: Der Tester-Guide
 
-*Für Testerinnen und Tester. Dauer etwa 45 Minuten. Englische Fassung: [TESTER_GUIDE.en.md](TESTER_GUIDE.en.md).*
+*Für Testerinnen und Tester. Englische Fassung: [TESTER_GUIDE.en.md](TESTER_GUIDE.en.md).*
 
 Vielen Dank, dass Sie KassenSturz ausprobieren. KassenSturz ist ein freies Programm für die Haushaltskasse auf dem Computer. Es soll so einfach sein, dass man dafür weder Buchhaltung noch Wirtschaft gelernt haben muss.
 
-## Was passiert beim Test?
+## Worum es geht
 
-Vor dem Termin installieren Sie KassenSturz zu Hause, allein, mit dem Installationsblatt und dem [Installationsprotokoll](INSTALL_LOG.de.md). Der Termin selbst dauert etwa 45 bis 60 Minuten. Die Testleitung ist die Person, die Sie eingeladen hat. Sie sitzt neben Ihnen oder ist per Videoanruf dabei. Sie gibt Ihnen **Aufgabenkarten**, eine nach der anderen. Sie lösen sie mit KassenSturz und denken dabei laut. Am Ende beantworten Sie ein paar Fragen.
+**Sie sollen keine Fehler für uns finden.** Wir möchten erfahren, **wie KassenSturz auf Sie wirkt**: was Sie zuerst sehen, was Sie erwarten, was Ihnen gefällt und was nicht, und wie Sie mit dem Programm zurechtkommen. Die Testleitung führt Sie dazu durch einige Funktionen.
+
+Nicht jede Funktion ist für jeden Menschen gedacht. Manche möchten nur sehen, wohin ihr Geld geht, andere rechnen gern selbst, wieder andere bauen sich Dinge selbst. Deshalb dürfen Sie im Termin an einer Stelle **selbst wählen**, welchen Weg Sie gehen.
+
+## Was passiert?
 
 | Wann | Was | Etwa |
 |---|---|---|
-| Vorher, zu Hause | Dieses Blatt lesen, KassenSturz installieren (Karte 1), Protokoll schicken | etwa 20 Min. |
-| Termin | Die Karten 2 bis 5, 7 und 8 | 30 Min. |
-| Danach | Fragen zum Schluss | 10 Min. |
+| Vorher, zu Hause | Dieses Blatt lesen, KassenSturz installieren, Installationsprotokoll schicken | 20 Min. |
+| Termin | Gespräch mit der Testleitung: kurze Übung, einige Aufgaben, danach ein paar Fragen | 30 bis 60 Min. |
 
-## 1. Sie können hier nichts falsch machen
+Die **Testleitung** ist die Person, die Sie eingeladen hat. Sie sitzt neben Ihnen oder ist per Videoanruf dabei. Sie gibt Ihnen **Karten mit Aufgaben**, eine nach der anderen. Sie lösen sie mit KassenSturz und **denken dabei laut**.
 
-**Wir testen das Programm, nicht Sie.** Wenn Sie etwas nicht finden, nicht verstehen oder sich ärgern, ist das kein Fehler von Ihnen. Es ist genau der Fund, den wir suchen. Ein Test, bei dem alles glatt läuft, bringt uns fast nichts.
+## 1. Sie können nichts falsch machen
 
-- **Sie verletzen niemanden.** Die Leute, die KassenSturz bauen, wollen ehrliche Kritik, auch harte. „Das ist doof“, „Das verstehe ich nicht“ und „Warum ist das hier?“ sind die wertvollsten Sätze des ganzen Tests.
-- **Sie können nichts kaputt machen.** Sie arbeiten mit erfundenen Zahlen. Was Sie tun, betrifft nichts Echtes.
-- **Es gibt keine dummen Gedanken.** Auch ein kurzes „Hm“ oder „Moment …“ hilft uns.
-- **Aufgeben ist erlaubt.** Kommen Sie nicht weiter, sagen Sie es, und gehen Sie zur nächsten Karte. Auch das ist ein wichtiger Fund.
+- **Es geht um das Programm, nicht um Sie.** Wenn Sie etwas nicht finden oder nicht verstehen, sagt das etwas über das Programm.
+- **Es gibt keine richtigen oder falschen Antworten.** Uns interessiert Ihr Eindruck, so wie er ist.
+- **Seien Sie offen**, auch wenn Ihnen etwas nicht gefällt. „Das verstehe ich nicht“ oder „Das finde ich umständlich“ hilft uns mehr als Höflichkeit.
+- **„Das ist nichts für mich“ ist eine gute Antwort.** Sie dürfen jede Aufgabe abbrechen und zur nächsten gehen.
 - **Sie dürfen jederzeit eine Pause machen oder aufhören**, ohne einen Grund zu nennen.
 
 ## 2. Laut denken: so geht es
 
-Beim lauten Denken sagen Sie **alles, was Ihnen durch den Kopf geht**, während Sie das Programm benutzen. Stellen Sie sich vor, Sie erklären einem Freund am Telefon, was Sie gerade sehen und tun, und der Freund sieht Ihren Bildschirm nicht.
+Beim lauten Denken sagen Sie **alles, was Ihnen durch den Kopf geht**, während Sie das Programm benutzen. Stellen Sie sich vor, Sie erzählen jemandem am Telefon, was Sie gerade sehen und tun, und diese Person sieht Ihren Bildschirm nicht.
 
 Zum Beispiel:
 
-> „Ich suche jetzt, wo ich das Einkaufen eintrage … da oben steht ‚Hinzufügen‘, das probiere ich mal … hm, das ist ein Konto, keine Ausgabe … ich weiß nicht, was ‚Teilbetrag‘ heißt … ah, jetzt hat es geklappt, aber ich bin nicht sicher, ob es gespeichert ist.“
+> „Ich suche jetzt, wo ich den Einkauf eintrage … da oben steht ‚Hinzufügen‘, das probiere ich … hm, das ist ein Konto, keine Ausgabe … ah, jetzt hat es geklappt, aber ich bin nicht sicher, ob es gespeichert ist.“
 
-**Warum wir das wollen:** Von außen sehen wir nur, wo Sie klicken. Warum Sie dort klicken, was Sie erwartet haben und was Sie verwirrt hat, erfahren wir nur, wenn Sie es aussprechen. Genau das ist es, was wir verbessern können.
+**Warum:** Von außen sehen wir nur, wo Sie klicken. Was Sie erwartet haben und wie es auf Sie wirkt, erfahren wir nur, wenn Sie es aussprechen.
 
-So geht es gut:
-
-- Sprechen Sie **ununterbrochen**, auch wenn es sich am Anfang komisch anfühlt. Nach zwei, drei Minuten wird es normal.
-- Sagen Sie, **was Sie erwarten**, bevor Sie klicken („Ich glaube, da kommt jetzt …“), und **was dann wirklich passiert**.
-- Sagen Sie, **was Sie fühlen**: unsicher, genervt, überrascht, erleichtert.
-- **Meckern ist ausdrücklich erwünscht.** Wenn Sie etwas nervt, sagen Sie es genau so.
-- Werden Sie still, fragt die Testleitung nur: „Was denken Sie gerade?“ Sie hilft nicht und erklärt nichts. Das gehört zum Test, denn zu Hause sitzt auch niemand neben Ihnen.
+- Sagen Sie, **was Sie erwarten**, bevor Sie klicken, und **was dann passiert**.
+- Sagen Sie, **wie es Ihnen dabei geht**: unsicher, überrascht, erleichtert, genervt.
+- Werden Sie still, fragt die Testleitung nur: „Was denken Sie gerade?“ Sie hilft während der Aufgaben nicht und erklärt nichts, denn zu Hause sitzt auch niemand neben Ihnen. Ihre Fragen beantwortet sie am Ende gern.
 
 Die Testleitung übt das vor dem Start kurz mit Ihnen.
 
-## 3. Was sicher ist
+## 3. Aufnahme und Ihre Daten
 
-> **Bitte keine echten Daten.** Benutzen Sie im Test nur das Beispielbuch. Wenn Sie trotzdem eigene Konten, Beträge, Banken oder IBANs eingeben, werden diese Daten mit aufgenommen und ausgewertet: in der Bildschirm- und Tonaufnahme, im Protokoll der App und in Ihrem Bericht. Deshalb bitten wir Sie, das nicht zu tun.
-
-- **Bitte nur erfundene Zahlen und die Beispielbücher.** Tippen Sie keine eigenen Konten, Beträge, Banknamen oder IBANs ein. Fragt das Programm nach einem Kontostand, denken Sie sich einen aus. Zum Üben gibt es vier fertige Beispielbücher mit ausgedachten Menschen und Zahlen.
-- **Nichts verlässt Ihren Computer.** Der Test braucht keine Bank, keinen KI-Dienst und nach der Installation kein Internet. Lassen Sie KI und Bankverbindungen ausgeschaltet.
-- **Falls Sie doch echte Daten eingeben:** Das ist kein Problem, bitte sagen Sie es uns ehrlich (Frage 8 am Ende des Fragebogens). Dann behandeln wir Ihren Bericht als persönliche Daten: Er geht nur an die Testleitung, wird nirgends veröffentlicht, nicht ins Projekt, nicht in die öffentliche Fehlerliste und nicht an Programme oder KI-Werkzeuge gegeben, und er wird nach der Testrunde gelöscht.
-- **Ihr Haushaltsbuch ist nicht verschlüsselt.** KassenSturz speichert Ihr Haushaltsbuch unverschlüsselt auf Ihrem Computer. Wer Ihren Computer benutzen kann, kann es öffnen. Schützen Sie deshalb Ihr Benutzerkonto mit einem Passwort, und schalten Sie, wenn möglich, die Verschlüsselung Ihres Systems ein (unter Windows „Geräteverschlüsselung“ oder BitLocker).
-- **Aufnahme nur mit Ihrer Zustimmung.** Die Testleitung fragt vorher. Ein Nein ist völlig in Ordnung, der Test läuft dann genauso.
-- **Ein Hinweis zum Entwicklermodus.** Für den Test starten wir KassenSturz im *KassenSturz-Entwicklermodus*. Dann schreibt das Programm ein Protokoll mit, damit wir sehen, wo es langsam war oder einen Fehler hatte. Es enthält nur Zeiten, Namen von Bildschirmen und Knöpfen und Fehlercodes, **keine Beträge, keine Namen und keine Texte aus Ihrem Buch**. Steht oben im Fenster „Entwicklermodus“, läuft er. Er ist für Tests gedacht, nicht für den Alltag. Lassen Sie die KI dabei ausgeschaltet, sonst würde auch das KI-Gespräch mitgeschrieben.
+- **Bildschirm und Ton werden aufgenommen, aber nur, wenn Sie zustimmen.** Die Testleitung fragt zu Beginn. Ein Nein ist völlig in Ordnung; das Gespräch läuft dann genauso, und die Testleitung schreibt mit. Sie können die Aufnahme jederzeit anhalten lassen.
+- **Was mit der Aufnahme geschieht:** Nur die Testleitung sieht und hört sie. Sie wird nicht veröffentlicht, nicht weitergegeben und **spätestens nach 4 Wochen gelöscht**. In allem, was daraus aufgeschrieben wird, steht Ihr Name nicht; Sie bekommen ein Kürzel.
+- **Wie aufgenommen wird:** Sie arbeiten an Ihrem eigenen Computer und teilen Ihren Bildschirm in einem Videoanruf, der im Browser läuft; Sie müssen dafür nichts installieren. Aufgenommen wird nur bei der Testleitung, auf Ihrem Computer bleibt keine Aufnahme zurück.
+- **Die Aufnahme zeigt Ihren ganzen Bildschirm.** Schließen Sie bitte vor dem Termin andere Programme, E-Mail und Chats, und schalten Sie Benachrichtigungen stumm.
+- **Bitte keine echten Daten.** Im Termin arbeiten Sie in einem **Beispielbuch** mit einer ausgedachten Familie. Tippen Sie bitte keine eigenen Konten, Beträge, Banknamen oder IBANs ein, denn alles, was Sie eingeben, ist auf der Aufnahme zu sehen. Fragt das Programm bei der Installation nach einem Kontostand, denken Sie sich einen aus.
+- **Falls Sie doch etwas Echtes eingeben:** Sagen Sie es am Ende ruhig. Dann behandeln wir Aufnahme und Notizen als persönliche Daten: Sie bleiben nur bei der Testleitung und werden nach der Auswertung gelöscht.
+- **Bank und KI bleiben aus.** Der Termin braucht keine Bank und nach der Installation kein Internet. Lassen Sie Bankverbindungen und KI ausgeschaltet, auch zu Hause.
+- **Nur falls Sie im Termin den Weg „Fragen stellen“ wählen:** Dann schalten Sie selbst eine KI ein, die die Testleitung bereitstellt. Ihre Fragen und Teile des Beispielbuchs gehen dabei an diesen Rechner der Testleitung, nicht an eine fremde Firma. Das Programm fragt Sie vorher um Zustimmung. Das Gespräch mit der KI wird mitgeschrieben. Nach dem Termin schalten Sie die KI wieder aus, und Ihr Zugang wird gesperrt.
+- **Der Entwicklermodus.** Für den Test starten Sie KassenSturz im *Entwicklermodus*. Dann schreibt das Programm mit, welche Seiten und Knöpfe benutzt wurden und wann, mit Fehlercodes, aber **ohne Beträge, Namen oder Texte aus dem Buch**. Steht oben im Fenster „Entwicklermodus“, läuft er. Er ist für Tests gedacht, nicht für den Alltag. Ist die KI eingeschaltet, wird auch das Gespräch mit ihr mitgeschrieben.
+- **Ihr Haushaltsbuch ist nicht verschlüsselt.** KassenSturz speichert es unverschlüsselt auf Ihrem Computer; wer Ihren Computer benutzen kann, kann es öffnen. Das gilt auch später, wenn Sie KassenSturz für Ihr eigenes Geld nutzen.
 
 ## 4. Was Sie brauchen
 
-- Einen Computer mit **Windows 11 (oder Windows 10)** oder mit **Ubuntu**. Eine Anleitung, die Sie allein befolgen können, gibt es für beide:
-  - [Installationsblatt Windows](INSTALL_WINDOWS.de.md)
-  - [Installationsblatt Ubuntu](INSTALL_UBUNTU.de.md)
+- Einen Computer mit **Windows 11 (oder Windows 10)** oder **Ubuntu**.
 - Eine Internetverbindung für den Download (danach nicht mehr).
 - Bei Ubuntu einmal Ihr Passwort für den Computer.
-- Stift und Papier für Notizen, oder eine zweite Datei.
+- Für den Termin: 30 bis 60 Minuten Ruhe.
 
-**Die Installation gehört zum Test.** Sie installieren zu Hause, allein, nur mit dem Installationsblatt. Niemand hilft Ihnen dabei, auch nicht am Telefon. Tragen Sie jeden Schritt ins [Installationsprotokoll](INSTALL_LOG.de.md) ein. Kommen Sie nicht weiter, schreiben Sie ins Protokoll, wo, hören Sie dort auf und schicken Sie das Protokoll an die Testleitung. Das ist ein wertvoller Fund. Sie bekommen dann per E-Mail einen Hinweis, damit der Test weitergeht.
+## 5. Vor dem Termin: allein installieren
 
-## 5. Installieren in Kürze
+**Die Installation machen Sie zu Hause, allein, nur mit dem Installationsblatt.** Niemand hilft Ihnen dabei, und niemand schaut zu, denn genau dieser erste Eindruck interessiert uns.
 
-Die ganze Anleitung mit allen Klicks steht auf dem Installationsblatt. Hier der Überblick, damit Sie vorher wissen, was auf Sie zukommt:
+- [Installationsblatt Windows](INSTALL_WINDOWS.de.md)
+- [Installationsblatt Ubuntu](INSTALL_UBUNTU.de.md)
 
-1. **Download-Seite öffnen:** https://github.com/Vondor/KassenSturz/releases (kein GitHub-Konto nötig). Die oberste Version ist die neueste Beta-Version und als *Pre-release* gekennzeichnet. Die Testleitung sagt Ihnen vorher ihre Nummer (zum Beispiel 0.261117.8).
-2. **Die richtige Datei laden:** unter **Assets** die Datei für Ihr System. Für Windows die Datei, die auf `-windows-x64-setup.exe` endet. Unter Ubuntu brauchen Sie meist gar keine Datei: Sie installieren KassenSturz mit einem Befehl aus dem Snap Store.
-3. **Windows:** Windows warnt zweimal, weil die Beta-Version noch nicht signiert ist („Der Computer wurde durch Windows geschützt“). Das Blatt zeigt, wie Sie trotzdem fortfahren. Meist brauchen Sie keine Administrator-Rechte.
-   **Ubuntu:** Sie geben einen Befehl ins Terminal ein und dafür einmal Ihr Passwort. Klappt das nicht, zeigt das Blatt einen zweiten Weg mit einer Flatpak-Datei.
-4. **Starten im Entwicklermodus** (Abschnitt 3) und ein Konto mit **ausgedachtem** Kontostand anlegen.
+Tragen Sie dabei jeden Schritt ins [Installationsprotokoll](INSTALL_LOG.de.md) ein. Kommen Sie nicht weiter, schreiben Sie auf, wo, hören Sie dort auf und schicken Sie das Protokoll an die Testleitung. Sie bekommen dann per E-Mail einen Hinweis. Auch das ist eine wertvolle Auskunft.
 
-Wie man KassenSturz danach im Alltag benutzt, lesen Sie im [Benutzerhandbuch](../user/USER_GUIDE.de.md). Sie brauchen es für den Test nicht vorher.
+In Kürze: Unter **Windows** installieren Sie KassenSturz aus dem **Microsoft Store**, wie jedes andere Programm dort. Unter **Ubuntu** installieren Sie es mit einem Befehl aus dem Snap Store. Das Blatt für Ihr System zeigt jeden Schritt.
 
-## 6. Der Ablauf, Schritt für Schritt
+Das [Benutzerhandbuch](../user/USER_GUIDE.de.md) brauchen Sie für den Test nicht vorher zu lesen.
 
-1. Sie lesen dieses Blatt (5 Minuten).
-2. Sie installieren KassenSturz zu Hause (Karte 1) und schicken das Installationsprotokoll an die Testleitung.
-3. Die Testleitung begrüßt Sie, fragt wegen der Aufnahme und übt das laute Denken mit Ihnen.
-4. Sie beantworten die Fragen „Vor dem Test“ ([Fragebogen](QUESTIONNAIRE_1.de.md), Abschnitt 1).
-5. Sie bekommen die Aufgabenkarten ab Karte 2 **eine nach der anderen** und lösen sie laut denkend.
-6. Sie beantworten die Fragen „Nach dem Test“.
-7. Wenn Sie ein Problem gefunden haben, das Sie aufschreiben möchten, benutzen Sie die [Berichtsseite](REPORT_PAGE.de.md). Die schicken Sie nur an die Testleitung.
+## 6. Der Termin, Schritt für Schritt
+
+1. Die Testleitung begrüßt Sie und fragt, ob sie aufnehmen darf.
+2. Sie üben kurz das laute Denken, und die Testleitung stellt Ihnen drei kurze Fragen.
+3. Sie schauen sich die Startseite des Beispielbuchs an und erzählen, was Sie sehen.
+4. Sie bekommen einige Karten mit Aufgaben aus dem Alltag, **eine nach der anderen**.
+5. Sie wählen einen von drei oder vier Wegen, mit denen man Zahlen und Diagramme bekommt, und probieren ihn aus.
+6. Zum Schluss ein kurzes Gespräch über Ihren Eindruck. Danach beantwortet die Testleitung Ihre Fragen.
+
+Fällt Ihnen nach dem Termin noch etwas ein, schreiben Sie es gern auf die [Berichtsseite](REPORT_PAGE.de.md) und schicken Sie sie **nur an die Testleitung**.
 
 Vielen Dank, dass Sie dabei sind.

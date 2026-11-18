@@ -1,6 +1,6 @@
 # KassenSturz: Installationsprotokoll
 
-*Für die Installation zu Hause (Karte 1). Sie füllen es aus, während Sie dem Installationsblatt für Ihr System folgen ([Windows](INSTALL_WINDOWS.de.md), [Ubuntu](INSTALL_UBUNTU.de.md)). Englische Fassung: [INSTALL_LOG.en.md](INSTALL_LOG.en.md).*
+*Für die Installation zu Hause. Sie füllen es aus, während Sie dem Installationsblatt für Ihr System folgen ([Windows](INSTALL_WINDOWS.de.md), [Ubuntu](INSTALL_UBUNTU.de.md)). Englische Fassung: [INSTALL_LOG.en.md](INSTALL_LOG.en.md).*
 
 > **Bitte keine echten Daten.** Benutzen Sie im Test nur das Beispielbuch. Wenn Sie trotzdem eigene Konten, Beträge, Banken oder IBANs eingeben, werden diese Daten mit aufgenommen und ausgewertet: in der Bildschirm- und Tonaufnahme, im Protokoll der App und in Ihrem Bericht. Deshalb bitten wir Sie, das nicht zu tun.
 
@@ -8,18 +8,21 @@
 
 **Wenn Sie nicht weiterkommen:** Schreiben Sie auf, wo. Hören Sie dort auf, und schicken Sie das Protokoll an die Testleitung. Sie bekommen dann per E-Mail einen Hinweis. Das ist kein Fehler von Ihnen, sondern ein wertvoller Fund.
 
-Ihr System: ☐ Windows 11 ☐ Windows 10 ☐ Ubuntu (Version: ____)
+Ihr System: ☐ Windows 11 ☐ Windows 10 ☐ Ubuntu ☐ Kubuntu (Version: ____)
 
 ## Windows
 
 | Schritt | Uhrzeit | Hat es geklappt? (ja / mit Mühe / nein) | Was haben Sie gesehen oder nicht verstanden? |
 |---|---|---|---|
-| 1. Die Download-Seite öffnen | | | |
-| 2. Die richtige Datei wählen | | | |
-| 3. Die Warnungen beim Download und beim Öffnen | | | |
-| 4. Installieren | | | |
-| 5. Im Entwicklermodus starten | | | |
-| 6. Das erste Mal öffnen, bis zur Übersicht | | | |
+| A1. KassenSturz im Microsoft Store öffnen | | | |
+| A2. Installieren | | | |
+| A3. Im Entwicklermodus starten | | | |
+| Nur falls Weg B: B1. Die Download-Seite öffnen | | | |
+| B2. Die richtige Datei wählen | | | |
+| B3. Die Warnungen beim Download und beim Öffnen | | | |
+| B4. Installieren | | | |
+| B5. Im Entwicklermodus starten | | | |
+| Das erste Mal öffnen, bis zur Übersicht | | | |
 
 ## Ubuntu
 

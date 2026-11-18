@@ -6,11 +6,11 @@ A free, open-source personal finance app for the desktop, **simpler than KMyMone
 
 KassenSturz is in testing. If you would like to try it, you need no GitHub account and no programming knowledge:
 
-1. On Linux, install it from the Snap Store: `sudo snap install kassensturz --beta`. Otherwise download the test build from the project's [releases page](https://github.com/Vondor/KassenSturz/releases) (the newest entry marked *Pre-release*). All ways to install it: [`docs/INSTALL.md`](docs/INSTALL.md) (German: [`docs/INSTALL.de.md`](docs/INSTALL.de.md)).
+1. On Linux, install it from the Snap Store: `sudo snap install kassensturz --beta`. On Windows, install it from the [Microsoft Store](https://apps.microsoft.com/detail/9NM5V48PPRLQ). Otherwise download the test build from the project's [releases page](https://github.com/Vondor/KassenSturz/releases) (the newest entry marked *Pre-release*). All ways to install it: [`docs/INSTALL.md`](docs/INSTALL.md) (German: [`docs/INSTALL.de.md`](docs/INSTALL.de.md)).
 2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
 3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the [user guide](docs/user/USER_GUIDE.de.md) (German) explains how to use KassenSturz. [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
 
-Code signing: KassenSturz uses the SignPath Foundation for code signing of its Windows installers, with a free certificate. Until the project is accepted by SignPath Foundation, the installer is not signed yet. See [the code signing policy](docs/CODE_SIGNING_POLICY.md).
+Code signing: the Microsoft Store version is signed by the Store. The Windows installer and the zip on the releases page are not signed, so Windows shows a SmartScreen warning before they start. SignPath Foundation declined to sign for the project for now (too young, November 2026); we may apply again later. See [the code signing policy](docs/CODE_SIGNING_POLICY.md).
 
 ## Goals
 
@@ -201,7 +201,7 @@ Read [`AGENTS.md`](AGENTS.md) first. It defines the mission, boundaries and work
 - [`docs/SECURITY_OVERVIEW.en.md`](docs/SECURITY_OVERVIEW.en.md): how safe KassenSturz is, in plain words, with what was attacked and fixed (German: [`SECURITY_OVERVIEW.de.md`](docs/SECURITY_OVERVIEW.de.md))
 - [`docs/INSTALL.md`](docs/INSTALL.md): how to install KassenSturz (snap, Flatpak, Windows)
 - [`docs/WINDOWS.md`](docs/WINDOWS.md): the Windows packages, the Microsoft Store package and the steps to sign the installer
-- [`docs/CODE_SIGNING_POLICY.md`](docs/CODE_SIGNING_POLICY.md): which files are signed, who approves it and how (free code signing provided by SignPath.io, certificate by SignPath Foundation)
+- [`docs/CODE_SIGNING_POLICY.md`](docs/CODE_SIGNING_POLICY.md): which files are signed, who approves it and how (the Store signs its package; the installer is unsigned for now)
 - [`docs/SECURITY_LOG.md`](docs/SECURITY_LOG.md): how attack rounds are run and recorded (every round is logged)
 - [`SECURITY.md`](SECURITY.md): how to report a vulnerability privately
 - [`docs/proposals/`](docs/proposals/): proposals waiting for a decision

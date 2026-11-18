@@ -45,7 +45,13 @@ Removing the Flatpak keeps its folder `~/.var/app/io.github.vondor.KassenSturz/`
 
 ## Windows
 
-On the [releases page](https://github.com/Vondor/KassenSturz/releases), download the installer of the newest release and run it. It is not signed yet, so Windows shows a SmartScreen warning first (D-542, [`CODE_SIGNING_POLICY.md`](CODE_SIGNING_POLICY.md)). The Microsoft Store package is on its way; details in [`WINDOWS.md`](WINDOWS.md).
+### A. From the Microsoft Store (recommended)
+
+Install KassenSturz from the [Microsoft Store](https://apps.microsoft.com/detail/9NM5V48PPRLQ). The Store signs the program and installs updates by itself, so Windows shows no warning.
+
+### B. The installer from the releases page
+
+On the [releases page](https://github.com/Vondor/KassenSturz/releases), download the installer of the newest release and run it. It is not signed, so Windows shows a SmartScreen warning first (D-542, [`CODE_SIGNING_POLICY.md`](CODE_SIGNING_POLICY.md)). Details on the Windows packages: [`WINDOWS.md`](WINDOWS.md).
 
 ## macOS
 

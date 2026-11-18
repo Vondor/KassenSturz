@@ -45,7 +45,13 @@ Beim Entfernen des Flatpaks bleibt sein Ordner `~/.var/app/io.github.vondor.Kass
 
 ## Windows
 
-Laden Sie auf der [Release-Seite](https://github.com/Vondor/KassenSturz/releases) das Installationsprogramm der neuesten Ausgabe herunter und starten Sie es. Es ist noch nicht signiert, deshalb zeigt Windows zuerst eine SmartScreen-Warnung (D-542, [`CODE_SIGNING_POLICY.md`](CODE_SIGNING_POLICY.md)). Das Paket für den Microsoft Store ist unterwegs; Einzelheiten (Englisch) in [`WINDOWS.md`](WINDOWS.md).
+### A. Aus dem Microsoft Store (empfohlen)
+
+Installieren Sie KassenSturz aus dem [Microsoft Store](https://apps.microsoft.com/detail/9NM5V48PPRLQ). Der Store signiert das Programm und installiert Aktualisierungen selbst, deshalb zeigt Windows keine Warnung.
+
+### B. Das Installationsprogramm von der Release-Seite
+
+Laden Sie auf der [Release-Seite](https://github.com/Vondor/KassenSturz/releases) das Installationsprogramm der neuesten Ausgabe herunter und starten Sie es. Es ist nicht signiert, deshalb zeigt Windows zuerst eine SmartScreen-Warnung (D-542, [`CODE_SIGNING_POLICY.md`](CODE_SIGNING_POLICY.md)). Einzelheiten zu den Windows-Paketen (Englisch): [`WINDOWS.md`](WINDOWS.md).
 
 ## macOS
 

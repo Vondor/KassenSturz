@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # KassenSturz on Windows: packages and signing
 
-**Status:** the MSIX for the Microsoft Store is built by CI, and a release can upload it to Partner Center by itself once the maintainer has set it up (#927, D-844, section 2). Publishing and the SignPath wiring stay the maintainer's steps (AGENTS.md §3.2: signing and publishing packages). Only free signing options are used (D-048).
+**Status:** the MSIX for the Microsoft Store is built by CI, and a release can upload it to Partner Center by itself once the maintainer has set it up (#927, D-844, section 2). The app is certified and published in the Store since 18 Nov 2026: <https://apps.microsoft.com/detail/9NM5V48PPRLQ>. Publishing and any signing set-up stay the maintainer's steps (AGENTS.md §3.2: signing and publishing packages). Only free signing options are used (D-048).
 
 ## 1. The packages
 
@@ -14,7 +14,7 @@ The `Windows app` workflow (`.github/workflows/windows-app.yml`) builds three fi
 | File | For | Signed |
 |---|---|---|
 | `KassenSturz-<version>-windows-x64.zip` | portable use, testers | no |
-| `KassenSturz-<version>-windows-x64-setup.exe` | the installer, direct download | not yet, see section 3 |
+| `KassenSturz-<version>-windows-x64-setup.exe` | the installer, direct download | no, see section 3 |
 | `KassenSturz-<version>-windows-x64-store.msix` | the Microsoft Store | no: the Store signs it itself |
 
 The MSIX holds the same programs as the zip (only `kassensturz.exe` and `kassensturz-mcp.exe`, B-292) plus `AppxManifest.xml` (`packaging/windows/msix/`) and three logos made from the app icon. CI packs it with `makeappx`, unpacks it again and checks the package name, the publisher, the version and that `bin\kassensturz.exe` is inside.
@@ -77,9 +77,11 @@ The package declares the restricted capability `runFullTrust` (a normal desktop 
 
 ## 3. A signed installer (SignPath Foundation)
 
+**Status (18 Nov 2026):** SignPath Foundation declined the application: the program is for projects with more public visibility (stars, forks, contributors, outside articles or discussions), and the project may apply again once it has that. Its paid subscription is not used (D-048, only free signing). Until then the Store is the signed route for Windows users, and the installer and zip stay unsigned.
+
 SignPath Foundation signs open-source programs for free. It needs a first public release of the installer, a code signing policy page ([`CODE_SIGNING_POLICY.md`](CODE_SIGNING_POLICY.md)), two-factor sign-in for everyone with access, and an automated build from the public repository. Steps for the maintainer, once the project is accepted:
 
-1. Apply at <https://signpath.org> with the repository and the policy page.
+1. Apply again at <https://signpath.org> with the repository and the policy page (the first application was declined).
 2. Install the SignPath GitHub app and create the project and the release-signing policy in SignPath, with the maintainer as the only approver.
 3. Add the organisation id and API token as repository secrets (never in the repository).
 4. In `release.yml` add a job that uploads the unsigned installer artifact to SignPath, waits for the maintainer's approval and attaches the signed file to the release. This is a change to the release path and is made in its own pull request.

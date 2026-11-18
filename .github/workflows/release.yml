@@ -293,7 +293,7 @@ jobs:
             echo
             echo "How to install it: follow the install sheet for your system in [docs/testing](https://github.com/$GH_REPO/tree/$TAG/docs/testing)."
             echo
-            echo "Code signing: KassenSturz uses the SignPath Foundation for code signing of its Windows installers (free certificate). Until the project is accepted, the installer is not signed yet. See [the code signing policy](https://github.com/$GH_REPO/blob/$TAG/docs/CODE_SIGNING_POLICY.md)."
+            echo "Windows: the signed version is in the [Microsoft Store](https://apps.microsoft.com/detail/9NM5V48PPRLQ). The installer and the zip here are not signed, so Windows shows a SmartScreen warning first. See [the code signing policy](https://github.com/$GH_REPO/blob/$TAG/docs/CODE_SIGNING_POLICY.md)."
             echo
             echo "Commit: \`${SHA}\`"
             if [ -n "$previous" ]; then

@@ -86,15 +86,17 @@ impl qobject::ExampleBooks {
     }
 }
 
-/// The list of bundled books as QML reads it.
+/// The list of bundled books as QML reads it, for the language the app
+/// runs in (D-843).
 fn books_object() -> QVariant {
-    list(example_books::all().iter().map(|example| {
+    books_object_for(crate::language::at_start().is_german())
+}
+
+fn books_object_for(german: bool) -> QVariant {
+    list(example_books::offered(german).map(|example| {
         map([
             ("id", text(example.id)),
-            (
-                "suggested",
-                QVariant::from(&(example.id == example_books::SUGGESTED)),
-            ),
+            ("suggested", QVariant::from(&example.suggested)),
         ])
     }))
 }
@@ -116,12 +118,17 @@ mod tests {
 
     #[test]
     fn the_list_of_books_reads_back_as_qml_reads_it() {
-        let rows = elements(&books_object()).expect("a list");
-        assert_eq!(rows.len(), example_books::all().len());
-        let first = &rows[0];
-        assert_eq!(keys(first), ["id", "suggested"]);
-        assert_eq!(text_of(first, "id"), example_books::all()[0].id);
-        assert!(!flag_of(first, "suggested") || example_books::all()[0].id == "suburban-family");
+        for (german, first) in [(true, "suburban-family"), (false, "suburban-family-en")] {
+            let rows = elements(&books_object_for(german)).expect("a list");
+            assert_eq!(rows.len(), example_books::offered(german).count());
+            assert_eq!(rows.len(), 4);
+            assert_eq!(keys(&rows[0]), ["id", "suggested"]);
+            assert_eq!(text_of(&rows[0], "id"), first);
+            assert!(flag_of(&rows[0], "suggested"));
+            assert!(rows[1..].iter().all(|row| !flag_of(row, "suggested")));
+        }
+        // The app's own language reads the same way.
+        assert_eq!(elements(&books_object()).expect("a list").len(), 4);
     }
 
     #[test]

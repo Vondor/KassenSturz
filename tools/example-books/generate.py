@@ -4,16 +4,20 @@
 #
 """Makes the example books and their bank files (M7a.8, D-561).
 
-Writes three made-up German books as KMyMoney SQLite files (layout 15), which
-KassenSturz imports like any other KMyMoney book, and for each of the four
-example books (these three and the older Space Colony book) one CSV and one
-CAMT.053 statement:
+Writes three made-up German books and the English Suburban Family as KMyMoney
+SQLite files (layout 15), which KassenSturz imports like any other KMyMoney
+book, and for each of the five example books (these four and the older Space
+Colony book) one CSV and one CAMT.053 statement:
 
 * Suburban Family  (`suburban-family`, Vorstadtfamilie): the suggested start.
   A family of five in North Rhine-Westphalia: he a nurse at a public
   hospital, she a teacher at a Gymnasium, both 40, three children.
   Girokonto, Sparkonto, Kreditkarte and Bargeld, the default German
   categories, two years and monthly Umbuchungen.
+* Suburban Family in English (`suburban-family-en`, D-843): the same book
+  with every name and memo in English (`SUBURBAN_EN`), the same amounts and
+  dates, and an English bank's statement files. The app offers it instead of
+  the German one when it does not run in German.
 * Flower Utopia    (`flower-utopia`): a small garden cooperative with a shared
   cash box. Its budgets and charts are added by the pipeline test
   `example_books`, which writes `flower-utopia.json`.
@@ -252,6 +256,7 @@ class Book:
         self.rates = []      # (from, to, date, numerator over 10000)
         self.bank_counter = 0
         self.bank_accounts = set()  # accounts whose lines carry a bank reference
+        self.english = False        # English statements (D-843)
 
     # --- structure
     def account(self, name, kind, parent=None, currency=None, iban=None, bank=False):
@@ -400,7 +405,7 @@ def write_book(book, path):
             db.execute("INSERT INTO kmmKeyValuePairs VALUES ('ACCOUNT', ?, 'iban', ?)",
                        (a["id"], a["iban"]))
     db.execute("INSERT INTO kmmKeyValuePairs VALUES ('ACCOUNT', ?, 'OpeningBalanceAccount', 'Yes')",
-               (ids["Anfangsbestand"],))
+               (ids[next(n for n in book.order if book.accounts[n]["kind"] == EQUITY)],))
 
     for from_code, to_code, when, numerator in book.rates:
         db.execute("INSERT INTO kmmPrices VALUES (?,?,?,?,?,?)",
@@ -409,7 +414,9 @@ def write_book(book, path):
 
     # Payees: the owner first, then the made-up ones with a default category.
     db.execute("INSERT INTO kmmPayees VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-               ("USER", book.owner, "", "", "Musterstraße 1", "Musterstadt", "00000", "XX",
+               ("USER", book.owner, "", "",
+                "1 Example Street" if book.english else "Musterstraße 1",
+                "Exampletown" if book.english else "Musterstadt", "00000", "XX",
                 "", "", "", 0, "Y", "", "", ""))
     payee_id = {}
     for number, (name, category) in enumerate(sorted(book.payees.items()), start=1):
@@ -467,7 +474,16 @@ class Line:
             when, name, iban, memo, cents, ref)
 
 
-def csv_text(currency, lines):
+def csv_text(currency, lines, english=False):
+    if english:
+        # An English bank's file: commas, a decimal point, ISO dates (D-843).
+        out = ["Booking date,Value date,Payee,Payee IBAN,Reference,Amount,Currency"]
+        for line in lines:
+            d = iso(line.when)
+            fields = [d, d, line.name, line.iban, line.memo, plain(line.cents), currency]
+            out.append(",".join(f'"{f}"' if "," in f or '"' in f else f
+                                for f in (field.replace('"', '""') for field in fields)))
+        return "\r\n".join(out) + "\r\n"
     out = ["Buchungstag;Valuta;Name Zahlungsbeteiligter;IBAN Zahlungsbeteiligter;"
            "Verwendungszweck;Betrag;Währung"]
     for line in lines:
@@ -486,6 +502,18 @@ other-party-name = "Name Zahlungsbeteiligter"
 other-party-iban = "IBAN Zahlungsbeteiligter"
 remittance-information = "Verwendungszweck"
 currency = "Währung"
+'''
+
+CSV_SETTINGS_EN = '''delimiter = ","
+decimal-mark = point
+date-order = year-month-day
+booking-date = "Booking date"
+value-date = "Value date"
+amount = "Amount"
+other-party-name = "Payee"
+other-party-iban = "Payee IBAN"
+remittance-information = "Reference"
+currency = "Currency"
 '''
 
 
@@ -537,13 +565,13 @@ def camt_text(slug, currency, account_id, account_is_iban, lines, closing, closi
 
 
 def statement_files(slug, currency, account_id, account_is_iban, existing, new_lines,
-                    closing, closing_date, stamp):
+                    closing, closing_date, stamp, english=False):
     """existing: the Line already in the book; new_lines: Lines in the
     reference month. Returns {file name: text}."""
     lines = [existing] + sorted(new_lines, key=lambda l: l.when)
     return {
-        f"{slug}.csv": csv_text(currency, lines),
-        f"{slug}.csv.settings": CSV_SETTINGS,
+        f"{slug}.csv": csv_text(currency, lines, english),
+        f"{slug}.csv.settings": CSV_SETTINGS_EN if english else CSV_SETTINGS,
         f"{slug}.camt053.xml": camt_text(slug, currency, account_id, account_is_iban,
                                          lines, closing, closing_date, stamp),
     }
@@ -574,7 +602,7 @@ def book_statement(book, name, account_id, account_is_iban, existing_index, new_
     closing_date = max(line.when for line in new_lines)
     return statement_files(book.slug, book.accounts[name]["currency"], account_id,
                            account_is_iban, existing, new_lines, closing, closing_date,
-                           f"{iso(closing_date)}T20:00:00+01:00")
+                           f"{iso(closing_date)}T20:00:00+01:00", book.english)
 
 
 # ======================================================== Suburban Family
@@ -595,7 +623,135 @@ TEACHER_NET = [((2024, 1), 589000), ((2025, 4), 603500), ((2026, 2), 614800)]
 KINDERGELD_PER_CHILD = [((2024, 1), 25000), ((2025, 1), 25500), ((2026, 1), 25900)]
 
 
-def suburban_family(reference):
+# The English Suburban Family (D-843, #1149): the same household, accounts and
+# amounts as the German book, every name and memo in English. The category
+# names are the app's own English default categories; the places, shops and
+# offices are made up like the German ones (AGENTS.md section 9.3, #734).
+SUBURBAN_EN = {
+    # Accounts and the opening balance.
+    "Girokonto": "Checking account", "Sparkonto": "Savings account",
+    "Kreditkarte": "Credit card", "Bargeld": "Cash", "Anfangsbestand": "Opening balance",
+    # Categories.
+    "Gehalt": "Salary", "Rente": "Pension", "Sozialleistungen": "Benefits",
+    "Zinsen": "Interest", "Erhaltene Geschenke": "Gifts received",
+    "Erstattungen": "Money back", "Sonstige Einnahmen": "Other income",
+    "Wohnen": "Home", "Miete oder Hauskredit": "Rent or mortgage",
+    "Strom und Heizung": "Electricity and heating", "Wasser und Müll": "Water and waste",
+    "Internet und Telefon": "Internet and phone", "Haushaltswaren": "Household goods",
+    "Reparaturen": "Repairs", "Grundsteuer": "Property tax",
+    "Essen": "Food", "Lebensmittel": "Groceries", "Auswärts essen": "Eating out",
+    "Unterwegs": "Getting around", "Bus und Bahn": "Public transport", "Auto": "Car",
+    "Fahrrad": "Bicycle", "Gesundheit": "Health", "Arzt und Apotheke": "Doctor and pharmacy",
+    "Krankenversicherung": "Health insurance", "Versicherungen": "Insurance",
+    "Kleidung": "Clothes", "Kinder": "Children",
+    "Schule und Kinderbetreuung": "School and childcare", "Taschengeld": "Pocket money",
+    "Musik und Sport": "Music and sport", "Haustiere": "Pets", "Freizeit": "Free time",
+    "Hobbys und Sport": "Hobbies and sport", "Urlaub": "Holidays",
+    "Abos und Streaming": "Subscriptions and streaming", "Bücher und Medien": "Books and media",
+    "Bildung": "Education", "Geschenke und Spenden": "Gifts and donations",
+    "Gebühren": "Fees and charges", "Sonstige Ausgaben": "Other spending",
+    # The household, its bank and the payees.
+    "Familie Sommerfeld": "The Summerfield Family", "Sonnenauer Bank": "Sunmere Bank",
+    "Städtisches Klinikum Sonnenau": "Sunmere City Hospital",
+    "Besoldungsstelle des Landes": "State Pay Office",
+    "Familienkasse": "Family Benefits Office",
+    "Beihilfestelle des Landes": "State Medical Aid Office",
+    "Sternschnuppe Krankenversicherung": "Starfall Health Insurance",
+    "Sonnenauer Bank Baufinanzierung": "Sunmere Bank Mortgages",
+    "Stadtwerke Sonnenau": "Sunmere Town Utilities", "Stadtkasse Sonnenau": "Sunmere Town Hall",
+    "Zweckverband Wasser Sonnenau": "Sunmere Water Board",
+    "Nordlicht Internet": "Northglow Internet", "Funkstern Mobilfunk": "Radiostar Mobile",
+    "Drogerie Regenbogen": "Rainbow Chemist", "Supermarkt Sonnental": "Sunvale Supermarket",
+    "Discounter Pfennigfuchs": "Penny Fox Discount", "Bäckerei Kornblume": "Cornflower Bakery",
+    "Hofgut Linde Wochenmarkt": "Linden Farm Market Stall", "Gasthaus Eichenhain": "The Oak Grove Inn",
+    "Eisdiele Zuckerhut": "Sugarloaf Ice Cream", "Pizzeria Vesuvio Sonnenau": "Pizzeria Vesuvio Sunmere",
+    "Verkehrsverbund Nordland": "Northland Transit", "Tankstelle Waldweg": "Woodland Lane Fuel",
+    "Autohaus Kalkberg": "Chalk Hill Motors", "Apotheke am Markt": "Market Square Pharmacy",
+    "Praxis Dr. Ahornblatt": "Dr Mapleleaf's Surgery", "Zahnarztpraxis Lächelwerk": "Smilegrove Dental",
+    "Versicherung Sternschnuppe": "Starfall Insurance", "Modehaus Pfau": "Peacock Fashion",
+    "Schuhhaus Fersengeld": "Quickheel Shoes",
+    "Gymnasium am Lindenhof Förderverein": "Linden Court Grammar School Parents' Fund",
+    "Offene Ganztagsschule Sonnenau": "Sunmere After-School Club",
+    "Musikschule Sonnenau": "Sunmere Music School", "Turnverein Sonnenau 1892": "Sunmere Gymnastics Club 1892",
+    "Ferienhof Seeblick": "Lakeview Holiday Farm", "Streamfabrik": "Streamery",
+    "Beitragsservice Rundfunk": "Broadcasting Licence Office",
+    "Zeitungsverlag Sonnenau": "Sunmere Courier", "Buchhandlung Lesezeichen": "Bookmark Bookshop",
+    "Blumen Lindenhof": "Linden Court Flowers", "Tierarzt Dr. Weidenfeld": "Dr Willowfield, Vet",
+    "Spielwaren Kreisel": "Spinning Top Toys", "Zoohandlung Pfötchen": "Little Paws Pet Shop",
+    # Memos.
+    "Abschlag Gas": "Gas instalment", "Abschlag Strom": "Electricity instalment",
+    "Abschlag Wasser und Abwasser": "Water and sewage instalment",
+    "Adventskalender und Nikolaus": "Advent calendars and St Nicholas",
+    "Anzahlung Ferienhaus Nordsee": "Deposit, holiday cottage by the sea",
+    "Apotheke": "Pharmacy", "Arztrechnung": "Doctor's bill",
+    "Ausflug mit den Kindern": "Day out with the children",
+    "Ausflüge und Essen im Urlaub": "Trips and meals on holiday",
+    "Bargeld abgehoben": "Cash withdrawal",
+    "Beihilfe zur Arztrechnung": "Medical aid for the doctor's bill",
+    "Beitrag Krankenversicherung Mutter und 3 Kinder": "Health insurance, mother and 3 children",
+    "Bezüge": "Monthly pay", "Blumen zum Muttertag": "Flowers for Mother's Day",
+    "Brötchen": "Bread rolls", "Dachrinne und Fallrohr": "Gutter and downpipe",
+    "Drogerie": "Chemist", "Einkauf": "Shopping", "Eis": "Ice cream",
+    "Erstattung Krankenversicherung": "Health insurance refund", "Essen gehen": "Meal out",
+    "Fahrradinspektion": "Bicycle service", "Frühjahrsschuhe Kinder": "Spring shoes for the children",
+    "Geburtstagsgeschenk": "Birthday present",
+    "Gehalt inkl. Schicht- und Zeitzuschläge": "Salary incl. shift and overtime pay",
+    "Grundsteuer und Müllgebühr": "Property tax and waste fee",
+    "Gutschrift Jahresabrechnung Strom": "Credit from the yearly electricity bill",
+    "Haftpflicht und Hausrat": "Liability and home contents",
+    "Handyverträge Familie": "Family mobile contracts",
+    "Inspektion und Reifen": "Service and tyres", "Internet": "Internet",
+    "Jahressonderzahlung": "Annual bonus", "Karnevalskostüme": "Carnival costumes",
+    "Kartenentgelt": "Card fee", "Katzenfutter und Streu": "Cat food and litter",
+    "Kfz-Steuer beide Autos": "Road tax, both cars", "Kfz-Versicherung 2 Autos": "Car insurance, 2 cars",
+    "Kieferorthopädie Eigenanteil": "Orthodontics, own share", "Kinderbuch": "Children's book",
+    "Kindergeld 3 Kinder": "Child benefit, 3 children", "Klassenfahrt": "School trip",
+    "Klavierunterricht": "Piano lessons",
+    "Kleidung Kinder und Erwachsene": "Clothes for children and grown-ups",
+    "Kontoführung": "Account fee", "Kreditkarte beglichen": "Credit card paid off",
+    "Mittagessen OGS": "After-school lunch", "Neue Waschmaschine": "New washing machine",
+    "OGS-Elternbeitrag": "After-school club fee", "Obst und Gemüse": "Fruit and vegetables",
+    "Pizza für alle": "Pizza for everyone", "Rate Baufinanzierung": "Mortgage payment",
+    "Restzahlung Ferienhaus Nordsee": "Balance, holiday cottage by the sea",
+    "Risikolebensversicherung": "Term life insurance",
+    "Rundfunkbeitrag Quartal": "Broadcasting licence, quarter",
+    "Schulbücher Eigenanteil und Hefte": "School books, own share, and exercise books",
+    "Schulkleidung": "School clothes", "Schwimmkurs Jüngste": "Swimming lessons, youngest",
+    "Sonstiges": "Odds and ends", "Sparrate": "Monthly saving",
+    "Spende Tafel Sonnenau": "Donation to the Sunmere food bank",
+    "Streaming Familienabo": "Family streaming plan", "Tanken": "Fuel",
+    "Taschengeld für die drei Kinder": "Pocket money for the three children",
+    "Tierarzt Impfung Katze": "Vet, cat's vaccination",
+    "Vereinsbeiträge Kinder": "Club fees, children", "Wasserhahn Küche": "Kitchen tap",
+    "Weihnachtsbaum": "Christmas tree", "Weihnachtseinkauf": "Christmas food shopping",
+    "Weihnachtsgeschenke Kinder": "Christmas presents for the children",
+    "Winterjacken Kinder": "Winter coats for the children",
+    "Winterschlussverkauf Bettwäsche": "Bed linen in the winter sale",
+    "Wocheneinkauf": "Weekly shop",
+    "Wohngebäudeversicherung Jahresbeitrag": "Buildings insurance, yearly",
+    "Zahnarzt Zuzahlung": "Dentist, own share", "Zeitungsabo": "Newspaper subscription",
+    "Zinsen Sparkonto": "Interest, savings account",
+}
+
+
+def in_english(book, words):
+    """Every name and memo of `book` put into English through `words`, which
+    must know each of them, so nothing German is left by mistake."""
+    t = lambda text: text if text is None else words[text]
+    book.accounts = {t(name): value for name, value in book.accounts.items()}
+    book.order = [t(name) for name in book.order]
+    book.bank_accounts = {t(name) for name in book.bank_accounts}
+    book.payees = {t(name): t(category) for name, category in book.payees.items()}
+    for tx in book.tx:
+        tx["parts"] = [(t(name), value, shares) for name, value, shares in tx["parts"]]
+        tx["memo"], tx["payee"] = t(tx["memo"]), t(tx["payee"])
+        tx["refs"] = {t(name): ref for name, ref in tx["refs"].items()}
+    book.owner, book.institution = t(book.owner), t(book.institution)
+    book.english = True
+    return t
+
+
+def suburban_family(reference, english=False):
     """Familie Sommerfeld in a suburb of a city in North Rhine-Westphalia
     (NRW): both 40, three children (14, 11 and 7).
 
@@ -615,6 +771,10 @@ def suburban_family(reference):
       259 in 2026.
     * A terraced house bought with a mortgage, two cars, the eldest at the
       Gymnasium, the youngest in the primary school's all-day care (OGS).
+
+    With `english`, the same book in English (D-843): the Summerfield family
+    with every name and memo from `SUBURBAN_EN`, the same amounts and dates,
+    and an English bank's statement files.
     """
     months = earlier_months(reference)
     ry, rm = reference
@@ -886,6 +1046,11 @@ def suburban_family(reference):
     book.finish()
     totals, _ = book.totals()
     assert totals[G] > 0 and totals[B] >= 0, totals
+    t = lambda text: text
+    if english:
+        t = in_english(book, SUBURBAN_EN)
+        book.slug, book.title = "suburban-family-en", "Suburban Family (English)"
+        G = t(G)
     new = [
         (2, state, "Bezüge", in_effect(date(ry, rm, 1), TEACHER_NET)),
         (2, "Sternschnuppe Krankenversicherung", "Beitrag Krankenversicherung Mutter und 3 Kinder", -34860),
@@ -896,6 +1061,7 @@ def suburban_family(reference):
         (5, "Nordlicht Internet", "Internet", -4495),
         (6, "Stadtkasse Sonnenau", "OGS-Elternbeitrag", -20500),
     ]
+    new = [(offset, t(who), t(memo), cents) for offset, who, memo, cents in new]
     files = book_statement(book, G, IBAN_DE, True, 1, new, reference)
     return book, files
 
@@ -1242,7 +1408,8 @@ def build_all(reference, out):
     """Returns {relative path: ("sqlite" | "text", path or text)} in a work
     folder, so --check can compare without touching the committed files."""
     made = {}
-    for factory in (suburban_family, flower_utopia, udssr_agent):
+    for factory in (suburban_family, lambda month: suburban_family(month, english=True),
+                    flower_utopia, udssr_agent):
         book, files = factory(reference)
         path = os.path.join(out, f"{book.slug}-v15.sqlite")
         count, splits = write_book(book, path)

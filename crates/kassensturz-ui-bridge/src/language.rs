@@ -71,20 +71,26 @@ impl Language {
         match self {
             Self::English => Some(AnswerLanguage::English),
             Self::German => Some(AnswerLanguage::German),
-            Self::System => ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
-                .iter()
-                .filter_map(|name| std::env::var(name).ok())
-                .find(|value| !value.is_empty() && value != "C" && value != "POSIX")
-                .and_then(|value| {
-                    let code = value.to_ascii_lowercase();
-                    if code.starts_with("de") {
-                        Some(AnswerLanguage::German)
-                    } else if code.starts_with("en") {
-                        Some(AnswerLanguage::English)
-                    } else {
-                        None
-                    }
-                }),
+            Self::System => system_language().and_then(|code| {
+                if code.starts_with("de") {
+                    Some(AnswerLanguage::German)
+                } else if code.starts_with("en") {
+                    Some(AnswerLanguage::English)
+                } else {
+                    None
+                }
+            }),
+        }
+    }
+
+    /// Whether the screens are in German: the choice, or for the system's
+    /// the language of its environment. The example-book chooser offers
+    /// the German Suburban Family then, the English one otherwise (D-843).
+    pub fn is_german(self) -> bool {
+        match self {
+            Self::English => false,
+            Self::German => true,
+            Self::System => system_language().is_some_and(|code| code.starts_with("de")),
         }
     }
 
@@ -96,6 +102,16 @@ impl Language {
             Self::German => Some("de_DE.UTF-8"),
         }
     }
+}
+
+/// The system's language as its environment names it, in lower case, e.g.
+/// `de_de.utf-8`; none if nothing or only the plain "C" locale is set.
+fn system_language() -> Option<String> {
+    ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
+        .iter()
+        .filter_map(|name| std::env::var(name).ok())
+        .find(|value| !value.is_empty() && value != "C" && value != "POSIX")
+        .map(|value| value.to_ascii_lowercase())
 }
 
 /// The language that was in effect when the app started.
@@ -174,6 +190,12 @@ mod tests {
             Language::English.answer_language(),
             Some(AnswerLanguage::English)
         );
+    }
+
+    #[test]
+    fn a_chosen_language_says_whether_the_screens_are_german() {
+        assert!(Language::German.is_german());
+        assert!(!Language::English.is_german());
     }
 
     #[test]

@@ -343,3 +343,104 @@ jobs:
           fi
           sudo snap install snapcraft --classic
           snapcraft upload --release=beta snap/kassensturz.snap
+
+  # Puts the Windows package (the `...-store.msix` of the release) into the
+  # Microsoft Store (#927, D-844), so the maintainer no longer uploads it in
+  # Partner Center by hand. The tag he pushed is his decision to publish
+  # (AGENTS.md 3.2), and the job runs in the environment `release`, so it
+  # waits for his approval and only a `v0.*` tag run can read the Store
+  # login. It is off until he sets the repository variable STORE_UPLOAD
+  # (docs/WINDOWS.md, section 2):
+  #   - `draft`: the package goes up as a draft submission; he presses
+  #     "Submit" in Partner Center (the default, Q-631);
+  #   - `submit`: the submission goes to Microsoft's certification at once;
+  #     with the variable STORE_FLIGHT_ID it goes to that package flight only.
+  # Its result does not change the GitHub release, which is already published.
+  # A pull request that changes this file runs only the CLI's download and
+  # check, with no environment and no secret.
+  store-upload:
+    name: Upload the Windows package to the Microsoft Store
+    needs: [release]
+    if: >-
+      !cancelled() && (github.event_name == 'pull_request' ||
+      (github.ref_type == 'tag' && needs.release.result == 'success' &&
+      (vars.STORE_UPLOAD == 'draft' || vars.STORE_UPLOAD == 'submit')))
+    runs-on: windows-2022
+    environment: ${{ github.ref_type == 'tag' && 'release' || '' }}
+    env:
+      # Microsoft Store Developer CLI (MIT, docs/THIRD_PARTY.md), the release
+      # file pinned by its SHA-256.
+      MSSTORE_CLI_URL: https://github.com/microsoft/msstore-cli/releases/download/v0.4.4/MSStoreCLI-win-x64.zip
+      MSSTORE_CLI_SHA256: d288a324541dc68244a683eb5b6445e9239bb47d1e6acf5cca4d1476017f1447
+      # The app's Store ID from Partner Center; public, like the identity in
+      # packaging/windows/msix/AppxManifest.xml.
+      STORE_APP_ID: 9NM5V48PPRLQ
+    steps:
+      # The CLI sends usage data to Microsoft unless its settings file says
+      # otherwise, and it reads that file before its first command. So the
+      # file is written first; the check after the upload shows it still says
+      # off. Settings folder and field name from the CLI's source (v0.4.4).
+      - name: Get the Store CLI, with its usage data switched off
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $settings = Join-Path $env:LOCALAPPDATA 'Microsoft\MSStore.CLI'
+          New-Item -ItemType Directory -Force -Path $settings | Out-Null
+          Set-Content -Path (Join-Path $settings 'telemetrySettings.json') -Value '{"TelemetryEnabled":false}' -Encoding utf8NoBOM
+          $zip = Join-Path $env:RUNNER_TEMP 'msstore.zip'
+          Invoke-WebRequest -Uri $env:MSSTORE_CLI_URL -OutFile $zip
+          $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+          if ($hash -ne $env:MSSTORE_CLI_SHA256) { throw "The Store CLI download has SHA-256 $hash, expected $env:MSSTORE_CLI_SHA256" }
+          $dir = Join-Path $env:RUNNER_TEMP 'msstore'
+          Expand-Archive -Path $zip -DestinationPath $dir
+          Add-Content -Path $env:GITHUB_PATH -Value $dir
+      - name: The CLI starts
+        run: |
+          msstore --version
+          if ($LASTEXITCODE -ne 0) { throw "msstore --version failed ($LASTEXITCODE)" }
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: github.ref_type == 'tag'
+        with:
+          name: release-asset-windows
+          path: windows
+      # The secrets reach the CLI only as arguments, which GitHub masks in the
+      # log; never print them, and never add `Set-PSDebug -Trace` here.
+      # `msstore publish` makes a new submission from the last published one
+      # and replaces its package; the first submission was made by hand,
+      # which the CLI requires for a loose MSIX.
+      - name: Upload to Partner Center
+        if: github.ref_type == 'tag'
+        env:
+          MODE: ${{ vars.STORE_UPLOAD }}
+          FLIGHT: ${{ vars.STORE_FLIGHT_ID }}
+          STORE_TENANT_ID: ${{ secrets.STORE_TENANT_ID }}
+          STORE_SELLER_ID: ${{ secrets.STORE_SELLER_ID }}
+          STORE_CLIENT_ID: ${{ secrets.STORE_CLIENT_ID }}
+          STORE_CLIENT_SECRET: ${{ secrets.STORE_CLIENT_SECRET }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          foreach ($name in 'STORE_TENANT_ID', 'STORE_SELLER_ID', 'STORE_CLIENT_ID', 'STORE_CLIENT_SECRET') {
+            if (-not [Environment]::GetEnvironmentVariable($name)) {
+              throw "The environment 'release' has no secret $name (docs/WINDOWS.md, section 2)."
+            }
+          }
+          $msix = @(Get-ChildItem windows -Filter '*-windows-x64-store.msix')
+          if ($msix.Count -ne 1) { throw "Expected one ...-windows-x64-store.msix in the release files, found $($msix.Count)" }
+          msstore reconfigure --tenantId $env:STORE_TENANT_ID --sellerId $env:STORE_SELLER_ID --clientId $env:STORE_CLIENT_ID --clientSecret $env:STORE_CLIENT_SECRET
+          if ($LASTEXITCODE -ne 0) { throw "msstore reconfigure failed ($LASTEXITCODE): check the four secrets and the client secret's expiry date (docs/WINDOWS.md)." }
+          $publish = @('publish', $msix[0].FullName, '--appId', $env:STORE_APP_ID)
+          if ($env:MODE -ne 'submit') { $publish += '--noCommit' }
+          if ($env:FLIGHT) { $publish += @('--flightId', $env:FLIGHT) }
+          Write-Output "Uploading $($msix[0].Name) ($env:MODE$(if ($env:FLIGHT) { ', flight ' + $env:FLIGHT }))"
+          msstore @publish
+          if ($LASTEXITCODE -ne 0) { throw "msstore publish failed ($LASTEXITCODE)" }
+          if ($env:MODE -eq 'submit') {
+            "The package $($msix[0].Name) was submitted to the Microsoft Store's certification." >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            "The package $($msix[0].Name) is a draft submission in Partner Center: open the app there and press Submit." >> $env:GITHUB_STEP_SUMMARY
+          }
+      - name: The CLI's usage data stayed off
+        if: always()
+        run: |
+          $file = Join-Path $env:LOCALAPPDATA 'Microsoft\MSStore.CLI\telemetrySettings.json'
+          $text = Get-Content -Raw $file
+          if (($text | ConvertFrom-Json).TelemetryEnabled -ne $false) { throw "The Store CLI switched its usage data on: $file" }

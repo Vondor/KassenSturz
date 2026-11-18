@@ -15,7 +15,7 @@ use kassensturz_core::{
     Account, AccountId, AccountKind, Budget, CategoryGroup, Currency, CurrencyCode, Date, GroupId,
     Money, RoundingMode, Tag, Transaction, TransferMatch,
 };
-use kassensturz_store::{Book, CategoryEntry, StoreError};
+use kassensturz_store::{Book, CategoryEntry, ExpectedPlans, StoreError};
 
 use crate::balances::Holdings;
 use crate::{Filter, Period, ReportError};
@@ -74,6 +74,8 @@ pub struct Source {
     /// The pairs of transactions that look like moves between the user's own
     /// accounts, if they were read (US7, #1035).
     moves: Option<Vec<TransferMatch>>,
+    /// What the planned payments expect, if it was read (D-826).
+    plans: Option<ExpectedPlans>,
 }
 
 impl Source {
@@ -101,6 +103,26 @@ impl Source {
                 ..source
             })
         })
+    }
+
+    /// Reads what [`Source::read`] reads and, in the same read transaction,
+    /// what the planned payments expect on `today` ([`Book::expected_plans`]),
+    /// which the formula names `Plans.*` count (D-826).
+    pub fn read_with_plans(book: &Book, period: Period, today: Date) -> Result<Self, ReportError> {
+        book.reading(|book| {
+            let source = Self::read_now(book, period, false)?;
+            Ok(Self {
+                plans: Some(book.expected_plans(&[], today)?),
+                ..source
+            })
+        })
+    }
+
+    /// What the planned payments expect. Fails with
+    /// [`ReportError::PeriodNotRead`] if the `Source` was read without it:
+    /// no plan is ever left out for lack of a read.
+    pub(crate) fn plans(&self) -> Result<&ExpectedPlans, ReportError> {
+        self.plans.as_ref().ok_or(ReportError::PeriodNotRead)
     }
 
     /// The pairs that look like moves between own accounts, if they were
@@ -234,6 +256,7 @@ impl Source {
             holdings: None,
             budgets: None,
             moves: None,
+            plans: None,
         }
     }
 

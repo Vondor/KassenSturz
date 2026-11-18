@@ -513,6 +513,27 @@ impl Shown<'_> {
             }
             write!(out, "{}", indented(&table(&rows, &[])))?;
         }
+        if !plans.amount_changes.is_empty() {
+            writeln!(
+                out,
+                "These come from a planned payment's party with another amount, so they \
+                 weren't matched. If one is the payment, match it with `schedule match`; \
+                 `schedule amount` then makes the plan expect the new amount:"
+            )?;
+            let mut rows = vec![header(&["Planned payment", "Due", "Planned", "Entry"])];
+            for change in &plans.amount_changes {
+                rows.push(vec![
+                    name(change.occurrence.schedule),
+                    change.occurrence.due.date.to_string(),
+                    self.book.schedule(change.occurrence.schedule).map_or_else(
+                        |_| String::new(),
+                        |plan| money_text(Some(self.book), plan.amount),
+                    ),
+                    self.describe(change.transaction),
+                ]);
+            }
+            write!(out, "{}", indented(&table(&rows, &[])))?;
+        }
         Ok(())
     }
 

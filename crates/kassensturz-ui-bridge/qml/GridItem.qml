@@ -678,6 +678,7 @@ Item {
             readonly property int total: listedFeed.view?.total ?? 0
             readonly property bool several: listedFeed.view?.severalAccounts ?? false
             readonly property bool narrowed: (listedFeed.view?.filter?.filtered ?? []).indexOf("categories") >= 0
+            readonly property bool tagged: (listedFeed.view?.filter?.filtered ?? []).indexOf("tags") >= 0
 
             function ask() {
                 listedFeed.setScope(scope);
@@ -721,7 +722,11 @@ Item {
                     textFormat: Text.PlainText
                     wrapMode: Text.Wrap
                     color: Kirigami.Theme.disabledTextColor
-                    text: listed.narrowed
+                    text: listed.tagged && listed.narrowed
+                        ? names.i18nContext.i18nc("@info", "No transactions with these tags in these categories in this period.")
+                        : listed.tagged
+                        ? names.i18nContext.i18nc("@info", "No transactions with these tags in this period.")
+                        : listed.narrowed
                         ? names.i18nContext.i18nc("@info", "No transactions in these categories in this period.")
                         : names.i18nContext.i18nc("@info", "No transactions in this period.")
                 }

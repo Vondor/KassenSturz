@@ -101,6 +101,7 @@ Kirigami.ScrollablePage {
     readonly property var editedAccounts: kept.filter(change => change.kind === "editAccount")
     readonly property var sorts: kept.filter(change => change.kind === "sortWithRules")
     readonly property var joins: kept.filter(change => change.kind === "joinTransfer")
+    readonly property var newTags: kept.filter(change => change.kind === "newTag")
     readonly property var taggings: kept.filter(change => change.kind === "tagTransaction")
     readonly property var splits: kept.filter(change => change.kind === "splitTransaction")
     readonly property var bills: kept.filter(change => change.kind === "attachBill")
@@ -278,6 +279,7 @@ Kirigami.ScrollablePage {
         case "newRule":
         case "deleteRule":
         case "moveRule":
+        case "newTag":
             return change.name;
         case "editRule":
             return change.beforeName;
@@ -349,6 +351,8 @@ Kirigami.ScrollablePage {
             return i18nContext.i18nc("@info a kind of prepared change", "Two entries joined as one move");
         case "tagTransaction":
             return i18nContext.i18nc("@info a kind of prepared change", "Transaction that gets other tags");
+        case "newTag":
+            return i18nContext.i18nc("@info a kind of prepared change", "New tag");
         case "splitTransaction":
             return i18nContext.i18nc("@info a kind of prepared change", "Transaction broken into parts");
         case "attachBill":
@@ -919,9 +923,22 @@ Kirigami.ScrollablePage {
 
                     Controls.Label {
                         Layout.fillWidth: true
+                        visible: modelData.bookTo !== ""
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
                         text: page.i18nContext.i18nc("@info %1 is the path of a category", "Books matching transactions to %1.", modelData.bookTo)
+                    }
+
+                    // The tags it adds (D-827); one with no category only
+                    // tags, and the Rules after it still sort.
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: (modelData.tags ?? []).length > 0
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: modelData.bookTo === ""
+                            ? page.i18nContext.i18nc("@info %1 is a list of tag names", "Only adds the tags %1 to matching transactions; the next Rules still sort them.", Array.from(modelData.tags ?? []).join(", "))
+                            : page.i18nContext.i18nc("@info %1 is a list of tag names", "Also adds the tags %1.", Array.from(modelData.tags ?? []).join(", "))
                     }
 
                     Controls.Label {
@@ -998,6 +1015,23 @@ Kirigami.ScrollablePage {
                         text: modelData.beforeBookTo !== modelData.bookTo
                             ? page.i18nContext.i18nc("@info %1 and %2 are paths of categories", "Books matching transactions to %2 (before: %1).", modelData.beforeBookTo, modelData.bookTo)
                             : page.i18nContext.i18nc("@info %1 is the path of a category", "Books matching transactions to %1.", modelData.bookTo)
+                    }
+
+                    // The tags it adds, before and after (D-827).
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        readonly property string before: Array.from(modelData.beforeTags ?? []).join(", ")
+                        readonly property string after: Array.from(modelData.tags ?? []).join(", ")
+                        visible: before !== "" || after !== ""
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: before === after
+                            ? page.i18nContext.i18nc("@info %1 is a list of tag names", "Adds the tags %1.", after)
+                            : after === ""
+                                ? page.i18nContext.i18nc("@info %1 is a list of tag names", "Adds no tags anymore (before: %1).", before)
+                                : before === ""
+                                    ? page.i18nContext.i18nc("@info %1 is a list of tag names", "Adds the tags %1 (before: none).", after)
+                                    : page.i18nContext.i18nc("@info %1 and %2 are lists of tag names", "Adds the tags %2 (before: %1).", before, after)
                     }
 
                     Controls.Label {
@@ -1375,6 +1409,61 @@ Kirigami.ScrollablePage {
 
         Kirigami.Heading {
             level: 3
+            visible: page.shows && page.newTags.length > 0
+            text: page.i18nContext.i18nc("@title:group", "New tags")
+            textFormat: Text.PlainText
+        }
+
+        // A new tag (D-830): made only together with the transactions below
+        // that get it; declining the changes makes no tag.
+        Repeater {
+            model: page.shows ? page.newTags : []
+
+            Kirigami.AbstractCard {
+                required property var modelData
+
+                Layout.fillWidth: true
+
+                contentItem: ColumnLayout {
+                    RowLayout {
+                        Layout.fillWidth: true
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            font.bold: true
+                            textFormat: Text.PlainText
+                            text: modelData.name
+                        }
+
+                        Controls.Label {
+                            textFormat: Text.PlainText
+                            color: Kirigami.Theme.positiveTextColor
+                            text: page.i18nContext.i18nc("@info a tag the AI makes", "New")
+                        }
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        opacity: 0.8
+                        textFormat: Text.PlainText
+                        text: page.i18nContext.i18ncp("@info", "You don't have this tag yet. It is made only if you apply these changes, and goes on %1 transaction below.", "You don't have this tag yet. It is made only if you apply these changes, and goes on %1 transactions below.", modelData.uses)
+                    }
+
+                    AiChangeCorrection {
+                        Layout.fillWidth: true
+                        ai: page.ai
+                        change: modelData
+                        choices: page.choices
+                        review: page
+                    }
+                }
+            }
+        }
+
+        Kirigami.Heading {
+            level: 3
             visible: page.shows && page.taggings.length > 0
             text: page.i18nContext.i18nc("@title:group", "Transactions that get other tags")
             textFormat: Text.PlainText
@@ -1420,6 +1509,14 @@ Kirigami.ScrollablePage {
                         wrapMode: Text.Wrap
                         textFormat: Text.PlainText
                         text: page.i18nContext.i18nc("@info %1 is a list of tag names", "Tags put on: %1", modelData.added.join(", "))
+                    }
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        visible: (modelData.addedNew ?? []).length > 0
+                        wrapMode: Text.Wrap
+                        textFormat: Text.PlainText
+                        text: visible ? page.i18nContext.i18nc("@info %1 is a list of tag names", "New tags put on: %1", modelData.addedNew.join(", ")) : ""
                     }
 
                     Controls.Label {

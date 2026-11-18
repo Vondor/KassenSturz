@@ -14,23 +14,14 @@ name: Windows app
 # release ships without it. Craft's cache is still saved only from main.
 
 on:
+  # Every pull request starts this workflow, so its build can be a required
+  # check: a workflow-level `paths:` filter would leave a required check
+  # pending for ever on a pull request it doesn't match (D-791). The
+  # `changes` job below decides instead, and a build skipped by its job-level
+  # `if` counts as passed. Documentation, the other workflows and the snap
+  # packaging skip the build; its own workflow file and the Windows packaging
+  # build it.
   pull_request:
-    # Documentation, the other workflows and the snap packaging don't start
-    # it (D-791); its own workflow file and the Windows packaging do.
-    paths:
-      - "**"
-      - "!docs/**"
-      - "!LICENSES/**"
-      - "!*.md"
-      - "!REUSE.toml"
-      - "!CODEOWNERS"
-      - "!.github/ISSUE_TEMPLATE/**"
-      - "!.github/PULL_REQUEST_TEMPLATE.md"
-      - "!.github/FUNDING.yml"
-      - "!.github/workflows/**"
-      - "!packaging/snap/**"
-      - "docs/ERROR_CODES.md"
-      - ".github/workflows/windows-app.yml"
   push:
     branches: [main]
     paths:
@@ -81,8 +72,45 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  changes:
+    name: Windows build needed?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+      - name: Decide from the changed files
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Only a pull request can skip the build; a push to main (already
+          # filtered above), a manual run and release.yml's call always build.
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The same files the old workflow-level filter left out (D-791).
+          outside='^(docs/|LICENSES/|[^/]+\.md$|REUSE\.toml$|CODEOWNERS$|\.github/ISSUE_TEMPLATE/|\.github/PULL_REQUEST_TEMPLATE\.md$|\.github/FUNDING\.yml$|\.github/workflows/|packaging/snap/)'
+          read_anyway='^(docs/ERROR_CODES\.md|\.github/workflows/windows-app\.yml)$'
+          code=$(git diff --name-only "$BASE...$HEAD" | { grep -Ev "$outside" || true; })
+          also=$(git diff --name-only "$BASE...$HEAD" | { grep -E "$read_anyway" || true; })
+          if [ -n "$code$also" ]; then build=true; else build=false; fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "Windows build needed: $build" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' $code $also | head -20
+
   windows-app:
     name: Windows app with KDE Craft (D-554)
+    needs: [changes]
+    if: needs.changes.outputs.build == 'true'
     # Craft's binary cache is built for Visual Studio 2022; windows-latest has
     # only Visual Studio 2026, which Craft's cache doesn't cover (D-214).
     runs-on: windows-2022

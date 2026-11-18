@@ -28,11 +28,13 @@ FormCard.FormCardPage {
     property bool aiNotSaved: false
 
     signal saveCopyClicked()
-    // The user opens a group of settings: "book", "bank", "look", "backups"
-    // or "advanced" (D-795).
+    // The user opens a group of settings: "book", "bank", "look", "backups",
+    // "plugins" or "advanced" (D-795).
     signal groupClicked(string group)
     // The user wants the help page on patterns and formulas.
     signal helpClicked()
+    // The user wants the testing guide for testers (#1030).
+    signal testingGuideClicked()
     // The user wants the page of the provider and of what is sent; only
     // offered while the switch is on.
     signal aiSettingsClicked()
@@ -125,6 +127,18 @@ FormCard.FormCardPage {
         FormCard.FormDelegateSeparator {}
 
         FormCard.FormButtonDelegate {
+            icon.name: "preferences-plugin"
+            text: page.i18nContext.i18nc("@action:button a group of settings", "Plugins")
+            description: page.i18nContext.i18nc("@info what a group of settings holds", "Add a plugin file you downloaded, see what it may do")
+            onClicked: {
+                ActionLog.taken("SettingsPage_plugins")
+                page.groupClicked("plugins")
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
             icon.name: "configure"
             text: page.i18nContext.i18nc("@action:button a group of settings", "Advanced")
             description: page.i18nContext.i18nc("@info what a group of settings holds", "Where your book is, folder access, where PINs are saved")
@@ -175,6 +189,17 @@ FormCard.FormCardPage {
             onClicked: {
                 ActionLog.taken("SettingsPage_helpPatternsFormulas")
                 page.helpClicked()
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            text: page.i18nContext.i18nc("@action:button opens the testing guide", "Testing KassenSturz")
+            description: page.i18nContext.i18nc("@info", "For testers: check the install, try the first steps and write down a problem")
+            onClicked: {
+                ActionLog.taken("SettingsPage_testingGuide")
+                page.testingGuideClicked()
             }
         }
 

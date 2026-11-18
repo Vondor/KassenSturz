@@ -7,8 +7,8 @@
 use std::collections::{HashMap, HashSet};
 
 use kassensturz_core::{Account, AccountId, AccountKind, RuleId, RuleNode};
-use kassensturz_export::{BookData, BookedByRule, ExportData, ScheduleData, ViewData};
-use kassensturz_store::{Book, HistoryRetention, StoreError};
+use kassensturz_export::{BookData, BookedByRule, ExportData, ScheduleData, TagByRule, ViewData};
+use kassensturz_store::{Book, HistoryRetention, StoreError, TagAddedBy};
 
 /// Everything `book` holds, for the complete export (`BookExport`): its
 /// settings, currencies, banks, accounts and categories, payees, tags, rates, Rules,
@@ -52,6 +52,12 @@ pub fn export_book(book: &Book) -> Result<ExportData, StoreError> {
                 rule: mark.rule,
             })
             .collect(),
+        tags_by_rule: tags_by_rule(book)?,
+        tags_taken_off: {
+            let mut taken_off: Vec<_> = book.removed_transaction_tags()?.into_iter().collect();
+            taken_off.sort_unstable();
+            taken_off
+        },
         institutions: book.institutions()?,
         bank_links: book.bank_links()?,
         views: book
@@ -114,18 +120,30 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
         for rate in &data.rates {
             book.add_rate(rate)?;
         }
+        // Tags first: a Rule may add them (D-827).
+        for tag in &data.tags {
+            book.add_tag(tag)?;
+        }
         add_rules(book, &data.rules, None)?;
         for payee in &data.payees {
             book.add_payee(payee)?;
-        }
-        for tag in &data.tags {
-            book.add_tag(tag)?;
         }
         for transaction in &data.transactions {
             book.add_transaction(transaction)?;
         }
         for &BookedByRule { split, rule } in &data.rule_marks {
             book.restore_rule_mark(split, rule)?;
+        }
+        for &TagByRule {
+            transaction,
+            tag,
+            rule,
+        } in &data.tags_by_rule
+        {
+            book.restore_tag_by_rule(transaction, tag, rule)?;
+        }
+        for &(transaction, tag) in &data.tags_taken_off {
+            book.restore_tag_taken_off(transaction, tag)?;
         }
         // After the transactions, which matched occurrences name, and
         // before the accounts are closed.
@@ -150,6 +168,26 @@ pub fn fill_book(book: &mut Book, data: &BookData) -> Result<(), StoreError> {
         }
         Ok(())
     })
+}
+
+/// The tags Rules added to the book's transactions, by transaction and in
+/// each one's order (D-827).
+fn tags_by_rule(book: &Book) -> Result<Vec<TagByRule>, StoreError> {
+    let mut sources: Vec<_> = book.tag_sources_of(None)?.into_iter().collect();
+    sources.sort_unstable_by_key(|(transaction, _)| *transaction);
+    Ok(sources
+        .into_iter()
+        .flat_map(|(transaction, tags)| {
+            tags.into_iter().filter_map(move |(tag, by)| match by {
+                TagAddedBy::Rule(rule) => Some(TagByRule {
+                    transaction,
+                    tag,
+                    rule,
+                }),
+                TagAddedBy::User => None,
+            })
+        })
+        .collect())
 }
 
 /// The planned payments of `book`, in its order, each with its decided

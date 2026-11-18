@@ -35,6 +35,7 @@ fn text_rule(name: &str, value: &str, category: AccountId) -> Rule {
         actions: Actions {
             book_to: Some(BookTo::Category(category)),
             payee: None,
+            tags: Vec::new(),
         },
     }
 }

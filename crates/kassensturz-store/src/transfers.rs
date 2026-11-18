@@ -16,7 +16,7 @@ use rusqlite::params;
 
 use crate::error::StoreError;
 use crate::originals::keeping_originals;
-use crate::transactions::{insert_attachments, insert_splits, insert_transaction_tags};
+use crate::transactions::{insert_attachments, insert_splits, rewrite_transaction_tags};
 use crate::{Action, Book};
 
 /// How many transactions [`Book::transfer_partners`] lists at most.
@@ -245,11 +245,7 @@ impl Book {
                 book.conn
                     .execute("DELETE FROM splits WHERE transaction_id = ?1", [id])?;
                 insert_splits(&book.conn, &joined)?;
-                book.conn.execute(
-                    "DELETE FROM transaction_tags WHERE transaction_id = ?1",
-                    [id],
-                )?;
-                insert_transaction_tags(&book.conn, &joined)?;
+                rewrite_transaction_tags(&book.conn, &joined)?;
                 book.conn
                     .execute("DELETE FROM attachments WHERE transaction_id = ?1", [id])?;
                 insert_attachments(&book.conn, &joined)

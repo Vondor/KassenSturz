@@ -34,6 +34,8 @@ Kirigami.AbstractCard {
     }
 
     readonly property int count: parseInt(change.changed ?? 0)
+    // How many get a tag a Rule adds (D-827).
+    readonly property int tagged: parseInt(change.tagged ?? 0)
     readonly property bool oneRule: (change.ruleName ?? "") !== ""
 
     // Why some transactions a Rule fits stay as they are, one line each.
@@ -104,6 +106,14 @@ Kirigami.AbstractCard {
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             text: card.i18nContext.i18ncp("@info %1 is a number", "%1 transaction will be sorted.", "%1 transactions will be sorted.", card.count)
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: card.tagged > 0
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: card.i18nContext.i18ncp("@info %1 is a number", "%1 transaction gets tags from your Rules. A tag you took off yourself is not put back.", "%1 transactions get tags from your Rules. A tag you took off yourself is not put back.", card.tagged)
         }
 
         Controls.Label {

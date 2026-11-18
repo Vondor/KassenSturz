@@ -7,7 +7,7 @@
 use std::io::ErrorKind;
 
 use kassensturz_core::{
-    CurrencyCode, ErrorParam, ErrorReport, Report, SplitId, TagId, TransactionError,
+    CurrencyCode, ErrorParam, ErrorReport, Report, SplitId, TagId, TransactionError, TransactionId,
 };
 
 /// Why data can't be exported, or a complete export can't be read back.
@@ -47,6 +47,10 @@ pub enum ExportError {
     /// The exporter was given data of another kind than it writes, e.g. a
     /// whole book for CSV.
     WrongKind,
+    /// A plugin exporter failed or answered something KassenSturz can't use
+    /// (#791). It reports the plugin host's own code (`plugin-host.*` in
+    /// `docs/ERROR_CODES.md`), not an `export.` one.
+    Plugin(ErrorReport),
     /// An amount is in a currency the book's data doesn't list, so its
     /// decimal places aren't known.
     UnlistedCurrency {
@@ -61,6 +65,15 @@ pub enum ExportError {
     UnlistedTag {
         /// The part.
         split: SplitId,
+        /// The tag.
+        tag: TagId,
+    },
+    /// A tag on a transaction is marked as added by a Rule, or as taken off
+    /// by the user, but the transaction doesn't carry it, or carries it
+    /// although it was taken off, or the book doesn't list it (D-827).
+    TagMarkWithoutTag {
+        /// The transaction.
+        transaction: TransactionId,
         /// The tag.
         tag: TagId,
     },
@@ -199,6 +212,7 @@ impl Report for ExportError {
                     .with("digits", ErrorParam::Number((*digits).into()))
             }
             Self::WrongKind => ErrorReport::new("export.wrong-kind"),
+            Self::Plugin(report) => report.clone(),
             Self::UnlistedCurrency { currency, path } => {
                 let report = ErrorReport::new("export.unlisted-currency")
                     .with("currency", ErrorParam::Currency(*currency));
@@ -212,6 +226,11 @@ impl Report for ExportError {
             Self::UnlistedTag { split, tag } => ErrorReport::new("export.unlisted-tag")
                 .with("split", ErrorParam::Split(*split))
                 .with("tag", ErrorParam::Text(tag.to_string())),
+            Self::TagMarkWithoutTag { transaction, tag } => {
+                ErrorReport::new("export.tag-mark-without-tag")
+                    .with("transaction", ErrorParam::Transaction(*transaction))
+                    .with("tag", ErrorParam::Text(tag.to_string()))
+            }
             Self::RulesTooDeep { max } => {
                 ErrorReport::new("export.rules-too-deep").with("max", ErrorParam::count(*max))
             }

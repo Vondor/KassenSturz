@@ -2,7 +2,7 @@
 
 The complete export holds a whole KassenSturz book in one JSON file (D-029, D-100). It is the stable way to move a book's data: into a new book, to another program, or from a development build of the Alpha to the Beta (D-045, D-046, D-536). Unlike the book file itself (`docs/BOOK_FORMAT.md`), this format is meant to be read and written by other programs, so it changes only with a new [version](#versions).
 
-**Status: version 15** (B-263). Versions 1 to 14 are read as [described below](#versions).
+**Status: version 16** (D-827). Versions 1 to 15 are read as [described below](#versions).
 
 In the command-line tool, `export FILE --format book` writes it and `create --from FILE` makes a new book from it. In code, `BookExport` (ID `book`) in `kassensturz-export` writes it, `read_book` reads it, and `export_book` and `fill_book` in `kassensturz-pipeline` connect it to a book.
 
@@ -50,8 +50,9 @@ Left out is the **change history** (D-032, D-066). It belongs to the book file, 
 | 13 | A transaction has `tags` on the whole of it, besides each part's own (US4.8, D-712). |
 | 14 | The file lists the `schedules`: the planned payments, each with the occurrences that were matched to an entry or skipped (US7, D-769). |
 | 15 | The file lists the `recurring_moves`: the monthly moves between the user's own accounts that the user asked to be joined by themselves (US7, B-263, D-749). Before, a book moved through the complete export lost them. |
+| 16 | A Rule has `tags` it adds; a transaction says which of its tags a Rule added (`tags_by_rule`) and which tags the user took off it by hand (`tags_taken_off`), so the Rules never put those back (D-827, D-828). |
 
-An older file is read as version 15 without what came later: a version 14 file has no remembered monthly moves, and a version 14 file with `recurring_moves` is refused; a version 13 file has no planned payments, and a version 13 file with `schedules` is refused; a version 12 transaction has no tags on the whole, and a version 12 transaction with `tags` is refused; a version 11 budget's `categories` and `accounts` are read as one set from its `first_day`, and a version 11 budget with `counts`, or a version 12 budget with `categories` or `accounts`, is refused; a version 10 budget has no name, and a version 10 budget with `name` is refused; a version 9 budget's months are calendar months, and a version 9 budget with `salary_day` is refused; a version 8 budget's `category` is read as a list of that one category with no accounts, and a version 8 budget with `categories` or `accounts` is refused; a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories`, and so is a version 1 to 7 file with `budgets` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, a version 7 file the `groups` and `hidden_categories` lists too, and a version 8 file the `budgets` list too, a version 14 file the `schedules` list too, and a version 15 file the `recurring_moves` list too, even when they are empty (`export.missing-value`).
+An older file is read as version 16 without what came later: a version 15 file has no tags on Rules and every tag on a transaction counts as the user's, and a version 15 Rule with `tags`, or a version 15 transaction with `tags_by_rule` or `tags_taken_off`, is refused; a version 14 file has no remembered monthly moves, and a version 14 file with `recurring_moves` is refused; a version 13 file has no planned payments, and a version 13 file with `schedules` is refused; a version 12 transaction has no tags on the whole, and a version 12 transaction with `tags` is refused; a version 11 budget's `categories` and `accounts` are read as one set from its `first_day`, and a version 11 budget with `counts`, or a version 12 budget with `categories` or `accounts`, is refused; a version 10 budget has no name, and a version 10 budget with `name` is refused; a version 9 budget's months are calendar months, and a version 9 budget with `salary_day` is refused; a version 8 budget's `category` is read as a list of that one category with no accounts, and a version 8 budget with `categories` or `accounts` is refused; a version 1 file with a part's `original` key or a rate from `changeover` in it is refused, so is a version 1 or 2 file with a part's `date` or `payee` key, so is a version 1 to 3 file with any key of version 4, and so is a version 1 to 4 file with `bank_links`, and so is a version 1 to 5 file with `views`, and so is a version 1 to 6 file with `groups` or `hidden_categories`, and so is a version 1 to 7 file with `budgets` (`export.unknown-value`, `export.bad-value`). A version 4 file must have all three lists of version 4, a version 5 file the `bank_links` list too, a version 6 file the `views` list too, a version 7 file the `groups` and `hidden_categories` lists too, and a version 8 file the `budgets` list too, a version 14 file the `schedules` list too, and a version 15 file the `recurring_moves` list too, even when they are empty (`export.missing-value`).
 
 ## The top level
 
@@ -312,6 +313,7 @@ The auto-categorization Rules (D-014, D-088) as a tree, in the order they are tr
 | `category` | The category it books to, or `null`. |
 | `transfer_account` | The account it makes a Transfer to, or `null`. A Rule has at most one of `category` and `transfer_account`. |
 | `payee` | The payee it sets, or `null`. |
+| `tags` | The IDs of the [tags](#tags) it adds to the whole of a transaction it matches, in their order, each once, at most 20 (`rule.too-many-tags`, `rule.duplicate-tag`). A Rule that, with its sub-Rules, sets no `category`, `transfer_account` or `payee` but adds tags only tags and never decides (D-827). May be left out when empty. Version 16 and later. |
 | `sub_rules` | The Rules inside it, in their order. May be left out when empty. |
 
 Rules sit at most 32 levels deep (`MAX_RULE_DEPTH`); deeper ones are refused when writing and when reading (`export.rules-too-deep`).
@@ -343,6 +345,8 @@ One object per transaction, sorted by booking date and ID.
 | `note` | What the user noted about the whole transaction, or `null`. Version 4 and later. |
 | `entered` | The day it was entered into the book, if known, or `null`. Version 4 and later. |
 | `tags` | The [tags](#tags) on the whole transaction, by ID, in the user's order, each once: every part counts for them too (D-713). At most 20 (`store.tag-too-many`, `transaction`). May be left out when empty. Version 13 and later (D-712). |
+| `tags_by_rule` | The tags of `tags` that a Rule added: objects with `tag`, the tag's ID, and `rule`, the Rule's ID, or `null` if that Rule was removed since. The other tags in `tags` the user added. May be left out when empty. Version 16 and later (D-827). |
+| `tags_taken_off` | The IDs of the tags the user took off the whole transaction by hand, which the Rules never put back. A tag here is not in `tags`. May be left out when empty. Version 16 and later (D-827). |
 | `attachments` | Links to the documents that belong to it, e.g. a receipt, in their order: objects with `link`, a path or URL that isn't empty, and `title`, text or `null`. The book keeps the link only, never the file. May be left out when empty. Version 4 and later. |
 | `parts` | Its [parts](#parts): their amounts add up to zero. |
 
@@ -381,7 +385,7 @@ A book with one account, one category in one group, and one transaction:
 ```json
 {
   "format": "kassensturz-book",
-  "version": 15,
+  "version": 16,
   "settings": {"rounding_mode": "half_away_from_zero", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2}
@@ -422,6 +426,8 @@ A book with one account, one category in one group, and one transaction:
       "note": null,
       "entered": null,
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000004", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-4.50", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},

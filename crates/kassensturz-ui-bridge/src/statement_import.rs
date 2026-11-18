@@ -508,6 +508,26 @@ pub struct ImportView {
     /// the user: two entries fit equally well, or one entry fits two
     /// payments ("Did this happen?").
     pub planned_needs_you: usize,
+    /// The new entries that came from a planned payment's party with
+    /// another amount (#1143), one line each, by date: not matched, for
+    /// the user to check under "Did this happen?".
+    pub planned_changed: Vec<PlannedChangedText>,
+}
+
+/// A new entry that fits a planned payment but for its amount (#1143), as
+/// the summary lists it: the entry as the bank sent it, and the plan's
+/// amount, exactly.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PlannedChangedText {
+    /// The planned payment's name.
+    pub name: String,
+    /// The day the payment is due.
+    pub due: String,
+    /// The entry's date and amount in the plan's account.
+    pub date: String,
+    pub amount: Shown,
+    /// The plan's amount.
+    pub planned: Shown,
 }
 
 /// A new entry matched to a planned payment after an import (D-769), as the
@@ -935,6 +955,24 @@ fn describe(
             category_set: done.category_set,
         });
     }
+    let mut planned_changed = Vec::with_capacity(report.schedules.amount_changes.len());
+    for change in &report.schedules.amount_changes {
+        let Some(plan) = plans
+            .iter()
+            .find(|plan| plan.id == change.occurrence.schedule)
+        else {
+            continue;
+        };
+        let transaction = book.transaction(change.transaction)?;
+        let writer = AmountWriter::new(book, plan.amount.currency(), locale)?;
+        planned_changed.push(PlannedChangedText {
+            name: plan.name.clone(),
+            due: locale.short_date(change.occurrence.due.date),
+            date: locale.short_date(transaction.booking_date()),
+            amount: writer.text(change.amount),
+            planned: writer.text(plan.amount),
+        });
+    }
     Ok(ImportView {
         from_bank: loaded.fetched_on.is_some(),
         file_name: loaded
@@ -957,6 +995,7 @@ fn describe(
         needs_you: report.joins.needs_you.len(),
         planned,
         planned_needs_you: report.schedules.needs_you.len(),
+        planned_changed,
     })
 }
 
@@ -1988,6 +2027,7 @@ mod tests {
                 actions: Actions {
                     book_to: Some(BookTo::Category(groceries)),
                     payee: Some("Bookshop".into()),
+                    tags: Vec::new(),
                 },
             },
             None,
@@ -2113,6 +2153,7 @@ mod tests {
                 actions: Actions {
                     book_to: Some(BookTo::Category(groceries)),
                     payee: None,
+                    tags: Vec::new(),
                 },
             },
             None,

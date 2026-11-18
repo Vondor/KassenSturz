@@ -10,6 +10,8 @@ The steps follow `docs/ADDING_A_WIDGET.md` (D-534).
 
 ## 1. What the tile shows (D-716)
 
+**Amended by D-838 (BS1):** the tile also has its own *Only these tags* list; the rule is in `docs/TAGS.md` §9.
+
 ### 1.1 The rows
 
 One row per transaction, **newest first**; on the same day the one added last comes first, as in an account's list (D-067). A row looks like a line of an account's list on a narrow window (`TransactionRow.qml`): *To: Corner shop* or *From: …* on top, then the date, the category and, when the tile can list more than one account, the account, with the amount on the right. It holds:

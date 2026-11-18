@@ -41,6 +41,11 @@ QtObject {
         calls.push("stopUpdateAll");
     }
 
+    function summarySeen() {
+        calls.push("summarySeen");
+        updateSummary = ({});
+    }
+
     // What the worker and the GUI thread do when the fetch has ended.
     function finish(summary) {
         busy = false;

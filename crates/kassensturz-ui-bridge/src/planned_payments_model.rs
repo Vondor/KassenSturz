@@ -16,8 +16,8 @@ use kassensturz_report::status;
 use crate::errors::ErrorText;
 use crate::number_format::app_locale;
 use crate::planned_payments::{
-    self, COMING_UP_DAYS, EntryChoice, MonthRow, MonthStart, MonthText, PaymentText, PlanForm,
-    PlanText, PlansError, TABLE_MONTHS,
+    self, COMING_UP_DAYS, EntryChoice, MonthRow, MonthStart, MonthText, NewAmount, PaymentText,
+    PlanForm, PlanText, PlansError, TABLE_MONTHS,
 };
 use crate::register::Shown;
 use crate::register_model::{field, flag};
@@ -40,10 +40,13 @@ pub mod qobject {
         /// `amount`, `exactAmount`, `outgoing`, `unit`, `every`,
         /// `firstDue`, `ends`, `nextDue`, `paused`, `accountClosed`,
         /// `category` and `party`), `toConfirm` (the payments whose day
-        /// passed without an entry, "Did this happen?") and `comingUp` (the
-        /// open ones of the next 30 days), both lists of payments with
-        /// `planId`, `name`, `account`, `amount`, `exactAmount`,
-        /// `outgoing`, `due`, `dueOn` and `state`; `comingUpStatus` and
+        /// passed without an entry, "Did this happen?", and the open ones
+        /// an entry of the plan's party fits but for its amount, #1143) and
+        /// `comingUp` (the open ones of the next 30 days), both lists of
+        /// payments with `planId`, `name`, `account`, `amount`,
+        /// `exactAmount`, `outgoing`, `due`, `dueOn`, `state` and, for
+        /// that entry, `changedId`, `changedAmount`, `changedExactAmount`
+        /// and `changedDate` (all empty when there is none); `comingUpStatus` and
         /// `comingUpCount` (the *Coming up* tile's state, D-734); and
         /// `forecast`, *Left this month* (D-770): `accounts` (names),
         /// `leftOut`, `hasPlans`, `balanceNow`, `outDue`, `inDue`, `left`,
@@ -134,7 +137,8 @@ pub mod qobject {
 
         /// "Book it": a new entry for the payment of `plan_id` with
         /// `due_on`, on `date` with `amount`, as typed. Returns an object
-        /// with the entry's `id`, or an error object.
+        /// with the entry's `id` and, when its amount isn't the plan's,
+        /// `newAmount` (see `matchEntry`); or an error object.
         #[qinvokable]
         #[cxx_name = "bookIt"]
         fn book_it(
@@ -153,13 +157,28 @@ pub mod qobject {
         fn entry_choices(self: &PlannedPayments, plan_id: &QString, due_on: &QString) -> QVariant;
 
         /// Matches the entry `transaction_id` to the payment of `plan_id`
-        /// with `due_on`. Returns an empty object or an error object.
+        /// with `due_on`. Returns an empty object, or, when the entry's
+        /// amount isn't the plan's (#1143), one with `newAmount`: an object
+        /// with the entry's `transactionId`, its `amount` and
+        /// `exactAmount` and the plan's `planned` and `exactPlanned`, all
+        /// without signs, for "Expect … from now on?"; or an error object.
         #[qinvokable]
         #[cxx_name = "matchEntry"]
         fn match_entry(
             self: Pin<&mut PlannedPayments>,
             plan_id: &QString,
             due_on: &QString,
+            transaction_id: &QString,
+        ) -> QVariant;
+
+        /// "Expect … from now on" (#1143): the plan `plan_id` expects the
+        /// amount of the entry `transaction_id` from now on, read from the
+        /// entry. Returns an empty object or an error object.
+        #[qinvokable]
+        #[cxx_name = "expectAmount"]
+        fn expect_amount(
+            self: Pin<&mut PlannedPayments>,
+            plan_id: &QString,
             transaction_id: &QString,
         ) -> QVariant;
     }
@@ -315,8 +334,15 @@ impl qobject::PlannedPayments {
             amount.to_string(),
         );
         self.changing(|book, locale| {
-            let booked = planned_payments::book_it(book, &plan, &due_on, &date, &amount, locale)?;
-            Ok(map([("id", text(&booked))]))
+            let (booked, new_amount) =
+                planned_payments::book_it(book, &plan, &due_on, &date, &amount, locale)?;
+            Ok(match new_amount {
+                Some(new_amount) => map([
+                    ("id", text(&booked)),
+                    ("newAmount", new_amount_object(&new_amount)),
+                ]),
+                None => map([("id", text(&booked))]),
+            })
         })
     }
 
@@ -340,8 +366,24 @@ impl qobject::PlannedPayments {
             due_on.to_string(),
             transaction_id.to_string(),
         );
+        self.changing(|book, locale| {
+            let new_amount =
+                planned_payments::match_entry(book, &plan, &due_on, &transaction, locale)?;
+            Ok(new_amount.map_or_else(
+                || map([]),
+                |new_amount| map([("newAmount", new_amount_object(&new_amount))]),
+            ))
+        })
+    }
+
+    fn expect_amount(
+        self: Pin<&mut Self>,
+        plan_id: &QString,
+        transaction_id: &QString,
+    ) -> QVariant {
+        let (plan, transaction) = (plan_id.to_string(), transaction_id.to_string());
         self.changing(|book, _| {
-            planned_payments::match_entry(book, &plan, &due_on, &transaction)?;
+            planned_payments::expect_amount(book, &plan, &transaction)?;
             Ok(map([]))
         })
     }
@@ -499,6 +541,48 @@ fn payment_object(payment: &PaymentText) -> QVariant {
         ("due", text(&payment.due)),
         ("dueOn", text(&payment.due_on)),
         ("state", text(payment.state)),
+        (
+            "changedId",
+            text(
+                payment
+                    .changed
+                    .as_ref()
+                    .map_or("", |changed| &changed.transaction_id),
+            ),
+        ),
+        (
+            "changedAmount",
+            text(
+                payment
+                    .changed
+                    .as_ref()
+                    .map_or("", |changed| &changed.amount.text),
+            ),
+        ),
+        (
+            "changedExactAmount",
+            text(
+                payment
+                    .changed
+                    .as_ref()
+                    .map_or("", |changed| &changed.amount.exact),
+            ),
+        ),
+        (
+            "changedDate",
+            text(payment.changed.as_ref().map_or("", |changed| &changed.date)),
+        ),
+    ])
+}
+
+/// What "Expect … from now on?" asks about (#1143).
+fn new_amount_object(new_amount: &NewAmount) -> QVariant {
+    map([
+        ("transactionId", text(&new_amount.transaction_id)),
+        ("amount", text(&new_amount.amount.text)),
+        ("exactAmount", text(&new_amount.amount.exact)),
+        ("planned", text(&new_amount.planned.text)),
+        ("exactPlanned", text(&new_amount.planned.exact)),
     ])
 }
 
@@ -533,9 +617,12 @@ fn choice_object(choice: &EntryChoice) -> QVariant {
 
 #[cfg(test)]
 mod tests {
-    use super::{choice_object, form_object, payment_object, plan_object, read_form, view_object};
+    use super::{
+        choice_object, form_object, new_amount_object, payment_object, plan_object, read_form,
+        view_object,
+    };
     use crate::planned_payments::{
-        EntryChoice, MonthRow, MonthText, PaymentText, PlanForm, PlanText,
+        ChangedText, EntryChoice, MonthRow, MonthText, NewAmount, PaymentText, PlanForm, PlanText,
     };
     use crate::register::Shown;
     use crate::variant::read_back::{elements, flag_of, keys, list_of, number_of, text_of};
@@ -561,6 +648,7 @@ mod tests {
             due: "2026-11-02".into(),
             due_on: "2026-11-01".into(),
             state: "upcoming",
+            changed: None,
         }
     }
 
@@ -604,7 +692,7 @@ mod tests {
         assert_eq!(text_of(&plan, "party"), "DE89370400440532013000");
 
         let paid = payment_object(&payment());
-        assert_eq!(keys(&paid).len(), 9);
+        assert_eq!(keys(&paid).len(), 13);
         assert_eq!(text_of(&paid, "planId"), "p1");
         assert_eq!(text_of(&paid, "name"), "Rent");
         assert_eq!(text_of(&paid, "account"), "Checking account");
@@ -614,6 +702,48 @@ mod tests {
         assert_eq!(text_of(&paid, "due"), "2026-11-02");
         assert_eq!(text_of(&paid, "dueOn"), "2026-11-01");
         assert_eq!(text_of(&paid, "state"), "upcoming");
+        for empty in [
+            "changedId",
+            "changedAmount",
+            "changedExactAmount",
+            "changedDate",
+        ] {
+            assert_eq!(text_of(&paid, empty), "", "{empty}");
+        }
+        // A payment an entry fits but for its amount (#1143).
+        let changed = payment_object(&PaymentText {
+            changed: Some(ChangedText {
+                transaction_id: "t9".into(),
+                amount: Shown {
+                    text: "780 €".into(),
+                    exact: "780,00 €".into(),
+                },
+                date: "2026-11-02".into(),
+            }),
+            ..payment()
+        });
+        assert_eq!(keys(&changed).len(), 13);
+        assert_eq!(text_of(&changed, "changedId"), "t9");
+        assert_eq!(text_of(&changed, "changedAmount"), "780 €");
+        assert_eq!(text_of(&changed, "changedExactAmount"), "780,00 €");
+        assert_eq!(text_of(&changed, "changedDate"), "2026-11-02");
+        let asked = new_amount_object(&NewAmount {
+            transaction_id: "t9".into(),
+            amount: Shown {
+                text: "780 €".into(),
+                exact: "780,00 €".into(),
+            },
+            planned: Shown {
+                text: "750 €".into(),
+                exact: "750,00 €".into(),
+            },
+        });
+        assert_eq!(keys(&asked).len(), 5);
+        assert_eq!(text_of(&asked, "transactionId"), "t9");
+        assert_eq!(text_of(&asked, "amount"), "780 €");
+        assert_eq!(text_of(&asked, "exactAmount"), "780,00 €");
+        assert_eq!(text_of(&asked, "planned"), "750 €");
+        assert_eq!(text_of(&asked, "exactPlanned"), "750,00 €");
 
         let choice = choice_object(&EntryChoice {
             id: "t1".into(),

@@ -8,6 +8,8 @@ Send the install step log, your notes and your reports **directly and only to th
 - The facilitator describes the problem in their own words when passing it on; your name and texts are not included.
 - If your report has **real data** (last question of the closing talk: yes), it stays only with the facilitator and is **deleted after the round** (D-552).
 
+KassenSturz can fill in most of the sheet for you: in **Settings › Testing KassenSturz**, step 3 writes a note with these fields plus the version number and the kind of install. "Copy the note" puts it on the clipboard for your e-mail; the program sends nothing itself.
+
 One sheet per problem: title; card number (for example B2 or C1-1); what I wanted; what I expected; what happened (every message word for word); does it happen again (always, sometimes, once); version number (from "About KassenSturz"); computer; screenshot (only if it shows nothing but example data); log (from the developer-mode banner, optional); how bad (blocks me, annoying, minor); contains real data (no / yes). Feel free to say how it **felt**.
 
 **For the facilitator:** reports with real data go to no agent, no project file, no issue and no prompt. Reports without real data are rewritten in the team's words before a bug is filed; no tester wording or screenshots enter the project.

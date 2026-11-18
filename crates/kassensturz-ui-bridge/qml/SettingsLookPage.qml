@@ -61,6 +61,7 @@ FormCard.FormCardPage {
                 { value: "system", text: page.i18nContext.i18nc("@item:inlistbox", "As in your system") },
                 { value: "en", text: "English" },
                 { value: "de", text: "Deutsch" },
+                { value: "pl", text: "Polski" },
             ]
             Component.onCompleted: showChoice()
             onActivated: {

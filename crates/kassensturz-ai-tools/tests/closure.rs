@@ -127,7 +127,7 @@ fn nothing_a_model_can_call_sends_money() {
             assert!(!text.contains(word), "{} mentions {word}", function.name);
         }
     }
-    // A change set holds twenty-six kinds of change, none of them a payment (an
+    // A change set holds twenty-seven kinds of change, none of them a payment (an
     // edit of a transaction's amount moves no money between accounts, D-257; a
     // cash entry only writes down what the user paid, D-258; a budget only
     // plans and moves nothing, D-358, T-50; a saved chart changed or deleted
@@ -142,7 +142,8 @@ fn nothing_a_model_can_call_sends_money() {
     // inbox is moved between two folders the user chose and linked, and its
     // total is only checked against the bank, D-752, T-66; a plan only expects
     // money and moves none, its amount named by the user or read from an entry,
-    // D-814, T-68); a new kind
+    // D-814, T-68; a new tag is only a label the user named, made with the
+    // transactions that get it, D-830, T-69); a new kind
     // fails here and needs a row in the threat model first (D-236).
     let source = read(&repository().join("crates/kassensturz-ai-tools/src/changes.rs"));
     let start = source.find("pub enum ProposedChange").expect("the enum");
@@ -178,6 +179,7 @@ fn nothing_a_model_can_call_sends_money() {
             "SortWithRules",
             "JoinTransfer",
             "TagTransaction",
+            "NewTag",
             "SplitTransaction",
             "AttachBill",
             "FileBill"
@@ -245,10 +247,19 @@ fn the_book_has_no_place_for_ai_settings_or_consent() {
     // consent, because its layout has no place for either. The settings
     // live in the app's file outside the book (D-168).
     let store = repository().join("crates/kassensturz-store/src");
+    // Every layout since the first Beta is in `layout.rs`; the folder held
+    // the Alpha's development layouts until M7a.6 removed them, and any file
+    // that comes there later is checked too.
     let mut layouts = vec![store.join("layout.rs")];
-    files(&store.join("layout"), "rs", &mut layouts);
-    files(&store.join("layout"), "sql", &mut layouts);
-    assert!(layouts.len() > 1, "the layouts were not found");
+    let folder = store.join("layout");
+    if folder.is_dir() {
+        files(&folder, "rs", &mut layouts);
+        files(&folder, "sql", &mut layouts);
+    }
+    assert!(
+        read(&layouts[0]).contains("CREATE TABLE"),
+        "the layouts were not found"
+    );
     for file in layouts {
         let text = read(&file).to_lowercase();
         for word in ["consent", "provider", "api_key", "ai_enabled", "mcp"] {

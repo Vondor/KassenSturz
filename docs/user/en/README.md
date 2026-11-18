@@ -38,6 +38,10 @@ There is also a [German version of this handbook](../de/README.md).
 19. [When something goes wrong](19-problems.md)
 20. [Words in the app, explained](20-words.md)
 
+**Planning ahead**
+
+21. [Planned payments](21-planned-payments.md)
+
 How safe your data is with KassenSturz, what we attacked and what we fixed is on the page [How safe is KassenSturz?](../../SECURITY_OVERVIEW.en.md)
 
 ## How to read this handbook

@@ -182,6 +182,7 @@ fn book() -> (Book, Ids) {
         actions: Actions {
             book_to: Some(BookTo::Category(groceries.id)),
             payee: Some("Supermarket".to_owned()),
+            tags: Vec::new(),
         },
     };
     book.add_rule(&rule, None).expect("a Rule");
@@ -193,6 +194,7 @@ fn book() -> (Book, Ids) {
         actions: Actions {
             book_to: Some(BookTo::Transfer(savings.id)),
             payee: None,
+            tags: Vec::new(),
         },
     };
     book.add_rule(&to_savings, None).expect("a Rule");

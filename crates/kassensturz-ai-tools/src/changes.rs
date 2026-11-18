@@ -80,7 +80,7 @@ pub use joins::JoinTransfer;
 pub use planned::{EditPlan, NewPlan};
 pub use sort_rules::SortWithRules;
 pub use splits::{SplitPart, SplitTransaction};
-pub use tags::TagTransaction;
+pub use tags::{NewTag, TagTransaction};
 pub use transactions::{EditTransaction, FieldEdit, FieldValue};
 #[cfg(test)]
 pub(crate) use view_call::ARGUMENTS as VIEW_ARGUMENTS;
@@ -105,7 +105,8 @@ pub const PROPOSE_CHANGES: Function = Function {
         into a category, changing, moving or deleting existing Rules, and a category for \
         transactions you found with search_transactions, sorting transactions with the user's \
         own Rules, deleting empty categories, \
-        adding, renaming, closing, reopening or changing the type of accounts and preparing or changing budgets. A \
+        adding, renaming, closing, reopening or changing the type of accounts, preparing or changing budgets, and \
+        tags on transactions, also new tags the user asked for. A \
         chart is prepared with propose_view instead (only when the user allows it). Nothing changes until the user confirms them in KassenSturz's window, and the user may refuse them. A new category \
         has a key of your choice, which edit_categories (as new_parent), new_rules, \
         edit_rules and categorize use as new_category. Only a transaction with one category, \
@@ -120,7 +121,7 @@ pub const PROPOSE_CHANGES: Function = Function {
         second Rule with a number in its name. Categories and Rules are named by the IDs that \
         list_categories and list_rules give. Prepare everything that belongs together in one \
         call.",
-    parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"parent_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use; needed when their accounts use more than one."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for the Rule, so that a later Rule of this list can sit inside it with new_parent_rule."},"name":{"type":"string","maxLength":100},"parent_rule_id":{"type":"string","description":"Make it a sub-Rule of this Rule, ID from list_rules. A sub-Rule is checked only when its parent matched; the deepest one that matches decides. Default: a top-level Rule."},"parent_rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."},"new_parent_rule":{"type":"string","description":"Or the key of a Rule earlier in this list."},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with","matches_pattern"],"description":"matches_pattern: text is a pattern in the syntax of Rust's regex crate (for example \"fresho|brightmart\"); lookahead, lookbehind and backreferences are not supported. One pattern can replace many contains conditions."},"text":{"type":"string","maxLength":1000,"description":"At most 100 characters, but a matches_pattern pattern may have up to 1000."},"case_sensitive":{"type":"boolean","description":"Default false: capitals are ignored, also in a pattern."},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["name","conditions"],"additionalProperties":false}},"edit_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"The category to rename or move, ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"parent_id":{"type":"string","description":"Move it, with everything inside it, into this category, ID from list_categories. It must be the same kind and currency."},"parent_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"new_parent":{"type":"string","description":"Or into the new category with this key."},"to_top":{"type":"boolean","description":"Move it to the top level."}},"required":["category_id"],"additionalProperties":false}},"edit_rules":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to change, ID from list_rules."},"rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."},"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"]},"conditions":{"type":"array","minItems":1,"maxItems":100,"description":"All of its conditions as they should be, same shape as in new_rules: they replace the old ones, so list every condition to keep. Only for a Rule that list_rules shows with \"conditions_complete\": true. To add or remove a few, use add_conditions and remove_conditions instead.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with","matches_pattern"],"description":"matches_pattern: text is a pattern in the syntax of Rust's regex crate; lookahead, lookbehind and backreferences are not supported."},"text":{"type":"string","maxLength":1000,"description":"At most 100 characters, but a matches_pattern pattern may have up to 1000."},"case_sensitive":{"type":"boolean","description":"Default false: capitals are ignored, also in a pattern."},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"add_conditions":{"type":"array","minItems":1,"maxItems":100,"description":"Conditions to add at the end, same shape as in new_rules; the others stay exactly as they are. Also for a Rule with \"conditions_complete\": false.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with","matches_pattern"],"description":"matches_pattern: text is a pattern in the syntax of Rust's regex crate; lookahead, lookbehind and backreferences are not supported."},"text":{"type":"string","maxLength":1000,"description":"At most 100 characters, but a matches_pattern pattern may have up to 1000."},"case_sensitive":{"type":"boolean","description":"Default false: capitals are ignored, also in a pattern."},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"remove_conditions":{"type":"array","minItems":1,"maxItems":100,"description":"Conditions to take away, each by its place in the Rule's conditions as list_rules shows them, 1 is the first. At least one condition must stay.","items":{"type":"integer","minimum":1}},"category_id":{"type":"string","description":"The category it books to, ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["rule_id"],"additionalProperties":false}},"move_rules":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"A top-level Rule, ID from list_rules."},"rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."},"position":{"type":"integer","minimum":1,"description":"Its new place in the list of top-level Rules, 1 is the first. New Rules in this call are at the end."}},"required":["rule_id","position"],"additionalProperties":false}},"delete_rules":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to delete, ID from list_rules. It must have no sub-Rules. What it booked stays as it is."},"rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."}},"required":["rule_id"],"additionalProperties":false}},"new_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"A cash account of the user, ID from list_accounts."},"account_name":{"type":"string","description":"Optional: its name from list_accounts, checked against the ID."},"date":{"type":"string","description":"The day of the purchase, YYYY-MM-DD."},"amount":{"type":"string","description":"Exact decimal text with a dot, in the account's currency: negative is money out, positive money in, e.g. -12.50."},"payee":{"type":"string","maxLength":200,"description":"Who was paid or who paid, e.g. the shop."},"note":{"type":"string","maxLength":512,"description":"A note, e.g. what the money was for. One line without line breaks: a note with a line break inside is refused as ai-tools.bad-argument with the reason line-break."},"category_id":{"type":"string","description":"The category it belongs to, ID from list_categories, in the account's currency. Leave it out for none yet."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."}},"required":["account_id","date","amount"],"additionalProperties":false}},"delete_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"A transaction of a cash account that the user entered by hand, ID from search_transactions."}},"required":["transaction_id"],"additionalProperties":false}},"edit_transactions":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions, once per call."},"date":{"type":"string","description":"The new day, YYYY-MM-DD."},"payee":{"type":"string","maxLength":200,"description":"The new payee: who was paid or who paid. An empty text removes it."},"note":{"type":"string","maxLength":512,"description":"The new note. An empty text removes it. One line without line breaks: a note with a line break inside is refused as ai-tools.bad-argument with the reason line-break."},"amount":{"type":"string","description":"The new amount of the transaction in the account, exact decimal text with a dot, in the transaction's currency: negative is money out, positive money in, e.g. -12.50. Only for a plain transaction with one account and one category."},"account_id":{"type":"string","description":"Move the transaction to this other account, ID from list_accounts, in the same currency. Only for a plain transaction."},"account_name":{"type":"string","description":"Optional: its name from list_accounts, checked against the ID."}},"required":["transaction_id"],"additionalProperties":false}},"sort_with_rules":{"type":"array","maxItems":1,"description":"Sort the transactions already in the book with the user's own Rules, as Apply Rules on the Rules page does: the Rules decide where each transaction goes, in their order. Only in a call of its own. Transactions the user sorted or changed by hand are never touched.","items":{"type":"object","properties":{"rule_id":{"type":"string","description":"Only the transactions this Rule decides, ID from list_rules; the Rules before it in the list still come first. Leave it out to sort with all Rules."},"rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."},"sort_again":{"type":"boolean","description":"Also sort again what Rules sorted before and the user didn't change since, e.g. after a Rule was changed or moved. Default false: only transactions without a category."}},"additionalProperties":false}},"join_transfers":{"type":"array","maxItems":50,"description":"Join two transactions that are the two sides of one move of money between the user's own accounts as one Transfer: one takes the money out of one account, the other puts the same amount into another, in the same currency. Their categories go; both accounts' balances stay. A transaction can be in only one change of the call.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"other_transaction_id":{"type":"string","description":"The other side's ID from search_transactions, in another account; the order of the two doesn't matter."}},"required":["transaction_id","other_transaction_id"],"additionalProperties":false}},"tag_transactions":{"type":"array","maxItems":100,"description":"Put tags on whole transactions or take them off. Only tags the user has, IDs from list_tags; never make up a tag. A part's own tags stay. A transaction can be in only one change of the call.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"add_tag_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Tags to put on it, IDs from list_tags; not ones it already has on the whole."},"remove_tag_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Tags to take off it, from its tag_ids in search_transactions; only ones on the whole transaction."}},"required":["transaction_id"],"additionalProperties":false}},"split_transactions":{"type":"array","maxItems":100,"description":"Break a transaction into parts, e.g. one debit that paid two bills, or join its parts back into one with a single part. Give every part: they replace the parts it has now, and the part in the user's account stays as it is. The parts' amounts must add up exactly to the transaction's amount in its account; nothing is filled in for you. A transaction can be in only one change of the call.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"parts":{"type":"array","minItems":1,"maxItems":50,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"ID from list_categories, in the transaction's currency. Leave it out for not sorted yet."},"amount":{"type":"string","description":"Exact decimal text with a dot, as seen from the account like the transaction's amount in search_transactions: negative is money out, e.g. -12.50."},"name":{"type":"string","maxLength":512,"description":"What this part was for, e.g. an invoice number; one line."}},"required":["amount"],"additionalProperties":false}}},"required":["transaction_id","parts"],"additionalProperties":false}},"attach_bills":{"type":"array","maxItems":100,"description":"Link a bill from the user's bill folder (bill_folder) to the transaction it was paid with, after you read the bill yourself. KassenSturz stores only the link; the file stays where it is. Find the transaction by the bill's reference with search_transactions; a bill that matches nothing is not attached.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"file":{"type":"string","maxLength":1000,"description":"The bill's path inside the bill folder, or relative to it, e.g. 2026/RE-0042.pdf. A PDF, PNG or JPEG file."},"title":{"type":"string","maxLength":200,"description":"What to call it, e.g. Invoice RE-0042. Default: its file name."}},"required":["transaction_id","file"],"additionalProperties":false}},"file_bills":{"type":"array","maxItems":50,"description":"File a bill from the user's receipt inbox (the inbox function lists it) with the transaction it was paid with, after you read the bill yourself. When the user confirms, KassenSturz moves the file from the inbox into the archive, in a folder of the transaction's account and category, and links it; you don't choose the place. Give the total the bill shows: KassenSturz compares it with what the bank booked, and a bill that doesn't match is only filed if the user ticks it.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"file":{"type":"string","maxLength":1000,"description":"The bill's file name in the inbox, as inbox lists it. A PDF, PNG or JPEG file."},"title":{"type":"string","maxLength":200,"description":"What to call it, e.g. Invoice RE-0042; also the archived file's name. Default: its file name."},"bill_total":{"type":"string","maxLength":30,"description":"The total the bill shows, as exact decimal text with a point, e.g. 24.50. No sign."},"bill_currency":{"type":"string","maxLength":3,"description":"The bill's currency as an ISO 4217 code, e.g. EUR. Default: the transaction's."}},"required":["transaction_id","file"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}},"delete_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"An empty category to delete, ID from list_categories. It must have no transactions, no sub-categories and no Rule that books to it."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."}},"required":["category_id"],"additionalProperties":false}},"new_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"type":{"type":"string","enum":["checking","savings","cash","credit_card"]},"currency":{"type":"string","description":"ISO 4217 code. Default: the one all the user's accounts use; needed when their accounts use more than one."}},"required":["name","type"],"additionalProperties":false}},"edit_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"The account to change, ID from list_accounts."},"account_name":{"type":"string","description":"Optional: its name from list_accounts, checked against the ID."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"closed":{"type":"boolean","description":"true closes it (its balance must be zero), false opens a closed one again."},"type":{"type":"string","enum":["checking","savings","cash","credit_card"],"description":"Its new type, e.g. savings for a savings account that came in as checking, or a type for one list_accounts calls other. Only the type changes: transactions and balance stay as they are. To or from credit_card, its balance counts as owed instead of had, or the other way round; net worth stays the same."}},"required":["account_id"],"additionalProperties":false}},"delete_views":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"view_id":{"type":"string","description":"A chart the user saved under Statistics, ID from list_views. Undo brings it back."}},"required":["view_id"],"additionalProperties":false}},"new_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100,"description":"A name the user asked for, e.g. Holiday, on one line. Leave it out for none: the user then sees its categories."},"category_id":{"type":"string","description":"A spending category without a budget yet, ID from list_categories. The budget counts it with everything inside it."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"category_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Instead of category_id, for one budget over several spending categories from anywhere in the tree, IDs from list_categories, all in one currency. Each counts with everything inside it."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only count what was paid from these accounts of the user, IDs from list_accounts. Leave it out to count every account."},"every":{"type":"string","enum":["month","quarter","year","range"],"description":"How often the budget starts again. It starts with the current month, quarter or year. range: once, for the days the user named in first_day and last_day."},"salary_day":{"type":"integer","minimum":1,"maximum":31,"description":"Only with every month: the day each month starts, e.g. the payday 25. Default 1."},"first_day":{"type":"string","description":"Only with every range: the first day the user named, YYYY-MM-DD. Never pick the days yourself; ask the user."},"last_day":{"type":"string","description":"Only with every range: the last day the user named, YYYY-MM-DD, not before today."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods. Use this whenever the user did not name an amount. Not with every range."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, in the category's currency, above zero, e.g. 250.00. Never compute it yourself; use based_on instead."},"carry_over":{"type":"boolean","description":"Whether what is left at the end of a period, or spent too much, moves into the next one. Default false. Not with every range."}},"required":["every"],"additionalProperties":false}},"edit_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"budget_id":{"type":"string","description":"The budget to change, ID from list_budgets. A change of the amount or carry over applies from the current period on; earlier periods stay as they were."},"name":{"type":"string","maxLength":100,"description":"Its new name, on one line; an empty text takes the name away. Leave it out to keep the name. A new name alone changes no amount."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the new amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, above zero. Never compute it yourself."},"carry_over":{"type":"boolean","description":"Whether what is left moves into the next period from now on."},"category_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"The whole new list of spending categories the budget counts from the current period on, IDs from list_categories, in the budget's currency. Earlier periods keep counting what they counted. Leave it out to keep the categories."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"The whole new list of the user's accounts it counts from the current period on, IDs from list_accounts; an empty list counts every account. Leave it out to keep the accounts."}},"required":["budget_id"],"additionalProperties":false}},"new_plans":{"type":"array","maxItems":20,"description":"Plans: money the user expects again and again, such as rent or salary, as list_plans shows them. forecast counts them.","items":{"type":"object","properties":{"name":{"type":"string","maxLength":60,"description":"What it is for, e.g. Rent, on one line."},"account_id":{"type":"string","description":"The user's account the money leaves or reaches, ID from list_accounts."},"account_name":{"type":"string","description":"Optional: its name from list_accounts, checked against the ID."},"direction":{"type":"string","enum":["out","in"],"description":"out: money the user pays, in: money the user gets."},"amount":{"type":"string","description":"Only an amount the user named: exact decimal text with a dot, above zero, no sign, e.g. 850.00. Never compute it yourself; use amount_from_transaction_id instead."},"amount_from_transaction_id":{"type":"string","description":"Or take the amount from this entry of the account, ID from search_transactions, e.g. the last rent paid. KassenSturz reads its amount."},"tolerance":{"type":"string","description":"Optional: how much an entry may differ from the amount and still count, e.g. 5.00, only as the user said. Default 0."},"category_id":{"type":"string","description":"Optional: the category a matching entry gets, ID from list_categories, in the account's currency."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"every":{"type":"integer","minimum":1,"maximum":52,"description":"How many units from one due day to the next. Default 1."},"unit":{"type":"string","enum":["week","month","year"]},"first_due":{"type":"string","description":"The first day it is due, YYYY-MM-DD; the later ones follow from every and unit."},"ends":{"type":"string","description":"Optional: the last day it may be due, YYYY-MM-DD. Leave it out if it doesn't end."},"paid_to":{"type":"string","maxLength":140,"description":"Optional, only with direction out: who is paid, as the bank names them (other_party_name in search_transactions). Then only entries from them count."},"received_from":{"type":"string","maxLength":140,"description":"Optional, only with direction in: who pays, as the bank names them."}},"required":["name","account_id","direction","unit","first_due"],"additionalProperties":false}},"edit_plans":{"type":"array","maxItems":20,"description":"Change plans the user has, by plan_id from list_plans. Give only what changes.","items":{"type":"object","properties":{"plan_id":{"type":"string","description":"The plan to change, ID from list_plans, once per call."},"name":{"type":"string","maxLength":60,"description":"Its new name, on one line."},"amount":{"type":"string","description":"Only a new amount the user named: exact decimal text with a dot, above zero, no sign. Never compute it yourself."},"amount_from_transaction_id":{"type":"string","description":"Or take the new amount from this entry of the plan's account, ID from search_transactions."},"tolerance":{"type":"string","description":"How much an entry may differ, as the user said, e.g. 5.00; 0 for exactly."},"category_id":{"type":"string","description":"The category a matching entry gets, ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"every":{"type":"integer","minimum":1,"maximum":52},"unit":{"type":"string","enum":["week","month","year"]},"ends":{"type":"string","description":"The last day it may be due, YYYY-MM-DD; an empty text: it doesn't end."},"paused":{"type":"boolean","description":"true pauses it, so it is not expected or counted; false lets it go on."}},"required":["plan_id"],"additionalProperties":false}}
+    parameters: r#"{"type":"object","properties":{"new_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used as new_category below."},"name":{"type":"string","maxLength":100},"parent_id":{"type":"string","description":"Put it inside this category, ID from list_categories. Default: at the top."},"parent_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"income":{"type":"boolean","description":"An income category, not a spending one. Default false. Inside a category it must be the same kind."},"currency":{"type":"string","description":"ISO 4217 code. Default: the parent's, or the one all the user's accounts use; needed when their accounts use more than one."}},"required":["key","name"],"additionalProperties":false}},"new_rules":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for the Rule, so that a later Rule of this list can sit inside it with new_parent_rule."},"name":{"type":"string","maxLength":100},"parent_rule_id":{"type":"string","description":"Make it a sub-Rule of this Rule, ID from list_rules. A sub-Rule is checked only when its parent matched; the deepest one that matches decides. Default: a top-level Rule."},"parent_rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."},"new_parent_rule":{"type":"string","description":"Or the key of a Rule earlier in this list."},"match":{"type":"string","enum":["all","any"],"description":"Whether every condition must hold or one is enough. Default all."},"conditions":{"type":"array","minItems":1,"maxItems":100,"items":{"type":"object","description":"Either field, test and text, or money_in: true, or money_out: true.","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with","matches_pattern"],"description":"matches_pattern: text is a pattern in the syntax of Rust's regex crate (for example \"fresho|brightmart\"); lookahead, lookbehind and backreferences are not supported. One pattern can replace many contains conditions."},"text":{"type":"string","maxLength":1000,"description":"At most 100 characters, but a matches_pattern pattern may have up to 1000."},"case_sensitive":{"type":"boolean","description":"Default false: capitals are ignored, also in a pattern."},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"category_id":{"type":"string","description":"Where it books what it finds, ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."},"add_tag_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Tags it adds to every transaction it matches, IDs from list_tags; it never takes a tag off. With tags you may leave out the category: the Rule then only adds tags and a later Rule still sorts."}},"required":["name","conditions"],"additionalProperties":false}},"edit_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"The category to rename or move, ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"parent_id":{"type":"string","description":"Move it, with everything inside it, into this category, ID from list_categories. It must be the same kind and currency."},"parent_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"new_parent":{"type":"string","description":"Or into the new category with this key."},"to_top":{"type":"boolean","description":"Move it to the top level."}},"required":["category_id"],"additionalProperties":false}},"edit_rules":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to change, ID from list_rules."},"rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."},"name":{"type":"string","maxLength":100},"match":{"type":"string","enum":["all","any"]},"conditions":{"type":"array","minItems":1,"maxItems":100,"description":"All of its conditions as they should be, same shape as in new_rules: they replace the old ones, so list every condition to keep. Only for a Rule that list_rules shows with \"conditions_complete\": true. To add or remove a few, use add_conditions and remove_conditions instead.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with","matches_pattern"],"description":"matches_pattern: text is a pattern in the syntax of Rust's regex crate; lookahead, lookbehind and backreferences are not supported."},"text":{"type":"string","maxLength":1000,"description":"At most 100 characters, but a matches_pattern pattern may have up to 1000."},"case_sensitive":{"type":"boolean","description":"Default false: capitals are ignored, also in a pattern."},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"add_conditions":{"type":"array","minItems":1,"maxItems":100,"description":"Conditions to add at the end, same shape as in new_rules; the others stay exactly as they are. Also for a Rule with \"conditions_complete\": false.","items":{"type":"object","properties":{"field":{"type":"string","enum":["payee","other_party_name","bank_text"]},"test":{"type":"string","enum":["contains","equals","starts_with","ends_with","matches_pattern"],"description":"matches_pattern: text is a pattern in the syntax of Rust's regex crate; lookahead, lookbehind and backreferences are not supported."},"text":{"type":"string","maxLength":1000,"description":"At most 100 characters, but a matches_pattern pattern may have up to 1000."},"case_sensitive":{"type":"boolean","description":"Default false: capitals are ignored, also in a pattern."},"money_in":{"type":"boolean"},"money_out":{"type":"boolean"}},"additionalProperties":false}},"remove_conditions":{"type":"array","minItems":1,"maxItems":100,"description":"Conditions to take away, each by its place in the Rule's conditions as list_rules shows them, 1 is the first. At least one condition must stay.","items":{"type":"integer","minimum":1}},"category_id":{"type":"string","description":"The category it books to, ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."},"add_tag_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Tags it adds from now on, IDs from list_tags."},"remove_tag_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Tags it stops adding, from its tag_ids in list_rules. Tags already on transactions stay."}},"required":["rule_id"],"additionalProperties":false}},"move_rules":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"A top-level Rule, ID from list_rules."},"rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."},"position":{"type":"integer","minimum":1,"description":"Its new place in the list of top-level Rules, 1 is the first. New Rules in this call are at the end."}},"required":["rule_id","position"],"additionalProperties":false}},"delete_rules":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"rule_id":{"type":"string","description":"The Rule to delete, ID from list_rules. It must have no sub-Rules. What it booked stays as it is."},"rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."}},"required":["rule_id"],"additionalProperties":false}},"new_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"A cash account of the user, ID from list_accounts."},"account_name":{"type":"string","description":"Optional: its name from list_accounts, checked against the ID."},"date":{"type":"string","description":"The day of the purchase, YYYY-MM-DD."},"amount":{"type":"string","description":"Exact decimal text with a dot, in the account's currency: negative is money out, positive money in, e.g. -12.50."},"payee":{"type":"string","maxLength":200,"description":"Who was paid or who paid, e.g. the shop."},"note":{"type":"string","maxLength":512,"description":"A note, e.g. what the money was for. One line without line breaks: a note with a line break inside is refused as ai-tools.bad-argument with the reason line-break."},"category_id":{"type":"string","description":"The category it belongs to, ID from list_categories, in the account's currency. Leave it out for none yet."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."}},"required":["account_id","date","amount"],"additionalProperties":false}},"delete_transactions":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"A transaction of a cash account that the user entered by hand, ID from search_transactions."}},"required":["transaction_id"],"additionalProperties":false}},"edit_transactions":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions, once per call."},"date":{"type":"string","description":"The new day, YYYY-MM-DD."},"payee":{"type":"string","maxLength":200,"description":"The new payee: who was paid or who paid. An empty text removes it."},"note":{"type":"string","maxLength":512,"description":"The new note. An empty text removes it. One line without line breaks: a note with a line break inside is refused as ai-tools.bad-argument with the reason line-break."},"amount":{"type":"string","description":"The new amount of the transaction in the account, exact decimal text with a dot, in the transaction's currency: negative is money out, positive money in, e.g. -12.50. Only for a plain transaction with one account and one category."},"account_id":{"type":"string","description":"Move the transaction to this other account, ID from list_accounts, in the same currency. Only for a plain transaction."},"account_name":{"type":"string","description":"Optional: its name from list_accounts, checked against the ID."}},"required":["transaction_id"],"additionalProperties":false}},"sort_with_rules":{"type":"array","maxItems":1,"description":"Sort the transactions already in the book with the user's own Rules, as Apply Rules on the Rules page does: the Rules decide where each transaction goes, in their order. Only in a call of its own. Transactions the user sorted or changed by hand are never touched.","items":{"type":"object","properties":{"rule_id":{"type":"string","description":"Only the transactions this Rule decides, ID from list_rules; the Rules before it in the list still come first. Leave it out to sort with all Rules."},"rule_name":{"type":"string","description":"Optional: its name from list_rules, checked against the ID."},"sort_again":{"type":"boolean","description":"Also sort again what Rules sorted before and the user didn't change since, e.g. after a Rule was changed or moved. Default false: only transactions without a category."}},"additionalProperties":false}},"join_transfers":{"type":"array","maxItems":50,"description":"Join two transactions that are the two sides of one move of money between the user's own accounts as one Transfer: one takes the money out of one account, the other puts the same amount into another, in the same currency. Their categories go; both accounts' balances stay. A transaction can be in only one change of the call.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"other_transaction_id":{"type":"string","description":"The other side's ID from search_transactions, in another account; the order of the two doesn't matter."}},"required":["transaction_id","other_transaction_id"],"additionalProperties":false}},"new_tags":{"type":"array","maxItems":5,"description":"New tags, only with a name the user gave or clearly asked for, never one list_tags shows (use its tag_id). Each must go on a transaction in tag_transactions of this call.","items":{"type":"object","properties":{"key":{"type":"string","maxLength":40,"description":"Your short name for it, used in add_new_tags."},"name":{"type":"string","maxLength":60}},"required":["key","name"],"additionalProperties":false}},"tag_transactions":{"type":"array","maxItems":100,"description":"Put tags on whole transactions or take them off. Only tags the user has, IDs from list_tags, or new ones of new_tags; never make up a tag. A part's own tags stay. A transaction can be in only one change of the call.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"add_tag_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Tags to put on it, IDs from list_tags; not ones it already has on the whole."},"add_new_tags":{"type":"array","maxItems":5,"items":{"type":"string"},"description":"Keys of new tags in new_tags to put on it."},"remove_tag_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Tags to take off it, from its tag_ids in search_transactions; only ones on the whole transaction."}},"required":["transaction_id"],"additionalProperties":false}},"split_transactions":{"type":"array","maxItems":100,"description":"Break a transaction into parts, e.g. one debit that paid two bills, or join its parts back into one with a single part. Give every part: they replace the parts it has now, and the part in the user's account stays as it is. The parts' amounts must add up exactly to the transaction's amount in its account; nothing is filled in for you. A transaction can be in only one change of the call.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"parts":{"type":"array","minItems":1,"maxItems":50,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"ID from list_categories, in the transaction's currency. Leave it out for not sorted yet."},"amount":{"type":"string","description":"Exact decimal text with a dot, as seen from the account like the transaction's amount in search_transactions: negative is money out, e.g. -12.50."},"name":{"type":"string","maxLength":512,"description":"What this part was for, e.g. an invoice number; one line."}},"required":["amount"],"additionalProperties":false}}},"required":["transaction_id","parts"],"additionalProperties":false}},"attach_bills":{"type":"array","maxItems":100,"description":"Link a bill from the user's bill folder (bill_folder) to the transaction it was paid with, after you read the bill yourself. KassenSturz stores only the link; the file stays where it is. Find the transaction by the bill's reference with search_transactions; a bill that matches nothing is not attached.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"file":{"type":"string","maxLength":1000,"description":"The bill's path inside the bill folder, or relative to it, e.g. 2026/RE-0042.pdf. A PDF, PNG or JPEG file."},"title":{"type":"string","maxLength":200,"description":"What to call it, e.g. Invoice RE-0042. Default: its file name."}},"required":["transaction_id","file"],"additionalProperties":false}},"file_bills":{"type":"array","maxItems":50,"description":"File a bill from the user's receipt inbox (the inbox function lists it) with the transaction it was paid with, after you read the bill yourself. When the user confirms, KassenSturz moves the file from the inbox into the archive, in a folder of the transaction's account and category, and links it; you don't choose the place. Give the total the bill shows: KassenSturz compares it with what the bank booked, and a bill that doesn't match is only filed if the user ticks it.","items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"file":{"type":"string","maxLength":1000,"description":"The bill's file name in the inbox, as inbox lists it. A PDF, PNG or JPEG file."},"title":{"type":"string","maxLength":200,"description":"What to call it, e.g. Invoice RE-0042; also the archived file's name. Default: its file name."},"bill_total":{"type":"string","maxLength":30,"description":"The total the bill shows, as exact decimal text with a point, e.g. 24.50. No sign."},"bill_currency":{"type":"string","maxLength":3,"description":"The bill's currency as an ISO 4217 code, e.g. EUR. Default: the transaction's."}},"required":["transaction_id","file"],"additionalProperties":false}},"categorize":{"type":"array","maxItems":100,"items":{"type":"object","properties":{"transaction_id":{"type":"string","description":"ID from search_transactions."},"category_id":{"type":"string","description":"ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"new_category":{"type":"string","description":"Or the key of a category in new_categories."}},"required":["transaction_id"],"additionalProperties":false}},"delete_categories":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"category_id":{"type":"string","description":"An empty category to delete, ID from list_categories. It must have no transactions, no sub-categories and no Rule that books to it."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."}},"required":["category_id"],"additionalProperties":false}},"new_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100},"type":{"type":"string","enum":["checking","savings","cash","credit_card"]},"currency":{"type":"string","description":"ISO 4217 code. Default: the one all the user's accounts use; needed when their accounts use more than one."}},"required":["name","type"],"additionalProperties":false}},"edit_accounts":{"type":"array","maxItems":10,"items":{"type":"object","properties":{"account_id":{"type":"string","description":"The account to change, ID from list_accounts."},"account_name":{"type":"string","description":"Optional: its name from list_accounts, checked against the ID."},"name":{"type":"string","maxLength":100,"description":"Its new name."},"closed":{"type":"boolean","description":"true closes it (its balance must be zero), false opens a closed one again."},"type":{"type":"string","enum":["checking","savings","cash","credit_card"],"description":"Its new type, e.g. savings for a savings account that came in as checking, or a type for one list_accounts calls other. Only the type changes: transactions and balance stay as they are. To or from credit_card, its balance counts as owed instead of had, or the other way round; net worth stays the same."}},"required":["account_id"],"additionalProperties":false}},"delete_views":{"type":"array","maxItems":20,"items":{"type":"object","properties":{"view_id":{"type":"string","description":"A chart the user saved under Statistics, ID from list_views. Undo brings it back."}},"required":["view_id"],"additionalProperties":false}},"new_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"name":{"type":"string","maxLength":100,"description":"A name the user asked for, e.g. Holiday, on one line. Leave it out for none: the user then sees its categories."},"category_id":{"type":"string","description":"A spending category without a budget yet, ID from list_categories. The budget counts it with everything inside it."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"category_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Instead of category_id, for one budget over several spending categories from anywhere in the tree, IDs from list_categories, all in one currency. Each counts with everything inside it."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only count what was paid from these accounts of the user, IDs from list_accounts. Leave it out to count every account."},"every":{"type":"string","enum":["month","quarter","year","range"],"description":"How often the budget starts again. It starts with the current month, quarter or year. range: once, for the days the user named in first_day and last_day."},"salary_day":{"type":"integer","minimum":1,"maximum":31,"description":"Only with every month: the day each month starts, e.g. the payday 25. Default 1."},"first_day":{"type":"string","description":"Only with every range: the first day the user named, YYYY-MM-DD. Never pick the days yourself; ask the user."},"last_day":{"type":"string","description":"Only with every range: the last day the user named, YYYY-MM-DD, not before today."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods. Use this whenever the user did not name an amount. Not with every range."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, in the category's currency, above zero, e.g. 250.00. Never compute it yourself; use based_on instead."},"carry_over":{"type":"boolean","description":"Whether what is left at the end of a period, or spent too much, moves into the next one. Default false. Not with every range."}},"required":["every"],"additionalProperties":false}},"edit_budgets":{"type":"array","maxItems":50,"items":{"type":"object","properties":{"budget_id":{"type":"string","description":"The budget to change, ID from list_budgets. A change of the amount or carry over applies from the current period on; earlier periods stay as they were."},"name":{"type":"string","maxLength":100,"description":"Its new name, on one line; an empty text takes the name away. Leave it out to keep the name. A new name alone changes no amount."},"based_on":{"type":"string","enum":["last_period","average_3_periods","average_6_periods","average_12_periods"],"description":"Let KassenSturz compute the new amount from what the category spent in the last full period, or on average in the last 3, 6 or 12 full periods."},"round_to":{"type":"integer","enum":[1,5,10,50,100],"description":"Only with based_on: round the computed amount up to a multiple of this many whole units of the currency. Default 1."},"amount":{"type":"string","description":"Only for an amount the user named: exact decimal text with a dot, above zero. Never compute it yourself."},"carry_over":{"type":"boolean","description":"Whether what is left moves into the next period from now on."},"category_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"The whole new list of spending categories the budget counts from the current period on, IDs from list_categories, in the budget's currency. Earlier periods keep counting what they counted. Leave it out to keep the categories."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"The whole new list of the user's accounts it counts from the current period on, IDs from list_accounts; an empty list counts every account. Leave it out to keep the accounts."}},"required":["budget_id"],"additionalProperties":false}},"new_plans":{"type":"array","maxItems":20,"description":"Plans: money the user expects again and again, such as rent or salary, as list_plans shows them. forecast counts them.","items":{"type":"object","properties":{"name":{"type":"string","maxLength":60,"description":"What it is for, e.g. Rent, on one line."},"account_id":{"type":"string","description":"The user's account the money leaves or reaches, ID from list_accounts."},"account_name":{"type":"string","description":"Optional: its name from list_accounts, checked against the ID."},"direction":{"type":"string","enum":["out","in"],"description":"out: money the user pays, in: money the user gets."},"amount":{"type":"string","description":"Only an amount the user named: exact decimal text with a dot, above zero, no sign, e.g. 850.00. Never compute it yourself; use amount_from_transaction_id instead."},"amount_from_transaction_id":{"type":"string","description":"Or take the amount from this entry of the account, ID from search_transactions, e.g. the last rent paid. KassenSturz reads its amount."},"tolerance":{"type":"string","description":"Optional: how much an entry may differ from the amount and still count, e.g. 5.00, only as the user said. Default 0."},"category_id":{"type":"string","description":"Optional: the category a matching entry gets, ID from list_categories, in the account's currency."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"every":{"type":"integer","minimum":1,"maximum":52,"description":"How many units from one due day to the next. Default 1."},"unit":{"type":"string","enum":["week","month","year"]},"first_due":{"type":"string","description":"The first day it is due, YYYY-MM-DD; the later ones follow from every and unit."},"ends":{"type":"string","description":"Optional: the last day it may be due, YYYY-MM-DD. Leave it out if it doesn't end."},"paid_to":{"type":"string","maxLength":140,"description":"Optional, only with direction out: who is paid, as the bank names them (other_party_name in search_transactions). Then only entries from them count."},"received_from":{"type":"string","maxLength":140,"description":"Optional, only with direction in: who pays, as the bank names them."}},"required":["name","account_id","direction","unit","first_due"],"additionalProperties":false}},"edit_plans":{"type":"array","maxItems":20,"description":"Change plans the user has, by plan_id from list_plans. Give only what changes.","items":{"type":"object","properties":{"plan_id":{"type":"string","description":"The plan to change, ID from list_plans, once per call."},"name":{"type":"string","maxLength":60,"description":"Its new name, on one line."},"amount":{"type":"string","description":"Only a new amount the user named: exact decimal text with a dot, above zero, no sign. Never compute it yourself."},"amount_from_transaction_id":{"type":"string","description":"Or take the new amount from this entry of the plan's account, ID from search_transactions."},"tolerance":{"type":"string","description":"How much an entry may differ, as the user said, e.g. 5.00; 0 for exactly."},"category_id":{"type":"string","description":"The category a matching entry gets, ID from list_categories."},"category_name":{"type":"string","description":"Optional: its name from list_categories, checked against the ID."},"every":{"type":"integer","minimum":1,"maximum":52},"unit":{"type":"string","enum":["week","month","year"]},"ends":{"type":"string","description":"The last day it may be due, YYYY-MM-DD; an empty text: it doesn't end."},"paused":{"type":"boolean","description":"true pauses it, so it is not expected or counted; false lets it go on."}},"required":["plan_id"],"additionalProperties":false}}
 },"additionalProperties":false}"#,
 };
 
@@ -138,7 +139,7 @@ const MAX_NEW_VIEWS: usize = 3;
 use budgets::MAX_BUDGETS;
 
 /// The lists of [`PROPOSE_CHANGES`] and the permission each needs (D-239).
-pub(crate) const SECTIONS: [(&str, Permission); 26] = [
+pub(crate) const SECTIONS: [(&str, Permission); 27] = [
     ("new_categories", Permission::NewCategories),
     ("edit_categories", Permission::EditCategories),
     ("new_rules", Permission::NewRules),
@@ -161,6 +162,7 @@ pub(crate) const SECTIONS: [(&str, Permission); 26] = [
     (planned::EDIT_LIST, Permission::EditPlans),
     (sort_rules::LIST, Permission::SortTransactions),
     (joins::LIST, Permission::JoinTransfers),
+    (tags::NEW_LIST, Permission::NewTags),
     (tags::LIST, Permission::TagTransactions),
     (splits::LIST, Permission::SplitTransactions),
     (bills::LIST, Permission::AttachBills),
@@ -230,8 +232,16 @@ fn section_allowed(allowed: Permissions, name: &str, permission: Permission) -> 
         "edit_transactions" => edits_allowed(allowed),
         "new_transactions" => adds_allowed(allowed),
         splits::LIST => splits_allowed(allowed),
+        tags::NEW_LIST => new_tags_allowed(allowed),
         _ => allowed.allows(permission),
     }
+}
+
+/// Whether the AI may make new tags under `allowed`: its own cell is on,
+/// and so is tagging, since a new tag is made only together with a
+/// transaction it goes on (D-830).
+fn new_tags_allowed(allowed: Permissions) -> bool {
+    allowed.allows(Permission::NewTags) && allowed.allows(Permission::TagTransactions)
 }
 
 /// Whether the AI may break transactions into parts: its cell is on, and
@@ -325,6 +335,20 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
                 .unwrap_or_default()
         ));
     }
+    // Nothing to point at without new tags: their keys (D-830).
+    if !new_tags_allowed(allowed)
+        && let Some(item) = properties
+            .get_mut(tags::LIST)
+            .and_then(|list| list.pointer_mut("/items/properties"))
+            .and_then(Value::as_object_mut)
+    {
+        item.remove("add_new_tags");
+        properties[tags::LIST]["description"] = json!(
+            "Put tags on whole transactions or take them off. Only tags the user has, IDs from \
+             list_tags; never make up a tag. A part's own tags stay. A transaction can be in \
+             only one change of the call."
+        );
+    }
     if !allowed.allows(Permission::NewCategories) {
         // Nothing to point at: the keys of new categories.
         for list in properties.values_mut() {
@@ -411,6 +435,9 @@ pub fn propose_spec(allowed: Permissions) -> Option<ProposeSpec> {
         ),
         (
             allowed.allows(Permission::TagTransactions),
+            // new_tags' own schema says what it makes: the description is
+            // within a few characters of the 4,000 some AI tools take whole
+            // (M6-B231, D-830).
             "tagging transactions",
         ),
         (splits_allowed(allowed), "splitting transactions"),
@@ -687,6 +714,8 @@ pub(crate) const ARGUMENTS: &[&str] = &[
     "other_transaction_id",
     "tag_transactions",
     "add_tag_ids",
+    "add_new_tags",
+    "new_tags",
     "remove_tag_ids",
     "split_transactions",
     "parts",
@@ -751,6 +780,9 @@ pub enum ProposedChange {
     JoinTransfer(JoinTransfer),
     /// Tags put on a whole transaction or taken off it (US5.2, D-744).
     TagTransaction(TagTransaction),
+    /// A new tag for transactions of the set (D-830), made before they are
+    /// tagged.
+    NewTag(NewTag),
     /// A transaction broken into parts, or joined back into one (US5.1,
     /// D-737).
     SplitTransaction(SplitTransaction),
@@ -808,6 +840,10 @@ pub struct EditRule {
     pub rule: Rule,
     /// The category it books to, as a path, if it books to one.
     pub category: Option<Vec<String>>,
+    /// The names of the tags it added before, in its order (D-827).
+    pub before_tags: Vec<String>,
+    /// The names of the tags it adds, in its order.
+    pub tags: Vec<String>,
     /// The places, from 1 and in order, of the conditions of `before` that
     /// `remove_conditions` takes away (US3.5): `check_only` names these
     /// conditions as `list_rules` shows them.
@@ -842,10 +878,13 @@ pub struct DeleteRule {
 /// A new Rule.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NewRule {
-    /// The Rule, which books to a category.
+    /// The Rule, which books to a category, or only adds tags (D-827).
     pub rule: Rule,
-    /// That category's path, new or not.
-    pub category: Vec<String>,
+    /// That category's path, new or not; `None` for a Rule that only adds
+    /// tags.
+    pub category: Option<Vec<String>>,
+    /// The names of the tags it adds, in its order (D-827).
+    pub tags: Vec<String>,
     /// The Rule it sits inside, if it is a sub-Rule: one of the book's, or a
     /// new one earlier in the set (M6-B191, D-628).
     pub parent: Option<RuleId>,
@@ -1023,7 +1062,11 @@ impl ChangeSet {
             ProposedChange::EditBudget(_) => allowed.allows(Permission::EditBudgets),
             ProposedChange::SortWithRules(sort) => sort.allowed(allowed),
             ProposedChange::JoinTransfer(_) => allowed.allows(Permission::JoinTransfers),
-            ProposedChange::TagTransaction(_) => allowed.allows(Permission::TagTransactions),
+            ProposedChange::TagTransaction(tag) => {
+                allowed.allows(Permission::TagTransactions)
+                    && (tag.added_new.is_empty() || new_tags_allowed(allowed))
+            }
+            ProposedChange::NewTag(_) => new_tags_allowed(allowed),
             ProposedChange::SplitTransaction(split) => {
                 splits_allowed(allowed)
                     && !(split.parts.iter().any(|part| part.name.is_some())
@@ -1049,6 +1092,13 @@ impl ChangeSet {
                 .as_deref()
                 .map_or_else(String::new, |category| format!(" to {}", path(category)))
         };
+        let tag_list = |tags: &[String]| {
+            if tags.is_empty() {
+                String::new()
+            } else {
+                format!(" with tags \"{}\"", tags.join("\", \""))
+            }
+        };
         let parts: Vec<String> = self
             .changes
             .iter()
@@ -1063,18 +1113,23 @@ impl ChangeSet {
                     path(&edit.after)
                 ),
                 ProposedChange::NewRule(new) => format!(
-                    "new Rule \"{}\"{} booking to {}",
+                    "new Rule \"{}\"{}{}{}",
                     new.rule.name,
                     new.inside
                         .as_ref()
                         .map_or_else(String::new, |inside| format!(" inside \"{inside}\"")),
-                    path(&new.category)
+                    new.category.as_ref().map_or_else(
+                        || " only adding tags".to_owned(),
+                        |category| format!(" booking to {}", path(category))
+                    ),
+                    tag_list(&new.tags)
                 ),
                 ProposedChange::EditRule(edit) => format!(
-                    "Rule \"{}\" becomes \"{}\"{}",
+                    "Rule \"{}\" becomes \"{}\"{}{}",
                     edit.before.name,
                     edit.rule.name,
-                    book_to(&edit.category)
+                    book_to(&edit.category),
+                    tag_list(&edit.tags)
                 ),
                 ProposedChange::MoveRule(moved) => format!(
                     "Rule \"{}\" moves from place {} to {}",
@@ -1218,8 +1273,13 @@ impl ChangeSet {
                     format!("plan \"{}\" changes", edit.before.name)
                 }
                 ProposedChange::SortWithRules(sort) => format!(
-                    "sort {} transactions with {}{}",
+                    "sort {} transactions{} with {}{}",
                     sort.changes.len(),
+                    if sort.tagged.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" and tag {}", sort.tagged.len())
+                    },
                     sort.rule_name
                         .as_ref()
                         .map_or_else(|| "all Rules".to_owned(), |name| format!("Rule \"{name}\"")),
@@ -1233,13 +1293,21 @@ impl ChangeSet {
                     "transactions {} and {} become one Transfer",
                     join.transfer.outgoing.transaction, join.transfer.incoming.transaction
                 ),
+                ProposedChange::NewTag(new) => {
+                    format!("new tag \"{}\" on {} transactions", new.name, new.uses)
+                }
                 ProposedChange::TagTransaction(tag) => format!(
-                    "transaction {} tags{}{}",
+                    "transaction {} tags{}{}{}",
                     tag.transaction,
                     if tag.added.is_empty() {
                         String::new()
                     } else {
                         format!(" + {}", tag.added.join(", "))
+                    },
+                    if tag.added_new.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" + new {}", tag.added_new.join(", "))
                     },
                     if tag.removed.is_empty() {
                         String::new()
@@ -1448,6 +1516,7 @@ impl ChangeSet {
                     ProposedChange::EditPlan(edit) => planned::apply_edit(book, edit)?,
                     ProposedChange::SortWithRules(sort) => sort_rules::apply(book, sort)?,
                     ProposedChange::JoinTransfer(join) => joins::apply(book, join)?,
+                    ProposedChange::NewTag(new) => tags::apply_new(book, new)?,
                     ProposedChange::TagTransaction(tag) => tags::apply(book, tag)?,
                     ProposedChange::SplitTransaction(split) => splits::apply(book, split)?,
                     ProposedChange::AttachBill(bill) => bills::apply(book, bill)?,
@@ -1731,6 +1800,7 @@ fn build(
             planned::EDIT_LIST,
             sort_rules::LIST,
             joins::LIST,
+            tags::NEW_LIST,
             tags::LIST,
             splits::LIST,
             bills::LIST,
@@ -1763,6 +1833,7 @@ fn build(
     let edited_plans = call.array(planned::EDIT_LIST)?;
     let sorts = call.array(sort_rules::LIST)?;
     let joined = call.array(joins::LIST)?;
+    let new_tags = call.array(tags::NEW_LIST)?;
     let tagged = call.array(tags::LIST)?;
     let split = call.array(splits::LIST)?;
     let bills = call.array(bills::LIST)?;
@@ -1793,6 +1864,7 @@ fn build(
         + new_plans.len()
         + edited_plans.len()
         + joined.len()
+        + new_tags.len()
         + tagged.len()
         + split.len()
         + bills.len()
@@ -1802,6 +1874,7 @@ fn build(
         || new_plans.len() + edited_plans.len() > planned::MAX_PLANNED
         || joined.len() > joins::MAX_JOINS
         || tagged.len() > tags::MAX_TAGGED
+        || new_tags.len() > tags::MAX_NEW_TAGS
         || split.len() > splits::MAX_SPLIT
         || bills.len() > bills::MAX_BILLS
         || filed.len() > filing::MAX_FILED
@@ -1966,10 +2039,39 @@ fn build(
             joins::join_transfers(book, item, &mut seen).map_err(|e| e.at(joins::LIST, index))?,
         ));
     }
+    // New tags first, so the tag changes can name them by their keys, and
+    // so the set makes them before it puts them on (D-830).
+    let mut made_tags = tags::NewTags::default();
+    let first_new_tag = changes.len();
+    if !new_tags.is_empty() {
+        let known_tags = book.tags()?;
+        for (index, item) in new_tags.iter().enumerate() {
+            changes.push(ProposedChange::NewTag(
+                tags::new_tag(item, &known_tags, &mut made_tags)
+                    .map_err(|e| e.at(tags::NEW_LIST, index))?,
+            ));
+        }
+    }
+    let may_add_tags = new_tags_allowed(allowed);
     for (index, item) in tagged.iter().enumerate() {
         changes.push(ProposedChange::TagTransaction(
-            tags::tag_transaction(book, item, &mut seen).map_err(|e| e.at(tags::LIST, index))?,
+            tags::tag_transaction(book, item, &mut seen, &mut made_tags, may_add_tags)
+                .map_err(|e| e.at(tags::LIST, index))?,
         ));
+    }
+    // A new tag no transaction of the set gets would stay behind unused.
+    for (index, change) in changes[first_new_tag..].iter_mut().enumerate() {
+        let ProposedChange::NewTag(new) = change else {
+            break;
+        };
+        new.uses = made_tags.uses(new.id);
+        if new.uses == 0 {
+            return Err(ToolError::NotChangeable {
+                argument: "key",
+                reason: "not-used",
+            }
+            .at(tags::NEW_LIST, index));
+        }
     }
     for (index, item) in split.iter().enumerate() {
         let change = known
@@ -2113,7 +2215,7 @@ fn build(
             ProposedChange::NewCategory(new) => new.path = known.path(new.id),
             ProposedChange::EditCategory(edit) => edit.after = known.path(edit.id),
             ProposedChange::NewRule(new) => {
-                new.category = known.rule_category(&new.rule).unwrap_or_default();
+                new.category = known.rule_category(&new.rule);
                 new.catches = book.rule_preview(&new.rule)?.len();
             }
             ProposedChange::EditRule(edit) => {
@@ -2195,6 +2297,8 @@ struct Known {
     rule_keys: HashMap<String, (RuleId, String, usize)>,
     /// The Rules the set deletes so far: nothing can go inside them.
     deleted_rules: HashSet<RuleId>,
+    /// The book's tags, which a Rule may add (D-827).
+    tags: Vec<kassensturz_core::Tag>,
 }
 
 /// A Rule of the book and where it sits.
@@ -2307,6 +2411,7 @@ impl Known {
             rule_names,
             rule_keys: HashMap::new(),
             deleted_rules: HashSet::new(),
+            tags: book.tags()?,
         })
     }
 
@@ -2346,6 +2451,14 @@ impl Known {
 
     /// An open category the set may book to: one of the book's, by
     /// `category_id`, or a new one, by `new_category`.
+    /// The names of `tags`, in their order, for the review (D-827).
+    fn tag_names(&self, tags: &[kassensturz_core::TagId]) -> Vec<String> {
+        tags.iter()
+            .filter_map(|id| self.tags.iter().find(|tag| tag.id == *id))
+            .map(|tag| tag.name.clone())
+            .collect()
+    }
+
     fn target(&self, item: &Object<'_>) -> Result<AccountId, ToolError> {
         match (item.id("category_id")?, item.string("new_category")?) {
             (Some(id), None) => {
@@ -2632,6 +2745,8 @@ impl Known {
                 "remove_conditions",
                 "category_id",
                 "new_category",
+                "add_tag_ids",
+                "remove_tag_ids",
             ],
             "edit_rules",
         )?;
@@ -2696,6 +2811,31 @@ impl Known {
             }
             rule.actions.book_to = Some(BookTo::Category(self.target(&item)?));
         }
+        // Tags it adds from now on (D-827): only the book's, never one it
+        // already adds, and only ones it adds taken away.
+        let add = tags::tag_ids(&item, "add_tag_ids", &self.tags)?;
+        let remove = tags::tag_ids(&item, "remove_tag_ids", &self.tags)?;
+        if add
+            .iter()
+            .any(|tag| rule.actions.tags.contains(tag) || remove.contains(tag))
+        {
+            return Err(ToolError::BadArgument {
+                argument: "add_tag_ids",
+            });
+        }
+        if remove.iter().any(|tag| !rule.actions.tags.contains(tag)) {
+            return Err(ToolError::BadArgument {
+                argument: "remove_tag_ids",
+            });
+        }
+        rule.actions.tags.retain(|tag| !remove.contains(tag));
+        rule.actions.tags.extend(add);
+        if rule.actions.tags.len() > kassensturz_core::MAX_TAGS_ON_RULE {
+            return Err(ToolError::NotChangeable {
+                argument: "add_tag_ids",
+                reason: "too-many-tags",
+            });
+        }
         if rule == before {
             return Err(ToolError::BadArgument {
                 argument: "rule_id",
@@ -2705,6 +2845,8 @@ impl Known {
         Ok(EditRule {
             before_category: self.rule_category(&before),
             category: self.rule_category(&rule),
+            before_tags: self.tag_names(&before.actions.tags),
+            tags: self.tag_names(&rule.actions.tags),
             before,
             rule,
             removed_conditions,
@@ -2797,6 +2939,7 @@ impl Known {
                 "conditions",
                 "category_id",
                 "new_category",
+                "add_tag_ids",
             ],
             "new_rules",
         )?;
@@ -2877,15 +3020,32 @@ impl Known {
             Some(_) => return Err(ToolError::BadArgument { argument: "match" }),
         };
         let conditions = conditions(item.array("conditions")?)?;
-        let category = self.target(&item)?;
+        // With tags and no category, the Rule only tags and leaves the
+        // sorting to the other Rules (D-827).
+        let tags = tags::tag_ids(&item, "add_tag_ids", &self.tags)?;
+        if tags.len() > kassensturz_core::MAX_TAGS_ON_RULE {
+            return Err(ToolError::NotChangeable {
+                argument: "add_tag_ids",
+                reason: "too-many-tags",
+            });
+        }
+        let only_tags = !tags.is_empty()
+            && item.get("category_id").is_none()
+            && item.get("new_category").is_none();
+        let category = if only_tags {
+            None
+        } else {
+            Some(self.target(&item)?)
+        };
         let rule = Rule {
             id: RuleId::generate(),
             name,
             match_mode,
             conditions,
             actions: Actions {
-                book_to: Some(BookTo::Category(category)),
+                book_to: category.map(BookTo::Category),
                 payee: None,
+                tags,
             },
         };
         rule.check().map_err(rule_refused)?;
@@ -2894,7 +3054,8 @@ impl Known {
                 .insert(key, (rule.id, rule.name.clone(), depth));
         }
         Ok(NewRule {
-            category: self.path(category),
+            category: category.map(|category| self.path(category)),
+            tags: self.tag_names(&rule.actions.tags),
             rule,
             parent,
             inside,
@@ -3135,6 +3296,12 @@ fn rule_refused(error: RuleError) -> ToolError {
         | RuleError::AmountRangeCurrencies { condition, .. }
         | RuleError::DateRangeReversed { condition, .. } => (Some(condition + 1), "invalid"),
         RuleError::EmptyPayee(_) => (None, "invalid"),
+        // Checked against the tags' own arguments first (D-827).
+        RuleError::TooManyTags(_) | RuleError::DuplicateTag(_) => {
+            return ToolError::BadArgument {
+                argument: "add_tag_ids",
+            };
+        }
     };
     ToolError::BadCondition { condition, reason }
 }

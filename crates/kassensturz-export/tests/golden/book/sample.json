@@ -1,6 +1,6 @@
 {
   "format": "kassensturz-book",
-  "version": 15,
+  "version": 16,
   "settings": {"rounding_mode": "half_even", "history_keep_days": 30},
   "currencies": [
     {"code": "EUR", "minor_digits": 2},
@@ -176,6 +176,7 @@
       "category": "019a0000-0000-7000-8000-000000000004",
       "transfer_account": null,
       "payee": null,
+      "tags": [],
       "sub_rules": [
         {
           "id": "019a0000-0000-7000-8000-000000000016",
@@ -188,6 +189,7 @@
           "category": "019a0000-0000-7000-8000-000000000005",
           "transfer_account": null,
           "payee": "Bakery",
+          "tags": ["019a0000-0000-7000-8000-000000000053"],
           "sub_rules": []
         }
       ]
@@ -203,6 +205,7 @@
       "category": null,
       "transfer_account": "019a0000-0000-7000-8000-000000000002",
       "payee": null,
+      "tags": [],
       "sub_rules": []
     }
   ],
@@ -215,6 +218,8 @@
       "note": null,
       "entered": null,
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000020", "account": "019a0000-0000-7000-8000-000000000001", "amount": "1000.00", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -229,6 +234,10 @@
       "note": "Saturday \"shopping\"\nwith the kids",
       "entered": "2026-10-06",
       "tags": ["019a0000-0000-7000-8000-000000000053"],
+      "tags_by_rule": [
+        {"tag": "019a0000-0000-7000-8000-000000000053", "rule": "019a0000-0000-7000-8000-000000000016"}
+      ],
+      "tags_taken_off": [],
       "attachments": [
         {"link": "receipts/2026-10-05-bakery.pdf", "title": "Receipt"},
         {"link": "https://example.com/orders/4711", "title": null}
@@ -274,6 +283,8 @@
       "note": null,
       "entered": null,
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {
@@ -306,6 +317,8 @@
       "note": null,
       "entered": null,
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-000000000034", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-90.00", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -334,6 +347,8 @@
       "note": null,
       "entered": null,
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": [],
       "attachments": [],
       "parts": [
         {"id": "019a0000-0000-7000-8000-00000000003d", "account": "019a0000-0000-7000-8000-000000000001", "amount": "-0.01", "foreign": null, "original": null, "date": null, "payee": null, "note": null, "number": null, "status": null, "tags": [], "delivered": null, "booked_by_rule": null},
@@ -362,6 +377,8 @@
       "note": null,
       "entered": null,
       "tags": [],
+      "tags_by_rule": [],
+      "tags_taken_off": ["019a0000-0000-7000-8000-000000000054"],
       "attachments": [],
       "parts": [
         {

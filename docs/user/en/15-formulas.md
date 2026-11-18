@@ -15,6 +15,7 @@ A name stands for a category or one of your groups and gives its total in the fi
 - A path for a category inside another one: `'Everyday > Pets'`.
 - If there is a money-in and a money-out category with the same name, put `Income.` or `Spending.` in front: `Spending.Pets`.
 - **Everything spent, everything received:** `Spending.ALL` and `Income.ALL`, including what isn't sorted yet.
+- **Your planned payments:** `Plans.OUT_DUE` is what your planned payments still expect to go out from today to the end of the period, `Plans.IN_DUE` the planned income that hasn't arrived yet. They count the same way as the **Left this month** tile. `Plans.OUT_OVERDUE` and `Plans.IN_OVERDUE` are the plans whose day passed some days ago without an entry (the tile asks "Did this happen?" about them); often they were paid and just aren't imported yet, so you decide whether your formula takes them off. Only the plans of the chart's accounts count; paused and ended plans count for nothing.
 
 Accounts are not names. All names in one formula must have **the same currency**.
 
@@ -64,6 +65,7 @@ With an English number format, the separator between the parts is `,` and the de
 Examples:
 
 - What per cent of spending is groceries? `=PERCENT_OF(Groceries, Spending.ALL)`
+- What will probably be left at the end of the month, on a figure for this month: `=Income.Salary@"last month" - Spending.ALL - Plans.OUT_DUE`. Add `- Plans.OUT_OVERDUE` to take off the overdue plans too.
 - Has travel changed? `=CHANGE(Travel, Travel@"last year")`
 - Only a surplus, never a minus: `=IF(Salary - Rent > 0, Salary - Rent, 0)`
 

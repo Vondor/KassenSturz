@@ -470,6 +470,8 @@ pub enum ChangeView {
         conditions: Vec<ConditionForm>,
         /// The name of the Rule it sits inside; empty for a top-level Rule.
         inside: String,
+        /// The names of the tags it adds (D-827).
+        tags: Vec<String>,
         /// How many transactions already in the book its conditions catch
         /// (B-249).
         catches: usize,
@@ -495,6 +497,10 @@ pub enum ChangeView {
         match_all: bool,
         /// Its conditions after the change.
         conditions: Vec<ConditionForm>,
+        /// The names of the tags it added before (D-827).
+        before_tags: Vec<String>,
+        /// The names of the tags it adds after the change.
+        tags: Vec<String>,
         /// How many transactions already in the book its conditions catch
         /// after the change (B-249).
         catches: usize,
@@ -757,10 +763,20 @@ pub enum ChangeView {
         account: String,
         /// What it did to that account, exact, in the user's format.
         amount: String,
-        /// The names of the tags put on it.
+        /// The names of the book's tags put on it.
         added: Vec<String>,
+        /// The names of the set's new tags put on it (D-830), which the
+        /// review marks as new.
+        added_new: Vec<String>,
         /// The names of the tags taken off it.
         removed: Vec<String>,
+    },
+    /// A new tag the set makes for the transactions it tags (D-830).
+    NewTag {
+        /// Its name, as the book will keep it.
+        name: String,
+        /// How many transactions of the set get it.
+        uses: usize,
     },
     /// A transaction broken into parts, or joined back into one (US5.1,
     /// D-737), with the transaction as the register shows it. Its account's
@@ -1037,9 +1053,12 @@ fn view_of(
         ProposedChange::NewRule(new) => new_rule_view(
             book,
             &new.rule,
-            &new.category,
-            new.inside.as_deref().unwrap_or_default(),
-            new.catches,
+            NewRuleParts {
+                category: new.category.as_deref().unwrap_or_default(),
+                inside: new.inside.as_deref().unwrap_or_default(),
+                tags: &new.tags,
+                catches: new.catches,
+            },
             locale,
         )?,
         ProposedChange::EditCategory(edit) => ChangeView::EditCategory {
@@ -1061,6 +1080,8 @@ fn view_of(
                 .unwrap_or_default(),
             match_all: edit.rule.match_mode == MatchMode::All,
             conditions: condition_forms(book, &edit.rule, locale)?,
+            before_tags: edit.before_tags.clone(),
+            tags: edit.tags.clone(),
             catches: edit.catches,
         },
         ProposedChange::MoveRule(moved) => ChangeView::MoveRule {
@@ -1341,7 +1362,12 @@ fn view_of(
                 .text(tag.amount)
                 .exact,
             added: tag.added.clone(),
+            added_new: tag.added_new.clone(),
             removed: tag.removed.clone(),
+        },
+        ProposedChange::NewTag(new) => ChangeView::NewTag {
+            name: new.name.clone(),
+            uses: new.uses,
         },
         ProposedChange::SplitTransaction(split) => ChangeView::SplitTransaction {
             date: locale.short_date(split.date),
@@ -1524,6 +1550,7 @@ fn sorted_by_rules(
 ) -> Result<Applied, StoreError> {
     Ok(Applied {
         changed: sort.changes.len(),
+        tagged: sort.tagged.len(),
         transfers: sort.transfers,
         no_rate: sort.no_rate,
         closed: sort.closed,
@@ -1645,21 +1672,29 @@ fn field_text(book: &Book, value: &FieldValue, locale: &impl Locale) -> Result<S
     })
 }
 
+/// What [`new_rule_view`] writes besides the Rule itself.
+struct NewRuleParts<'a> {
+    /// The category's path, empty for a Rule that only adds tags.
+    category: &'a [String],
+    inside: &'a str,
+    tags: &'a [String],
+    catches: usize,
+}
+
 fn new_rule_view(
     book: &Book,
     rule: &Rule,
-    category: &[String],
-    inside: &str,
-    catches: usize,
+    parts: NewRuleParts<'_>,
     locale: &impl Locale,
 ) -> Result<ChangeView, StoreError> {
     Ok(ChangeView::NewRule {
         name: rule.name.clone(),
-        book_to: category.join(" › "),
+        book_to: parts.category.join(" › "),
         match_all: rule.match_mode == MatchMode::All,
         conditions: condition_forms(book, rule, locale)?,
-        inside: inside.to_owned(),
-        catches,
+        inside: parts.inside.to_owned(),
+        tags: parts.tags.to_vec(),
+        catches: parts.catches,
     })
 }
 

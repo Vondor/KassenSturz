@@ -231,7 +231,7 @@ fn figures(
             return Ok(None);
         };
         let target = text("target").filter(|_| component.kind() == ComponentType::ProgressBar);
-        let entry = formula_entry(book, asked.as_ref(), formula, target, period, writer)?;
+        let entry = formula_entry(book, asked.as_ref(), formula, target, period, today, writer)?;
         return Ok(Some(entry.into_iter().collect()));
     }
     let compare = match component.get("compare") {
@@ -409,11 +409,18 @@ fn formula_entry(
     formula: &str,
     target: Option<&str>,
     period: Period,
+    today: Date,
     writer: &mut Writer<'_>,
 ) -> Result<Option<Value>, Failure> {
     let work = |text: &str| -> Result<Option<(FormulaValue, Vec<Period>)>, ReportError> {
         let formula = Formula::parse(text)?;
-        let source = Source::read(book, formula.span(period)?)?;
+        let span = formula.span(period)?;
+        // The plans count from today on (D-826).
+        let source = if formula.names_plans() {
+            Source::read_with_plans(book, span, today)?
+        } else {
+            Source::read(book, span)?
+        };
         let Some(filter) = filter_of(asked, &source)? else {
             return Ok(None);
         };

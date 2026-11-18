@@ -5,9 +5,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # Code signing policy
 
-Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
-
-This page says which KassenSturz files are signed, who may approve it and how a signed file is made. It is written for the people who install KassenSturz and for SignPath Foundation. **Status:** signing is not switched on yet. Until the SignPath Foundation accepts the project and the maintainer has set it up (the steps are in the Windows packaging notes), the Windows installer is unsigned. The Microsoft Store signs its own package itself (D-048, #927).
+This page says which KassenSturz files are signed, who may approve it and how a signed file is made. It is written for the people who install KassenSturz and for SignPath Foundation. **Status:** the Windows installer is **not signed**. SignPath Foundation, which signs open-source programs for free, declined the application in November 2026 because the project does not yet have enough public visibility; the project may apply again later, and only free signing options are used (D-048). The **Microsoft Store** version is signed by the Store itself and is the signed way to install KassenSturz on Windows: <https://apps.microsoft.com/detail/9NM5V48PPRLQ> (#927). The rules below apply as soon as installer signing is switched on.
 
 ## What is signed
 

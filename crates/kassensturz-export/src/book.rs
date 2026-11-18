@@ -20,8 +20,8 @@ use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, AmountTest, BankLink, Budget, BudgetEvery,
     CategoryGroup, Condition, Currency, CurrencyCode, Date, DatedRate, Decided, GroupKind,
     GroupMember, Institution, MatchMode, Money, PartStatus, Payee, PayeeRecognition, RateSource,
-    RecurringMove, RoundingMode, RuleId, RuleNode, Schedule, ScheduleUnit, SplitId, Tag, TextField,
-    TextOperator, Transaction, ViewId,
+    RecurringMove, RoundingMode, RuleId, RuleNode, Schedule, ScheduleUnit, SplitId, Tag, TagId,
+    TextField, TextOperator, Transaction, TransactionId, ViewId,
 };
 
 use crate::data::ExportData;
@@ -54,8 +54,10 @@ pub const FORMAT: &str = "kassensturz-book";
 /// counts from which day on (US3.2, D-690), version 13 the tags on a whole
 /// transaction (US4.8, D-712), version 14 the planned payments and what was
 /// decided about their occurrences (US7, D-769), version 15 the remembered
-/// monthly moves (US7, B-263).
-pub const VERSION: u64 = 15;
+/// monthly moves (US7, B-263), version 16 the tags Rules add, which Rule
+/// added a tag to a transaction, and the tags the user took off one
+/// (D-827, D-828).
+pub const VERSION: u64 = 16;
 
 /// How deep Rules can sit inside each other in the file: a top-level Rule is
 /// at depth 1. Deeper trees are refused when writing and reading, so a file
@@ -86,6 +88,12 @@ pub struct BookData {
     pub transactions: Vec<Transaction>,
     /// The parts a Rule booked that the Rules may change again (D-088).
     pub rule_marks: Vec<BookedByRule>,
+    /// The tags on a whole transaction that a Rule added (D-827); every
+    /// other tag there the user added.
+    pub tags_by_rule: Vec<TagByRule>,
+    /// The tags the user took off a transaction, which no Rule puts back
+    /// (D-827).
+    pub tags_taken_off: Vec<(TransactionId, TagId)>,
     /// The banks and other institutions the accounts are at (D-132).
     pub institutions: Vec<Institution>,
     /// The payees, with what the user keeps about them (D-132).
@@ -145,6 +153,17 @@ pub struct BookedByRule {
     /// The part.
     pub split: SplitId,
     /// The Rule that booked it, or `None` if it was removed since.
+    pub rule: Option<RuleId>,
+}
+
+/// A tag on a whole transaction that a Rule added (D-827).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct TagByRule {
+    /// The transaction.
+    pub transaction: TransactionId,
+    /// The tag, one the transaction carries.
+    pub tag: TagId,
+    /// The Rule that added it, or `None` if it was removed since.
     pub rule: Option<RuleId>,
 }
 
@@ -337,6 +356,36 @@ impl BookData {
             return Err(ExportError::MarkWithoutPart(mark.split));
         }
         let tags: HashSet<_> = self.tags.iter().map(|tag| tag.id).collect();
+        // A Rule's mark names a tag its transaction carries, and a tag
+        // taken off is one the book lists, so both read back (D-827).
+        let carried: HashSet<(TransactionId, TagId)> = self
+            .transactions
+            .iter()
+            .flat_map(|transaction| {
+                transaction
+                    .tags()
+                    .iter()
+                    .map(move |&tag| (transaction.id(), tag))
+            })
+            .collect();
+        if let Some(mark) = self
+            .tags_by_rule
+            .iter()
+            .find(|mark| !carried.contains(&(mark.transaction, mark.tag)))
+        {
+            return Err(ExportError::TagMarkWithoutTag {
+                transaction: mark.transaction,
+                tag: mark.tag,
+            });
+        }
+        let known: HashSet<TransactionId> = self.transactions.iter().map(Transaction::id).collect();
+        if let Some(&(transaction, tag)) = self.tags_taken_off.iter().find(|(transaction, tag)| {
+            !tags.contains(tag)
+                || !known.contains(transaction)
+                || carried.contains(&(*transaction, *tag))
+        }) {
+            return Err(ExportError::TagMarkWithoutTag { transaction, tag });
+        }
         for split in self.transactions.iter().flat_map(Transaction::splits) {
             if let Some(&tag) = split.tags.iter().find(|tag| !tags.contains(tag)) {
                 return Err(ExportError::UnlistedTag {
@@ -375,6 +424,8 @@ impl BookData {
 struct BookWriter {
     digits: HashMap<CurrencyCode, u8>,
     marks: HashMap<SplitId, Option<RuleId>>,
+    by_rule: HashMap<(TransactionId, TagId), Option<RuleId>>,
+    taken_off: HashMap<TransactionId, Vec<TagId>>,
 }
 
 impl BookWriter {
@@ -390,6 +441,18 @@ impl BookWriter {
                 .iter()
                 .map(|mark| (mark.split, mark.rule))
                 .collect(),
+            by_rule: book
+                .tags_by_rule
+                .iter()
+                .map(|mark| ((mark.transaction, mark.tag), mark.rule))
+                .collect(),
+            taken_off: book.tags_taken_off.iter().fold(
+                HashMap::new(),
+                |mut taken_off: HashMap<TransactionId, Vec<TagId>>, &(transaction, tag)| {
+                    taken_off.entry(transaction).or_default().push(tag);
+                    taken_off
+                },
+            ),
         }
     }
 
@@ -635,6 +698,34 @@ impl BookWriter {
                 ),
             ),
             (
+                "tags_by_rule",
+                Json::List(
+                    transaction
+                        .tags()
+                        .iter()
+                        .filter_map(|&tag| {
+                            self.by_rule.get(&(transaction.id(), tag)).map(|&rule| {
+                                Json::Object(vec![
+                                    ("tag", Json::id(tag)),
+                                    ("rule", Json::optional_id(rule)),
+                                ])
+                            })
+                        })
+                        .collect(),
+                ),
+            ),
+            (
+                "tags_taken_off",
+                Json::List(
+                    self.taken_off
+                        .get(&transaction.id())
+                        .into_iter()
+                        .flatten()
+                        .map(|&tag| Json::id(tag))
+                        .collect(),
+                ),
+            ),
+            (
                 "attachments",
                 Json::List(
                     transaction
@@ -676,6 +767,10 @@ impl BookWriter {
             ("category", Json::optional_id(category)),
             ("transfer_account", Json::optional_id(transfer)),
             ("payee", Json::optional_text(rule.actions.payee.as_deref())),
+            (
+                "tags",
+                Json::List(rule.actions.tags.iter().map(|&tag| Json::id(tag)).collect()),
+            ),
             (
                 "sub_rules",
                 Json::List(

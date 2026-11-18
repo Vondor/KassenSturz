@@ -23,7 +23,7 @@
 
 use kassensturz_core::ai_switch::{Field, Permissions};
 use kassensturz_core::{RuleId, Transaction};
-use kassensturz_store::{ApplyRules, Book, RuleChange, RuleRun, StoreError};
+use kassensturz_store::{ApplyRules, Book, RuleChange, RuleRun, RuleTagging, StoreError};
 use serde_json::Value;
 
 use super::{ChangeError, Object};
@@ -51,6 +51,8 @@ pub struct SortWithRules {
     /// The transactions the Rules change, oldest first, as the run reports
     /// them.
     pub changes: Vec<RuleChange>,
+    /// The transactions the Rules add tags to, oldest first (D-827).
+    pub tagged: Vec<RuleTagging>,
     /// How many a Rule fits that stay as they are because they look like
     /// one side of a Transfer, which the user decides first.
     pub transfers: usize,
@@ -64,8 +66,8 @@ pub struct SortWithRules {
     /// Whether the run books some transaction as a Transfer, into another
     /// of the user's accounts.
     pub books_transfer: bool,
-    /// The changed transactions as the user reviewed them, in the order of
-    /// `changes`.
+    /// The changed and tagged transactions as the user reviewed them, in
+    /// the order of `changes`, then those only tagged.
     reviewed: Vec<Transaction>,
 }
 
@@ -73,6 +75,21 @@ impl SortWithRules {
     /// How many transactions a Rule fits that stay as they are.
     pub fn staying(&self) -> usize {
         self.transfers + self.no_rate + self.closed + self.other
+    }
+
+    /// How many transactions the run changes: sorted, tagged or both.
+    pub fn touched(&self) -> usize {
+        self.changes.len()
+            + self
+                .tagged
+                .iter()
+                .filter(|tagging| {
+                    !self
+                        .changes
+                        .iter()
+                        .any(|change| change.transaction == tagging.transaction)
+                })
+                .count()
     }
 
     /// Whether the run gives some transaction the name a Rule sets.
@@ -120,16 +137,25 @@ pub(super) fn sort_with_rules(
         resort: sort_again,
     };
     let run = book.preview_apply_rules(apply)?;
-    if run.changed.is_empty() {
+    if run.changes_nothing() {
         return Err(ToolError::NotChangeable {
             argument: LIST,
             reason: "nothing-to-sort",
         });
     }
-    let reviewed = run
+    let mut ids: Vec<_> = run
         .changed
         .iter()
-        .map(|change| book.transaction(change.transaction))
+        .map(|change| change.transaction)
+        .collect();
+    for tagging in &run.tagged {
+        if !ids.contains(&tagging.transaction) {
+            ids.push(tagging.transaction);
+        }
+    }
+    let reviewed = ids
+        .into_iter()
+        .map(|id| book.transaction(id))
         .collect::<Result<_, _>>()?;
     let mut books_transfer = false;
     for change in &run.changed {
@@ -162,6 +188,7 @@ fn counted(run: RuleRun) -> SortWithRules {
         rule_name: None,
         sort_again: false,
         changes: run.changed,
+        tagged: run.tagged,
         transfers: 0,
         no_rate: 0,
         closed: 0,
@@ -197,7 +224,7 @@ pub(super) fn apply(book: &mut Book, sort: &SortWithRules) -> Result<(), ChangeE
         other => other?,
     };
     // The set's action takes back what the run wrote when this fails.
-    if run.changed != sort.changes {
+    if run.changed != sort.changes || run.tagged != sort.tagged {
         return Err(ChangeError::OutOfDate);
     }
     Ok(())

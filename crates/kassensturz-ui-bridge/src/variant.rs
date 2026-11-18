@@ -104,6 +104,18 @@ pub(crate) mod read_back {
         elements(&property(value, key)).unwrap_or_else(|| panic!("`{key}` is not an array"))
     }
 
+    /// An array property of texts.
+    pub(crate) fn texts_of(value: &QVariant, key: &str) -> Vec<String> {
+        list_of(value, key)
+            .iter()
+            .map(|item| {
+                item.value::<QString>()
+                    .unwrap_or_else(|| panic!("`{key}` holds something else than text"))
+                    .to_string()
+            })
+            .collect()
+    }
+
     /// The elements of an array, `None` if `value` is not one.
     pub(crate) fn elements(value: &QVariant) -> Option<Vec<QVariant>> {
         value

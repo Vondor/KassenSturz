@@ -241,6 +241,11 @@ fn changes(allowed: Permissions) -> String {
             "tags on transactions (tag_transactions, IDs from list_tags)",
         ),
         (
+            allowed.allows(Permission::NewTags) && allowed.allows(Permission::TagTransactions),
+            "make a new tag the user named and put it on transactions",
+            "new tags the user named (new_tags, each put on a transaction)",
+        ),
+        (
             allowed.allows(Permission::SplitTransactions),
             "break transactions into parts",
             "transactions broken into parts that add up to their amount (split_transactions)",

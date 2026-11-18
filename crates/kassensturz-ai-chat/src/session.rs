@@ -1374,6 +1374,10 @@ fn with_allowed(mut answer: Value, error: &ToolError) -> Value {
         for (name, amount) in error.amounts().into_iter().flatten() {
             object.insert(name.into(), json!(amount));
         }
+        // A new tag with the name of one the user has: that one (D-830).
+        if let Some(tag) = error.existing_tag() {
+            object.insert("tag_id".into(), json!(tag.to_string()));
+        }
         // Where the user can switch on what is off (D-676).
         if let Some(setting) = error.setting() {
             object.insert("setting".into(), setting.json());
@@ -1470,6 +1474,17 @@ mod tests {
         // The error's own list replaces a general one.
         let replaced = with_allowed(json!({"allowed": ["x"]}), &error);
         assert_eq!(replaced["allowed"], json!(["name", "type", "currency"]));
+    }
+
+    #[test]
+    fn a_new_tag_with_a_taken_name_names_the_tag_to_use() {
+        // D-830: the ID list_tags gives, so the model can use that tag.
+        let tag = kassensturz_core::TagId::generate();
+        let error = ToolError::TagNameTaken { tag }.at("new_tags", 0);
+        let answer = with_allowed(error_json(&error.model_report(), true), &error);
+        assert_eq!(answer["error"], json!("ai-tools.tag-name-taken"));
+        assert_eq!(answer["list"], json!("new_tags"));
+        assert_eq!(answer["tag_id"], json!(tag.to_string()));
     }
 
     #[test]

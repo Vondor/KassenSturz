@@ -28,8 +28,8 @@ use crate::register_model::{field, flag, suggestion_object};
 use crate::session;
 use crate::settings::Settings;
 use crate::statement_import::{
-    self, BalanceText, CsvForm, EntryText, FileKind, ImportView, JoinedText, Loaded, PlannedText,
-    StatementImportError,
+    self, BalanceText, CsvForm, EntryText, FileKind, ImportView, JoinedText, Loaded,
+    PlannedChangedText, PlannedText, StatementImportError,
 };
 use crate::variant::{error_object, list, map, text};
 
@@ -687,6 +687,24 @@ fn view_object(view: &ImportView) -> QVariant {
         ("needsYou", count(view.needs_you)),
         ("planned", list(view.planned.iter().map(planned_object))),
         ("plannedNeedsYou", count(view.planned_needs_you)),
+        (
+            "plannedChanged",
+            list(view.planned_changed.iter().map(planned_changed_object)),
+        ),
+    ])
+}
+
+/// A new entry that fits a planned payment but for its amount, as
+/// `ImportDonePage.qml` lists it (#1143).
+fn planned_changed_object(changed: &PlannedChangedText) -> QVariant {
+    map([
+        ("name", text(&changed.name)),
+        ("due", text(&changed.due)),
+        ("date", text(&changed.date)),
+        ("amount", text(&changed.amount.text)),
+        ("exactAmount", text(&changed.amount.exact)),
+        ("planned", text(&changed.planned.text)),
+        ("exactPlanned", text(&changed.planned.exact)),
     ])
 }
 
@@ -946,6 +964,13 @@ mod tests {
                 category_set: true,
             }],
             planned_needs_you: 3,
+            planned_changed: vec![PlannedChangedText {
+                name: "Salary".to_owned(),
+                due: "2026-10-27".to_owned(),
+                date: "2026-10-26".to_owned(),
+                amount: shown("2.350,00 €"),
+                planned: shown("2.200,00 €"),
+            }],
         };
         let object = view_object(&view);
         assert_eq!(list_of(&object, "joined").len(), 1);
@@ -957,6 +982,16 @@ mod tests {
         };
         assert_eq!(count("needsYou"), Some(2));
         assert_eq!(count("plannedNeedsYou"), Some(3));
+        let changed = list_of(&object, "plannedChanged");
+        assert_eq!(changed.len(), 1);
+        assert_eq!(self::object(&changed[0]).len(), 7);
+        assert_eq!(text_of(&changed[0], "name"), "Salary");
+        assert_eq!(text_of(&changed[0], "due"), "2026-10-27");
+        assert_eq!(text_of(&changed[0], "date"), "2026-10-26");
+        assert_eq!(text_of(&changed[0], "amount"), "2.350,00 €");
+        assert_eq!(text_of(&changed[0], "exactAmount"), "2.350,00 €");
+        assert_eq!(text_of(&changed[0], "planned"), "2.200,00 €");
+        assert_eq!(text_of(&changed[0], "exactPlanned"), "2.200,00 €");
         let planned = list_of(&object, "planned");
         assert_eq!(planned.len(), 1);
         assert_eq!(text_of(&planned[0], "name"), "Rent");

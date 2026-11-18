@@ -35,7 +35,7 @@ const PLAN_OPTIONS: &[&str] = &[
     "party",
 ];
 
-/// `schedule list|add|edit|pause|resume|remove|due|match|skip|unskip|book`.
+/// `schedule list|add|edit|pause|resume|remove|due|match|amount|skip|unskip|book`.
 pub(crate) fn schedule(
     book: &mut Book,
     args: &[String],
@@ -44,7 +44,7 @@ pub(crate) fn schedule(
     let Some((command, rest)) = args.split_first() else {
         return Err(CliError::usage(
             "schedule needs a command: list, add, edit, pause, resume, remove, due, match, \
-             skip, unskip or book",
+             amount, skip, unskip or book",
         ));
     };
     match command.as_str() {
@@ -94,6 +94,32 @@ pub(crate) fn schedule(
                 out,
                 "The payment due {due_on} is the transaction {}.",
                 short_id(transaction)
+            )?;
+            // A changed amount is only offered, never taken (#1143).
+            if let Some(amount) = book.new_schedule_amount(id, transaction)? {
+                writeln!(
+                    out,
+                    "Its amount, {}, isn't the plan's {}. If it changed for good, \
+                     `schedule amount {} {}` makes the plan expect it from now on.",
+                    money_text(Some(book), amount),
+                    money_text(Some(book), book.schedule(id)?.amount),
+                    short_id(id),
+                    short_id(transaction)
+                )?;
+            }
+            Ok(())
+        }
+        "amount" => {
+            let args = Arguments::parse(rest, &[], &[])?;
+            let [id, transaction] = args.exactly(["id", "transaction"])?;
+            let id = find_schedule(book, id)?;
+            let transaction = find_transaction(book, transaction)?;
+            book.set_schedule_amount_from_entry(id, transaction)?;
+            writeln!(
+                out,
+                "The plan expects {} from now on. Payments matched before keep their own \
+                 amounts; `undo` takes the change back.",
+                money_text(Some(book), book.schedule(id)?.amount)
             )?;
             Ok(())
         }

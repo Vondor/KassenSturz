@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 //! The transactions tile's list (US4.7, D-716): single transactions of a
-//! period, for some accounts and categories, newest first. Nothing is added
+//! period, for some accounts, categories and tags (D-838), newest first. Nothing is added
 //! up here: each row keeps the amount its account shows, in that account's
 //! currency (AGENTS.md §5).
 
 use std::collections::{HashMap, HashSet};
 
-use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, Money, Transaction};
+use kassensturz_core::{AccountId, AccountKind, CurrencyCode, Date, Money, Split, Transaction};
 use kassensturz_store::StoreError;
 
-use crate::{Filter, Period, ReportError, Source};
+use crate::{Filter, Period, ReportError, Source, carries_tag};
 
 /// The most rows the tile lists (D-281, D-716).
 pub const MAX_LISTED: usize = 200;
@@ -73,6 +73,13 @@ pub struct ListedTransactions {
 /// - With a categories filter a transaction is listed when one of its parts
 ///   is booked to a chosen category or one inside it; Transfers and money
 ///   not sorted yet have none, so they are left out.
+/// - With a tags filter (D-838) a transaction is listed when the whole
+///   transaction or one of its parts carries one of the tags, on any side,
+///   so a tagged Transfer is listed too: the list finds, it adds nothing up.
+///   With categories as well, one and the same part must be in a chosen
+///   category and carry a tag (its own or the whole transaction's), which
+///   is what a chart with the same settings counts (D-714), so the two
+///   agree. AND between the kinds, OR within each list (D-841).
 /// - A Transfer between two listed accounts is one row, from the side with
 ///   the later date, or, on the same date, from the account the money
 ///   reached (D-108).
@@ -122,11 +129,15 @@ pub fn listed_transactions(
         if starting || own.is_empty() {
             continue;
         }
-        if let Some(chosen) = &chosen_categories
-            && !transaction
-                .splits()
-                .iter()
-                .any(|split| split.account.is_some_and(|id| chosen.contains(&id)))
+        if (chosen_categories.is_some() || filter.tags.is_some())
+            && !transaction.splits().iter().any(|split| {
+                fits(
+                    transaction,
+                    split,
+                    chosen_categories.as_ref(),
+                    filter.tags.as_deref(),
+                )
+            })
         {
             continue;
         }
@@ -160,6 +171,19 @@ pub fn listed_transactions(
     let total = found.len();
     found.truncate(limit.min(MAX_LISTED));
     Ok(ListedTransactions { rows: found, total })
+}
+
+/// Whether `part` of `transaction` lets it be listed: booked to one of
+/// `categories` (when chosen) and carrying one of `tags` (when chosen),
+/// both on this one part (D-838).
+fn fits(
+    transaction: &Transaction,
+    part: &Split,
+    categories: Option<&HashSet<AccountId>>,
+    tags: Option<&[kassensturz_core::TagId]>,
+) -> bool {
+    categories.is_none_or(|chosen| part.account.is_some_and(|id| chosen.contains(&id)))
+        && tags.is_none_or(|tags| carries_tag(transaction, part, tags))
 }
 
 /// The row of `transaction` as `account`, one of its own accounts, shows it.

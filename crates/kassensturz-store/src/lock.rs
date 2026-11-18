@@ -88,7 +88,7 @@ impl Lock {
     /// anyway" again.
     pub fn stays_locked_here(&self, book: &Path, computer: &str) -> bool {
         self.computer.as_deref() == Some(computer)
-            && may_still_run(self)
+            && may_still_run(self, &lock_path(book))
             && (self.holder.without_file_locks || crate::lockless::locks_refused(book))
     }
 }
@@ -656,14 +656,15 @@ fn clear_if_unchanged(path: &Path, seen: &Lock) -> Result<(), StoreError> {
 /// shares this program's process-number space and `/proc` has no such
 /// program. In another space (a Flatpak next to a snap) it can't be looked
 /// up, so it counts as running. A lock without a number or place is taken
-/// to be a crash's leftover, as before.
-fn may_still_run(lock: &Lock) -> bool {
+/// to be a crash's leftover, as before. `file` is the lock file itself.
+fn may_still_run(lock: &Lock, file: &Path) -> bool {
     let Some((pid, start)) = lock.holder.process else {
         // A lock without a process number comes from a build that doesn't
         // write one (the Flatpak of before D-776) or is damaged. It can't be
         // looked up, so it counts as running unless the computer has
-        // restarted since it was made; "since" says when (D-776).
-        return !made_before_boot(lock.since);
+        // restarted since it was made; "since" says when (D-776), or, if the
+        // file has no such line, when the file was last written (#1011).
+        return !made_before_boot(lock.since.or_else(|| written_at(file)));
     };
     match (&lock.holder.place, own_place()) {
         (Some(theirs), Some(ours)) => {
@@ -677,6 +678,14 @@ fn may_still_run(lock: &Lock) -> bool {
         }
         _ => process_runs(pid, start),
     }
+}
+
+/// When the file at `file` was last written, as the system says: the time
+/// a lock file without a `since` line was made, since a lock file is
+/// written once and then only read (a take-over writes a new `since`).
+fn written_at(file: &Path) -> Option<Timestamp> {
+    let modified = fs::metadata(file).and_then(|meta| meta.modified()).ok()?;
+    Timestamp::try_from(modified).ok()
 }
 
 /// Whether the computer has restarted since `since`, as far as Linux tells
@@ -793,6 +802,35 @@ mod tests {
         eprintln!("size of Lock: {}", std::mem::size_of::<Lock>());
         assert!(std::mem::size_of::<Lock>() <= 88);
         assert!(std::mem::size_of::<crate::StoreError>() <= 112);
+    }
+
+    /// A lock file of this computer without a program number and without
+    /// `since` (a damaged one, or a build before D-776 that lost the line):
+    /// the file's own time says whether it was made before the computer
+    /// last started (#1011). Linux tells the start through `/proc/uptime`.
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_lock_without_since_is_dated_by_its_file() {
+        let (_dir, book) = temp_book();
+        let file = lock_path(&book);
+        fs::write(&file, "computer=Laptop\ntoken=abc\nlocks=none\n").expect("lock file");
+        let lock = read(&file).expect("read").expect("a lock");
+        assert_eq!(lock.since, None);
+        // Written just now: its program may still run, so it stays locked.
+        assert!(lock.stays_locked_here(&book, "Laptop"));
+        // Written long before this computer started: a crash's leftover.
+        let long_ago = std::time::SystemTime::UNIX_EPOCH + Duration::from_secs(86_400);
+        fs::File::options()
+            .write(true)
+            .open(&file)
+            .and_then(|opened| opened.set_modified(long_ago))
+            .expect("file time set");
+        assert!(!lock.stays_locked_here(&book, "Laptop"));
+        // Another computer's lock is never this computer's to judge.
+        assert!(!lock.stays_locked_here(&book, "Desk"));
+        // A lock file that is gone gives no time: the safe side, locked.
+        fs::remove_file(&file).expect("removed");
+        assert!(lock.stays_locked_here(&book, "Laptop"));
     }
 
     #[test]

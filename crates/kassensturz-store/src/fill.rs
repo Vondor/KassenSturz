@@ -4,7 +4,7 @@
 //! Filling a new book in one go, e.g. from a complete export (D-029, D-046):
 //! as part of making the book, so the change history starts empty.
 
-use kassensturz_core::{Currency, RuleId, SplitId};
+use kassensturz_core::{Currency, RuleId, SplitId, TagId, TransactionId};
 use rusqlite::params;
 
 use crate::error::StoreError;
@@ -157,6 +157,78 @@ impl Book {
             book.conn.execute(
                 "INSERT INTO split_rules (split_id, rule_id) VALUES (?1, ?2)",
                 params![split.to_bytes(), rule.map(RuleId::to_bytes)],
+            )?;
+            Ok(())
+        })
+    }
+
+    /// Marks the tag `tag` on the whole of `transaction` as added by
+    /// `rule`, or by a Rule removed since, as a complete export read back
+    /// has it (D-827). The transaction must carry the tag, and the Rule be
+    /// in the book.
+    ///
+    /// # Panics
+    ///
+    /// Outside [`Book::fill_new`].
+    pub fn restore_tag_by_rule(
+        &mut self,
+        transaction: TransactionId,
+        tag: TagId,
+        rule: Option<RuleId>,
+    ) -> Result<(), StoreError> {
+        assert!(
+            self.filling,
+            "only a new book being filled takes marks this way"
+        );
+        if let Some(rule) = rule {
+            self.rule(rule)?;
+        }
+        self.as_one_action(Action::RunRules, |book| {
+            let marked = book.conn.execute(
+                "UPDATE transaction_tags SET by_rule = 1, rule_id = ?3
+                 WHERE transaction_id = ?1 AND tag_id = ?2",
+                params![
+                    transaction.to_bytes(),
+                    tag.to_bytes(),
+                    rule.map(RuleId::to_bytes)
+                ],
+            )?;
+            if marked == 0 {
+                return Err(StoreError::UnknownTag(tag));
+            }
+            Ok(())
+        })
+    }
+
+    /// Remembers that the user took `tag` off `transaction`, so no Rule
+    /// puts it back, as a complete export read back has it (D-827). The
+    /// transaction must not carry the tag.
+    ///
+    /// # Panics
+    ///
+    /// Outside [`Book::fill_new`].
+    pub fn restore_tag_taken_off(
+        &mut self,
+        transaction: TransactionId,
+        tag: TagId,
+    ) -> Result<(), StoreError> {
+        assert!(
+            self.filling,
+            "only a new book being filled takes marks this way"
+        );
+        self.check_tag_known(tag)?;
+        if self.transaction(transaction)?.tags().contains(&tag) {
+            return Err(StoreError::UnknownTag(tag));
+        }
+        self.as_one_action(Action::EditTransaction, |book| {
+            book.conn.execute(
+                "INSERT INTO removed_transaction_tags (id, transaction_id, tag_id)
+                 VALUES (?1, ?2, ?3)",
+                params![
+                    uuid::Uuid::now_v7().into_bytes(),
+                    transaction.to_bytes(),
+                    tag.to_bytes()
+                ],
             )?;
             Ok(())
         })

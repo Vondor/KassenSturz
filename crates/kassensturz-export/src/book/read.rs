@@ -30,7 +30,7 @@ use serde_json::{Map, Value};
 use super::{
     BUDGET_EVERY, BookData, BookedByRule, FORMAT, GROUP_KINDS, KINDS, MATCH_MODES, MAX_RULE_DEPTH,
     OCCURRENCE_STATUSES, RECOGNITIONS, ROUNDING_MODES, SCHEDULE_UNITS, SOURCES, STATUSES,
-    ScheduleData, TEXT_FIELDS, TEXT_OPERATORS, TYPES, VERSION, ViewData,
+    ScheduleData, TEXT_FIELDS, TEXT_OPERATORS, TYPES, TagByRule, VERSION, ViewData,
 };
 use crate::error::{Expected, ExportError};
 
@@ -725,6 +725,8 @@ pub(super) fn read_at_most(bytes: &[u8], max: u64) -> Result<BookData> {
         rules,
         transactions,
         rule_marks,
+        tags_by_rule: reader.tags_by_rule,
+        tags_taken_off: reader.tags_taken_off,
         institutions,
         payees,
         tags,
@@ -754,6 +756,10 @@ struct Reader {
     parts: HashSet<SplitId>,
     /// The IDs of the Rules read so far.
     rules: HashSet<RuleId>,
+    /// The tags Rules added to transactions, from version 16 (D-827).
+    tags_by_rule: Vec<TagByRule>,
+    /// The tags the user took off transactions, from version 16 (D-827).
+    tags_taken_off: Vec<(TransactionId, TagId)>,
 }
 
 impl Reader {
@@ -814,6 +820,9 @@ impl Reader {
         if self.version >= 13 {
             keys.push("tags");
         }
+        if self.version >= 16 {
+            keys.extend(["tags_by_rule", "tags_taken_off"]);
+        }
         let transaction = Object::new(value, path, &keys)?;
         let id = TransactionId::from_bytes(transaction.id("id")?);
         let booking_date = transaction.date("date")?;
@@ -845,6 +854,41 @@ impl Reader {
                     return Err(bad(&path, Expected::Id));
                 }
                 entry_tags.push(tag);
+            }
+        }
+        // From version 16 (D-827): which of them a Rule added, and the tags
+        // the user took off it, each a tag of the file once, the first
+        // carried by the transaction, the second not.
+        if self.version >= 16 {
+            let mut marked = Vec::new();
+            if transaction.optional("tags_by_rule").is_some() {
+                for (value, path) in transaction.list("tags_by_rule")? {
+                    let mark = Object::new(value, &path, &["tag", "rule"])?;
+                    let tag = TagId::from_bytes(mark.id("tag")?);
+                    if !entry_tags.contains(&tag) || marked.contains(&tag) {
+                        return Err(bad(&format!("{path}.tag"), Expected::Id));
+                    }
+                    marked.push(tag);
+                    self.tags_by_rule.push(TagByRule {
+                        transaction: id,
+                        tag,
+                        rule: mark.optional_id("rule")?.map(RuleId::from_bytes),
+                    });
+                }
+            }
+            let mut taken_off = Vec::new();
+            if transaction.optional("tags_taken_off").is_some() {
+                for (value, path) in transaction.list("tags_taken_off")? {
+                    let tag = TagId::from_bytes(parse_id(value, &path)?);
+                    if !self.tags.contains(&tag)
+                        || entry_tags.contains(&tag)
+                        || taken_off.contains(&tag)
+                    {
+                        return Err(bad(&path, Expected::Id));
+                    }
+                    taken_off.push(tag);
+                    self.tags_taken_off.push((id, tag));
+                }
             }
         }
         let mut splits = Vec::new();
@@ -1003,6 +1047,7 @@ impl Reader {
                 "category",
                 "transfer_account",
                 "payee",
+                "tags",
                 "sub_rules",
             ],
         )?;
@@ -1028,6 +1073,20 @@ impl Reader {
         for (value, path) in rule.list("conditions")? {
             conditions.push(self.condition(value, &path)?);
         }
+        // The tags it adds, from version 16 (D-827): each a tag of the file,
+        // once.
+        let mut tags = Vec::new();
+        if self.version >= 16 && rule.optional("tags").is_some() {
+            for (value, path) in rule.list("tags")? {
+                let tag = TagId::from_bytes(parse_id(value, &path)?);
+                if !self.tags.contains(&tag) || tags.contains(&tag) {
+                    return Err(bad(&path, Expected::Id));
+                }
+                tags.push(tag);
+            }
+        } else if rule.optional("tags").is_some() {
+            return Err(bad(&format!("{path}.tags"), Expected::Null));
+        }
         let mut sub_rules = Vec::new();
         if let Some((_, _)) = rule.optional("sub_rules") {
             for (value, path) in rule.list("sub_rules")? {
@@ -1043,6 +1102,7 @@ impl Reader {
                 actions: Actions {
                     book_to,
                     payee: rule.optional_text("payee")?,
+                    tags,
                 },
             },
             sub_rules,

@@ -18,7 +18,7 @@
 //! equally well, or one entry fits two occurrences, nothing is matched and
 //! the occurrence is reported as [`UnclearOccurrence`], for the user.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use jiff::ToSpan;
 use jiff::civil::Weekday;
@@ -617,6 +617,141 @@ pub fn match_schedules(
     result
 }
 
+/// Whether `amount`, an entry's amount in the plan's account, is a new
+/// amount for `schedule` (#1143): in the plan's currency, with money going
+/// the plan's way, and further from the plan's amount than its tolerance
+/// allows. An entry within the tolerance is what the plan expects, so it
+/// never asks for a change.
+pub fn amount_differs(schedule: &Schedule, amount: Money) -> bool {
+    amount.currency() == schedule.amount.currency()
+        && !amount.is_zero()
+        && amount.is_negative() == schedule.amount.is_negative()
+        && (i128::from(amount.minor_units()) - i128::from(schedule.amount.minor_units())).abs()
+            > i128::from(schedule.tolerance.minor_units())
+}
+
+/// Whether `entry` would fit `due` of `schedule` but for its amount
+/// (#1143): the plan remembers the other party (an IBAN or a name) and the
+/// entry names that party, in the plan's account and currency, with money
+/// going the plan's way, within the banking days a match allows, and with
+/// an amount [`amount_differs`] calls new. A plan that remembers no party
+/// has nothing to tell a changed payment from any other entry, so it never
+/// fits this way. Returns the banking and calendar days between the dates.
+pub fn entry_fits_but_amount(
+    schedule: &Schedule,
+    due: Due,
+    entry: &ScheduleEntry,
+) -> Option<(u32, u32)> {
+    if schedule.party_iban.is_none() && schedule.party_name.is_none() {
+        return None;
+    }
+    if entry.account != schedule.account || !amount_differs(schedule, entry.amount) {
+        return None;
+    }
+    business_days_apart(entry.booking_date, due.date, MAX_BUSINESS_DAYS)?;
+    if !schedule.party_fits(&entry.party) {
+        return None;
+    }
+    Some(days_between(entry.booking_date, due.date))
+}
+
+/// An open occurrence that one entry fits but for its amount (#1143): the
+/// payment probably changed, e.g. a salary rose. Only a suggestion: the user
+/// decides whether the entry is this payment and whether the plan expects
+/// the new amount from now on.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AmountChange {
+    /// The occurrence.
+    pub occurrence: OpenOccurrence,
+    /// The entry's transaction.
+    pub transaction: TransactionId,
+    /// The entry's amount in the plan's account.
+    pub amount: Money,
+}
+
+/// An entry that fits an occurrence but for its amount, with the banking
+/// and calendar days between their dates.
+type Near<'a> = ((u32, u32), &'a ScheduleEntry);
+
+/// The open occurrences among `open` that exactly one entry of `entries`
+/// fits but for its amount ([`entry_fits_but_amount`], #1143).
+///
+/// Never a guess between two: an occurrence that an entry fits as
+/// [`match_schedules`] wants is left out (that entry is the payment), and so
+/// is an entry that fits any open occurrence that way; of the entries left,
+/// the one closest by date is taken only if no other is as close, and only
+/// if it fits no other occurrence but for its amount. The result never
+/// depends on the order of the inputs and is sorted by date, then plan. The
+/// caller passes only entries that may be matched, as for
+/// [`match_schedules`].
+pub fn amount_changes(
+    schedules: &[Schedule],
+    open: &[OpenOccurrence],
+    entries: &[ScheduleEntry],
+) -> Vec<AmountChange> {
+    let plans: HashMap<ScheduleId, &Schedule> =
+        schedules.iter().map(|plan| (plan.id, plan)).collect();
+    let mut open: Vec<OpenOccurrence> = open.to_vec();
+    open.sort();
+    open.dedup();
+    let mut fitting: HashSet<TransactionId> = HashSet::new();
+    let mut fitted: HashSet<OpenOccurrence> = HashSet::new();
+    for occurrence in &open {
+        let Some(plan) = plans.get(&occurrence.schedule) else {
+            continue;
+        };
+        for entry in entries {
+            if entry_fits(plan, occurrence.due, entry).is_some() {
+                fitting.insert(entry.transaction);
+                fitted.insert(*occurrence);
+            }
+        }
+    }
+    let mut candidates: Vec<(OpenOccurrence, Vec<Near<'_>>)> = Vec::new();
+    let mut near: HashMap<TransactionId, usize> = HashMap::new();
+    for occurrence in &open {
+        if fitted.contains(occurrence) {
+            continue;
+        }
+        let Some(plan) = plans.get(&occurrence.schedule) else {
+            continue;
+        };
+        let mut found: Vec<Near<'_>> = entries
+            .iter()
+            .filter(|entry| !fitting.contains(&entry.transaction))
+            .filter_map(|entry| {
+                entry_fits_but_amount(plan, occurrence.due, entry).map(|close| (close, entry))
+            })
+            .collect();
+        if found.is_empty() {
+            continue;
+        }
+        found.sort_by_key(|(close, entry)| (*close, entry.transaction));
+        found.dedup_by_key(|(_, entry)| entry.transaction);
+        for (_, entry) in &found {
+            *near.entry(entry.transaction).or_default() += 1;
+        }
+        candidates.push((*occurrence, found));
+    }
+    let mut changes = Vec::new();
+    for (occurrence, found) in candidates {
+        let best = found[0].0;
+        let mut closest = found.iter().filter(|(close, _)| *close == best);
+        let (Some((_, entry)), None) = (closest.next(), closest.next()) else {
+            continue;
+        };
+        if near[&entry.transaction] == 1 {
+            changes.push(AmountChange {
+                occurrence,
+                transaction: entry.transaction,
+                amount: entry.amount,
+            });
+        }
+    }
+    changes.sort_by_key(|change| (change.occurrence.due.date, change.occurrence.schedule));
+    changes
+}
+
 /// One month of the forecast's projection (5.2, `months`): a calendar
 /// month, or a salary month when the forecast's months start on another
 /// day (#921, D-645).
@@ -662,6 +797,100 @@ pub struct Forecast {
     pub overdue: Vec<OpenOccurrence>,
     /// The months after the current one, each end the next start.
     pub months: Vec<MonthPlan>,
+}
+
+/// What the planned payments still expect on `today`, up to `end` (D-826):
+/// the figures *Left this month* is made of, for any last day, so a chart's
+/// formula (`Plans.OUT_DUE`) and the forecast count the same way.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StillExpected {
+    /// The open outgoing occurrences that are upcoming or due (dated from
+    /// [`MAX_BUSINESS_DAYS`] banking days ago) up to `end`, and the
+    /// outgoing entries booked ahead and matched, dated after today up to
+    /// `end`, as a positive amount.
+    pub out_due: Money,
+    /// The same for incoming ones.
+    pub in_due: Money,
+    /// The open outgoing occurrences more than [`MAX_BUSINESS_DAYS`]
+    /// banking days ago, at most [`LOOK_BACK_YEARS`] back and dated up to
+    /// `end`: the "Did this happen?" list, added up, as a positive amount.
+    pub out_overdue: Money,
+    /// The same for incoming ones.
+    pub in_overdue: Money,
+    /// Those overdue occurrences, sorted by date, then plan.
+    pub overdue: Vec<OpenOccurrence>,
+}
+
+/// What `plans` still expect in `currency` on `today`, up to `end` (D-826).
+///
+/// Paused plans and plans in another currency count for nothing; the caller
+/// leaves out plans of closed or unchosen accounts. A matched or skipped
+/// occurrence counts for nothing (`decided`), and `ahead` holds the entries
+/// matched to a plan that are dated after today, each with what it does to
+/// the chosen accounts (B-331). [`forecast`] is this up to the month's end.
+pub fn still_expected(
+    plans: &[&Schedule],
+    decided: &HashMap<(ScheduleId, Date), Decided>,
+    ahead: &[(Date, Money)],
+    today: Date,
+    end: Date,
+    currency: CurrencyCode,
+) -> Result<StillExpected, ForecastError> {
+    let zero = Money::zero(currency);
+    let look_back = today
+        .checked_sub(i64::from(LOOK_BACK_YEARS).years())
+        .map_err(|_| ForecastError::Calendar)?;
+    let mut found = StillExpected {
+        out_due: zero,
+        in_due: zero,
+        out_overdue: zero,
+        in_overdue: zero,
+        overdue: Vec::new(),
+    };
+    for plan in plans
+        .iter()
+        .filter(|plan| !plan.paused && plan.amount.currency() == currency)
+    {
+        for due in due_dates(plan, look_back, end) {
+            let state = OccurrenceState::of(
+                due.date,
+                decided.get(&(plan.id, due.counted)).copied(),
+                today,
+            );
+            let (out, into) = match state {
+                OccurrenceState::Matched | OccurrenceState::Skipped => continue,
+                OccurrenceState::Overdue => {
+                    found.overdue.push(OpenOccurrence {
+                        schedule: plan.id,
+                        due,
+                    });
+                    (&mut found.out_overdue, &mut found.in_overdue)
+                }
+                OccurrenceState::Upcoming | OccurrenceState::Due => {
+                    (&mut found.out_due, &mut found.in_due)
+                }
+            };
+            if plan.is_outgoing() {
+                *out = out.checked_sub(plan.amount)?;
+            } else {
+                *into = into.checked_add(plan.amount)?;
+            }
+        }
+    }
+    for &(date, amount) in ahead {
+        if date <= today || date > end || amount.currency() != currency {
+            continue;
+        }
+        if amount.is_negative() {
+            found.out_due = found.out_due.checked_sub(amount)?;
+        } else {
+            found.in_due = found.in_due.checked_add(amount)?;
+        }
+    }
+    found
+        .overdue
+        .sort_by_key(|occurrence| (occurrence.due.date, occurrence.schedule));
+    Ok(found)
 }
 
 /// Why the forecast can't be computed.
@@ -750,50 +979,13 @@ pub fn forecast_with_entries_ahead(
         .filter(|plan| !plan.paused && plan.amount.currency() == currency)
         .collect();
     let (_, month_end) = period(today)?;
-    let look_back = today
-        .checked_sub(i64::from(LOOK_BACK_YEARS).years())
-        .map_err(|_| ForecastError::Calendar)?;
-    let (mut out_due, mut in_due) = (zero, zero);
-    let mut overdue = Vec::new();
-    for plan in &plans {
-        for due in due_dates(plan, look_back, month_end) {
-            let state = OccurrenceState::of(
-                due.date,
-                decided.get(&(plan.id, due.counted)).copied(),
-                today,
-            );
-            match state {
-                OccurrenceState::Matched | OccurrenceState::Skipped => {}
-                OccurrenceState::Overdue => overdue.push(OpenOccurrence {
-                    schedule: plan.id,
-                    due,
-                }),
-                OccurrenceState::Upcoming | OccurrenceState::Due => {
-                    if plan.is_outgoing() {
-                        out_due = out_due.checked_sub(plan.amount)?;
-                    } else {
-                        in_due = in_due.checked_add(plan.amount)?;
-                    }
-                }
-            }
-        }
-    }
+    let open = still_expected(&plans, decided, ahead, today, month_end, currency)?;
+    let (out_due, in_due, overdue) = (open.out_due, open.in_due, open.overdue);
     let ahead: Vec<(Date, Money)> = ahead
         .iter()
         .copied()
         .filter(|(date, amount)| *date > today && amount.currency() == currency)
         .collect();
-    for &(date, amount) in &ahead {
-        if date > month_end {
-            continue;
-        }
-        if amount.is_negative() {
-            out_due = out_due.checked_sub(amount)?;
-        } else {
-            in_due = in_due.checked_add(amount)?;
-        }
-    }
-    overdue.sort_by_key(|found| (found.due.date, found.schedule));
     let left = balance_now.checked_sub(out_due)?;
     let expected_end = left.checked_add(in_due)?;
     let mut projected = Vec::new();

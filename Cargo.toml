@@ -31,6 +31,9 @@ kassensturz-bank = { path = "crates/kassensturz-bank" }
 kassensturz-charts = { path = "crates/kassensturz-charts" }
 kassensturz-pipeline = { path = "crates/kassensturz-pipeline", default-features = false }
 kassensturz-platform = { path = "crates/kassensturz-platform" }
+kassensturz-plugin-api = { path = "crates/kassensturz-plugin-api" }
+kassensturz-plugin-formats = { path = "crates/kassensturz-plugin-formats" }
+kassensturz-plugin-host = { path = "crates/kassensturz-plugin-host" }
 kassensturz-report = { path = "crates/kassensturz-report" }
 kassensturz-store = { path = "crates/kassensturz-store", default-features = false }
 
@@ -107,8 +110,17 @@ tokio = { version = "=1.54.1", default-features = false, features = ["rt", "time
 # T-02). Without its default features: `alloc` is enough for a wiped String.
 zeroize = { version = "=1.9.1", default-features = false, features = ["alloc"] }
 
+# The WASM runtime of the plugin host (#791, D-007, D-753; Q-633 = A): an
+# interpreter written in Rust, so no compiler comes into the app (D-071's worry).
+# Only `std`, `validate` and `auto-dispatch` (without it, a debug build runs
+# out of stack on any loop): no text format, no SIMD, no 64-bit memories.
+# Fuel metering stops a plugin that runs too long.
+wasmi = { version = "=2.0.1", default-features = false, features = ["std", "validate", "auto-dispatch"] }
 # Test-only dependencies, covered by the license allowlist (D-026).
 proptest = { version = "=1.12.0", default-features = false, features = ["std"] }
+# Writes the small test plugins of kassensturz-plugin-host from WebAssembly's
+# text format, in tests only.
+wat = { version = "=1.263.0", default-features = false }
 
 [workspace.lints.rust]
 missing_docs = "warn"

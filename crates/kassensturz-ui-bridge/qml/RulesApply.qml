@@ -35,6 +35,8 @@ Kirigami.Dialog {
     // What `rules.previewApply()` returned last; empty while it failed.
     property var preview: ({})
     readonly property int count: preview.changed === undefined ? 0 : parseInt(preview.changed)
+    // How many get a tag a Rule adds, sorted or not (D-827).
+    readonly property int tagged: preview.tagged === undefined ? 0 : parseInt(preview.tagged)
 
     // The user confirmed, and `changed` transactions were sorted.
     signal sorted(int changed)
@@ -97,9 +99,11 @@ Kirigami.Dialog {
     standardButtons: Kirigami.Dialog.NoButton
     customFooterActions: [
         Kirigami.Action {
-            text: dialog.i18nContext.i18ncp("@action:button %1 is a number", "Sort %1 transaction", "Sort %1 transactions", dialog.count)
+            text: dialog.count === 0 && dialog.tagged > 0
+                ? dialog.i18nContext.i18ncp("@action:button %1 is a number", "Tag %1 transaction", "Tag %1 transactions", dialog.tagged)
+                : dialog.i18nContext.i18ncp("@action:button %1 is a number", "Sort %1 transaction", "Sort %1 transactions", dialog.count)
             icon.name: "view-sort"
-            enabled: dialog.count > 0
+            enabled: dialog.count > 0 || dialog.tagged > 0
             onTriggered: {
                 ActionLog.taken("RulesApply_sortTransactions")
                 dialog.apply()
@@ -155,8 +159,20 @@ Kirigami.Dialog {
             level: 3
             textFormat: Text.PlainText
             text: dialog.count === 0
-                ? dialog.i18nContext.i18nc("@info", "There is nothing to sort.")
+                ? (dialog.tagged === 0
+                    ? dialog.i18nContext.i18nc("@info", "There is nothing to sort.")
+                    : dialog.i18nContext.i18nc("@info", "There is nothing to sort, only tags to add."))
                 : dialog.i18nContext.i18ncp("@info %1 is a number", "%1 transaction will be sorted.", "%1 transactions will be sorted.", dialog.count)
+            wrapMode: Text.Wrap
+        }
+
+        // The tags Rules add go on whatever they fit, sorted or not; a tag
+        // the user took off by hand is never put back (D-827).
+        Controls.Label {
+            Layout.fillWidth: true
+            visible: dialog.tagged > 0
+            textFormat: Text.PlainText
+            text: dialog.i18nContext.i18ncp("@info %1 is a number", "%1 transaction gets tags from your Rules. A tag you took off yourself is not put back.", "%1 transactions get tags from your Rules. A tag you took off yourself is not put back.", dialog.tagged)
             wrapMode: Text.Wrap
         }
 
@@ -198,7 +214,7 @@ Kirigami.Dialog {
 
         Controls.Label {
             Layout.fillWidth: true
-            visible: dialog.count > 0
+            visible: dialog.count > 0 || dialog.tagged > 0
             text: dialog.i18nContext.i18nc("@info", "All of it is one change: one Undo takes it back.")
             wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont

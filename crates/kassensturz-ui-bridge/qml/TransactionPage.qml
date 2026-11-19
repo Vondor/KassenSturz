@@ -296,6 +296,10 @@ Kirigami.ScrollablePage {
             : register.editTransaction(chosenAccount, transactionId, form());
         error.result = result;
         if (result.code === undefined) {
+            if (adding) {
+                // Its row says "New" until the app closes (B-394, D-869).
+                ChangedRows.markNew(String(result.id ?? ""));
+            }
             // If it looks like one side of a Transfer, ask before leaving
             // (M3.7, D-120); the page is done when the questions are.
             transferPrompt.ask(register.transferSuggestions(adding ? result.id : transactionId));

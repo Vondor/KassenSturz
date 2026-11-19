@@ -26857,6 +26857,30 @@ msgctxt "@action:button hide the suggested question"
 msgid "Hide the suggestion"
 msgstr "Vorschlag ausblenden"
 
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@action:button opens a page of the handbook in the web browser"
+msgid "Why your data is safe"
+msgstr "Warum Ihre Daten sicher sind"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Opens a page of the handbook in your web browser"
+msgstr "Öffnet eine Seite des Handbuchs in Ihrem Webbrowser"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt ""
+"@info the web address of the handbook page \"Why your data is safe\"; a "
+"language with its own page puts its address here"
+msgid ""
+"https://github.com/Vondor/KassenSturz/blob/main/docs/user/en/why-your-data-"
+"is-safe.md"
+msgstr ""
+"https://github.com/Vondor/KassenSturz/blob/main/docs/user/de/warum-ihre-"
+"daten-sicher-sind.md"
+
 #: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
 #, kde-format
 msgctxt ""

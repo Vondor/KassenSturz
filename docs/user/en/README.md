@@ -42,6 +42,8 @@ There is also a [German version of this handbook](../de/README.md).
 
 21. [Planned payments](21-planned-payments.md)
 
+In plain words, on one page: [Why your data is safe](why-your-data-is-safe.md).
+
 How safe your data is with KassenSturz, what we attacked and what we fixed is on the page [How safe is KassenSturz?](../../SECURITY_OVERVIEW.en.md)
 
 ## How to read this handbook

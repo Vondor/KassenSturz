@@ -625,6 +625,7 @@ pub const ACTIONS: &[&str] = &[
     "UpdateAllWidget_update",
     "WelcomePage_continue",
     "WelcomePage_language",
+    "WelcomePage_whyYourDataIsSafe",
     "WizardAccountsPage_addRow",
     "WizardAccountsPage_create",
     "WizardAccountsPage_currency",

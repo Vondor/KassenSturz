@@ -36,8 +36,15 @@ ColumnLayout {
 
     // The user wants the AI settings.
     signal settingsClicked()
+    // Whether the message offers to allow unencrypted connections, for the
+    // settings page, where that box is (B-387, D-860).
+    property bool offerUnencrypted: false
+
     // The user wants `/v1` added to the provider's address.
     signal useV1Clicked()
+    // The user wants to allow unencrypted connections: the settings page
+    // ticks its box, which shows its warning, and the user saves.
+    signal allowUnencryptedClicked()
 
     // Errors that a change in the settings can fix. Not the switch itself,
     // a request that was too large, or a provider that asks to wait.
@@ -58,7 +65,7 @@ ColumnLayout {
         case "ai.bad-address":
             return i18nContext.i18nc("@info %1 is an example web address", "This address can't be used. It starts with http:// or https://, has the server's name, and has no login name, password, ? or # part, for example %1.", "http://localhost:11434/v1");
         case "ai.plain-http":
-            return i18nContext.i18nc("@info", "This address is on another computer and starts with http://, which isn't encrypted, so KassenSturz won't send anything to it. Use the provider's https:// address. If the provider offers only http:// and runs in a network you trust, you can tick “Allow unencrypted connections” under the address in the AI settings.");
+            return i18nContext.i18nc("@info", "KassenSturz won't use this address yet: it is on another computer and starts with http://, so what is sent to it travels unencrypted. Anyone on the same network, for example on your Wi-Fi, could read it, your questions and the provider's key included. Use the provider's https:// address. If the provider offers only http:// and runs in a network you trust, you can allow unencrypted connections in the AI settings.");
         case "ai.no-consent":
             if (settings !== null) {
                 return i18nContext.i18nc("@info in the chat, above the list of what would be sent", "This provider is on another computer, and you haven't agreed yet to what KassenSturz sends to it. Nothing was sent. Below is what would be sent; to agree, open the AI settings. Or use a provider on this computer.");
@@ -153,6 +160,15 @@ ColumnLayout {
                 onTriggered: {
                     ActionLog.taken("AiErrorMessage_addVAddress")
                     message.useV1Clicked()
+                }
+            },
+            Kirigami.Action {
+                text: message.i18nContext.i18nc("@action:button ticks the box of the same name in the AI settings", "Allow unencrypted connections")
+                icon.name: "security-low"
+                visible: message.offerUnencrypted && message.result.code === "ai.plain-http"
+                onTriggered: {
+                    ActionLog.taken("AiErrorMessage_allowUnencrypted")
+                    message.allowUnencryptedClicked()
                 }
             },
             Kirigami.Action {

@@ -546,11 +546,20 @@ Kirigami.ScrollablePage {
             background: Rectangle {
                 // The line under the pointer or the keyboard focus is lit.
                 readonly property bool lit: delegate.down || delegate.hovered || delegate.visualFocus
+                // The line a change just added, changed or brought back,
+                // for a moment (B-384, D-857).
+                readonly property bool changed: ChangedRows.lit(delegate.transactionId)
 
-                color: lit
+                color: lit || changed
                     ? Kirigami.Theme.highlightColor
                     : delegate.index % 2 === 1 ? Kirigami.Theme.alternateBackgroundColor : "transparent"
-                opacity: lit ? 0.3 : 1
+                opacity: changed ? 0.5 : lit ? 0.3 : 1
+
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: Kirigami.Units.longDuration
+                    }
+                }
             }
 
             contentItem: TransactionRow {

@@ -101,6 +101,9 @@ jobs:
               raise SystemExit("CraftBootstrap.py changed: boot.writeSettings() not found")
           open(path, "w").write(patched)
           PY
+          # The runner has the Android NDK installed, and Craft then picks an
+          # Android target (run 44541544002). Hide it so Craft sees a Mac.
+          unset ANDROID_HOME ANDROID_SDK_ROOT ANDROID_NDK ANDROID_NDK_HOME ANDROID_NDK_LATEST_HOME ANDROID_NDK_ROOT
           python3 "$RUNNER_TEMP/CraftBootstrap.py" --prefix "$CRAFT_ROOT" --use-defaults
       - name: Pin Craft and its blueprints
         run: |
@@ -123,11 +126,17 @@ jobs:
           text = open(ini).read()
           text = re.sub(r'(?m)^#?Locations = .*$', 'Locations = ' + blueprints, text)
           text = re.sub(r'(?m)^EnableDailyUpdates = .*$', 'EnableDailyUpdates = False', text)
+          # Always the Mac target, whatever the bootstrap detected.
+          text, count = re.subn(r'(?m)^ABI = .*$', 'ABI = macos-clang-arm64', text)
+          if count != 1:
+              raise SystemExit("no ABI line in CraftSettings.ini")
           open(ini, "w").write(text)
           PY
           grep -E '^(ABI|Locations|UseCache|BuildType|EnableDailyUpdates) =' "$ini" || true
       - name: Install Qt and KDE Frameworks
-        run: python3 "$CRAFT_ROOT/craft/bin/craft.py" --ci-mode --install-deps kassensturz
+        run: |
+          unset ANDROID_HOME ANDROID_SDK_ROOT ANDROID_NDK ANDROID_NDK_HOME ANDROID_NDK_LATEST_HOME ANDROID_NDK_ROOT
+          python3 "$CRAFT_ROOT/craft/bin/craft.py" --ci-mode --install-deps kassensturz
       - name: Save Craft
         # Only main saves, as for Windows (D-613).
         if: ${{ success() && github.ref == 'refs/heads/main' && steps.craft-cache.outputs.cache-hit != 'true' }}

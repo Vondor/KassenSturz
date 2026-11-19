@@ -25181,3 +25181,45 @@ msgid_plural "Undone: %1 changes, back to before “%2”"
 msgstr[0] "Cofnięto: %1 zmianę, do stanu sprzed „%2”"
 msgstr[1] "Cofnięto: %1 zmiany, do stanu sprzed „%2”"
 msgstr[2] "Cofnięto: %1 zmian, do stanu sprzed „%2”"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@title:group"
+msgid "What leaves this computer"
+msgstr "Co opuszcza ten komputer"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Before each question goes, you see exactly what it sends and can leave words"
+" out."
+msgstr ""
+"Zanim pytanie zostanie wysłane, widzisz dokładnie, co wysyła, i możesz "
+"pominąć słowa."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "I have read this and agree, also to the unencrypted connection."
+msgstr "Zgadzam się na powyższe, także na nieszyfrowane połączenie."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "I have read this and agree."
+msgstr "Zgadzam się na powyższe."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Saving waits until you agree, because the connection isn't encrypted."
+msgstr ""
+"Zapisanie będzie możliwe dopiero po wyrażeniu zgody, bo połączenie nie jest "
+"szyfrowane."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Save and test"
+msgstr "Zapisz i sprawdź"

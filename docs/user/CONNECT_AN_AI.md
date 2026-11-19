@@ -97,4 +97,6 @@ Nothing changes without you: the proposal appears in KassenSturz's chat sidebar,
 
 The answers go to your AI tool, and from there to whatever model that tool uses. That is up to the tool you chose.
 
+**Fixed notes for the AI** are folded away at the bottom of the AI settings, under **Advanced: fixed notes for the AI**. They are for things that apply to every question, such as "Answer briefly" or "Salary comes on the 28th", and go with every question you ask in the chat. Ask the questions themselves in the chat, not there.
+
 See also [Notes for the user guide](NOTES.md) for details of each step.

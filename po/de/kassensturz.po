@@ -23530,12 +23530,6 @@ msgid ""
 "with every question."
 msgstr "Die Notizen, die Sie in diesen Einstellungen für die KI geschrieben haben, falls Sie welche geschrieben haben. Sie gehen mit jeder Frage mit."
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:689
-#, kde-format
-msgctxt "@title:group"
-msgid "Notes for the AI"
-msgstr "Notizen für die KI"
-
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:696
 #, kde-format
 msgctxt "@info"
@@ -26883,3 +26877,37 @@ msgstr "Dort lassen"
 msgctxt "@info %1 is a folder"
 msgid "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
 msgstr "Windows löscht diesen Ordner samt allen Sicherungen darin, wenn KassenSturz deinstalliert oder zurückgesetzt wird. Bewahren Sie Ihr Buch in KassenSturz' eigenem Ordner (%1) oder in einem Ordner Ihrer Wahl auf."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button opens or closes the user's fixed notes for the AI"
+msgid "Advanced: fixed notes for the AI"
+msgstr "Erweitert: feste Hinweise für die KI"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Open"
+msgstr "Geöffnet"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Closed"
+msgstr "Geschlossen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Rarely needed. Closed until you open it."
+msgstr "Meist nicht nötig. Eingeklappt, bis Sie es öffnen."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These notes apply to every question, for example \"Answer briefly\". Ask "
+"your questions in the chat, not here."
+msgstr ""
+"Diese Hinweise gelten für jede Frage, etwa „Antworte kurz“. Ihre Fragen "
+"stellen Sie im Chat, nicht hier."

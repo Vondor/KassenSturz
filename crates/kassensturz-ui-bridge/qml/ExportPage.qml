@@ -34,6 +34,9 @@ FormCard.FormCardPage {
     property bool wholeBook: false
     // Whether the extra choices for the CSV file are shown.
     property bool moreChoices: false
+    // The plugin exporters the user added (#791), and the one being used.
+    property var exporters: []
+    property var exporter: ({})
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -52,6 +55,7 @@ FormCard.FormCardPage {
         }
         ticked = all;
         choices = dataExport.csvChoices();
+        exporters = dataExport.pluginExporters();
         separator.currentIndex = separator.indexOfValue(choices.separator);
         decimalMark.currentIndex = decimalMark.indexOfValue(choices.decimalMark);
     }
@@ -102,6 +106,11 @@ FormCard.FormCardPage {
         result = dataExport.saveCsv(file, chosenIds(), choices);
     }
 
+    function saveWithPlugin(file: url) {
+        wholeBook = false;
+        result = dataExport.saveWithPlugin(file, exporter.file ?? "", chosenIds(), choices);
+    }
+
     function saveBook(file: url) {
         wholeBook = true;
         result = dataExport.saveBook(file);
@@ -117,6 +126,19 @@ FormCard.FormCardPage {
         onAccepted: {
             ActionLog.taken("ExportPage_saveCsv")
             page.saveCsv(selectedFile)
+        }
+    }
+
+    Dialogs.FileDialog {
+        id: pluginDialog
+
+        title: page.i18nContext.i18nc("@title:window %1 is a plugin's name", "Save the transactions with \"%1\"", page.exporter.name ?? "")
+        fileMode: Dialogs.FileDialog.SaveFile
+        defaultSuffix: page.exporter.extension ?? ""
+        nameFilters: [page.i18nContext.i18nc("@item:inlistbox a file type, %1 is a file name ending such as csv", "Files of the plugin (*.%1)", page.exporter.extension ?? "")]
+        onAccepted: {
+            ActionLog.taken("ExportPage_saveWithPlugin")
+            page.saveWithPlugin(selectedFile)
         }
     }
 
@@ -295,6 +317,43 @@ FormCard.FormCardPage {
                 csvDialog.currentFolder = page.folderUrl;
                 csvDialog.currentFile = page.startUrl("csv");
                 csvDialog.open();
+            }
+        }
+    }
+
+    // Plugin exporters (#791, D-852): the same accounts and days as the
+    // spreadsheet file, written by a plugin the user added.
+    FormCard.FormHeader {
+        visible: page.exporters.length > 0
+        title: page.i18nContext.i18nc("@title:group", "With a plugin")
+    }
+
+    FormCard.FormSectionText {
+        visible: page.exporters.length > 0
+        text: page.i18nContext.i18nc("@info", "A plugin you added writes the transactions of the accounts and days you chose above in its own kind of file. KassenSturz writes the file where you say and never overwrites one.")
+    }
+
+    FormCard.FormCard {
+        visible: page.exporters.length > 0
+
+        Repeater {
+            model: page.exporters
+
+            delegate: FormCard.FormButtonDelegate {
+                required property var modelData
+
+                icon.name: "document-save-as"
+                text: Plain.plain(page.i18nContext.i18nc("@action:button %1 is a plugin's name", "Save with \"%1\"…", modelData.name))
+                description: page.i18nContext.i18nc("@info %1 is a file name ending such as csv", "A .%1 file", modelData.extension)
+                descriptionItem.textFormat: Text.PlainText
+                enabled: page.chosenIds().length > 0
+                onClicked: {
+                    ActionLog.taken("ExportPage_savePluginFile")
+                    page.exporter = modelData;
+                    pluginDialog.currentFolder = page.folderUrl;
+                    pluginDialog.currentFile = page.startUrl(modelData.extension);
+                    pluginDialog.open();
+                }
             }
         }
     }

@@ -17,7 +17,8 @@ use std::path::PathBuf;
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 use kassensturz_core::TransactionId;
-use kassensturz_import::{Limits, read_file};
+use kassensturz_import::{Importer, Limits, read_file};
+use kassensturz_plugin_formats::PluginImporter;
 
 use crate::bank_fetch;
 use crate::book_session::local_path;
@@ -158,6 +159,13 @@ pub mod qobject {
         /// anymore (B-367).
         #[qinvokable]
         fn progress(self: &StatementImport) -> QVariant;
+
+        /// The file name patterns of the plugin importers the user added,
+        /// such as `*.bank`, for the file dialog (#791); empty if there are
+        /// none. Built-in patterns aren't repeated.
+        #[qinvokable]
+        #[cxx_name = "pluginPatterns"]
+        fn plugin_patterns(self: &StatementImport) -> QString;
     }
 
     unsafe extern "RustQt" {
@@ -186,6 +194,8 @@ pub struct StatementImportRust {
     /// The file's bytes, kept for the column screen.
     input: Vec<u8>,
     path: PathBuf,
+    /// The plugin that read the file, if one did (#791).
+    read_by: Option<String>,
     loaded: Option<Loaded>,
     /// The transactions the last import added.
     new: Vec<TransactionId>,
@@ -252,6 +262,7 @@ impl qobject::StatementImport {
             rust.account_id = QString::from(account.as_str());
             rust.file_name = QString::from(name.as_str());
             rust.path = path.clone();
+            rust.read_by = None;
         }
         self.as_mut().account_id_changed();
         self.as_mut().file_name_changed();
@@ -259,7 +270,8 @@ impl qobject::StatementImport {
             Ok(input) => input,
             Err(error) => return self.fail(&statement_import::unread_file(&name, error)),
         };
-        let kind = match statement_import::recognize(&input, &name) {
+        let plugins = crate::plugin_formats::importers(crate::ai_switch_model::ai_on());
+        let kind = match statement_import::recognize(&input, &name, plugins) {
             Ok(kind) => kind,
             Err(error) => return self.fail(&error),
         };
@@ -269,8 +281,9 @@ impl qobject::StatementImport {
                 self.set_step("csv", QVariant::default());
                 map([])
             }
-            FileKind::Statements(importer) => {
-                let read = statement_import::read_statements(importer, &self.rust().input);
+            FileKind::Statements(format) => {
+                let read = statement_import::read_statements(format.importer(), &self.rust().input);
+                self.as_mut().rust_mut().read_by = format.plugin_name().map(str::to_owned);
                 self.loaded(read)
             }
         }
@@ -459,9 +472,13 @@ impl qobject::StatementImport {
         };
         let account = self.rust().account_id.to_string();
         let path = self.rust().path.clone();
+        let read_by = self.rust().read_by.clone();
         let loaded = session::with_book(|book| {
             crate::transaction_entry::find_account(book, &account)
-                .map(|account| Loaded::new(account.id, path, statements))
+                .map(|account| Loaded {
+                    read_by,
+                    ..Loaded::new(account.id, path, statements)
+                })
                 .map_err(|_| StatementImportError::NoSuchEntry)
         })
         .unwrap_or(Err(StatementImportError::NoSuchEntry));
@@ -510,6 +527,13 @@ impl qobject::StatementImport {
         if self.rust().working {
             kassensturz_pipeline::stop::cancel();
         }
+    }
+
+    fn plugin_patterns(&self) -> QString {
+        let importers = crate::plugin_formats::importers(crate::ai_switch_model::ai_on());
+        QString::from(&plugin_patterns(
+            importers.iter().map(|(_, importer)| importer),
+        ))
     }
 
     fn progress(&self) -> QVariant {
@@ -668,11 +692,28 @@ fn progress_object((done, total): (usize, usize), importing: bool, saving: bool)
     ])
 }
 
+/// The patterns for the file dialog of what `importers` read, each once,
+/// leaving out the ones the dialog has already (`Main.qml`).
+fn plugin_patterns<'a>(importers: impl Iterator<Item = &'a PluginImporter>) -> String {
+    const BUILT_IN: &[&str] = &["xml", "sta", "ofx", "csv", "txt"];
+    let mut patterns: Vec<String> = Vec::new();
+    for importer in importers {
+        for extension in importer.info().extensions {
+            let pattern = format!("*.{extension}");
+            if !BUILT_IN.contains(extension) && !patterns.contains(&pattern) {
+                patterns.push(pattern);
+            }
+        }
+    }
+    patterns.join(" ")
+}
+
 fn view_object(view: &ImportView) -> QVariant {
     let count = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX));
     map([
         ("fileName", text(&view.file_name)),
         ("fromBank", QVariant::from(&view.from_bank)),
+        ("readBy", text(&view.read_by)),
         ("accountName", text(&view.account_name)),
         ("debt", QVariant::from(&view.debt)),
         ("entries", list(view.entries.iter().map(entry_object))),
@@ -935,8 +976,9 @@ mod tests {
     #[test]
     fn the_summary_carries_the_joins_and_the_moves_that_wait_for_the_user() {
         let view = ImportView {
-            file_name: String::new(),
+            file_name: "bank.txt".to_owned(),
             from_bank: false,
+            read_by: "Example bank text".to_owned(),
             account_name: "Savings".to_owned(),
             debt: false,
             entries: Vec::new(),
@@ -973,6 +1015,8 @@ mod tests {
             }],
         };
         let object = view_object(&view);
+        assert_eq!(text_of(&object, "readBy"), "Example bank text");
+        assert_eq!(text_of(&object, "fileName"), "bank.txt");
         assert_eq!(list_of(&object, "joined").len(), 1);
         let count = |key: &str| {
             object
@@ -1084,5 +1128,26 @@ mod tests {
             !page.contains("Repeater {\n                model: page.entries"),
             "the entries must not be made all at once"
         );
+    }
+
+    /// #791: the file dialog gets each plugin pattern once, without the
+    /// built-in ones.
+    #[test]
+    fn the_plugin_patterns_leave_out_the_built_in_ones() {
+        let folder = crate::test_folder::TestFolder::new();
+        for name in ["a.wasm", "b.wasm"] {
+            std::fs::write(
+                folder.join(name),
+                crate::test_plugins::bank_importer("maybe"),
+            )
+            .expect("plugin written");
+        }
+        let importers = crate::plugin_formats::importers_in(folder.path(), false);
+        assert_eq!(importers.len(), 2);
+        assert_eq!(
+            plugin_patterns(importers.iter().map(|(_, importer)| importer)),
+            "*.bank"
+        );
+        assert_eq!(plugin_patterns(std::iter::empty()), "");
     }
 }

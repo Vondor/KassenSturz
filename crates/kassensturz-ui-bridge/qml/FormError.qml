@@ -945,6 +945,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "KassenSturz couldn't save the plugin. Check that your disk isn't full, then try again. Nothing was changed.");
         case "input.plugin-replace-not-confirmed":
             return i18nContext.i18nc("@info", "A version of this plugin is added already. Choose \"Replace it\" to use the new one instead.");
+        case "input.plugin-gone":
+            return i18nContext.i18nc("@info", "This plugin isn't there any more or can't be used now. Look at it in Settings, Plugins, then try again. Nothing was saved.");
         case "input.plugin-not-removed":
             return i18nContext.i18nc("@info", "KassenSturz couldn't remove the plugin. Check that the file isn't open in another program, then try again.");
         default:

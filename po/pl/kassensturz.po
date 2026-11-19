@@ -25223,3 +25223,63 @@ msgstr ""
 msgctxt "@action:button"
 msgid "Save and test"
 msgstr "Zapisz i sprawdź"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:135
+#, kde-format
+msgctxt "@title:window %1 is a plugin's name"
+msgid "Save the transactions with \"%1\""
+msgstr "Zapisz transakcje za pomocą „%1”"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:138
+#, kde-format
+msgctxt "@item:inlistbox a file type, %1 is a file name ending such as csv"
+msgid "Files of the plugin (*.%1)"
+msgstr "Pliki wtyczki (*.%1)"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:328
+#, kde-format
+msgctxt "@title:group"
+msgid "With a plugin"
+msgstr "Za pomocą wtyczki"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:333
+#, kde-format
+msgctxt "@info"
+msgid "A plugin you added writes the transactions of the accounts and days you chose above in its own kind of file. KassenSturz writes the file where you say and never overwrites one."
+msgstr "Dodana przez ciebie wtyczka zapisuje transakcje wybranych wyżej kont i dni we własnym rodzaju pliku. KassenSturz zapisuje plik tam, gdzie wskażesz, i nigdy nie nadpisuje istniejącego."
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:346
+#, kde-format
+msgctxt "@action:button %1 is a plugin's name"
+msgid "Save with \"%1\"…"
+msgstr "Zapisz za pomocą „%1”…"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:347
+#, kde-format
+msgctxt "@info %1 is a file name ending such as csv"
+msgid "A .%1 file"
+msgstr "Plik .%1"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:949
+#, kde-format
+msgctxt "@info"
+msgid "This plugin isn't there any more or can't be used now. Look at it in Settings, Plugins, then try again. Nothing was saved."
+msgstr "Tej wtyczki już nie ma albo nie można jej teraz użyć. Sprawdź ją w Ustawieniach, w części Wtyczki, a potem spróbuj ponownie. Nic nie zostało zapisane."
+
+#: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:211
+#, kde-format
+msgctxt "@info %1 is a plugin's name, as the plugin says"
+msgid "Read by the plugin \"%1\""
+msgstr "Odczytane przez wtyczkę „%1”"
+
+#: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:213
+#, kde-format
+msgctxt "@info"
+msgid "Check the transactions below before you import them."
+msgstr "Sprawdź poniższe transakcje, zanim je zaimportujesz."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1938
+#, kde-format
+msgctxt "@item:inlistbox a file type, %1 are patterns such as *.bank"
+msgid "Files your plugins read (%1)"
+msgstr "Pliki czytane przez twoje wtyczki (%1)"

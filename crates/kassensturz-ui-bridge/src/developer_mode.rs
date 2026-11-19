@@ -22,6 +22,8 @@ use std::sync::Mutex;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
+#[cfg(feature = "debug-log")]
+use cxx_qt_lib::QUrl;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -118,11 +120,11 @@ impl qobject::DeveloperMode {
         if let Some(folder) =
             kassensturz_core::bank_log::folder().filter(|_| self.bank_log_on && !self.on)
         {
-            return QString::from(format!("file://{}", folder.display()).as_str());
+            return folder_url(&folder);
         }
         #[cfg(feature = "debug-log")]
         if let Some(folder) = log().folder().filter(|_| self.on) {
-            return QString::from(format!("file://{}", folder.display()).as_str());
+            return folder_url(folder);
         }
         QString::default()
     }
@@ -130,7 +132,7 @@ impl qobject::DeveloperMode {
     fn bank_log_folder_url(&self) -> QString {
         #[cfg(feature = "debug-log")]
         if let Some(folder) = bank_log_folder(self.bank_log_on) {
-            return QString::from(format!("file://{}", folder.display()).as_str());
+            return folder_url(&folder);
         }
         QString::default()
     }
@@ -185,6 +187,15 @@ impl qobject::DeveloperMode {
 
 /// The screen the user is on, by its fixed name.
 static CURRENT_SCREEN: Mutex<Option<&'static str>> = Mutex::new(None);
+
+/// The `file:` URL of `folder`, as Qt makes it: `file:///C:/Users/...` on
+/// Windows. `file://` with the path and its backslashes pasted after it
+/// named no file there, and Windows asked which app should open the link
+/// (B-381, #1177).
+#[cfg(feature = "debug-log")]
+fn folder_url(folder: &std::path::Path) -> QString {
+    QUrl::from_local_file(&QString::from(folder.to_string_lossy().as_ref())).to_qstring()
+}
 
 fn set_current_screen(screen: Option<&'static str>) {
     if let Ok(mut current) = CURRENT_SCREEN.lock() {
@@ -310,6 +321,19 @@ mod tests {
         assert_eq!(current_screen(), Some("RegisterPage"));
         set_current_screen(kassensturz_core::vocabulary::screen("Moon Base Rent"));
         assert_eq!(current_screen(), None);
+    }
+
+    /// The folder buttons get the URL Qt makes for a local file, with three
+    /// slashes, never `file://` and the path pasted after it (B-381,
+    /// #1177). Qt's text form leaves the space as it is; QML reads it back
+    /// as the same URL.
+    #[cfg(feature = "debug-log")]
+    #[test]
+    fn the_folder_url_is_the_one_qt_makes_for_a_local_file() {
+        assert_eq!(
+            folder_url(Path::new("/home/ada/debug log")).to_string(),
+            "file:///home/ada/debug log"
+        );
     }
 
     /// "Show the log" of the bank log did nothing before a bank connection

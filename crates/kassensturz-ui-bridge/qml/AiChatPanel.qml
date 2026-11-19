@@ -98,17 +98,58 @@ ColumnLayout {
         chartAllowed = settings.allows("AllowNewViews");
     }
 
+    // A permission switched in Settings while the chat stays open beside
+    // the page shows or hides its buttons at once (B-402).
+    Connections {
+        target: panel.settings
+
+        function onAllowsChanged() {
+            panel.refresh();
+        }
+    }
+
     // Whether the user lets the AI prepare charts; the button that asks for
     // one is hidden, not grayed out, when not (D-239).
     property bool chartAllowed: false
 
     // *Describe a chart* (M6c.9, D-355): puts an example into the field for
-    // the user to change, and asks nothing yet.
+    // the user to change, and asks nothing yet. The example is never mixed
+    // with what the user typed and never sent unseen (B-386, D-859): it
+    // replaces only an empty field or an earlier example left unchanged,
+    // stays in the field as editable text, and is set apart by the note
+    // under the field (`suggested`) until the user changes it. Text the
+    // user typed stays as it is, and the note offers the example instead.
     function describeChart() {
-        questionField.text = i18nContext.i18nc("@info:placeholder an example of how to describe a chart, which the user changes", "My spending on food each month this year, as bars");
-        questionField.forceActiveFocus();
-        questionField.selectAll();
+        const example = i18nContext.i18nc("@info:placeholder an example of how to describe a chart, which the user changes", "My spending on food each month this year, as bars");
+        const typed = questionField.text.trim();
+        if (typed === "" || typed === suggestion) {
+            useSuggestion(example);
+        } else {
+            offered = example;
+            questionField.forceActiveFocus();
+        }
     }
+
+    // Puts `example` into the field as a suggestion, with the cursor at its
+    // end, so typing adds to it instead of throwing it away unread.
+    function useSuggestion(example: string) {
+        offered = "";
+        suggestion = example;
+        questionField.text = example;
+        questionField.forceActiveFocus();
+        questionField.cursorPosition = example.length;
+    }
+
+    // The example the field holds as a suggestion, empty for none.
+    property string suggestion: ""
+    // An example the user can put into the field instead of what they
+    // typed, empty for none.
+    property string offered: ""
+    // Whether the field holds the suggestion, unchanged.
+    // The words of the way into the chat, the highlighted header button of
+    // Main.qml (B-385, D-861), here so that "AI" shows only in AI files.
+    readonly property string entryName: i18nContext.i18nc("@action:button opens the chat sidebar, where the user asks the AI a question", "Ask AI")
+    readonly property bool suggested: suggestion !== "" && questionField.text === suggestion
 
     // The built-in features that are shown: one whose changes the user
     // doesn't let the AI prepare is hidden, not grayed out (D-239).
@@ -192,6 +233,8 @@ ColumnLayout {
         add({ kind: "question", text: question });
         questionField.text = "";
         keyField.text = "";
+        suggestion = "";
+        offered = "";
     }
 
     // What the button of a built-in feature (M5.9, D-222) shows in the
@@ -643,7 +686,10 @@ ColumnLayout {
             enabled: !panel.chat.busy && panel.hasProvider
             placeholderText: panel.i18nContext.i18nc("@info:placeholder", "Ask about your book…")
             inputMethodHints: Qt.ImhNoPredictiveText
+            // A suggestion the user hasn't changed reads as one (B-386).
+            font.italic: panel.suggested
             Accessible.name: panel.i18nContext.i18nc("@label:textbox", "Your question for the AI")
+            Accessible.description: panel.suggested ? suggestedNote.text : ""
             onAccepted: {
                 ActionLog.taken("AiChatPanel_questionAi")
                 panel.ask()
@@ -670,6 +716,61 @@ ColumnLayout {
                 ActionLog.taken("AiChatPanel_stop")
                 panel.stopping = true;
                 panel.chat.stop();
+            }
+        }
+    }
+
+    // Says that the field holds a suggestion, not the user's own words
+    // (B-386, D-859), so nothing is sent that the user hasn't seen as such.
+    Controls.Label {
+        id: suggestedNote
+
+        Layout.fillWidth: true
+        Layout.leftMargin: Kirigami.Units.smallSpacing
+        Layout.rightMargin: Kirigami.Units.smallSpacing
+        visible: panel.suggested
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+        font: Kirigami.Theme.smallFont
+        color: Kirigami.Theme.disabledTextColor
+        text: panel.i18nContext.i18nc("@info under the question field, which holds an example question", "Suggestion, you can change it")
+    }
+
+    // The user had typed something of their own: the example is offered
+    // next to it instead of replacing it (B-386).
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: Kirigami.Units.smallSpacing
+        Layout.rightMargin: Kirigami.Units.smallSpacing
+        visible: panel.offered !== "" && !panel.chat.busy
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            font: Kirigami.Theme.smallFont
+            text: panel.i18nContext.i18nc("@info %1 is an example question; the user's own text stays in the field", "Suggestion: %1", panel.offered)
+        }
+
+        Controls.Button {
+            flat: true
+            text: panel.i18nContext.i18nc("@action:button put the suggested question into the field instead of the user's own text", "Use it instead")
+            onClicked: {
+                ActionLog.taken("AiChatPanel_useSuggestion")
+                panel.useSuggestion(panel.offered)
+            }
+        }
+
+        Controls.Button {
+            flat: true
+            icon.name: "dialog-close"
+            display: Controls.AbstractButton.IconOnly
+            text: panel.i18nContext.i18nc("@action:button hide the suggested question", "Hide the suggestion")
+            Controls.ToolTip.text: text
+            Controls.ToolTip.visible: hovered
+            onClicked: {
+                ActionLog.taken("AiChatPanel_hideSuggestion")
+                panel.offered = ""
             }
         }
     }

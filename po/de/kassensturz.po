@@ -3379,30 +3379,6 @@ msgstr ""
 "Arbeitsgedächtnis zu klein ist, laden Sie das Modell mit einer Kontextlänge "
 "von 16384 oder mehr (besser 65536)."
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:456
-#, kde-format
-msgctxt "@info %1 is the name of a model"
-msgid ""
-"The provider doesn't list the model “%1”. Choose one of its models below, or "
-"check the name."
-msgstr ""
-"Der Anbieter führt das Modell „%1“ nicht auf. Wählen Sie unten eines seiner "
-"Modelle oder prüfen Sie den Namen."
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:463
-#, kde-format
-msgctxt "@info"
-msgid "Choose the model to use from the list below, then press Save."
-msgstr ""
-"Wählen Sie unten in der Liste das Modell aus, das verwendet werden soll, und "
-"klicken Sie dann auf „Speichern“."
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:471
-#, kde-format
-msgctxt "@item:inlistbox"
-msgid "Use one of the provider's models…"
-msgstr "Eines der Modelle des Anbieters verwenden …"
-
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:483
 #, kde-format
 msgctxt "@title:group"
@@ -6139,19 +6115,6 @@ msgstr "Das Budget löschen"
 msgctxt "@action:button keep a budget"
 msgid "Keep it"
 msgstr "Behalten"
-
-#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:108
-#, kde-format
-msgctxt "@info"
-msgid ""
-"A budget is what you plan to spend on a category in a month, a quarter, a "
-"year or some days. The bar shows how much of it is spent and how much is "
-"left. A budget doesn't change any transaction or total."
-msgstr ""
-"Ein Budget ist das, was Sie für eine Kategorie in einem Monat, einem "
-"Quartal, einem Jahr oder einigen Tagen ausgeben möchten. Der Balken zeigt, "
-"wie viel davon ausgegeben ist und wie viel übrig bleibt. Ein Budget ändert "
-"keine Buchung und keine Summe."
 
 #: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:116
 #, kde-format
@@ -25845,12 +25808,6 @@ msgctxt "@info:tooltip the button that shows the menu on the left"
 msgid "Show the menu"
 msgstr "Menü einblenden"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml
-#, kde-format
-msgctxt "@info:tooltip the button that opens the chat sidebar"
-msgid "Open the chat"
-msgstr "Chat öffnen"
-
 #, kde-format
 msgctxt "@info %1 is a list of tag names"
 msgid "Only adds the tags %1 to matching transactions; the next Rules still sort them."
@@ -26830,6 +26787,187 @@ msgctxt "@action:button keep a plugin"
 msgid "Keep it"
 msgstr "Behalten"
 
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@option:check a new entry"
+msgid "This repeats"
+msgstr "Das wiederholt sich"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@action:button a new entry that repeats"
+msgid "Create as a plan"
+msgstr "Als Plan anlegen"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This makes a plan. The first payment is due on the date above and shows in "
+"the outlook ahead. You confirm each payment once it has happened."
+msgstr ""
+"Das legt einen Plan an. Die erste Zahlung wird am Datum oben fällig und "
+"kommt in die Vorschau. Sie bestätigen jede Zahlung, wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid ""
+"Planned. The first payment is due on %1; you confirm each payment once it "
+"has happened."
+msgstr ""
+"Geplant. Die erste Zahlung ist am %1 fällig; Sie bestätigen jede Zahlung, "
+"wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@action:inmenu a screen"
+msgid "Plans"
+msgstr "Pläne"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@title a screen of the menu"
+msgid "Plans"
+msgstr "Pläne"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Add a plan"
+msgstr "Plan hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@title"
+msgid "What is a plan?"
+msgstr "Was ist ein Plan?"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A payment that comes again and again: rent, salary, insurance. Plans count "
+"in the outlook ahead; you confirm each payment once it has happened."
+msgstr ""
+"Eine Zahlung, die immer wieder kommt: Miete, Gehalt, Versicherung. Pläne "
+"fließen in die Vorschau ein; Sie bestätigen jede Zahlung, wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+#, kde-format
+msgctxt "@title"
+msgid "What is a budget?"
+msgstr "Was ist ein Budget?"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A limit for a category, for example: “I spend at most 300 € a month on "
+"food.” KassenSturz shows you how much of it is already spent. A budget "
+"doesn't change any transaction or total."
+msgstr ""
+"Eine Obergrenze für eine Kategorie, zum Beispiel: „Für Essen gebe ich "
+"höchstens 300 € im Monat aus.“ KassenSturz zeigt Ihnen, wie viel davon schon"
+" ausgegeben ist. Ein Budget ändert keine Buchung und keine Summe."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Reset chart"
+msgstr "Diagramm zurücksetzen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Starts this chart again from scratch. Your saved views stay as they are."
+msgstr ""
+"Beginnt dieses Diagramm noch einmal von vorn. Ihre gespeicherten Ansichten "
+"bleiben, wie sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Chart reset: period, categories, accounts and look are back to how they "
+"start."
+msgstr ""
+"Diagramm zurückgesetzt: Zeitraum, Kategorien, Konten und Aussehen sind "
+"wieder wie am Anfang."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@action:button opens the chat sidebar, where the user asks the AI a question"
+msgid "Ask AI"
+msgstr "KI fragen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt "@info under the question field, which holds an example question"
+msgid "Suggestion, you can change it"
+msgstr "Vorschlag, Sie können ihn ändern"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@info %1 is an example question; the user's own text stays in the field"
+msgid "Suggestion: %1"
+msgstr "Vorschlag: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@action:button put the suggested question into the field instead of the "
+"user's own text"
+msgid "Use it instead"
+msgstr "Stattdessen verwenden"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt "@action:button hide the suggested question"
+msgid "Hide the suggestion"
+msgstr "Vorschlag ausblenden"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@action:button opens a page of the handbook in the web browser"
+msgid "Why your data is safe"
+msgstr "Warum Ihre Daten sicher sind"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Opens a page of the handbook in your web browser"
+msgstr "Öffnet eine Seite des Handbuchs in Ihrem Webbrowser"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt ""
+"@info the web address of the handbook page \"Why your data is safe\"; a "
+"language with its own page puts its address here"
+msgid ""
+"https://github.com/Vondor/KassenSturz/blob/main/docs/user/en/why-your-data-"
+"is-safe.md"
+msgstr ""
+"https://github.com/Vondor/KassenSturz/blob/main/docs/user/de/warum-ihre-"
+"daten-sicher-sind.md"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
+#, kde-format
+msgctxt ""
+"@info %1 is what was done, e.g. Added a transaction; %2 whom it was with or "
+"its category; %3 its amount"
+msgid "%1 (%2, %3)"
+msgstr "%1 (%2, %3)"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
+#, kde-format
+msgctxt "@info %1 is what was done, e.g. Added a transaction; %2 its amount"
+msgid "%1 (%2)"
+msgstr "%1 (%2)"
+
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
 #, kde-format
 msgctxt "@info"
@@ -26891,6 +27029,22 @@ msgctxt "@info %1 is an example web address"
 msgid "For example: %1"
 msgstr "Zum Beispiel: %1"
 
+msgctxt "@item:inlistbox"
+msgid "Choose a model…"
+msgstr "Modell wählen …"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Enter another name…"
+msgstr "Anderen Namen eingeben …"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@item:inlistbox %1 is a model's name"
+msgid "%1 (only for searching, not for the chat)"
+msgstr "%1 (nur für die Suche, nicht für den Chat)"
+
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
 msgctxt "@info"
@@ -26909,3 +27063,30 @@ msgstr ""
 "http:// beginnen, dann folgt der Name des Servers, ohne Leerzeichen, zum "
 "Beispiel https://ai.example.test/v1. Speichern geht erst, wenn die Adresse "
 "stimmt."
+
+msgid "This provider doesn't name its models. Please type the name."
+msgstr "Dieser Anbieter nennt keine Modelle. Bitte geben Sie den Namen ein."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Choose from the provider's list"
+msgstr "Aus der Liste des Anbieters wählen"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@info a transaction added since the app started"
+msgid "New"
+msgstr "Neu"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@action:button remove this transaction"
+msgid "Remove"
+msgstr "Entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@action:button %1 is who was paid or who paid, %2 an amount"
+msgid "Remove %1, %2"
+msgstr "%1, %2 entfernen"

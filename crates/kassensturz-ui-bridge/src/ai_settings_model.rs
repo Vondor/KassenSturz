@@ -255,10 +255,10 @@ pub mod qobject {
         fn allows(self: &AiSettings, key: &QString) -> bool;
 
         /// Gives or takes away the permission `key`. Returns whether that
-        /// was saved.
+        /// was saved, and says so with `allowsChanged`.
         #[qinvokable]
         #[cxx_name = "setAllows"]
-        fn set_allows(self: &AiSettings, key: &QString, on: bool) -> bool;
+        fn set_allows(self: Pin<&mut AiSettings>, key: &QString, on: bool) -> bool;
 
         /// Whether the field of a transaction whose lock has the settings
         /// key `key` (`LockAmount` and so on, D-252) is locked against the
@@ -281,6 +281,12 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "testFinished"]
         fn test_finished(self: Pin<&mut AiSettings>, result: QVariant);
+
+        /// A permission was saved: the chat panel shows the buttons it now
+        /// allows without being closed and opened again (B-402).
+        #[qsignal]
+        #[cxx_name = "allowsChanged"]
+        fn allows_changed(self: Pin<&mut AiSettings>);
     }
 
     impl cxx_qt::Initialize for AiSettings {}
@@ -930,8 +936,12 @@ impl qobject::AiSettings {
         allows_in(&crate::settings::Settings::user(), &key.to_string())
     }
 
-    fn set_allows(&self, key: &QString, on: bool) -> bool {
-        keep_allows(&crate::settings::Settings::user(), &key.to_string(), on)
+    fn set_allows(self: Pin<&mut Self>, key: &QString, on: bool) -> bool {
+        let saved = keep_allows(&crate::settings::Settings::user(), &key.to_string(), on);
+        if saved {
+            self.allows_changed();
+        }
+        saved
     }
 
     fn locked(&self, key: &QString) -> bool {

@@ -145,6 +145,9 @@ fn main() {
                 "qml/PartsPage.qml",
                 "qml/PlanFormDialog.qml",
                 "qml/PlannedPaymentsDialog.qml",
+                "qml/PlannedPaymentsView.qml",
+                "qml/PlansPage.qml",
+                "qml/ExplanationCard.qml",
                 "qml/LeftThisMonthWidget.qml",
                 "qml/ComingUpWidget.qml",
                 "qml/PropertiesPanel.qml",
@@ -189,6 +192,8 @@ fn main() {
                 QmlFile::from("qml/ChartPalette.qml").singleton(true),
                 // `ActionLog.taken(name)` in every action handler (M6c.D).
                 QmlFile::from("qml/ActionLog.qml").singleton(true),
+                // The rows a change just touched light up (B-384, D-857).
+                QmlFile::from("qml/ChangedRows.qml").singleton(true),
             ]),
     )
     .qt_module("Network")

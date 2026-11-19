@@ -73,6 +73,25 @@ Kirigami.ScrollablePage {
     // the user sees the models to choose from (or what is wrong).
     property bool testAfterSave: false
 
+    // The model is chosen from the provider's list as soon as a test has
+    // listed it (B-396, D-871); "Enter another name…" or a provider without
+    // a list leaves the plain text field. Only the name is saved, as before.
+    readonly property var offeredModels: testResult.models ?? []
+    property bool typingName: false
+    // The model's name as it would be saved.
+    readonly property string chosenModel: modelField.text
+    readonly property bool modelListShown: offeredModels.length > 0 && !typingName
+    // A provider that answered the test but named no models: the user types
+    // the name, calmly, and saving works as before.
+    readonly property bool noModelList: testResult.code !== undefined || (testResult.models !== undefined && testResult.models.length === 0)
+    // Embedding models only turn text into numbers for searching; they can't
+    // answer in the chat, so they are shown but can't be chosen.
+    function searchOnly(name: string): bool {
+        return /embed/i.test(name);
+    }
+    readonly property var modelChoices: offeredModels.map(name => ({ value: name, search: searchOnly(name) }))
+        .concat([{ value: "", search: false }])
+
     // Reads what is saved into the page and the fields.
     function reload() {
         form = settings.load();
@@ -130,11 +149,13 @@ Kirigami.ScrollablePage {
         keyResult = ({});
         testResult = ({});
         completeAddress();
+        // A new address is asked for its models at once (B-396, D-871).
+        const addressChanged = addressField.text.trim() !== (form.address ?? "");
         const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text, allowUnencrypted);
         if (result.saved === true) {
             // Without a model there is nothing to ask yet, so the test that
             // lists the models follows at once, with the key still typed.
-            const test = testAfterSave || modelField.text.trim() === "";
+            const test = testAfterSave || modelField.text.trim() === "" || addressChanged;
             if (test) {
                 settings.testConnection(keyField.text);
             }
@@ -192,6 +213,15 @@ Kirigami.ScrollablePage {
 
         function onTestFinished(result: var) {
             page.testResult = result;
+            page.typingName = false;
+            // With no name chosen yet, the first model that can chat is
+            // shown as the choice; it is used once the user saves.
+            if (modelField.text.trim() === "") {
+                const first = page.offeredModels.find(name => !page.searchOnly(name));
+                if (first !== undefined) {
+                    modelField.text = first;
+                }
+            }
         }
     }
 
@@ -297,13 +327,66 @@ Kirigami.ScrollablePage {
                     : page.i18nContext.i18nc("@info", "Warning: this address may be on the Internet, and the connection isn't encrypted. Anyone on the way could read and change what is sent: your questions, information from your book and the provider's key. Use the provider's https:// address instead, unless you know exactly what you are doing.")
             }
 
+            Controls.ComboBox {
+                id: modelBox
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Model:")
+                visible: page.modelListShown
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                model: page.modelChoices
+                valueRole: "value"
+                displayText: modelField.text !== "" ? modelField.text : page.i18nContext.i18nc("@item:inlistbox", "Choose a model…")
+                delegate: Controls.ItemDelegate {
+                    required property var modelData
+                    width: ListView.view ? ListView.view.width : implicitWidth
+                    enabled: !modelData.search
+                    // A model's name is the provider's text, shown as it is.
+                    text: Plain.plain(modelData.value === ""
+                        ? page.i18nContext.i18nc("@item:inlistbox", "Enter another name…")
+                        : (modelData.search
+                            ? page.i18nContext.i18nc("@item:inlistbox %1 is a model's name", "%1 (only for searching, not for the chat)", modelData.value)
+                            : modelData.value))
+                }
+                onActivated: index => {
+                    ActionLog.taken("AiSettingsPage_activated")
+                    const chosen = page.modelChoices[index];
+                    if (chosen.value === "") {
+                        page.typingName = true;
+                        modelField.forceActiveFocus();
+                    } else if (!chosen.search) {
+                        modelField.text = chosen.value;
+                    }
+                }
+            }
+
             Controls.TextField {
                 id: modelField
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Model:")
+                visible: !page.modelListShown
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 placeholderText: page.i18nContext.i18nc("@info:placeholder the name of an AI model", "The model's name, as the provider calls it")
                 inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
+            }
+
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                visible: !page.modelListShown && page.noModelList && page.offeredModels.length === 0
+                text: page.i18nContext.i18nc("@info", "This provider doesn't name its models. Please type the name.")
+            }
+
+            Controls.Button {
+                visible: page.typingName && page.offeredModels.length > 0
+                flat: true
+                icon.name: "view-list-details"
+                text: page.i18nContext.i18nc("@action:button", "Choose from the provider's list")
+                onClicked: {
+                    ActionLog.taken("AiSettingsPage_backToList")
+                    page.typingName = false
+                }
             }
 
             Controls.ComboBox {
@@ -557,33 +640,6 @@ Kirigami.ScrollablePage {
             textFormat: Text.PlainText
             visible: page.abilities.functions !== undefined && page.abilities.functions !== "no-model" && page.abilities.contextTokens === ""
             text: page.i18nContext.i18nc("@info", "How much this model can read at once is not known: the provider's list does not say. If the chat says its working memory is too small, load the model with a context length of 16384 or more (65536 is better).")
-        }
-
-        Kirigami.InlineMessage {
-            Layout.fillWidth: true
-            type: Kirigami.MessageType.Warning
-            visible: page.testResult.models !== undefined && page.testResult.modelOffered === false
-            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is the name of a model", "The provider doesn't list the model “%1”. Choose one of its models below, or check the name.", page.form.model ?? "")) : ""
-        }
-
-        Kirigami.InlineMessage {
-            Layout.fillWidth: true
-            type: Kirigami.MessageType.Information
-            visible: page.testResult.models !== undefined && page.testResult.models.length > 0 && modelField.text.trim() === ""
-            text: page.i18nContext.i18nc("@info", "Choose the model to use from the list below, then press Save.")
-        }
-
-        Controls.ComboBox {
-            id: offeredModels
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-            visible: page.testResult.models !== undefined && page.testResult.models.length > 0
-            model: page.testResult.models ?? []
-            displayText: page.i18nContext.i18nc("@item:inlistbox", "Use one of the provider's models…")
-            onActivated: {
-                ActionLog.taken("AiSettingsPage_activated")
-                modelField.text = currentText;
-                page.testResult = ({});
-            }
         }
 
         // The consent: what is sent, and whether the user agreed.

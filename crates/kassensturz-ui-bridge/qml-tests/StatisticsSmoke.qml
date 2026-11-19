@@ -423,6 +423,17 @@ Kirigami.ApplicationWindow {
                     window.check(other.shownDraft && other.wizard && wizard.step === 2, "an unfinished statistic comes back at its step");
                     window.check(other.workbench.view.type === "chart.donut" && other.period === "last-year" && wizard.nameText === "Kept name", "with its chart, period and name");
                     window.check(other.defaultName() === "Half done", "its title is its default name");
+                    // Reset chart (B-390, D-865): back to a new chart, saved
+                    // views as they are, and Undo brings the chart back.
+                    const views = saved.view.views.length;
+                    const reset = other.actions.filter(action => action.text === "Reset chart");
+                    window.check(reset.length === 1 && reset[0].visible, "one Reset chart in the header, got " + reset.length);
+                    reset[0]?.trigger();
+                    window.check(other.workbench.view.type === "chart.bar" && other.period === "last-12-months" && !other.shownDraft && wizard.step === 0, "Reset chart starts over: " + other.workbench.view.type + " " + other.period + " " + wizard.step);
+                    window.check(saved.view.views.length === views, "and leaves the saved views");
+                    window.check(ActionLog.mode.actions.includes("StatisticsPage_resetChart"), "Reset chart says it ran");
+                    other.undoReset();
+                    window.check(other.workbench.view.type === "chart.donut" && other.period === "last-year" && wizard.nameText === "Kept name" && wizard.step === 2, "Undo brings the chart back: " + other.workbench.view.type + " " + other.period + " " + wizard.step);
                     Qt.exit(window.failed ? 1 : 0);
                 }
                 break;

@@ -27093,3 +27093,29 @@ msgstr "Entfernen"
 msgctxt "@action:button %1 is who was paid or who paid, %2 an amount"
 msgid "Remove %1, %2"
 msgstr "%1, %2 entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@info %2 is a folder"
+msgid "KassenSturz found a book from before in its folder, %2:"
+msgid_plural "KassenSturz found %1 books from before in its folder, %2:"
+msgstr[0] "KassenSturz hat in seinem Ordner %2 ein Buch von früher gefunden:"
+msgstr[1] "KassenSturz hat in seinem Ordner %2 %1 Bücher von früher gefunden:"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Open this book"
+msgstr "Dieses Buch öffnen"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Nothing is made or changed until you choose."
+msgstr "Bis Sie wählen, wird nichts angelegt oder geändert."
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Start a new book instead"
+msgstr "Stattdessen ein neues Buch beginnen"

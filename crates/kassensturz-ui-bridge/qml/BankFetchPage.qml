@@ -25,6 +25,9 @@ Kirigami.ScrollablePage {
     // The account whose page sent the user here, which is ticked to begin
     // with; empty ticks every linked account.
     property string initialAccountId: ""
+    // Starts fetching as soon as the page is open, for the accounts ticked
+    // to begin with: set after the user agreed to it (D-906).
+    property bool fetchOnOpen: false
 
     // The book's open accounts with their links, from bank.fetchAccounts().
     property var rows: []
@@ -147,6 +150,9 @@ Kirigami.ScrollablePage {
         error.result = bankStatus.ready === false ? bankStatus : ({});
         refresh();
         tickToBegin();
+        if (fetchOnOpen && usable && anyTicked) {
+            fetchTicked();
+        }
     }
 
     // Back from a statement the user looked at: the last day fetched may

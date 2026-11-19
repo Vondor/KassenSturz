@@ -24884,6 +24884,10 @@ msgstr "Windows usuwa ten folder razem ze wszystkimi kopiami zapasowymi w nim, g
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
+msgctxt "@info %1 is an example web address"
+msgid "For example: %1"
+msgstr "Na przykład: %1"
+
 msgctxt "@item:inlistbox"
 msgid "Choose a model…"
 msgstr "Wybierz model…"
@@ -24899,6 +24903,25 @@ msgstr "Wpisz inną nazwę…"
 msgctxt "@item:inlistbox %1 is a model's name"
 msgid "%1 (only for searching, not for the chat)"
 msgstr "%1 (tylko do wyszukiwania, nie do czatu)"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "The address looks right."
+msgstr "Adres wygląda poprawnie."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This isn't an address KassenSturz can use. It must start with https:// or "
+"http://, then the server's name, without spaces, for example "
+"https://ai.example.test/v1. Saving waits until the address is right."
+msgstr ""
+"KassenSturz nie może użyć tego adresu. Musi zaczynać się od https:// lub "
+"http://, a potem zawierać nazwę serwera, bez spacji, na przykład "
+"https://ai.example.test/v1. Zapisanie będzie możliwe, gdy adres będzie "
+"poprawny."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format

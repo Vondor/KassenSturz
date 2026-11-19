@@ -46,6 +46,7 @@ Kirigami.ApplicationWindow {
         "accounts": accountsPage,
         "categories": categoriesPage,
         "budgets": budgetsPage,
+        "plans": plansPage,
         "rules": rulesPage,
         "statistics": statisticsPage,
         "settings": settingsPage,
@@ -1295,6 +1296,16 @@ Kirigami.ApplicationWindow {
                     root.showScreen("budgets")
                 }
             },
+            // The payments that come again and again (B-388, D-863), right
+            // under Budgets; the accounts page's button stays as a shortcut.
+            Kirigami.Action {
+                icon.name: "view-calendar-upcoming-events"
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Plans")
+                onTriggered: {
+                    ActionLog.taken("Main_plans")
+                    root.showScreen("plans")
+                }
+            },
             Kirigami.Action {
                 icon.name: "view-filter"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Rules")
@@ -2131,6 +2142,15 @@ Kirigami.ApplicationWindow {
             budgets: budgetBook
             onAddBudgetClicked: root.pushPage(budgetPage)
             onChangeBudgetClicked: budgetId => root.pushPage(budgetPage, { budgetId: budgetId })
+        }
+    }
+
+    Component {
+        id: plansPage
+
+        PlansPage {
+            plans: plannedPayments
+            register: accountRegister
         }
     }
 

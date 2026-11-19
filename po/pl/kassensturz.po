@@ -3010,26 +3010,6 @@ msgid ""
 "with a context length of 16384 or more (65536 is better)."
 msgstr "Nie wiadomo, ile ten model potrafi przeczytać naraz: lista dostawcy tego nie podaje. Jeśli czat powie, że jego pamięć robocza jest za mała, załaduj model z długością kontekstu 16384 lub więcej (lepiej 65536)."
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:456
-#, kde-format
-msgctxt "@info %1 is the name of a model"
-msgid ""
-"The provider doesn't list the model “%1”. Choose one of its models below, or "
-"check the name."
-msgstr "Dostawca nie ma na liście modelu „%1”. Wybierz jeden z jego modeli poniżej albo sprawdź nazwę."
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:463
-#, kde-format
-msgctxt "@info"
-msgid "Choose the model to use from the list below, then press Save."
-msgstr "Wybierz model z listy poniżej, a potem naciśnij „Zapisz”."
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:471
-#, kde-format
-msgctxt "@item:inlistbox"
-msgid "Use one of the provider's models…"
-msgstr "Użyj jednego z modeli dostawcy…"
-
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:483
 #, kde-format
 msgctxt "@title:group"
@@ -24677,6 +24657,29 @@ msgctxt "@action:button keep a plugin"
 msgid "Keep it"
 msgstr "Zachowaj"
 
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Reset chart"
+msgstr "Zresetuj wykres"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Starts this chart again from scratch. Your saved views stay as they are."
+msgstr "Zaczyna ten wykres od nowa. Zapisane widoki pozostają bez zmian."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Chart reset: period, categories, accounts and look are back to how they "
+"start."
+msgstr ""
+"Wykres zresetowany: okres, kategorie, konta i wygląd są znów takie jak na "
+"początku."
+
 #: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
 #, kde-format
 msgctxt ""
@@ -24802,6 +24805,36 @@ msgstr "Zostaw ją tam"
 msgctxt "@info %1 is a folder"
 msgid "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
 msgstr "Windows usuwa ten folder razem ze wszystkimi kopiami zapasowymi w nim, gdy KassenSturz zostanie odinstalowany lub zresetowany. Trzymaj swoją księgę we własnym folderze KassenSturz (%1) lub w wybranym przez siebie folderze."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Choose a model…"
+msgstr "Wybierz model…"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Enter another name…"
+msgstr "Wpisz inną nazwę…"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@item:inlistbox %1 is a model's name"
+msgid "%1 (only for searching, not for the chat)"
+msgstr "%1 (tylko do wyszukiwania, nie do czatu)"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "This provider doesn't name its models. Please type the name."
+msgstr "Ten dostawca nie podaje swoich modeli. Wpisz nazwę."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Choose from the provider's list"
+msgstr "Wybierz z listy dostawcy"
 
 #: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
 #, kde-format

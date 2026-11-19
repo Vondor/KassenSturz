@@ -14,6 +14,8 @@ Unter **Erweitert: Formeln und Feineinstellungen** und **Erweitert: aus Listen w
 
 Verlassen Sie den Baukasten vor **Fertig**, geht nichts verloren, solange KassenSturz läuft: Die Auswertung ist beim nächsten Öffnen am selben Schritt wieder da. **Abbrechen** beginnt neu.
 
+**Diagramm zurücksetzen** oben rechts beginnt das Diagramm auf der Seite jederzeit von vorn: Zeitraum, Kategorien, Konten und Aussehen sind wieder wie bei einem neuen Diagramm. Ihre gespeicherten Ansichten und die Diagramme der Übersicht bleiben, wie sie sind, und **Rückgängig** in der Meldung bringt das Diagramm zurück.
+
 ## Die Arten von Diagrammen
 
 | Art | Zeigt |

@@ -250,6 +250,16 @@ jobs:
     with:
       release: true
 
+  # The experimental, unsigned macOS download (D-875). It starts at once, next
+  # to the others, but nothing waits for it: the release below does not need
+  # it, and the job after the release attaches its .dmg only if it succeeded.
+  macos:
+    name: macOS app (experimental)
+    if: github.ref_type == 'tag'
+    uses: ./.github/workflows/macos-app.yml
+    with:
+      release: true
+
   # The snap (#892, D-765): built and installed on a fresh runner by snap.yml.
   snap:
     name: Snap
@@ -295,6 +305,8 @@ jobs:
             echo
             echo "Windows: the signed version is in the [Microsoft Store](https://apps.microsoft.com/detail/9NM5V48PPRLQ). The installer and the zip here are not signed, so Windows shows a SmartScreen warning first. See [the code signing policy](https://github.com/$GH_REPO/blob/$TAG/docs/CODE_SIGNING_POLICY.md)."
             echo
+            echo "macOS (experimental, untested): a \`.dmg\` for Macs with an Apple chip is added to this release a little later, if its build worked. It is not signed or notarized by Apple, so macOS blocks it first. Nobody on the team has a Mac to test it on. Read [docs/MACOS.md](https://github.com/$GH_REPO/blob/$TAG/docs/MACOS.md) before you open it."
+            echo
             echo "Commit: \`${SHA}\`"
             if [ -n "$previous" ]; then
               echo
@@ -313,6 +325,30 @@ jobs:
               --prerelease --verify-tag
           fi
           echo "Pre-release for $TAG is published: https://github.com/$GH_REPO/releases/tag/$TAG" | tee -a "$GITHUB_STEP_SUMMARY"
+
+  # Adds the experimental macOS .dmg to the release once both exist. A failed
+  # or slow Mac build changes nothing about the release (D-875).
+  macos-attach:
+    name: Attach the experimental macOS download
+    needs: [release, macos]
+    if: ${{ !cancelled() && github.ref_type == 'tag' && needs.release.result == 'success' && needs.macos.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: macos-dmg-for-release
+          path: assets
+      - name: Attach the disk image
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          ls -l assets
+          gh release upload "$TAG" assets/*.dmg --clobber
 
   # Puts the snap in the Snap Store's beta channel (D-765: edge for main
   # builds is not done, beta for pre-releases, stable at Gold). The tag the

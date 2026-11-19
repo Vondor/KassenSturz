@@ -37,6 +37,14 @@
 #include <unistd.h>
 #endif
 
+// Windows and macOS have no icon theme and no KDE colour schemes of their own,
+// so the app brings Breeze's icons and KDE's colour schemes (D-555, D-581).
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+#include <QtCore/QDir>
+#include <KColorSchemeManager>
+#include <breezeicons.h>
+#endif
+
 #ifdef Q_OS_WIN
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -48,9 +56,6 @@
 #include <QtWidgets/QStyle>
 #include <QtWidgets/QStyleFactory>
 #include <QtWidgets/QStyleOption>
-
-#include <KColorSchemeManager>
-#include <breezeicons.h>
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -376,7 +381,7 @@ int renameNoReplace(const QString &from, const QString &to)
 
 void useBundledIcons()
 {
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     QStringList paths = QIcon::themeSearchPaths();
     paths.append(QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("data/icons")));
     QIcon::setThemeSearchPaths(paths);
@@ -404,7 +409,7 @@ void useReadableWidgetStyle()
 
 void followSystemColours()
 {
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     // With no colour scheme chosen, KDE's manager applies Breeze or Breeze
     // Dark after Windows' own light or dark mode, and again whenever that
     // changes; both schemes are built into the library. It sets the palette

@@ -26,9 +26,13 @@ fn main() {
     // The Windows app brings its own icons (D-555); Cargo builds this script
     // for the computer it runs on, so the target comes from Cargo's variable.
     let windows = std::env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows");
-    let breeze_icons = windows.then(|| WindowsLibrary::find("BREEZEICONS", "BreezeIcons"));
+    // macOS has no icon theme or KDE colour schemes either, so its app
+    // links the same two libraries (the macOS download).
+    let macos = std::env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos");
+    let own_libraries = windows || macos;
+    let breeze_icons = own_libraries.then(|| WindowsLibrary::find("BREEZEICONS", "BreezeIcons"));
     // And follows Windows' light or dark mode with KDE's colour schemes (D-581).
-    let color_scheme = windows.then(|| WindowsLibrary::find("COLORSCHEME", "KColorScheme"));
+    let color_scheme = own_libraries.then(|| WindowsLibrary::find("COLORSCHEME", "KColorScheme"));
     let mut builder = CxxQtBuilder::new_qml_module(
         QmlModule::new("io.github.vondor.kassensturz")
             .qml_files([

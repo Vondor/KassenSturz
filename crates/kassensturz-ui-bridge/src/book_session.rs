@@ -622,7 +622,9 @@ fn found_object(books: &Books, name: &str) -> QVariant {
     let folder = books.app_folder().unwrap_or(Path::new(""));
     variant::map([
         ("folder", variant::text(&folder.to_string_lossy())),
-        ("shown", variant::text(&display(folder))),
+        // Windows style on Windows: Qt names the Documents folder with
+        // forward slashes, so the joined folder came out mixed (B-409).
+        ("shown", variant::text(&crate::platform::shown_path(folder))),
         (
             "names",
             variant::list(names.iter().map(|name| variant::text(name))),
@@ -815,7 +817,11 @@ mod tests {
         let found = found_object(&books, "Haushalt");
         assert_eq!(texts_of(&found, "names"), ["Familie.ksz"]);
         assert_eq!(text_of(&found, "folder"), data.to_string_lossy());
-        assert_eq!(text_of(&found, "shown"), display(&data));
+        assert_eq!(text_of(&found, "shown"), crate::platform::shown_path(&data));
+        // B-409: a folder named with forward slashes and joined with a
+        // backslash is shown with one kind of separator only.
+        #[cfg(windows)]
+        assert!(!text_of(&found, "shown").contains('/'));
         // The app's own book is there: nothing is offered.
         std::fs::write(data.join("Haushalt.ksz"), b"").expect("own book");
         assert!(texts_of(&found_object(&books, "Haushalt"), "names").is_empty());

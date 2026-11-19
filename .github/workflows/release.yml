@@ -350,8 +350,11 @@ jobs:
           ls -l assets
           gh release upload "$TAG" assets/*.dmg --clobber
 
-  # Puts the snap in the Snap Store's beta channel (D-765: edge for main
-  # builds is not done, beta for pre-releases, stable at Gold). The tag the
+  # Puts the snap in the Snap Store: the beta channel by default (D-765: edge
+  # for main builds is not done). Once the maintainer has accepted Canonical's
+  # terms and set the repository variable SNAP_CHANNELS to `stable,beta`, the
+  # same tag goes to `stable` and `beta` (#1247, D-879: the stable 0.x
+  # release; the variable is his switch, docs/SNAP.md section 8). The tag the
   # maintainer pushed is his decision to publish (AGENTS.md 3.2). It runs in
   # the environment `release`, so the store login is a secret that only a
   # `v0.*` tag run can read, and it does nothing, with a warning, until the
@@ -368,17 +371,23 @@ jobs:
         with:
           name: release-asset-snap
           path: snap
-      - name: Upload to the beta channel
+      - name: Upload to the Snap Store
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          # `beta` (default) or `stable,beta`; nothing else is accepted.
+          SNAP_CHANNELS: ${{ vars.SNAP_CHANNELS || 'beta' }}
         run: |
           set -eu
           if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
             echo "::warning::The environment 'release' has no secret SNAPCRAFT_STORE_CREDENTIALS, so nothing was uploaded to the Snap Store (docs/SNAP.md, section 8)."
             exit 0
           fi
+          case "$SNAP_CHANNELS" in
+            beta|stable,beta) ;;
+            *) echo "::error::SNAP_CHANNELS is '$SNAP_CHANNELS'; it must be 'beta' or 'stable,beta'."; exit 1 ;;
+          esac
           sudo snap install snapcraft --classic
-          snapcraft upload --release=beta snap/kassensturz.snap
+          snapcraft upload --release="$SNAP_CHANNELS" snap/kassensturz.snap
 
   # Puts the Windows package (the `...-store.msix` of the release) into the
   # Microsoft Store (#927, D-844), so the maintainer no longer uploads it in

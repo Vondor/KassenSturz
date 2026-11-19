@@ -145,6 +145,51 @@ FormCard.FormCardPage {
     }
 
     title: i18nContext.i18nc("@title", "History")
+    // The one button for the picked row, with what it would do (B-395,
+    // D-870): every newer change goes too, since Undo goes newest first. It
+    // sits in the page's footer, so it stays in view next to the list
+    // however far down the picked row is (B-410).
+    footer: Controls.ToolBar {
+        visible: page.picked !== null && !page.picked.undone
+        padding: Kirigami.Units.largeSpacing
+
+        contentItem: RowLayout {
+            spacing: Kirigami.Units.largeSpacing
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font.bold: true
+                    text: page.picked ? page.i18nContext.i18nc("@info %1 is what was done", "Picked: %1", page.picked.text) : ""
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    text: page.picked ? page.i18nContext.i18ncp("@info", "Takes back %1 change: this one.", "Takes back %1 changes: this one and every newer one. Redo brings them back.", page.picked.steps) : ""
+                }
+            }
+
+            Controls.Button {
+                objectName: "undoUpToHere"
+                icon.name: "edit-undo"
+                text: page.i18nContext.i18nc("@action:button", "Undo up to here")
+                onClicked: {
+                    ActionLog.taken("HistoryPage_undoUpToHere")
+                    const count = page.picked.steps;
+                    page.picked = null;
+                    page.undoSteps(count);
+                }
+            }
+        }
+    }
+
     header: ColumnLayout {
         spacing: 0
 
@@ -309,31 +354,6 @@ FormCard.FormCardPage {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    // The one button for the picked row, with what it would do (B-395,
-    // D-870): every newer change goes too, since Undo goes newest first.
-    FormCard.FormCard {
-        Layout.topMargin: Kirigami.Units.largeSpacing
-        visible: page.picked !== null && !page.picked.undone
-
-        FormCard.FormTextDelegate {
-            text: page.picked ? page.i18nContext.i18nc("@info %1 is what was done", "Picked: %1", page.picked.text) : ""
-            description: page.picked ? page.i18nContext.i18ncp("@info", "Takes back %1 change: this one.", "Takes back %1 changes: this one and every newer one. Redo brings them back.", page.picked.steps) : ""
-            textItem.textFormat: Text.PlainText
-            descriptionItem.textFormat: Text.PlainText
-        }
-
-        FormCard.FormButtonDelegate {
-            icon.name: "edit-undo"
-            text: page.i18nContext.i18nc("@action:button", "Undo up to here")
-            onClicked: {
-                ActionLog.taken("HistoryPage_undoUpToHere")
-                const count = page.picked.steps;
-                page.picked = null;
-                page.undoSteps(count);
             }
         }
     }

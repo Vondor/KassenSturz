@@ -6,7 +6,8 @@
 // checks the model field (B-396, D-871): once the provider lists its
 // models it is a list with the first chat model chosen, a search-only
 // model can't be chosen, "Enter another name…" ends the list, and a
-// provider that names no models leaves a plain text field.
+// provider that names no models leaves a plain text field. Agreeing to what
+// is sent tests again, so the models appear (B-407).
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -61,6 +62,22 @@ Kirigami.ApplicationWindow {
             window.check(page.chosenModel === "chat-small", "the first chat model is chosen, got " + page.chosenModel);
             settings.testFinished({ code: "ai.not-found" });
             window.check(!page.modelListShown && page.noModelList, "no list: a plain text field with the calm hint");
+            // B-407: a test refused for want of the agreement runs again
+            // once the user agrees, and its models replace the hint.
+            settings.testFinished({ code: "ai.no-consent" });
+            const before = settings.testCalls;
+            page.afterConsent();
+            window.check(settings.testCalls === before + 1, "agreeing tests the connection again");
+            settings.testFinished({ models: ["chat-small"] });
+            window.check(page.modelListShown && !page.noModelList, "the models are listed after agreeing");
+            // While a test runs, agreeing tests again once it ends.
+            settings.testFinished({ code: "ai.no-consent" });
+            settings.testing = true;
+            page.afterConsent();
+            window.check(settings.testCalls === before + 1, "no second test while one runs");
+            settings.testing = false;
+            settings.testFinished({ code: "ai.no-consent" });
+            window.check(settings.testCalls === before + 2, "the test runs again once the running one ends");
             Qt.exit(window.failed ? 1 : 0);
         }
     }

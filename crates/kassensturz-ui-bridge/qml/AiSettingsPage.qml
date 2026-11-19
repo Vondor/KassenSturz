@@ -72,6 +72,26 @@ Kirigami.ScrollablePage {
     // Whether the connection is tested right after the next save, so that
     // the user sees the models to choose from (or what is wrong).
     property bool testAfterSave: false
+    // Whether the connection is tested again once the test that is running
+    // ends, because the user agreed to sending while it ran (B-407).
+    property bool testAfterConsent: false
+
+    // The user just agreed to what is sent. A test that was refused for
+    // want of that agreement, or that listed no models yet, runs again at
+    // once with the saved key, so the models appear without "Test the
+    // connection" (B-407).
+    function afterConsent() {
+        const refused = testResult.code === "ai.no-consent" || abilities.functions === "no-consent";
+        if (!hasServer || !(refused || (form.model ?? "") === "")) {
+            return;
+        }
+        if (settings.testing) {
+            testAfterConsent = true;
+            return;
+        }
+        testResult = ({});
+        settings.testConnection("");
+    }
 
     // The model is chosen from the provider's list as soon as a test has
     // listed it (B-396, D-871); "Enter another name…" or a provider without
@@ -214,6 +234,10 @@ Kirigami.ScrollablePage {
         function onTestFinished(result: var) {
             page.testResult = result;
             page.typingName = false;
+            if (page.testAfterConsent) {
+                page.testAfterConsent = false;
+                page.afterConsent();
+            }
             // With no name chosen yet, the first model that can chat is
             // shown as the choice; it is used once the user saves.
             if (modelField.text.trim() === "") {
@@ -1094,6 +1118,9 @@ Kirigami.ScrollablePage {
             page.notWritten = !page.settings.giveConsent();
             close();
             page.reload();
+            if (!page.notWritten) {
+                page.afterConsent();
+            }
         }
 
         function showSample() {

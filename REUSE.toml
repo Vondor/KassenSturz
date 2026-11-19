@@ -131,3 +131,9 @@ SPDX-License-Identifier = "CC0-1.0"
 path = ["packaging/windows/craft/**/blacklist.txt", "packaging/windows/allowed-executables.txt"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC0-1.0"
+
+# The text that lies next to the app in the macOS disk image (D-875).
+[[annotations]]
+path = ["packaging/macos/HOW_TO_OPEN.txt"]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC-BY-SA-4.0"

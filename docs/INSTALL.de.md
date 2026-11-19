@@ -55,4 +55,4 @@ Laden Sie auf der [Release-Seite](https://github.com/Vondor/KassenSturz/releases
 
 ## macOS
 
-Noch nicht. Ein signiertes `.dmg` folgt, sobald seine Signatur finanziert ist (D-048).
+Eine signierte Version gibt es noch nicht; sie folgt, sobald ihre Signatur finanziert ist (D-048). Getaggte Vorabversionen enthalten eine **experimentelle, ungetestete** `.dmg` für Macs mit Apple-Chip, die macOS zuerst blockiert, weil sie nicht notarisiert ist. So öffnen Sie sie trotzdem: [`MACOS.de.md`](MACOS.de.md) (D-875).

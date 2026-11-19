@@ -55,4 +55,4 @@ On the [releases page](https://github.com/Vondor/KassenSturz/releases), download
 
 ## macOS
 
-Not yet. A signed `.dmg` follows once its signing is funded (D-048).
+There is no signed version yet; it follows once its signing is funded (D-048). Tagged pre-releases carry an **experimental, untested** `.dmg` for Macs with an Apple chip, which macOS blocks at first because it is not notarized. How to open it anyway: [`MACOS.md`](MACOS.md) (D-875).

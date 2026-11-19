@@ -69,7 +69,7 @@ QtObject {
     function giveConsent() {
         calls = calls.concat(["consent"]);
         if (keepsSaved) {
-            form = Object.assign({}, form, { consent: "given" });
+            form = Object.assign({}, form, { consent: "given", consentDay: "19.11.2026" });
         }
         return true;
     }

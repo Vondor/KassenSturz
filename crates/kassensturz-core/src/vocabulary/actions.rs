@@ -437,6 +437,7 @@ pub const ACTIONS: &[&str] = &[
     "RegisterPage_importBank",
     "RegisterPage_noThanks",
     "RegisterPage_otherParty",
+    "RegisterPage_removeRow",
     "RegisterPage_suggestCategories",
     "RegisterPage_tagFilter",
     "RegisterPage_transactionClicked",

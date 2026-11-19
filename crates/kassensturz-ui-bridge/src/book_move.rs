@@ -319,6 +319,7 @@ pub fn shown_folder_of(file: &Path) -> ShownFolder {
         // The home folder itself, say: shown as it is.
         Err(_) => folder.display().to_string(),
     };
+    let text = platform::shown_path(Path::new(&text));
     ShownFolder { own: false, text }
 }
 

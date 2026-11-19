@@ -29,6 +29,12 @@ mod ffi {
         #[cxx_name = "dataFolder"]
         fn data_folder() -> QString;
 
+        #[cxx_name = "documentsFolder"]
+        fn documents_folder() -> QString;
+
+        #[cxx_name = "packageFamilyName"]
+        fn package_family_name() -> QString;
+
         #[cxx_name = "computerName"]
         fn computer_name() -> QString;
 
@@ -151,13 +157,61 @@ pub fn use_test_locations() {
 
 /// KassenSturz's own data folder, e.g. `~/.local/share/io.github.vondor.KassenSturz`
 /// on Linux, where the app keeps its book and the backups (D-033).
+///
+/// In the Microsoft Store's package it is `Documents\KassenSturz` instead
+/// (D-856, #1178): Windows keeps a packaged app's `%LOCALAPPDATA%` inside the
+/// package and deletes it with the app, so a book and its backups there
+/// were lost when the app was uninstalled or reset.
+/// A path as the person reads it in a message: on Windows with
+/// backslashes only (B-405, D-873). Qt hands paths over with `/` and Rust
+/// joins with `\`, so a folder like the Store build's
+/// `C:/Users/…/Documents\KassenSturz` came out mixed. Elsewhere the path
+/// is shown as it is.
+pub fn shown_path(path: &Path) -> String {
+    native_separators(&path.to_string_lossy(), cfg!(windows))
+}
+
+/// `text` with every `/` as `\` when `windows`, else as it is.
+fn native_separators(text: &str, windows: bool) -> String {
+    if windows {
+        text.replace('/', "\\")
+    } else {
+        text.to_owned()
+    }
+}
+
 pub fn app_folder() -> Option<PathBuf> {
     // In the test profile, the test folder's own (Q-399).
     if let Some(folder) = crate::test_profile::data_folder() {
         return Some(folder.join(APP_ID));
     }
+    if in_app_package() {
+        let documents = ffi::documents_folder().to_string();
+        return (!documents.is_empty())
+            .then(|| PathBuf::from(documents).join(crate::store_folder::FOLDER_NAME));
+    }
+    qt_app_folder()
+}
+
+/// The app folder in Qt's data folder: KassenSturz's own folder outside a
+/// Windows app package, and inside one the folder Windows deletes with the
+/// app, where the Store build kept books before D-856.
+pub fn qt_app_folder() -> Option<PathBuf> {
     let folder = ffi::data_folder().to_string();
     (!folder.is_empty()).then(|| PathBuf::from(folder).join(APP_ID))
+}
+
+/// Whether the app runs from a Windows app package, i.e. it was installed
+/// from the Microsoft Store (#1178). Never on other systems.
+pub fn in_app_package() -> bool {
+    !ffi::package_family_name().is_empty()
+}
+
+/// The Windows app package's family name, empty outside a package and on
+/// other systems.
+#[cfg_attr(not(feature = "debug-log"), allow(dead_code))]
+pub fn package_family_name() -> String {
+    ffi::package_family_name().to_string()
 }
 
 /// The app's own executable file.
@@ -527,6 +581,23 @@ fn drive_of(file_system: &str) -> Drive {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// On Windows a shown path has backslashes only, however Qt and Rust
+    /// put it together (B-405, D-873); elsewhere it stays as it is.
+    #[test]
+    fn a_windows_path_is_shown_with_backslashes_only() {
+        let mixed = "C:/Users/Tester/Documents\\KassenSturz";
+        assert_eq!(
+            native_separators(mixed, true),
+            "C:\\Users\\Tester\\Documents\\KassenSturz"
+        );
+        assert_eq!(
+            native_separators("/home/tester/Books", false),
+            "/home/tester/Books"
+        );
+        let joined = Path::new("C:/Users/Tester/Documents").join("KassenSturz");
+        assert!(!shown_path(&joined).contains('/') || !cfg!(windows));
+    }
     use crate::test_folder::TestFolder;
 
     #[test]

@@ -38,7 +38,9 @@ ColumnLayout {
     // The name a book is shown under, and called when it is copied.
     function bookName(id: string): string {
         switch (id) {
+        // The same household in German and in English (D-843).
         case "suburban-family":
+        case "suburban-family-en":
             return i18nContext.i18nc("@item the name of an example book", "Suburban Family");
         case "flower-utopia":
             return i18nContext.i18nc("@item the name of an example book", "Flower Utopia");
@@ -53,7 +55,9 @@ ColumnLayout {
 
     function description(id: string): string {
         switch (id) {
+        // The same household in German and in English (D-843).
         case "suburban-family":
+        case "suburban-family-en":
             return i18nContext.i18nc("@info one line about an example book", "An everyday household with a checking account, savings, a credit card and cash. The easiest place to start.");
         case "flower-utopia":
             return i18nContext.i18nc("@info one line about an example book", "A small garden cooperative with a shared cash box, budgets and charts.");

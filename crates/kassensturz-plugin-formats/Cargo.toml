@@ -1,0 +1,26 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-plugin-formats"
+description = "Plugin importers and exporters: the Importer and Exporter traits for plugins the host runs (#791, D-069)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+kassensturz-core.workspace = true
+kassensturz-export.workspace = true
+kassensturz-import.workspace = true
+kassensturz-plugin-api.workspace = true
+kassensturz-plugin-host.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+wat.workspace = true
+
+[lints]
+workspace = true

@@ -46,6 +46,7 @@ Kirigami.ApplicationWindow {
         "accounts": accountsPage,
         "categories": categoriesPage,
         "budgets": budgetsPage,
+        "plans": plansPage,
         "rules": rulesPage,
         "statistics": statisticsPage,
         "settings": settingsPage,
@@ -73,6 +74,9 @@ Kirigami.ApplicationWindow {
     property int chatWidth: windowState.chatWidth > 0 ? windowState.chatWidth : chatStandardWidth
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
+    // The menu's screen shown, or the one the shown page was opened from:
+    // Undo asks first for a change that belongs to another (B-395, D-870).
+    property string currentScreen: "overview"
     // The household's currency, chosen on the setup wizard's first page and
     // written only when the book is created (M7a.9).
     property string wizardCurrency: ""
@@ -106,6 +110,12 @@ Kirigami.ApplicationWindow {
         onOpened: {
             bookMover.refresh();
             root.showBook();
+            // A book the Store app kept where Windows deletes it with the
+            // app: offered a move once a start (D-856).
+            if ((bookMover.place?.offerMove ?? false) && !bookInPackage.asked) {
+                bookInPackage.asked = true;
+                Qt.callLater(bookInPackage.ask);
+            }
             root.tellSettledBills(changeHistory.settleBills());
         }
         onFailed: root.showProblem()
@@ -160,6 +170,17 @@ Kirigami.ApplicationWindow {
 
         bookMove: bookMover
         onSettleFailed: reason => root.showPassiveNotification(reason, 10000)
+    }
+
+    // A book in the folder Windows deletes with the Store app (D-856).
+    BookInPackageDialog {
+        id: bookInPackage
+
+        // Asked once a start, also when another book opens later.
+        property bool asked: false
+
+        bookMove: bookMover
+        onMoveChosen: root.pushPage(bookMovePage, { startOwn: true })
     }
 
     // The first start (M3.4).
@@ -462,6 +483,10 @@ Kirigami.ApplicationWindow {
         id: testProfile
     }
 
+    InstallKind {
+        id: installKind
+    }
+
     Connections {
         target: root.pageStack
 
@@ -616,10 +641,24 @@ Kirigami.ApplicationWindow {
                 root.showMaximized();
             }
         }
-        bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
+        // Books left in KassenSturz's own folder with none to open, as after
+        // the Store app was installed again, are offered on the welcome
+        // page before anything is made (B-404, D-872).
+        const found = bookSession.foundBooks(ownBookName());
+        if (found.names.length > 0) {
+            pageStack.clear();
+            pushPage(welcomePage, { found: found });
+        } else {
+            bookSession.openLast(ownBookName());
+        }
         if (bookMover.interrupted?.after !== undefined) {
             Qt.callLater(() => bookMoveInterrupted.ask(bookMover.interrupted));
         }
+    }
+
+    // The file name of the app's own book, in the user's language.
+    function ownBookName(): string {
+        return i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household");
     }
 
     // Shows the book that was just opened: the setup wizard if it has no
@@ -679,7 +718,10 @@ Kirigami.ApplicationWindow {
 
     function offerUndo() {
         if (started && changeHistory.undoChange?.action !== undefined) {
-            showPassiveNotification(changeNames.name(changeHistory.undoChange.action), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
+            // The rows of the change light up, and the notice names the one
+            // transaction it touched (B-384, D-857).
+            ChangedRows.light(changeHistory.undoChange.summary?.transactions);
+            showPassiveNotification(changeNames.describe(changeHistory.undoChange), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
         }
     }
 
@@ -693,6 +735,75 @@ Kirigami.ApplicationWindow {
             return;
         }
         afterStep(changeHistory.undo(), false);
+    }
+
+    // Undo from the menu or its shortcut (B-395, D-870): a change that
+    // belongs to another screen than the one shown is named first and
+    // undone only when the user says so, since Undo is easily taken for
+    // "back". On its own screen it is undone at once.
+    function undoFromMenu() {
+        const change = changeHistory.undoChange;
+        // The history page lists every change, so there it needs no question.
+        const onHistory = pageStack.currentItem?.stepped !== undefined;
+        if (!arrangingPage && !onHistory && change?.action !== undefined && changeNames.place(change.action) !== currentScreen) {
+            undoConfirm.change = change;
+            undoConfirm.open();
+            return;
+        }
+        undoLast();
+    }
+
+    // The name of a screen of the menu, as the menu shows it.
+    function screenName(key: string): string {
+        switch (key) {
+        case "overview":
+            return i18nContext.i18nc("@action:inmenu a screen", "Overview");
+        case "accounts":
+            return i18nContext.i18nc("@action:inmenu a screen", "Accounts");
+        case "categories":
+            return i18nContext.i18nc("@action:inmenu a screen", "Categories");
+        case "budgets":
+            return i18nContext.i18nc("@action:inmenu a screen", "Budgets");
+        case "rules":
+            return i18nContext.i18nc("@action:inmenu a screen", "Rules");
+        case "statistics":
+            return i18nContext.i18nc("@action:inmenu a screen", "Statistic Builder");
+        case "settings":
+            return i18nContext.i18nc("@action:inmenu a screen", "Settings");
+        }
+        return "";
+    }
+
+    Kirigami.PromptDialog {
+        id: undoConfirm
+
+        property var change: ({})
+        readonly property string where: root.screenName(changeNames.place(change?.action ?? ""))
+
+        title: root.i18nContext.i18nc("@title:window", "Undo?")
+        subtitle: where !== ""
+            ? root.i18nContext.i18nc("@info %1 is what was done, %2 the name of a screen", "This takes back “%1”, a change on the screen “%2”, not on the one you are looking at.", changeNames.describe(change), where)
+            : root.i18nContext.i18nc("@info %1 is what was done", "This takes back “%1”, which isn't a change on the screen you are looking at.", changeNames.describe(change))
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: root.i18nContext.i18nc("@action:button take the last change back", "Undo")
+                icon.name: "edit-undo"
+                onTriggered: {
+                    ActionLog.taken("Main_undoConfirmed")
+                    undoConfirm.close();
+                    root.undoLast();
+                }
+            },
+            Kirigami.Action {
+                text: root.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    ActionLog.taken("Main_undoCancelled")
+                    undoConfirm.close()
+                }
+            }
+        ]
     }
 
     function redoLast() {
@@ -753,24 +864,65 @@ Kirigami.ApplicationWindow {
             return;
         }
         leaveStalePages();
+        stepEffects(result, redone);
+        const what = changeNames.describe(result.change);
+        if (redone) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
+        } else {
+            // Where the change was, when that isn't the screen shown
+            // (B-395, D-870).
+            const where = changeNames.place(result.change.action);
+            const message = where !== "" && where !== currentScreen
+                ? i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction; %2 the name of a screen", "Undone: %1, on the screen “%2”", what, screenName(where))
+                : i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what);
+            showPassiveNotification(message, 10000, i18nContext.i18nc("@action:button", "Redo"), () => root.redoLast());
+        }
+    }
+
+    // What every undo or redo step does besides its notice: the files it
+    // left, the rows it touched and the chat.
+    function stepEffects(result: var, redone: bool) {
         if ((result.leftInArchive ?? []).length > 0) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The link is gone. The bills stay in your archive: %1", Array.from(result.leftInArchive).join(", ")), "long");
         }
         if ((result.copiesLeft ?? []).length > 0) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
         }
-        const what = changeNames.describe(result.change);
+        // The rows it touched light up, where they are shown (B-384).
+        ChangedRows.light(result.change.summary?.transactions);
         // The chat hears of an Undo of the changes it prepared, whichever
         // way the user took them back (B-354).
         if (!redone && result.change.action === "apply-ai-changes") {
             aiChat.changesUndone();
             chatPanel.markUndone();
         }
-        if (redone) {
-            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
-        } else {
-            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what), 10000, i18nContext.i18nc("@action:button", "Redo"), () => root.redoLast());
+    }
+
+    // Undoes the newest `count` changes for the history page's "Undo up to
+    // here" (B-395, D-870), one by one, stopping at the first that can't be
+    // undone. One notice says how many were undone.
+    function undoSteps(count: int) {
+        if (count <= 1) {
+            undoLast();
+            return;
         }
+        let done = 0;
+        let last = null;
+        for (let i = 0; i < count; ++i) {
+            const result = changeHistory.undo();
+            if (result.code !== undefined || result.change === undefined) {
+                if (done > 0) {
+                    leaveStalePages();
+                }
+                afterStep(result, false);
+                return;
+            }
+            stepEffects(result, false);
+            done += 1;
+            last = result.change;
+        }
+        leaveStalePages();
+        showPassiveNotification(i18nContext.i18ncp("@info %2 is the oldest change taken back", "Undone: %1 change, back to before “%2”", "Undone: %1 changes, back to before “%2”", done, changeNames.describe(last)), 10000);
     }
 
     // After undo or redo, a page for something that may be gone (a form for
@@ -803,6 +955,7 @@ Kirigami.ApplicationWindow {
     }
 
     function showScreen(name: string) {
+        currentScreen = name;
         pageStack.clear();
         pushPage(screens[name]);
     }
@@ -1291,6 +1444,16 @@ Kirigami.ApplicationWindow {
                     root.showScreen("budgets")
                 }
             },
+            // The payments that come again and again (B-388, D-863), right
+            // under Budgets; the accounts page's button stays as a shortcut.
+            Kirigami.Action {
+                icon.name: "view-calendar-upcoming-events"
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Plans")
+                onTriggered: {
+                    ActionLog.taken("Main_plans")
+                    root.showScreen("plans")
+                }
+            },
             Kirigami.Action {
                 icon.name: "view-filter"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Rules")
@@ -1329,7 +1492,7 @@ Kirigami.ApplicationWindow {
                 shortcut: StandardKey.Undo
                 onTriggered: {
                     ActionLog.taken("Main_undoLast")
-                    root.undoLast()
+                    root.undoFromMenu()
                 }
             },
             Kirigami.Action {
@@ -1344,6 +1507,16 @@ Kirigami.ApplicationWindow {
                     ActionLog.taken("Main_redoLast")
                     root.redoLast()
                 }
+            },
+            // The whole list of changes, one step away (B-395, D-870).
+            Kirigami.Action {
+                icon.name: "view-history"
+                enabled: root.started
+                text: root.i18nContext.i18nc("@action:inmenu opens the list of changes", "History…")
+                onTriggered: {
+                    ActionLog.taken("Main_history")
+                    root.pushPage(historyPage)
+                }
             }
         ]
     }
@@ -1356,12 +1529,15 @@ Kirigami.ApplicationWindow {
 
     DrawerHandleName {
         drawer: chatDrawer
+        highlighted: true
     }
 
     // In a wide window the drawers' buttons sit in the pages' headers.
     HeaderHandleNames {
         pages: root.pageStack
         scope: root.contentItem.parent ?? root.contentItem
+        // The chat's button shows its words and stands out (B-385, D-861).
+        labelled: chatDrawer
     }
 
     // Opens and closes the chat sidebar from the keyboard. The menu has no entry
@@ -1498,10 +1674,18 @@ Kirigami.ApplicationWindow {
         enabled: aiSwitch.enabled && root.started
         modal: root.width < Kirigami.Units.gridUnit * root.chatBesideMinWidth
         handleVisible: aiSwitch.enabled && root.started
+        // By name: Kirigami's header button shows the icon's name before its
+        // source, and the name's default is a panel icon (B-401).
+        handleClosedIcon.name: "dialog-messages"
         handleClosedIcon.source: "dialog-messages"
+        handleOpenIcon.name: "go-next"
         handleOpenIcon.source: "go-next"
         handleOpenToolTip: root.i18nContext.i18nc("@action:button close the chat sidebar", "Close the chat")
-        handleClosedToolTip: root.i18nContext.i18nc("@info:tooltip the button that opens the chat sidebar", "Open the chat")
+        // The closed handle is the way into the chat, so it says so in words
+        // in the header (B-385, D-861): "Ask AI" beside a speech bubble,
+        // highlighted (HeaderHandleNames.qml). The same words are its name.
+        // The words live in AiChatPanel.qml, with the chat they open.
+        handleClosedToolTip: chatPanel.entryName
         width: Math.max(root.chatMinWidth, Math.min(root.chatWidth, root.chatMaxWidth))
         drawerOpen: false
         topPadding: 0
@@ -1807,6 +1991,9 @@ Kirigami.ApplicationWindow {
         WelcomePage {
             firstStart: firstStartState
             language: languageSettings
+            onOpenFound: name => bookSession.openIn(found.folder, name)
+            // The app's own book is made only now, by the user's choice.
+            onStartNew: bookSession.openLast(root.ownBookName())
             onContinued: currency => {
                 root.wizardCurrency = currency;
                 // A test uses a made-up book only, so it goes straight to the
@@ -2131,6 +2318,15 @@ Kirigami.ApplicationWindow {
     }
 
     Component {
+        id: plansPage
+
+        PlansPage {
+            plans: plannedPayments
+            register: accountRegister
+        }
+    }
+
+    Component {
         id: budgetPage
 
         BudgetPage {
@@ -2190,10 +2386,12 @@ Kirigami.ApplicationWindow {
                 bank: settingsBankPage,
                 look: settingsLookPage,
                 backups: settingsBackupPage,
+                plugins: settingsPluginsPage,
                 advanced: settingsAdvancedPage,
             }[group])
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
             onHelpClicked: root.pushPage(helpPage)
+            onTestingGuideClicked: root.pushPage(testingGuidePage)
         }
     }
 
@@ -2230,6 +2428,14 @@ Kirigami.ApplicationWindow {
             numberFormat: numberFormatSettings
             chartPalette: chartPaletteSettings
             language: languageSettings
+        }
+    }
+
+    Component {
+        id: settingsPluginsPage
+
+        SettingsPluginsPage {
+            ai: aiSwitch
         }
     }
 
@@ -2278,6 +2484,21 @@ Kirigami.ApplicationWindow {
         id: helpPage
 
         HelpPage {}
+    }
+
+    // The testing guide for testers (#1030, D-792), from Settings › About.
+    Component {
+        id: testingGuidePage
+
+        TestingGuidePage {
+            version: bookSession.version
+            fromPullRequest: bookSession.fromPullRequest
+            installKind: installKind.kind
+            developerOn: developerMode.on
+            onExampleBookClicked: root.chooseExampleBook()
+            onShowLogClicked: Qt.openUrlExternally(developerMode.folderUrl())
+            onDoneClicked: root.pageStack.pop()
+        }
     }
 
     Component {
@@ -2418,6 +2639,7 @@ Kirigami.ApplicationWindow {
 
         HistoryPage {
             history: changeHistory
+            onUndoSteps: count => root.undoSteps(count)
         }
     }
 

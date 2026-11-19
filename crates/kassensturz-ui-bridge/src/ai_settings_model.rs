@@ -66,6 +66,13 @@ pub mod qobject {
         #[qinvokable]
         fn check(self: &AiSettings, address: &QString, allow_unencrypted: bool) -> QVariant;
 
+        /// The address as typed, with `http://` put in front when it has
+        /// no scheme, e.g. `localhost:1234/v1` (B-387, D-860); the field
+        /// shows it so before it is checked or saved.
+        #[qinvokable]
+        #[cxx_name = "withScheme"]
+        fn with_scheme(self: &AiSettings, address: &QString) -> QString;
+
         /// Saves the provider. `key` is what was typed into the key field,
         /// empty to leave the kept key as it is. Answers `saved`; with
         /// `saved` false and a `code`, the settings as typed can't be used;
@@ -248,10 +255,10 @@ pub mod qobject {
         fn allows(self: &AiSettings, key: &QString) -> bool;
 
         /// Gives or takes away the permission `key`. Returns whether that
-        /// was saved.
+        /// was saved, and says so with `allowsChanged`.
         #[qinvokable]
         #[cxx_name = "setAllows"]
-        fn set_allows(self: &AiSettings, key: &QString, on: bool) -> bool;
+        fn set_allows(self: Pin<&mut AiSettings>, key: &QString, on: bool) -> bool;
 
         /// Whether the field of a transaction whose lock has the settings
         /// key `key` (`LockAmount` and so on, D-252) is locked against the
@@ -274,6 +281,12 @@ pub mod qobject {
         #[qsignal]
         #[cxx_name = "testFinished"]
         fn test_finished(self: Pin<&mut AiSettings>, result: QVariant);
+
+        /// A permission was saved: the chat panel shows the buttons it now
+        /// allows without being closed and opened again (B-402).
+        #[qsignal]
+        #[cxx_name = "allowsChanged"]
+        fn allows_changed(self: Pin<&mut AiSettings>);
     }
 
     impl cxx_qt::Initialize for AiSettings {}
@@ -324,6 +337,10 @@ mod engine {
 
     pub(super) fn check(_address: &str, _allow_unencrypted: bool) -> QVariant {
         off()
+    }
+
+    pub(super) fn with_scheme(address: &str) -> String {
+        address.trim().to_owned()
     }
 
     pub(super) fn save(
@@ -419,6 +436,10 @@ mod engine {
 
     pub(super) fn load() -> QVariant {
         load_in(&Store::user(), ai_settings::fake_model())
+    }
+
+    pub(super) fn with_scheme(address: &str) -> String {
+        kassensturz_ai::ProviderAddress::with_scheme(address)
     }
 
     pub(super) fn check(address: &str, allow_unencrypted: bool) -> QVariant {
@@ -753,6 +774,10 @@ impl qobject::AiSettings {
         engine::check(&address.to_string(), allow_unencrypted)
     }
 
+    fn with_scheme(&self, address: &QString) -> QString {
+        QString::from(&engine::with_scheme(&address.to_string()))
+    }
+
     fn save(
         &self,
         address: &QString,
@@ -911,8 +936,12 @@ impl qobject::AiSettings {
         allows_in(&crate::settings::Settings::user(), &key.to_string())
     }
 
-    fn set_allows(&self, key: &QString, on: bool) -> bool {
-        keep_allows(&crate::settings::Settings::user(), &key.to_string(), on)
+    fn set_allows(self: Pin<&mut Self>, key: &QString, on: bool) -> bool {
+        let saved = keep_allows(&crate::settings::Settings::user(), &key.to_string(), on);
+        if saved {
+            self.allows_changed();
+        }
+        saved
     }
 
     fn locked(&self, key: &QString) -> bool {
@@ -1445,6 +1474,44 @@ mod notice_tests {
 }
 
 #[cfg(all(test, feature = "ai"))]
+mod address_check_tests {
+    use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QVariant};
+
+    fn text_of(value: &QVariant, key: &str) -> Option<String> {
+        value
+            .value::<QMap<QMapPair_QString_QVariant>>()
+            .expect("an object")
+            .get(&QString::from(key))
+            .and_then(|value| value.value::<QString>())
+            .map(|value| value.to_string())
+    }
+
+    /// The page reads `code` for an address no server can have, and
+    /// `place` for one it can use (B-392, D-867).
+    #[test]
+    fn the_typed_address_check_is_read_back_as_the_page_reads_it() {
+        for typed in [
+            "https://-address/v1",
+            "https:/ai.example.test/v1",
+            "https://ai .example.test",
+        ] {
+            let checked = super::engine::check(&super::engine::with_scheme(typed), false);
+            assert_eq!(
+                text_of(&checked, "code").as_deref(),
+                Some("ai.bad-address"),
+                "{typed}"
+            );
+            assert_eq!(text_of(&checked, "place"), None, "{typed}");
+        }
+        let checked = super::engine::check("https://ai.example.test/v1", false);
+        assert_eq!(text_of(&checked, "code"), None);
+        assert_eq!(text_of(&checked, "place").as_deref(), Some("other"));
+        let local = super::engine::check(&super::engine::with_scheme("localhost:1234/v1"), false);
+        assert_eq!(text_of(&local, "place").as_deref(), Some("this"));
+    }
+}
+
+#[cfg(all(test, feature = "ai"))]
 mod bill_folder_tests {
     use std::path::PathBuf;
 
@@ -1789,6 +1856,21 @@ mod tests {
         fn delete(&self, key: &SecretKey) -> Result<(), KeychainError> {
             self.0.delete(key)
         }
+    }
+
+    #[test]
+    fn an_address_without_a_scheme_gets_http() {
+        // The completed address is what the settings page then checks and
+        // saves (B-387, D-860).
+        assert_eq!(
+            super::engine::with_scheme(" localhost:1234/v1 "),
+            "http://localhost:1234/v1"
+        );
+        assert_eq!(
+            super::engine::with_scheme("https://api.example.com/v1"),
+            "https://api.example.com/v1"
+        );
+        assert_eq!(super::engine::with_scheme(""), "");
     }
 
     /// The settings as typed, plain `http://` elsewhere not allowed.

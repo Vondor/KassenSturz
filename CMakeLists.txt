@@ -51,7 +51,8 @@ endif()
 set(breeze_icons_env "")
 set(windows_resource_env "")
 set(windows_resource_depends "")
-if(WIN32)
+# macOS links the same two libraries (its icons and colour schemes, as Windows).
+if(WIN32 OR APPLE)
     find_package(KF6BreezeIcons ${KF_MIN_VERSION} REQUIRED)
     # KDE's colour schemes follow Windows' light or dark mode (D-581).
     find_package(KF6ColorScheme ${KF_MIN_VERSION} REQUIRED)
@@ -61,6 +62,8 @@ if(WIN32)
         "KASSENSTURZ_COLORSCHEME_INCLUDE_DIRS=$<TARGET_PROPERTY:KF6::ColorScheme,INTERFACE_INCLUDE_DIRECTORIES>"
         KASSENSTURZ_COLORSCHEME_LIBRARY_DIR=$<TARGET_LINKER_FILE_DIR:KF6::ColorScheme>
     )
+endif()
+if(WIN32)
     # The program's icon (M6-B143): the resource compiler turns the .rc into
     # a .res, which Cargo's linker adds to kassensturz.exe (build.rs).
     enable_language(RC)

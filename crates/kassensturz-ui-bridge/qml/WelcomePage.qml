@@ -21,8 +21,18 @@ Kirigami.ScrollablePage {
     required property FirstStart firstStart
     required property LanguageSettings language
 
+    // The books already in KassenSturz's own folder when there was none to
+    // open (B-404, D-872), as `BookSession.foundBooks` gives them: then they
+    // are offered first, and nothing is made until the user chooses.
+    property var found: ({ names: [] })
+    readonly property bool offersFound: (found.names ?? []).length > 0
+
     // The household's currency, as an ISO 4217 code.
     signal continued(string currency)
+    // Open the found book called `name`.
+    signal openFound(string name)
+    // Start with a new book of the app's own instead of a found one.
+    signal startNew()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -53,6 +63,87 @@ Kirigami.ScrollablePage {
             horizontalAlignment: Text.AlignHCenter
             text: page.i18nContext.i18nc("@info", "KassenSturz shows you how much money you have and where it goes. Everything stays on this computer.")
             wrapMode: Text.Wrap
+        }
+
+        // The books found in KassenSturz's own folder, at the top (D-872).
+        ColumnLayout {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            visible: page.offersFound
+            spacing: Kirigami.Units.smallSpacing
+
+            Controls.Label {
+                Layout.fillWidth: true
+                textFormat: Text.PlainText
+                text: page.i18nContext.i18ncp("@info %2 is a folder", "KassenSturz found a book from before in its folder, %2:", "KassenSturz found %1 books from before in its folder, %2:", (page.found.names ?? []).length, page.found.shown ?? "")
+                wrapMode: Text.Wrap
+            }
+
+            Repeater {
+                model: page.found.names ?? []
+
+                delegate: RowLayout {
+                    required property string modelData
+
+                    Layout.fillWidth: true
+
+                    Controls.Label {
+                        Layout.fillWidth: true
+                        textFormat: Text.PlainText
+                        text: modelData.replace(/\.ksz$/i, "")
+                        elide: Text.ElideMiddle
+                        font.bold: true
+                    }
+
+                    Controls.Button {
+                        text: page.i18nContext.i18nc("@action:button", "Open this book")
+                        icon.name: "document-open"
+                        highlighted: true
+                        onClicked: {
+                            ActionLog.taken("WelcomePage_openFound")
+                            page.openFound(modelData)
+                        }
+                    }
+                }
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                text: page.i18nContext.i18nc("@info", "Nothing is made or changed until you choose.")
+                wrapMode: Text.Wrap
+                font: Kirigami.Theme.smallFont
+            }
+
+            Controls.Button {
+                Layout.alignment: Qt.AlignLeft
+                flat: true
+                icon.name: "document-new"
+                text: page.i18nContext.i18nc("@action:button", "Start a new book instead")
+                onClicked: {
+                    ActionLog.taken("WelcomePage_startNew")
+                    page.startNew()
+                }
+            }
+        }
+
+        // One page in plain words on why the data is safe (D-862), for
+        // people who trust a written explanation more than a program. It is
+        // part of the handbook and opens in the web browser; the address is
+        // translated, so each language opens its own page (English where
+        // there is none yet).
+        Controls.Button {
+            Layout.alignment: Qt.AlignHCenter
+            flat: true
+            icon.name: "security-high"
+            text: page.i18nContext.i18nc("@action:button opens a page of the handbook in the web browser", "Why your data is safe")
+            Controls.ToolTip.text: page.i18nContext.i18nc("@info:tooltip", "Opens a page of the handbook in your web browser")
+            Controls.ToolTip.visible: hovered
+            Accessible.description: Controls.ToolTip.text
+            onClicked: {
+                ActionLog.taken("WelcomePage_whyYourDataIsSafe")
+                Qt.openUrlExternally(page.i18nContext.i18nc("@info the web address of the handbook page \"Why your data is safe\"; a language with its own page puts its address here", "https://github.com/Vondor/KassenSturz/blob/main/docs/user/en/why-your-data-is-safe.md"))
+            }
         }
 
         Kirigami.FormLayout {
@@ -95,7 +186,7 @@ Kirigami.ScrollablePage {
             Controls.ComboBox {
                 id: currencyBox
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Which currency do you use?")
-                visible: page.firstStart.needsCurrency
+                visible: page.firstStart.needsCurrency && !page.offersFound
                 // The regional settings' currency comes first (D-111).
                 model: page.firstStart.currencies
                 currentIndex: 0
@@ -103,13 +194,15 @@ Kirigami.ScrollablePage {
 
             Controls.Label {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 20
-                visible: page.firstStart.needsCurrency
+                visible: page.firstStart.needsCurrency && !page.offersFound
                 text: page.i18nContext.i18nc("@info", "Most people only need to confirm this. You can add an account in another currency later.")
                 wrapMode: Text.Wrap
                 font: Kirigami.Theme.smallFont
             }
 
             Controls.Button {
+                // With books found, the choice above comes first.
+                visible: !page.offersFound
                 text: page.i18nContext.i18nc("@action:button", "Continue")
                 icon.name: "go-next"
                 highlighted: true

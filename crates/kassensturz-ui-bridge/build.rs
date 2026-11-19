@@ -26,9 +26,13 @@ fn main() {
     // The Windows app brings its own icons (D-555); Cargo builds this script
     // for the computer it runs on, so the target comes from Cargo's variable.
     let windows = std::env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "windows");
-    let breeze_icons = windows.then(|| WindowsLibrary::find("BREEZEICONS", "BreezeIcons"));
+    // macOS has no icon theme or KDE colour schemes either, so its app
+    // links the same two libraries (the macOS download).
+    let macos = std::env::var("CARGO_CFG_TARGET_OS").is_ok_and(|os| os == "macos");
+    let own_libraries = windows || macos;
+    let breeze_icons = own_libraries.then(|| WindowsLibrary::find("BREEZEICONS", "BreezeIcons"));
     // And follows Windows' light or dark mode with KDE's colour schemes (D-581).
-    let color_scheme = windows.then(|| WindowsLibrary::find("COLORSCHEME", "KColorScheme"));
+    let color_scheme = own_libraries.then(|| WindowsLibrary::find("COLORSCHEME", "KColorScheme"));
     let mut builder = CxxQtBuilder::new_qml_module(
         QmlModule::new("io.github.vondor.kassensturz")
             .qml_files([
@@ -81,6 +85,7 @@ fn main() {
                 "qml/BookMovePage.qml",
                 "qml/GrantedFoldersPage.qml",
                 "qml/BookMoveInterruptedDialog.qml",
+                "qml/BookInPackageDialog.qml",
                 "qml/BookProblemPage.qml",
                 "qml/BudgetBars.qml",
                 "qml/AlarmList.qml",
@@ -126,6 +131,7 @@ fn main() {
                 "qml/TileStatusWords.qml",
                 "qml/DashboardGrid.qml",
                 "qml/HelpPage.qml",
+                "qml/TestingGuidePage.qml",
                 "qml/HistoryPage.qml",
                 "qml/ImportDonePage.qml",
                 "qml/ImportPreviewPage.qml",
@@ -143,6 +149,9 @@ fn main() {
                 "qml/PartsPage.qml",
                 "qml/PlanFormDialog.qml",
                 "qml/PlannedPaymentsDialog.qml",
+                "qml/PlannedPaymentsView.qml",
+                "qml/PlansPage.qml",
+                "qml/ExplanationCard.qml",
                 "qml/LeftThisMonthWidget.qml",
                 "qml/ComingUpWidget.qml",
                 "qml/PropertiesPanel.qml",
@@ -162,6 +171,8 @@ fn main() {
                 "qml/SettingsBankPage.qml",
                 "qml/SettingsBookPage.qml",
                 "qml/SettingsLookPage.qml",
+                "qml/SettingsPluginsPage.qml",
+                "qml/PluginDetails.qml",
                 "qml/StatisticsPage.qml",
                 "qml/TransactionPage.qml",
                 "qml/TagField.qml",
@@ -185,6 +196,8 @@ fn main() {
                 QmlFile::from("qml/ChartPalette.qml").singleton(true),
                 // `ActionLog.taken(name)` in every action handler (M6c.D).
                 QmlFile::from("qml/ActionLog.qml").singleton(true),
+                // The rows a change just touched light up (B-384, D-857).
+                QmlFile::from("qml/ChangedRows.qml").singleton(true),
             ]),
     )
     .qt_module("Network")
@@ -213,6 +226,7 @@ fn main() {
         "src/book_move_model.rs",
         "src/grid_editor_model.rs",
         "src/history_model.rs",
+        "src/install_kind_model.rs",
         "src/kmy_reports_import_model.rs",
         "src/language_model.rs",
         "src/day_clock_model.rs",
@@ -228,6 +242,7 @@ fn main() {
         "src/overview_model.rs",
         "src/period_range_model.rs",
         "src/planned_payments_model.rs",
+        "src/plugins_model.rs",
         "src/platform.rs",
         "src/properties_model.rs",
         "src/register_model.rs",

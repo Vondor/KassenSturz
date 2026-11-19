@@ -1,0 +1,10 @@
+delimiter = ","
+decimal-mark = point
+date-order = year-month-day
+booking-date = "Booking date"
+value-date = "Value date"
+amount = "Amount"
+other-party-name = "Payee"
+other-party-iban = "Payee IBAN"
+remittance-information = "Reference"
+currency = "Currency"

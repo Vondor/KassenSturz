@@ -509,6 +509,36 @@ pub(crate) fn journal_is_hot(journal: &Path) -> bool {
     }
 }
 
+/// Which file is at a path, as the system numbers files (the device and
+/// the file's number on it), so a file put in its place under the same name
+/// can be told from it (#1011).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FileId {
+    device: u64,
+    number: u64,
+}
+
+/// The [`FileId`] of the file at `path`, if a file is there. SQLite notices
+/// a book replaced under the running app through the same numbers, but its
+/// `unix-none` VFS keeps none, so a book opened without file locks would
+/// save into the replaced file unnoticed. Only Unix has such numbers; the
+/// lock-less mode exists only there.
+#[cfg(unix)]
+pub(crate) fn file_id(path: &Path) -> Option<FileId> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = fs::metadata(path).ok().filter(fs::Metadata::is_file)?;
+    Some(FileId {
+        device: metadata.dev(),
+        number: metadata.ino(),
+    })
+}
+
+/// See above: no such numbers here.
+#[cfg(not(unix))]
+pub(crate) fn file_id(_path: &Path) -> Option<FileId> {
+    None
+}
+
 /// SQLite's rollback journal for the book at `path`.
 fn journal_of(path: &Path) -> PathBuf {
     let mut name = path.as_os_str().to_owned();

@@ -261,6 +261,27 @@ impl Books {
         self.settings.last_book()
     }
 
+    /// The books already in KassenSturz's own folder when there is no
+    /// book to open yet: no book was opened last and the app's own book,
+    /// `name`.ksz, isn't there. This is the Store app after it was
+    /// uninstalled and installed again, with the books it kept in
+    /// `Documents\KassenSturz` (B-404, D-872): the welcome page offers them
+    /// instead of making an empty book beside them. Empty when there is a
+    /// book to open, so nothing is offered then.
+    pub fn found_books(&self, name: &str) -> Vec<String> {
+        let last = self
+            .settings
+            .last_book()
+            .filter(|path| allows_in(self.test_root.as_deref(), path));
+        let Some(folder) = self.app_folder.as_deref() else {
+            return Vec::new();
+        };
+        if last.is_some() || folder.join(file_name(name)).exists() {
+            return Vec::new();
+        }
+        crate::book_session::book_names_in(folder)
+    }
+
     /// Remembers an opened book as the one opened last, on the thread that
     /// owns the settings.
     pub fn remember_opened(&self, book: &OpenBook) {
@@ -611,6 +632,32 @@ mod tests {
                 test_root: Some(root),
             }
         }
+    }
+
+    /// After the Store app was installed again, the books it kept in its
+    /// folder are offered and nothing is made (B-404, D-872); once a book
+    /// was opened, or the app's own book is there, nothing is offered.
+    #[test]
+    fn books_left_in_the_own_folder_are_offered_when_there_is_none_to_open() {
+        let setup = Setup::new();
+        let books = setup.books("here");
+        let data = setup.folder.join("data");
+        // A first start with an empty folder: nothing to offer.
+        assert!(books.found_books("Haushalt").is_empty());
+        std::fs::create_dir_all(&data).expect("folder");
+        std::fs::write(data.join("Familie.ksz"), b"").expect("book");
+        std::fs::write(data.join("Notizen.txt"), b"").expect("other file");
+        std::fs::write(data.join("Alt.KSZ"), b"").expect("book");
+        assert_eq!(books.found_books("Haushalt"), ["Alt.KSZ", "Familie.ksz"]);
+        // Only looking: nothing was made.
+        assert!(!data.join("Haushalt.ksz").exists());
+        // The app's own book is there: it opens, nothing is offered.
+        std::fs::write(data.join("Haushalt.ksz"), b"").expect("own book");
+        assert!(books.found_books("Haushalt").is_empty());
+        std::fs::remove_file(data.join("Haushalt.ksz")).expect("removed");
+        // A book was opened last: that one opens.
+        books.remember(&data.join("Familie.ksz"));
+        assert!(books.found_books("Haushalt").is_empty());
     }
 
     #[test]

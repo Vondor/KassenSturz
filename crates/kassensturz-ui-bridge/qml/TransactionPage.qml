@@ -37,6 +37,11 @@ Kirigami.ScrollablePage {
     property bool moneyIn: false
 
     readonly property bool adding: transactionId === ""
+    // "This repeats" (B-389, D-864): a new entry becomes a planned payment
+    // instead, with the plan form's "How often" and "Ends"; nothing is
+    // booked, the first payment is due on the date typed.
+    property bool repeating: false
+    readonly property bool canRepeat: adding && plans !== null
     // What the Rust side says about the transaction to change; read again
     // when the book changed while the page is open (M6-B234).
     property var entry: adding ? ({}) : register.details(accountId, transactionId)
@@ -290,12 +295,49 @@ Kirigami.ScrollablePage {
         }
     }
 
+    // The planned payment the form describes, as PlanFormDialog.qml's
+    // form() gives it; its name is the other party's, or a plain one.
+    function planForm(): var {
+        const party = otherPartyField.text.trim();
+        return {
+            name: party !== "" ? party : i18nContext.i18nc("@info the name of a new planned payment when the entry names nobody", "Planned payment"),
+            accountId: chosenAccount,
+            outgoing: !moneyIn,
+            amount: amountField.text,
+            categoryId: chosenCategory(),
+            unit: repeatUnit.units[repeatUnit.currentIndex] ?? "month",
+            every: String(repeatEvery.value),
+            firstDue: dateField.text,
+            ends: repeatEnds.checked ? repeatEndsField.text : "",
+            tolerance: "",
+            party: "",
+            fromEntry: "",
+        };
+    }
+
+    function savePlan() {
+        const result = plans.save("", planForm());
+        error.result = result;
+        if (result.code === undefined) {
+            applicationWindow().showPassiveNotification(i18nContext.i18nc("@info %1 is a date", "Planned. The first payment is due on %1; you confirm each payment once it has happened.", dateField.text), "long");
+            done();
+        }
+    }
+
     function save() {
+        if (canRepeat && repeating) {
+            savePlan();
+            return;
+        }
         const result = adding
             ? register.addTransaction(chosenAccount, form())
             : register.editTransaction(chosenAccount, transactionId, form());
         error.result = result;
         if (result.code === undefined) {
+            if (adding) {
+                // Its row says "New" until the app closes (B-394, D-869).
+                ChangedRows.markNew(String(result.id ?? ""));
+            }
             // If it looks like one side of a Transfer, ask before leaving
             // (M3.7, D-120); the page is done when the questions are.
             transferPrompt.ask(register.transferSuggestions(adding ? result.id : transactionId));
@@ -500,6 +542,84 @@ Kirigami.ScrollablePage {
             }
         }
 
+        // A payment that comes again and again, right where it is typed
+        // (B-389, D-864): the fields of the plan form show, and the main
+        // button makes a plan instead of an entry.
+        Controls.CheckBox {
+            visible: page.canRepeat
+            text: page.i18nContext.i18nc("@option:check a new entry", "This repeats")
+            checked: page.repeating
+            onToggled: {
+                ActionLog.taken("TransactionPage_repeats")
+                page.repeating = checked
+            }
+        }
+
+        RowLayout {
+            visible: page.canRepeat && page.repeating
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "How often:")
+
+            Controls.Label {
+                text: page.i18nContext.i18nc("@label followed by a number and weeks, months or years", "every")
+            }
+
+            Controls.SpinBox {
+                id: repeatEvery
+
+                from: 1
+                to: 52
+                value: 1
+                Accessible.name: page.i18nContext.i18nc("@label:spinbox", "How many weeks, months or years apart")
+            }
+
+            Controls.ComboBox {
+                id: repeatUnit
+
+                readonly property var units: ["week", "month", "year"]
+
+                model: [
+                    page.i18nContext.i18ncp("@item:inlistbox every N weeks", "week", "weeks", repeatEvery.value),
+                    page.i18nContext.i18ncp("@item:inlistbox every N months", "month", "months", repeatEvery.value),
+                    page.i18nContext.i18ncp("@item:inlistbox every N years", "year", "years", repeatEvery.value),
+                ]
+                currentIndex: 1
+                Accessible.name: page.i18nContext.i18nc("@label:listbox", "Weeks, months or years")
+                onActivated: {
+                    ActionLog.taken("TransactionPage_repeatUnit")
+                }
+            }
+        }
+
+        RowLayout {
+            visible: page.canRepeat && page.repeating
+            Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Ends:")
+
+            Controls.CheckBox {
+                id: repeatEnds
+
+                text: page.i18nContext.i18nc("@option:check", "On")
+                onToggled: {
+                    ActionLog.taken("TransactionPage_repeatEnds")
+                }
+            }
+
+            Controls.TextField {
+                id: repeatEndsField
+
+                enabled: repeatEnds.checked
+                Accessible.name: page.i18nContext.i18nc("@label:textbox", "The day it ends")
+            }
+        }
+
+        Controls.Label {
+            visible: page.canRepeat && page.repeating
+            Layout.fillWidth: true
+            Layout.maximumWidth: page.fieldWidth
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "This makes a plan. The first payment is due on the date above and shows in the outlook ahead. You confirm each payment once it has happened.")
+        }
+
         // A few words about the transaction for the user's own use, e.g.
         // what a payment was for. Optional, so it comes after the basics.
         // It wraps and takes line breaks, so an imported memo shows whole
@@ -512,7 +632,7 @@ Kirigami.ScrollablePage {
         // two items the long red hint at the limit overlapped the field
         // at the smallest window and at 200% text (B-308).
         ColumnLayout {
-            visible: page.editable
+            visible: page.editable && !page.repeating
             spacing: Kirigami.Units.smallSpacing
             Layout.fillWidth: true
             Layout.maximumWidth: page.fieldWidth
@@ -608,7 +728,7 @@ Kirigami.ScrollablePage {
         // (Q-535), saved with their own button.
         TagField {
             id: tagField
-            visible: page.editable || page.kind === "transfer"
+            visible: (page.editable && !page.repeating) || page.kind === "transfer"
             Layout.fillWidth: true
             Layout.maximumWidth: page.fieldWidth
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Tags:")
@@ -722,10 +842,12 @@ Kirigami.ScrollablePage {
         RowLayout {
             Controls.Button {
                 visible: page.editable
-                text: Plain.plain(page.adding
+                text: Plain.plain(page.canRepeat && page.repeating
+                    ? page.i18nContext.i18nc("@action:button a new entry that repeats", "Create as a plan")
+                    : page.adding
                     ? page.i18nContext.i18nc("@action:button", "Add transaction")
                     : page.i18nContext.i18nc("@action:button", "Save"))
-                icon.name: page.adding ? "list-add" : "document-save"
+                icon.name: page.repeating ? "view-calendar-upcoming-events" : (page.adding ? "list-add" : "document-save")
                 onClicked: {
                     ActionLog.taken("TransactionPage_save_4")
                     page.save()

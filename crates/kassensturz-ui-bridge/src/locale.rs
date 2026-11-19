@@ -55,6 +55,9 @@ mod ffi {
 
         fn today() -> QString;
 
+        #[cxx_name = "systemUiLanguage"]
+        fn system_ui_language() -> QString;
+
         #[cxx_name = "firstDayOfWeek"]
         fn first_day_of_week() -> i32;
 
@@ -80,6 +83,12 @@ impl QtLocale {
     )]
     pub fn set_default(name: &str) {
         ffi::set_default_locale(&ffi::QString::from(name));
+    }
+
+    /// The first language the system names for its screens, e.g. "de-DE",
+    /// as Qt reads it from the system's settings; empty if there is none.
+    pub fn system_ui_language() -> String {
+        ffi::system_ui_language().to_string()
     }
 
     /// `time` in the computer's time zone, in the locale's short format,

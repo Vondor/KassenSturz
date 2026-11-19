@@ -154,8 +154,57 @@ QtObject {
         }
     }
 
-    // A change as one line: what was done, and for an import the file it
-    // read. `change` is an object of history_model.rs.
+    // The screen of the menu a change belongs to, as a key of Main's
+    // `screens`, so Undo can ask first when the change isn't on the screen
+    // shown (B-395, D-870). Empty when it belongs to none in particular.
+    function place(action: string): string {
+        switch (action) {
+        case "add-category":
+        case "rename-category":
+        case "move-category":
+        case "remove-category":
+        case "set-hidden-categories":
+        case "add-group":
+        case "edit-group":
+        case "move-group":
+        case "remove-group":
+            return "categories";
+        case "add-budget":
+        case "edit-budget":
+        case "remove-budget":
+            return "budgets";
+        case "add-rule":
+        case "edit-rule":
+        case "move-rule":
+        case "remove-rule":
+        case "run-rules":
+            return "rules";
+        case "add-view":
+        case "edit-view":
+        case "rename-view":
+        case "move-view":
+        case "remove-view":
+            return "statistics";
+        case "set-rounding-mode":
+        case "use-currency":
+        case "add-rate":
+        case "remove-rate":
+        case "add-tag":
+        case "rename-tag":
+        case "remove-tag":
+        case "merge-tags":
+            return "settings";
+        case "apply-ai-changes":
+            return "";
+        default:
+            // Accounts, transactions, imports, plans and bank links.
+            return "accounts";
+        }
+    }
+
+    // A change as one line: what was done, for an import the file it read,
+    // and for a change of one transaction which one it was. `change` is an
+    // object of history_model.rs.
     function describe(change: var): string {
         const what = name(change.action);
         if (change.filedBills > 0) {
@@ -163,9 +212,18 @@ QtObject {
             // the user sees that Undo moves them back.
             return i18nContext.i18ncp("@info %1 is a number of bills, %2 what was done", "%2, and %1 bill filed from the inbox", "%2, and %1 bills filed from the inbox", change.filedBills, what);
         }
-        return change.fileName
-            ? i18nContext.i18nc("@info %1 is what was done, %2 the name of a file", "%1 (%2)", what, change.fileName)
-            : what;
+        if (change.fileName) {
+            return i18nContext.i18nc("@info %1 is what was done, %2 the name of a file", "%1 (%2)", what, change.fileName);
+        }
+        // The one transaction it touched, so "Undone: …" says which
+        // (B-384, D-857). The amount is written by Rust (D-065).
+        const booking = change.summary?.booking ?? ({});
+        if (booking.amount) {
+            return booking.name
+                ? i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction; %2 whom it was with or its category; %3 its amount", "%1 (%2, %3)", what, booking.name, booking.amount)
+                : i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction; %2 its amount", "%1 (%2)", what, booking.amount);
+        }
+        return what;
     }
 
     // What the change touched, in a line: how many transactions, in which

@@ -592,7 +592,7 @@ impl Store {
     /// was saved. Fails with `ai.no-provider` when none is set up.
     pub fn forget_key(&self, keys: &mut ProviderKeys) -> Result<(), AiError> {
         let config = self.config.read();
-        keys.forget(&config.provider()?.address)
+        keys.forget(&config.connection()?.address)
     }
 
     /// Records that the user agreed to what is sent to the saved provider,
@@ -611,7 +611,10 @@ impl Store {
     /// says why.
     pub fn give_consent_noting(&self, today: Date) -> (bool, Option<AiError>) {
         let config = self.config.read();
-        let Ok(provider) = config.provider() else {
+        // The consent is for the server, so it can be given before a model
+        // is chosen: listing a remote provider's models needs it first
+        // (B-398, #1200).
+        let Ok(provider) = config.connection() else {
             return (false, None);
         };
         let record = ConsentRecord::give(&provider.address, today);
@@ -632,7 +635,7 @@ impl Store {
     /// computer until the user agrees again. Returns whether it was
     /// written.
     pub fn withdraw_consent(&self) -> bool {
-        if let Ok(provider) = self.config.read().provider() {
+        if let Ok(provider) = self.config.read().connection() {
             // Even if this fails, the emptied file below holds no consent.
             let _ = self.with_seals(|keys| keys.unseal_consent(&provider.address));
         }
@@ -656,7 +659,10 @@ impl Store {
             return Ok(Some(key));
         }
         let config = self.config.read();
-        let provider = config.provider()?;
+        // The server's settings are enough: the key belongs to the server,
+        // and a user who hasn't chosen a model yet still needs it to list
+        // the models to choose from (B-403, D-234).
+        let provider = config.connection()?;
         keys.get(&provider.address, provider.key_use)
     }
 
@@ -963,6 +969,34 @@ mod tests {
     }
 
     #[test]
+    fn the_key_for_listing_models_is_found_before_a_model_is_chosen() {
+        // The app looks the key up before it lists the models; an empty
+        // model must not stop it there with "no provider" (B-403).
+        let (_folder, _file, store) = on();
+        let (_, mut keys) = keys();
+        store.save(&mut keys, "http://127.0.0.1:1/v1", "", KeyUse::None, None);
+        assert_eq!(store.key_for(&keys, None), Ok(None));
+        let cloud = "https://api.example.com/v1";
+        store.save(
+            &mut keys,
+            cloud,
+            "",
+            KeyUse::Saved,
+            Some(secret("test-key-ui-list")),
+        );
+        assert_eq!(
+            store.key_for(&keys, None).unwrap(),
+            Some(secret("test-key-ui-list"))
+        );
+        // The whole test, as the app runs it, reaches the server.
+        store.save(&mut keys, "http://127.0.0.1:1/v1", "", KeyUse::None, None);
+        let result = store
+            .key_for(&keys, None)
+            .and_then(|key| store.test_connection(key, None));
+        assert_eq!(result.err(), Some(AiError::Unreachable));
+    }
+
+    #[test]
     fn another_computer_is_asked_again_for_every_new_address() {
         let (_folder, _file, store) = on();
         let (_, mut keys) = keys();
@@ -1172,6 +1206,34 @@ mod tests {
         assert!(store.withdraw_consent());
         assert_eq!(store.form().consent, Consent::Missing);
         assert_eq!(client.send(&request, None), Err(AiError::NoConsent));
+    }
+
+    #[test]
+    fn a_remote_server_without_a_model_yet_can_be_agreed_to() {
+        // B-398 (#1200): with a remote address saved and the model still
+        // empty, "I agree" wrote the consent but said it couldn't, so the
+        // models could never be listed.
+        let (_folder, file, store) = on();
+        let (_, mut keys) = keys();
+        let address = "https://api.example.com/v1";
+        assert_eq!(
+            store.save(&mut keys, address, "", KeyUse::None, None),
+            written(Place::AnotherComputer, true)
+        );
+        assert!(
+            store.give_consent(TODAY),
+            "the consent is written and says so"
+        );
+        assert_eq!(store.form().consent, Consent::Given(TODAY));
+        let again = Store::at(&file);
+        assert!(again.config().read().consent().is_some_and(|consent| {
+            consent.covers(&again.config().read().connection().unwrap().address)
+        }));
+        // Choosing the model later keeps the consent for the same server.
+        store.save(&mut keys, address, "big", KeyUse::None, None);
+        assert_eq!(store.form().consent, Consent::Given(TODAY));
+        assert!(store.withdraw_consent());
+        assert_eq!(store.form().consent, Consent::Missing);
     }
 
     #[test]

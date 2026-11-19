@@ -7,16 +7,18 @@ Everything a person needs to test KassenSturz without help from the code. German
 | Testers: what the test is, safety, consent, install overview | [TESTER_GUIDE.de.md](TESTER_GUIDE.de.md) | [TESTER_GUIDE.en.md](TESTER_GUIDE.en.md) |
 | Testers: install on Windows | [INSTALL_WINDOWS.de.md](INSTALL_WINDOWS.de.md) | [INSTALL_WINDOWS.en.md](INSTALL_WINDOWS.en.md) |
 | Testers: install on Ubuntu | [INSTALL_UBUNTU.de.md](INSTALL_UBUNTU.de.md) | [INSTALL_UBUNTU.en.md](INSTALL_UBUNTU.en.md) |
-| Testers: questionnaire and task cards | [QUESTIONNAIRE_1.de.md](QUESTIONNAIRE_1.de.md) | [QUESTIONNAIRE_1.en.md](QUESTIONNAIRE_1.en.md) |
+| Testers: step log for installing at home  | [INSTALL_LOG.de.md](INSTALL_LOG.de.md) | [INSTALL_LOG.en.md](INSTALL_LOG.en.md) |
 | Testers: report a problem | [REPORT_PAGE.de.md](REPORT_PAGE.de.md) | [REPORT_PAGE.en.md](REPORT_PAGE.en.md) |
-| Facilitator: script, consent step, success criteria | [FACILITATOR_SCRIPT.de.md](FACILITATOR_SCRIPT.de.md) | [FACILITATOR_SCRIPT.en.md](FACILITATOR_SCRIPT.en.md) |
+| Facilitator: interview guide, consent step, task cards (print version of the cards: [Aufgabenkarten-Druck.pdf](Aufgabenkarten-Druck.pdf)) | [INTERVIEW_GUIDE.de.md](INTERVIEW_GUIDE.de.md) | [INTERVIEW_GUIDE.en.md](INTERVIEW_GUIDE.en.md) |
 | Everyone: how to use KassenSturz | [USER_GUIDE.de.md](../user/USER_GUIDE.de.md) | not yet written |
 
 ## Answer sheets and bank files
 
+The Beta task cards (the interview guide, §6) work only in the Suburban Family book and need no bank files. The bank files and answer sheets below belong to the earlier card set (cards 4 and 5) and stay for later rounds.
+
 The example books, their matching bank statements and the facilitator's answer sheets come from step M7a.8. The generator is `tools/example-books/generate.py`; the files are under `crates/kassensturz-import/tests/books/examples/` (the books are Suburban Family, Flower Utopia, Space Colony and USSR Government Agent; in German "Vorstadtfamilie", "Blumen-Utopia", "Weltraumkolonie" and "UdSSR-Agent").
 
-- **Bank files for card 5** (the facilitator puts the matching ones on the tester's computer): `statements/<book>.csv` with its column settings `statements/<book>.csv.settings`, and `statements/<book>.camt053.xml`. `<book>` is `suburban-family`, `flower-utopia`, `space-colony` or `udssr-agent`.
+- **Bank files for card 5** (the facilitator puts the matching ones on the tester's computer): `statements/<book>.csv` with its column settings `statements/<book>.csv.settings`, and `statements/<book>.camt053.xml`. `<book>` is `suburban-family`, `suburban-family-en` (the English Suburban Family, offered when the app is not in German, D-843), `flower-utopia`, `space-colony` or `udssr-agent`.
 - **Answer sheets for cards 4 and 5** (German, facilitator only, never shown to the tester): `answers/<book>.md`. They are written by a test from the real import and report code. The CSV and the CAMT file give different counts on purpose (the CSV has no bank number, so the line already in the book is shown as "looks the same", not as a duplicate).
 
 ## Before every round: match the statements to the month

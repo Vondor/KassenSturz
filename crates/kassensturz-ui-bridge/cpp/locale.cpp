@@ -151,6 +151,11 @@ QString today()
     return QDate::currentDate().toString(Qt::ISODate);
 }
 
+QString systemUiLanguage()
+{
+    return QLocale::system().uiLanguages().value(0);
+}
+
 QString dateTime(std::int64_t seconds)
 {
     const QLocale locale;

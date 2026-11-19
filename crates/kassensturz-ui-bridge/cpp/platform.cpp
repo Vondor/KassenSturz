@@ -37,6 +37,14 @@
 #include <unistd.h>
 #endif
 
+// Windows and macOS have no icon theme and no KDE colour schemes of their own,
+// so the app brings Breeze's icons and KDE's colour schemes (D-555, D-581).
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+#include <QtCore/QDir>
+#include <KColorSchemeManager>
+#include <breezeicons.h>
+#endif
+
 #ifdef Q_OS_WIN
 #include <QtCore/QCoreApplication>
 #include <QtCore/QDir>
@@ -49,13 +57,13 @@
 #include <QtWidgets/QStyleFactory>
 #include <QtWidgets/QStyleOption>
 
-#include <KColorSchemeManager>
-#include <breezeicons.h>
-
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
 #include <windows.h>
+
+#include <appmodel.h>
+#include <vector>
 #endif
 
 namespace kassensturz::platform
@@ -108,6 +116,30 @@ public:
 QString dataFolder()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+}
+
+QString documentsFolder()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+}
+
+QString packageFamilyName()
+{
+#ifdef Q_OS_WIN
+    // Outside a package the first call answers APPMODEL_ERROR_NO_PACKAGE;
+    // inside one it asks for a buffer, whose length counts the final NUL.
+    UINT32 length = 0;
+    if (GetCurrentPackageFamilyName(&length, nullptr) != ERROR_INSUFFICIENT_BUFFER || length == 0) {
+        return QString();
+    }
+    std::vector<wchar_t> name(length);
+    if (GetCurrentPackageFamilyName(&length, name.data()) != ERROR_SUCCESS) {
+        return QString();
+    }
+    return QString::fromWCharArray(name.data());
+#else
+    return QString();
+#endif
 }
 
 QString appFilePath()
@@ -349,7 +381,7 @@ int renameNoReplace(const QString &from, const QString &to)
 
 void useBundledIcons()
 {
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     QStringList paths = QIcon::themeSearchPaths();
     paths.append(QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("data/icons")));
     QIcon::setThemeSearchPaths(paths);
@@ -377,7 +409,7 @@ void useReadableWidgetStyle()
 
 void followSystemColours()
 {
-#ifdef Q_OS_WIN
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
     // With no colour scheme chosen, KDE's manager applies Breeze or Breeze
     // Dark after Windows' own light or dark mode, and again whenever that
     // changes; both schemes are built into the library. It sets the palette

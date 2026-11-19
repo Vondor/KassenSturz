@@ -125,6 +125,11 @@ pub struct Book {
     /// refuses them in the book's folder (Q-570, D-776). The book's lock
     /// file is then the only guard against a second writer.
     without_file_locks: bool,
+    /// Which file the book is, as opened without file locks: SQLite can't
+    /// notice then that another program (a sync tool) put a file in its
+    /// place, so the book checks it itself before every change (#1011).
+    /// `None` with file locks, where SQLite checks (B-289).
+    opened_file: Option<lockless::FileId>,
     /// The private copy of the book a read-only book reads, where the
     /// folder refuses locks. Declared after `conn`, so it is closed first.
     _copy: Option<lockless::PrivateFolder>,
@@ -427,6 +432,12 @@ impl Book {
         // history would miss it. The history's triggers fire no others.
         conn.pragma_update(None, "recursive_triggers", true)?;
         history::prepare(&conn)?;
+        let opened_file = if without_file_locks {
+            conn.path()
+                .and_then(|path| lockless::file_id(Path::new(path)))
+        } else {
+            None
+        };
         let mut book = Self {
             conn,
             recording: false,
@@ -435,6 +446,7 @@ impl Book {
             file_replaced: false,
             _lock: lock,
             without_file_locks,
+            opened_file,
             _copy: None,
             cut_short: None,
         };

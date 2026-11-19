@@ -24,8 +24,9 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 
 3. **Wait for the run.** The **Release** workflow (Actions tab, about 15 minutes with a warm cache) has three jobs:
    - *Build the Flatpak bundle* builds `KassenSturz-<number>-x86_64.flatpak` from the commit, with the number and commit shown in Settings → About.
-   - *Install the bundle as the Ubuntu sheet says* takes that file on a fresh Ubuntu machine and runs what `docs/testing/INSTALL_UBUNTU.de.md` tells a tester: install Flatpak, add the catalog and the KDE runtime for the user, install the file, start it with the developer mode and check the debug log was written, uninstall it. (The update over an older build, card 6, can't be checked here: it needs two builds.) Nothing is released if this fails.
+   - *Install the bundle as the Ubuntu sheet says* takes that file on a fresh Ubuntu machine and runs what way B of `docs/testing/INSTALL_UBUNTU.de.md` (the Flatpak file) tells a tester: install Flatpak, add the catalog and the KDE runtime for the user, install the file, start it with the developer mode and check the debug log was written, uninstall it. (The update over an older build can't be checked here, since it needs two builds; the automatic update tests cover it, D-835.) Nothing is released if this fails.
    - *Pre-release on GitHub* creates the release `KassenSturz <number> (pre-release)`, marked as a pre-release, with the files attached and a text that lists the merged changes since the previous tag.
+   A fourth job, *Attach the experimental macOS download*, adds `KassenSturz-<number>-macos-arm64-experimental.dmg` to the release after it exists, only if the Mac build worked (D-875, `docs/MACOS.md`). A red *macOS app* job in the run does not affect the release; the file is just missing.
 4. **Look at the release.** On the repository's Releases page the new entry is marked *Pre-release* and can be downloaded without a GitHub account, so the install sheets' step 1 ("the newest entry marked Pre-release") is right. Check the file name and the text.
 5. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
 
@@ -54,7 +55,7 @@ These settings are the protection, not the workflow file: a tag runs the `releas
 ## What goes in a release
 
 - **The Flatpak bundle**, built and installed by the Ubuntu sheet in the same run.
-- **The Windows app (M7a.7, D-554):** `KassenSturz-<number>-windows-x64.zip` (portable, no installation and no administrator rights) and `KassenSturz-<number>-windows-x64-setup.exe` (installer). The `windows` job calls `windows-app.yml` with `release: true`, which uploads both as `release-asset-windows`; the release waits for it. With Craft's cache warm it takes about 20 to 35 minutes, cold about 45. Both files are unsigned (D-048), so SmartScreen warns.
+- **The Windows app (M7a.7, D-554):** `KassenSturz-<number>-windows-x64.zip` (portable, no installation and no administrator rights) and `KassenSturz-<number>-windows-x64-setup.exe` (installer). The `windows` job calls `windows-app.yml` with `release: true`, which uploads both as `release-asset-windows`; the release waits for it. With Craft's cache warm it takes about 20 to 35 minutes, cold about 45. Both files are unsigned (D-048), so SmartScreen warns. The release also carries `KassenSturz-<number>-windows-x64-store.msix` for the Microsoft Store; once the Store upload is set up, the job *Upload the Windows package to the Microsoft Store* puts it into Partner Center after the release is published (it waits for your approval like the build; `docs/WINDOWS.md`, section 2, #927).
 
 What is still to come, marked `SLOT` in the workflow file:
 
@@ -66,4 +67,4 @@ A pull request that changes `.github/workflows/release.yml` or `tools/build-vers
 
 ## What a tester's file is not
 
-It is not signed. There is no Flathub submission (D-765); Linux users get the snap (`docs/SNAP.md`) or this Flatpak bundle as a direct download. The Windows installer is unsigned too and shows SmartScreen's warning (D-542).
+It is not signed. There is no Flathub submission (D-765); Linux users get the snap (`docs/SNAP.md`) or this Flatpak bundle as a direct download. The Windows installer is unsigned too and shows SmartScreen's warning (D-542); the signed way on Windows is the Microsoft Store (`docs/WINDOWS.md`).

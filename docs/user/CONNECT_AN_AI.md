@@ -12,14 +12,16 @@ KassenSturz can work with an AI in two different ways. Pick the one that fits wh
 
 ## Route 1: the chat inside KassenSturz
 
-Open **Settings → AI provider and privacy…**. Type the provider's **address**, choose how its **key** is kept, and press **Save**. If you don't know the model's name, leave it empty: after saving, KassenSturz asks the provider which models it offers and you pick one from the list, then press **Save** again. **Test connection** checks the address and the key at any time, and once a model is chosen it also asks that model to call a made-up test function, so you see whether it can use KassenSturz's functions. It sends nothing from your book; **Show what the test sends** shows the test question exactly.
+Open **Settings → AI provider and privacy…**. Type the provider's **address**, choose how its **key** is kept, and press **Save**. The address is checked while you type: a green line says it looks right, and a red one says what is wrong, for example a missing `https://` or a space; **Save** waits until the address is right. The example under the field is only a hint and is never put into the field. If you don't know the model's name, leave it empty: after saving, KassenSturz asks the provider which models it offers and you pick one from the **Model** list, then press **Save** again. Models that are only for searching (their name has "embed" in it) are shown but can't be chosen, since they can't answer in the chat. **Enter another name…** at the end of the list lets you type a name yourself; if the provider names no models at all, the field stays a plain text field and you type the name. **Test connection** checks the address and the key at any time, and once a model is chosen it also asks that model to call a made-up test function, so you see whether it can use KassenSturz's functions. It sends nothing from your book; **Show what the test sends** shows the test question exactly.
+
+**A provider on another computer** (even one in your home) is set up on the same screen: under the key, **What leaves this computer** lists what is sent and what never is. For an `http://` address a warning says the connection isn't encrypted. One box, **I have read this and agree**, agrees to both, and **Save and test** then saves, agrees and lists the models in one step. Without the box you can still save, but nothing is sent until you agree. Before each question goes, the chat still shows exactly what it sends.
 
 ### OpenAI (with an API key)
 
 - Address: `https://api.openai.com/v1`
 - Key: create an API key in your account at OpenAI and paste it into KassenSturz.
 - **A ChatGPT subscription is not an API key and doesn't work here.** The API is billed separately from ChatGPT Plus or Pro. You pay only for what you use.
-- OpenAI runs on another computer, so KassenSturz shows what is sent and asks for your agreement before the first question.
+- OpenAI runs on another computer, so the settings show what is sent and ask for your agreement on the same screen.
 
 ### Ollama (on this computer)
 
@@ -37,7 +39,7 @@ Open **Settings → AI provider and privacy…**. Type the provider's **address*
 
 ### A program on another computer at home (only `http://`)
 
-LM Studio, Ollama and similar programs can also run on another computer, for example a server in your home, and then offer only an unencrypted `http://` address such as `http://192.168.0.10:1234/v1`. KassenSturz refuses such an address at first, because anyone on the way could read what is sent. If you know the computer and trust the network, tick **Allow unencrypted connections** under the address; the box appears only for an `http://` address on another computer. Untick it and press **Save** to stop using the unencrypted connection: KassenSturz then sends nothing more to that address, even though it stays in the field, until you enter an `https://` address or tick the box again.
+LM Studio, Ollama and similar programs can also run on another computer, for example a server in your home, and then offer only an unencrypted `http://` address such as `http://192.168.0.10:1234/v1`. KassenSturz refuses such an address at first, because anyone on the way could read what is sent. If you know the computer and trust the network, tick **Allow unencrypted connections** under the address, or press the button of the same name in the message that refused the address; the box appears only for an `http://` address on another computer. An address typed without `http://` or `https://`, such as `192.168.0.10:1234/v1`, gets `http://` added in front. Untick it and press **Save** to stop using the unencrypted connection: KassenSturz then sends nothing more to that address, even though it stays in the field, until you enter an `https://` address or tick the box again.
 
 - KassenSturz then says plainly that the connection isn't secure. For an address in a home network (such as `192.168.…`, `10.…` or a name ending in `.local`) it shows a warning; for an address that may be on the Internet it shows a stronger one. Don't use an unencrypted connection over the Internet.
 - Everything else stays the same: the computer is still another computer, so KassenSturz shows what is sent and asks for your agreement before the first question.
@@ -96,5 +98,7 @@ Nothing changes without you: the proposal appears in KassenSturz's chat sidebar,
 ### Where your data goes
 
 The answers go to your AI tool, and from there to whatever model that tool uses. That is up to the tool you chose.
+
+**Fixed notes for the AI** are folded away at the bottom of the AI settings, under **Advanced: fixed notes for the AI**. They are for things that apply to every question, such as "Answer briefly" or "Salary comes on the 28th", and go with every question you ask in the chat. Ask the questions themselves in the chat, not there.
 
 See also [Notes for the user guide](NOTES.md) for details of each step.

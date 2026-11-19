@@ -2,7 +2,11 @@
 
 *Diese Seite sagt, welche Datei Sie laden, und verweist auf die Blätter mit allen Klicks. Ihre Haushaltsbücher bleiben bei jeder neuen Version erhalten.*
 
-## Wo Sie KassenSturz bekommen
+## Windows: aus dem Microsoft Store (empfohlen)
+
+Öffnen Sie **https://apps.microsoft.com/detail/9NM5V48PPRLQ** und klicken Sie auf **Herunterladen** (oder **Installieren**). Der Store installiert KassenSturz und aktualisiert es später selbst. Windows zeigt keine Warnung, weil der Store das Programm prüft und signiert.
+
+## Wo Sie KassenSturz sonst bekommen
 
 Öffnen Sie im Browser **https://github.com/Vondor/KassenSturz/releases**. Ein GitHub-Konto brauchen Sie nicht. Die oberste Version ist die neueste. Solange KassenSturz im Test ist, steht auf der Karte **Pre-release** (Testversion); das ist richtig so.
 
@@ -10,7 +14,7 @@ Unter **Assets** laden Sie genau eine Datei:
 
 | Ihr System | Die Datei | Das Blatt mit allen Klicks |
 |---|---|---|
-| **Windows** (Installer, empfohlen) | endet auf `-windows-x64-setup.exe` | [Installationsblatt Windows](../../testing/INSTALL_WINDOWS.de.md) |
+| **Windows** (Installer, wenn Sie den Store nicht nutzen) | endet auf `-windows-x64-setup.exe` | [Installationsblatt Windows](../../testing/INSTALL_WINDOWS.de.md) |
 | **Windows** (ohne Installation) | endet auf `-windows-x64.zip`; Sie entpacken sie und starten das Programm daraus | im selben Blatt |
 | **Ubuntu** und andere Linux-Systeme | endet auf `.flatpak` | [Installationsblatt Ubuntu](../../testing/INSTALL_UBUNTU.de.md) |
 
@@ -18,7 +22,7 @@ Nicht gebraucht werden *Source code (zip)* und *Source code (tar.gz)*; die sind 
 
 ## Windows warnt, was nun?
 
-Bei einer Testversion meldet Windows einmal „Der Computer wurde durch Windows geschützt“. Das Blatt zeigt Schritt für Schritt, wie Sie die Meldung bestätigen. Der Installer richtet KassenSturz nur für Ihr Benutzerkonto ein; Administrator-Rechte brauchen Sie normalerweise nicht.
+Das passiert nur mit den Dateien von der Release-Seite, nicht mit dem Store. Bei einer Testversion meldet Windows einmal „Der Computer wurde durch Windows geschützt“. Das Blatt zeigt Schritt für Schritt, wie Sie die Meldung bestätigen. Der Installer richtet KassenSturz nur für Ihr Benutzerkonto ein; Administrator-Rechte brauchen Sie normalerweise nicht.
 
 ![Windows meldet eine Warnung beim Start der Installation](../../testing/screenshots/windows/01-smartscreen-1.png)
 
@@ -26,7 +30,8 @@ Bei einer Testversion meldet Windows einmal „Der Computer wurde durch Windows 
 
 Eine neuere Version installieren Sie einfach **über die alte**, auf demselben Weg wie die erste:
 
-- Unter Windows startet der Installer und ersetzt das Programm. Läuft KassenSturz noch, bittet er Sie, es zu schließen.
+- Aus dem Microsoft Store: nichts zu tun, der Store aktualisiert KassenSturz selbst.
+- Mit dem Windows-Installer startet der Installer und ersetzt das Programm. Läuft KassenSturz noch, bittet er Sie, es zu schließen.
 - Unter Ubuntu: `flatpak install --user --reinstall` mit der neuen Datei (Befehl im Blatt).
 
 **Ihre Haushaltsbücher werden nicht angefasst.** Bevor KassenSturz ein Buch an eine neue Version anpasst, legt es selbst eine Sicherung an (**Einstellungen › Sicherungen**) und behält die letzten zehn.

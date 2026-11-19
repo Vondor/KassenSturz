@@ -139,6 +139,15 @@ pub mod qobject {
         #[cxx_name = "booksIn"]
         fn books_in(self: &BookSession, folder: &QString) -> QVariant;
 
+        /// The books already in KassenSturz's own folder when there is no
+        /// book to open yet (B-404, D-872): `folder` (for `openIn`),
+        /// `shown` (the folder in the user's words) and `names`, sorted;
+        /// `names` is empty when there is a book to open. `name` is the
+        /// app's own book, as for `openLast`. Only looks, never makes a book.
+        #[qinvokable]
+        #[cxx_name = "foundBooks"]
+        fn found_books(self: &BookSession, name: &QString) -> QVariant;
+
         /// Opens the book called `name` in `folder`, a folder the folder
         /// chooser granted, as `openFile` does. A name that isn't a plain
         /// file name is refused. Also for "Choose the folder again…" (D-732).
@@ -229,7 +238,7 @@ enum Attempt {
 impl cxx_qt::Initialize for qobject::BookSession {
     fn initialize(mut self: Pin<&mut Self>) {
         let books = Books::for_user();
-        let backup_folder = display(books.backup_folder());
+        let backup_folder = crate::platform::shown_path(books.backup_folder());
         // Until a book is open, the file dialogs start in the app's own
         // folder: a book the Flatpak's file chooser hands over from anywhere
         // else can't be opened (book.sandboxed, M6-B159).
@@ -312,6 +321,10 @@ impl qobject::BookSession {
     fn books_in(&self, folder: &QString) -> QVariant {
         let names = book_names_in(Path::new(&folder.to_string()));
         variant::list(names.iter().map(|name| variant::text(name)))
+    }
+
+    fn found_books(&self, name: &QString) -> QVariant {
+        found_object(&Books::for_user(), &name.to_string())
     }
 
     fn open_in(self: Pin<&mut Self>, folder: &QString, name: &QString) {
@@ -540,58 +553,7 @@ impl qobject::BookSession {
     /// file's folder, and for a locked book `computer` and `since` as the
     /// lock file says, and `here` if it names this computer.
     fn problem_map(&self, problem: &Problem) -> QVariant {
-        let text = problem.text();
-        let mut entries: Vec<(String, QVariant)> = vec![("code".into(), qtext(&text.code))];
-        entries.extend(
-            text.params
-                .iter()
-                .map(|(name, value)| (name.clone(), qtext(value))),
-        );
-        if let Some(folder) = problem.path().and_then(Path::parent) {
-            entries.push(("folder".into(), qtext(&display(folder))));
-        }
-        if let Problem::Locked { path, lock } = problem {
-            if let Some(computer) = &lock.computer {
-                entries.push(("computer".into(), qtext(computer)));
-                let here = self
-                    .rust()
-                    .books
-                    .as_ref()
-                    .is_some_and(|books| books.computer_name() == computer);
-                entries.push(("here".into(), QVariant::from(&here)));
-                // Opening it anyway is refused, so the page shows the way
-                // out (close it there, or restart) instead of the button.
-                let running = self
-                    .rust()
-                    .books
-                    .as_ref()
-                    .is_some_and(|books| lock.stays_locked_here(path, books.computer_name()));
-                entries.push(("stillRunning".into(), QVariant::from(&running)));
-            }
-            if let Some(since) = lock.since {
-                entries.push(("since".into(), qtext(&QtLocale::date_time(since))));
-            }
-        }
-        // A book made by a newer KassenSturz: the copy it saved before it
-        // updated the book, if this one can open it (B-285). The page says
-        // where the backup folder is (`backupFolder` of the session).
-        let backups = self
-            .rust()
-            .books
-            .as_ref()
-            .map(|books| books.backup_folder().to_owned());
-        if let Some((name, made)) = backups
-            .as_deref()
-            .and_then(|folder| newer_layout_backup(problem, folder))
-        {
-            entries.push(("backupName".into(), qtext(&name)));
-            entries.push(("backupWhen".into(), qtext(&QtLocale::date_time(made))));
-        }
-        let mut map = QMap::<QMapPair_QString_QVariant>::default();
-        for (key, value) in entries {
-            map.insert(QString::from(key.as_str()), value);
-        }
-        QVariant::from(&map)
+        problem_variant(problem, self.rust().books.as_ref())
     }
 
     fn hide_cut_short_note(mut self: Pin<&mut Self>) {
@@ -654,7 +616,23 @@ impl qobject::BookSession {
 
 /// The names of the books in `folder`, sorted: regular files ending in
 /// `.ksz`.
-fn book_names_in(folder: &Path) -> Vec<String> {
+/// What `foundBooks` hands QML, read from `books`.
+fn found_object(books: &Books, name: &str) -> QVariant {
+    let names = books.found_books(name);
+    let folder = books.app_folder().unwrap_or(Path::new(""));
+    variant::map([
+        ("folder", variant::text(&folder.to_string_lossy())),
+        // Windows style on Windows: Qt names the Documents folder with
+        // forward slashes, so the joined folder came out mixed (B-409).
+        ("shown", variant::text(&crate::platform::shown_path(folder))),
+        (
+            "names",
+            variant::list(names.iter().map(|name| variant::text(name))),
+        ),
+    ])
+}
+
+pub(crate) fn book_names_in(folder: &Path) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(folder) else {
         return Vec::new();
     };
@@ -773,9 +751,81 @@ fn newer_layout_backup(problem: &Problem, backups: &Path) -> Option<(String, Tim
     Some((name, backup.made))
 }
 
+/// `problem` for QML (see `problem_map`), with `books` for what this
+/// computer is called and where its backups are; a plain function, so a
+/// test can read the map back the way QML does.
+fn problem_variant(problem: &Problem, books: Option<&Books>) -> QVariant {
+    let text = problem.text();
+    let mut entries: Vec<(String, QVariant)> = vec![("code".into(), qtext(&text.code))];
+    entries.extend(
+        text.params
+            .iter()
+            .map(|(name, value)| (name.clone(), qtext(value))),
+    );
+    if let Some(folder) = problem.path().and_then(Path::parent) {
+        entries.push(("folder".into(), qtext(&crate::platform::shown_path(folder))));
+    }
+    if let Problem::Locked { path, lock } = problem {
+        if let Some(computer) = &lock.computer {
+            entries.push(("computer".into(), qtext(computer)));
+            let here = books.is_some_and(|books| books.computer_name() == computer);
+            entries.push(("here".into(), QVariant::from(&here)));
+            // Opening it anyway is refused, so the page shows the way
+            // out (close it there, or restart) instead of the button.
+            let running =
+                books.is_some_and(|books| lock.stays_locked_here(path, books.computer_name()));
+            entries.push(("stillRunning".into(), QVariant::from(&running)));
+        }
+        if let Some(since) = lock.since {
+            entries.push(("since".into(), qtext(&QtLocale::date_time(since))));
+        }
+    }
+    // A book made by a newer KassenSturz: the copy it saved before it
+    // updated the book, if this one can open it (B-285). The page says
+    // where the backup folder is (`backupFolder` of the session).
+    let backups = books.map(|books| books.backup_folder().to_owned());
+    if let Some((name, made)) = backups
+        .as_deref()
+        .and_then(|folder| newer_layout_backup(problem, folder))
+    {
+        entries.push(("backupName".into(), qtext(&name)));
+        entries.push(("backupWhen".into(), qtext(&QtLocale::date_time(made))));
+    }
+    let mut map = QMap::<QMapPair_QString_QVariant>::default();
+    for (key, value) in entries {
+        map.insert(QString::from(key.as_str()), value);
+    }
+    QVariant::from(&map)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `foundBooks` reads back as QML reads it: the folder to open from,
+    /// the folder in the user's words and the books' names (B-404, D-872).
+    #[test]
+    fn the_found_books_read_back_as_qml_reads_them() {
+        use crate::test_folder::TestFolder;
+        use crate::variant::read_back::{text_of, texts_of};
+
+        let folder = TestFolder::new();
+        let books = Books::in_folder(folder.path(), "Laptop");
+        let data = folder.join("data");
+        std::fs::create_dir_all(&data).expect("folder");
+        std::fs::write(data.join("Familie.ksz"), b"").expect("book");
+        let found = found_object(&books, "Haushalt");
+        assert_eq!(texts_of(&found, "names"), ["Familie.ksz"]);
+        assert_eq!(text_of(&found, "folder"), data.to_string_lossy());
+        assert_eq!(text_of(&found, "shown"), crate::platform::shown_path(&data));
+        // B-409: a folder named with forward slashes and joined with a
+        // backslash is shown with one kind of separator only.
+        #[cfg(windows)]
+        assert!(!text_of(&found, "shown").contains('/'));
+        // The app's own book is there: nothing is offered.
+        std::fs::write(data.join("Haushalt.ksz"), b"").expect("own book");
+        assert!(texts_of(&found_object(&books, "Haushalt"), "names").is_empty());
+    }
 
     /// The Settings row shows the folder as `shown_folder_of` words it, the
     /// same as the move page, not the path the app opens (M6-B240).
@@ -841,6 +891,73 @@ mod tests {
             newer_layout_backup(&newer(&path), &folder.join("none")),
             None
         );
+    }
+
+    /// The page of a locked book reads `here` and `stillRunning` from the
+    /// problem map (AGENTS.md section 9.4, #1011): read back the way QML
+    /// reads them, for another computer's lock, for one of this computer,
+    /// and for one of this computer that a program without file locks may
+    /// still hold (D-776).
+    #[test]
+    fn a_locked_books_problem_reads_back_as_qml_reads_it() {
+        use crate::test_folder::TestFolder;
+        use crate::variant::read_back::{flag_of, keys, text_of};
+
+        let folder = TestFolder::new();
+        let path = folder.join("Household.ksz");
+        let laptop = Books::in_folder(folder.path(), "Laptop");
+        let open = laptop.create(&path).expect("book made");
+        let locked = |books: &Books| match books.open(&path) {
+            Err(problem @ Problem::Locked { .. }) => problem,
+            _ => panic!("the book is open on the laptop"),
+        };
+
+        let desk = Books::in_folder(folder.path(), "Desk");
+        let shown = problem_variant(&locked(&desk), Some(&desk));
+        assert_eq!(text_of(&shown, "code"), "store.locked");
+        assert_eq!(text_of(&shown, "computer"), "Laptop");
+        assert_eq!(text_of(&shown, "file"), "Household.ksz");
+        assert!(!flag_of(&shown, "here"));
+        assert!(!flag_of(&shown, "stillRunning"));
+        assert!(!text_of(&shown, "since").is_empty());
+        let mut found = keys(&shown);
+        found.sort();
+        assert_eq!(
+            found,
+            [
+                "code",
+                "computer",
+                "file",
+                "folder",
+                "here",
+                "since",
+                "stillRunning"
+            ]
+        );
+
+        // This computer, with file locks: "open anyway" stays offered.
+        let shown = problem_variant(&locked(&laptop), Some(&laptop));
+        assert!(flag_of(&shown, "here"));
+        assert!(!flag_of(&shown, "stillRunning"));
+
+        // The lock file says its program has no file locks, and that
+        // program (this test) still runs: the page shows the way out.
+        #[cfg(target_os = "linux")]
+        {
+            let lock_file = folder.join("Household.ksz.lock");
+            let mut text = std::fs::read_to_string(&lock_file).expect("lock file");
+            text.push_str("locks=none\n");
+            std::fs::write(&lock_file, text).expect("lock file written");
+            let shown = problem_variant(&locked(&laptop), Some(&laptop));
+            assert!(flag_of(&shown, "here"));
+            assert!(flag_of(&shown, "stillRunning"));
+        }
+
+        // Without the computer's books, neither is claimed.
+        let shown = problem_variant(&locked(&desk), None);
+        assert!(!flag_of(&shown, "here"));
+        assert!(!flag_of(&shown, "stillRunning"));
+        drop(open);
     }
 
     #[test]

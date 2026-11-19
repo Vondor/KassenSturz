@@ -5,7 +5,8 @@
 ## Undo and Redo
 
 - **Undo** and **Redo** are in the menu and on **Ctrl+Z** and **Ctrl+Shift+Z**.
-- They say what they do, for example "Undo: Removed a transaction".
+- They say what they do, for example "Undo: Removed a transaction". For a change of one transaction they also name it and its amount, for example "Undone: Added a transaction (Example Grocer, -23,80 €)".
+- After you add, change, undo or redo a transaction, its row lights up for a moment in the account's list and in the transaction lists on your dashboards, so you can see which one it was.
 - Undo always takes back **the newest change**, even after you closed the book and opened it again.
 
 ![A change that was undone](../../testing/screenshots/windows/23-card3-undone.png)

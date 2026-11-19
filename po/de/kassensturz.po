@@ -26845,3 +26845,35 @@ msgstr "Entfernen"
 msgctxt "@action:button keep a plugin"
 msgid "Keep it"
 msgstr "Behalten"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@option:check a new entry"
+msgid "This repeats"
+msgstr "Das wiederholt sich"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@action:button a new entry that repeats"
+msgid "Create as a plan"
+msgstr "Als Plan anlegen"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This makes a plan. The first payment is due on the date above and shows in "
+"the outlook ahead. You confirm each payment once it has happened."
+msgstr ""
+"Das legt einen Plan an. Die erste Zahlung wird am Datum oben fällig und "
+"kommt in die Vorschau. Sie bestätigen jede Zahlung, wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid ""
+"Planned. The first payment is due on %1; you confirm each payment once it "
+"has happened."
+msgstr ""
+"Geplant. Die erste Zahlung ist am %1 fällig; Sie bestätigen jede Zahlung, "
+"wenn sie da ist."

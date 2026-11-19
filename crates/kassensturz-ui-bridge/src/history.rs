@@ -53,6 +53,9 @@ pub struct ChangeText {
     pub action: &'static str,
     /// When, in the user's time zone and format.
     pub made_at: String,
+    /// When, as seconds since 1970 (UTC), so the history page can group
+    /// changes by day and by sitting (B-395, D-870).
+    pub made_at_seconds: i64,
     /// Whether it is undone, so that redo can make it again.
     pub undone: bool,
     /// The name of the file it read, such as an imported statement; empty
@@ -317,6 +320,7 @@ fn change_text(
         id: change.id.to_string(),
         action: action_key(change.action),
         made_at: when(change.made_at),
+        made_at_seconds: change.made_at.as_second(),
         undone: change.undone,
         file_name: change.file_name.clone().unwrap_or_default(),
         summary,

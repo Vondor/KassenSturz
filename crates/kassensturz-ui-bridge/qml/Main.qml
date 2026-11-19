@@ -74,6 +74,9 @@ Kirigami.ApplicationWindow {
     property int chatWidth: windowState.chatWidth > 0 ? windowState.chatWidth : chatStandardWidth
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
+    // The menu's screen shown, or the one the shown page was opened from:
+    // Undo asks first for a change that belongs to another (B-395, D-870).
+    property string currentScreen: "overview"
     // The household's currency, chosen on the setup wizard's first page and
     // written only when the book is created (M7a.9).
     property string wizardCurrency: ""
@@ -734,6 +737,75 @@ Kirigami.ApplicationWindow {
         afterStep(changeHistory.undo(), false);
     }
 
+    // Undo from the menu or its shortcut (B-395, D-870): a change that
+    // belongs to another screen than the one shown is named first and
+    // undone only when the user says so, since Undo is easily taken for
+    // "back". On its own screen it is undone at once.
+    function undoFromMenu() {
+        const change = changeHistory.undoChange;
+        // The history page lists every change, so there it needs no question.
+        const onHistory = pageStack.currentItem?.stepped !== undefined;
+        if (!arrangingPage && !onHistory && change?.action !== undefined && changeNames.place(change.action) !== currentScreen) {
+            undoConfirm.change = change;
+            undoConfirm.open();
+            return;
+        }
+        undoLast();
+    }
+
+    // The name of a screen of the menu, as the menu shows it.
+    function screenName(key: string): string {
+        switch (key) {
+        case "overview":
+            return i18nContext.i18nc("@action:inmenu a screen", "Overview");
+        case "accounts":
+            return i18nContext.i18nc("@action:inmenu a screen", "Accounts");
+        case "categories":
+            return i18nContext.i18nc("@action:inmenu a screen", "Categories");
+        case "budgets":
+            return i18nContext.i18nc("@action:inmenu a screen", "Budgets");
+        case "rules":
+            return i18nContext.i18nc("@action:inmenu a screen", "Rules");
+        case "statistics":
+            return i18nContext.i18nc("@action:inmenu a screen", "Statistic Builder");
+        case "settings":
+            return i18nContext.i18nc("@action:inmenu a screen", "Settings");
+        }
+        return "";
+    }
+
+    Kirigami.PromptDialog {
+        id: undoConfirm
+
+        property var change: ({})
+        readonly property string where: root.screenName(changeNames.place(change?.action ?? ""))
+
+        title: root.i18nContext.i18nc("@title:window", "Undo?")
+        subtitle: where !== ""
+            ? root.i18nContext.i18nc("@info %1 is what was done, %2 the name of a screen", "This takes back “%1”, a change on the screen “%2”, not on the one you are looking at.", changeNames.describe(change), where)
+            : root.i18nContext.i18nc("@info %1 is what was done", "This takes back “%1”, which isn't a change on the screen you are looking at.", changeNames.describe(change))
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: root.i18nContext.i18nc("@action:button take the last change back", "Undo")
+                icon.name: "edit-undo"
+                onTriggered: {
+                    ActionLog.taken("Main_undoConfirmed")
+                    undoConfirm.close();
+                    root.undoLast();
+                }
+            },
+            Kirigami.Action {
+                text: root.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    ActionLog.taken("Main_undoCancelled")
+                    undoConfirm.close()
+                }
+            }
+        ]
+    }
+
     function redoLast() {
         if (arrangingPage) {
             arrangingPage.redoLayout();
@@ -792,13 +864,30 @@ Kirigami.ApplicationWindow {
             return;
         }
         leaveStalePages();
+        stepEffects(result, redone);
+        const what = changeNames.describe(result.change);
+        if (redone) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
+        } else {
+            // Where the change was, when that isn't the screen shown
+            // (B-395, D-870).
+            const where = changeNames.place(result.change.action);
+            const message = where !== "" && where !== currentScreen
+                ? i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction; %2 the name of a screen", "Undone: %1, on the screen “%2”", what, screenName(where))
+                : i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what);
+            showPassiveNotification(message, 10000, i18nContext.i18nc("@action:button", "Redo"), () => root.redoLast());
+        }
+    }
+
+    // What every undo or redo step does besides its notice: the files it
+    // left, the rows it touched and the chat.
+    function stepEffects(result: var, redone: bool) {
         if ((result.leftInArchive ?? []).length > 0) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The link is gone. The bills stay in your archive: %1", Array.from(result.leftInArchive).join(", ")), "long");
         }
         if ((result.copiesLeft ?? []).length > 0) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
         }
-        const what = changeNames.describe(result.change);
         // The rows it touched light up, where they are shown (B-384).
         ChangedRows.light(result.change.summary?.transactions);
         // The chat hears of an Undo of the changes it prepared, whichever
@@ -807,11 +896,33 @@ Kirigami.ApplicationWindow {
             aiChat.changesUndone();
             chatPanel.markUndone();
         }
-        if (redone) {
-            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
-        } else {
-            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what), 10000, i18nContext.i18nc("@action:button", "Redo"), () => root.redoLast());
+    }
+
+    // Undoes the newest `count` changes for the history page's "Undo up to
+    // here" (B-395, D-870), one by one, stopping at the first that can't be
+    // undone. One notice says how many were undone.
+    function undoSteps(count: int) {
+        if (count <= 1) {
+            undoLast();
+            return;
         }
+        let done = 0;
+        let last = null;
+        for (let i = 0; i < count; ++i) {
+            const result = changeHistory.undo();
+            if (result.code !== undefined || result.change === undefined) {
+                if (done > 0) {
+                    leaveStalePages();
+                }
+                afterStep(result, false);
+                return;
+            }
+            stepEffects(result, false);
+            done += 1;
+            last = result.change;
+        }
+        leaveStalePages();
+        showPassiveNotification(i18nContext.i18ncp("@info %2 is the oldest change taken back", "Undone: %1 change, back to before “%2”", "Undone: %1 changes, back to before “%2”", done, changeNames.describe(last)), 10000);
     }
 
     // After undo or redo, a page for something that may be gone (a form for
@@ -844,6 +955,7 @@ Kirigami.ApplicationWindow {
     }
 
     function showScreen(name: string) {
+        currentScreen = name;
         pageStack.clear();
         pushPage(screens[name]);
     }
@@ -1380,7 +1492,7 @@ Kirigami.ApplicationWindow {
                 shortcut: StandardKey.Undo
                 onTriggered: {
                     ActionLog.taken("Main_undoLast")
-                    root.undoLast()
+                    root.undoFromMenu()
                 }
             },
             Kirigami.Action {
@@ -1394,6 +1506,16 @@ Kirigami.ApplicationWindow {
                 onTriggered: {
                     ActionLog.taken("Main_redoLast")
                     root.redoLast()
+                }
+            },
+            // The whole list of changes, one step away (B-395, D-870).
+            Kirigami.Action {
+                icon.name: "view-history"
+                enabled: root.started
+                text: root.i18nContext.i18nc("@action:inmenu opens the list of changes", "History…")
+                onTriggered: {
+                    ActionLog.taken("Main_history")
+                    root.pushPage(historyPage)
                 }
             }
         ]
@@ -2503,6 +2625,7 @@ Kirigami.ApplicationWindow {
 
         HistoryPage {
             history: changeHistory
+            onUndoSteps: count => root.undoSteps(count)
         }
     }
 

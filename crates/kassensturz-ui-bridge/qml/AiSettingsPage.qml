@@ -296,11 +296,12 @@ Kirigami.ScrollablePage {
                     required property var modelData
                     width: ListView.view ? ListView.view.width : implicitWidth
                     enabled: !modelData.search
-                    text: modelData.value === ""
+                    // A model's name is the provider's text, shown as it is.
+                    text: Plain.plain(modelData.value === ""
                         ? page.i18nContext.i18nc("@item:inlistbox", "Enter another name…")
                         : (modelData.search
                             ? page.i18nContext.i18nc("@item:inlistbox %1 is a model's name", "%1 (only for searching, not for the chat)", modelData.value)
-                            : modelData.value)
+                            : modelData.value))
                 }
                 onActivated: index => {
                     ActionLog.taken("AiSettingsPage_activated")

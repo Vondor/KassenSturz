@@ -953,7 +953,10 @@ Kirigami.ScrollablePage {
 
     // "Plan this again…" (US7.1). Without planned payments the button is
     // hidden, so the form is never opened.
-    // "New category …" at the end of the category list (D-910).
+    // "New category …" at the end of the category list (D-910); named so
+    // the smoke test can reach it.
+    readonly property var newCategoryDialog: newCategory
+
     NewCategoryDialog {
         id: newCategory
 

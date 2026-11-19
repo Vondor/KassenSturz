@@ -79,12 +79,7 @@ Kirigami.ApplicationWindow {
             window.check(box.textAt(box.count - 1) === "New category …", "the list ends with New category …, got " + box.textAt(box.count - 1));
             window.check(box.currentText === "Salary", "the stored category shows, got " + box.currentText);
 
-            let dialog;
-            for (let i = 0; i < page.data.length; ++i) {
-                if (page.data[i].kindFixed !== undefined && page.data[i].created !== undefined) {
-                    dialog = page.data[i];
-                }
-            }
+            const dialog = page.newCategoryDialog;
             window.check(dialog !== undefined, "the page has the New category dialog");
 
             // Choosing the last entry opens the dialog; the box stays.

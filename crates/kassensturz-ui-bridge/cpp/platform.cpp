@@ -56,6 +56,9 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+
+#include <appmodel.h>
+#include <vector>
 #endif
 
 namespace kassensturz::platform
@@ -108,6 +111,30 @@ public:
 QString dataFolder()
 {
     return QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation);
+}
+
+QString documentsFolder()
+{
+    return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+}
+
+QString packageFamilyName()
+{
+#ifdef Q_OS_WIN
+    // Outside a package the first call answers APPMODEL_ERROR_NO_PACKAGE;
+    // inside one it asks for a buffer, whose length counts the final NUL.
+    UINT32 length = 0;
+    if (GetCurrentPackageFamilyName(&length, nullptr) != ERROR_INSUFFICIENT_BUFFER || length == 0) {
+        return QString();
+    }
+    std::vector<wchar_t> name(length);
+    if (GetCurrentPackageFamilyName(&length, name.data()) != ERROR_SUCCESS) {
+        return QString();
+    }
+    return QString::fromWCharArray(name.data());
+#else
+    return QString();
+#endif
 }
 
 QString appFilePath()

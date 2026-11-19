@@ -22,6 +22,7 @@ use crate::locale::QtLocale;
 use crate::platform;
 use crate::session;
 use crate::settings::Settings;
+use crate::store_folder;
 use crate::variant::{list, map, text};
 
 #[cxx_qt::bridge]
@@ -95,6 +96,13 @@ pub mod qobject {
         /// `remove`, then forgets it. `ok`, or `code`.
         #[qinvokable]
         fn settle(self: Pin<&mut BookMove>, remove: bool) -> QVariant;
+
+        /// The open book stays in the folder Windows deletes with the Store
+        /// app, and the start no longer offers to move it (D-856). Returns
+        /// whether that was saved.
+        #[qinvokable]
+        #[cxx_name = "keepInPackage"]
+        fn keep_in_package(self: Pin<&mut BookMove>) -> bool;
     }
 
     impl cxx_qt::Initialize for BookMove {}
@@ -242,6 +250,15 @@ impl qobject::BookMove {
         }
     }
 
+    fn keep_in_package(mut self: Pin<&mut Self>) -> bool {
+        let Some(book) = session::path() else {
+            return false;
+        };
+        let kept = store_folder::keep_where_it_is(&Settings::user(), &book);
+        self.as_mut().refresh();
+        kept
+    }
+
     /// Plans and runs a move, then reads `place` again.
     fn moved(mut self: Pin<&mut Self>, folder: &Path, name: &str) -> QVariant {
         let settings = Settings::user();
@@ -271,16 +288,31 @@ fn shown_object(shown: &ShownFolder) -> QVariant {
 }
 
 /// Where the open book is: `open`, `folder` (as `shown_object`), `name`
-/// (without `.ksz`), and after a move `moved` with `movedOn` and
-/// `movedFrom`.
+/// (without `.ksz`), after a move `moved` with `movedOn` and `movedFrom`,
+/// and in the Store build `inPackage` (it is in the folder Windows deletes
+/// with the app) and `offerMove` (the start offers to move it, D-856) with
+/// `ownFolder`, KassenSturz's own folder in the user's words.
 fn place_object(settings: &Settings) -> QVariant {
     let Some(book) = session::path() else {
         return map([("open", QVariant::from(&false))]);
     };
     let name = split(&book).map(|(_, name)| name).unwrap_or_default();
     let last = book_move::last_move(settings, &book);
+    let earlier = store_folder::earlier_folder();
+    let in_package = earlier
+        .as_deref()
+        .is_some_and(|earlier| store_folder::in_folder(&book, earlier));
+    let offer = earlier
+        .as_deref()
+        .is_some_and(|earlier| store_folder::offer_move(settings, &book, earlier));
+    let own = platform::app_folder()
+        .map(|folder| folder.display().to_string())
+        .unwrap_or_default();
     map([
         ("open", QVariant::from(&true)),
+        ("inPackage", QVariant::from(&in_package)),
+        ("offerMove", QVariant::from(&offer)),
+        ("ownFolder", text(&own)),
         ("folder", shown_object(&book_move::shown_folder_of(&book))),
         ("name", text(&name)),
         ("moved", QVariant::from(&last.is_some())),
@@ -533,11 +565,24 @@ mod tests {
         let object = place_object(&settings);
         assert_eq!(
             keys(&object),
-            ["folder", "moved", "movedFrom", "movedOn", "name", "open"]
+            [
+                "folder",
+                "inPackage",
+                "moved",
+                "movedFrom",
+                "movedOn",
+                "name",
+                "offerMove",
+                "open",
+                "ownFolder"
+            ]
         );
         assert!(flag_of(&object, "open"));
         assert_eq!(text_of(&object, "name"), "Household");
         assert!(!flag_of(&object, "moved"));
+        // Outside the Store's package nothing is offered (D-856).
+        assert!(!flag_of(&object, "inPackage"));
+        assert!(!flag_of(&object, "offerMove"));
         session::close();
     }
 }

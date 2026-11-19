@@ -66,6 +66,13 @@ pub mod qobject {
         #[qinvokable]
         fn check(self: &AiSettings, address: &QString, allow_unencrypted: bool) -> QVariant;
 
+        /// The address as typed, with `http://` put in front when it has
+        /// no scheme, e.g. `localhost:1234/v1` (B-387, D-860); the field
+        /// shows it so before it is checked or saved.
+        #[qinvokable]
+        #[cxx_name = "withScheme"]
+        fn with_scheme(self: &AiSettings, address: &QString) -> QString;
+
         /// Saves the provider. `key` is what was typed into the key field,
         /// empty to leave the kept key as it is. Answers `saved`; with
         /// `saved` false and a `code`, the settings as typed can't be used;
@@ -326,6 +333,10 @@ mod engine {
         off()
     }
 
+    pub(super) fn with_scheme(address: &str) -> String {
+        address.trim().to_owned()
+    }
+
     pub(super) fn save(
         _address: &str,
         _model: &str,
@@ -419,6 +430,10 @@ mod engine {
 
     pub(super) fn load() -> QVariant {
         load_in(&Store::user(), ai_settings::fake_model())
+    }
+
+    pub(super) fn with_scheme(address: &str) -> String {
+        kassensturz_ai::ProviderAddress::with_scheme(address)
     }
 
     pub(super) fn check(address: &str, allow_unencrypted: bool) -> QVariant {
@@ -751,6 +766,10 @@ impl qobject::AiSettings {
 
     fn check(&self, address: &QString, allow_unencrypted: bool) -> QVariant {
         engine::check(&address.to_string(), allow_unencrypted)
+    }
+
+    fn with_scheme(&self, address: &QString) -> QString {
+        QString::from(&engine::with_scheme(&address.to_string()))
     }
 
     fn save(
@@ -1789,6 +1808,21 @@ mod tests {
         fn delete(&self, key: &SecretKey) -> Result<(), KeychainError> {
             self.0.delete(key)
         }
+    }
+
+    #[test]
+    fn an_address_without_a_scheme_gets_http() {
+        // The completed address is what the settings page then checks and
+        // saves (B-387, D-860).
+        assert_eq!(
+            super::engine::with_scheme(" localhost:1234/v1 "),
+            "http://localhost:1234/v1"
+        );
+        assert_eq!(
+            super::engine::with_scheme("https://api.example.com/v1"),
+            "https://api.example.com/v1"
+        );
+        assert_eq!(super::engine::with_scheme(""), "");
     }
 
     /// The settings as typed, plain `http://` elsewhere not allowed.

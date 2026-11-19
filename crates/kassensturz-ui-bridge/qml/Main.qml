@@ -700,7 +700,10 @@ Kirigami.ApplicationWindow {
 
     function offerUndo() {
         if (started && changeHistory.undoChange?.action !== undefined) {
-            showPassiveNotification(changeNames.name(changeHistory.undoChange.action), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
+            // The rows of the change light up, and the notice names the one
+            // transaction it touched (B-384, D-857).
+            ChangedRows.light(changeHistory.undoChange.summary?.transactions);
+            showPassiveNotification(changeNames.describe(changeHistory.undoChange), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
         }
     }
 
@@ -781,6 +784,8 @@ Kirigami.ApplicationWindow {
             showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
         }
         const what = changeNames.describe(result.change);
+        // The rows it touched light up, where they are shown (B-384).
+        ChangedRows.light(result.change.summary?.transactions);
         // The chat hears of an Undo of the changes it prepared, whichever
         // way the user took them back (B-354).
         if (!redone && result.change.action === "apply-ai-changes") {
@@ -1377,12 +1382,15 @@ Kirigami.ApplicationWindow {
 
     DrawerHandleName {
         drawer: chatDrawer
+        highlighted: true
     }
 
     // In a wide window the drawers' buttons sit in the pages' headers.
     HeaderHandleNames {
         pages: root.pageStack
         scope: root.contentItem.parent ?? root.contentItem
+        // The chat's button shows its words and stands out (B-385, D-861).
+        labelled: chatDrawer
     }
 
     // Opens and closes the chat sidebar from the keyboard. The menu has no entry
@@ -1522,7 +1530,11 @@ Kirigami.ApplicationWindow {
         handleClosedIcon.source: "dialog-messages"
         handleOpenIcon.source: "go-next"
         handleOpenToolTip: root.i18nContext.i18nc("@action:button close the chat sidebar", "Close the chat")
-        handleClosedToolTip: root.i18nContext.i18nc("@info:tooltip the button that opens the chat sidebar", "Open the chat")
+        // The closed handle is the way into the chat, so it says so in words
+        // in the header (B-385, D-861): "Ask AI" beside a speech bubble,
+        // highlighted (HeaderHandleNames.qml). The same words are its name.
+        // The words live in AiChatPanel.qml, with the chat they open.
+        handleClosedToolTip: chatPanel.entryName
         width: Math.max(root.chatMinWidth, Math.min(root.chatWidth, root.chatMaxWidth))
         drawerOpen: false
         topPadding: 0

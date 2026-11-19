@@ -19,13 +19,13 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use kassensturz_core::{AccountId, Date, RuleId, Timestamp, TransactionId};
+use kassensturz_core::{AccountId, Date, Money, RuleId, Timestamp, TransactionId};
 use rusqlite::{Connection, OptionalExtension, ToSql, params};
 
 use crate::cached::Cached;
 use crate::error::{Corruption, StoreError};
 use crate::originals::unlocked;
-use crate::{Book, date_from_text};
+use crate::{Book, currency_from_text, date_from_text};
 
 /// What the user did in one change to the book, e.g. adding an account. The
 /// UI uses it to say what undo and redo would do, in the user's language
@@ -303,6 +303,17 @@ pub struct ChangeSummary {
     /// The transactions it touched, sorted by ID, so a front end can show
     /// which rows changed (B-384, D-857).
     pub transactions: Vec<TransactionId>,
+}
+
+/// A transaction as a change found it before the step: enough to name it
+/// after the step removed it (B-399).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BookingBefore {
+    /// Its payee as stored, if it had one.
+    pub payee: Option<String>,
+    /// Its parts in order: the account and the amount in that account's
+    /// currency.
+    pub parts: Vec<(AccountId, Money)>,
 }
 
 /// How long a book keeps its change history (D-066). The user chooses it,
@@ -1233,6 +1244,57 @@ impl Book {
             summary.dates = Some((date_from_text(&first)?, date_from_text(&last)?));
         }
         Ok(summary)
+    }
+
+    /// The transaction `transaction` as `change` found it, from the history
+    /// kept for undo: the only copy once the change removed it. `None` if
+    /// the change didn't touch it or kept no earlier state of it (B-399).
+    pub fn booking_before(
+        &self,
+        change: ChangeId,
+        transaction: TransactionId,
+    ) -> Result<Option<BookingBefore>, StoreError> {
+        let schema = self.history_schema()?;
+        let payee: Option<Option<String>> = self
+            .conn
+            .query_row_cached(
+                &format!(
+                    "SELECT payee FROM {schema}.changed_transactions
+                     WHERE change_id = ?1 AND id = ?2 AND side = 'before'"
+                ),
+                params![change.to_bytes(), transaction.to_bytes()],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let Some(payee) = payee else {
+            return Ok(None);
+        };
+        let mut statement = self.conn.prepare_cached(&format!(
+            "SELECT s.account_id, s.amount, a.currency
+             FROM {schema}.changed_splits AS s
+             LEFT JOIN main.accounts AS a ON a.id = s.account_id
+             WHERE s.change_id = ?1 AND s.transaction_id = ?2 AND s.side = 'before'
+             ORDER BY s.position"
+        ))?;
+        let rows = statement
+            .query_map(params![change.to_bytes(), transaction.to_bytes()], |row| {
+                Ok((
+                    row.get::<_, Option<[u8; 16]>>(0)?,
+                    row.get::<_, Option<i64>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut parts = Vec::new();
+        for (account, amount, currency) in rows {
+            if let (Some(account), Some(amount), Some(currency)) = (account, amount, currency) {
+                parts.push((
+                    AccountId::from_bytes(account),
+                    Money::from_minor_units(amount, currency_from_text(&currency)?),
+                ));
+            }
+        }
+        Ok(Some(BookingBefore { payee, parts }))
     }
 
     /// Writes the values of `side` back into every row that `change`

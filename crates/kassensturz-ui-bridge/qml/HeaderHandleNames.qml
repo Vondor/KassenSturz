@@ -10,6 +10,11 @@
 // change, and each such button gets its drawer's words as its name, the
 // same words its tooltip shows (DrawerHandleName.qml does it for the
 // handles of a narrow window).
+//
+// The button of the `labelled` drawer (the chat's, B-385, D-861) also shows
+// those words beside its icon while the drawer is closed, and is
+// highlighted, so it reads as "Ask AI" and not as a bare icon. While the
+// drawer is open it is the plain icon that closes it.
 
 import QtQuick
 
@@ -24,6 +29,10 @@ Item {
     required property Item pages
     // Where the headers are looked for: the whole window, its header too.
     property Item scope: pages
+
+    // The drawer whose button shows its words and is highlighted; null
+    // for none.
+    property var labelled: null
 
     // The buttons named so far, for the smoke test.
     property var named: []
@@ -53,6 +62,16 @@ Item {
                 target: item,
                 value: Qt.binding(() => names.words(item.drawer))
             });
+            if (item.drawer === names.labelled && names.labelled !== null) {
+                textBinding.createObject(item, {
+                    target: item,
+                    value: Qt.binding(() => item.drawer.drawerOpen ? "" : item.drawer.handleClosedToolTip)
+                });
+                highlightBinding.createObject(item, {
+                    target: item,
+                    value: Qt.binding(() => !item.drawer.drawerOpen)
+                });
+            }
         }
         const children = item.children ?? [];
         for (let i = 0; i < children.length; ++i) {
@@ -65,6 +84,22 @@ Item {
 
         Binding {
             property: "Accessible.name"
+        }
+    }
+
+    Component {
+        id: textBinding
+
+        Binding {
+            property: "text"
+        }
+    }
+
+    Component {
+        id: highlightBinding
+
+        Binding {
+            property: "highlighted"
         }
     }
 

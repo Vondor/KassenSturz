@@ -14,6 +14,8 @@ Open the **Statistic Builder** (**Guide me step by step**). A **New statistic** 
 
 If you leave the builder before **Done**, nothing is lost while KassenSturz is running: the statistic is back at the same step the next time you open it. **Cancel** starts afresh.
 
+**Reset chart** at the top right starts the chart on the page again from scratch at any time: period, categories, accounts and look are back to how a new chart starts. Your saved views and the charts on the Overview stay as they are, and **Undo** in the message brings the chart back as it was.
+
 ## The kinds of chart
 
 | Kind | Shows |

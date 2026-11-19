@@ -26855,6 +26855,31 @@ msgstr ""
 "Geplant. Die erste Zahlung ist am %1 fällig; Sie bestätigen jede Zahlung, "
 "wenn sie da ist."
 
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Reset chart"
+msgstr "Diagramm zurücksetzen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Starts this chart again from scratch. Your saved views stay as they are."
+msgstr ""
+"Beginnt dieses Diagramm noch einmal von vorn. Ihre gespeicherten Ansichten "
+"bleiben, wie sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Chart reset: period, categories, accounts and look are back to how they "
+"start."
+msgstr ""
+"Diagramm zurückgesetzt: Zeitraum, Kategorien, Konten und Aussehen sind "
+"wieder wie am Anfang."
+
 #: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
 #, kde-format
 msgctxt ""

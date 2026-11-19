@@ -24709,6 +24709,29 @@ msgstr ""
 "Zaplanowano. Pierwsza płatność przypada na %1; każdą płatność potwierdzasz, "
 "gdy już nastąpi."
 
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Reset chart"
+msgstr "Zresetuj wykres"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Starts this chart again from scratch. Your saved views stay as they are."
+msgstr "Zaczyna ten wykres od nowa. Zapisane widoki pozostają bez zmian."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Chart reset: period, categories, accounts and look are back to how they "
+"start."
+msgstr ""
+"Wykres zresetowany: okres, kategorie, konta i wygląd są znów takie jak na "
+"początku."
+
 #: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
 #, kde-format
 msgctxt ""

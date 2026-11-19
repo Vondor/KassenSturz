@@ -572,6 +572,7 @@ pub const ACTIONS: &[&str] = &[
     "StatisticsPage_period",
     "StatisticsPage_period_2",
     "StatisticsPage_rename",
+    "StatisticsPage_resetChart",
     "StatisticsPage_saveChangesView",
     "StatisticsPage_saveNewView",
     "StatisticsPage_setType",

@@ -217,7 +217,6 @@ pub mod qobject {
             transaction_id: &QString,
         ) -> QVariant;
 
-        /// Removes a transaction. Returns an empty map, or the error.
         /// The position of the transaction `transaction_id` in the list as
         /// it is now, counted from 0, or -1 when the list doesn't show it:
         /// for going to the row a change just added (B-394, D-869).
@@ -225,6 +224,7 @@ pub mod qobject {
         #[cxx_name = "rowOf"]
         fn row_of(self: &AccountRegister, transaction_id: &QString) -> i32;
 
+        /// Removes a transaction. Returns an empty map, or the error.
         #[qinvokable]
         #[cxx_name = "removeTransaction"]
         fn remove_transaction(

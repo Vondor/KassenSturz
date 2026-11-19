@@ -40,6 +40,10 @@ FormCard.FormCardPage {
     property string problem: ""
     // The move to run once the progress line is shown: "to", "back", "own".
     property string pending: ""
+    // Moves the book into KassenSturz's own folder as soon as the page
+    // opens: the start's offer for a book in the Store app's package
+    // folder (D-856).
+    property bool startOwn: false
 
     readonly property var place: bookMove.place ?? ({})
 
@@ -142,7 +146,11 @@ FormCard.FormCardPage {
 
     title: i18nContext.i18nc("@title", "Where your book is kept")
 
-    Component.onCompleted: bookMove.refresh()
+    Component.onCompleted: {
+        bookMove.refresh();
+        if (startOwn)
+            start("own");
+    }
 
     FolderChooser {
         id: chooser
@@ -169,6 +177,15 @@ FormCard.FormCardPage {
         type: Kirigami.MessageType.Warning
         visible: page.problem !== "" && page.stage !== "moving"
         text: page.problem
+    }
+
+    // A book in the folder Windows deletes with the Store app (D-856).
+    Kirigami.InlineMessage {
+        Layout.fillWidth: true
+        Layout.margins: Kirigami.Units.largeSpacing
+        type: Kirigami.MessageType.Warning
+        visible: page.stage === "choose" && (page.place.inPackage ?? false)
+        text: page.i18nContext.i18nc("@info %1 is a folder", "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice.", Plain.plain(page.place.ownFolder ?? ""))
     }
 
     // Where the book is now, and the folder chooser.

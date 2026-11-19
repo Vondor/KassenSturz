@@ -23957,3 +23957,21 @@ msgstr "Oczekuj %1"
 msgctxt "@action:button %1 is an amount"
 msgid "Keep %1"
 msgstr "Zostaw %1"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Connection successful. Fetch the transactions now?"
+msgstr "Połączono z bankiem. Pobrać transakcje teraz?"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz asks your bank for the transactions and shows them to you first. Nothing is added to your book until you say so, and nothing is ever sent to your bank. You can also do this later with Get new transactions."
+msgstr "KassenSturz prosi bank o transakcje i najpierw Ci je pokazuje. Nic nie trafia do księgi, dopóki tak nie zdecydujesz, i nic nie jest wysyłane do banku. Możesz to też zrobić później przez „Pobierz nowe transakcje”."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Fetch transactions"
+msgstr "Pobierz transakcje"

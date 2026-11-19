@@ -275,14 +275,14 @@ Item {
                 // The bank's name comes from the bank lists: plain text
                 // (D-143).
                 textFormat: Text.PlainText
-                text: dialogs.i18nContext.i18nc("@info %1 is the name of a bank", "Type the PIN you use for %1.", pinDialog.request.bank ?? "")
+                text: dialogs.i18nContext.i18nc("@info %1 is the name of a bank", "Type the PIN or password of your online banking for %1 (not the card PIN). Wrong entries can lock your access at the bank.", pinDialog.request.bank ?? "")
             }
 
             SecretField {
                 id: pinField
 
                 Layout.fillWidth: true
-                placeholderText: dialogs.i18nContext.i18nc("@info:placeholder", "PIN")
+                placeholderText: dialogs.i18nContext.i18nc("@info:placeholder", "PIN or password of your online banking")
                 Accessible.name: dialogs.i18nContext.i18nc("@label:textbox", "PIN")
                 onAccepted: {
                     ActionLog.taken("BankDialogs_pin")

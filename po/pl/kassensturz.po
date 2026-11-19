@@ -3654,15 +3654,19 @@ msgstr "Twój bank podał, że wpisany PIN jest błędny. KassenSturz go zapomni
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:244
 #, kde-format
 msgctxt "@info %1 is the name of a bank"
-msgid "Type the PIN you use for %1."
-msgstr "Wpisz PIN, którego używasz w %1."
+msgid ""
+"Type the PIN or password of your online banking for %1 (not the card PIN). "
+"Wrong entries can lock your access at the bank."
+msgstr ""
+"Wpisz PIN lub hasło swojej bankowości internetowej w %1 (nie PIN karty). "
+"Błędne wpisy mogą zablokować Twój dostęp w banku."
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:251
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:289
 #, kde-format
 msgctxt "@info:placeholder"
-msgid "PIN"
-msgstr "PIN"
+msgid "PIN or password of your online banking"
+msgstr "PIN lub hasło bankowości internetowej"
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:252
 #, kde-format
@@ -4149,8 +4153,8 @@ msgstr "Tylko jeśli Twój bank go nadał"
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:288
 #, kde-format
 msgctxt "@label:textbox"
-msgid "PIN:"
-msgstr "PIN:"
+msgid "PIN or password:"
+msgstr "PIN lub hasło:"
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:324
 #, kde-format

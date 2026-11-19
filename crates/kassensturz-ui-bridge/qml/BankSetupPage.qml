@@ -423,8 +423,8 @@ Kirigami.ScrollablePage {
 
             SecretField {
                 id: pinField
-                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "PIN:")
-                placeholderText: page.i18nContext.i18nc("@info:placeholder", "PIN")
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "PIN or password:")
+                placeholderText: page.i18nContext.i18nc("@info:placeholder", "PIN or password of your online banking")
                 onAccepted: {
                     ActionLog.taken("BankSetupPage_connect")
                     page.connect()

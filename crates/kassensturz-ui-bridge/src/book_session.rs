@@ -229,7 +229,7 @@ enum Attempt {
 impl cxx_qt::Initialize for qobject::BookSession {
     fn initialize(mut self: Pin<&mut Self>) {
         let books = Books::for_user();
-        let backup_folder = display(books.backup_folder());
+        let backup_folder = crate::platform::shown_path(books.backup_folder());
         // Until a book is open, the file dialogs start in the app's own
         // folder: a book the Flatpak's file chooser hands over from anywhere
         // else can't be opened (book.sandboxed, M6-B159).
@@ -734,7 +734,7 @@ fn problem_variant(problem: &Problem, books: Option<&Books>) -> QVariant {
             .map(|(name, value)| (name.clone(), qtext(value))),
     );
     if let Some(folder) = problem.path().and_then(Path::parent) {
-        entries.push(("folder".into(), qtext(&display(folder))));
+        entries.push(("folder".into(), qtext(&crate::platform::shown_path(folder))));
     }
     if let Problem::Locked { path, lock } = problem {
         if let Some(computer) = &lock.computer {

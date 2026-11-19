@@ -306,7 +306,7 @@ fn place_object(settings: &Settings) -> QVariant {
         .as_deref()
         .is_some_and(|earlier| store_folder::offer_move(settings, &book, earlier));
     let own = platform::app_folder()
-        .map(|folder| folder.display().to_string())
+        .map(|folder| platform::shown_path(&folder))
         .unwrap_or_default();
     map([
         ("open", QVariant::from(&true)),

@@ -111,13 +111,30 @@ impl Language {
     }
 }
 
-/// The system's language as its environment names it, in lower case, e.g.
-/// `de_de.utf-8`; none if nothing or only the plain "C" locale is set.
+/// The system's language in lower case, e.g. `de_de.utf-8` or `de-de`;
+/// none if nothing or only the plain "C" locale is set.
 fn system_language() -> Option<String> {
+    language_from(
+        |name| std::env::var(name).ok(),
+        crate::locale::QtLocale::system_ui_language,
+    )
+}
+
+/// The system's language as its environment names it (`env`), or else as
+/// the system's settings do (`settings`). Windows names its display
+/// language in no environment variable, so the German example book was
+/// offered as English on a German Windows (B-406); KI18n reads the same
+/// settings through Qt, which is why the screens were German.
+fn language_from(
+    env: impl Fn(&str) -> Option<String>,
+    settings: impl FnOnce() -> String,
+) -> Option<String> {
+    let named = |value: &String| !value.is_empty() && value != "C" && value != "POSIX";
     ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
         .iter()
-        .filter_map(|name| std::env::var(name).ok())
-        .find(|value| !value.is_empty() && value != "C" && value != "POSIX")
+        .filter_map(|name| env(name))
+        .find(named)
+        .or_else(|| Some(settings()).filter(named))
         .map(|value| value.to_ascii_lowercase())
 }
 
@@ -208,6 +225,30 @@ mod tests {
         assert!(Language::German.is_german());
         assert!(!Language::English.is_german());
         assert!(!Language::Polish.is_german());
+    }
+
+    /// B-406: a German Windows names its language only in its settings.
+    #[test]
+    fn the_systems_settings_name_the_language_when_no_variable_does() {
+        let none = |_: &str| None;
+        assert_eq!(
+            language_from(none, || "de-DE".to_owned()).as_deref(),
+            Some("de-de")
+        );
+        assert_eq!(language_from(none, || "C".to_owned()), None);
+        assert_eq!(language_from(none, String::new), None);
+        let english = |name: &str| (name == "LANG").then(|| "en_US.UTF-8".to_owned());
+        assert_eq!(
+            language_from(english, || "de-DE".to_owned()).as_deref(),
+            Some("en_us.utf-8")
+        );
+        let plain = |name: &str| (name == "LANG").then(|| "C".to_owned());
+        assert_eq!(
+            language_from(plain, || "pl-PL".to_owned()).as_deref(),
+            Some("pl-pl")
+        );
+        // Qt's own answer is read without a panic, whatever it is.
+        let _ = crate::locale::QtLocale::system_ui_language();
     }
 
     #[test]

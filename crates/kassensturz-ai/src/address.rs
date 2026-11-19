@@ -67,6 +67,23 @@ pub struct ProviderAddress {
 }
 
 impl ProviderAddress {
+    /// The address as typed, with spaces around it left out, and with
+    /// `http://` in front when it has no scheme of its own, as in
+    /// `localhost:1234/v1` (B-387, D-860). A server's address is often
+    /// written without its scheme, and a local program such as LM Studio
+    /// or Ollama speaks plain `http://`. Nothing else is changed, so an
+    /// address on another computer completed this way is still refused
+    /// by [`ProviderAddress::parse_with`] unless the user allowed plain
+    /// `http://`; an empty text stays empty.
+    pub fn with_scheme(text: &str) -> String {
+        let text = text.trim();
+        if text.is_empty() || text.contains("://") {
+            text.to_owned()
+        } else {
+            format!("http://{text}")
+        }
+    }
+
     /// Checks `text`, as the user typed it, with spaces around it ignored.
     /// Plain `http://` is accepted only for this computer.
     pub fn parse(text: &str) -> Result<Self, AiError> {
@@ -245,6 +262,29 @@ mod tests {
         ] {
             assert_eq!(place(text), Ok(Place::AnotherComputer), "{text}");
         }
+    }
+
+    #[test]
+    fn a_missing_scheme_becomes_http() {
+        for (typed, completed) in [
+            ("localhost:1234/v1", "http://localhost:1234/v1"),
+            ("  192.168.1.20:11434/v1 ", "http://192.168.1.20:11434/v1"),
+            ("api.example.com/v1", "http://api.example.com/v1"),
+            ("http://localhost:11434/v1", "http://localhost:11434/v1"),
+            ("HTTPS://api.example.com/v1", "HTTPS://api.example.com/v1"),
+            ("ftp://example.com", "ftp://example.com"),
+            ("", ""),
+            ("   ", ""),
+        ] {
+            assert_eq!(ProviderAddress::with_scheme(typed), completed, "{typed:?}");
+        }
+        // Completed, a local address is accepted and another computer's is
+        // still refused until plain http:// is allowed.
+        let local = ProviderAddress::with_scheme("localhost:1234/v1");
+        assert_eq!(place(&local), Ok(Place::ThisComputer));
+        let home = ProviderAddress::with_scheme("192.168.1.20:11434/v1");
+        assert_eq!(place(&home), Err(AiError::PlainHttp));
+        assert!(ProviderAddress::parse_with(&home, true).is_ok());
     }
 
     #[test]

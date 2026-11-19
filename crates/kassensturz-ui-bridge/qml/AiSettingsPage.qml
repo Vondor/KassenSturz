@@ -83,9 +83,31 @@ Kirigami.ScrollablePage {
         addressCheck = (form.address ?? "") !== "" ? settings.check(form.address, allowUnencryptedBox.checked) : ({});
     }
 
+    // An address typed without its scheme, such as `localhost:1234/v1`,
+    // gets `http://` in front, in the field, so the user sees what is
+    // checked and saved (B-387, D-860).
+    function completeAddress() {
+        const completed = settings.withScheme(addressField.text);
+        if (completed !== addressField.text.trim()) {
+            addressField.text = completed;
+        }
+    }
+
+    // The user chose "Allow unencrypted connections" in the message that
+    // refused a plain http:// address (B-387, D-860): the box is ticked,
+    // which shows its warning, and nothing is saved until the user saves.
+    function allowUnencryptedNow() {
+        allowUnencryptedBox.checked = true;
+        saveResult = ({});
+        testResult = ({});
+        checkAddress();
+        allowUnencryptedBox.forceActiveFocus();
+    }
+
     // Checks the address as typed, with the "Allow unencrypted
     // connections" box as it is now.
     function checkAddress() {
+        completeAddress();
         addressCheck = addressField.text.trim() !== "" ? settings.check(addressField.text, allowUnencryptedBox.checked) : ({});
     }
 
@@ -96,6 +118,7 @@ Kirigami.ScrollablePage {
         unencryptedOff = false;
         keyResult = ({});
         testResult = ({});
+        completeAddress();
         const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text, allowUnencrypted);
         if (result.saved === true) {
             // Without a model there is nothing to ask yet, so the test that
@@ -405,6 +428,8 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             ai: page.ai
             result: page.saveResult
+            offerUnencrypted: true
+            onAllowUnencryptedClicked: page.allowUnencryptedNow()
         }
 
         AiErrorMessage {
@@ -418,7 +443,9 @@ Kirigami.ScrollablePage {
             ai: page.ai
             result: page.testResult
             offerV1: true
+            offerUnencrypted: true
             onUseV1Clicked: page.useV1()
+            onAllowUnencryptedClicked: page.allowUnencryptedNow()
         }
 
         // What a test found.

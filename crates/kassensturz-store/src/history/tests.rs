@@ -888,6 +888,11 @@ fn a_summary_says_which_transactions_a_change_touched() {
         added: 2,
         accounts: sorted(vec![checking, salary]),
         dates: Some((date(2026, 9, 30), date(2026, 10, 5))),
+        transactions: {
+            let mut ids = vec![purchase.id(), pay.id()];
+            ids.sort();
+            ids
+        },
         ..ChangeSummary::default()
     };
     assert_eq!(summary(&book), imported);
@@ -910,6 +915,7 @@ fn a_summary_says_which_transactions_a_change_touched() {
         changed: 1,
         accounts: sorted(vec![checking, groceries]),
         dates: Some((date(2026, 10, 5), date(2026, 10, 5))),
+        transactions: vec![purchase.id()],
         ..ChangeSummary::default()
     };
     assert_eq!(summary(&book), edited);
@@ -920,6 +926,7 @@ fn a_summary_says_which_transactions_a_change_touched() {
         removed: 1,
         accounts: sorted(vec![checking, salary]),
         dates: Some((date(2026, 9, 30), date(2026, 9, 30))),
+        transactions: vec![pay.id()],
         ..ChangeSummary::default()
     };
     assert_eq!(summary(&book), removed);

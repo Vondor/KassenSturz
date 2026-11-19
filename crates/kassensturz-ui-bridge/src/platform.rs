@@ -189,6 +189,13 @@ pub fn in_app_package() -> bool {
     !ffi::package_family_name().is_empty()
 }
 
+/// The Windows app package's family name, empty outside a package and on
+/// other systems.
+#[cfg_attr(not(feature = "debug-log"), allow(dead_code))]
+pub fn package_family_name() -> String {
+    ffi::package_family_name().to_string()
+}
+
 /// The app's own executable file.
 pub fn app_file_path() -> String {
     ffi::app_file_path().to_string()

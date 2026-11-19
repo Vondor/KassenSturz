@@ -103,11 +103,11 @@ Kirigami.ScrollablePage {
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
-        Controls.Label {
-            Layout.fillWidth: true
-            text: page.i18nContext.i18nc("@info", "A budget is what you plan to spend on a category in a month, a quarter, a year or some days. The bar shows how much of it is spent and how much is left. A budget doesn't change any transaction or total.")
-            wrapMode: Text.Wrap
-            textFormat: Text.PlainText
+        // What a budget is, so it is never mixed up with a plan (B-388,
+        // D-863): the Plans page explains plans.
+        ExplanationCard {
+            heading: page.i18nContext.i18nc("@title", "What is a budget?")
+            explanation: page.i18nContext.i18nc("@info", "A limit for a category, for example: “I spend at most 300 € a month on food.” KassenSturz shows you how much of it is already spent. A budget doesn't change any transaction or total.")
         }
 
         Kirigami.PlaceholderMessage {

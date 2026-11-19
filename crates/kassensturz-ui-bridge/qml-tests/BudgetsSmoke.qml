@@ -99,6 +99,7 @@ Kirigami.ApplicationWindow {
         onTriggered: {
             const listed = window.texts(page, []);
             window.check(listed.includes("Food"), "the first budget is listed");
+            window.check(listed.includes("What is a budget?"), "the page says what a budget is (B-388)");
             window.check(listed.includes("Flat"), "the second budget is listed by its own name");
             window.check(listed.some(text => text.startsWith("Starts 2027-01-25")), "the budget that has not started says when it does");
             window.check(listed.includes("Every salary month, from day 25, 800,00 €"), "a salary month names its day (D-651), got " + listed);

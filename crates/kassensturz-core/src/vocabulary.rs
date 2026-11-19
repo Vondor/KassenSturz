@@ -117,6 +117,7 @@ pub const DETAILS: &[&str] = &[
     "NewAccountPage",
     "OverviewPage",
     "PartsPage",
+    "PlansPage",
     "RegisterPage",
     "RestoreBackupPage",
     "RulePage",

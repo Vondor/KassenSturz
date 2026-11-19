@@ -29,6 +29,16 @@ If you prefer the Terminal: `xattr -dr com.apple.quarantine /Applications/Kassen
 
 The same text, in German and English, is in the `.dmg` as `SO OEFFNEN - HOW TO OPEN.txt`.
 
+## Why there is no bank connection yet (D-876)
+
+The Mac build leaves out FinTS bank connections on purpose, until someone with a Mac can test them:
+
+- Bank connections need AqBanking and its helper library Gwenhywfar. KDE Craft, which builds the rest of the Mac app, has no package for them on macOS, so they would have to be built separately and bundled into the app by hand.
+- Nobody on the team has a Mac, so a bank login, which handles a real PIN and real accounts, could not be tried even once before a tester used it. Money comes first (AGENTS.md section 2): an untested bank path is worse than none.
+- The official FinTS registration number is only built into release builds that have a working bank path; adding it to a build nobody can try would not make it work.
+
+Everything else works without a bank: you can import statements from files (CAMT, MT940, OFX, CSV). Bank connections for the Mac follow once a Mac tester exists.
+
 ## For the team
 
 - `packaging/macos/craft/kassensturz/kassensturz.py` is the Craft recipe: Qt 6 and KDE Frameworks come from Craft's binary cache, as for Windows. The Craft and blueprint commits are the same as in `windows-app.yml` and are moved together.

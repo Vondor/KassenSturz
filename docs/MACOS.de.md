@@ -28,3 +28,13 @@ Zu jedem getaggten Vorabversions-Release (`v0.*`, siehe `docs/RELEASING.md`) kom
 Im Terminal geht es auch: `xattr -dr com.apple.quarantine /Applications/KassenSturz.app`.
 
 Derselbe Text, deutsch und englisch, liegt in der `.dmg` als `SO OEFFNEN - HOW TO OPEN.txt`.
+
+## Warum es noch keine Bankverbindung gibt (D-876)
+
+Der Mac-Build lässt FinTS-Bankverbindungen mit Absicht weg, bis jemand mit einem Mac sie testen kann:
+
+- Bankverbindungen brauchen AqBanking und dessen Hilfsbibliothek Gwenhywfar. KDE Craft, das den Rest der Mac-App baut, hat dafür unter macOS kein Paket; sie müssten getrennt gebaut und von Hand in die App gepackt werden.
+- Niemand im Team hat einen Mac. Eine Bank-Anmeldung mit echter PIN und echten Konten ließe sich also nicht ein einziges Mal ausprobieren, bevor ein Tester sie benutzt. Das Geld geht vor (AGENTS.md Abschnitt 2): ein ungetesteter Bankweg ist schlechter als keiner.
+- Die offizielle FinTS-Registrierungsnummer steckt nur in Release-Builds mit funktionierendem Bankweg; in einen Build, den niemand ausprobieren kann, einzubauen, würde ihn nicht zum Laufen bringen.
+
+Alles andere geht ohne Bank: Sie können Kontoauszüge aus Dateien einlesen (CAMT, MT940, OFX, CSV). Bankverbindungen für den Mac folgen, sobald es einen Mac-Tester gibt.

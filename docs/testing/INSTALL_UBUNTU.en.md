@@ -30,6 +30,6 @@ Open a **terminal** with Ctrl+Alt+T; paste each line (Ctrl+Shift+V) and press En
 
 **First start (both ways):** page 1 (language and currency), then **Continue**; on "How would you like to start?" choose "Try an example book" ("Ein Beispielbuch ausprobieren") and then Suburban Family; this is the book used in the session. Use no real numbers. Done when you see the **overview**; note the total minutes in the [step log](INSTALL_LOG.en.md).
 
-**Remove:** way A `sudo snap remove kassensturz`; way B `flatpak uninstall --user io.github.vondor.KassenSturz`. **Warning (way A):** snap also deletes the app's data, so the test book and its backups in `~/snap/kassensturz` (snap usually keeps a snapshot, but don't rely on it). Send the log to the facilitator first; copy a book you want to keep elsewhere first. Way B keeps the test books under `~/.var/app/io.github.vondor.KassenSturz/`.
+**Remove:** **Warning, before way A:** removing the snap also deletes the app's data, so the book and its backups in `~/snap/kassensturz` (snap usually keeps a snapshot, but don't rely on it). Send the log to the facilitator first, and copy a book you want to keep (and its backups) elsewhere or use the app's export. Way A `sudo snap remove kassensturz`; way B `flatpak uninstall --user io.github.vondor.KassenSturz`, which keeps the test books under `~/.var/app/io.github.vondor.KassenSturz/`.
 
 > **Stuck?** Note the step in the [step log](INSTALL_LOG.en.md) and send it to the facilitator.

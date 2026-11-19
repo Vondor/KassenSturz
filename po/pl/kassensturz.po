@@ -11249,12 +11249,6 @@ msgctxt "@title:group"
 msgid "All changes"
 msgstr "Wszystkie zmiany"
 
-#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml:103
-#, kde-format
-msgctxt "@info %1 is a date and time"
-msgid "%1 · taken back; Redo can make it again"
-msgstr "%1 · cofnięte; „Ponów” może to wykonać ponownie"
-
 #: crates/kassensturz-ui-bridge/qml/HistoryPage.qml:116
 #, kde-format
 msgctxt "@info"
@@ -24786,3 +24780,147 @@ msgctxt ""
 "@info %1 is what was done, e.g. Added a transaction; %2 the name of a screen"
 msgid "Undone: %1, on the screen “%2”"
 msgstr "Cofnięto: %1, na ekranie „%2”"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@title:group a day"
+msgid "Today"
+msgstr "Dzisiaj"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@title:group a day"
+msgid "Yesterday"
+msgstr "Wczoraj"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Find a change…"
+msgstr "Znajdź zmianę…"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "All kinds"
+msgstr "Wszystkie rodzaje"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Transactions and accounts"
+msgstr "Transakcje i konta"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Imports"
+msgstr "Importy"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Budgets"
+msgstr "Budżety"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Views"
+msgstr "Widoki"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Rules"
+msgstr "Reguły"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Categories"
+msgstr "Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Settings"
+msgstr "Ustawienia"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Suggested changes you applied"
+msgstr "Zastosowane propozycje"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@title:group %2 is a day, %3 a time, %1 a number"
+msgid "%2, %3 · %1 change"
+msgid_plural "%2, %3 · %1 changes"
+msgstr[0] "%2, %3 · %1 zmiana"
+msgstr[1] "%2, %3 · %1 zmiany"
+msgstr[2] "%2, %3 · %1 zmian"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@title:group %2 is a day, %3 and %4 times, %1 a number"
+msgid "%2, %3 to %4 · %1 change"
+msgid_plural "%2, %3 to %4 · %1 changes"
+msgstr[0] "%2, %3 do %4 · %1 zmiana"
+msgstr[1] "%2, %3 do %4 · %1 zmiany"
+msgstr[2] "%2, %3 do %4 · %1 zmian"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info %2 is what was done, %1 how often in a row"
+msgid "%2 (%1 time)"
+msgid_plural "%2 (%1 times)"
+msgstr[0] "%2 (%1 raz)"
+msgstr[1] "%2 (%1 razy)"
+msgstr[2] "%2 (%1 razy)"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info %1 is a time"
+msgid "%1 · taken back; Redo can make it again"
+msgstr "%1 · cofnięto; „Ponów” przywróci tę zmianę"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info %1 is what was done"
+msgid "Picked: %1"
+msgstr "Wybrano: %1"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Takes back %1 change: this one."
+msgid_plural ""
+"Takes back %1 changes: this one and every newer one. Redo brings them back."
+msgstr[0] "Cofa %1 zmianę: tę."
+msgstr[1] "Cofa %1 zmiany: tę i wszystkie nowsze. „Ponów” je przywróci."
+msgstr[2] "Cofa %1 zmian: tę i wszystkie nowsze. „Ponów” je przywróci."
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Undo up to here"
+msgstr "Cofnij do tego miejsca"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "No change matches. Clear the search or choose All kinds."
+msgstr ""
+"Żadna zmiana nie pasuje. Wyczyść wyszukiwanie lub wybierz „Wszystkie "
+"rodzaje”."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info %2 is the oldest change taken back"
+msgid "Undone: %1 change, back to before “%2”"
+msgid_plural "Undone: %1 changes, back to before “%2”"
+msgstr[0] "Cofnięto: %1 zmianę, do stanu sprzed „%2”"
+msgstr[1] "Cofnięto: %1 zmiany, do stanu sprzed „%2”"
+msgstr[2] "Cofnięto: %1 zmian, do stanu sprzed „%2”"

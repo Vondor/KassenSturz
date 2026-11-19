@@ -849,21 +849,8 @@ Kirigami.ApplicationWindow {
             return;
         }
         leaveStalePages();
-        if ((result.leftInArchive ?? []).length > 0) {
-            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The link is gone. The bills stay in your archive: %1", Array.from(result.leftInArchive).join(", ")), "long");
-        }
-        if ((result.copiesLeft ?? []).length > 0) {
-            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
-        }
+        stepEffects(result, redone);
         const what = changeNames.describe(result.change);
-        // The rows it touched light up, where they are shown (B-384).
-        ChangedRows.light(result.change.summary?.transactions);
-        // The chat hears of an Undo of the changes it prepared, whichever
-        // way the user took them back (B-354).
-        if (!redone && result.change.action === "apply-ai-changes") {
-            aiChat.changesUndone();
-            chatPanel.markUndone();
-        }
         if (redone) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
         } else {
@@ -875,6 +862,52 @@ Kirigami.ApplicationWindow {
                 : i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what);
             showPassiveNotification(message, 10000, i18nContext.i18nc("@action:button", "Redo"), () => root.redoLast());
         }
+    }
+
+    // What every undo or redo step does besides its notice: the files it
+    // left, the rows it touched and the chat.
+    function stepEffects(result: var, redone: bool) {
+        if ((result.leftInArchive ?? []).length > 0) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The link is gone. The bills stay in your archive: %1", Array.from(result.leftInArchive).join(", ")), "long");
+        }
+        if ((result.copiesLeft ?? []).length > 0) {
+            showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
+        }
+        // The rows it touched light up, where they are shown (B-384).
+        ChangedRows.light(result.change.summary?.transactions);
+        // The chat hears of an Undo of the changes it prepared, whichever
+        // way the user took them back (B-354).
+        if (!redone && result.change.action === "apply-ai-changes") {
+            aiChat.changesUndone();
+            chatPanel.markUndone();
+        }
+    }
+
+    // Undoes the newest `count` changes for the history page's "Undo up to
+    // here" (B-395, D-870), one by one, stopping at the first that can't be
+    // undone. One notice says how many were undone.
+    function undoSteps(count: int) {
+        if (count <= 1) {
+            undoLast();
+            return;
+        }
+        let done = 0;
+        let last = null;
+        for (let i = 0; i < count; ++i) {
+            const result = changeHistory.undo();
+            if (result.code !== undefined || result.change === undefined) {
+                if (done > 0) {
+                    leaveStalePages();
+                }
+                afterStep(result, false);
+                return;
+            }
+            stepEffects(result, false);
+            done += 1;
+            last = result.change;
+        }
+        leaveStalePages();
+        showPassiveNotification(i18nContext.i18ncp("@info %2 is the oldest change taken back", "Undone: %1 change, back to before “%2”", "Undone: %1 changes, back to before “%2”", done, changeNames.describe(last)), 10000);
     }
 
     // After undo or redo, a page for something that may be gone (a form for
@@ -2544,6 +2577,7 @@ Kirigami.ApplicationWindow {
 
         HistoryPage {
             history: changeHistory
+            onUndoSteps: count => root.undoSteps(count)
         }
     }
 

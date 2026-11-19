@@ -34,6 +34,9 @@ Kirigami.ScrollablePage {
     property var saveResult: ({})
     property var keyResult: ({})
     property var testResult: ({})
+    // The notes for the AI are folded away until the user opens them, so
+    // their text box isn't taken for the chat (B-393, D-868).
+    property bool notesShown: false
     // The hint under the address: where it points, or why it can't be used.
     property var addressCheck: ({})
     // Whether something was saved just now, for the note under the buttons.
@@ -807,21 +810,51 @@ Kirigami.ScrollablePage {
         // The user's own notes for the AI (US7, #808): kept on this
         // computer, put into every chat as the user's own words. Nothing
         // is copied into them by itself; the AI can only suggest a line.
-        Kirigami.Heading {
-            level: 2
-            text: page.i18nContext.i18nc("@title:group", "Notes for the AI")
+        // Folded under "Advanced" (B-393, D-868): most people never need
+        // them, and an open text box here looked like the chat's.
+        Controls.Button {
+            text: page.i18nContext.i18nc("@action:button opens or closes the user's fixed notes for the AI", "Advanced: fixed notes for the AI")
+            icon.name: page.notesShown ? "arrow-down" : "arrow-right"
+            flat: true
+            Accessible.description: page.notesShown
+                ? page.i18nContext.i18nc("@info accessible state", "Open")
+                : page.i18nContext.i18nc("@info accessible state", "Closed")
+            onClicked: {
+                ActionLog.taken("AiSettingsPage_toggleNotes")
+                page.notesShown = !page.notesShown
+            }
         }
 
         Controls.Label {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
+            font: Kirigami.Theme.smallFont
+            visible: !page.notesShown
+            text: page.i18nContext.i18nc("@info", "Rarely needed. Closed until you open it.")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            visible: page.notesShown
+            font.bold: true
+            text: page.i18nContext.i18nc("@info", "These notes apply to every question, for example \"Answer briefly\". Ask your questions in the chat, not here.")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            visible: page.notesShown
             text: page.i18nContext.i18nc("@info", "Write down what the AI should know about you, for example \"Salary comes on the 28th\" or \"Corner Market is groceries\". The notes stay on this computer and go with every question you ask the AI in the chat, so they are sent to your AI provider too. Write no passwords or PINs. The AI never changes them by itself: it can suggest a line, and you decide. Your AI tools outside KassenSturz do not get them.")
         }
 
         Controls.TextArea {
             id: notesField
 
+            visible: page.notesShown
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit * 8
             wrapMode: TextEdit.Wrap
@@ -834,6 +867,7 @@ Kirigami.ScrollablePage {
 
         RowLayout {
             Layout.fillWidth: true
+            visible: page.notesShown
 
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button", "Save notes")

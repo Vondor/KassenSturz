@@ -21264,12 +21264,6 @@ msgid ""
 "with every question."
 msgstr "Twoje notatki dla AI z tych ustawień. AI dostaje je przy każdym pytaniu."
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:689
-#, kde-format
-msgctxt "@title:group"
-msgid "Notes for the AI"
-msgstr "Notatki dla AI"
-
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:696
 #, kde-format
 msgctxt "@info"
@@ -24973,6 +24967,40 @@ msgstr "Dopóki nie wybierzesz, nic nie zostanie utworzone ani zmienione."
 msgctxt "@action:button"
 msgid "Start a new book instead"
 msgstr "Zamiast tego zacznij nową księgę"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button opens or closes the user's fixed notes for the AI"
+msgid "Advanced: fixed notes for the AI"
+msgstr "Zaawansowane: stałe wskazówki dla AI"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Open"
+msgstr "Otwarte"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Closed"
+msgstr "Zamknięte"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Rarely needed. Closed until you open it."
+msgstr "Rzadko potrzebne. Zwinięte, dopóki ich nie otworzysz."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These notes apply to every question, for example \"Answer briefly\". Ask "
+"your questions in the chat, not here."
+msgstr ""
+"Te wskazówki dotyczą każdego pytania, na przykład „Odpowiadaj krótko”. "
+"Pytania zadawaj w czacie, nie tutaj."
 
 #: crates/kassensturz-ui-bridge/qml/Main.qml
 #, kde-format

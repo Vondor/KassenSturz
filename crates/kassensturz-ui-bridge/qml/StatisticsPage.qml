@@ -266,7 +266,70 @@ Kirigami.ScrollablePage {
         wizardView.restart();
     }
 
+    // "Reset chart" (B-390, D-865): the chart being built goes back to how
+    // a new one starts, period, categories, accounts and look; saved views
+    // and the Overview stay as they are. A message says what was reset and
+    // its Undo brings the chart back as it was.
+    property var resetBefore: null
+
+    function resetChart() {
+        page.resetBefore = {
+            json: workbench.view?.json ?? "",
+            period: page.period,
+            name: wizardView.nameText,
+            step: wizardView.step,
+            openId: page.openId,
+            openName: page.openName,
+            wizard: page.wizard,
+            shownDraft: page.shownDraft,
+        };
+        page.openId = "";
+        page.openName = "";
+        page.shownDraft = false;
+        error.result = ({});
+        page.period = "last-12-months";
+        workbench.open("chart.bar", "spending_by_category");
+        page.wizard = true;
+        wizardView.restart();
+        page.noteDraft();
+        applicationWindow().showPassiveNotification(i18nContext.i18nc("@info", "Chart reset: period, categories, accounts and look are back to how they start."), 10000, i18nContext.i18nc("@action:button", "Undo"), () => page.undoReset());
+    }
+
+    // Undo of "Reset chart": the chart, its period, name and step as they
+    // were, and the saved view it was, if it was one.
+    function undoReset() {
+        const before = page.resetBefore;
+        page.resetBefore = null;
+        if (!before || before.json === "") {
+            return;
+        }
+        workbench.load(before.json);
+        page.period = before.period;
+        page.openId = before.openId;
+        page.openName = before.openName;
+        page.shownDraft = before.shownDraft;
+        page.wizard = before.wizard;
+        wizardView.restoreName(before.name);
+        if (before.wizard) {
+            wizardView.openAt(before.step);
+        }
+        page.noteDraft();
+    }
+
     title: i18nContext.i18nc("@title", "Statistic Builder")
+    actions: [
+        Kirigami.Action {
+            // A chart from the Overview has its own Cancel.
+            visible: page.overviewComponentId === ""
+            icon.name: "edit-reset"
+            text: page.i18nContext.i18nc("@action:button", "Reset chart")
+            tooltip: page.i18nContext.i18nc("@info:tooltip", "Starts this chart again from scratch. Your saved views stay as they are.")
+            onTriggered: {
+                ActionLog.taken("StatisticsPage_resetChart")
+                page.resetChart()
+            }
+        }
+    ]
     header: FormError {
         id: error
     }

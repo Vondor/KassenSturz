@@ -68,6 +68,7 @@ pub const ACTIONS: &[&str] = &[
     "AiChatPanel_stop",
     "AiChatPanel_useSuggestion",
     "AiErrorMessage_addVAddress",
+    "AiErrorMessage_allowUnencrypted",
     "AiErrorMessage_openAiSettings",
     "AiPermissionGrid_fieldWritable",
     "AiPermissionGrid_toggled",

@@ -1,0 +1,14 @@
+{
+  "theme_version": 1,
+  "light": {
+    "background": "#F1F8F1",
+    "text": "#1B2A1C",
+    "accent": "#2E7D32"
+  },
+  "dark": {
+    "background": "#102214",
+    "text": "#E2F0E3",
+    "accent": "#81C784"
+  },
+  "corner_radius": 8
+}

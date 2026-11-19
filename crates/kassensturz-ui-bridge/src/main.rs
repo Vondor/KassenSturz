@@ -134,6 +134,8 @@ mod test_folder;
 mod test_plugins;
 mod test_profile;
 mod test_profile_model;
+mod theme;
+mod theme_model;
 mod transaction_entry;
 mod transactions_tile;
 mod transactions_tile_model;
@@ -169,7 +171,11 @@ fn main() {
     QGuiApplication::set_desktop_file_name(&QString::from(platform::APP_ID));
     platform::use_bundled_icons();
     platform::use_readable_widget_style();
-    platform::follow_system_colours();
+    // A theme the user chose (D-925) takes the place of the system's
+    // colours; without one, they follow the system.
+    if !theme::apply_at_start() {
+        platform::follow_system_colours();
+    }
     platform::start_in_user_folder();
     // The Store build's own folder is in Documents (D-856): what the
     // earlier one inside the package holds is copied over before a book

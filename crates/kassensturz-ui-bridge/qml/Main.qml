@@ -541,6 +541,18 @@ Kirigami.ApplicationWindow {
         id: languageSettings
     }
 
+    // The theme (D-925), which applies at the next start; its corner
+    // radius reaches every box through `Look`.
+    ThemeSettings {
+        id: themeSettings
+    }
+
+    Binding {
+        target: Look
+        property: "themeRadius"
+        value: themeSettings.cornerRadius
+    }
+
     // The colors of the charts (M7a.10, D-589): what the user chose in
     // Settings reaches every chart through `ChartPalette`. A screen that
     // wants the palette changed asks with `ChartPalette.editRequested()`.
@@ -2434,6 +2446,7 @@ Kirigami.ApplicationWindow {
             numberFormat: numberFormatSettings
             chartPalette: chartPaletteSettings
             language: languageSettings
+            theme: themeSettings
         }
     }
 

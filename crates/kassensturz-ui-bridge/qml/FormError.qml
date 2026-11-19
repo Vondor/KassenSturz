@@ -909,6 +909,22 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This plugin describes itself twice, so KassenSturz can't tell which description is true and doesn't add it. Ask the plugin's author.");
         case "plugin.unknown-section":
             return i18nContext.i18nc("@info %1 is a word from the plugin file", "This plugin holds a part this KassenSturz doesn't know (\"%1\"). Update KassenSturz, or ask the plugin's author.", result.name);
+        case "plugin.theme-missing":
+            return i18nContext.i18nc("@info", "This theme plugin holds no colors, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.");
+        case "plugin.theme-twice":
+            return i18nContext.i18nc("@info", "This theme plugin holds its colors twice, so KassenSturz can't tell which are meant and doesn't add it. Ask the plugin's author.");
+        case "plugin.theme-unexpected":
+            return i18nContext.i18nc("@info", "This plugin holds colors for the app but doesn't say it is a theme, so KassenSturz doesn't add it. Ask the plugin's author.");
+        case "plugin.theme-too-big":
+            return i18nContext.i18nc("@info %1 is a number of bytes", "This theme's colors take more than %1 bytes, so KassenSturz doesn't read them. Ask the plugin's author for a fixed version.", result.max_bytes);
+        case "plugin.theme-malformed":
+            return i18nContext.i18nc("@info", "This theme's colors can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.");
+        case "plugin.unsupported-theme-version":
+            return i18nContext.i18nc("@info %1 is a version number", "This theme was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the theme.", result.version);
+        case "plugin.theme-invalid":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This theme has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.", result.key);
+        case "plugin.theme-low-contrast":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "With this theme, some text would be hard to read (\"%1\" doesn't stand out enough from the background), so KassenSturz doesn't add it. Ask the plugin's author for a version with stronger colors.", result.key);
         case "plugin-host.ai-off":
             return i18nContext.i18nc("@info", "This kind of plugin is switched off in Settings, so KassenSturz doesn't use it.");
         case "plugin-host.module-invalid":

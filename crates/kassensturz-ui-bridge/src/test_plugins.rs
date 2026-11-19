@@ -6,7 +6,7 @@
 
 use std::fmt::Write as _;
 
-use kassensturz_plugin_api::MANIFEST_SECTION;
+use kassensturz_plugin_api::{MANIFEST_SECTION, THEME_SECTION};
 use serde_json::json;
 
 /// A plugin file of `wat` with a manifest of this ID, name and extension
@@ -23,9 +23,22 @@ pub(crate) fn file(id: &str, name: &str, points: &[&str], wat: &str) -> Vec<u8> 
         "permissions": [],
     })
     .to_string();
-    let mut content = vec![u8::try_from(MANIFEST_SECTION.len()).unwrap()];
-    content.extend(MANIFEST_SECTION.as_bytes());
-    content.extend(manifest.as_bytes());
+    push_custom(&mut bytes, MANIFEST_SECTION, manifest.as_bytes());
+    bytes
+}
+
+/// A theme plugin of this ID and name, with `theme` as its theme section.
+pub(crate) fn theme_file(id: &str, name: &str, theme: &serde_json::Value) -> Vec<u8> {
+    let mut bytes = file(id, name, &["theme"], "(module)");
+    push_custom(&mut bytes, THEME_SECTION, theme.to_string().as_bytes());
+    bytes
+}
+
+/// Appends a custom section to a module.
+fn push_custom(bytes: &mut Vec<u8>, name: &str, data: &[u8]) {
+    let mut content = vec![u8::try_from(name.len()).unwrap()];
+    content.extend(name.as_bytes());
+    content.extend(data);
     bytes.push(0);
     let mut size = content.len();
     loop {
@@ -38,7 +51,6 @@ pub(crate) fn file(id: &str, name: &str, points: &[&str], wat: &str) -> Vec<u8> 
         bytes.push(byte | 0x80);
     }
     bytes.extend(content);
-    bytes
 }
 
 /// A module whose exports each hand back a fixed answer, or, for `None`,

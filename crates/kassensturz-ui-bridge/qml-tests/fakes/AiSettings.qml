@@ -34,7 +34,9 @@ QtObject {
     function check(address, allowUnencrypted) { return ({ place: "this", network: "this", unencrypted: false }); }
     function withScheme(address) { return address.trim(); }
     function save(address, model, keyUse, key, allowUnencrypted) { return ({ saved: true }); }
-    function testConnection(key) {}
+    // How often the connection was tested, for ModelChoiceSmoke (B-407).
+    property int testCalls: 0
+    function testConnection(key) { testCalls += 1; }
     function capabilityRequest() { return ""; }
     function statement() { return []; }
     function forgetKey() { return ({}); }

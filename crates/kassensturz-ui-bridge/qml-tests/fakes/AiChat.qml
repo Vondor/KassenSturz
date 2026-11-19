@@ -11,6 +11,24 @@
 import QtQuick
 
 QtObject {
+    // For the chat panel (SuggestionSmoke, B-386): no question runs, and
+    // the questions asked are kept.
+    property bool busy: false
+    property bool available: false
+    property var asked: []
+    signal finished(var result)
+    signal reviewing(var request)
+    signal logged(var entry)
+    function ask(question, key) {
+        asked = asked.concat([question]);
+        return { started: true };
+    }
+    function askFeature(feature, accountId, key) { return {}; }
+    function checkRequests() {}
+    function reset() {}
+    function stop() {}
+    function issueUsed(how) {}
+
     property var confirmed: []
     property var discarded: []
     property var edits: []

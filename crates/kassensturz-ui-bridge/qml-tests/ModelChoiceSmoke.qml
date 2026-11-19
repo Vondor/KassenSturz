@@ -28,6 +28,9 @@ Kirigami.ApplicationWindow {
 
     AiSettings {
         id: settings
+
+        // Saved without a model yet, so the list chooses one.
+        form: ({ address: "http://localhost:1234/v1", model: "", keyUse: "none", place: "this", consent: "not-needed" })
     }
 
     pageStack.initialPage: AiSettingsPage {

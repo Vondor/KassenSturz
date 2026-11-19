@@ -20,11 +20,12 @@ QtObject {
         allowed = next;
         return true;
     }
-    // For AiSettingsPage (ModelChoiceSmoke, B-396): a provider on this
-    // computer is saved without a model, and nothing else is set.
+    // For AiSettingsPage and the chat panel (B-386, B-396): a provider on
+    // this computer is saved with a model. ModelChoiceSmoke sets its own
+    // form without one.
     property bool testing: false
     property bool fake: false
-    property var form: ({ address: "http://localhost:1234/v1", model: "", keyUse: "none", place: "this", consent: "not-needed" })
+    property var form: ({ address: "http://localhost:1234/v1", model: "m", keyUse: "none", place: "this", consent: "not-needed" })
     signal testFinished(var result)
     function load() { return form; }
     function check(address, allowUnencrypted) { return ({ place: "this", network: "this", unencrypted: false }); }
@@ -42,7 +43,7 @@ QtObject {
     function setNotes(text) { return true; }
     function notice(word) { return true; }
     function setNotice(word, value) { return true; }
-    function slowAnswer() { return ""; }
+    function slowAnswer() { return "warn"; }
     function setSlowAnswer(value) { return true; }
     function writeTools() { return false; }
     function setWriteTools(value) { return true; }
@@ -55,11 +56,6 @@ QtObject {
     function removeReceiptFolder(which) { return true; }
 
     function locked(key) { return lockedKeys[key] === true; }
-    // For the chat panel (SuggestionSmoke, B-386): a provider on this
-    // computer is chosen.
-    property bool fake: false
-    function load() { return { address: "http://localhost:1234/v1", model: "m", keyUse: "none" }; }
-    function slowAnswer() { return "warn"; }
     function setLocked(key, value) {
         const next = Object.assign({}, lockedKeys);
         next[key] = value;

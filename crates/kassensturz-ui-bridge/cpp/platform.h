@@ -16,6 +16,14 @@ namespace kassensturz::platform
 // The folder for apps' data, e.g. ~/.local/share; empty if Qt found none.
 QString dataFolder();
 
+// The user's Documents folder; empty if Qt found none.
+QString documentsFolder();
+
+// The package family name when the app runs from a Windows app package (the
+// Microsoft Store's MSIX), e.g. `Publisher.App_1abc2def3ghi4`; empty
+// everywhere else, and on other systems (#1178).
+QString packageFamilyName();
+
 // The app's own executable file.
 QString appFilePath();
 

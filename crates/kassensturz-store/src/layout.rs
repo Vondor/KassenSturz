@@ -35,9 +35,9 @@ pub(crate) const APPLICATION_ID: i32 = i32::from_be_bytes(*b"KSZB");
 /// its `changed_` table the same way and converts the rows kept there, so
 /// changes made before the update can still be undone (D-066); so does the
 /// list of recorded tables in `history.rs`.
-pub(crate) const MIGRATIONS: [&str; 13] = [
+pub(crate) const MIGRATIONS: [&str; 14] = [
     LAYOUT_24, LAYOUT_25, LAYOUT_26, LAYOUT_27, LAYOUT_28, LAYOUT_29, LAYOUT_30, LAYOUT_31,
-    LAYOUT_32, LAYOUT_33, LAYOUT_34, LAYOUT_35, LAYOUT_36,
+    LAYOUT_32, LAYOUT_33, LAYOUT_34, LAYOUT_35, LAYOUT_36, LAYOUT_37,
 ];
 
 /// The layout version the first migration creates. Layouts 1 to 23 were the
@@ -1291,6 +1291,22 @@ CREATE TABLE changed_removed_transaction_tags (
 ) STRICT;
 ";
 
+/// Layout 37 (#1154, D-893): the filter bar's tags.
+///
+/// No table changes. From this layout on a dashboard's document may have
+/// version 5, whose `filters` can name tags (`filters.tags`); the document
+/// is text in `views.document`, which the book does not look inside
+/// (D-281). The layout number rises all the same, so that a KassenSturz
+/// that reads documents up to version 4 says the book was made by a newer
+/// version, instead of opening it and failing at each dashboard saved
+/// since.
+///
+/// Nothing a book of layout 36 holds changes: its documents stay as they
+/// were saved, byte for byte, in `views` and in `changed_views`, and are
+/// still read (a version 4 document names no tags). A document gets
+/// version 5 when it is next saved.
+const LAYOUT_37: &str = "";
+
 /// Layout 33 (US7, #795 and #725, D-769): planned payments.
 ///
 /// - `schedules`: one row per planned payment (`docs/SCHEDULES.md` 3.1):
@@ -2482,6 +2498,81 @@ mod tests {
                 "Main account"
             );
             book.redo().expect("made again");
+            drop(book);
+            // Opened again: no second backup.
+            drop(Book::open(&path, &computer).expect("opened again"));
+            assert_eq!(files_in(&computer.backup_folder).len(), 1);
+        }
+    }
+
+    #[test]
+    fn layout_37_keeps_every_dashboard_of_every_earlier_layout_as_it_was_saved() {
+        // A dashboard as a KassenSturz before layout 37 saved it: version 4,
+        // its filter bar narrowed to an account. Made up, like its name.
+        const OLD: &str = r#"{"components":[{"frame":{"col":0,"cols":12,"row":0,"rows":1},"id":"filter-bar","type":"page.filters"}],"filters":{"accounts":["0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b"],"period":"last-year"},"format":"kassensturz-dashboard","kind":"dashboard","name":"Household","version":4}"#;
+        // Every layout since the first Beta's (v0.261117.8, layout 24),
+        // each with a change the history recorded (D-893, AGENTS.md §9).
+        for version in FIRST_VERSION..=36 {
+            let folder = TempFolder::new();
+            let path = folder.join("Household.ksz");
+            let checking = old_book(&path, version);
+            recorded_rename(&path, checking);
+            let id = kassensturz_core::ViewId::generate();
+            let conn = Connection::open(&path).expect("book opened");
+            conn.execute(
+                "INSERT INTO views (id, kind, name, position, format_version, document)
+                 VALUES (?1, 'dashboard', 'Household', 0, 4, ?2)",
+                params![id.to_bytes(), OLD],
+            )
+            .expect("dashboard written");
+            drop(conn);
+
+            let computer = computer(&folder);
+            let mut book = Book::open(&path, &computer).expect("book updated");
+            assert_eq!(
+                pragma(&book.conn, "user_version"),
+                VERSION,
+                "from {version}"
+            );
+            // Updated after a backup, which keeps the old layout and the
+            // dashboard.
+            let backups = files_in(&computer.backup_folder);
+            assert_eq!(backups.len(), 1, "from {version}");
+            let backup = Connection::open(&backups[0]).expect("backup opened");
+            assert_eq!(pragma(&backup, "user_version"), version);
+            let kept: String = backup
+                .query_row("SELECT document FROM views", [], |row| row.get(0))
+                .expect("dashboard in the backup");
+            assert_eq!(kept, OLD, "from {version}");
+            drop(backup);
+
+            // The dashboard is what it was, byte for byte, and so is the
+            // rest: the change made before the update is undone and made
+            // again.
+            let view = book.view(id).expect("dashboard read");
+            assert_eq!(view.document, OLD, "from {version}");
+            assert_eq!((view.format_version, view.position), (4, 0));
+            assert_eq!(count(&book.conn, "transactions"), 1);
+            book.undo().expect("undone");
+            assert_eq!(
+                book.account(checking).expect("account").name,
+                "Main account"
+            );
+            book.redo().expect("made again");
+
+            // Saved again with a tag in its filter bar it is version 5,
+            // and Undo gives the old document back as it was.
+            let with_tag = OLD
+                .replace(
+                    r#""filters":{"#,
+                    r#""filters":{"tags":["0199a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c"],"#,
+                )
+                .replace(r#""version":4"#, r#""version":5"#);
+            book.edit_view(id, &with_tag).expect("saved");
+            assert_eq!(book.view(id).expect("read").format_version, 5);
+            book.undo().expect("undone");
+            let view = book.view(id).expect("read");
+            assert_eq!((view.document.as_str(), view.format_version), (OLD, 4));
             drop(book);
             // Opened again: no second backup.
             drop(Book::open(&path, &computer).expect("opened again"));

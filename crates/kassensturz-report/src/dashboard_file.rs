@@ -8,7 +8,8 @@
 //! The file holds no money and no ID of the book (D-432). Every place of the
 //! document that holds an ID (the schema's ID lists, the members of
 //! `params.columns`, `filters.accounts` and `filters.categories`) holds a
-//! reference key `ref:N` instead, and `references` says what each key names:
+//! reference key `ref:N` instead (tags, a component's or the filter bar's,
+//! are left out: another book's tags are its own), and `references` says what each key names:
 //! a category by its path of names from the top, a group or an account by
 //! its name. An ID the book no longer knows, or whose name the reader would
 //! refuse, is left out and counted (D-458), so the file is always one the
@@ -270,7 +271,7 @@ impl Ctx {
                 "filters",
                 "components",
             ],
-            Self::Filters => &["period", "accounts", "categories"],
+            Self::Filters => &["period", "accounts", "categories", "tags"],
             Self::Component => &["id", "type", "dataset", "params", "props", "frame"],
             Self::Column => &["name", "members", "formula"],
             Self::Frame => &["col", "row", "cols", "rows"],
@@ -417,6 +418,12 @@ pub fn write_dashboard_file(
     if let Some(Value::Object(filters)) = object.get_mut("filters") {
         refs.map_list(filters.get_mut("accounts"), List::Accounts);
         refs.map_list(filters.get_mut("categories"), List::Categories);
+        // Another book's tags are its own (US5.2), in the filter bar as in
+        // a component: left out and counted.
+        if let Some(Value::Array(tags)) = filters.get_mut("tags") {
+            refs.left_out += tags.len();
+            tags.clear();
+        }
         filters.retain(|_, value| value.as_array().is_none_or(|list| !list.is_empty()));
         if filters.is_empty() {
             object.remove("filters");

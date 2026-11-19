@@ -417,6 +417,7 @@ mod tests {
             period: Some("this-year".into()),
             accounts: vec!["a-1".into()],
             categories: vec!["c-1".into()],
+            tags: vec!["t-1".into()],
         };
         assert!(set_filters(&mut layout.editor, &chosen).unwrap());
         // The built-in layout with filters is no longer the built-in one,

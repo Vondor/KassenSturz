@@ -244,12 +244,14 @@ impl Editor {
         }
         check_list(Dimension::Accounts, &filters.accounts)?;
         check_list(Dimension::Categories, &filters.categories)?;
+        check_list(Dimension::Tags, &filters.tags)?;
         if self.document.filters() == *filters {
             return Ok(false);
         }
         self.document.period.clone_from(&filters.period);
         self.document.accounts.clone_from(&filters.accounts);
         self.document.categories.clone_from(&filters.categories);
+        self.document.tags.clone_from(&filters.tags);
         Ok(true)
     }
 

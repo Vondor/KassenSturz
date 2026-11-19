@@ -8264,6 +8264,12 @@ msgctxt "@info"
 msgid "There are no categories to pick yet."
 msgstr "Nie ma jeszcze kategorii do wybrania."
 
+#: crates/kassensturz-ui-bridge/qml/FilterBar.qml:122
+#, kde-format
+msgctxt "@label what a filter narrows: the tags on transactions"
+msgid "Tags"
+msgstr "Tagi"
+
 #: crates/kassensturz-ui-bridge/qml/FilterBar.qml:117
 #, kde-format
 msgctxt "@action:button go back to the filters the layout has"

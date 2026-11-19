@@ -275,7 +275,7 @@ pub mod qobject {
 
         /// Sets one thing the filter bar narrows by (M6c.7, D-351):
         /// `dimension` is `period` (`value` is a fixed period, a typed range
-        /// or empty for the page's own), `accounts` or `categories`
+        /// or empty for the page's own), `accounts`, `categories` or `tags`
         /// (`value` is the IDs separated by commas, empty for all). While
         /// the layout is only looked at, the choice is for now: it changes
         /// what the page shows and nothing is written. While it is
@@ -407,7 +407,7 @@ fn asked_object(row: &grid_editor::Row) -> QVariant {
         |asked| {
             // Whether any dimension comes from the filter bar.
             let from_bar = asked.period_origin == Origin::FilterBar
-                || [&asked.accounts, &asked.categories]
+                || [&asked.accounts, &asked.categories, &asked.tags]
                     .into_iter()
                     .flatten()
                     .any(|chosen| chosen.origin == Origin::FilterBar);
@@ -601,13 +601,14 @@ fn view_object(
 }
 
 /// The filter bar as QML gets it: `period` (empty for the page's own),
-/// `accounts` and `categories` as lists of IDs, and whether it holds a
+/// `accounts`, `categories` and `tags` as lists of IDs, and whether it holds a
 /// choice made for now, which *Reset filters* takes back.
 fn filters_object(bar: &Filters, for_now: bool) -> QVariant {
     map([
         ("period", text(bar.period.as_deref().unwrap_or(""))),
         ("accounts", list(bar.accounts.iter().map(|id| text(id)))),
         ("categories", list(bar.categories.iter().map(|id| text(id)))),
+        ("tags", list(bar.tags.iter().map(|id| text(id)))),
         ("forNow", QVariant::from(&for_now)),
     ])
 }
@@ -1141,6 +1142,7 @@ impl qobject::DashboardLayout {
             "period" => next.period = (!value.is_empty()).then_some(value),
             "accounts" => next.accounts = ids(&value),
             "categories" => next.categories = ids(&value),
+            "tags" => next.tags = ids(&value),
             _ => return map([]),
         }
         if editing {
@@ -1330,8 +1332,9 @@ mod tests {
         let filters = object_of(&view, "filters");
         assert_eq!(
             keys(&filters),
-            ["accounts", "categories", "forNow", "period"]
+            ["accounts", "categories", "forNow", "period", "tags"]
         );
+        assert!(list_of(&filters, "tags").is_empty());
         assert_eq!(text_of(&filters, "period"), "");
         assert!(!flag_of(&filters, "forNow"));
         let income = list_of(&view, "items")
@@ -1347,6 +1350,7 @@ mod tests {
             period: Some("last-year".into()),
             accounts: vec!["a-1".into()],
             categories: Vec::new(),
+            tags: vec!["t-1".into()],
         };
         let view = view_object(
             Some(&layout),
@@ -1359,6 +1363,7 @@ mod tests {
         let filters = object_of(&view, "filters");
         assert_eq!(text_of(&filters, "period"), "last-year");
         assert_eq!(list_of(&filters, "accounts").len(), 1);
+        assert_eq!(list_of(&filters, "tags").len(), 1);
         assert!(flag_of(&filters, "forNow"));
         let income = list_of(&view, "items")
             .into_iter()
@@ -1369,6 +1374,7 @@ mod tests {
         assert!(flag_of(&asked, "fromBar"));
         let scope = Scope::from_text(&text_of(&asked, "scope"));
         assert!(scope.to_text().contains("\"accounts\":[\"a-1\"]"));
+        assert!(scope.to_text().contains("\"tags\":[\"t-1\"]"));
         // Nothing was written into the layout.
         assert_eq!(layout.editor.filters(), own);
         // While arranged, the bar is the layout's own, and a choice is kept

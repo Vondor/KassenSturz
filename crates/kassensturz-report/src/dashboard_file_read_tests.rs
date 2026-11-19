@@ -305,6 +305,29 @@ fn formula_names_the_book_lacks_and_unknown_widgets_are_listed() {
 }
 
 #[test]
+fn tags_a_file_names_in_its_filter_bar_are_dropped() {
+    // KassenSturz never writes them (#1154); a file from elsewhere that has
+    // them, as IDs or as anything else, names tags this book doesn't have.
+    let sample = sample();
+    let text = file(
+        json!({}),
+        json!({
+            "format": "kassensturz-dashboard", "version": 5, "kind": "dashboard",
+            "name": "Tagged",
+            "filters": {"period": "last-year",
+                        "tags": ["01890000-0000-7000-8000-000000000000", "ref:1"]},
+            "components": [],
+        }),
+    );
+    let read = IncomingDashboardFile::read(&text).expect("read");
+    let names = BookNames::read(&sample.book).expect("names");
+    let resolved = read.resolve(&names).expect("resolved");
+    assert!(resolved.document.tags.is_empty());
+    assert_eq!(resolved.document.period.as_deref(), Some("last-year"));
+    assert!(!resolved.document.to_json().contains("tags"));
+}
+
+#[test]
 fn a_file_without_references_reads_and_the_built_in_overview_fits_in_one() {
     let overview: Value = serde_json::from_str(DEFAULT_OVERVIEW).expect("json");
     let read = IncomingDashboardFile::read(&file(json!({}), overview)).expect("read");

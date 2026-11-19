@@ -80,6 +80,7 @@ pub const ACTIONS: &[&str] = &[
     "AiSettingsEntry_aiProviderPrivacy",
     "AiSettingsPage_activated",
     "AiSettingsPage_allowUnencrypted",
+    "AiSettingsPage_backToList",
     "AiSettingsPage_billFolderChosen",
     "AiSettingsPage_chooseBillFolder",
     "AiSettingsPage_chooseReceiptFolder",

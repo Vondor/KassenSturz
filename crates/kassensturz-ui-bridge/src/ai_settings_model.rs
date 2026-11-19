@@ -1474,6 +1474,44 @@ mod notice_tests {
 }
 
 #[cfg(all(test, feature = "ai"))]
+mod address_check_tests {
+    use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QVariant};
+
+    fn text_of(value: &QVariant, key: &str) -> Option<String> {
+        value
+            .value::<QMap<QMapPair_QString_QVariant>>()
+            .expect("an object")
+            .get(&QString::from(key))
+            .and_then(|value| value.value::<QString>())
+            .map(|value| value.to_string())
+    }
+
+    /// The page reads `code` for an address no server can have, and
+    /// `place` for one it can use (B-392, D-867).
+    #[test]
+    fn the_typed_address_check_is_read_back_as_the_page_reads_it() {
+        for typed in [
+            "https://-address/v1",
+            "https:/ai.example.test/v1",
+            "https://ai .example.test",
+        ] {
+            let checked = super::engine::check(&super::engine::with_scheme(typed), false);
+            assert_eq!(
+                text_of(&checked, "code").as_deref(),
+                Some("ai.bad-address"),
+                "{typed}"
+            );
+            assert_eq!(text_of(&checked, "place"), None, "{typed}");
+        }
+        let checked = super::engine::check("https://ai.example.test/v1", false);
+        assert_eq!(text_of(&checked, "code"), None);
+        assert_eq!(text_of(&checked, "place").as_deref(), Some("other"));
+        let local = super::engine::check(&super::engine::with_scheme("localhost:1234/v1"), false);
+        assert_eq!(text_of(&local, "place").as_deref(), Some("this"));
+    }
+}
+
+#[cfg(all(test, feature = "ai"))]
 mod bill_folder_tests {
     use std::path::PathBuf;
 

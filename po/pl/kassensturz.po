@@ -24878,24 +24878,10 @@ msgstr "Windows usuwa ten folder razem ze wszystkimi kopiami zapasowymi w nim, g
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
-msgctxt "@action:button opens or closes the user's fixed notes for the AI"
-msgid "Advanced: fixed notes for the AI"
-msgstr "Zaawansowane: stałe wskazówki dla AI"
+msgctxt "@info %1 is an example web address"
+msgid "For example: %1"
+msgstr "Na przykład: %1"
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
-#, kde-format
-msgctxt "@info accessible state"
-msgid "Open"
-msgstr "Otwarte"
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
-#, kde-format
-msgctxt "@info accessible state"
-msgid "Closed"
-msgstr "Zamknięte"
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
-#, kde-format
 msgctxt "@item:inlistbox"
 msgid "Choose a model…"
 msgstr "Wybierz model…"
@@ -24915,18 +24901,21 @@ msgstr "%1 (tylko do wyszukiwania, nie do czatu)"
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
 msgctxt "@info"
-msgid "Rarely needed. Closed until you open it."
-msgstr "Rzadko potrzebne. Zwinięte, dopóki ich nie otworzysz."
+msgid "The address looks right."
+msgstr "Adres wygląda poprawnie."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
 msgctxt "@info"
 msgid ""
-"These notes apply to every question, for example \"Answer briefly\". Ask "
-"your questions in the chat, not here."
+"This isn't an address KassenSturz can use. It must start with https:// or "
+"http://, then the server's name, without spaces, for example "
+"https://ai.example.test/v1. Saving waits until the address is right."
 msgstr ""
-"Te wskazówki dotyczą każdego pytania, na przykład „Odpowiadaj krótko”. "
-"Pytania zadawaj w czacie, nie tutaj."
+"KassenSturz nie może użyć tego adresu. Musi zaczynać się od https:// lub "
+"http://, a potem zawierać nazwę serwera, bez spacji, na przykład "
+"https://ai.example.test/v1. Zapisanie będzie możliwe, gdy adres będzie "
+"poprawny."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
@@ -24957,3 +24946,37 @@ msgstr "Usuń"
 msgctxt "@action:button %1 is who was paid or who paid, %2 an amount"
 msgid "Remove %1, %2"
 msgstr "Usuń %1, %2"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button opens or closes the user's fixed notes for the AI"
+msgid "Advanced: fixed notes for the AI"
+msgstr "Zaawansowane: stałe wskazówki dla AI"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Open"
+msgstr "Otwarte"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Closed"
+msgstr "Zamknięte"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Rarely needed. Closed until you open it."
+msgstr "Rzadko potrzebne. Zwinięte, dopóki ich nie otworzysz."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These notes apply to every question, for example \"Answer briefly\". Ask "
+"your questions in the chat, not here."
+msgstr ""
+"Te wskazówki dotyczą każdego pytania, na przykład „Odpowiadaj krótko”. "
+"Pytania zadawaj w czacie, nie tutaj."

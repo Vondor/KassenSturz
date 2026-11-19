@@ -3074,7 +3074,8 @@ msgstr ""
 "Diese Verbindung ist nicht sicher: Sie ist nicht verschlüsselt. Jeder im "
 "selben Netzwerk, zum Beispiel in Ihrem WLAN, könnte mitlesen, was gesendet "
 "wird, auch den Schlüssel des Anbieters. Verwenden Sie sie nur in einem "
-"Heimnetzwerk, dem Sie vertrauen. Eine https://-Adresse ist sicherer."
+"Heimnetzwerk, dem Sie vertrauen. Eine Adresse, die mit https:// beginnt, ist "
+"sicherer."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
@@ -3089,8 +3090,8 @@ msgstr ""
 "Achtung: Diese Adresse liegt vielleicht im Internet, und die Verbindung ist "
 "nicht verschlüsselt. Jeder auf dem Weg könnte mitlesen und ändern, was "
 "gesendet wird: Ihre Fragen, Angaben aus Ihrem Buch und den Schlüssel des "
-"Anbieters. Verwenden Sie stattdessen die https://-Adresse des Anbieters, es "
-"sei denn, Sie wissen genau, was Sie tun."
+"Anbieters. Verwenden Sie stattdessen die Adresse des Anbieters, die mit "
+"https:// beginnt, es sei denn, Sie wissen genau, was Sie tun."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
@@ -26976,7 +26977,7 @@ msgstr ""
 "Computer und beginnt mit http://, deshalb wird alles, was dorthin geht, "
 "unverschlüsselt übertragen. Jeder im selben Netzwerk, zum Beispiel in Ihrem "
 "WLAN, könnte es mitlesen, auch Ihre Fragen und den Schlüssel des Anbieters. "
-"Verwenden Sie die https://-Adresse des Anbieters. Bietet der Anbieter nur "
+"Verwenden Sie die Adresse des Anbieters, die mit https:// beginnt. Bietet der Anbieter nur "
 "http:// an und läuft er in einem Netzwerk, dem Sie vertrauen, können Sie in "
 "den KI-Einstellungen unverschlüsselte Verbindungen erlauben."
 
@@ -27018,24 +27019,10 @@ msgstr "Windows löscht diesen Ordner samt allen Sicherungen darin, wenn KassenS
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
-msgctxt "@action:button opens or closes the user's fixed notes for the AI"
-msgid "Advanced: fixed notes for the AI"
-msgstr "Erweitert: feste Hinweise für die KI"
+msgctxt "@info %1 is an example web address"
+msgid "For example: %1"
+msgstr "Zum Beispiel: %1"
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
-#, kde-format
-msgctxt "@info accessible state"
-msgid "Open"
-msgstr "Geöffnet"
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
-#, kde-format
-msgctxt "@info accessible state"
-msgid "Closed"
-msgstr "Geschlossen"
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
-#, kde-format
 msgctxt "@item:inlistbox"
 msgid "Choose a model…"
 msgstr "Modell wählen …"
@@ -27055,18 +27042,21 @@ msgstr "%1 (nur für die Suche, nicht für den Chat)"
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
 msgctxt "@info"
-msgid "Rarely needed. Closed until you open it."
-msgstr "Meist nicht nötig. Eingeklappt, bis Sie es öffnen."
+msgid "The address looks right."
+msgstr "Die Adresse sieht richtig aus."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
 msgctxt "@info"
 msgid ""
-"These notes apply to every question, for example \"Answer briefly\". Ask "
-"your questions in the chat, not here."
+"This isn't an address KassenSturz can use. It must start with https:// or "
+"http://, then the server's name, without spaces, for example "
+"https://ai.example.test/v1. Saving waits until the address is right."
 msgstr ""
-"Diese Hinweise gelten für jede Frage, etwa „Antworte kurz“. Ihre Fragen "
-"stellen Sie im Chat, nicht hier."
+"Diese Adresse kann KassenSturz nicht verwenden. Sie muss mit https:// oder "
+"http:// beginnen, dann folgt der Name des Servers, ohne Leerzeichen, zum "
+"Beispiel https://ai.example.test/v1. Speichern geht erst, wenn die Adresse "
+"stimmt."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
@@ -27097,3 +27087,37 @@ msgstr "Entfernen"
 msgctxt "@action:button %1 is who was paid or who paid, %2 an amount"
 msgid "Remove %1, %2"
 msgstr "%1, %2 entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button opens or closes the user's fixed notes for the AI"
+msgid "Advanced: fixed notes for the AI"
+msgstr "Erweitert: feste Hinweise für die KI"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Open"
+msgstr "Geöffnet"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Closed"
+msgstr "Geschlossen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Rarely needed. Closed until you open it."
+msgstr "Meist nicht nötig. Eingeklappt, bis Sie es öffnen."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These notes apply to every question, for example \"Answer briefly\". Ask "
+"your questions in the chat, not here."
+msgstr ""
+"Diese Hinweise gelten für jede Frage, etwa „Antworte kurz“. Ihre Fragen "
+"stellen Sie im Chat, nicht hier."

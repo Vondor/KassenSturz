@@ -133,6 +133,17 @@ Kirigami.ScrollablePage {
         addressCheck = addressField.text.trim() !== "" ? settings.check(addressField.text, allowUnencryptedBox.checked) : ({});
     }
 
+    // Checks the address while it is typed, without changing the text in
+    // the field, so the user sees at once whether it can be used (B-392,
+    // D-867).
+    function checkTyped() {
+        const typed = settings.withScheme(addressField.text);
+        addressCheck = typed !== "" ? settings.check(typed, allowUnencryptedBox.checked) : ({});
+    }
+
+    // Whether the address as typed is one no server can have.
+    readonly property bool addressWrong: addressCheck.code === "ai.bad-address"
+
     function save() {
         justSaved = false;
         notWritten = false;
@@ -242,13 +253,46 @@ Kirigami.ScrollablePage {
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Address:")
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-                placeholderText: "http://localhost:11434/v1"
                 inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
                 onEditingFinished: page.checkAddress()
+                onTextEdited: typingCheck.restart()
                 onAccepted: {
                     ActionLog.taken("AiSettingsPage_forceActiveFocus")
                     modelField.forceActiveFocus()
                 }
+            }
+
+            // The example sits next to the field, never in it, so nobody takes
+            // it for part of their own address (B-392, D-867).
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                color: Kirigami.Theme.disabledTextColor
+                text: page.i18nContext.i18nc("@info %1 is an example web address", "For example: %1", "https://ai.example.test/v1")
+            }
+
+            Timer {
+                id: typingCheck
+                interval: 400
+                onTriggered: page.checkTyped()
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.addressCheck.place !== undefined && page.addressCheck.unencrypted !== true
+                type: Kirigami.MessageType.Positive
+                text: page.i18nContext.i18nc("@info", "The address looks right.")
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.addressWrong
+                type: Kirigami.MessageType.Error
+                text: page.i18nContext.i18nc("@info", "This isn't an address KassenSturz can use. It must start with https:// or http://, then the server's name, without spaces, for example https://ai.example.test/v1. Saving waits until the address is right.")
             }
 
             Controls.Label {
@@ -400,7 +444,7 @@ Kirigami.ScrollablePage {
                 Controls.Button {
                     text: page.i18nContext.i18nc("@action:button", "Save")
                     icon.name: "document-save"
-                    enabled: addressField.text.trim() !== ""
+                    enabled: addressField.text.trim() !== "" && !page.addressWrong
                         && (page.providerChanged || keyField.text !== "")
                     onClicked: {
                         ActionLog.taken("AiSettingsPage_save_2")

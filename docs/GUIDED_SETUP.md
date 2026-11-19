@@ -1,0 +1,171 @@
+# Guided setup: design
+
+Status: **design** (BS2, #1031; decided by Vondor in D-792, D-895 to D-902 and D-911, and the 8-page sketch he approved on 19 Nov 2026). Made by Claude (Fable 5.2). Nothing here is built yet; the build follows in three pull requests (section 8).
+
+The guided setup is an **optional** walk through the important functions, on the person's own data. It extends the first setup wizard (`docs/SETUP_WIZARD.md`, M7a.9), which stays as it is: the guided setup is one more choice on its page 2. The pictures in `docs/setup-wizard/guided/` are simple QML mocks with made-up figures and invented names, in German because the testers are German; they show layout and wording, not final styling.
+
+## 1. Goals and limits
+
+- **Optional, never forced** (D-899). The start page keeps every choice it has today. "Guided setup" is one choice among them. A person who picks another choice never sees it.
+- **Never in front of the overview** (D-342, D-792). Every page has **Skip**, and **End the setup** leads to the overview at once. The app is complete without the guided setup.
+- **Offered once, for a new book** (D-898): only on the start page of a book that has no account yet. It never appears on a later import or a later start.
+- **On the person's own data**, one thing per page, plain words (AGENTS.md §6). Figures on the pages come from the book through Rust as text (D-065); nothing is typed for the person and nothing is guessed.
+- **Every step can be found again** in Help (D-902), also the skipped ones.
+- **No format change.** The guided setup stores nothing of its own: no table, no column, no user action and no app setting. How far a person got is kept only while the app runs (section 5). So the Beta rule on migrations doesn't apply, and layout 37 stays the only format change of BS2 (D-893).
+- **AI stays off unless chosen** (AGENTS.md §8, D-911). The last step asks; doing nothing leaves AI off and invisible.
+- **Windows first among testers.** Nothing depends on Linux. The bank choice hides itself where the build has no bank support (D-054) or doesn't offer the bank in the wizard (Q-398, Q-562).
+
+## 2. The flow
+
+```
+Start page (wizard page 2, unchanged choices)
+   └── Guided setup  ◄── new, optional
+         1 Get the transactions ─► bank setup or file import (existing pages)
+         2 Is this balance right?
+         3 Sort the transactions, offer a Rule
+         4 Your first chart
+         5 A budget and a planned payment
+         6 Shape your start page
+         7 Do you have an AI on this computer?
+         Done ─► overview
+```
+
+Every step page has the same frame: **Back** (top left, Alt+Left), "Step n of 7" with a progress bar, **End the setup** (top right), and a bottom row with **Skip** on the left and the page's one main button on the right. Skip does nothing but go to the next step. The sketch counts 8 pages: the start page plus these 7 steps; the closing page belongs to the last step.
+
+### Page 1: How would you like to start? (`1-start.png`)
+
+![Page 1](setup-wizard/guided/1-start.png)
+
+The existing `WizardStartPage.qml` with one more choice at the top, **Guided setup** (*Geführt einrichten*): "Step by step with your own data: get your transactions, sort them, a first chart, a budget and your start page. Every step can be skipped." The three other choices and the "Open a book I already have" link stay exactly as they are (D-899). Nothing is written here.
+
+### Step 1: Get the transactions (`2-transactions.png`)
+
+![Step 1](setup-wizard/guided/2-transactions.png)
+
+- **Which accounts:** the rows of the existing accounts page (kind and name, "+ Add another account"), **without the amount field**. With a bank or a file the balance comes from there (D-895), so nobody types it.
+- **Connect to my bank** (D-896, D-897): the line under it carries the fixed sentence on which PIN is meant, the PIN or password of the online banking, not the card PIN (the wording of #1239). It opens the existing bank setup page unchanged. After a successful connection that page asks whether to load the transactions now (#1238), and the list before saving is labelled a preview. Shown only where the wizard offers the bank today (bank support in the build, and the `wizard-bank` build switch of Q-398 and Q-562).
+- **Import a file from my bank** (D-911): for banks without online access. CSV, MT940 or CAMT (and OFX, which the importer also reads). It asks which account the file is for when there is more than one, then opens the existing import pages unchanged; their preview is already a preview.
+- **What is written, and when:** choosing bank or file first creates the book in one user action, exactly as *Create my household book* does today (currency, default categories, the accounts), with empty starting balances. Then the existing pages save what they save today, each after its own confirmation.
+- **Skip** here has no account to go on with, so it says so and leads to the existing accounts page with amounts ("My own accounts"); a book needs at least one account.
+
+### Step 2: Is this balance right? (`3-balance.png`)
+
+![Step 2](setup-wizard/guided/3-balance.png)
+
+One box per account that got transactions (D-911).
+
+- **From the bank or from a file that names a balance** (CAMT, MT940): the balance and its date as the bank stated them. After #1237 (D-903) the first fetch sets the starting balance so that the account ends on the bank's balance.
+- **From a file without a balance** (CSV): the page says the file names none and that the figure is the sum of the file's transactions.
+- **Yes, that's right** goes on. **Not right?** The person types what their bank shows today and presses *Correct*. This is the existing "Check against my bank" correction (`accounts::correct_starting_balance`, the user action `CorrectStartingBalance`, D-116, D-117): only the account's starting balance changes, no transaction is touched, and one Undo takes it back. The page says exactly that before the click.
+- The amount is typed text, read and checked in Rust (D-065); a wrong amount shows its message under its own row.
+
+### Step 3: Sort the transactions, offer a Rule (`4-sort.png`)
+
+![Step 3](setup-wizard/guided/4-sort.png)
+
+- The intro says why: charts and budgets only show what has a category (D-898, and the case of #1240, D-908), and how many transactions have none yet.
+- The list groups the transactions without a category **by name**, the most frequent first, with how many there are and their sum. Each group has the normal category picker, which ends with "New category …" (#1244, D-910).
+- Choosing a category sorts that group's transactions in **one user action** (one Undo), using the existing edit of a transaction's category.
+- **The Rule offer** (D-911): after a group is sorted, a message under it asks whether KassenSturz should sort that name by itself in future. *Yes, make a Rule…* opens the existing Rule page, filled from one of the group's transactions (`ruleBook.formFromTransaction`, D-088), so the person sees and confirms the Rule. *No, thanks* closes the message.
+- A link shows all transactions without a category in the normal list. The page never asks to sort everything; *Continue* is always enabled.
+- When there is no transaction without a category, the page says so and offers only *Continue*.
+
+### Step 4: Your first chart (`5-chart.png`)
+
+![Step 4](setup-wizard/guided/5-chart.png)
+
+One run of the Statistic Builder on the person's own data (D-900), shortened to what a first chart needs: "Spending by category" is preset; the person chooses the period and the look, sees the real preview, names it and saves. The page uses the existing builder object and chart view; the saved chart is a normal saved statistic. A tick, on by default, also puts it on the start page as a normal widget (D-452). Money without a category shows as "Not sorted yet", as in every chart. A line says where the full builder is.
+
+### Step 5: A budget and a planned payment (`6-budget-plan.png`)
+
+![Step 5](setup-wizard/guided/6-budget-plan.png)
+
+Two examples from the person's own transactions (D-901); each is saved only by its own button, and both can be left out.
+
+- **Budget:** the category with the highest spending is preset, with its monthly average next to it as a figure from code (the average the charts already compute for spending). The amount field starts empty with that average as its hint, so the app proposes nothing as the person's wish. *Create budget* uses the existing budget save.
+- **Planned payment:** worded so that people who look for it under other names find it: "for example a standing order (*Dauerauftrag*), the rent or a subscription that is taken monthly". When the import found a repeating payment (the existing "Planned payments found"), the first one is preset; otherwise the fields are empty. *Plan payment* uses the existing plan save.
+- Both boxes say that a budget and a planned payment can be **paused and continued** later and that what was there before is kept (#1241, D-909), so the old "End" needs no explanation here.
+
+### Step 6: Shape your start page (`7-start-page.png`)
+
+![Step 6](setup-wizard/guided/7-start-page.png)
+
+The person's real overview in its normal arrange mode, with a small list of four things to try next to it (D-902, D-911): move a tile, make a tile larger by dragging any edge or the corner (#1243, D-905), add a tile, remove a tile. Each line ticks itself when the person has done it. The list is part of the guided setup's frame, not of the dashboard, so the dashboard keeps no fixed part (D-452). Everything is the normal layout editing with its normal Undo; *Done* leaves arrange mode as its own Done does. The list suggests removing the tile that was just added, so nobody loses a tile they wanted.
+
+### Step 7: Do you have an AI on this computer? (`8-local-ai.png`)
+
+![Step 7](setup-wizard/guided/8-local-ai.png)
+
+- **No, or I don't know** is preselected and is also what Skip and End the setup do: the AI features stay off and invisible, and the page says where to turn them on later.
+- **Yes, I have an AI on this computer** turns on the existing "AI features" switch and opens the existing "AI provider and privacy" page, where the address is typed and tested. Nothing else changes: the permission grid stays all off, and an address on another computer still needs the existing consent with its statement of what is sent (D-035).
+- The page states that KassenSturz is complete without AI and names no vendor as a recommendation; the two programs in the text are examples of where a local model runs, as on the existing settings page.
+- **A build without AI** (D-039) has no step 7; the count then says "of 6".
+- This page is the one AI element, besides the Settings toggle, that is visible while AI is off, and only inside the optional guided setup (D-911). AGENTS.md §8 names the Settings toggle as the only such element (D-013), so the pull request that builds this page proposes the matching sentence for §8, for the maintainer to decide (section 9, item 3).
+
+### Done (`9-done.png`)
+
+![Done](setup-wizard/guided/9-done.png)
+
+A short list of the steps, each marked done or skipped; a skipped one has a link to do it now. One sentence says where every step is found again: the Help of the Settings page, **Help: guided setup**. *To the start page* shows the overview.
+
+## 3. Help: every step again
+
+Help is reached today from the end of the Settings page ("Help: patterns, formulas and charts"). A second button there, **Help: guided setup**, opens a new page that lists the seven steps with one line each; each opens the same page as in the guided setup, on the book that is open. From Help a step stands alone: its main button leads back to Help, and there is no step count. Step 1 from Help offers the bank setup and the file import for the accounts the book already has and creates nothing by itself.
+
+## 4. What is reused
+
+| Step | Existing part it uses | New |
+|---|---|---|
+| Page 1 | `WizardStartPage.qml` | one choice |
+| 1 | the account rows of `WizardAccountsPage.qml`, the first-setup write (`FirstStart`), `BankSetupPage.qml` with #1238 and #1239, the import pages | the page; rows without amounts |
+| 2 | `BankCheckPage.qml`'s correction (`CorrectStartingBalance`), the stated balance (D-117), #1237 | the page |
+| 3 | the category picker with #1244, the Rule page and `formFromTransaction` | the page; a read-only bridge list of unsorted transactions grouped by name; sorting a group as one user action |
+| 4 | the Statistic Builder's builder object, `ChartView`, saved statistics, the add-to-overview call | the page |
+| 5 | `BudgetBook`'s save, the charts' monthly average, `PlannedPayments`' save, the import's "Planned payments found", #1241 | the page |
+| 6 | `OverviewPage.qml` in arrange mode, #1243 | the list of four things and its ticks |
+| 7 | the AI switch, `AiSettingsPage.qml` | the page |
+| Help | the Help button of the Settings page | a second button and the page "Guided setup" |
+
+No bank, keychain, money or layout code changes. Steps 1 and 2 only call what #1237, #1238 and #1239 built, which is why the build waits for them.
+
+## 5. Leaving, skipping and coming back
+
+- **Skip** goes to the next step and writes nothing. **End the setup** shows the overview. **Back** goes to the step before; what a step already saved stays saved and is taken back with Undo, as everywhere.
+- **Nothing is half-made.** Each step saves through the existing actions, each complete in itself. Closing the window on any page leaves the book valid: what was confirmed is in it, the rest is not.
+- **How far the person got is not stored** (section 1, no format change). After closing the app in the middle, the next start shows the overview, because the book has an account by then, and the remaining steps are in Help. The guided setup doesn't start again by itself: that would put it in front of the overview (D-342).
+- **Test profile** (Q-399): a test uses a made-up book only, so the start page isn't shown there and the guided setup isn't offered at the start. The steps are reached through Help on the example book, with the fake bank and the tester kit's synthetic files.
+
+## 6. Words
+
+About 60 new strings, all through KI18n with German entries ("Sie", D-578). Fixed German wordings from the decisions are used as decided: "Verbindung erfolgreich. Transaktionen laden?" (D-906), "PIN bzw. Passwort Ihres Online-Bankings (nicht die Karten-PIN)" (D-907), "Stimmt dieser Kontostand?" (D-911), "Neue Kategorie …" (D-910), "Pausieren" and "Fortsetzen" (D-909), "Überspringen". New glossary entry: **Guided setup** (*Geführte Einrichtung*). Every example in the app, the tests and the docs uses invented names only (#734).
+
+## 7. Everyday-user test, step by step
+
+| Step | What a person must understand | Why they can |
+|---|---|---|
+| Page 1 | That the guided way is one choice of several | One sentence says what it does and that it can be skipped |
+| 1 | Bank or file, and which PIN | Two choices in everyday words; the PIN sentence is on the choice itself |
+| 2 | Whether the figure matches their bank | It is the figure their banking app shows; correcting needs only that figure |
+| 3 | Which category a name belongs to | They know their own shops; one pick sorts all of that name |
+| 4 | Period and look | Both preselected; the preview shows their own money |
+| 5 | What they want to spend, and what repeats | The average and a found payment are shown; nothing is required |
+| 6 | That tiles can be moved, resized, added and removed | Four things to try, each ticks itself |
+| 7 | Whether they have an AI program | "No, or I don't know" is preselected and changes nothing |
+
+## 8. The build: three pull requests
+
+All three start after #1237 (thread F1) and #1238, #1239, #1244 and #1241 (thread G) have merged; step 6 also needs #1243.
+
+1. **Start page choice, the frame, steps 1 and 2, the Help page.** No human gate: it calls the bank setup and the correction unchanged.
+2. **Steps 3 to 6.** No human gate.
+3. **Step 7 and the Done page.** Human gate: AI data sharing (the page turns on the AI switch). It also carries the proposed sentence for AGENTS.md §8.
+
+Tests in each: every new bridge object read back the way QML reads it; seams with real output (a synthetic CAMT file through the real import into step 2; the fake bank's fetch into step 2 after #1237; a group sorted in step 3 read back from the real register and undone in one step; the chart of step 4 from the real builder; step 7 leaving the AI switch off on Skip, End and "No", checked in the settings file); the no-AI build without step 7; an action-log name for every handler; a screenshot of every built page on the pull request; German entries for every new string.
+
+## 9. Open points for the maintainer
+
+Asked through the coordinator, one at a time. The design uses the recommended option of each until answered.
+
+1. **Progress is not stored.** R: keep it only while the app runs, so there is no format change; remaining steps are in Help. Other option: remember it in the settings file, which is a settings migration with backup and test (a human gate) for a small gain.
+2. **Test profile.** R: no guided choice at the start; steps through Help on the example book. Other option: offer the guided setup in the test profile on a new made-up book in the test folder.
+3. **AGENTS.md §8** names the Settings toggle as the only AI element visible while AI is off. D-911 adds step 7. R: the third pull request proposes adding "and the optional last step of the guided setup" to that sentence; only the maintainer changes that file's rules.

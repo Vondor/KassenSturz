@@ -115,6 +115,20 @@ Kirigami.ScrollablePage {
 
     // Columns need room: the row's two lines are used on a narrow page.
     readonly property bool wide: width >= Kirigami.Units.gridUnit * 50
+    // The same room at the end of every row and of the column titles, for the
+    // "New" badge and the remove button, so the columns line up whether a row
+    // has a badge, a button or neither (B-400).
+    readonly property real trailingWidth: newBadgeMetrics.advanceWidth
+        + Kirigami.Units.smallSpacing * 3
+        + Kirigami.Units.iconSizes.smallMedium + Kirigami.Units.largeSpacing * 2
+    readonly property string newBadgeText: i18nContext.i18nc("@info a transaction added since the app started", "New")
+
+    TextMetrics {
+        id: newBadgeMetrics
+
+        font: Kirigami.Theme.smallFont
+        text: page.newBadgeText
+    }
 
     // Staged loading (M4.U, D-156). The page opens at once with the account's
     // name, and its transactions are read when the list has its size. A list
@@ -488,15 +502,25 @@ Kirigami.ScrollablePage {
                     width: parent.width
                 }
             }
-            contentItem: TransactionRow {
-                ledger: true
-                header: true
-                owes: page.register.owes
-                columns: page.register.columns
-                balanceShown: page.register.balanceShown
-                sortKey: page.register.sortKey
-                descending: page.register.descending
-                onSortRequested: key => page.sortByTitle(key)
+            contentItem: RowLayout {
+                spacing: Kirigami.Units.smallSpacing
+
+                TransactionRow {
+                    Layout.fillWidth: true
+                    ledger: true
+                    header: true
+                    owes: page.register.owes
+                    columns: page.register.columns
+                    balanceShown: page.register.balanceShown
+                    sortKey: page.register.sortKey
+                    descending: page.register.descending
+                    onSortRequested: key => page.sortByTitle(key)
+                }
+
+                // Above the rows' badge and remove button (B-400).
+                Item {
+                    Layout.preferredWidth: page.trailingWidth
+                }
             }
         }
 
@@ -597,36 +621,49 @@ Kirigami.ScrollablePage {
                     valueDate: delegate.valueDate
                 }
 
-                // A transaction the user typed in since the start says so until
-                // the app closes (B-394, D-869); never saved in the book.
-                Controls.Label {
-                    visible: ChangedRows.isNew(delegate.transactionId)
-                    text: page.i18nContext.i18nc("@info a transaction added since the app started", "New")
-                    font: Kirigami.Theme.smallFont
-                    color: Kirigami.Theme.highlightedTextColor
-                    leftPadding: Kirigami.Units.smallSpacing
-                    rightPadding: Kirigami.Units.smallSpacing
-                    background: Rectangle {
-                        color: Kirigami.Theme.highlightColor
-                        radius: height / 2
-                    }
-                }
+                // The badge and the button share a fixed room at the row's end,
+                // as wide as the one under the column titles (B-400).
+                RowLayout {
+                    Layout.preferredWidth: page.trailingWidth
+                    Layout.maximumWidth: page.trailingWidth
+                    spacing: Kirigami.Units.smallSpacing
 
-                // Every row can be removed from the list, and Undo brings it back
-                // instead of a question first (B-394, D-869). One with what a
-                // bank or file delivered still gets the plain warning (D-375).
-                Controls.ToolButton {
-                    visible: delegate.kind !== "starting-balance"
-                    icon.name: "edit-delete"
-                    display: Controls.AbstractButton.IconOnly
-                    text: page.i18nContext.i18nc("@action:button remove this transaction", "Remove")
-                    Accessible.name: page.i18nContext.i18nc("@action:button %1 is who was paid or who paid, %2 an amount", "Remove %1, %2", delegate.otherParty, delegate.amount)
-                    Controls.ToolTip.text: text
-                    Controls.ToolTip.visible: hovered
-                    Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
-                    onClicked: {
-                        ActionLog.taken("RegisterPage_removeRow")
-                        page.removeRow(delegate.transactionId)
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    // A transaction the user typed in since the start says so until
+                    // the app closes (B-394, D-869); never saved in the book.
+                    Controls.Label {
+                        visible: ChangedRows.isNew(delegate.transactionId)
+                        text: page.newBadgeText
+                        textFormat: Text.PlainText
+                        font: Kirigami.Theme.smallFont
+                        color: Kirigami.Theme.highlightedTextColor
+                        leftPadding: Kirigami.Units.smallSpacing
+                        rightPadding: Kirigami.Units.smallSpacing
+                        background: Rectangle {
+                            color: Kirigami.Theme.highlightColor
+                            radius: height / 2
+                        }
+                    }
+
+                    // Every row can be removed from the list, and Undo brings it back
+                    // instead of a question first (B-394, D-869). One with what a
+                    // bank or file delivered still gets the plain warning (D-375).
+                    Controls.ToolButton {
+                        visible: delegate.kind !== "starting-balance"
+                        icon.name: "edit-delete"
+                        display: Controls.AbstractButton.IconOnly
+                        text: page.i18nContext.i18nc("@action:button remove this transaction", "Remove")
+                        Accessible.name: page.i18nContext.i18nc("@action:button %1 is who was paid or who paid, %2 an amount", "Remove %1, %2", delegate.otherParty, delegate.amount)
+                        Controls.ToolTip.text: text
+                        Controls.ToolTip.visible: hovered
+                        Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                        onClicked: {
+                            ActionLog.taken("RegisterPage_removeRow")
+                            page.removeRow(delegate.transactionId)
+                        }
                     }
                 }
             }

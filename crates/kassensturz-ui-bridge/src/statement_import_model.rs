@@ -15,7 +15,7 @@ use core::pin::Pin;
 use std::path::PathBuf;
 
 use cxx_qt::{CxxQtType, Threading};
-use cxx_qt_lib::{QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
+use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 use kassensturz_core::TransactionId;
 use kassensturz_import::{Importer, Limits, read_file};
 use kassensturz_plugin_formats::PluginImporter;
@@ -166,6 +166,22 @@ pub mod qobject {
         #[qinvokable]
         #[cxx_name = "pluginPatterns"]
         fn plugin_patterns(self: &StatementImport) -> QString;
+
+        /// What the automation plugins suggest for the transactions the
+        /// last import added (#791, D-926): a list of `{ file, plugin,
+        /// items }` or `{ file, plugin, error }`; empty when none suggests
+        /// anything.
+        #[qinvokable]
+        #[cxx_name = "pluginSuggestions"]
+        fn plugin_suggestions(self: &StatementImport) -> QVariant;
+
+        /// Gives the ticked transactions their suggested categories as one
+        /// change, which one Undo takes back: `chosen` is a list of
+        /// `{ transaction, category }` from `pluginSuggestions`. An error
+        /// object, or `{ count }`.
+        #[qinvokable]
+        #[cxx_name = "useSuggestions"]
+        fn use_suggestions(self: Pin<&mut StatementImport>, chosen: &QVariant) -> QVariant;
     }
 
     unsafe extern "RustQt" {
@@ -527,6 +543,49 @@ impl qobject::StatementImport {
         if self.rust().working {
             kassensturz_pipeline::stop::cancel();
         }
+    }
+
+    fn plugin_suggestions(&self) -> QVariant {
+        let plugins =
+            crate::plugin_automations::automation_plugins(crate::ai_switch_model::ai_on());
+        if plugins.is_empty() {
+            return list([]);
+        }
+        let new = &self.rust().new;
+        session::with_book(|book| {
+            crate::plugin_automations::suggestions_object(book, &plugins, new, &app_locale())
+        })
+        .unwrap_or_else(|| list([]))
+    }
+
+    fn use_suggestions(mut self: Pin<&mut Self>, chosen: &QVariant) -> QVariant {
+        let chosen: Vec<(String, String)> = chosen
+            .value::<QList<QVariant>>()
+            .map(|items| {
+                items
+                    .iter()
+                    .map(|item| {
+                        let item = item
+                            .value::<QMap<QMapPair_QString_QVariant>>()
+                            .unwrap_or_default();
+                        let field = |key: &str| {
+                            item.get(&QString::from(key))
+                                .and_then(|value| value.value::<QString>())
+                                .map(|text| text.to_string())
+                                .unwrap_or_default()
+                        };
+                        (field("transaction"), field("category"))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let new = self.rust().new.clone();
+        let done = session::with_book_mut(|book| {
+            crate::plugin_automations::use_object(book, &new, &chosen, &app_locale())
+        })
+        .unwrap_or_else(|| error_object(&ErrorText::plain("input.no-such-entry")));
+        self.as_mut().changed();
+        done
     }
 
     fn plugin_patterns(&self) -> QString {

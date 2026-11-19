@@ -945,6 +945,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The plugin gave KassenSturz no room for its input, so it was stopped. Load it again, or ask the plugin's author.");
         case "plugin-host.output-too-big":
             return i18nContext.i18nc("@info %1 is a number of bytes", "The plugin's answer is larger than %1 bytes, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author.", result.max_bytes);
+        case "plugin-host.permission-missing":
+            return i18nContext.i18nc("@info", "This plugin didn't ask for the permission it needs for this, so KassenSturz doesn't run it. Ask the plugin's author for a fixed version.");
         case "plugin-host.output-invalid":
             return i18nContext.i18nc("@info", "The plugin's answer was damaged, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author.");
         case "plugin-host.ran-too-long":
@@ -961,6 +963,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "KassenSturz couldn't save the plugin. Check that your disk isn't full, then try again. Nothing was changed.");
         case "input.plugin-replace-not-confirmed":
             return i18nContext.i18nc("@info", "A version of this plugin is added already. Choose \"Replace it\" to use the new one instead.");
+        case "input.suggestions-out-of-date":
+            return i18nContext.i18nc("@info", "Some of these transactions changed since the plugin made its suggestions, so nothing was changed. Close this page and import again if you want new suggestions.");
         case "input.plugin-gone":
             return i18nContext.i18nc("@info", "This plugin isn't there any more or can't be used now. Look at it in Settings, Plugins, then try again. Nothing was saved.");
         case "input.plugin-not-removed":

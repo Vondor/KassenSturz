@@ -27507,3 +27507,142 @@ msgstr "Um KassenSturz andere Farben zu geben, fügen Sie unter Einstellungen �
 msgctxt "@info"
 msgid "A theme changes only colors, the font and how round corners are. It uses its light or dark colors after your system's setting when KassenSturz opens. KassenSturz refuses a theme whose text would be hard to read."
 msgstr "Ein Theme ändert nur Farben, die Schrift und wie rund Ecken sind. Es nimmt seine hellen oder dunklen Farben nach der Einstellung Ihres Systems beim Öffnen von KassenSturz. KassenSturz lehnt ein Theme ab, dessen Schrift schwer zu lesen wäre."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:949
+#, kde-format
+msgctxt "@info"
+msgid "This plugin didn't ask for the permission it needs for this, so KassenSturz doesn't run it. Ask the plugin's author for a fixed version."
+msgstr "Dieses Plugin hat die Berechtigung, die es dafür braucht, nicht angefragt, deshalb führt KassenSturz es nicht aus. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:967
+#, kde-format
+msgctxt "@info"
+msgid "Some of these transactions changed since the plugin made its suggestions, so nothing was changed. Close this page and import again if you want new suggestions."
+msgstr "Einige dieser Buchungen haben sich geändert, seit das Plugin seine Vorschläge gemacht hat, deshalb wurde nichts geändert. Schließen Sie diese Seite und importieren Sie erneut, wenn Sie neue Vorschläge möchten."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:128
+#, kde-format
+msgctxt "@title:group %1 is a plugin's name"
+msgid "The plugin \"%1\" couldn't make suggestions"
+msgstr "Das Plugin „%1“ konnte keine Vorschläge machen"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:129
+#, kde-format
+msgctxt "@title:group %1 is a plugin's name"
+msgid "The plugin \"%2\" suggests a category for %1 transaction"
+msgid_plural "The plugin \"%2\" suggests categories for %1 transactions"
+msgstr[0] "Das Plugin „%2“ schlägt für %1 Buchung eine Kategorie vor"
+msgstr[1] "Das Plugin „%2“ schlägt für %1 Buchungen Kategorien vor"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:147
+#, kde-format
+msgctxt "@item a transaction that shows no name"
+msgid "No name"
+msgstr "Ohne Namen"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:147
+#, kde-format
+msgctxt "@option:check %1 is who was paid, %2 an amount"
+msgid "%1 · %2"
+msgstr "%1 · %2"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:148
+#, kde-format
+msgctxt "@info %1 is a date, %2 a category"
+msgid "%1 · suggested: %2"
+msgstr "%1 · vorgeschlagen: %2"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:169
+#, kde-format
+msgctxt "@info"
+msgid "Nothing changes until you choose \"Use the ticked suggestions\". You can undo it in one step. Only transactions without a category get a suggestion."
+msgstr "Nichts ändert sich, bevor Sie „Angehakte Vorschläge übernehmen“ wählen. Sie können es in einem Schritt rückgängig machen. Nur Buchungen ohne Kategorie bekommen einen Vorschlag."
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:180
+#, kde-format
+msgctxt "@action:button"
+msgid "Use the ticked suggestion (%1)"
+msgid_plural "Use the ticked suggestions (%1)"
+msgstr[0] "Angehakten Vorschlag übernehmen (%1)"
+msgstr[1] "Angehakte Vorschläge übernehmen (%1)"
+
+#: crates/kassensturz-ui-bridge/qml/ImportDonePage.qml:206
+#, kde-format
+msgctxt "@info"
+msgid "%1 transaction got its suggested category. Undo takes it back."
+msgid_plural "%1 transactions got their suggested categories. Undo takes them back."
+msgstr[0] "%1 Buchung hat ihre vorgeschlagene Kategorie bekommen. Rückgängig nimmt das zurück."
+msgstr[1] "%1 Buchungen haben ihre vorgeschlagenen Kategorien bekommen. Rückgängig nimmt das zurück."
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:54
+#, kde-format
+msgctxt "@info %1 is a plugin's name"
+msgid "Worked out by the plugin \"%1\", not by KassenSturz. Check the figures against your accounts if something looks wrong."
+msgstr "Vom Plugin „%1“ berechnet, nicht von KassenSturz. Prüfen Sie die Zahlen an Ihren Konten, wenn etwas falsch aussieht."
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:68
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:76
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Accounts:"
+msgstr "Konten:"
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:77
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "All accounts"
+msgstr "Alle Konten"
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:97
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "This month"
+msgstr "Dieser Monat"
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:98
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Last 3 months"
+msgstr "Letzte 3 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:99
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Last 12 months"
+msgstr "Letzte 12 Monate"
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:100
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "This year"
+msgstr "Dieses Jahr"
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:101
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Everything"
+msgstr "Alles"
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:110
+#, kde-format
+msgctxt "@action:button"
+msgid "Run again"
+msgstr "Erneut ausführen"
+
+#: crates/kassensturz-ui-bridge/qml/PluginReportPage.qml:173
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "The plugin found nothing to show for these accounts and months."
+msgstr "Das Plugin hat für diese Konten und Monate nichts zum Anzeigen gefunden."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:748
+#, kde-format
+msgctxt "@title:group"
+msgid "From plugins"
+msgstr "Aus Plugins"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml:779
+#, kde-format
+msgctxt "@info %1 is a plugin's name"
+msgid "A report by the plugin \"%1\". It reads the accounts and months you choose."
+msgstr "Ein Bericht des Plugins „%1“. Es liest die Konten und Monate, die Sie wählen."

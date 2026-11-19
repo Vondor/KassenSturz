@@ -216,6 +216,36 @@ KassenSturz works out every other colour from these three: the backgrounds of th
 tools/make-data-plugin.py manifest.json kassensturz-theme=theme.json green-theme.wasm
 ```
 
-## 10. Still to come (#791)
+## 10. Reports and automations (D-926)
+
+Both read the book, so both must ask for `read_book` in their manifest; an automation also asks for `propose_changes`. Without them KassenSturz doesn't call the plugin (`plugin-host.permission-missing`).
+
+**A report** exports two calls:
+
+| Call | In | Out |
+|---|---|---|
+| `ks_report_info` | nothing | `{"reports": [{"id": "monthly", "name": "Monthly summary"}]}`: 1 to 20 reports, each ID 1 to 64 lowercase letters, digits, `-` or `_`. |
+| `ks_report_run` | the exporter's transactions (§8) of the accounts and days the user chose, plus `"report": "<id>"` | the table, as below. |
+
+```json
+{"title": "Monthly summary",
+ "columns": [{"label": "Month", "kind": "text"}, {"label": "Left over", "kind": "amount"},
+             {"label": "Payments", "kind": "count"}, {"label": "Last day", "kind": "date"}],
+ "rows": [["November 2026", {"amount": "-123456", "currency": "EUR", "minor_digits": 2}, "12", "2026-11-30"]]}
+```
+
+At most 20 columns and 10,000 rows; every row has one cell per column, or `null` for an empty one. A `text` cell has at most 500 characters, a `count` is a whole number written as text, an amount is in minor units as text with its currency and 0 to 4 decimal places. Titles, names and labels have at most 80 characters. KassenSturz formats the dates and amounts after the user's settings, draws the table with its own components and shows every text as plain text; a report has no charts or markup. The page says that the plugin, not KassenSturz, worked out the figures.
+
+**An automation** exports one call so far, after an import:
+
+| Call | In | Out |
+|---|---|---|
+| `ks_automation_after_import` | `{"categories": [names], "transactions": [{"id", "date", "account", "payee", "memo", "amount", "currency", "minor_digits", "uncategorized"}]}`, the transactions just imported | `{"suggestions": [{"transaction": "<id>", "category": "<name>"}]}` |
+
+It may suggest only a category the book already has, only for a transaction it was given that has none (`"uncategorized": true`), and each transaction at most once; any other answer is refused whole. Suggestions are only suggestions: KassenSturz lists them for the user to tick, and applies the ticked ones as one change with one Undo.
+
+**Where they show.** The reports of every report plugin are listed on the Statistics page under "From plugins"; one opens a page with a choice of account (or all) and period (this month, the last 3 or 12 months, this year, everything), where the plugin works it out again on each change. After an import, each automation plugin is asked once; the page that says what was imported lists its suggestions, all ticked, with "Use the ticked suggestions" and "Not now". Using them is recorded in the change history as editing transactions, so the book format stays as it is.
+
+## 11. Still to come (#791)
 
 The calls and host functions of the other extension points, the data of UI density, one example plugin per extension point, and a "write your own plugin" guide.

@@ -74,10 +74,13 @@ impl ProviderAddress {
     /// or Ollama speaks plain `http://`. Nothing else is changed, so an
     /// address on another computer completed this way is still refused
     /// by [`ProviderAddress::parse_with`] unless the user allowed plain
-    /// `http://`; an empty text stays empty.
+    /// `http://`; an empty text stays empty. A text that starts with a
+    /// scheme written wrongly, such as `https:/api.example.com`, is left as
+    /// it is, so the check says it is wrong instead of a second scheme
+    /// being put in front of it (B-392, D-867).
     pub fn with_scheme(text: &str) -> String {
         let text = text.trim();
-        if text.is_empty() || text.contains("://") {
+        if text.is_empty() || text.contains("://") || starts_with_scheme(text) {
             text.to_owned()
         } else {
             format!("http://{text}")
@@ -109,6 +112,9 @@ impl ProviderAddress {
             .filter(|host| !host.is_empty())
             .ok_or(AiError::BadAddress)?
             .to_ascii_lowercase();
+        if !is_valid_host(&host) {
+            return Err(AiError::BadAddress);
+        }
         let port = uri.port_u16().unwrap_or(if secure { 443 } else { 80 });
         let place = place_of(&host);
         if !secure && place != Place::ThisComputer && !allow_unencrypted {
@@ -195,6 +201,45 @@ impl fmt::Debug for ProviderAddress {
     }
 }
 
+/// Whether `text` starts with a scheme and its `:`, as in `https:/x`, but
+/// not a server name and its port, as in `localhost:1234`.
+fn starts_with_scheme(text: &str) -> bool {
+    let Some((scheme, rest)) = text.split_once(':') else {
+        return false;
+    };
+    let mut letters = scheme.chars();
+    letters
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic())
+        && letters.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
+        && !rest.starts_with(|c: char| c.is_ascii_digit())
+}
+
+/// Whether `host` names a server: an IP address, or a name made of parts
+/// of letters, digits, `-` and `_` between dots, none of them empty or
+/// starting or ending with `-` (B-392, D-867). The address parser accepts
+/// more, such as `-address`, which no server is called.
+fn is_valid_host(host: &str) -> bool {
+    if host.starts_with('[') {
+        // The parser has checked an IPv6 address in brackets already.
+        return host.ends_with(']');
+    }
+    if host.parse::<std::net::Ipv4Addr>().is_ok() {
+        return true;
+    }
+    let name = host.strip_suffix('.').unwrap_or(host);
+    let parts: Vec<&str> = name.split('.').collect();
+    name.len() <= 253
+        && parts.iter().all(|part| {
+            (1..=63).contains(&part.len())
+                && part
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_'))
+                && !part.starts_with('-')
+                && !part.ends_with('-')
+        })
+}
+
 /// This computer only for a loopback name or address. A name is never
 /// looked up: what a name resolves to could change after the check.
 fn place_of(host: &str) -> Place {
@@ -273,6 +318,8 @@ mod tests {
             ("http://localhost:11434/v1", "http://localhost:11434/v1"),
             ("HTTPS://api.example.com/v1", "HTTPS://api.example.com/v1"),
             ("ftp://example.com", "ftp://example.com"),
+            ("https:/api.example.com/v1", "https:/api.example.com/v1"),
+            ("https:api.example.com", "https:api.example.com"),
             ("", ""),
             ("   ", ""),
         ] {
@@ -344,6 +391,21 @@ mod tests {
     }
 
     #[test]
+    fn ordinary_server_names_are_accepted() {
+        for text in [
+            "https://api.example.com/v1",
+            "https://api.example.com./v1",
+            "https://ai-box.lan:8443/v1",
+            "https://my_server/v1",
+            "https://192.168.1.20/v1",
+            "http://[::1]:1234/v1",
+            "http://localhost:1234/v1",
+        ] {
+            assert!(ProviderAddress::parse(text).is_ok(), "{text:?}");
+        }
+    }
+
+    #[test]
     fn odd_addresses_are_refused() {
         for text in [
             "",
@@ -356,6 +418,13 @@ mod tests {
             "https://api.example.com/v1#x",
             "https:///v1",
             "https://api.example.com\\v1",
+            // B-392: no server is called like this.
+            "https://-address/v1",
+            "https://api-.example.com/v1",
+            "https://api..example.com/v1",
+            "https://.example.com/v1",
+            "https:/api.example.com/v1",
+            "https:api.example.com/v1",
         ] {
             assert_eq!(place(text), Err(AiError::BadAddress), "{text:?}");
         }

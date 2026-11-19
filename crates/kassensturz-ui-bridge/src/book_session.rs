@@ -139,6 +139,15 @@ pub mod qobject {
         #[cxx_name = "booksIn"]
         fn books_in(self: &BookSession, folder: &QString) -> QVariant;
 
+        /// The books already in KassenSturz's own folder when there is no
+        /// book to open yet (B-404, D-872): `folder` (for `openIn`),
+        /// `shown` (the folder in the user's words) and `names`, sorted;
+        /// `names` is empty when there is a book to open. `name` is the
+        /// app's own book, as for `openLast`. Only looks, never makes a book.
+        #[qinvokable]
+        #[cxx_name = "foundBooks"]
+        fn found_books(self: &BookSession, name: &QString) -> QVariant;
+
         /// Opens the book called `name` in `folder`, a folder the folder
         /// chooser granted, as `openFile` does. A name that isn't a plain
         /// file name is refused. Also for "Choose the folder again…" (D-732).
@@ -229,7 +238,7 @@ enum Attempt {
 impl cxx_qt::Initialize for qobject::BookSession {
     fn initialize(mut self: Pin<&mut Self>) {
         let books = Books::for_user();
-        let backup_folder = display(books.backup_folder());
+        let backup_folder = crate::platform::shown_path(books.backup_folder());
         // Until a book is open, the file dialogs start in the app's own
         // folder: a book the Flatpak's file chooser hands over from anywhere
         // else can't be opened (book.sandboxed, M6-B159).
@@ -312,6 +321,10 @@ impl qobject::BookSession {
     fn books_in(&self, folder: &QString) -> QVariant {
         let names = book_names_in(Path::new(&folder.to_string()));
         variant::list(names.iter().map(|name| variant::text(name)))
+    }
+
+    fn found_books(&self, name: &QString) -> QVariant {
+        found_object(&Books::for_user(), &name.to_string())
     }
 
     fn open_in(self: Pin<&mut Self>, folder: &QString, name: &QString) {
@@ -603,7 +616,21 @@ impl qobject::BookSession {
 
 /// The names of the books in `folder`, sorted: regular files ending in
 /// `.ksz`.
-fn book_names_in(folder: &Path) -> Vec<String> {
+/// What `foundBooks` hands QML, read from `books`.
+fn found_object(books: &Books, name: &str) -> QVariant {
+    let names = books.found_books(name);
+    let folder = books.app_folder().unwrap_or(Path::new(""));
+    variant::map([
+        ("folder", variant::text(&folder.to_string_lossy())),
+        ("shown", variant::text(&display(folder))),
+        (
+            "names",
+            variant::list(names.iter().map(|name| variant::text(name))),
+        ),
+    ])
+}
+
+pub(crate) fn book_names_in(folder: &Path) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(folder) else {
         return Vec::new();
     };
@@ -734,7 +761,7 @@ fn problem_variant(problem: &Problem, books: Option<&Books>) -> QVariant {
             .map(|(name, value)| (name.clone(), qtext(value))),
     );
     if let Some(folder) = problem.path().and_then(Path::parent) {
-        entries.push(("folder".into(), qtext(&display(folder))));
+        entries.push(("folder".into(), qtext(&crate::platform::shown_path(folder))));
     }
     if let Problem::Locked { path, lock } = problem {
         if let Some(computer) = &lock.computer {
@@ -772,6 +799,27 @@ fn problem_variant(problem: &Problem, books: Option<&Books>) -> QVariant {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `foundBooks` reads back as QML reads it: the folder to open from,
+    /// the folder in the user's words and the books' names (B-404, D-872).
+    #[test]
+    fn the_found_books_read_back_as_qml_reads_them() {
+        use crate::test_folder::TestFolder;
+        use crate::variant::read_back::{text_of, texts_of};
+
+        let folder = TestFolder::new();
+        let books = Books::in_folder(folder.path(), "Laptop");
+        let data = folder.join("data");
+        std::fs::create_dir_all(&data).expect("folder");
+        std::fs::write(data.join("Familie.ksz"), b"").expect("book");
+        let found = found_object(&books, "Haushalt");
+        assert_eq!(texts_of(&found, "names"), ["Familie.ksz"]);
+        assert_eq!(text_of(&found, "folder"), data.to_string_lossy());
+        assert_eq!(text_of(&found, "shown"), display(&data));
+        // The app's own book is there: nothing is offered.
+        std::fs::write(data.join("Haushalt.ksz"), b"").expect("own book");
+        assert!(texts_of(&found_object(&books, "Haushalt"), "names").is_empty());
+    }
 
     /// The Settings row shows the folder as `shown_folder_of` words it, the
     /// same as the move page, not the path the app opens (M6-B240).

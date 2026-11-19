@@ -46,6 +46,7 @@ Kirigami.ApplicationWindow {
         "accounts": accountsPage,
         "categories": categoriesPage,
         "budgets": budgetsPage,
+        "plans": plansPage,
         "rules": rulesPage,
         "statistics": statisticsPage,
         "settings": settingsPage,
@@ -640,10 +641,24 @@ Kirigami.ApplicationWindow {
                 root.showMaximized();
             }
         }
-        bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
+        // Books left in KassenSturz's own folder with none to open, as after
+        // the Store app was installed again, are offered on the welcome
+        // page before anything is made (B-404, D-872).
+        const found = bookSession.foundBooks(ownBookName());
+        if (found.names.length > 0) {
+            pageStack.clear();
+            pushPage(welcomePage, { found: found });
+        } else {
+            bookSession.openLast(ownBookName());
+        }
         if (bookMover.interrupted?.after !== undefined) {
             Qt.callLater(() => bookMoveInterrupted.ask(bookMover.interrupted));
         }
+    }
+
+    // The file name of the app's own book, in the user's language.
+    function ownBookName(): string {
+        return i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household");
     }
 
     // Shows the book that was just opened: the setup wizard if it has no
@@ -1429,6 +1444,16 @@ Kirigami.ApplicationWindow {
                     root.showScreen("budgets")
                 }
             },
+            // The payments that come again and again (B-388, D-863), right
+            // under Budgets; the accounts page's button stays as a shortcut.
+            Kirigami.Action {
+                icon.name: "view-calendar-upcoming-events"
+                text: root.i18nContext.i18nc("@action:inmenu a screen", "Plans")
+                onTriggered: {
+                    ActionLog.taken("Main_plans")
+                    root.showScreen("plans")
+                }
+            },
             Kirigami.Action {
                 icon.name: "view-filter"
                 text: root.i18nContext.i18nc("@action:inmenu a screen", "Rules")
@@ -1504,12 +1529,15 @@ Kirigami.ApplicationWindow {
 
     DrawerHandleName {
         drawer: chatDrawer
+        highlighted: true
     }
 
     // In a wide window the drawers' buttons sit in the pages' headers.
     HeaderHandleNames {
         pages: root.pageStack
         scope: root.contentItem.parent ?? root.contentItem
+        // The chat's button shows its words and stands out (B-385, D-861).
+        labelled: chatDrawer
     }
 
     // Opens and closes the chat sidebar from the keyboard. The menu has no entry
@@ -1646,10 +1674,18 @@ Kirigami.ApplicationWindow {
         enabled: aiSwitch.enabled && root.started
         modal: root.width < Kirigami.Units.gridUnit * root.chatBesideMinWidth
         handleVisible: aiSwitch.enabled && root.started
+        // By name: Kirigami's header button shows the icon's name before its
+        // source, and the name's default is a panel icon (B-401).
+        handleClosedIcon.name: "dialog-messages"
         handleClosedIcon.source: "dialog-messages"
+        handleOpenIcon.name: "go-next"
         handleOpenIcon.source: "go-next"
         handleOpenToolTip: root.i18nContext.i18nc("@action:button close the chat sidebar", "Close the chat")
-        handleClosedToolTip: root.i18nContext.i18nc("@info:tooltip the button that opens the chat sidebar", "Open the chat")
+        // The closed handle is the way into the chat, so it says so in words
+        // in the header (B-385, D-861): "Ask AI" beside a speech bubble,
+        // highlighted (HeaderHandleNames.qml). The same words are its name.
+        // The words live in AiChatPanel.qml, with the chat they open.
+        handleClosedToolTip: chatPanel.entryName
         width: Math.max(root.chatMinWidth, Math.min(root.chatWidth, root.chatMaxWidth))
         drawerOpen: false
         topPadding: 0
@@ -1955,6 +1991,9 @@ Kirigami.ApplicationWindow {
         WelcomePage {
             firstStart: firstStartState
             language: languageSettings
+            onOpenFound: name => bookSession.openIn(found.folder, name)
+            // The app's own book is made only now, by the user's choice.
+            onStartNew: bookSession.openLast(root.ownBookName())
             onContinued: currency => {
                 root.wizardCurrency = currency;
                 // A test uses a made-up book only, so it goes straight to the
@@ -2275,6 +2314,15 @@ Kirigami.ApplicationWindow {
             budgets: budgetBook
             onAddBudgetClicked: root.pushPage(budgetPage)
             onChangeBudgetClicked: budgetId => root.pushPage(budgetPage, { budgetId: budgetId })
+        }
+    }
+
+    Component {
+        id: plansPage
+
+        PlansPage {
+            plans: plannedPayments
+            register: accountRegister
         }
     }
 

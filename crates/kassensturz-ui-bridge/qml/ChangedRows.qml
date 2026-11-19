@@ -11,6 +11,8 @@ import QtQuick
 // a total that moved. Main.qml sets the IDs from the history's summary
 // (`summary.transactions`); the lists of transactions (RegisterPage.qml,
 // the transaction list of a dashboard in GridItem.qml) ask `lit(id)`.
+// It also keeps which ones the user added since the start, for their "New"
+// badge (`isNew(id)`).
 Item {
     id: rows
 
@@ -32,6 +34,21 @@ Item {
 
     function lit(id: string): bool {
         return rows.ids.indexOf(id) >= 0;
+    }
+
+    // The transactions the user typed in since the app started, which carry
+    // a "New" badge until it closes (B-394, D-869). Kept here only, never in
+    // the book; an import marks none, its summary says what it added.
+    property var added: []
+
+    function markNew(id: string) {
+        if (id !== "" && rows.added.indexOf(id) < 0) {
+            rows.added = rows.added.concat([id]);
+        }
+    }
+
+    function isNew(id: string): bool {
+        return rows.added.indexOf(id) >= 0;
     }
 
     Timer {

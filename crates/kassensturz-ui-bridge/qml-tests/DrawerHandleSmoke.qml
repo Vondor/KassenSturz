@@ -6,7 +6,8 @@
 // drawer's handle gets the drawer's words as its accessible name and its
 // text: on a stand-in handle whose button reads its own name, the way
 // Kirigami's handle binds its name to its tooltip, and on Kirigami's real
-// handles of a menu and a sidebar, open and closed. `tools/check-panel.sh`
+// handles of a menu and a sidebar, open and closed, and that the sidebar's
+// handle is highlighted while it is closed (B-385). `tools/check-panel.sh`
 // runs it and fails on the first FAIL line or on any QML warning about a
 // binding or a type.
 
@@ -87,6 +88,7 @@ Kirigami.ApplicationWindow {
         id: sideName
 
         drawer: side
+        highlighted: true
     }
 
     Timer {
@@ -104,6 +106,8 @@ Kirigami.ApplicationWindow {
             if (menuName.button !== null && sideName.button !== null) {
                 window.check(menuName.button.text === (window.globalDrawer.drawerOpen ? "Hide the menu" : "Show the menu"), "the menu's button: " + menuName.button.text);
                 window.check(sideName.button.text === "Open the chat", "the sidebar's button: " + sideName.button.text);
+                // The chat's handle stands out while closed (B-385); the menu's doesn't.
+                window.check(sideName.button.highlighted === true && menuName.button.highlighted !== true, "only the sidebar's closed handle is highlighted");
             }
             Qt.exit(window.failed ? 1 : 0);
         }

@@ -24923,6 +24923,9 @@ msgstr ""
 "https://ai.example.test/v1. Zapisanie będzie możliwe, gdy adres będzie "
 "poprawny."
 
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
 msgid "This provider doesn't name its models. Please type the name."
 msgstr "Ten dostawca nie podaje swoich modeli. Wpisz nazwę."
 

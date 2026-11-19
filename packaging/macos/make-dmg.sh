@@ -109,6 +109,36 @@ for module in org/kde/kirigami org/kde/kirigamiaddons org/kde/ki18n org/kde/quic
     fi
 done
 
+# Modules copied by hand above (and anything macdeployqt left alone) still
+# point at Craft's lib folder. Copy each library they need into the bundle's
+# Frameworks folder and point the loader at the copy; repeat, since a copied
+# library has dependencies of its own.
+mkdir -p "$app/Contents/Frameworks"
+pass=0
+while [ "$pass" -lt 6 ]; do
+    pass=$((pass + 1))
+    changed=0
+    for file in "$app/Contents/MacOS/kassensturz" $(find "$app/Contents/Frameworks" "$app/Contents/PlugIns" "$app/Contents/Resources/qml" \( -name '*.dylib' -o -name '*.so' \) 2>/dev/null); do
+        for dep in $(otool -L "$file" 2>/dev/null | tail -n +2 | awk '{print $1}' | grep "$craft_root" || true); do
+            base=$(basename "$dep")
+            if [ ! -f "$app/Contents/Frameworks/$base" ]; then
+                if [ -f "$dep" ]; then
+                    cp "$dep" "$app/Contents/Frameworks/$base"
+                    chmod u+w "$app/Contents/Frameworks/$base"
+                    install_name_tool -id "@executable_path/../Frameworks/$base" "$app/Contents/Frameworks/$base"
+                    echo "Copied $base into Frameworks"
+                else
+                    echo "Missing $dep, needed by $file"
+                    continue
+                fi
+            fi
+            install_name_tool -change "$dep" "@executable_path/../Frameworks/$base" "$file"
+            changed=1
+        done
+    done
+    [ "$changed" -eq 1 ] || break
+done
+
 # No path of the build machine may be left in the program or its libraries:
 # every library must be found inside the bundle or in the system.
 bad=0

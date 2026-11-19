@@ -638,10 +638,24 @@ Kirigami.ApplicationWindow {
                 root.showMaximized();
             }
         }
-        bookSession.openLast(i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household"))
+        // Books left in KassenSturz's own folder with none to open, as after
+        // the Store app was installed again, are offered on the welcome
+        // page before anything is made (B-404, D-872).
+        const found = bookSession.foundBooks(ownBookName());
+        if (found.names.length > 0) {
+            pageStack.clear();
+            pushPage(welcomePage, { found: found });
+        } else {
+            bookSession.openLast(ownBookName());
+        }
         if (bookMover.interrupted?.after !== undefined) {
             Qt.callLater(() => bookMoveInterrupted.ask(bookMover.interrupted));
         }
+    }
+
+    // The file name of the app's own book, in the user's language.
+    function ownBookName(): string {
+        return i18nContext.i18nc("@item the file name of the app's own book, without its extension", "Household");
     }
 
     // Shows the book that was just opened: the setup wizard if it has no
@@ -1855,6 +1869,9 @@ Kirigami.ApplicationWindow {
         WelcomePage {
             firstStart: firstStartState
             language: languageSettings
+            onOpenFound: name => bookSession.openIn(found.folder, name)
+            // The app's own book is made only now, by the user's choice.
+            onStartNew: bookSession.openLast(root.ownBookName())
             onContinued: currency => {
                 root.wizardCurrency = currency;
                 // A test uses a made-up book only, so it goes straight to the

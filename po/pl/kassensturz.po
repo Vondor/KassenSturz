@@ -2077,17 +2077,6 @@ msgid ""
 "server's name, and has no login name, password, ? or # part, for example %1."
 msgstr "Tego adresu nie można użyć. Musi zaczynać się od http:// lub https://, zawierać nazwę serwera i nie może mieć nazwy użytkownika, hasła ani części z ? lub #, na przykład %1."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:56
-#, kde-format
-msgctxt "@info"
-msgid ""
-"This address is on another computer and starts with http://, which isn't "
-"encrypted, so KassenSturz won't send anything to it. Use the provider's "
-"https:// address. If the provider offers only http:// and runs in a network "
-"you trust, you can tick “Allow unencrypted connections” under the address in "
-"the AI settings."
-msgstr "Ten adres jest na innym komputerze i zaczyna się od http://, które nie jest szyfrowane, więc KassenSturz nic do niego nie wyśle. Użyj adresu https:// dostawcy. Jeśli dostawca oferuje tylko http:// i działa w sieci, której ufasz, możesz zaznaczyć „Zezwalaj na nieszyfrowane połączenia” pod adresem w ustawieniach AI."
-
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:58
 #, kde-format
 msgctxt "@info"
@@ -24717,6 +24706,30 @@ msgid ""
 msgstr ""
 "https://github.com/Vondor/KassenSturz/blob/main/docs/user/en/why-your-data-"
 "is-safe.md"
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz won't use this address yet: it is on another computer and starts"
+" with http://, so what is sent to it travels unencrypted. Anyone on the same"
+" network, for example on your Wi-Fi, could read it, your questions and the "
+"provider's key included. Use the provider's https:// address. If the "
+"provider offers only http:// and runs in a network you trust, you can allow "
+"unencrypted connections in the AI settings."
+msgstr ""
+"KassenSturz jeszcze nie używa tego adresu: jest na innym komputerze i "
+"zaczyna się od http://, więc to, co jest do niego wysyłane, przesyłane jest "
+"bez szyfrowania. Każdy w tej samej sieci, na przykład w Twoim Wi-Fi, mógłby "
+"to odczytać, także Twoje pytania i klucz dostawcy. Użyj adresu https:// "
+"dostawcy. Jeśli dostawca oferuje tylko http:// i działa w sieci, której "
+"ufasz, możesz zezwolić na nieszyfrowane połączenia w ustawieniach AI."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
+#, kde-format
+msgctxt "@action:button ticks the box of the same name in the AI settings"
+msgid "Allow unencrypted connections"
+msgstr "Zezwalaj na nieszyfrowane połączenia"
 
 #: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:34
 #, kde-format

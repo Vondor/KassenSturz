@@ -353,6 +353,60 @@ fn a_book_without_file_locks_refuses_a_change_when_its_lock_file_was_taken_away(
     ));
 }
 
+/// A sync tool puts another computer's copy over a book open without file
+/// locks by renaming it into place. SQLite's `unix-none` VFS keeps no file
+/// numbers, so it can't notice; the book does, before the next change, and
+/// writes nothing into either file (#1011, like B-289 with file locks).
+#[cfg(unix)]
+#[test]
+fn a_book_without_file_locks_notices_its_file_was_replaced() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    let _no_locks = NoLocks::here();
+    let mut book = Book::create(&path, &computer).expect("book made");
+    add(&mut book, "Checking");
+    assert!(!book.file_replaced());
+    assert!(!book.write_failed());
+
+    let incoming = folder.join("Household.ksz.sync-tmp");
+    std::fs::copy(&path, &incoming).expect("copied");
+    std::fs::rename(&incoming, &path).expect("replaced");
+    let before = std::fs::read(&path).expect("read");
+    // Seen without a change, as the UI's timer asks.
+    assert!(book.file_replaced());
+    assert!(book.write_failed());
+    let result = book.as_one_action(crate::Action::AddAccount, |_| Ok::<(), StoreError>(()));
+    assert!(matches!(result, Err(StoreError::WriteFailed)), "{result:?}");
+    assert_eq!(std::fs::read(&path).expect("read"), before);
+    assert_eq!(names(&book), ["Checking"]);
+}
+
+/// A book open without file locks whose file is gone is the drive's matter
+/// (D-732), not a replaced file; one with file locks is left to SQLite's
+/// own check (B-289).
+#[cfg(unix)]
+#[test]
+fn a_book_without_file_locks_whose_file_went_is_not_called_replaced() {
+    let folder = TempFolder::new();
+    let path = folder.join("Household.ksz");
+    let computer = computer(&folder);
+    {
+        let _no_locks = NoLocks::here();
+        let book = Book::create(&path, &computer).expect("book made");
+        std::fs::remove_file(&path).expect("removed");
+        assert!(!book.file_replaced());
+    }
+    let other = folder.join("Other.ksz");
+    let book = Book::create(&other, &computer).expect("book made");
+    let incoming = folder.join("Other.ksz.sync-tmp");
+    std::fs::copy(&other, &incoming).expect("copied");
+    std::fs::rename(&incoming, &other).expect("replaced");
+    // Until a change is tried, only SQLite knows, and it tells at the write.
+    assert!(!book.file_replaced());
+    assert!(!book.write_failed());
+}
+
 /// Writes the lock file an older build (without process, place or locks
 /// note) wrote, as `since` says.
 #[cfg(target_os = "linux")]

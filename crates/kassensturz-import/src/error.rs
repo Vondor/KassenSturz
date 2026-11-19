@@ -194,6 +194,11 @@ pub enum ImportError {
     Stopped,
     /// The user cancelled the import (B-362). Nothing of it was written.
     Cancelled,
+    /// A plugin importer failed or answered something KassenSturz can't
+    /// use (#791). It reports the plugin host's own code (`plugin-host.*`
+    /// in `docs/ERROR_CODES.md`), not an `import.` one, since the plugin,
+    /// not the file, is at fault.
+    Plugin(ErrorReport),
 }
 
 impl ImportError {
@@ -226,7 +231,8 @@ impl ImportError {
             | Self::UnsupportedEncoding { .. }
             | Self::DecimalPlacesDiffer { .. }
             | Self::Stopped
-            | Self::Cancelled => {}
+            | Self::Cancelled
+            | Self::Plugin(_) => {}
         }
         self
     }
@@ -368,6 +374,7 @@ impl Report for ImportError {
                 .with("file", ErrorParam::Number((*file).into())),
             Self::Stopped => ErrorReport::new("import.stopped"),
             Self::Cancelled => ErrorReport::new("import.cancelled"),
+            Self::Plugin(report) => report.clone(),
         }
     }
 }

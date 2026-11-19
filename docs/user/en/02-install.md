@@ -2,7 +2,11 @@
 
 *This page says which file to download and points to the sheets with every click. Your household books are kept with every new version.*
 
-## Where to get KassenSturz
+## Windows: from the Microsoft Store (recommended)
+
+Open **https://apps.microsoft.com/detail/9NM5V48PPRLQ** and click **Get** (or **Install**). The Store installs KassenSturz and later updates it by itself. Windows shows no warning, because the Store checks and signs the program.
+
+## Where to get KassenSturz otherwise
 
 In your browser, open **https://github.com/Vondor/KassenSturz/releases**. You don't need a GitHub account. The version at the top is the newest. While KassenSturz is being tested, its card says **Pre-release** (a test version); that is as it should be.
 
@@ -10,7 +14,7 @@ Under **Assets**, download exactly one file:
 
 | Your system | The file | The sheet with every click |
 |---|---|---|
-| **Windows** (installer, recommended) | ends in `-windows-x64-setup.exe` | [Windows install sheet](../../testing/INSTALL_WINDOWS.en.md) |
+| **Windows** (installer, if you don't use the Store) | ends in `-windows-x64-setup.exe` | [Windows install sheet](../../testing/INSTALL_WINDOWS.en.md) |
 | **Windows** (without installing) | ends in `-windows-x64.zip`; you unpack it and start the program from there | the same sheet |
 | **Ubuntu** and other Linux systems | ends in `.flatpak` | [Ubuntu install sheet](../../testing/INSTALL_UBUNTU.en.md) |
 
@@ -18,7 +22,7 @@ You don't need *Source code (zip)* or *Source code (tar.gz)*; those are for deve
 
 ## Windows shows a warning. What now?
 
-For a test version, Windows says once that it "protected your PC". The sheet shows step by step how to confirm the message. The installer sets KassenSturz up for your user account only; you normally don't need administrator rights.
+This only happens with the files from the releases page, not with the Store. For a test version, Windows says once that it "protected your PC". The sheet shows step by step how to confirm the message. The installer sets KassenSturz up for your user account only; you normally don't need administrator rights.
 
 ![Windows shows a warning when the installation starts](../../testing/screenshots/windows/01-smartscreen-1.png)
 
@@ -26,7 +30,8 @@ For a test version, Windows says once that it "protected your PC". The sheet sho
 
 You simply install a newer version **over the old one**, the same way as the first time:
 
-- On Windows, the installer starts and replaces the program. If KassenSturz is still running, it asks you to close it.
+- From the Microsoft Store: nothing to do, the Store updates KassenSturz by itself.
+- With the Windows installer, the installer starts and replaces the program. If KassenSturz is still running, it asks you to close it.
 - On Ubuntu: `flatpak install --user --reinstall` with the new file (the command is in the sheet).
 
 **Your household books are not touched.** Before KassenSturz adapts a book to a new version, it makes a backup by itself (**Settings › Backups**) and keeps the last ten.

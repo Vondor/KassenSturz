@@ -367,6 +367,7 @@ fn change_object_in(change: &ChangeText, filed: &HashMap<String, usize>) -> QVar
         ("filedBills", QVariant::from(&count(filed))),
         ("action", text(change.action)),
         ("madeAt", text(&change.made_at)),
+        ("madeAtSeconds", text(&change.made_at_seconds.to_string())),
         ("undone", QVariant::from(&change.undone)),
         ("fileName", text(&change.file_name)),
         (
@@ -390,5 +391,79 @@ fn summary_object(summary: &SummaryText) -> QVariant {
         ),
         ("firstDate", text(&summary.first_date)),
         ("lastDate", text(&summary.last_date)),
+        (
+            "transactions",
+            list(summary.transactions.iter().map(|id| text(&id.to_string()))),
+        ),
+        // The one transaction it touched, for "Undone: …" (B-384, D-857);
+        // an empty map when there are several or none.
+        (
+            "booking",
+            summary.booking.as_ref().map_or_else(
+                || map([]),
+                |booking| {
+                    map([
+                        ("name", text(&booking.name)),
+                        ("amount", text(&booking.amount)),
+                    ])
+                },
+            ),
+        ),
     ])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::history::BookingText;
+    use crate::variant::read_back::{keys, object_of, text_of, texts_of};
+    use kassensturz_core::TransactionId;
+
+    #[test]
+    fn a_summary_reads_back_with_its_rows_and_booking() {
+        let id = TransactionId::generate();
+        let summary = SummaryText {
+            added: 1,
+            accounts: vec!["Checking".into()],
+            first_date: "05.10.2026".into(),
+            last_date: "05.10.2026".into(),
+            transactions: vec![id],
+            booking: Some(BookingText {
+                name: "Corner Grocery".into(),
+                amount: "-23,80 €".into(),
+            }),
+            ..SummaryText::default()
+        };
+        let read = summary_object(&summary);
+        assert_eq!(texts_of(&read, "transactions"), vec![id.to_string()]);
+        let booking = object_of(&read, "booking");
+        assert_eq!(text_of(&booking, "name"), "Corner Grocery");
+        assert_eq!(text_of(&booking, "amount"), "-23,80 €");
+
+        // Several transactions: no booking, an empty object.
+        let several = summary_object(&SummaryText {
+            booking: None,
+            ..summary
+        });
+        assert!(keys(&object_of(&several, "booking")).is_empty());
+    }
+
+    /// The history page groups by day and sitting from `madeAtSeconds`
+    /// (B-395, D-870).
+    #[test]
+    fn a_change_reads_back_with_its_time_in_seconds() {
+        let change = ChangeText {
+            id: "c1".into(),
+            action: "add-budget",
+            made_at: "19.11.2026 21:40".into(),
+            made_at_seconds: 1_795_643_000,
+            undone: false,
+            file_name: String::new(),
+            summary: None,
+        };
+        let read = change_object_in(&change, &HashMap::new());
+        assert_eq!(text_of(&read, "madeAtSeconds"), "1795643000");
+        assert_eq!(text_of(&read, "madeAt"), "19.11.2026 21:40");
+        assert_eq!(text_of(&read, "action"), "add-budget");
+    }
 }

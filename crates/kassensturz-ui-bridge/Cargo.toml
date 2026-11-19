@@ -61,6 +61,8 @@ kassensturz-export.workspace = true
 kassensturz-import.workspace = true
 kassensturz-pipeline.workspace = true
 kassensturz-platform.workspace = true
+kassensturz-plugin-api.workspace = true
+kassensturz-plugin-host.workspace = true
 kassensturz-report.workspace = true
 kassensturz-store.workspace = true
 # The columns of a chart as JSON text for the UI (D-339), and the calls of the
@@ -72,6 +74,7 @@ cxx-qt-build.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
+wat.workspace = true
 
 [lints]
 workspace = true

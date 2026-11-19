@@ -56,9 +56,10 @@ pub const VERSION: i32 = FIRST_VERSION + MIGRATIONS.len() as i32 - 1;
 
 /// Layout 24, the starting layout of the first Beta (D-045, D-536): the 23
 /// development layouts of the Alpha merged into one, table for table what
-/// they built together, which the test in `layout/development_layouts.rs`
-/// proves. Layouts 1 to 15 (M0 to M3) had been merged into layout 16 before
-/// (D-135); layouts 17 to 23 (M4 to M6) added to it.
+/// they built together, which a test proved until the first Beta was
+/// tagged; M7a.6 removed that test with the old SQL. Layouts 1 to 15 (M0 to
+/// M3) had been merged into layout 16 before (D-135); layouts 17 to 23 (M4
+/// to M6) added to it.
 ///
 /// Every table is `STRICT`, so SQLite refuses values of the wrong type
 /// instead of converting them. Amounts are INTEGER minor units, never REAL
@@ -1526,9 +1527,6 @@ pub(crate) fn check_schema(
         Err(StoreError::Corrupt(Corruption::UnexpectedLayout))
     }
 }
-
-#[cfg(test)]
-mod development_layouts;
 
 #[cfg(test)]
 mod tests {

@@ -34,8 +34,15 @@ Kirigami.ScrollablePage {
     property var saveResult: ({})
     property var keyResult: ({})
     property var testResult: ({})
+    // The notes for the AI are folded away until the user opens them, so
+    // their text box isn't taken for the chat (B-393, D-868).
+    property bool notesShown: false
     // The hint under the address: where it points, or why it can't be used.
     property var addressCheck: ({})
+    // The same check as if plain http:// were allowed: where the typed
+    // address is, even while its http:// is still refused, so the one
+    // setup screen can say so before the user agrees (B-391, D-866).
+    property var openCheck: ({})
     // Whether something was saved just now, for the note under the buttons.
     property bool justSaved: false
     // Whether the settings file couldn't be written.
@@ -72,6 +79,45 @@ Kirigami.ScrollablePage {
     // Whether the connection is tested right after the next save, so that
     // the user sees the models to choose from (or what is wrong).
     property bool testAfterSave: false
+    // Whether the connection is tested again once the test that is running
+    // ends, because the user agreed to sending while it ran (B-407).
+    property bool testAfterConsent: false
+
+    // The user just agreed to what is sent. A test that was refused for
+    // want of that agreement, or that listed no models yet, runs again at
+    // once with the saved key, so the models appear without "Test the
+    // connection" (B-407).
+    function afterConsent() {
+        const refused = testResult.code === "ai.no-consent" || abilities.functions === "no-consent";
+        if (!hasServer || !(refused || (form.model ?? "") === "")) {
+            return;
+        }
+        if (settings.testing) {
+            testAfterConsent = true;
+            return;
+        }
+        testResult = ({});
+        settings.testConnection("");
+    }
+
+    // The model is chosen from the provider's list as soon as a test has
+    // listed it (B-396, D-871); "Enter another name…" or a provider without
+    // a list leaves the plain text field. Only the name is saved, as before.
+    readonly property var offeredModels: testResult.models ?? []
+    property bool typingName: false
+    // The model's name as it would be saved.
+    readonly property string chosenModel: modelField.text
+    readonly property bool modelListShown: offeredModels.length > 0 && !typingName
+    // A provider that answered the test but named no models: the user types
+    // the name, calmly, and saving works as before.
+    readonly property bool noModelList: testResult.code !== undefined || (testResult.models !== undefined && testResult.models.length === 0)
+    // Embedding models only turn text into numbers for searching; they can't
+    // answer in the chat, so they are shown but can't be chosen.
+    function searchOnly(name: string): bool {
+        return /embed/i.test(name);
+    }
+    readonly property var modelChoices: offeredModels.map(name => ({ value: name, search: searchOnly(name) }))
+        .concat([{ value: "", search: false }])
 
     // Reads what is saved into the page and the fields.
     function reload() {
@@ -80,14 +126,70 @@ Kirigami.ScrollablePage {
         modelField.text = form.model ?? "";
         keyUseBox.currentIndex = Math.max(0, keyUseBox.indexOfValue(form.keyUse ?? "none"));
         allowUnencryptedBox.checked = form.allowUnencrypted === true;
-        addressCheck = (form.address ?? "") !== "" ? settings.check(form.address, allowUnencryptedBox.checked) : ({});
+        runCheck(form.address ?? "");
+    }
+
+    // An address typed without its scheme, such as `localhost:1234/v1`,
+    // gets `http://` in front, in the field, so the user sees what is
+    // checked and saved (B-387, D-860).
+    function completeAddress() {
+        const completed = settings.withScheme(addressField.text);
+        if (completed !== addressField.text.trim()) {
+            addressField.text = completed;
+        }
+    }
+
+    // The user chose "Allow unencrypted connections" in the message that
+    // refused a plain http:// address (B-387, D-860): the box is ticked,
+    // which shows its warning, and nothing is saved until the user saves.
+    function allowUnencryptedNow() {
+        allowUnencryptedBox.checked = true;
+        saveResult = ({});
+        testResult = ({});
+        checkAddress();
+        allowUnencryptedBox.forceActiveFocus();
     }
 
     // Checks the address as typed, with the "Allow unencrypted
     // connections" box as it is now.
     function checkAddress() {
-        addressCheck = addressField.text.trim() !== "" ? settings.check(addressField.text, allowUnencryptedBox.checked) : ({});
+        completeAddress();
+        runCheck(addressField.text);
     }
+
+    // Checks the address while it is typed, without changing the text in
+    // the field, so the user sees at once whether it can be used (B-392,
+    // D-867).
+    function checkTyped() {
+        const typed = settings.withScheme(addressField.text);
+        runCheck(typed);
+    }
+
+    // Checks `address` as the box allows it, and as if http:// were allowed.
+    function runCheck(address: string) {
+        const empty = address.trim() === "";
+        addressCheck = empty ? ({}) : settings.check(address, allowUnencryptedBox.checked);
+        openCheck = empty ? ({}) : settings.check(address, true);
+    }
+
+    // The typed address is on another computer.
+    readonly property bool remote: openCheck.place === "other"
+    // ... and its connection would not be encrypted.
+    readonly property bool plainHttp: remote && openCheck.unencrypted === true
+    // One screen and one agreement for a provider on another computer
+    // (B-391, D-866): what leaves the computer, the warning for http://
+    // only when it applies, and one box for both. Shown until the saved
+    // provider is the typed one and the user has agreed to it; reading it
+    // again stays under "What is sent", and each question still shows
+    // what it sends.
+    // The agreement belongs to the address, so choosing a model after the
+    // first "Save and test" keeps it: only another address, or no agreement
+    // yet, shows the screen again (B-408).
+    readonly property bool oneScreen: remote && !settings.fake
+        && (addressField.text.trim() !== (form.address ?? "") || form.consent !== "given")
+
+    // Whether the address as typed is one no server can have.
+    readonly property bool addressWrong: addressCheck.code === "ai.bad-address"
 
     function save() {
         justSaved = false;
@@ -96,11 +198,20 @@ Kirigami.ScrollablePage {
         unencryptedOff = false;
         keyResult = ({});
         testResult = ({});
+        completeAddress();
+        // Agreed on the one setup screen: saved, then agreed, then tested.
+        const shownAsOne = oneScreen;
+        const agreeing = shownAsOne && agreeBox.checked;
+        // A new address is asked for its models at once (B-396, D-871).
+        const addressChanged = addressField.text.trim() !== (form.address ?? "");
         const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text, allowUnencrypted);
         if (result.saved === true) {
             // Without a model there is nothing to ask yet, so the test that
             // lists the models follows at once, with the key still typed.
-            const test = testAfterSave || modelField.text.trim() === "";
+            if (agreeing) {
+                notWritten = !settings.giveConsent();
+            }
+            const test = testAfterSave || modelField.text.trim() === "" || addressChanged || agreeing;
             if (test) {
                 settings.testConnection(keyField.text);
             }
@@ -110,7 +221,10 @@ Kirigami.ScrollablePage {
             keyResult = (result.keyError ?? "") !== "" ? ({ code: result.keyError }) : ({});
             justSaved = true;
             reload();
-            if (result.consentNeeded === true) {
+            agreeBox.checked = false;
+            // The one screen already showed what is sent; the dialog is
+            // only for a save that didn't show it.
+            if (result.consentNeeded === true && !shownAsOne) {
                 consentDialog.show();
             }
             if (test) {
@@ -158,6 +272,19 @@ Kirigami.ScrollablePage {
 
         function onTestFinished(result: var) {
             page.testResult = result;
+            page.typingName = false;
+            if (page.testAfterConsent) {
+                page.testAfterConsent = false;
+                page.afterConsent();
+            }
+            // With no name chosen yet, the first model that can chat is
+            // shown as the choice; it is used once the user saves.
+            if (modelField.text.trim() === "") {
+                const first = page.offeredModels.find(name => !page.searchOnly(name));
+                if (first !== undefined) {
+                    modelField.text = first;
+                }
+            }
         }
     }
 
@@ -183,16 +310,50 @@ Kirigami.ScrollablePage {
 
             Controls.TextField {
                 id: addressField
+                objectName: "addressField"
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Address:")
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-                placeholderText: "http://localhost:11434/v1"
                 inputMethodHints: Qt.ImhUrlCharactersOnly | Qt.ImhNoPredictiveText
                 onEditingFinished: page.checkAddress()
+                onTextEdited: typingCheck.restart()
                 onAccepted: {
                     ActionLog.taken("AiSettingsPage_forceActiveFocus")
                     modelField.forceActiveFocus()
                 }
+            }
+
+            // The example sits next to the field, never in it, so nobody takes
+            // it for part of their own address (B-392, D-867).
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                color: Kirigami.Theme.disabledTextColor
+                text: page.i18nContext.i18nc("@info %1 is an example web address", "For example: %1", "https://ai.example.test/v1")
+            }
+
+            Timer {
+                id: typingCheck
+                interval: 400
+                onTriggered: page.checkTyped()
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.addressCheck.place !== undefined && page.addressCheck.unencrypted !== true
+                type: Kirigami.MessageType.Positive
+                text: page.i18nContext.i18nc("@info", "The address looks right.")
+            }
+
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.addressWrong
+                type: Kirigami.MessageType.Error
+                text: page.i18nContext.i18nc("@info", "This isn't an address KassenSturz can use. It must start with https:// or http://, then the server's name, without spaces, for example https://ai.example.test/v1. Saving waits until the address is right.")
             }
 
             Controls.Label {
@@ -212,7 +373,7 @@ Kirigami.ScrollablePage {
             Controls.CheckBox {
                 id: allowUnencryptedBox
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-                visible: page.addressCheck.code === "ai.plain-http" || page.addressCheck.unencrypted === true
+                visible: !page.oneScreen && (page.addressCheck.code === "ai.plain-http" || page.addressCheck.unencrypted === true)
                 text: page.i18nContext.i18nc("@option:check", "Allow unencrypted connections")
                 onToggled: {
                     ActionLog.taken("AiSettingsPage_allowUnencrypted")
@@ -223,20 +384,73 @@ Kirigami.ScrollablePage {
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-                visible: page.addressCheck.unencrypted === true
+                visible: !page.oneScreen && page.addressCheck.unencrypted === true
                 type: page.addressCheck.network === "home" ? Kirigami.MessageType.Warning : Kirigami.MessageType.Error
                 text: page.addressCheck.network === "home"
                     ? page.i18nContext.i18nc("@info", "This connection is not secure: it isn't encrypted. Anyone on the same network, for example on your Wi-Fi, could read what is sent, the provider's key included. Use it only in a home network you trust. An https:// address is safer.")
                     : page.i18nContext.i18nc("@info", "Warning: this address may be on the Internet, and the connection isn't encrypted. Anyone on the way could read and change what is sent: your questions, information from your book and the provider's key. Use the provider's https:// address instead, unless you know exactly what you are doing.")
             }
 
+            Controls.ComboBox {
+                id: modelBox
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Model:")
+                visible: page.modelListShown
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                model: page.modelChoices
+                valueRole: "value"
+                displayText: modelField.text !== "" ? modelField.text : page.i18nContext.i18nc("@item:inlistbox", "Choose a model…")
+                delegate: Controls.ItemDelegate {
+                    required property var modelData
+                    width: ListView.view ? ListView.view.width : implicitWidth
+                    enabled: !modelData.search
+                    // A model's name is the provider's text, shown as it is.
+                    text: Plain.plain(modelData.value === ""
+                        ? page.i18nContext.i18nc("@item:inlistbox", "Enter another name…")
+                        : (modelData.search
+                            ? page.i18nContext.i18nc("@item:inlistbox %1 is a model's name", "%1 (only for searching, not for the chat)", modelData.value)
+                            : modelData.value))
+                }
+                onActivated: index => {
+                    ActionLog.taken("AiSettingsPage_activated")
+                    const chosen = page.modelChoices[index];
+                    if (chosen.value === "") {
+                        page.typingName = true;
+                        modelField.forceActiveFocus();
+                    } else if (!chosen.search) {
+                        modelField.text = chosen.value;
+                    }
+                }
+            }
+
             Controls.TextField {
                 id: modelField
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Model:")
+                visible: !page.modelListShown
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
                 placeholderText: page.i18nContext.i18nc("@info:placeholder the name of an AI model", "The model's name, as the provider calls it")
                 inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
+            }
+
+            Controls.Label {
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                visible: !page.modelListShown && page.noModelList && page.offeredModels.length === 0
+                text: page.i18nContext.i18nc("@info", "This provider doesn't name its models. Please type the name.")
+            }
+
+            Controls.Button {
+                visible: page.typingName && page.offeredModels.length > 0
+                flat: true
+                icon.name: "view-list-details"
+                text: page.i18nContext.i18nc("@action:button", "Choose from the provider's list")
+                onClicked: {
+                    ActionLog.taken("AiSettingsPage_backToList")
+                    page.typingName = false
+                }
             }
 
             Controls.ComboBox {
@@ -285,14 +499,85 @@ Kirigami.ScrollablePage {
                 }
             }
 
+            // The one setup screen for a provider on another computer
+            // (B-391, D-866).
+            ColumnLayout {
+                id: oneScreenBlock
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.oneScreen
+                spacing: Kirigami.Units.largeSpacing
+
+                Kirigami.Heading {
+                    level: 3
+                    text: page.i18nContext.i18nc("@title:group", "What leaves this computer")
+                }
+
+                AiConsentStatement {
+                    Layout.fillWidth: true
+                    ai: page.ai
+                    settings: page.settings
+                    // The address as typed; the warning for http:// follows
+                    // once, below.
+                    form: ({ address: addressField.text.trim(), unencrypted: false })
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    text: page.i18nContext.i18nc("@info", "Before each question goes, you see exactly what it sends and can leave words out.")
+                }
+
+                Kirigami.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: page.plainHttp
+                    type: page.openCheck.network === "home" ? Kirigami.MessageType.Warning : Kirigami.MessageType.Error
+                    text: page.openCheck.network === "home"
+                        ? page.i18nContext.i18nc("@info", "This connection is not secure: it isn't encrypted. Anyone on the same network, for example on your Wi-Fi, could read what is sent, the provider's key included. Use it only in a home network you trust. An https:// address is safer.")
+                        : page.i18nContext.i18nc("@info", "Warning: this address may be on the Internet, and the connection isn't encrypted. Anyone on the way could read and change what is sent: your questions, information from your book and the provider's key. Use the provider's https:// address instead, unless you know exactly what you are doing.")
+                }
+
+                Controls.CheckBox {
+                    id: agreeBox
+                    objectName: "agreeBox"
+                    Layout.fillWidth: true
+                    text: Plain.plain(page.plainHttp
+                        ? page.i18nContext.i18nc("@option:check", "I have read this and agree, also to the unencrypted connection.")
+                        : page.i18nContext.i18nc("@option:check", "I have read this and agree."))
+                    onToggled: {
+                        ActionLog.taken("AiSettingsPage_agreeOnOneScreen")
+                        if (page.plainHttp) {
+                            allowUnencryptedBox.checked = checked;
+                            page.checkAddress();
+                        }
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font: Kirigami.Theme.smallFont
+                    visible: !agreeBox.checked
+                    text: page.plainHttp
+                        ? page.i18nContext.i18nc("@info", "Saving waits until you agree, because the connection isn't encrypted.")
+                        : page.i18nContext.i18nc("@info", "This provider is on another computer. Nothing is sent to it until you have read what KassenSturz sends and agreed.")
+                }
+            }
+
             RowLayout {
                 spacing: Kirigami.Units.largeSpacing
 
                 Controls.Button {
-                    text: page.i18nContext.i18nc("@action:button", "Save")
+                    objectName: "saveButton"
+                    text: Plain.plain(page.oneScreen && agreeBox.checked
+                        ? page.i18nContext.i18nc("@action:button", "Save and test")
+                        : page.i18nContext.i18nc("@action:button", "Save"))
                     icon.name: "document-save"
-                    enabled: addressField.text.trim() !== ""
-                        && (page.providerChanged || keyField.text !== "")
+                    enabled: addressField.text.trim() !== "" && !page.addressWrong
+                        && (page.providerChanged || keyField.text !== "" || (page.oneScreen && agreeBox.checked))
+                        && !(page.plainHttp && page.oneScreen && !agreeBox.checked)
                     onClicked: {
                         ActionLog.taken("AiSettingsPage_save_2")
                         page.save()
@@ -405,6 +690,8 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             ai: page.ai
             result: page.saveResult
+            offerUnencrypted: true
+            onAllowUnencryptedClicked: page.allowUnencryptedNow()
         }
 
         AiErrorMessage {
@@ -418,7 +705,9 @@ Kirigami.ScrollablePage {
             ai: page.ai
             result: page.testResult
             offerV1: true
+            offerUnencrypted: true
             onUseV1Clicked: page.useV1()
+            onAllowUnencryptedClicked: page.allowUnencryptedNow()
         }
 
         // What a test found.
@@ -488,37 +777,10 @@ Kirigami.ScrollablePage {
             text: page.i18nContext.i18nc("@info", "How much this model can read at once is not known: the provider's list does not say. If the chat says its working memory is too small, load the model with a context length of 16384 or more (65536 is better).")
         }
 
-        Kirigami.InlineMessage {
-            Layout.fillWidth: true
-            type: Kirigami.MessageType.Warning
-            visible: page.testResult.models !== undefined && page.testResult.modelOffered === false
-            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is the name of a model", "The provider doesn't list the model “%1”. Choose one of its models below, or check the name.", page.form.model ?? "")) : ""
-        }
-
-        Kirigami.InlineMessage {
-            Layout.fillWidth: true
-            type: Kirigami.MessageType.Information
-            visible: page.testResult.models !== undefined && page.testResult.models.length > 0 && modelField.text.trim() === ""
-            text: page.i18nContext.i18nc("@info", "Choose the model to use from the list below, then press Save.")
-        }
-
-        Controls.ComboBox {
-            id: offeredModels
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-            visible: page.testResult.models !== undefined && page.testResult.models.length > 0
-            model: page.testResult.models ?? []
-            displayText: page.i18nContext.i18nc("@item:inlistbox", "Use one of the provider's models…")
-            onActivated: {
-                ActionLog.taken("AiSettingsPage_activated")
-                modelField.text = currentText;
-                page.testResult = ({});
-            }
-        }
-
         // The consent: what is sent, and whether the user agreed.
         Kirigami.Heading {
             level: 2
-            visible: page.hasProvider
+            visible: page.hasProvider && !page.oneScreen
             text: page.i18nContext.i18nc("@title:group", "What is sent")
         }
 
@@ -526,7 +788,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            visible: page.hasProvider
+            visible: page.hasProvider && !page.oneScreen
             text: {
                 switch (page.form.consent) {
                 case "given":
@@ -555,7 +817,7 @@ Kirigami.ScrollablePage {
         }
 
         RowLayout {
-            visible: page.hasProvider && page.form.consent !== "notNeeded"
+            visible: page.hasProvider && page.form.consent !== "notNeeded" && !page.oneScreen
             spacing: Kirigami.Units.largeSpacing
 
             Controls.Button {
@@ -680,21 +942,51 @@ Kirigami.ScrollablePage {
         // The user's own notes for the AI (US7, #808): kept on this
         // computer, put into every chat as the user's own words. Nothing
         // is copied into them by itself; the AI can only suggest a line.
-        Kirigami.Heading {
-            level: 2
-            text: page.i18nContext.i18nc("@title:group", "Notes for the AI")
+        // Folded under "Advanced" (B-393, D-868): most people never need
+        // them, and an open text box here looked like the chat's.
+        Controls.Button {
+            text: page.i18nContext.i18nc("@action:button opens or closes the user's fixed notes for the AI", "Advanced: fixed notes for the AI")
+            icon.name: page.notesShown ? "arrow-down" : "arrow-right"
+            flat: true
+            Accessible.description: page.notesShown
+                ? page.i18nContext.i18nc("@info accessible state", "Open")
+                : page.i18nContext.i18nc("@info accessible state", "Closed")
+            onClicked: {
+                ActionLog.taken("AiSettingsPage_toggleNotes")
+                page.notesShown = !page.notesShown
+            }
         }
 
         Controls.Label {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
+            font: Kirigami.Theme.smallFont
+            visible: !page.notesShown
+            text: page.i18nContext.i18nc("@info", "Rarely needed. Closed until you open it.")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            visible: page.notesShown
+            font.bold: true
+            text: page.i18nContext.i18nc("@info", "These notes apply to every question, for example \"Answer briefly\". Ask your questions in the chat, not here.")
+        }
+
+        Controls.Label {
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            visible: page.notesShown
             text: page.i18nContext.i18nc("@info", "Write down what the AI should know about you, for example \"Salary comes on the 28th\" or \"Corner Market is groceries\". The notes stay on this computer and go with every question you ask the AI in the chat, so they are sent to your AI provider too. Write no passwords or PINs. The AI never changes them by itself: it can suggest a line, and you decide. Your AI tools outside KassenSturz do not get them.")
         }
 
         Controls.TextArea {
             id: notesField
 
+            visible: page.notesShown
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit * 8
             wrapMode: TextEdit.Wrap
@@ -707,6 +999,7 @@ Kirigami.ScrollablePage {
 
         RowLayout {
             Layout.fillWidth: true
+            visible: page.notesShown
 
             Controls.Button {
                 text: page.i18nContext.i18nc("@action:button", "Save notes")
@@ -967,6 +1260,9 @@ Kirigami.ScrollablePage {
             page.notWritten = !page.settings.giveConsent();
             close();
             page.reload();
+            if (!page.notWritten) {
+                page.afterConsent();
+            }
         }
 
         function showSample() {

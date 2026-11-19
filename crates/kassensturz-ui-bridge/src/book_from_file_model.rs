@@ -354,7 +354,7 @@ fn created_object(
                 .map(|name| name.to_string_lossy().into_owned())
                 .unwrap_or_default(),
             path.parent()
-                .map(|folder| folder.display().to_string())
+                .map(crate::platform::shown_path)
                 .unwrap_or_default(),
         )
     });

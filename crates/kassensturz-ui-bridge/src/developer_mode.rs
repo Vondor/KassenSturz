@@ -22,6 +22,8 @@ use std::sync::Mutex;
 
 use cxx_qt::CxxQtType;
 use cxx_qt_lib::QString;
+#[cfg(feature = "debug-log")]
+use cxx_qt_lib::QUrl;
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -118,11 +120,11 @@ impl qobject::DeveloperMode {
         if let Some(folder) =
             kassensturz_core::bank_log::folder().filter(|_| self.bank_log_on && !self.on)
         {
-            return QString::from(format!("file://{}", folder.display()).as_str());
+            return folder_url(&folder);
         }
         #[cfg(feature = "debug-log")]
         if let Some(folder) = log().folder().filter(|_| self.on) {
-            return QString::from(format!("file://{}", folder.display()).as_str());
+            return folder_url(folder);
         }
         QString::default()
     }
@@ -130,7 +132,7 @@ impl qobject::DeveloperMode {
     fn bank_log_folder_url(&self) -> QString {
         #[cfg(feature = "debug-log")]
         if let Some(folder) = bank_log_folder(self.bank_log_on) {
-            return QString::from(format!("file://{}", folder.display()).as_str());
+            return folder_url(&folder);
         }
         QString::default()
     }
@@ -185,6 +187,53 @@ impl qobject::DeveloperMode {
 
 /// The screen the user is on, by its fixed name.
 static CURRENT_SCREEN: Mutex<Option<&'static str>> = Mutex::new(None);
+
+/// The `file:` URL of `folder`, as Qt makes it: `file:///C:/Users/...` on
+/// Windows. `file://` with the path and its backslashes pasted after it
+/// named no file there, and Windows asked which app should open the link
+/// (B-381, #1177).
+#[cfg(feature = "debug-log")]
+fn folder_url(folder: &std::path::Path) -> QString {
+    let shown = shown_folder(
+        folder,
+        std::env::var_os("LOCALAPPDATA")
+            .map(std::path::PathBuf::from)
+            .as_deref(),
+        &crate::platform::package_family_name(),
+    );
+    QUrl::from_local_file(&QString::from(shown.to_string_lossy().as_ref())).to_qstring()
+}
+
+/// The folder as File Explorer finds it (B-397, #1197). In the Store build
+/// Windows keeps what the app writes to `%LOCALAPPDATA%` in the package's
+/// `Packages\<family>\LocalCache\Local` instead, and Explorer, started
+/// outside the package, doesn't see the app's view of it: the log's folder
+/// looked empty or missing. There the folder is the package's copy, if it
+/// exists; anywhere else, or when it doesn't, `folder` as it is.
+#[cfg_attr(not(feature = "debug-log"), allow(dead_code))]
+fn shown_folder(
+    folder: &std::path::Path,
+    local_app_data: Option<&std::path::Path>,
+    family: &str,
+) -> std::path::PathBuf {
+    let Some(local) = local_app_data.filter(|_| !family.is_empty()) else {
+        return folder.to_path_buf();
+    };
+    let Ok(inside) = folder.strip_prefix(local) else {
+        return folder.to_path_buf();
+    };
+    let real = local
+        .join("Packages")
+        .join(family)
+        .join("LocalCache")
+        .join("Local")
+        .join(inside);
+    if real.is_dir() {
+        real
+    } else {
+        folder.to_path_buf()
+    }
+}
 
 fn set_current_screen(screen: Option<&'static str>) {
     if let Ok(mut current) = CURRENT_SCREEN.lock() {
@@ -310,6 +359,46 @@ mod tests {
         assert_eq!(current_screen(), Some("RegisterPage"));
         set_current_screen(kassensturz_core::vocabulary::screen("Moon Base Rent"));
         assert_eq!(current_screen(), None);
+    }
+
+    /// The folder buttons get the URL Qt makes for a local file, with three
+    /// slashes, never `file://` and the path pasted after it (B-381,
+    /// #1177). Qt's text form leaves the space as it is; QML reads it back
+    /// as the same URL.
+    #[cfg(feature = "debug-log")]
+    #[test]
+    fn the_folder_url_is_the_one_qt_makes_for_a_local_file() {
+        assert_eq!(
+            folder_url(Path::new("/home/ada/debug log")).to_string(),
+            "file:///home/ada/debug log"
+        );
+    }
+
+    /// In the Store build, "Show the log" opens the folder Windows really
+    /// keeps the log in, which File Explorer can see (B-397, #1197).
+    #[test]
+    fn the_store_build_shows_the_package_s_copy_of_the_log_folder() {
+        let temp = crate::test_folder::TestFolder::new();
+        let local = temp.join("Local");
+        let folder = local.join("kassensturz").join("debug-log");
+        let family = "Example.KassenSturz_abc123";
+        // Outside a package, and before the package's copy exists: as it is.
+        assert_eq!(shown_folder(&folder, Some(&local), ""), folder);
+        assert_eq!(shown_folder(&folder, Some(&local), family), folder);
+        assert_eq!(shown_folder(&folder, None, family), folder);
+        // In the package, once Windows made its copy: that copy.
+        let real = local
+            .join("Packages")
+            .join(family)
+            .join("LocalCache")
+            .join("Local")
+            .join("kassensturz")
+            .join("debug-log");
+        fs::create_dir_all(&real).expect("package folder");
+        assert_eq!(shown_folder(&folder, Some(&local), family), real);
+        // A folder outside %LOCALAPPDATA% stays as it is.
+        let elsewhere = temp.join("Documents").join("KassenSturz");
+        assert_eq!(shown_folder(&elsewhere, Some(&local), family), elsewhere);
     }
 
     /// "Show the log" of the bank log did nothing before a bank connection

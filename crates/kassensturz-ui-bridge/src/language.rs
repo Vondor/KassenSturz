@@ -75,22 +75,28 @@ impl Language {
             Self::English => Some(AnswerLanguage::English),
             Self::German => Some(AnswerLanguage::German),
             Self::Polish => Some(AnswerLanguage::Polish),
-            Self::System => ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
-                .iter()
-                .filter_map(|name| std::env::var(name).ok())
-                .find(|value| !value.is_empty() && value != "C" && value != "POSIX")
-                .and_then(|value| {
-                    let code = value.to_ascii_lowercase();
-                    if code.starts_with("de") {
-                        Some(AnswerLanguage::German)
-                    } else if code.starts_with("pl") {
-                        Some(AnswerLanguage::Polish)
-                    } else if code.starts_with("en") {
-                        Some(AnswerLanguage::English)
-                    } else {
-                        None
-                    }
-                }),
+            Self::System => system_language().and_then(|code| {
+                if code.starts_with("de") {
+                    Some(AnswerLanguage::German)
+                } else if code.starts_with("pl") {
+                    Some(AnswerLanguage::Polish)
+                } else if code.starts_with("en") {
+                    Some(AnswerLanguage::English)
+                } else {
+                    None
+                }
+            }),
+        }
+    }
+
+    /// Whether the screens are in German: the choice, or for the system's
+    /// the language of its environment. The example-book chooser offers
+    /// the German Suburban Family then, the English one otherwise (D-843).
+    pub fn is_german(self) -> bool {
+        match self {
+            Self::English | Self::Polish => false,
+            Self::German => true,
+            Self::System => system_language().is_some_and(|code| code.starts_with("de")),
         }
     }
 
@@ -103,6 +109,33 @@ impl Language {
             Self::Polish => Some("pl_PL.UTF-8"),
         }
     }
+}
+
+/// The system's language in lower case, e.g. `de_de.utf-8` or `de-de`;
+/// none if nothing or only the plain "C" locale is set.
+fn system_language() -> Option<String> {
+    language_from(
+        |name| std::env::var(name).ok(),
+        crate::locale::QtLocale::system_ui_language,
+    )
+}
+
+/// The system's language as its environment names it (`env`), or else as
+/// the system's settings do (`settings`). Windows names its display
+/// language in no environment variable, so the German example book was
+/// offered as English on a German Windows (B-406); KI18n reads the same
+/// settings through Qt, which is why the screens were German.
+fn language_from(
+    env: impl Fn(&str) -> Option<String>,
+    settings: impl FnOnce() -> String,
+) -> Option<String> {
+    let named = |value: &String| !value.is_empty() && value != "C" && value != "POSIX";
+    ["LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"]
+        .iter()
+        .filter_map(|name| env(name))
+        .find(named)
+        .or_else(|| Some(settings()).filter(named))
+        .map(|value| value.to_ascii_lowercase())
 }
 
 /// The language that was in effect when the app started.
@@ -185,6 +218,37 @@ mod tests {
             Language::Polish.answer_language(),
             Some(AnswerLanguage::Polish)
         );
+    }
+
+    #[test]
+    fn a_chosen_language_says_whether_the_screens_are_german() {
+        assert!(Language::German.is_german());
+        assert!(!Language::English.is_german());
+        assert!(!Language::Polish.is_german());
+    }
+
+    /// B-406: a German Windows names its language only in its settings.
+    #[test]
+    fn the_systems_settings_name_the_language_when_no_variable_does() {
+        let none = |_: &str| None;
+        assert_eq!(
+            language_from(none, || "de-DE".to_owned()).as_deref(),
+            Some("de-de")
+        );
+        assert_eq!(language_from(none, || "C".to_owned()), None);
+        assert_eq!(language_from(none, String::new), None);
+        let english = |name: &str| (name == "LANG").then(|| "en_US.UTF-8".to_owned());
+        assert_eq!(
+            language_from(english, || "de-DE".to_owned()).as_deref(),
+            Some("en_us.utf-8")
+        );
+        let plain = |name: &str| (name == "LANG").then(|| "C".to_owned());
+        assert_eq!(
+            language_from(plain, || "pl-PL".to_owned()).as_deref(),
+            Some("pl-pl")
+        );
+        // Qt's own answer is read without a panic, whatever it is.
+        let _ = crate::locale::QtLocale::system_ui_language();
     }
 
     #[test]

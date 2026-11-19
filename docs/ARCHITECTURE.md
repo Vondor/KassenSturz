@@ -25,8 +25,9 @@ kassensturz/
 │   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092); gathering a book's transactions or the whole book for export, filling a new book from a complete export (D-099, D-100), and filling one from another program's book, such as KMyMoney's (D-101)
 │   ├── kassensturz-bank/           # read-only bank connections: the Bank trait, IBAN → bank setup, PIN session, fetched data → Statement, fake bank for tests — see D-053, D-060, D-145, D-146
 │   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060; gwengui/ holds the C++ library for Gwenhywfar's Qt dialogs (Q-035)
-│   ├── kassensturz-plugin-api/     # stable, versioned plugin interface (after 1.0, D-071)
-│   ├── kassensturz-plugin-host/    # loads and sandboxes WASM plugins (D-007; after 1.0, D-071)
+│   ├── kassensturz-plugin-api/     # the plugin API v1: manifest, API version, extension points, permissions (#791, D-753, D-847, D-848)
+│   ├── kassensturz-plugin-formats/ # plugin importers and exporters behind the Importer and Exporter traits; JSON in and out (#791, D-852)
+│   ├── kassensturz-plugin-host/    # loads plugin files and runs their WASM in wasmi with memory, table and fuel limits and no imports (D-007, D-753, D-850)
 │   ├── kassensturz-platform/       # keychain, config paths, notifications behind traits
 │   ├── kassensturz-charts/         # the chart model types of the ChartProvider boundary (text labels, drawing values, text table; no Qt) — D-276; KQuickCharts itself is a QML module (D-275)
 │   ├── kassensturz-report/         # the report designer's reporting layer: read-only datasets, periods, filters, exact totals, calculated metrics, the dashboard document and its limits (M6, D-277, D-278)
@@ -43,7 +44,7 @@ kassensturz/
 │       └── cpp/                    # small C++ helpers: the window icon (D-165), Qt's locale data for formatting (D-065), KConfig for the app's settings (D-112), what Qt knows about the computer
 ├── data/                           # desktop file, AppStream metadata and the app icon (icons/, D-165)
 ├── po/                             # translations, one folder per language (D-034)
-├── plugins/examples/               # sample importer, report, automation (after 1.0)
+├── plugins/examples/               # one example plugin per extension point (D-753; not built yet)
 ├── packaging/                      # flatpak/ (manifest and its offline crate list), windows/, macos/
 ├── tools/                          # sdk.sh: runs commands in the build environment (D-063); update-currency-table.py (D-077)
 ├── docs/
@@ -117,6 +118,7 @@ kassensturz/
 - `kassensturz-ai-chat` joins `kassensturz-ai` and `kassensturz-ai-tools` (and the store for the `Book` they read): `kassensturz-ai` can't open a book (D-182, T-24) and `kassensturz-ai-tools` has no network code (D-175), so the chat that needs both is a crate of its own, and only the desktop app depends on it; `kassensturz-mcp` never does (D-190).
 - `kassensturz-bank` also depends on `kassensturz-import`, for the `Statement` it converts fetched data into and the checks every statement gets (D-145); it knows no book. Its tests alone depend on `kassensturz-pipeline` and `kassensturz-store`, to feed the fake bank's statements through the real import (AGENTS.md §9.4).
 - `kassensturz-store`, `kassensturz-import` and `kassensturz-export` don't depend on each other: a file format knows no database, and the book knows no file format (D-091, D-099). `kassensturz-pipeline` depends on core, import, export and store and joins them (D-092, D-099), and on `kassensturz-report` for the saved views a KMyMoney file's reports become (`kmy_reports.rs`, M6d.6a, D-444): the importer reads each report's record as it is (`BookReport`), the pipeline maps it onto a view document with the IDs the new book gave the file's accounts and categories, and the bridge words the summary and writes the debug log line.
+- `kassensturz-plugin-formats` depends on core, import, export, plugin API and plugin host, and puts a plugin with the `importer` or `exporter` extension point behind the same `Importer` and `Exporter` traits as the built-in formats (D-069, D-852). So `kassensturz-import` and `kassensturz-export` stay free of the WebAssembly runtime, and the plugin host knows no file format.
 - Only `kassensturz-store` touches the book's database; every other crate calls its functions (D-072). Reading another program's files, such as KMyMoney's SQLite format in `kassensturz-import`, isn't affected.
 - Only `kassensturz-bank` uses `kassensturz-aqbanking-sys`; no other crate calls AqBanking's C code (D-060). `kassensturz-bank` also depends on `kassensturz-platform` for the keychain its saved PINs live in (`KeychainPinStore`, D-057). The tests of both crates load `kassensturz-aqbanking-stub`, a `cdylib` that is never shipped, in place of the real libraries (feature `stub` of the `-sys` crate builds it; the `-sys` crate turns the feature on for its own tests through a dependency on itself).
 - Front ends (`kassensturz-cli`, `kassensturz-ui-bridge`, `kassensturz-mcp`) depend on core, store and plugin host, and on import, export and pipeline to import and export files; the desktop app also on `kassensturz-bank` and `kassensturz-platform` for bank connections (D-151). **Core never knows about a UI.**
@@ -126,12 +128,13 @@ kassensturz/
 
 ## Plugin model
 
-- The WASM plugin host comes after 1.0 (D-071). Until then, built-in importers and exporters implement native Rust traits that the plugin API will mirror (D-069).
-- Extension points: Importer, Exporter, Report, Automation.
-- Versioned API. Manifest declares name, version, target API version, permissions.
+- The WASM plugin host is part of 1.0 and is built during the Beta (D-753, revising D-071 for the host). Built-in importers and exporters implement native Rust traits that the plugin API mirrors (D-069).
+- Extension points of API v1: Importer, Exporter, Report, Automation (AGENTS.md §7), AI provider (D-754), Theme and UI density (D-756). Settings pages, Wizards and Dashboard widgets come with API v1.1 after Gold (#818, D-756, D-759).
+- Versioned API (`MAJOR.MINOR`, `kassensturz-plugin-api`). The manifest (D-847, `docs/PLUGINS.md`) declares ID, name, version, target API version, extension points and permissions; the permissions each extension point may ask for are fixed (D-848).
 - Narrow, permission-checked data access. No raw SQL access.
+- A plugin file is one WebAssembly module with its manifest in a custom section (D-849). The host runs it in wasmi, an interpreter (Q-633), with no imports, bytes in and out, and limits on memory, table and time (D-850).
 - WASM only, for sandboxing and cross-platform portability. Out-of-process (JSON-RPC) plugins are not part of v1: they can't be sandboxed, so the permission model couldn't be enforced for them (D-007).
-- Users add a downloaded plugin file, in KassenSturz's plugin package format (defined with the plugin host), in the **Plugins** tab, which shows the permissions it requests. No plugin store in v1: a store run by the project would be a hosted service (AGENTS.md §3.3).
+- Users add a downloaded plugin file, in KassenSturz's plugin package format (defined with the plugin host), in the **Plugins** tab (Settings › Plugins), which shows the permissions it requests; KassenSturz checks the file by loading it once and keeps a copy as `<id>.wasm` in its own `plugins` folder, which is the only record of what is installed (D-851). No plugin store in v1: a store run by the project would be a hosted service (AGENTS.md §3.3).
 - The Importer part of the plugin interface is defined during M1–M2 as a native Rust trait: built-in importers implement it directly, and the WASM plugin API mirrors it once it exists (D-069, D-071).
 
 ## Transactions and Parts (splits)

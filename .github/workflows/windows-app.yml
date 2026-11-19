@@ -7,30 +7,25 @@ name: Windows app
 # This file is separate from ci.yml on purpose: the run is long (20 to 30
 # minutes warm).
 #
-# It runs on every pull request and every push to main that touches more than
-# documentation, as before D-613; the reversal of D-613 (#509, US7) is made so
-# that Windows testers get builds from checked code. It is not a required
-# check. The same checks run for a pre-release tag through release.yml, so no
-# release ships without it. Craft's cache is still saved only from main.
+# It runs on every push to main that touches more than documentation, so a
+# Windows-only break shows within one merge, and for a pre-release tag through
+# release.yml, so no release ships without it. A pull request builds it only
+# when it touches Windows-relevant files (D-874, see the `changes` job) or
+# carries the `windows` label; every other pull request still gets the quick
+# Windows lints and tests of ci.yml. Craft's cache is still saved only from main.
 
 on:
+  # Every pull request starts this workflow, so its build can be a required
+  # check: a workflow-level `paths:` filter would leave a required check
+  # pending for ever on a pull request it doesn't match (D-791). The
+  # `changes` job below decides instead, and a build skipped by its job-level
+  # `if` counts as passed. Documentation, the other workflows and the snap
+  # packaging skip the build; its own workflow file and the Windows packaging
+  # build it.
   pull_request:
-    # Documentation, the other workflows and the snap packaging don't start
-    # it (D-791); its own workflow file and the Windows packaging do.
-    paths:
-      - "**"
-      - "!docs/**"
-      - "!LICENSES/**"
-      - "!*.md"
-      - "!REUSE.toml"
-      - "!CODEOWNERS"
-      - "!.github/ISSUE_TEMPLATE/**"
-      - "!.github/PULL_REQUEST_TEMPLATE.md"
-      - "!.github/FUNDING.yml"
-      - "!.github/workflows/**"
-      - "!packaging/snap/**"
-      - "docs/ERROR_CODES.md"
-      - ".github/workflows/windows-app.yml"
+    # `labeled` lets the `windows` label start the build on an open pull
+    # request (D-874); a run for any other label only skips (see concurrency).
+    types: [opened, synchronize, reopened, labeled]
   push:
     branches: [main]
     paths:
@@ -65,7 +60,7 @@ permissions:
 # cancel each other. A newer push to a pull request ends the older run; main's
 # runs are never cancelled, since they fill the caches.
 concurrency:
-  group: windows-app-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  group: windows-app-${{ github.workflow }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'windows' && github.run_id) || github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
@@ -81,8 +76,72 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  changes:
+    name: Windows build needed?
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+      - name: Decide from the changed files
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          ACTION: ${{ github.event.action }}
+          LABEL: ${{ github.event.label.name }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ' ') }}
+        run: |
+          set -euo pipefail
+          # Only a pull request can skip the build; a push to main (already
+          # filtered above), a manual run and release.yml's call always build.
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Adding some other label starts this workflow too; it builds nothing.
+          if [ "$ACTION" = "labeled" ] && [ "$LABEL" != "windows" ]; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The `windows` label forces the build on a pull request (D-874).
+          if grep -qw windows <<< "$LABELS"; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            echo "Windows build needed: true (label windows)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$BASE...$HEAD")
+          # Files that decide what the Windows app is made of: packaging, the
+          # CMake and Craft setup, dependencies (manifests and lock file), the
+          # platform crate (keychain, paths), the AqBanking binding, the C++
+          # side of the app and its build script, and this workflow (D-874).
+          always='^(packaging/windows/|CMakeLists\.txt$|cmake/|Cargo\.(toml|lock)$|crates/[^/]+/Cargo\.toml$|crates/kassensturz-platform/|crates/kassensturz-aqbanking-sys/|crates/kassensturz-ui-bridge/(cpp/|build\.rs$)|\.github/workflows/windows-app\.yml$|docs/ERROR_CODES\.md$)'
+          by_path=$(grep -E "$always" <<< "$changed" || true)
+          # Any other changed file that still exists and names Windows (a
+          # cfg(windows) block, a Windows path, Q_OS_WIN, ...) counts too.
+          by_content=""
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            case "$f" in docs/*|LICENSES/*|*.md|.github/*|packaging/snap/*) continue ;; esac
+            git cat-file -e "$HEAD:$f" 2>/dev/null || continue
+            if git show "$HEAD:$f" | grep -qaiE 'windows|win32|Q_OS_WIN|target_os|appdata|msix|\.exe\b'; then
+              by_content="$by_content$f"$'\n'
+            fi
+          done <<< "$changed"
+          if [ -n "$by_path$by_content" ]; then build=true; else build=false; fi
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "Windows build needed: $build" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' $by_path $by_content | head -20
+
   windows-app:
     name: Windows app with KDE Craft (D-554)
+    needs: [changes]
+    if: needs.changes.outputs.build == 'true'
     # Craft's binary cache is built for Visual Studio 2022; windows-latest has
     # only Visual Studio 2026, which Craft's cache doesn't cover (D-214).
     runs-on: windows-2022

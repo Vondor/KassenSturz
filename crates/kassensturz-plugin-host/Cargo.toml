@@ -1,0 +1,24 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: CC0-1.0
+
+[package]
+name = "kassensturz-plugin-host"
+description = "Loads plugin files and runs their WebAssembly in a sandbox with memory and time limits (D-007, D-753, D-850)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+kassensturz-core.workspace = true
+kassensturz-plugin-api.workspace = true
+wasmi.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+wat.workspace = true
+
+[lints]
+workspace = true

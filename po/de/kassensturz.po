@@ -2228,23 +2228,6 @@ msgstr ""
 "https://, enthält den Namen des Servers und keinen Anmeldenamen, kein "
 "Passwort und keinen Teil mit ? oder #, zum Beispiel %1."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:56
-#, kde-format
-msgctxt "@info"
-msgid ""
-"This address is on another computer and starts with http://, which isn't "
-"encrypted, so KassenSturz won't send anything to it. Use the provider's "
-"https:// address. If the provider offers only http:// and runs in a network "
-"you trust, you can tick “Allow unencrypted connections” under the address in "
-"the AI settings."
-msgstr ""
-"Diese Adresse liegt auf einem anderen Computer und beginnt mit http://, was "
-"nicht verschlüsselt ist. KassenSturz sendet deshalb nichts dorthin. "
-"Verwenden Sie die https://-Adresse des Anbieters. Bietet der Anbieter nur "
-"http:// an und läuft er in einem Netzwerk, dem Sie vertrauen, können Sie in "
-"den KI-Einstellungen unter der Adresse „Unverschlüsselte Verbindungen "
-"erlauben“ ankreuzen."
-
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:58
 #, kde-format
 msgctxt "@info"
@@ -3091,7 +3074,8 @@ msgstr ""
 "Diese Verbindung ist nicht sicher: Sie ist nicht verschlüsselt. Jeder im "
 "selben Netzwerk, zum Beispiel in Ihrem WLAN, könnte mitlesen, was gesendet "
 "wird, auch den Schlüssel des Anbieters. Verwenden Sie sie nur in einem "
-"Heimnetzwerk, dem Sie vertrauen. Eine https://-Adresse ist sicherer."
+"Heimnetzwerk, dem Sie vertrauen. Eine Adresse, die mit https:// beginnt, ist "
+"sicherer."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
@@ -3106,8 +3090,8 @@ msgstr ""
 "Achtung: Diese Adresse liegt vielleicht im Internet, und die Verbindung ist "
 "nicht verschlüsselt. Jeder auf dem Weg könnte mitlesen und ändern, was "
 "gesendet wird: Ihre Fragen, Angaben aus Ihrem Buch und den Schlüssel des "
-"Anbieters. Verwenden Sie stattdessen die https://-Adresse des Anbieters, es "
-"sei denn, Sie wissen genau, was Sie tun."
+"Anbieters. Verwenden Sie stattdessen die Adresse des Anbieters, die mit "
+"https:// beginnt, es sei denn, Sie wissen genau, was Sie tun."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
@@ -3394,30 +3378,6 @@ msgstr ""
 "des Anbieters sagt es nicht. Wenn der Chat meldet, dass sein "
 "Arbeitsgedächtnis zu klein ist, laden Sie das Modell mit einer Kontextlänge "
 "von 16384 oder mehr (besser 65536)."
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:456
-#, kde-format
-msgctxt "@info %1 is the name of a model"
-msgid ""
-"The provider doesn't list the model “%1”. Choose one of its models below, or "
-"check the name."
-msgstr ""
-"Der Anbieter führt das Modell „%1“ nicht auf. Wählen Sie unten eines seiner "
-"Modelle oder prüfen Sie den Namen."
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:463
-#, kde-format
-msgctxt "@info"
-msgid "Choose the model to use from the list below, then press Save."
-msgstr ""
-"Wählen Sie unten in der Liste das Modell aus, das verwendet werden soll, und "
-"klicken Sie dann auf „Speichern“."
-
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:471
-#, kde-format
-msgctxt "@item:inlistbox"
-msgid "Use one of the provider's models…"
-msgstr "Eines der Modelle des Anbieters verwenden …"
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:483
 #, kde-format
@@ -6145,19 +6105,6 @@ msgstr "Das Budget löschen"
 msgctxt "@action:button keep a budget"
 msgid "Keep it"
 msgstr "Behalten"
-
-#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:108
-#, kde-format
-msgctxt "@info"
-msgid ""
-"A budget is what you plan to spend on a category in a month, a quarter, a "
-"year or some days. The bar shows how much of it is spent and how much is "
-"left. A budget doesn't change any transaction or total."
-msgstr ""
-"Ein Budget ist das, was Sie für eine Kategorie in einem Monat, einem "
-"Quartal, einem Jahr oder einigen Tagen ausgeben möchten. Der Balken zeigt, "
-"wie viel davon ausgegeben ist und wie viel übrig bleibt. Ein Budget ändert "
-"keine Buchung und keine Summe."
 
 #: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:116
 #, kde-format
@@ -12755,12 +12702,6 @@ msgstr "„Wiederholen“ macht noch einmal: %1"
 msgctxt "@title:group"
 msgid "All changes"
 msgstr "Alle Änderungen"
-
-#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml:103
-#, kde-format
-msgctxt "@info %1 is a date and time"
-msgid "%1 · taken back; Redo can make it again"
-msgstr "%1 · zurückgenommen; „Wiederholen“ kann es noch einmal machen"
 
 #: crates/kassensturz-ui-bridge/qml/HistoryPage.qml:116
 #, kde-format
@@ -23537,12 +23478,6 @@ msgid ""
 "with every question."
 msgstr "Die Notizen, die Sie in diesen Einstellungen für die KI geschrieben haben, falls Sie welche geschrieben haben. Sie gehen mit jeder Frage mit."
 
-#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:689
-#, kde-format
-msgctxt "@title:group"
-msgid "Notes for the AI"
-msgstr "Notizen für die KI"
-
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:696
 #, kde-format
 msgctxt "@info"
@@ -25851,12 +25786,6 @@ msgctxt "@info:tooltip the button that shows the menu on the left"
 msgid "Show the menu"
 msgstr "Menü einblenden"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml
-#, kde-format
-msgctxt "@info:tooltip the button that opens the chat sidebar"
-msgid "Open the chat"
-msgstr "Chat öffnen"
-
 #, kde-format
 msgctxt "@info %1 is a list of tag names"
 msgid "Only adds the tags %1 to matching transactions; the next Rules still sort them."
@@ -26159,3 +26088,1328 @@ msgstr "Name der neuen Kategorie"
 msgctxt "@info"
 msgid "You can move it inside another category later, on the Categories page."
 msgstr "Sie können sie später auf der Seite „Kategorien“ in eine andere Kategorie verschieben."
+
+msgctxt "@action:button opens the testing guide"
+msgid "Testing KassenSturz"
+msgstr "KassenSturz testen"
+
+msgctxt "@info"
+msgid "For testers: check the install, try the first steps and write down a problem"
+msgstr "Für Testerinnen und Tester: Installation prüfen, erste Schritte ausprobieren und ein Problem aufschreiben"
+
+msgctxt "@title"
+msgid "Testing KassenSturz"
+msgstr "KassenSturz testen"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Flatpak"
+msgstr "Flatpak"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Snap"
+msgstr "Snap"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Windows"
+msgstr "Windows"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "macOS"
+msgstr "macOS"
+
+msgctxt "@info how KassenSturz was installed"
+msgid "Another way, for example a package of your Linux distribution"
+msgstr "Auf andere Weise, zum Beispiel als Paket Ihrer Linux-Distribution"
+
+msgctxt "@info the first line of a tester's note"
+msgid "KassenSturz: a problem while testing"
+msgstr "KassenSturz: ein Problem beim Testen"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "Title: %1"
+msgstr "Titel: %1"
+
+msgctxt "@info a line of a tester's note, %1 is a part of the app"
+msgid "Where: %1"
+msgstr "Wo: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What I wanted to do: %1"
+msgstr "Was ich tun wollte: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What I expected: %1"
+msgstr "Was ich erwartet habe: %1"
+
+msgctxt "@info a line of a tester's note, %1 is what they typed"
+msgid "What happened: %1"
+msgstr "Was passiert ist: %1"
+
+msgctxt "@info a line of a tester's note, %1 is always, sometimes or once"
+msgid "How often: %1"
+msgstr "Wie oft: %1"
+
+msgctxt "@info a line of a tester's note, %1 is how much it gets in the way"
+msgid "How bad: %1"
+msgstr "Wie schlimm: %1"
+
+msgctxt "@info a line of a tester's note"
+msgid "Real data in this note: yes"
+msgstr "Echte Daten in dieser Notiz: ja"
+
+msgctxt "@info a line of a tester's note"
+msgid "Real data in this note: no"
+msgstr "Echte Daten in dieser Notiz: nein"
+
+msgctxt "@info a line of a tester's note, %1 is the version"
+msgid "Version: %1"
+msgstr "Version: %1"
+
+msgctxt "@info a line of a tester's note, %1 is how KassenSturz was installed"
+msgid "Installed as: %1"
+msgstr "Installiert als: %1"
+
+msgctxt "@info a line of a tester's note"
+msgid "Developer mode: on, a log was written"
+msgstr "Entwicklermodus: an, ein Protokoll wurde geschrieben"
+
+msgctxt "@info a line of a tester's note"
+msgid "Developer mode: off, no log"
+msgstr "Entwicklermodus: aus, kein Protokoll"
+
+msgctxt "@info %1 is the step on show, %2 how many there are"
+msgid "Step %1 of %2"
+msgstr "Schritt %1 von %2"
+
+msgctxt "@title:group"
+msgid "Is KassenSturz installed correctly?"
+msgstr "Ist KassenSturz richtig installiert?"
+
+msgctxt "@info"
+msgid "If you can read this, KassenSturz has started. Compare the version below with the release you downloaded: they should be the same."
+msgstr "Wenn Sie das lesen können, ist KassenSturz gestartet. Vergleichen Sie die Version unten mit der Version, die Sie heruntergeladen haben: Beide sollten gleich sein."
+
+msgctxt "@label how KassenSturz was installed"
+msgid "Installed as"
+msgstr "Installiert als"
+
+msgctxt "@label"
+msgid "Developer mode"
+msgstr "Entwicklermodus"
+
+msgctxt "@info"
+msgid "On: KassenSturz writes a log for the test."
+msgstr "An: KassenSturz schreibt ein Protokoll für den Test."
+
+msgctxt "@info"
+msgid "Off. If your install sheet asks for it, close KassenSturz and start it in developer mode, the way the sheet shows."
+msgstr "Aus. Wenn Ihre Installationsanleitung danach fragt, schließen Sie KassenSturz und starten Sie es im Entwicklermodus, so wie es die Anleitung zeigt."
+
+msgctxt "@title:group"
+msgid "The first things to try"
+msgstr "Das können Sie zuerst ausprobieren"
+
+msgctxt "@info"
+msgid "Use an example book: its people, accounts and amounts are made up, so nothing of yours is in it. Please don't type in anything from your own bank accounts."
+msgstr "Nehmen Sie ein Beispielbuch: Seine Personen, Konten und Beträge sind erfunden, es steht also nichts von Ihnen darin. Bitte geben Sie nichts von Ihren eigenen Bankkonten ein."
+
+msgctxt "@action:button"
+msgid "Open an example book…"
+msgstr "Ein Beispielbuch öffnen…"
+
+msgctxt "@info a thing to try while testing"
+msgid "1. Look at the start screen: what do you have, and where does the money go?"
+msgstr "1. Sehen Sie sich die Startseite an: Was haben Sie, und wohin geht das Geld?"
+
+msgctxt "@info a thing to try while testing"
+msgid "2. Add an account with a made-up balance."
+msgstr "2. Legen Sie ein Konto mit einem erfundenen Kontostand an."
+
+msgctxt "@info a thing to try while testing"
+msgid "3. Enter a transaction, then take it back with Undo."
+msgstr "3. Geben Sie eine Buchung ein und nehmen Sie sie dann mit „Rückgängig“ zurück."
+
+msgctxt "@info a thing to try while testing"
+msgid "4. Open an account and find one of its transactions."
+msgstr "4. Öffnen Sie ein Konto und suchen Sie eine seiner Buchungen."
+
+msgctxt "@info a thing to try while testing"
+msgid "5. In Settings, change the language or how amounts look."
+msgstr "5. Ändern Sie in den Einstellungen die Sprache oder wie Beträge aussehen."
+
+msgctxt "@info"
+msgid "Something unclear, slow or wrong? That is exactly what we are looking for. The next step helps you write it down."
+msgstr "Ist etwas unklar, langsam oder falsch? Genau das suchen wir. Der nächste Schritt hilft Ihnen, es aufzuschreiben."
+
+msgctxt "@title:group"
+msgid "Write down a problem"
+msgstr "Ein Problem aufschreiben"
+
+msgctxt "@info"
+msgid "Write only about made-up data: no names, amounts, account numbers or IBANs from your own book. The note stays on this computer until you copy it and send it yourself."
+msgstr "Schreiben Sie nur über erfundene Daten: keine Namen, Beträge, Kontonummern oder IBANs aus Ihrem eigenen Buch. Die Notiz bleibt auf diesem Computer, bis Sie sie kopieren und selbst verschicken."
+
+msgctxt "@label a short name for the problem"
+msgid "Title"
+msgstr "Titel"
+
+msgctxt "@label:listbox"
+msgid "Where in KassenSturz"
+msgstr "Wo in KassenSturz"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Installing or starting"
+msgstr "Installieren oder Starten"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Start screen"
+msgstr "Startseite"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Accounts"
+msgstr "Konten"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Transactions and transfers"
+msgstr "Buchungen und Umbuchungen"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Importing a file"
+msgstr "Eine Datei einlesen"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Charts and reports"
+msgstr "Diagramme und Berichte"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Budgets and plans"
+msgstr "Budgets und Planungen"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Settings"
+msgstr "Einstellungen"
+
+msgctxt "@item:inlistbox a part of the app"
+msgid "Somewhere else"
+msgstr "Woanders"
+
+msgctxt "@label"
+msgid "What did you want to do?"
+msgstr "Was wollten Sie tun?"
+
+msgctxt "@label"
+msgid "What did you expect?"
+msgstr "Was haben Sie erwartet?"
+
+msgctxt "@label"
+msgid "What happened? Copy every message word for word."
+msgstr "Was ist passiert? Übernehmen Sie jede Meldung Wort für Wort."
+
+msgctxt "@label:listbox"
+msgid "Does it happen again?"
+msgstr "Passiert es wieder?"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Always"
+msgstr "Immer"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Sometimes"
+msgstr "Manchmal"
+
+msgctxt "@item:inlistbox how often a problem happens"
+msgid "Only once"
+msgstr "Einmal"
+
+msgctxt "@label:listbox"
+msgid "How bad is it?"
+msgstr "Wie schlimm ist es?"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "It stops me"
+msgstr "Hält mich auf"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "It is annoying"
+msgstr "Nervt"
+
+msgctxt "@item:inlistbox how much a problem gets in the way"
+msgid "A small thing"
+msgstr "Kleinigkeit"
+
+msgctxt "@option:check"
+msgid "This note has data from my own book in it"
+msgstr "Diese Notiz enthält Daten aus meinem eigenen Buch"
+
+msgctxt "@title:group"
+msgid "Your note"
+msgstr "Ihre Notiz"
+
+msgctxt "@label"
+msgid "Your note, as it is copied"
+msgstr "Ihre Notiz, so wie sie kopiert wird"
+
+msgctxt "@action:button"
+msgid "Copy the note"
+msgstr "Notiz kopieren"
+
+msgctxt "@info"
+msgid "The note is on the clipboard. Paste it into your e-mail or message."
+msgstr "Die Notiz ist in der Zwischenablage. Fügen Sie sie in Ihre E-Mail oder Nachricht ein."
+
+msgctxt "@info"
+msgid "Send the note only to the person who invited you to test, the way they told you, for example by e-mail. If developer mode is on, they may ask you for the log as well. If your note has data from your own book in it, it stays with that person only and is deleted after the round."
+msgstr "Schicken Sie die Notiz nur an die Person, die Sie zum Testen eingeladen hat, so wie sie es Ihnen gesagt hat, zum Beispiel per E-Mail. Wenn der Entwicklermodus an ist, bittet sie Sie vielleicht auch um das Protokoll. Enthält Ihre Notiz Daten aus Ihrem eigenen Buch, bleibt sie nur bei dieser Person und wird nach der Runde gelöscht."
+
+msgctxt "@action:button"
+msgid "Back"
+msgstr "Zurück"
+
+msgctxt "@action:button"
+msgid "Next"
+msgstr "Weiter"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:882
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This plugin's description of itself is larger than %1 bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version."
+msgstr "Die Selbstbeschreibung dieses Plugins ist größer als %1 Bytes, deshalb liest KassenSturz sie nicht. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:885
+#, kde-format
+msgctxt "@info"
+msgid "This file isn't a KassenSturz plugin, or it is cut off or damaged. Download the plugin again."
+msgstr "Diese Datei ist kein KassenSturz-Plugin, oder sie ist unvollständig oder beschädigt. Laden Sie das Plugin erneut herunter."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:887
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin's description of itself has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Die Selbstbeschreibung dieses Plugins hat einen Fehler bei „%1“, deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:889
+#, kde-format
+msgctxt "@info %1 is a version number"
+msgid "This plugin was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the plugin."
+msgstr "Dieses Plugin wurde in einem Format erstellt, das dieses KassenSturz nicht kennt (Version %1). Aktualisieren Sie KassenSturz, oder suchen Sie eine ältere Version des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:891
+#, kde-format
+msgctxt "@info %1 and %2 make a version number"
+msgid "This plugin was made for a different KassenSturz (plugin API %1.%2). Look for a version of the plugin made for this KassenSturz."
+msgstr "Dieses Plugin wurde für ein anderes KassenSturz erstellt (Plugin-API %1.%2). Suchen Sie eine Version des Plugins für dieses KassenSturz."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:893
+#, kde-format
+msgctxt "@info %1 and %2 make a version number"
+msgid "This plugin needs a newer KassenSturz (plugin API %1.%2). Update KassenSturz, then add the plugin again."
+msgstr "Dieses Plugin braucht ein neueres KassenSturz (Plugin-API %1.%2). Aktualisieren Sie KassenSturz und fügen Sie das Plugin dann erneut hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:895
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin wants to add something KassenSturz doesn't offer (\"%1\"). Update KassenSturz, or ask the plugin's author."
+msgstr "Dieses Plugin möchte etwas hinzufügen, das KassenSturz nicht anbietet („%1“). Aktualisieren Sie KassenSturz, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:897
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin asks for a permission KassenSturz doesn't know (\"%1\"). Update KassenSturz, or ask the plugin's author."
+msgstr "Dieses Plugin bittet um eine Berechtigung, die KassenSturz nicht kennt („%1“). Aktualisieren Sie KassenSturz, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:899
+#, kde-format
+msgctxt "@info"
+msgid "This plugin asks for more than its kind of plugin may have, so KassenSturz doesn't add it. Ask the plugin's author."
+msgstr "Dieses Plugin bittet um mehr, als diese Art von Plugin haben darf, deshalb fügt KassenSturz es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:901
+#, kde-format
+msgctxt "@info"
+msgid "A plugin that changes the app's look or layout can't also run code, so KassenSturz doesn't add this one. Ask the plugin's author."
+msgstr "Ein Plugin, das das Aussehen oder die Anordnung der App ändert, kann nicht zugleich Code ausführen, deshalb fügt KassenSturz dieses nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:903
+#, kde-format
+msgctxt "@info"
+msgid "A plugin that changes the app's look or layout may not contain code, and this one does, so KassenSturz doesn't add it. Ask the plugin's author."
+msgstr "Ein Plugin, das das Aussehen oder die Anordnung der App ändert, darf keinen Code enthalten, und dieses enthält welchen, deshalb fügt KassenSturz es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:905
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This plugin file is larger than %1 bytes, so KassenSturz doesn't read it. Check that you picked a plugin file."
+msgstr "Diese Plugin-Datei ist größer als %1 Bytes, deshalb liest KassenSturz sie nicht. Prüfen Sie, ob Sie eine Plugin-Datei gewählt haben."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:907
+#, kde-format
+msgctxt "@info"
+msgid "This file is a WebAssembly module but not a KassenSturz plugin: it doesn't describe itself. Ask the plugin's author."
+msgstr "Diese Datei ist ein WebAssembly-Modul, aber kein KassenSturz-Plugin: Sie beschreibt sich nicht selbst. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:909
+#, kde-format
+msgctxt "@info"
+msgid "This plugin describes itself twice, so KassenSturz can't tell which description is true and doesn't add it. Ask the plugin's author."
+msgstr "Dieses Plugin beschreibt sich zweimal, deshalb kann KassenSturz nicht erkennen, welche Beschreibung stimmt, und fügt es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:911
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin holds a part this KassenSturz doesn't know (\"%1\"). Update KassenSturz, or ask the plugin's author."
+msgstr "Dieses Plugin enthält einen Teil, den dieses KassenSturz nicht kennt („%1“). Aktualisieren Sie KassenSturz, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:913
+#, kde-format
+msgctxt "@info"
+msgid "This kind of plugin is switched off in Settings, so KassenSturz doesn't use it."
+msgstr "Diese Art von Plugin ist in den Einstellungen ausgeschaltet, deshalb verwendet KassenSturz es nicht."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:915
+#, kde-format
+msgctxt "@info"
+msgid "This plugin's code is damaged or uses something KassenSturz doesn't run. Download the plugin again, or ask its author."
+msgstr "Der Code dieses Plugins ist beschädigt oder nutzt etwas, das KassenSturz nicht ausführt. Laden Sie das Plugin erneut herunter, oder fragen Sie seinen Autor."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:917
+#, kde-format
+msgctxt "@info %1 and %2 are words from the plugin file"
+msgid "This plugin wants to reach something KassenSturz doesn't give plugins (\"%1\" \"%2\"), so it isn't started. Ask the plugin's author."
+msgstr "Dieses Plugin möchte auf etwas zugreifen, das KassenSturz Plugins nicht gibt („%1“ „%2“), deshalb wird es nicht gestartet. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:919
+#, kde-format
+msgctxt "@info"
+msgid "This plugin failed while starting, or asked for more memory than KassenSturz gives a plugin. Ask the plugin's author."
+msgstr "Dieses Plugin ist beim Starten gescheitert oder hat mehr Speicher verlangt, als KassenSturz einem Plugin gibt. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:921
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This plugin lacks a part KassenSturz needs (\"%1\"). Ask the plugin's author."
+msgstr "Diesem Plugin fehlt ein Teil, den KassenSturz braucht („%1“). Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:923
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "A part of this plugin doesn't fit what KassenSturz expects (\"%1\"). Ask the plugin's author."
+msgstr "Ein Teil dieses Plugins passt nicht zu dem, was KassenSturz erwartet („%1“). Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:925
+#, kde-format
+msgctxt "@info"
+msgid "This plugin only changes the app's look or layout and can't do this."
+msgstr "Dieses Plugin ändert nur das Aussehen oder die Anordnung der App und kann das nicht."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:927
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This is more than %1 bytes, more than KassenSturz hands a plugin. Try a smaller file or a shorter period."
+msgstr "Das sind mehr als %1 Bytes, mehr als KassenSturz einem Plugin übergibt. Versuchen Sie es mit einer kleineren Datei oder einem kürzeren Zeitraum."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:929
+#, kde-format
+msgctxt "@info"
+msgid "The plugin gave KassenSturz no room for its input, so it was stopped. Load it again, or ask the plugin's author."
+msgstr "Das Plugin hat KassenSturz keinen Platz für seine Eingabe gegeben, deshalb wurde es angehalten. Laden Sie es erneut, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:931
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "The plugin's answer is larger than %1 bytes, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author."
+msgstr "Die Antwort des Plugins ist größer als %1 Bytes, deshalb hat KassenSturz sie nicht übernommen. Nichts wurde geändert. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:933
+#, kde-format
+msgctxt "@info"
+msgid "The plugin's answer was damaged, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author."
+msgstr "Die Antwort des Plugins war beschädigt, deshalb hat KassenSturz sie nicht übernommen. Nichts wurde geändert. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:935
+#, kde-format
+msgctxt "@info"
+msgid "The plugin worked too long and was stopped. Nothing was changed. Try a smaller file or a shorter period, or ask the plugin's author."
+msgstr "Das Plugin hat zu lange gearbeitet und wurde angehalten. Nichts wurde geändert. Versuchen Sie es mit einer kleineren Datei oder einem kürzeren Zeitraum, oder fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:937
+#, kde-format
+msgctxt "@info"
+msgid "The plugin failed and was stopped. Nothing was changed. Ask the plugin's author."
+msgstr "Das Plugin ist gescheitert und wurde angehalten. Nichts wurde geändert. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:939
+#, kde-format
+msgctxt "@info"
+msgid "The plugin was stopped earlier. Load it again to use it."
+msgstr "Das Plugin wurde vorhin angehalten. Laden Sie es erneut, um es zu verwenden."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:941
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't read this file. Check that it is still there, then choose it again."
+msgstr "KassenSturz konnte diese Datei nicht lesen. Prüfen Sie, ob sie noch da ist, und wählen Sie sie dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:943
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't make its folder for plugins. Check that your disk isn't full, then try again."
+msgstr "KassenSturz konnte seinen Ordner für Plugins nicht anlegen. Prüfen Sie, ob Ihr Datenträger voll ist, und versuchen Sie es dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:945
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't save the plugin. Check that your disk isn't full, then try again. Nothing was changed."
+msgstr "KassenSturz konnte das Plugin nicht speichern. Prüfen Sie, ob Ihr Datenträger voll ist, und versuchen Sie es dann erneut. Nichts wurde geändert."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:947
+#, kde-format
+msgctxt "@info"
+msgid "A version of this plugin is added already. Choose \"Replace it\" to use the new one instead."
+msgstr "Eine Version dieses Plugins ist schon hinzugefügt. Wählen Sie „Ersetzen“, um stattdessen die neue zu verwenden."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:949
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz couldn't remove the plugin. Check that the file isn't open in another program, then try again."
+msgstr "KassenSturz konnte das Plugin nicht entfernen. Prüfen Sie, ob die Datei in einem anderen Programm geöffnet ist, und versuchen Sie es dann erneut."
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:33
+#, kde-format
+msgctxt "@info %1 is a plugin's name, %2 its version"
+msgid "%1, version %2"
+msgstr "%1, Version %2"
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:38
+#, kde-format
+msgctxt "@info %1 is who made a plugin, as the plugin says"
+msgid "Made by %1, as the plugin says"
+msgstr "Von %1, laut dem Plugin"
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:50
+#, kde-format
+msgctxt "@title:group"
+msgid "What it adds"
+msgstr "Was es hinzufügt"
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:57
+#, kde-format
+msgctxt "@title:group"
+msgid "What it may do"
+msgstr "Was es darf"
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:59
+#, kde-format
+msgctxt "@info"
+msgid "Nothing beyond what it adds: it can't read your book or use the internet."
+msgstr "Nichts über das hinaus, was es hinzufügt: Es kann Ihr Buch nicht lesen und das Internet nicht nutzen."
+
+#: crates/kassensturz-ui-bridge/qml/PluginDetails.qml:73
+#, kde-format
+msgctxt "@info %1 is a license name, as the plugin says"
+msgid "License: %1"
+msgstr "Lizenz: %1"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:131
+#, kde-format
+msgctxt "@action:button a group of settings"
+msgid "Plugins"
+msgstr "Plugins"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPage.qml:132
+#, kde-format
+msgctxt "@info what a group of settings holds"
+msgid "Add a plugin file you downloaded, see what it may do"
+msgstr "Eine heruntergeladene Plugin-Datei hinzufügen, sehen, was sie darf"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:36
+#, kde-format
+msgctxt "@title"
+msgid "Plugins"
+msgstr "Plugins"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:48
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Reads another kind of bank file"
+msgstr "Liest eine weitere Art von Bankdatei"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:50
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Saves your data in another kind of file"
+msgstr "Speichert Ihre Daten in einer weiteren Art von Datei"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:52
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Adds a report"
+msgstr "Fügt einen Bericht hinzu"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:54
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Reacts to new transactions, for example after an import"
+msgstr "Reagiert auf neue Buchungen, zum Beispiel nach einem Import"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:58
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Connects another language model, for the chat and suggestions"
+msgstr "Verbindet ein weiteres Sprachmodell, für den Chat und Vorschläge"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:60
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Changes the colors and fonts"
+msgstr "Ändert die Farben und Schriften"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:62
+#, kde-format
+msgctxt "@item what a plugin adds"
+msgid "Changes how much the screens explain"
+msgstr "Ändert, wie viel die Seiten erklären"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:71
+#, kde-format
+msgctxt "@item what a plugin may do"
+msgid "Read your book: accounts, categories, transactions, plans, budgets and tags"
+msgstr "Ihr Buch lesen: Konten, Kategorien, Buchungen, Pläne, Budgets und Schlagwörter"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:73
+#, kde-format
+msgctxt "@item what a plugin may do"
+msgid "Suggest changes to your book, which you check and confirm first"
+msgstr "Änderungen an Ihrem Buch vorschlagen, die Sie zuerst prüfen und bestätigen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:75
+#, kde-format
+msgctxt "@item what a plugin may do"
+msgid "Connect to other computers over the internet"
+msgstr "Sich über das Internet mit anderen Computern verbinden"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:91
+#, kde-format
+msgctxt "@title:group"
+msgid "What plugins are"
+msgstr "Was Plugins sind"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:95
+#, kde-format
+msgctxt "@info"
+msgid "A plugin adds something to KassenSturz, for example a way to read another bank's files. You add a plugin file you downloaded; there is no shop. Before you add it, you see what it asks to be allowed. A plugin runs closed off from the rest of your computer: it can't open your files, and it can only use what it asked for here."
+msgstr "Ein Plugin fügt KassenSturz etwas hinzu, zum Beispiel eine Möglichkeit, die Dateien einer weiteren Bank zu lesen. Sie fügen eine heruntergeladene Plugin-Datei hinzu; einen Shop gibt es nicht. Bevor Sie es hinzufügen, sehen Sie, was es dürfen möchte. Ein Plugin läuft abgeschottet vom Rest Ihres Computers: Es kann Ihre Dateien nicht öffnen und nur das nutzen, worum es hier gebeten hat."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:99
+#, kde-format
+msgctxt "@info"
+msgid "Only add plugins from people you trust. Plugins can't do anything yet in this version: you can add and look at them already, and what each kind does comes with the next updates."
+msgstr "Fügen Sie nur Plugins von Menschen hinzu, denen Sie vertrauen. In dieser Version können Plugins noch nichts tun: Sie können sie schon hinzufügen und ansehen, und was jede Art tut, kommt mit den nächsten Updates."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:113
+#, kde-format
+msgctxt "@info"
+msgid "The plugin was added. The file you downloaded is unchanged; you can delete it."
+msgstr "Das Plugin wurde hinzugefügt. Die heruntergeladene Datei ist unverändert; Sie können sie löschen."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:122
+#, kde-format
+msgctxt "@action:button"
+msgid "Add a plugin file…"
+msgstr "Plugin-Datei hinzufügen…"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:123
+#, kde-format
+msgctxt "@info"
+msgid "You see what it asks for before anything is added."
+msgstr "Sie sehen, worum es bittet, bevor etwas hinzugefügt wird."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:134
+#, kde-format
+msgctxt "@title:group"
+msgid "Add this plugin?"
+msgstr "Dieses Plugin hinzufügen?"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:148
+#, kde-format
+msgctxt "@info"
+msgid "This plugin may send data over the internet. KassenSturz still asks you before anything about your money leaves your computer."
+msgstr "Dieses Plugin darf Daten über das Internet senden. KassenSturz fragt Sie trotzdem, bevor etwas über Ihr Geld Ihren Computer verlässt."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:155
+#, kde-format
+msgctxt "@info"
+msgid "You already added a plugin with this name. Adding this one replaces it."
+msgstr "Sie haben schon ein Plugin mit diesem Namen hinzugefügt. Wenn Sie dieses hinzufügen, ersetzt es das alte."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:156
+#, kde-format
+msgctxt "@info %1 is a version number"
+msgid "You already added this plugin in version %1. Adding this one replaces it."
+msgstr "Sie haben dieses Plugin schon in Version %1 hinzugefügt. Wenn Sie dieses hinzufügen, ersetzt es das alte."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:164
+#, kde-format
+msgctxt "@action:button"
+msgid "Replace it"
+msgstr "Ersetzen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:165
+#, kde-format
+msgctxt "@action:button"
+msgid "Add it"
+msgstr "Hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:176
+#, kde-format
+msgctxt "@action:button"
+msgid "Don't add it"
+msgstr "Nicht hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:185
+#, kde-format
+msgctxt "@title:group"
+msgid "Your plugins"
+msgstr "Ihre Plugins"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:192
+#, kde-format
+msgctxt "@info"
+msgid "You haven't added any plugins."
+msgstr "Sie haben noch keine Plugins hinzugefügt."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:223
+#, kde-format
+msgctxt "@info"
+msgid "This plugin can't be used any more, for example because it was made for another version of KassenSturz. Remove it, and look for a newer version of it."
+msgstr "Dieses Plugin kann nicht mehr verwendet werden, zum Beispiel weil es für eine andere Version von KassenSturz erstellt wurde. Entfernen Sie es, und suchen Sie eine neuere Version davon."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:235
+#, kde-format
+msgctxt "@action:button"
+msgid "Remove this plugin…"
+msgstr "Dieses Plugin entfernen…"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:252
+#, kde-format
+msgctxt "@title:window"
+msgid "Add a plugin file"
+msgstr "Plugin-Datei hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:255
+#, kde-format
+msgctxt "@item:inlistbox a file type"
+msgid "Plugin files (*.wasm)"
+msgstr "Plugin-Dateien (*.wasm)"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:274
+#, kde-format
+msgctxt "@title:window"
+msgid "Remove this plugin?"
+msgstr "Dieses Plugin entfernen?"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:275
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz deletes its copy of the plugin. Your book isn't changed. To use the plugin again, you add its file again."
+msgstr "KassenSturz löscht seine Kopie des Plugins. Ihr Buch wird nicht geändert. Um das Plugin wieder zu verwenden, fügen Sie seine Datei erneut hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:279
+#, kde-format
+msgctxt "@action:button"
+msgid "Remove it"
+msgstr "Entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:291
+#, kde-format
+msgctxt "@action:button keep a plugin"
+msgid "Keep it"
+msgstr "Behalten"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@option:check a new entry"
+msgid "This repeats"
+msgstr "Das wiederholt sich"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@action:button a new entry that repeats"
+msgid "Create as a plan"
+msgstr "Als Plan anlegen"
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This makes a plan. The first payment is due on the date above and shows in "
+"the outlook ahead. You confirm each payment once it has happened."
+msgstr ""
+"Das legt einen Plan an. Die erste Zahlung wird am Datum oben fällig und "
+"kommt in die Vorschau. Sie bestätigen jede Zahlung, wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/TransactionPage.qml
+#, kde-format
+msgctxt "@info %1 is a date"
+msgid ""
+"Planned. The first payment is due on %1; you confirm each payment once it "
+"has happened."
+msgstr ""
+"Geplant. Die erste Zahlung ist am %1 fällig; Sie bestätigen jede Zahlung, "
+"wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@action:inmenu a screen"
+msgid "Plans"
+msgstr "Pläne"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@title a screen of the menu"
+msgid "Plans"
+msgstr "Pläne"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Add a plan"
+msgstr "Plan hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@title"
+msgid "What is a plan?"
+msgstr "Was ist ein Plan?"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A payment that comes again and again: rent, salary, insurance. Plans count "
+"in the outlook ahead; you confirm each payment once it has happened."
+msgstr ""
+"Eine Zahlung, die immer wieder kommt: Miete, Gehalt, Versicherung. Pläne "
+"fließen in die Vorschau ein; Sie bestätigen jede Zahlung, wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+#, kde-format
+msgctxt "@title"
+msgid "What is a budget?"
+msgstr "Was ist ein Budget?"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A limit for a category, for example: “I spend at most 300 € a month on "
+"food.” KassenSturz shows you how much of it is already spent. A budget "
+"doesn't change any transaction or total."
+msgstr ""
+"Eine Obergrenze für eine Kategorie, zum Beispiel: „Für Essen gebe ich "
+"höchstens 300 € im Monat aus.“ KassenSturz zeigt Ihnen, wie viel davon schon"
+" ausgegeben ist. Ein Budget ändert keine Buchung und keine Summe."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Reset chart"
+msgstr "Diagramm zurücksetzen"
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid ""
+"Starts this chart again from scratch. Your saved views stay as they are."
+msgstr ""
+"Beginnt dieses Diagramm noch einmal von vorn. Ihre gespeicherten Ansichten "
+"bleiben, wie sie sind."
+
+#: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Chart reset: period, categories, accounts and look are back to how they "
+"start."
+msgstr ""
+"Diagramm zurückgesetzt: Zeitraum, Kategorien, Konten und Aussehen sind "
+"wieder wie am Anfang."
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@action:button opens the chat sidebar, where the user asks the AI a question"
+msgid "Ask AI"
+msgstr "KI fragen"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt "@info under the question field, which holds an example question"
+msgid "Suggestion, you can change it"
+msgstr "Vorschlag, Sie können ihn ändern"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@info %1 is an example question; the user's own text stays in the field"
+msgid "Suggestion: %1"
+msgstr "Vorschlag: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@action:button put the suggested question into the field instead of the "
+"user's own text"
+msgid "Use it instead"
+msgstr "Stattdessen verwenden"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt "@action:button hide the suggested question"
+msgid "Hide the suggestion"
+msgstr "Vorschlag ausblenden"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@action:button opens a page of the handbook in the web browser"
+msgid "Why your data is safe"
+msgstr "Warum Ihre Daten sicher sind"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Opens a page of the handbook in your web browser"
+msgstr "Öffnet eine Seite des Handbuchs in Ihrem Webbrowser"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt ""
+"@info the web address of the handbook page \"Why your data is safe\"; a "
+"language with its own page puts its address here"
+msgid ""
+"https://github.com/Vondor/KassenSturz/blob/main/docs/user/en/why-your-data-"
+"is-safe.md"
+msgstr ""
+"https://github.com/Vondor/KassenSturz/blob/main/docs/user/de/warum-ihre-"
+"daten-sicher-sind.md"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
+#, kde-format
+msgctxt ""
+"@info %1 is what was done, e.g. Added a transaction; %2 whom it was with or "
+"its category; %3 its amount"
+msgid "%1 (%2, %3)"
+msgstr "%1 (%2, %3)"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
+#, kde-format
+msgctxt "@info %1 is what was done, e.g. Added a transaction; %2 its amount"
+msgid "%1 (%2)"
+msgstr "%1 (%2)"
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz won't use this address yet: it is on another computer and starts"
+" with http://, so what is sent to it travels unencrypted. Anyone on the same"
+" network, for example on your Wi-Fi, could read it, your questions and the "
+"provider's key included. Use the provider's https:// address. If the "
+"provider offers only http:// and runs in a network you trust, you can allow "
+"unencrypted connections in the AI settings."
+msgstr ""
+"KassenSturz verwendet diese Adresse noch nicht: Sie liegt auf einem anderen "
+"Computer und beginnt mit http://, deshalb wird alles, was dorthin geht, "
+"unverschlüsselt übertragen. Jeder im selben Netzwerk, zum Beispiel in Ihrem "
+"WLAN, könnte es mitlesen, auch Ihre Fragen und den Schlüssel des Anbieters. "
+"Verwenden Sie die Adresse des Anbieters, die mit https:// beginnt. Bietet der Anbieter nur "
+"http:// an und läuft er in einem Netzwerk, dem Sie vertrauen, können Sie in "
+"den KI-Einstellungen unverschlüsselte Verbindungen erlauben."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
+#, kde-format
+msgctxt "@action:button ticks the box of the same name in the AI settings"
+msgid "Allow unencrypted connections"
+msgstr "Unverschlüsselte Verbindungen erlauben"
+
+#: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:34
+#, kde-format
+msgctxt "@title:window"
+msgid "Keep your book safe"
+msgstr "Ihr Buch in Sicherheit bringen"
+
+#: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:35
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Your book is in a folder that Windows deletes, together with all its backups, when KassenSturz is uninstalled or reset. KassenSturz can move it to %1, which Windows leaves alone. Before moving, it keeps a copy of your book as it is now with the other backups."
+msgstr "Ihr Buch liegt in einem Ordner, den Windows samt allen Sicherungen löscht, wenn KassenSturz deinstalliert oder zurückgesetzt wird. KassenSturz kann es nach %1 verschieben; diesen Ordner lässt Windows in Ruhe. Vor dem Verschieben legt es eine Kopie Ihres Buchs, wie es jetzt ist, zu den anderen Sicherungen."
+
+#: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:50
+#, kde-format
+msgctxt "@action:button ask again at the next start"
+msgid "Not now"
+msgstr "Jetzt nicht"
+
+#: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:58
+#, kde-format
+msgctxt "@action:button keep the book in its folder"
+msgid "Keep it there"
+msgstr "Dort lassen"
+
+#: crates/kassensturz-ui-bridge/qml/BookMovePage.qml:188
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
+msgstr "Windows löscht diesen Ordner samt allen Sicherungen darin, wenn KassenSturz deinstalliert oder zurückgesetzt wird. Bewahren Sie Ihr Buch in KassenSturz' eigenem Ordner (%1) oder in einem Ordner Ihrer Wahl auf."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info %1 is an example web address"
+msgid "For example: %1"
+msgstr "Zum Beispiel: %1"
+
+msgctxt "@item:inlistbox"
+msgid "Choose a model…"
+msgstr "Modell wählen …"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@item:inlistbox"
+msgid "Enter another name…"
+msgstr "Anderen Namen eingeben …"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@item:inlistbox %1 is a model's name"
+msgid "%1 (only for searching, not for the chat)"
+msgstr "%1 (nur für die Suche, nicht für den Chat)"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "The address looks right."
+msgstr "Die Adresse sieht richtig aus."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This isn't an address KassenSturz can use. It must start with https:// or "
+"http://, then the server's name, without spaces, for example "
+"https://ai.example.test/v1. Saving waits until the address is right."
+msgstr ""
+"Diese Adresse kann KassenSturz nicht verwenden. Sie muss mit https:// oder "
+"http:// beginnen, dann folgt der Name des Servers, ohne Leerzeichen, zum "
+"Beispiel https://ai.example.test/v1. Speichern geht erst, wenn die Adresse "
+"stimmt."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "This provider doesn't name its models. Please type the name."
+msgstr "Dieser Anbieter nennt keine Modelle. Bitte geben Sie den Namen ein."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Choose from the provider's list"
+msgstr "Aus der Liste des Anbieters wählen"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@info a transaction added since the app started"
+msgid "New"
+msgstr "Neu"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@action:button remove this transaction"
+msgid "Remove"
+msgstr "Entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@action:button %1 is who was paid or who paid, %2 an amount"
+msgid "Remove %1, %2"
+msgstr "%1, %2 entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@info %2 is a folder"
+msgid "KassenSturz found a book from before in its folder, %2:"
+msgid_plural "KassenSturz found %1 books from before in its folder, %2:"
+msgstr[0] "KassenSturz hat in seinem Ordner %2 ein Buch von früher gefunden:"
+msgstr[1] "KassenSturz hat in seinem Ordner %2 %1 Bücher von früher gefunden:"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Open this book"
+msgstr "Dieses Buch öffnen"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Nothing is made or changed until you choose."
+msgstr "Bis Sie wählen, wird nichts angelegt oder geändert."
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Start a new book instead"
+msgstr "Stattdessen ein neues Buch beginnen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button opens or closes the user's fixed notes for the AI"
+msgid "Advanced: fixed notes for the AI"
+msgstr "Erweitert: feste Hinweise für die KI"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Open"
+msgstr "Geöffnet"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info accessible state"
+msgid "Closed"
+msgstr "Geschlossen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Rarely needed. Closed until you open it."
+msgstr "Meist nicht nötig. Eingeklappt, bis Sie es öffnen."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"These notes apply to every question, for example \"Answer briefly\". Ask "
+"your questions in the chat, not here."
+msgstr ""
+"Diese Hinweise gelten für jede Frage, etwa „Antworte kurz“. Ihre Fragen "
+"stellen Sie im Chat, nicht hier."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "Undo?"
+msgstr "Rückgängig machen?"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info %1 is what was done, %2 the name of a screen"
+msgid ""
+"This takes back “%1”, a change on the screen “%2”, not on the one you are "
+"looking at."
+msgstr ""
+"Das macht „%1“ rückgängig, eine Änderung auf der Seite „%2“, nicht auf der, "
+"die Sie gerade sehen."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info %1 is what was done"
+msgid ""
+"This takes back “%1”, which isn't a change on the screen you are looking at."
+msgstr ""
+"Das macht „%1“ rückgängig. Diese Änderung gehört nicht zu der Seite, die Sie"
+" gerade sehen."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@action:inmenu opens the list of changes"
+msgid "History…"
+msgstr "Verlauf …"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt ""
+"@info %1 is what was done, e.g. Added a transaction; %2 the name of a screen"
+msgid "Undone: %1, on the screen “%2”"
+msgstr "Rückgängig gemacht: %1, auf der Seite „%2“"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@title:group a day"
+msgid "Today"
+msgstr "Heute"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@title:group a day"
+msgid "Yesterday"
+msgstr "Gestern"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info:placeholder"
+msgid "Find a change…"
+msgstr "Änderung suchen …"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "All kinds"
+msgstr "Alle Arten"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Transactions and accounts"
+msgstr "Buchungen und Konten"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Imports"
+msgstr "Importe"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Budgets"
+msgstr "Budgets"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Views"
+msgstr "Ansichten"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Rules"
+msgstr "Regeln"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Categories"
+msgstr "Kategorien"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Settings"
+msgstr "Einstellungen"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@item:inlistbox kinds of changes"
+msgid "Suggested changes you applied"
+msgstr "Übernommene Vorschläge"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@title:group %2 is a day, %3 a time, %1 a number"
+msgid "%2, %3 · %1 change"
+msgid_plural "%2, %3 · %1 changes"
+msgstr[0] "%2, %3 · %1 Änderung"
+msgstr[1] "%2, %3 · %1 Änderungen"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@title:group %2 is a day, %3 and %4 times, %1 a number"
+msgid "%2, %3 to %4 · %1 change"
+msgid_plural "%2, %3 to %4 · %1 changes"
+msgstr[0] "%2, %3 bis %4 · %1 Änderung"
+msgstr[1] "%2, %3 bis %4 · %1 Änderungen"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info %2 is what was done, %1 how often in a row"
+msgid "%2 (%1 time)"
+msgid_plural "%2 (%1 times)"
+msgstr[0] "%2 (%1-mal)"
+msgstr[1] "%2 (%1-mal)"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info %1 is a time"
+msgid "%1 · taken back; Redo can make it again"
+msgstr "%1 · zurückgenommen; „Wiederholen“ macht es wieder"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info %1 is what was done"
+msgid "Picked: %1"
+msgstr "Markiert: %1"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Takes back %1 change: this one."
+msgid_plural ""
+"Takes back %1 changes: this one and every newer one. Redo brings them back."
+msgstr[0] "Nimmt %1 Änderung zurück: diese."
+msgstr[1] ""
+"Nimmt %1 Änderungen zurück: diese und alle neueren. „Wiederholen“ holt sie "
+"zurück."
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Undo up to here"
+msgstr "Bis hier zurücknehmen"
+
+#: crates/kassensturz-ui-bridge/qml/HistoryPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "No change matches. Clear the search or choose All kinds."
+msgstr ""
+"Keine Änderung passt. Leeren Sie die Suche oder wählen Sie „Alle Arten“."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info %2 is the oldest change taken back"
+msgid "Undone: %1 change, back to before “%2”"
+msgid_plural "Undone: %1 changes, back to before “%2”"
+msgstr[0] "Rückgängig gemacht: %1 Änderung, zurück bis vor „%2“"
+msgstr[1] "Rückgängig gemacht: %1 Änderungen, zurück bis vor „%2“"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@title:group"
+msgid "What leaves this computer"
+msgstr "Was diesen Computer verlässt"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Before each question goes, you see exactly what it sends and can leave words"
+" out."
+msgstr ""
+"Bevor eine Frage abgeschickt wird, sehen Sie genau, was sie sendet, und "
+"können Wörter weglassen."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "I have read this and agree, also to the unencrypted connection."
+msgstr ""
+"Ich habe das gelesen und bin einverstanden, auch mit der unverschlüsselten "
+"Verbindung."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "I have read this and agree."
+msgstr "Ich habe das gelesen und bin einverstanden."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Saving waits until you agree, because the connection isn't encrypted."
+msgstr ""
+"Speichern geht erst, wenn Sie zustimmen, weil die Verbindung nicht "
+"verschlüsselt ist."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Save and test"
+msgstr "Speichern und testen"

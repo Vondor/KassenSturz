@@ -60,6 +60,11 @@ std::int32_t firstDayOfWeek();
 // Today's date on this computer, as ISO 8601.
 QString today();
 
+// The first language the system's settings name for its screens, e.g.
+// "de-DE"; on Windows this is the display language, which no environment
+// variable names (B-406). Empty if there is none.
+QString systemUiLanguage();
+
 // The local date and time `seconds` after 1970-01-01 00:00 UTC, in the
 // locale's short format.
 QString dateTime(std::int64_t seconds);

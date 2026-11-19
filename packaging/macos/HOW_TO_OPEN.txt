@@ -1,0 +1,35 @@
+SO OEFFNEN (Deutsch)
+
+Dies ist ein EXPERIMENTELLER, UNGETESTETER Mac-Test-Build von KassenSturz.
+Er ist nicht von Apple notarisiert, deshalb blockiert macOS ihn beim ersten Start.
+Nur fuer Macs mit Apple-Chip (M1 oder neuer). Bitte nur mit Beispieldaten
+benutzen, nie mit Ihrem echten Haushaltsbuch.
+
+1. Ziehen Sie KassenSturz auf "Applications" (Programme).
+2. Starten Sie KassenSturz. macOS zeigt eine Meldung und oeffnet es nicht. Klicken Sie auf "Fertig".
+3. Oeffnen Sie Systemeinstellungen > Datenschutz & Sicherheit.
+4. Scrollen Sie nach unten bis "KassenSturz wurde blockiert" und klicken Sie auf "Trotzdem oeffnen".
+5. Geben Sie Ihr Mac-Passwort ein und bestaetigen Sie mit "Oeffnen".
+Das ist nur beim ersten Mal noetig.
+
+Alternative im Terminal:
+  xattr -dr com.apple.quarantine /Applications/KassenSturz.app
+
+----------------------------------------------------------------------
+
+HOW TO OPEN (English)
+
+This is an EXPERIMENTAL, UNTESTED Mac test build of KassenSturz.
+It is not notarized by Apple, so macOS blocks it the first time you start it.
+Apple Silicon Macs only (M1 or newer). Please use example data only, never
+your real household book.
+
+1. Drag KassenSturz onto "Applications".
+2. Start KassenSturz. macOS shows a message and does not open it. Click "Done".
+3. Open System Settings > Privacy & Security.
+4. Scroll down to "KassenSturz was blocked" and click "Open Anyway".
+5. Enter your Mac password and confirm with "Open".
+You only need to do this the first time.
+
+Alternative in the Terminal:
+  xattr -dr com.apple.quarantine /Applications/KassenSturz.app

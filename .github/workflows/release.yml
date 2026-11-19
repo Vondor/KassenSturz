@@ -176,8 +176,8 @@ jobs:
           path: ${{ steps.version.outputs.file }}
           if-no-files-found: error
 
-  # What a tester does on Ubuntu (docs/testing/INSTALL_UBUNTU.de.md, steps 2 to
-  # 5 and "remove"), on a fresh runner with nothing of KassenSturz's
+  # What a tester does on Ubuntu (docs/testing/INSTALL_UBUNTU.de.md, way B,
+  # steps B2 to B5 and "remove"), on a fresh runner with nothing of KassenSturz's
   # on it and no KDE runtime: install Flatpak, add the catalog and the runtime
   # for the user, install the downloaded file, start the app. A release is made
   # only if all of it worked. The commands are the sheet's; the extra flags

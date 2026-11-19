@@ -124,6 +124,7 @@ mod session;
 mod settings;
 mod statement_import;
 mod statement_import_model;
+mod store_folder;
 mod tags;
 mod tags_model;
 #[cfg(test)]
@@ -167,6 +168,10 @@ fn main() {
     platform::use_readable_widget_style();
     platform::follow_system_colours();
     platform::start_in_user_folder();
+    // The Store build's own folder is in Documents (D-856): what the
+    // earlier one inside the package holds is copied over before a book
+    // opens.
+    store_folder::copy_at_start();
     platform::set_window_icon();
     // SIGTERM (logout, shutdown, pkill) ends the app like quitting does, so
     // the book's lock file doesn't stay behind (B-276).

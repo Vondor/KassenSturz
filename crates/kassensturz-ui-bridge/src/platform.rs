@@ -29,6 +29,12 @@ mod ffi {
         #[cxx_name = "dataFolder"]
         fn data_folder() -> QString;
 
+        #[cxx_name = "documentsFolder"]
+        fn documents_folder() -> QString;
+
+        #[cxx_name = "packageFamilyName"]
+        fn package_family_name() -> QString;
+
         #[cxx_name = "computerName"]
         fn computer_name() -> QString;
 
@@ -151,13 +157,36 @@ pub fn use_test_locations() {
 
 /// KassenSturz's own data folder, e.g. `~/.local/share/io.github.vondor.KassenSturz`
 /// on Linux, where the app keeps its book and the backups (D-033).
+///
+/// In the Microsoft Store's package it is `Documents\KassenSturz` instead
+/// (D-856, #1178): Windows keeps a packaged app's `%LOCALAPPDATA%` inside the
+/// package and deletes it with the app, so a book and its backups there
+/// were lost when the app was uninstalled or reset.
 pub fn app_folder() -> Option<PathBuf> {
     // In the test profile, the test folder's own (Q-399).
     if let Some(folder) = crate::test_profile::data_folder() {
         return Some(folder.join(APP_ID));
     }
+    if in_app_package() {
+        let documents = ffi::documents_folder().to_string();
+        return (!documents.is_empty())
+            .then(|| PathBuf::from(documents).join(crate::store_folder::FOLDER_NAME));
+    }
+    qt_app_folder()
+}
+
+/// The app folder in Qt's data folder: KassenSturz's own folder outside a
+/// Windows app package, and inside one the folder Windows deletes with the
+/// app, where the Store build kept books before D-856.
+pub fn qt_app_folder() -> Option<PathBuf> {
     let folder = ffi::data_folder().to_string();
     (!folder.is_empty()).then(|| PathBuf::from(folder).join(APP_ID))
+}
+
+/// Whether the app runs from a Windows app package, i.e. it was installed
+/// from the Microsoft Store (#1178). Never on other systems.
+pub fn in_app_package() -> bool {
+    !ffi::package_family_name().is_empty()
 }
 
 /// The app's own executable file.

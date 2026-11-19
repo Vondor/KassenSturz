@@ -19,6 +19,18 @@ The `Windows app` workflow (`.github/workflows/windows-app.yml`) builds three fi
 
 The MSIX holds the same programs as the zip (only `kassensturz.exe` and `kassensturz-mcp.exe`, B-292) plus `AppxManifest.xml` (`packaging/windows/msix/`) and three logos made from the app icon. CI packs it with `makeappx`, unpacks it again and checks the package name, the publisher, the version and that `bin\kassensturz.exe` is inside.
 
+### Where the Store app keeps the book (D-856, #1178)
+
+Windows keeps everything a packaged app writes to `%LOCALAPPDATA%` inside the package (`%LOCALAPPDATA%\Packages\<package family>\LocalCache\Local\`) and deletes it when the app is uninstalled or reset in *Settings › Apps › Installed apps › Advanced options*. Until D-856 the Store app kept its book, its backups, the bank connection's folder and the plugins there, so uninstalling it took the book and every backup with it (B-382). The zip and the installer are not packaged and are not affected.
+
+So in the Store app (the app finds out with `GetCurrentPackageFamilyName`), KassenSturz's own folder is **`Documents\KassenSturz`**, which Windows leaves alone. Elsewhere it stays as it was.
+
+- **New books, the backups, the bank connection's folder and the plugins** go there.
+- **At the first start of an updated Store app**, everything of the earlier folder in the package except the books and the logs is copied into `Documents\KassenSturz` (`store_folder::copy_at_start`), once and without replacing a file. The earlier folder stays as it was.
+- **A book still in the earlier folder** is offered a move once a start: "Move my book" moves it into `Documents\KassenSturz` with the steps of D-731 (a backup first, then copy, check, switch, and the old file removed); "Not now" asks again at the next start; "Keep it there" stops asking for that book. "Where your book is kept" in Settings warns as long as the book is there. A book is never copied, so there are never two working books.
+- **Still inside the package:** the settings file `kassensturzrc` and the debug log. After uninstalling and installing again, the settings are gone, but the app opens `Documents\KassenSturz\<name>.ksz` again by itself when the book has the usual name, and "Open another book…" finds any other.
+- If Documents is a OneDrive folder, the book and its backups are synced with it like any other file there; a book in a sync folder works with its lock file (D-038).
+
 ### The Store identity
 
 The values in `packaging/windows/msix/AppxManifest.xml` come from the maintainer's Partner Center reservation. They are public (anyone can read them from a downloaded package) and are not secrets:

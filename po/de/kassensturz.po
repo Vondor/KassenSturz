@@ -3074,7 +3074,8 @@ msgstr ""
 "Diese Verbindung ist nicht sicher: Sie ist nicht verschlüsselt. Jeder im "
 "selben Netzwerk, zum Beispiel in Ihrem WLAN, könnte mitlesen, was gesendet "
 "wird, auch den Schlüssel des Anbieters. Verwenden Sie sie nur in einem "
-"Heimnetzwerk, dem Sie vertrauen. Eine https://-Adresse ist sicherer."
+"Heimnetzwerk, dem Sie vertrauen. Eine Adresse, die mit https:// beginnt, ist "
+"sicherer."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
@@ -3089,8 +3090,8 @@ msgstr ""
 "Achtung: Diese Adresse liegt vielleicht im Internet, und die Verbindung ist "
 "nicht verschlüsselt. Jeder auf dem Weg könnte mitlesen und ändern, was "
 "gesendet wird: Ihre Fragen, Angaben aus Ihrem Buch und den Schlüssel des "
-"Anbieters. Verwenden Sie stattdessen die https://-Adresse des Anbieters, es "
-"sei denn, Sie wissen genau, was Sie tun."
+"Anbieters. Verwenden Sie stattdessen die Adresse des Anbieters, die mit "
+"https:// beginnt, es sei denn, Sie wissen genau, was Sie tun."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
 #, kde-format
@@ -26844,7 +26845,7 @@ msgstr ""
 "Computer und beginnt mit http://, deshalb wird alles, was dorthin geht, "
 "unverschlüsselt übertragen. Jeder im selben Netzwerk, zum Beispiel in Ihrem "
 "WLAN, könnte es mitlesen, auch Ihre Fragen und den Schlüssel des Anbieters. "
-"Verwenden Sie die https://-Adresse des Anbieters. Bietet der Anbieter nur "
+"Verwenden Sie die Adresse des Anbieters, die mit https:// beginnt. Bietet der Anbieter nur "
 "http:// an und läuft er in einem Netzwerk, dem Sie vertrauen, können Sie in "
 "den KI-Einstellungen unverschlüsselte Verbindungen erlauben."
 
@@ -26883,3 +26884,28 @@ msgstr "Dort lassen"
 msgctxt "@info %1 is a folder"
 msgid "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
 msgstr "Windows löscht diesen Ordner samt allen Sicherungen darin, wenn KassenSturz deinstalliert oder zurückgesetzt wird. Bewahren Sie Ihr Buch in KassenSturz' eigenem Ordner (%1) oder in einem Ordner Ihrer Wahl auf."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info %1 is an example web address"
+msgid "For example: %1"
+msgstr "Zum Beispiel: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "The address looks right."
+msgstr "Die Adresse sieht richtig aus."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"This isn't an address KassenSturz can use. It must start with https:// or "
+"http://, then the server's name, without spaces, for example "
+"https://ai.example.test/v1. Saving waits until the address is right."
+msgstr ""
+"Diese Adresse kann KassenSturz nicht verwenden. Sie muss mit https:// oder "
+"http:// beginnen, dann folgt der Name des Servers, ohne Leerzeichen, zum "
+"Beispiel https://ai.example.test/v1. Speichern geht erst, wenn die Adresse "
+"stimmt."

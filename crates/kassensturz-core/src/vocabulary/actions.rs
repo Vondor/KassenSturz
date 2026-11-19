@@ -20,6 +20,7 @@ pub const ACTIONS: &[&str] = &[
     "AccountGrid_accountClicked",
     "AccountsPage_addAccount",
     "AccountsPage_addAccount_2",
+    "AccountsPage_checkAndCorrect",
     "AccountsPage_findMoves",
     "AccountsPage_getNewTransactions",
     "AccountsPage_monthlyMoves",

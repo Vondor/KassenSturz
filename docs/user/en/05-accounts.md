@@ -29,7 +29,9 @@ At the top right, under **About this account**, you can:
 
 ## Check against my bank
 
-Type what your bank gives as the balance on a day. KassenSturz says whether it agrees. If not, it shows the difference exactly to the cent and names possible reasons: a transaction that is in twice or missing, a wrong starting balance. **It changes nothing by itself.** If your starting balance is wrong, it offers to correct it; only you do that.
+Type what your bank gives as the balance on a day. KassenSturz says whether it agrees. If not, it shows the difference exactly to the cent and names possible reasons: a transaction that is in twice or missing, a wrong starting balance. **It changes nothing by itself.** If your starting balance is wrong, it offers to correct it; only you do that. Before you click, the page lists what would change: the starting balance now, the starting balance afterwards, and the balance on the day you checked. **Undo** takes the correction back.
+
+If an account no longer holds what your bank said on a day, the top of **Accounts** names it and offers **Check and correct…**, which opens this check with the figures filled in.
 
 ## Closing an account
 

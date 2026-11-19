@@ -35,6 +35,12 @@ Sie sagt, **bevor etwas passiert**:
 
 Schließen Sie die Vorschau, ändert sich nichts.
 
+### Der erste Import in ein Konto
+
+Sie haben den Kontostand für einen Tag angegeben, meist für heute. Die erste Datei oder der erste Abruf von der Bank bringt meist die Buchungen aus der Zeit *davor*. Damit sie Ihren Kontostand nicht ein zweites Mal verändern, berechnet KassenSturz, was vor der ersten dieser Buchungen auf dem Konto war: aus dem Kontostand, den Ihre Bank nennt (oder, wenn die Datei keinen enthält, aus dem, den Sie angegeben haben). Die Vorschau sagt das unter **Anfangsbestand**, mit Betrag und Tag vorher und nachher. Ihr Kontostand bleibt, was Ihre Bank sagt, und **Rückgängig** nimmt das zusammen mit dem Import zurück.
+
+Das geschieht nur beim ersten Import in ein Konto. Später ändert KassenSturz den Anfangsbestand nie von allein; weichen die Zahlen ab, zeigt **Mit der Bank abgleichen**, warum (Seite 5).
+
 ![Nach dem Import](../../testing/screenshots/windows/28-card5-imported.png)
 
 ## Danach

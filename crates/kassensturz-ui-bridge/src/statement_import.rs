@@ -25,11 +25,13 @@ use kassensturz_import::{
     Statement, StatusColumn, TextEncoding, csv_preview, import as read_with,
 };
 use kassensturz_pipeline::{
-    Choices, Duplicate, EntryOutcome, EntryRef, ImportReport, PipelineError, import_statements,
-    join_recurring_moves, match_schedules,
+    Choices, Duplicate, EntryOutcome, EntryRef, ImportReport, PipelineError, StartChange,
+    StartSource, derive_start_after_import, import_statements, join_recurring_moves,
+    match_schedules,
 };
 use kassensturz_store::{Action, Book, StatedBalance, StoreError};
 
+use crate::accounts::Correction;
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
 use crate::register::{self, AmountWriter, EntryKind, Shown};
@@ -512,6 +514,29 @@ pub struct ImportView {
     /// another amount (#1143), one line each, by date: not matched, for
     /// the user to check under "Did this happen?".
     pub planned_changed: Vec<PlannedChangedText>,
+    /// What the import does or did to the account's starting balance, when
+    /// it brings the account's first transactions (D-903); else `None`.
+    pub start: Option<StartText>,
+}
+
+/// The starting balance worked out from the first import into an account
+/// (D-903, B-411): the history a bank or file delivers mostly lies before
+/// the day the user stated a balance for, so the starting balance is
+/// worked out from the balance that is known and stands before the first
+/// transaction. The preview shows it before anything changes; the import
+/// does it in its own user action, so one Undo takes back both.
+#[derive(Debug, PartialEq, Eq)]
+pub struct StartText {
+    /// The starting balance before and after.
+    pub change: Correction,
+    /// Whether the balance it was worked out from is the bank's own, from
+    /// the statement; otherwise it is the one the user stated.
+    pub from_bank: bool,
+    /// The balance it was worked out from; for a debt, what is owed.
+    pub holds: Shown,
+    pub holds_owes: bool,
+    /// The day that balance is for.
+    pub holds_on: String,
 }
 
 /// A new entry that fits a planned payment but for its amount (#1143), as
@@ -570,16 +595,19 @@ pub fn preview(
 ) -> Result<ImportView, StatementImportError> {
     let statements = loaded.chosen_statements();
     book.dry_run(|book| {
-        let (mut report, stated) = perform(book, loaded, &statements, false)?;
+        let (mut report, stated, start) = perform(book, loaded, &statements, false)?;
         join_recurring_moves(book, &mut report)?;
         match_schedules(book, &mut report, locale.today())?;
-        describe(book, loaded, &statements, &report, stated.as_ref(), locale)
+        let kept = (stated.as_ref(), start.as_ref());
+        describe(book, loaded, &statements, &report, kept, locale)
     })
 }
 
 /// Imports the statements chosen into the account as one user action
 /// (D-086), and keeps the bank's closing balance as what the bank said
-/// when KassenSturz agrees with it (D-117, D-123). Right after it, the pairs
+/// when KassenSturz agrees with it (D-117, D-123). The account's first
+/// import also works out its starting balance from the bank's balance, in
+/// the same action (D-903, [`StartText`]). Right after it, the pairs
 /// that fit a monthly move the user remembered are joined as an action of
 /// their own, so one Undo takes the joins back and leaves the entries
 /// (D-749).
@@ -589,12 +617,13 @@ pub fn import(
     locale: &impl Locale,
 ) -> Result<ImportView, StatementImportError> {
     let statements = loaded.chosen_statements();
-    let (mut report, stated) = book.as_one_action(Action::ImportStatement, |book| {
+    let (mut report, stated, start) = book.as_one_action(Action::ImportStatement, |book| {
         perform(book, loaded, &statements, true)
     })?;
     join_recurring_moves(book, &mut report)?;
     match_schedules(book, &mut report, locale.today())?;
-    describe(book, loaded, &statements, &report, stated.as_ref(), locale)
+    let kept = (stated.as_ref(), start.as_ref());
+    describe(book, loaded, &statements, &report, kept, locale)
 }
 
 /// Takes back the joins [`import`] made, when they are still the newest
@@ -639,19 +668,38 @@ pub fn undo_matches(book: &mut Book) -> Result<(), StatementImportError> {
     }
 }
 
-/// The steps that belong to the import's own action.
+/// What [`perform`] did: the pipeline's report, the closing balance kept as
+/// what the bank said, and the starting balance it worked out.
+type Performed = (
+    ImportReport,
+    Option<StatedBalance>,
+    Option<(StartChange, StartSource)>,
+);
+
+/// The steps that belong to the import's own action. The starting balance
+/// is worked out in a preview too (inside its dry run), so the preview's
+/// figures are the ones the import leaves.
 fn perform(
     book: &mut Book,
     loaded: &Loaded,
     statements: &[Statement],
     for_real: bool,
-) -> Result<(ImportReport, Option<StatedBalance>), StatementImportError> {
-    let report = import_statements(
+) -> Result<Performed, StatementImportError> {
+    let mut report = import_statements(
         book,
         loaded.account,
         statements,
         &loaded.choices,
         Some(&loaded.path),
+    )?;
+    // The account's first transactions: its starting balance comes from the
+    // bank's balance, not from before the history was there (D-903).
+    let start = derive_start_after_import(
+        book,
+        loaded.account,
+        statements,
+        &mut report,
+        loaded.fetched_on.is_some(),
     )?;
     let stated = closing_to_keep(book, loaded.account, &report)?;
     if for_real && let Some(stated) = &stated {
@@ -662,7 +710,7 @@ fn perform(
     if for_real && let Some(day) = loaded.fetched_on {
         book.note_bank_fetch(loaded.account, day)?;
     }
-    Ok((report, stated))
+    Ok((report, stated, start))
 }
 
 /// The closing balance to keep as what the bank said (D-123): the latest
@@ -751,11 +799,21 @@ fn describe(
     loaded: &Loaded,
     statements: &[Statement],
     report: &ImportReport,
-    stated: Option<&StatedBalance>,
+    (stated, start): (Option<&StatedBalance>, Option<&(StartChange, StartSource)>),
     locale: &impl Locale,
 ) -> Result<ImportView, StatementImportError> {
     let account = book.account(loaded.account)?;
     let writer = AmountWriter::new(book, account.currency, locale)?;
+    let start = start.map(|(change, source)| {
+        let (holds, holds_owes) = writer.balance(change.holds.amount, account.kind);
+        StartText {
+            change: Correction::of(change, account.kind, &writer, locale),
+            from_bank: *source == StartSource::Bank,
+            holds,
+            holds_owes,
+            holds_on: locale.short_date(change.holds.on),
+        }
+    });
     let register: HashMap<TransactionId, register::Entry> = register::entries(book, account.id)?
         .into_iter()
         .map(|entry| (entry.transaction, entry))
@@ -996,6 +1054,7 @@ fn describe(
         planned,
         planned_needs_you: report.schedules.needs_you.len(),
         planned_changed,
+        start,
     })
 }
 
@@ -1460,6 +1519,128 @@ mod tests {
         );
         entry.other_party_name = Some(other_party.into());
         entry
+    }
+
+    /// B-411 (#1237, D-903), where the steps meet: an account added with
+    /// today's balance, as the accounts screen writes it, then the first
+    /// statement fetched from the bank with the weeks before. The preview
+    /// says what happens to the starting balance and changes nothing; the
+    /// import leaves the balance the bank reports, and one Undo takes back
+    /// the import and the starting balance together.
+    #[test]
+    fn the_first_fetch_takes_the_starting_balance_from_the_bank() {
+        let mut book = started();
+        let today = "2026-10-19";
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            today,
+        );
+        let statement = Statement {
+            account: StatementAccount::default(),
+            currency: eur(),
+            opening_balance: None,
+            closing_balance: Some(kassensturz_import::Balance {
+                amount: Money::from_minor_units(100_000, eur().code()),
+                date: Date::new(2026, 10, 19).expect("a date"),
+            }),
+            entries: vec![
+                entry(2, -45_000, "Example Landlord"),
+                entry(5, 180_000, "Example Employer"),
+                entry(16, -15_000, "Example Grocer"),
+            ],
+        };
+        // A fetch notes its day on the account's bank link (D-153).
+        book.link_bank_account(&kassensturz_core::BankLink {
+            account: checking,
+            iban: Some("DE89370400440532013000".to_owned()),
+            bank_code: None,
+            number: None,
+            last_fetched_on: None,
+        })
+        .expect("linked");
+        let loaded = Loaded::from_bank(
+            checking,
+            statement,
+            Date::new(2026, 10, 19).expect("a date"),
+        );
+        let balance = |book: &Book| book.balance(checking).expect("balance").minor_units();
+
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        let start = shown.start.as_ref().expect("the starting balance changes");
+        assert!(start.from_bank);
+        assert_eq!(
+            (start.holds.exact.as_str(), start.holds_on.as_str()),
+            ("1000,00 €", today)
+        );
+        let was = start.change.was.as_ref().expect("there was one");
+        assert_eq!((was.0.exact.as_str(), was.2.as_str()), ("1000,00 €", today));
+        assert_eq!(
+            (
+                start.change.would_be.exact.as_str(),
+                start.change.date.as_str(),
+                start.change.moves,
+                start.change.adds
+            ),
+            ("-200,00 €", "2026-10-01", true, false)
+        );
+        // The bank's balance is held against the figure the import leaves.
+        let closing = shown.balances.last().expect("a closing balance");
+        assert!(closing.matches, "{closing:?}");
+        assert!(closing.stated);
+        assert_eq!(closing.book.exact, "1000,00 €");
+        // The preview changed nothing.
+        assert_eq!(balance(&book), 100_000);
+        assert_eq!(rows(&book, checking), 1);
+
+        let done = import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(done.start, shown.start, "the import does what was shown");
+        assert_eq!(balance(&book), 100_000, "not 2.200,00: B-411");
+        assert_eq!(rows(&book, checking), 4);
+        let register =
+            register_view(&book, checking, Sort::default(), &TestLocale).expect("register");
+        assert_eq!(register.balance.exact, "1000,00 €");
+        // The account's page agrees with what the bank said (D-117).
+        let details =
+            crate::accounts::details(&book, &checking.to_string(), &TestLocale).expect("details");
+        let stated = details.stated.expect("what the bank said");
+        assert!(stated.matches);
+        assert_eq!(
+            (stated.balance.exact.as_str(), stated.date.as_str()),
+            ("1000,00 €", today)
+        );
+        // The accounts screen has nothing to offer.
+        let view = crate::accounts::view(&book, &TestLocale).expect("accounts");
+        assert_eq!(view.sections[0].accounts[0].differs, None);
+
+        let change = book.change_to_undo().expect("history").expect("a change");
+        assert_eq!(change.action, Action::ImportStatement);
+        book.undo().expect("undone");
+        assert_eq!(balance(&book), 100_000);
+        assert_eq!(rows(&book, checking), 1);
+
+        // Neighbouring path: the next fetch is not the first, so a
+        // difference is shown and nothing is worked out (D-111).
+        book.redo().expect("redone");
+        let next = Statement {
+            account: StatementAccount::default(),
+            currency: eur(),
+            opening_balance: None,
+            closing_balance: Some(kassensturz_import::Balance {
+                amount: Money::from_minor_units(90_000, eur().code()),
+                date: Date::new(2026, 10, 19).expect("a date"),
+            }),
+            entries: vec![entry(19, -2_000, "Example Bakery")],
+        };
+        let loaded = Loaded::from_bank(checking, next, Date::new(2026, 10, 19).expect("a date"));
+        let done = import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(done.start, None);
+        let closing = done.balances.last().expect("a closing balance");
+        assert!(!closing.matches);
+        assert_eq!(closing.difference.exact, "80,00 €");
+        assert_eq!(balance(&book), 98_000);
     }
 
     /// B-365 (round 7, B6): a bank's text with a direction override showed

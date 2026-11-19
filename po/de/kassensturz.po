@@ -16,6 +16,96 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "A starting balance of %1, dated %2, is added."
+msgstr "Ein Anfangsbestand von %1 mit dem Datum %2 wird hinzugefügt."
+
+#, kde-format
+msgctxt "@info %1 and %3 are amounts of money, %2 and %4 are dates"
+msgid "The starting balance changes from %1 (dated %2) to %3 (dated %4)."
+msgstr "Der Anfangsbestand ändert sich von %1 (datiert auf %2) auf %3 (datiert auf %4)."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the bank says the account holds"
+msgid "On %1 your bank says: %2. From that, KassenSturz works out what the account held before the first of these transactions, so they don't change your balance a second time."
+msgstr "Am %1 sagt Ihre Bank: %2. Daraus berechnet KassenSturz, was vor der ersten dieser Buchungen auf dem Konto war. So verändern die Buchungen Ihren Kontostand nicht ein zweites Mal."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the user said the account holds"
+msgid "For %1 you said: %2. From that, KassenSturz works out what the account held before the first of these transactions, so they don't change your balance a second time."
+msgstr "Für den %1 haben Sie angegeben: %2. Daraus berechnet KassenSturz, was vor der ersten dieser Buchungen auf dem Konto war. So verändern die Buchungen Ihren Kontostand nicht ein zweites Mal."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Starting balance"
+msgstr "Anfangsbestand"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "A starting balance of %1, dated %2, was added."
+msgstr "Ein Anfangsbestand von %1 mit dem Datum %2 wurde hinzugefügt."
+
+#, kde-format
+msgctxt "@info %1 and %3 are amounts of money, %2 and %4 are dates"
+msgid "The starting balance was changed from %1 (dated %2) to %3 (dated %4)."
+msgstr "Der Anfangsbestand wurde von %1 (datiert auf %2) auf %3 (datiert auf %4) geändert."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the bank said the account held"
+msgid "On %1 your bank said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import."
+msgstr "Am %1 sagte Ihre Bank: %2. Daraus hat KassenSturz berechnet, was vor der ersten dieser Buchungen auf dem Konto war. So haben die Buchungen Ihren Kontostand nicht ein zweites Mal verändert. „Rückgängig“ nimmt das zusammen mit dem Import zurück."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the user said the account held"
+msgid "For %1 you said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import."
+msgstr "Für den %1 haben Sie angegeben: %2. Daraus hat KassenSturz berechnet, was vor der ersten dieser Buchungen auf dem Konto war. So haben die Buchungen Ihren Kontostand nicht ein zweites Mal verändert. „Rückgängig“ nimmt das zusammen mit dem Import zurück."
+
+#, kde-format
+msgctxt "@info %1 is the name of an account, %2 is a date, %3 and %4 say how much money there was or was owed"
+msgid "%1: on %2 your bank said %3, but KassenSturz has %4 for that day. You can check this and correct the starting balance."
+msgstr "%1: Am %2 sagte Ihre Bank %3, aber KassenSturz hat für diesen Tag %4. Sie können das prüfen und den Anfangsbestand korrigieren."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Check and correct…"
+msgstr "Prüfen und korrigieren…"
+
+#, kde-format
+msgctxt "@info"
+msgid "If the difference comes from before your first transaction in KassenSturz, correcting the starting balance makes both agree. This is what would change:"
+msgstr "Kommt der Unterschied aus der Zeit vor Ihrer ersten Buchung in KassenSturz, bringt eine Korrektur des Anfangsbestands beide in Einklang. Das würde sich ändern:"
+
+#, kde-format
+msgctxt "@info the account has no starting balance"
+msgid "Starting balance now: none"
+msgstr "Anfangsbestand jetzt: keiner"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "Starting balance now: %1, dated %2"
+msgstr "Anfangsbestand jetzt: %1, datiert auf %2"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "Starting balance afterwards: %1, dated %2"
+msgstr "Anfangsbestand danach: %1, datiert auf %2"
+
+#, kde-format
+msgctxt "@info"
+msgid "It is dated before the account's first transaction, so earlier days show the right balance too."
+msgstr "Er steht vor der ersten Buchung des Kontos, damit auch frühere Tage den richtigen Kontostand zeigen."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 says how much money there is or what is owed"
+msgid "Balance on %1 afterwards: %2, as your bank says"
+msgstr "Kontostand am %1 danach: %2, wie Ihre Bank sagt"
+
+#, kde-format
+msgctxt "@info"
+msgid "Your other transactions stay as they are. Nothing changes until you click, and Undo takes the correction back."
+msgstr "Ihre übrigen Buchungen bleiben, wie sie sind. Nichts ändert sich, bevor Sie klicken, und „Rückgängig“ nimmt die Korrektur zurück."
+
 #: crates/kassensturz-ui-bridge/qml/AccountCard.qml:65
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:138
 #, kde-format
@@ -3897,10 +3987,10 @@ msgstr "Vergleichen"
 msgctxt "@info %1 is a date, %2 says how much money there is or what is owed"
 msgid ""
 "The starting balance is corrected. On %1 both your bank and KassenSturz now "
-"say %2."
+"say %2. Undo takes the correction back."
 msgstr ""
 "Der Anfangsbestand ist korrigiert. Am %1 sagen Ihre Bank und KassenSturz "
-"jetzt beide: %2."
+"jetzt beide: %2. „Rückgängig“ nimmt die Korrektur zurück."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:177
 #, kde-format
@@ -3926,32 +4016,6 @@ msgstr "Woher der Unterschied kommen kann"
 msgctxt "@title"
 msgid "Correct the starting balance"
 msgstr "Anfangsbestand korrigieren"
-
-#: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:230
-#, kde-format
-msgctxt "@info %1 is an amount of money, %2 and %3 are dates"
-msgid ""
-"If the difference comes from before you started using KassenSturz, a "
-"starting balance of %1 dated %2 makes both agree. KassenSturz then has on %3 "
-"what your bank says. Your other transactions stay as they are."
-msgstr ""
-"Kommt der Unterschied aus der Zeit, bevor Sie KassenSturz benutzt haben, "
-"bringt ein Anfangsbestand von %1 mit dem Datum %2 beide in Einklang. "
-"KassenSturz hat dann am %3, was Ihre Bank sagt. Ihre übrigen Buchungen "
-"bleiben, wie sie sind."
-
-#: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:231
-#, kde-format
-msgctxt "@info %1 is an amount of money, %2 and %3 are dates"
-msgid ""
-"If the difference comes from before you started using KassenSturz, a "
-"starting balance of %1 (dated %2) makes both agree. KassenSturz then has on "
-"%3 what your bank says. Your other transactions stay as they are."
-msgstr ""
-"Kommt der Unterschied aus der Zeit, bevor Sie KassenSturz benutzt haben, "
-"bringt ein Anfangsbestand von %1 (datiert auf %2) beide in Einklang. "
-"KassenSturz hat dann am %3, was Ihre Bank sagt. Ihre übrigen Buchungen "
-"bleiben, wie sie sind."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:240
 #, kde-format

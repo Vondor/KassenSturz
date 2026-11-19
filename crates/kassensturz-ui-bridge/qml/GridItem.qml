@@ -763,11 +763,14 @@ Item {
 
                         background: Rectangle {
                             readonly property bool lit: listedRow.down || listedRow.hovered || listedRow.visualFocus
+                            // A transaction a change just added, changed or
+                            // brought back, for a moment (B-384, D-857).
+                            readonly property bool changed: ChangedRows.lit(String(listedRow.modelData.id ?? ""))
 
-                            color: lit
+                            color: lit || changed
                                 ? Kirigami.Theme.highlightColor
                                 : listedRow.index % 2 === 1 ? Kirigami.Theme.alternateBackgroundColor : "transparent"
-                            opacity: lit ? 0.3 : 1
+                            opacity: changed ? 0.5 : lit ? 0.3 : 1
                         }
 
                         contentItem: TransactionRow {

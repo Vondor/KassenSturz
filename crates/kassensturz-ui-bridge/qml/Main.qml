@@ -700,7 +700,10 @@ Kirigami.ApplicationWindow {
 
     function offerUndo() {
         if (started && changeHistory.undoChange?.action !== undefined) {
-            showPassiveNotification(changeNames.name(changeHistory.undoChange.action), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
+            // The rows of the change light up, and the notice names the one
+            // transaction it touched (B-384, D-857).
+            ChangedRows.light(changeHistory.undoChange.summary?.transactions);
+            showPassiveNotification(changeNames.describe(changeHistory.undoChange), 8000, i18nContext.i18nc("@action:button take the last change back", "Undo"), () => root.undoLast());
         }
     }
 
@@ -781,6 +784,8 @@ Kirigami.ApplicationWindow {
             showPassiveNotification(i18nContext.i18nc("@info %1 is a list of files", "The bills moved, but KassenSturz couldn't remove their old copies: %1", Array.from(result.copiesLeft).join(", ")), "long");
         }
         const what = changeNames.describe(result.change);
+        // The rows it touched light up, where they are shown (B-384).
+        ChangedRows.light(result.change.summary?.transactions);
         // The chat hears of an Undo of the changes it prepared, whichever
         // way the user took them back (B-354).
         if (!redone && result.change.action === "apply-ai-changes") {

@@ -367,6 +367,7 @@ fn change_object_in(change: &ChangeText, filed: &HashMap<String, usize>) -> QVar
         ("filedBills", QVariant::from(&count(filed))),
         ("action", text(change.action)),
         ("madeAt", text(&change.made_at)),
+        ("madeAtSeconds", text(&change.made_at_seconds.to_string())),
         ("undone", QVariant::from(&change.undone)),
         ("fileName", text(&change.file_name)),
         (
@@ -445,5 +446,24 @@ mod tests {
             ..summary
         });
         assert!(keys(&object_of(&several, "booking")).is_empty());
+    }
+
+    /// The history page groups by day and sitting from `madeAtSeconds`
+    /// (B-395, D-870).
+    #[test]
+    fn a_change_reads_back_with_its_time_in_seconds() {
+        let change = ChangeText {
+            id: "c1".into(),
+            action: "add-budget",
+            made_at: "19.11.2026 21:40".into(),
+            made_at_seconds: 1_795_643_000,
+            undone: false,
+            file_name: String::new(),
+            summary: None,
+        };
+        let read = change_object_in(&change, &HashMap::new());
+        assert_eq!(text_of(&read, "madeAtSeconds"), "1795643000");
+        assert_eq!(text_of(&read, "madeAt"), "19.11.2026 21:40");
+        assert_eq!(text_of(&read, "action"), "add-budget");
     }
 }

@@ -154,6 +154,54 @@ QtObject {
         }
     }
 
+    // The screen of the menu a change belongs to, as a key of Main's
+    // `screens`, so Undo can ask first when the change isn't on the screen
+    // shown (B-395, D-870). Empty when it belongs to none in particular.
+    function place(action: string): string {
+        switch (action) {
+        case "add-category":
+        case "rename-category":
+        case "move-category":
+        case "remove-category":
+        case "set-hidden-categories":
+        case "add-group":
+        case "edit-group":
+        case "move-group":
+        case "remove-group":
+            return "categories";
+        case "add-budget":
+        case "edit-budget":
+        case "remove-budget":
+            return "budgets";
+        case "add-rule":
+        case "edit-rule":
+        case "move-rule":
+        case "remove-rule":
+        case "run-rules":
+            return "rules";
+        case "add-view":
+        case "edit-view":
+        case "rename-view":
+        case "move-view":
+        case "remove-view":
+            return "statistics";
+        case "set-rounding-mode":
+        case "use-currency":
+        case "add-rate":
+        case "remove-rate":
+        case "add-tag":
+        case "rename-tag":
+        case "remove-tag":
+        case "merge-tags":
+            return "settings";
+        case "apply-ai-changes":
+            return "";
+        default:
+            // Accounts, transactions, imports, plans and bank links.
+            return "accounts";
+        }
+    }
+
     // A change as one line: what was done, for an import the file it read,
     // and for a change of one transaction which one it was. `change` is an
     // object of history_model.rs.

@@ -1,6 +1,6 @@
 # Guided setup: design
 
-Status: **design** (BS2, #1031; decided by Vondor in D-792, D-895 to D-902 and D-911, and the 8-page sketch he approved on 19 Nov 2026). Made by Claude (Fable 5.2). Nothing here is built yet; the build follows in three pull requests (section 8).
+Status: **design** (BS2, #1031; decided by Vondor in D-792, D-895 to D-902, D-911 and D-921 to D-923, and the 8-page sketch he approved on 19 Nov 2026). Made by Claude (Fable 5.2). Nothing here is built yet; the build follows in three pull requests (section 8).
 
 The guided setup is an **optional** walk through the important functions, on the person's own data. It extends the first setup wizard (`docs/SETUP_WIZARD.md`, M7a.9), which stays as it is: the guided setup is one more choice on its page 2. The pictures in `docs/setup-wizard/guided/` are simple QML mocks with made-up figures and invented names, in German because the testers are German; they show layout and wording, not final styling.
 
@@ -100,7 +100,7 @@ The person's real overview in its normal arrange mode, with a small list of four
 - **Yes, I have an AI on this computer** turns on the existing "AI features" switch and opens the existing "AI provider and privacy" page, where the address is typed and tested. Nothing else changes: the permission grid stays all off, and an address on another computer still needs the existing consent with its statement of what is sent (D-035).
 - The page states that KassenSturz is complete without AI and names no vendor as a recommendation; the two programs in the text are examples of where a local model runs, as on the existing settings page.
 - **A build without AI** (D-039) has no step 7; the count then says "of 6".
-- This page is the one AI element, besides the Settings toggle, that is visible while AI is off, and only inside the optional guided setup (D-911). AGENTS.md §8 names the Settings toggle as the only such element (D-013), so the pull request that builds this page proposes the matching sentence for §8, for the maintainer to decide (section 9, item 3).
+- This page is the one AI element, besides the Settings toggle, that is visible while AI is off, and only inside the optional guided setup (D-911). AGENTS.md §8 names the Settings toggle as the only such element (D-013), so the pull request that builds this page updates that sentence of §8 (D-923, section 9).
 
 ### Done (`9-done.png`)
 
@@ -158,14 +158,14 @@ All three start after #1237 (thread F1) and #1238, #1239, #1244 and #1241 (threa
 
 1. **Start page choice, the frame, steps 1 and 2, the Help page.** No human gate: it calls the bank setup and the correction unchanged.
 2. **Steps 3 to 6.** No human gate.
-3. **Step 7 and the Done page.** Human gate: AI data sharing (the page turns on the AI switch). It also carries the proposed sentence for AGENTS.md §8.
+3. **Step 7 and the Done page.** Human gate: AI data sharing (the page turns on the AI switch). It also updates the sentence in AGENTS.md §8 (D-923).
 
 Tests in each: every new bridge object read back the way QML reads it; seams with real output (a synthetic CAMT file through the real import into step 2; the fake bank's fetch into step 2 after #1237; a group sorted in step 3 read back from the real register and undone in one step; the chart of step 4 from the real builder; step 7 leaving the AI switch off on Skip, End and "No", checked in the settings file); the no-AI build without step 7; an action-log name for every handler; a screenshot of every built page on the pull request; German entries for every new string.
 
-## 9. Open points for the maintainer
+## 9. Points the maintainer decided
 
-Asked through the coordinator, one at a time. The design uses the recommended option of each until answered.
+Asked through the coordinator; the maintainer took the recommended option of each (19 Nov 2026).
 
-1. **Progress is not stored.** R: keep it only while the app runs, so there is no format change; remaining steps are in Help. Other option: remember it in the settings file, which is a settings migration with backup and test (a human gate) for a small gain.
-2. **Test profile.** R: no guided choice at the start; steps through Help on the example book. Other option: offer the guided setup in the test profile on a new made-up book in the test folder.
-3. **AGENTS.md §8** names the Settings toggle as the only AI element visible while AI is off. D-911 adds step 7. R: the third pull request proposes adding "and the optional last step of the guided setup" to that sentence; only the maintainer changes that file's rules.
+1. **Progress is not stored (D-921, Q-687).** It is kept only while the app runs, so there is no format change; the remaining steps are in Help. The other option was to remember it in the settings file, which would be a settings migration with backup and test (a human gate) for a small gain.
+2. **Test profile (D-922, Q-688).** No guided choice at the start there; the steps are reached through Help on the example book. The other option was to offer the guided setup in the test profile on a new made-up book in the test folder.
+3. **AGENTS.md §8 (D-923, Q-689).** That section names the Settings toggle as the only AI element visible while AI is off, and D-911 adds step 7. The gated third pull request changes the sentence to include the optional last step of the guided setup.

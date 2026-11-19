@@ -6115,19 +6115,6 @@ msgctxt "@action:button keep a budget"
 msgid "Keep it"
 msgstr "Behalten"
 
-#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:108
-#, kde-format
-msgctxt "@info"
-msgid ""
-"A budget is what you plan to spend on a category in a month, a quarter, a "
-"year or some days. The bar shows how much of it is spent and how much is "
-"left. A budget doesn't change any transaction or total."
-msgstr ""
-"Ein Budget ist das, was Sie für eine Kategorie in einem Monat, einem "
-"Quartal, einem Jahr oder einigen Tagen ausgeben möchten. Der Balken zeigt, "
-"wie viel davon ausgegeben ist und wie viel übrig bleibt. Ein Budget ändert "
-"keine Buchung und keine Summe."
-
 #: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:116
 #, kde-format
 msgctxt "@info"
@@ -26830,6 +26817,58 @@ msgid ""
 msgstr ""
 "Geplant. Die erste Zahlung ist am %1 fällig; Sie bestätigen jede Zahlung, "
 "wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@action:inmenu a screen"
+msgid "Plans"
+msgstr "Pläne"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@title a screen of the menu"
+msgid "Plans"
+msgstr "Pläne"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Add a plan"
+msgstr "Plan hinzufügen"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@title"
+msgid "What is a plan?"
+msgstr "Was ist ein Plan?"
+
+#: crates/kassensturz-ui-bridge/qml/PlansPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A payment that comes again and again: rent, salary, insurance. Plans count "
+"in the outlook ahead; you confirm each payment once it has happened."
+msgstr ""
+"Eine Zahlung, die immer wieder kommt: Miete, Gehalt, Versicherung. Pläne "
+"fließen in die Vorschau ein; Sie bestätigen jede Zahlung, wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+#, kde-format
+msgctxt "@title"
+msgid "What is a budget?"
+msgstr "Was ist ein Budget?"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"A limit for a category, for example: “I spend at most 300 € a month on "
+"food.” KassenSturz shows you how much of it is already spent. A budget "
+"doesn't change any transaction or total."
+msgstr ""
+"Eine Obergrenze für eine Kategorie, zum Beispiel: „Für Essen gebe ich "
+"höchstens 300 € im Monat aus.“ KassenSturz zeigt Ihnen, wie viel davon schon"
+" ausgegeben ist. Ein Budget ändert keine Buchung und keine Summe."
 
 #: crates/kassensturz-ui-bridge/qml/StatisticsPage.qml
 #, kde-format

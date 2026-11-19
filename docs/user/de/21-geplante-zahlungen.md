@@ -5,7 +5,7 @@
 ## Eine Zahlung planen
 
 - **Am schnellsten:** Öffnen Sie in einem Konto eine Buchung, zum Beispiel die Miete vom letzten Monat, und wählen Sie **Wieder einplanen…**. Das Formular ist aus der Buchung ausgefüllt; prüfen Sie es und speichern Sie. Die Buchung wird die erste Zahlung des Plans.
-- **Oder von Hand:** Öffnen Sie **Konten** und wählen Sie **Geplante Zahlungen…**, dann **Neue geplante Zahlung…**.
+- **Oder von Hand:** Wählen Sie im Seitenmenü **Pläne**, direkt unter **Budgets**, dann **Plan hinzufügen**. **Konten › Geplante Zahlungen…** öffnet dieselbe Liste als Abkürzung.
 
 Das Formular fragt nach:
 

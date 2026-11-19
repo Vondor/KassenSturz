@@ -98,6 +98,16 @@ ColumnLayout {
         chartAllowed = settings.allows("AllowNewViews");
     }
 
+    // A permission switched in Settings while the chat stays open beside
+    // the page shows or hides its buttons at once (B-402).
+    Connections {
+        target: panel.settings
+
+        function onAllowsChanged() {
+            panel.refresh();
+        }
+    }
+
     // Whether the user lets the AI prepare charts; the button that asks for
     // one is hidden, not grayed out, when not (D-239).
     property bool chartAllowed: false

@@ -14,7 +14,10 @@
 // The button of the `labelled` drawer (the chat's, B-385, D-861) also shows
 // those words beside its icon while the drawer is closed, and is
 // highlighted, so it reads as "Ask AI" and not as a bare icon. While the
-// drawer is open it is the plain icon that closes it.
+// drawer is open it is the plain icon that closes it. Kirigami's header
+// button takes its tooltip from the menu's drawer whatever drawer it opens,
+// so the chat's showed "Show menu" (B-401): it gets its own drawer's words,
+// and a frame while closed, since a flat button's highlight barely shows.
 
 import QtQuick
 
@@ -71,6 +74,16 @@ Item {
                     target: item,
                     value: Qt.binding(() => !item.drawer.drawerOpen)
                 });
+                flatBinding.createObject(item, {
+                    target: item,
+                    value: Qt.binding(() => item.drawer.drawerOpen)
+                });
+                if (item.action !== null && item.action.tooltip !== undefined) {
+                    tooltipBinding.createObject(item, {
+                        target: item.action,
+                        value: Qt.binding(() => names.words(item.drawer))
+                    });
+                }
             }
         }
         const children = item.children ?? [];
@@ -100,6 +113,22 @@ Item {
 
         Binding {
             property: "highlighted"
+        }
+    }
+
+    Component {
+        id: flatBinding
+
+        Binding {
+            property: "flat"
+        }
+    }
+
+    Component {
+        id: tooltipBinding
+
+        Binding {
+            property: "tooltip"
         }
     }
 

@@ -18,8 +18,11 @@ QtObject {
         const next = Object.assign({}, allowed);
         next[key] = value;
         allowed = next;
+        allowsChanged();
         return true;
     }
+    // As AiSettings says a saved permission (B-402).
+    signal allowsChanged()
     // For AiSettingsPage and the chat panel (B-386, B-396): a provider on
     // this computer is saved with a model. ModelChoiceSmoke sets its own
     // form without one.

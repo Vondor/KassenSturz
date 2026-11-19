@@ -659,7 +659,10 @@ impl Store {
             return Ok(Some(key));
         }
         let config = self.config.read();
-        let provider = config.provider()?;
+        // The server's settings are enough: the key belongs to the server,
+        // and a user who hasn't chosen a model yet still needs it to list
+        // the models to choose from (B-403, D-234).
+        let provider = config.connection()?;
         keys.get(&provider.address, provider.key_use)
     }
 
@@ -963,6 +966,34 @@ mod tests {
         assert_eq!(store.test_connection(None, None), Err(AiError::Unreachable));
         // ... but there is no provider to ask a question yet.
         assert_eq!(store.sample("", TODAY), Err(AiError::NoProvider));
+    }
+
+    #[test]
+    fn the_key_for_listing_models_is_found_before_a_model_is_chosen() {
+        // The app looks the key up before it lists the models; an empty
+        // model must not stop it there with "no provider" (B-403).
+        let (_folder, _file, store) = on();
+        let (_, mut keys) = keys();
+        store.save(&mut keys, "http://127.0.0.1:1/v1", "", KeyUse::None, None);
+        assert_eq!(store.key_for(&keys, None), Ok(None));
+        let cloud = "https://api.example.com/v1";
+        store.save(
+            &mut keys,
+            cloud,
+            "",
+            KeyUse::Saved,
+            Some(secret("test-key-ui-list")),
+        );
+        assert_eq!(
+            store.key_for(&keys, None).unwrap(),
+            Some(secret("test-key-ui-list"))
+        );
+        // The whole test, as the app runs it, reaches the server.
+        store.save(&mut keys, "http://127.0.0.1:1/v1", "", KeyUse::None, None);
+        let result = store
+            .key_for(&keys, None)
+            .and_then(|key| store.test_connection(key, None));
+        assert_eq!(result.err(), Some(AiError::Unreachable));
     }
 
     #[test]

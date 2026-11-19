@@ -57,6 +57,14 @@ Item {
         ChangedRows.light(undefined);
         test.check(!row.changed, "nothing to light turns it off");
         ChangedRows.light(["t1"]);
+
+        // "New" until the app closes (B-394, D-869): only what is marked.
+        test.check(!ChangedRows.isNew("t1"), "nothing is new at first");
+        ChangedRows.markNew("t1");
+        ChangedRows.markNew("t1");
+        ChangedRows.markNew("");
+        test.check(ChangedRows.isNew("t1") && !ChangedRows.isNew("t2"), "a marked entry is new, another isn't");
+        test.check(ChangedRows.added.length === 1, "marked once, got " + ChangedRows.added.length);
     }
 
     Timer {

@@ -38,6 +38,7 @@ Every page has **Back** (top left, and Alt+Left). Only the marked buttons write 
 - **Language:** "As in your system (Deutsch)", "English", "Deutsch", each named in itself (D-127). The system's language is preselected, so a German Windows user only confirms.
 - **Currency:** "Which currency do you use?", the regional settings' currency first, otherwise the euro (D-111), with the existing hint "Most people only need to confirm this. You can add an account in another currency later." Hidden when the book already has categories (D-116's rule stays).
 - One button: **Continue**.
+- **Books found from before** (B-404, D-872): when no book was opened last and the app's own book isn't there, but KassenSturz's own folder holds books (the Store app installed again, with its books kept in `Documents\KassenSturz`), they are listed at the top, each with **Open this book**, plus "Nothing is made or changed until you choose." and **Start a new book instead**. The currency and *Continue* wait until that choice; no book is made before it.
 - **Changing the language** saves the existing `Language` setting (D-127) and, on *Continue*, restarts KassenSturz in the new language straight into this page. D-127 avoids a restart because of unsaved typing; here nothing has been typed yet, so the restart loses nothing. The page says so before the click: "KassenSturz starts again in English. Nothing is lost." (open question Q-395).
 
 ### Page 2: How would you like to start? (`2-start.png`)

@@ -11,11 +11,12 @@
 //! is called is the UI's to say (D-034), so an action goes to QML as a key
 //! (`add-transaction`) that `ChangeNames.qml` puts into words.
 
-use kassensturz_core::{Report, Timestamp};
+use kassensturz_core::{AccountKind, Report, Timestamp, TransactionId};
 use kassensturz_store::{Action, Book, Change, ChangeSummary, HistoryRetention, StoreError};
 
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
+use crate::register::AmountWriter;
 
 /// How many changes the list shows, newest first. The store keeps the
 /// others as long as the book's setting says.
@@ -79,6 +80,25 @@ pub struct SummaryText {
     pub first_date: String,
     /// The latest of their dates, in the user's format; empty if none.
     pub last_date: String,
+    /// The IDs of the transactions it touched, so the screens can light
+    /// their rows up after the change, its undo or its redo (B-384, D-857).
+    pub transactions: Vec<TransactionId>,
+    /// The one transaction it touched, in words, so "Undone: …" can name
+    /// it; `None` when it touched several, or the transaction is in the
+    /// book neither before nor after the step.
+    pub booking: Option<BookingText>,
+}
+
+/// One transaction as the undo and redo notices name it (B-384, D-857):
+/// whom it was with, or else its category or the other account, and its
+/// amount in the user's account, written by Rust (D-065).
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct BookingText {
+    /// The payee, the category or the other account's name; empty when
+    /// it has none of these.
+    pub name: String,
+    /// Its amount as seen from the user's account, e.g. "-23,80 €".
+    pub amount: String,
 }
 
 /// What the history screen and the undo and redo actions show.
@@ -202,8 +222,9 @@ pub fn undo(
         return Ok(None);
     };
     // Described first: the summary is read from the book as it is now.
-    let text = change_text(book, &next, true, when, locale)?;
+    let mut text = change_text(book, &next, true, when, locale)?;
     book.undo()?;
+    name_booking_after(book, &mut text, locale)?;
     Ok(Some(ChangeText {
         undone: true,
         ..text
@@ -219,8 +240,9 @@ pub fn redo(
     let Some(next) = book.change_to_redo()? else {
         return Ok(None);
     };
-    let text = change_text(book, &next, true, when, locale)?;
+    let mut text = change_text(book, &next, true, when, locale)?;
     book.redo()?;
+    name_booking_after(book, &mut text, locale)?;
     Ok(Some(ChangeText {
         undone: false,
         ..text
@@ -301,6 +323,67 @@ fn change_text(
     })
 }
 
+/// A transaction that wasn't in the book before the step (an added one
+/// undone is gone, a removed one undone is back) is named from the book
+/// after it.
+fn name_booking_after(
+    book: &Book,
+    text: &mut ChangeText,
+    locale: &impl Locale,
+) -> Result<(), HistoryError> {
+    if let Some(summary) = text.summary.as_mut()
+        && summary.booking.is_none()
+        && let [only] = summary.transactions.as_slice()
+    {
+        summary.booking = booking_text(book, *only, locale)?;
+    }
+    Ok(())
+}
+
+/// `transaction` in words ([`BookingText`]), or `None` if the book doesn't
+/// hold it (now).
+fn booking_text(
+    book: &Book,
+    transaction: TransactionId,
+    locale: &impl Locale,
+) -> Result<Option<BookingText>, HistoryError> {
+    let transaction = match book.transaction(transaction) {
+        Ok(transaction) => transaction,
+        Err(StoreError::UnknownTransaction(_)) => return Ok(None),
+        Err(error) => return Err(error.into()),
+    };
+    let mut own = None;
+    let mut other = None;
+    for split in transaction.splits() {
+        let Some(account) = split.account else {
+            continue;
+        };
+        let account = book.account(account)?;
+        match account.kind {
+            AccountKind::Asset | AccountKind::Liability if own.is_none() => {
+                own = Some(split.amount);
+            }
+            AccountKind::Equity => {}
+            _ if other.is_none() => other = Some(account.name),
+            _ => {}
+        }
+    }
+    let Some(amount) = own else {
+        return Ok(None);
+    };
+    let name = transaction
+        .payee()
+        .map(kassensturz_store::shown_text)
+        .filter(|payee| !payee.trim().is_empty())
+        .or(other)
+        .unwrap_or_default();
+    let writer = AmountWriter::new(book, amount.currency(), locale)?;
+    Ok(Some(BookingText {
+        name,
+        amount: writer.text(amount).text,
+    }))
+}
+
 /// `None` for a change that touched no transaction.
 fn summary_text(
     book: &Book,
@@ -321,6 +404,10 @@ fn summary_text(
         || (String::new(), String::new()),
         |(first, last)| (locale.short_date(first), locale.short_date(last)),
     );
+    let booking = match summary.transactions.as_slice() {
+        [only] => booking_text(book, *only, locale)?,
+        _ => None,
+    };
     Ok(Some(SummaryText {
         added: summary.added,
         removed: summary.removed,
@@ -328,6 +415,8 @@ fn summary_text(
         accounts: names,
         first_date,
         last_date,
+        transactions: summary.transactions.clone(),
+        booking,
     }))
 }
 
@@ -430,20 +519,33 @@ mod tests {
     #[test]
     fn undo_names_the_change_and_what_it_touched_and_redo_makes_it_again() {
         let (mut book, account) = book_with_account("Checking account");
-        add_entry(&mut book, &account, false, "53,20", "2026-10-05");
+        let added = add_entry(&mut book, &account, false, "53,20", "2026-10-05");
 
         let shown = view_of(&book);
         let next = shown.undo.expect("something to undo");
         assert_eq!(next.action, "add-transaction");
+        let summary = next.summary.expect("summary");
+        // The transaction, named for "Undone: …" (B-384, D-857).
+        let ids: Vec<String> = summary
+            .transactions
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        assert_eq!(ids, vec![added.clone()]);
         assert_eq!(
-            next.summary,
-            Some(SummaryText {
+            summary,
+            SummaryText {
                 added: 1,
                 accounts: vec!["Checking account".into()],
                 first_date: "2026-10-05".into(),
                 last_date: "2026-10-05".into(),
+                transactions: summary.transactions.clone(),
+                booking: Some(BookingText {
+                    name: "Corner Grocery".into(),
+                    amount: "-53,20 €".into(),
+                }),
                 ..SummaryText::default()
-            })
+            }
         );
         assert!(shown.redo.is_none());
 
@@ -452,6 +554,15 @@ mod tests {
             .expect("a change");
         assert_eq!(taken_back.action, "add-transaction");
         assert!(taken_back.undone);
+        // Named from the book before the step: it is gone after.
+        assert_eq!(
+            taken_back
+                .summary
+                .as_ref()
+                .and_then(|summary| summary.booking.as_ref())
+                .map(|booking| booking.name.as_str()),
+            Some("Corner Grocery")
+        );
         let shown = view_of(&book);
         assert_eq!(shown.undo.expect("older change").action, "add-account");
         let redo_next = shown.redo.expect("something to redo");
@@ -462,6 +573,13 @@ mod tests {
             .expect("redo")
             .expect("a change");
         assert!(!made_again.undone);
+        // Named from the book after the step: it wasn't there before.
+        let booking = made_again
+            .summary
+            .and_then(|summary| summary.booking)
+            .expect("the booking named");
+        assert_eq!(booking.name, "Corner Grocery");
+        assert_eq!(booking.amount, "-53,20 €");
         assert_eq!(
             view_of(&book).undo.expect("undo again").action,
             "add-transaction"

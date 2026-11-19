@@ -55,6 +55,25 @@ Kirigami.ScrollablePage {
             wrapMode: Text.Wrap
         }
 
+        // One page in plain words on why the data is safe (D-862), for
+        // people who trust a written explanation more than a program. It is
+        // part of the handbook and opens in the web browser; the address is
+        // translated, so each language opens its own page (English where
+        // there is none yet).
+        Controls.Button {
+            Layout.alignment: Qt.AlignHCenter
+            flat: true
+            icon.name: "security-high"
+            text: page.i18nContext.i18nc("@action:button opens a page of the handbook in the web browser", "Why your data is safe")
+            Controls.ToolTip.text: page.i18nContext.i18nc("@info:tooltip", "Opens a page of the handbook in your web browser")
+            Controls.ToolTip.visible: hovered
+            Accessible.description: Controls.ToolTip.text
+            onClicked: {
+                ActionLog.taken("WelcomePage_whyYourDataIsSafe")
+                Qt.openUrlExternally(page.i18nContext.i18nc("@info the web address of the handbook page \"Why your data is safe\"; a language with its own page puts its address here", "https://github.com/Vondor/KassenSturz/blob/main/docs/user/en/why-your-data-is-safe.md"))
+            }
+        }
+
         Kirigami.FormLayout {
             Layout.alignment: Qt.AlignHCenter
             Layout.topMargin: Kirigami.Units.largeSpacing

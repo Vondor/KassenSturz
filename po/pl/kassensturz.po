@@ -2077,17 +2077,6 @@ msgid ""
 "server's name, and has no login name, password, ? or # part, for example %1."
 msgstr "Tego adresu nie można użyć. Musi zaczynać się od http:// lub https://, zawierać nazwę serwera i nie może mieć nazwy użytkownika, hasła ani części z ? lub #, na przykład %1."
 
-#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:56
-#, kde-format
-msgctxt "@info"
-msgid ""
-"This address is on another computer and starts with http://, which isn't "
-"encrypted, so KassenSturz won't send anything to it. Use the provider's "
-"https:// address. If the provider offers only http:// and runs in a network "
-"you trust, you can tick “Allow unencrypted connections” under the address in "
-"the AI settings."
-msgstr "Ten adres jest na innym komputerze i zaczyna się od http://, które nie jest szyfrowane, więc KassenSturz nic do niego nie wyśle. Użyj adresu https:// dostawcy. Jeśli dostawca oferuje tylko http:// i działa w sieci, której ufasz, możesz zaznaczyć „Zezwalaj na nieszyfrowane połączenia” pod adresem w ustawieniach AI."
-
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:58
 #, kde-format
 msgctxt "@info"
@@ -24726,6 +24715,68 @@ msgstr ""
 "Zaplanowano. Pierwsza płatność przypada na %1; każdą płatność potwierdzasz, "
 "gdy już nastąpi."
 
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@action:button opens a page of the handbook in the web browser"
+msgid "Why your data is safe"
+msgstr "Dlaczego Twoje dane są bezpieczne"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt "@info:tooltip"
+msgid "Opens a page of the handbook in your web browser"
+msgstr "Otwiera stronę podręcznika w przeglądarce internetowej"
+
+#: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
+#, kde-format
+msgctxt ""
+"@info the web address of the handbook page \"Why your data is safe\"; a "
+"language with its own page puts its address here"
+msgid ""
+"https://github.com/Vondor/KassenSturz/blob/main/docs/user/en/why-your-data-"
+"is-safe.md"
+msgstr ""
+"https://github.com/Vondor/KassenSturz/blob/main/docs/user/en/why-your-data-"
+"is-safe.md"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
+#, kde-format
+msgctxt ""
+"@info %1 is what was done, e.g. Added a transaction; %2 whom it was with or "
+"its category; %3 its amount"
+msgid "%1 (%2, %3)"
+msgstr "%1 (%2, %3)"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
+#, kde-format
+msgctxt "@info %1 is what was done, e.g. Added a transaction; %2 its amount"
+msgid "%1 (%2)"
+msgstr "%1 (%2)"
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"KassenSturz won't use this address yet: it is on another computer and starts"
+" with http://, so what is sent to it travels unencrypted. Anyone on the same"
+" network, for example on your Wi-Fi, could read it, your questions and the "
+"provider's key included. Use the provider's https:// address. If the "
+"provider offers only http:// and runs in a network you trust, you can allow "
+"unencrypted connections in the AI settings."
+msgstr ""
+"KassenSturz jeszcze nie używa tego adresu: jest na innym komputerze i "
+"zaczyna się od http://, więc to, co jest do niego wysyłane, przesyłane jest "
+"bez szyfrowania. Każdy w tej samej sieci, na przykład w Twoim Wi-Fi, mógłby "
+"to odczytać, także Twoje pytania i klucz dostawcy. Użyj adresu https:// "
+"dostawcy. Jeśli dostawca oferuje tylko http:// i działa w sieci, której "
+"ufasz, możesz zezwolić na nieszyfrowane połączenia w ustawieniach AI."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
+#, kde-format
+msgctxt "@action:button ticks the box of the same name in the AI settings"
+msgid "Allow unencrypted connections"
+msgstr "Zezwalaj na nieszyfrowane połączenia"
+
 #: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:34
 #, kde-format
 msgctxt "@title:window"
@@ -24755,3 +24806,21 @@ msgstr "Zostaw ją tam"
 msgctxt "@info %1 is a folder"
 msgid "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
 msgstr "Windows usuwa ten folder razem ze wszystkimi kopiami zapasowymi w nim, gdy KassenSturz zostanie odinstalowany lub zresetowany. Trzymaj swoją księgę we własnym folderze KassenSturz (%1) lub w wybranym przez siebie folderze."
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@info a transaction added since the app started"
+msgid "New"
+msgstr "Nowa"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@action:button remove this transaction"
+msgid "Remove"
+msgstr "Usuń"
+
+#: crates/kassensturz-ui-bridge/qml/RegisterPage.qml
+#, kde-format
+msgctxt "@action:button %1 is who was paid or who paid, %2 an amount"
+msgid "Remove %1, %2"
+msgstr "Usuń %1, %2"

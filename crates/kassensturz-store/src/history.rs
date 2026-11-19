@@ -300,6 +300,9 @@ pub struct ChangeSummary {
     /// The earliest and the latest booking date of these transactions,
     /// before or after the change.
     pub dates: Option<(Date, Date)>,
+    /// The transactions it touched, sorted by ID, so a front end can show
+    /// which rows changed (B-384, D-857).
+    pub transactions: Vec<TransactionId>,
 }
 
 /// How long a book keeps its change history (D-066). The user chooses it,
@@ -1187,11 +1190,16 @@ impl Book {
                  EXISTS (SELECT 1 FROM {schema}.changed_transactions
                          WHERE change_id = ?1 AND id = touched.id AND side = 'before'),
                  EXISTS (SELECT 1 FROM {schema}.changed_transactions
-                         WHERE change_id = ?1 AND id = touched.id AND side = 'after')
-             FROM ({touched}) AS touched"
+                         WHERE change_id = ?1 AND id = touched.id AND side = 'after'),
+                 touched.id
+             FROM ({touched}) AS touched
+             ORDER BY touched.id"
         ))?;
         let mut rows = statement.query([id])?;
         while let Some(row) = rows.next()? {
+            summary
+                .transactions
+                .push(TransactionId::from_bytes(row.get(2)?));
             match (row.get::<_, bool>(0)?, row.get::<_, bool>(1)?) {
                 (false, true) => summary.added += 1,
                 (true, false) => summary.removed += 1,

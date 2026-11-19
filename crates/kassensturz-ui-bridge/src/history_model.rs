@@ -390,5 +390,60 @@ fn summary_object(summary: &SummaryText) -> QVariant {
         ),
         ("firstDate", text(&summary.first_date)),
         ("lastDate", text(&summary.last_date)),
+        (
+            "transactions",
+            list(summary.transactions.iter().map(|id| text(&id.to_string()))),
+        ),
+        // The one transaction it touched, for "Undone: …" (B-384, D-857);
+        // an empty map when there are several or none.
+        (
+            "booking",
+            summary.booking.as_ref().map_or_else(
+                || map([]),
+                |booking| {
+                    map([
+                        ("name", text(&booking.name)),
+                        ("amount", text(&booking.amount)),
+                    ])
+                },
+            ),
+        ),
     ])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::history::BookingText;
+    use crate::variant::read_back::{keys, object_of, text_of, texts_of};
+    use kassensturz_core::TransactionId;
+
+    #[test]
+    fn a_summary_reads_back_with_its_rows_and_booking() {
+        let id = TransactionId::generate();
+        let summary = SummaryText {
+            added: 1,
+            accounts: vec!["Checking".into()],
+            first_date: "05.10.2026".into(),
+            last_date: "05.10.2026".into(),
+            transactions: vec![id],
+            booking: Some(BookingText {
+                name: "Corner Grocery".into(),
+                amount: "-23,80 €".into(),
+            }),
+            ..SummaryText::default()
+        };
+        let read = summary_object(&summary);
+        assert_eq!(texts_of(&read, "transactions"), vec![id.to_string()]);
+        let booking = object_of(&read, "booking");
+        assert_eq!(text_of(&booking, "name"), "Corner Grocery");
+        assert_eq!(text_of(&booking, "amount"), "-23,80 €");
+
+        // Several transactions: no booking, an empty object.
+        let several = summary_object(&SummaryText {
+            booking: None,
+            ..summary
+        });
+        assert!(keys(&object_of(&several, "booking")).is_empty());
+    }
 }

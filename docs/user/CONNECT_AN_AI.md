@@ -14,12 +14,14 @@ KassenSturz can work with an AI in two different ways. Pick the one that fits wh
 
 Open **Settings → AI provider and privacy…**. Type the provider's **address**, choose how its **key** is kept, and press **Save**. The address is checked while you type: a green line says it looks right, and a red one says what is wrong, for example a missing `https://` or a space; **Save** waits until the address is right. The example under the field is only a hint and is never put into the field. If you don't know the model's name, leave it empty: after saving, KassenSturz asks the provider which models it offers and you pick one from the **Model** list, then press **Save** again. Models that are only for searching (their name has "embed" in it) are shown but can't be chosen, since they can't answer in the chat. **Enter another name…** at the end of the list lets you type a name yourself; if the provider names no models at all, the field stays a plain text field and you type the name. **Test connection** checks the address and the key at any time, and once a model is chosen it also asks that model to call a made-up test function, so you see whether it can use KassenSturz's functions. It sends nothing from your book; **Show what the test sends** shows the test question exactly.
 
+**A provider on another computer** (even one in your home) is set up on the same screen: under the key, **What leaves this computer** lists what is sent and what never is. For an `http://` address a warning says the connection isn't encrypted. One box, **I have read this and agree**, agrees to both, and **Save and test** then saves, agrees and lists the models in one step. Without the box you can still save, but nothing is sent until you agree. Before each question goes, the chat still shows exactly what it sends.
+
 ### OpenAI (with an API key)
 
 - Address: `https://api.openai.com/v1`
 - Key: create an API key in your account at OpenAI and paste it into KassenSturz.
 - **A ChatGPT subscription is not an API key and doesn't work here.** The API is billed separately from ChatGPT Plus or Pro. You pay only for what you use.
-- OpenAI runs on another computer, so KassenSturz shows what is sent and asks for your agreement before the first question.
+- OpenAI runs on another computer, so the settings show what is sent and ask for your agreement on the same screen.
 
 ### Ollama (on this computer)
 

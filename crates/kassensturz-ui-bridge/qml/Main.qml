@@ -1538,7 +1538,11 @@ Kirigami.ApplicationWindow {
         enabled: aiSwitch.enabled && root.started
         modal: root.width < Kirigami.Units.gridUnit * root.chatBesideMinWidth
         handleVisible: aiSwitch.enabled && root.started
+        // By name: Kirigami's header button shows the icon's name before its
+        // source, and the name's default is a panel icon (B-401).
+        handleClosedIcon.name: "dialog-messages"
         handleClosedIcon.source: "dialog-messages"
+        handleOpenIcon.name: "go-next"
         handleOpenIcon.source: "go-next"
         handleOpenToolTip: root.i18nContext.i18nc("@action:button close the chat sidebar", "Close the chat")
         // The closed handle is the way into the chat, so it says so in words

@@ -218,6 +218,13 @@ pub mod qobject {
         ) -> QVariant;
 
         /// Removes a transaction. Returns an empty map, or the error.
+        /// The position of the transaction `transaction_id` in the list as
+        /// it is now, counted from 0, or -1 when the list doesn't show it:
+        /// for going to the row a change just added (B-394, D-869).
+        #[qinvokable]
+        #[cxx_name = "rowOf"]
+        fn row_of(self: &AccountRegister, transaction_id: &QString) -> i32;
+
         #[qinvokable]
         #[cxx_name = "removeTransaction"]
         fn remove_transaction(
@@ -785,6 +792,13 @@ impl qobject::AccountRegister {
             transaction_entry::set_transfer_tags(book, &account_id, &transaction_id, &tags)
         });
         self.finish(result)
+    }
+
+    fn row_of(&self, transaction_id: &QString) -> i32 {
+        position_of(
+            self.rust().rows.iter().map(|row| row.id.as_str()),
+            &transaction_id.to_string(),
+        )
     }
 
     fn remove_transaction(
@@ -1563,8 +1577,24 @@ fn error_text(book: &Book, account_id: &str, error: &EntryError) -> ErrorText {
     transaction_entry::error_text(book, account_id, error, &app_locale())
 }
 
+/// Where `id` is among `ids`, counted from 0, or -1 when it isn't (or the
+/// list is longer than QML can count).
+fn position_of<'a>(mut ids: impl Iterator<Item = &'a str>, id: &str) -> i32 {
+    ids.position(|candidate| !id.is_empty() && candidate == id)
+        .and_then(|row| i32::try_from(row).ok())
+        .unwrap_or(-1)
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_row_is_found_by_its_transaction() {
+        let ids = ["t-1", "t-2", "t-3"];
+        assert_eq!(super::position_of(ids.into_iter(), "t-2"), 1);
+        assert_eq!(super::position_of(ids.into_iter(), "t-9"), -1);
+        assert_eq!(super::position_of(ids.into_iter(), ""), -1);
+    }
+
     use super::{
         column_choices_object, form_object, looks_monthly_object, move_object, notice_object,
         offer_object, partner_object, read_tags, suggestion_object, tag_choices_object,

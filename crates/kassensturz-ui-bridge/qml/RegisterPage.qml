@@ -331,6 +331,13 @@ Kirigami.ScrollablePage {
     header: ColumnLayout {
         spacing: 0
 
+        // Why a row's remove button did nothing, if it didn't.
+        FormError {
+            id: rowError
+
+            Layout.fillWidth: true
+        }
+
         // The quick filter, like the search above a mailbox: it narrows the
         // lines to those with every typed word in them (round 2). The balance
         // below still counts all of the account.
@@ -562,28 +569,105 @@ Kirigami.ScrollablePage {
                 }
             }
 
-            contentItem: TransactionRow {
-                id: transaction
+            contentItem: RowLayout {
+                spacing: Kirigami.Units.smallSpacing
 
-                ledger: page.wide
-                date: delegate.date
-                otherParty: delegate.otherParty
-                category: delegate.category
-                amount: delegate.amount
-                exactAmount: delegate.exactAmount
-                incoming: delegate.incoming
-                kind: delegate.kind
-                balance: delegate.balance
-                exactBalance: delegate.exactBalance
-                owes: page.register.owes
-                note: delegate.note
-                tags: delegate.tags
-                waitsFor: delegate.waitsFor
-                columns: page.register.columns
-                balanceShown: page.register.balanceShown
-                otherPartyIban: delegate.otherPartyIban
-                purpose: delegate.purpose
-                valueDate: delegate.valueDate
+                TransactionRow {
+                    id: transaction
+
+                    Layout.fillWidth: true
+                    ledger: page.wide
+                    date: delegate.date
+                    otherParty: delegate.otherParty
+                    category: delegate.category
+                    amount: delegate.amount
+                    exactAmount: delegate.exactAmount
+                    incoming: delegate.incoming
+                    kind: delegate.kind
+                    balance: delegate.balance
+                    exactBalance: delegate.exactBalance
+                    owes: page.register.owes
+                    note: delegate.note
+                    tags: delegate.tags
+                    waitsFor: delegate.waitsFor
+                    columns: page.register.columns
+                    balanceShown: page.register.balanceShown
+                    otherPartyIban: delegate.otherPartyIban
+                    purpose: delegate.purpose
+                    valueDate: delegate.valueDate
+                }
+
+                // A transaction the user typed in since the start says so until
+                // the app closes (B-394, D-869); never saved in the book.
+                Controls.Label {
+                    visible: ChangedRows.isNew(delegate.transactionId)
+                    text: page.i18nContext.i18nc("@info a transaction added since the app started", "New")
+                    font: Kirigami.Theme.smallFont
+                    color: Kirigami.Theme.highlightedTextColor
+                    leftPadding: Kirigami.Units.smallSpacing
+                    rightPadding: Kirigami.Units.smallSpacing
+                    background: Rectangle {
+                        color: Kirigami.Theme.highlightColor
+                        radius: height / 2
+                    }
+                }
+
+                // Every row can be removed from the list, and Undo brings it back
+                // instead of a question first (B-394, D-869). One with what a
+                // bank or file delivered still gets the plain warning (D-375).
+                Controls.ToolButton {
+                    visible: delegate.kind !== "starting-balance"
+                    icon.name: "edit-delete"
+                    display: Controls.AbstractButton.IconOnly
+                    text: page.i18nContext.i18nc("@action:button remove this transaction", "Remove")
+                    Accessible.name: page.i18nContext.i18nc("@action:button %1 is who was paid or who paid, %2 an amount", "Remove %1, %2", delegate.otherParty, delegate.amount)
+                    Controls.ToolTip.text: text
+                    Controls.ToolTip.visible: hovered
+                    Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                    onClicked: {
+                        ActionLog.taken("RegisterPage_removeRow")
+                        page.removeRow(delegate.transactionId)
+                    }
+                }
+            }
+        }
+    }
+
+    // Asks before removing a transaction that holds a bank's or file's
+    // original (D-375); the others go at once, with Undo in the notice.
+    RemoveOriginalDialog {
+        id: removeOriginal
+
+        property string transactionId: ""
+
+        onRemoveConfirmed: page.removeNow(transactionId)
+    }
+
+    function removeRow(id: string) {
+        const notice = register.removalNotice(page.accountId, id);
+        if (notice.code !== undefined) {
+            rowError.result = notice;
+        } else if (notice.holdsOriginal) {
+            removeOriginal.transactionId = id;
+            removeOriginal.ask(notice);
+        } else {
+            page.removeNow(id);
+        }
+    }
+
+    function removeNow(id: string) {
+        rowError.result = register.removeTransaction(page.accountId, id);
+    }
+
+    // The list goes to the row a change just added or brought back, so it is
+    // in view when it lights up (B-394, D-869).
+    Connections {
+        target: ChangedRows
+
+        function onIdsChanged() {
+            const row = ChangedRows.ids.length === 1 ? page.register.rowOf(ChangedRows.ids[0]) : -1;
+            if (row >= 0) {
+                list.positionViewAtIndex(row, ListView.Contain);
             }
         }
     }

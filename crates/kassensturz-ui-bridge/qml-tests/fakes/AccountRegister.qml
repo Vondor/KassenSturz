@@ -138,4 +138,5 @@ QtObject {
 
     function removalNotice(accountId, transactionId) { return ({}); }
     function removeTransaction(accountId, transactionId) { return ({}); }
+    function rowOf(id) { return -1; }
 }

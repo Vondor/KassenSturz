@@ -73,6 +73,9 @@ Kirigami.ApplicationWindow {
     property int chatWidth: windowState.chatWidth > 0 ? windowState.chatWidth : chatStandardWidth
     // Whether the first-run steps are done, so the side menu is offered.
     readonly property bool started: bookSession.open && firstStartState.hasAccount
+    // The menu's screen shown, or the one the shown page was opened from:
+    // Undo asks first for a change that belongs to another (B-395, D-870).
+    property string currentScreen: "overview"
     // The household's currency, chosen on the setup wizard's first page and
     // written only when the book is created (M7a.9).
     property string wizardCurrency: ""
@@ -719,6 +722,75 @@ Kirigami.ApplicationWindow {
         afterStep(changeHistory.undo(), false);
     }
 
+    // Undo from the menu or its shortcut (B-395, D-870): a change that
+    // belongs to another screen than the one shown is named first and
+    // undone only when the user says so, since Undo is easily taken for
+    // "back". On its own screen it is undone at once.
+    function undoFromMenu() {
+        const change = changeHistory.undoChange;
+        // The history page lists every change, so there it needs no question.
+        const onHistory = pageStack.currentItem?.stepped !== undefined;
+        if (!arrangingPage && !onHistory && change?.action !== undefined && changeNames.place(change.action) !== currentScreen) {
+            undoConfirm.change = change;
+            undoConfirm.open();
+            return;
+        }
+        undoLast();
+    }
+
+    // The name of a screen of the menu, as the menu shows it.
+    function screenName(key: string): string {
+        switch (key) {
+        case "overview":
+            return i18nContext.i18nc("@action:inmenu a screen", "Overview");
+        case "accounts":
+            return i18nContext.i18nc("@action:inmenu a screen", "Accounts");
+        case "categories":
+            return i18nContext.i18nc("@action:inmenu a screen", "Categories");
+        case "budgets":
+            return i18nContext.i18nc("@action:inmenu a screen", "Budgets");
+        case "rules":
+            return i18nContext.i18nc("@action:inmenu a screen", "Rules");
+        case "statistics":
+            return i18nContext.i18nc("@action:inmenu a screen", "Statistic Builder");
+        case "settings":
+            return i18nContext.i18nc("@action:inmenu a screen", "Settings");
+        }
+        return "";
+    }
+
+    Kirigami.PromptDialog {
+        id: undoConfirm
+
+        property var change: ({})
+        readonly property string where: root.screenName(changeNames.place(change?.action ?? ""))
+
+        title: root.i18nContext.i18nc("@title:window", "Undo?")
+        subtitle: where !== ""
+            ? root.i18nContext.i18nc("@info %1 is what was done, %2 the name of a screen", "This takes back “%1”, a change on the screen “%2”, not on the one you are looking at.", changeNames.describe(change), where)
+            : root.i18nContext.i18nc("@info %1 is what was done", "This takes back “%1”, which isn't a change on the screen you are looking at.", changeNames.describe(change))
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: root.i18nContext.i18nc("@action:button take the last change back", "Undo")
+                icon.name: "edit-undo"
+                onTriggered: {
+                    ActionLog.taken("Main_undoConfirmed")
+                    undoConfirm.close();
+                    root.undoLast();
+                }
+            },
+            Kirigami.Action {
+                text: root.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    ActionLog.taken("Main_undoCancelled")
+                    undoConfirm.close()
+                }
+            }
+        ]
+    }
+
     function redoLast() {
         if (arrangingPage) {
             arrangingPage.redoLayout();
@@ -795,7 +867,13 @@ Kirigami.ApplicationWindow {
         if (redone) {
             showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Made again: %1", what), 10000, i18nContext.i18nc("@action:button", "Undo"), () => root.undoLast());
         } else {
-            showPassiveNotification(i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what), 10000, i18nContext.i18nc("@action:button", "Redo"), () => root.redoLast());
+            // Where the change was, when that isn't the screen shown
+            // (B-395, D-870).
+            const where = changeNames.place(result.change.action);
+            const message = where !== "" && where !== currentScreen
+                ? i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction; %2 the name of a screen", "Undone: %1, on the screen “%2”", what, screenName(where))
+                : i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what);
+            showPassiveNotification(message, 10000, i18nContext.i18nc("@action:button", "Redo"), () => root.redoLast());
         }
     }
 
@@ -829,6 +907,7 @@ Kirigami.ApplicationWindow {
     }
 
     function showScreen(name: string) {
+        currentScreen = name;
         pageStack.clear();
         pushPage(screens[name]);
     }
@@ -1355,7 +1434,7 @@ Kirigami.ApplicationWindow {
                 shortcut: StandardKey.Undo
                 onTriggered: {
                     ActionLog.taken("Main_undoLast")
-                    root.undoLast()
+                    root.undoFromMenu()
                 }
             },
             Kirigami.Action {
@@ -1369,6 +1448,16 @@ Kirigami.ApplicationWindow {
                 onTriggered: {
                     ActionLog.taken("Main_redoLast")
                     root.redoLast()
+                }
+            },
+            // The whole list of changes, one step away (B-395, D-870).
+            Kirigami.Action {
+                icon.name: "view-history"
+                enabled: root.started
+                text: root.i18nContext.i18nc("@action:inmenu opens the list of changes", "History…")
+                onTriggered: {
+                    ActionLog.taken("Main_history")
+                    root.pushPage(historyPage)
                 }
             }
         ]

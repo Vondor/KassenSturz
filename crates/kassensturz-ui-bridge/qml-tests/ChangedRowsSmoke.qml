@@ -44,6 +44,12 @@ Item {
             summary: { added: 1, transactions: ["t1"], booking: { name: "Corner Grocery", amount: "-23,80 €" } }
         };
         test.check(names.describe(one) === "Added a transaction (Corner Grocery, -23,80 €)", "one booking is named: " + names.describe(one));
+        // The screen a change belongs to, for Undo's question (B-395, D-870).
+        for (const [action, screen] of [["add-transaction", "accounts"], ["edit-budget", "budgets"], ["edit-view", "statistics"],
+                                         ["move-category", "categories"], ["run-rules", "rules"], ["merge-tags", "settings"],
+                                         ["apply-ai-changes", ""], ["a-newer-change", "accounts"]]) {
+            test.check(names.place(action) === screen, action + " belongs to '" + screen + "', got '" + names.place(action) + "'");
+        }
         const noName = { action: "remove-transaction", summary: { removed: 1, transactions: ["t1"], booking: { name: "", amount: "-5,00 €" } } };
         test.check(names.describe(noName) === "Removed a transaction (-5,00 €)", "without a name, the amount: " + names.describe(noName));
         const several = { action: "import-statement", fileName: "statement.sta", summary: { added: 2, transactions: ["t1", "t2"], booking: {} } };

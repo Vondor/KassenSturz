@@ -24750,3 +24750,39 @@ msgstr "Zostaw ją tam"
 msgctxt "@info %1 is a folder"
 msgid "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
 msgstr "Windows usuwa ten folder razem ze wszystkimi kopiami zapasowymi w nim, gdy KassenSturz zostanie odinstalowany lub zresetowany. Trzymaj swoją księgę we własnym folderze KassenSturz (%1) lub w wybranym przez siebie folderze."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "Undo?"
+msgstr "Cofnąć?"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info %1 is what was done, %2 the name of a screen"
+msgid ""
+"This takes back “%1”, a change on the screen “%2”, not on the one you are "
+"looking at."
+msgstr ""
+"To cofnie „%1”, zmianę na ekranie „%2”, a nie na tym, który właśnie "
+"oglądasz."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@info %1 is what was done"
+msgid ""
+"This takes back “%1”, which isn't a change on the screen you are looking at."
+msgstr "To cofnie „%1”. Ta zmiana nie dotyczy ekranu, który właśnie oglądasz."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt "@action:inmenu opens the list of changes"
+msgid "History…"
+msgstr "Historia…"
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml
+#, kde-format
+msgctxt ""
+"@info %1 is what was done, e.g. Added a transaction; %2 the name of a screen"
+msgid "Undone: %1, on the screen “%2”"
+msgstr "Cofnięto: %1, na ekranie „%2”"

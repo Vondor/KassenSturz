@@ -189,11 +189,33 @@ fn bill_texts(transaction: &Transaction) -> Vec<BillText> {
 
 /// The `file://` address of the absolute path `path`, each byte but
 /// letters, digits, `/` and `-._~` percent-encoded, so `#`, `?` and spaces
-/// in a name stay part of it.
+/// in a name stay part of it. A Windows path gets forward slashes and keeps
+/// its drive colon (`C:\a\b.pdf` is `file:///C:/a/b.pdf`); a network path
+/// `\\server\share\x` is `file://server/share/x`.
 fn file_url(path: &str) -> String {
-    let mut url = String::from("file://");
-    for byte in path.bytes() {
-        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) {
+    let bytes = path.as_bytes();
+    let (prefix, rest) = if let Some(network) = path
+        .strip_prefix("\\\\")
+        .filter(|rest| !rest.starts_with('?') && !rest.starts_with('.'))
+    {
+        ("file://", network.replace('\\', "/"))
+    } else if bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+    {
+        let drive = char::from(bytes[0]);
+        (
+            "file:///",
+            format!("{drive}:{}", path[2..].replace('\\', "/")),
+        )
+    } else {
+        ("file://", path.to_owned())
+    };
+    let mut url = String::from(prefix);
+    for (index, byte) in rest.bytes().enumerate() {
+        let drive_colon = prefix == "file:///" && index == 1;
+        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) || drive_colon {
             url.push(char::from(byte));
         } else {
             url.push_str(&format!("%{byte:02X}"));
@@ -731,6 +753,23 @@ mod tests {
         Ok(code) => code,
         Err(_) => panic!("EUR is a valid code"),
     };
+
+    #[test]
+    fn file_url_keeps_unix_paths_and_fixes_windows_ones() {
+        assert_eq!(
+            file_url("/home/a b/x#1.pdf"),
+            "file:///home/a%20b/x%231.pdf"
+        );
+        assert_eq!(
+            file_url("C:\\Users\\Ann Doe\\bill #1.pdf"),
+            "file:///C:/Users/Ann%20Doe/bill%20%231.pdf"
+        );
+        assert_eq!(file_url("d:/Bills"), "file:///d:/Bills");
+        assert_eq!(
+            file_url("\\\\server\\share\\a b\\x.pdf"),
+            "file://server/share/a%20b/x.pdf"
+        );
+    }
 
     /// A book after the first start, with the accounts screen's "Checking
     /// account" holding 1000 € on 1 Oct 2026 (M3.3's real output).

@@ -23675,12 +23675,6 @@ msgctxt "@info:tooltip the button that shows the menu on the left"
 msgid "Show the menu"
 msgstr "Pokaż menu"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml
-#, kde-format
-msgctxt "@info:tooltip the button that opens the chat sidebar"
-msgid "Open the chat"
-msgstr "Otwórz czat"
-
 #, kde-format
 msgctxt "@info %1 is a list of tag names"
 msgid "Only adds the tags %1 to matching transactions; the next Rules still sort them."
@@ -24662,6 +24656,40 @@ msgstr "Usuń"
 msgctxt "@action:button keep a plugin"
 msgid "Keep it"
 msgstr "Zachowaj"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@action:button opens the chat sidebar, where the user asks the AI a question"
+msgid "Ask AI"
+msgstr "Zapytaj AI"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt "@info under the question field, which holds an example question"
+msgid "Suggestion, you can change it"
+msgstr "Propozycja, możesz ją zmienić"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@info %1 is an example question; the user's own text stays in the field"
+msgid "Suggestion: %1"
+msgstr "Propozycja: %1"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt ""
+"@action:button put the suggested question into the field instead of the "
+"user's own text"
+msgid "Use it instead"
+msgstr "Użyj zamiast tego"
+
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
+#, kde-format
+msgctxt "@action:button hide the suggested question"
+msgid "Hide the suggestion"
+msgstr "Ukryj propozycję"
 
 #: crates/kassensturz-ui-bridge/qml/WelcomePage.qml
 #, kde-format

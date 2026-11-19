@@ -55,6 +55,11 @@ QtObject {
     function removeReceiptFolder(which) { return true; }
 
     function locked(key) { return lockedKeys[key] === true; }
+    // For the chat panel (SuggestionSmoke, B-386): a provider on this
+    // computer is chosen.
+    property bool fake: false
+    function load() { return { address: "http://localhost:1234/v1", model: "m", keyUse: "none" }; }
+    function slowAnswer() { return "warn"; }
     function setLocked(key, value) {
         const next = Object.assign({}, lockedKeys);
         next[key] = value;

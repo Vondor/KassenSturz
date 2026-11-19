@@ -17,6 +17,11 @@ QtObject {
     // The drawer, a Kirigami.OverlayDrawer or one of its kinds.
     required property var drawer
 
+    // Whether the button is highlighted while the drawer is closed: the
+    // chat's handle, so that it stands out as the way into the chat
+    // (B-385, D-861).
+    property bool highlighted: false
+
     // The handle's button; null where Kirigami builds the handle otherwise.
     readonly property var button: {
         const first = name.drawer?.handle?.children?.[0];
@@ -39,6 +44,12 @@ QtObject {
         target: name.button
         property: "text"
         value: name.words
+    }
+
+    property Binding highlightBinding: Binding {
+        target: name.button
+        property: "highlighted"
+        value: name.highlighted && !(name.drawer?.drawerOpen ?? false)
     }
 
     property Binding displayBinding: Binding {

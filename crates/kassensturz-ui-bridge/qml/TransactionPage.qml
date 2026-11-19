@@ -482,9 +482,17 @@ Kirigami.ScrollablePage {
                 : page.i18nContext.i18nc("@label:listbox", "What was it for?")
             model: [page.i18nContext.i18nc("@item:inlistbox the transaction gets no category yet", "Not sorted yet")]
                 .concat(page.categoryChoices.map(choice => choice.path))
+                .concat([page.i18nContext.i18nc("@item:inlistbox the last entry of a category list: makes a new category", "New category …")])
             Accessible.name: page.i18nContext.i18nc("@label:listbox", "The category")
-            onActivated: {
+            onActivated: index => {
                 ActionLog.taken("TransactionPage_chooseCategory")
+                if (index > page.categoryChoices.length) {
+                    // The last entry makes a new category (D-910); the
+                    // list goes back to what it showed meanwhile.
+                    categoryBox.currentIndex = page.categoryIndex(page.categoryId);
+                    newCategory.start();
+                    return;
+                }
                 page.categoryId = page.chosenCategory()
             }
         }
@@ -823,6 +831,17 @@ Kirigami.ScrollablePage {
 
     // "Plan this again…" (US7.1). Without planned payments the button is
     // hidden, so the form is never opened.
+    // "New category …" at the end of the category list (D-910).
+    NewCategoryDialog {
+        id: newCategory
+
+        income: page.moneyIn
+        onCreated: categoryId => {
+            page.categoryId = categoryId;
+            page.reload();
+        }
+    }
+
     PlanFormDialog {
         id: planAgain
 

@@ -35,6 +35,9 @@ ColumnLayout {
     property var tagChoices: []
 
     signal categoryChosen(string categoryId)
+    // "New category …" made one: the page reads its list again and gives
+    // this Part the new category (D-910).
+    signal newCategoryMade(string categoryId)
     signal amountEdited(string text)
     signal foreignAmountEdited(string text)
     signal tagsEdited(var tags)
@@ -71,9 +74,17 @@ ColumnLayout {
             Layout.fillWidth: true
             model: [row.i18nContext.i18nc("@item:inlistbox the part gets no category yet", "Not sorted yet")]
                 .concat(row.choices.map(choice => row.choiceLabel(choice)))
+                .concat([row.i18nContext.i18nc("@item:inlistbox the last entry of a category list: makes a new category", "New category …")])
             Accessible.name: row.i18nContext.i18nc("@label:listbox %1 is the number of the part", "What part %1 was for", row.number)
             onActivated: index => {
                 ActionLog.taken("PartRow_whatPartWas")
+                if (index > row.choices.length) {
+                    // The last entry makes a new category (D-910); the list
+                    // goes back to what it showed meanwhile.
+                    categoryBox.sync();
+                    newCategory.start();
+                    return;
+                }
                 row.categoryChosen(index <= 0 ? "" : row.choices[index - 1].id)
             }
 
@@ -112,6 +123,13 @@ ColumnLayout {
                 row.removeClicked()
             }
         }
+    }
+
+    NewCategoryDialog {
+        id: newCategory
+
+        income: row.moneyIn
+        onCreated: categoryId => row.newCategoryMade(categoryId)
     }
 
     // What is left for the open Part, written out for screen readers and

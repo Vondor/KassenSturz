@@ -5921,16 +5921,6 @@ msgctxt "@title %1 is the name of a category"
 msgid "Change the budget for %1"
 msgstr "Budget für %1 ändern"
 
-#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:118
-#, kde-format
-msgctxt "@info"
-msgid ""
-"You have no spending categories yet. Add a category for money you spend "
-"first."
-msgstr ""
-"Sie haben noch keine Kategorien für Ausgaben. Legen Sie zuerst eine "
-"Kategorie für Geld an, das Sie ausgeben."
-
 #: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:125
 #, kde-format
 msgctxt "@label"
@@ -26127,3 +26117,45 @@ msgstr "KassenSturz fragt Ihre Bank nach den Transaktionen und zeigt sie Ihnen z
 msgctxt "@action:button"
 msgid "Fetch transactions"
 msgstr "Transaktionen laden"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@item:inlistbox the last entry of a category list: makes a new category"
+msgid "New category …"
+msgstr "Neue Kategorie …"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@info"
+msgid "You have no spending categories yet. Choose “New category …” in the list above to add one."
+msgstr "Sie haben noch keine Kategorien für Ausgaben. Wählen Sie oben in der Liste „Neue Kategorie …“, um eine anzulegen."
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category"
+msgstr "Neue Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category for money coming in"
+msgstr "Neue Kategorie für eingehendes Geld"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category for money spent"
+msgstr "Neue Kategorie für ausgegebenes Geld"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the new category"
+msgstr "Name der neuen Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@info"
+msgid "You can move it inside another category later, on the Categories page."
+msgstr "Sie können sie später auf der Seite „Kategorien“ in eine andere Kategorie verschieben."

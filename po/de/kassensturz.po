@@ -26877,3 +26877,33 @@ msgid ""
 msgstr ""
 "Geplant. Die erste Zahlung ist am %1 fällig; Sie bestätigen jede Zahlung, "
 "wenn sie da ist."
+
+#: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:34
+#, kde-format
+msgctxt "@title:window"
+msgid "Keep your book safe"
+msgstr "Ihr Buch in Sicherheit bringen"
+
+#: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:35
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Your book is in a folder that Windows deletes, together with all its backups, when KassenSturz is uninstalled or reset. KassenSturz can move it to %1, which Windows leaves alone. Before moving, it keeps a copy of your book as it is now with the other backups."
+msgstr "Ihr Buch liegt in einem Ordner, den Windows samt allen Sicherungen löscht, wenn KassenSturz deinstalliert oder zurückgesetzt wird. KassenSturz kann es nach %1 verschieben; diesen Ordner lässt Windows in Ruhe. Vor dem Verschieben legt es eine Kopie Ihres Buchs, wie es jetzt ist, zu den anderen Sicherungen."
+
+#: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:50
+#, kde-format
+msgctxt "@action:button ask again at the next start"
+msgid "Not now"
+msgstr "Jetzt nicht"
+
+#: crates/kassensturz-ui-bridge/qml/BookInPackageDialog.qml:58
+#, kde-format
+msgctxt "@action:button keep the book in its folder"
+msgid "Keep it there"
+msgstr "Dort lassen"
+
+#: crates/kassensturz-ui-bridge/qml/BookMovePage.qml:188
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
+msgstr "Windows löscht diesen Ordner samt allen Sicherungen darin, wenn KassenSturz deinstalliert oder zurückgesetzt wird. Bewahren Sie Ihr Buch in KassenSturz' eigenem Ordner (%1) oder in einem Ordner Ihrer Wahl auf."

@@ -22,9 +22,10 @@ ColumnLayout {
     property var shown: []
     // How many budgets the book has at all.
     property int budgetCount: 0
-    // Whether the layout is being arranged: then an empty component says
-    // what it is and offers *Set a budget*.
-    property bool arranging: false
+
+    // Whether the empty component offers *Set a budget*: only where something
+    // is listening, so a preview shows no button that does nothing (B-412).
+    property bool offersSet: true
 
     // The user wants to set a budget (from the empty component).
     signal setBudgetClicked()
@@ -53,21 +54,36 @@ ColumnLayout {
         }
     }
 
+    // Whether `point` (in this item) lies on a button that works while the
+    // layout is arranged too: there the grid lets the pointer through to it,
+    // where it otherwise selects and drags the tile (B-412, D-904).
+    function liveAt(point: point): bool {
+        return setButton.visible && setButton.contains(mapToItem(setButton, point));
+    }
+
     spacing: Kirigami.Units.largeSpacing
 
-    // A book with no budget: nothing at all, except while the layout is
-    // arranged (D-357, Q-264).
-    Kirigami.PlaceholderMessage {
+    // A book with no budget: what the bars are and how to get them, also
+    // after the layout is arranged, so a tile the user just added is still
+    // there to be filled (B-412, D-904, replacing "nothing at all" of D-357).
+    // The note wraps, so no window width or text size cuts it off.
+    Controls.Label {
         Layout.fillWidth: true
-        visible: list.budgetCount === 0 && list.arranging
+        visible: list.budgetCount === 0
         text: list.i18nContext.i18nc("@info", "Your budgets appear here once you set one.")
-        helpfulAction: Kirigami.Action {
-            icon.name: "list-add"
-            text: list.i18nContext.i18nc("@action:button", "Set a budget")
-            onTriggered: {
-                ActionLog.taken("BudgetBars_setBudget")
-                list.setBudgetClicked()
-            }
+        wrapMode: Text.Wrap
+        textFormat: Text.PlainText
+    }
+
+    Controls.Button {
+        id: setButton
+
+        visible: list.budgetCount === 0 && list.offersSet
+        icon.name: "list-add"
+        text: list.i18nContext.i18nc("@action:button", "Set a budget")
+        onClicked: {
+            ActionLog.taken("BudgetBars_setBudget")
+            list.setBudgetClicked()
         }
     }
 

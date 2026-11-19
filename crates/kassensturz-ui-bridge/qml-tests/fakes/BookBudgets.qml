@@ -11,6 +11,11 @@ QtObject {
     property var view: ({bars: [], count: 0})
 
     function show(period, only) {
+        // A book with no budget at all, for the empty tile (B-412).
+        if (only === "no-budgets") {
+            view = {bars: [], count: 0};
+            return;
+        }
         const bar = (name, spent, left, used, permille, over) => ({
             budget: "b-" + name, categories: ["c-" + name], name: name, accounts: name === "Fun" ? "Checking" : "", every: "month", currency: "EUR", firstDay: "2026-10-01", lastDay: "2026-10-31",
             countedTo: "2026-10-19", running: true, planned: "400,00 €", carriedIn: "0,00 €", available: "400,00 €", spent: spent, left: left,

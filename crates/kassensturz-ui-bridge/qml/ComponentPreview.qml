@@ -36,6 +36,19 @@ ColumnLayout {
     // and Properties), not on the Overview's tiles, where the person
     // already knows their chart (US5 Phase 3).
     property bool explainChart: false
+    // Whether an empty budget table offers *Set a budget*: on a dashboard,
+    // which opens the page for it; a preview has nowhere to go (B-412).
+    property bool canSetBudget: false
+
+    // *Set a budget* was pressed in an empty budget table.
+    signal setBudgetClicked()
+
+    // Whether `point` (in this item) lies on a button that works while the
+    // layout is arranged too (B-412, D-904; see BudgetBars.liveAt).
+    function liveAt(point: point): bool {
+        const bars = emptyBudgets.item;
+        return bars !== null && bars.liveAt(mapToItem(bars, point));
+    }
 
     readonly property var asked: subject?.preview ?? ({})
     readonly property var charts: chartData.view?.charts ?? []
@@ -464,6 +477,8 @@ ColumnLayout {
 
     // A table without a budget to list says why with the bars' own words.
     Loader {
+        id: emptyBudgets
+
         Layout.fillWidth: true
         active: preview.asked.shows === "budget-progress" || preview.asked.shows === "budget-table" && preview.budgetBars.length === 0
         visible: active
@@ -471,7 +486,8 @@ ColumnLayout {
         sourceComponent: BudgetBars {
             shown: budgetData.view?.bars ?? []
             budgetCount: budgetData.view?.count ?? 0
-            arranging: true
+            offersSet: preview.canSetBudget
+            onSetBudgetClicked: preview.setBudgetClicked()
         }
     }
 

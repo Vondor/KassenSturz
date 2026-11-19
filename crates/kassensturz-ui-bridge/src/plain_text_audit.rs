@@ -191,7 +191,11 @@ mod tests {
             }
             let (key, format) = match (element.kind.as_str(), key) {
                 (
-                    "Controls.Label" | "Label" | "Kirigami.Heading" | "FormCard.FormSectionText",
+                    "Controls.Label"
+                    | "Label"
+                    | "Kirigami.Heading"
+                    | "FormCard.FormSectionText"
+                    | "HintText",
                     "text",
                 ) => ("text", "textFormat"),
                 ("FormCard.FormTextDelegate", "text") => ("text", "textItem.textFormat"),

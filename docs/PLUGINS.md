@@ -79,7 +79,7 @@ A plugin file is **one WebAssembly module** (binary format version 1), at most 1
 
 - The manifest is the custom section `kassensturz-manifest`, exactly once.
 - Other custom sections (such as `name` or `producers`, which compilers write) are ignored. A custom section whose name starts with `kassensturz-` and that this KassenSturz doesn't know refuses the file, so a later API version's data is never silently skipped.
-- A **data-only** plugin (`theme`, `ui_density`) is a module without code: no function, code or start section. A theme's data is the custom section `kassensturz-theme` (§9); that of UI density comes with its own step (*not built yet*).
+- A **data-only** plugin (`theme`, `ui_density`) is a module without code: no function, code or start section. A theme's data is the custom section `kassensturz-theme` (§9), that of a UI density plugin the custom section `kassensturz-density` (§11).
 - KassenSturz reads the manifest without running or compiling anything, so the Plugins tab can show it first.
 
 With a Rust plugin, one way to add the section is a static in the plugin's source:
@@ -246,6 +246,33 @@ It may suggest only a category the book already has, only for a transaction it w
 
 **Where they show.** The reports of every report plugin are listed on the Statistics page under "From plugins"; one opens a page with a choice of account (or all) and period (this month, the last 3 or 12 months, this year, everything), where the plugin works it out again on each change. After an import, each automation plugin is asked once; the page that says what was imported lists its suggestions, all ticked, with "Use the ticked suggestions" and "Not now". Using them is recorded in the change history as editing transactions, so the book format stays as it is.
 
-## 11. Still to come (#791)
+## 11. UI density (D-927)
 
-The calls and host functions of the other extension points, the data of UI density, one example plugin per extension point, and a "write your own plugin" guide.
+A UI density plugin changes how much fits on the screen, never what KassenSturz shows about the user's money. It is data only: a module without code whose manifest names `ui_density`, with its switches as strict JSON in the custom section `kassensturz-density`, exactly once, at most 1 KiB. A module with that section that isn't a UI density plugin is refused.
+
+```json
+{
+  "density_version": 1,
+  "switches": {"compact_lists": true, "hide_hints": true, "compact_tiles": true}
+}
+```
+
+- `density_version` is 1, and `switches` is needed. Each switch is `true` or `false`; one left out is off.
+- `compact_lists`: tighter rows in the lists of transactions, categories, category groups and Rules.
+- `hide_hints`: hides the grey explanations under some settings, such as "Most households never need to change anything here."
+- `compact_tiles`: smaller gaps between the tiles of the start screen and the account and figure grids.
+- A switch this KassenSturz doesn't define, a wrong type or an unknown key refuses the plugin, as in the manifest.
+
+**Warnings always stay.** `hide_hints` hides only texts the page works without. Warnings, error messages, the questions before a change, and texts about Undo, backups or what a file holds are never such a text, and a test checks it on every build (`density_audit`).
+
+**Choosing one.** Settings › Look › "Layout" lists the layout plugins that were added, and the choice is kept as the plugin's ID under `Look/Density` in the app's settings. It applies at once. A layout plugin that is removed or can no longer be read turns every switch off.
+
+**Example.** `examples/plugins/compact-layout/` holds the "Compact" layout with all three switches on, packed the same way as the green theme:
+
+```sh
+tools/make-data-plugin.py manifest.json kassensturz-density=density.json compact-layout.wasm
+```
+
+## 12. Still to come (#791)
+
+The calls and host functions of the other extension points, one example plugin per extension point, and a "write your own plugin" guide.

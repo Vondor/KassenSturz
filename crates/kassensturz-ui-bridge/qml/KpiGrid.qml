@@ -19,7 +19,7 @@ Item {
 
     readonly property int cardMinWidth: Kirigami.Units.gridUnit * 11
     readonly property int cardMaxColumns: 4
-    readonly property real spacing: Kirigami.Units.largeSpacing
+    readonly property real spacing: Look.tileGap(Kirigami.Units.largeSpacing)
     readonly property int columns: Math.max(1, Math.min(cardMaxColumns, Math.floor((width + spacing) / (cardMinWidth + spacing))))
     readonly property real cellWidth: (width - (columns - 1) * spacing) / columns
 

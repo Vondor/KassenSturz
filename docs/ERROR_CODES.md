@@ -629,6 +629,13 @@ Why a plugin file can't be added: its manifest (D-847), the permissions it asks 
 | `plugin.unsupported-theme-version` | `version` |  | This theme was made in a format this KassenSturz doesn't know (version {version}). Update KassenSturz, or look for an older version of the theme. |
 | `plugin.theme-invalid` | `reason`, `key` | `missing`, `unknown-key`, `wrong-type`, `empty`, `too-long`, `bad-characters`, `malformed`, `wrong-way`, `out-of-range` | This theme has a mistake in "{key}", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
 | `plugin.theme-low-contrast` | `key` |  | With this theme, some text would be hard to read ("{key}" doesn't stand out enough from the background), so KassenSturz doesn't add it. Ask the plugin's author for a version with stronger colors. |
+| `plugin.density-missing` |  |  | This layout plugin holds no layout, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.density-twice` |  |  | This layout plugin holds its layout twice, so KassenSturz can't tell which is meant and doesn't add it. Ask the plugin's author. |
+| `plugin.density-unexpected` |  |  | This plugin holds a layout for the app but doesn't say it is a layout plugin, so KassenSturz doesn't add it. Ask the plugin's author. |
+| `plugin.density-too-big` | `max_bytes` |  | This layout plugin's layout takes more than {max_bytes} bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version. |
+| `plugin.density-malformed` |  |  | This layout plugin's layout can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.unsupported-density-version` | `version` |  | This layout plugin was made in a format this KassenSturz doesn't know (version {version}). Update KassenSturz, or look for an older version of the plugin. |
+| `plugin.density-invalid` | `reason`, `key` | `missing`, `unknown-key`, `wrong-type` | This layout plugin has a mistake in "{key}", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
 
 ## Running plugins (`kassensturz-plugin-host`)
 

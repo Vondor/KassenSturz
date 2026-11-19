@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 KassenSturz contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-"""Makes a data-only plugin file (a theme, D-925) from its JSON files.
+"""Makes a data-only plugin file (a theme, D-925, or a UI density plugin, D-927) from its JSON files.
 
 A data-only plugin is a WebAssembly module with no code: only the
 WebAssembly header and custom sections (D-849). This writes the manifest

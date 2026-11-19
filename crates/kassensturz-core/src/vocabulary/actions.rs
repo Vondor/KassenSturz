@@ -101,6 +101,7 @@ pub const ACTIONS: &[&str] = &[
     "AiSettingsPage_showSample",
     "AiSettingsPage_takeAgreementBack",
     "AiSettingsPage_testConnection",
+    "AiSettingsPage_toggleNotes",
     "AiSettingsPage_toggled",
     "AiSettingsPage_useBuiltTest",
     "AiSettingsPage_whenAiTakes",

@@ -24688,7 +24688,7 @@ msgctxt "@action:button keep a plugin"
 msgid "Keep it"
 msgstr "Zachowaj"
 
-#: crates/kassensturz-ui-bridge/qml/Main.qml
+#: crates/kassensturz-ui-bridge/qml/AiChatPanel.qml
 #, kde-format
 msgctxt ""
 "@action:button opens the chat sidebar, where the user asks the AI a question"

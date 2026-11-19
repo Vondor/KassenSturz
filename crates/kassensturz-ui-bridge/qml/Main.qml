@@ -1528,7 +1528,8 @@ Kirigami.ApplicationWindow {
         // The closed handle is the way into the chat, so it says so in words
         // in the header (B-385, D-861): "Ask AI" beside a speech bubble,
         // highlighted (HeaderHandleNames.qml). The same words are its name.
-        handleClosedToolTip: root.i18nContext.i18nc("@action:button opens the chat sidebar, where the user asks the AI a question", "Ask AI")
+        // The words live in AiChatPanel.qml, with the chat they open.
+        handleClosedToolTip: chatPanel.entryName
         width: Math.max(root.chatMinWidth, Math.min(root.chatWidth, root.chatMaxWidth))
         drawerOpen: false
         topPadding: 0

@@ -136,6 +136,9 @@ ColumnLayout {
     // typed, empty for none.
     property string offered: ""
     // Whether the field holds the suggestion, unchanged.
+    // The words of the way into the chat, the highlighted header button of
+    // Main.qml (B-385, D-861), here so that "AI" shows only in AI files.
+    readonly property string entryName: i18nContext.i18nc("@action:button opens the chat sidebar, where the user asks the AI a question", "Ask AI")
     readonly property bool suggested: suggestion !== "" && questionField.text === suggestion
 
     // The built-in features that are shown: one whose changes the user

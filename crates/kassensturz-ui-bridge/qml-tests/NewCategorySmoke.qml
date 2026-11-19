@@ -96,13 +96,13 @@ Kirigami.ApplicationWindow {
             dialog.save();
             window.check(window.bookChanges === 1, "the first Pets changed the book once, got " + window.bookChanges);
             window.check(box.currentText === "Pets", "the box shows the new category, got " + box.currentText);
-            window.check(!dialog.visible, "the dialog closed");
+            window.check(window.find(dialog.contentItem, child => child instanceof Kirigami.InlineMessage && child.visible, []).length === 0, "no error after an accepted name");
 
             // Again: this dialog's own list already has it.
             dialog.start();
             fields[0].text = "Pets";
             dialog.save();
-            window.check(dialog.visible, "a repeated name keeps the dialog open");
+            window.check(window.find(dialog.contentItem, child => child instanceof Kirigami.InlineMessage && child.visible, []).length === 1, "a repeated name is said in the dialog");
             window.check(window.bookChanges === 1, "a refused name changes nothing, got " + window.bookChanges);
 
             console.log(window.failed ? "new category: FAILED" : "new category: ok");

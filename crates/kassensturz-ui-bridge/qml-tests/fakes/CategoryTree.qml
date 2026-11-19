@@ -18,10 +18,10 @@ QtObject {
     function addCategory(name, income, parent, currency) {
         asked = asked.concat([name + " " + (income ? "in" : "out") + " " + parent]);
         if (name.trim() === "") {
-            return ({ code: "store.empty-name" });
+            return ({ code: "store.empty-account-name" });
         }
         if (view.rows.some(row => row.parent === parent && row.name === name.trim())) {
-            return ({ code: "store.duplicate-account-name" });
+            return ({ code: "store.duplicate-account-name", existing: name.trim() });
         }
         view = ({ rows: view.rows.concat([{ id: "new-" + name.trim().toLowerCase(), name: name.trim(), path: name.trim(), depth: 0, parent: parent, income: income, currency: "EUR" }]) });
         changed();

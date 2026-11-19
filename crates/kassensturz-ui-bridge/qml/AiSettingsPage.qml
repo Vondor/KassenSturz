@@ -182,8 +182,11 @@ Kirigami.ScrollablePage {
     // provider is the typed one and the user has agreed to it; reading it
     // again stays under "What is sent", and each question still shows
     // what it sends.
+    // The agreement belongs to the address, so choosing a model after the
+    // first "Save and test" keeps it: only another address, or no agreement
+    // yet, shows the screen again (B-408).
     readonly property bool oneScreen: remote && !settings.fake
-        && (providerChanged || form.consent !== "given")
+        && (addressField.text.trim() !== (form.address ?? "") || form.consent !== "given")
 
     // Whether the address as typed is one no server can have.
     readonly property bool addressWrong: addressCheck.code === "ai.bad-address"

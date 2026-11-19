@@ -44,7 +44,20 @@ QtObject {
         return ({ place: "other", network: "home", unencrypted: plain });
     }
     function withScheme(address) { return address.trim(); }
-    function save(address, model, keyUse, key, allowUnencrypted) { calls = calls.concat(["save " + allowUnencrypted]); return ({ saved: true, consentNeeded: check(address, true).place === "other" }); }
+    // Whether save and giveConsent change `form` as the real object's
+    // load() would then read it (AiSetupSmoke, B-408).
+    property bool keepsSaved: false
+    function save(address, model, keyUse, key, allowUnencrypted) {
+        calls = calls.concat(["save " + allowUnencrypted]);
+        const remote = check(address, true).place === "other";
+        if (keepsSaved) {
+            const sameAddress = address === form.address;
+            form = Object.assign({}, form, { address: address, model: model, keyUse: keyUse, allowUnencrypted: allowUnencrypted,
+                place: remote ? "other" : "this",
+                consent: remote ? (sameAddress && form.consent === "given" ? "given" : "missing") : "notNeeded" });
+        }
+        return ({ saved: true, consentNeeded: remote && form.consent !== "given" });
+    }
     // How often the connection was tested, for ModelChoiceSmoke (B-407).
     property int testCalls: 0
     function testConnection(key) { testCalls += 1; calls = calls.concat(["test"]); }
@@ -53,7 +66,13 @@ QtObject {
     function forgetKey() { return ({}); }
     // Every call of save and giveConsent, in order, for AiSetupSmoke.
     property var calls: []
-    function giveConsent() { calls = calls.concat(["consent"]); return true; }
+    function giveConsent() {
+        calls = calls.concat(["consent"]);
+        if (keepsSaved) {
+            form = Object.assign({}, form, { consent: "given", consentDay: "19.11.2026" });
+        }
+        return true;
+    }
     function withdrawConsent() { return ({}); }
     function sample(leaveOut) { return ({}); }
     function notes() { return ""; }

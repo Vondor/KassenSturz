@@ -109,6 +109,28 @@ Kirigami.ApplicationWindow {
             settings.calls = [];
             page.save();
             window.check(settings.calls.indexOf("consent") < 0, "no agreement without the box");
+
+            // B-408: after "Save and test" without a model, the model chosen
+            // from the list is saved with the agreement kept, without
+            // agreeing again.
+            settings.keepsSaved = true;
+            settings.form = ({ address: "", model: "", keyUse: "none", place: "this", consent: "notNeeded" });
+            page.reload();
+            address.text = "http://192.168.1.22:8080/v1";
+            page.checkTyped();
+            agree.toggle();
+            agree.toggled();
+            settings.calls = [];
+            page.save();
+            window.check(settings.form.consent === "given", "agreed with the first save");
+            settings.testFinished({ models: ["chat-small", "chat-large"] });
+            window.check(page.chosenModel === "chat-small", "the first model is chosen, got " + page.chosenModel);
+            window.check(!page.oneScreen, "choosing a model doesn't ask to agree again");
+            window.check(save.enabled && save.text === "Save", "the chosen model can be saved, got " + save.text + " " + save.enabled);
+            settings.calls = [];
+            page.save();
+            window.check(JSON.stringify(settings.calls) === JSON.stringify(["save true"]), "saved with http still allowed and no second agreement, got " + JSON.stringify(settings.calls));
+            window.check(settings.form.model === "chat-small" && settings.form.consent === "given", "the model is saved and the agreement kept");
             Qt.exit(window.failed ? 1 : 0);
         }
     }

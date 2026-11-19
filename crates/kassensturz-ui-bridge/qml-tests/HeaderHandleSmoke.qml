@@ -54,6 +54,7 @@ Kirigami.ApplicationWindow {
         handleVisible: true
         handleOpenToolTip: "Close the chat"
         handleClosedToolTip: "Open the chat"
+        handleClosedIcon.name: "dialog-messages"
     }
 
     HeaderHandleNames {
@@ -88,6 +89,11 @@ Kirigami.ApplicationWindow {
                 // The chat's button shows its words beside the icon and stands
                 // out (B-385, D-861); the menu's stays an icon.
                 window.check(chat.length > 0 && chat.every(button => button.text === "Open the chat" && button.highlighted === true), "the sidebar's button shows its words, highlighted");
+                // Its tooltip is its own drawer's words, not the menu's, and
+                // it has a frame while closed (B-401).
+                window.check(chat.every(button => button.action.tooltip === "Open the chat"), "the sidebar's tooltip is its own: " + chat.map(button => button.action.tooltip));
+                window.check(chat.every(button => button.flat === false), "the sidebar's button has a frame while closed");
+                window.check(chat.every(button => button.icon.name === "dialog-messages"), "the sidebar's button shows the speech bubble: " + chat.map(button => button.icon.name));
                 window.check(menu.every(button => button.text === "" && button.highlighted !== true), "the menu's button stays a plain icon");
                 window.step = names.named.length;
                 window.pageStack.push(second);

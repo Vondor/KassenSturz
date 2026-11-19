@@ -18,8 +18,11 @@ QtObject {
         const next = Object.assign({}, allowed);
         next[key] = value;
         allowed = next;
+        allowsChanged();
         return true;
     }
+    // As AiSettings says a saved permission (B-402).
+    signal allowsChanged()
     function locked(key) { return lockedKeys[key] === true; }
     // For the chat panel (SuggestionSmoke, B-386): a provider on this
     // computer is chosen.

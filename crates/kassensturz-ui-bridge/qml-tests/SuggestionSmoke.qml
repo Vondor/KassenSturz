@@ -9,6 +9,7 @@
 // changes it the note goes; text the user typed is never replaced or added
 // to, the example is offered next to it instead, and only "Use it instead"
 // puts it into the field. What is sent is exactly what the field shows.
+// The chart button follows the permission while the chat is open (B-402).
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -115,6 +116,15 @@ Kirigami.ApplicationWindow {
             // Pressed again on an unchanged example, it stays one example.
             panel.describeChart();
             window.check(field.text === example && panel.suggested, "pressed again, still one example");
+
+            // The chart permission switched on while the chat stays open
+            // shows the button at once, and off hides it (B-402).
+            const describe = window.find(panel, item => item.text === "Describe a chart" && item.clicked !== undefined);
+            window.check(describe !== null && !describe.visible, "no chart button without the permission");
+            settings.setAllows("AllowNewViews", true);
+            window.check(describe !== null && describe.visible, "the chart button shows once allowed, without reopening");
+            settings.setAllows("AllowNewViews", false);
+            window.check(describe !== null && !describe.visible, "and goes once taken away");
             Qt.exit(window.failed ? 1 : 0);
         }
     }

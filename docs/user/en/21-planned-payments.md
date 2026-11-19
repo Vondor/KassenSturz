@@ -5,7 +5,7 @@
 ## Planning a payment
 
 - **The quickest way:** open an entry in an account, for example last month's rent, and choose **Plan this again…**. The form is filled in from the entry; check it and save. The entry becomes the first payment of the plan.
-- **Or by hand:** open **Accounts** and choose **Planned payments…**, then **New planned payment…**.
+- **Or by hand:** choose **Plans** in the side menu, right under **Budgets**, then **Add a plan**. **Accounts › Planned payments…** opens the same list as a shortcut.
 
 The form asks for:
 

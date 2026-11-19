@@ -11,5 +11,8 @@ Item {
     property var settings
     property bool offerSettings: false
     signal settingsClicked()
+    property bool offerV1: false
+    property bool offerUnencrypted: false
     signal useV1Clicked()
+    signal allowUnencryptedClicked()
 }

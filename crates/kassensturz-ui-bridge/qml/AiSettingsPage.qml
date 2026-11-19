@@ -36,6 +36,10 @@ Kirigami.ScrollablePage {
     property var testResult: ({})
     // The hint under the address: where it points, or why it can't be used.
     property var addressCheck: ({})
+    // The same check as if plain http:// were allowed: where the typed
+    // address is, even while its http:// is still refused, so the one
+    // setup screen can say so before the user agrees (B-391, D-866).
+    property var openCheck: ({})
     // Whether something was saved just now, for the note under the buttons.
     property bool justSaved: false
     // Whether the settings file couldn't be written.
@@ -119,7 +123,7 @@ Kirigami.ScrollablePage {
         modelField.text = form.model ?? "";
         keyUseBox.currentIndex = Math.max(0, keyUseBox.indexOfValue(form.keyUse ?? "none"));
         allowUnencryptedBox.checked = form.allowUnencrypted === true;
-        addressCheck = (form.address ?? "") !== "" ? settings.check(form.address, allowUnencryptedBox.checked) : ({});
+        runCheck(form.address ?? "");
     }
 
     // An address typed without its scheme, such as `localhost:1234/v1`,
@@ -147,7 +151,7 @@ Kirigami.ScrollablePage {
     // connections" box as it is now.
     function checkAddress() {
         completeAddress();
-        addressCheck = addressField.text.trim() !== "" ? settings.check(addressField.text, allowUnencryptedBox.checked) : ({});
+        runCheck(addressField.text);
     }
 
     // Checks the address while it is typed, without changing the text in
@@ -155,8 +159,28 @@ Kirigami.ScrollablePage {
     // D-867).
     function checkTyped() {
         const typed = settings.withScheme(addressField.text);
-        addressCheck = typed !== "" ? settings.check(typed, allowUnencryptedBox.checked) : ({});
+        runCheck(typed);
     }
+
+    // Checks `address` as the box allows it, and as if http:// were allowed.
+    function runCheck(address: string) {
+        const empty = address.trim() === "";
+        addressCheck = empty ? ({}) : settings.check(address, allowUnencryptedBox.checked);
+        openCheck = empty ? ({}) : settings.check(address, true);
+    }
+
+    // The typed address is on another computer.
+    readonly property bool remote: openCheck.place === "other"
+    // ... and its connection would not be encrypted.
+    readonly property bool plainHttp: remote && openCheck.unencrypted === true
+    // One screen and one agreement for a provider on another computer
+    // (B-391, D-866): what leaves the computer, the warning for http://
+    // only when it applies, and one box for both. Shown until the saved
+    // provider is the typed one and the user has agreed to it; reading it
+    // again stays under "What is sent", and each question still shows
+    // what it sends.
+    readonly property bool oneScreen: remote && !settings.fake
+        && (providerChanged || form.consent !== "given")
 
     // Whether the address as typed is one no server can have.
     readonly property bool addressWrong: addressCheck.code === "ai.bad-address"
@@ -169,13 +193,19 @@ Kirigami.ScrollablePage {
         keyResult = ({});
         testResult = ({});
         completeAddress();
+        // Agreed on the one setup screen: saved, then agreed, then tested.
+        const shownAsOne = oneScreen;
+        const agreeing = shownAsOne && agreeBox.checked;
         // A new address is asked for its models at once (B-396, D-871).
         const addressChanged = addressField.text.trim() !== (form.address ?? "");
         const result = settings.save(addressField.text, modelField.text, keyUseBox.currentValue, keyField.text, allowUnencrypted);
         if (result.saved === true) {
             // Without a model there is nothing to ask yet, so the test that
             // lists the models follows at once, with the key still typed.
-            const test = testAfterSave || modelField.text.trim() === "" || addressChanged;
+            if (agreeing) {
+                notWritten = !settings.giveConsent();
+            }
+            const test = testAfterSave || modelField.text.trim() === "" || addressChanged || agreeing;
             if (test) {
                 settings.testConnection(keyField.text);
             }
@@ -185,7 +215,10 @@ Kirigami.ScrollablePage {
             keyResult = (result.keyError ?? "") !== "" ? ({ code: result.keyError }) : ({});
             justSaved = true;
             reload();
-            if (result.consentNeeded === true) {
+            agreeBox.checked = false;
+            // The one screen already showed what is sent; the dialog is
+            // only for a save that didn't show it.
+            if (result.consentNeeded === true && !shownAsOne) {
                 consentDialog.show();
             }
             if (test) {
@@ -271,6 +304,7 @@ Kirigami.ScrollablePage {
 
             Controls.TextField {
                 id: addressField
+                objectName: "addressField"
                 Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Address:")
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
@@ -333,7 +367,7 @@ Kirigami.ScrollablePage {
             Controls.CheckBox {
                 id: allowUnencryptedBox
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-                visible: page.addressCheck.code === "ai.plain-http" || page.addressCheck.unencrypted === true
+                visible: !page.oneScreen && (page.addressCheck.code === "ai.plain-http" || page.addressCheck.unencrypted === true)
                 text: page.i18nContext.i18nc("@option:check", "Allow unencrypted connections")
                 onToggled: {
                     ActionLog.taken("AiSettingsPage_allowUnencrypted")
@@ -344,7 +378,7 @@ Kirigami.ScrollablePage {
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-                visible: page.addressCheck.unencrypted === true
+                visible: !page.oneScreen && page.addressCheck.unencrypted === true
                 type: page.addressCheck.network === "home" ? Kirigami.MessageType.Warning : Kirigami.MessageType.Error
                 text: page.addressCheck.network === "home"
                     ? page.i18nContext.i18nc("@info", "This connection is not secure: it isn't encrypted. Anyone on the same network, for example on your Wi-Fi, could read what is sent, the provider's key included. Use it only in a home network you trust. An https:// address is safer.")
@@ -459,14 +493,85 @@ Kirigami.ScrollablePage {
                 }
             }
 
+            // The one setup screen for a provider on another computer
+            // (B-391, D-866).
+            ColumnLayout {
+                id: oneScreenBlock
+                Layout.fillWidth: true
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                visible: page.oneScreen
+                spacing: Kirigami.Units.largeSpacing
+
+                Kirigami.Heading {
+                    level: 3
+                    text: page.i18nContext.i18nc("@title:group", "What leaves this computer")
+                }
+
+                AiConsentStatement {
+                    Layout.fillWidth: true
+                    ai: page.ai
+                    settings: page.settings
+                    // The address as typed; the warning for http:// follows
+                    // once, below.
+                    form: ({ address: addressField.text.trim(), unencrypted: false })
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    text: page.i18nContext.i18nc("@info", "Before each question goes, you see exactly what it sends and can leave words out.")
+                }
+
+                Kirigami.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: page.plainHttp
+                    type: page.openCheck.network === "home" ? Kirigami.MessageType.Warning : Kirigami.MessageType.Error
+                    text: page.openCheck.network === "home"
+                        ? page.i18nContext.i18nc("@info", "This connection is not secure: it isn't encrypted. Anyone on the same network, for example on your Wi-Fi, could read what is sent, the provider's key included. Use it only in a home network you trust. An https:// address is safer.")
+                        : page.i18nContext.i18nc("@info", "Warning: this address may be on the Internet, and the connection isn't encrypted. Anyone on the way could read and change what is sent: your questions, information from your book and the provider's key. Use the provider's https:// address instead, unless you know exactly what you are doing.")
+                }
+
+                Controls.CheckBox {
+                    id: agreeBox
+                    objectName: "agreeBox"
+                    Layout.fillWidth: true
+                    text: Plain.plain(page.plainHttp
+                        ? page.i18nContext.i18nc("@option:check", "I have read this and agree, also to the unencrypted connection.")
+                        : page.i18nContext.i18nc("@option:check", "I have read this and agree."))
+                    onToggled: {
+                        ActionLog.taken("AiSettingsPage_agreeOnOneScreen")
+                        if (page.plainHttp) {
+                            allowUnencryptedBox.checked = checked;
+                            page.checkAddress();
+                        }
+                    }
+                }
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                    font: Kirigami.Theme.smallFont
+                    visible: !agreeBox.checked
+                    text: page.plainHttp
+                        ? page.i18nContext.i18nc("@info", "Saving waits until you agree, because the connection isn't encrypted.")
+                        : page.i18nContext.i18nc("@info", "This provider is on another computer. Nothing is sent to it until you have read what KassenSturz sends and agreed.")
+                }
+            }
+
             RowLayout {
                 spacing: Kirigami.Units.largeSpacing
 
                 Controls.Button {
-                    text: page.i18nContext.i18nc("@action:button", "Save")
+                    objectName: "saveButton"
+                    text: Plain.plain(page.oneScreen && agreeBox.checked
+                        ? page.i18nContext.i18nc("@action:button", "Save and test")
+                        : page.i18nContext.i18nc("@action:button", "Save"))
                     icon.name: "document-save"
                     enabled: addressField.text.trim() !== "" && !page.addressWrong
-                        && (page.providerChanged || keyField.text !== "")
+                        && (page.providerChanged || keyField.text !== "" || (page.oneScreen && agreeBox.checked))
+                        && !(page.plainHttp && page.oneScreen && !agreeBox.checked)
                     onClicked: {
                         ActionLog.taken("AiSettingsPage_save_2")
                         page.save()
@@ -669,7 +774,7 @@ Kirigami.ScrollablePage {
         // The consent: what is sent, and whether the user agreed.
         Kirigami.Heading {
             level: 2
-            visible: page.hasProvider
+            visible: page.hasProvider && !page.oneScreen
             text: page.i18nContext.i18nc("@title:group", "What is sent")
         }
 
@@ -677,7 +782,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
-            visible: page.hasProvider
+            visible: page.hasProvider && !page.oneScreen
             text: {
                 switch (page.form.consent) {
                 case "given":
@@ -706,7 +811,7 @@ Kirigami.ScrollablePage {
         }
 
         RowLayout {
-            visible: page.hasProvider && page.form.consent !== "notNeeded"
+            visible: page.hasProvider && page.form.consent !== "notNeeded" && !page.oneScreen
             spacing: Kirigami.Units.largeSpacing
 
             Controls.Button {

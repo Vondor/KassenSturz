@@ -27093,3 +27093,47 @@ msgstr "Entfernen"
 msgctxt "@action:button %1 is who was paid or who paid, %2 an amount"
 msgid "Remove %1, %2"
 msgstr "%1, %2 entfernen"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@title:group"
+msgid "What leaves this computer"
+msgstr "Was diesen Computer verlässt"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid ""
+"Before each question goes, you see exactly what it sends and can leave words"
+" out."
+msgstr ""
+"Bevor eine Frage abgeschickt wird, sehen Sie genau, was sie sendet, und "
+"können Wörter weglassen."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "I have read this and agree, also to the unencrypted connection."
+msgstr ""
+"Ich habe das gelesen und bin einverstanden, auch mit der unverschlüsselten "
+"Verbindung."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@option:check"
+msgid "I have read this and agree."
+msgstr "Ich habe das gelesen und bin einverstanden."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Saving waits until you agree, because the connection isn't encrypted."
+msgstr ""
+"Speichern geht erst, wenn Sie zustimmen, weil die Verbindung nicht "
+"verschlüsselt ist."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Save and test"
+msgstr "Speichern und testen"

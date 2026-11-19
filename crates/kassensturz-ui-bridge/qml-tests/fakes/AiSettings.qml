@@ -31,16 +31,29 @@ QtObject {
     property var form: ({ address: "http://localhost:1234/v1", model: "m", keyUse: "none", place: "this", consent: "not-needed" })
     signal testFinished(var result)
     function load() { return form; }
-    function check(address, allowUnencrypted) { return ({ place: "this", network: "this", unencrypted: false }); }
+    // An address with "192.168." is on another computer at home, as
+    // AiSetupSmoke needs (B-391); every other one is on this computer.
+    function check(address, allowUnencrypted) {
+        if (address.indexOf("192.168.") < 0) {
+            return ({ place: "this", network: "this", unencrypted: false });
+        }
+        const plain = address.indexOf("http://") === 0;
+        if (plain && !allowUnencrypted) {
+            return ({ code: "ai.plain-http" });
+        }
+        return ({ place: "other", network: "home", unencrypted: plain });
+    }
     function withScheme(address) { return address.trim(); }
-    function save(address, model, keyUse, key, allowUnencrypted) { return ({ saved: true }); }
+    function save(address, model, keyUse, key, allowUnencrypted) { calls = calls.concat(["save " + allowUnencrypted]); return ({ saved: true, consentNeeded: check(address, true).place === "other" }); }
     // How often the connection was tested, for ModelChoiceSmoke (B-407).
     property int testCalls: 0
-    function testConnection(key) { testCalls += 1; }
+    function testConnection(key) { testCalls += 1; calls = calls.concat(["test"]); }
     function capabilityRequest() { return ""; }
     function statement() { return []; }
     function forgetKey() { return ({}); }
-    function giveConsent() { return ({}); }
+    // Every call of save and giveConsent, in order, for AiSetupSmoke.
+    property var calls: []
+    function giveConsent() { calls = calls.concat(["consent"]); return true; }
     function withdrawConsent() { return ({}); }
     function sample(leaveOut) { return ({}); }
     function notes() { return ""; }

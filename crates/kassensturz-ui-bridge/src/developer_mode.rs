@@ -374,8 +374,6 @@ mod tests {
         );
     }
 
-    /// "Show the log" of the bank log did nothing before a bank connection
-    /// had written the folder (M6-B243, US6 P3 VM round 1, A6a).
     /// In the Store build, "Show the log" opens the folder Windows really
     /// keeps the log in, which File Explorer can see (B-397, #1197).
     #[test]
@@ -403,6 +401,8 @@ mod tests {
         assert_eq!(shown_folder(&elsewhere, Some(&local), family), elsewhere);
     }
 
+    /// "Show the log" of the bank log did nothing before a bank connection
+    /// had written the folder (M6-B243, US6 P3 VM round 1, A6a).
     #[test]
     fn the_bank_log_folder_is_made_when_it_is_asked_for() {
         let folder = crate::test_folder::TestFolder::new();

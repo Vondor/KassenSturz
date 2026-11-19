@@ -385,6 +385,10 @@ mod path_audit {
         // Lock-less open in a snap: the private copy for read-only access
         // goes under the app's own runtime folder (D-776).
         ("kassensturz-store/src/lockless.rs", 1),
+        // "Show the log" in the Store build opens the package's copy of a
+        // folder under %LOCALAPPDATA%, the same folder File Explorer finds
+        // (B-397, #1197); it reads nothing and moves no path elsewhere.
+        ("kassensturz-ui-bridge/src/developer_mode.rs", 1),
         // A test of the settings file's `$HOME` paths.
         ("kassensturz-ui-bridge/src/settings.rs", 1),
         // The test profile itself, and where it is in the core, which the

@@ -26857,6 +26857,20 @@ msgctxt "@action:button hide the suggested question"
 msgid "Hide the suggestion"
 msgstr "Vorschlag ausblenden"
 
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
+#, kde-format
+msgctxt ""
+"@info %1 is what was done, e.g. Added a transaction; %2 whom it was with or "
+"its category; %3 its amount"
+msgid "%1 (%2, %3)"
+msgstr "%1 (%2, %3)"
+
+#: crates/kassensturz-ui-bridge/qml/ChangeNames.qml
+#, kde-format
+msgctxt "@info %1 is what was done, e.g. Added a transaction; %2 its amount"
+msgid "%1 (%2)"
+msgstr "%1 (%2)"
+
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml
 #, kde-format
 msgctxt "@info"

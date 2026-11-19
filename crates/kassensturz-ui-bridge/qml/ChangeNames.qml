@@ -154,8 +154,9 @@ QtObject {
         }
     }
 
-    // A change as one line: what was done, and for an import the file it
-    // read. `change` is an object of history_model.rs.
+    // A change as one line: what was done, for an import the file it read,
+    // and for a change of one transaction which one it was. `change` is an
+    // object of history_model.rs.
     function describe(change: var): string {
         const what = name(change.action);
         if (change.filedBills > 0) {
@@ -163,9 +164,18 @@ QtObject {
             // the user sees that Undo moves them back.
             return i18nContext.i18ncp("@info %1 is a number of bills, %2 what was done", "%2, and %1 bill filed from the inbox", "%2, and %1 bills filed from the inbox", change.filedBills, what);
         }
-        return change.fileName
-            ? i18nContext.i18nc("@info %1 is what was done, %2 the name of a file", "%1 (%2)", what, change.fileName)
-            : what;
+        if (change.fileName) {
+            return i18nContext.i18nc("@info %1 is what was done, %2 the name of a file", "%1 (%2)", what, change.fileName);
+        }
+        // The one transaction it touched, so "Undone: …" says which
+        // (B-384, D-857). The amount is written by Rust (D-065).
+        const booking = change.summary?.booking ?? ({});
+        if (booking.amount) {
+            return booking.name
+                ? i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction; %2 whom it was with or its category; %3 its amount", "%1 (%2, %3)", what, booking.name, booking.amount)
+                : i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction; %2 its amount", "%1 (%2)", what, booking.amount);
+        }
+        return what;
     }
 
     // What the change touched, in a line: how many transactions, in which

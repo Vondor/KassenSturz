@@ -175,21 +175,30 @@ jobs:
           # A copy, as dragging it to Applications is: the disk image is read-only.
           rm -rf "$RUNNER_TEMP/ks-app"; mkdir -p "$RUNNER_TEMP/ks-app"
           cp -R "$mnt/KassenSturz.app" "$RUNNER_TEMP/ks-app/"
-          export QT_QPA_PLATFORM=offscreen
           export HOME="$RUNNER_TEMP/ks-home"; mkdir -p "$HOME"
-          "$RUNNER_TEMP/ks-app/KassenSturz.app/Contents/MacOS/kassensturz" > "$RUNNER_TEMP/ks-out.txt" 2> "$RUNNER_TEMP/ks-err.txt" &
-          pid=$!
-          sleep 30
-          if kill -0 "$pid" 2>/dev/null; then
-            kill "$pid"; wait "$pid" 2>/dev/null || true
-            echo "The app was still running after 30 seconds."
-            head -n 60 "$RUNNER_TEMP/ks-err.txt"
-          else
-            wait "$pid" || code=$?
-            echo "The app ended with code ${code:-0}"
-            echo "--- stderr"; head -n 80 "$RUNNER_TEMP/ks-err.txt"
-            exit 1
-          fi
+          exe="$RUNNER_TEMP/ks-app/KassenSturz.app/Contents/MacOS/kassensturz"
+          # The real window first (the runner has a login session), then
+          # without a screen. Passing with either shows the libraries and the
+          # QML load; the first one says whether a window opened.
+          result=1
+          for platform in cocoa offscreen; do
+            echo "=== Starting with QT_QPA_PLATFORM=$platform"
+            QT_QPA_PLATFORM=$platform "$exe" > "$RUNNER_TEMP/ks-out.txt" 2> "$RUNNER_TEMP/ks-err.txt" &
+            pid=$!
+            sleep 30
+            if kill -0 "$pid" 2>/dev/null; then
+              kill "$pid"; wait "$pid" 2>/dev/null || true
+              echo "The app was still running after 30 seconds ($platform)."
+              head -n 40 "$RUNNER_TEMP/ks-err.txt"
+              result=0
+              break
+            else
+              code=0; wait "$pid" || code=$?
+              echo "The app ended with code $code ($platform)"
+              echo "--- stderr"; head -n 60 "$RUNNER_TEMP/ks-err.txt"
+            fi
+          done
+          exit $result
       - name: The German catalog is in the app
         run: |
           set -eu

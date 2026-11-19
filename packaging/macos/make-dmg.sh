@@ -109,6 +109,18 @@ for module in org/kde/kirigami org/kde/kirigamiaddons org/kde/ki18n org/kde/quic
     fi
 done
 
+# macdeployqt deploys only the window plugin (cocoa). The offscreen one is a
+# few hundred kilobytes and lets CI start the app where no screen is attached
+# (the start check in macos-app.yml tries the real window first).
+offscreen=$(find "$craft_root/plugins" -name 'libqoffscreen.dylib' 2>/dev/null | head -n 1)
+if [ -n "$offscreen" ]; then
+    mkdir -p "$app/Contents/PlugIns/platforms"
+    cp "$offscreen" "$app/Contents/PlugIns/platforms/libqoffscreen.dylib"
+    chmod u+w "$app/Contents/PlugIns/platforms/libqoffscreen.dylib"
+else
+    echo "No libqoffscreen.dylib under $craft_root/plugins: the start check can only use a real window."
+fi
+
 # Modules copied by hand above (and anything macdeployqt left alone) still
 # point at Craft's lib folder. Copy each library they need into the bundle's
 # Frameworks folder and point the loader at the copy; repeat, since a copied

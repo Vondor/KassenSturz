@@ -1,0 +1,8 @@
+{
+  "density_version": 1,
+  "switches": {
+    "compact_lists": true,
+    "hide_hints": true,
+    "compact_tiles": true
+  }
+}

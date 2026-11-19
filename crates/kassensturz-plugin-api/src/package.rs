@@ -9,7 +9,9 @@
 //! ever loads it, and a data-only plugin (Theme, UI density) needs no
 //! runtime at all.
 
-use crate::{ExtensionPoint, Manifest, PluginError, THEME_SECTION, Theme};
+use crate::{
+    DENSITY_SECTION, Density, ExtensionPoint, Manifest, PluginError, THEME_SECTION, Theme,
+};
 
 /// The most bytes a plugin file may have.
 pub const MAX_PLUGIN_BYTES: usize = 16 * 1024 * 1024;
@@ -33,6 +35,8 @@ pub struct Package {
     pub has_code: bool,
     /// A theme plugin's theme (D-925), checked.
     pub theme: Option<Theme>,
+    /// A UI density plugin's switches (D-927), checked.
+    pub density: Option<Density>,
 }
 
 impl Package {
@@ -49,6 +53,7 @@ impl Package {
         let mut manifest = None;
         let mut has_code = false;
         let mut theme = None;
+        let mut density = None;
         while !rest.is_empty() {
             let (&id, after_id) = rest.split_first().ok_or(PluginError::NotAPlugin)?;
             let (size, after_size) = leb_u32(after_id).ok_or(PluginError::NotAPlugin)?;
@@ -75,6 +80,11 @@ impl Package {
                     return Err(PluginError::ThemeTwice);
                 }
                 theme = Some(data);
+            } else if name == DENSITY_SECTION {
+                if density.is_some() {
+                    return Err(PluginError::DensityTwice);
+                }
+                density = Some(data);
             } else if name.starts_with(OWN_PREFIX) {
                 return Err(PluginError::UnknownSection {
                     name: name.to_owned(),
@@ -94,10 +104,22 @@ impl Package {
             (false, Some(_)) => return Err(PluginError::ThemeUnexpected),
             (false, None) => None,
         };
+        let density = match (
+            manifest
+                .extension_points
+                .contains(&ExtensionPoint::UiDensity),
+            density,
+        ) {
+            (true, Some(data)) => Some(Density::parse(data)?),
+            (true, None) => return Err(PluginError::DensityMissing),
+            (false, Some(_)) => return Err(PluginError::DensityUnexpected),
+            (false, None) => None,
+        };
         Ok(Self {
             manifest,
             has_code,
             theme,
+            density,
         })
     }
 }

@@ -70,7 +70,7 @@ FormCard.FormCardPage {
         }
     }
 
-    FormCard.FormSectionText {
+    HintText {
         text: page.i18nContext.i18nc("@info", "Tags are your own labels, for example Holiday 2026 or Tax. They never change an amount or a sum. Add them on a transaction's page or on one of its parts.")
     }
 

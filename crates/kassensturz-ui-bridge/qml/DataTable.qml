@@ -10,7 +10,11 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
-ColumnLayout {
+// A table never makes its tile wider than the tile is: when its columns need
+// more room than the tile has (a long German header, a larger text size), it
+// scrolls sideways inside the tile (B-427, #1299), so a note or a chart next
+// to it keeps the tile's width instead of the table's.
+Flickable {
     id: table
 
     // The `columns` (fixed names) and `rows` (a list of lists of text) of a
@@ -42,11 +46,21 @@ ColumnLayout {
 
     readonly property int columnCount: columns.length
 
-    // A layout inside a layout stays as wide as it likes to be unless it says
-    // how narrow it may get (see `minimumRowWidth`).
-    Layout.minimumWidth: minimumRowWidth()
+    // The table takes the width of its tile, and no more room than that
+    // from it, however wide its columns would like to be.
+    implicitWidth: 0
+    implicitHeight: content.implicitHeight + (contentWidth > width ? horizontalBar.height : 0)
+    contentWidth: Math.max(width, minimumRowWidth())
+    contentHeight: content.implicitHeight
+    flickableDirection: Flickable.HorizontalFlick
+    boundsBehavior: Flickable.StopAtBounds
+    clip: true
 
-    spacing: 0
+    Controls.ScrollBar.horizontal: Controls.ScrollBar {
+        id: horizontalBar
+        policy: table.contentWidth > table.width ? Controls.ScrollBar.AlwaysOn : Controls.ScrollBar.AlwaysOff
+    }
+
     Accessible.role: Accessible.Table
     Accessible.name: title
 
@@ -133,55 +147,99 @@ ColumnLayout {
         return columnNames[key] !== undefined ? columnNames[key] : key;
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        Layout.minimumWidth: table.minimumRowWidth()
-        spacing: Kirigami.Units.largeSpacing
+    ColumnLayout {
+        id: content
 
-        Repeater {
-            model: table.columns
-
-            Controls.Label {
-                required property int index
-                required property var modelData
-
-                Layout.fillWidth: true
-                Layout.preferredWidth: table.preferredColumnWidth(index)
-                Layout.maximumWidth: index === 0 ? Number.POSITIVE_INFINITY : table.preferredColumnWidth(index)
-                Layout.minimumWidth: table.minimumColumnWidth(index)
-                text: table.columnTitle(modelData)
-                font.bold: true
-                // A header wraps by words, so a long one is never cut and
-                // the columns after it stay inside the table (B-427).
-                wrapMode: Text.Wrap
-                elide: Text.ElideNone
-                Accessible.role: Accessible.ColumnHeader
-                // The first column is names, the others are figures.
-                horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
-                textFormat: Text.PlainText
-            }
-        }
-    }
-
-    Kirigami.Separator {
-        Layout.fillWidth: true
-    }
-
-    Repeater {
-        model: table.rows
+        width: table.contentWidth
+        spacing: 0
 
         RowLayout {
-            id: row
-
-            required property int index
-            required property var modelData
-
             Layout.fillWidth: true
             Layout.minimumWidth: table.minimumRowWidth()
             spacing: Kirigami.Units.largeSpacing
 
             Repeater {
-                model: row.modelData
+                model: table.columns
+
+                Controls.Label {
+                    required property int index
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: table.preferredColumnWidth(index)
+                    Layout.maximumWidth: index === 0 ? Number.POSITIVE_INFINITY : table.preferredColumnWidth(index)
+                    Layout.minimumWidth: table.minimumColumnWidth(index)
+                    text: table.columnTitle(modelData)
+                    font.bold: true
+                    // A header wraps by words, so a long one is never cut and
+                    // the columns after it stay inside the table (B-427).
+                    wrapMode: Text.Wrap
+                    elide: Text.ElideNone
+                    Accessible.role: Accessible.ColumnHeader
+                    // The first column is names, the others are figures.
+                    horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
+                    textFormat: Text.PlainText
+                }
+            }
+        }
+
+        Kirigami.Separator {
+            Layout.fillWidth: true
+        }
+
+        Repeater {
+            model: table.rows
+
+            RowLayout {
+                id: row
+
+                required property int index
+                required property var modelData
+
+                Layout.fillWidth: true
+                Layout.minimumWidth: table.minimumRowWidth()
+                spacing: Kirigami.Units.largeSpacing
+
+                Repeater {
+                    model: row.modelData
+
+                    AmountLabel {
+                        required property int index
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: table.preferredColumnWidth(index)
+                        Layout.maximumWidth: index === 0 ? Number.POSITIVE_INFINITY : table.preferredColumnWidth(index)
+                        Layout.minimumWidth: table.minimumColumnWidth(index)
+                        text: modelData
+                        // A name wraps; it is never cut short (M6-B3).
+                        wrapMode: index === 0 ? Text.Wrap : Text.NoWrap
+                        elide: index === 0 ? Text.ElideNone : Text.ElideRight
+                        Accessible.role: Accessible.Cell
+                        horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
+                        readonly property bool toned: table.tonedColumns.indexOf(index) >= 0
+                        color: toned ? table.toneColor(table.tones[row.index] ?? "") : Kirigami.Theme.textColor
+                        Accessible.name: toned && (table.notes[row.index] ?? "") !== ""
+                            ? modelData + ", " + table.notes[row.index]
+                            : modelData
+                    }
+                }
+            }
+        }
+
+        Kirigami.Separator {
+            Layout.fillWidth: true
+            visible: table.totalRow.length > 0
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.minimumWidth: table.minimumRowWidth()
+            visible: table.totalRow.length > 0
+            spacing: Kirigami.Units.largeSpacing
+
+            Repeater {
+                model: table.totalRow
 
                 AmountLabel {
                     required property int index
@@ -192,52 +250,15 @@ ColumnLayout {
                     Layout.maximumWidth: index === 0 ? Number.POSITIVE_INFINITY : table.preferredColumnWidth(index)
                     Layout.minimumWidth: table.minimumColumnWidth(index)
                     text: modelData
-                    // A name wraps; it is never cut short (M6-B3).
+                    font.bold: true
                     wrapMode: index === 0 ? Text.Wrap : Text.NoWrap
                     elide: index === 0 ? Text.ElideNone : Text.ElideRight
                     Accessible.role: Accessible.Cell
                     horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
                     readonly property bool toned: table.tonedColumns.indexOf(index) >= 0
-                    color: toned ? table.toneColor(table.tones[row.index] ?? "") : Kirigami.Theme.textColor
-                    Accessible.name: toned && (table.notes[row.index] ?? "") !== ""
-                        ? modelData + ", " + table.notes[row.index]
-                        : modelData
+                    color: toned ? table.toneColor(table.totalTone) : Kirigami.Theme.textColor
+                    Accessible.name: toned && table.totalNote !== "" ? modelData + ", " + table.totalNote : modelData
                 }
-            }
-        }
-    }
-
-    Kirigami.Separator {
-        Layout.fillWidth: true
-        visible: table.totalRow.length > 0
-    }
-
-    RowLayout {
-        Layout.fillWidth: true
-        Layout.minimumWidth: table.minimumRowWidth()
-        visible: table.totalRow.length > 0
-        spacing: Kirigami.Units.largeSpacing
-
-        Repeater {
-            model: table.totalRow
-
-            AmountLabel {
-                required property int index
-                required property var modelData
-
-                Layout.fillWidth: true
-                Layout.preferredWidth: table.preferredColumnWidth(index)
-                Layout.maximumWidth: index === 0 ? Number.POSITIVE_INFINITY : table.preferredColumnWidth(index)
-                Layout.minimumWidth: table.minimumColumnWidth(index)
-                text: modelData
-                font.bold: true
-                wrapMode: index === 0 ? Text.Wrap : Text.NoWrap
-                elide: index === 0 ? Text.ElideNone : Text.ElideRight
-                Accessible.role: Accessible.Cell
-                horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight
-                readonly property bool toned: table.tonedColumns.indexOf(index) >= 0
-                color: toned ? table.toneColor(table.totalTone) : Kirigami.Theme.textColor
-                Accessible.name: toned && table.totalNote !== "" ? modelData + ", " + table.totalNote : modelData
             }
         }
     }

@@ -119,7 +119,11 @@ ColumnLayout {
                 Layout.minimumWidth: table.minimumColumnWidth(index)
                 text: table.columnTitle(modelData)
                 font.bold: true
-                elide: Text.ElideRight
+                // The name of the first column wraps, as its rows do, so a
+                // long one is never cut (B-427); the figure columns are as
+                // wide as their header (`figureWidth`).
+                wrapMode: index === 0 ? Text.Wrap : Text.NoWrap
+                elide: index === 0 ? Text.ElideNone : Text.ElideRight
                 Accessible.role: Accessible.ColumnHeader
                 // The first column is names, the others are figures.
                 horizontalAlignment: index === 0 ? Text.AlignLeft : Text.AlignRight

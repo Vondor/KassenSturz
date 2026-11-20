@@ -50,6 +50,14 @@ Item {
                                          ["apply-ai-changes", ""], ["a-newer-change", "accounts"]]) {
             test.check(names.place(action) === screen, action + " belongs to '" + screen + "', got '" + names.place(action) + "'");
         }
+        // A dashboard shares the actions of the saved views but belongs to the
+        // Overview (B-419).
+        test.check(names.placeOf({ action: "edit-view", dashboard: true }) === "overview", "a dashboard change belongs to the overview");
+        test.check(names.placeOf({ action: "edit-view", dashboard: false }) === "statistics", "a saved view's change belongs to the builder");
+        test.check(names.placeOf({ action: "edit-budget", dashboard: false }) === "budgets", "other changes keep their screen");
+        // Several transactions at once are counted (B-425).
+        const sorted = { action: "edit-transaction", summary: { changed: 3, transactions: ["t1", "t2", "t3"], booking: {} } };
+        test.check(names.describe(sorted) === "Changed 3 transactions", "a sorted group says how many: " + names.describe(sorted));
         const noName = { action: "remove-transaction", summary: { removed: 1, transactions: ["t1"], booking: { name: "", amount: "-5,00 €" } } };
         test.check(names.describe(noName) === "Removed a transaction (-5,00 €)", "without a name, the amount: " + names.describe(noName));
         const several = { action: "import-statement", fileName: "statement.sta", summary: { added: 2, transactions: ["t1", "t2"], booking: {} } };

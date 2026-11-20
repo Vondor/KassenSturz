@@ -799,7 +799,7 @@ Kirigami.ApplicationWindow {
         const change = changeHistory.undoChange;
         // The history page lists every change, so there it needs no question.
         const onHistory = pageStack.currentItem?.stepped !== undefined;
-        if (!arrangingPage && !onHistory && change?.action !== undefined && changeNames.place(change.action) !== currentScreen) {
+        if (!arrangingPage && !onHistory && change?.action !== undefined && changeNames.placeOf(change) !== currentScreen) {
             undoConfirm.change = change;
             undoConfirm.open();
             return;
@@ -832,7 +832,7 @@ Kirigami.ApplicationWindow {
         id: undoConfirm
 
         property var change: ({})
-        readonly property string where: root.screenName(changeNames.place(change?.action ?? ""))
+        readonly property string where: root.screenName(changeNames.placeOf(change))
 
         title: root.i18nContext.i18nc("@title:window", "Undo?")
         subtitle: where !== ""
@@ -925,7 +925,7 @@ Kirigami.ApplicationWindow {
         } else {
             // Where the change was, when that isn't the screen shown
             // (B-395, D-870).
-            const where = changeNames.place(result.change.action);
+            const where = changeNames.placeOf(result.change);
             const message = where !== "" && where !== currentScreen
                 ? i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction; %2 the name of a screen", "Undone: %1, on the screen “%2”", what, screenName(where))
                 : i18nContext.i18nc("@info %1 is what was done, e.g. Added a transaction", "Undone: %1", what);

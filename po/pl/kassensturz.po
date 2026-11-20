@@ -26271,3 +26271,27 @@ msgstr ""
 "nie mógł usunąć go z Twojego menedżera haseł. Usuń tam samodzielnie wpis "
 "KassenSturz „%1” (w KeePassXC wpis z tą nazwą użytkownika). Sprawdź PIN i "
 "wpisz go ponownie; po kilku błędnych PIN-ach bank blokuje logowanie."
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Added %1 transaction"
+msgid_plural "Added %1 transactions"
+msgstr[0] "Dodano %1 transakcję"
+msgstr[1] "Dodano %1 transakcje"
+msgstr[2] "Dodano %1 transakcji"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Changed %1 transaction"
+msgid_plural "Changed %1 transactions"
+msgstr[0] "Zmieniono %1 transakcję"
+msgstr[1] "Zmieniono %1 transakcje"
+msgstr[2] "Zmieniono %1 transakcji"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Removed %1 transaction"
+msgid_plural "Removed %1 transactions"
+msgstr[0] "Usunięto %1 transakcję"
+msgstr[1] "Usunięto %1 transakcje"
+msgstr[2] "Usunięto %1 transakcji"

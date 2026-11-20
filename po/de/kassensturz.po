@@ -28395,3 +28395,24 @@ msgstr ""
 "Sie dort bitte selbst den Eintrag „%1“ von KassenSturz (in KeePassXC den "
 "Eintrag mit diesem Benutzernamen). Prüfen Sie die PIN und geben Sie sie "
 "erneut ein; nach einigen falschen PINs sperrt eine Bank den Zugang."
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Added %1 transaction"
+msgid_plural "Added %1 transactions"
+msgstr[0] "%1 Buchung hinzugefügt"
+msgstr[1] "%1 Buchungen hinzugefügt"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Changed %1 transaction"
+msgid_plural "Changed %1 transactions"
+msgstr[0] "%1 Buchung geändert"
+msgstr[1] "%1 Buchungen geändert"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Removed %1 transaction"
+msgid_plural "Removed %1 transactions"
+msgstr[0] "%1 Buchung entfernt"
+msgstr[1] "%1 Buchungen entfernt"

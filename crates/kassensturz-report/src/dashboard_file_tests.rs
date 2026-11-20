@@ -270,6 +270,28 @@ fn a_list_of_only_gone_ids_is_left_out_of_the_filter_bar() {
 }
 
 #[test]
+fn the_tags_of_the_filter_bar_stay_in_their_book() {
+    let sample = sample();
+    let text = format!(
+        r#"{{"format": "kassensturz-dashboard", "version": {VERSION}, "kind": "dashboard",
+            "name": "Tagged", "filters": {{"period": "last-year", "tags": ["{GONE}"]}},
+            "components": []}}"#
+    );
+    let document = Document::read(&text).expect("reads");
+    assert_eq!(document.tags, [GONE]);
+    let file = write(&sample, &document);
+    // Another book has tags of its own (US5.2, #1154): the page there
+    // counts every part, and the file says one thing was left out.
+    assert_eq!((file.references, file.left_out), (0, 1));
+    assert!(!file.text.contains(GONE));
+    let value: Value = serde_json::from_str(&file.text).expect("JSON");
+    assert_eq!(
+        value["dashboard"]["filters"],
+        serde_json::json!({"period": "last-year"})
+    );
+}
+
+#[test]
 fn the_budgets_a_tile_shows_stay_in_their_book() {
     let sample = sample();
     let text = format!(

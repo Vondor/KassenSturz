@@ -191,6 +191,11 @@ fn main() {
                 "qml/WizardAccountsPage.qml",
                 "qml/WizardEntriesPage.qml",
                 "qml/WizardStartPage.qml",
+                "qml/GuidedBar.qml",
+                "qml/GuidedFooter.qml",
+                "qml/GuidedTransactionsPage.qml",
+                "qml/GuidedBalancePage.qml",
+                "qml/GuidedHelpPage.qml",
             ])
             // Helpers, not screens: `Plain.plain()` (D-143) and the colors of
             // the charts (D-283).

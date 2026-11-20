@@ -216,6 +216,9 @@ fn each_list(
     mut visit: impl FnMut(&ListAt, &mut Vec<Value>) -> Result<(), ReportError>,
 ) -> Result<(), ReportError> {
     if let Some(Value::Object(filters)) = dashboard.get_mut("filters") {
+        // The tags of the book the file came from are not this book's
+        // (US5.2, #1154): the page counts every part.
+        filters.remove("tags");
         for (key, holds) in [
             ("accounts", Holds::Accounts),
             ("categories", Holds::Categories),

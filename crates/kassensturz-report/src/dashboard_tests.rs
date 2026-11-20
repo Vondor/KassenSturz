@@ -745,6 +745,7 @@ fn the_filters_a_layout_carries_are_kept_with_the_session_and_count_as_a_change(
         period: Some("last-year".into()),
         accounts: vec!["a-1".into()],
         categories: vec!["c-1".into(), "c-2".into()],
+        tags: vec!["t-1".into()],
     };
     assert!(editor.set_filters(&chosen).expect("set"));
     assert!(editor.has_changes());

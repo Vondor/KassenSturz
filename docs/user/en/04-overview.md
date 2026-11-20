@@ -36,7 +36,7 @@ A **Dashboard** is a page you put together yourself: charts, tables, number card
 
 ## A page's filter
 
-Above the items is the **Filter bar**: period, accounts and categories apply to every item that follows the page. **Reset filters** counts everything again. An item can also have its own filter in its **Properties**; a grey filter note then says what it counts. In **Settings** you can hide the grey notes (**Hide the grey filter notes**).
+Above the items is the **Filter bar**: period, accounts and categories apply to every item that follows the page. Once your book has a tag, the bar also offers **Tags**: tick one and the items count only money that carries it. Items that count whole accounts or budgets cannot do that and say *Not filtered by tag*. **Reset filters** counts everything again. An item can also have its own filter in its **Properties**; a grey filter note then says what it counts. In **Settings** you can hide the grey notes (**Hide the grey filter notes**).
 
 A period can also move with today's date, for example **The last months…** or **A salary month…** (page 14), so a chart never goes out of date.
 

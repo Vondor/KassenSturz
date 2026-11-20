@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use kassensturz_ai::PreparedRequest;
+use kassensturz_ai::{PreparedRequest, Role};
 use kassensturz_ai_chat::{
     Answer, Cancel, ChatError, ChatSession, DemoModel, Hooks, LogEntry, Outcome, demo_provider,
 };
@@ -51,6 +51,10 @@ use crate::transfer_prompt::{SuggestionText, suggestion_text};
 pub enum Command {
     /// Send the request as it is on the screen now.
     Send,
+    /// Send it, and show no more requests of this question first: the user
+    /// chose not to be asked for this provider any more (D-935). The choice
+    /// itself is kept by the window.
+    SendAndStopAsking,
     /// Don't send it, which ends the question (`ai-chat.stopped`).
     Stop,
     /// Leave this word or phrase out of the request, and show it again.
@@ -69,6 +73,42 @@ pub struct Review {
     /// In how many places the phrase just left out was found; 0 when the
     /// request is shown for the first time.
     pub left_out: usize,
+    /// What it holds, in a few numbers, for the short summary over the exact
+    /// body (D-935).
+    pub summary: Summary,
+    /// Whether the window may offer "Don't ask again for this provider":
+    /// not for the fake model, which stands for a provider on another
+    /// computer only to try the look (D-935).
+    pub can_stop_asking: bool,
+}
+
+/// What a request holds, counted from the messages that are sent (D-935).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Summary {
+    /// The user's own messages: the question and any earlier ones.
+    pub questions: usize,
+    /// Answers from the book that the AI asked for (function results).
+    pub book_answers: usize,
+    /// The functions the AI may call, which KassenSturz offers with it.
+    pub functions: usize,
+}
+
+impl Summary {
+    /// The numbers of `request`, from the messages that are sent.
+    pub fn of(request: &PreparedRequest) -> Self {
+        let count = |role| {
+            request
+                .messages()
+                .iter()
+                .filter(|message| message.role == role)
+                .count()
+        };
+        Self {
+            questions: count(Role::User),
+            book_answers: count(Role::Tool),
+            functions: request.function_names().len(),
+        }
+    }
 }
 
 /// What a question running on its thread tells the window. The window's
@@ -109,6 +149,7 @@ pub struct WindowHooks {
     cancel: Cancel,
     commands: Receiver<Command>,
     ask_first: bool,
+    can_stop_asking: bool,
 }
 
 /// The hooks for a question, and the buttons that control them.
@@ -125,8 +166,18 @@ pub fn hooks(screen: Box<dyn Screen>, ask_first: bool) -> (Controls, WindowHooks
             cancel,
             commands,
             ask_first,
+            can_stop_asking: false,
         },
     )
+}
+
+impl WindowHooks {
+    /// Lets the window offer "Don't ask again for this provider" with each
+    /// request it shows (D-935).
+    pub fn offering_to_stop_asking(mut self) -> Self {
+        self.can_stop_asking = true;
+        self
+    }
 }
 
 impl Hooks for WindowHooks {
@@ -141,10 +192,18 @@ impl Hooks for WindowHooks {
                 model: request.model().to_owned(),
                 body: request.preview().to_owned(),
                 left_out,
+                summary: Summary::of(request),
+                can_stop_asking: self.can_stop_asking,
             });
             // A closed window or a question given up on drops the sender.
             match self.commands.recv() {
                 Ok(Command::Send) => return !self.cancel.is_cancelled(),
+                Ok(Command::SendAndStopAsking) => {
+                    // The rest of this question goes without being shown:
+                    // the user said so for this provider (D-935).
+                    self.ask_first = false;
+                    return !self.cancel.is_cancelled();
+                }
                 Ok(Command::LeaveOut(phrase)) => {
                     left_out = request.redact(&phrase).unwrap_or(0);
                 }
@@ -2083,6 +2142,68 @@ mod tests {
         assert_eq!(sent[0], reviews[1].body);
         assert_eq!(sent[1], reviews[2].body);
         assert!(!answer.text.is_empty());
+    }
+
+    #[test]
+    fn a_review_counts_what_the_request_holds_from_the_real_messages() {
+        let folder = TestFolder::new();
+        let store = store(&folder);
+        let book = space_colony();
+        let screen = Recorder::default();
+        let (controls, hooks) = hooks(Box::new(screen.clone()), true);
+        let mut hooks = hooks.offering_to_stop_asking();
+        let mut chat = session();
+        controls.command(Command::Send);
+        controls.command(Command::Send);
+
+        ask(&book, &store, &mut chat, "List my accounts.", &mut hooks).unwrap();
+
+        let reviews = screen.reviews.lock().unwrap();
+        assert_eq!(reviews.len(), 2, "the two requests of the question");
+        // The first request: the question, no answer from the book yet.
+        assert_eq!(reviews[0].summary.questions, 1);
+        assert_eq!(reviews[0].summary.book_answers, 0);
+        assert!(reviews[0].summary.functions > 0, "{:?}", reviews[0].summary);
+        assert!(reviews[0].can_stop_asking);
+        // The second one carries what the function answered from the book.
+        assert_eq!(reviews[1].summary.questions, 1);
+        assert!(reviews[1].summary.book_answers >= 1, "{:?}", reviews[1]);
+        assert_eq!(reviews[1].summary.functions, reviews[0].summary.functions);
+    }
+
+    #[test]
+    fn stopping_to_ask_lets_the_rest_of_the_question_go_without_a_look() {
+        let folder = TestFolder::new();
+        let store = store(&folder);
+        let book = space_colony();
+        let screen = Recorder::default();
+        let (controls, hooks) = hooks(Box::new(screen.clone()), true);
+        let mut hooks = hooks.offering_to_stop_asking();
+        let mut chat = session();
+        controls.command(Command::SendAndStopAsking);
+
+        let answer = ask(&book, &store, &mut chat, "List my accounts.", &mut hooks).unwrap();
+
+        assert!(!answer.text.is_empty());
+        assert_eq!(
+            screen.reviews.lock().unwrap().len(),
+            1,
+            "only the first request was shown"
+        );
+        let sent = chat
+            .log()
+            .iter()
+            .filter(|entry| matches!(entry, LogEntry::Sent { .. }))
+            .count();
+        assert_eq!(sent, 2, "both requests went");
+
+        // Without the offer the window doesn't show the box.
+        let screen = Recorder::default();
+        let (controls, mut plain) = super::hooks(Box::new(screen.clone()), true);
+        controls.command(Command::Send);
+        controls.command(Command::Send);
+        ask(&book, &store, &mut chat, "List my accounts.", &mut plain).unwrap();
+        assert!(!screen.reviews.lock().unwrap()[0].can_stop_asking);
     }
 
     #[test]

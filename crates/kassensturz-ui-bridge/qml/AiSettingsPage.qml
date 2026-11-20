@@ -888,6 +888,29 @@ Kirigami.ScrollablePage {
             }
         }
 
+        // The user chose not to be shown each request to this provider
+        // before it goes (D-935): a visible way back (D-936).
+        Controls.Label {
+            objectName: "askAgainLine"
+            Layout.fillWidth: true
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
+            visible: page.hasProvider && !page.oneScreen && page.form.consent === "given" && page.form.reviewOff === true
+            text: page.i18nContext.i18nc("@info", "Requests to this provider are no longer shown to you before they are sent.")
+        }
+
+        Controls.Button {
+            objectName: "askAgainButton"
+            visible: page.hasProvider && !page.oneScreen && page.form.consent === "given" && page.form.reviewOff === true
+            text: page.i18nContext.i18nc("@action:button show each request again before it is sent", "Ask again")
+            icon.name: "view-visible"
+            onClicked: {
+                ActionLog.taken("AiSettingsPage_askAgain")
+                page.notWritten = !page.settings.setReviewOff(false);
+                page.reload();
+            }
+        }
+
         // A key kept for the provider can be removed without changing the
         // provider.
         Controls.Button {

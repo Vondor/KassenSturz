@@ -83,6 +83,13 @@ pub mod qobject {
         #[cxx_name = "reviewSend"]
         fn review_send(self: &AiChat);
 
+        /// The user lets it go, and chose not to be shown the requests to
+        /// this provider any more (D-935, D-936): the choice is kept, and
+        /// the rest of this question goes without being shown too.
+        #[qinvokable]
+        #[cxx_name = "reviewSendAndStopAsking"]
+        fn review_send_and_stop_asking(self: &AiChat);
+
         /// The user does not let it go: the question ends.
         #[qinvokable]
         #[cxx_name = "reviewStop"]
@@ -432,6 +439,11 @@ pub(crate) mod engine {
             ("model", text(&review.model)),
             ("body", text(&review.body)),
             ("leftOut", whole(review.left_out)),
+            // What the request holds, for the short summary (D-935).
+            ("questions", whole(review.summary.questions)),
+            ("bookAnswers", whole(review.summary.book_answers)),
+            ("functions", whole(review.summary.functions)),
+            ("canStopAsking", QVariant::from(&review.can_stop_asking)),
         ])
     }
 
@@ -1114,11 +1126,20 @@ pub(crate) mod engine {
         if demo.is_none() && form.consent == Consent::Missing {
             return error(&ErrorText::plain("ai.no-consent"));
         }
-        let ask_first = demo.is_some() || form.place == Some(Place::AnotherComputer);
+        // A provider the user chose not to be asked about any more (D-935,
+        // D-936) goes without the look, as long as the agreement holds; the
+        // fake model always shows it.
+        let ask_first = demo.is_some()
+            || (form.place == Some(Place::AnotherComputer) && !store.review_skipped());
         let today = app_locale().today();
         let typed = (!key.is_empty()).then(|| Secret::new(key.to_owned()));
         let question = question.to_owned();
-        let (controls, mut hooks) = hooks(Box::new(Window(chat.qt_thread())), ask_first);
+        let (controls, hooks) = hooks(Box::new(Window(chat.qt_thread())), ask_first);
+        let mut hooks = if demo.is_none() {
+            hooks.offering_to_stop_asking()
+        } else {
+            hooks
+        };
         let (earlier, generation) = {
             let mut rust = chat.as_mut().rust_mut();
             rust.state.controls = Some(controls);
@@ -1534,6 +1555,17 @@ pub(crate) mod engine {
         }
     }
 
+    /// Keeps the choice not to be shown this provider's requests, and lets
+    /// the one on the screen go. A choice that can't be kept (the file can't
+    /// be copied or written) only means the next question asks again, which
+    /// is the safe side.
+    pub(super) fn send_and_stop_asking(chat: &qobject::AiChat) {
+        if Store::user().set_review_off(true) {
+            crate::note!(RequestReviewOff);
+        }
+        command(chat, Command::SendAndStopAsking);
+    }
+
     pub(super) fn leave_out(chat: &qobject::AiChat, phrase: &str) {
         command(chat, Command::LeaveOut(phrase.to_owned()));
     }
@@ -1587,6 +1619,10 @@ impl qobject::AiChat {
 
     fn review_stop(&self) {
         engine::command(self, crate::ai_chat::Command::Stop);
+    }
+
+    fn review_send_and_stop_asking(&self) {
+        engine::send_and_stop_asking(self);
     }
 
     fn review_leave_out(&self, phrase: &QString) {
@@ -1679,6 +1715,8 @@ impl qobject::AiChat {
     fn review_send(&self) {}
 
     fn review_stop(&self) {}
+
+    fn review_send_and_stop_asking(&self) {}
 
     fn review_leave_out(&self, _phrase: &QString) {}
 
@@ -1813,17 +1851,40 @@ mod tests {
 
     #[test]
     fn a_request_to_look_at_reads_back_as_qml_reads_it() {
+        use crate::ai_chat::Summary;
         let request = review_object(&Review {
             address: "https://api.example.com/v1".into(),
             model: "big".into(),
             body: "{\"messages\":[]}".into(),
             left_out: 2,
+            summary: Summary {
+                questions: 3,
+                book_answers: 4,
+                functions: 12,
+            },
+            can_stop_asking: true,
         });
-        assert_eq!(keys(&request), ["address", "body", "leftOut", "model"]);
+        assert_eq!(
+            keys(&request),
+            [
+                "address",
+                "body",
+                "bookAnswers",
+                "canStopAsking",
+                "functions",
+                "leftOut",
+                "model",
+                "questions"
+            ]
+        );
         assert_eq!(text_of(&request, "address"), "https://api.example.com/v1");
         assert_eq!(text_of(&request, "model"), "big");
         assert_eq!(text_of(&request, "body"), "{\"messages\":[]}");
         assert_eq!(number_of(&request, "leftOut"), 2);
+        assert_eq!(number_of(&request, "questions"), 3);
+        assert_eq!(number_of(&request, "bookAnswers"), 4);
+        assert_eq!(number_of(&request, "functions"), 12);
+        assert!(flag_of(&request, "canStopAsking"));
     }
 
     #[test]

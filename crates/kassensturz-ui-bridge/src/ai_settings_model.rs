@@ -118,6 +118,14 @@ pub mod qobject {
         #[cxx_name = "withdrawConsent"]
         fn withdraw_consent(self: &AiSettings) -> bool;
 
+        /// The user chooses whether each request to the saved provider is
+        /// shown before it goes (`off` is true: not any more; D-935,
+        /// D-936). Returns whether it was saved; turning it off needs the
+        /// agreement and a provider on another computer.
+        #[qinvokable]
+        #[cxx_name = "setReviewOff"]
+        fn set_review_off(self: &AiSettings, off: bool) -> bool;
+
         /// The exact request the function test of "Test connection" sends
         /// to the saved model, as text, to show before it runs. Nothing is
         /// sent. Empty while no model is saved.
@@ -393,6 +401,10 @@ mod engine {
         false
     }
 
+    pub(super) fn set_review_off(_off: bool) -> bool {
+        false
+    }
+
     pub(super) fn capability_request() -> String {
         String::new()
     }
@@ -532,6 +544,18 @@ mod engine {
         withdrawn
     }
 
+    pub(super) fn set_review_off(off: bool) -> bool {
+        let saved = Store::user().set_review_off(off);
+        if saved {
+            if off {
+                crate::note!(RequestReviewOff);
+            } else {
+                crate::note!(RequestReviewOn);
+            }
+        }
+        saved
+    }
+
     pub(super) fn statement() -> QVariant {
         list(ai_settings::statement_words().into_iter().map(text))
     }
@@ -612,6 +636,9 @@ mod engine {
                 "consentUntilClose",
                 QVariant::from(&form.consent_until_close),
             ),
+            // Whether each request to this provider is no longer shown
+            // before it goes (D-935).
+            ("reviewOff", QVariant::from(&form.review_off)),
             (
                 "consentUnconfirmedDay",
                 text(
@@ -833,6 +860,10 @@ impl qobject::AiSettings {
 
     fn withdraw_consent(&self) -> bool {
         engine::withdraw_consent()
+    }
+
+    fn set_review_off(&self, off: bool) -> bool {
+        engine::set_review_off(off)
     }
 
     fn capability_request(&self) -> QString {
@@ -2021,6 +2052,7 @@ mod tests {
                 "model",
                 "network",
                 "place",
+                "reviewOff",
                 "testAddress",
                 "testModel",
                 "unencrypted"
@@ -2060,6 +2092,13 @@ mod tests {
             text_of(&form, "consentDay").contains("25"),
             "the day, as the locale writes it"
         );
+
+        // Each request is shown until the user chooses otherwise (D-935).
+        assert!(!flag_of(&form, "reviewOff"));
+        assert!(store.set_review_off(true));
+        assert!(flag_of(&load_in(&store, false), "reviewOff"));
+        assert!(store.set_review_off(false));
+        assert!(!flag_of(&load_in(&store, false), "reviewOff"));
 
         // An address that was saved by hand and can't be used.
         assert!(store.put(kassensturz_ai::ADDRESS_KEY, "http://192.168.1.2:1/v1"));

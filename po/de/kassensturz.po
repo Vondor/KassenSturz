@@ -2981,19 +2981,6 @@ msgctxt "@action:button end the question without sending the request"
 msgid "Don't send"
 msgstr "Nicht senden"
 
-#: crates/kassensturz-ui-bridge/qml/AiRequestReview.qml:107
-#, kde-format
-msgctxt "@info %1 is a web address, %2 the name of an AI model"
-msgid ""
-"This is exactly what goes to %1 (model %2). It holds your question, "
-"KassenSturz's instructions and what the AI asked from your book so far. Read "
-"it, leave out anything you don't want to send, then send it or stop."
-msgstr ""
-"Genau das geht an %1 (Modell %2). Es enthält Ihre Frage, die Anweisungen von "
-"KassenSturz und das, was die KI bisher aus Ihrem Buch angefordert hat. Lesen "
-"Sie es, lassen Sie weg, was Sie nicht senden möchten, und senden Sie es dann "
-"oder halten Sie an."
-
 #: crates/kassensturz-ui-bridge/qml/AiRequestReview.qml:118
 #, kde-format
 msgctxt "@label:textbox"
@@ -28425,3 +28412,74 @@ msgid "Removed %1 transaction"
 msgid_plural "Removed %1 transactions"
 msgstr[0] "%1 Buchung entfernt"
 msgstr[1] "%1 Buchungen entfernt"
+
+#, kde-format
+msgctxt "@info %1 is a web address, %2 the name of an AI model"
+msgid "KassenSturz is about to send a request to %1 (model %2). Look at what it holds, then send it or stop."
+msgstr "KassenSturz will eine Anfrage an %1 senden (Modell %2). Sehen Sie sich an, was sie enthält, und senden Sie sie dann oder halten Sie an."
+
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "What you wrote: %1 message."
+msgid_plural "What you wrote: %1 messages."
+msgstr[0] "Was Sie geschrieben haben: %1 Nachricht."
+msgstr[1] "Was Sie geschrieben haben: %1 Nachrichten."
+
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "From your book, what the AI asked for: %1 answer."
+msgid_plural "From your book, what the AI asked for: %1 answers."
+msgstr[0] "Aus Ihrem Buch, was die KI angefordert hat: %1 Antwort."
+msgstr[1] "Aus Ihrem Buch, was die KI angefordert hat: %1 Antworten."
+
+#, kde-format
+msgctxt "@info"
+msgid "Nothing from your book yet: the AI has not asked for anything."
+msgstr "Noch nichts aus Ihrem Buch: Die KI hat noch nichts angefordert."
+
+#, kde-format
+msgctxt "@info %1 is a number"
+msgid "KassenSturz's instructions, and the name of %1 function the AI may ask for."
+msgid_plural "KassenSturz's instructions, and the names of %1 functions the AI may ask for."
+msgstr[0] "Die Anweisungen von KassenSturz und der Name von %1 Funktion, die die KI anfordern darf."
+msgstr[1] "Die Anweisungen von KassenSturz und die Namen von %1 Funktionen, die die KI anfordern darf."
+
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz's instructions."
+msgstr "Die Anweisungen von KassenSturz."
+
+#, kde-format
+msgctxt "@action:button hide the exact text of the request"
+msgid "Hide details"
+msgstr "Details ausblenden"
+
+#, kde-format
+msgctxt "@action:button show the exact text of the request"
+msgid "Details…"
+msgstr "Details …"
+
+#, kde-format
+msgctxt "@info"
+msgid "This is exactly what is sent. Read it and leave out anything you don't want to send."
+msgstr "Genau das wird gesendet. Lesen Sie es und lassen Sie weg, was Sie nicht senden möchten."
+
+#, kde-format
+msgctxt "@option:check"
+msgid "Don't ask again for this provider"
+msgstr "Für diesen Anbieter nicht mehr fragen"
+
+#, kde-format
+msgctxt "@info"
+msgid "Requests to this provider are then sent without being shown first. You can turn this back on in Settings, under AI, in What is sent."
+msgstr "Anfragen an diesen Anbieter werden dann gesendet, ohne vorher gezeigt zu werden. Sie können das in den Einstellungen unter KI bei „Was gesendet wird“ wieder einschalten."
+
+#, kde-format
+msgctxt "@info"
+msgid "Requests to this provider are no longer shown to you before they are sent."
+msgstr "Anfragen an diesen Anbieter werden nicht mehr vorher gezeigt."
+
+#, kde-format
+msgctxt "@action:button show each request again before it is sent"
+msgid "Ask again"
+msgstr "Wieder fragen"

@@ -78,6 +78,13 @@ QtObject {
         return true;
     }
     function withdrawConsent() { return ({}); }
+    // The choice not to be shown each request, for AiSetupSmoke (D-935).
+    property var reviewOffCalls: []
+    function setReviewOff(off) {
+        reviewOffCalls = reviewOffCalls.concat([off]);
+        form = Object.assign({}, form, { reviewOff: off });
+        return true;
+    }
     function sample(leaveOut) { return ({}); }
     function notes() { return ""; }
     function notesLimit() { return 2000; }

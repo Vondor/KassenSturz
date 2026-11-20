@@ -182,6 +182,15 @@ pub struct PinSession {
     /// because the place for saved PINs couldn't be reached (closed or
     /// locked), so the PIN dialog can say why it asks (M6-B193, D-622).
     closed: HashSet<LoginId>,
+    /// Logins whose PIN was typed and saved in this run, but which no bank
+    /// call has accepted yet (B-413): a backend keeps a mark that outlives
+    /// the app before it sends such a PIN, so a mistyped PIN saved before a
+    /// connection broke is not sent on its own at the next start.
+    unconfirmed: HashSet<LoginId>,
+    /// Logins whose saved PIN must not be sent, because a backend's mark
+    /// says the bank refused it or never accepted it, and deleting it
+    /// didn't work (B-413, threat T-05). A PIN the user types is still sent.
+    distrusted: HashSet<LoginId>,
     store: Box<dyn PinStore>,
 }
 
@@ -201,6 +210,8 @@ impl PinSession {
             remembered: HashMap::new(),
             rejected: HashSet::new(),
             closed: HashSet::new(),
+            unconfirmed: HashSet::new(),
+            distrusted: HashSet::new(),
             store,
         }
     }
@@ -214,6 +225,10 @@ impl PinSession {
         }
         if let Some((pin, _)) = self.remembered.get(login) {
             return Ok(PinAnswer::Known(pin.clone()));
+        }
+        // The saved PIN is one the bank refused or never accepted (B-413).
+        if self.distrusted.contains(login) {
+            return Ok(PinAnswer::Ask);
         }
         // A place for saved PINs that can't be reached (KeePassXC not
         // running, a locked keychain) means none is known, so the user is
@@ -245,16 +260,26 @@ impl PinSession {
     /// says. A PIN to save goes to the store at once and is remembered
     /// until the app closes too, so the keychain isn't asked on every
     /// request. When the user chose to save PINs nowhere (D-163), a PIN to
-    /// save is only remembered until the app closes.
+    /// save is only remembered until the app closes. A saved PIN counts as
+    /// [unconfirmed](Self::unconfirmed) until a bank call accepts it.
     pub fn provide(&mut self, login: &LoginId, pin: Pin, mode: PinMode) -> Result<(), BankError> {
         self.rejected.remove(login);
         self.closed.remove(login);
         let mode = self.keepable(mode);
         if mode == PinMode::SaveInKeychain {
             self.store.save(login, &pin)?;
+            self.saved_typed(login);
         }
         self.remembered.insert(login.clone(), (pin, mode));
         Ok(())
+    }
+
+    /// A PIN the user typed was saved for `login`, in place of any saved
+    /// before: that one no longer counts, and the new one isn't accepted
+    /// yet (B-413).
+    fn saved_typed(&mut self, login: &LoginId) {
+        self.distrusted.remove(login);
+        self.unconfirmed.insert(login.clone());
     }
 
     /// Like [`Self::provide`], for a PIN typed after the PIN dialog said
@@ -275,7 +300,7 @@ impl PinSession {
         let mut mode = self.keepable(mode);
         if mode == PinMode::SaveInKeychain {
             match self.store.save(login, &pin) {
-                Ok(()) => {}
+                Ok(()) => self.saved_typed(login),
                 Err(BankError::KeePassXc | BankError::Keychain) => {
                     mode = PinMode::RememberUntilClose;
                 }
@@ -293,7 +318,58 @@ impl PinSession {
     pub fn rejected(&mut self, login: &LoginId) -> Result<(), BankError> {
         self.remembered.remove(login);
         self.rejected.insert(login.clone());
-        self.store.delete(login)
+        self.unconfirmed.remove(login);
+        let deleted = self.store.delete(login);
+        if deleted.is_err() {
+            // Still saved: never sent again without the user (B-413).
+            self.distrusted.insert(login.clone());
+        } else {
+            self.distrusted.remove(login);
+        }
+        deleted
+    }
+
+    /// Whether the PIN that would be sent for `login` was typed and saved
+    /// in this run and no bank call has accepted it yet (B-413). A backend
+    /// that sends it first keeps a mark that outlives the app, so that if
+    /// the connection breaks the saved PIN isn't sent on its own at the
+    /// next start.
+    pub fn unconfirmed(&self, login: &LoginId) -> bool {
+        self.unconfirmed.contains(login)
+            && self
+                .remembered
+                .get(login)
+                .is_some_and(|(_, mode)| *mode == PinMode::SaveInKeychain)
+    }
+
+    /// A backend's mark says that the PIN saved for `login` was refused by
+    /// the bank or never accepted (B-413): it is not sent until the user
+    /// types one. A PIN typed in this run is still sent.
+    pub fn distrust_saved(&mut self, login: &LoginId) {
+        self.distrusted.insert(login.clone());
+    }
+
+    /// A bank call that sent the PIN for `login` went through, so the bank
+    /// accepted it. Returns whether the PIN saved for `login`, if any, can
+    /// be trusted now, so a backend can drop its mark: it is the one just
+    /// accepted, or a distrusted one that is deleted now because the user
+    /// typed a PIN not to be saved. While it can't be deleted, it stays
+    /// distrusted (B-413).
+    pub fn accepted(&mut self, login: &LoginId) -> bool {
+        self.unconfirmed.remove(login);
+        if !self.distrusted.contains(login) {
+            return true;
+        }
+        let saved = self
+            .remembered
+            .get(login)
+            .is_some_and(|(_, mode)| *mode == PinMode::SaveInKeychain);
+        if saved || self.store.delete(login).is_ok() {
+            self.distrusted.remove(login);
+            true
+        } else {
+            false
+        }
     }
 
     /// A bank session ended: PINs kept only for it are dropped.
@@ -327,8 +403,14 @@ impl PinSession {
                 None => false,
             },
         };
-        if self.rejected.remove(from) {
-            self.rejected.insert(to.clone());
+        for set in [
+            &mut self.rejected,
+            &mut self.unconfirmed,
+            &mut self.distrusted,
+        ] {
+            if set.remove(from) {
+                set.insert(to.clone());
+            }
         }
         if saved {
             self.store.delete(from)
@@ -343,7 +425,10 @@ impl PinSession {
         self.remembered.remove(login);
         self.rejected.remove(login);
         self.closed.remove(login);
-        self.store.delete(login)
+        self.unconfirmed.remove(login);
+        self.store.delete(login)?;
+        self.distrusted.remove(login);
+        Ok(())
     }
 
     /// Whether a PIN for `login` is saved in the store, for Settings to
@@ -400,6 +485,9 @@ impl PinSession {
     /// [`PinSession::replace_store`].
     pub fn use_store(&mut self, store: Box<dyn PinStore>) {
         self.store = store;
+        // The new place holds no PIN yet.
+        self.unconfirmed.clear();
+        self.distrusted.clear();
         for (_, mode) in self.remembered.values_mut() {
             if *mode == PinMode::SaveInKeychain {
                 *mode = PinMode::RememberUntilClose;
@@ -529,6 +617,68 @@ mod tests {
         assert_eq!(session.rejected(&login()), Err(BankError::Keychain));
         assert!(!session.is_remembered(&login()));
         // Blocked, even though the keychain still has the old PIN.
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+    }
+
+    /// B-413: the session's part of keeping a refused or unanswered saved
+    /// PIN from going out on its own. The backend's mark tells a new run to
+    /// distrust the saved PIN; a typed PIN still goes out.
+    #[test]
+    fn a_saved_pin_counts_only_once_the_bank_took_it() {
+        let mut session = session();
+        session
+            .provide(&login(), pin("1111"), PinMode::SaveInKeychain)
+            .expect("saved");
+        assert!(session.unconfirmed(&login()), "the bank hasn't answered");
+        assert!(session.accepted(&login()));
+        assert!(!session.unconfirmed(&login()));
+
+        // A PIN only remembered is never "unconfirmed": nothing is saved.
+        session
+            .provide(&login(), pin("2222"), PinMode::RememberUntilClose)
+            .expect("remembered");
+        assert!(!session.unconfirmed(&login()));
+    }
+
+    #[test]
+    fn a_distrusted_saved_pin_is_not_sent_until_one_is_typed() {
+        let store = Shared::default();
+        store
+            .0
+            .lock()
+            .expect("store")
+            .save(&login(), &pin("1111"))
+            .expect("saved");
+        let mut session = PinSession::new(Box::new(store.clone()));
+        session.distrust_saved(&login());
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+
+        // Typed and not saved: sent, and once the bank takes it the old
+        // saved PIN is deleted.
+        session
+            .provide(&login(), pin("2222"), PinMode::AskEachTime)
+            .expect("typed");
+        assert_eq!(session.answer(&login()), Ok(PinAnswer::Known(pin("2222"))));
+        assert!(session.accepted(&login()));
+        assert_eq!(store.0.lock().expect("store").load(&login()), Ok(None));
+    }
+
+    #[test]
+    fn a_refused_pin_that_cant_be_deleted_stays_distrusted() {
+        let mut store = MemoryPinStore::new();
+        store.save(&login(), &pin("1111")).expect("saved");
+        store.unavailable = true;
+        let mut session = PinSession::new(Box::new(store));
+        session
+            .provide(&login(), pin("1111"), PinMode::AskEachTime)
+            .expect("typed");
+        assert_eq!(session.rejected(&login()), Err(BankError::Keychain));
+        session
+            .provide(&login(), pin("3333"), PinMode::AskEachTime)
+            .expect("typed again");
+        // Taken by the bank, but the old one still can't be deleted.
+        assert!(!session.accepted(&login()));
+        session.end_session();
         assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
     }
 

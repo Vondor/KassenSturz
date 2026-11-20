@@ -28293,3 +28293,58 @@ msgstr "Jeden Schritt der geführten Einrichtung noch einmal, auch die überspru
 msgctxt "@info"
 msgid "Step by step with your own data: get your transactions, sort them, a first chart, a budget and your start page. Every step can be skipped."
 msgstr "Schritt für Schritt mit Ihren eigenen Daten: Buchungen holen, zuordnen, ein erstes Diagramm, ein Budget und Ihre Startseite. Jeden Schritt können Sie überspringen."
+
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "Do you have an AI on this computer?"
+msgstr "Haben Sie eine KI auf diesem Computer?"
+
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz can let an AI answer questions about your book, one that runs on your own computer, for example with Ollama or LM Studio. You don't need this: KassenSturz is complete without AI."
+msgstr "KassenSturz kann Fragen zu Ihrem Haushaltsbuch von einer KI beantworten lassen, die auf Ihrem eigenen Computer läuft, zum Beispiel mit Ollama oder LM Studio. Sie brauchen das nicht: KassenSturz ist ohne KI vollständig."
+
+#, kde-format
+msgctxt "@action:button answers whether there is an AI on this computer"
+msgid "No, or I don't know"
+msgstr "Nein, oder ich weiß es nicht"
+
+#, kde-format
+msgctxt "@info a few words next to the choice that holds now"
+msgid "This is how it stays if you do nothing"
+msgstr "So bleibt es, wenn Sie nichts tun"
+
+#, kde-format
+msgctxt "@info"
+msgid "The AI features are off, and nothing about AI is shown or runs. You can turn them on later in Settings."
+msgstr "Die KI-Funktionen sind ausgeschaltet, und nichts über KI wird angezeigt oder läuft. Sie können sie später in den Einstellungen einschalten."
+
+#, kde-format
+msgctxt "@action:button answers whether there is an AI on this computer"
+msgid "Yes, I have an AI on this computer"
+msgstr "Ja, ich habe eine KI auf diesem Computer"
+
+#, kde-format
+msgctxt "@info a few words next to the choice that holds now"
+msgid "Turned on"
+msgstr "Eingeschaltet"
+
+#, kde-format
+msgctxt "@info"
+msgid "Turns on the AI features and opens the page where you type in the address of your AI and test it. Every permission starts switched off: the AI reads and changes nothing in your book until you allow it, one thing at a time."
+msgstr "Schaltet die KI-Funktionen ein und öffnet die Seite, auf der Sie die Adresse Ihrer KI eintragen und testen. Jede Erlaubnis ist zu Beginn ausgeschaltet: Die KI liest und ändert nichts in Ihrem Haushaltsbuch, bis Sie es ihr einzeln erlauben."
+
+#, kde-format
+msgctxt "@info"
+msgid "As long as the address is on this computer, nothing leaves your computer. If it is somewhere else, KassenSturz first shows exactly what would be sent and asks whether you agree."
+msgstr "Solange die Adresse auf diesem Computer liegt, verlässt nichts Ihren Computer. Liegt sie woanders, zeigt KassenSturz vorher genau, was gesendet würde, und fragt nach Ihrer Zustimmung."
+
+#, kde-format
+msgctxt "@action:button a step of the guided setup"
+msgid "Do you have an AI on this computer?"
+msgstr "Haben Sie eine KI auf diesem Computer?"
+
+#, kde-format
+msgctxt "@info"
+msgid "Say whether KassenSturz may use an AI that runs on your own computer"
+msgstr "Sagen, ob KassenSturz eine KI nutzen darf, die auf Ihrem eigenen Computer läuft"

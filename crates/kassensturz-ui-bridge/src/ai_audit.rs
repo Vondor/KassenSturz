@@ -10,12 +10,17 @@
 //! steps can't break by accident:
 //!
 //! - the word "AI" in a screen's text appears only in the marked toggle block
-//!   of `SettingsPage.qml`, or in a file whose name starts with `Ai`;
+//!   of `SettingsPage.qml`, in the optional guided setup's question about a
+//!   local AI (`GuidedAiPage.qml` and its marked entry in
+//!   `GuidedHelpPage.qml`; D-911, D-923), or in a file whose name starts
+//!   with `Ai`;
 //! - the root element of such an `Ai*.qml` file binds `visible` to
 //!   `ai.enabled`, so the whole screen is hidden, not grayed out, and the
 //!   file receives the switch as `required property AiSwitch ai`.
 //!
-//! The toggle block itself shows only when AI is available in this build.
+//! The toggle block and the guided setup's question show only when AI is
+//! available in this build, and the question turns AI on only by the
+//! person's own click on "Yes".
 
 #[cfg(test)]
 mod tests {
@@ -24,6 +29,12 @@ mod tests {
 
     const BEGIN: &str = "// ai-toggle-begin";
     const END: &str = "// ai-toggle-end";
+    /// The guided setup's question about a local AI: its page, and the
+    /// marked entry of the guided setup's Help (D-911, D-923).
+    const GUIDED_PAGE: &str = "GuidedAiPage.qml";
+    const GUIDED_HELP: &str = "GuidedHelpPage.qml";
+    const GUIDED_BEGIN: &str = "// ai-guided-begin";
+    const GUIDED_END: &str = "// ai-guided-end";
 
     fn qml_files() -> Vec<(String, String)> {
         let folder = Path::new(env!("CARGO_MANIFEST_DIR")).join("qml");
@@ -51,7 +62,7 @@ mod tests {
         let files = qml_files();
         assert!(files.iter().any(|(name, _)| name == "SettingsPage.qml"));
         for (name, text) in &files {
-            if name.starts_with("Ai") {
+            if name.starts_with("Ai") || name == GUIDED_PAGE {
                 continue;
             }
             let mut in_toggle = false;
@@ -61,6 +72,11 @@ mod tests {
                     assert_eq!(name, "SettingsPage.qml", "{name}:{number}: toggle block");
                     in_toggle = true;
                 } else if line.trim() == END {
+                    in_toggle = false;
+                } else if line.trim_start().starts_with(&format!("{GUIDED_BEGIN}:")) {
+                    assert_eq!(name, GUIDED_HELP, "{name}:{number}: guided block");
+                    in_toggle = true;
+                } else if line.trim() == GUIDED_END {
                     in_toggle = false;
                 } else if mentions_ai(line) && !line.trim_start().starts_with("//") {
                     assert!(
@@ -91,6 +107,55 @@ mod tests {
         assert!(elements >= 1);
         assert_eq!(elements, hidden, "{block}");
         assert!(block.contains("checked: page.ai.enabled"), "{block}");
+    }
+
+    /// The guided setup's question about a local AI is the second place AI
+    /// shows while it is off (D-911, D-923). It never shows in a build
+    /// without AI, and it turns AI on only where the person clicks "Yes".
+    #[test]
+    fn the_guided_question_shows_only_when_ai_is_in_this_build_and_asks_first() {
+        let help = qml(GUIDED_HELP);
+        let start = help.find(GUIDED_BEGIN).expect("guided block");
+        let end = help.find(GUIDED_END).expect("end of guided block");
+        let block = &help[start..end];
+        let elements = block.matches("FormCard.FormDelegateSeparator {").count()
+            + block.matches("FormCard.FormButtonDelegate {").count();
+        assert!(elements >= 1);
+        assert_eq!(
+            elements,
+            block.matches("visible: page.ai.available").count(),
+            "{block}"
+        );
+
+        // Main.qml leaves the step out of the guided setup and opens its
+        // page from nowhere else unless AI is available.
+        let main = qml("Main.qml");
+        assert!(main.contains(".concat(aiSwitch.available ? [\"ai\"] : [])"));
+        let pushes: Vec<_> = main.match_indices("pushPage(guidedAiPage").collect();
+        assert_eq!(pushes.len(), 1, "one way to the guided AI page");
+        let before = &main[..pushes[0].0];
+        let guard = before.rfind("if (aiSwitch.available) {").expect("guard");
+        assert!(
+            before[guard..].lines().count() <= 2,
+            "the guard is right above"
+        );
+
+        // The page takes the one switch and writes it in exactly two
+        // places: "Yes" turns it on, "No" turns it off again. Skip, End and
+        // Continue have no way to it.
+        let page = qml(GUIDED_PAGE);
+        assert!(page.contains("required property AiSwitch ai"));
+        assert_eq!(page.matches("switchTo(").count(), 2, "{GUIDED_PAGE}");
+        assert_eq!(page.matches("page.ai.switchTo(true)").count(), 1);
+        assert_eq!(page.matches("page.ai.switchTo(false)").count(), 1);
+        let yes = page
+            .find("ActionLog.taken(\"GuidedAiPage_yes\")")
+            .expect("yes");
+        let on = page.find("page.ai.switchTo(true)").expect("on");
+        assert!(
+            yes < on && page[yes..on].lines().count() <= 2,
+            "only Yes turns AI on"
+        );
     }
 
     #[test]

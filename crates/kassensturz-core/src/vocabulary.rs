@@ -108,6 +108,7 @@ pub const DETAILS: &[&str] = &[
     "ExampleBooksPage",
     "ExportPage",
     "GrantedFoldersPage",
+    "GuidedAiPage",
     "GuidedBalancePage",
     "GuidedHelpPage",
     "GuidedSortPage",

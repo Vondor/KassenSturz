@@ -26172,3 +26172,58 @@ msgstr "Każdy krok konfiguracji jeszcze raz, także te pominięte"
 msgctxt "@info"
 msgid "Step by step with your own data: get your transactions, sort them, a first chart, a budget and your start page. Every step can be skipped."
 msgstr "Krok po kroku na twoich własnych danych: pobierz transakcje, posortuj je, pierwszy wykres, budżet i ekran startowy. Każdy krok można pominąć."
+
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "Do you have an AI on this computer?"
+msgstr "Czy masz AI na tym komputerze?"
+
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz can let an AI answer questions about your book, one that runs on your own computer, for example with Ollama or LM Studio. You don't need this: KassenSturz is complete without AI."
+msgstr "KassenSturz może pozwolić, by na pytania o Twoją księgę odpowiadało AI działające na Twoim własnym komputerze, na przykład z Ollama lub LM Studio. Nie potrzebujesz tego: KassenSturz jest kompletny bez AI."
+
+#, kde-format
+msgctxt "@action:button answers whether there is an AI on this computer"
+msgid "No, or I don't know"
+msgstr "Nie albo nie wiem"
+
+#, kde-format
+msgctxt "@info a few words next to the choice that holds now"
+msgid "This is how it stays if you do nothing"
+msgstr "Tak zostanie, jeśli nic nie zrobisz"
+
+#, kde-format
+msgctxt "@info"
+msgid "The AI features are off, and nothing about AI is shown or runs. You can turn them on later in Settings."
+msgstr "Funkcje AI są wyłączone i nic związanego z AI nie jest pokazywane ani nie działa. Możesz je włączyć później w Ustawieniach."
+
+#, kde-format
+msgctxt "@action:button answers whether there is an AI on this computer"
+msgid "Yes, I have an AI on this computer"
+msgstr "Tak, mam AI na tym komputerze"
+
+#, kde-format
+msgctxt "@info a few words next to the choice that holds now"
+msgid "Turned on"
+msgstr "Włączone"
+
+#, kde-format
+msgctxt "@info"
+msgid "Turns on the AI features and opens the page where you type in the address of your AI and test it. Every permission starts switched off: the AI reads and changes nothing in your book until you allow it, one thing at a time."
+msgstr "Włącza funkcje AI i otwiera stronę, na której wpisujesz adres swojego AI i go sprawdzasz. Każde uprawnienie jest na początku wyłączone: AI niczego nie czyta ani nie zmienia w Twojej księdze, dopóki na to nie pozwolisz, każdą rzecz osobno."
+
+#, kde-format
+msgctxt "@info"
+msgid "As long as the address is on this computer, nothing leaves your computer. If it is somewhere else, KassenSturz first shows exactly what would be sent and asks whether you agree."
+msgstr "Dopóki adres jest na tym komputerze, nic nie opuszcza Twojego komputera. Jeśli jest gdzie indziej, KassenSturz najpierw pokazuje dokładnie, co zostałoby wysłane, i pyta, czy się zgadzasz."
+
+#, kde-format
+msgctxt "@action:button a step of the guided setup"
+msgid "Do you have an AI on this computer?"
+msgstr "Czy masz AI na tym komputerze?"
+
+#, kde-format
+msgctxt "@info"
+msgid "Say whether KassenSturz may use an AI that runs on your own computer"
+msgstr "Powiedz, czy KassenSturz może korzystać z AI działającego na Twoim własnym komputerze"

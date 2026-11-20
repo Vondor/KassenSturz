@@ -32,6 +32,6 @@ Siehe Seite 11: **Bankverbindungen**, **Passwortspeicher** und **Erinnerung an n
 
 ## KI-Funktionen
 
-Unter **KI-Funktionen** steht ein einziger Schalter. Er ist **aus**, und solange er aus ist, läuft nichts davon, und es erscheint nichts davon in KassenSturz. Dieses Handbuch beschreibt KassenSturz ohne KI; alles hier klappt ohne sie.
+Unter **KI-Funktionen** steht ein einziger Schalter. Er ist **aus**, und solange er aus ist, läuft nichts davon, und es erscheint nichts davon in KassenSturz. Die einzige Ausnahme ist eine einzelne Frage am Ende der geführten Einrichtung (Seite 3), die den Schalter aus lässt, solange Sie nicht mit Ja antworten. Dieses Handbuch beschreibt KassenSturz ohne KI; alles hier klappt ohne sie.
 
 **Wenn etwas anders aussieht:** Haben Sie eine Einstellung nicht gefunden, nutzen Sie **Erweiterte Einstellungen anzeigen**; einiges ist einen Schritt weiter weg, damit die erste Seite einfach bleibt.

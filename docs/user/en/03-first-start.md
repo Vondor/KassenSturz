@@ -32,6 +32,7 @@ The guided setup leads you through the important things on your own household bo
 5. **Your first chart** with the Statistic Builder (page 14).
 6. **A budget and a planned payment** (pages 13 and 21).
 7. **Shape your start page:** move tiles, change their size, add and remove them (page 4).
+8. **Do you have an AI on this computer?** Only a question. "No, or I don't know" is already chosen, and then the AI features stay off and nothing about AI is shown. "Yes" turns them on and opens the page where you type in the address of your AI (page 18). Versions of KassenSturz that are built without AI don't have this step.
 
 You find every step again later, also the ones you skipped: **Settings → Help: guided setup**. The last page also links to this handbook in the wiki.
 

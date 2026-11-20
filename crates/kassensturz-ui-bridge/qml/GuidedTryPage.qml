@@ -82,59 +82,6 @@ Kirigami.ScrollablePage {
         onNextClicked: page.nextClicked()
     }
 
-    component Choice: Controls.AbstractButton {
-        id: choice
-
-        property string iconName
-        property string heading
-        property string line
-
-        Layout.fillWidth: true
-        Accessible.name: heading
-        Accessible.description: line
-        implicitHeight: content.implicitHeight + Kirigami.Units.largeSpacing * 2
-        background: Rectangle {
-            radius: Kirigami.Units.cornerRadius
-            color: choice.hovered || choice.visualFocus ? Qt.alpha(Kirigami.Theme.highlightColor, 0.12) : Kirigami.Theme.backgroundColor
-            border.color: choice.visualFocus ? Kirigami.Theme.highlightColor : Qt.alpha(Kirigami.Theme.textColor, 0.2)
-            border.width: choice.visualFocus ? 2 : 1
-        }
-        contentItem: RowLayout {
-            id: content
-
-            spacing: Kirigami.Units.largeSpacing
-
-            Kirigami.Icon {
-                Layout.leftMargin: Kirigami.Units.largeSpacing
-                implicitWidth: Kirigami.Units.iconSizes.large
-                implicitHeight: Kirigami.Units.iconSizes.large
-                source: choice.iconName
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.rightMargin: Kirigami.Units.largeSpacing
-                spacing: 2
-
-                Kirigami.Heading {
-                    Layout.fillWidth: true
-                    level: 4
-                    text: choice.heading
-                    textFormat: Text.PlainText
-                    wrapMode: Text.Wrap
-                }
-
-                Controls.Label {
-                    Layout.fillWidth: true
-                    text: choice.line
-                    textFormat: Text.PlainText
-                    wrapMode: Text.Wrap
-                    opacity: 0.8
-                }
-            }
-        }
-    }
-
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
 
@@ -153,7 +100,7 @@ Kirigami.ScrollablePage {
                 wrapMode: Text.Wrap
             }
 
-            Choice {
+            GuidedChoice {
                 visible: page.which === "chart"
                 iconName: "office-chart-bar"
                 heading: page.i18nContext.i18nc("@action:button", "Build my first chart")
@@ -164,7 +111,7 @@ Kirigami.ScrollablePage {
                 }
             }
 
-            Choice {
+            GuidedChoice {
                 visible: page.which === "budget"
                 iconName: "wallet-open"
                 heading: page.i18nContext.i18nc("@action:button", "Set a budget")
@@ -175,7 +122,7 @@ Kirigami.ScrollablePage {
                 }
             }
 
-            Choice {
+            GuidedChoice {
                 visible: page.which === "budget"
                 iconName: "view-calendar-upcoming-events"
                 heading: page.i18nContext.i18nc("@action:button", "Plan a payment")
@@ -212,7 +159,7 @@ Kirigami.ScrollablePage {
                 }
             }
 
-            Choice {
+            GuidedChoice {
                 visible: page.which === "start"
                 iconName: "view-grid"
                 heading: page.i18nContext.i18nc("@action:button", "Arrange my start page")
@@ -223,7 +170,7 @@ Kirigami.ScrollablePage {
                 }
             }
 
-            Choice {
+            GuidedChoice {
                 visible: page.done
                 iconName: "help-contents"
                 heading: page.i18nContext.i18nc("@action:button opens the handbook in the web browser", "More help in the wiki")

@@ -16,7 +16,10 @@ import io.github.vondor.kassensturz
 FormCard.FormCardPage {
     id: page
 
-    // The step named `step` is wanted: "transactions" or "balance".
+    // Whether this build has AI: its step shows only then (D-039).
+    required property AiSwitch ai
+
+    // The step named `step` is wanted, by its name in Main.qml's list.
     signal stepClicked(string step)
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -93,5 +96,23 @@ FormCard.FormCardPage {
                 page.stepClicked("start")
             }
         }
+
+        // ai-guided-begin: the guided setup's own question about AI, which
+        // shows while AI is off too (D-911, D-923), but never in a build
+        // without AI.
+        FormCard.FormDelegateSeparator {
+            visible: page.ai.available
+        }
+
+        FormCard.FormButtonDelegate {
+            visible: page.ai.available
+            text: page.i18nContext.i18nc("@action:button a step of the guided setup", "Do you have an AI on this computer?")
+            description: page.i18nContext.i18nc("@info", "Say whether KassenSturz may use an AI that runs on your own computer")
+            onClicked: {
+                ActionLog.taken("GuidedHelpPage_ai")
+                page.stepClicked("ai")
+            }
+        }
+        // ai-guided-end
     }
 }

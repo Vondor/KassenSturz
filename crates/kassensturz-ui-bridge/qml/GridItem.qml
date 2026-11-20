@@ -92,6 +92,12 @@ Item {
     property real startH: 0
     property real growW: 0
     property real growH: 0
+    // While an edge is dragged (#1243, D-905): which one (`left`, `top`,
+    // `right` or `bottom`; empty for the corner), and how far the left or
+    // the upper edge has gone, which moves the tile as well.
+    property string growEdge: ""
+    property real growX: 0
+    property real growY: 0
 
     TitleWords {
         id: words
@@ -110,17 +116,17 @@ Item {
     visible: present && !board.isCollapsed(info)
     // A period box lies under the widgets it holds (D-333).
     z: isBox ? (moving || resizing ? 3 : -1) : (selected ? 2 : (moving || resizing ? 3 : 0))
-    x: moving ? startX + dragX : (present ? board.frameX(info) : 0)
-    y: moving ? startY + dragY : (present ? board.frameY(info) : 0)
+    x: moving ? startX + dragX : (present ? board.frameX(info) + (resizing ? growX : 0) : 0)
+    y: moving ? startY + dragY : (present ? board.frameY(info) + (resizing ? growY : 0) : 0)
     width: resizing ? Math.max(growW, board.cellWidth(info.minCols)) : (present ? board.frameWidth(info) : 0)
     height: resizing ? Math.max(growH, board.frameHeight(info.minRows)) : (present ? board.frameHeight(info.rows) : 0)
 
     Behavior on x {
-        enabled: cell.settled && !cell.moving
+        enabled: cell.settled && !cell.moving && !cell.resizing
         NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
     }
     Behavior on y {
-        enabled: cell.settled && !cell.moving
+        enabled: cell.settled && !cell.moving && !cell.resizing
         NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
     }
     Behavior on width {
@@ -186,7 +192,70 @@ Item {
         startH = height;
         growW = width;
         growH = height;
+        growX = 0;
+        growY = 0;
+        growEdge = "";
         resizing = true;
+    }
+
+    // Resize by one edge (#1243, D-905): the edge follows the pointer and
+    // the other three stay. The layout (Rust) clamps and pushes; here the
+    // tile is only drawn where the pointer has it, not smaller than its
+    // smallest size and not beyond the first column or row.
+    function edgeStarted(edge: string) {
+        growStarted();
+        growEdge = edge;
+    }
+
+    // How many cells each edge has gone, as {left, top, right, bottom}.
+    function edgeCells(): var {
+        const cols = board.cell + board.gap;
+        const rows = board.rowHeight + board.gap;
+        return {
+            left: growEdge === "left" ? board.layout.snap(growX, cols) : 0,
+            top: growEdge === "top" ? board.layout.snap(growY, rows) : 0,
+            right: growEdge === "right" ? board.layout.snap(growW - startW, cols) : 0,
+            bottom: growEdge === "bottom" ? board.layout.snap(growH - startH, rows) : 0
+        };
+    }
+
+    function edgeMoved(translation: point) {
+        const leastW = board.cellWidth(info.minCols);
+        const leastH = board.frameHeight(info.minRows);
+        switch (growEdge) {
+        case "left":
+            growX = Math.max(-board.frameX(info), Math.min(translation.x, startW - leastW));
+            growW = startW - growX;
+            break;
+        case "top":
+            growY = Math.max(-board.frameY(info), Math.min(translation.y, startH - leastH));
+            growH = startH - growY;
+            break;
+        case "right":
+            growW = startW + translation.x;
+            break;
+        default:
+            growH = startH + translation.y;
+        }
+        const by = edgeCells();
+        const col = Math.max(0, Math.min(info.col + by.left, info.col + info.cols - info.minCols));
+        const row = Math.max(0, Math.min(info.row + by.top, info.row + info.rows - info.minRows));
+        board.ghost = {
+            col: col,
+            row: row,
+            cols: Math.max(info.minCols, Math.min(info.col + info.cols + by.right, board.columns) - col),
+            rows: Math.max(info.minRows, info.row + info.rows + by.bottom - row)
+        };
+    }
+
+    function edgeEnded() {
+        const by = edgeCells();
+        board.ghost = null;
+        resizing = false;
+        growX = 0;
+        growY = 0;
+        growEdge = "";
+        board.edit(board.layout.stretch(itemId, by.left, by.top, by.right, by.bottom));
     }
 
     function growMoved(translation: point) {
@@ -1405,6 +1474,58 @@ Item {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // The four edges a selected component is resized by (#1243, D-905): a
+    // strip along each, half inside the tile and half in the gap around it,
+    // with the cursor that says which way it goes. They lie over the
+    // overlay that selects and drags the tile, and under the corner.
+    Repeater {
+        model: cell.board.editing && cell.selected && !cell.board.preview && !cell.narrow ? ["left", "top", "right", "bottom"] : []
+
+        Item {
+            id: edge
+
+            required property string modelData
+            objectName: "edge-" + modelData
+            readonly property bool upright: modelData === "left" || modelData === "right"
+            // How far the strip reaches to each side of the edge: into the
+            // tile no further than its row of buttons starts.
+            readonly property real reach: Kirigami.Units.smallSpacing
+
+            x: modelData === "right" ? cell.width - reach : (upright ? -reach : 0)
+            y: modelData === "bottom" ? cell.height - reach : (upright ? 0 : -reach)
+            width: upright ? reach * 2 : cell.width
+            height: upright ? cell.height : reach * 2
+
+            Rectangle {
+                anchors.fill: parent
+                radius: edge.reach
+                color: Kirigami.Theme.highlightColor
+                opacity: pull.active ? 0.8 : (over.hovered ? 0.5 : 0)
+            }
+
+            // For the pointer only: the keyboard and a screen reader resize
+            // with Shift and the arrow keys, and have the corner's button.
+            HoverHandler {
+                id: over
+
+                enabled: cell.handlersOn
+                cursorShape: edge.upright ? Qt.SizeHorCursor : Qt.SizeVerCursor
+            }
+
+            DragHandler {
+                id: pull
+
+                target: null
+                enabled: cell.handlersOn
+                xAxis.enabled: edge.upright
+                yAxis.enabled: !edge.upright
+                cursorShape: edge.upright ? Qt.SizeHorCursor : Qt.SizeVerCursor
+                onActiveChanged: active ? cell.edgeStarted(edge.modelData) : cell.edgeEnded()
+                onActiveTranslationChanged: if (active) cell.edgeMoved(activeTranslation)
             }
         }
     }

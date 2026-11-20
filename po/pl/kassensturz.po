@@ -12986,12 +12986,8 @@ msgstr "Rozumiem"
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:726
 #, kde-format
 msgctxt "@info"
-msgid ""
-"You are arranging this page. Drag a widget to move it, drag its corner to "
-"make it larger or smaller, and use the buttons that appear on the one you "
-"pick. Press Done to keep the changes, or Cancel to leave everything as it "
-"was."
-msgstr "Układasz tę stronę. Przeciągnij widżet, aby go przenieść, przeciągnij jego róg, aby go powiększyć lub pomniejszyć, i używaj przycisków, które pojawiają się na wybranym widżecie. Naciśnij „Gotowe”, aby zachować zmiany, albo „Anuluj”, aby zostawić wszystko tak, jak było."
+msgid "You are arranging this page. Drag a widget to move it, drag one of its edges or its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was."
+msgstr "Układasz tę stronę. Przeciągnij widżet, aby go przenieść, przeciągnij jedną z jego krawędzi lub jego róg, aby go powiększyć lub pomniejszyć, i używaj przycisków, które pojawiają się na wybranym widżecie. Naciśnij „Gotowe”, aby zachować zmiany, albo „Anuluj”, aby zostawić wszystko tak, jak było."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:733
 #, kde-format

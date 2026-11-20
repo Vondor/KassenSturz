@@ -6,8 +6,9 @@
 // checks what the grid draws and what its keys ask the layout for (M6b.3):
 // one item per component placed on the 12 columns, the same components in
 // one column when the window is narrow, a problem counted for a component of
-// a type the app does not know, a toolbar and a resize corner only on the
-// selected component, and every key of the keyboard map naming its call.
+// a type the app does not know, a toolbar, a resize corner and four edges to
+// resize by (#1243) only on the selected component, and every key of the
+// keyboard map naming its call.
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
 
@@ -78,6 +79,18 @@ Kirigami.ApplicationWindow {
             texts(child, out);
         }
         return out;
+    }
+
+    // The names of the edges a tile can be resized by, in their order.
+    function edges(item) {
+        const found = [];
+        for (let i = 0; i < item.children.length; ++i) {
+            const name = item.children[i].objectName ?? "";
+            if (name.startsWith("edge-") && item.children[i].visible) {
+                found.push(name);
+            }
+        }
+        return found;
     }
 
     function check(ok, what) {
@@ -162,6 +175,46 @@ Kirigami.ApplicationWindow {
             }
             case 2: {
                 window.check(grid.itemFor("spending").selected && !grid.itemFor("income").selected, "only the picked component is selected");
+                // The four edges of the picked tile resize it (#1243, D-905):
+                // the dragged edge follows the pointer, the others stay, and
+                // the layout is asked for whole cells.
+                const tile = grid.itemFor("spending");
+                window.check(window.edges(tile).join() === "edge-left,edge-top,edge-right,edge-bottom", "the picked tile has its four edges: " + window.edges(tile));
+                window.check(window.edges(grid.itemFor("income")).length === 0, "a tile that is not picked has none");
+                const col = grid.cell + grid.gap;
+                const row = grid.rowHeight + grid.gap;
+                const [left, top, wide, high] = [tile.x, tile.y, tile.width, tile.height];
+                tile.edgeStarted("left");
+                tile.edgeMoved(Qt.point(-2 * col, 3 * row));
+                window.check(Math.abs(tile.x - (left - 2 * col)) < 1 && Math.abs(tile.width - (wide + 2 * col)) < 1 && tile.y === top && tile.height === high, "the left edge goes with the pointer and the right one stays: " + tile.x + " " + tile.width);
+                window.check(JSON.stringify(grid.ghost) === JSON.stringify({col: 1, row: 0, cols: 8, rows: 4}), "the place it will take is shown: " + JSON.stringify(grid.ghost));
+                tile.edgeEnded();
+                window.check(window.last() === "stretch:spending:-2:0:0:0", "the left edge two cells to the left: " + window.last());
+                window.check(grid.ghost === null && !tile.resizing && tile.x === left && tile.width === wide, "letting go ends the resize");
+                // Further than the first column or the smallest size, the
+                // edge stops.
+                tile.edgeStarted("left");
+                tile.edgeMoved(Qt.point(-5000, 0));
+                window.check(Math.abs(tile.x) < 1 && grid.ghost.col === 0 && grid.ghost.cols === 9, "the left edge stops at the first column: " + tile.x + " " + JSON.stringify(grid.ghost));
+                tile.edgeMoved(Qt.point(5000, 0));
+                window.check(Math.abs(tile.width - grid.cellWidth(2)) < 1 && grid.ghost.col === 7 && grid.ghost.cols === 2, "and at the tile's smallest width: " + tile.width + " " + JSON.stringify(grid.ghost));
+                tile.edgeEnded();
+                window.check(window.last() === "stretch:spending:4:0:0:0", "which is what the layout is asked for: " + window.last());
+                tile.edgeStarted("top");
+                tile.edgeMoved(Qt.point(300, 5000));
+                window.check(Math.abs(tile.height - grid.frameHeight(1)) < 1 && tile.x === left && grid.ghost.row === 3 && grid.ghost.rows === 1, "the upper edge stops at the smallest height: " + tile.height + " " + JSON.stringify(grid.ghost));
+                tile.edgeEnded();
+                window.check(window.last() === "stretch:spending:0:3:0:0", "the upper edge three rows down: " + window.last());
+                tile.edgeStarted("right");
+                tile.edgeMoved(Qt.point(col, 300));
+                window.check(tile.x === left && Math.abs(tile.width - (wide + col)) < 1 && tile.height === high && grid.ghost.cols === 7, "the right edge one cell to the right: " + tile.width);
+                tile.edgeEnded();
+                window.check(window.last() === "stretch:spending:0:0:1:0", "asks for one cell more: " + window.last());
+                tile.edgeStarted("bottom");
+                tile.edgeMoved(Qt.point(300, -row));
+                window.check(tile.y === top && Math.abs(tile.height - (high - row)) < 1 && tile.width === wide && grid.ghost.rows === 3, "the lower edge one row up: " + tile.height);
+                tile.edgeEnded();
+                window.check(window.last() === "stretch:spending:0:0:0:-1", "asks for one row less: " + window.last());
                 const Shift = Qt.ShiftModifier;
                 window.check(window.key(Qt.Key_Right, 0, "spending") && window.last() === "nudge:spending:1:0", "Right moves one cell: " + window.last());
                 window.key(Qt.Key_Up, 0, "spending");

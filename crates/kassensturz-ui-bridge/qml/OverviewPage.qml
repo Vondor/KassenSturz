@@ -698,7 +698,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             visible: page.layoutEditing && !grid.preview
             type: Kirigami.MessageType.Information
-            text: page.i18nContext.i18nc("@info", "You are arranging this page. Drag a widget to move it, drag its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was.")
+            text: page.i18nContext.i18nc("@info", "You are arranging this page. Drag a widget to move it, drag one of its edges or its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was.")
         }
 
         Kirigami.InlineMessage {

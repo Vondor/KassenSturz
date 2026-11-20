@@ -1084,6 +1084,13 @@ fn pin_object(request: &PinRequest) -> QVariant {
         ("bank", text(&request.bank)),
         ("rejected", QVariant::from(&request.rejected)),
         ("storeClosed", QVariant::from(&request.store_closed)),
+        // B-430: the refused PIN's entry, which the user deletes; "" when
+        // it was deleted.
+        ("stillSaved", QVariant::from(&request.still_saved.is_some())),
+        (
+            "entry",
+            text(request.still_saved.as_deref().unwrap_or_default()),
+        ),
     ])
 }
 
@@ -1636,18 +1643,31 @@ mod tests {
             bank: "Testbank".to_owned(),
             rejected: true,
             store_closed: false,
+            still_saved: None,
         });
         assert_eq!(text_of(&pin, "bank"), "Testbank");
         assert!(flag_of(&pin, "rejected"));
         assert!(!flag_of(&pin, "storeClosed"));
-        assert_eq!(object(&pin).len(), 3);
+        assert!(!flag_of(&pin, "stillSaved"));
+        assert_eq!(text_of(&pin, "entry"), "");
+        assert_eq!(object(&pin).len(), 5);
         let closed = pin_object(&PinRequest {
             bank: "Testbank".to_owned(),
             rejected: false,
             store_closed: true,
+            still_saved: None,
         });
         assert!(flag_of(&closed, "storeClosed"));
         assert!(!flag_of(&closed, "rejected"));
+        // B-430: the PIN the bank called wrong is still saved.
+        let kept = pin_object(&PinRequest {
+            bank: "Testbank".to_owned(),
+            rejected: true,
+            store_closed: false,
+            still_saved: Some("bank-pin/login-1".to_owned()),
+        });
+        assert!(flag_of(&kept, "stillSaved"));
+        assert_eq!(text_of(&kept, "entry"), "bank-pin/login-1");
 
         let row = fetch_row_object(&FetchRow {
             id: "a1".to_owned(),

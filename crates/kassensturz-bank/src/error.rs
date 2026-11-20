@@ -62,6 +62,11 @@ pub enum BankError {
     /// forgotten, so the login isn't blocked by repeating it (D-140, threat
     /// T-05).
     PinRejected,
+    /// The bank called the PIN of the login wrong, and the place for saved
+    /// PINs couldn't delete the saved one (B-413, B-430). It is never sent
+    /// on its own again; the user is told to delete the entry themselves,
+    /// by the name the place shows (`bank-pin/<login ID>`).
+    PinRejectedStillSaved(LoginId),
     /// The bank's server couldn't be reached.
     Unreachable,
     /// The bank answered with an error. Its text, if any, is data for the
@@ -176,6 +181,8 @@ impl Report for BankError {
             Self::SecuritiesAccount => ErrorReport::new("bank.securities-account"),
             Self::PinNeeded => ErrorReport::new("bank.pin-needed"),
             Self::PinRejected => ErrorReport::new("bank.pin-rejected"),
+            Self::PinRejectedStillSaved(login) => ErrorReport::new("bank.pin-rejected-still-saved")
+                .with("entry", text(&crate::keychain::saved_pin_entry(login))),
             Self::Unreachable => ErrorReport::new("bank.unreachable"),
             Self::Refused { text: message } => {
                 let report = ErrorReport::new("bank.refused");

@@ -191,6 +191,10 @@ pub struct PinSession {
     /// says the bank refused it or never accepted it, and deleting it
     /// didn't work (B-413, threat T-05). A PIN the user types is still sent.
     distrusted: HashSet<LoginId>,
+    /// Logins whose PIN the bank refused while the place for saved PINs
+    /// couldn't delete it, so it is still saved there: the PIN dialog and
+    /// the error say so and name the entry the user can delete (B-430).
+    still_saved: HashSet<LoginId>,
     store: Box<dyn PinStore>,
 }
 
@@ -212,6 +216,7 @@ impl PinSession {
             closed: HashSet::new(),
             unconfirmed: HashSet::new(),
             distrusted: HashSet::new(),
+            still_saved: HashSet::new(),
             store,
         }
     }
@@ -279,6 +284,7 @@ impl PinSession {
     /// yet (B-413).
     fn saved_typed(&mut self, login: &LoginId) {
         self.distrusted.remove(login);
+        self.still_saved.remove(login);
         self.unconfirmed.insert(login.clone());
     }
 
@@ -321,12 +327,24 @@ impl PinSession {
         self.unconfirmed.remove(login);
         let deleted = self.store.delete(login);
         if deleted.is_err() {
-            // Still saved: never sent again without the user (B-413).
+            // Still saved: never sent again without the user (B-413), who
+            // is told where it is (B-430).
             self.distrusted.insert(login.clone());
+            self.still_saved.insert(login.clone());
         } else {
             self.distrusted.remove(login);
+            self.still_saved.remove(login);
         }
         deleted
+    }
+
+    /// Whether the bank refused the PIN of `login` and the place for saved
+    /// PINs couldn't delete it, so a PIN the bank called wrong is still
+    /// saved there (B-430). It is never sent on its own (B-413); the user
+    /// is told to delete it. Saving a new PIN for `login`, or deleting the
+    /// old one later, ends it.
+    pub fn refused_pin_still_saved(&self, login: &LoginId) -> bool {
+        self.still_saved.contains(login)
     }
 
     /// Whether the PIN that would be sent for `login` was typed and saved
@@ -366,6 +384,7 @@ impl PinSession {
             .is_some_and(|(_, mode)| *mode == PinMode::SaveInKeychain);
         if saved || self.store.delete(login).is_ok() {
             self.distrusted.remove(login);
+            self.still_saved.remove(login);
             true
         } else {
             false
@@ -407,6 +426,7 @@ impl PinSession {
             &mut self.rejected,
             &mut self.unconfirmed,
             &mut self.distrusted,
+            &mut self.still_saved,
         ] {
             if set.remove(from) {
                 set.insert(to.clone());
@@ -428,6 +448,7 @@ impl PinSession {
         self.unconfirmed.remove(login);
         self.store.delete(login)?;
         self.distrusted.remove(login);
+        self.still_saved.remove(login);
         Ok(())
     }
 
@@ -488,6 +509,7 @@ impl PinSession {
         // The new place holds no PIN yet.
         self.unconfirmed.clear();
         self.distrusted.clear();
+        self.still_saved.clear();
         for (_, mode) in self.remembered.values_mut() {
             if *mode == PinMode::SaveInKeychain {
                 *mode = PinMode::RememberUntilClose;
@@ -680,6 +702,49 @@ mod tests {
         assert!(!session.accepted(&login()));
         session.end_session();
         assert_eq!(session.answer(&login()), Ok(PinAnswer::Ask));
+    }
+
+    /// B-430: a refused PIN that couldn't be deleted is reported as still
+    /// saved until it is gone: deleted later, or replaced by a new saved
+    /// PIN. One that is deleted is never reported.
+    #[test]
+    fn a_refused_pin_that_cant_be_deleted_is_reported_as_still_saved() {
+        let store = Shared::default();
+        store
+            .0
+            .lock()
+            .expect("store")
+            .save(&login(), &pin("1111"))
+            .expect("saved");
+        let mut session = PinSession::new(Box::new(store.clone()));
+        assert_eq!(session.rejected(&login()), Ok(()));
+        assert!(!session.refused_pin_still_saved(&login()), "deleted");
+
+        let mut locked = MemoryPinStore::new();
+        locked.save(&login(), &pin("1111")).expect("saved");
+        locked.unavailable = true;
+        let mut session = PinSession::new(Box::new(locked));
+        assert_eq!(session.rejected(&login()), Err(BankError::Keychain));
+        assert!(session.refused_pin_still_saved(&login()));
+        session
+            .provide(&login(), pin("2222"), PinMode::AskEachTime)
+            .expect("typed");
+        // Typed but not saved: the refused one is still there.
+        assert!(!session.accepted(&login()));
+        assert!(session.refused_pin_still_saved(&login()));
+        let other = LoginId::new("login-2");
+        session.rename(&login(), &other).expect("moved");
+        assert!(session.refused_pin_still_saved(&other));
+        assert!(!session.refused_pin_still_saved(&login()));
+
+        // A new PIN saved in its place ends it.
+        let mut session = PinSession::new(Box::new(store));
+        session.rejected.insert(login());
+        session.still_saved.insert(login());
+        session
+            .provide(&login(), pin("3333"), PinMode::SaveInKeychain)
+            .expect("saved");
+        assert!(!session.refused_pin_still_saved(&login()));
     }
 
     #[test]

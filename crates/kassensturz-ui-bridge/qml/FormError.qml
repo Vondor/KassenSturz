@@ -799,6 +799,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "Your bank asks for your PIN. Type it to continue.");
         case "bank.pin-rejected":
             return i18nContext.i18nc("@info", "Your bank says the PIN is wrong. KassenSturz has forgotten it, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login.");
+        case "bank.pin-rejected-still-saved":
+            return i18nContext.i18nc("@info %1 is the entry's name in the password manager, like bank-pin/12345", "Your bank says the PIN is wrong. KassenSturz won't send it again, but it couldn't delete it from your password manager. Delete the KassenSturz entry \"%1\" there yourself (in KeePassXC, the entry with that user name). Check the PIN and type it again; after a few wrong PINs a bank blocks the login.", result.entry);
         case "bank.unreachable":
             return i18nContext.i18nc("@info", "Your bank's server couldn't be reached. Check your internet connection and the bank's address, and try again later.");
         case "bank.refused":

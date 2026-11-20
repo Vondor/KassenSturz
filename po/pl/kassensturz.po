@@ -26227,3 +26227,47 @@ msgstr "Czy masz AI na tym komputerze?"
 msgctxt "@info"
 msgid "Say whether KassenSturz may use an AI that runs on your own computer"
 msgstr "Powiedz, czy KassenSturz może korzystać z AI działającego na Twoim własnym komputerze"
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:271
+#, kde-format
+msgctxt "@info %1 is the entry's user name in KeePassXC, like bank-pin/12345"
+msgid ""
+"Your bank said the PIN was wrong. KassenSturz won't send it again, but it "
+"couldn't empty its entry in KeePassXC. Open KeePassXC and delete the entry "
+"with the user name \"%1\". Check the PIN before you try again: after a few "
+"wrong PINs a bank blocks the login."
+msgstr ""
+"Twój bank podał, że PIN jest błędny. KassenSturz nie wyśle go ponownie, ale "
+"nie mógł wyczyścić jego wpisu w KeePassXC. Otwórz KeePassXC i usuń wpis z "
+"nazwą użytkownika „%1”. Sprawdź PIN, zanim spróbujesz ponownie: po kilku "
+"błędnych PIN-ach bank blokuje logowanie."
+
+#: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:272
+#, kde-format
+msgctxt ""
+"@info %1 is the entry's name in the password manager, like bank-pin/12345"
+msgid ""
+"Your bank said the PIN was wrong. KassenSturz won't send it again, but it "
+"couldn't delete it from your password manager. Delete the KassenSturz entry "
+"\"%1\" there yourself. Check the PIN before you try again: after a few wrong "
+"PINs a bank blocks the login."
+msgstr ""
+"Twój bank podał, że PIN jest błędny. KassenSturz nie wyśle go ponownie, ale "
+"nie mógł usunąć go z Twojego pęku kluczy. Usuń tam samodzielnie wpis "
+"KassenSturz „%1”. Sprawdź PIN, zanim spróbujesz ponownie: po kilku błędnych "
+"PIN-ach bank blokuje logowanie."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:803
+#, kde-format
+msgctxt ""
+"@info %1 is the entry's name in the password manager, like bank-pin/12345"
+msgid ""
+"Your bank says the PIN is wrong. KassenSturz won't send it again, but it "
+"couldn't delete it from your password manager. Delete the KassenSturz entry "
+"\"%1\" there yourself (in KeePassXC, the entry with that user name). Check "
+"the PIN and type it again; after a few wrong PINs a bank blocks the login."
+msgstr ""
+"Twój bank podaje, że PIN jest błędny. KassenSturz nie wyśle go ponownie, ale "
+"nie mógł usunąć go z Twojego pęku kluczy. Usuń tam samodzielnie wpis "
+"KassenSturz „%1” (w KeePassXC wpis z tą nazwą użytkownika). Sprawdź PIN i "
+"wpisz go ponownie; po kilku błędnych PIN-ach bank blokuje logowanie."

@@ -31,6 +31,11 @@ pub struct PinPrompt {
     /// the password manager or keychain is closed or locked (D-622). The
     /// dialog offers to open it and try again.
     pub store_closed: bool,
+    /// With [`Self::rejected`]: the place for saved PINs couldn't delete
+    /// the PIN the bank called wrong, so it is still saved there under
+    /// `bank-pin/<login ID>`. KassenSturz won't send it on its own; the
+    /// dialog tells the user to delete it (B-430).
+    pub still_saved: bool,
 }
 
 /// What the user answered in the PIN dialog.
@@ -61,6 +66,18 @@ pub trait PinAsker {
 /// the user is asked again (M6-B193, D-622). A PIN to save that is typed
 /// while the place is still closed is remembered until the app closes,
 /// as the dialog says. Cancelling is [`BankError::Aborted`].
+/// `error`, or [`BankError::PinRejectedStillSaved`] when the bank called
+/// the PIN of `login` wrong and it couldn't be deleted from the place for
+/// saved PINs, so the error page says where it is (B-430).
+fn still_saved(error: BankError, pins: &PinSession, login: &Login) -> BankError {
+    match error {
+        BankError::PinRejected if pins.refused_pin_still_saved(&login.id) => {
+            BankError::PinRejectedStillSaved(login.id.clone())
+        }
+        error => error,
+    }
+}
+
 fn ask_for_pin(
     pins: &mut PinSession,
     asker: &mut dyn PinAsker,
@@ -69,11 +86,13 @@ fn ask_for_pin(
 ) -> Result<(), BankError> {
     loop {
         let store_closed = !rejected && pins.saves() && pins.store_closed(&login.id);
+        let still_saved = rejected && pins.refused_pin_still_saved(&login.id);
         match asker.pin(
             login,
             PinPrompt {
                 rejected,
                 store_closed,
+                still_saved,
             },
         ) {
             PinReply::Cancel => return Err(BankError::Aborted),
@@ -257,7 +276,7 @@ pub fn fetch_linked(
             Ok(fetched) => return statement(&fetched, limits),
             Err(BankError::PinNeeded) => {}
             Err(BankError::PinRejected) if rejected + 1 < MAX_REJECTED_PINS => rejected += 1,
-            Err(error) => return Err(error),
+            Err(error) => return Err(still_saved(error, pins, &login)),
         }
         ask_for_pin(pins, asker, &login, rejected > 0)?;
     }
@@ -277,7 +296,7 @@ pub fn refresh_linked(
         match bank.refresh_accounts(&login.id, pins) {
             Err(BankError::PinNeeded) => {}
             Err(BankError::PinRejected) if rejected + 1 < MAX_REJECTED_PINS => rejected += 1,
-            other => return other,
+            other => return other.map_err(|error| still_saved(error, pins, login)),
         }
         ask_for_pin(pins, asker, login, rejected > 0)?;
     }
@@ -438,7 +457,7 @@ mod tests {
         assert_eq!(asker.asked, vec![false]);
         assert_eq!(
             pins.answer(&LoginId::new("fake-login-1")),
-            Ok(crate::pin::PinAnswer::Ask)
+            Ok(PinAnswer::Ask)
         );
 
         // The last fetch was on the 10th, so this one starts five days
@@ -655,6 +674,29 @@ mod tests {
         }
     }
 
+    /// A place for saved PINs that reads and saves but can't delete, like
+    /// a password manager that says no (B-430).
+    #[derive(Clone, Default)]
+    struct Undeletable(Lockable);
+
+    impl crate::pin::PinStore for Undeletable {
+        fn save(&mut self, login: &LoginId, pin: &Pin) -> Result<(), BankError> {
+            self.0.save(login, pin)
+        }
+
+        fn load(&self, login: &LoginId) -> Result<Option<Pin>, BankError> {
+            self.0.load(login)
+        }
+
+        fn delete(&mut self, _login: &LoginId) -> Result<(), BankError> {
+            Err(BankError::Keychain)
+        }
+
+        fn open(&self) -> Result<Option<kassensturz_platform::KeychainPlace>, BankError> {
+            self.0.open()
+        }
+    }
+
     /// Answers with the replies it is given in turn, and keeps each prompt.
     struct Script {
         replies: Vec<PinReply>,
@@ -714,7 +756,8 @@ mod tests {
             asker.prompts,
             vec![PinPrompt {
                 rejected: false,
-                store_closed: true
+                store_closed: true,
+                still_saved: false,
             }]
         );
         assert_eq!(place.opened(), 1, "opened before reading again");
@@ -735,6 +778,7 @@ mod tests {
         let closed = PinPrompt {
             rejected: false,
             store_closed: true,
+            still_saved: false,
         };
         assert_eq!(asker.prompts, vec![closed, closed]);
         assert_eq!(place.opened(), 1);
@@ -785,5 +829,75 @@ mod tests {
         fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default())
             .expect("a statement");
         assert_eq!(asker.prompts, vec![PinPrompt::default()]);
+    }
+
+    #[test]
+    fn a_refused_pin_that_stays_saved_is_named_in_the_dialog_and_the_error() {
+        // B-430: the bank refuses the saved PIN and the place can't delete
+        // it. The dialog says so; a second refusal ends in the error that
+        // names the entry to delete.
+        let place = Lockable::default();
+        let (mut bank, _, link) = saved_in(&place);
+        let login = LoginId::new("fake-login-1");
+        crate::pin::PinStore::save(&mut place.clone(), &login, &Pin::new("0000".to_owned()))
+            .expect("a wrong PIN saved");
+        let mut pins = PinSession::new(Box::new(Undeletable(place.clone())));
+        let mut asker = Script::new(vec![PinReply::Typed(
+            Pin::new("0000".to_owned()),
+            PinMode::AskEachTime,
+        )]);
+        assert_eq!(
+            fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default()),
+            Err(BankError::PinRejectedStillSaved(login.clone()))
+        );
+        assert_eq!(
+            asker.prompts,
+            vec![PinPrompt {
+                rejected: true,
+                store_closed: false,
+                still_saved: true,
+            }]
+        );
+        assert_eq!(
+            kassensturz_core::Report::report(&BankError::PinRejectedStillSaved(login.clone()))
+                .params,
+            vec![(
+                "entry",
+                kassensturz_core::ErrorParam::Text("bank-pin/fake-login-1".to_owned())
+            )]
+        );
+
+        // Typed right the second time: the fetch goes through, the refused
+        // PIN is still saved and is never sent on its own.
+        let mut asker = Script::new(vec![PinReply::Typed(
+            Pin::new(FakeBank::PIN.to_owned()),
+            PinMode::AskEachTime,
+        )]);
+        fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default())
+            .expect("a statement");
+        assert!(pins.refused_pin_still_saved(&login));
+        pins.end_session();
+        assert_eq!(pins.answer(&login), Ok(PinAnswer::Ask));
+
+        // With a place that deletes, a refused PIN is never named.
+        let (mut bank, _, link) = saved_in(&place);
+        crate::pin::PinStore::save(&mut place.clone(), &login, &Pin::new("0000".to_owned()))
+            .expect("a wrong PIN saved");
+        let mut pins = PinSession::new(Box::new(place.clone()));
+        let mut asker = Script::new(vec![PinReply::Typed(
+            Pin::new("0000".to_owned()),
+            PinMode::AskEachTime,
+        )]);
+        assert_eq!(
+            fetch_linked(&mut bank, &mut pins, &mut asker, &link, &Limits::default()),
+            Err(BankError::PinRejected)
+        );
+        assert_eq!(
+            asker.prompts,
+            vec![PinPrompt {
+                rejected: true,
+                ..PinPrompt::default()
+            }]
+        );
     }
 }

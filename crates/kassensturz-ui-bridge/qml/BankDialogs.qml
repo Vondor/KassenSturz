@@ -206,6 +206,7 @@ Item {
         }
 
         readonly property bool storeClosed: request.storeClosed ?? false
+        readonly property bool stillSaved: request.stillSaved ?? false
 
         title: dialogs.i18nContext.i18nc("@title:window", "Your bank asks for your PIN")
         padding: Kirigami.Units.largeSpacing
@@ -254,8 +255,21 @@ Item {
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 type: Kirigami.MessageType.Warning
-                visible: pinDialog.request.rejected ?? false
+                visible: (pinDialog.request.rejected ?? false) && !pinDialog.stillSaved
                 text: dialogs.i18nContext.i18nc("@info", "Your bank said the PIN you typed was wrong. KassenSturz has forgotten it. Check it before you try again: after a few wrong PINs a bank blocks the login.")
+            }
+
+            // The PIN the bank called wrong couldn't be deleted from the
+            // password manager (B-430): KassenSturz won't send it, and the
+            // user deletes the entry, named as the password manager shows
+            // it.
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                type: Kirigami.MessageType.Warning
+                visible: (pinDialog.request.rejected ?? false) && pinDialog.stillSaved
+                text: dialogs.bank.pinStorage === "keepassxc"
+                    ? dialogs.i18nContext.i18nc("@info %1 is the entry's user name in KeePassXC, like bank-pin/12345", "Your bank said the PIN was wrong. KassenSturz won't send it again, but it couldn't empty its entry in KeePassXC. Open KeePassXC and delete the entry with the user name \"%1\". Check the PIN before you try again: after a few wrong PINs a bank blocks the login.", pinDialog.request.entry ?? "")
+                    : dialogs.i18nContext.i18nc("@info %1 is the entry's name in the password manager, like bank-pin/12345", "Your bank said the PIN was wrong. KassenSturz won't send it again, but it couldn't delete it from your password manager. Delete the KassenSturz entry \"%1\" there yourself. Check the PIN before you try again: after a few wrong PINs a bank blocks the login.", pinDialog.request.entry ?? "")
             }
 
             // The saved PIN couldn't be read (D-622): say why, and what the

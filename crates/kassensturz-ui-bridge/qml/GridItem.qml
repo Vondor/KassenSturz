@@ -224,7 +224,7 @@ Item {
         anchors.fill: parent
         clip: true
         color: cell.isBox ? Qt.alpha(Kirigami.Theme.highlightColor, 0.06) : (cell.showsFrame ? Kirigami.Theme.backgroundColor : "transparent")
-        radius: Kirigami.Units.smallSpacing
+        radius: Look.radius(Kirigami.Units.smallSpacing)
         border.width: cell.selected ? 2 : (cell.showsFrame ? 1 : 0)
         border.color: cell.selected ? Kirigami.Theme.highlightColor
             : cell.hasProblem ? Kirigami.Theme.neutralTextColor

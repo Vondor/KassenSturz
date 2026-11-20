@@ -6,3 +6,8 @@ crates/kassensturz-export/tests/golden/** -text
 
 # The five-year Space Colony book is a database file (D-270).
 crates/kassensturz-import/tests/books/** -text
+
+# An example plugin's .wasm is packed from the JSON files beside it, and a
+# test checks the bytes match (#791), so Git never converts their line
+# endings either, not even on Windows.
+examples/plugins/** -text

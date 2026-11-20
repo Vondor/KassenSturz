@@ -27477,3 +27477,87 @@ msgstr "Prüfen Sie die Buchungen unten, bevor Sie sie importieren."
 msgctxt "@item:inlistbox a file type, %1 are patterns such as *.bank"
 msgid "Files your plugins read (%1)"
 msgstr "Dateien, die Ihre Plugins lesen (%1)"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:913
+#, kde-format
+msgctxt "@info"
+msgid "This theme plugin holds no colors, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Dieses Theme-Plugin enthält keine Farben, deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:915
+#, kde-format
+msgctxt "@info"
+msgid "This theme plugin holds its colors twice, so KassenSturz can't tell which are meant and doesn't add it. Ask the plugin's author."
+msgstr "Dieses Theme-Plugin enthält seine Farben doppelt, deshalb weiß KassenSturz nicht, welche gemeint sind, und fügt es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:917
+#, kde-format
+msgctxt "@info"
+msgid "This plugin holds colors for the app but doesn't say it is a theme, so KassenSturz doesn't add it. Ask the plugin's author."
+msgstr "Dieses Plugin enthält Farben für die App, sagt aber nicht, dass es ein Theme ist, deshalb fügt KassenSturz es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:919
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This theme's colors take more than %1 bytes, so KassenSturz doesn't read them. Ask the plugin's author for a fixed version."
+msgstr "Die Farben dieses Themes sind größer als %1 Byte, deshalb liest KassenSturz sie nicht. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:921
+#, kde-format
+msgctxt "@info"
+msgid "This theme's colors can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Die Farben dieses Themes lassen sich nicht lesen, deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:923
+#, kde-format
+msgctxt "@info %1 is a version number"
+msgid "This theme was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the theme."
+msgstr "Dieses Theme wurde in einem Format erstellt, das dieses KassenSturz nicht kennt (Version %1). Aktualisieren Sie KassenSturz oder suchen Sie eine ältere Version des Themes."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:925
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This theme has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Dieses Theme hat einen Fehler in „%1“, deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:927
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "With this theme, some text would be hard to read (\"%1\" doesn't stand out enough from the background), so KassenSturz doesn't add it. Ask the plugin's author for a version with stronger colors."
+msgstr "Mit diesem Theme wäre manche Schrift schwer zu lesen („%1“ hebt sich nicht genug vom Hintergrund ab), deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine Version mit kräftigeren Farben."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:51
+#, kde-format
+msgctxt "@info"
+msgid "Close KassenSturz and open it again to see the new colors."
+msgstr "Schließen Sie KassenSturz und öffnen Sie es wieder, um die neuen Farben zu sehen."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:104
+#, kde-format
+msgctxt "@title:group"
+msgid "Colors of the app"
+msgstr "Farben der App"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:118
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Colors"
+msgstr "Farben"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:121
+#, kde-format
+msgctxt "@item:inlistbox the app's colors without a theme plugin"
+msgid "KassenSturz's own, as in your system"
+msgstr "Die eigenen von KassenSturz, wie in Ihrem System"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:143
+#, kde-format
+msgctxt "@info"
+msgid "To give KassenSturz other colors, add a theme plugin in Settings › Plugins. KassenSturz refuses a theme whose text would be hard to read."
+msgstr "Um KassenSturz andere Farben zu geben, fügen Sie unter Einstellungen › Plugins ein Theme-Plugin hinzu. KassenSturz lehnt ein Theme ab, dessen Schrift schwer zu lesen wäre."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:144
+#, kde-format
+msgctxt "@info"
+msgid "A theme changes only colors, the font and how round corners are. It uses its light or dark colors after your system's setting when KassenSturz opens. KassenSturz refuses a theme whose text would be hard to read."
+msgstr "Ein Theme ändert nur Farben, die Schrift und wie rund Ecken sind. Es nimmt seine hellen oder dunklen Farben nach der Einstellung Ihres Systems beim Öffnen von KassenSturz. KassenSturz lehnt ein Theme ab, dessen Schrift schwer zu lesen wäre."

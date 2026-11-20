@@ -540,6 +540,7 @@ pub const ACTIONS: &[&str] = &[
     "SettingsBookPage_tryExampleBook",
     "SettingsLookPage_activated",
     "SettingsLookPage_language",
+    "SettingsLookPage_theme",
     "SettingsPage_advanced",
     "SettingsPage_aiFeatures",
     "SettingsPage_backupsUndo",

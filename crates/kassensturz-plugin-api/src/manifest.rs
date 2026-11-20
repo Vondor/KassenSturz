@@ -333,7 +333,7 @@ fn hidden(c: char) -> bool {
 /// A text the Plugins tab shows: not empty, no hidden characters, no space
 /// at either end, at most `max` characters. A description may have line
 /// breaks; nothing else may.
-fn text(value: &str, key: &str, max: usize) -> Result<String, PluginError> {
+pub(crate) fn text(value: &str, key: &str, max: usize) -> Result<String, PluginError> {
     if value.trim().is_empty() {
         return Err(invalid("empty", key));
     }

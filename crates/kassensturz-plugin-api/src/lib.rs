@@ -6,7 +6,8 @@
 //! This crate holds what a plugin and KassenSturz agree on before any plugin
 //! code runs: the [`Manifest`] a plugin ships (D-847), the [`ApiVersion`] it
 //! targets, the [`ExtensionPoint`]s it fills and the [`Permission`]s it asks
-//! for (D-848), and the plugin file that carries them (D-849). It reads and
+//! for (D-848), the plugin file that carries them (D-849), and the data of a
+//! theme (D-925). It reads and
 //! checks a plugin file and refuses anything it does not fully understand; it
 //! runs no plugin. The host that loads and sandboxes the WASM modules is
 //! `kassensturz-plugin-host` (D-850).
@@ -22,6 +23,7 @@ mod error;
 mod manifest;
 mod package;
 mod permission;
+mod theme;
 mod version;
 
 pub use error::PluginError;
@@ -31,9 +33,15 @@ pub use manifest::{
 };
 pub use package::{MANIFEST_SECTION, MAX_PLUGIN_BYTES, Package};
 pub use permission::{ExtensionPoint, Permission};
+pub use theme::{
+    Colours, MAX_CORNER_RADIUS, MAX_FONT_CHARS, MAX_THEME_BYTES, MIN_CONTRAST, Rgb, THEME_SECTION,
+    THEME_VERSION, Theme,
+};
 pub use version::{API_VERSION, ApiVersion};
 
 #[cfg(test)]
 mod package_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod theme_tests;

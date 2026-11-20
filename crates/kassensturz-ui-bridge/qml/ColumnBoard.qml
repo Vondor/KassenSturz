@@ -687,7 +687,7 @@ ColumnLayout {
             Layout.preferredHeight: height
             width: Kirigami.Units.gridUnit * 14
             height: Math.max(Kirigami.Units.gridUnit * 12, content.implicitHeight + Kirigami.Units.largeSpacing * 2)
-            radius: Kirigami.Units.cornerRadius
+            radius: Look.radius(Kirigami.Units.cornerRadius)
             color: isUnused ? Kirigami.Theme.alternateBackgroundColor : Kirigami.Theme.backgroundColor
             border.width: dropHere.containsDrag ? 2 : 1
             border.color: dropHere.containsDrag ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
@@ -800,7 +800,7 @@ ColumnLayout {
                     Layout.fillWidth: true
                     Layout.preferredHeight: toggleLabel.implicitHeight + Kirigami.Units.largeSpacing
                     visible: !slotColumn.isUnused && (slotColumn.asFormula || slotColumn.modelData.members.length === 0)
-                    radius: Kirigami.Units.cornerRadius
+                    radius: Look.radius(Kirigami.Units.cornerRadius)
                     color: toggleTap.pressed ? Qt.alpha(Kirigami.Theme.highlightColor, 0.25) : (toggleHover.hovered ? Qt.alpha(Kirigami.Theme.highlightColor, 0.1) : "transparent")
                     border.width: activeFocus ? 1 : 0
                     border.color: Kirigami.Theme.highlightColor
@@ -1035,7 +1035,7 @@ ColumnLayout {
 
                             width: slot.width
                             height: Kirigami.Units.gridUnit * 2
-                            radius: Kirigami.Units.cornerRadius
+                            radius: Look.radius(Kirigami.Units.cornerRadius)
                             color: Kirigami.Theme.backgroundColor
                             border.width: 1
                             border.color: handler.active || copyHandler.active ? Kirigami.Theme.highlightColor : Kirigami.Theme.disabledTextColor
@@ -1146,7 +1146,7 @@ ColumnLayout {
             width: Kirigami.Units.gridUnit * 14
             // Grows with its help text, so a long translation stays inside.
             height: Math.max(Kirigami.Units.gridUnit * 12, addContent.implicitHeight + Kirigami.Units.largeSpacing * 2)
-            radius: Kirigami.Units.cornerRadius
+            radius: Look.radius(Kirigami.Units.cornerRadius)
             color: Kirigami.Theme.backgroundColor
             border.width: addDrop.containsDrag ? 2 : 1
             border.color: Kirigami.Theme.highlightColor

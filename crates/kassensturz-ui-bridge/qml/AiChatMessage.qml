@@ -66,7 +66,7 @@ ColumnLayout {
         visible: item.message.kind === "question"
         implicitWidth: questionLabel.implicitWidth + Kirigami.Units.largeSpacing * 2
         implicitHeight: questionLabel.implicitHeight + Kirigami.Units.largeSpacing
-        radius: Kirigami.Units.cornerRadius
+        radius: Look.radius(Kirigami.Units.cornerRadius)
         color: Kirigami.Theme.highlightColor
 
         Controls.Label {

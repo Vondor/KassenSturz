@@ -196,6 +196,8 @@ fn main() {
                 "qml/GuidedTransactionsPage.qml",
                 "qml/GuidedBalancePage.qml",
                 "qml/GuidedHelpPage.qml",
+                "qml/GuidedSortPage.qml",
+                "qml/GuidedTryPage.qml",
             ])
             // Helpers, not screens: `Plain.plain()` (D-143) and the colors of
             // the charts (D-283).
@@ -235,6 +237,7 @@ fn main() {
         "src/folder_choice_model.rs",
         "src/book_move_model.rs",
         "src/grid_editor_model.rs",
+        "src/guided_sort_model.rs",
         "src/history_model.rs",
         "src/install_kind_model.rs",
         "src/kmy_reports_import_model.rs",

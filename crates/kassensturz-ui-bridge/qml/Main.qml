@@ -92,7 +92,11 @@ Kirigami.ApplicationWindow {
     // The steps of the guided setup (#1031, docs/GUIDED_SETUP.md), in their
     // order. How far the user got is not stored anywhere (D-921): the pages
     // on the stack are all there is.
-    readonly property var guidedSteps: ["transactions", "balance"]
+    // The open book changed, by a screen or by Undo: for a page that keeps
+    // what it read from the book.
+    signal bookWasChanged()
+
+    readonly property var guidedSteps: ["transactions", "balance", "sort", "chart", "budget", "start"]
 
     // The app's name, which isn't translated, and in the developer mode a
     // marker that stays as long as it runs (D-227). With only the bank log
@@ -269,6 +273,12 @@ Kirigami.ApplicationWindow {
 
     // The register and its pages (M3.5): one list model, shown for the
     // account whose page is open.
+    GuidedSort {
+        id: guidedSort
+
+        onChanged: root.screenChangedBook()
+    }
+
     AccountRegister {
         id: accountRegister
 
@@ -723,6 +733,7 @@ Kirigami.ApplicationWindow {
 
     // The book changed on one of its screens: every screen reads it again.
     function bookChanged() {
+        bookWasChanged();
         firstStartState.refresh();
         bookOverview.refresh();
         accountList.refresh();
@@ -1010,15 +1021,42 @@ Kirigami.ApplicationWindow {
     // current page, or the overview after the last one.
     function showGuidedStep(index: int) {
         if (index >= guidedSteps.length) {
-            showScreen("overview");
+            // The last page: where the steps are found again (D-902, D-931).
+            pushPage(guidedTryPage, { which: "done" });
             return;
         }
-        pushPage(guidedStepPage(guidedSteps[index]), { step: index + 1, count: guidedSteps.length });
+        pushGuidedStep(guidedSteps[index], index + 1, guidedSteps.length);
     }
 
-    // The page of the guided setup's step `name`.
-    function guidedStepPage(name: string): Component {
-        return name === "balance" ? guidedBalancePage : guidedTransactionsPage;
+    // Shows the page of the guided setup's step `name` as step `step` of
+    // `count`; 0 for a step opened from Help, which stands alone.
+    function pushGuidedStep(name: string, step: int, count: int) {
+        if (name === "balance") {
+            pushPage(guidedBalancePage, { step: step, count: count });
+        } else if (name === "sort") {
+            pushPage(guidedSortPage, { step: step, count: count });
+        } else if (name === "transactions") {
+            pushPage(guidedTransactionsPage, { step: step, count: count });
+        } else {
+            pushPage(guidedTryPage, { which: name, step: step, count: count });
+        }
+    }
+
+    // Opens the real function a guided page offers to try, on top of that
+    // page, so closing it leads back there.
+    function guidedTry(what: string) {
+        if (what === "chart") {
+            pushPage(statisticsPage, { initialDataset: "spending_by_category" });
+        } else if (what === "budget") {
+            pushPage(budgetPage, { categoryId: "" });
+        } else if (what === "plan") {
+            overviewPlanForm.create("");
+        } else if (what === "arrange") {
+            pushPage(overviewPage);
+            dashboardLayout.edit();
+        } else if (what === "wiki") {
+            Qt.openUrlExternally("https://github.com/Vondor/KassenSturz/wiki");
+        }
     }
 
     // What a guided page does after its step: the next step, or, opened from
@@ -2155,12 +2193,51 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // The guided setup's step 3: sort the transactions by name, with the
+    // offer of a Rule, which the Rule page shows and the user confirms.
+    Component {
+        id: guidedSortPage
+
+        GuidedSortPage {
+            id: sortPage
+
+            sorter: guidedSort
+            register: accountRegister
+            onCreateRuleClicked: (accountId, transactionId) => root.pushPage(rulePage, { initialForm: ruleBook.formFromTransaction(accountId, transactionId) })
+
+            // Undo, or a Rule made from here, changes what is left to sort.
+            Connections {
+                target: root
+
+                function onBookWasChanged() {
+                    sortPage.reload();
+                }
+            }
+            onNextClicked: root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
+    // The guided setup's steps 4 to 6 and its last page: each opens the
+    // real function. The last page leads to the overview.
+    Component {
+        id: guidedTryPage
+
+        GuidedTryPage {
+            onTryClicked: what => root.guidedTry(what)
+            onNextClicked: which === "done" ? root.showScreen("overview") : root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
     // Help: every step of the guided setup again (D-902).
     Component {
         id: guidedHelpPage
 
         GuidedHelpPage {
-            onStepClicked: name => root.pushPage(root.guidedStepPage(name), { step: 0, count: 0 })
+            onStepClicked: name => root.pushGuidedStep(name, 0, 0)
         }
     }
 

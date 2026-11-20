@@ -1,6 +1,6 @@
 # Guided setup: design
 
-Status: **design, part 1 of 3 built** (BS2, #1031; decided by Vondor in D-792, D-895 to D-902, D-911 and D-921 to D-923, and the 8-page sketch he approved on 19 Nov 2026). Made by Claude (Fable 5.2). The build follows in three pull requests (section 8); the first is built, and section 10 says where it differs from this design.
+Status: **design, parts 1 and 2 of 3 built** (BS2, #1031; decided by Vondor in D-792, D-895 to D-902, D-911 and D-921 to D-923, and the 8-page sketch he approved on 19 Nov 2026). Made by Claude (Fable 5.2). The build follows in three pull requests (section 8); the first two are built, and section 10 says where they differ from this design.
 
 The guided setup is an **optional** walk through the important functions, on the person's own data. It extends the first setup wizard (`docs/SETUP_WIZARD.md`, M7a.9), which stays as it is: the guided setup is one more choice on its page 2. The pictures in `docs/setup-wizard/guided/` are simple QML mocks with made-up figures and invented names, in German because the testers are German; they show layout and wording, not final styling.
 
@@ -157,8 +157,8 @@ About 60 new strings, all through KI18n with German entries ("Sie", D-578). Fixe
 All three start after #1237 (thread F1) and #1238, #1239, #1244 and #1241 (thread G) have merged; step 6 also needs #1243.
 
 1. **Start page choice, the frame, steps 1 and 2, the Help page.** No human gate: it calls the bank setup and the correction unchanged.
-2. **Steps 3 to 6.** No human gate.
-3. **Step 7 and the Done page.** Human gate: AI data sharing (the page turns on the AI switch). It also updates the sentence in AGENTS.md §8 (D-923).
+2. **Steps 3 to 6 and the Done page** (the Done page moved here with D-931). No human gate.
+3. **Step 7.** Human gate: AI data sharing (the page turns on the AI switch). It also updates the sentence in AGENTS.md §8 (D-923).
 
 Tests in each: every new bridge object read back the way QML reads it; seams with real output (a synthetic CAMT file through the real import into step 2; the fake bank's fetch into step 2 after #1237; a group sorted in step 3 read back from the real register and undone in one step; the chart of step 4 from the real builder; step 7 leaving the AI switch off on Skip, End and "No", checked in the settings file); the no-AI build without step 7; an action-log name for every handler; a screenshot of every built page on the pull request; German entries for every new string.
 
@@ -169,6 +169,8 @@ Asked through the coordinator; the maintainer took the recommended option of eac
 1. **Progress is not stored (D-921, Q-687).** It is kept only while the app runs, so there is no format change; the remaining steps are in Help. The other option was to remember it in the settings file, which would be a settings migration with backup and test (a human gate) for a small gain.
 2. **Test profile (D-922, Q-688).** No guided choice at the start there; the steps are reached through Help on the example book. The other option was to offer the guided setup in the test profile on a new made-up book in the test folder.
 3. **AGENTS.md §8 (D-923, Q-689).** That section names the Settings toggle as the only AI element visible while AI is off, and D-911 adds step 7. The gated third pull request changes the sentence to include the optional last step of the guided setup.
+4. **The last page links to the wiki (D-931, Q-693, 20 Nov 2026).** "More help in the wiki", next to the hint that every step is found again under Help. The Done page therefore came with part 2; part 3 adds only step 7 in front of it.
+5. **Steps 4 to 6 open the real screens (D-932, Q-694, 20 Nov 2026).** Each explains the feature in a sentence or two and opens the real function on the person's own book, as steps 1 and 2 do. The other option was small forms inside the wizard pages as in the mocks: closer to the pictures, but shortened copies of three screens that could drift from the real ones.
 
 ## 10. As built
 
@@ -184,3 +186,12 @@ What the build does differently from the sections above. The pictures in section
 - **Frame:** `GuidedBar.qml` (step count, progress, "End the setup") is each step's header, `GuidedFooter.qml` ("Skip" and the main button) its footer. A step opened from Help has no bar and no "Skip", and its main button reads **Done**.
 - **Pictures of the built pages** (German, on stand-in data with made-up figures, so the account kinds read English there): [start page](setup-wizard/guided/built-1-start.png), [step 1, accounts](setup-wizard/guided/built-2-accounts.png), [step 1, transactions](setup-wizard/guided/built-3-transactions.png), [step 2](setup-wizard/guided/built-4-balance.png), [Help page](setup-wizard/guided/built-5-help.png).
 - **Tests:** `qml-tests/GuidedSmoke.qml` builds the start page, both forms of step 1, step 2 and the Help page against stand-ins and checks their buttons and signals.
+
+### Part 2: steps 3 to 6 and the Done page
+
+- **Step 3** (`GuidedSortPage.qml`, `guided_sort.rs`): one box per name with how many transactions it has and their sum, the 12 largest groups first; sorting one lets the next show. A group holds the simple transactions of one name, one direction and one currency; a transaction that is already broken down into parts, or in two currencies, stays with its own page. Choosing a category sorts the group at once, without a second click: it is one change, the notice at the bottom offers Undo, and the page says so. It is recorded as the edit of a transaction, so the book gets no new kind of change. The Rule offer shows above the list (the sorted group is gone from it) and opens the Rule page filled from the group's newest transaction. There is no link to "all transactions without a category": the app has no such list to open, and the page refills by itself.
+- **Steps 4 to 6 open the real screens (D-932)** from one page each (`GuidedTryPage.qml`): the Statistic Builder with "Spending by category" chosen; the normal budget page and the planned-payment dialog; the overview in its arrange mode. So step 4 has no period and look of its own and no tick for the start page (the builder's own "add to the overview" does that), step 5 presets no category and shows no average, and step 6 lists the four things to try as text instead of a list that ticks itself. Closing the opened screen leads back to the step.
+- **Done page (D-931):** the same page type, without a step count. It says where the steps are found again and offers "More help in the wiki", which opens the handbook in the web browser (`Qt.openUrlExternally`, as the project link in Settings does); the app itself makes no connection. Its button leads to the overview. Until part 3, step 6 leads straight to it.
+- **Step count and Help:** "Step n of 6"; the Help page lists all six.
+- **Pictures of the built pages** (German, stand-in data with made-up figures and invented names): [step 3](setup-wizard/guided/built-6-sort.png), [step 4](setup-wizard/guided/built-7-chart.png), [step 5](setup-wizard/guided/built-8-budget-plan.png), [step 6](setup-wizard/guided/built-9-start-page.png), [Done](setup-wizard/guided/built-10-done.png), [Help page](setup-wizard/guided/built-5-help.png).
+- **Tests:** `guided_sort.rs` (groups by name with exact sums; sorting a group is one change that one Undo takes back, made through the real transaction entry; a group or category that isn't there is refused), `guided_sort_model.rs` (the object read back as QML reads it), `qml-tests/GuidedSortSmoke.qml` and `qml-tests/GuidedSmoke.qml` (steps 4 to 6 and the Done page).

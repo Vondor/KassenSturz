@@ -97,7 +97,7 @@ Kirigami.ScrollablePage {
             Choice {
                 iconName: "tools-wizard"
                 heading: page.i18nContext.i18nc("@action:button starts the optional guided setup", "Guided setup")
-                line: page.i18nContext.i18nc("@info", "Step by step with your own data: get your transactions and check your balance. Every step can be skipped.")
+                line: page.i18nContext.i18nc("@info", "Step by step with your own data: get your transactions, sort them, a first chart, a budget and your start page. Every step can be skipped.")
                 onClicked: {
                     ActionLog.taken("WizardStartPage_guided")
                     page.guidedClicked()

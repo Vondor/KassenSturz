@@ -107,6 +107,13 @@ pub mod qobject {
         #[cxx_name = "stopBudget"]
         fn stop_budget(self: Pin<&mut BudgetBook>, id: &QString) -> QVariant;
 
+        /// Lets a paused budget go on, or starts a new one from this
+        /// period if its last day is past (#1241). Returns an empty map, or
+        /// the error.
+        #[qinvokable]
+        #[cxx_name = "resumeBudget"]
+        fn resume_budget(self: Pin<&mut BudgetBook>, id: &QString) -> QVariant;
+
         /// Deletes the budget with its past results. Returns an empty map,
         /// or the error.
         #[qinvokable]
@@ -223,6 +230,12 @@ impl qobject::BudgetBook {
     fn stop_budget(self: Pin<&mut Self>, id: &QString) -> QVariant {
         let id = id.to_string();
         let result = change(|book, locale| budgets::stop_budget(book, &id, locale));
+        self.finish(result)
+    }
+
+    fn resume_budget(self: Pin<&mut Self>, id: &QString) -> QVariant {
+        let id = id.to_string();
+        let result = change(|book, locale| budgets::resume_budget(book, &id, locale));
         self.finish(result)
     }
 
@@ -362,6 +375,9 @@ fn row_object(row: &BudgetRow) -> QVariant {
         ("firstDay", text(&row.first_day)),
         ("lastDay", text(&row.last_day)),
         ("canStop", QVariant::from(&row.can_stop)),
+        ("pauseUntil", text(&row.pause_until)),
+        ("canResume", QVariant::from(&row.can_resume)),
+        ("resumeFrom", text(&row.resume_from)),
         ("changes", list(row.changes.iter().map(choice_object))),
     ];
     // Only a running budget has a bar.
@@ -527,6 +543,7 @@ mod tests {
                 "amount",
                 "amountInput",
                 "bar",
+                "canResume",
                 "canStop",
                 "carryOver",
                 "categories",
@@ -541,6 +558,8 @@ mod tests {
                 "lastDay",
                 "name",
                 "ownName",
+                "pauseUntil",
+                "resumeFrom",
                 "salaryDay",
                 "state"
             ]
@@ -567,6 +586,9 @@ mod tests {
         assert_eq!(text_of(&rows[0], "amountInput"), "400,00");
         assert!(flag_of(&rows[0], "carryOver"));
         assert!(flag_of(&rows[0], "canStop"));
+        assert!(!flag_of(&rows[0], "canResume"));
+        assert_eq!(text_of(&rows[0], "pauseUntil"), "2026-10-31");
+        assert_eq!(text_of(&rows[0], "resumeFrom"), "");
         let changes = list_of(&rows[0], "changes");
         assert_eq!(keys(&changes[0]), ["current", "day", "firstDay", "lastDay"]);
         assert_eq!(text_of(&changes[0], "day"), "2026-10-01");

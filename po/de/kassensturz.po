@@ -6202,26 +6202,6 @@ msgctxt "@action:button %1 is the name of a category"
 msgid "Change the budget for %1"
 msgstr "Budget für %1 ändern"
 
-#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:192
-#, kde-format
-msgctxt "@action:button end a budget after the current period"
-msgid "Stop"
-msgstr "Beenden"
-
-#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:193
-#, kde-format
-msgctxt "@action:button %1 is the name of a category"
-msgid "Stop the budget for %1"
-msgstr "Budget für %1 beenden"
-
-#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:198
-#, kde-format
-msgctxt "@info"
-msgid "Ends the budget after the current period. Its past results stay."
-msgstr ""
-"Beendet das Budget nach dem aktuellen Zeitraum. Seine früheren Ergebnisse "
-"bleiben."
-
 #: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml:205
 #, kde-format
 msgctxt "@action:button delete a budget"
@@ -27923,3 +27903,78 @@ msgctxt ""
 "@info shown on a dashboard tile while it is dragged smaller than it can get"
 msgid "Smallest size"
 msgstr "Kleinste Größe"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@info %1 is a date"
+msgid "Paused: it stopped counting on %1"
+msgstr "Pausiert: Es hat am %1 aufgehört zu zählen"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@info %1 is a date"
+msgid "Paused: it counts until %1, then stops"
+msgstr "Pausiert: Es zählt bis zum %1 und hört dann auf"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@title:window"
+msgid "Pause this budget?"
+msgstr "Dieses Budget pausieren?"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@info %1 is the name of a category, %2 a date"
+msgid "The budget for %1 counts until %2 and stops after that. Its past results stay. You can resume it later, and Undo takes the pause back."
+msgstr "Das Budget für %1 zählt bis zum %2 und hört danach auf. Seine bisherigen Ergebnisse bleiben. Sie können es später fortsetzen, und „Rückgängig“ nimmt die Pause zurück."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@action:button pause a budget"
+msgid "Pause"
+msgstr "Pausieren"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@title:window"
+msgid "Resume this budget?"
+msgstr "Dieses Budget fortsetzen?"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@info %1 is the name of a category"
+msgid "The budget for %1 counts on after this period, as before. Undo takes it back."
+msgstr "Das Budget für %1 zählt nach diesem Zeitraum wie bisher weiter. „Rückgängig“ nimmt das zurück."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@info %1 is the name of a category, %2 a date"
+msgid "The budget for %1 starts again on %2 with the same categories and amount. The months in between are not counted, and what was left over before is not carried into it. Its old results stay under the paused budget, and Undo takes this back."
+msgstr "Das Budget für %1 beginnt am %2 neu, mit denselben Kategorien und demselben Betrag. Die Monate dazwischen werden nicht mitgezählt, und was vorher übrig war, wird nicht übertragen. Die alten Ergebnisse bleiben beim pausierten Budget, und „Rückgängig“ nimmt das zurück."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@action:button resume a budget"
+msgid "Resume"
+msgstr "Fortsetzen"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@action:button pause a budget after the current period"
+msgid "Pause"
+msgstr "Pausieren"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@action:button %1 is the name of a category"
+msgid "Pause the budget for %1"
+msgstr "Das Budget für %1 pausieren"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@info"
+msgid "Stops counting after the current period. Its past results stay, and you can resume it later."
+msgstr "Hört nach dem aktuellen Zeitraum auf zu zählen. Die bisherigen Ergebnisse bleiben, und Sie können es später fortsetzen."
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@action:button resume a paused budget"
+msgid "Resume"
+msgstr "Fortsetzen"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@action:button %1 is the name of a category"
+msgid "Resume the budget for %1"
+msgstr "Das Budget für %1 fortsetzen"
+
+#: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
+msgctxt "@info"
+msgid "Counts again from this period on. Its past results stay."
+msgstr "Zählt ab diesem Zeitraum wieder. Die bisherigen Ergebnisse bleiben."

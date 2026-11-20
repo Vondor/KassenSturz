@@ -4,7 +4,7 @@
 
 // Opens BudgetsPage.qml, BudgetPage.qml and BudgetBars.qml on stand-ins for
 // the Rust objects BudgetBook and BookBudgets (fakes/) and checks that the
-// page lists the budgets, that Stop and Delete send the budget's id (Delete
+// page lists the budgets, that Pause, Resume and Delete send the budget's id (Delete
 // only after the dialog), that the sheet sends what the user chose, that a
 // refusal of the book is shown as a sentence, and that the bars say what is
 // spent and left (M6c.5). `tools/check-panel.sh` runs it and fails on the
@@ -104,13 +104,22 @@ Kirigami.ApplicationWindow {
             window.check(listed.some(text => text.startsWith("Starts 2027-01-25")), "the budget that has not started says when it does");
             window.check(listed.includes("Every salary month, from day 25, 800,00 €"), "a salary month names its day (D-651), got " + listed);
 
-            // Stop is offered for the running budget only.
+            // Pause is offered for the running budget only, and asks first (#1241).
             const buttons = window.all(page, "ToolButton", []).filter(button => button.visible);
-            const stops = buttons.filter(button => button.text === "Stop");
-            window.check(stops.length === 1, "one Stop button, found " + stops.length);
-            stops[0].clicked();
-            window.check(fake.calls[0] === "stopBudget:b-food", "Stop sends the id, got " + fake.calls[0]);
-            window.check(ActionLog.mode.actions.includes("BudgetsPage_stop"), "Stop says it ran (M6c.D), got " + ActionLog.mode.actions);
+            const pauses = buttons.filter(button => button.text === "Pause");
+            window.check(pauses.length === 1, "one Pause button, found " + pauses.length);
+            pauses[0].clicked();
+            window.check(!fake.calls.some(call => call.startsWith("stopBudget")), "Pause waits for the dialog, calls: " + fake.calls);
+            page.pauseDialogItem.customFooterActions[0].triggered();
+            window.check(fake.calls[0] === "stopBudget:b-food", "Pause sends the id, got " + fake.calls[0]);
+            window.check(ActionLog.mode.actions.includes("BudgetsPage_pauseBudget"), "Pause says it ran, got " + ActionLog.mode.actions);
+            // Resume is offered for the paused budget only.
+            const resumes = buttons.filter(button => button.text === "Resume");
+            window.check(resumes.length === 1, "one Resume button, found " + resumes.length);
+            resumes[0].clicked();
+            page.resumeDialogItem.customFooterActions[0].triggered();
+            window.check(fake.calls.includes("resumeBudget:b-fun"), "Resume sends the id, got " + fake.calls);
+            window.check(ActionLog.mode.actions.includes("BudgetsPage_resumeBudget"), "Resume says it ran, got " + ActionLog.mode.actions);
             buttons.filter(button => button.text === "Change")[0].clicked();
             window.check(window.asked.includes("change:b-food"), "Change asks for the sheet");
 

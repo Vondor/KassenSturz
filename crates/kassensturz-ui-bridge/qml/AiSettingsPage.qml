@@ -675,12 +675,15 @@ Kirigami.ScrollablePage {
 
             // `fillWidth` is needed: with only a maximum, the box took the
             // width of one character, and the request ran down the page one
-            // letter per line over what lay below it (B-431).
+            // letter per line over what lay below it (B-431). No fixed
+            // height either: a text area doesn't clip, so a request taller
+            // than a fixed height was drawn over the banners and the "What
+            // is sent" section below it. Its own height is the whole
+            // request, so the page pushes them down and scrolls instead.
             Controls.TextArea {
                 objectName: "testRequestBox"
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 28
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 10
                 visible: testRequestToggle.visible && testRequestToggle.checked
                 readOnly: true
                 wrapMode: Text.WrapAnywhere

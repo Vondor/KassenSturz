@@ -179,13 +179,16 @@ FormCard.FormCardPage {
         text: page.problem
     }
 
-    // A book in the folder Windows deletes with the Store app (D-856).
+    // A book in the folder the system deletes with the app: the Store app's
+    // (D-856) or the snap's (B-429).
     Kirigami.InlineMessage {
         Layout.fillWidth: true
         Layout.margins: Kirigami.Units.largeSpacing
         type: Kirigami.MessageType.Warning
         visible: page.stage === "choose" && (page.place.inPackage ?? false)
-        text: page.i18nContext.i18nc("@info %1 is a folder", "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice.", Plain.plain(page.place.ownFolder ?? ""))
+        text: (page.place.inSnap ?? false)
+            ? page.i18nContext.i18nc("@info %1 is a folder", "Removing the KassenSturz snap deletes this folder, together with all backups in it. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice.", Plain.plain(page.place.ownFolder ?? ""))
+            : page.i18nContext.i18nc("@info %1 is a folder", "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice.", Plain.plain(page.place.ownFolder ?? ""))
     }
 
     // Where the book is now, and the folder chooser.

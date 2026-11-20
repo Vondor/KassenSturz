@@ -26273,6 +26273,16 @@ msgstr ""
 "wpisz go ponownie; po kilku błędnych PIN-ach bank blokuje logowanie."
 
 #, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Removing the KassenSturz snap deletes this folder, together with all backups in it. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
+msgstr "Usunięcie snapa KassenSturz usuwa ten folder razem ze wszystkimi kopiami zapasowymi w nim. Przechowuj swoją księgę we własnym folderze KassenSturz (%1) lub w wybranym przez siebie folderze."
+
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Your book is in a folder that is deleted, together with all its backups, when the KassenSturz snap is removed. KassenSturz can move it to %1, which stays. Before moving, it keeps a copy of your book as it is now with the other backups."
+msgstr "Twoja księga jest w folderze, który zostaje usunięty razem ze wszystkimi kopiami zapasowymi, gdy snap KassenSturz zostanie usunięty. KassenSturz może przenieść ją do %1; ten folder zostaje. Przed przeniesieniem zapisuje kopię Twojej księgi w obecnym stanie razem z innymi kopiami zapasowymi."
+
+#, kde-format
 msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
 msgid "Added %1 transaction"
 msgid_plural "Added %1 transactions"

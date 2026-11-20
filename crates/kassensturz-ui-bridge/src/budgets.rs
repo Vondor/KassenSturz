@@ -633,7 +633,8 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
             .collect::<Vec<_>>()
             .join(", ")
     };
-    for budget in book.budgets()? {
+    let budgets = book.budgets()?;
+    for budget in &budgets {
         let started = budget.first_day <= today;
         let ended = budget.last_day.is_some_and(|last| last < today);
         let state = if !started {
@@ -694,14 +695,16 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
             .ok_or(StoreError::Corrupt(
                 kassensturz_store::Corruption::BrokenReferences,
             ))?;
-        let currency = book_currency(book, &budget)?;
+        let currency = book_currency(book, budget)?;
         let can_stop = state == "running"
             && budget.every.repeats()
             && budget
                 .period_containing(today)
                 .is_some_and(|(_, end)| budget.last_day.is_none_or(|last| last > end));
-        // A paused budget: it has a last day, and has started (#1241).
-        let can_resume = started && budget.every.repeats() && budget.last_day.is_some();
+        // A paused budget: it has a last day, has started, and no other
+        // budget counts its money from then on, such as the one an earlier
+        // Resume made (#1241, B-418). Otherwise it has simply ended.
+        let can_resume = budget.can_resume_among(&budgets, today);
         let ids = budget.id.to_string();
         let category_names = chosen
             .iter()
@@ -752,7 +755,7 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
             } else {
                 String::new()
             },
-            changes: change_choices(&budget, locale),
+            changes: change_choices(budget, locale),
             bar: bars.iter().find(|bar| bar.budget == ids).cloned(),
         });
     }
@@ -1593,6 +1596,22 @@ mod tests {
         // Nothing of the months in between counts for either budget.
         let again = resume_budget(&mut f.book, &old.id.to_string(), &TestLocale);
         assert!(again.is_err(), "it overlaps the budget that now runs");
+        // So the old card offers no Resume any more and reads as ended,
+        // and the new one runs (B-418).
+        let rows = view(&f.book, &TestLocale).unwrap().budgets;
+        let old_row = rows
+            .iter()
+            .find(|row| row.id == old.id.to_string())
+            .expect("old row");
+        assert_eq!(old_row.state, "ended");
+        assert!(!old_row.can_resume);
+        assert_eq!(old_row.resume_from, "");
+        let new_row = rows
+            .iter()
+            .find(|row| row.id == new.id.to_string())
+            .expect("new row");
+        assert_eq!(new_row.state, "running");
+        assert!(!new_row.can_resume);
     }
 
     #[test]

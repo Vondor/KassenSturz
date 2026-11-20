@@ -308,6 +308,43 @@ impl Budget {
         }
     }
 
+    /// What resuming this paused budget on `today` makes of it (#1241,
+    /// D-909): while its last day is not past, the same budget without that
+    /// day; once it is past, a budget from the period that contains `today`
+    /// that counts what this one counted on its last day, with no last day.
+    /// `None` for a budget that can't be resumed: a range, one that hasn't
+    /// started, or one without a last day.
+    pub fn resumed(&self, today: Date) -> Option<Self> {
+        let last = self.last_day?;
+        if !self.every.repeats() || today < self.first_day {
+            return None;
+        }
+        let mut resumed = self.clone();
+        resumed.last_day = None;
+        if last < today {
+            let first_day = self.every.period_start(today)?;
+            let mut counts = self.counts_on(last)?.clone();
+            counts.from_day = first_day;
+            resumed.first_day = first_day;
+            resumed.counts = vec![counts];
+        }
+        Some(resumed)
+    }
+
+    /// Whether this budget can be resumed on `today` (#1241): it is
+    /// [paused](Self::resumed), and what resuming makes of it clashes with
+    /// none of `budgets` but itself (B-418). Once a budget was resumed after
+    /// its last day, the new budget counts its money, so the old one has
+    /// simply ended: offering Resume again would end in the overlap error.
+    pub fn can_resume_among(&self, budgets: &[Self], today: Date) -> bool {
+        self.resumed(today).is_some_and(|resumed| {
+            budgets
+                .iter()
+                .filter(|other| other.id != self.id)
+                .all(|other| resumed.clashes_with(other).is_none())
+        })
+    }
+
     /// Every category any of its sets counts, each once, in the order they
     /// first appear (D-689): a category of an earlier set is still in use,
     /// since the earlier periods count it.
@@ -342,6 +379,74 @@ mod tests {
 
     fn eur(minor_units: i64) -> Money {
         Money::from_minor_units(minor_units, CurrencyCode::new("EUR").expect("valid code"))
+    }
+
+    fn monthly(category: AccountId, first_day: Date, last_day: Option<Date>) -> Budget {
+        Budget {
+            id: BudgetId::generate(),
+            name: None,
+            counts: vec![BudgetCounts {
+                from_day: first_day,
+                categories: vec![category],
+                accounts: Vec::new(),
+            }],
+            every: BudgetEvery::Month,
+            first_day,
+            last_day,
+            amounts: vec![BudgetAmount {
+                from_day: first_day,
+                amount: eur(40_000),
+                carry_over: false,
+            }],
+        }
+    }
+
+    /// B-418: a paused budget can be resumed until another budget counts
+    /// its money from then on, e.g. the one its own Resume made.
+    #[test]
+    fn a_paused_budget_can_be_resumed_once() {
+        let food = AccountId::generate();
+        let today = day(2026, 10, 14);
+        let paused = monthly(food, day(2026, 7, 1), Some(day(2026, 8, 31)));
+        let resumed = paused.resumed(today).expect("paused");
+        assert_eq!(resumed.first_day, day(2026, 10, 1));
+        assert_eq!(resumed.last_day, None);
+        assert_eq!(resumed.counts[0].from_day, day(2026, 10, 1));
+        assert_eq!(resumed.counts[0].categories, vec![food]);
+        assert!(paused.can_resume_among(std::slice::from_ref(&paused), today));
+
+        // Resumed: a new budget on the same category now runs.
+        let new = Budget {
+            id: BudgetId::generate(),
+            ..resumed
+        };
+        let both = [paused.clone(), new.clone()];
+        assert!(!paused.can_resume_among(&both, today), "it has ended");
+        assert!(
+            !new.can_resume_among(&both, today),
+            "it runs, nothing paused"
+        );
+
+        // Another category's budget is no reason to stop it.
+        let other = monthly(AccountId::generate(), day(2026, 10, 1), None);
+        assert!(paused.can_resume_among(&[paused.clone(), other], today));
+
+        // Still inside its last period: the same budget goes on.
+        let pausing = monthly(food, day(2026, 7, 1), Some(day(2026, 10, 31)));
+        let again = pausing.resumed(today).expect("pausing");
+        assert_eq!(again.first_day, day(2026, 7, 1));
+        assert_eq!(again.last_day, None);
+        assert!(pausing.can_resume_among(std::slice::from_ref(&pausing), today));
+
+        // A range, one not started, one without a last day: no Resume.
+        let range = Budget {
+            every: BudgetEvery::Range,
+            ..paused.clone()
+        };
+        assert_eq!(range.resumed(today), None);
+        let later = monthly(food, day(2026, 11, 1), Some(day(2026, 12, 31)));
+        assert_eq!(later.resumed(today), None);
+        assert_eq!(monthly(food, day(2026, 7, 1), None).resumed(today), None);
     }
 
     #[test]

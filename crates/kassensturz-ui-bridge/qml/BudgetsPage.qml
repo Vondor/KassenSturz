@@ -154,7 +154,7 @@ Kirigami.ScrollablePage {
 
         title: page.i18nContext.i18nc("@title:window", "Resume this budget?")
         subtitle: from === ""
-            ? page.i18nContext.i18nc("@info %1 is the name of a category", "The budget for %1 counts on after this period, as before. Undo takes it back.", Plain.plain(budgetName))
+            ? page.i18nContext.i18nc("@info %1 is the name of a category", "The budget for %1 no longer has an end date and counts on after this period, as before. Undo takes it back.", Plain.plain(budgetName))
             : page.i18nContext.i18nc("@info %1 is the name of a category, %2 a date", "The budget for %1 starts again on %2 with the same categories and amount. The months in between are not counted, and what was left over before is not carried into it. Its old results stay under the paused budget, and Undo takes this back.", Plain.plain(budgetName), from)
         standardButtons: Kirigami.Dialog.NoButton
         customFooterActions: [

@@ -58,7 +58,14 @@ Kirigami.ScrollablePage {
     // The categories a group can get, or none if they can't be read.
     function choicesOf(group: var): var {
         const found = register.categoryChoices(group.accountId, group.moneyIn, "");
-        return Array.isArray(found) ? found : [];
+        // The list the bridge returns is a QVariantList, which QML doesn't
+        // make a JS array: Array.isArray() said no and the page showed no
+        // category at all (B-424). Array.from() copies it, as in
+        // ChangeNames.qml; an error object has a `code` instead.
+        if (found === undefined || found === null || found.code !== undefined) {
+            return [];
+        }
+        return Array.from(found);
     }
 
     function sortGroup(group: var, categoryId: string) {

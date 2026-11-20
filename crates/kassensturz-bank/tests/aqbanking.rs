@@ -20,8 +20,9 @@ use kassensturz_bank::{
     AqBankingBank, Availability, Bank, BankAccount, BankAccountId, BankAccountKind, BankCode,
     BankDialogs, BankError, BankQuestion, CustomerId, FintsVersion, Iban, KeychainPinStore,
     Library, Login, LoginChange, LoginConnection, LoginId, LoginKind, LoginSetup, MemoryPinStore,
-    Pin, PinAsker, PinMode, PinPrompt, PinReply, PinSession, QuestionLevel, RegistrationKey, Setup,
-    Tan, TanRequest, Version, fetch_linked, remove_login, setup_for, statement,
+    Pin, PinAsker, PinMode, PinPrompt, PinReply, PinSession, PinStore, QuestionLevel,
+    RegistrationKey, Setup, Tan, TanRequest, Version, fetch_linked, remove_login, setup_for,
+    statement,
 };
 use kassensturz_core::{Account, AccountId, AccountKind, BankLink, CurrencyCode, Date};
 use kassensturz_import::{EntryStatus, Limits};
@@ -1017,6 +1018,148 @@ fn fetch_errors_are_error_codes_and_a_wrong_pin_is_forgotten() {
             .is_dir()
     );
     assert!(!journal_of(&bank).contains("message log: written"));
+}
+
+/// A place for saved PINs that keeps them but, once told to, refuses to
+/// delete one: a password manager that is locked or closed, or whose user
+/// said no (B-413).
+#[derive(Clone, Default)]
+struct KeepsPins {
+    pins: Arc<Mutex<MemoryPinStore>>,
+    refuse_delete: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl KeepsPins {
+    fn refuse_delete(&self, refuse: bool) {
+        self.refuse_delete
+            .store(refuse, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    fn saved(&self, login: &LoginId) -> Option<Pin> {
+        self.pins
+            .lock()
+            .expect("store")
+            .load(login)
+            .expect("loaded")
+    }
+}
+
+impl PinStore for KeepsPins {
+    fn save(&mut self, login: &LoginId, pin: &Pin) -> Result<(), BankError> {
+        self.pins.lock().expect("store").save(login, pin)
+    }
+
+    fn load(&self, login: &LoginId) -> Result<Option<Pin>, BankError> {
+        self.pins.lock().expect("store").load(login)
+    }
+
+    fn delete(&mut self, login: &LoginId) -> Result<(), BankError> {
+        if self.refuse_delete.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(BankError::KeePassXc);
+        }
+        self.pins.lock().expect("store").delete(login)
+    }
+}
+
+/// The file in AqBanking's folder that marks the logins whose saved PIN
+/// must not be sent on its own (B-413).
+fn pin_marks(bank: &AqBankingBank) -> PathBuf {
+    bank.folder().join("kassensturz-pin-marks")
+}
+
+/// B-413 (threat T-05): a PIN the bank called wrong that can't be deleted
+/// from where PINs are saved is not sent again on its own after a restart,
+/// which would cost one more wrong-PIN attempt at the bank each time. The
+/// PIN the user then types and saves is used again once the bank took it.
+#[test]
+fn a_refused_pin_that_cant_be_deleted_is_not_sent_after_a_restart() {
+    let _guard = lock();
+    let mut bank = open("refused-kept");
+    let store = KeepsPins::default();
+    let mut pins = PinSession::new(Box::new(store.clone()));
+    pins.provide(
+        &LoginId::pending(),
+        Pin::new(PIN.to_owned()),
+        PinMode::SaveInKeychain,
+    )
+    .expect("provided");
+    let (login, accounts) = connect(&mut bank, &mut pins);
+    let account = accounts[0].id.clone();
+    assert!(!pin_marks(&bank).exists(), "the bank took the PIN at setup");
+
+    store.refuse_delete(true);
+    stub::set_scenario("bad-pin");
+    assert_eq!(
+        bank.fetch(&account, None, &mut pins),
+        Err(BankError::PinRejected)
+    );
+    assert!(store.saved(&login).is_some(), "the premise: still saved");
+    assert!(pin_marks(&bank).exists());
+    let marks = fs::read_to_string(pin_marks(&bank)).expect("read");
+    assert!(!marks.contains(PIN), "never a PIN in the file (T-01)");
+
+    // The next start: a new PIN session over the same place.
+    stub::set_scenario("ok");
+    let mut pins = PinSession::new(Box::new(store.clone()));
+    assert_eq!(
+        bank.fetch(&account, None, &mut pins),
+        Err(BankError::PinNeeded),
+        "the saved PIN the bank refused is not sent"
+    );
+    assert_eq!(
+        bank.fetch(&account, None, &mut pins),
+        Err(BankError::PinNeeded)
+    );
+
+    // The user types it again and saves it: the bank takes it, and from
+    // then on the saved PIN is used again without asking.
+    store.refuse_delete(false);
+    pins.provide(&login, Pin::new(PIN.to_owned()), PinMode::SaveInKeychain)
+        .expect("saved");
+    assert!(bank.fetch(&account, None, &mut pins).is_ok());
+    assert!(!pin_marks(&bank).exists(), "the mark is off");
+    let mut pins = PinSession::new(Box::new(store.clone()));
+    assert!(bank.fetch(&account, None, &mut pins).is_ok());
+}
+
+/// B-413: a PIN typed and saved for a fetch whose connection broke may be
+/// a mistyped one the bank never answered, so the next start asks for it
+/// instead of sending it on its own. A PIN typed and not saved while the
+/// mark is there removes the old one, so it can't go out later.
+#[test]
+fn a_saved_pin_the_bank_never_answered_is_asked_for_at_the_next_start() {
+    let _guard = lock();
+    let mut bank = open("unanswered-pin");
+    let store = KeepsPins::default();
+    let mut pins = pins_with(PinMode::AskEachTime);
+    let (login, accounts) = connect(&mut bank, &mut pins);
+    let account = accounts[0].id.clone();
+
+    let mut pins = PinSession::new(Box::new(store.clone()));
+    pins.provide(
+        &login,
+        Pin::new("13579".to_owned()),
+        PinMode::SaveInKeychain,
+    )
+    .expect("saved before the bank answered");
+    stub::set_scenario("unreachable");
+    assert_eq!(
+        bank.fetch(&account, None, &mut pins),
+        Err(BankError::Unreachable)
+    );
+    assert!(pin_marks(&bank).exists(), "marked before it went out");
+
+    stub::set_scenario("ok");
+    let mut pins = PinSession::new(Box::new(store.clone()));
+    assert_eq!(
+        bank.fetch(&account, None, &mut pins),
+        Err(BankError::PinNeeded)
+    );
+    pins.provide(&login, Pin::new(PIN.to_owned()), PinMode::AskEachTime)
+        .expect("typed");
+    assert!(bank.fetch(&account, None, &mut pins).is_ok());
+    assert_eq!(store.saved(&login), None, "the unanswered PIN is gone");
+    assert!(!pin_marks(&bank).exists());
 }
 
 #[test]

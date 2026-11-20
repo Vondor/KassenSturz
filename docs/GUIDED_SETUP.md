@@ -30,7 +30,7 @@ Start page (wizard page 2, unchanged choices)
          Done ─► overview
 ```
 
-Every step page has the same frame: **Back** (top left, Alt+Left), "Step n of 7" with a progress bar, **End the setup** (top right), and a bottom row with **Skip** on the left and the page's one main button on the right. Skip does nothing but go to the next step. The sketch counts 8 pages: the start page plus these 7 steps; the closing page belongs to the last step.
+Every step page has the same frame: **Back** (top left, Alt+Left), "Step n of 8" with a progress bar (the accounts page, step 1 of the sketch, is counted as its own page since B-422, so the count runs over 8 pages, 7 without the AI step), **End the setup** (top right), and a bottom row with **Skip** on the left and the page's one main button on the right. Skip does nothing but go to the next step. The sketch counts 8 pages: the start page plus these 7 steps; the closing page belongs to the last step.
 
 ### Page 1: How would you like to start? (`1-start.png`)
 
@@ -99,7 +99,7 @@ The person's real overview in its normal arrange mode, with a small list of four
 - **No, or I don't know** is preselected and is also what Skip and End the setup do: the AI features stay off and invisible, and the page says where to turn them on later.
 - **Yes, I have an AI on this computer** turns on the existing "AI features" switch and opens the existing "AI provider and privacy" page, where the address is typed and tested. Nothing else changes: the permission grid stays all off, and an address on another computer still needs the existing consent with its statement of what is sent (D-035).
 - The page states that KassenSturz is complete without AI and names no vendor as a recommendation; the two programs in the text are examples of where a local model runs, as on the existing settings page.
-- **A build without AI** (D-039) has no step 7; the count then says "of 6".
+- **A build without AI** (D-039) has no step 7; the count then says "of 7" (B-422: it counts the accounts page and the step after it separately; before, both said "1").
 - This page is the one AI element, besides the Settings toggle, that is visible while AI is off, and only inside the optional guided setup (D-911). AGENTS.md §8 names the Settings toggle as the only such element (D-013), so the pull request that builds this page updates that sentence of §8 (D-923, section 9).
 
 ### Done (`9-done.png`)

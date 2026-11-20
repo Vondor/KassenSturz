@@ -26748,8 +26748,8 @@ msgstr "Ein Plugin fügt KassenSturz etwas hinzu, zum Beispiel eine Möglichkeit
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:99
 #, kde-format
 msgctxt "@info"
-msgid "Only add plugins from people you trust. Plugins can't do anything yet in this version: you can add and look at them already, and what each kind does comes with the next updates."
-msgstr "Fügen Sie nur Plugins von Menschen hinzu, denen Sie vertrauen. In dieser Version können Plugins noch nichts tun: Sie können sie schon hinzufügen und ansehen, und was jede Art tut, kommt mit den nächsten Updates."
+msgid "Only add plugins from people you trust. A plugin does only what its kind allows and what you saw when you added it: for example reading a bank's files, adding a report or changing the colors."
+msgstr "Fügen Sie nur Plugins von Menschen hinzu, denen Sie vertrauen. Ein Plugin tut nur, was seine Art erlaubt und was Sie beim Hinzufügen gesehen haben: zum Beispiel die Dateien einer Bank lesen, einen Bericht hinzufügen oder die Farben ändern."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:113
 #, kde-format
@@ -28348,3 +28348,24 @@ msgstr "Haben Sie eine KI auf diesem Computer?"
 msgctxt "@info"
 msgid "Say whether KassenSturz may use an AI that runs on your own computer"
 msgstr "Sagen, ob KassenSturz eine KI nutzen darf, die auf Ihrem eigenen Computer läuft"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Added %1 transaction"
+msgid_plural "Added %1 transactions"
+msgstr[0] "%1 Buchung hinzugefügt"
+msgstr[1] "%1 Buchungen hinzugefügt"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Changed %1 transaction"
+msgid_plural "Changed %1 transactions"
+msgstr[0] "%1 Buchung geändert"
+msgstr[1] "%1 Buchungen geändert"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Removed %1 transaction"
+msgid_plural "Removed %1 transactions"
+msgstr[0] "%1 Buchung entfernt"
+msgstr[1] "%1 Buchungen entfernt"

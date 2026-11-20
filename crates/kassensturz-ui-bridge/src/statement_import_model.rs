@@ -742,13 +742,17 @@ impl qobject::StatementImport {
 }
 
 /// The progress for QML: `done` and `total` entries.
+///
+/// `saving` is true only for the real import (B-421): a preview runs the same
+/// pipeline inside a dry run, so the pipeline also says "saving" at its end,
+/// though nothing is saved and the dialog must not claim it.
 fn progress_object((done, total): (usize, usize), importing: bool, saving: bool) -> QVariant {
     let count = |value: usize| QVariant::from(&i32::try_from(value).unwrap_or(i32::MAX));
     map([
         ("done", count(done)),
         ("total", count(total)),
         ("importing", QVariant::from(&importing)),
-        ("saving", QVariant::from(&saving)),
+        ("saving", QVariant::from(&(importing && saving))),
     ])
 }
 
@@ -1100,6 +1104,10 @@ mod tests {
         let reading = object(&progress_object((3, 10), false, false));
         assert!(!flag(&reading, "importing"));
         assert!(!flag(&reading, "saving"));
+        // A preview reaches the pipeline's saving step too, in a dry run:
+        // nothing is saved then, and the dialog doesn't say so (B-421).
+        let preview = object(&progress_object((10, 10), false, true));
+        assert!(!flag(&preview, "saving"));
     }
 
     /// The summary lists the pairs joined by themselves with the fields

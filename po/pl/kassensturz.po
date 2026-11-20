@@ -24621,8 +24621,8 @@ msgstr "Wtyczka dodaje coś do KassenSturz, na przykład sposób czytania plikó
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:99
 #, kde-format
 msgctxt "@info"
-msgid "Only add plugins from people you trust. Plugins can't do anything yet in this version: you can add and look at them already, and what each kind does comes with the next updates."
-msgstr "Dodawaj tylko wtyczki od osób, którym ufasz. W tej wersji wtyczki jeszcze nic nie robią: możesz je już dodać i obejrzeć, a to, co robi każdy rodzaj, przyjdzie z kolejnymi aktualizacjami."
+msgid "Only add plugins from people you trust. A plugin does only what its kind allows and what you saw when you added it: for example reading a bank's files, adding a report or changing the colors."
+msgstr "Dodawaj tylko wtyczki od osób, którym ufasz. Wtyczka robi tylko to, na co pozwala jej rodzaj i o co poproszono przy dodawaniu: na przykład czyta pliki banku, dodaje raport lub zmienia kolory."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:113
 #, kde-format
@@ -26227,3 +26227,27 @@ msgstr "Czy masz AI na tym komputerze?"
 msgctxt "@info"
 msgid "Say whether KassenSturz may use an AI that runs on your own computer"
 msgstr "Powiedz, czy KassenSturz może korzystać z AI działającego na Twoim własnym komputerze"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Added %1 transaction"
+msgid_plural "Added %1 transactions"
+msgstr[0] "Dodano %1 transakcję"
+msgstr[1] "Dodano %1 transakcje"
+msgstr[2] "Dodano %1 transakcji"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Changed %1 transaction"
+msgid_plural "Changed %1 transactions"
+msgstr[0] "Zmieniono %1 transakcję"
+msgstr[1] "Zmieniono %1 transakcje"
+msgstr[2] "Zmieniono %1 transakcji"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Removed %1 transaction"
+msgid_plural "Removed %1 transactions"
+msgstr[0] "Usunięto %1 transakcję"
+msgstr[1] "Usunięto %1 transakcje"
+msgstr[2] "Usunięto %1 transakcji"

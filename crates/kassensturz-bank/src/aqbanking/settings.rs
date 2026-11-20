@@ -421,13 +421,48 @@ pub(crate) fn block_message_logs(data_dir: &Path, bank: &BankCode) -> io::Result
         .join("banks")
         .join(bank.country().to_ascii_lowercase())
         .join(bank.code());
-    fs::create_dir_all(&folder)?;
+    create_private_folders(&folder)?;
     let logs = folder.join("logs");
     if logs.is_dir() {
         fs::remove_dir_all(&logs)?;
     }
     if !logs.is_file() {
-        fs::write(&logs, "")?;
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create(true).truncate(false);
+        #[cfg(unix)]
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        options.open(&logs)?;
+    }
+    Ok(())
+}
+
+/// Creates `folder` and the missing folders above it readable only by the
+/// user (T-07), as Gwenhywfar makes its own. The folders below a bank code
+/// would otherwise tell other users of the computer which bank the user
+/// banks with.
+fn create_private_folders(folder: &Path) -> io::Result<()> {
+    let mut builder = fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+    builder.create(folder)
+}
+
+/// Creates AqBanking's own folder (T-06) readable only by the user (T-07),
+/// and closes it to others if an older version made it open: then nothing
+/// below it can be listed or read by another user of the computer, also
+/// where a folder inside it was made open before.
+pub(crate) fn create_private_folder(folder: &Path) -> io::Result<()> {
+    create_private_folders(folder)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let metadata = fs::symlink_metadata(folder)?;
+        // Never through a link: the folder it points to isn't KassenSturz's
+        // to change.
+        if metadata.is_dir() && metadata.permissions().mode() & 0o077 != 0 {
+            fs::set_permissions(folder, fs::Permissions::from_mode(0o700))?;
+        }
     }
     Ok(())
 }
@@ -689,6 +724,37 @@ data {
         assert_eq!(delete_message_logs(&data_dir).expect("removed"), 2);
         assert!(!bank.join("logs").exists());
         assert!(bank.join("keep.txt").exists());
+        let _ = fs::remove_dir_all(&data_dir);
+    }
+
+    /// AqBanking's folder and the folders KassenSturz makes in it for a
+    /// bank are readable only by the user (T-07); an AqBanking folder an
+    /// older version made open to everyone is closed.
+    #[cfg(unix)]
+    #[test]
+    fn the_bank_folders_are_the_users_alone() {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |path: &Path| {
+            fs::metadata(path)
+                .expect("metadata read")
+                .permissions()
+                .mode()
+                & 0o777
+        };
+        let data_dir = folder("private");
+        create_private_folder(&data_dir).expect("made");
+        assert_eq!(mode(&data_dir), 0o700);
+        block_message_logs(&data_dir, &BankCode::new("DE", "10000000")).expect("blocked");
+        let mut below = data_dir.clone();
+        for part in ["backends", "aqhbci", "data", "banks", "de", "10000000"] {
+            below.push(part);
+            assert_eq!(mode(&below), 0o700, "{}", below.display());
+        }
+        assert_eq!(mode(&below.join("logs")), 0o600);
+
+        fs::set_permissions(&data_dir, fs::Permissions::from_mode(0o755)).expect("opened");
+        create_private_folder(&data_dir).expect("made again");
+        assert_eq!(mode(&data_dir), 0o700);
         let _ = fs::remove_dir_all(&data_dir);
     }
 

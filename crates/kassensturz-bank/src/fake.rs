@@ -345,7 +345,10 @@ impl FakeBank {
             PinAnswer::Ask => Err(BankError::PinNeeded),
             PinAnswer::Known(pin) if pin.as_str() == Self::PIN => Ok(()),
             PinAnswer::Known(_) => {
-                pins.rejected(login)?;
+                // As the real backend: a place for saved PINs that can't
+                // delete it doesn't hide that the bank refused it; the
+                // session keeps it from going out again (B-413, B-430).
+                let _ = pins.rejected(login);
                 Err(BankError::PinRejected)
             }
         }

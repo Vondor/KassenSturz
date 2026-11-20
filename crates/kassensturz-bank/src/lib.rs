@@ -74,7 +74,7 @@ pub use error::BankError;
 pub use fake::{Failure, FakeBank, FakeDirectory, SecondFactor};
 pub use fetched::{Fetched, FetchedAmount, FetchedBalance, FetchedTransaction};
 pub use iban::{BankCode, Iban};
-pub use keychain::KeychainPinStore;
+pub use keychain::{KeychainPinStore, saved_pin_entry};
 pub use linked::{
     FETCH_OVERLAP_DAYS, FIRST_FETCH_DAYS, PinAsker, PinPrompt, PinReply, fetch_linked, fetch_start,
     find_bank_account, link_for_fetch, names_account, refresh_linked,

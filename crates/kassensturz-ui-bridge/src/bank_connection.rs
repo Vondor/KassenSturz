@@ -374,7 +374,9 @@ pub enum Event {
 /// called the PIN typed before wrong, so the user checks it before the
 /// bank blocks the login (threat T-05), and whether the saved PIN couldn't
 /// be read because the password manager or keychain is closed or locked,
-/// so the user can open it and try again (M6-B193, D-622).
+/// so the user can open it and try again (M6-B193, D-622), and whether the
+/// PIN the bank called wrong is still saved there, under which name, so the
+/// user can delete it (B-430).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PinRequest {
     /// The bank's name, or its code when no source knows it.
@@ -383,6 +385,9 @@ pub struct PinRequest {
     pub rejected: bool,
     /// The place for saved PINs couldn't be reached.
     pub store_closed: bool,
+    /// The name of the saved PIN's entry (`bank-pin/<login ID>`) when the
+    /// bank called it wrong and it couldn't be deleted, else `None`.
+    pub still_saved: Option<String>,
 }
 
 /// What the registration dialog says: whether the number typed before
@@ -1738,6 +1743,7 @@ fn ends_the_fetch(error: &BankError) -> bool {
             | BankError::Keychain
             | BankError::UntrustedServer
             | BankError::PinRejected
+            | BankError::PinRejectedStillSaved(_)
             | BankError::TanNeeded
             | BankError::TanMethodUnsupported
             | BankError::TanMethodNeeded { .. }
@@ -1766,6 +1772,9 @@ impl PinAsker for AskForPins<'_> {
                     bank,
                     rejected: prompt.rejected,
                     store_closed: prompt.store_closed,
+                    still_saved: prompt
+                        .still_saved
+                        .then(|| kassensturz_bank::saved_pin_entry(&login.id)),
                 }),
                 |answer| match answer {
                     Answer::Pin(Some((pin, mode))) => Ok(PinReply::Typed(pin, mode)),
@@ -1919,6 +1928,7 @@ fn ends_the_login(error: &BankError) -> bool {
         error,
         BankError::Aborted
             | BankError::PinRejected
+            | BankError::PinRejectedStillSaved(_)
             | BankError::TanNeeded
             | BankError::TanMethodUnsupported
             | BankError::TanMethodNeeded { .. }

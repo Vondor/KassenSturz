@@ -40,6 +40,7 @@
 //!   ([`Corrected`]).
 
 mod handler;
+mod pin_marks;
 mod settings;
 
 use std::collections::HashSet;
@@ -268,6 +269,7 @@ impl AqBankingBank {
         Outcome {
             result,
             rejected: handler.rejected && !strong_auth,
+            pin_sent: handler.pin_sent,
             strong_auth,
             message_refused: handler.message_refused(),
             refusal: handler.refusal,
@@ -290,9 +292,7 @@ impl AqBankingBank {
         let outcome = Self::call(session, pin, || session.control(command, arguments));
         self.clean_logs();
         if outcome.rejected {
-            // The PIN is forgotten in memory first; a place for saved PINs
-            // that can't be reached must not hide that the bank refused it.
-            let _ = pins.rejected(login);
+            self.pin_refused(login, pins);
             return Err(BankError::PinRejected);
         }
         // 9075 means "choose a TAN method first", whatever the call's own
@@ -303,7 +303,56 @@ impl AqBankingBank {
                 offered: Vec::new(),
             });
         }
-        outcome.into_result(true)
+        let pin_sent = outcome.pin_sent;
+        outcome.into_result(true)?;
+        if pin_sent {
+            self.pin_accepted(login, pins);
+        }
+        Ok(())
+    }
+
+    /// The PIN to send for the set-up login `login`, if one may go out
+    /// without asking. A saved PIN that the mark file says the bank refused
+    /// or never accepted is not sent (B-413, T-05). A PIN typed and saved in
+    /// this run is marked before it goes out, so if the connection breaks
+    /// the next start asks instead of sending it on its own.
+    fn pin_to_send(
+        &self,
+        login: &LoginId,
+        pins: &mut PinSession,
+    ) -> Result<Option<Pin>, BankError> {
+        if pin_marks::is_marked(&self.folder, login) {
+            pins.distrust_saved(login);
+        }
+        let pin = match pins.answer(login)? {
+            PinAnswer::Known(pin) => Some(pin),
+            PinAnswer::Ask => None,
+        };
+        if pin.is_some() && pins.unconfirmed(login) {
+            // Without the mark the PIN doesn't go out.
+            pin_marks::mark(&self.folder, login).map_err(|_| BankError::Folder)?;
+        }
+        Ok(pin)
+    }
+
+    /// The bank called the PIN for `login` wrong. It is forgotten in memory
+    /// first; a place for saved PINs that can't be reached must not hide
+    /// that the bank refused it. While the saved PIN can't be deleted
+    /// (a password manager that is locked, closed or says no), the mark
+    /// keeps the next start from sending it (B-413).
+    fn pin_refused(&self, login: &LoginId, pins: &mut PinSession) {
+        let _ = match pins.rejected(login) {
+            Ok(()) => pin_marks::unmark(&self.folder, login),
+            Err(_) => pin_marks::mark(&self.folder, login),
+        };
+    }
+
+    /// A call that sent the PIN for `login` went through: the mark comes
+    /// off once no refused or unaccepted PIN is saved for it (B-413).
+    fn pin_accepted(&self, login: &LoginId, pins: &mut PinSession) {
+        if pins.accepted(login) {
+            let _ = pin_marks::unmark(&self.folder, login);
+        }
     }
 
     /// The commands that make a new login usable, after `adduser`, in the
@@ -476,10 +525,7 @@ impl AqBankingBank {
             .map(|candidate| candidate.bank)
             .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
         self.before_contact(session, &bank)?;
-        let pin = match pins.answer(login)? {
-            PinAnswer::Known(pin) => Some(pin),
-            PinAnswer::Ask => None,
-        };
+        let pin = self.pin_to_send(login, pins)?;
         let user = ["-u", uid_text.as_str()];
         match self.setup_command(session, "getaccounts", &user, pin.clone(), login, pins) {
             Ok(()) => {}
@@ -569,6 +615,8 @@ fn resolve_method(
 struct Outcome<T> {
     result: Result<T, SessionError>,
     rejected: bool,
+    /// The PIN went to AqBanking during the call (B-413).
+    pin_sent: bool,
     /// The bank asked for strong customer authentication (code 9075): a
     /// TAN method has to be chosen first. `rejected` is false then.
     strong_auth: bool,
@@ -822,17 +870,14 @@ impl Bank for AqBankingBank {
             .map(|candidate| candidate.bank)
             .ok_or_else(|| BankError::UnknownLogin(login.clone()))?;
         self.before_contact(session, &bank)?;
-        let pin = match pins.answer(&login)? {
-            PinAnswer::Known(pin) => Some(pin),
-            PinAnswer::Ask => None,
-        };
+        let pin = self.pin_to_send(&login, pins)?;
         // Accounts set up before this was added get the flag at their next
         // fetch; the command is repeatable.
         self.prefer_camt(session, aid, &login, pins);
         let outcome = Self::call(session, pin, || session.fetch(aid, since.map(date_record)));
         self.clean_logs();
         if outcome.rejected {
-            let _ = pins.rejected(&login);
+            self.pin_refused(&login, pins);
             return Err(BankError::PinRejected);
         }
         if outcome.strong_auth {
@@ -841,7 +886,11 @@ impl Bank for AqBankingBank {
             });
         }
         let (message_refused, message) = (outcome.message_refused, outcome.message.clone());
+        let pin_sent = outcome.pin_sent;
         let record = outcome.into_result(false)?;
+        if pin_sent {
+            self.pin_accepted(&login, pins);
+        }
         pins.end_session();
         let result = fetched(bank_account, aid, record);
         // A bank that rejects the approval step (9050/9160) after the

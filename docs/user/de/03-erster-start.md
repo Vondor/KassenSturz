@@ -32,6 +32,7 @@ Die geführte Einrichtung führt Sie mit Ihrem eigenen Haushaltsbuch durch das W
 5. **Ihr erstes Diagramm** mit dem Statistik-Baukasten (Seite 14).
 6. **Ein Budget und eine geplante Zahlung** (Seiten 13 und 21).
 7. **Ihre Startseite gestalten:** Kacheln verschieben, in der Größe ändern, hinzufügen und entfernen (Seite 4).
+8. **Haben Sie eine KI auf diesem Computer?** Nur eine Frage. „Nein, oder ich weiß es nicht“ ist schon gewählt, und dann bleiben die KI-Funktionen ausgeschaltet und nichts über KI wird angezeigt. „Ja“ schaltet sie ein und öffnet die Seite, auf der Sie die Adresse Ihrer KI eintragen (Seite 18). Versionen von KassenSturz, die ohne KI gebaut sind, haben diesen Schritt nicht.
 
 Jeden Schritt finden Sie später wieder, auch die übersprungenen: **Einstellungen → Hilfe: Geführte Einrichtung**. Die letzte Seite verlinkt außerdem dieses Handbuch im Wiki.
 

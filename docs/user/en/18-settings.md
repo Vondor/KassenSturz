@@ -32,6 +32,6 @@ See page 11: **Bank connections**, **Password storage** and **Reminder to get ne
 
 ## AI features
 
-Under **AI features** there is one single switch. It is **off**, and as long as it is off, none of it runs and none of it appears in KassenSturz. This handbook describes KassenSturz without AI; everything here works without it.
+Under **AI features** there is one single switch. It is **off**, and as long as it is off, none of it runs and none of it appears in KassenSturz. The one exception is a single question at the end of the guided setup (page 3), which leaves the switch off unless you answer yes. This handbook describes KassenSturz without AI; everything here works without it.
 
 **If something looks different:** if you can't find a setting, use **Show advanced settings**; some things are one step further away, so the first page stays simple.

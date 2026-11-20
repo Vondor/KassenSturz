@@ -96,7 +96,9 @@ Kirigami.ApplicationWindow {
     // what it read from the book.
     signal bookWasChanged()
 
-    readonly property var guidedSteps: ["transactions", "balance", "sort", "chart", "budget", "start"]
+    // The last step asks about a local AI and is left out where this build
+    // has none or the test profile hides it (D-039, D-922).
+    readonly property var guidedSteps: ["transactions", "balance", "sort", "chart", "budget", "start"].concat(aiSwitch.available ? ["ai"] : [])
 
     // The app's name, which isn't translated, and in the developer mode a
     // marker that stays as long as it runs (D-227). With only the bank log
@@ -1037,6 +1039,10 @@ Kirigami.ApplicationWindow {
             pushPage(guidedSortPage, { step: step, count: count });
         } else if (name === "transactions") {
             pushPage(guidedTransactionsPage, { step: step, count: count });
+        } else if (name === "ai") {
+            if (aiSwitch.available) {
+                pushPage(guidedAiPage, { step: step, count: count });
+            }
         } else {
             pushPage(guidedTryPage, { which: name, step: step, count: count });
         }
@@ -2232,11 +2238,27 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // The guided setup's step 7: a local AI or not (D-911, D-923). "Yes"
+    // turned the one switch on; the provider page opens on top, so closing
+    // it leads back here.
+    Component {
+        id: guidedAiPage
+
+        GuidedAiPage {
+            ai: aiSwitch
+            onProviderClicked: root.pushPage(aiSettingsPage)
+            onNextClicked: root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
     // Help: every step of the guided setup again (D-902).
     Component {
         id: guidedHelpPage
 
         GuidedHelpPage {
+            ai: aiSwitch
             onStepClicked: name => root.pushGuidedStep(name, 0, 0)
         }
     }

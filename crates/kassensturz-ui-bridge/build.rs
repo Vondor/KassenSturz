@@ -198,6 +198,8 @@ fn main() {
                 "qml/GuidedHelpPage.qml",
                 "qml/GuidedSortPage.qml",
                 "qml/GuidedTryPage.qml",
+                "qml/GuidedChoice.qml",
+                "qml/GuidedAiPage.qml",
             ])
             // Helpers, not screens: `Plain.plain()` (D-143) and the colors of
             // the charts (D-283).

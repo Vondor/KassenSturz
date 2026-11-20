@@ -4185,15 +4185,19 @@ msgstr ""
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:244
 #, kde-format
 msgctxt "@info %1 is the name of a bank"
-msgid "Type the PIN you use for %1."
-msgstr "Geben Sie die PIN ein, die Sie für %1 verwenden."
+msgid ""
+"Type the PIN or password of your online banking for %1 (not the card PIN). "
+"Wrong entries can lock your access at the bank."
+msgstr ""
+"Geben Sie die PIN bzw. das Passwort Ihres Online-Bankings für %1 ein (nicht "
+"die Karten-PIN). Falsche Eingaben können Ihren Zugang bei der Bank sperren."
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:251
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:289
 #, kde-format
 msgctxt "@info:placeholder"
-msgid "PIN"
-msgstr "PIN"
+msgid "PIN or password of your online banking"
+msgstr "PIN bzw. Passwort Ihres Online-Bankings"
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:252
 #, kde-format
@@ -4753,8 +4757,8 @@ msgstr "Nur wenn Ihre Bank Ihnen eine gegeben hat"
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:288
 #, kde-format
 msgctxt "@label:textbox"
-msgid "PIN:"
-msgstr "PIN:"
+msgid "PIN or password:"
+msgstr "PIN bzw. Passwort:"
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:324
 #, kde-format
@@ -5944,16 +5948,6 @@ msgstr "Ein Budget festlegen"
 msgctxt "@title %1 is the name of a category"
 msgid "Change the budget for %1"
 msgstr "Budget für %1 ändern"
-
-#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:118
-#, kde-format
-msgctxt "@info"
-msgid ""
-"You have no spending categories yet. Add a category for money you spend "
-"first."
-msgstr ""
-"Sie haben noch keine Kategorien für Ausgaben. Legen Sie zuerst eine "
-"Kategorie für Geld an, das Sie ausgeben."
 
 #: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:125
 #, kde-format
@@ -26103,6 +26097,66 @@ msgctxt "@action:button %1 is an amount"
 msgid "Keep %1"
 msgstr "%1 behalten"
 
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Connection successful. Fetch the transactions now?"
+msgstr "Verbindung erfolgreich. Transaktionen laden?"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz asks your bank for the transactions and shows them to you first. Nothing is added to your book until you say so, and nothing is ever sent to your bank. You can also do this later with Get new transactions."
+msgstr "KassenSturz fragt Ihre Bank nach den Transaktionen und zeigt sie Ihnen zuerst. Nichts kommt in Ihr Buch, bevor Sie es sagen, und Ihrer Bank wird nie etwas gesendet. Sie können das auch später mit „Neue Buchungen abrufen“ tun."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Fetch transactions"
+msgstr "Transaktionen laden"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@item:inlistbox the last entry of a category list: makes a new category"
+msgid "New category …"
+msgstr "Neue Kategorie …"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@info"
+msgid "You have no spending categories yet. Choose “New category …” in the list above to add one."
+msgstr "Sie haben noch keine Kategorien für Ausgaben. Wählen Sie oben in der Liste „Neue Kategorie …“, um eine anzulegen."
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category"
+msgstr "Neue Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category for money coming in"
+msgstr "Neue Kategorie für eingehendes Geld"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category for money spent"
+msgstr "Neue Kategorie für ausgegebenes Geld"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the new category"
+msgstr "Name der neuen Kategorie"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@info"
+msgid "You can move it inside another category later, on the Categories page."
+msgstr "Sie können sie später auf der Seite „Kategorien“ in eine andere Kategorie verschieben."
+
 msgctxt "@action:button opens the testing guide"
 msgid "Testing KassenSturz"
 msgstr "KassenSturz testen"
@@ -27427,3 +27481,63 @@ msgstr ""
 msgctxt "@action:button"
 msgid "Save and test"
 msgstr "Speichern und testen"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:135
+#, kde-format
+msgctxt "@title:window %1 is a plugin's name"
+msgid "Save the transactions with \"%1\""
+msgstr "Die Buchungen mit „%1“ speichern"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:138
+#, kde-format
+msgctxt "@item:inlistbox a file type, %1 is a file name ending such as csv"
+msgid "Files of the plugin (*.%1)"
+msgstr "Dateien des Plugins (*.%1)"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:328
+#, kde-format
+msgctxt "@title:group"
+msgid "With a plugin"
+msgstr "Mit einem Plugin"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:333
+#, kde-format
+msgctxt "@info"
+msgid "A plugin you added writes the transactions of the accounts and days you chose above in its own kind of file. KassenSturz writes the file where you say and never overwrites one."
+msgstr "Ein Plugin, das Sie hinzugefügt haben, schreibt die Buchungen der oben gewählten Konten und Tage in seiner eigenen Art von Datei. KassenSturz schreibt die Datei dorthin, wo Sie es sagen, und überschreibt nie eine."
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:346
+#, kde-format
+msgctxt "@action:button %1 is a plugin's name"
+msgid "Save with \"%1\"…"
+msgstr "Mit „%1“ speichern…"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:347
+#, kde-format
+msgctxt "@info %1 is a file name ending such as csv"
+msgid "A .%1 file"
+msgstr "Eine .%1-Datei"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:949
+#, kde-format
+msgctxt "@info"
+msgid "This plugin isn't there any more or can't be used now. Look at it in Settings, Plugins, then try again. Nothing was saved."
+msgstr "Dieses Plugin ist nicht mehr da oder kann gerade nicht verwendet werden. Sehen Sie es sich unter Einstellungen, Plugins an und versuchen Sie es dann erneut. Nichts wurde gespeichert."
+
+#: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:211
+#, kde-format
+msgctxt "@info %1 is a plugin's name, as the plugin says"
+msgid "Read by the plugin \"%1\""
+msgstr "Gelesen vom Plugin „%1“"
+
+#: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:213
+#, kde-format
+msgctxt "@info"
+msgid "Check the transactions below before you import them."
+msgstr "Prüfen Sie die Buchungen unten, bevor Sie sie importieren."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1938
+#, kde-format
+msgctxt "@item:inlistbox a file type, %1 are patterns such as *.bank"
+msgid "Files your plugins read (%1)"
+msgstr "Dateien, die Ihre Plugins lesen (%1)"

@@ -73,7 +73,7 @@ Data outside home (e.g. `/srv/data/Nextcloud/`): choose the folder in the file c
 
 ## 6. Channels
 
-`beta` for pre-releases, `stable` at Gold (issue #892): `release.yml` uploads a tag's snap to `beta`. A main build is **not** uploaded to `edge`, because that would publish without the maintainer's tag (§3.2); test rounds install the main build's CI artifact instead. The maintainer kept it that way (D-845, Q-632): no `edge` uploads.
+`beta` by default, and `stable` together with `beta` for the stable 0.x release (D-879, #1247; Gold is still the maintainer's call alone): `release.yml` uploads a tag's snap to the channels named by the repository variable `SNAP_CHANNELS`, which is `beta` when unset and may only be `beta` or `stable,beta`; any other value stops the job. The maintainer sets the variable himself (section 8, steps 2 and 4); it is his switch, so no tag reaches `stable` by accident. A main build is **not** uploaded to `edge`, because that would publish without the maintainer's tag (§3.2); test rounds install the main build's CI artifact instead. The maintainer kept it that way (D-845, Q-632): no `edge` uploads.
 
 ## 7. Canonical's terms
 
@@ -82,9 +82,9 @@ The Snap Store terms (canonical.com) could not be read from this build environme
 ## 8. What needs the maintainer
 
 1. Done: the Snapcraft account and the name `kassensturz` are registered.
-2. Done: the login is the secret `SNAPCRAFT_STORE_CREDENTIALS` of the environment `release`; release `v0.261117.8` uploaded with it. Without it the upload job only warns. A login made with `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -` is limited to `beta`, so `stable` at Gold then needs a new one.
+2. Done: the login is the secret `SNAPCRAFT_STORE_CREDENTIALS` of the environment `release`; release `v0.261117.8` uploaded with it. Without it the upload job only warns. A login made with `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -` is limited to `beta`, so `stable` needs a new one (step 4).
 3. Optionally a request to the store for auto-connection of `password-manager-service` and `pcscd` (section 4), or leave it manual.
-4. Read the terms (section 7).
+4. **For the stable release (#1247, human gate):** (a) read and accept the Snap Store terms and publisher rules on snapcraft.io (section 7), and tell the thread if anything conflicts with GPL-3.0-or-later or this project's rules; (b) make a new login that may release to `stable` and `beta`: `snapcraft export-login --snaps kassensturz --channels stable,beta --acls package_access,package_push,package_release -` and store the output as the secret `SNAPCRAFT_STORE_CREDENTIALS` of the environment `release` (never paste it anywhere else); (c) set the repository variable `SNAP_CHANNELS` to `stable,beta` (Settings, Secrets and variables, Actions, Variables). The next `v0.*` tag then goes to both channels. #892 closes with this.
 5. Done for the Beta: the listing was filled in on snapcraft.io. `snapcraft.yaml` carries every store key the reference offers (title, summary, description, license, website, source-code, issues, contact, donation, icon). The category and the screenshots exist only on snapcraft.io. The store copies the file's metadata into the listing only for a stable release, and only while the listing has not been edited on the web; once someone saves the listing on the web, the web page owns it and the file's texts no longer reach it. Keep the two the same.
 
 ## Folder checks for the VM rounds

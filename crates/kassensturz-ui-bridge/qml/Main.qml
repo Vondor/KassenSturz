@@ -1151,6 +1151,7 @@ Kirigami.ApplicationWindow {
     // (M3.10): the file dialog first, then the screen the file needs.
     function importStatement(accountId: string) {
         importDialog.accountId = accountId;
+        importDialog.pluginPatterns = statementImporter.pluginPatterns();
         importDialog.open();
     }
 
@@ -1926,13 +1927,18 @@ Kirigami.ApplicationWindow {
 
         // The account the file goes into.
         property string accountId: ""
+        // What the plugin importers read, such as "*.bank" (#791).
+        property string pluginPatterns: ""
 
         title: root.i18nContext.i18nc("@title:window", "Import a file from your bank")
         fileMode: Dialogs.FileDialog.OpenFile
         nameFilters: [
             root.i18nContext.i18nc("@item:inlistbox a file type", "Bank files (*.xml *.sta *.ofx *.csv *.txt)"),
+        ].concat(pluginPatterns === "" ? [] : [
+            root.i18nContext.i18nc("@item:inlistbox a file type, %1 are patterns such as *.bank", "Files your plugins read (%1)", pluginPatterns),
+        ]).concat([
             root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
-        ]
+        ])
         onAccepted: {
             ActionLog.taken("Main_startImport")
             root.startImport(accountId, selectedFile)
@@ -2550,6 +2556,20 @@ Kirigami.ApplicationWindow {
         BankSetupPage {
             bank: bankConnection
             onLinked: root.screenChangedBook()
+            onFetchNowClicked: {
+                // Back to where the setup was opened from, then the fetch
+                // page: the user agreed to fetching (D-906).
+                root.pageStack.pop();
+                const back = root.pageStack.currentItem;
+                if (back && back.fetchOnOpen !== undefined) {
+                    // The fetch page opened the setup: it fetches again.
+                    back.refresh();
+                    back.tickToBegin();
+                    back.fetchTicked();
+                    return;
+                }
+                root.pushPage(bankFetchPage, { initialAccountId: "", fetchOnOpen: true });
+            }
             onDone: {
                 root.pageStack.pop();
                 const settings = root.pageStack.currentItem;

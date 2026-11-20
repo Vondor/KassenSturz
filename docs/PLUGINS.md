@@ -182,6 +182,8 @@ What it gets, with every key there and `null` where there is nothing:
 
 `counterpart` is `{"kind": "uncategorized"}`, `{"kind": "category", "name": ...}`, `{"kind": "transfer", "account": ...}` or `{"kind": "parts", "count": ...}`. `original` is the amount in another currency, if there was one. A plugin exporter writes transactions only, never a whole book.
 
+**Where they show.** When the user imports a file from the bank, KassenSturz first tries its own formats. One that is sure of the file wins, and a whole book (such as a KMyMoney file) is refused with a hint. Then the plugin importers are tried in the order of their names: the first one that is sure wins. After that a file named `.csv` or `.txt` goes to the column screen, then a built-in format that may fit is used, then the first plugin that may. The preview says which plugin read the file, and the file dialog offers the plugins' extensions. A plugin exporter shows on the "Save a copy of my data" page under "With a plugin": it writes the accounts and days chosen for the spreadsheet file.
+
 Neither an importer nor an exporter needs a permission for this: it gets only the file or the transactions the user picked (D-848).
 
 ## 9. Still to come (#791)

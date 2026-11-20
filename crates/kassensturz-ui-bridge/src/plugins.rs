@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 
 use kassensturz_core::{ErrorReport, Report};
 use kassensturz_plugin_api::{
-    MAX_PLUGIN_BYTES, Manifest, Package, PluginError, PluginId, PluginVersion,
+    ExtensionPoint, MAX_PLUGIN_BYTES, Manifest, Package, PluginError, PluginId, PluginVersion,
 };
 use kassensturz_plugin_host::Plugin;
 
@@ -98,6 +98,35 @@ pub fn list(folder: &Path, ai_enabled: bool) -> Vec<Listed> {
         (Err(_), Err(_)) => a.file.cmp(&b.file),
     });
     listed
+}
+
+/// The usable plugins in `folder` that fill `point`, loaded, sorted by
+/// name, each with its file name. A plugin that no longer loads is left
+/// out; the Plugins page shows why. An AI plugin is not even started while
+/// AI is off.
+pub fn loaded(folder: &Path, point: ExtensionPoint, ai_enabled: bool) -> Vec<(String, Plugin)> {
+    let Ok(entries) = fs::read_dir(folder) else {
+        return Vec::new();
+    };
+    let mut loaded: Vec<(String, Plugin)> = entries
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_file()))
+        .filter(|entry| entry.path().extension().and_then(|ending| ending.to_str()) == Some(ENDING))
+        .filter_map(|entry| {
+            let bytes = read(&entry.path()).ok()?;
+            let manifest = Package::read(&bytes).ok()?.manifest;
+            if !manifest.extension_points.contains(&point) || (manifest.is_ai() && !ai_enabled) {
+                return None;
+            }
+            let plugin = Plugin::load(&bytes, ai_enabled).ok()?;
+            Some((entry.file_name().to_string_lossy().into_owned(), plugin))
+        })
+        .collect();
+    loaded.sort_by(|(a_file, a), (b_file, b)| {
+        let name = |plugin: &Plugin| plugin.manifest().name.to_lowercase();
+        name(a).cmp(&name(b)).then_with(|| a_file.cmp(b_file))
+    });
+    loaded
 }
 
 /// Why a file can't be read or added.

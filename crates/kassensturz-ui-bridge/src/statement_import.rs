@@ -29,6 +29,7 @@ use kassensturz_pipeline::{
     StartSource, derive_start_after_import, import_statements, join_recurring_moves,
     match_schedules,
 };
+use kassensturz_plugin_formats::PluginImporter;
 use kassensturz_store::{Action, Book, StatedBalance, StoreError};
 
 use crate::accounts::Correction;
@@ -116,16 +117,55 @@ pub fn error_text(book: &Book, error: &StatementImportError, locale: &impl Local
 /// What a file turned out to be.
 pub enum FileKind {
     /// A format KassenSturz reads statements from.
-    Statements(&'static dyn Importer),
+    Statements(Format),
     /// A CSV file, which needs the user's column settings first (D-095).
     Csv,
 }
 
+/// A format that reads statements: built in, or a plugin the user added
+/// (#791, D-852).
+pub enum Format {
+    /// One of KassenSturz's own.
+    BuiltIn(&'static dyn Importer),
+    /// A plugin importer, with the plugin's name as its manifest says, which
+    /// the import pages show as plain text.
+    Plugin {
+        /// The plugin's name.
+        name: String,
+        /// The loaded plugin behind the `Importer` trait.
+        importer: Box<PluginImporter>,
+    },
+}
+
+impl Format {
+    /// The importer that reads the file.
+    pub fn importer(&self) -> &dyn Importer {
+        match self {
+            Self::BuiltIn(importer) => *importer,
+            Self::Plugin { importer, .. } => importer.as_ref(),
+        }
+    }
+
+    /// The plugin's name if a plugin reads the file.
+    pub fn plugin_name(&self) -> Option<&str> {
+        match self {
+            Self::BuiltIn(_) => None,
+            Self::Plugin { name, .. } => Some(name),
+        }
+    }
+}
+
 /// Judges a file from its start and its name (D-091): a format KassenSturz
-/// reads for sure wins; a file named `.csv` or `.txt` is a CSV file; a
-/// format that may fit is suggested; a whole book is refused with a hint,
-/// and so is anything else.
-pub fn recognize(input: &[u8], name: &str) -> Result<FileKind, StatementImportError> {
+/// reads for sure wins; then a whole book is refused with a hint; then a
+/// plugin importer that is sure (#791); a file named `.csv` or `.txt` is a
+/// CSV file; a built-in format that may fit is suggested, then a plugin
+/// that may; anything else is refused. `plugins` are the user's plugin
+/// importers with their names, in the order they are tried.
+pub fn recognize(
+    input: &[u8],
+    name: &str,
+    plugins: Vec<(String, PluginImporter)>,
+) -> Result<FileKind, StatementImportError> {
     let start = &input[..input.len().min(RECOGNITION_BYTES)];
     let best = |importers: &[&'static dyn Importer]| {
         importers
@@ -137,11 +177,38 @@ pub fn recognize(input: &[u8], name: &str) -> Result<FileKind, StatementImportEr
     let statements = best(FORMATS);
     let books = best(BOOKS);
     if let Some((Recognition::Yes, importer)) = statements {
-        return Ok(FileKind::Statements(importer));
+        return Ok(FileKind::Statements(Format::BuiltIn(importer)));
     }
     if let Some((Recognition::Yes, _)) = books {
         return Err(StatementImportError::WholeBook);
     }
+    // The first plugin that is sure wins, else the first that may fit.
+    let mut plugin = None;
+    for (name, importer) in plugins {
+        match importer.recognize(start) {
+            Recognition::Yes => {
+                plugin = Some((Recognition::Yes, name, importer));
+                break;
+            }
+            Recognition::Maybe if plugin.is_none() => {
+                plugin = Some((Recognition::Maybe, name, importer));
+            }
+            Recognition::Maybe | Recognition::No => {}
+        }
+    }
+    let plugin = plugin.map(|(recognition, name, importer)| {
+        (
+            recognition,
+            Format::Plugin {
+                name,
+                importer: Box::new(importer),
+            },
+        )
+    });
+    let plugin = match plugin {
+        Some((Recognition::Yes, format)) => return Ok(FileKind::Statements(format)),
+        other => other.map(|(_, format)| format),
+    };
     let extension = Path::new(name)
         .extension()
         .and_then(|extension| extension.to_str())
@@ -149,10 +216,11 @@ pub fn recognize(input: &[u8], name: &str) -> Result<FileKind, StatementImportEr
     if matches!(extension.as_deref(), Some("csv" | "txt")) {
         return Ok(FileKind::Csv);
     }
-    match (statements, books) {
-        (Some((_, importer)), _) => Ok(FileKind::Statements(importer)),
-        (None, Some(_)) => Err(StatementImportError::WholeBook),
-        (None, None) => Err(StatementImportError::UnknownFormat),
+    match (statements, plugin, books) {
+        (Some((_, importer)), _, _) => Ok(FileKind::Statements(Format::BuiltIn(importer))),
+        (None, Some(format), _) => Ok(FileKind::Statements(format)),
+        (None, None, Some(_)) => Err(StatementImportError::WholeBook),
+        (None, None, None) => Err(StatementImportError::UnknownFormat),
     }
 }
 
@@ -223,6 +291,9 @@ pub struct Loaded {
     /// was (M4.7); `None` for a file. The import notes it on the account's
     /// bank link, in the same user action (D-153).
     pub fetched_on: Option<Date>,
+    /// The name of the plugin that read the file, if one did (#791); the
+    /// preview says so.
+    pub read_by: Option<String>,
 }
 
 impl Loaded {
@@ -247,6 +318,7 @@ impl Loaded {
             chosen,
             choices: Choices::default(),
             fetched_on: None,
+            read_by: None,
         }
     }
 
@@ -256,6 +328,7 @@ impl Loaded {
     pub fn from_bank(account: AccountId, statement: Statement, day: Date) -> Self {
         Self {
             fetched_on: Some(day),
+            read_by: None,
             ..Self::new(account, PathBuf::new(), vec![statement])
         }
     }
@@ -482,6 +555,8 @@ pub struct ImportView {
     pub file_name: String,
     /// Whether the statement was fetched from the bank (M4.7).
     pub from_bank: bool,
+    /// The name of the plugin that read the file, or empty (#791).
+    pub read_by: String,
     pub account_name: String,
     /// Whether the account is a debt, e.g. a credit card.
     pub debt: bool,
@@ -1033,6 +1108,7 @@ fn describe(
     }
     Ok(ImportView {
         from_bank: loaded.fetched_on.is_some(),
+        read_by: loaded.read_by.clone().unwrap_or_default(),
         file_name: loaded
             .path
             .file_name()
@@ -1712,10 +1788,87 @@ mod tests {
         );
     }
 
+    /// The user's plugin importers in a folder, as the import page loads
+    /// them (#791).
+    fn plugins(recognition: &str) -> (TestFolder, Vec<(String, PluginImporter)>) {
+        let folder = TestFolder::new();
+        std::fs::write(
+            folder.join("bank.wasm"),
+            crate::test_plugins::bank_importer(recognition),
+        )
+        .expect("plugin written");
+        let importers = crate::plugin_formats::importers_in(folder.path(), false);
+        (folder, importers)
+    }
+
+    #[test]
+    fn a_plugin_importer_is_tried_after_the_built_in_formats() {
+        let id = |input: &[u8], name: &str, recognition: &str| match recognize(
+            input,
+            name,
+            plugins(recognition).1,
+        ) {
+            Ok(FileKind::Statements(format)) => (
+                format.importer().info().id,
+                format.plugin_name().map(str::to_owned),
+            ),
+            Ok(FileKind::Csv) => ("csv", None),
+            Err(error) => (code(&error), None),
+        };
+        let plugin = (
+            "org.example.bank-text",
+            Some("Example bank text".to_owned()),
+        );
+        // A built-in format that is sure wins; so does a whole book.
+        let (_, camt) = golden("camt053", "statement-v08.xml");
+        assert_eq!(id(&camt, "statement.xml", "yes").0, "camt053");
+        let (_, kmy) = golden("kmy", "features.kmy");
+        assert_eq!(id(&kmy, "Household.kmy", "yes").0, "input.whole-book");
+        // A plugin that is sure wins over a CSV file by its name.
+        assert_eq!(id(b"bank text", "umsaetze.csv", "yes"), plugin);
+        // One that may fit doesn't, but is used for a file of no known kind.
+        assert_eq!(id(b"bank text", "umsaetze.csv", "maybe").0, "csv");
+        assert_eq!(id(b"bank text", "umsaetze.bank", "maybe"), plugin);
+        assert_eq!(
+            id(b"bank text", "umsaetze.bank", "no").0,
+            "input.unknown-format"
+        );
+    }
+
+    /// #791: what a plugin read goes through the same preview and import
+    /// as any file, and the preview names the plugin.
+    #[test]
+    fn a_file_a_plugin_read_is_previewed_and_imported_like_any_other() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-10-01",
+        );
+        let (_folder, plugins) = plugins("yes");
+        let Ok(FileKind::Statements(format)) = recognize(b"bank text", "umsaetze.bank", plugins)
+        else {
+            panic!("the plugin reads it");
+        };
+        let statements = read_statements(format.importer(), b"bank text").expect("statements");
+        let loaded = Loaded {
+            read_by: format.plugin_name().map(str::to_owned),
+            ..Loaded::new(checking, PathBuf::from("umsaetze.bank"), statements)
+        };
+        let shown = preview(&mut book, &loaded, &TestLocale).expect("preview");
+        assert_eq!(shown.read_by, "Example bank text");
+        assert_eq!(shown.entries.len(), 1);
+        assert_eq!(shown.entries[0].other_party, "Example Bakery");
+        import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(rows(&book, checking), 2);
+    }
+
     #[test]
     fn recognizes_formats_by_content_and_csv_files_by_name() {
-        let id = |input: &[u8], name: &str| match recognize(input, name) {
-            Ok(FileKind::Statements(importer)) => importer.info().id,
+        let id = |input: &[u8], name: &str| match recognize(input, name, Vec::new()) {
+            Ok(FileKind::Statements(format)) => format.importer().info().id,
             Ok(FileKind::Csv) => "csv",
             Err(error) => code(&error),
         };

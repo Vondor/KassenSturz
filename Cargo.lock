@@ -1635,6 +1635,7 @@ dependencies = [
  "kassensturz-pipeline",
  "kassensturz-platform",
  "kassensturz-plugin-api",
+ "kassensturz-plugin-formats",
  "kassensturz-plugin-host",
  "kassensturz-report",
  "kassensturz-store",

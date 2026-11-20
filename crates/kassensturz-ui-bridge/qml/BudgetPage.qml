@@ -183,15 +183,36 @@ Kirigami.ScrollablePage {
             visible: page.adding
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Category:")
             Layout.fillWidth: true
-            model: page.categoryChoices
+            model: page.categoryChoices.concat([{ id: "", path: page.i18nContext.i18nc("@item:inlistbox the last entry of a category list: makes a new category", "New category …") }])
             textRole: "path"
-            enabled: page.categoryChoices.length > 0
+            // Even with no spending category yet, the last entry makes one.
+            enabled: true
             Accessible.name: page.i18nContext.i18nc("@label:listbox", "Category:")
+            onActivated: index => {
+                ActionLog.taken("BudgetPage_chooseCategory")
+                if (index >= page.categoryChoices.length) {
+                    // The last entry makes a new category (D-910); the list
+                    // goes back to what it showed meanwhile.
+                    categoryBox.currentIndex = Math.max(0, page.categoryChoices.findIndex(choice => choice.id === page.chosenCategory?.id));
+                    newCategory.start();
+                }
+            }
+        }
+
+        NewCategoryDialog {
+            id: newCategory
+
+            income: false
+            onCreated: categoryId => {
+                page.categoryId = categoryId;
+                const at = page.categoryChoices.findIndex(category => category.id === categoryId);
+                categoryBox.currentIndex = at >= 0 ? at : 0;
+            }
         }
 
         Controls.Label {
             visible: page.adding && page.categoryChoices.length === 0
-            text: page.i18nContext.i18nc("@info", "You have no spending categories yet. Add a category for money you spend first.")
+            text: page.i18nContext.i18nc("@info", "You have no spending categories yet. Choose “New category …” in the list above to add one.")
             wrapMode: Text.Wrap
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
         }

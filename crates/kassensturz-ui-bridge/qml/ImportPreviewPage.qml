@@ -222,6 +222,20 @@ Kirigami.ScrollablePage {
                 }
 
                 FormCard.FormDelegateSeparator {
+                    visible: (page.view.readBy ?? "") !== ""
+                }
+
+                // A plugin the user added read the file (#791): say which,
+                // since its output is checked but not KassenSturz's own.
+                FormCard.FormTextDelegate {
+                    visible: (page.view.readBy ?? "") !== ""
+                    icon.name: "preferences-plugin"
+                    text: page.i18nContext.i18nc("@info %1 is a plugin's name, as the plugin says", "Read by the plugin \"%1\"", page.view.readBy ?? "")
+                    textItem.textFormat: Text.PlainText
+                    description: page.i18nContext.i18nc("@info", "Check the transactions below before you import them.")
+                }
+
+                FormCard.FormDelegateSeparator {
                     visible: (page.view.rules ?? 0) > 0
                 }
 

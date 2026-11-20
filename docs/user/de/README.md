@@ -42,6 +42,10 @@ Dieses Handbuch gibt es auch [auf Englisch](../en/README.md).
 
 21. [Geplante Zahlungen](21-geplante-zahlungen.md)
 
+**Ausblick**
+
+22. [Was als Nächstes kommt](22-fahrplan.md)
+
 Das ältere, kürzere [Benutzerhandbuch](../USER_GUIDE.de.md) wird von diesem Handbuch abgelöst und bleibt nur als Kurzfassung stehen.
 
 In einfachen Worten, auf einer Seite: [Warum Ihre Daten sicher sind](warum-ihre-daten-sicher-sind.md).

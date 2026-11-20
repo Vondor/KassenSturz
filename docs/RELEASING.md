@@ -62,6 +62,21 @@ These settings are the protection, not the workflow file: a tag runs the `releas
 
 **If the number ever has to be replaced** (for example because the registration office blocked it): store the new number as the secret and tag a new release. Nothing in the repository changes.
 
+## Promoting a beta to stable (D-941)
+
+A build that has been on `beta` for a while can go to `stable` without a new tag or a new build: the workflow **Promote snap to stable** (`.github/workflows/snap-promote.yml`) moves the very snap that beta testers have.
+
+1. Actions tab → **Promote snap to stable** → **Run workflow**. Keep *Use workflow from* on `main`. In *Version* type the version you want on stable, for example `0.261120.31` or `v0.261120.31`, or leave it empty to take whatever is on `beta` now. Press **Run workflow**.
+2. The run waits for you (environment `snap-stable`): open it → **Review deployments** → tick **snap-stable** → **Approve and deploy**.
+3. It reads what the Snap Store has on `beta` and `stable` and then:
+   - promotes that revision to `stable` with `snapcraft release` and says in the run summary which version is on stable now and what was there before;
+   - stops without changing anything if the version you typed is not the one on `beta` (the summary names the version that is), if `beta` is empty, or if the store login is missing;
+   - does nothing if that version is already on `stable`.
+
+Only the revision on `beta` right now can be promoted. To bring an older one to stable, it has to be on `beta` again first.
+
+**Once, for this workflow:** the environment `snap-stable` only lets `v*` tags in (step 3 of the section above), and this workflow runs from `main`. Settings → Environments → `snap-stable` → *Deployment branches and tags* → **Add deployment branch or tag rule** → Ref type **Branch**, name pattern `main` → **Add rule**. The required review stays, so nothing reaches the store without your approval.
+
 ## If something is wrong
 
 - The run is red: read the failing job. If the fault is in the code or the workflow, fix it on `main` first. A tag that did not produce a release is deleted and the number of the fixed commit is tagged instead: `git push --delete origin "$tag" && git tag -d "$tag"`.

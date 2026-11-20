@@ -92,6 +92,21 @@ Item {
     property real startH: 0
     property real growW: 0
     property real growH: 0
+    // While an edge is dragged (#1243, D-905): which one (`left`, `top`,
+    // `right` or `bottom`; empty for the corner), and how far the left or
+    // the upper edge has gone, which moves the tile as well.
+    property string growEdge: ""
+    property real growX: 0
+    property real growY: 0
+    // The size the pointer asks for while resizing, before it is held at the
+    // smallest size. Asking for less turns the frame red and says "Smallest
+    // size", so that a tile that stops following is no riddle.
+    property real wantW: 0
+    property real wantH: 0
+    readonly property bool atSmallest: resizing
+        && (wantW < board.cellWidth(info.minCols) - Kirigami.Units.smallSpacing
+            || wantH < board.frameHeight(info.minRows) - Kirigami.Units.smallSpacing)
+    readonly property color frameAccent: atSmallest ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor
 
     TitleWords {
         id: words
@@ -110,17 +125,17 @@ Item {
     visible: present && !board.isCollapsed(info)
     // A period box lies under the widgets it holds (D-333).
     z: isBox ? (moving || resizing ? 3 : -1) : (selected ? 2 : (moving || resizing ? 3 : 0))
-    x: moving ? startX + dragX : (present ? board.frameX(info) : 0)
-    y: moving ? startY + dragY : (present ? board.frameY(info) : 0)
+    x: moving ? startX + dragX : (present ? board.frameX(info) + (resizing ? growX : 0) : 0)
+    y: moving ? startY + dragY : (present ? board.frameY(info) + (resizing ? growY : 0) : 0)
     width: resizing ? Math.max(growW, board.cellWidth(info.minCols)) : (present ? board.frameWidth(info) : 0)
     height: resizing ? Math.max(growH, board.frameHeight(info.minRows)) : (present ? board.frameHeight(info.rows) : 0)
 
     Behavior on x {
-        enabled: cell.settled && !cell.moving
+        enabled: cell.settled && !cell.moving && !cell.resizing
         NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
     }
     Behavior on y {
-        enabled: cell.settled && !cell.moving
+        enabled: cell.settled && !cell.moving && !cell.resizing
         NumberAnimation { duration: Kirigami.Units.shortDuration; easing.type: Easing.OutCubic }
     }
     Behavior on width {
@@ -186,12 +201,83 @@ Item {
         startH = height;
         growW = width;
         growH = height;
+        wantW = width;
+        wantH = height;
+        growX = 0;
+        growY = 0;
+        growEdge = "";
         resizing = true;
+    }
+
+    // Resize by one edge (#1243, D-905): the edge follows the pointer and
+    // the other three stay. The layout (Rust) clamps and pushes; here the
+    // tile is only drawn where the pointer has it, not smaller than its
+    // smallest size and not beyond the first column or row.
+    function edgeStarted(edge: string) {
+        growStarted();
+        growEdge = edge;
+    }
+
+    // How many cells each edge has gone, as {left, top, right, bottom}.
+    function edgeCells(): var {
+        const cols = board.cell + board.gap;
+        const rows = board.rowHeight + board.gap;
+        return {
+            left: growEdge === "left" ? board.layout.snap(growX, cols) : 0,
+            top: growEdge === "top" ? board.layout.snap(growY, rows) : 0,
+            right: growEdge === "right" ? board.layout.snap(growW - startW, cols) : 0,
+            bottom: growEdge === "bottom" ? board.layout.snap(growH - startH, rows) : 0
+        };
+    }
+
+    function edgeMoved(translation: point) {
+        const leastW = board.cellWidth(info.minCols);
+        const leastH = board.frameHeight(info.minRows);
+        switch (growEdge) {
+        case "left":
+            growX = Math.max(-board.frameX(info), Math.min(translation.x, startW - leastW));
+            growW = startW - growX;
+            wantW = startW - translation.x;
+            break;
+        case "top":
+            growY = Math.max(-board.frameY(info), Math.min(translation.y, startH - leastH));
+            growH = startH - growY;
+            wantH = startH - translation.y;
+            break;
+        case "right":
+            growW = startW + translation.x;
+            wantW = growW;
+            break;
+        default:
+            growH = startH + translation.y;
+            wantH = growH;
+        }
+        const by = edgeCells();
+        const col = Math.max(0, Math.min(info.col + by.left, info.col + info.cols - info.minCols));
+        const row = Math.max(0, Math.min(info.row + by.top, info.row + info.rows - info.minRows));
+        board.ghost = {
+            col: col,
+            row: row,
+            cols: Math.max(info.minCols, Math.min(info.col + info.cols + by.right, board.columns) - col),
+            rows: Math.max(info.minRows, info.row + info.rows + by.bottom - row)
+        };
+    }
+
+    function edgeEnded() {
+        const by = edgeCells();
+        board.ghost = null;
+        resizing = false;
+        growX = 0;
+        growY = 0;
+        growEdge = "";
+        board.edit(board.layout.stretch(itemId, by.left, by.top, by.right, by.bottom));
     }
 
     function growMoved(translation: point) {
         growW = startW + translation.x;
         growH = startH + translation.y;
+        wantW = growW;
+        wantH = growH;
         const cols = board.layout.snap(growW + board.gap, board.cell + board.gap);
         const rows = board.layout.snap(growH + board.gap, board.rowHeight + board.gap);
         board.ghost = {col: info.col, row: info.row, cols: Math.max(info.minCols, Math.min(cols, board.columns - info.col)), rows: Math.max(info.minRows, rows)};
@@ -231,8 +317,8 @@ Item {
         clip: true
         color: cell.isBox ? Qt.alpha(Kirigami.Theme.highlightColor, 0.06) : (cell.showsFrame ? Kirigami.Theme.backgroundColor : "transparent")
         radius: Look.radius(Kirigami.Units.smallSpacing)
-        border.width: cell.selected ? 2 : (cell.showsFrame ? 1 : 0)
-        border.color: cell.selected ? Kirigami.Theme.highlightColor
+        border.width: cell.atSmallest ? 3 : (cell.selected ? 2 : (cell.showsFrame ? 1 : 0))
+        border.color: cell.selected ? cell.frameAccent
             : cell.hasProblem ? Kirigami.Theme.neutralTextColor
             : cell.board.editing && !cell.board.preview ? Kirigami.Theme.disabledTextColor
             : Qt.alpha(Kirigami.Theme.textColor, 0.15)
@@ -1409,6 +1495,85 @@ Item {
         }
     }
 
+    // The four edges a selected component is resized by (#1243, D-905): a
+    // strip along each, half inside the tile and half in the gap around it,
+    // with the cursor that says which way it goes. They lie over the
+    // overlay that selects and drags the tile, and under the corner.
+    Repeater {
+        model: cell.board.editing && cell.selected && !cell.board.preview && !cell.narrow ? ["left", "top", "right", "bottom"] : []
+
+        Item {
+            id: edge
+
+            required property string modelData
+            objectName: "edge-" + modelData
+            readonly property bool upright: modelData === "left" || modelData === "right"
+            // How far the strip reaches to each side of the edge: into the
+            // tile no further than its row of buttons starts.
+            readonly property real reach: Kirigami.Units.smallSpacing
+
+            x: modelData === "right" ? cell.width - reach : (upright ? -reach : 0)
+            y: modelData === "bottom" ? cell.height - reach : (upright ? 0 : -reach)
+            width: upright ? reach * 2 : cell.width
+            height: upright ? cell.height : reach * 2
+
+            Rectangle {
+                anchors.fill: parent
+                radius: edge.reach
+                color: cell.frameAccent
+                opacity: pull.active ? 0.8 : (over.hovered ? 0.5 : 0)
+            }
+
+            // For the pointer only: the keyboard and a screen reader resize
+            // with Shift and the arrow keys, and have the corner's button.
+            HoverHandler {
+                id: over
+
+                enabled: cell.handlersOn
+                cursorShape: edge.upright ? Qt.SizeHorCursor : Qt.SizeVerCursor
+            }
+
+            DragHandler {
+                id: pull
+
+                target: null
+                enabled: cell.handlersOn
+                xAxis.enabled: edge.upright
+                yAxis.enabled: !edge.upright
+                cursorShape: edge.upright ? Qt.SizeHorCursor : Qt.SizeVerCursor
+                onActiveChanged: active ? cell.edgeStarted(edge.modelData) : cell.edgeEnded()
+                onActiveTranslationChanged: if (active) cell.edgeMoved(activeTranslation)
+            }
+        }
+    }
+
+    // Said in words too while the pointer asks for less than the smallest
+    // size, for everyone who cannot tell the red frame from the usual one.
+    Rectangle {
+        objectName: "smallest-note"
+        visible: cell.atSmallest
+        // Where the picked tile's row of buttons is, which is away while
+        // resizing, so that it covers nothing of the tile's content.
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Kirigami.Units.smallSpacing * 2
+        z: 5
+        width: Math.min(cell.width - Kirigami.Units.largeSpacing, smallestText.implicitWidth + Kirigami.Units.largeSpacing * 2)
+        height: smallestText.implicitHeight + Kirigami.Units.smallSpacing * 2
+        radius: Kirigami.Units.smallSpacing
+        color: Kirigami.Theme.negativeBackgroundColor
+        border.width: 1
+        border.color: Kirigami.Theme.negativeTextColor
+
+        Controls.Label {
+            id: smallestText
+
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.width - Kirigami.Units.smallSpacing * 2)
+            elide: Text.ElideRight
+            text: names.i18nContext.i18nc("@info shown on a dashboard tile while it is dragged smaller than it can get", "Smallest size")
+        }
+    }
+
     // The corner a selected component is resized by.
     Loader {
         active: cell.board.editing
@@ -1419,7 +1584,7 @@ Item {
         height: Kirigami.Units.gridUnit
 
         sourceComponent: Rectangle {
-            color: Kirigami.Theme.highlightColor
+            color: cell.frameAccent
             radius: Kirigami.Units.smallSpacing
             opacity: grow.active ? 1 : 0.8
 

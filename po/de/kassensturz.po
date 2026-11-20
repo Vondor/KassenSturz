@@ -14683,14 +14683,10 @@ msgstr "Verstanden"
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:726
 #, kde-format
 msgctxt "@info"
-msgid ""
-"You are arranging this page. Drag a widget to move it, drag its corner to "
-"make it larger or smaller, and use the buttons that appear on the one you "
-"pick. Press Done to keep the changes, or Cancel to leave everything as it "
-"was."
+msgid "You are arranging this page. Drag a widget to move it, drag one of its edges or its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was."
 msgstr ""
 "Sie ordnen diese Seite an. Ziehen Sie ein Widget, um es zu verschieben, "
-"ziehen Sie an seiner Ecke, um es größer oder kleiner zu machen, und benutzen "
+"ziehen Sie an einem seiner Ränder oder an seiner Ecke, um es größer oder kleiner zu machen, und benutzen "
 "Sie die Knöpfe, die am gewählten Widget erscheinen. „Fertig“ behält die "
 "Änderungen, „Abbrechen“ lässt alles, wie es war."
 
@@ -27627,3 +27623,9 @@ msgstr "Um KassenSturz andere Farben zu geben, fügen Sie unter Einstellungen �
 msgctxt "@info"
 msgid "A theme changes only colors, the font and how round corners are. It uses its light or dark colors after your system's setting when KassenSturz opens. KassenSturz refuses a theme whose text would be hard to read."
 msgstr "Ein Theme ändert nur Farben, die Schrift und wie rund Ecken sind. Es nimmt seine hellen oder dunklen Farben nach der Einstellung Ihres Systems beim Öffnen von KassenSturz. KassenSturz lehnt ein Theme ab, dessen Schrift schwer zu lesen wäre."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+msgctxt ""
+"@info shown on a dashboard tile while it is dragged smaller than it can get"
+msgid "Smallest size"
+msgstr "Kleinste Größe"

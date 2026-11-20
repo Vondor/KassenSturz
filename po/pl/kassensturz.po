@@ -13058,12 +13058,8 @@ msgstr "Rozumiem"
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:726
 #, kde-format
 msgctxt "@info"
-msgid ""
-"You are arranging this page. Drag a widget to move it, drag its corner to "
-"make it larger or smaller, and use the buttons that appear on the one you "
-"pick. Press Done to keep the changes, or Cancel to leave everything as it "
-"was."
-msgstr "Układasz tę stronę. Przeciągnij widżet, aby go przenieść, przeciągnij jego róg, aby go powiększyć lub pomniejszyć, i używaj przycisków, które pojawiają się na wybranym widżecie. Naciśnij „Gotowe”, aby zachować zmiany, albo „Anuluj”, aby zostawić wszystko tak, jak było."
+msgid "You are arranging this page. Drag a widget to move it, drag one of its edges or its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was."
+msgstr "Układasz tę stronę. Przeciągnij widżet, aby go przenieść, przeciągnij jedną z jego krawędzi lub jego róg, aby go powiększyć lub pomniejszyć, i używaj przycisków, które pojawiają się na wybranym widżecie. Naciśnij „Gotowe”, aby zachować zmiany, albo „Anuluj”, aby zostawić wszystko tak, jak było."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:733
 #, kde-format
@@ -25497,3 +25493,9 @@ msgstr "Aby nadać KassenSturz inne kolory, dodaj wtyczkę motywu w Ustawienia �
 msgctxt "@info"
 msgid "A theme changes only colors, the font and how round corners are. It uses its light or dark colors after your system's setting when KassenSturz opens. KassenSturz refuses a theme whose text would be hard to read."
 msgstr "Motyw zmienia tylko kolory, czcionkę i zaokrąglenie rogów. Używa jasnych albo ciemnych kolorów zgodnie z ustawieniem systemu w chwili otwarcia KassenSturz. KassenSturz odrzuca motyw, z którym tekst byłby trudny do przeczytania."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+msgctxt ""
+"@info shown on a dashboard tile while it is dragged smaller than it can get"
+msgid "Smallest size"
+msgstr "Najmniejszy rozmiar"

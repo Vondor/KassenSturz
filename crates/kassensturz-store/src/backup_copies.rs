@@ -517,7 +517,9 @@ fn check_backup(backup: &Path) -> Result<Option<BookId>, StoreError> {
     }
     // A backup that opens only to a damage message must never replace the
     // book it was made to protect, so it faces the checks of opening: the
-    // file itself, its references, its balances and its conversions (B-298).
+    // file itself, its layout's tables and guards (B-245, B-417), its
+    // references, its balances, its conversions (B-298) and its currencies'
+    // totals (B-269, B-416).
     let damaged = |error: StoreError| match crate::integrity::damaged_if_malformed(error) {
         StoreError::Corrupt(_) => StoreError::NotABook,
         other => other,
@@ -538,9 +540,12 @@ fn check_backup(backup: &Path) -> Result<Option<BookId>, StoreError> {
         }
         found => return Err(StoreError::UnsupportedLayout { found }),
     }
+    layout::check_schema(&conn, &layout::MIGRATIONS, layout::FIRST_VERSION, version)
+        .map_err(damaged)?;
     crate::integrity::check_references(&conn).map_err(damaged)?;
     crate::integrity::check_balances(&conn).map_err(damaged)?;
     crate::integrity::check_conversions(&conn).map_err(damaged)?;
+    crate::integrity::check_totals(&conn).map_err(damaged)?;
     Ok(BookId::try_read(&conn))
 }
 
@@ -1301,5 +1306,72 @@ mod tests {
             .put_in_place()
             .expect("restored");
         assert_eq!(mode(&path), 0o600, "the restored book");
+    }
+
+    /// A backup that another program changed would open only to a damage
+    /// message, so it never replaces the book (B-298): one with an extra
+    /// trigger (B-245, B-417) and one whose amounts add up past the limit
+    /// every change keeps (B-269, B-416).
+    #[test]
+    fn a_backup_changed_by_another_program_is_refused() {
+        let folder = TempFolder::new();
+        let path = folder.join("Household.ksz");
+        let mut book = Book::create(&path, &computer(&folder)).expect("book made");
+        book.use_currency(crate::tests::EUR).expect("currency used");
+        let giro = crate::tests::account(&mut book, "Giro", AccountKind::Asset, crate::tests::EUR);
+        let savings =
+            crate::tests::account(&mut book, "Savings", AccountKind::Asset, crate::tests::EUR);
+        for day in 1..=4 {
+            let parts = [
+                (giro, crate::tests::eur(-10_000)),
+                (savings, crate::tests::eur(10_000)),
+            ];
+            book.add_transaction(&crate::tests::transaction(
+                crate::tests::date(2026, 4, day),
+                "Own transfer",
+                &parts,
+            ))
+            .expect("added");
+        }
+        let id = book.book_id().expect("an identity");
+        let backups = computer(&folder).backup_folder;
+        let planted = book.back_up_now(&path, &backups).expect("backed up");
+        let renamed = |name: &str| {
+            let to = backups.join(name);
+            fs::rename(&planted, &to).expect("renamed");
+            to
+        };
+        let planted = renamed("Household 2026-10-01 09-00-00 UTC.ksz");
+        Connection::open(&planted)
+            .and_then(|conn| {
+                conn.execute_batch(
+                    "CREATE TRIGGER planted AFTER INSERT ON splits BEGIN SELECT 1; END;",
+                )
+            })
+            .expect("trigger planted");
+        let huge = book.back_up_now(&path, &backups).expect("backed up");
+        drop(book);
+        let huge_named = backups.join("Household 2026-10-02 09-00-00 UTC.ksz");
+        fs::rename(&huge, &huge_named).expect("renamed");
+        // 8 parts of 10^18 add up to 8·10^18 without their signs.
+        let changed = Connection::open(&huge_named)
+            .and_then(|conn| {
+                conn.execute("UPDATE splits SET amount = amount * 100000000000000", [])
+            })
+            .expect("changed");
+        assert_eq!(changed, 8);
+        let before = fs::read(&path).expect("book read");
+
+        for backup in [&planted, &huge_named] {
+            let refused = PreparedRestore::new(backup, &path, &id);
+            assert!(
+                matches!(refused, Err(StoreError::NotABook)),
+                "{}: {:?}",
+                backup.display(),
+                refused.err()
+            );
+        }
+        assert_eq!(fs::read(&path).expect("book read"), before);
+        assert!(!folder.join("Household.ksz.restore.part").exists());
     }
 }

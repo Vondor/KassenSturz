@@ -1,6 +1,6 @@
 # Plugins
 
-KassenSturz can be extended with plugins: sandboxed WebAssembly modules with a versioned API (D-007), part of 1.0 and built during the Beta (#791, D-753). This page is the reference for plugin authors. It grows with each step of #791; the parts marked *not built yet* describe what is planned, not what works today.
+KassenSturz can be extended with plugins: sandboxed WebAssembly modules with a versioned API (D-007), part of 1.0 and built during the Beta (#791, D-753). This page is the reference for plugin authors. All extension points are built; section 13 lists the examples, and `WRITING_PLUGINS.md` is the step-by-step guide.
 
 ## 1. The plugin API version
 
@@ -101,7 +101,7 @@ The runtime is **wasmi**, an interpreter (Q-633): no compiler comes into the app
 |---|---|---|
 | `memory` | memory | The one memory, through which bytes go in and out. |
 | `ks_alloc` | `(len: i32) -> i32` | Gives the host room for `len` bytes and returns the address. |
-| the calls of its extension points | `(ptr: i32, len: i32) -> i64` | Each takes the input at `ptr` with `len` bytes, and returns the output's address in the high 32 bits and its length in the low 32 bits. Which names each extension point calls, and what goes in and out, comes with that extension point (*not built yet*). |
+| the calls of its extension points | `(ptr: i32, len: i32) -> i64` | Each takes the input at `ptr` with `len` bytes, and returns the output's address in the high 32 bits and its length in the low 32 bits. Which names each extension point calls, and what goes in and out, comes with that extension point (sections 8 to 12). |
 
 A call: KassenSturz calls `ks_alloc(len)`, copies the input there, calls the export, and copies the output out of the plugin's memory. The plugin never sees KassenSturz's memory. Input and output are bytes; the extension points will use UTF-8 JSON, with amounts as text in minor units, never as floating point (AGENTS.md §3.1 rule 1).
 
@@ -291,6 +291,16 @@ An AI provider plugin lets KassenSturz talk to an AI service whose interface isn
 
 **Choosing one.** Settings › AI shows "Kind of service" once an AI provider plugin was added: OpenAI-compatible, or the plugin. The choice is kept as the plugin's ID under `AI/ProviderPlugin` in the settings of this computer, and applies to the next request. Address, model, key and consent are set up as for any provider.
 
-## 13. Still to come (#791)
+## 13. Writing a plugin, and the examples
 
-One example plugin per extension point, and a "write your own plugin" guide.
+[`WRITING_PLUGINS.md`](WRITING_PLUGINS.md) walks through writing a plugin with code, step by step. The examples in `examples/plugins/`, free to copy (CC0-1.0):
+
+| Folder | Extension point | What it shows |
+|---|---|---|
+| `green-theme` | `theme` | A data-only plugin: a manifest and a JSON file packed by `tools/make-data-plugin.py` (§9). |
+| `compact-layout` | `ui_density` | The same, for the layout switches (§11). |
+| `simple-bank-text` | `importer` | A plugin with code, in Rust for WebAssembly: reads the text statements of an invented bank, amounts as exact text, with a test that runs the checked-in plugin file (§8). |
+
+## 14. Still to come (#791)
+
+Examples of the other extension points with code (exporter, report, automation, AI provider).

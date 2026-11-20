@@ -38,6 +38,8 @@ pub use report::{
 #[cfg(all(test, feature = "ai"))]
 mod ai_provider_tests;
 #[cfg(test)]
+mod example_tests;
+#[cfg(test)]
 mod report_tests;
 #[cfg(test)]
 mod tests;

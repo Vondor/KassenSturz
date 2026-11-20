@@ -5181,14 +5181,6 @@ msgctxt "@title %1 is the name of a category"
 msgid "Change the budget for %1"
 msgstr "Zmień budżet dla %1"
 
-#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:118
-#, kde-format
-msgctxt "@info"
-msgid ""
-"You have no spending categories yet. Add a category for money you spend "
-"first."
-msgstr "Nie masz jeszcze kategorii wydatków. Najpierw dodaj kategorię na wydawane pieniądze."
-
 #: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:125
 #, kde-format
 msgctxt "@label"
@@ -23921,6 +23913,48 @@ msgstr "KassenSturz prosi bank o transakcje i najpierw Ci je pokazuje. Nic nie t
 msgctxt "@action:button"
 msgid "Fetch transactions"
 msgstr "Pobierz transakcje"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@item:inlistbox the last entry of a category list: makes a new category"
+msgid "New category …"
+msgstr "Nowa kategoria …"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@info"
+msgid "You have no spending categories yet. Choose “New category …” in the list above to add one."
+msgstr "Nie masz jeszcze kategorii wydatków. Wybierz powyżej na liście „Nowa kategoria …”, aby dodać jedną."
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category"
+msgstr "Nowa kategoria"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category for money coming in"
+msgstr "Nowa kategoria dla wpływów"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category for money spent"
+msgstr "Nowa kategoria dla wydatków"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the new category"
+msgstr "Nazwa nowej kategorii"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@info"
+msgid "You can move it inside another category later, on the Categories page."
+msgstr "Możesz ją później przenieść do innej kategorii na stronie „Kategorie”."
 
 msgctxt "@action:button opens the testing guide"
 msgid "Testing KassenSturz"

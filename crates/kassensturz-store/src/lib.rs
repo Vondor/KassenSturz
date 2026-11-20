@@ -27,6 +27,7 @@ mod lockless;
 mod moving;
 mod names;
 mod originals;
+mod private;
 mod reader;
 mod recovery;
 mod recurring_moves;
@@ -40,7 +41,7 @@ mod unsorted;
 mod views;
 
 use std::collections::{HashMap, HashSet};
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::{ErrorKind, Read};
 use std::path::{Path, PathBuf};
 
@@ -177,17 +178,14 @@ impl Book {
     pub fn create(path: &Path, computer: &Computer) -> Result<Self, StoreError> {
         let path = std::path::absolute(path)?;
         // Claim the path first: `create_new` fails if anything exists there,
-        // so SQLite can never open an existing file by mistake.
-        OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&path)
-            .map_err(|error| match error.kind() {
-                ErrorKind::AlreadyExists => StoreError::AlreadyExists {
-                    file: path.display().to_string(),
-                },
-                kind => StoreError::Io(kind),
-            })?;
+        // so SQLite can never open an existing file by mistake. Readable
+        // only by the user (B-414).
+        private::create_new(&path).map_err(|error| match error.kind() {
+            ErrorKind::AlreadyExists => StoreError::AlreadyExists {
+                file: path.display().to_string(),
+            },
+            kind => StoreError::Io(kind),
+        })?;
         let book = Self::create_at(&path, computer);
         if book.is_err() {
             // Don't leave a half-made book behind. If removing it fails too,

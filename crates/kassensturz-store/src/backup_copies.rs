@@ -363,11 +363,9 @@ fn copy_file(from: &Path, folder: &Path, tag: &str, keep: usize) -> Result<PathB
         .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
     let path = folder.join(name);
     let partial = partial_path(&path);
-    // Claimed first, so no other copy writes there at the same time.
-    OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&partial)?;
+    // Claimed first, so no other copy writes there at the same time;
+    // readable only by the user, like the backup (B-414).
+    crate::private::create_new(&partial)?;
     let copied = copy_and_sync(from, &partial).and_then(|()| {
         // A copy is never put in place of a file that is there.
         if exists(&path)? {
@@ -469,10 +467,8 @@ impl PreparedRestore {
             Err(error) if error.kind() == ErrorKind::NotFound => {}
             Err(error) => return Err(error.into()),
         }
-        OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&partial)?;
+        // Readable only by the user while the backup is copied (B-414).
+        crate::private::create_new(&partial)?;
         let prepared = Self { partial, book };
         copy_and_sync(&backup, &prepared.partial)?;
         // The restored book keeps the book's own permissions, e.g. readable
@@ -1264,6 +1260,52 @@ mod tests {
         ));
         assert_eq!(fs::read(&path).expect("book read"), before);
         assert!(!folder.join("Household.ksz.restore.part").exists());
+    }
+
+    /// A new book, its backups, the backup folder, a kept copy of a backup
+    /// and a restored book are readable only by the user, whatever the
+    /// umask lets other files be (B-414). A backup folder an older version
+    /// made open to everyone is closed at the next backup.
+    #[cfg(unix)]
+    #[test]
+    fn a_book_and_its_backups_are_the_users_alone() {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |path: &Path| {
+            fs::metadata(path)
+                .expect("metadata read")
+                .permissions()
+                .mode()
+                & 0o777
+        };
+        let folder = TempFolder::new();
+        let backups = computer(&folder).backup_folder;
+        fs::create_dir_all(&backups).expect("folder made");
+        fs::set_permissions(&backups, fs::Permissions::from_mode(0o755)).expect("opened");
+        let (book, path) = book_with(&folder, "Giro");
+        assert_eq!(mode(&path), 0o600, "the new book");
+
+        let backup = book.back_up_now(&path, &backups).expect("backed up");
+        assert_eq!(mode(&backup), 0o600, "the backup");
+        assert_eq!(mode(&backups), 0o700, "the backup folder");
+
+        let stick = folder.join("Stick");
+        fs::create_dir(&stick).expect("folder made");
+        let copy = copy_file(
+            &backup,
+            &stick,
+            &book.book_id().expect("an identity").tag(),
+            3,
+        )
+        .expect("copied");
+        assert_eq!(mode(&copy), 0o600, "the kept copy");
+
+        let id = book.book_id().expect("an identity");
+        drop(book);
+        PreparedRestore::new(&backup, &path, &id)
+            .expect("made ready")
+            .put_in_place()
+            .expect("restored");
+        assert_eq!(mode(&path), 0o600, "the restored book");
     }
 
     /// A backup that another program changed would open only to a damage

@@ -1,0 +1,8 @@
+EXAMPLE-BANK STATEMENT
+Account: DE89370400440532013000
+Currency: EUR
+Opening: 2026-10-31 1000.00
+2026-11-01 | Example Bakery | Bread | -23.45
+2026-11-02 | Example Employer | Pay for October | 2500.00
+2026-11-02 | Example Landlord | Rent | -450.00
+Closing: 2026-11-02 3026.55

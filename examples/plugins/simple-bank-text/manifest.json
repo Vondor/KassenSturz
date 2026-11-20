@@ -1,0 +1,12 @@
+{
+  "manifest_version": 1,
+  "id": "io.github.vondor.kassensturz.example.simple-bank-text",
+  "name": "Simple bank text",
+  "version": "1.0.0",
+  "api": "1.0",
+  "extension_points": ["importer"],
+  "permissions": [],
+  "description": "Reads the text statements of the invented \"Example Bank\". An example for plugin authors: its source is in examples/plugins/simple-bank-text.",
+  "author": "KassenSturz contributors",
+  "license": "CC0-1.0"
+}

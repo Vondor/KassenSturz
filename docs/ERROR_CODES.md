@@ -391,6 +391,8 @@ A request to the AI provider the user set up couldn't be sent, or its answer cou
 | `ai.provider-failed` | `status` | | The AI provider answered with an error (HTTP {status}). Try again; if it keeps happening, check that the program that runs the model is still running, then the provider's settings. |
 | `ai.reply-too-large` | | | The AI provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time. |
 | `ai.bad-reply` | | | The AI provider's answer isn't what KassenSturz expects from an OpenAI-compatible provider. Check that the address points to such an interface, often ending in `/v1`. |
+| `ai.plugin-failed` | | | The AI provider plugin couldn't translate the question or the answer, so nothing more was sent. Try again, or choose another kind of service in Settings › AI and ask the plugin's author. |
+| `ai.plugin-missing` | | | The AI provider plugin chosen in Settings › AI was removed or can't be used any more, so nothing was sent. Choose another kind of service there, or add the plugin again. |
 
 ## The AI's read functions (`kassensturz-ai-tools`)
 

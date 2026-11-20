@@ -20,6 +20,8 @@ mod ai_audit;
 mod ai_chat;
 mod ai_chat_model;
 #[cfg(feature = "ai")]
+mod ai_provider_plugins;
+#[cfg(feature = "ai")]
 mod ai_requests;
 #[cfg(feature = "ai")]
 mod ai_settings;

@@ -26,6 +26,7 @@ use ureq::tls::{RootCerts, TlsConfig, TlsProvider};
 use zeroize::Zeroizing;
 
 use crate::error::AiError;
+use crate::translate::Route;
 
 /// The size and time limits of one call.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,13 +86,14 @@ fn agent(limits: &Limits) -> Agent {
 /// How much of an error answer's body is kept for the developer mode.
 const ERROR_BODY_BYTES: u64 = 4096;
 
-/// Sends `body` as JSON to `url` with `key` as the bearer token, and
-/// answers the reply's body. When the provider answers with an error
-/// status, the start of its body is put in `error_body` (D-235), so the
-/// developer mode can show why.
+/// Sends `body` as JSON to `url` along `route`, with `key` in the route's
+/// key header, and answers the reply's body. When the provider answers
+/// with an error status, the start of its body is put in `error_body`
+/// (D-235), so the developer mode can show why.
 pub(crate) fn post_json(
     url: &str,
     body: &str,
+    route: &Route,
     key: Option<&Secret>,
     limits: &Limits,
     error_body: &mut Vec<u8>,
@@ -99,28 +101,40 @@ pub(crate) fn post_json(
     let mut request = agent(limits)
         .post(url)
         .header("Content-Type", "application/json");
-    let bearer = key.map(bearer);
-    if let Some(bearer) = &bearer {
-        request = request.header("Authorization", bearer.as_str());
+    for (name, value) in route.headers() {
+        request = request.header(name.as_str(), value.as_str());
+    }
+    let key_value = key.map(|key| key_value(route, key));
+    if let Some(value) = &key_value {
+        request = request.header(route.key_header(), value.as_str());
     }
     read(request.send(body.as_bytes()), limits, Some(error_body))
 }
 
-/// Asks `url` with `key` as the bearer token, and answers the reply's
-/// body.
-pub(crate) fn get(url: &str, key: Option<&Secret>, limits: &Limits) -> Result<Vec<u8>, AiError> {
+/// Asks `url` along `route` with `key` in the route's key header, and
+/// answers the reply's body.
+pub(crate) fn get(
+    url: &str,
+    route: &Route,
+    key: Option<&Secret>,
+    limits: &Limits,
+) -> Result<Vec<u8>, AiError> {
     let mut request = agent(limits).get(url);
-    let bearer = key.map(bearer);
-    if let Some(bearer) = &bearer {
-        request = request.header("Authorization", bearer.as_str());
+    for (name, value) in route.headers() {
+        request = request.header(name.as_str(), value.as_str());
+    }
+    let key_value = key.map(|key| key_value(route, key));
+    if let Some(value) = &key_value {
+        request = request.header(route.key_header(), value.as_str());
     }
     read(request.call(), limits, None)
 }
 
-/// The header value, wiped when dropped. `ureq` keeps its own copy for the
-/// call, which KassenSturz can't wipe (D-184).
-fn bearer(key: &Secret) -> Zeroizing<String> {
-    Zeroizing::new(format!("Bearer {}", key.expose()))
+/// The key header's value, such as `Bearer <key>`, wiped when dropped.
+/// `ureq` keeps its own copy for the call, which KassenSturz can't wipe
+/// (D-184).
+fn key_value(route: &Route, key: &Secret) -> Zeroizing<String> {
+    Zeroizing::new(format!("{}{}", route.key_prefix(), key.expose()))
 }
 
 fn read(

@@ -31,6 +31,7 @@ ai = [
     "kassensturz-ai-chat/ai",
     "dep:kassensturz-ai-tools",
     "kassensturz-ai-tools/ai",
+    "kassensturz-plugin-formats/ai",
 ]
 # The developer mode's debug log (D-173, D-227), started only from a terminal
 # with KASSENSTURZ_DEBUG_LOG=1. Without it the app holds no log code.

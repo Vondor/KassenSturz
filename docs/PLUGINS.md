@@ -19,7 +19,7 @@ The plugin API has a version `MAJOR.MINOR`. This KassenSturz offers **1.0** (`ka
 | `exporter` | Hands back the bytes of a file, which KassenSturz writes where the user chose. | `read_book` |
 | `report` | Computes a report from the book. | `read_book` |
 | `automation` | Reacts to events, such as an import, and may propose changes. | `read_book`, `propose_changes` |
-| `ai_provider` | Talks to an AI service that isn't OpenAI-compatible (D-754). Hidden and never loaded while AI is off (D-013); consent and the preview of what is sent stay in KassenSturz. | `network` |
+| `ai_provider` | Translates for an AI service that isn't OpenAI-compatible (D-754, §12). KassenSturz does the sending. Hidden and never loaded while AI is off (D-013); consent and the preview of what is sent stay in KassenSturz. | `network` |
 | `theme` | Colours, accent, font, corner radius, for light and dark (§9). **Data only, no code** (D-756). | none |
 | `ui_density` | Turns on switches KassenSturz defines, such as hiding explanation texts. **Data only, no code** (D-756). Nothing that warns before a change to data can be hidden. | none |
 
@@ -273,6 +273,24 @@ A UI density plugin changes how much fits on the screen, never what KassenSturz 
 tools/make-data-plugin.py manifest.json kassensturz-density=density.json compact-layout.wasm
 ```
 
-## 12. Still to come (#791)
+## 12. AI providers (D-754, D-928)
 
-The calls and host functions of the other extension points, one example plugin per extension point, and a "write your own plugin" guide.
+An AI provider plugin lets KassenSturz talk to an AI service whose interface isn't OpenAI-compatible. **It only translates.** It gets no way to reach the network: KassenSturz builds every request in the OpenAI-compatible form, the plugin turns it into its service's form, and KassenSturz sends that, with its own HTTPS client and all its checks, only to the address the user typed in Settings › AI. The answer comes back through the plugin into the OpenAI-compatible form, which KassenSturz reads with the same limits as any answer. The manifest names `ai_provider` and asks for `network`, which the Plugins tab shows as "sends to the address you enter". The plugin is hidden and never loaded while AI is off (D-013).
+
+| Call | In | Out |
+|---|---|---|
+| `ks_ai_info` | nothing | `{"chat_path": "messages", "models_path": "models", "key_header": "x-api-key", "key_prefix": "", "headers": {"example-version": "2026-01-01"}}` |
+| `ks_ai_request` | an OpenAI-compatible chat request (`model`, `messages`, `tools`, …) | the service's request body, a JSON object |
+| `ks_ai_reply` | the service's answer to it | an OpenAI-compatible chat answer (`choices[0].message` with `content` and `tool_calls`, `finish_reason`) |
+| `ks_ai_models` | the service's list of models | an OpenAI-compatible list (`{"data": [{"id": "..."}]}`) |
+
+- **The route is fixed.** `chat_path` and `models_path` are paths under the user's address: letters, digits and `. _ ~ / -`, with no leading `/`, no `//`, no `.` or `..` part, no query. `key_header` names the header the key goes into, and `key_prefix` (optional, such as `Bearer `) what comes before it. `headers` (optional) adds up to 8 fixed headers. Headers that change where or how a request goes (`Host`, `Content-Type`, `Content-Length`, `Cookie`, `Proxy-…` and the like) are refused, and so is the whole plugin with them.
+- **The key never reaches the plugin.** KassenSturz adds it to the named header when it sends, after the preview was built.
+- **The preview is what is sent.** The body `ks_ai_request` builds is checked to be JSON, shown in the preview, and sent byte for byte; redacting a phrase builds it again. Consent per address and the statement of what is sent stay as for any provider.
+- A plugin that fails, or answers something that isn't JSON, stops the request with `ai.plugin-failed`; a chosen plugin that was removed stops every request before anything is sent (`ai.plugin-missing`). KassenSturz never falls back to another kind of service by itself.
+
+**Choosing one.** Settings › AI shows "Kind of service" once an AI provider plugin was added: OpenAI-compatible, or the plugin. The choice is kept as the plugin's ID under `AI/ProviderPlugin` in the settings of this computer, and applies to the next request. Address, model, key and consent are set up as for any provider.
+
+## 13. Still to come (#791)
+
+One example plugin per extension point, and a "write your own plugin" guide.

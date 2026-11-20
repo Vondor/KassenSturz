@@ -26753,12 +26753,6 @@ msgctxt "@item what a plugin may do"
 msgid "Suggest changes to your book, which you check and confirm first"
 msgstr "Änderungen an Ihrem Buch vorschlagen, die Sie zuerst prüfen und bestätigen"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:75
-#, kde-format
-msgctxt "@item what a plugin may do"
-msgid "Connect to other computers over the internet"
-msgstr "Sich über das Internet mit anderen Computern verbinden"
-
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:91
 #, kde-format
 msgctxt "@title:group"
@@ -26800,12 +26794,6 @@ msgstr "Sie sehen, worum es bittet, bevor etwas hinzugefügt wird."
 msgctxt "@title:group"
 msgid "Add this plugin?"
 msgstr "Dieses Plugin hinzufügen?"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:148
-#, kde-format
-msgctxt "@info"
-msgid "This plugin may send data over the internet. KassenSturz still asks you before anything about your money leaves your computer."
-msgstr "Dieses Plugin darf Daten über das Internet senden. KassenSturz fragt Sie trotzdem, bevor etwas über Ihr Geld Ihren Computer verlässt."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:155
 #, kde-format
@@ -27979,6 +27967,48 @@ msgstr "Damit mehr auf den Bildschirm passt, fügen Sie unter Einstellungen › 
 msgctxt "@info"
 msgid "A layout plugin can make lists tighter and hide these grey explanations. Warnings and questions before a change always stay."
 msgstr "Ein Layout-Plugin kann Listen enger machen und diese grauen Erklärungen ausblenden. Warnungen und Rückfragen vor einer Änderung bleiben immer sichtbar."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:109
+#, kde-format
+msgctxt "@info"
+msgid "The AI provider plugin couldn't translate the question or the answer, so nothing more was sent. Try again, or choose another kind of service in Settings › AI and ask the plugin's author."
+msgstr "Das KI-Anbieter-Plugin konnte die Frage oder die Antwort nicht übersetzen, deshalb wurde nichts weiter gesendet. Versuchen Sie es noch einmal, oder wählen Sie unter Einstellungen › KI eine andere Art von Dienst und fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:111
+#, kde-format
+msgctxt "@info"
+msgid "The AI provider plugin chosen in Settings › AI was removed or can't be used any more, so nothing was sent. Choose another kind of service there, or add the plugin again."
+msgstr "Das unter Einstellungen › KI gewählte KI-Anbieter-Plugin wurde entfernt oder lässt sich nicht mehr verwenden, deshalb wurde nichts gesendet. Wählen Sie dort eine andere Art von Dienst, oder fügen Sie das Plugin erneut hinzu."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:326
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Kind of service:"
+msgstr "Art des Dienstes:"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:331
+#, kde-format
+msgctxt "@item:inlistbox a kind of AI service"
+msgid "OpenAI-compatible (most services and local servers)"
+msgstr "OpenAI-kompatibel (die meisten Dienste und lokalen Server)"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:347
+#, kde-format
+msgctxt "@info"
+msgid "A plugin only translates for a service with another interface. KassenSturz still sends everything itself, only to the address below, shows you first what is sent, and keeps your key away from the plugin."
+msgstr "Ein Plugin übersetzt nur für einen Dienst mit einer anderen Schnittstelle. KassenSturz sendet weiterhin alles selbst, nur an die Adresse unten, zeigt Ihnen vorher, was gesendet wird, und hält Ihren Schlüssel vom Plugin fern."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:75
+#, kde-format
+msgctxt "@item what a plugin may do"
+msgid "Have KassenSturz send what it prepared to the address you enter"
+msgstr "KassenSturz das Vorbereitete an die Adresse senden lassen, die Sie eingeben"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:148
+#, kde-format
+msgctxt "@info"
+msgid "This plugin translates for another service. KassenSturz sends what it prepared only to the address you enter in the settings, shows you first what is sent, and keeps your key away from the plugin."
+msgstr "Dieses Plugin übersetzt für einen anderen Dienst. KassenSturz sendet das Vorbereitete nur an die Adresse, die Sie in den Einstellungen eingeben, zeigt Ihnen vorher, was gesendet wird, und hält Ihren Schlüssel vom Plugin fern."
 
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml
 msgctxt ""

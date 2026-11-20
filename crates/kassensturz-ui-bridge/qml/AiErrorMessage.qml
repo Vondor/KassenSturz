@@ -105,6 +105,10 @@ ColumnLayout {
             return i18nContext.i18nc("@info", "The provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time.");
         case "ai.bad-reply":
             return i18nContext.i18nc("@info", "The provider's answer isn't what KassenSturz expects from an OpenAI-compatible provider. Check that the address points to such an interface, often ending in /v1.");
+        case "ai.plugin-failed":
+            return i18nContext.i18nc("@info", "The AI provider plugin couldn't translate the question or the answer, so nothing more was sent. Try again, or choose another kind of service in Settings › AI and ask the plugin's author.");
+        case "ai.plugin-missing":
+            return i18nContext.i18nc("@info", "The AI provider plugin chosen in Settings › AI was removed or can't be used any more, so nothing was sent. Choose another kind of service there, or add the plugin again.");
         case "ai-chat.cancelled":
             return i18nContext.i18nc("@info", "You stopped the question. Ask again when you like.");
         case "ai-chat.stopped":

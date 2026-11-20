@@ -24624,12 +24624,6 @@ msgctxt "@item what a plugin may do"
 msgid "Suggest changes to your book, which you check and confirm first"
 msgstr "Proponować zmiany w twojej księdze, które najpierw sprawdzasz i zatwierdzasz"
 
-#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:75
-#, kde-format
-msgctxt "@item what a plugin may do"
-msgid "Connect to other computers over the internet"
-msgstr "Łączyć się z innymi komputerami przez internet"
-
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:91
 #, kde-format
 msgctxt "@title:group"
@@ -24671,12 +24665,6 @@ msgstr "Zobaczysz, o co prosi, zanim cokolwiek zostanie dodane."
 msgctxt "@title:group"
 msgid "Add this plugin?"
 msgstr "Dodać tę wtyczkę?"
-
-#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:148
-#, kde-format
-msgctxt "@info"
-msgid "This plugin may send data over the internet. KassenSturz still asks you before anything about your money leaves your computer."
-msgstr "Ta wtyczka może wysyłać dane przez internet. KassenSturz i tak zapyta cię, zanim cokolwiek o twoich pieniądzach opuści komputer."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:155
 #, kde-format
@@ -25852,6 +25840,48 @@ msgstr "Aby zmieścić więcej na ekranie, dodaj wtyczkę układu w Ustawienia �
 msgctxt "@info"
 msgid "A layout plugin can make lists tighter and hide these grey explanations. Warnings and questions before a change always stay."
 msgstr "Wtyczka układu może zagęścić listy i ukryć te szare objaśnienia. Ostrzeżenia i pytania przed zmianą zawsze zostają."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:109
+#, kde-format
+msgctxt "@info"
+msgid "The AI provider plugin couldn't translate the question or the answer, so nothing more was sent. Try again, or choose another kind of service in Settings › AI and ask the plugin's author."
+msgstr "Wtyczka dostawcy AI nie przetłumaczyła pytania albo odpowiedzi, więc nic więcej nie zostało wysłane. Spróbuj ponownie albo wybierz inny rodzaj usługi w Ustawienia › AI i zapytaj autora wtyczki."
+
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:111
+#, kde-format
+msgctxt "@info"
+msgid "The AI provider plugin chosen in Settings › AI was removed or can't be used any more, so nothing was sent. Choose another kind of service there, or add the plugin again."
+msgstr "Wtyczka dostawcy AI wybrana w Ustawienia › AI została usunięta albo nie da się jej już użyć, więc nic nie zostało wysłane. Wybierz tam inny rodzaj usługi albo dodaj wtyczkę ponownie."
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:326
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Kind of service:"
+msgstr "Rodzaj usługi:"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:331
+#, kde-format
+msgctxt "@item:inlistbox a kind of AI service"
+msgid "OpenAI-compatible (most services and local servers)"
+msgstr "Zgodna z OpenAI (większość usług i serwerów lokalnych)"
+
+#: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:347
+#, kde-format
+msgctxt "@info"
+msgid "A plugin only translates for a service with another interface. KassenSturz still sends everything itself, only to the address below, shows you first what is sent, and keeps your key away from the plugin."
+msgstr "Wtyczka tylko tłumaczy dla usługi z innym interfejsem. KassenSturz nadal sam wszystko wysyła, tylko na adres poniżej, najpierw pokazuje, co zostanie wysłane, i nie daje wtyczce twojego klucza."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:75
+#, kde-format
+msgctxt "@item what a plugin may do"
+msgid "Have KassenSturz send what it prepared to the address you enter"
+msgstr "Zlecać KassenSturz wysłanie przygotowanych danych na adres, który podasz"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:148
+#, kde-format
+msgctxt "@info"
+msgid "This plugin translates for another service. KassenSturz sends what it prepared only to the address you enter in the settings, shows you first what is sent, and keeps your key away from the plugin."
+msgstr "Ta wtyczka tłumaczy dla innej usługi. KassenSturz wysyła przygotowane dane tylko na adres, który podasz w ustawieniach, najpierw pokazuje, co zostanie wysłane, i nie daje wtyczce twojego klucza."
 
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml
 msgctxt ""

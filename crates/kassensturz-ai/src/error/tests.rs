@@ -33,6 +33,8 @@ fn examples() -> Vec<AiError> {
         AiError::ProviderFailed { status: 500 },
         AiError::ReplyTooLarge,
         AiError::BadReply,
+        AiError::PluginFailed,
+        AiError::PluginMissing,
     ]
 }
 

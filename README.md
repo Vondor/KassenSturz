@@ -10,6 +10,8 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
 3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the handbook explains how to use KassenSturz, in [English](docs/user/en/README.md) and [German](docs/user/de/README.md) (also in the [Wiki](https://github.com/Vondor/KassenSturz/wiki), as a copy). [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
 
+**News and plans:** see [Discussions](https://github.com/Vondor/KassenSturz/discussions) for announcements and ideas, and the German [Roadmap page](docs/user/de/22-fahrplan.md) (also in the [Wiki](https://github.com/Vondor/KassenSturz/wiki/de-22-fahrplan)) for what comes next.
+
 Code signing: the Microsoft Store version is signed by the Store. The Windows installer and the zip on the releases page are not signed, so Windows shows a SmartScreen warning before they start. SignPath Foundation declined to sign for the project for now (too young, November 2026); we may apply again later. See [the code signing policy](docs/CODE_SIGNING_POLICY.md).
 
 ## Goals

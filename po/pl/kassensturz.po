@@ -16,6 +16,96 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "A starting balance of %1, dated %2, is added."
+msgstr "Zostanie dodane saldo początkowe %1 z datą %2."
+
+#, kde-format
+msgctxt "@info %1 and %3 are amounts of money, %2 and %4 are dates"
+msgid "The starting balance changes from %1 (dated %2) to %3 (dated %4)."
+msgstr "Saldo początkowe zmieni się z %1 (z datą %2) na %3 (z datą %4)."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the bank says the account holds"
+msgid "On %1 your bank says: %2. From that, KassenSturz works out what the account held before the first of these transactions, so they don't change your balance a second time."
+msgstr "Dnia %1 Twój bank podaje: %2. Na tej podstawie KassenSturz oblicza, ile było na koncie przed pierwszą z tych transakcji, aby nie zmieniły one Twojego salda po raz drugi."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the user said the account holds"
+msgid "For %1 you said: %2. From that, KassenSturz works out what the account held before the first of these transactions, so they don't change your balance a second time."
+msgstr "Dla dnia %1 podano: %2. Na tej podstawie KassenSturz oblicza, ile było na koncie przed pierwszą z tych transakcji, aby nie zmieniły one Twojego salda po raz drugi."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Starting balance"
+msgstr "Saldo początkowe"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "A starting balance of %1, dated %2, was added."
+msgstr "Dodano saldo początkowe %1 z datą %2."
+
+#, kde-format
+msgctxt "@info %1 and %3 are amounts of money, %2 and %4 are dates"
+msgid "The starting balance was changed from %1 (dated %2) to %3 (dated %4)."
+msgstr "Saldo początkowe zmieniono z %1 (z datą %2) na %3 (z datą %4)."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the bank said the account held"
+msgid "On %1 your bank said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import."
+msgstr "Dnia %1 Twój bank podał: %2. Na tej podstawie KassenSturz obliczył, ile było na koncie przed pierwszą z tych transakcji, aby nie zmieniły one Twojego salda po raz drugi. „Cofnij” wycofa to razem z importem."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the user said the account held"
+msgid "For %1 you said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import."
+msgstr "Dla dnia %1 podano: %2. Na tej podstawie KassenSturz obliczył, ile było na koncie przed pierwszą z tych transakcji, aby nie zmieniły one Twojego salda po raz drugi. „Cofnij” wycofa to razem z importem."
+
+#, kde-format
+msgctxt "@info %1 is the name of an account, %2 is a date, %3 and %4 say how much money there was or was owed"
+msgid "%1: on %2 your bank said %3, but KassenSturz has %4 for that day. You can check this and correct the starting balance."
+msgstr "%1: dnia %2 Twój bank podał %3, ale KassenSturz ma dla tego dnia %4. Możesz to sprawdzić i poprawić saldo początkowe."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Check and correct…"
+msgstr "Sprawdź i popraw…"
+
+#, kde-format
+msgctxt "@info"
+msgid "If the difference comes from before your first transaction in KassenSturz, correcting the starting balance makes both agree. This is what would change:"
+msgstr "Jeśli różnica pochodzi sprzed Twojej pierwszej transakcji w KassenSturz, poprawienie salda początkowego sprawi, że obie kwoty będą zgodne. Oto, co by się zmieniło:"
+
+#, kde-format
+msgctxt "@info the account has no starting balance"
+msgid "Starting balance now: none"
+msgstr "Saldo początkowe teraz: brak"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "Starting balance now: %1, dated %2"
+msgstr "Saldo początkowe teraz: %1, z datą %2"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "Starting balance afterwards: %1, dated %2"
+msgstr "Saldo początkowe po zmianie: %1, z datą %2"
+
+#, kde-format
+msgctxt "@info"
+msgid "It is dated before the account's first transaction, so earlier days show the right balance too."
+msgstr "Ma datę sprzed pierwszej transakcji na koncie, dzięki czemu wcześniejsze dni też pokazują właściwe saldo."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 says how much money there is or what is owed"
+msgid "Balance on %1 afterwards: %2, as your bank says"
+msgstr "Saldo dnia %1 po zmianie: %2, tak jak podaje Twój bank"
+
+#, kde-format
+msgctxt "@info"
+msgid "Your other transactions stay as they are. Nothing changes until you click, and Undo takes the correction back."
+msgstr "Pozostałe transakcje się nie zmienią. Nic się nie zmieni, dopóki nie klikniesz, a „Cofnij” wycofa tę poprawkę."
+
 #: crates/kassensturz-ui-bridge/qml/AccountCard.qml:65
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:138
 #, kde-format
@@ -3461,8 +3551,8 @@ msgstr "Porównaj"
 msgctxt "@info %1 is a date, %2 says how much money there is or what is owed"
 msgid ""
 "The starting balance is corrected. On %1 both your bank and KassenSturz now "
-"say %2."
-msgstr "Saldo początkowe zostało poprawione. Dnia %1 zarówno Twój bank, jak i KassenSturz podają teraz %2."
+"say %2. Undo takes the correction back."
+msgstr "Saldo początkowe zostało poprawione. Dnia %1 zarówno Twój bank, jak i KassenSturz podają teraz %2. „Cofnij” wycofa tę poprawkę."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:177
 #, kde-format
@@ -3488,24 +3578,6 @@ msgstr "Skąd może wynikać różnica"
 msgctxt "@title"
 msgid "Correct the starting balance"
 msgstr "Popraw saldo początkowe"
-
-#: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:230
-#, kde-format
-msgctxt "@info %1 is an amount of money, %2 and %3 are dates"
-msgid ""
-"If the difference comes from before you started using KassenSturz, a "
-"starting balance of %1 dated %2 makes both agree. KassenSturz then has on %3 "
-"what your bank says. Your other transactions stay as they are."
-msgstr "Jeśli różnica powstała, zanim KassenSturz zaczął śledzić to konto, saldo początkowe %1 z datą %2 sprawi, że obie kwoty będą zgodne. Wtedy %3 saldo w KassenSturz będzie takie samo jak w banku. Pozostałe transakcje się nie zmienią."
-
-#: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:231
-#, kde-format
-msgctxt "@info %1 is an amount of money, %2 and %3 are dates"
-msgid ""
-"If the difference comes from before you started using KassenSturz, a "
-"starting balance of %1 (dated %2) makes both agree. KassenSturz then has on "
-"%3 what your bank says. Your other transactions stay as they are."
-msgstr "Jeśli różnica powstała, zanim KassenSturz zaczął śledzić to konto, saldo początkowe %1 (z datą %2) sprawi, że obie kwoty będą zgodne. Wtedy %3 saldo w KassenSturz będzie takie samo jak w banku. Pozostałe transakcje się nie zmienią."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:240
 #, kde-format
@@ -3654,15 +3726,19 @@ msgstr "Twój bank podał, że wpisany PIN jest błędny. KassenSturz go zapomni
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:244
 #, kde-format
 msgctxt "@info %1 is the name of a bank"
-msgid "Type the PIN you use for %1."
-msgstr "Wpisz PIN, którego używasz w %1."
+msgid ""
+"Type the PIN or password of your online banking for %1 (not the card PIN). "
+"Wrong entries can lock your access at the bank."
+msgstr ""
+"Wpisz PIN lub hasło swojej bankowości internetowej w %1 (nie PIN karty). "
+"Błędne wpisy mogą zablokować Twój dostęp w banku."
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:251
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:289
 #, kde-format
 msgctxt "@info:placeholder"
-msgid "PIN"
-msgstr "PIN"
+msgid "PIN or password of your online banking"
+msgstr "PIN lub hasło bankowości internetowej"
 
 #: crates/kassensturz-ui-bridge/qml/BankDialogs.qml:252
 #, kde-format
@@ -4149,8 +4225,8 @@ msgstr "Tylko jeśli Twój bank go nadał"
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:288
 #, kde-format
 msgctxt "@label:textbox"
-msgid "PIN:"
-msgstr "PIN:"
+msgid "PIN or password:"
+msgstr "PIN lub hasło:"
 
 #: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml:324
 #, kde-format
@@ -5176,14 +5252,6 @@ msgstr "Ustaw budżet"
 msgctxt "@title %1 is the name of a category"
 msgid "Change the budget for %1"
 msgstr "Zmień budżet dla %1"
-
-#: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:118
-#, kde-format
-msgctxt "@info"
-msgid ""
-"You have no spending categories yet. Add a category for money you spend "
-"first."
-msgstr "Nie masz jeszcze kategorii wydatków. Najpierw dodaj kategorię na wydawane pieniądze."
 
 #: crates/kassensturz-ui-bridge/qml/BudgetPage.qml:125
 #, kde-format
@@ -12990,12 +13058,8 @@ msgstr "Rozumiem"
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:726
 #, kde-format
 msgctxt "@info"
-msgid ""
-"You are arranging this page. Drag a widget to move it, drag its corner to "
-"make it larger or smaller, and use the buttons that appear on the one you "
-"pick. Press Done to keep the changes, or Cancel to leave everything as it "
-"was."
-msgstr "Układasz tę stronę. Przeciągnij widżet, aby go przenieść, przeciągnij jego róg, aby go powiększyć lub pomniejszyć, i używaj przycisków, które pojawiają się na wybranym widżecie. Naciśnij „Gotowe”, aby zachować zmiany, albo „Anuluj”, aby zostawić wszystko tak, jak było."
+msgid "You are arranging this page. Drag a widget to move it, drag one of its edges or its corner to make it larger or smaller, and use the buttons that appear on the one you pick. Press Done to keep the changes, or Cancel to leave everything as it was."
+msgstr "Układasz tę stronę. Przeciągnij widżet, aby go przenieść, przeciągnij jedną z jego krawędzi lub jego róg, aby go powiększyć lub pomniejszyć, i używaj przycisków, które pojawiają się na wybranym widżecie. Naciśnij „Gotowe”, aby zachować zmiany, albo „Anuluj”, aby zostawić wszystko tak, jak było."
 
 #: crates/kassensturz-ui-bridge/qml/OverviewPage.qml:733
 #, kde-format
@@ -13452,9 +13516,11 @@ msgstr "Linie do narysowania"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:160
 #, kde-format
-msgctxt "@option:check"
-msgid "Show the legend"
-msgstr "Pokaż legendę"
+msgctxt ""
+"@option:check shows or hides the list beside a chart that says which colour "
+"stands for what"
+msgid "Explain the colours (legend)"
+msgstr "Objaśnij kolory (legenda)"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:162
 #, kde-format
@@ -23900,6 +23966,66 @@ msgctxt "@action:button %1 is an amount"
 msgid "Keep %1"
 msgstr "Zostaw %1"
 
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "Connection successful. Fetch the transactions now?"
+msgstr "Połączono z bankiem. Pobrać transakcje teraz?"
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz asks your bank for the transactions and shows them to you first. Nothing is added to your book until you say so, and nothing is ever sent to your bank. You can also do this later with Get new transactions."
+msgstr "KassenSturz prosi bank o transakcje i najpierw Ci je pokazuje. Nic nie trafia do księgi, dopóki tak nie zdecydujesz, i nic nie jest wysyłane do banku. Możesz to też zrobić później przez „Pobierz nowe transakcje”."
+
+#: crates/kassensturz-ui-bridge/qml/BankSetupPage.qml
+#, kde-format
+msgctxt "@action:button"
+msgid "Fetch transactions"
+msgstr "Pobierz transakcje"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@item:inlistbox the last entry of a category list: makes a new category"
+msgid "New category …"
+msgstr "Nowa kategoria …"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@info"
+msgid "You have no spending categories yet. Choose “New category …” in the list above to add one."
+msgstr "Nie masz jeszcze kategorii wydatków. Wybierz powyżej na liście „Nowa kategoria …”, aby dodać jedną."
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category"
+msgstr "Nowa kategoria"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category for money coming in"
+msgstr "Nowa kategoria dla wpływów"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@title:window"
+msgid "New category for money spent"
+msgstr "Nowa kategoria dla wydatków"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Name of the new category"
+msgstr "Nazwa nowej kategorii"
+
+#: crates/kassensturz-ui-bridge/qml/NewCategoryDialog.qml
+#, kde-format
+msgctxt "@info"
+msgid "You can move it inside another category later, on the Categories page."
+msgstr "Możesz ją później przenieść do innej kategorii na stronie „Kategorie”."
+
 msgctxt "@action:button opens the testing guide"
 msgid "Testing KassenSturz"
 msgstr "Testowanie KassenSturz"
@@ -25611,3 +25737,9 @@ msgstr "Zlecać KassenSturz wysłanie przygotowanych danych na adres, który pod
 msgctxt "@info"
 msgid "This plugin translates for another service. KassenSturz sends what it prepared only to the address you enter in the settings, shows you first what is sent, and keeps your key away from the plugin."
 msgstr "Ta wtyczka tłumaczy dla innej usługi. KassenSturz wysyła przygotowane dane tylko na adres, który podasz w ustawieniach, najpierw pokazuje, co zostanie wysłane, i nie daje wtyczce twojego klucza."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+msgctxt ""
+"@info shown on a dashboard tile while it is dragged smaller than it can get"
+msgid "Smallest size"
+msgstr "Najmniejszy rozmiar"

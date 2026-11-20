@@ -1,0 +1,33 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Paths that count as "touching" money, the book file, migrations, imports or
+# banking (D-786, docs/INDEPENDENT_REVIEW.md). One shell glob per line; `*`
+# also matches `/`. Read by tools/needs-independent-review.sh.
+#
+# Money
+crates/kassensturz-core/src/money*
+crates/kassensturz-core/src/rounding*
+crates/kassensturz-core/src/decimal*
+crates/kassensturz-core/src/currency*
+crates/kassensturz-core/src/rates*
+crates/kassensturz-core/src/transfer*
+crates/kassensturz-core/src/transaction*
+crates/kassensturz-store/src/totals*
+crates/kassensturz-store/src/transfers*
+crates/kassensturz-store/src/originals*
+crates/kassensturz-report/*
+# The book file and migrations
+crates/kassensturz-store/src/*
+crates/kassensturz-store/tests/*
+crates/kassensturz-core/src/book_folder*
+docs/BOOK_FORMAT.md
+docs/BOOK_FOLDER.md
+# Imports
+crates/kassensturz-import/*
+# Banking and the keychain next to it
+crates/kassensturz-bank/*
+crates/kassensturz-aqbanking-sys/*
+crates/kassensturz-aqbanking-stub/*
+crates/kassensturz-platform/*
+crates/kassensturz-core/src/bank_*

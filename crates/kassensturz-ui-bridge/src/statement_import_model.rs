@@ -20,6 +20,7 @@ use kassensturz_core::TransactionId;
 use kassensturz_import::{Importer, Limits, read_file};
 use kassensturz_plugin_formats::PluginImporter;
 
+use crate::accounts_model::correction_fields;
 use crate::bank_fetch;
 use crate::book_session::local_path;
 use crate::books::OpenBook;
@@ -30,7 +31,7 @@ use crate::session;
 use crate::settings::Settings;
 use crate::statement_import::{
     self, BalanceText, CsvForm, EntryText, FileKind, ImportView, JoinedText, Loaded,
-    PlannedChangedText, PlannedText, StatementImportError,
+    PlannedChangedText, PlannedText, StartText, StatementImportError,
 };
 use crate::variant::{error_object, list, map, text};
 
@@ -791,7 +792,27 @@ fn view_object(view: &ImportView) -> QVariant {
             "plannedChanged",
             list(view.planned_changed.iter().map(planned_changed_object)),
         ),
+        (
+            "start",
+            view.start
+                .as_ref()
+                .map_or_else(QVariant::default, start_object),
+        ),
     ])
+}
+
+/// What the import does to the account's starting balance, as the preview
+/// and the summary say it (D-903): the change before and after, and the
+/// balance it was worked out from. QML reads `start` as null without one.
+fn start_object(start: &StartText) -> QVariant {
+    let mut fields = correction_fields(&start.change);
+    fields.extend([
+        ("fromBank", QVariant::from(&start.from_bank)),
+        ("holds", text(&start.holds.exact)),
+        ("holdsOwes", QVariant::from(&start.holds_owes)),
+        ("holdsOn", text(&start.holds_on)),
+    ]);
+    map(fields)
 }
 
 /// A new entry that fits a planned payment but for its amount, as
@@ -960,8 +981,76 @@ mod tests {
     use cxx_qt_lib::QList;
 
     use super::*;
+    use crate::accounts::Correction;
     use crate::register::Shown;
     use crate::statement_import::{JoinedText, SimilarPart, SimilarText};
+    use crate::variant::read_back::{flag_of, is_null, keys};
+
+    /// The starting balance an import worked out reaches QML with every
+    /// field the preview and the summary read (D-903).
+    #[test]
+    fn the_starting_balance_change_reads_back_as_qml_reads_it() {
+        let start = start_object(&StartText {
+            change: Correction {
+                would_be: shown("734,50 €"),
+                owes: false,
+                adds: false,
+                date: "2026-08-19".to_owned(),
+                was: Some((shown("1.000,00 €"), false, "2026-11-19".to_owned())),
+                moves: true,
+            },
+            from_bank: true,
+            holds: shown("1.000,00 €"),
+            holds_owes: false,
+            holds_on: "2026-11-19".to_owned(),
+        });
+        assert_eq!(
+            keys(&start),
+            [
+                "adds",
+                "date",
+                "fromBank",
+                "holds",
+                "holdsOn",
+                "holdsOwes",
+                "moves",
+                "owes",
+                "was",
+                "wasDate",
+                "wasOwes",
+                "wouldBe"
+            ]
+        );
+        assert_eq!(text_of(&start, "wouldBe"), "734,50 €");
+        assert_eq!(text_of(&start, "date"), "2026-08-19");
+        assert_eq!(text_of(&start, "was"), "1.000,00 €");
+        assert_eq!(text_of(&start, "wasDate"), "2026-11-19");
+        assert_eq!(text_of(&start, "holds"), "1.000,00 €");
+        assert_eq!(text_of(&start, "holdsOn"), "2026-11-19");
+        assert!(flag_of(&start, "moves") && flag_of(&start, "fromBank"));
+        assert!(!flag_of(&start, "adds") && !flag_of(&start, "owes"));
+        assert!(!flag_of(&start, "wasOwes") && !flag_of(&start, "holdsOwes"));
+
+        // A starting balance that is added has nothing before it.
+        let added = start_object(&StartText {
+            change: Correction {
+                would_be: shown("300,00 €"),
+                owes: true,
+                adds: true,
+                date: "2026-10-11".to_owned(),
+                was: None,
+                moves: false,
+            },
+            from_bank: false,
+            holds: shown("345,65 €"),
+            holds_owes: true,
+            holds_on: "2026-11-19".to_owned(),
+        });
+        assert_eq!(text_of(&added, "was"), "");
+        assert_eq!(text_of(&added, "wasDate"), "");
+        assert!(flag_of(&added, "adds") && flag_of(&added, "owes"));
+        assert!(flag_of(&added, "holdsOwes") && !flag_of(&added, "fromBank"));
+    }
 
     fn object(value: &QVariant) -> QMap<QMapPair_QString_QVariant> {
         value
@@ -1072,8 +1161,10 @@ mod tests {
                 amount: shown("2.350,00 €"),
                 planned: shown("2.200,00 €"),
             }],
+            start: None,
         };
         let object = view_object(&view);
+        assert!(is_null(&object, "start"), "no starting balance changed");
         assert_eq!(text_of(&object, "readBy"), "Example bank text");
         assert_eq!(text_of(&object, "fileName"), "bank.txt");
         assert_eq!(list_of(&object, "joined").len(), 1);

@@ -196,7 +196,9 @@ ColumnLayout {
         case "alarms":
             return i18nContext.i18nc("@label the rules of the warnings tile", "Warnings");
         case "legend":
-            return i18nContext.i18nc("@option:check", "Show the legend");
+            // "Legend" alone was not understood (B-412, D-904): the box
+            // says what a legend does and keeps the word for those who know it.
+            return i18nContext.i18nc("@option:check shows or hides the list beside a chart that says which colour stands for what", "Explain the colours (legend)");
         case "grouping":
             // A daily balance's grouping says which panels it shows (D-794).
             if (fields.some(field => field.key === "ema_fast")) {

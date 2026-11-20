@@ -245,7 +245,9 @@ pub fn snap_own_folder() -> Option<PathBuf> {
 fn documents_in(home: &Path, user_dirs: Option<&str>, exists: impl Fn(&Path) -> bool) -> PathBuf {
     let named = user_dirs.into_iter().flat_map(str::lines).find_map(|line| {
         let value = line.trim().strip_prefix("XDG_DOCUMENTS_DIR=")?;
-        let value = value.trim().trim_matches('"');
+        // 0x22 is the double quote; written as a number so the path audit in
+        // `test_profile` keeps pairing the string literals of this file.
+        let value = value.trim().trim_matches(char::from(0x22));
         let relative = value.strip_prefix("$HOME/")?;
         let relative = Path::new(relative);
         // Only a plain folder below the home folder.

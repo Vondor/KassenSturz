@@ -131,6 +131,33 @@ Kirigami.ApplicationWindow {
             page.save();
             window.check(JSON.stringify(settings.calls) === JSON.stringify(["save true"]), "saved with http still allowed and no second agreement, got " + JSON.stringify(settings.calls));
             window.check(settings.form.model === "chat-small" && settings.form.consent === "given", "the model is saved and the agreement kept");
+
+            // B-431: "Show what the test sends" shows the request in a box
+            // as wide as the page allows, not one character wide. The layout
+            // settles after the box shows, so the size is read by a second
+            // timer.
+            const toggle = window.find(page, "testRequestToggle");
+            const box = window.find(page, "testRequestBox");
+            window.check(toggle !== null && box !== null, "the test request button and box are found");
+            if (toggle === null || box === null) {
+                Qt.exit(1);
+                return;
+            }
+            window.check(toggle.visible, "a saved provider with a model offers to show the test request");
+            toggle.checked = true;
+            window.check(box.visible, "the box shows after the button is pressed");
+            sizeTimer.start();
+        }
+    }
+
+    Timer {
+        id: sizeTimer
+
+        interval: 300
+        onTriggered: {
+            const box = window.find(page, "testRequestBox");
+            window.check(box.width > Kirigami.Units.gridUnit * 15, "the test request box is wide, got " + box.width);
+            window.check(box.height >= Kirigami.Units.gridUnit * 5, "the test request box is tall, got " + box.height);
             Qt.exit(window.failed ? 1 : 0);
         }
     }

@@ -91,6 +91,9 @@ QtObject {
     function receiptFolder(which) { return ""; }
     function setReceiptFolder(which, folder) { return ({}); }
     function removeReceiptFolder(which) { return true; }
+    function serviceKinds() { return []; }
+    function serviceKind() { return ""; }
+    function setServiceKind(id) { return true; }
 
     function locked(key) { return lockedKeys[key] === true; }
     function setLocked(key, value) {

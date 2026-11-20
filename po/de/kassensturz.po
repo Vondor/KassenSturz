@@ -22251,7 +22251,7 @@ msgstr ""
 
 msgctxt "@info the folder KassenSturz keeps its own book in"
 msgid "KassenSturz's own folder"
-msgstr "KassenSturz' eigener Ordner"
+msgstr "KassenSturz' eigenem Ordner"
 
 msgctxt "@info"
 msgid ""

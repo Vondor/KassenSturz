@@ -63,9 +63,11 @@ FormCard.FormCardPage {
     function placeText(place: var): string {
         if (!place || !place.open)
             return "";
-        const folder = (shown) => shown && shown.own
-            ? i18nContext.i18nc("@info the folder KassenSturz keeps its own book in", "KassenSturz's own folder")
-            : (shown?.text ?? "");
+        const ownName = i18nContext.i18nc("@info the folder KassenSturz keeps its own book in", "KassenSturz's own folder");
+        // In the Store app and in a snap the own folder is a plain folder,
+        // so its path is shown next to its name (B-433).
+        const ownShown = (place.showOwnFolder ?? false) && (place.ownFolder ?? "") !== "" ? ownName + " (" + place.ownFolder + ")" : ownName;
+        const folder = (shown) => shown && shown.own ? ownShown : (shown?.text ?? "");
         const here = folder(place.folder);
         if (!place.moved)
             return here;

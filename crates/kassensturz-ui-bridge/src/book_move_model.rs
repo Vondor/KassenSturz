@@ -293,7 +293,9 @@ fn shown_object(shown: &ShownFolder) -> QVariant {
 /// the system deletes with the app) and `offerMove` (the start offers to
 /// move it, D-856, B-429) with `ownFolder`, KassenSturz's own folder in the
 /// user's words, and `inSnap` (the app is a snap, so the words say the snap
-/// and not Windows).
+/// and not Windows), and `showOwnFolder` (in these two builds the own folder
+/// is a plain folder the user can find, so its path is shown next to its
+/// name, B-433).
 fn place_object(settings: &Settings) -> QVariant {
     let Some(book) = session::path() else {
         return map([("open", QVariant::from(&false))]);
@@ -317,6 +319,7 @@ fn place_object(settings: &Settings) -> QVariant {
         ("inSnap", QVariant::from(&in_snap)),
         ("offerMove", QVariant::from(&offer)),
         ("ownFolder", text(&own)),
+        ("showOwnFolder", QVariant::from(&earlier.is_some())),
         ("folder", shown_object(&book_move::shown_folder_of(&book))),
         ("name", text(&name)),
         ("moved", QVariant::from(&last.is_some())),
@@ -579,7 +582,8 @@ mod tests {
                 "name",
                 "offerMove",
                 "open",
-                "ownFolder"
+                "ownFolder",
+                "showOwnFolder"
             ]
         );
         assert!(flag_of(&object, "open"));
@@ -589,6 +593,8 @@ mod tests {
         assert!(!flag_of(&object, "inPackage"));
         assert!(!flag_of(&object, "inSnap"));
         assert!(!flag_of(&object, "offerMove"));
+        // Outside both builds the own folder's path isn't shown (D-730).
+        assert!(!flag_of(&object, "showOwnFolder"));
         session::close();
     }
 }

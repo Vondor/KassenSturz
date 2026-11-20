@@ -279,6 +279,10 @@ pub struct Store {
     /// Where the consent seals live (B-252): `None` for the provider keys
     /// of this run ([`with_keys`]), else keys of the store's own (tests).
     keys: Option<Arc<Mutex<ProviderKeys>>>,
+    /// A key whose writes fail, so a test can reach the paths of a settings
+    /// file that can't be written.
+    #[cfg(test)]
+    refused_key: Mutex<String>,
 }
 
 /// What is added to the settings file's name for its copy made before the
@@ -292,6 +296,8 @@ impl Store {
             settings: Settings::user(),
             config: ConfigFile::user(),
             keys: None,
+            #[cfg(test)]
+            refused_key: Mutex::new(String::new()),
         }
     }
 
@@ -302,6 +308,7 @@ impl Store {
             settings: Settings::at(path),
             config: ConfigFile::at(path),
             keys: Some(Arc::new(Mutex::new(ProviderKeys::new(None)))),
+            refused_key: Mutex::new(String::new()),
         }
     }
 
@@ -352,6 +359,10 @@ impl Store {
     }
 
     pub(crate) fn put(&self, key: &str, value: &str) -> bool {
+        #[cfg(test)]
+        if *self.refused_key.lock().unwrap() == key {
+            return false;
+        }
         self.settings.set_text(ai_switch::GROUP, key, value)
     }
 
@@ -527,6 +538,18 @@ impl Store {
                 Ok(provider) => provider,
                 Err(error) => return self.refused(error, address, allow_unencrypted),
             };
+        // The skip belongs to one address: another one is asked about again,
+        // also when the old address is typed back later (D-936). Done first,
+        // so a skip that can't be cleared leaves the provider as it was.
+        if self
+            .config
+            .read()
+            .review_off()
+            .is_some_and(|off| *off != provider.address)
+            && !self.clear_review_off()
+        {
+            return Saved::NotWritten;
+        }
         let earlier = self.config.read().provider().ok().cloned();
         if !provider
             .entries()
@@ -534,16 +557,6 @@ impl Store {
             .all(|(name, value)| self.put(name, value))
         {
             return Saved::NotWritten;
-        }
-        // The skip belongs to one address: another one is asked about again,
-        // also when the old address is typed back later (D-936).
-        if self
-            .config
-            .read()
-            .review_off()
-            .is_some_and(|off| *off != provider.address)
-        {
-            self.clear_review_off();
         }
         let mut key_error = None;
         if let Some(earlier) = earlier
@@ -653,7 +666,9 @@ impl Store {
         let record = ConsentRecord::give(&provider.address, today);
         // A new agreement is a new decision: the provider's requests are
         // shown again until the user chooses otherwise (D-936).
-        self.clear_review_off();
+        if !self.clear_review_off() {
+            return (false, None);
+        }
         // The seal first: a consent in the file without it counts for
         // nothing. The seal always holds in memory until KassenSturz
         // closes; a keychain that refuses to save it (B-259) only means
@@ -1837,5 +1852,40 @@ mod tests {
             None,
         );
         assert!(!store.set_review_off(true));
+    }
+
+    #[test]
+    fn a_skip_that_cant_be_cleared_stops_a_new_agreement_and_a_new_address() {
+        let (_folder, _file, store, mut keys) = agreed();
+        assert!(store.set_review_off(true));
+        *store.refused_key.lock().unwrap() = kassensturz_ai::REQUEST_REVIEW_OFF_KEY.into();
+
+        // A new agreement is not given, so nothing changes under the skip.
+        let consent_before = store.text(kassensturz_ai::CONSENT_DAY_KEY);
+        assert!(!store.give_consent(Date::constant(2026, 11, 26)));
+        assert_eq!(store.text(kassensturz_ai::CONSENT_DAY_KEY), consent_before);
+        assert!(store.review_skipped());
+
+        // Another address is not saved either; the provider stays as it was.
+        assert_eq!(
+            store.save(
+                &mut keys,
+                "https://other.example.com/v1",
+                "big",
+                KeyUse::None,
+                None
+            ),
+            Saved::NotWritten
+        );
+        assert_eq!(
+            store.text(kassensturz_ai::ADDRESS_KEY),
+            "https://api.example.com/v1"
+        );
+        assert!(store.review_skipped());
+
+        // Taking the agreement back says it couldn't clear the skip, but the
+        // skip no longer counts: it needs the agreement.
+        assert!(!store.withdraw_consent());
+        assert!(!store.review_skipped());
     }
 }

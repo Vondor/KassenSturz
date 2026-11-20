@@ -803,6 +803,7 @@ Status values: **Decided** (set by the maintainer) · **Proposed** (agent defaul
 | D-930 | Decided | **Thread A may push #791 step 8 to a second branch (#1265)** (answers Q-692; decided by Vondor, 20 Nov 2026; recorded by Claude (Opus 5.5)). | The gated AI step waits for the maintainer's review, and the other plugin steps don't wait with it. |
 | D-931 | Decided | **The guided setup's last page links to the handbook in the Wiki** (#1031; answers Q-693; decided by Vondor, 20 Nov 2026; recorded by Claude (Opus 5.5); applies D-880). | People who finish the setup know where to read on. |
 | D-932 | Decided | **Guided-setup steps 4 to 6 open the real screens** (#1031; answers Q-694; decided by Vondor, 20 Nov 2026; recorded by Claude (Opus 5.5)). | People learn the screens they will use every day, not copies of them. |
+| D-933 | Decided | **The Microsoft Store, Snap Store and README descriptions say plainly that KassenSturz is built by AI agents under human oversight** (answers Q-695; decided by Vondor, 20 Nov 2026; recorded by Claude (Opus 5.5)). The text is in #1273, and the maintainer pastes it into Partner Center and snapcraft.io. | Many people are cautious about software made by AI, so they should know before they install it (honesty, as in D-810). |
 
 ## Open Questions
 

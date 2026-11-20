@@ -158,6 +158,21 @@ Kirigami.ApplicationWindow {
             const box = window.find(page, "testRequestBox");
             window.check(box.width > Kirigami.Units.gridUnit * 15, "the test request box is wide, got " + box.width);
             window.check(box.height >= Kirigami.Units.gridUnit * 5, "the test request box is tall, got " + box.height);
+            // B-431: the whole request fits in the box, and what follows it
+            // on the page starts below it instead of lying under it. With a
+            // fixed height the text ran over the banners below.
+            window.check(box.height + 1 >= box.contentHeight, "the whole request fits in the box, height " + box.height + " for " + box.contentHeight);
+            const siblings = box.parent.children;
+            let below = null;
+            for (let i = siblings.indexOf(box) + 1; i < siblings.length && below === null; ++i) {
+                if (siblings[i].visible && siblings[i].height > 0) {
+                    below = siblings[i];
+                }
+            }
+            window.check(below !== null, "something follows the test request box");
+            if (below !== null) {
+                window.check(below.y >= box.y + box.height, "what follows the box starts below it, at " + below.y + " for a box ending at " + (box.y + box.height));
+            }
             Qt.exit(window.failed ? 1 : 0);
         }
     }

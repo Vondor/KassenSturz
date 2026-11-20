@@ -62,9 +62,9 @@ QtObject {
     property int testCalls: 0
     function testConnection(key) { testCalls += 1; calls = calls.concat(["test"]); }
     // A request as long as the real one, so a box that shows it can be
-    // measured (B-431).
+    // measured (B-431): taller than the ten lines of text the box once had.
     function capabilityRequest() {
-        return JSON.stringify({ messages: [{ role: "user", content: "This is a made-up test question to see whether a model calls a made-up function." }], tools: [{ type: "function", function: { name: "test_function", description: "A function that only exists for this test." } }] }, null, 2);
+        return JSON.stringify({ model: "chat-small", stream: false, messages: [{ role: "system", content: "Answer only by calling the function." }, { role: "user", content: "This is a made-up test question to see whether a model calls a made-up function." }], tools: [{ type: "function", function: { name: "test_function", description: "A function that only exists for this test.", parameters: { type: "object", properties: { word: { type: "string", description: "Any word." } }, required: ["word"] } } }], tool_choice: "auto" }, null, 2);
     }
     function statement() { return []; }
     function forgetKey() { return ({}); }

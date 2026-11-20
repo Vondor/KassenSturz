@@ -35,6 +35,12 @@ It tells you, **before anything happens**:
 
 If you close the preview, nothing changes.
 
+### The first import into an account
+
+You entered the account's balance for a day, usually today. The first file or the first fetch from your bank mostly brings the transactions from *before* that day. So that they don't change your balance a second time, KassenSturz works out what the account held before the first of them, from the balance your bank gives (or, if the file has none, from the balance you entered). The preview says so under **Starting balance**, with the amount and day before and after. Your balance stays what your bank says, and **Undo** takes this back together with the import.
+
+This happens only with the first import into an account. Later, KassenSturz never changes the starting balance by itself; if the figures differ, **Check against my bank** shows why (page 5).
+
 ![After the import](../../testing/screenshots/windows/28-card5-imported.png)
 
 ## Afterwards

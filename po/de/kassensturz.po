@@ -16,6 +16,96 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
 
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "A starting balance of %1, dated %2, is added."
+msgstr "Ein Anfangsbestand von %1 mit dem Datum %2 wird hinzugefügt."
+
+#, kde-format
+msgctxt "@info %1 and %3 are amounts of money, %2 and %4 are dates"
+msgid "The starting balance changes from %1 (dated %2) to %3 (dated %4)."
+msgstr "Der Anfangsbestand ändert sich von %1 (datiert auf %2) auf %3 (datiert auf %4)."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the bank says the account holds"
+msgid "On %1 your bank says: %2. From that, KassenSturz works out what the account held before the first of these transactions, so they don't change your balance a second time."
+msgstr "Am %1 sagt Ihre Bank: %2. Daraus berechnet KassenSturz, was vor der ersten dieser Buchungen auf dem Konto war. So verändern die Buchungen Ihren Kontostand nicht ein zweites Mal."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the user said the account holds"
+msgid "For %1 you said: %2. From that, KassenSturz works out what the account held before the first of these transactions, so they don't change your balance a second time."
+msgstr "Für den %1 haben Sie angegeben: %2. Daraus berechnet KassenSturz, was vor der ersten dieser Buchungen auf dem Konto war. So verändern die Buchungen Ihren Kontostand nicht ein zweites Mal."
+
+#, kde-format
+msgctxt "@title:group"
+msgid "Starting balance"
+msgstr "Anfangsbestand"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "A starting balance of %1, dated %2, was added."
+msgstr "Ein Anfangsbestand von %1 mit dem Datum %2 wurde hinzugefügt."
+
+#, kde-format
+msgctxt "@info %1 and %3 are amounts of money, %2 and %4 are dates"
+msgid "The starting balance was changed from %1 (dated %2) to %3 (dated %4)."
+msgstr "Der Anfangsbestand wurde von %1 (datiert auf %2) auf %3 (datiert auf %4) geändert."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the bank said the account held"
+msgid "On %1 your bank said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import."
+msgstr "Am %1 sagte Ihre Bank: %2. Daraus hat KassenSturz berechnet, was vor der ersten dieser Buchungen auf dem Konto war. So haben die Buchungen Ihren Kontostand nicht ein zweites Mal verändert. „Rückgängig“ nimmt das zusammen mit dem Import zurück."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 what the user said the account held"
+msgid "For %1 you said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import."
+msgstr "Für den %1 haben Sie angegeben: %2. Daraus hat KassenSturz berechnet, was vor der ersten dieser Buchungen auf dem Konto war. So haben die Buchungen Ihren Kontostand nicht ein zweites Mal verändert. „Rückgängig“ nimmt das zusammen mit dem Import zurück."
+
+#, kde-format
+msgctxt "@info %1 is the name of an account, %2 is a date, %3 and %4 say how much money there was or was owed"
+msgid "%1: on %2 your bank said %3, but KassenSturz has %4 for that day. You can check this and correct the starting balance."
+msgstr "%1: Am %2 sagte Ihre Bank %3, aber KassenSturz hat für diesen Tag %4. Sie können das prüfen und den Anfangsbestand korrigieren."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Check and correct…"
+msgstr "Prüfen und korrigieren…"
+
+#, kde-format
+msgctxt "@info"
+msgid "If the difference comes from before your first transaction in KassenSturz, correcting the starting balance makes both agree. This is what would change:"
+msgstr "Kommt der Unterschied aus der Zeit vor Ihrer ersten Buchung in KassenSturz, bringt eine Korrektur des Anfangsbestands beide in Einklang. Das würde sich ändern:"
+
+#, kde-format
+msgctxt "@info the account has no starting balance"
+msgid "Starting balance now: none"
+msgstr "Anfangsbestand jetzt: keiner"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "Starting balance now: %1, dated %2"
+msgstr "Anfangsbestand jetzt: %1, datiert auf %2"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 is a date"
+msgid "Starting balance afterwards: %1, dated %2"
+msgstr "Anfangsbestand danach: %1, datiert auf %2"
+
+#, kde-format
+msgctxt "@info"
+msgid "It is dated before the account's first transaction, so earlier days show the right balance too."
+msgstr "Er steht vor der ersten Buchung des Kontos, damit auch frühere Tage den richtigen Kontostand zeigen."
+
+#, kde-format
+msgctxt "@info %1 is a date, %2 says how much money there is or what is owed"
+msgid "Balance on %1 afterwards: %2, as your bank says"
+msgstr "Kontostand am %1 danach: %2, wie Ihre Bank sagt"
+
+#, kde-format
+msgctxt "@info"
+msgid "Your other transactions stay as they are. Nothing changes until you click, and Undo takes the correction back."
+msgstr "Ihre übrigen Buchungen bleiben, wie sie sind. Nichts ändert sich, bevor Sie klicken, und „Rückgängig“ nimmt die Korrektur zurück."
+
 #: crates/kassensturz-ui-bridge/qml/AccountCard.qml:65
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:138
 #, kde-format
@@ -3897,10 +3987,10 @@ msgstr "Vergleichen"
 msgctxt "@info %1 is a date, %2 says how much money there is or what is owed"
 msgid ""
 "The starting balance is corrected. On %1 both your bank and KassenSturz now "
-"say %2."
+"say %2. Undo takes the correction back."
 msgstr ""
 "Der Anfangsbestand ist korrigiert. Am %1 sagen Ihre Bank und KassenSturz "
-"jetzt beide: %2."
+"jetzt beide: %2. „Rückgängig“ nimmt die Korrektur zurück."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:177
 #, kde-format
@@ -3926,32 +4016,6 @@ msgstr "Woher der Unterschied kommen kann"
 msgctxt "@title"
 msgid "Correct the starting balance"
 msgstr "Anfangsbestand korrigieren"
-
-#: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:230
-#, kde-format
-msgctxt "@info %1 is an amount of money, %2 and %3 are dates"
-msgid ""
-"If the difference comes from before you started using KassenSturz, a "
-"starting balance of %1 dated %2 makes both agree. KassenSturz then has on %3 "
-"what your bank says. Your other transactions stay as they are."
-msgstr ""
-"Kommt der Unterschied aus der Zeit, bevor Sie KassenSturz benutzt haben, "
-"bringt ein Anfangsbestand von %1 mit dem Datum %2 beide in Einklang. "
-"KassenSturz hat dann am %3, was Ihre Bank sagt. Ihre übrigen Buchungen "
-"bleiben, wie sie sind."
-
-#: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:231
-#, kde-format
-msgctxt "@info %1 is an amount of money, %2 and %3 are dates"
-msgid ""
-"If the difference comes from before you started using KassenSturz, a "
-"starting balance of %1 (dated %2) makes both agree. KassenSturz then has on "
-"%3 what your bank says. Your other transactions stay as they are."
-msgstr ""
-"Kommt der Unterschied aus der Zeit, bevor Sie KassenSturz benutzt haben, "
-"bringt ein Anfangsbestand von %1 (datiert auf %2) beide in Einklang. "
-"KassenSturz hat dann am %3, was Ihre Bank sagt. Ihre übrigen Buchungen "
-"bleiben, wie sie sind."
 
 #: crates/kassensturz-ui-bridge/qml/BankCheckPage.qml:240
 #, kde-format
@@ -15130,9 +15194,11 @@ msgstr "Zu zeichnende Linien"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:160
 #, kde-format
-msgctxt "@option:check"
-msgid "Show the legend"
-msgstr "Legende anzeigen"
+msgctxt ""
+"@option:check shows or hides the list beside a chart that says which colour "
+"stands for what"
+msgid "Explain the colours (legend)"
+msgstr "Farben erklären (Legende)"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:162
 #, kde-format
@@ -27567,3 +27633,146 @@ msgstr "Geführt einrichten"
 msgctxt "@info"
 msgid "Step by step with your own data: get your transactions and check your balance. Every step can be skipped."
 msgstr "Schritt für Schritt mit Ihren eigenen Daten: Buchungen holen und den Kontostand prüfen. Jeden Schritt können Sie überspringen."
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:135
+#, kde-format
+msgctxt "@title:window %1 is a plugin's name"
+msgid "Save the transactions with \"%1\""
+msgstr "Die Buchungen mit „%1“ speichern"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:138
+#, kde-format
+msgctxt "@item:inlistbox a file type, %1 is a file name ending such as csv"
+msgid "Files of the plugin (*.%1)"
+msgstr "Dateien des Plugins (*.%1)"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:328
+#, kde-format
+msgctxt "@title:group"
+msgid "With a plugin"
+msgstr "Mit einem Plugin"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:333
+#, kde-format
+msgctxt "@info"
+msgid "A plugin you added writes the transactions of the accounts and days you chose above in its own kind of file. KassenSturz writes the file where you say and never overwrites one."
+msgstr "Ein Plugin, das Sie hinzugefügt haben, schreibt die Buchungen der oben gewählten Konten und Tage in seiner eigenen Art von Datei. KassenSturz schreibt die Datei dorthin, wo Sie es sagen, und überschreibt nie eine."
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:346
+#, kde-format
+msgctxt "@action:button %1 is a plugin's name"
+msgid "Save with \"%1\"…"
+msgstr "Mit „%1“ speichern…"
+
+#: crates/kassensturz-ui-bridge/qml/ExportPage.qml:347
+#, kde-format
+msgctxt "@info %1 is a file name ending such as csv"
+msgid "A .%1 file"
+msgstr "Eine .%1-Datei"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:949
+#, kde-format
+msgctxt "@info"
+msgid "This plugin isn't there any more or can't be used now. Look at it in Settings, Plugins, then try again. Nothing was saved."
+msgstr "Dieses Plugin ist nicht mehr da oder kann gerade nicht verwendet werden. Sehen Sie es sich unter Einstellungen, Plugins an und versuchen Sie es dann erneut. Nichts wurde gespeichert."
+
+#: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:211
+#, kde-format
+msgctxt "@info %1 is a plugin's name, as the plugin says"
+msgid "Read by the plugin \"%1\""
+msgstr "Gelesen vom Plugin „%1“"
+
+#: crates/kassensturz-ui-bridge/qml/ImportPreviewPage.qml:213
+#, kde-format
+msgctxt "@info"
+msgid "Check the transactions below before you import them."
+msgstr "Prüfen Sie die Buchungen unten, bevor Sie sie importieren."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1938
+#, kde-format
+msgctxt "@item:inlistbox a file type, %1 are patterns such as *.bank"
+msgid "Files your plugins read (%1)"
+msgstr "Dateien, die Ihre Plugins lesen (%1)"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:913
+#, kde-format
+msgctxt "@info"
+msgid "This theme plugin holds no colors, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Dieses Theme-Plugin enthält keine Farben, deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:915
+#, kde-format
+msgctxt "@info"
+msgid "This theme plugin holds its colors twice, so KassenSturz can't tell which are meant and doesn't add it. Ask the plugin's author."
+msgstr "Dieses Theme-Plugin enthält seine Farben doppelt, deshalb weiß KassenSturz nicht, welche gemeint sind, und fügt es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:917
+#, kde-format
+msgctxt "@info"
+msgid "This plugin holds colors for the app but doesn't say it is a theme, so KassenSturz doesn't add it. Ask the plugin's author."
+msgstr "Dieses Plugin enthält Farben für die App, sagt aber nicht, dass es ein Theme ist, deshalb fügt KassenSturz es nicht hinzu. Fragen Sie den Autor des Plugins."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:919
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This theme's colors take more than %1 bytes, so KassenSturz doesn't read them. Ask the plugin's author for a fixed version."
+msgstr "Die Farben dieses Themes sind größer als %1 Byte, deshalb liest KassenSturz sie nicht. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:921
+#, kde-format
+msgctxt "@info"
+msgid "This theme's colors can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Die Farben dieses Themes lassen sich nicht lesen, deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:923
+#, kde-format
+msgctxt "@info %1 is a version number"
+msgid "This theme was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the theme."
+msgstr "Dieses Theme wurde in einem Format erstellt, das dieses KassenSturz nicht kennt (Version %1). Aktualisieren Sie KassenSturz oder suchen Sie eine ältere Version des Themes."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:925
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This theme has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Dieses Theme hat einen Fehler in „%1“, deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine korrigierte Version."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:927
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "With this theme, some text would be hard to read (\"%1\" doesn't stand out enough from the background), so KassenSturz doesn't add it. Ask the plugin's author for a version with stronger colors."
+msgstr "Mit diesem Theme wäre manche Schrift schwer zu lesen („%1“ hebt sich nicht genug vom Hintergrund ab), deshalb fügt KassenSturz es nicht hinzu. Bitten Sie den Autor des Plugins um eine Version mit kräftigeren Farben."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:51
+#, kde-format
+msgctxt "@info"
+msgid "Close KassenSturz and open it again to see the new colors."
+msgstr "Schließen Sie KassenSturz und öffnen Sie es wieder, um die neuen Farben zu sehen."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:104
+#, kde-format
+msgctxt "@title:group"
+msgid "Colors of the app"
+msgstr "Farben der App"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:118
+#, kde-format
+msgctxt "@label:listbox"
+msgid "Colors"
+msgstr "Farben"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:121
+#, kde-format
+msgctxt "@item:inlistbox the app's colors without a theme plugin"
+msgid "KassenSturz's own, as in your system"
+msgstr "Die eigenen von KassenSturz, wie in Ihrem System"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:143
+#, kde-format
+msgctxt "@info"
+msgid "To give KassenSturz other colors, add a theme plugin in Settings › Plugins. KassenSturz refuses a theme whose text would be hard to read."
+msgstr "Um KassenSturz andere Farben zu geben, fügen Sie unter Einstellungen › Plugins ein Theme-Plugin hinzu. KassenSturz lehnt ein Theme ab, dessen Schrift schwer zu lesen wäre."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:144
+#, kde-format
+msgctxt "@info"
+msgid "A theme changes only colors, the font and how round corners are. It uses its light or dark colors after your system's setting when KassenSturz opens. KassenSturz refuses a theme whose text would be hard to read."
+msgstr "Ein Theme ändert nur Farben, die Schrift und wie rund Ecken sind. Es nimmt seine hellen oder dunklen Farben nach der Einstellung Ihres Systems beim Öffnen von KassenSturz. KassenSturz lehnt ein Theme ab, dessen Schrift schwer zu lesen wäre."

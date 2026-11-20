@@ -21,6 +21,8 @@ Kirigami.ScrollablePage {
     required property AccountRegister register
     readonly property var view: statementImport.view ?? ({})
     readonly property var balances: view.balances ?? []
+    // What the import did to the starting balance, or null (D-903).
+    readonly property var start: view.start ?? null
     readonly property string accountId: statementImport.accountId
     readonly property var joined: view.joined ?? []
     // The user took the joins back with "Undo these joins".
@@ -72,6 +74,26 @@ Kirigami.ScrollablePage {
     // What the bank or KassenSturz says: a debt reads "you owed".
     function said(amount: string, owes: bool): string {
         return owes ? i18nContext.i18nc("@label %1 is an amount of money", "you owed %1", amount) : amount;
+    }
+
+    // An amount of money that stands for itself in a sentence: a debt is
+    // written as the amount owed.
+    function money(amount: string, owes: bool): string {
+        return owes ? i18nContext.i18nc("@label %1 is an amount of money", "%1 owed", amount) : amount;
+    }
+
+    // What the import did to the account's starting balance, when it
+    // brought the account's first transactions (D-903).
+    function startText(start: var): string {
+        return start.adds
+            ? i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "A starting balance of %1, dated %2, was added.", money(start.wouldBe, start.owes), start.date)
+            : i18nContext.i18nc("@info %1 and %3 are amounts of money, %2 and %4 are dates", "The starting balance was changed from %1 (dated %2) to %3 (dated %4).", money(start.was, start.wasOwes), start.wasDate, money(start.wouldBe, start.owes), start.date);
+    }
+
+    function startDescription(start: var): string {
+        return start.fromBank
+            ? i18nContext.i18nc("@info %1 is a date, %2 what the bank said the account held", "On %1 your bank said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import.", start.holdsOn, said(start.holds, start.holdsOwes))
+            : i18nContext.i18nc("@info %1 is a date, %2 what the user said the account held", "For %1 you said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import.", start.holdsOn, said(start.holds, start.holdsOwes));
     }
 
     function balanceText(balance: var): string {
@@ -357,6 +379,25 @@ Kirigami.ScrollablePage {
                 icon.name: "dialog-question"
                 text: page.i18nContext.i18ncp("@info", "%1 monthly move has entries that were not joined.", "%1 monthly moves have entries that were not joined.", page.view.needsYou ?? 0)
                 description: page.i18nContext.i18nc("@info", "Two entries fit equally well, or a join would lose something you wrote. Join them yourself: Accounts › Find moves between my accounts…")
+            }
+        }
+
+        // The account's first transactions: its starting balance was
+        // worked out from the balance that is known (D-903).
+        FormCard.FormHeader {
+            visible: page.start !== null
+            title: page.i18nContext.i18nc("@title:group", "Starting balance")
+        }
+
+        FormCard.FormCard {
+            visible: page.start !== null
+
+            FormCard.FormTextDelegate {
+                descriptionItem.textFormat: Text.PlainText
+                textItem.textFormat: Text.PlainText
+                icon.name: "view-financial-account"
+                text: page.start === null ? "" : page.startText(page.start)
+                description: page.start === null ? "" : page.startDescription(page.start)
             }
         }
 

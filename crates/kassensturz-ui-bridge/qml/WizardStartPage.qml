@@ -43,7 +43,7 @@ Kirigami.ScrollablePage {
         Accessible.description: line
         implicitHeight: content.implicitHeight + Kirigami.Units.largeSpacing * 2
         background: Rectangle {
-            radius: Kirigami.Units.cornerRadius
+            radius: Look.radius(Kirigami.Units.cornerRadius)
             color: choice.hovered || choice.visualFocus ? Qt.alpha(Kirigami.Theme.highlightColor, 0.12) : Kirigami.Theme.backgroundColor
             border.color: choice.visualFocus ? Kirigami.Theme.highlightColor : Qt.alpha(Kirigami.Theme.textColor, 0.2)
             border.width: choice.visualFocus ? 2 : 1

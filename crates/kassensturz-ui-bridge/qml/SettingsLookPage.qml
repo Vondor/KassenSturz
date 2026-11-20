@@ -18,11 +18,17 @@ FormCard.FormCardPage {
     required property NumberFormatSettings numberFormat
     required property ChartPaletteSettings chartPalette
     required property LanguageSettings language
+    required property ThemeSettings theme
 
     // Whether a number format choice couldn't be saved for the next start.
     property bool formatNotSaved: false
     // Whether the language choice couldn't be saved.
     property bool languageNotSaved: false
+    // Whether the theme choice couldn't be saved.
+    property bool themeNotSaved: false
+    // The theme plugins there are (D-925), read when the page opens.
+    property var themes: []
+    Component.onCompleted: themes = theme.themes()
 
     header: ColumnLayout {
         spacing: 0
@@ -35,6 +41,14 @@ FormCard.FormCardPage {
             type: Kirigami.MessageType.Information
             visible: page.language.restartNeeded && !page.languageNotSaved
             text: page.i18nContext.i18nc("@info", "Close KassenSturz and open it again to see it in the new language.")
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            position: Kirigami.InlineMessage.Position.Header
+            type: Kirigami.MessageType.Information
+            visible: page.theme.restartNeeded && !page.themeNotSaved
+            text: page.i18nContext.i18nc("@info", "Close KassenSturz and open it again to see the new colors.")
         }
     }
 
@@ -84,6 +98,50 @@ FormCard.FormCardPage {
     FormCard.FormSectionText {
         textFormat: Text.PlainText
         text: page.i18nContext.i18nc("@info", "Dates and amounts keep following your regional settings; change how amounts look below.")
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Colors of the app")
+    }
+
+    // A theme plugin's colors for the whole app (#791, D-925). A theme's
+    // name is the plugin's own text, shown as plain text.
+    FormCard.FormCard {
+        FormCard.FormComboBoxDelegate {
+            id: themeBox
+
+            // Shows the saved choice; set rather than bound, as above.
+            function showChoice() {
+                currentIndex = Math.max(0, indexOfValue(page.theme.choice));
+            }
+
+            text: page.i18nContext.i18nc("@label:listbox", "Colors")
+            textRole: "text"
+            valueRole: "value"
+            model: [{ value: "", text: page.i18nContext.i18nc("@item:inlistbox the app's colors without a theme plugin", "KassenSturz's own, as in your system") }]
+                .concat(page.themes.map(item => ({ value: item.id, text: Plain.plain(item.name) })))
+            onModelChanged: showChoice()
+            Component.onCompleted: showChoice()
+            onActivated: {
+                ActionLog.taken("SettingsLookPage_theme")
+                page.themeNotSaved = !page.theme.choose(currentValue)
+            }
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            Layout.margins: Kirigami.Units.largeSpacing
+            visible: page.themeNotSaved
+            type: Kirigami.MessageType.Error
+            text: page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
+        }
+    }
+
+    FormCard.FormSectionText {
+        textFormat: Text.PlainText
+        text: page.themes.length === 0
+            ? page.i18nContext.i18nc("@info", "To give KassenSturz other colors, add a theme plugin in Settings › Plugins. KassenSturz refuses a theme whose text would be hard to read.")
+            : page.i18nContext.i18nc("@info", "A theme changes only colors, the font and how round corners are. It uses its light or dark colors after your system's setting when KassenSturz opens. KassenSturz refuses a theme whose text would be hard to read.")
     }
 
     FormCard.FormHeader {

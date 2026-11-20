@@ -20,7 +20,7 @@ The plugin API has a version `MAJOR.MINOR`. This KassenSturz offers **1.0** (`ka
 | `report` | Computes a report from the book. | `read_book` |
 | `automation` | Reacts to events, such as an import, and may propose changes. | `read_book`, `propose_changes` |
 | `ai_provider` | Talks to an AI service that isn't OpenAI-compatible (D-754). Hidden and never loaded while AI is off (D-013); consent and the preview of what is sent stay in KassenSturz. | `network` |
-| `theme` | Colours, accent, fonts, corner radius. **Data only, no code** (D-756). | none |
+| `theme` | Colours, accent, font, corner radius, for light and dark (§9). **Data only, no code** (D-756). | none |
 | `ui_density` | Turns on switches KassenSturz defines, such as hiding explanation texts. **Data only, no code** (D-756). Nothing that warns before a change to data can be hidden. | none |
 
 A plugin may fill several extension points, but a data-only one (`theme`, `ui_density`) can't be combined with one that runs code.
@@ -79,7 +79,7 @@ A plugin file is **one WebAssembly module** (binary format version 1), at most 1
 
 - The manifest is the custom section `kassensturz-manifest`, exactly once.
 - Other custom sections (such as `name` or `producers`, which compilers write) are ignored. A custom section whose name starts with `kassensturz-` and that this KassenSturz doesn't know refuses the file, so a later API version's data is never silently skipped.
-- A **data-only** plugin (`theme`, `ui_density`) is a module without code: no function, code or start section. Where its data sits comes with those extension points (*not built yet*).
+- A **data-only** plugin (`theme`, `ui_density`) is a module without code: no function, code or start section. A theme's data is the custom section `kassensturz-theme` (§9); that of UI density comes with its own step (*not built yet*).
 - KassenSturz reads the manifest without running or compiling anything, so the Plugins tab can show it first.
 
 With a Rust plugin, one way to add the section is a static in the plugin's source:
@@ -182,8 +182,40 @@ What it gets, with every key there and `null` where there is nothing:
 
 `counterpart` is `{"kind": "uncategorized"}`, `{"kind": "category", "name": ...}`, `{"kind": "transfer", "account": ...}` or `{"kind": "parts", "count": ...}`. `original` is the amount in another currency, if there was one. A plugin exporter writes transactions only, never a whole book.
 
+**Where they show.** When the user imports a file from the bank, KassenSturz first tries its own formats. One that is sure of the file wins, and a whole book (such as a KMyMoney file) is refused with a hint. Then the plugin importers are tried in the order of their names: the first one that is sure wins. After that a file named `.csv` or `.txt` goes to the column screen, then a built-in format that may fit is used, then the first plugin that may. The preview says which plugin read the file, and the file dialog offers the plugins' extensions. A plugin exporter shows on the "Save a copy of my data" page under "With a plugin": it writes the accounts and days chosen for the spreadsheet file.
+
 Neither an importer nor an exporter needs a permission for this: it gets only the file or the transactions the user picked (D-848).
 
-## 9. Still to come (#791)
+## 9. Themes (D-925)
 
-The calls and host functions of the other extension points, the data of themes and UI density, one example plugin per extension point, and a "write your own plugin" guide.
+A theme plugin changes how KassenSturz looks, never what it does. It is data only: a module without code whose manifest names `theme`, with its colours as strict JSON in the custom section `kassensturz-theme`, exactly once, at most 4 KiB. A module with that section that isn't a theme plugin is refused.
+
+```json
+{
+  "theme_version": 1,
+  "light": {"background": "#F1F8F1", "text": "#1B2A1C", "accent": "#2E7D32"},
+  "dark": {"background": "#102214", "text": "#E2F0E3", "accent": "#81C784"},
+  "font": "Example Sans",
+  "corner_radius": 8
+}
+```
+
+- `theme_version` is 1. `light` and `dark` are both needed, each with `background`, `text` and `accent` as `#RRGGBB`. The light look has the lighter background, the dark one the darker.
+- **Readable or refused.** `text` and `accent` must each stand out from `background` by at least 4.5 to 1 (WCAG 2.2 level AA for normal text). A theme below that is refused whole, with the colour that failed.
+- `font` (optional): a font family, used if the computer has it; otherwise the system's font stays.
+- `corner_radius` (optional): 0 to 16, the corner radius in logical pixels of KassenSturz's own boxes, such as the tiles of the start screen.
+- Unknown keys, wrong types and other spellings of a colour refuse the theme, as in the manifest.
+
+KassenSturz works out every other colour from these three: the backgrounds of the window and buttons, secondary text, selections, and its own colours for warnings, problems and amounts below zero, each kept at the same contrast. A theme can't change those meanings, and it doesn't change the chart colours, which the user picks in Settings › Look.
+
+**Choosing one.** Settings › Look › "Colors of the app" lists the theme plugins that were added, and the choice is kept as the plugin's ID under `Look/Theme` in the app's settings (D-924). It applies from the next start, with the theme's light or dark colours after the system's setting at that moment. A theme that is removed or can no longer be read leaves KassenSturz's own colours.
+
+**Example.** `examples/plugins/green-theme/` holds the green theme: its `manifest.json` and `theme.json`, and `green-theme.wasm`, packed from them by `tools/make-data-plugin.py`:
+
+```sh
+tools/make-data-plugin.py manifest.json kassensturz-theme=theme.json green-theme.wasm
+```
+
+## 10. Still to come (#791)
+
+The calls and host functions of the other extension points, the data of UI density, one example plugin per extension point, and a "write your own plugin" guide.

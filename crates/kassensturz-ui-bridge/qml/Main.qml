@@ -546,6 +546,18 @@ Kirigami.ApplicationWindow {
         id: languageSettings
     }
 
+    // The theme (D-925), which applies at the next start; its corner
+    // radius reaches every box through `Look`.
+    ThemeSettings {
+        id: themeSettings
+    }
+
+    Binding {
+        target: Look
+        property: "themeRadius"
+        value: themeSettings.cornerRadius
+    }
+
     // The colors of the charts (M7a.10, D-589): what the user chose in
     // Settings reaches every chart through `ChartPalette`. A screen that
     // wants the palette changed asks with `ChartPalette.editRequested()`.
@@ -1181,6 +1193,7 @@ Kirigami.ApplicationWindow {
     // (M3.10): the file dialog first, then the screen the file needs.
     function importStatement(accountId: string) {
         importDialog.accountId = accountId;
+        importDialog.pluginPatterns = statementImporter.pluginPatterns();
         importDialog.open();
     }
 
@@ -1956,13 +1969,18 @@ Kirigami.ApplicationWindow {
 
         // The account the file goes into.
         property string accountId: ""
+        // What the plugin importers read, such as "*.bank" (#791).
+        property string pluginPatterns: ""
 
         title: root.i18nContext.i18nc("@title:window", "Import a file from your bank")
         fileMode: Dialogs.FileDialog.OpenFile
         nameFilters: [
             root.i18nContext.i18nc("@item:inlistbox a file type", "Bank files (*.xml *.sta *.ofx *.csv *.txt)"),
+        ].concat(pluginPatterns === "" ? [] : [
+            root.i18nContext.i18nc("@item:inlistbox a file type, %1 are patterns such as *.bank", "Files your plugins read (%1)", pluginPatterns),
+        ]).concat([
             root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
-        ]
+        ])
         onAccepted: {
             ActionLog.taken("Main_startImport")
             root.startImport(accountId, selectedFile)
@@ -2301,6 +2319,7 @@ Kirigami.ApplicationWindow {
             plans: plannedPayments
             onAddAccountClicked: root.addAccount()
             onAccountClicked: accountId => root.showRegister(accountId)
+            onCheckClicked: (accountId, bank, date) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
             onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })
             Component.onCompleted: bankReady = root.bankUsable()
         }
@@ -2513,6 +2532,7 @@ Kirigami.ApplicationWindow {
             numberFormat: numberFormatSettings
             chartPalette: chartPaletteSettings
             language: languageSettings
+            theme: themeSettings
         }
     }
 

@@ -65,6 +65,12 @@ Item {
     // Whether the overlay that selects and drags the component is there; it
     // stays while the component is dragged (US1.8, #520, D-634).
     readonly property bool pointerOverlay: overlay.active
+    // The height of the picked tile's row of buttons, and the room the
+    // content leaves for it. A period box only has its label, which the
+    // buttons don't reach; the room stays while the tile is dragged, so its
+    // content doesn't jump.
+    property real barHeight: 0
+    readonly property real barRoom: selected && !board.preview && !isBox ? barHeight + Kirigami.Units.smallSpacing : 0
     property bool settled: false
     // The content is made once it is due and stays (M6-B30).
     property bool contentMade: false
@@ -224,7 +230,7 @@ Item {
         anchors.fill: parent
         clip: true
         color: cell.isBox ? Qt.alpha(Kirigami.Theme.highlightColor, 0.06) : (cell.showsFrame ? Kirigami.Theme.backgroundColor : "transparent")
-        radius: Kirigami.Units.smallSpacing
+        radius: Look.radius(Kirigami.Units.smallSpacing)
         border.width: cell.selected ? 2 : (cell.showsFrame ? 1 : 0)
         border.color: cell.selected ? Kirigami.Theme.highlightColor
             : cell.hasProblem ? Kirigami.Theme.neutralTextColor
@@ -236,6 +242,10 @@ Item {
 
             anchors.fill: parent
             anchors.margins: Kirigami.Units.smallSpacing
+            // The picked tile's buttons sit in its top right corner; its
+            // content starts below them, so they hide none of its text
+            // (B-412, D-904).
+            anchors.topMargin: Kirigami.Units.smallSpacing + cell.barRoom
             // In edit mode the component is a picture of itself: the overlay
             // above takes the pointer, which selects and drags it.
             active: cell.present && cell.contentMade
@@ -627,6 +637,11 @@ Item {
                 }
             }
 
+            // *Set a budget* works while the layout is arranged too (B-412).
+            function liveAt(point: point): bool {
+                return bars.liveAt(mapToItem(bars, point));
+            }
+
             contentHeight: bars.implicitHeight + budgetNotes.implicitHeight
             clip: true
 
@@ -654,7 +669,6 @@ Item {
                 width: parent.width - Kirigami.Units.gridUnit
                 shown: feed.view?.bars ?? []
                 budgetCount: feed.view?.count ?? 0
-                arranging: cell.board.editing
                 onSetBudgetClicked: cell.board.setBudgetClicked()
             }
         }
@@ -1164,6 +1178,12 @@ Item {
 
             readonly property bool failed: figures.failed
 
+            // *Set a budget* of an empty budget table works while the layout
+            // is arranged too (B-412).
+            function liveAt(point: point): bool {
+                return figures.liveAt(mapToItem(figures, point));
+            }
+
             // The frame sets this widget's size, so its content does not ask
             // for one; made after the grid has its width, the figures' own
             // width would loop back into it (M6-B30).
@@ -1179,6 +1199,8 @@ Item {
                 period: cell.board?.periodFor(cell.info) ?? ""
                 scope: cell.info?.asked?.scope
                 fallbackTitle: names.automaticTitle(cell.info)
+                canSetBudget: true
+                onSetBudgetClicked: cell.board.setBudgetClicked()
 
                 Connections {
                     target: cell.board
@@ -1202,8 +1224,20 @@ Item {
         active: cell.board.editing && (!cell.takesPointer || cell.moving)
         visible: active && !cell.board.preview
 
-        // Edit mode: the pointer selects and drags a component.
+        // Edit mode: the pointer selects and drags a component. A tile may
+        // name a button of its own that works while arranging too (its
+        // `liveAt`): there the overlay has a hole, so the button gets the
+        // pointer like any other (B-412, D-904).
         sourceComponent: Item {
+            id: catcher
+
+            containmentMask: QtObject {
+                function contains(point: point): bool {
+                    const tile = content.item;
+                    return !(tile && typeof tile.liveAt === "function" && tile.liveAt(catcher.mapToItem(tile, point)));
+                }
+            }
+
             TapHandler {
                 onTapped: cell.board.select(cell.itemId)
             }
@@ -1283,6 +1317,9 @@ Item {
                     color: Kirigami.Theme.backgroundColor
                     border.width: 1
                     border.color: Kirigami.Theme.highlightColor
+
+                    onHeightChanged: cell.barHeight = height
+                    Component.onCompleted: cell.barHeight = height
 
                     RowLayout {
                         id: barRow

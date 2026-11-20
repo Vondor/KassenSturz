@@ -204,6 +204,8 @@ fn main() {
                 QmlFile::from("qml/ActionLog.qml").singleton(true),
                 // The rows a change just touched light up (B-384, D-857).
                 QmlFile::from("qml/ChangedRows.qml").singleton(true),
+                // A theme's corner radius (D-925).
+                QmlFile::from("qml/Look.qml").singleton(true),
             ]),
     )
     .qt_module("Network")
@@ -258,12 +260,15 @@ fn main() {
         "src/statement_import_model.rs",
         "src/tags_model.rs",
         "src/test_profile_model.rs",
+        "src/theme.rs",
+        "src/theme_model.rs",
     ])
     .cpp_files([
         "cpp/local_only.cpp",
         "cpp/locale.cpp",
         "cpp/platform.cpp",
         "cpp/settings.cpp",
+        "cpp/theme.cpp",
     ]);
     // Visual Studio reads a source file in the system's code page unless told
     // otherwise, and the C++ that qmlcachegen writes from the QML keeps its

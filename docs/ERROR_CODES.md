@@ -601,7 +601,7 @@ Why a chart model couldn't be made (M6a.3, D-276).
 
 ## Plugins (`kassensturz-plugin-api`)
 
-Why a plugin file can't be added: its manifest (D-847) or the permissions it asks for (D-848) are refused, and nothing of the plugin is used (#791). `{key}` and `{name}` are text from the plugin file, shown as plain text.
+Why a plugin file can't be added: its manifest (D-847), the permissions it asks for (D-848) or a theme's data (D-925) are refused, and nothing of the plugin is used (#791). `{key}` and `{name}` are text from the plugin file, shown as plain text.
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
@@ -621,6 +621,14 @@ Why a plugin file can't be added: its manifest (D-847) or the permissions it ask
 | `plugin.manifest-twice` | | | This plugin describes itself twice, so KassenSturz can't tell which description is true and doesn't add it. Ask the plugin's author. |
 | `plugin.unknown-section` | `name` | | This plugin holds a part this KassenSturz doesn't know ("{name}"). Update KassenSturz, or ask the plugin's author. |
 | `plugin.data-only-has-code` | | | A plugin that changes the app's look or layout may not contain code, and this one does, so KassenSturz doesn't add it. Ask the plugin's author. |
+| `plugin.theme-missing` |  |  | This theme plugin holds no colors, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.theme-twice` |  |  | This theme plugin holds its colors twice, so KassenSturz can't tell which are meant and doesn't add it. Ask the plugin's author. |
+| `plugin.theme-unexpected` |  |  | This plugin holds colors for the app but doesn't say it is a theme, so KassenSturz doesn't add it. Ask the plugin's author. |
+| `plugin.theme-too-big` | `max_bytes` |  | This theme's colors take more than {max_bytes} bytes, so KassenSturz doesn't read them. Ask the plugin's author for a fixed version. |
+| `plugin.theme-malformed` |  |  | This theme's colors can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.unsupported-theme-version` | `version` |  | This theme was made in a format this KassenSturz doesn't know (version {version}). Update KassenSturz, or look for an older version of the theme. |
+| `plugin.theme-invalid` | `reason`, `key` | `missing`, `unknown-key`, `wrong-type`, `empty`, `too-long`, `bad-characters`, `malformed`, `wrong-way`, `out-of-range` | This theme has a mistake in "{key}", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.theme-low-contrast` | `key` |  | With this theme, some text would be hard to read ("{key}" doesn't stand out enough from the background), so KassenSturz doesn't add it. Ask the plugin's author for a version with stronger colors. |
 
 ## Running plugins (`kassensturz-plugin-host`)
 

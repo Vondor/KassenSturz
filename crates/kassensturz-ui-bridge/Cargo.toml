@@ -62,6 +62,7 @@ kassensturz-import.workspace = true
 kassensturz-pipeline.workspace = true
 kassensturz-platform.workspace = true
 kassensturz-plugin-api.workspace = true
+kassensturz-plugin-formats.workspace = true
 kassensturz-plugin-host.workspace = true
 kassensturz-report.workspace = true
 kassensturz-store.workspace = true

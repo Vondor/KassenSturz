@@ -208,6 +208,10 @@ Kirigami.ScrollablePage {
         Controls.Label {
             Kirigami.FormData.isSection: true
             Layout.fillWidth: true
+            // The form takes the width of its widest row, and this line is
+            // the widest unwrapped: bound it, so it wraps and stays on the
+            // page (B-423).
+            Layout.maximumWidth: Math.min(Kirigami.Units.gridUnit * 36, page.width - Kirigami.Units.gridUnit * 4)
             text: page.i18nContext.i18nc("@info %1 is a file name", "%1 is a CSV file. Such a file doesn't say how it is written, and every bank does it differently, so say once how to read your bank's files. KassenSturz keeps the choices under the bank's name for the next file.", page.statementImport.fileName)
             textFormat: Text.PlainText
             wrapMode: Text.Wrap

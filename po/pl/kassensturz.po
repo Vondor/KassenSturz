@@ -24621,8 +24621,8 @@ msgstr "Wtyczka dodaje coś do KassenSturz, na przykład sposób czytania plikó
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:99
 #, kde-format
 msgctxt "@info"
-msgid "Only add plugins from people you trust. Plugins can't do anything yet in this version: you can add and look at them already, and what each kind does comes with the next updates."
-msgstr "Dodawaj tylko wtyczki od osób, którym ufasz. W tej wersji wtyczki jeszcze nic nie robią: możesz je już dodać i obejrzeć, a to, co robi każdy rodzaj, przyjdzie z kolejnymi aktualizacjami."
+msgid "Only add plugins from people you trust. A plugin does only what its kind allows and what you saw when you added it: for example reading a bank's files, adding a report or changing the colors."
+msgstr "Dodawaj tylko wtyczki od osób, którym ufasz. Wtyczka robi tylko to, na co pozwala jej rodzaj i o co poproszono przy dodawaniu: na przykład czyta pliki banku, dodaje raport lub zmienia kolory."
 
 #: crates/kassensturz-ui-bridge/qml/SettingsPluginsPage.qml:113
 #, kde-format

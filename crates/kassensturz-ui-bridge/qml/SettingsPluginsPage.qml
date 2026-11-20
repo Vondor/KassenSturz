@@ -7,8 +7,7 @@
 // file into KassenSturz's own folder; removing deletes only that copy.
 // Everything a plugin file says about itself is untrusted text and shown as
 // plain text (AGENTS.md §8); the words for extension points and permissions
-// are written here (D-034). Plugins don't do anything yet: what each kind
-// of plugin does comes with the next steps of #791.
+// are written here (D-034).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -96,7 +95,7 @@ FormCard.FormCardPage {
     }
 
     FormCard.FormSectionText {
-        text: page.i18nContext.i18nc("@info", "Only add plugins from people you trust. Plugins can't do anything yet in this version: you can add and look at them already, and what each kind does comes with the next updates.")
+        text: page.i18nContext.i18nc("@info", "Only add plugins from people you trust. A plugin does only what its kind allows and what you saw when you added it: for example reading a bank's files, adding a report or changing the colors.")
     }
 
     FormError {

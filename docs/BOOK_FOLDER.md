@@ -7,6 +7,8 @@
 - Outside the Flatpak the user can open a book anywhere, start a new one with a save dialog and start a book from a file with a save dialog (D-113, D-125, Q-081 answered B).
 - In the Flatpak the book always lives in KassenSturz's own data folder. The Flatpak has no access to the user's files (`packaging/flatpak/io.github.vondor.KassenSturz.yml`, "Deliberately nothing else"), and the file chooser portal hands over one file at a time. A book needs two neighbours it creates itself: its lock file `<book>.lock` (D-038, D-080) and SQLite's rollback journal `<book>-journal` (D-033). So a single handed-over file is refused as `book.sandboxed` (`platform::Drive::Sandboxed`, file system `fuse.portal`), and `platform::can_choose_book_place` returns false in the Flatpak.
 - The "Folder" row in Settings only opens the data folder.
+- **The Flatpak** keeps the book in `~/.var/app/io.github.vondor.KassenSturz/`, which `flatpak uninstall` leaves alone unless the user adds `--delete-data` (B-429 check; nothing changed).
+- **The snap** (D-934, B-429): `snap remove` deletes the snap's data folder, so with the `home` plug its own folder is `KassenSturz` in the user's Documents folder, as for the Store app; see `docs/SNAP.md`, section 5.
 - **The Microsoft Store app** (D-856, #1178): its own folder is `Documents\KassenSturz`, not the data folder, because Windows deletes a packaged app's data folder with the app. `docs/WINDOWS.md`, "Where the Store app keeps the book", has the details and the one-time move offer.
 
 The wish (#515): the user chooses the folder their book lives in, also in the Flatpak, e.g. a sync folder or a folder on a second drive.

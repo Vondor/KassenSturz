@@ -40,9 +40,11 @@ const COPIED: &str = "CopiedFromPackage";
 const KEEP: &str = "KeepBookInPackage";
 
 /// The folders in the earlier folder that are not copied: the logs are
-/// kept by `kassensturz_core` in `%LOCALAPPDATA%` as before, and a copy of
-/// them would only be an old one.
-const NOT_COPIED: &[&str] = &["debug-log", "bank-log"];
+/// kept by `kassensturz_core` in the data folder as before, and a copy of
+/// them would only be an old one; the requests of the MCP server (D-050)
+/// are read from the data folder by both programs and are never wanted in
+/// the user's Documents (B-429).
+const NOT_COPIED: &[&str] = &["debug-log", "bank-log", "mcp-requests"];
 
 /// What the start's copy did, for the tests.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -57,7 +59,7 @@ pub struct Copied {
 /// the Store build. Call it after the application object exists and before
 /// any book opens.
 pub fn copy_at_start() {
-    if crate::test_profile::on() || !crate::platform::in_app_package() {
+    if crate::test_profile::on() || !crate::platform::own_folder_outside_app_data() {
         return;
     }
     let (Some(from), Some(to)) = (
@@ -169,7 +171,7 @@ pub fn offer_move(settings: &Settings, book: &Path, earlier: &Path) -> bool {
 /// books before D-856; `None` outside the Store build and in the test
 /// profile, so nothing is ever offered there.
 pub fn earlier_folder() -> Option<PathBuf> {
-    if crate::test_profile::on() || !crate::platform::in_app_package() {
+    if crate::test_profile::on() || !crate::platform::own_folder_outside_app_data() {
         return None;
     }
     crate::platform::qt_app_folder()
@@ -223,6 +225,7 @@ mod tests {
         write(&from.join("plugins/green.wasm"), "plugin");
         write(&from.join("debug-log/current.jsonl"), "log");
         write(&from.join("bank-log/bank-log.jsonl"), "log");
+        write(&from.join("mcp-requests/pending.json"), "request");
         from
     }
 
@@ -253,6 +256,7 @@ mod tests {
             "Moon Base.KSZ",
             "debug-log",
             "bank-log",
+            "mcp-requests",
         ] {
             assert!(!to.join(left_out).exists(), "{left_out} was copied");
         }

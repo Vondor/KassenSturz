@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Offers, once a start, to move a book out of the folder that Windows
-// deletes together with the app from the Microsoft Store (D-856, #1178).
+// deletes together with the app from the Microsoft Store (D-856, #1178) or
+// the snap's own folder, which removing the snap deletes (B-429).
 // Until D-856 the Store app kept its book and the backups there, so
 // uninstalling or resetting the app took them with it. "Move my book" opens
 // the move page, which moves it into KassenSturz's own folder in Documents
@@ -32,7 +33,9 @@ Kirigami.PromptDialog {
     }
 
     title: i18nContext.i18nc("@title:window", "Keep your book safe")
-    subtitle: i18nContext.i18nc("@info %1 is a folder", "Your book is in a folder that Windows deletes, together with all its backups, when KassenSturz is uninstalled or reset. KassenSturz can move it to %1, which Windows leaves alone. Before moving, it keeps a copy of your book as it is now with the other backups.", Plain.plain(dialog.bookMove.place?.ownFolder ?? ""))
+    subtitle: (dialog.bookMove.place?.inSnap ?? false)
+        ? i18nContext.i18nc("@info %1 is a folder", "Your book is in a folder that is deleted, together with all its backups, when the KassenSturz snap is removed. KassenSturz can move it to %1, which stays. Before moving, it keeps a copy of your book as it is now with the other backups.", Plain.plain(dialog.bookMove.place?.ownFolder ?? ""))
+        : i18nContext.i18nc("@info %1 is a folder", "Your book is in a folder that Windows deletes, together with all its backups, when KassenSturz is uninstalled or reset. KassenSturz can move it to %1, which Windows leaves alone. Before moving, it keeps a copy of your book as it is now with the other backups.", Plain.plain(dialog.bookMove.place?.ownFolder ?? ""))
     standardButtons: Kirigami.Dialog.NoButton
     closePolicy: Kirigami.Dialog.NoAutoClose
     showCloseButton: false

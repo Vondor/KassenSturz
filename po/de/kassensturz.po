@@ -28348,3 +28348,13 @@ msgstr "Haben Sie eine KI auf diesem Computer?"
 msgctxt "@info"
 msgid "Say whether KassenSturz may use an AI that runs on your own computer"
 msgstr "Sagen, ob KassenSturz eine KI nutzen darf, die auf Ihrem eigenen Computer läuft"
+
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Removing the KassenSturz snap deletes this folder, together with all backups in it. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice."
+msgstr "Wenn das KassenSturz-Snap entfernt wird, löscht das diesen Ordner samt allen Sicherungen darin. Bewahren Sie Ihr Buch in KassenSturz' eigenem Ordner (%1) oder in einem Ordner Ihrer Wahl auf."
+
+#, kde-format
+msgctxt "@info %1 is a folder"
+msgid "Your book is in a folder that is deleted, together with all its backups, when the KassenSturz snap is removed. KassenSturz can move it to %1, which stays. Before moving, it keeps a copy of your book as it is now with the other backups."
+msgstr "Ihr Buch liegt in einem Ordner, der samt allen Sicherungen gelöscht wird, wenn das KassenSturz-Snap entfernt wird. KassenSturz kann es nach %1 verschieben; dieser Ordner bleibt bestehen. Vor dem Verschieben legt es eine Kopie Ihres Buchs, wie es jetzt ist, zu den anderen Sicherungen."

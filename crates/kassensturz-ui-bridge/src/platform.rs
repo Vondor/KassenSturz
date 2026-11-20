@@ -190,7 +190,67 @@ pub fn app_folder() -> Option<PathBuf> {
         return (!documents.is_empty())
             .then(|| PathBuf::from(documents).join(crate::store_folder::FOLDER_NAME));
     }
+    if let Some(folder) = snap_own_folder() {
+        return Some(folder);
+    }
     qt_app_folder()
+}
+
+/// Whether KassenSturz's own folder is outside the folder the system deletes
+/// with the app: in the Microsoft Store's package (D-856, B-382) and in a
+/// snap that may reach the user's home folder (B-429).
+pub fn own_folder_outside_app_data() -> bool {
+    in_app_package() || snap_own_folder().is_some()
+}
+
+/// A snap's own folder for books and backups (B-429): `KassenSturz` in the
+/// user's Documents folder, which `snap remove` leaves alone. A snap's data
+/// folder (`~/snap/kassensturz/`) is deleted with the snap, so the book of a
+/// new user and every backup was lost with it. `None` outside a snap, and
+/// when the snap can't reach the user's home folder (its `home` interface is
+/// disconnected): the data folder stays the place then, as it was.
+pub fn snap_own_folder() -> Option<PathBuf> {
+    static FOLDER: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+    FOLDER
+        .get_or_init(|| {
+            if crate::test_profile::on() || !in_snap_sandbox() {
+                return None;
+            }
+            let home = PathBuf::from(std::env::var_os("SNAP_REAL_HOME")?);
+            let user_dirs = std::fs::read_to_string(home.join(".config/user-dirs.dirs")).ok();
+            let folder = documents_in(&home, user_dirs.as_deref(), |path| path.is_dir())
+                .join(crate::store_folder::FOLDER_NAME);
+            // Reachable and writable, or the snap can't use it.
+            std::fs::create_dir_all(&folder).ok()?;
+            Some(folder)
+        })
+        .clone()
+}
+
+/// The user's Documents folder inside `home`: what `user_dirs` (the text of
+/// `~/.config/user-dirs.dirs`) says, if that is a folder inside `home`;
+/// otherwise the first of `Documents` and `Dokumente` that `exists`, or
+/// `Documents`.
+fn documents_in(home: &Path, user_dirs: Option<&str>, exists: impl Fn(&Path) -> bool) -> PathBuf {
+    let named = user_dirs.into_iter().flat_map(str::lines).find_map(|line| {
+        let value = line.trim().strip_prefix("XDG_DOCUMENTS_DIR=")?;
+        let value = value.trim().trim_matches('"');
+        let relative = value.strip_prefix("$HOME/")?;
+        let relative = Path::new(relative);
+        // Only a plain folder below the home folder.
+        (!relative.as_os_str().is_empty()
+            && relative
+                .components()
+                .all(|part| matches!(part, std::path::Component::Normal(_))))
+        .then(|| home.join(relative))
+    });
+    named.unwrap_or_else(|| {
+        ["Documents", "Dokumente"]
+            .iter()
+            .map(|name| home.join(name))
+            .find(|path| exists(path))
+            .unwrap_or_else(|| home.join("Documents"))
+    })
 }
 
 /// The app folder in Qt's data folder: KassenSturz's own folder outside a
@@ -581,6 +641,40 @@ fn drive_of(file_system: &str) -> Drive {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A snap's own folder is in the user's Documents folder, in the name
+    /// the user's desktop gives it (B-429).
+    #[test]
+    fn a_snaps_documents_folder_is_the_one_the_desktop_names() {
+        let home = Path::new("/home/tester");
+        let none = |_: &Path| false;
+        let dirs = "# comment\nXDG_DESKTOP_DIR=\"$HOME/Schreibtisch\"\nXDG_DOCUMENTS_DIR=\"$HOME/Dokumente\"\n";
+        assert_eq!(documents_in(home, Some(dirs), none), home.join("Dokumente"));
+        // Without the file: the one that exists, else `Documents`.
+        assert_eq!(
+            documents_in(home, None, |path| path.ends_with("Dokumente")),
+            home.join("Dokumente")
+        );
+        assert_eq!(documents_in(home, None, none), home.join("Documents"));
+        // A name that isn't a plain folder inside the home folder is no
+        // name: the file is the user's, but a snap never leaves home by it.
+        for bad in [
+            "XDG_DOCUMENTS_DIR=\"$HOME\"",
+            "XDG_DOCUMENTS_DIR=\"$HOME/\"",
+            "XDG_DOCUMENTS_DIR=\"$HOME/../etc\"",
+            "XDG_DOCUMENTS_DIR=\"/etc\"",
+        ] {
+            let found = documents_in(home, Some(bad), none);
+            assert_eq!(found, home.join("Documents"), "{bad}");
+        }
+    }
+
+    /// Outside a snap nothing changes: the own folder is Qt's data folder.
+    #[test]
+    fn outside_a_snap_the_own_folder_is_not_in_documents() {
+        assert!(snap_own_folder().is_none());
+        assert!(!own_folder_outside_app_data());
+    }
 
     /// On Windows a shown path has backslashes only, however Qt and Rust
     /// put it together (B-405, D-873); elsewhere it stays as it is.

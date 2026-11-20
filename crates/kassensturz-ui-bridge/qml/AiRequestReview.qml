@@ -168,9 +168,9 @@ Item {
                 objectName: "reviewDetailsButton"
                 checkable: true
                 icon.name: checked ? "arrow-up" : "arrow-down"
-                text: checked
+                text: Plain.plain(checked
                     ? review.i18nContext.i18nc("@action:button hide the exact text of the request", "Hide details")
-                    : review.i18nContext.i18nc("@action:button show the exact text of the request", "Details…")
+                    : review.i18nContext.i18nc("@action:button show the exact text of the request", "Details…"))
                 onToggled: {
                     ActionLog.taken("AiRequestReview_details")
                 }

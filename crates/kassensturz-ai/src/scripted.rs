@@ -86,6 +86,7 @@ impl Provider for ScriptedProvider {
             SCRIPTED_MODEL.to_owned(),
             messages,
             functions,
+            None,
         )
     }
 

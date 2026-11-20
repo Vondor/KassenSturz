@@ -98,6 +98,7 @@ pub const ACTIONS: &[&str] = &[
     "AiSettingsPage_save",
     "AiSettingsPage_saveNotes",
     "AiSettingsPage_save_2",
+    "AiSettingsPage_serviceKind",
     "AiSettingsPage_showExampleRequest",
     "AiSettingsPage_showSample",
     "AiSettingsPage_takeAgreementBack",

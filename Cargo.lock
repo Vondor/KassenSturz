@@ -1574,6 +1574,7 @@ dependencies = [
 name = "kassensturz-plugin-formats"
 version = "0.261025.0"
 dependencies = [
+ "kassensturz-ai",
  "kassensturz-core",
  "kassensturz-export",
  "kassensturz-import",

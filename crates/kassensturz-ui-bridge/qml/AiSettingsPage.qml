@@ -308,6 +308,45 @@ Kirigami.ScrollablePage {
         Kirigami.FormLayout {
             Layout.fillWidth: true
 
+            // The kind of service (D-928): OpenAI-compatible, or an AI
+            // provider plugin that translates for another interface. Shown
+            // only once such a plugin was added, or one is chosen; kept as
+            // soon as it is chosen. A plugin's name is its own text.
+            Controls.ComboBox {
+                id: serviceKindBox
+
+                readonly property var kinds: page.settings.serviceKinds()
+
+                // Shows the saved choice. Set rather than bound: the box
+                // sets its index itself on phones, which would end a binding.
+                function showChoice() {
+                    currentIndex = Math.max(0, indexOfValue(page.settings.serviceKind()));
+                }
+
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Kind of service:")
+                visible: kinds.length > 0 || page.settings.serviceKind() !== ""
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                textRole: "text"
+                valueRole: "value"
+                model: [{ value: "", text: page.i18nContext.i18nc("@item:inlistbox a kind of AI service", "OpenAI-compatible (most services and local servers)") }]
+                    .concat(kinds.map(item => ({ value: item.id, text: Plain.plain(item.name) })))
+                Component.onCompleted: showChoice()
+                onActivated: {
+                    ActionLog.taken("AiSettingsPage_serviceKind")
+                    page.notWritten = !page.settings.setServiceKind(currentValue);
+                    showChoice();
+                }
+            }
+
+            Controls.Label {
+                visible: serviceKindBox.visible
+                Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+                wrapMode: Text.Wrap
+                textFormat: Text.PlainText
+                font: Kirigami.Theme.smallFont
+                text: page.i18nContext.i18nc("@info", "A plugin only translates for a service with another interface. KassenSturz still sends everything itself, only to the address below, shows you first what is sent, and keeps your key away from the plugin.")
+            }
+
             Controls.TextField {
                 id: addressField
                 objectName: "addressField"

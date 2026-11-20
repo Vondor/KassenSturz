@@ -5,7 +5,9 @@
 //!
 //! v1 speaks one API, the OpenAI-compatible one (D-035), which local
 //! servers (Ollama, LM Studio, llama.cpp, vLLM) and many cloud services
-//! offer. [`AiClient`] is the only way a request reaches a provider, and
+//! offer. A provider that speaks another one is reached through an
+//! AI provider plugin that only translates ([`Translator`], D-754, D-928):
+//! KassenSturz still builds, shows and sends every request itself. [`AiClient`] is the only way a request reaches a provider, and
 //! every call checks, in this order, against the settings file of this
 //! computer, never the book (D-168, threats T-24, T-28):
 //!
@@ -52,6 +54,7 @@ mod request;
 mod scripted;
 #[cfg(test)]
 mod tls_tests;
+mod translate;
 
 pub use address::{Network, Place, ProviderAddress};
 pub use capability::{
@@ -73,6 +76,7 @@ pub use keys::ProviderKeys;
 pub use openai::{MAX_ANSWER_TOKENS, MAX_CALLS, MAX_DEPTH};
 pub use request::{MAX_REQUEST_BYTES, PreparedRequest, REDACTED};
 pub use scripted::{Respond, SCRIPTED_ADDRESS, SCRIPTED_MODEL, ScriptedProvider};
+pub use translate::{MAX_ROUTE_HEADERS, MAX_ROUTE_TEXT, Route, Translator};
 
 use kassensturz_platform::Secret;
 
@@ -172,6 +176,7 @@ impl std::fmt::Debug for AiClient {
             .field("config", &self.config)
             .field("limits", &self.limits)
             .field("seal", &self.seal.is_some())
+            .field("translator", &self.translator)
             .finish_non_exhaustive()
     }
 }
@@ -186,6 +191,8 @@ pub struct AiClient {
     seal: Option<std::sync::Arc<ConsentSealFn>>,
     /// The last reply's bytes as text, shared by the clones (D-235).
     last_reply: std::sync::Arc<std::sync::Mutex<Option<String>>>,
+    /// The translator of a provider that isn't OpenAI-compatible (D-928).
+    translator: Option<std::sync::Arc<dyn Translator>>,
 }
 
 impl AiClient {
@@ -197,7 +204,32 @@ impl AiClient {
             limits: Limits::default(),
             seal: None,
             last_reply: Default::default(),
+            translator: None,
         }
+    }
+
+    /// The same client, speaking to a provider that isn't
+    /// OpenAI-compatible through `translator` (D-928): the requests go to
+    /// the same address with the same checks, along the translator's
+    /// route.
+    pub fn with_translator(mut self, translator: std::sync::Arc<dyn Translator>) -> Self {
+        self.translator = Some(translator);
+        self
+    }
+
+    /// Whether the translator, if there is one, can translate now.
+    fn translator_ready(&self) -> Result<(), AiError> {
+        self.translator
+            .as_ref()
+            .map_or(Ok(()), |translator| translator.ready())
+    }
+
+    /// The route requests take: the translator's, or the OpenAI-compatible
+    /// one.
+    fn route(&self) -> Route {
+        self.translator
+            .as_ref()
+            .map_or_else(Route::openai, |translator| translator.route().clone())
     }
 
     /// The same client, reading the seal of a consent with `seal` (B-252):
@@ -242,11 +274,13 @@ impl AiClient {
     ) -> Result<PreparedRequest, AiError> {
         let config = self.settings()?;
         let provider = config.provider()?;
+        self.translator_ready()?;
         PreparedRequest::new(
             provider.address.clone(),
             provider.model.clone(),
             messages,
             functions,
+            self.translator.clone(),
         )
     }
 
@@ -255,12 +289,16 @@ impl AiClient {
     pub fn send(&self, request: &PreparedRequest, key: Option<&Secret>) -> Result<Reply, AiError> {
         let config = self.settings()?;
         let provider = config.provider()?;
-        if provider.address != *request.address() || provider.model != request.model() {
+        if provider.address != *request.address()
+            || provider.model != request.model()
+            || request.translator_id() != self.translator.as_deref().map(Translator::id)
+        {
             return Err(AiError::SettingsChanged);
         }
         if self.lacks_consent(&provider.address, &config) {
             return Err(AiError::NoConsent);
         }
+        self.translator_ready()?;
         let key = key_to_send(provider, key)?;
         let limits = match config.slow_answer() {
             SlowAnswer::Timeout => self.limits,
@@ -271,9 +309,11 @@ impl AiClient {
             *last = None;
         }
         let mut error_body = Vec::new();
+        let route = self.route();
         let reply = http::post_json(
-            &provider.address.endpoint("chat/completions"),
+            &provider.address.endpoint(route.chat_path()),
             request.preview(),
+            &route,
             key,
             &limits,
             &mut error_body,
@@ -289,6 +329,10 @@ impl AiClient {
             if let Ok(mut last) = self.last_reply.lock() {
                 *last = Some(String::from_utf8_lossy(&reply).into_owned());
             }
+            let reply = match &self.translator {
+                None => reply,
+                Some(translator) => translator.reply(&reply)?,
+            };
             openai::parse_chat_reply(&reply, &request.function_names())
         });
         reply.map_err(|error| {
@@ -358,6 +402,7 @@ impl AiClient {
         if self.lacks_consent(&provider.address, &config) {
             return Err(AiError::NoConsent);
         }
+        self.translator_ready()?;
         let key = key_to_send(provider, key)?;
         self.models_at(&provider.address, key)
             .map_err(|error| self.missing_v1(&provider.address, key, error))
@@ -368,7 +413,17 @@ impl AiClient {
         address: &ProviderAddress,
         key: Option<&Secret>,
     ) -> Result<Vec<ModelInfo>, AiError> {
-        let reply = http::get(&address.endpoint("models"), key, &self.limits)?;
+        let route = self.route();
+        let reply = http::get(
+            &address.endpoint(route.models_path()),
+            &route,
+            key,
+            &self.limits,
+        )?;
+        let reply = match &self.translator {
+            None => reply,
+            Some(translator) => translator.models(&reply)?,
+        };
         openai::parse_model_infos(&reply)
     }
 
@@ -385,7 +440,8 @@ impl AiClient {
         key: Option<&Secret>,
         error: AiError,
     ) -> AiError {
-        if !matches!(error, AiError::BadReply | AiError::NotFound) {
+        // Only an OpenAI-compatible provider's interface is under `/v1`.
+        if self.translator.is_some() || !matches!(error, AiError::BadReply | AiError::NotFound) {
             return error;
         }
         match address.with_v1() {

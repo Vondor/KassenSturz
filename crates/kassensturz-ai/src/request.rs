@@ -10,11 +10,18 @@
 //! so the user sees what goes out after the redaction too. The provider's
 //! key is not part of the body; the adapter adds it as a header only when
 //! it sends, after the preview was built (D-169, threat T-25).
+//!
+//! For a provider that isn't OpenAI-compatible, a [`Translator`] turns the
+//! OpenAI-compatible body into the provider's (D-928); the preview is then
+//! the translated body, the one that is sent.
+
+use std::sync::Arc;
 
 use crate::address::{Place, ProviderAddress};
 use crate::chat::{FunctionSpec, Message};
 use crate::error::AiError;
 use crate::openai;
+use crate::translate::Translator;
 
 /// What a redacted phrase is replaced with.
 pub const REDACTED: &str = "[redacted]";
@@ -23,13 +30,25 @@ pub const REDACTED: &str = "[redacted]";
 pub const MAX_REQUEST_BYTES: usize = 2 * 1024 * 1024;
 
 /// A chat request for one provider and model, with its body built.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PreparedRequest {
     address: ProviderAddress,
     model: String,
     messages: Vec<Message>,
     functions: Vec<FunctionSpec>,
+    translator: Option<Arc<dyn Translator>>,
     body: String,
+}
+
+impl PartialEq for PreparedRequest {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address
+            && self.model == other.model
+            && self.messages == other.messages
+            && self.functions == other.functions
+            && self.translator_id() == other.translator_id()
+            && self.body == other.body
+    }
 }
 
 impl PreparedRequest {
@@ -38,12 +57,14 @@ impl PreparedRequest {
         model: String,
         messages: Vec<Message>,
         functions: Vec<FunctionSpec>,
+        translator: Option<Arc<dyn Translator>>,
     ) -> Result<Self, AiError> {
         let mut request = Self {
             address,
             model,
             messages,
             functions,
+            translator,
             body: String::new(),
         };
         request.build()?;
@@ -57,6 +78,24 @@ impl PreparedRequest {
             (self.address.place() == Place::ThisComputer).then_some(openai::MAX_ANSWER_TOKENS);
         let body =
             openai::chat_body_limited(&self.model, &self.messages, &self.functions, max_tokens);
+        let body = match &self.translator {
+            None => body,
+            Some(translator) => {
+                // Read back, so what the translator built is JSON and the
+                // preview shows it indented like any request.
+                if body.to_string().len() > MAX_REQUEST_BYTES {
+                    return Err(AiError::RequestTooLarge);
+                }
+                let translated = translator.request(&body.to_string())?;
+                if translated.len() > MAX_REQUEST_BYTES {
+                    return Err(AiError::RequestTooLarge);
+                }
+                match serde_json::from_str::<serde_json::Value>(&translated) {
+                    Ok(value @ serde_json::Value::Object(_)) => value,
+                    _ => return Err(AiError::PluginFailed),
+                }
+            }
+        };
         // Indented, so the preview is readable; it is still the body sent.
         self.body = serde_json::to_string_pretty(&body).map_err(|_| AiError::BadReply)?;
         if self.body.len() > MAX_REQUEST_BYTES {
@@ -78,6 +117,12 @@ impl PreparedRequest {
     /// The messages, as they will be sent.
     pub fn messages(&self) -> &[Message] {
         &self.messages
+    }
+
+    /// The ID of the translator it was built with, `None` for an
+    /// OpenAI-compatible provider.
+    pub fn translator_id(&self) -> Option<&str> {
+        self.translator.as_deref().map(Translator::id)
     }
 
     /// The names of the functions offered to the model.
@@ -122,6 +167,7 @@ mod tests {
             "m".into(),
             messages,
             Vec::new(),
+            None,
         )
         .unwrap()
     }
@@ -151,6 +197,7 @@ mod tests {
             "m".into(),
             vec![Message::user("Hi")],
             Vec::new(),
+            None,
         )
         .unwrap();
         let parsed: serde_json::Value = serde_json::from_str(request.preview()).unwrap();
@@ -179,6 +226,7 @@ mod tests {
             "m".into(),
             vec![Message::user("x".repeat(MAX_REQUEST_BYTES))],
             Vec::new(),
+            None,
         );
         assert_eq!(result, Err(AiError::RequestTooLarge));
     }

@@ -72,7 +72,7 @@ FormCard.FormCardPage {
         case "propose_changes":
             return i18nContext.i18nc("@item what a plugin may do", "Suggest changes to your book, which you check and confirm first");
         case "network":
-            return i18nContext.i18nc("@item what a plugin may do", "Connect to other computers over the internet");
+            return i18nContext.i18nc("@item what a plugin may do", "Have KassenSturz send what it prepared to the address you enter");
         }
         return permission;
     }
@@ -145,7 +145,7 @@ FormCard.FormCardPage {
 
         FormCard.FormTextDelegate {
             visible: (plugins.pending?.permissions ?? []).indexOf("network") >= 0
-            text: page.i18nContext.i18nc("@info", "This plugin may send data over the internet. KassenSturz still asks you before anything about your money leaves your computer.")
+            text: page.i18nContext.i18nc("@info", "This plugin translates for another service. KassenSturz sends what it prepared only to the address you enter in the settings, shows you first what is sent, and keeps your key away from the plugin.")
             textItem.wrapMode: Text.Wrap
         }
 

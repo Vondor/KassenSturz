@@ -729,3 +729,237 @@ fn oversize_and_broken_replies_to_the_function_test_are_errors_not_answers() {
         );
     }
 }
+
+// A provider that isn't OpenAI-compatible, through a translator (D-928).
+
+/// A made-up interface: `{"model", "input": [{"from", "text"}]}` to
+/// `messages`, answered with `{"output": "<text>"}`, its models as
+/// `{"models": [{"name"}]}`.
+#[derive(Debug)]
+struct ExampleTranslator {
+    route: kassensturz_ai::Route,
+    /// Fails every translation, as a broken plugin would.
+    broken: bool,
+    /// Says its plugin is gone.
+    missing: bool,
+}
+
+impl ExampleTranslator {
+    fn new() -> Arc<Self> {
+        Arc::new(Self {
+            route: kassensturz_ai::Route::new(
+                "messages",
+                "models",
+                "x-api-key",
+                "",
+                vec![("example-version".into(), "2026-01-01".into())],
+            )
+            .unwrap(),
+            broken: false,
+            missing: false,
+        })
+    }
+
+    fn broken() -> Arc<Self> {
+        Arc::new(Self {
+            route: kassensturz_ai::Route::new("messages", "models", "x-api-key", "", Vec::new())
+                .unwrap(),
+            broken: true,
+            missing: false,
+        })
+    }
+
+    fn missing() -> Arc<Self> {
+        Arc::new(Self {
+            route: kassensturz_ai::Route::openai(),
+            broken: false,
+            missing: true,
+        })
+    }
+}
+
+impl kassensturz_ai::Translator for ExampleTranslator {
+    fn id(&self) -> &str {
+        "org.example.messages"
+    }
+
+    fn route(&self) -> &kassensturz_ai::Route {
+        &self.route
+    }
+
+    fn ready(&self) -> Result<(), AiError> {
+        if self.missing {
+            Err(AiError::PluginMissing)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn request(&self, openai_body: &str) -> Result<String, AiError> {
+        if self.broken {
+            return Err(AiError::PluginFailed);
+        }
+        let body: serde_json::Value = serde_json::from_str(openai_body).unwrap();
+        let input: Vec<serde_json::Value> = body["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|message| json!({"from": message["role"], "text": message["content"]}))
+            .collect();
+        Ok(json!({"model": body["model"], "input": input}).to_string())
+    }
+
+    fn reply(&self, provider_answer: &[u8]) -> Result<Vec<u8>, AiError> {
+        let answer: serde_json::Value =
+            serde_json::from_slice(provider_answer).map_err(|_| AiError::PluginFailed)?;
+        Ok(json!({"choices": [{"index": 0, "finish_reason": "stop",
+            "message": {"role": "assistant", "content": answer["output"]}}]})
+        .to_string()
+        .into_bytes())
+    }
+
+    fn models(&self, provider_answer: &[u8]) -> Result<Vec<u8>, AiError> {
+        let answer: serde_json::Value =
+            serde_json::from_slice(provider_answer).map_err(|_| AiError::PluginFailed)?;
+        let data: Vec<serde_json::Value> = answer["models"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|model| json!({"id": model["name"]}))
+            .collect();
+        Ok(json!({"data": data}).to_string().into_bytes())
+    }
+}
+
+#[test]
+fn a_translated_request_goes_to_the_users_address_as_its_preview_with_the_key_in_its_header() {
+    let fake = FakeProvider::start(vec![Answer::Json(
+        200,
+        json!({"output": "You spent 12.50."}).to_string(),
+    )]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::AskEachTime);
+    let client = settings.client().with_translator(ExampleTranslator::new());
+
+    let request = client.prepare(question(), Vec::new()).unwrap();
+    assert_eq!(request.translator_id(), Some("org.example.messages"));
+    let preview: serde_json::Value = serde_json::from_str(request.preview()).unwrap();
+    assert_eq!(preview["input"][1]["from"], "user", "{preview}");
+    assert!(!request.preview().contains(TEST_KEY));
+
+    let reply = client.send(&request, Some(&key())).unwrap();
+    assert_eq!(reply.text, "You spent 12.50.");
+    let sent = &fake.received()[0];
+    assert_eq!(sent.line, "POST /v1/messages HTTP/1.1");
+    assert_eq!(sent.body, request.preview().as_bytes());
+    assert_eq!(sent.header("x-api-key"), Some(TEST_KEY));
+    assert_eq!(sent.header("authorization"), None);
+    assert_eq!(sent.header("example-version"), Some("2026-01-01"));
+    assert_eq!(sent.header("content-type"), Some("application/json"));
+    assert!(!String::from_utf8_lossy(&sent.body).contains(TEST_KEY));
+}
+
+#[test]
+fn a_redaction_reaches_the_translated_body() {
+    let fake = FakeProvider::start(vec![Answer::Json(200, json!({"output": "ok"}).to_string())]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::None);
+    let client = settings.client().with_translator(ExampleTranslator::new());
+    let mut request = client.prepare(question(), Vec::new()).unwrap();
+    assert_eq!(request.redact("Space Colony Groceries").unwrap(), 1);
+    assert!(!request.preview().contains("Space Colony Groceries"));
+    client.send(&request, None).unwrap();
+    assert_eq!(fake.received()[0].body, request.preview().as_bytes());
+}
+
+#[test]
+fn a_broken_translator_sends_nothing() {
+    let fake = FakeProvider::start(vec![Answer::Json(200, "not the example's JSON".into())]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::None);
+    let client = settings
+        .client()
+        .with_translator(ExampleTranslator::broken());
+    assert_eq!(
+        client.prepare(question(), Vec::new()),
+        Err(AiError::PluginFailed)
+    );
+    // An answer the translator can't read is its failure, not the
+    // provider's.
+    let translating = settings.client().with_translator(ExampleTranslator::new());
+    let request = translating.prepare(question(), Vec::new()).unwrap();
+    assert_eq!(translating.send(&request, None), Err(AiError::PluginFailed));
+    assert_eq!(fake.received().len(), 1);
+}
+
+#[test]
+fn a_request_goes_only_with_the_translator_it_was_prepared_with() {
+    let fake = FakeProvider::start(vec![Answer::text("ok")]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::None);
+    let translated = settings
+        .client()
+        .with_translator(ExampleTranslator::new())
+        .prepare(question(), Vec::new())
+        .unwrap();
+    assert_eq!(
+        settings.client().send(&translated, None),
+        Err(AiError::SettingsChanged)
+    );
+    let plain = settings.client().prepare(question(), Vec::new()).unwrap();
+    assert_eq!(
+        settings
+            .client()
+            .with_translator(ExampleTranslator::new())
+            .send(&plain, None),
+        Err(AiError::SettingsChanged)
+    );
+    assert!(fake.received().is_empty());
+}
+
+#[test]
+fn the_models_are_listed_through_the_translator() {
+    let fake = FakeProvider::start(vec![Answer::Json(
+        200,
+        json!({"models": [{"name": "example-small"}, {"name": "example-large"}]}).to_string(),
+    )]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::AskEachTime);
+    let client = settings.client().with_translator(ExampleTranslator::new());
+    assert_eq!(
+        client.list_models(Some(&key())).unwrap(),
+        ["example-small", "example-large"]
+    );
+    let sent = &fake.received()[0];
+    assert_eq!(sent.line, "GET /v1/models HTTP/1.1");
+    assert_eq!(sent.header("x-api-key"), Some(TEST_KEY));
+    assert_eq!(sent.header("authorization"), None);
+}
+
+#[test]
+fn nothing_goes_out_when_the_translators_plugin_is_gone() {
+    let fake = FakeProvider::start(vec![Answer::text("ok")]);
+    let settings = Settings::new();
+    settings.write(true, &fake.address(), KeyUse::AskEachTime);
+    let request = settings
+        .client()
+        .with_translator(ExampleTranslator::new())
+        .prepare(question(), Vec::new())
+        .unwrap();
+    let client = settings
+        .client()
+        .with_translator(ExampleTranslator::missing());
+    assert_eq!(
+        client.prepare(question(), Vec::new()),
+        Err(AiError::PluginMissing)
+    );
+    assert_eq!(
+        client.list_models(Some(&key())),
+        Err(AiError::PluginMissing)
+    );
+    assert_eq!(
+        client.send(&request, Some(&key())),
+        Err(AiError::PluginMissing)
+    );
+    assert!(fake.received().is_empty(), "not even the key went out");
+}

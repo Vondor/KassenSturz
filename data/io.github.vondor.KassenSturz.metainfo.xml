@@ -12,6 +12,20 @@ SPDX-License-Identifier: CC0-1.0
   <summary xml:lang="de">Das Geld des Haushalts im Blick behalten</summary>
   <description>
     <p>
+      KassenSturz is built by AI agents (automated agentic coding: mainly
+      Claude from Anthropic writes the code, tests and documentation) under
+      human oversight. A human maintainer sets the rules, decides what is
+      merged and released, and tests the app. The code is open and every
+      change is public.
+    </p>
+    <p xml:lang="de">
+      KassenSturz wird von KI-Agenten gebaut (automatisiertes agentisches
+      Programmieren: vor allem Claude von Anthropic schreibt Code, Tests und
+      Dokumentation) unter menschlicher Aufsicht. Ein Maintainer legt die
+      Regeln fest, entscheidet, was übernommen und veröffentlicht wird, und
+      testet die App. Der Code ist offen und jede Änderung ist öffentlich.
+    </p>
+    <p>
       KassenSturz is a simple household book for the desktop: record your
       accounts, see where your money goes and trust the numbers, without
       having to know anything about accounting. Your data stays on your

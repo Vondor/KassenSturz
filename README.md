@@ -2,6 +2,8 @@
 
 A free, open-source personal finance app for the desktop, **simpler than KMyMoney and GnuCash**, made for everyday people who have never taken an economics class.
 
+> **Made by AI, openly.** KassenSturz is built by AI agents (automated agentic coding: mainly Claude from Anthropic writes the code, tests and documentation) under human oversight. A human maintainer sets the rules, decides what is merged and released, and tests the app. The code is open and every change is public. German: KassenSturz wird von KI-Agenten gebaut (automatisiertes agentisches Programmieren: vor allem Claude von Anthropic schreibt Code, Tests und Dokumentation) unter menschlicher Aufsicht. Ein Maintainer legt die Regeln fest, entscheidet, was übernommen und veröffentlicht wird, und testet die App. Der Code ist offen und jede Änderung ist öffentlich.
+
 ## Try it
 
 KassenSturz is in testing. If you would like to try it, you need no GitHub account and no programming knowledge:

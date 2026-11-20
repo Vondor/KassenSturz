@@ -9,6 +9,8 @@ use core::pin::Pin;
 
 use cxx_qt_lib::{QList, QMap, QMapPair_QString_QVariant, QString, QUrl, QVariant};
 
+use kassensturz_export::Exporter;
+
 use crate::book_session::{app_version, local_path};
 use crate::errors::ErrorText;
 use crate::export::{self, CsvForm, Saved};
@@ -17,6 +19,7 @@ use crate::number_format::app_locale;
 use crate::register_model::{field, flag};
 use crate::session;
 use crate::variant::{error_object, list, map, text};
+use crate::{ai_switch_model, plugin_formats};
 
 #[cxx_qt::bridge]
 pub mod qobject {
@@ -64,6 +67,26 @@ pub mod qobject {
         #[cxx_name = "saveCsv"]
         fn save_csv(self: &DataExport, file: &QUrl, ids: &QVariant, choices: &QVariant)
         -> QVariant;
+
+        /// The plugin exporters the user added (#791, D-852): a list of
+        /// objects with `file` (which names the plugin), `name` (plain text)
+        /// and `extension`.
+        #[qinvokable]
+        #[cxx_name = "pluginExporters"]
+        fn plugin_exporters(self: &DataExport) -> QVariant;
+
+        /// Writes the transactions of the accounts `ids` names to `file`
+        /// with the plugin exporter `plugin` names (its `file`), for the
+        /// days of the `choices`. Answers as `saveCsv` does.
+        #[qinvokable]
+        #[cxx_name = "saveWithPlugin"]
+        fn save_with_plugin(
+            self: &DataExport,
+            file: &QUrl,
+            plugin: &QString,
+            ids: &QVariant,
+            choices: &QVariant,
+        ) -> QVariant;
 
         /// Writes the whole book to `file`. An error object, or an object
         /// with `fileName`, `transactions` and `accounts`.
@@ -135,6 +158,38 @@ impl qobject::DataExport {
         let Some(path) = local_path(file) else {
             return error_object(&ErrorText::plain("input.not-a-local-file"));
         };
+        let (ids, form) = ids_and_form(ids, choices);
+        self.saved(|book| export::save_csv(book, &ids, &form, &app_locale(), &path))
+    }
+
+    fn plugin_exporters(&self) -> QVariant {
+        plugin_exporters_object(&plugin_formats::exporters(ai_switch_model::ai_on()))
+    }
+
+    fn save_with_plugin(
+        &self,
+        file: &QUrl,
+        plugin: &QString,
+        ids: &QVariant,
+        choices: &QVariant,
+    ) -> QVariant {
+        let Some(path) = local_path(file) else {
+            return error_object(&ErrorText::plain("input.not-a-local-file"));
+        };
+        let Some(choice) = plugin_formats::exporter(&plugin.to_string(), ai_switch_model::ai_on())
+        else {
+            return error_object(&ErrorText::plain("input.plugin-gone"));
+        };
+        let (ids, form) = ids_and_form(ids, choices);
+        self.saved(|book| {
+            export::save_with_plugin(book, &ids, &form, &app_locale(), &path, &choice.exporter)
+        })
+    }
+}
+
+/// The accounts' IDs and the form of what QML hands over.
+fn ids_and_form(ids: &QVariant, choices: &QVariant) -> (Vec<String>, CsvForm) {
+    {
         let ids: Vec<String> = ids
             .value::<QList<QVariant>>()
             .map(|ids| {
@@ -155,9 +210,22 @@ impl qobject::DataExport {
             from: field(&choices, "from"),
             until: field(&choices, "until"),
         };
-        self.saved(|book| export::save_csv(book, &ids, &form, &app_locale(), &path))
+        (ids, form)
     }
+}
 
+/// `pluginExporters()` as QML reads it.
+fn plugin_exporters_object(choices: &[plugin_formats::ExporterChoice]) -> QVariant {
+    list(choices.iter().map(|choice| {
+        map([
+            ("file", text(&choice.file)),
+            ("name", text(&choice.name)),
+            ("extension", text(choice.exporter.info().extension)),
+        ])
+    }))
+}
+
+impl qobject::DataExport {
     fn save_book(&self, file: &QUrl) -> QVariant {
         let Some(path) = local_path(file) else {
             return error_object(&ErrorText::plain("input.not-a-local-file"));
@@ -282,5 +350,23 @@ mod tests {
         assert_eq!(text_of(&object, "fileName"), "Overview.dashboard.json");
         assert_eq!(number_of(&object, "references"), 3);
         assert_eq!(number_of(&object, "leftOut"), 1);
+    }
+
+    /// #791: the plugin exporters read back as QML reads them.
+    #[test]
+    fn the_plugin_exporters_read_back_as_qml_reads_them() {
+        let folder = crate::test_folder::TestFolder::new();
+        std::fs::write(
+            folder.join("echo.wasm"),
+            crate::test_plugins::echo_exporter(),
+        )
+        .expect("plugin written");
+        let object = plugin_exporters_object(&plugin_formats::exporters_in(folder.path(), false));
+        let items = crate::variant::read_back::elements(&object).expect("a list");
+        assert_eq!(items.len(), 1);
+        assert_eq!(keys(&items[0]), ["extension", "file", "name"]);
+        assert_eq!(text_of(&items[0], "file"), "echo.wasm");
+        assert_eq!(text_of(&items[0], "name"), "Example echo export");
+        assert_eq!(text_of(&items[0], "extension"), "json");
     }
 }

@@ -105,6 +105,7 @@ mod plain_text_audit;
 mod planned_payments;
 mod planned_payments_model;
 mod platform;
+mod plugin_formats;
 mod plugins;
 mod plugins_model;
 mod properties;
@@ -129,6 +130,8 @@ mod tags;
 mod tags_model;
 #[cfg(test)]
 mod test_folder;
+#[cfg(test)]
+mod test_plugins;
 mod test_profile;
 mod test_profile_model;
 mod transaction_entry;

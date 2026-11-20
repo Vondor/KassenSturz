@@ -77,6 +77,12 @@ impl qobject::AiSwitch {
     }
 }
 
+/// Whether AI is on now, as `AiSwitch.enabled` says, for code that has no
+/// switch object at hand (#791: which plugins may be loaded).
+pub(crate) fn ai_on() -> bool {
+    cfg!(feature = "ai") && !crate::test_profile::on() && is_on(&Settings::user())
+}
+
 /// Whether `settings` switch AI on; always false in a build without AI.
 #[cfg(feature = "ai")]
 fn is_on(settings: &Settings) -> bool {

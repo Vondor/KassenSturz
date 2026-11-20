@@ -15,8 +15,8 @@ use std::path::Path;
 
 use kassensturz_core::{AccountId, Report, ViewKind};
 use kassensturz_export::{
-    BookExport, CsvExport, CsvExportSettings, DecimalMark, ExportData, ExportError, Separator,
-    export_file, replace_file,
+    BookExport, CsvExport, CsvExportSettings, DecimalMark, ExportData, ExportError, Exporter,
+    Separator, export_file, replace_file,
 };
 use kassensturz_pipeline::{DateRange, export_book, export_transactions_in};
 use kassensturz_report::{Document, ReportError, dashboard_file_name, write_dashboard_file};
@@ -218,6 +218,35 @@ pub fn save_csv(
         return Err(SaveError::NoAccounts);
     }
     let exporter = CsvExport::new(form.settings()?)?;
+    save_transactions(book, ids, form, locale, path, &exporter)
+}
+
+/// Writes the transactions of the accounts `ids` name into a new file at
+/// `path` with a plugin exporter the user added (#791, D-852), only the
+/// days of the form's range. KassenSturz writes the bytes the plugin
+/// returns; the plugin never sees the path (D-848).
+pub fn save_with_plugin(
+    book: &Book,
+    ids: &[String],
+    form: &CsvForm,
+    locale: &impl Locale,
+    path: &Path,
+    exporter: &dyn Exporter,
+) -> Result<Saved, SaveError> {
+    if ids.is_empty() {
+        return Err(SaveError::NoAccounts);
+    }
+    save_transactions(book, ids, form, locale, path, exporter)
+}
+
+fn save_transactions(
+    book: &Book,
+    ids: &[String],
+    form: &CsvForm,
+    locale: &impl Locale,
+    path: &Path,
+    exporter: &dyn Exporter,
+) -> Result<Saved, SaveError> {
     let range = form.range(locale)?;
     let known = book.accounts(true)?;
     let accounts: Vec<AccountId> = ids
@@ -236,7 +265,7 @@ pub fn save_csv(
     };
     let transactions = exported.iter().map(|account| account.rows.len()).sum();
     let accounts = exported.len();
-    export_file(&exporter, &data, path)?;
+    export_file(exporter, &data, path)?;
     Ok(Saved {
         file_name: file_name(path),
         transactions,
@@ -516,6 +545,73 @@ mod tests {
 
     fn point_form() -> CsvForm {
         CsvForm::usual(&Point)
+    }
+
+    /// #791: a plugin exporter gets the transactions the book really has,
+    /// imported through the real pipeline, with amounts as text, and
+    /// KassenSturz writes its bytes to the new file.
+    #[test]
+    fn a_plugin_exporter_writes_the_chosen_accounts_transactions() {
+        let (book, checking, card, _) = book_with_imported_statement();
+        let folder = TestFolder::new();
+        std::fs::write(
+            folder.join("echo.wasm"),
+            crate::test_plugins::echo_exporter(),
+        )
+        .expect("plugin written");
+        let choices = crate::plugin_formats::exporters_in(folder.path(), false);
+        let [choice] = choices.as_slice() else {
+            panic!("one plugin exporter");
+        };
+        assert_eq!(choice.name, "Example echo export");
+        let ids = vec![checking.to_string(), card.to_string()];
+        let path = folder.join("export.json");
+        let saved = save_with_plugin(
+            &book,
+            &ids,
+            &point_form(),
+            &TestLocale,
+            &path,
+            &choice.exporter,
+        )
+        .expect("saved");
+        let got: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).expect("file written")).expect("json");
+        let accounts = got["accounts"].as_array().expect("accounts");
+        assert_eq!(accounts.len(), 2);
+        assert_eq!(saved.accounts, 2);
+        let rows: usize = accounts
+            .iter()
+            .map(|account| account["rows"].as_array().expect("rows").len())
+            .sum();
+        assert_eq!(rows, saved.transactions);
+        assert_eq!(accounts[0]["name"], "Checking account");
+        let typed = accounts[0]["rows"]
+            .as_array()
+            .expect("rows")
+            .iter()
+            .find(|row| row["payee"] == "Corner Shop")
+            .expect("the typed transaction");
+        assert_eq!(typed["amount"], "-1250");
+        // An existing file is never overwritten.
+        let again = save_with_plugin(
+            &book,
+            &ids,
+            &point_form(),
+            &TestLocale,
+            &path,
+            &choice.exporter,
+        );
+        assert!(again.is_err());
+        let none = save_with_plugin(
+            &book,
+            &[],
+            &point_form(),
+            &TestLocale,
+            &path,
+            &choice.exporter,
+        );
+        assert!(matches!(none, Err(SaveError::NoAccounts)));
     }
 
     #[test]

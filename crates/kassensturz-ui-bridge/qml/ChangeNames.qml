@@ -202,6 +202,15 @@ QtObject {
         }
     }
 
+    // The screen a change belongs to (`change` is an object of
+    // history_model.rs): `place` of its action, except that a change of a
+    // dashboard belongs to the Overview, though it shares its action with the
+    // Statistic Builder's saved views (B-419).
+    function placeOf(change: var): string {
+        const screen = place(change?.action ?? "");
+        return screen === "statistics" && change?.dashboard === true ? "overview" : screen;
+    }
+
     // A change as one line: what was done, for an import the file it read,
     // and for a change of one transaction which one it was. `change` is an
     // object of history_model.rs.
@@ -214,6 +223,19 @@ QtObject {
         }
         if (change.fileName) {
             return i18nContext.i18nc("@info %1 is what was done, %2 the name of a file", "%1 (%2)", what, change.fileName);
+        }
+        // A change of several transactions at once, such as sorting a group
+        // of the guided setup, says how many, not "a transaction" (B-425).
+        const touched = change.summary?.transactions?.length ?? 0;
+        if (touched > 1) {
+            switch (change.action) {
+            case "add-transaction":
+                return i18nContext.i18ncp("@info a change you made; %1 is a number of transactions, at least 2", "Added %1 transaction", "Added %1 transactions", touched);
+            case "edit-transaction":
+                return i18nContext.i18ncp("@info a change you made; %1 is a number of transactions, at least 2", "Changed %1 transaction", "Changed %1 transactions", touched);
+            case "remove-transaction":
+                return i18nContext.i18ncp("@info a change you made; %1 is a number of transactions, at least 2", "Removed %1 transaction", "Removed %1 transactions", touched);
+            }
         }
         // The one transaction it touched, so "Undone: …" says which
         // (B-384, D-857). The amount is written by Rust (D-065).

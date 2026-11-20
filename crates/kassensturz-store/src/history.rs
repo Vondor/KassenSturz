@@ -1246,6 +1246,22 @@ impl Book {
         Ok(summary)
     }
 
+    /// Whether `change` touched a saved dashboard, the Overview or another
+    /// one, as opposed to a saved view of the Statistic Builder. Both are
+    /// kept in the same table and changed by the same actions, so only the
+    /// rows the change recorded tell them apart (B-419).
+    pub fn change_touched_dashboard(&self, change: ChangeId) -> Result<bool, StoreError> {
+        let schema = self.history_schema()?;
+        Ok(self.conn.query_row_cached(
+            &format!(
+                "SELECT EXISTS (SELECT 1 FROM {schema}.changed_views
+                                WHERE change_id = ?1 AND kind = 'dashboard')"
+            ),
+            [change.to_bytes()],
+            |row| row.get(0),
+        )?)
+    }
+
     /// The transaction `transaction` as `change` found it, from the history
     /// kept for undo: the only copy once the change removed it. `None` if
     /// the change didn't touch it or kept no earlier state of it (B-399).

@@ -66,6 +66,11 @@ pub struct ChangeText {
     /// Which transactions it touched. Only the changes undo and redo are
     /// about have one, since the store can tell that only for them (#51).
     pub summary: Option<SummaryText>,
+    /// Whether it touched a saved dashboard, so Undo attributes it to the
+    /// Overview and not to the Statistic Builder, whose saved views share
+    /// its action (B-419). Read only for the changes undo and redo are
+    /// about, like `summary`.
+    pub dashboard: bool,
 }
 
 /// Which transactions a change touched, so the user can tell two imports or
@@ -318,6 +323,7 @@ fn change_text(
     } else {
         None
     };
+    let dashboard = with_summary && book.change_touched_dashboard(change.id)?;
     Ok(ChangeText {
         id: change.id.to_string(),
         action: action_key(change.action),
@@ -326,6 +332,7 @@ fn change_text(
         undone: change.undone,
         file_name: change.file_name.clone().unwrap_or_default(),
         summary,
+        dashboard,
     })
 }
 
@@ -615,6 +622,36 @@ mod tests {
             view_of(&book).undo.expect("undo again").action,
             "add-transaction"
         );
+    }
+
+    /// A change of a dashboard and a change of a saved view share their
+    /// actions; only the recorded rows tell them apart (B-419). Made with
+    /// the real saves, read back through the history that Undo uses.
+    #[test]
+    fn a_change_says_whether_it_touched_a_dashboard() {
+        let (mut book, _) = book_with_account("Checking account");
+        let view =
+            r#"{"format":"kassensturz-dashboard","version":1,"kind":"view","name":"Saved view"}"#;
+        book.add_view(view).expect("view saved");
+        let seen = view_of(&book).undo.expect("undo");
+        assert_eq!(seen.action, "add-view");
+        assert!(!seen.dashboard, "a saved view is not a dashboard");
+
+        crate::dashboards::add(&mut book, "empty", "Holidays", "", "Overview")
+            .expect("dashboard added");
+        let seen = view_of(&book).undo.expect("undo");
+        assert_eq!(seen.action, "add-view");
+        assert!(seen.dashboard, "a dashboard is one");
+
+        // Undone, it is described first and says the same.
+        let taken_back = undo(&mut book, &when, &TestLocale)
+            .expect("undo")
+            .expect("a change");
+        assert!(taken_back.dashboard);
+        // A change of a transaction is neither.
+        let (mut book, account) = book_with_account("Checking account");
+        add_entry(&mut book, &account, false, "5", "2026-10-02");
+        assert!(!view_of(&book).undo.expect("undo").dashboard);
     }
 
     #[test]

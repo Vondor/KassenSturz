@@ -77,14 +77,14 @@ The channel is chosen in the release run (D-940, replaces D-939 and the variable
 
 ## 7. Canonical's terms
 
-The Snap Store terms (canonical.com) could not be read from this build environment (the host is outside its network allow-list, checked again on 18 Nov 2026), so **the legal check of #892 is still open**: the maintainer reads the Snap Store Terms of Service and the publisher rules and tells us if anything conflicts with GPL-3.0-or-later, AI-made packaging or this project's rules. The packaging itself contains nothing beyond a free-software snap.
+Done: the maintainer accepted the Snap Store terms and publisher rules on snapcraft.io (confirmed on 20 Nov 2026; `kassensturz` is public and published by him). They could not be read from the build environment (canonical.com is outside its network allow-list), so the check was his. The packaging itself contains nothing beyond a free-software snap.
 
 ## 8. What needs the maintainer
 
 1. Done: the Snapcraft account and the name `kassensturz` are registered.
-2. **The logins (D-940):** each of the environments `snap-beta` and `snap-stable` holds its own secret `SNAPCRAFT_STORE_CREDENTIALS`: a login limited to `beta` for `snap-beta`, one for `stable` and `beta` for `snap-stable`. The click steps and commands are in `docs/RELEASING.md`, "Once: the snap environments". Until an environment has its secret, its job only warns. The first login (environment `release`, used up to D-939) is no longer read.
+2. **Done: the logins (D-940).** each of the environments `snap-beta` and `snap-stable` holds its own secret `SNAPCRAFT_STORE_CREDENTIALS`: a login limited to `beta` for `snap-beta`, one for `stable` and `beta` for `snap-stable`. The click steps and commands are in `docs/RELEASING.md`, "Once: the snap environments". Until an environment has its secret, its job only warns. The first login (environment `release`, used up to D-939) is no longer read.
 3. Optionally a request to the store for auto-connection of `password-manager-service` and `pcscd` (section 4), or leave it manual.
-4. **For the stable release (#1247, human gate):** (a) read and accept the Snap Store terms and publisher rules on snapcraft.io (section 7), and tell the thread if anything conflicts with GPL-3.0-or-later or this project's rules; (b) store the `stable,beta` login in the environment `snap-stable` (step 2); (c) push the tag as usual and approve **snap-stable** in the run, rejecting **snap-beta** (D-940). #892 closes with this.
+4. **For the stable release (#1247, human gate):** (a) done: the Snap Store terms are accepted (section 7); (b) done: both environments and their logins are set up (step 2, 20 Nov 2026); (c) push the tag as usual and approve **snap-stable** in the run, rejecting **snap-beta** (D-940). #892 closes with the first stable upload.
 5. Done for the Beta: the listing was filled in on snapcraft.io. `snapcraft.yaml` carries every store key the reference offers (title, summary, description, license, website, source-code, issues, contact, donation, icon). The category and the screenshots exist only on snapcraft.io. The store copies the file's metadata into the listing only for a stable release, and only while the listing has not been edited on the web; once someone saves the listing on the web, the web page owns it and the file's texts no longer reach it. Keep the two the same. The "Made by AI" paragraph at the top of the description (D-933) must be on the web page too.
 
 ## Folder checks for the VM rounds

@@ -52,9 +52,11 @@ The two snap jobs need two environments, which only the maintainer sets up, once
 3. Under *Deployment branches and tags*: choose **Selected branches and tags** → **Add deployment branch or tag rule** → Ref type **Tag**, name pattern `v*` → **Add rule**.
 4. Under *Environment secrets*: **Add environment secret**, name `SNAPCRAFT_STORE_CREDENTIALS`, value the output of the login command for that environment, made on your own computer and pasted there and nowhere else:
    - `snap-beta`: `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -`
-   - `snap-stable`: `snapcraft export-login --snaps kassensturz --channels stable,beta --acls package_access,package_push,package_release -` (only after you have accepted the Snap Store terms, `docs/SNAP.md` section 7). Until it has its secret, an approved `snap-stable` job uploads nothing and only warns.
+   - `snap-stable`: `snapcraft export-login --snaps kassensturz --channels stable,beta --acls package_access,package_push,package_release -` (the Snap Store terms are accepted, `docs/SNAP.md` section 7). An environment without its secret makes the job upload nothing and only warn.
 
-Afterwards the old snap login in the environment `release` (secret `SNAPCRAFT_STORE_CREDENTIALS`) and the repository variable `SNAP_CHANNELS` (Settings → Secrets and variables → Actions → Variables), if it exists, are no longer used and can be deleted.
+Both environments were set up on 20 Nov 2026.
+
+The old snap login in the environment `release` has been deleted (20 Nov 2026); if the repository variable `SNAP_CHANNELS` (Settings → Secrets and variables → Actions → Variables) still exists, it is no longer read and can go too.
 
 A tag's build also switches on the setup wizard's *Connect to my bank* choice (Q-562, D-546): the workflow writes the file `wizard-bank` before the build, and `CMakeLists.txt` turns it into the Cargo feature `wizard-bank`. A pull request's run of the workflow and CI's own builds don't write it, so they don't offer it. The file holds nothing secret and is not the registration number.
 

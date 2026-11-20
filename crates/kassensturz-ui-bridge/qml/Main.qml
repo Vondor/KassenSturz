@@ -2235,6 +2235,7 @@ Kirigami.ApplicationWindow {
             plans: plannedPayments
             onAddAccountClicked: root.addAccount()
             onAccountClicked: accountId => root.showRegister(accountId)
+            onCheckClicked: (accountId, bank, date) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
             onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })
             Component.onCompleted: bankReady = root.bankUsable()
         }

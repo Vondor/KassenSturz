@@ -79,6 +79,8 @@ mod formulas_model;
 mod granted_folders;
 mod grid_editor;
 mod grid_editor_model;
+mod guided_sort;
+mod guided_sort_model;
 mod history;
 mod history_model;
 mod install_kind_model;

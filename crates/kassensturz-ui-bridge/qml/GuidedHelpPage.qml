@@ -49,5 +49,49 @@ FormCard.FormCardPage {
                 page.stepClicked("balance")
             }
         }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            text: page.i18nContext.i18nc("@action:button a step of the guided setup", "Sort your transactions")
+            description: page.i18nContext.i18nc("@info", "Give every transaction of a name its category at once, and let a Rule do it in future")
+            onClicked: {
+                ActionLog.taken("GuidedHelpPage_sort")
+                page.stepClicked("sort")
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            text: page.i18nContext.i18nc("@action:button a step of the guided setup", "Your first chart")
+            description: page.i18nContext.i18nc("@info", "Build a chart from your own transactions with the Statistic Builder")
+            onClicked: {
+                ActionLog.taken("GuidedHelpPage_chart")
+                page.stepClicked("chart")
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            text: page.i18nContext.i18nc("@action:button a step of the guided setup", "A budget and a planned payment")
+            description: page.i18nContext.i18nc("@info", "Say how much you want to spend, and count in what is paid again and again")
+            onClicked: {
+                ActionLog.taken("GuidedHelpPage_budget")
+                page.stepClicked("budget")
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            text: page.i18nContext.i18nc("@action:button a step of the guided setup", "Shape your start page")
+            description: page.i18nContext.i18nc("@info", "Move, resize, add and remove the tiles of your start page")
+            onClicked: {
+                ActionLog.taken("GuidedHelpPage_start")
+                page.stepClicked("start")
+            }
+        }
     }
 }

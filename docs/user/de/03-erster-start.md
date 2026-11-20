@@ -12,13 +12,28 @@ Sie wählen Ihre **Sprache** (die Ihres Systems ist schon eingestellt) und die *
 
 ![Auswahl, wie Sie anfangen möchten](../../testing/screenshots/windows/12-start-choice.png)
 
-Drei Wege:
+Vier Wege:
 
+- **Geführt einrichten:** Schritt für Schritt mit Ihren eigenen Daten; jeden Schritt können Sie überspringen.
 - **Mit meinen eigenen Konten:** etwa zwei Minuten.
 - **Ein Beispielbuch ausprobieren:** ein ausgedachter Haushalt zum Umsehen.
 - **Meine Daten aus einem anderen Programm holen:** ein KMyMoney-Buch oder eine zuvor mit KassenSturz gespeicherte Kopie.
 
 Wer schon ein KassenSturz-Buch hat, nimmt den kleinen Link **Ein KassenSturz-Haushaltsbuch öffnen, das ich schon habe…**.
+
+## Der Weg „Geführt einrichten“
+
+Die geführte Einrichtung führt Sie mit Ihrem eigenen Haushaltsbuch durch das Wichtigste. Jede Seite hat **Überspringen**, und **Einrichtung beenden** bringt Sie sofort zur Übersicht. Nichts wird für Sie erledigt: Jeder Schritt öffnet die normale Seite, und Sie speichern dort, was Sie möchten.
+
+1. **Welche Konten haben Sie?** Die Art und ein Name. Wie viel darauf ist, tippen Sie nicht ein: Das kommt von Ihrer Bank oder aus einer Datei.
+2. **Buchungen holen:** mit Ihrer Bank verbinden oder eine Datei von ihr importieren. Sie sehen zuerst eine Vorschau.
+3. **Stimmt dieser Kontostand?** Vergleichen Sie mit Ihrer Banking-App. Weicht er ab, tippen Sie ein, was Ihre Bank zeigt, und KassenSturz bietet an, den Anfangsstand zu korrigieren.
+4. **Buchungen zuordnen:** Wählen Sie für einen Namen eine Kategorie, und alle Buchungen mit diesem Namen werden auf einmal zugeordnet. Danach bietet KassenSturz eine Regel an, die das künftig von selbst macht (Seite 12).
+5. **Ihr erstes Diagramm** mit dem Statistik-Baukasten (Seite 14).
+6. **Ein Budget und eine geplante Zahlung** (Seiten 13 und 21).
+7. **Ihre Startseite gestalten:** Kacheln verschieben, in der Größe ändern, hinzufügen und entfernen (Seite 4).
+
+Jeden Schritt finden Sie später wieder, auch die übersprungenen: **Einstellungen → Hilfe: Geführte Einrichtung**. Die letzte Seite verlinkt außerdem dieses Handbuch im Wiki.
 
 ## Der Weg „Mit meinen eigenen Konten“
 

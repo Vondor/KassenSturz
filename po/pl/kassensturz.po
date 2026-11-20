@@ -25476,11 +25476,6 @@ msgid "Help: guided setup"
 msgstr "Pomoc: konfiguracja krok po kroku"
 
 #, kde-format
-msgctxt "@info"
-msgid "Every step of the guided setup again: get your transactions, check your balance"
-msgstr "Każdy krok konfiguracji jeszcze raz: pobranie transakcji, sprawdzenie salda"
-
-#, kde-format
 msgctxt "@title a step of the guided setup"
 msgid "Which accounts do you have?"
 msgstr "Jakie masz konta?"
@@ -25494,11 +25489,6 @@ msgstr "Podaj konta, które chcesz widzieć w KassenSturz. Nie musisz wpisywać,
 msgctxt "@action:button starts the optional guided setup"
 msgid "Guided setup"
 msgstr "Konfiguracja krok po kroku"
-
-#, kde-format
-msgctxt "@info"
-msgid "Step by step with your own data: get your transactions and check your balance. Every step can be skipped."
-msgstr "Krok po kroku na twoich własnych danych: pobierz transakcje i sprawdź saldo. Każdy krok można pominąć."
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml:135
 #, kde-format
 msgctxt "@title:window %1 is a plugin's name"
@@ -25790,3 +25780,230 @@ msgctxt ""
 "@info shown on a dashboard tile while it is dragged smaller than it can get"
 msgid "Smallest size"
 msgstr "Najmniejszy rozmiar"
+
+#, kde-format
+msgctxt "@action:button a step of the guided setup"
+msgid "Sort your transactions"
+msgstr "Posortuj swoje transakcje"
+
+#, kde-format
+msgctxt "@info"
+msgid "Give every transaction of a name its category at once, and let a Rule do it in future"
+msgstr "Nadaj kategorię wszystkim transakcjom o danej nazwie naraz i zostaw to na przyszłość regule"
+
+#, kde-format
+msgctxt "@action:button a step of the guided setup"
+msgid "Your first chart"
+msgstr "Twój pierwszy wykres"
+
+#, kde-format
+msgctxt "@info"
+msgid "Build a chart from your own transactions with the Statistic Builder"
+msgstr "Zbuduj wykres ze swoich transakcji w Kreatorze statystyk"
+
+#, kde-format
+msgctxt "@action:button a step of the guided setup"
+msgid "A budget and a planned payment"
+msgstr "Budżet i zaplanowana płatność"
+
+#, kde-format
+msgctxt "@info"
+msgid "Say how much you want to spend, and count in what is paid again and again"
+msgstr "Ustal, ile chcesz wydawać, i uwzględnij to, co jest płacone regularnie"
+
+#, kde-format
+msgctxt "@action:button a step of the guided setup"
+msgid "Shape your start page"
+msgstr "Urządź swój ekran startowy"
+
+#, kde-format
+msgctxt "@info"
+msgid "Move, resize, add and remove the tiles of your start page"
+msgstr "Przesuwaj kafelki ekranu startowego, zmieniaj ich rozmiar, dodawaj je i usuwaj"
+
+#, kde-format
+msgctxt "@info transactions that carry no name"
+msgid "Without a name"
+msgstr "Bez nazwy"
+
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "Sort your transactions"
+msgstr "Posortuj swoje transakcje"
+
+#, kde-format
+msgctxt "@info %1 is a number of transactions"
+msgid "Charts and budgets only show money that has a category. %1 transaction has none yet. Choose a category for a name, and every transaction with that name is sorted at once."
+msgid_plural "Charts and budgets only show money that has a category. %1 transactions have none yet. Choose a category for a name, and every transaction with that name is sorted at once."
+msgstr[0] "Wykresy i budżety pokazują tylko pieniądze, które mają kategorię. %1 transakcja jeszcze jej nie ma. Wybierz kategorię dla nazwy, a wszystkie transakcje o tej nazwie zostaną posortowane naraz."
+msgstr[1] "Wykresy i budżety pokazują tylko pieniądze, które mają kategorię. %1 transakcje jeszcze jej nie mają. Wybierz kategorię dla nazwy, a wszystkie transakcje o tej nazwie zostaną posortowane naraz."
+msgstr[2] "Wykresy i budżety pokazują tylko pieniądze, które mają kategorię. %1 transakcji jeszcze jej nie ma. Wybierz kategorię dla nazwy, a wszystkie transakcje o tej nazwie zostaną posortowane naraz."
+
+#, kde-format
+msgctxt "@info"
+msgid "Every transaction has a category. There is nothing to sort."
+msgstr "Każda transakcja ma kategorię. Nie ma nic do posortowania."
+
+#, kde-format
+msgctxt "@info %1 is a number of transactions, %2 a name"
+msgid "%1 transaction of “%2” is sorted. You can take it back with Undo. Should KassenSturz sort this name by itself in future?"
+msgid_plural "%1 transactions of “%2” are sorted. You can take it back with Undo. Should KassenSturz sort this name by itself in future?"
+msgstr[0] "%1 transakcja „%2” została posortowana. Możesz to cofnąć przez „Cofnij”. Czy KassenSturz ma w przyszłości sam sortować tę nazwę?"
+msgstr[1] "%1 transakcje „%2” zostały posortowane. Możesz to cofnąć przez „Cofnij”. Czy KassenSturz ma w przyszłości sam sortować tę nazwę?"
+msgstr[2] "%1 transakcji „%2” zostało posortowanych. Możesz to cofnąć przez „Cofnij”. Czy KassenSturz ma w przyszłości sam sortować tę nazwę?"
+
+#, kde-format
+msgctxt "@action:button opens the Rule page, filled in"
+msgid "Yes, make a Rule…"
+msgstr "Tak, utwórz regułę…"
+
+#, kde-format
+msgctxt "@action:button declines the offer of a Rule"
+msgid "No, thanks"
+msgstr "Nie, dziękuję"
+
+#, kde-format
+msgctxt "@info %1 is a number of transactions, %2 their sum as an amount of money"
+msgid "%1 transaction, %2"
+msgid_plural "%1 transactions, together %2"
+msgstr[0] "%1 transakcja, %2"
+msgstr[1] "%1 transakcje, razem %2"
+msgstr[2] "%1 transakcji, razem %2"
+
+#, kde-format
+msgctxt "@label:listbox %1 is a name"
+msgid "The category for “%1”"
+msgstr "Kategoria dla „%1”"
+
+#, kde-format
+msgctxt "@item:inlistbox nothing is chosen yet"
+msgid "Choose a category …"
+msgstr "Wybierz kategorię …"
+
+#, kde-format
+msgctxt "@info %1 is a number of names"
+msgid "%1 more name isn't listed here. It shows once names above are sorted."
+msgid_plural "%1 more names aren't listed here. They show once names above are sorted."
+msgstr[0] "Jeszcze %1 nazwy tu nie ma. Pojawi się, gdy nazwy powyżej zostaną posortowane."
+msgstr[1] "Jeszcze %1 nazw tu nie ma. Pojawią się, gdy nazwy powyżej zostaną posortowane."
+msgstr[2] "Jeszcze %1 nazw tu nie ma. Pojawią się, gdy nazwy powyżej zostaną posortowane."
+
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "Your first chart"
+msgstr "Twój pierwszy wykres"
+
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "A budget and a planned payment"
+msgstr "Budżet i zaplanowana płatność"
+
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "Shape your start page"
+msgstr "Urządź swój ekran startowy"
+
+#, kde-format
+msgctxt "@title the last page of the guided setup"
+msgid "You are set up"
+msgstr "Wszystko gotowe"
+
+#, kde-format
+msgctxt "@info"
+msgid "A chart shows at a glance where your money goes. Build one from your own transactions: “Spending by category” is already chosen, you pick the period and the look, give it a name and save it. Money without a category shows as “Not sorted yet”. When you are done, come back here and go on."
+msgstr "Wykres pokazuje na pierwszy rzut oka, na co idą twoje pieniądze. Zbuduj go ze swoich transakcji: „Wydatki według kategorii” są już wybrane, ty wybierasz okres i wygląd, nadajesz nazwę i zapisujesz. Pieniądze bez kategorii widać jako „Jeszcze bez kategorii”. Gdy skończysz, wróć tutaj i przejdź dalej."
+
+#, kde-format
+msgctxt "@info"
+msgid "Two things that help you plan. Each is saved only when you say so, and you can leave out either. Both can be paused and continued later; what was there before is kept."
+msgstr "Dwie rzeczy, które pomagają planować. Każda jest zapisywana dopiero wtedy, gdy tak zdecydujesz, i każdą możesz pominąć. Obie można później wstrzymać i wznowić; to, co było wcześniej, zostaje."
+
+#, kde-format
+msgctxt "@info"
+msgid "The start page is yours: it shows what you want to see every day. Try these four things, then click “Done” there and come back here. Everything can be taken back with Undo."
+msgstr "Ekran startowy jest twój: pokazuje to, co chcesz widzieć codziennie. Wypróbuj te cztery rzeczy, kliknij tam „Gotowe” i wróć tutaj. Wszystko można cofnąć przez „Cofnij”."
+
+#, kde-format
+msgctxt "@info"
+msgid "That was the guided setup. You find every step again whenever you like: in Settings, under “Help: guided setup”, also the ones you skipped."
+msgstr "To była konfiguracja krok po kroku. Każdy krok znajdziesz ponownie, kiedy chcesz: w Ustawieniach, pod „Pomoc: konfiguracja krok po kroku”, także te pominięte."
+
+#, kde-format
+msgctxt "@action:button leaves the guided setup"
+msgid "Go to my overview"
+msgstr "Przejdź do mojego przeglądu"
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Build my first chart"
+msgstr "Zbuduj mój pierwszy wykres"
+
+#, kde-format
+msgctxt "@info"
+msgid "Opens the Statistic Builder, which leads you through it. You find it later in the menu, with many more kinds of charts."
+msgstr "Otwiera Kreator statystyk, który poprowadzi cię krok po kroku. Później znajdziesz go w menu, z wieloma innymi rodzajami wykresów."
+
+#, kde-format
+msgctxt "@info"
+msgid "How much you want to spend on something in a month, for example on groceries. KassenSturz then shows how much of it is left."
+msgstr "Ile chcesz wydać na coś w miesiącu, na przykład na jedzenie. KassenSturz pokaże wtedy, ile z tego zostało."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Plan a payment"
+msgstr "Zaplanuj płatność"
+
+#, kde-format
+msgctxt "@info"
+msgid "Something that is paid again and again, for example a standing order, the rent or a subscription that is taken monthly. KassenSturz then counts it in before it happens."
+msgstr "Coś, co jest płacone regularnie, na przykład zlecenie stałe, czynsz albo abonament pobierany co miesiąc. KassenSturz uwzględni to, zanim nastąpi."
+
+#, kde-format
+msgctxt "@info one of four things to try on the start page"
+msgid "1. Move a tile: drag it to another place."
+msgstr "1. Przesuń kafelek: przeciągnij go w inne miejsce."
+
+#, kde-format
+msgctxt "@info one of four things to try on the start page"
+msgid "2. Make a tile larger or smaller: drag any of its edges or its corner."
+msgstr "2. Powiększ lub zmniejsz kafelek: przeciągnij dowolną jego krawędź albo róg."
+
+#, kde-format
+msgctxt "@info one of four things to try on the start page"
+msgid "3. Add a tile: for example the chart you just made."
+msgstr "3. Dodaj kafelek: na przykład wykres, który właśnie powstał."
+
+#, kde-format
+msgctxt "@info one of four things to try on the start page"
+msgid "4. Remove a tile: best the one you just added, so nothing you want is lost."
+msgstr "4. Usuń kafelek: najlepiej ten właśnie dodany, żeby nie stracić niczego potrzebnego."
+
+#, kde-format
+msgctxt "@action:button"
+msgid "Arrange my start page"
+msgstr "Ułóż mój ekran startowy"
+
+#, kde-format
+msgctxt "@info"
+msgid "Opens your start page ready to be arranged. “Done” there keeps what you changed, “Cancel” throws it away."
+msgstr "Otwiera ekran startowy gotowy do układania. „Gotowe” zachowuje tam zmiany, „Anuluj” je odrzuca."
+
+#, kde-format
+msgctxt "@action:button opens the handbook in the web browser"
+msgid "More help in the wiki"
+msgstr "Więcej pomocy w wiki"
+
+#, kde-format
+msgctxt "@info"
+msgid "The handbook, with every function explained step by step. Opens in your web browser."
+msgstr "Podręcznik, w którym każda funkcja jest objaśniona krok po kroku. Otwiera się w przeglądarce."
+
+#, kde-format
+msgctxt "@info"
+msgid "Every step of the guided setup again, also the ones you skipped"
+msgstr "Każdy krok konfiguracji jeszcze raz, także te pominięte"
+
+#, kde-format
+msgctxt "@info"
+msgid "Step by step with your own data: get your transactions, sort them, a first chart, a budget and your start page. Every step can be skipped."
+msgstr "Krok po kroku na twoich własnych danych: pobierz transakcje, posortuj je, pierwszy wykres, budżet i ekran startowy. Każdy krok można pominąć."

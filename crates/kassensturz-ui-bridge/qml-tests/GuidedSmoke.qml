@@ -1,6 +1,6 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
-// check-panel: guided setup, start choice and steps 1 and 2
+// check-panel: guided setup, start choice, steps 1, 2, 4 to 6 and the last page
 
 // Opens the pages of the guided setup (#1031, docs/GUIDED_SETUP.md) on
 // stand-ins for FirstStart and AccountList (fakes/) and checks:
@@ -14,7 +14,9 @@
 // - step 2 shows one box per open account with its exact balance and hands
 //   the typed bank figure to the check page (D-911);
 // - every step has Skip and "End the setup" (D-911, D-342), and a step
-//   opened from Help has neither.
+//   opened from Help has neither;
+// - steps 4 to 6 each offer the real function to try and the last page
+//   offers the wiki and leads to the overview (D-900 to D-902, D-931).
 //
 // `tools/check-panel.sh` runs it and fails on the first FAIL line or on any
 // QML warning about a binding or a type.
@@ -103,6 +105,17 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    Component {
+        id: tryPage
+
+        GuidedTryPage {
+            onTryClicked: what => window.seen.push("try:" + what)
+            onNextClicked: window.seen.push("next:" + which)
+            onSkipClicked: window.seen.push("skip:" + which)
+            onEndClicked: window.seen.push("end:" + which)
+        }
+    }
+
     function check(ok, what) {
         if (!ok) {
             console.log("FAIL: " + what);
@@ -144,6 +157,7 @@ Kirigami.ApplicationWindow {
     property var one
     property var two
     property var balance
+    property var tries: ({})
 
     Component.onCompleted: {
         first = pageStack.push(startPage);
@@ -151,6 +165,11 @@ Kirigami.ApplicationWindow {
         one = pageStack.push(transactionsPage, { accounts: oneAccount, step: 1, count: 2 });
         two = pageStack.push(transactionsPage, { accounts: twoAccounts, bankOffered: true, step: 0, count: 0 });
         balance = pageStack.push(balancePage, { step: 2, count: 2 });
+        const made = {};
+        for (const [which, step] of [["chart", 4], ["budget", 5], ["start", 6], ["done", 0]]) {
+            made[which] = pageStack.push(tryPage, { which: which, step: step, count: step === 0 ? 0 : 6 });
+        }
+        tries = made;
     }
 
     Timer {
@@ -229,6 +248,36 @@ Kirigami.ApplicationWindow {
             window.buttons(balance, "Skip")[0].clicked();
             window.buttons(balance, "End the setup")[0].clicked();
             window.check(window.took("skip") && window.took("next") && window.took("end"), "step 2 has Skip, its main button and End the setup, got " + window.seen);
+
+            // Steps 4 to 6: each opens the real thing, and can be skipped.
+            window.seen = [];
+            const offered = { chart: ["Build my first chart"], budget: ["Set a budget", "Plan a payment"], start: ["Arrange my start page"] };
+            const asks = { "Build my first chart": "chart", "Set a budget": "budget", "Plan a payment": "plan", "Arrange my start page": "arrange" };
+            for (const which of ["chart", "budget", "start"]) {
+                const page = window.tries[which];
+                const visible = window.parts(page, child => typeof child.clicked === "function" && child.down !== undefined && child.heading !== undefined && child.visible).map(child => child.heading);
+                window.check(visible.join("|") === offered[which].join("|"), which + " offers " + offered[which] + ", got " + visible);
+                for (const heading of offered[which]) {
+                    window.parts(page, child => child.heading === heading)[0].clicked();
+                    window.check(window.took("try:" + asks[heading]), heading + " asks for " + asks[heading]);
+                }
+                window.buttons(page, "Skip")[0].clicked();
+                window.buttons(page, "Continue")[0].clicked();
+                window.buttons(page, "End the setup")[0].clicked();
+                window.check(["skip:", "next:", "end:"].every(what => window.took(what + which)), which + " has Skip, Continue and End the setup, got " + window.seen);
+            }
+            window.check(window.parts(window.tries.start, child => child.text !== undefined && child.visible && /^[1-4]\. /.test(child.text)).length === 4, "the start page step names four things to try");
+            window.check(window.parts(window.tries.chart, child => child.text === "Step 4 of 6").length === 1, "the chart step says Step 4 of 6");
+
+            // The last page: the wiki, no step row, on to the overview.
+            const last = window.tries.done;
+            window.parts(last, child => child.heading === "More help in the wiki")[0].clicked();
+            window.check(window.took("try:wiki"), "the last page offers the wiki");
+            window.check(last.header.visible === false, "the last page has no step row");
+            window.check(window.buttons(last, "Skip")[0].visible === false, "the last page has nothing to skip");
+            window.buttons(last, "Go to my overview")[0].clicked();
+            window.check(window.took("next:done"), "the last page leads on");
+            window.check(window.parts(last, child => child.text !== undefined && child.visible && child.text.indexOf("Help: guided setup") >= 0).length >= 1, "the last page says where the steps are found again");
 
             console.log(window.failed ? "guided setup: FAILED" : "guided setup: ok");
             Qt.exit(window.failed ? 1 : 0);

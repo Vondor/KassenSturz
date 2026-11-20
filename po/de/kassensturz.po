@@ -27559,3 +27559,9 @@ msgstr "Um KassenSturz andere Farben zu geben, fügen Sie unter Einstellungen �
 msgctxt "@info"
 msgid "A theme changes only colors, the font and how round corners are. It uses its light or dark colors after your system's setting when KassenSturz opens. KassenSturz refuses a theme whose text would be hard to read."
 msgstr "Ein Theme ändert nur Farben, die Schrift und wie rund Ecken sind. Es nimmt seine hellen oder dunklen Farben nach der Einstellung Ihres Systems beim Öffnen von KassenSturz. KassenSturz lehnt ein Theme ab, dessen Schrift schwer zu lesen wäre."
+
+#: crates/kassensturz-ui-bridge/qml/GridItem.qml
+msgctxt ""
+"@info shown on a dashboard tile while it is dragged smaller than it can get"
+msgid "Smallest size"
+msgstr "Kleinste Größe"

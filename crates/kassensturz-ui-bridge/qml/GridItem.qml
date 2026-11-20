@@ -98,6 +98,15 @@ Item {
     property string growEdge: ""
     property real growX: 0
     property real growY: 0
+    // The size the pointer asks for while resizing, before it is held at the
+    // smallest size. Asking for less turns the frame red and says "Smallest
+    // size", so that a tile that stops following is no riddle.
+    property real wantW: 0
+    property real wantH: 0
+    readonly property bool atSmallest: resizing
+        && (wantW < board.cellWidth(info.minCols) - Kirigami.Units.smallSpacing
+            || wantH < board.frameHeight(info.minRows) - Kirigami.Units.smallSpacing)
+    readonly property color frameAccent: atSmallest ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.highlightColor
 
     TitleWords {
         id: words
@@ -192,6 +201,8 @@ Item {
         startH = height;
         growW = width;
         growH = height;
+        wantW = width;
+        wantH = height;
         growX = 0;
         growY = 0;
         growEdge = "";
@@ -226,16 +237,20 @@ Item {
         case "left":
             growX = Math.max(-board.frameX(info), Math.min(translation.x, startW - leastW));
             growW = startW - growX;
+            wantW = startW - translation.x;
             break;
         case "top":
             growY = Math.max(-board.frameY(info), Math.min(translation.y, startH - leastH));
             growH = startH - growY;
+            wantH = startH - translation.y;
             break;
         case "right":
             growW = startW + translation.x;
+            wantW = growW;
             break;
         default:
             growH = startH + translation.y;
+            wantH = growH;
         }
         const by = edgeCells();
         const col = Math.max(0, Math.min(info.col + by.left, info.col + info.cols - info.minCols));
@@ -261,6 +276,8 @@ Item {
     function growMoved(translation: point) {
         growW = startW + translation.x;
         growH = startH + translation.y;
+        wantW = growW;
+        wantH = growH;
         const cols = board.layout.snap(growW + board.gap, board.cell + board.gap);
         const rows = board.layout.snap(growH + board.gap, board.rowHeight + board.gap);
         board.ghost = {col: info.col, row: info.row, cols: Math.max(info.minCols, Math.min(cols, board.columns - info.col)), rows: Math.max(info.minRows, rows)};
@@ -300,8 +317,8 @@ Item {
         clip: true
         color: cell.isBox ? Qt.alpha(Kirigami.Theme.highlightColor, 0.06) : (cell.showsFrame ? Kirigami.Theme.backgroundColor : "transparent")
         radius: Look.radius(Kirigami.Units.smallSpacing)
-        border.width: cell.selected ? 2 : (cell.showsFrame ? 1 : 0)
-        border.color: cell.selected ? Kirigami.Theme.highlightColor
+        border.width: cell.atSmallest ? 3 : (cell.selected ? 2 : (cell.showsFrame ? 1 : 0))
+        border.color: cell.selected ? cell.frameAccent
             : cell.hasProblem ? Kirigami.Theme.neutralTextColor
             : cell.board.editing && !cell.board.preview ? Kirigami.Theme.disabledTextColor
             : Qt.alpha(Kirigami.Theme.textColor, 0.15)
@@ -1503,7 +1520,7 @@ Item {
             Rectangle {
                 anchors.fill: parent
                 radius: edge.reach
-                color: Kirigami.Theme.highlightColor
+                color: cell.frameAccent
                 opacity: pull.active ? 0.8 : (over.hovered ? 0.5 : 0)
             }
 
@@ -1530,6 +1547,33 @@ Item {
         }
     }
 
+    // Said in words too while the pointer asks for less than the smallest
+    // size, for everyone who cannot tell the red frame from the usual one.
+    Rectangle {
+        objectName: "smallest-note"
+        visible: cell.atSmallest
+        // Where the picked tile's row of buttons is, which is away while
+        // resizing, so that it covers nothing of the tile's content.
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Kirigami.Units.smallSpacing * 2
+        z: 5
+        width: Math.min(cell.width - Kirigami.Units.largeSpacing, smallestText.implicitWidth + Kirigami.Units.largeSpacing * 2)
+        height: smallestText.implicitHeight + Kirigami.Units.smallSpacing * 2
+        radius: Kirigami.Units.smallSpacing
+        color: Kirigami.Theme.negativeBackgroundColor
+        border.width: 1
+        border.color: Kirigami.Theme.negativeTextColor
+
+        Controls.Label {
+            id: smallestText
+
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.width - Kirigami.Units.smallSpacing * 2)
+            elide: Text.ElideRight
+            text: names.i18nContext.i18nc("@info shown on a dashboard tile while it is dragged smaller than it can get", "Smallest size")
+        }
+    }
+
     // The corner a selected component is resized by.
     Loader {
         active: cell.board.editing
@@ -1540,7 +1584,7 @@ Item {
         height: Kirigami.Units.gridUnit
 
         sourceComponent: Rectangle {
-            color: Kirigami.Theme.highlightColor
+            color: cell.frameAccent
             radius: Kirigami.Units.smallSpacing
             opacity: grow.active ? 1 : 0.8
 

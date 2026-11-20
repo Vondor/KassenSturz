@@ -93,6 +93,16 @@ Kirigami.ApplicationWindow {
         return found;
     }
 
+    // Whether the tile shows its "Smallest size" note.
+    function smallestNote(item) {
+        for (let i = 0; i < item.children.length; ++i) {
+            if (item.children[i].objectName === "smallest-note") {
+                return item.children[i].visible;
+            }
+        }
+        return false;
+    }
+
     function check(ok, what) {
         if (!ok) {
             console.log("FAIL: " + what);
@@ -196,10 +206,16 @@ Kirigami.ApplicationWindow {
                 tile.edgeStarted("left");
                 tile.edgeMoved(Qt.point(-5000, 0));
                 window.check(Math.abs(tile.x) < 1 && grid.ghost.col === 0 && grid.ghost.cols === 9, "the left edge stops at the first column: " + tile.x + " " + JSON.stringify(grid.ghost));
+                window.check(!tile.atSmallest && !window.smallestNote(tile), "a tile made larger is not at its smallest size");
+                tile.edgeMoved(Qt.point(5000, 0));
+                window.check(tile.atSmallest && window.smallestNote(tile) && Qt.colorEqual(tile.frameAccent, Kirigami.Theme.negativeTextColor), "pulled below its smallest width the frame turns red and says so: " + tile.atSmallest + " " + tile.frameAccent);
+                tile.edgeMoved(Qt.point(wide - grid.cellWidth(2), 0));
+                window.check(!tile.atSmallest && !window.smallestNote(tile), "exactly at its smallest width it does not");
                 tile.edgeMoved(Qt.point(5000, 0));
                 window.check(Math.abs(tile.width - grid.cellWidth(2)) < 1 && grid.ghost.col === 7 && grid.ghost.cols === 2, "and at the tile's smallest width: " + tile.width + " " + JSON.stringify(grid.ghost));
                 tile.edgeEnded();
                 window.check(window.last() === "stretch:spending:4:0:0:0", "which is what the layout is asked for: " + window.last());
+                window.check(!tile.atSmallest && !window.smallestNote(tile) && Qt.colorEqual(tile.frameAccent, Kirigami.Theme.highlightColor), "let go, the frame has its usual colour again");
                 tile.edgeStarted("top");
                 tile.edgeMoved(Qt.point(300, 5000));
                 window.check(Math.abs(tile.height - grid.frameHeight(1)) < 1 && tile.x === left && grid.ghost.row === 3 && grid.ghost.rows === 1, "the upper edge stops at the smallest height: " + tile.height + " " + JSON.stringify(grid.ghost));

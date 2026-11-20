@@ -99,6 +99,9 @@ Kirigami.ApplicationWindow {
     // The last step asks about a local AI and is left out where this build
     // has none or the test profile hides it (D-039, D-922).
     readonly property var guidedSteps: ["transactions", "balance", "sort", "chart", "budget", "start"].concat(aiSwitch.available ? ["ai"] : [])
+    // How many pages the step count runs over: the accounts page, which
+    // comes first and is step 1, then `guidedSteps` (B-422).
+    readonly property int guidedCount: guidedSteps.length + 1
 
     // The app's name, which isn't translated, and in the developer mode a
     // marker that stays as long as it runs (D-227). With only the bank log
@@ -1019,15 +1022,16 @@ Kirigami.ApplicationWindow {
         return pageStack.push(makePage(component, properties));
     }
 
-    // Shows step `index` of the guided setup (counted from 0) on top of the
-    // current page, or the overview after the last one.
+    // Shows step `index` of `guidedSteps` (counted from 0) on top of the
+    // current page, or the last page after the last one. The accounts page
+    // before them is step 1, so this is step `index + 2` of `guidedCount`.
     function showGuidedStep(index: int) {
         if (index >= guidedSteps.length) {
             // The last page: where the steps are found again (D-902, D-931).
             pushPage(guidedTryPage, { which: "done" });
             return;
         }
-        pushGuidedStep(guidedSteps[index], index + 1, guidedSteps.length);
+        pushGuidedStep(guidedSteps[index], index + 2, guidedCount);
     }
 
     // Shows the page of the guided setup's step `name` as step `step` of
@@ -1065,13 +1069,15 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    // What a guided page does after its step: the next step, or, opened from
-    // Help (step 0), back to Help.
+    // What a guided page does after its step `step` (as the step count
+    // numbers it): the next step, or, opened from Help (step 0), back to Help.
     function guidedStepDone(step: int) {
         if (step === 0) {
             pageStack.pop();
         } else {
-            showGuidedStep(step);
+            // Step 1 is the accounts page, so step `step` is entry
+            // `step - 1` of `guidedSteps` and the next one is entry `step`.
+            showGuidedStep(step - 1);
         }
     }
 
@@ -2130,7 +2136,7 @@ Kirigami.ApplicationWindow {
         WizardStartPage {
             // The optional guided setup starts with the accounts, without
             // amounts (D-895, D-899).
-            onGuidedClicked: root.pushPage(wizardAccountsPage, { currency: root.wizardCurrency, guided: true, guidedStep: 1, guidedCount: root.guidedSteps.length })
+            onGuidedClicked: root.pushPage(wizardAccountsPage, { currency: root.wizardCurrency, guided: true, guidedStep: 1, guidedCount: root.guidedCount })
             onOwnAccountsClicked: root.pushPage(wizardAccountsPage, { currency: root.wizardCurrency })
             onExampleClicked: root.chooseExampleBook()
             onFromProgramClicked: root.chooseFileForNewBook()

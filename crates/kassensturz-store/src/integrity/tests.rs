@@ -419,3 +419,46 @@ fn a_book_with_converted_transfers_of_either_sign_opens_again() {
         });
     }
 }
+
+/// Another program makes every amount huge, each transaction still
+/// balanced: the amounts of the currency then add up past what every change
+/// keeps them to (B-269), so the balances and the Overview couldn't be read
+/// and a report's sum could be wrong. The book is refused at open, as one
+/// whose entries don't add up, and stays as it was (B-416).
+#[test]
+fn amounts_that_add_up_past_the_limit_are_found_and_the_book_stays_as_it_was() {
+    // 40 parts of 1.25·10^17 add up to 5·10^18 without their signs: past
+    // the limit, still inside 64 bits. 40 parts of 2.5·10^17 add up past
+    // 64 bits, where SQLite's sum itself stops.
+    for factor in [100_000_000_000_000_i64, 200_000_000_000_000] {
+        let folder = TempFolder::new();
+        let path = book_file(&folder);
+        let conn = rusqlite::Connection::open(&path).expect("file opened");
+        let changed = conn
+            .execute("UPDATE splits SET amount = amount * ?1", [factor])
+            .expect("changed");
+        assert_eq!(changed, 40);
+        drop(conn);
+        let before = std::fs::read(&path).expect("read");
+
+        let refused = Book::open(&path, &computer(&folder));
+        assert!(
+            matches!(
+                refused,
+                Err(StoreError::Corrupt(Corruption::UnbalancedTransaction))
+            ),
+            "{factor}: {:?}",
+            refused.err()
+        );
+        let refused = Book::open_to_read(&path);
+        assert!(
+            matches!(
+                refused,
+                Err(StoreError::Corrupt(Corruption::UnbalancedTransaction))
+            ),
+            "{factor}: {:?}",
+            refused.err()
+        );
+        assert_eq!(std::fs::read(&path).expect("read"), before, "changed");
+    }
+}

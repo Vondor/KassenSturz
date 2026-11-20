@@ -132,6 +132,7 @@ impl Book {
         crate::integrity::check_references(&conn)?;
         crate::integrity::check_balances(&conn)?;
         crate::integrity::check_conversions(&conn)?;
+        crate::integrity::check_totals(&conn)?;
         conn.set_prepared_statement_cache_capacity(cached::CAPACITY);
         Ok(Self {
             conn,

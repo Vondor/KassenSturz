@@ -359,6 +359,7 @@ impl Book {
         integrity::check_references(&conn)?;
         integrity::check_balances(&conn)?;
         integrity::check_conversions(&conn)?;
+        integrity::check_totals(&conn)?;
         if version == current {
             // Only now: a book that is refused is never written, not even
             // SQLite's header (B-355).

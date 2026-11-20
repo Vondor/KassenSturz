@@ -65,7 +65,8 @@ pub(crate) fn back_up(
 ) -> Result<PathBuf, StoreError> {
     // Absolute, so SQLite never takes the copy's name for a URI.
     let folder = std::path::absolute(folder)?;
-    fs::create_dir_all(&folder)?;
+    // KassenSturz's own folder, open to the user alone (B-414).
+    crate::private::create_own_folder(&folder)?;
     let path = write_backup(conn, book, &folder, usize::MAX, id)?;
     if let Some(id) = id {
         prune_own(&folder, &id.tag(), &path, Timestamp::now());
@@ -249,11 +250,9 @@ pub(crate) fn claim(
             continue;
         }
         let partial = partial_path(&path);
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&partial)
-        {
+        // `VACUUM INTO` and the rename keep the mode, so the backup is
+        // readable only by the user too (B-414).
+        match crate::private::create_new(&partial) {
             Ok(_) => return Ok((path, partial)),
             Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
             Err(error) => return Err(error.into()),

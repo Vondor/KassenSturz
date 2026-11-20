@@ -576,10 +576,10 @@ impl Book {
 
         // Step 2.
         let part = with_suffix(&plan.to, PART);
-        OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&part)
+        // Readable only by the user while it is copied (B-414); see
+        // `keep_permissions` for the mode it ends with.
+        crate::private::create_new(&part)
+            .and_then(|_| keep_permissions(&plan.from, &part))
             .map_err(|error| StepFailed {
                 step: MoveStep::Copy,
                 cause: error.into(),
@@ -882,7 +882,8 @@ fn back_up_before_moving(
     let id = crate::BookId::try_read(reader).ok_or(StoreError::NotABook)?;
     let label = crate::backup::label_of(book, Some(&id))?;
     let folder = std::path::absolute(folder)?;
-    fs::create_dir_all(&folder)?;
+    // KassenSturz's own folder, open to the user alone (B-414).
+    crate::private::create_own_folder(&folder)?;
     let stamp = Timestamp::now().strftime(STAMP_FORMAT).to_string();
     let (path, partial) = claim_backup(&folder, &label, &stamp)?;
     let made = copy_into(reader, &partial).and_then(|()| {
@@ -914,11 +915,8 @@ fn claim_backup(folder: &Path, label: &str, stamp: &str) -> Result<(PathBuf, Pat
             continue;
         }
         let partial = with_suffix(&path, PART);
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&partial)
-        {
+        // Readable only by the user, like every backup (B-414).
+        match crate::private::create_new(&partial) {
             Ok(_) => return Ok((path, partial)),
             Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
             Err(error) => return Err(error.into()),
@@ -965,6 +963,19 @@ fn open_reader(path: &Path) -> Result<crate::lockless::ReadOnly, MoveCause> {
 
 /// Copies the database `reader` has open into `to`, the empty file claimed
 /// for it, and makes sure the copy is on the disk.
+/// Gives the moved book at `to` the permissions of the book at `from`, e.g.
+/// readable only by the user, or also by a group the user shares it with:
+/// moving a book never changes who may read it.
+fn keep_permissions(from: &Path, to: &Path) -> std::io::Result<()> {
+    let permissions = fs::metadata(from)?.permissions();
+    if permissions.readonly() {
+        // A book only for reading is opened to be moved; the copy must stay
+        // writable until it is in place.
+        return Ok(());
+    }
+    fs::set_permissions(to, permissions)
+}
+
 fn copy_into(reader: &Connection, to: &Path) -> Result<(), StoreError> {
     // VACUUM INTO writes into an empty file, and reads the book in one read
     // transaction, so the copy is one state of it

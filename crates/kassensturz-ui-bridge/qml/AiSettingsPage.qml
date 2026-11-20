@@ -666,13 +666,19 @@ Kirigami.ScrollablePage {
 
             Controls.Button {
                 id: testRequestToggle
+                objectName: "testRequestToggle"
                 visible: page.hasProvider
                 flat: true
                 checkable: true
                 text: Plain.plain(checked ? page.i18nContext.i18nc("@action:button", "Hide what the test sends") : page.i18nContext.i18nc("@action:button", "Show what the test sends"))
             }
 
+            // `fillWidth` is needed: with only a maximum, the box took the
+            // width of one character, and the request ran down the page one
+            // letter per line over what lay below it (B-431).
             Controls.TextArea {
+                objectName: "testRequestBox"
+                Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 28
                 Layout.preferredHeight: Kirigami.Units.gridUnit * 10
                 visible: testRequestToggle.visible && testRequestToggle.checked

@@ -61,7 +61,11 @@ QtObject {
     // How often the connection was tested, for ModelChoiceSmoke (B-407).
     property int testCalls: 0
     function testConnection(key) { testCalls += 1; calls = calls.concat(["test"]); }
-    function capabilityRequest() { return ""; }
+    // A request as long as the real one, so a box that shows it can be
+    // measured (B-431).
+    function capabilityRequest() {
+        return JSON.stringify({ messages: [{ role: "user", content: "This is a made-up test question to see whether a model calls a made-up function." }], tools: [{ type: "function", function: { name: "test_function", description: "A function that only exists for this test." } }] }, null, 2);
+    }
     function statement() { return []; }
     function forgetKey() { return ({}); }
     // Every call of save and giveConsent, in order, for AiSetupSmoke.

@@ -514,6 +514,7 @@ Build threads (conflict map): A plugin host (A1 to A6 in order) · B first-run w
 
 | Step | Scope | Needs | Tier, effort | Status |
 |---|---|---|---|---|
+<<<<<<< HEAD
 | **BS2.1** | thread F1 · M. #1237 B-411: the first bank fetch no longer subtracts old transactions from the opening balance; the start balance comes from the first fetch, and books that are already wrong get a one-click correction as a confirmed change set with undo (D-903). **Wrong figure** | | Fable | done (#1260) |
 | **BS2.2** | thread F2 · S. #1179 B-383: a bill's folder link on Windows | | standard, medium | done (#1252) |
 | **BS2.3** | thread F3 · S. #1203 B-399: the Undo label after a removal names the booking | | standard, medium | done (#1259) |
@@ -530,6 +531,24 @@ Build threads (conflict map): A plugin host (A1 to A6 in order) · B first-run w
 | **BS2.14** | thread D · M. #1018: an independent review agent for PRs on money, the book, migrations, imports and banking (D-786), in place before BS2.17 | | standard, high | done (#1251) |
 | **BS2.15** | thread E1 · S. #1247: the stable tag uploads the snap to `stable` and `beta` (D-879), after the maintainer accepts the Snap Store terms; #892 closes with it | | standard, medium | done (#1250); the Snap Store terms are the maintainer's step before the stable tag |
 | **BS2.16** | thread E2 · S. #1246: Microsoft Store listing texts (Phase 2), and screenshots from a synthetic book on the release-candidate build (Phase 3); the maintainer makes the changes in Partner Center | | standard, medium | texts in Phase 2 (#1273, D-933); the screenshots come in Phase 3 |
+=======
+| **BS2.1** | thread F1 · M. #1237 B-411: the first bank fetch no longer subtracts old transactions from the opening balance; the start balance comes from the first fetch, and books that are already wrong get a one-click correction as a confirmed change set with undo (D-903). **Wrong figure** | | Fable | todo |
+| **BS2.2** | thread F2 · S. #1179 B-383: a bill's folder link on Windows | | standard, medium | todo |
+| **BS2.3** | thread F3 · S. #1203 B-399: the Undo label after a removal names the booking | | standard, medium | todo |
+| **BS2.4** | thread F4 · S. #1162 B-380: the Ubuntu sheet's remove step warns that it deletes the book (check #1147 first, D-912) | | standard, low | todo |
+| **BS2.5** | thread G1 · S. #1239: the PIN dialog says it means the online-banking PIN or password, not the card PIN (D-907) | | standard, medium | todo |
+| **BS2.6** | thread G2 · S. #1238: after a successful connection, ask whether to fetch the transactions now (D-906) | | standard, high | todo |
+| **BS2.7** | thread G3 · M. #1244: "New category …" at the end of every category picker (D-910) | | standard, high | todo |
+| **BS2.8** | thread C1 · M. #1242 B-412: the arrange-mode faults (D-904) | | standard, high | todo |
+| **BS2.9** | thread C2 · M. **[format] layout 37**: #1154 tags in the dashboard filter bar (D-893), plus #1241's paused state if its short design needs one (D-917). One migration, with an automatic backup and an update test from every earlier Beta format. Human gate | #1241 design | Fable | todo |
+| **BS2.10** | thread C3 · M. #1241: "Beenden" becomes a "Pausieren"/"Fortsetzen" toggle; the history is kept and resuming starts from today (D-909). A short design first (`Refs #1241`) | BS2.9 | standard, high | todo |
+| **BS2.11** | thread C4 · M. #1243: resize a tile by dragging any edge (D-905) | BS2.10 | standard, high | todo |
+| **BS2.12** | thread A1 to A6 · 6 PRs. #791 plugin host, in order: 4b plugin formats on the import and export pages, 6 themes plus the green example theme, 5 report and automation, 7 UI density, 8 AI provider (human gate: AI data sharing), 9 an example importer for an invented bank text file plus `docs/PLUGINS.md` | | strong, high (step 9 standard, high) | todo |
+| **BS2.13** | thread B · design M, build L (3 PRs). #1031 first-run wizard (D-792, D-895 to D-902, D-911): optional and shown once for a new book (D-899); every step can be skipped and found again in Help. Its steps: bank or file import, confirm the balance, sort plus a rule offer, a first chart, a budget and a plan, arranging tiles, a widget, and the optional local AI (that PR is a human gate: AI data sharing) | design first; the build after BS2.1, BS2.5 to BS2.7, BS2.10 and A1 | Fable | design done (#1258); build parts 1 and 2 of 3 done, part 3 (local AI step, human gate) in review |
+| **BS2.14** | thread D · M. #1018: an independent review agent for PRs on money, the book, migrations, imports and banking (D-786), in place before BS2.17 | | standard, high | todo |
+| **BS2.15** | thread E1 · S. #1247: the stable tag uploads the snap to `stable` and `beta` (D-879), after the maintainer accepts the Snap Store terms; #892 closes with it | | standard, medium | todo |
+| **BS2.16** | thread E2 · S. #1246: Microsoft Store listing texts (Phase 2), and screenshots from a synthetic book on the release-candidate build (Phase 3); the maintainer makes the changes in Partner Center | | standard, medium | todo |
+>>>>>>> origin/main
 | **BS2.17** | Phase 3 · L. #1245: the top-model review of the money, keychain, bank and layout code (D-892), read-only; the Issue Tracker files every finding | BS2.14 | strong, high | todo |
 | **BS2.18** | Phase 3. #1177 B-381: check "Show log" in the Store app, and close it if the follow-ups #1180, #1197 and #1212 fixed it | | VM thread | todo |
 | **BS2.19** | Phase 3. The stable 0.x release: the last clean build after two clean rounds (D-783), the snap to `stable` and `beta`, the Store submission with the stable wording; the book format is frozen from this tag on (D-892) | all above | maintainer's tag | todo |

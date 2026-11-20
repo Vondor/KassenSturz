@@ -7,6 +7,11 @@
 // default categories and every account in one user action (FirstStart.finish),
 // so the book holds all of it or none of it. Each row is checked in Rust when
 // its amount is left, and amounts reach Rust only as typed text (D-065).
+//
+// In the guided setup (#1031, docs/GUIDED_SETUP.md, step 1) the page asks
+// only for the kind and the name: the balance comes from the bank or from a
+// file afterwards (D-895), so nobody types it. The book is written the same
+// way, with every account starting empty.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -23,8 +28,16 @@ Kirigami.ScrollablePage {
     // The household's currency, chosen on the first page.
     required property string currency
 
+    // Part of the guided setup: no amounts, and its own words.
+    property bool guided: false
+    // The guided setup's step of this page and how many steps there are.
+    property int guidedStep: 0
+    property int guidedCount: 0
+
     // The book is written.
     signal finished()
+    // "End the setup" before anything is written: back to the choices.
+    signal guidedEnded()
     signal exampleClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
@@ -108,8 +121,23 @@ Kirigami.ScrollablePage {
         visible: false
     }
 
-    title: i18nContext.i18nc("@title", "Your accounts")
-    header: MockNotice {}
+    title: Plain.plain(guided
+        ? i18nContext.i18nc("@title a step of the guided setup", "Which accounts do you have?")
+        : i18nContext.i18nc("@title", "Your accounts"))
+    header: ColumnLayout {
+        spacing: 0
+
+        MockNotice {
+            Layout.fillWidth: true
+        }
+
+        GuidedBar {
+            Layout.fillWidth: true
+            step: page.guided ? page.guidedStep : 0
+            count: page.guidedCount
+            onEndClicked: page.guidedEnded()
+        }
+    }
 
     ColumnLayout {
         spacing: Kirigami.Units.largeSpacing
@@ -123,7 +151,10 @@ Kirigami.ScrollablePage {
             Controls.Label {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: page.i18nContext.i18nc("@info", "Type how much is in each account today. Nothing is saved until you click “Create my household book”.")
+                textFormat: Text.PlainText
+                text: page.guided
+                    ? page.i18nContext.i18nc("@info", "Name the accounts you want to see in KassenSturz. You don't need to type how much is in them: that comes from your bank or from a file in a moment. Nothing is saved until you click “Continue”.")
+                    : page.i18nContext.i18nc("@info", "Type how much is in each account today. Nothing is saved until you click “Create my household book”.")
                 wrapMode: Text.Wrap
             }
 
@@ -172,6 +203,7 @@ Kirigami.ScrollablePage {
                         }
 
                         Controls.Label {
+                            visible: !page.guided
                             textFormat: Text.PlainText
                             text: rowItem.owes
                                 ? page.i18nContext.i18nc("@label:textbox", "You owe:")
@@ -179,6 +211,7 @@ Kirigami.ScrollablePage {
                         }
 
                         Controls.TextField {
+                            visible: !page.guided
                             Layout.preferredWidth: Kirigami.Units.gridUnit * 8
                             Accessible.name: rowItem.owes
                                 ? page.i18nContext.i18nc("@label:textbox", "How much do you owe on it today?")
@@ -192,6 +225,7 @@ Kirigami.ScrollablePage {
                         }
 
                         Controls.ToolButton {
+                            visible: !page.guided
                             icon.name: rowItem.more ? "arrow-up" : "overflow-menu"
                             text: page.i18nContext.i18nc("@action:button another day or currency for this account", "More")
                             display: Controls.AbstractButton.IconOnly
@@ -266,7 +300,8 @@ Kirigami.ScrollablePage {
 
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
-                visible: true
+                // The guided setup asks for no amount.
+                visible: !page.guided
                 type: Kirigami.MessageType.Information
                 text: page.i18nContext.i18nc("@info", "You find the amount in your banking app or on your statement. Just trying KassenSturz out? A made-up amount is fine, or try an example book instead.")
                 actions: [
@@ -292,8 +327,10 @@ Kirigami.ScrollablePage {
             Controls.Button {
                 Layout.alignment: Qt.AlignHCenter
                 highlighted: true
-                icon.name: "dialog-ok-apply"
-                text: page.i18nContext.i18nc("@action:button", "Create my household book")
+                icon.name: page.guided ? "go-next" : "dialog-ok-apply"
+                text: Plain.plain(page.guided
+                    ? page.i18nContext.i18nc("@action:button", "Continue")
+                    : page.i18nContext.i18nc("@action:button", "Create my household book"))
                 onClicked: {
                     ActionLog.taken("WizardAccountsPage_create")
                     page.create()

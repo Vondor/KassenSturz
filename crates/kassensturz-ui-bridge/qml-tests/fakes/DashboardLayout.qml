@@ -16,7 +16,7 @@ QtObject {
         editing: false, damaged: false, hasChanges: false, canUndo: false, canRedo: false,
         undoEdit: "", redoEdit: "", builtIn: true, columns: 12, maxRows: 24, rows: 14,
         library: [],
-        filters: {period: "", accounts: [], categories: [], forNow: false},
+        filters: {period: "", accounts: [], categories: [], tags: [], forNow: false},
         items: [
             item("income", "kpi.card", 0, 0, 3, 2),
             item("spending", "chart.donut", 3, 0, 6, 4),
@@ -76,7 +76,7 @@ QtObject {
 
     function resetFilters() {
         note("resetFilters");
-        view = Object.assign({}, view, {filters: {period: "", accounts: [], categories: [], forNow: false}});
+        view = Object.assign({}, view, {filters: {period: "", accounts: [], categories: [], tags: [], forNow: false}});
         return ({});
     }
 
@@ -99,6 +99,7 @@ QtObject {
     function moveTo(id, col, row) { return note("moveTo:" + id + ":" + col + ":" + row); }
     function nudge(id, cols, rows) { return note("nudge:" + id + ":" + cols + ":" + rows); }
     function resizeTo(id, cols, rows) { return note("resizeTo:" + id + ":" + cols + ":" + rows); }
+    function stretch(id, left, top, right, bottom) { return note("stretch:" + id + ":" + left + ":" + top + ":" + right + ":" + bottom); }
     function grow(id, cols, rows) { return note("grow:" + id + ":" + cols + ":" + rows); }
     function duplicate(id) { note("duplicate:" + id); return ({id: "c9"}); }
     function remove(id) { return note("remove:" + id); }

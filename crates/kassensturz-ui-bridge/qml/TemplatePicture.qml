@@ -68,7 +68,7 @@ Rectangle {
     }
 
     implicitHeight: width * 0.55
-    radius: Kirigami.Units.cornerRadius
+    radius: Look.radius(Kirigami.Units.cornerRadius)
     color: Kirigami.Theme.backgroundColor
     border.width: 1
     border.color: Kirigami.ColorUtils.linearInterpolation(Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, 0.25)

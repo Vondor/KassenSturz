@@ -5,7 +5,7 @@
 //! file are only ever parameters, as data the UI shows as plain text.
 
 use kassensturz_core::{ErrorParam, ErrorReport, Report};
-use kassensturz_plugin_api::PluginError;
+use kassensturz_plugin_api::{Permission, PluginError};
 
 /// An error of the plugin host.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,8 +51,15 @@ pub enum HostError {
         /// The most bytes.
         max_bytes: usize,
     },
-    /// The plugin's output lies outside its memory.
+    /// The plugin's output lies outside its memory, or isn't what the call
+    /// should answer.
     OutputInvalid,
+    /// The plugin didn't ask for a permission this extension point needs
+    /// (D-926), so KassenSturz doesn't call it.
+    PermissionMissing {
+        /// The permission.
+        permission: Permission,
+    },
     /// The plugin ran out of fuel and was stopped.
     RanTooLong,
     /// The plugin's code failed (a trap) and was stopped.
@@ -102,6 +109,10 @@ impl Report for HostError {
             Self::OutputTooBig { max_bytes } => ErrorReport::new("plugin-host.output-too-big")
                 .with("max_bytes", ErrorParam::count(*max_bytes)),
             Self::OutputInvalid => ErrorReport::new("plugin-host.output-invalid"),
+            Self::PermissionMissing { permission } => {
+                ErrorReport::new("plugin-host.permission-missing")
+                    .with("permission", ErrorParam::Keyword(permission.key()))
+            }
             Self::RanTooLong => ErrorReport::new("plugin-host.ran-too-long"),
             Self::Trapped => ErrorReport::new("plugin-host.trapped"),
             Self::Stopped => ErrorReport::new("plugin-host.stopped"),
@@ -143,6 +154,12 @@ mod tests {
             HostError::InputNotAccepted,
             HostError::OutputTooBig { max_bytes: 1 },
             HostError::OutputInvalid,
+            HostError::PermissionMissing {
+                permission: Permission::ReadBook,
+            },
+            HostError::PermissionMissing {
+                permission: Permission::ProposeChanges,
+            },
             HostError::RanTooLong,
             HostError::Trapped,
             HostError::Stopped,

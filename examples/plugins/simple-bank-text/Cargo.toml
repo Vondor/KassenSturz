@@ -1,0 +1,21 @@
+[package]
+name = "simple-bank-text"
+version = "1.0.0"
+edition = "2024"
+license = "CC0-1.0"
+publish = false
+
+# A plugin is a WebAssembly module with these exports (docs/PLUGINS.md §6).
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = "s"
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true
+
+# This folder is a Cargo project of its own, not a member of KassenSturz's
+# workspace: it is built for WebAssembly, and nothing here is part of the app.
+[workspace]

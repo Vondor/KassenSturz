@@ -77,6 +77,61 @@ pub enum PluginError {
     },
     /// A theme or UI density plugin holds code (D-756).
     DataOnlyHasCode,
+    /// A theme plugin has no theme section (D-925).
+    ThemeMissing,
+    /// The module has two theme sections.
+    ThemeTwice,
+    /// The module has a theme section but isn't a theme plugin.
+    ThemeUnexpected,
+    /// The theme's data is bigger than KassenSturz reads.
+    ThemeTooBig {
+        /// The most bytes a theme's data may have.
+        max_bytes: usize,
+    },
+    /// The theme's data isn't a JSON object.
+    ThemeMalformed,
+    /// The theme is in a format this KassenSturz doesn't know.
+    UnsupportedThemeVersion {
+        /// The version the theme says it has.
+        version: i64,
+    },
+    /// A value of the theme breaks a rule of D-925.
+    ThemeInvalid {
+        /// What is wrong, by a fixed word.
+        reason: &'static str,
+        /// Which key; data, never part of a message.
+        key: String,
+    },
+    /// A colour of the theme doesn't stand out enough from its background.
+    ThemeLowContrast {
+        /// Which colour, such as `light.text`.
+        key: String,
+    },
+    /// A UI density plugin has no density section (D-927).
+    DensityMissing,
+    /// The module has two density sections.
+    DensityTwice,
+    /// The module has a density section but isn't a UI density plugin.
+    DensityUnexpected,
+    /// The density data is bigger than KassenSturz reads.
+    DensityTooBig {
+        /// The most bytes a density plugin's data may have.
+        max_bytes: usize,
+    },
+    /// The density data isn't a JSON object.
+    DensityMalformed,
+    /// The density data is in a format this KassenSturz doesn't know.
+    UnsupportedDensityVersion {
+        /// The version the data says it has.
+        version: i64,
+    },
+    /// A value of the density data breaks a rule of D-927.
+    DensityInvalid {
+        /// What is wrong, by a fixed word.
+        reason: &'static str,
+        /// Which key; data, never part of a message.
+        key: String,
+    },
 }
 
 impl core::fmt::Display for PluginError {
@@ -121,6 +176,34 @@ impl Report for PluginError {
             Self::UnknownSection { name } => ErrorReport::new("plugin.unknown-section")
                 .with("name", ErrorParam::Text(name.clone())),
             Self::DataOnlyHasCode => ErrorReport::new("plugin.data-only-has-code"),
+            Self::ThemeMissing => ErrorReport::new("plugin.theme-missing"),
+            Self::ThemeTwice => ErrorReport::new("plugin.theme-twice"),
+            Self::ThemeUnexpected => ErrorReport::new("plugin.theme-unexpected"),
+            Self::ThemeTooBig { max_bytes } => ErrorReport::new("plugin.theme-too-big")
+                .with("max_bytes", ErrorParam::count(*max_bytes)),
+            Self::ThemeMalformed => ErrorReport::new("plugin.theme-malformed"),
+            Self::UnsupportedThemeVersion { version } => {
+                ErrorReport::new("plugin.unsupported-theme-version")
+                    .with("version", ErrorParam::Number(*version))
+            }
+            Self::ThemeInvalid { reason, key } => ErrorReport::new("plugin.theme-invalid")
+                .with("reason", ErrorParam::Keyword(reason))
+                .with("key", ErrorParam::Text(key.clone())),
+            Self::ThemeLowContrast { key } => ErrorReport::new("plugin.theme-low-contrast")
+                .with("key", ErrorParam::Text(key.clone())),
+            Self::DensityMissing => ErrorReport::new("plugin.density-missing"),
+            Self::DensityTwice => ErrorReport::new("plugin.density-twice"),
+            Self::DensityUnexpected => ErrorReport::new("plugin.density-unexpected"),
+            Self::DensityTooBig { max_bytes } => ErrorReport::new("plugin.density-too-big")
+                .with("max_bytes", ErrorParam::count(*max_bytes)),
+            Self::DensityMalformed => ErrorReport::new("plugin.density-malformed"),
+            Self::UnsupportedDensityVersion { version } => {
+                ErrorReport::new("plugin.unsupported-density-version")
+                    .with("version", ErrorParam::Number(*version))
+            }
+            Self::DensityInvalid { reason, key } => ErrorReport::new("plugin.density-invalid")
+                .with("reason", ErrorParam::Keyword(reason))
+                .with("key", ErrorParam::Text(key.clone())),
         }
     }
 }
@@ -164,7 +247,26 @@ mod tests {
             PluginError::ManifestTwice,
             PluginError::UnknownSection { name: "x".into() },
             PluginError::DataOnlyHasCode,
+            PluginError::ThemeMissing,
+            PluginError::ThemeTwice,
+            PluginError::ThemeUnexpected,
+            PluginError::ThemeTooBig { max_bytes: 1 },
+            PluginError::ThemeMalformed,
+            PluginError::UnsupportedThemeVersion { version: 2 },
+            PluginError::ThemeLowContrast { key: "x".into() },
+            PluginError::DensityMissing,
+            PluginError::DensityTwice,
+            PluginError::DensityUnexpected,
+            PluginError::DensityTooBig { max_bytes: 1 },
+            PluginError::DensityMalformed,
+            PluginError::UnsupportedDensityVersion { version: 2 },
         ];
+        for reason in ["missing", "unknown-key", "wrong-type"] {
+            errors.push(PluginError::DensityInvalid {
+                reason,
+                key: "switches".into(),
+            });
+        }
         for reason in [
             "missing",
             "unknown-key",
@@ -179,6 +281,22 @@ mod tests {
             errors.push(PluginError::ManifestInvalid {
                 reason,
                 key: "name".into(),
+            });
+        }
+        for reason in [
+            "missing",
+            "unknown-key",
+            "wrong-type",
+            "empty",
+            "too-long",
+            "bad-characters",
+            "malformed",
+            "wrong-way",
+            "out-of-range",
+        ] {
+            errors.push(PluginError::ThemeInvalid {
+                reason,
+                key: "font".into(),
             });
         }
         for permission in Permission::ALL {

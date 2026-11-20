@@ -147,6 +147,26 @@ pub mod qobject {
         #[cxx_name = "setSlowAnswer"]
         fn set_slow_answer(self: &AiSettings, word: &QString) -> bool;
 
+        /// The kind of service (D-928): the ID of the chosen AI provider
+        /// plugin, empty for OpenAI-compatible.
+        #[qinvokable]
+        #[cxx_name = "serviceKind"]
+        fn service_kind(self: &AiSettings) -> QString;
+
+        /// The AI provider plugins there are, sorted by name: each `{ id,
+        /// name }`, the name being the plugin's own text. Empty in a build
+        /// without AI, and while AI is off.
+        #[qinvokable]
+        #[cxx_name = "serviceKinds"]
+        fn service_kinds(self: &AiSettings) -> QVariant;
+
+        /// Chooses the AI provider plugin `id`, or OpenAI-compatible for an
+        /// empty one. Returns whether that was saved; an ID no usable
+        /// plugin has isn't.
+        #[qinvokable]
+        #[cxx_name = "setServiceKind"]
+        fn set_service_kind(self: &AiSettings, id: &QString) -> bool;
+
         /// Whether the chat shows the notice `word` (`overview`, `cut` or
         /// `context`, D-324): on unless the user switched it off. True for
         /// an unknown word (a notice is never hidden by mistake); false in
@@ -924,6 +944,22 @@ impl qobject::AiSettings {
         keep_slow_answer(&crate::settings::Settings::user(), &word.to_string())
     }
 
+    fn service_kind(&self) -> QString {
+        QString::from(service_kind_in(&crate::settings::Settings::user()))
+    }
+
+    fn service_kinds(&self) -> QVariant {
+        service_kinds_object(&available_service_kinds())
+    }
+
+    fn set_service_kind(&self, id: &QString) -> bool {
+        keep_service_kind(
+            &crate::settings::Settings::user(),
+            &id.to_string(),
+            &available_service_kinds(),
+        )
+    }
+
     fn notice(&self, word: &QString) -> bool {
         notice_in(&crate::settings::Settings::user(), &word.to_string())
     }
@@ -1027,6 +1063,68 @@ fn keep_allows(settings: &crate::settings::Settings, key: &str, on: bool) -> boo
 
 #[cfg(not(feature = "ai"))]
 fn keep_allows(_settings: &crate::settings::Settings, _key: &str, _on: bool) -> bool {
+    false
+}
+
+/// The ID of the chosen AI provider plugin, empty for OpenAI-compatible
+/// (D-928); empty in a build without AI.
+#[cfg(feature = "ai")]
+fn service_kind_in(settings: &crate::settings::Settings) -> String {
+    crate::ai_provider_plugins::chosen(settings).unwrap_or_default()
+}
+
+#[cfg(not(feature = "ai"))]
+fn service_kind_in(_settings: &crate::settings::Settings) -> String {
+    String::new()
+}
+
+/// The usable AI provider plugins as `(id, name)`, only while AI is on: an
+/// AI plugin is never loaded while it is off (D-013).
+#[cfg(feature = "ai")]
+fn available_service_kinds() -> Vec<(String, String)> {
+    let on = kassensturz_ai::ConfigFile::user().read().enabled();
+    match crate::plugins::folder() {
+        Some(folder) if on => crate::ai_provider_plugins::available(&folder),
+        _ => Vec::new(),
+    }
+}
+
+#[cfg(not(feature = "ai"))]
+fn available_service_kinds() -> Vec<(String, String)> {
+    Vec::new()
+}
+
+/// The AI provider plugins for QML: each `{ id, name }`.
+fn service_kinds_object(kinds: &[(String, String)]) -> QVariant {
+    crate::variant::list(kinds.iter().map(|(id, name)| {
+        crate::variant::map([
+            ("id", crate::variant::text(id)),
+            ("name", crate::variant::text(name)),
+        ])
+    }))
+}
+
+/// Keeps the kind of service `id` (empty for OpenAI-compatible) if it is
+/// one of `kinds`. Returns whether that was saved.
+#[cfg(feature = "ai")]
+fn keep_service_kind(
+    settings: &crate::settings::Settings,
+    id: &str,
+    kinds: &[(String, String)],
+) -> bool {
+    if id.is_empty() {
+        return crate::ai_provider_plugins::choose(settings, None);
+    }
+    kinds.iter().any(|(known, _)| known == id)
+        && crate::ai_provider_plugins::choose(settings, Some(id))
+}
+
+#[cfg(not(feature = "ai"))]
+fn keep_service_kind(
+    _settings: &crate::settings::Settings,
+    _id: &str,
+    _kinds: &[(String, String)],
+) -> bool {
     false
 }
 
@@ -2236,5 +2334,34 @@ mod tests {
         assert_eq!(text_of(&capability, "functions"), "no");
         assert_eq!(text_of(&capability, "contextTokens"), "");
         assert!(!flag_of(&capability, "contextSmall"));
+    }
+}
+
+#[cfg(test)]
+mod service_kind_tests {
+    use super::*;
+    use crate::variant::read_back::{elements, text_of};
+
+    #[test]
+    fn the_service_kinds_read_back_the_way_qml_reads_them() {
+        let object = service_kinds_object(&[("org.example.messages".into(), "Messages".into())]);
+        let items = elements(&object).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(text_of(&items[0], "id"), "org.example.messages");
+        assert_eq!(text_of(&items[0], "name"), "Messages");
+    }
+
+    #[cfg(feature = "ai")]
+    #[test]
+    fn only_a_usable_plugin_or_openai_compatible_is_kept() {
+        let folder = crate::test_folder::TestFolder::new();
+        let settings = crate::settings::Settings::at(&folder.join("kassensturzrc"));
+        let kinds = [("org.example.messages".to_owned(), "Messages".to_owned())];
+        assert!(!keep_service_kind(&settings, "org.example.gone", &kinds));
+        assert_eq!(service_kind_in(&settings), "");
+        assert!(keep_service_kind(&settings, "org.example.messages", &kinds));
+        assert_eq!(service_kind_in(&settings), "org.example.messages");
+        assert!(keep_service_kind(&settings, "", &kinds));
+        assert_eq!(service_kind_in(&settings), "");
     }
 }

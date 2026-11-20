@@ -444,6 +444,137 @@ fn a_components_own_tags_narrow_its_figures_and_say_so() {
 }
 
 #[test]
+fn the_filter_bars_tags_narrow_every_tile_that_takes_them_and_say_so_on_the_others() {
+    let mut f = fixture();
+    add(
+        &mut f.book,
+        entry(
+            date(2026, 11, 3),
+            vec![
+                Split::new(f.checking, money(-9_500)),
+                Split::new(f.food, money(6_000)),
+                tagged(Split::new(f.gifts, money(3_000)), &[f.holiday]),
+                tagged(Split::new(f.food, money(500)), &[f.tax]),
+            ],
+        ),
+    );
+    // A dashboard as a KassenSturz before layout 37 saved it (version 4,
+    // #1154): a filter bar with an account, a pie, a key figure with a tag
+    // of its own and one of what the accounts hold.
+    let old = json!({
+        "format": FORMAT, "version": 4, "kind": "dashboard", "name": "Overview",
+        "filters": {"accounts": [f.checking.to_string()]},
+        "components": [
+            {"id": "tabs", "type": "page.tabs",
+             "frame": {"col": 0, "row": 0, "cols": 12, "rows": 1}},
+            {"id": "period-header", "type": "page.period",
+             "frame": {"col": 0, "row": 1, "cols": 12, "rows": 1}},
+            {"id": "filter-bar", "type": "page.filters",
+             "frame": {"col": 0, "row": 2, "cols": 12, "rows": 1}},
+            {"id": "pie", "type": "chart.pie", "dataset": "spending_by_category",
+             "frame": {"col": 0, "row": 3, "cols": 6, "rows": 4}},
+            {"id": "out", "type": "kpi.card", "dataset": "income_expense_by_month",
+             "params": {"measure": "expenses", "tags": [f.tax.to_string()]},
+             "frame": {"col": 6, "row": 3, "cols": 3, "rows": 2}},
+            {"id": "held", "type": "kpi.card", "dataset": "account_balances",
+             "frame": {"col": 9, "row": 3, "cols": 3, "rows": 2}}
+        ]
+    })
+    .to_string();
+    let page = Document::read(&old).expect("a version 4 dashboard is still read");
+    assert!(page.tags.is_empty());
+    let source = Source::read_with_balances(&f.book, november()).expect("read");
+    // As it was saved, the pie counts all spending.
+    let applied = page
+        .asked("pie", &page.filters())
+        .unwrap()
+        .apply(&source)
+        .unwrap();
+    assert_eq!(applied.filter.tags, None);
+
+    // The tag is chosen in the filter bar and kept with the layout.
+    let mut editor = Editor::new(page).expect("editor");
+    let chosen = Filters {
+        tags: vec![f.holiday.to_string()],
+        ..editor.filters()
+    };
+    assert!(editor.set_filters(&chosen).expect("set"));
+    let written = editor.document().to_json();
+    let value: serde_json::Value = serde_json::from_str(&written).unwrap();
+    assert_eq!(value["version"], 5);
+    assert_eq!(value["filters"]["tags"], json!([f.holiday.to_string()]));
+    let page = Document::read(&written).expect("read back");
+    assert_eq!(page.filters(), chosen);
+    let bar = page.filters();
+
+    // The pie has no tags of its own: the bar's count, by the same rule
+    // as its own would (D-714), and the mark says filtered, not own.
+    let pie = page.asked("pie", &bar).expect("a pie asks");
+    assert_eq!(
+        pie.tags.as_ref().map(|chosen| chosen.origin),
+        Some(Origin::FilterBar)
+    );
+    let applied = pie.apply(&source).expect("applied");
+    assert_eq!(applied.filter.tags, Some(vec![f.holiday]));
+    assert_eq!(applied.own, []);
+    assert_eq!(applied.filtered, [Dimension::Accounts, Dimension::Tags]);
+    let [eur] = spending_by_category(&source, november(), &applied.filter, Level::Each)
+        .unwrap()
+        .try_into()
+        .expect("one currency");
+    assert_eq!(eur.total, money(3_000));
+
+    // A tile's own tags win over the bar's.
+    let out = page.asked("out", &bar).unwrap();
+    let applied = out.apply(&source).unwrap();
+    assert_eq!(applied.filter.tags, Some(vec![f.tax]));
+    assert_eq!(applied.own, [Dimension::Tags]);
+    let [eur] = income_expense_by_month(&source, november(), &applied.filter)
+        .unwrap()
+        .try_into()
+        .expect("one currency");
+    assert_eq!(eur.expenses, money(500));
+
+    // A balance has no parts to tag: it stays whole and says so.
+    let held = page.asked("held", &bar).unwrap();
+    let applied = held.apply(&source).unwrap();
+    assert_eq!(applied.filter.tags, None);
+    assert_eq!(applied.notes, [FilterNote::NotApplied(Dimension::Tags)]);
+
+    // A tag removed since is noted, and with nothing left the bar chooses
+    // nothing; something that is no tag is refused, in a document too.
+    let gone = Filters {
+        tags: vec![TagId::generate().to_string()],
+        ..Filters::default()
+    };
+    let applied = page.asked("pie", &gone).unwrap().apply(&source).unwrap();
+    assert!(applied.chooses_nothing());
+    let wrong = Filters {
+        tags: vec![f.food.to_string()],
+        ..Filters::default()
+    };
+    assert!(matches!(
+        page.asked("pie", &wrong).unwrap().apply(&source),
+        Err(ReportError::FilterInvalid {
+            reason: "not-a-tag",
+            dimension: "tags"
+        })
+    ));
+    let twice = written.replace(
+        &format!(r#""tags":["{}"]"#, f.holiday),
+        &format!(r#""tags":["{0}","{0}"]"#, f.holiday),
+    );
+    assert_ne!(twice, written);
+    assert!(matches!(
+        Document::read(&twice),
+        Err(ReportError::FilterInvalid {
+            reason: "repeated",
+            dimension: "tags"
+        })
+    ));
+}
+
+#[test]
 fn a_tag_list_naming_something_else_is_refused() {
     let f = fixture();
     let source = Source::read(&f.book, november()).expect("read");

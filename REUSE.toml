@@ -137,3 +137,17 @@ SPDX-License-Identifier = "CC0-1.0"
 path = ["packaging/macos/HOW_TO_OPEN.txt"]
 SPDX-FileCopyrightText = "2026 KassenSturz contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# The example plugins (#791): their JSON, sample files and Cargo files, and
+# the plugin files packed or built from them, free to copy into a plugin of
+# one's own.
+[[annotations]]
+path = [
+  "examples/plugins/**/*.json",
+  "examples/plugins/**/*.wasm",
+  "examples/plugins/**/*.txt",
+  "examples/plugins/**/Cargo.toml",
+  "examples/plugins/**/Cargo.lock",
+]
+SPDX-FileCopyrightText = "2026 KassenSturz contributors"
+SPDX-License-Identifier = "CC0-1.0"

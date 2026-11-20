@@ -238,6 +238,66 @@ fn a_resize_stops_at_the_smallest_size_and_the_grid_and_pushes_down() {
 }
 
 #[test]
+fn dragging_an_edge_moves_that_edge_and_keeps_the_others() {
+    let start = [
+        ("a", "table.rows", frame(4, 6, 6, 4)),
+        ("up", "kpi.card", frame(4, 4, 3, 2)),
+        ("down", "kpi.card", frame(4, 10, 3, 2)),
+    ];
+    // The right edge two cells to the right, the lower edge one row down:
+    // the corner at the top left stays, as with the corner handle.
+    let mut page = editor(&start);
+    assert!(page.stretch("a", 0, 0, 2, 0).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(4, 6, 8, 4));
+    assert!(page.stretch("a", 0, 0, 0, 1).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(4, 6, 8, 5));
+    // What it lands on is pushed down, only as far as it must.
+    assert_eq!(frame_of(&page, "down"), frame(4, 11, 3, 2));
+    assert_eq!(page.next_undo(), Some(Edit::Resize));
+
+    // The left edge three cells to the left: the right edge stays.
+    let mut page = editor(&start);
+    assert!(page.stretch("a", -3, 0, 0, 0).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(1, 6, 9, 4));
+    // Further than the grid: it stops at the first column.
+    assert!(page.stretch("a", -99, 0, 0, 0).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(0, 6, 10, 4));
+    // To the right, the left edge stops at the table's smallest width (4)
+    // and never pushes the right edge on.
+    assert!(page.stretch("a", 99, 0, 0, 0).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(6, 6, 4, 4));
+    // One edit each, taken back one by one.
+    assert_eq!(page.undo(), Some(Edit::Resize));
+    assert_eq!(frame_of(&page, "a"), frame(0, 6, 10, 4));
+
+    // The upper edge one row up: the lower edge stays, and the card above,
+    // which it lands on, goes below it.
+    let mut page = editor(&start);
+    assert!(page.stretch("a", 0, -1, 0, 0).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(4, 5, 6, 5));
+    assert_eq!(frame_of(&page, "up"), frame(4, 10, 3, 2));
+    assert_eq!(frame_of(&page, "down"), frame(4, 12, 3, 2));
+    // Down, the upper edge stops at the table's smallest height (3).
+    let mut page = editor(&start);
+    assert!(page.stretch("a", 0, 99, 0, 0).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(4, 7, 6, 3));
+    // Up, it stops at the first row and at the largest height (24).
+    assert!(page.stretch("a", 0, -99, 0, 99).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(4, 7, 6, 24));
+    assert!(page.stretch("a", 0, -99, 0, -21).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(4, 0, 6, 10));
+
+    // The right edge stops at the last column, and an edge that is not
+    // moved is no edit.
+    let mut page = editor(&start);
+    assert!(page.stretch("a", 0, 0, 99, 0).unwrap());
+    assert_eq!(frame_of(&page, "a"), frame(4, 6, 8, 4));
+    assert!(!page.stretch("a", 0, 0, 99, 0).unwrap());
+    assert!(!page.stretch("a", 0, 0, 0, 0).unwrap());
+    assert!(page.stretch("nobody", 1, 0, 0, 0).is_err());
+}
+
+#[test]
 fn add_takes_the_first_free_place_in_reading_order_or_the_row_below_everything() {
     let mut editor = editor(&[
         ("c1", "chart.line", frame(0, 0, 6, 4)),
@@ -617,7 +677,9 @@ proptest! {
                 2 => editor.move_to(&id, op.a, op.b),
                 3 => editor.nudge(&id, op.a % 2, op.b % 2),
                 4 => editor.resize_to(&id, op.a, op.b),
-                5 => editor.grow(&id, op.a % 3, op.b % 3),
+                5 if op.kind % 2 == 0 => editor.grow(&id, op.a % 3, op.b % 3),
+                // An edge or two dragged (#1243).
+                5 => editor.stretch(&id, op.a % 3, op.b % 3, (op.a / 3) % 3, (op.b / 3) % 3),
                 6 => editor.duplicate(&id).map(|_| true),
                 7 => editor.delete(&id),
                 8 => editor.change(&id, |component| component.change_kind(kind)),

@@ -20,6 +20,8 @@ mod ai_audit;
 mod ai_chat;
 mod ai_chat_model;
 #[cfg(feature = "ai")]
+mod ai_provider_plugins;
+#[cfg(feature = "ai")]
 mod ai_requests;
 #[cfg(feature = "ai")]
 mod ai_settings;
@@ -62,6 +64,9 @@ mod dashboard_file;
 mod dashboard_file_model;
 mod dashboards;
 mod day_clock_model;
+mod density;
+mod density_audit;
+mod density_model;
 mod developer_mode;
 mod errors;
 mod example_books;
@@ -79,6 +84,8 @@ mod formulas_model;
 mod granted_folders;
 mod grid_editor;
 mod grid_editor_model;
+mod guided_sort;
+mod guided_sort_model;
 mod history;
 mod history_model;
 mod install_kind_model;
@@ -105,6 +112,10 @@ mod plain_text_audit;
 mod planned_payments;
 mod planned_payments_model;
 mod platform;
+mod plugin_automations;
+mod plugin_formats;
+mod plugin_reports;
+mod plugin_reports_model;
 mod plugins;
 mod plugins_model;
 mod properties;
@@ -129,8 +140,12 @@ mod tags;
 mod tags_model;
 #[cfg(test)]
 mod test_folder;
+#[cfg(test)]
+mod test_plugins;
 mod test_profile;
 mod test_profile_model;
+mod theme;
+mod theme_model;
 mod transaction_entry;
 mod transactions_tile;
 mod transactions_tile_model;
@@ -166,7 +181,11 @@ fn main() {
     QGuiApplication::set_desktop_file_name(&QString::from(platform::APP_ID));
     platform::use_bundled_icons();
     platform::use_readable_widget_style();
-    platform::follow_system_colours();
+    // A theme the user chose (D-925) takes the place of the system's
+    // colours; without one, they follow the system.
+    if !theme::apply_at_start() {
+        platform::follow_system_colours();
+    }
     platform::start_in_user_folder();
     // The Store build's own folder is in Documents (D-856): what the
     // earlier one inside the package holds is copied over before a book

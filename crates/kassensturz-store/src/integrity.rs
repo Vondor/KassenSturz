@@ -81,6 +81,20 @@ pub(crate) fn check_balances(conn: &Connection) -> Result<(), StoreError> {
     }
 }
 
+/// Whether the amounts of each currency stay within what every change to
+/// the book keeps them to (B-269): a book that holds more was not written by
+/// KassenSturz, and its balances, register and Overview couldn't be read, or
+/// a sum in a report could be wrong. It reads as a book whose entries don't
+/// add up, since a changed number is what it takes (B-416).
+pub(crate) fn check_totals(conn: &Connection) -> Result<(), StoreError> {
+    match crate::totals::check_totals(conn) {
+        Err(StoreError::AmountOverflow) => {
+            Err(StoreError::Corrupt(Corruption::UnbalancedTransaction))
+        }
+        other => other,
+    }
+}
+
 /// `error` as the damaged book it is, if SQLite reports the file as
 /// malformed while the book is being set up (a file cut short fails at the
 /// first read of its header); any other error as it was.

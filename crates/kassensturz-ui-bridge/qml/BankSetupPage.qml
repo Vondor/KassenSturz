@@ -23,7 +23,7 @@ Kirigami.ScrollablePage {
 
     required property BankConnection bank
 
-    // "iban", "details", "connecting" or "accounts".
+    // "iban", "details", "connecting", "accounts" or "fetch-offer".
     property string step: "iban"
     // What lookUp() returned for the IBAN.
     property var lookup: ({})
@@ -62,6 +62,8 @@ Kirigami.ScrollablePage {
     // The book changed: the accounts were linked.
     signal linked()
     signal done()
+    // The user wants the transactions fetched now (D-906).
+    signal fetchNowClicked()
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -192,6 +194,9 @@ Kirigami.ScrollablePage {
         if (result.code === undefined) {
             if (result.linked > 0) {
                 linked();
+                // Nothing is fetched before the user agrees (D-906).
+                step = "fetch-offer";
+                return;
             }
             done();
         }
@@ -418,8 +423,8 @@ Kirigami.ScrollablePage {
 
             SecretField {
                 id: pinField
-                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "PIN:")
-                placeholderText: page.i18nContext.i18nc("@info:placeholder", "PIN")
+                Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "PIN or password:")
+                placeholderText: page.i18nContext.i18nc("@info:placeholder", "PIN or password of your online banking")
                 onAccepted: {
                     ActionLog.taken("BankSetupPage_connect")
                     page.connect()
@@ -659,6 +664,49 @@ Kirigami.ScrollablePage {
                 onClicked: {
                     ActionLog.taken("BankSetupPage_done")
                     page.link()
+                }
+            }
+        }
+
+        // Step 5: the connection works and accounts are linked; fetching
+        // happens only when the user agrees (D-906, D-053).
+        ColumnLayout {
+            Layout.alignment: Qt.AlignHCenter
+            Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+            visible: page.step === "fetch-offer"
+            spacing: Kirigami.Units.largeSpacing
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                font.bold: true
+                text: page.i18nContext.i18nc("@info", "Connection successful. Fetch the transactions now?")
+            }
+
+            Controls.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                text: page.i18nContext.i18nc("@info", "KassenSturz asks your bank for the transactions and shows them to you first. Nothing is added to your book until you say so, and nothing is ever sent to your bank. You can also do this later with Get new transactions.")
+            }
+
+            RowLayout {
+                spacing: Kirigami.Units.largeSpacing
+
+                Controls.Button {
+                    text: page.i18nContext.i18nc("@action:button", "Fetch transactions")
+                    icon.name: "mail-receive"
+                    onClicked: {
+                        ActionLog.taken("BankSetupPage_fetchNow")
+                        page.fetchNowClicked()
+                    }
+                }
+
+                Controls.Button {
+                    text: page.i18nContext.i18nc("@action:button", "Not now")
+                    onClicked: {
+                        ActionLog.taken("BankSetupPage_notNow")
+                        page.done()
+                    }
                 }
             }
         }

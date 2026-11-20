@@ -570,7 +570,7 @@ fn the_default_overview_shows_the_same_figures_as_the_overview_on_the_sample_boo
         match component.dataset().id {
             BUDGET_UTILIZATION => {
                 // The sample book has no budget: the bars are empty, and
-                // the component takes no room until one is set (D-357).
+                // the component says how to set one (D-357, D-904).
                 let source = Source::read_with_budgets(&sample.book, shown, today).unwrap();
                 let bars = budget_utilization(
                     &source,
@@ -745,6 +745,7 @@ fn the_filters_a_layout_carries_are_kept_with_the_session_and_count_as_a_change(
         period: Some("last-year".into()),
         accounts: vec!["a-1".into()],
         categories: vec!["c-1".into(), "c-2".into()],
+        tags: vec!["t-1".into()],
     };
     assert!(editor.set_filters(&chosen).expect("set"));
     assert!(editor.has_changes());

@@ -249,7 +249,7 @@ Data in the book breaks one of KassenSturz's rules, for example because another 
 | `store.corrupt.bad-schedule` | `schedule` | | A planned payment, or what is stored about one of its payments, has values that don't fit together. |
 | `store.corrupt.unexpected-layout` | | | The book holds tables, triggers or other parts a KassenSturz book doesn't have, or lacks some of its own, probably because another program changed it. It wasn't opened, so nothing in it ran. |
 | `store.corrupt.damaged-file` | | | SQLite finds the book's file damaged, e.g. a page it can't read after a failing drive or a sync that cut the file short. The book wasn't opened or changed; the page names the newest backup (B-291). |
-| `store.corrupt.unbalanced-transaction` | | | The parts of at least one transaction don't add up to zero, or a part converted with a stored exchange rate no longer fits that rate, e.g. because a number in the file was changed, so a figure from the book would be wrong. The book wasn't opened or changed; the page names the newest backup (B-291). |
+| `store.corrupt.unbalanced-transaction` | | | The parts of at least one transaction don't add up to zero, or a part converted with a stored exchange rate no longer fits that rate, e.g. because a number in the file was changed, so a figure from the book would be wrong; or the amounts of one currency add up to more than KassenSturz can work with (B-269, B-416). The book wasn't opened or changed; the page names the newest backup (B-291). |
 | `store.corrupt.history-mismatch` | | | The change history doesn't fit what is in the book, e.g. because another program changed the book, so the change can't be undone or redone. Nothing was changed; Clean up history removes the history that doesn't fit. |
 
 ## Importing files (`kassensturz-import`)
@@ -391,6 +391,8 @@ A request to the AI provider the user set up couldn't be sent, or its answer cou
 | `ai.provider-failed` | `status` | | The AI provider answered with an error (HTTP {status}). Try again; if it keeps happening, check that the program that runs the model is still running, then the provider's settings. |
 | `ai.reply-too-large` | | | The AI provider's answer was too large, so KassenSturz didn't read it. Ask about less at a time. |
 | `ai.bad-reply` | | | The AI provider's answer isn't what KassenSturz expects from an OpenAI-compatible provider. Check that the address points to such an interface, often ending in `/v1`. |
+| `ai.plugin-failed` | | | The AI provider plugin couldn't translate the question or the answer, so nothing more was sent. Try again, or choose another kind of service in Settings › AI and ask the plugin's author. |
+| `ai.plugin-missing` | | | The AI provider plugin chosen in Settings › AI was removed or can't be used any more, so nothing was sent. Choose another kind of service there, or add the plugin again. |
 
 ## The AI's read functions (`kassensturz-ai-tools`)
 
@@ -601,7 +603,7 @@ Why a chart model couldn't be made (M6a.3, D-276).
 
 ## Plugins (`kassensturz-plugin-api`)
 
-Why a plugin file can't be added: its manifest (D-847) or the permissions it asks for (D-848) are refused, and nothing of the plugin is used (#791). `{key}` and `{name}` are text from the plugin file, shown as plain text.
+Why a plugin file can't be added: its manifest (D-847), the permissions it asks for (D-848) or a theme's data (D-925) are refused, and nothing of the plugin is used (#791). `{key}` and `{name}` are text from the plugin file, shown as plain text.
 
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
@@ -621,6 +623,21 @@ Why a plugin file can't be added: its manifest (D-847) or the permissions it ask
 | `plugin.manifest-twice` | | | This plugin describes itself twice, so KassenSturz can't tell which description is true and doesn't add it. Ask the plugin's author. |
 | `plugin.unknown-section` | `name` | | This plugin holds a part this KassenSturz doesn't know ("{name}"). Update KassenSturz, or ask the plugin's author. |
 | `plugin.data-only-has-code` | | | A plugin that changes the app's look or layout may not contain code, and this one does, so KassenSturz doesn't add it. Ask the plugin's author. |
+| `plugin.theme-missing` |  |  | This theme plugin holds no colors, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.theme-twice` |  |  | This theme plugin holds its colors twice, so KassenSturz can't tell which are meant and doesn't add it. Ask the plugin's author. |
+| `plugin.theme-unexpected` |  |  | This plugin holds colors for the app but doesn't say it is a theme, so KassenSturz doesn't add it. Ask the plugin's author. |
+| `plugin.theme-too-big` | `max_bytes` |  | This theme's colors take more than {max_bytes} bytes, so KassenSturz doesn't read them. Ask the plugin's author for a fixed version. |
+| `plugin.theme-malformed` |  |  | This theme's colors can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.unsupported-theme-version` | `version` |  | This theme was made in a format this KassenSturz doesn't know (version {version}). Update KassenSturz, or look for an older version of the theme. |
+| `plugin.theme-invalid` | `reason`, `key` | `missing`, `unknown-key`, `wrong-type`, `empty`, `too-long`, `bad-characters`, `malformed`, `wrong-way`, `out-of-range` | This theme has a mistake in "{key}", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.theme-low-contrast` | `key` |  | With this theme, some text would be hard to read ("{key}" doesn't stand out enough from the background), so KassenSturz doesn't add it. Ask the plugin's author for a version with stronger colors. |
+| `plugin.density-missing` |  |  | This layout plugin holds no layout, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.density-twice` |  |  | This layout plugin holds its layout twice, so KassenSturz can't tell which is meant and doesn't add it. Ask the plugin's author. |
+| `plugin.density-unexpected` |  |  | This plugin holds a layout for the app but doesn't say it is a layout plugin, so KassenSturz doesn't add it. Ask the plugin's author. |
+| `plugin.density-too-big` | `max_bytes` |  | This layout plugin's layout takes more than {max_bytes} bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version. |
+| `plugin.density-malformed` |  |  | This layout plugin's layout can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
+| `plugin.unsupported-density-version` | `version` |  | This layout plugin was made in a format this KassenSturz doesn't know (version {version}). Update KassenSturz, or look for an older version of the plugin. |
+| `plugin.density-invalid` | `reason`, `key` | `missing`, `unknown-key`, `wrong-type` | This layout plugin has a mistake in "{key}", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version. |
 
 ## Running plugins (`kassensturz-plugin-host`)
 
@@ -639,6 +656,7 @@ Why a plugin couldn't be loaded or stopped while it ran (D-850). A refused plugi
 | `plugin-host.input-not-accepted` | | | The plugin gave KassenSturz no room for its input, so it was stopped. Load it again, or ask the plugin's author. |
 | `plugin-host.output-too-big` | `max_bytes` | | The plugin's answer is larger than {max_bytes} bytes, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author. |
 | `plugin-host.output-invalid` | | | The plugin's answer was damaged, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author. |
+| `plugin-host.permission-missing` | `permission` | `read_book`, `propose_changes` | This plugin didn't ask for the permission it needs for this, so KassenSturz doesn't run it. Ask the plugin's author for a fixed version. |
 | `plugin-host.ran-too-long` | | | The plugin worked too long and was stopped. Nothing was changed. Try a smaller file or a shorter period, or ask the plugin's author. |
 | `plugin-host.trapped` | | | The plugin failed and was stopped. Nothing was changed. Ask the plugin's author. |
 | `plugin-host.stopped` | | | The plugin was stopped earlier. Load it again to use it. |

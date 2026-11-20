@@ -502,7 +502,7 @@ ColumnLayout {
                                 }
 
                                 background: Rectangle {
-                                    radius: Kirigami.Units.cornerRadius
+                                    radius: Look.radius(Kirigami.Units.cornerRadius)
                                     color: choice.checked ? Kirigami.Theme.highlightColor : Kirigami.Theme.backgroundColor
                                     opacity: choice.checked ? 0.25 : 1
                                     border.width: 1

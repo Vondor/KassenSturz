@@ -33,6 +33,8 @@ FormCard.FormCardPage {
     signal groupClicked(string group)
     // The user wants the help page on patterns and formulas.
     signal helpClicked()
+    // Help on the guided setup's steps is wanted (#1031, D-902).
+    signal guidedHelpClicked()
     // The user wants the testing guide for testers (#1030).
     signal testingGuideClicked()
     // The user wants the page of the provider and of what is sent; only
@@ -189,6 +191,17 @@ FormCard.FormCardPage {
             onClicked: {
                 ActionLog.taken("SettingsPage_helpPatternsFormulas")
                 page.helpClicked()
+            }
+        }
+
+        FormCard.FormDelegateSeparator {}
+
+        FormCard.FormButtonDelegate {
+            text: page.i18nContext.i18nc("@action:button opens a help page", "Help: guided setup")
+            description: page.i18nContext.i18nc("@info", "Every step of the guided setup again, also the ones you skipped")
+            onClicked: {
+                ActionLog.taken("SettingsPage_helpGuidedSetup")
+                page.guidedHelpClicked()
             }
         }
 

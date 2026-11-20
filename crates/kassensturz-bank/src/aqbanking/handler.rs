@@ -87,6 +87,9 @@ pub(crate) struct Handler {
     pub dialogs: Option<Box<dyn BankDialogs>>,
     /// The bank called the PIN wrong during the running call.
     pub rejected: bool,
+    /// The running call handed the PIN to AqBanking, so a call that goes
+    /// through shows the bank accepted it (B-413).
+    pub pin_sent: bool,
     /// Why the handler declined a request of the running call, if it did.
     pub refusal: Option<Refusal>,
     /// The last log lines of notice level and above: the bank's messages
@@ -131,6 +134,7 @@ impl Handler {
     pub fn begin(&mut self, pin: Option<Pin>) {
         self.pin = pin;
         self.rejected = false;
+        self.pin_sent = false;
         self.refusal = None;
         self.lines.clear();
         self.codes.clear();
@@ -191,7 +195,10 @@ impl SessionHandler for Handler {
     fn password(&mut self, request: &PasswordRequest) -> PasswordAnswer {
         match request.kind {
             PasswordKind::Pin => match &self.pin {
-                Some(pin) => PasswordAnswer::Text(Zeroizing::new(pin.as_str().to_owned())),
+                Some(pin) => {
+                    self.pin_sent = true;
+                    PasswordAnswer::Text(Zeroizing::new(pin.as_str().to_owned()))
+                }
                 None => PasswordAnswer::Decline,
             },
             PasswordKind::Tan => self.tan(request),

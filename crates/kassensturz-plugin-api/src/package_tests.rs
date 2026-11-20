@@ -77,15 +77,113 @@ fn reads_the_manifest_of_a_module_with_code() {
     assert_eq!(package.manifest.id.as_str(), "org.example.test");
 }
 
+fn theme() -> Vec<u8> {
+    custom(
+        THEME_SECTION,
+        json!({
+            "theme_version": 1,
+            "light": {"background": "#ffffff", "text": "#202020", "accent": "#2e7d32"},
+            "dark": {"background": "#1b1b1b", "text": "#eeeeee", "accent": "#81c784"},
+        })
+        .to_string()
+        .as_bytes(),
+    )
+}
+
 #[test]
 fn a_theme_is_a_module_without_code() {
-    let file = module(&[custom(MANIFEST_SECTION, &manifest(&["theme"], &[]))]);
+    let file = module(&[
+        custom(MANIFEST_SECTION, &manifest(&["theme"], &[])),
+        theme(),
+    ]);
     let package = Package::read(&file).unwrap();
     assert!(!package.has_code);
     assert!(package.manifest.is_data_only());
+    let colours = package.theme.unwrap();
+    assert_eq!(colours.light.accent.hex(), "#2e7d32");
+    assert_eq!(colours.dark.text.hex(), "#eeeeee");
 
-    let file = module(&[custom(MANIFEST_SECTION, &manifest(&["theme"], &[])), code()]);
+    let file = module(&[
+        custom(MANIFEST_SECTION, &manifest(&["theme"], &[])),
+        theme(),
+        code(),
+    ]);
     assert_eq!(Package::read(&file), Err(PluginError::DataOnlyHasCode));
+}
+
+#[test]
+fn a_theme_plugin_has_its_colours_exactly_once_and_only_it_has_them() {
+    let theme_manifest = custom(MANIFEST_SECTION, &manifest(&["theme"], &[]));
+    assert_eq!(
+        Package::read(&module(std::slice::from_ref(&theme_manifest))),
+        Err(PluginError::ThemeMissing)
+    );
+    assert_eq!(
+        Package::read(&module(&[theme_manifest.clone(), theme(), theme()])),
+        Err(PluginError::ThemeTwice)
+    );
+    let density_manifest = custom(MANIFEST_SECTION, &manifest(&["ui_density"], &[]));
+    assert_eq!(
+        Package::read(&module(&[density_manifest, density(), theme()])),
+        Err(PluginError::ThemeUnexpected)
+    );
+    let importer = custom(MANIFEST_SECTION, &manifest(&["importer"], &[]));
+    assert_eq!(
+        Package::read(&module(&[importer, theme(), code()])),
+        Err(PluginError::ThemeUnexpected)
+    );
+    // A theme section that breaks a rule refuses the file.
+    let broken = custom(THEME_SECTION, b"[]");
+    assert_eq!(
+        Package::read(&module(&[theme_manifest, broken])),
+        Err(PluginError::ThemeMalformed)
+    );
+}
+
+fn density() -> Vec<u8> {
+    custom(
+        DENSITY_SECTION,
+        json!({"density_version": 1, "switches": {"compact_lists": true}})
+            .to_string()
+            .as_bytes(),
+    )
+}
+
+#[test]
+fn a_density_plugin_has_its_switches_exactly_once_and_only_it_has_them() {
+    let density_manifest = custom(MANIFEST_SECTION, &manifest(&["ui_density"], &[]));
+    let package = Package::read(&module(&[density_manifest.clone(), density()])).unwrap();
+    assert!(!package.has_code);
+    assert_eq!(package.theme, None);
+    assert_eq!(
+        package.density,
+        Some(Density {
+            compact_lists: true,
+            ..Density::default()
+        })
+    );
+    assert_eq!(
+        Package::read(&module(std::slice::from_ref(&density_manifest))),
+        Err(PluginError::DensityMissing)
+    );
+    assert_eq!(
+        Package::read(&module(&[density_manifest.clone(), density(), density()])),
+        Err(PluginError::DensityTwice)
+    );
+    assert_eq!(
+        Package::read(&module(&[density_manifest.clone(), density(), code()])),
+        Err(PluginError::DataOnlyHasCode)
+    );
+    let theme_manifest = custom(MANIFEST_SECTION, &manifest(&["theme"], &[]));
+    assert_eq!(
+        Package::read(&module(&[theme_manifest, theme(), density()])),
+        Err(PluginError::DensityUnexpected)
+    );
+    let broken = custom(DENSITY_SECTION, b"[]");
+    assert_eq!(
+        Package::read(&module(&[density_manifest, broken])),
+        Err(PluginError::DensityMalformed)
+    );
 }
 
 #[test]
@@ -170,4 +268,28 @@ fn refuses_a_file_that_is_too_big() {
             max_bytes: MAX_PLUGIN_BYTES
         })
     );
+}
+
+/// The green example theme (#791): the committed plugin file is exactly
+/// its JSON files packed by `tools/make-data-plugin.py`, and KassenSturz
+/// adds it.
+#[test]
+fn the_green_example_theme_is_its_json_packed_and_is_accepted() {
+    let manifest = include_bytes!("../../../examples/plugins/green-theme/manifest.json");
+    let theme = include_bytes!("../../../examples/plugins/green-theme/theme.json");
+    let file = include_bytes!("../../../examples/plugins/green-theme/green-theme.wasm");
+    assert_eq!(
+        file.as_slice(),
+        module(&[
+            custom(MANIFEST_SECTION, manifest),
+            custom(THEME_SECTION, theme)
+        ]),
+        "run tools/make-data-plugin.py again"
+    );
+    let package = Package::read(file).unwrap();
+    assert_eq!(package.manifest.name, "Green");
+    assert!(!package.has_code);
+    let theme = package.theme.unwrap();
+    assert_eq!(theme.light.accent.hex(), "#2e7d32");
+    assert_eq!(theme.corner_radius, Some(8));
 }

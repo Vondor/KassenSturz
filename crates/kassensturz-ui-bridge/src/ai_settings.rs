@@ -306,11 +306,25 @@ impl Store {
     /// A client that reads the settings at every call, and counts a
     /// consent only with the seal KassenSturz's consent screen made for it
     /// (B-252).
+    ///
+    /// With an AI provider plugin chosen as the kind of service (D-928),
+    /// the client translates through it; the plugin is loaded here, and
+    /// only while AI is on (D-013).
     pub fn client(&self) -> AiClient {
         let keys = self.keys.clone();
-        AiClient::new(self.config.clone()).with_consent_seal(move |address| {
+        let client = AiClient::new(self.config.clone()).with_consent_seal(move |address| {
             seals_in(keys.as_ref(), |keys| keys.sealed_consent(address))
-        })
+        });
+        match crate::ai_provider_plugins::chosen(&self.settings) {
+            Some(id) if self.config.read().enabled() => {
+                let folder = crate::plugins::folder();
+                client.with_translator(crate::ai_provider_plugins::translator(
+                    folder.as_deref(),
+                    &id,
+                ))
+            }
+            _ => client,
+        }
     }
 
     /// Runs `f` with the keys that hold the consent seals.

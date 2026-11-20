@@ -29,14 +29,14 @@ A **Dashboard** is a page you put together yourself: charts, tables, number card
 - **New dashboard…** in the overview's menu makes a second page. It starts empty, with the menu for adding already open. **Done** keeps the page.
 - **Tabs:** as soon as you have two dashboards, tabs appear at the top. **Ctrl+Page Down** and **Ctrl+Page Up** go to the next and the previous one.
 - **The dashboard menu** (from two dashboards on) renames, copies, moves and deletes the dashboard you are looking at. **Make this the default** sets which one your book opens with; its tab shows a small house. As long as you set nothing, the book opens with the overview.
-- **Edit layout** lets you add, move and remove items. **Add to the page** puts an item on the page; **Properties** opens an item's settings (period, accounts, categories, colours). **Done** saves the layout.
+- **Edit layout** lets you add, move and remove items. **Add to the page** puts an item on the page; **Properties** opens an item's settings (period, accounts, categories, colours). To change an item's size, click it and drag one of its edges, or the small square at its lower right corner. Every item has a smallest size: if you drag further, its frame turns red and it says "Smallest size". **Done** saves the layout.
 - **Save as a new dashboard…** keeps the page you are arranging as an extra dashboard.
 - **Save this dashboard to a file** and **Add a dashboard from a file** pass a dashboard on to another book. The file holds **no amounts, transactions or account numbers**, only the names of the accounts and categories.
 - Each of these steps is a change that **Undo** takes back.
 
 ## A page's filter
 
-Above the items is the **Filter bar**: period, accounts and categories apply to every item that follows the page. **Reset filters** counts everything again. An item can also have its own filter in its **Properties**; a grey filter note then says what it counts. In **Settings** you can hide the grey notes (**Hide the grey filter notes**).
+Above the items is the **Filter bar**: period, accounts and categories apply to every item that follows the page. Once your book has a tag, the bar also offers **Tags**: tick one and the items count only money that carries it. Items that count whole accounts or budgets cannot do that and say *Not filtered by tag*. **Reset filters** counts everything again. An item can also have its own filter in its **Properties**; a grey filter note then says what it counts. In **Settings** you can hide the grey notes (**Hide the grey filter notes**).
 
 A period can also move with today's date, for example **The last months…** or **A salary month…** (page 14), so a chart never goes out of date.
 

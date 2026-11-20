@@ -217,6 +217,27 @@ jobs:
           Select-String -Path $ini -Pattern '^(ABI|Locations|UseCache|BuildType|EnableDailyUpdates) ='
       - name: Install Qt and KDE Frameworks
         run: python "$env:CRAFT_ROOT\craft\bin\craft.py" --ci-mode --install-deps kassensturz
+      # Craft's own packages (craft/craft-core, craft/craft-blueprints-kde) are in
+      # the install list of a cold run, and installing them runs `git checkout
+      # master` in the very folders pinned above. The next Craft run would then
+      # read blueprints newer than KDE's binary cache (on 2026-11-20 master
+      # asked for ffmpeg 8.1.3, which the cache didn't have yet, and the build
+      # failed in ffmpeg's configure). So the pins are set again, and the cache
+      # saved below holds the pinned state.
+      - name: Pin Craft and its blueprints again
+        run: |
+          $pins = @(
+            @("$env:CRAFT_ROOT\craft", $env:CRAFT_COMMIT),
+            @("$env:CRAFT_ROOT\etc\blueprints\locations\craft-blueprints-kde", $env:CRAFT_BLUEPRINTS_COMMIT)
+          )
+          foreach ($pin in $pins) {
+            $dir, $commit = $pin
+            git -C $dir cat-file -e "$commit^{commit}" 2>$null
+            if ($LASTEXITCODE -ne 0) { git -C $dir fetch --quiet origin $commit; if ($LASTEXITCODE -ne 0) { throw "can't fetch $commit into $dir" } }
+            git -C $dir checkout --quiet --detach $commit
+            if ($LASTEXITCODE -ne 0) { throw "can't check out $commit in $dir" }
+            Write-Output "$dir at $(git -C $dir rev-parse HEAD)"
+          }
       - name: Save Craft
         # Only main saves (D-613, as D-427 for Cargo's caches): a pull
         # request's copy of this several-GB folder serves no other branch and

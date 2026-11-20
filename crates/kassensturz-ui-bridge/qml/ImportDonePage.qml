@@ -21,6 +21,8 @@ Kirigami.ScrollablePage {
     required property AccountRegister register
     readonly property var view: statementImport.view ?? ({})
     readonly property var balances: view.balances ?? []
+    // What the import did to the starting balance, or null (D-903).
+    readonly property var start: view.start ?? null
     readonly property string accountId: statementImport.accountId
     readonly property var joined: view.joined ?? []
     // The user took the joins back with "Undo these joins".
@@ -30,6 +32,24 @@ Kirigami.ScrollablePage {
     // joins back takes them back too: they were made after the joins).
     readonly property var planned: view.planned ?? []
     property bool matchesUndone: false
+    // What automation plugins suggest for the new transactions (#791,
+    // D-926), asked once when the page opens: `{ file, plugin, items }` or
+    // `{ file, plugin, error }` each. Nothing changes until the user
+    // chooses to use the ticked ones.
+    property var suggestions: []
+    // The ticked suggestions, by "<transaction>": "<category>".
+    property var ticked: ({})
+    // How many were used, or -1 while none were.
+    property int suggestionsUsed: -1
+    Component.onCompleted: {
+        suggestions = statementImport.pluginSuggestions();
+        const all = {};
+        for (const plugin of suggestions) {
+            for (const item of plugin.items ?? [])
+                all[item.transaction] = item.category;
+        }
+        ticked = all;
+    }
 
     // The user is finished here.
     signal done()
@@ -74,6 +94,26 @@ Kirigami.ScrollablePage {
         return owes ? i18nContext.i18nc("@label %1 is an amount of money", "you owed %1", amount) : amount;
     }
 
+    // An amount of money that stands for itself in a sentence: a debt is
+    // written as the amount owed.
+    function money(amount: string, owes: bool): string {
+        return owes ? i18nContext.i18nc("@label %1 is an amount of money", "%1 owed", amount) : amount;
+    }
+
+    // What the import did to the account's starting balance, when it
+    // brought the account's first transactions (D-903).
+    function startText(start: var): string {
+        return start.adds
+            ? i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "A starting balance of %1, dated %2, was added.", money(start.wouldBe, start.owes), start.date)
+            : i18nContext.i18nc("@info %1 and %3 are amounts of money, %2 and %4 are dates", "The starting balance was changed from %1 (dated %2) to %3 (dated %4).", money(start.was, start.wasOwes), start.wasDate, money(start.wouldBe, start.owes), start.date);
+    }
+
+    function startDescription(start: var): string {
+        return start.fromBank
+            ? i18nContext.i18nc("@info %1 is a date, %2 what the bank said the account held", "On %1 your bank said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import.", start.holdsOn, said(start.holds, start.holdsOwes))
+            : i18nContext.i18nc("@info %1 is a date, %2 what the user said the account held", "For %1 you said: %2. From that, KassenSturz worked out what the account held before the first of these transactions, so they didn't change your balance a second time. Undo takes this back together with the import.", start.holdsOn, said(start.holds, start.holdsOwes));
+    }
+
     function balanceText(balance: var): string {
         return balance.which === "opening"
             ? i18nContext.i18nc("@info %1 is a date, %2 what the bank said the account held", "Before these transactions, on %1, your bank said: %2", balance.date, said(balance.bank, balance.bankOwes))
@@ -93,6 +133,100 @@ Kirigami.ScrollablePage {
 
     ColumnLayout {
         spacing: 0
+
+        Repeater {
+            model: page.suggestionsUsed < 0 ? page.suggestions : []
+
+            delegate: ColumnLayout {
+                id: suggested
+
+                required property var modelData
+
+                Layout.fillWidth: true
+                spacing: 0
+
+                FormCard.FormHeader {
+                    title: Plain.plain(suggested.modelData.error
+                        ? page.i18nContext.i18nc("@title:group %1 is a plugin's name", "The plugin \"%1\" couldn't make suggestions", suggested.modelData.plugin)
+                        : page.i18nContext.i18ncp("@title:group %1 is a plugin's name", "The plugin \"%2\" suggests a category for %1 transaction", "The plugin \"%2\" suggests categories for %1 transactions", suggested.modelData.items.length, suggested.modelData.plugin))
+                }
+
+                FormError {
+                    Layout.fillWidth: true
+                    visible: suggested.modelData.error !== undefined
+                    result: suggested.modelData.error ?? ({})
+                }
+
+                FormCard.FormCard {
+                    visible: suggested.modelData.items !== undefined
+
+                    Repeater {
+                        model: suggested.modelData.items ?? []
+
+                        delegate: FormCard.FormCheckDelegate {
+                            required property var modelData
+
+                            text: Plain.plain(page.i18nContext.i18nc("@option:check %1 is who was paid, %2 an amount", "%1 · %2", modelData.payee !== "" ? modelData.payee : page.i18nContext.i18nc("@item a transaction that shows no name", "No name"), modelData.amount))
+                            description: Plain.plain(page.i18nContext.i18nc("@info %1 is a date, %2 a category", "%1 · suggested: %2", modelData.date, modelData.categoryName))
+                            descriptionItem.textFormat: Text.PlainText
+                            checked: page.ticked[modelData.transaction] !== undefined
+                            onToggled: {
+                                ActionLog.taken("ImportDonePage_tickSuggestion")
+                                const all = Object.assign({}, page.ticked);
+                                if (checked)
+                                    all[modelData.transaction] = modelData.category;
+                                else
+                                    delete all[modelData.transaction];
+                                page.ticked = all;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        FormCard.FormSectionText {
+            visible: page.suggestionsUsed < 0 && page.suggestions.some(plugin => plugin.items !== undefined)
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "Nothing changes until you choose \"Use the ticked suggestions\". You can undo it in one step. Only transactions without a category get a suggestion.")
+        }
+
+        FormCard.FormCard {
+            visible: page.suggestionsUsed < 0 && page.suggestions.some(plugin => plugin.items !== undefined)
+
+            FormCard.FormButtonDelegate {
+                readonly property int count: Object.keys(page.ticked).length
+
+                enabled: count > 0
+                icon.name: "dialog-ok-apply"
+                text: Plain.plain(page.i18nContext.i18ncp("@action:button", "Use the ticked suggestion (%1)", "Use the ticked suggestions (%1)", count))
+                onClicked: {
+                    ActionLog.taken("ImportDonePage_useSuggestions")
+                    const chosen = Object.keys(page.ticked).map(id => ({ transaction: id, category: page.ticked[id] }));
+                    const result = page.statementImport.useSuggestions(chosen);
+                    error.result = result;
+                    if (result.count !== undefined)
+                        page.suggestionsUsed = result.count;
+                }
+            }
+
+            FormCard.FormDelegateSeparator {}
+
+            FormCard.FormButtonDelegate {
+                icon.name: "dialog-cancel"
+                text: page.i18nContext.i18nc("@action:button", "Not now")
+                onClicked: {
+                    ActionLog.taken("ImportDonePage_skipSuggestions")
+                    page.suggestionsUsed = 0
+                }
+            }
+        }
+
+        FormCard.FormSectionText {
+            visible: page.suggestionsUsed > 0
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18ncp("@info", "%1 transaction got its suggested category. Undo takes it back.", "%1 transactions got their suggested categories. Undo takes them back.", page.suggestionsUsed)
+        }
 
         FormCard.FormHeader {
             title: page.i18nContext.i18nc("@title:group", "What was imported")
@@ -357,6 +491,25 @@ Kirigami.ScrollablePage {
                 icon.name: "dialog-question"
                 text: page.i18nContext.i18ncp("@info", "%1 monthly move has entries that were not joined.", "%1 monthly moves have entries that were not joined.", page.view.needsYou ?? 0)
                 description: page.i18nContext.i18nc("@info", "Two entries fit equally well, or a join would lose something you wrote. Join them yourself: Accounts › Find moves between my accounts…")
+            }
+        }
+
+        // The account's first transactions: its starting balance was
+        // worked out from the balance that is known (D-903).
+        FormCard.FormHeader {
+            visible: page.start !== null
+            title: page.i18nContext.i18nc("@title:group", "Starting balance")
+        }
+
+        FormCard.FormCard {
+            visible: page.start !== null
+
+            FormCard.FormTextDelegate {
+                descriptionItem.textFormat: Text.PlainText
+                textItem.textFormat: Text.PlainText
+                icon.name: "view-financial-account"
+                text: page.start === null ? "" : page.startText(page.start)
+                description: page.start === null ? "" : page.startDescription(page.start)
             }
         }
 

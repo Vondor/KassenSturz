@@ -105,7 +105,9 @@ impl Plugin {
 
     /// Loads a plugin file with the given limits.
     pub fn load_with(bytes: &[u8], ai_enabled: bool, limits: Limits) -> Result<Self, HostError> {
-        let Package { manifest, has_code } = Package::read(bytes)?;
+        let Package {
+            manifest, has_code, ..
+        } = Package::read(bytes)?;
         if manifest.is_ai() && !ai_enabled {
             return Err(HostError::AiOff);
         }

@@ -1,8 +1,9 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// The settings group "Look and language" (D-795): the language (D-127), how
-// amounts look (D-002, D-114) and the colors of the charts (D-589).
+// The settings group "Look and language" (D-795): the language (D-127), the
+// colors of the app (D-925), the layout (D-927), how amounts look (D-002,
+// D-114) and the colors of the charts (D-589).
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -18,11 +19,25 @@ FormCard.FormCardPage {
     required property NumberFormatSettings numberFormat
     required property ChartPaletteSettings chartPalette
     required property LanguageSettings language
+    required property ThemeSettings theme
+    required property DensitySettings density
 
     // Whether a number format choice couldn't be saved for the next start.
     property bool formatNotSaved: false
     // Whether the language choice couldn't be saved.
     property bool languageNotSaved: false
+    // Whether the theme choice couldn't be saved.
+    property bool themeNotSaved: false
+    // Whether the layout choice couldn't be saved.
+    property bool densityNotSaved: false
+    // The theme plugins there are (D-925), read when the page opens.
+    property var themes: []
+    // The layout plugins there are (D-927), read when the page opens.
+    property var layouts: []
+    Component.onCompleted: {
+        themes = theme.themes();
+        layouts = density.layouts();
+    }
 
     header: ColumnLayout {
         spacing: 0
@@ -35,6 +50,14 @@ FormCard.FormCardPage {
             type: Kirigami.MessageType.Information
             visible: page.language.restartNeeded && !page.languageNotSaved
             text: page.i18nContext.i18nc("@info", "Close KassenSturz and open it again to see it in the new language.")
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            position: Kirigami.InlineMessage.Position.Header
+            type: Kirigami.MessageType.Information
+            visible: page.theme.restartNeeded && !page.themeNotSaved
+            text: page.i18nContext.i18nc("@info", "Close KassenSturz and open it again to see the new colors.")
         }
     }
 
@@ -81,9 +104,97 @@ FormCard.FormCardPage {
         }
     }
 
-    FormCard.FormSectionText {
+    HintText {
         textFormat: Text.PlainText
         text: page.i18nContext.i18nc("@info", "Dates and amounts keep following your regional settings; change how amounts look below.")
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group", "Colors of the app")
+    }
+
+    // A theme plugin's colors for the whole app (#791, D-925). A theme's
+    // name is the plugin's own text, shown as plain text.
+    FormCard.FormCard {
+        FormCard.FormComboBoxDelegate {
+            id: themeBox
+
+            // Shows the saved choice; set rather than bound, as above.
+            function showChoice() {
+                currentIndex = Math.max(0, indexOfValue(page.theme.choice));
+            }
+
+            text: page.i18nContext.i18nc("@label:listbox", "Colors")
+            textRole: "text"
+            valueRole: "value"
+            model: [{ value: "", text: page.i18nContext.i18nc("@item:inlistbox the app's colors without a theme plugin", "KassenSturz's own, as in your system") }]
+                .concat(page.themes.map(item => ({ value: item.id, text: Plain.plain(item.name) })))
+            onModelChanged: showChoice()
+            Component.onCompleted: showChoice()
+            onActivated: {
+                ActionLog.taken("SettingsLookPage_theme")
+                page.themeNotSaved = !page.theme.choose(currentValue)
+            }
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            Layout.margins: Kirigami.Units.largeSpacing
+            visible: page.themeNotSaved
+            type: Kirigami.MessageType.Error
+            text: page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
+        }
+    }
+
+    FormCard.FormSectionText {
+        textFormat: Text.PlainText
+        text: page.themes.length === 0
+            ? page.i18nContext.i18nc("@info", "To give KassenSturz other colors, add a theme plugin in Settings › Plugins. KassenSturz refuses a theme whose text would be hard to read.")
+            : page.i18nContext.i18nc("@info", "A theme changes only colors, the font and how round corners are. It uses its light or dark colors after your system's setting when KassenSturz opens. KassenSturz refuses a theme whose text would be hard to read.")
+    }
+
+    FormCard.FormHeader {
+        title: page.i18nContext.i18nc("@title:group how much fits on the screen", "Layout")
+    }
+
+    // A UI density plugin's switches (#791, D-927), which apply at once. A
+    // plugin's name is its own text, shown as plain text.
+    FormCard.FormCard {
+        FormCard.FormComboBoxDelegate {
+            id: layoutBox
+
+            // Shows the saved choice; set rather than bound, as above.
+            function showChoice() {
+                currentIndex = Math.max(0, indexOfValue(page.density.choice));
+            }
+
+            text: page.i18nContext.i18nc("@label:listbox how much fits on the screen", "Layout")
+            textRole: "text"
+            valueRole: "value"
+            model: [{ value: "", text: page.i18nContext.i18nc("@item:inlistbox the app's layout without a layout plugin", "KassenSturz's own") }]
+                .concat(page.layouts.map(item => ({ value: item.id, text: Plain.plain(item.name) })))
+            onModelChanged: showChoice()
+            Component.onCompleted: showChoice()
+            onActivated: {
+                ActionLog.taken("SettingsLookPage_layout")
+                page.densityNotSaved = !page.density.choose(currentValue)
+            }
+        }
+
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            Layout.margins: Kirigami.Units.largeSpacing
+            visible: page.densityNotSaved
+            type: Kirigami.MessageType.Error
+            text: page.i18nContext.i18nc("@info", "KassenSturz couldn't save this choice. Check that your settings folder can be written to, then choose again.")
+        }
+    }
+
+    HintText {
+        textFormat: Text.PlainText
+        text: page.layouts.length === 0
+            ? page.i18nContext.i18nc("@info", "To fit more on the screen, add a layout plugin in Settings › Plugins.")
+            : page.i18nContext.i18nc("@info", "A layout plugin can make lists tighter and hide these grey explanations. Warnings and questions before a change always stay.")
     }
 
     FormCard.FormHeader {

@@ -173,7 +173,7 @@ Kirigami.ScrollablePage {
             text: !page.checked
                 ? ""
                 : page.corrected
-                    ? page.i18nContext.i18nc("@info %1 is a date, %2 says how much money there is or what is owed", "The starting balance is corrected. On %1 both your bank and KassenSturz now say %2.", page.check.date, page.says(page.check.book, page.check.bookOwes))
+                    ? page.i18nContext.i18nc("@info %1 is a date, %2 says how much money there is or what is owed", "The starting balance is corrected. On %1 both your bank and KassenSturz now say %2. Undo takes the correction back.", page.check.date, page.says(page.check.book, page.check.bookOwes))
                     : page.i18nContext.i18nc("@info %1 is a date, %2 says how much money there is or what is owed", "KassenSturz agrees with your bank. On %1 both say %2.", page.check.date, page.says(page.check.book, page.check.bookOwes))
         }
 
@@ -220,15 +220,62 @@ Kirigami.ScrollablePage {
                 level: 2
             }
 
+            // The change as it would be made, before and after, so the
+            // user confirms what they have seen (D-903).
+            Controls.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                visible: page.correction !== null
+                text: page.i18nContext.i18nc("@info", "If the difference comes from before your first transaction in KassenSturz, correcting the starting balance makes both agree. This is what would change:")
+                wrapMode: Text.Wrap
+            }
+
             Controls.Label {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
                 visible: page.correction !== null
                 text: page.correction === null
                     ? ""
-                    : page.correction.adds
-                        ? page.i18nContext.i18nc("@info %1 is an amount of money, %2 and %3 are dates", "If the difference comes from before you started using KassenSturz, a starting balance of %1 dated %2 makes both agree. KassenSturz then has on %3 what your bank says. Your other transactions stay as they are.", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date, page.check.date)
-                        : page.i18nContext.i18nc("@info %1 is an amount of money, %2 and %3 are dates", "If the difference comes from before you started using KassenSturz, a starting balance of %1 (dated %2) makes both agree. KassenSturz then has on %3 what your bank says. Your other transactions stay as they are.", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date, page.check.date)
+                    : "• " + (page.correction.adds
+                        ? page.i18nContext.i18nc("@info the account has no starting balance", "Starting balance now: none")
+                        : page.i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "Starting balance now: %1, dated %2", page.money(page.correction.was, page.correction.wasOwes), page.correction.wasDate))
+                wrapMode: Text.Wrap
+            }
+
+            Controls.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                visible: page.correction !== null
+                text: page.correction === null
+                    ? ""
+                    : "• " + page.i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "Starting balance afterwards: %1, dated %2", page.money(page.correction.wouldBe, page.correction.owes), page.correction.date)
+                font.bold: true
+                wrapMode: Text.Wrap
+            }
+
+            Controls.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                visible: page.correction !== null && (page.correction.moves || page.correction.adds)
+                text: "• " + page.i18nContext.i18nc("@info", "It is dated before the account's first transaction, so earlier days show the right balance too.")
+                wrapMode: Text.Wrap
+            }
+
+            Controls.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                visible: page.correction !== null
+                text: page.checked
+                    ? "• " + page.i18nContext.i18nc("@info %1 is a date, %2 says how much money there is or what is owed", "Balance on %1 afterwards: %2, as your bank says", page.check.date, page.says(page.check.bank, page.check.bankOwes))
+                    : ""
+                wrapMode: Text.Wrap
+            }
+
+            Controls.Label {
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                visible: page.correction !== null
+                text: page.i18nContext.i18nc("@info", "Your other transactions stay as they are. Nothing changes until you click, and Undo takes the correction back.")
                 wrapMode: Text.Wrap
             }
 

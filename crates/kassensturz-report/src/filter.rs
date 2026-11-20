@@ -13,7 +13,7 @@
 //!    `params.categories`, `params.accounts`, `params.tags`);
 //! 2. for the period only, the period box the component lies in (D-333);
 //! 3. the dashboard's filter bar ([`Filters`]: the document's `filters`, or
-//!    a choice the user made for now); it has no tags (US5.2);
+//!    a choice the user made for now), tags included (#1154, D-893);
 //! 4. nothing: all accounts, all categories, every part whatever its tags,
 //!    the page's own period.
 //!
@@ -165,6 +165,9 @@ pub struct Filters {
     pub accounts: Vec<String>,
     /// The IDs of categories or My groups, written as text.
     pub categories: Vec<String>,
+    /// The IDs of tags, written as text (#1154, D-893): only money that
+    /// carries one of them counts, by the rule of [`Filter::tags`].
+    pub tags: Vec<String>,
 }
 
 /// Where the value of one dimension comes from.
@@ -250,8 +253,8 @@ pub struct Asked {
     pub accounts: Option<Chosen>,
     /// The categories and groups, `None` for all of them.
     pub categories: Option<Chosen>,
-    /// The tags, `None` for every part whatever its tags. Only the
-    /// component's own (`params.tags`): the filter bar has none (US5.2).
+    /// The tags, `None` for every part whatever its tags: the component's
+    /// own (`params.tags`, US5.2), else the filter bar's (#1154).
     pub tags: Option<Chosen>,
     /// The dimensions the component's dataset takes.
     pub takes: Takes,
@@ -407,7 +410,7 @@ impl Asked {
             period_origin,
             accounts: own_ids(component, "accounts").or_else(|| bar_ids(&bar.accounts)),
             categories: own_ids(component, "categories").or_else(|| bar_ids(&bar.categories)),
-            tags: own_ids(component, crate::schema::TAGS_KEY),
+            tags: own_ids(component, crate::schema::TAGS_KEY).or_else(|| bar_ids(&bar.tags)),
             takes,
             series: series_asked(component),
             average: match component.get(crate::schema::AVERAGE_KEY) {

@@ -131,6 +131,7 @@ fn main() {
                 "qml/TileStatusWords.qml",
                 "qml/DashboardGrid.qml",
                 "qml/HelpPage.qml",
+                "qml/HintText.qml",
                 "qml/TestingGuidePage.qml",
                 "qml/HistoryPage.qml",
                 "qml/ImportDonePage.qml",
@@ -144,6 +145,7 @@ fn main() {
                 "qml/DrawerHandleName.qml",
                 "qml/HeaderHandleNames.qml",
                 "qml/NewDashboardDialog.qml",
+                "qml/NewCategoryDialog.qml",
                 "qml/TemplatePicture.qml",
                 "qml/PartRow.qml",
                 "qml/PartsPage.qml",
@@ -173,6 +175,7 @@ fn main() {
                 "qml/SettingsLookPage.qml",
                 "qml/SettingsPluginsPage.qml",
                 "qml/PluginDetails.qml",
+                "qml/PluginReportPage.qml",
                 "qml/StatisticsPage.qml",
                 "qml/TransactionPage.qml",
                 "qml/TagField.qml",
@@ -188,6 +191,15 @@ fn main() {
                 "qml/WizardAccountsPage.qml",
                 "qml/WizardEntriesPage.qml",
                 "qml/WizardStartPage.qml",
+                "qml/GuidedBar.qml",
+                "qml/GuidedFooter.qml",
+                "qml/GuidedTransactionsPage.qml",
+                "qml/GuidedBalancePage.qml",
+                "qml/GuidedHelpPage.qml",
+                "qml/GuidedSortPage.qml",
+                "qml/GuidedTryPage.qml",
+                "qml/GuidedChoice.qml",
+                "qml/GuidedAiPage.qml",
             ])
             // Helpers, not screens: `Plain.plain()` (D-143) and the colors of
             // the charts (D-283).
@@ -198,6 +210,8 @@ fn main() {
                 QmlFile::from("qml/ActionLog.qml").singleton(true),
                 // The rows a change just touched light up (B-384, D-857).
                 QmlFile::from("qml/ChangedRows.qml").singleton(true),
+                // A theme's corner radius (D-925).
+                QmlFile::from("qml/Look.qml").singleton(true),
             ]),
     )
     .qt_module("Network")
@@ -225,6 +239,7 @@ fn main() {
         "src/folder_choice_model.rs",
         "src/book_move_model.rs",
         "src/grid_editor_model.rs",
+        "src/guided_sort_model.rs",
         "src/history_model.rs",
         "src/install_kind_model.rs",
         "src/kmy_reports_import_model.rs",
@@ -242,6 +257,8 @@ fn main() {
         "src/overview_model.rs",
         "src/period_range_model.rs",
         "src/planned_payments_model.rs",
+        "src/plugin_reports_model.rs",
+        "src/density_model.rs",
         "src/plugins_model.rs",
         "src/platform.rs",
         "src/properties_model.rs",
@@ -252,12 +269,15 @@ fn main() {
         "src/statement_import_model.rs",
         "src/tags_model.rs",
         "src/test_profile_model.rs",
+        "src/theme.rs",
+        "src/theme_model.rs",
     ])
     .cpp_files([
         "cpp/local_only.cpp",
         "cpp/locale.cpp",
         "cpp/platform.cpp",
         "cpp/settings.cpp",
+        "cpp/theme.cpp",
     ]);
     // Visual Studio reads a source file in the system's code page unless told
     // otherwise, and the C++ that qmlcachegen writes from the QML keeps its

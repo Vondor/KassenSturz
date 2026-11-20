@@ -89,6 +89,17 @@ Kirigami.ApplicationWindow {
     // no stored setting.
     property bool freshBook: false
 
+    // The steps of the guided setup (#1031, docs/GUIDED_SETUP.md), in their
+    // order. How far the user got is not stored anywhere (D-921): the pages
+    // on the stack are all there is.
+    // The open book changed, by a screen or by Undo: for a page that keeps
+    // what it read from the book.
+    signal bookWasChanged()
+
+    // The last step asks about a local AI and is left out where this build
+    // has none or the test profile hides it (D-039, D-922).
+    readonly property var guidedSteps: ["transactions", "balance", "sort", "chart", "budget", "start"].concat(aiSwitch.available ? ["ai"] : [])
+
     // The app's name, which isn't translated, and in the developer mode a
     // marker that stays as long as it runs (D-227). With only the bank log
     // on, the marker names that mode, as its banner does (D-603, M6-B243).
@@ -264,6 +275,12 @@ Kirigami.ApplicationWindow {
 
     // The register and its pages (M3.5): one list model, shown for the
     // account whose page is open.
+    GuidedSort {
+        id: guidedSort
+
+        onChanged: root.screenChangedBook()
+    }
+
     AccountRegister {
         id: accountRegister
 
@@ -541,6 +558,42 @@ Kirigami.ApplicationWindow {
         id: languageSettings
     }
 
+    // The theme (D-925), which applies at the next start; its corner
+    // radius reaches every box through `Look`.
+    ThemeSettings {
+        id: themeSettings
+    }
+
+    Binding {
+        target: Look
+        property: "themeRadius"
+        value: themeSettings.cornerRadius
+    }
+
+    // The layout (D-927), which applies at once; its switches reach every
+    // list, tile and explanation through `Look`.
+    DensitySettings {
+        id: densitySettings
+    }
+
+    Binding {
+        target: Look
+        property: "compactLists"
+        value: densitySettings.compactLists
+    }
+
+    Binding {
+        target: Look
+        property: "hideHints"
+        value: densitySettings.hideHints
+    }
+
+    Binding {
+        target: Look
+        property: "compactTiles"
+        value: densitySettings.compactTiles
+    }
+
     // The colors of the charts (M7a.10, D-589): what the user chose in
     // Settings reaches every chart through `ChartPalette`. A screen that
     // wants the palette changed asks with `ChartPalette.editRequested()`.
@@ -682,6 +735,7 @@ Kirigami.ApplicationWindow {
 
     // The book changed on one of its screens: every screen reads it again.
     function bookChanged() {
+        bookWasChanged();
         firstStartState.refresh();
         bookOverview.refresh();
         accountList.refresh();
@@ -965,6 +1019,62 @@ Kirigami.ApplicationWindow {
         return pageStack.push(makePage(component, properties));
     }
 
+    // Shows step `index` of the guided setup (counted from 0) on top of the
+    // current page, or the overview after the last one.
+    function showGuidedStep(index: int) {
+        if (index >= guidedSteps.length) {
+            // The last page: where the steps are found again (D-902, D-931).
+            pushPage(guidedTryPage, { which: "done" });
+            return;
+        }
+        pushGuidedStep(guidedSteps[index], index + 1, guidedSteps.length);
+    }
+
+    // Shows the page of the guided setup's step `name` as step `step` of
+    // `count`; 0 for a step opened from Help, which stands alone.
+    function pushGuidedStep(name: string, step: int, count: int) {
+        if (name === "balance") {
+            pushPage(guidedBalancePage, { step: step, count: count });
+        } else if (name === "sort") {
+            pushPage(guidedSortPage, { step: step, count: count });
+        } else if (name === "transactions") {
+            pushPage(guidedTransactionsPage, { step: step, count: count });
+        } else if (name === "ai") {
+            if (aiSwitch.available) {
+                pushPage(guidedAiPage, { step: step, count: count });
+            }
+        } else {
+            pushPage(guidedTryPage, { which: name, step: step, count: count });
+        }
+    }
+
+    // Opens the real function a guided page offers to try, on top of that
+    // page, so closing it leads back there.
+    function guidedTry(what: string) {
+        if (what === "chart") {
+            pushPage(statisticsPage, { initialDataset: "spending_by_category" });
+        } else if (what === "budget") {
+            pushPage(budgetPage, { categoryId: "" });
+        } else if (what === "plan") {
+            overviewPlanForm.create("");
+        } else if (what === "arrange") {
+            pushPage(overviewPage);
+            dashboardLayout.edit();
+        } else if (what === "wiki") {
+            Qt.openUrlExternally("https://github.com/Vondor/KassenSturz/wiki");
+        }
+    }
+
+    // What a guided page does after its step: the next step, or, opened from
+    // Help (step 0), back to Help.
+    function guidedStepDone(step: int) {
+        if (step === 0) {
+            pageStack.pop();
+        } else {
+            showGuidedStep(step);
+        }
+    }
+
     // Shows a new page made from `component` in place of the current one.
     function replacePage(component: Component, properties: var): Item {
         return pageStack.replace(makePage(component, properties));
@@ -1151,6 +1261,7 @@ Kirigami.ApplicationWindow {
     // (M3.10): the file dialog first, then the screen the file needs.
     function importStatement(accountId: string) {
         importDialog.accountId = accountId;
+        importDialog.pluginPatterns = statementImporter.pluginPatterns();
         importDialog.open();
     }
 
@@ -1926,13 +2037,18 @@ Kirigami.ApplicationWindow {
 
         // The account the file goes into.
         property string accountId: ""
+        // What the plugin importers read, such as "*.bank" (#791).
+        property string pluginPatterns: ""
 
         title: root.i18nContext.i18nc("@title:window", "Import a file from your bank")
         fileMode: Dialogs.FileDialog.OpenFile
         nameFilters: [
             root.i18nContext.i18nc("@item:inlistbox a file type", "Bank files (*.xml *.sta *.ofx *.csv *.txt)"),
+        ].concat(pluginPatterns === "" ? [] : [
+            root.i18nContext.i18nc("@item:inlistbox a file type, %1 are patterns such as *.bank", "Files your plugins read (%1)", pluginPatterns),
+        ]).concat([
             root.i18nContext.i18nc("@item:inlistbox a file type", "All files (*)")
-        ]
+        ])
         onAccepted: {
             ActionLog.taken("Main_startImport")
             root.startImport(accountId, selectedFile)
@@ -2012,6 +2128,9 @@ Kirigami.ApplicationWindow {
         id: wizardStartPage
 
         WizardStartPage {
+            // The optional guided setup starts with the accounts, without
+            // amounts (D-895, D-899).
+            onGuidedClicked: root.pushPage(wizardAccountsPage, { currency: root.wizardCurrency, guided: true, guidedStep: 1, guidedCount: root.guidedSteps.length })
             onOwnAccountsClicked: root.pushPage(wizardAccountsPage, { currency: root.wizardCurrency })
             onExampleClicked: root.chooseExampleBook()
             onFromProgramClicked: root.chooseFileForNewBook()
@@ -2027,14 +2146,120 @@ Kirigami.ApplicationWindow {
             firstStart: firstStartState
             accounts: accountList
             onExampleClicked: root.chooseExampleBook()
+            // Nothing is written yet, so there is no overview to show: back
+            // to the choices.
+            onGuidedEnded: root.pageStack.pop()
             onFinished: {
+                // Read before the page leaves the stack.
+                const wasGuided = guided;
                 root.bookChanged();
                 root.freshBook = true;
                 root.showScreen("overview");
-                // Page 4 on top of the overview: going back from it is the
-                // overview, never the finished wizard pages.
-                root.pushPage(wizardEntriesPage, {});
+                // The next page on top of the overview: going back from it
+                // is the overview, never the finished wizard pages.
+                if (wasGuided) {
+                    root.showGuidedStep(0);
+                } else {
+                    // Page 4.
+                    root.pushPage(wizardEntriesPage, {});
+                }
             }
+        }
+    }
+
+    // The guided setup's step 1: get the transactions, from the bank or a
+    // file, through the existing pages.
+    Component {
+        id: guidedTransactionsPage
+
+        GuidedTransactionsPage {
+            accounts: accountList
+            // In the first setup the build decides whether the wizard offers
+            // the bank (Q-398); from Help it is offered as in Settings.
+            bankOffered: (step === 0 || firstStartState.bankOffered) && root.bankUsable()
+            onConnectBankClicked: root.pushPage(bankSetupPage, {})
+            onImportClicked: accountId => root.importStatement(accountId)
+            onNextClicked: root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
+    // The guided setup's step 2: is this balance right? The comparison and
+    // the correction are the existing check page's.
+    Component {
+        id: guidedBalancePage
+
+        GuidedBalancePage {
+            accounts: accountList
+            onCompareClicked: (accountId, bank) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: "" })
+            onNextClicked: root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
+    // The guided setup's step 3: sort the transactions by name, with the
+    // offer of a Rule, which the Rule page shows and the user confirms.
+    Component {
+        id: guidedSortPage
+
+        GuidedSortPage {
+            id: sortPage
+
+            sorter: guidedSort
+            register: accountRegister
+            onCreateRuleClicked: (accountId, transactionId) => root.pushPage(rulePage, { initialForm: ruleBook.formFromTransaction(accountId, transactionId) })
+
+            // Undo, or a Rule made from here, changes what is left to sort.
+            Connections {
+                target: root
+
+                function onBookWasChanged() {
+                    sortPage.reload();
+                }
+            }
+            onNextClicked: root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
+    // The guided setup's steps 4 to 6 and its last page: each opens the
+    // real function. The last page leads to the overview.
+    Component {
+        id: guidedTryPage
+
+        GuidedTryPage {
+            onTryClicked: what => root.guidedTry(what)
+            onNextClicked: which === "done" ? root.showScreen("overview") : root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
+    // The guided setup's step 7: a local AI or not (D-911, D-923). "Yes"
+    // turned the one switch on; the provider page opens on top, so closing
+    // it leads back here.
+    Component {
+        id: guidedAiPage
+
+        GuidedAiPage {
+            ai: aiSwitch
+            onProviderClicked: root.pushPage(aiSettingsPage)
+            onNextClicked: root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
+    // Help: every step of the guided setup again (D-902).
+    Component {
+        id: guidedHelpPage
+
+        GuidedHelpPage {
+            ai: aiSwitch
+            onStepClicked: name => root.pushGuidedStep(name, 0, 0)
         }
     }
 
@@ -2164,6 +2389,7 @@ Kirigami.ApplicationWindow {
             groupsSource: categoryGroups
             draft: root.statisticDraft
             onKmyReportsFileChosen: file => root.pushPage(kmyReportsImportPage, { file: file })
+            onPluginReportChosen: report => root.pushPage(pluginReportPage, { file: report.file, reportId: report.id, reportName: report.name, pluginName: report.plugin })
             onDraftLeft: left => root.statisticDraft = left
             onAddToOverviewRequested: (component, period) => root.addChartToOverview(component, period)
             onOverviewChangeFinished: (id, json) => {
@@ -2176,6 +2402,13 @@ Kirigami.ApplicationWindow {
 
     // Adding reports from a KMyMoney file to the open book (M6d.6b): the
     // preview first; after "Add reports" the Statistics page lists them.
+    // A report from a plugin (D-926).
+    Component {
+        id: pluginReportPage
+
+        PluginReportPage {}
+    }
+
     Component {
         id: kmyReportsImportPage
 
@@ -2217,6 +2450,7 @@ Kirigami.ApplicationWindow {
             plans: plannedPayments
             onAddAccountClicked: root.addAccount()
             onAccountClicked: accountId => root.showRegister(accountId)
+            onCheckClicked: (accountId, bank, date) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
             onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })
             Component.onCompleted: bankReady = root.bankUsable()
         }
@@ -2391,6 +2625,7 @@ Kirigami.ApplicationWindow {
             }[group])
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
             onHelpClicked: root.pushPage(helpPage)
+            onGuidedHelpClicked: root.pushPage(guidedHelpPage)
             onTestingGuideClicked: root.pushPage(testingGuidePage)
         }
     }
@@ -2428,6 +2663,8 @@ Kirigami.ApplicationWindow {
             numberFormat: numberFormatSettings
             chartPalette: chartPaletteSettings
             language: languageSettings
+            theme: themeSettings
+            density: densitySettings
         }
     }
 
@@ -2549,6 +2786,20 @@ Kirigami.ApplicationWindow {
         BankSetupPage {
             bank: bankConnection
             onLinked: root.screenChangedBook()
+            onFetchNowClicked: {
+                // Back to where the setup was opened from, then the fetch
+                // page: the user agreed to fetching (D-906).
+                root.pageStack.pop();
+                const back = root.pageStack.currentItem;
+                if (back && back.fetchOnOpen !== undefined) {
+                    // The fetch page opened the setup: it fetches again.
+                    back.refresh();
+                    back.tickToBegin();
+                    back.fetchTicked();
+                    return;
+                }
+                root.pushPage(bankFetchPage, { initialAccountId: "", fetchOnOpen: true });
+            }
             onDone: {
                 root.pageStack.pop();
                 const settings = root.pageStack.currentItem;

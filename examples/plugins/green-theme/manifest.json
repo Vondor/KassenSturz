@@ -1,0 +1,12 @@
+{
+  "manifest_version": 1,
+  "id": "io.github.vondor.kassensturz.example.green",
+  "name": "Green",
+  "version": "1.0.0",
+  "api": "1.0",
+  "extension_points": ["theme"],
+  "permissions": [],
+  "description": "Makes KassenSturz green: a calm green accent on soft green backgrounds, in light and dark.",
+  "author": "KassenSturz contributors",
+  "license": "CC0-1.0"
+}

@@ -23,6 +23,8 @@ Kirigami.ScrollablePage {
     readonly property var view: statementImport.view ?? ({})
     readonly property var entries: view.entries ?? []
     readonly property var balances: view.balances ?? []
+    // What the import does to the starting balance, or null (D-903).
+    readonly property var start: view.start ?? null
     readonly property int toImport: view.imported ?? 0
 
     // The import was made; the summary comes next.
@@ -130,6 +132,26 @@ Kirigami.ScrollablePage {
         return owes ? i18nContext.i18nc("@label %1 is an amount of money", "you owe %1", amount) : amount;
     }
 
+    // An amount of money that stands for itself in a sentence: a debt is
+    // written as the amount owed.
+    function money(amount: string, owes: bool): string {
+        return owes ? i18nContext.i18nc("@label %1 is an amount of money", "%1 owed", amount) : amount;
+    }
+
+    // What the import does to the account's starting balance, when it
+    // brings the account's first transactions (D-903).
+    function startText(start: var): string {
+        return start.adds
+            ? i18nContext.i18nc("@info %1 is an amount of money, %2 is a date", "A starting balance of %1, dated %2, is added.", money(start.wouldBe, start.owes), start.date)
+            : i18nContext.i18nc("@info %1 and %3 are amounts of money, %2 and %4 are dates", "The starting balance changes from %1 (dated %2) to %3 (dated %4).", money(start.was, start.wasOwes), start.wasDate, money(start.wouldBe, start.owes), start.date);
+    }
+
+    function startDescription(start: var): string {
+        return start.fromBank
+            ? i18nContext.i18nc("@info %1 is a date, %2 what the bank says the account holds", "On %1 your bank says: %2. From that, KassenSturz works out what the account held before the first of these transactions, so they don't change your balance a second time.", start.holdsOn, says(start.holds, start.holdsOwes))
+            : i18nContext.i18nc("@info %1 is a date, %2 what the user said the account holds", "For %1 you said: %2. From that, KassenSturz works out what the account held before the first of these transactions, so they don't change your balance a second time.", start.holdsOn, says(start.holds, start.holdsOwes));
+    }
+
     function balanceText(balance: var): string {
         return balance.which === "opening"
             ? i18nContext.i18nc("@info %1 is a date, %2 what the bank says the account held", "Before these transactions, on %1, your bank says: %2", balance.date, says(balance.bank, balance.bankOwes))
@@ -200,6 +222,20 @@ Kirigami.ScrollablePage {
                 }
 
                 FormCard.FormDelegateSeparator {
+                    visible: (page.view.readBy ?? "") !== ""
+                }
+
+                // A plugin the user added read the file (#791): say which,
+                // since its output is checked but not KassenSturz's own.
+                FormCard.FormTextDelegate {
+                    visible: (page.view.readBy ?? "") !== ""
+                    icon.name: "preferences-plugin"
+                    text: page.i18nContext.i18nc("@info %1 is a plugin's name, as the plugin says", "Read by the plugin \"%1\"", page.view.readBy ?? "")
+                    textItem.textFormat: Text.PlainText
+                    description: page.i18nContext.i18nc("@info", "Check the transactions below before you import them.")
+                }
+
+                FormCard.FormDelegateSeparator {
                     visible: (page.view.rules ?? 0) > 0
                 }
 
@@ -255,6 +291,26 @@ Kirigami.ScrollablePage {
                     icon.name: "edit-link"
                     text: page.i18nContext.i18ncp("@info", "%1 transaction looks like money moved between your own accounts.", "%1 transactions look like money moved between your own accounts.", page.view.transfers ?? 0)
                     description: page.i18nContext.i18nc("@info", "KassenSturz asks you about each one after the import.")
+                }
+            }
+
+            // The account's first transactions: its starting balance is
+            // worked out from the balance that is known (D-903). Said here
+            // before anything changes; "Import" does it, Undo takes it back.
+            FormCard.FormHeader {
+                visible: page.start !== null
+                title: page.i18nContext.i18nc("@title:group", "Starting balance")
+            }
+
+            FormCard.FormCard {
+                visible: page.start !== null
+
+                FormCard.FormTextDelegate {
+                    descriptionItem.textFormat: Text.PlainText
+                    textItem.textFormat: Text.PlainText
+                    icon.name: "view-financial-account"
+                    text: page.start === null ? "" : page.startText(page.start)
+                    description: page.start === null ? "" : page.startDescription(page.start)
                 }
             }
 

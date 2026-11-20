@@ -568,8 +568,17 @@ pub struct BudgetRow {
     pub first_day: String,
     /// The last day; empty if it keeps going.
     pub last_day: String,
-    /// Whether *Stop* does something: it keeps going, and has started.
+    /// Whether *Pause* does something: it keeps going, and has started.
     pub can_stop: bool,
+    /// The last day it counts when paused now (the end of the current
+    /// period), as the user writes dates; empty unless `can_stop`.
+    pub pause_until: String,
+    /// Whether *Resume* does something: it has a last day and repeats.
+    pub can_resume: bool,
+    /// Resuming starts a new budget on this day (the first of the period
+    /// that contains today), as the user writes dates; empty when resuming
+    /// just lets the same budget go on.
+    pub resume_from: String,
     /// The periods a change can apply from, newest first.
     pub changes: Vec<PeriodChoice>,
     /// This period's bar; for a budget that starts later its first
@@ -624,7 +633,8 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
             .collect::<Vec<_>>()
             .join(", ")
     };
-    for budget in book.budgets()? {
+    let budgets = book.budgets()?;
+    for budget in &budgets {
         let started = budget.first_day <= today;
         let ended = budget.last_day.is_some_and(|last| last < today);
         let state = if !started {
@@ -685,7 +695,16 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
             .ok_or(StoreError::Corrupt(
                 kassensturz_store::Corruption::BrokenReferences,
             ))?;
-        let currency = book_currency(book, &budget)?;
+        let currency = book_currency(book, budget)?;
+        let can_stop = state == "running"
+            && budget.every.repeats()
+            && budget
+                .period_containing(today)
+                .is_some_and(|(_, end)| budget.last_day.is_none_or(|last| last > end));
+        // A paused budget: it has a last day, has started, and no other
+        // budget counts its money from then on, such as the one an earlier
+        // Resume made (#1241, B-418). Otherwise it has simply ended.
+        let can_resume = budget.can_resume_among(&budgets, today);
         let ids = budget.id.to_string();
         let category_names = chosen
             .iter()
@@ -719,12 +738,24 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<BudgetsView, BudgetsErr
             last_day: budget
                 .last_day
                 .map_or_else(String::new, |d| locale.short_date(d)),
-            can_stop: state == "running"
-                && budget.every.repeats()
-                && budget
+            can_stop,
+            pause_until: if can_stop {
+                budget
                     .period_containing(today)
-                    .is_some_and(|(_, end)| budget.last_day.is_none_or(|last| last > end)),
-            changes: change_choices(&budget, locale),
+                    .map_or_else(String::new, |(_, end)| locale.short_date(end))
+            } else {
+                String::new()
+            },
+            can_resume,
+            resume_from: if can_resume && budget.last_day.is_some_and(|last| last < today) {
+                budget
+                    .every
+                    .period_start(today)
+                    .map_or_else(String::new, |start| locale.short_date(start))
+            } else {
+                String::new()
+            },
+            changes: change_choices(budget, locale),
             bar: bars.iter().find(|bar| bar.budget == ids).cloned(),
         });
     }
@@ -986,14 +1017,56 @@ pub fn change_budget(
     Ok(())
 }
 
-/// Ends the budget after the period that contains today; the past stays
-/// (D-345).
+/// Pauses the budget: it ends after the period that contains today; the
+/// past stays (D-345).
 pub fn stop_budget(book: &mut Book, id: &str, locale: &impl Locale) -> Result<(), BudgetsError> {
     let budget = budget_of(book, id)?;
     let (_, end) = budget
         .period_containing(locale.today())
         .ok_or(BudgetsError::NoSuchEntry)?;
     Ok(book.set_budget_last_day(budget.id, Some(end))?)
+}
+
+/// Resumes a paused budget (#1241, D-909). While its last day is not past,
+/// the same budget just goes on. Once it is past, the months in between must
+/// not count as periods of that budget (wrong planned and left amounts), so
+/// a new budget starts with the first day of the period that contains
+/// today, with the name, categories, accounts, amount, how often and carry
+/// over the old one ended with; the old budget and its past results stay
+/// as they are, and nothing is carried from it.
+pub fn resume_budget(book: &mut Book, id: &str, locale: &impl Locale) -> Result<(), BudgetsError> {
+    let budget = budget_of(book, id)?;
+    let today = locale.today();
+    let last = budget
+        .last_day
+        .filter(|_| budget.every.repeats() && budget.first_day <= today)
+        .ok_or(BudgetsError::NoSuchEntry)?;
+    if last >= today {
+        return Ok(book.set_budget_last_day(budget.id, None)?);
+    }
+    let first_day = budget
+        .every
+        .period_start(today)
+        .ok_or(BudgetsError::UnknownName("every"))?;
+    let set = budget.counts_on(last).ok_or(BudgetsError::NoSuchEntry)?;
+    let period = budget.every.period_start(last).unwrap_or(last);
+    let planned = budget
+        .amount_for(period)
+        .or_else(|| budget.amounts.last())
+        .ok_or(StoreError::Corrupt(
+            kassensturz_store::Corruption::BrokenReferences,
+        ))?;
+    book.add_named_budget(
+        budget.name.as_deref(),
+        &set.categories,
+        &set.accounts,
+        budget.every,
+        first_day,
+        None,
+        planned.amount,
+        planned.carry_over,
+    )?;
+    Ok(())
 }
 
 /// Deletes the budget with its past results; one Undo brings it back
@@ -1471,6 +1544,81 @@ mod tests {
             &TestLocale,
         )
         .expect_err("no such budget");
+        assert_eq!(f.code(&error).0, "input.no-such-entry");
+    }
+
+    #[test]
+    fn pause_then_resume_in_the_same_period_is_the_same_budget() {
+        let mut f = monthly_food();
+        let id = f.book.budgets().unwrap()[0].id.to_string();
+        let row = view(&f.book, &TestLocale).unwrap().budgets.remove(0);
+        assert!(row.can_stop && !row.can_resume);
+        assert_eq!(row.pause_until, "2026-10-31");
+        stop_budget(&mut f.book, &id, &TestLocale).expect("paused");
+        let row = view(&f.book, &TestLocale).unwrap().budgets.remove(0);
+        assert!(!row.can_stop && row.can_resume);
+        assert_eq!(row.resume_from, "", "the last day is still ahead");
+        resume_budget(&mut f.book, &id, &TestLocale).expect("resumed");
+        let budgets = f.book.budgets().unwrap();
+        assert_eq!(budgets.len(), 1);
+        assert_eq!(budgets[0].id.to_string(), id);
+        assert_eq!(budgets[0].last_day, None);
+        let row = view(&f.book, &TestLocale).unwrap().budgets.remove(0);
+        assert!(row.can_stop && !row.can_resume);
+    }
+
+    #[test]
+    fn resume_after_the_last_day_starts_a_new_budget_from_this_period() {
+        let mut f = fixture();
+        let food = f.food.clone();
+        f.add(&food, "month", "400,00", true, "2026-07-01");
+        let id = f.book.budgets().unwrap()[0].id;
+        f.book
+            .set_budget_last_day(id, Some(day(2026, 8, 31)))
+            .expect("paused long ago");
+        let old = f.book.budgets().unwrap()[0].clone();
+        let row = view(&f.book, &TestLocale).unwrap().budgets.remove(0);
+        assert_eq!(row.state, "ended");
+        assert!(row.can_resume);
+        assert_eq!(row.resume_from, "2026-10-01");
+        resume_budget(&mut f.book, &old.id.to_string(), &TestLocale).expect("resumed");
+        let budgets = f.book.budgets().unwrap();
+        assert_eq!(budgets.len(), 2);
+        // The old budget is untouched.
+        let kept = budgets.iter().find(|b| b.id == old.id).expect("old one");
+        assert_eq!(kept, &old);
+        let new = budgets.iter().find(|b| b.id != old.id).expect("new one");
+        assert_eq!(new.first_day, day(2026, 10, 1));
+        assert_eq!(new.last_day, None);
+        assert_eq!(new.counts[0].categories, old.counts[0].categories);
+        assert_eq!(new.amounts[0].amount, old.amounts[0].amount);
+        assert!(new.amounts[0].carry_over);
+        // Nothing of the months in between counts for either budget.
+        let again = resume_budget(&mut f.book, &old.id.to_string(), &TestLocale);
+        assert!(again.is_err(), "it overlaps the budget that now runs");
+        // So the old card offers no Resume any more and reads as ended,
+        // and the new one runs (B-418).
+        let rows = view(&f.book, &TestLocale).unwrap().budgets;
+        let old_row = rows
+            .iter()
+            .find(|row| row.id == old.id.to_string())
+            .expect("old row");
+        assert_eq!(old_row.state, "ended");
+        assert!(!old_row.can_resume);
+        assert_eq!(old_row.resume_from, "");
+        let new_row = rows
+            .iter()
+            .find(|row| row.id == new.id.to_string())
+            .expect("new row");
+        assert_eq!(new_row.state, "running");
+        assert!(!new_row.can_resume);
+    }
+
+    #[test]
+    fn a_running_or_upcoming_budget_can_not_be_resumed() {
+        let mut f = monthly_food();
+        let id = f.book.budgets().unwrap()[0].id.to_string();
+        let error = resume_budget(&mut f.book, &id, &TestLocale).expect_err("not paused");
         assert_eq!(f.code(&error).0, "input.no-such-entry");
     }
 

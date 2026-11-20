@@ -97,10 +97,10 @@ Every name is 1 to 200 characters of plain text, without control characters and 
 
 ## `dashboard`
 
-The dashboard document exactly as the book keeps it (`docs/REPORT_DESIGNER.md`, D-278, D-289, D-351; version 3 since M6d.8, D-452), with these differences:
+The dashboard document exactly as the book keeps it (`docs/REPORT_DESIGNER.md`, D-278, D-289, D-351; version 3 since M6d.8, D-452; version 5 since #1154, D-893), with these differences:
 
 - **Every place that holds an ID of the book holds a reference key instead.** These places are the schema's ID lists (`params.groups`, `params.categories`, `params.accounts`, `params.series`, and the own lists of money in and money out `params.income_categories`, `params.income_accounts`, `params.expenses_categories`, `params.expenses_accounts`, D-646), the `members` of each column in `params.columns` (D-339), and `filters.accounts` and `filters.categories`. A UUID or any other text in these places is refused (`id-in-file`), so a file can never point into a book by ID, not even by chance.
-- **A component's own tags (`params.tags`, US5.2) are written empty**, like the budget bars' `params.budgets` (D-642): another book has tags of its own, and a tag of the same name may mean something else there, so the component counts all money there. *Save to a file* counts them as left out.
+- **A component's own tags (`params.tags`, US5.2) are written empty**, like the budget bars' `params.budgets` (D-642): another book has tags of its own, and a tag of the same name may mean something else there, so the component counts all money there. *Save to a file* counts them as left out. The filter bar's tags (`filters.tags`, document version 5, #1154) are left out the same way and counted; a reader drops a `filters.tags` it finds in a file.
 - **The default mark (`"default": true`, D-448) is never written**, and a reader refuses a file that has it (`unknown-property`, path `dashboard.default`), so a file can't change which dashboard opens. A view's `origin` (D-450) is never written either.
 - **Formulas** already name categories and groups by name (D-292), so they are written as they are stored (D-295) and need no references.
 - The document's own limits apply: 100 components, 50 series and the rest of D-281.
@@ -112,7 +112,7 @@ An ID in the dashboard that names nothing the book still has (a category deleted
 
 ## How KassenSturz writes it
 
-- Keys in the order this document shows them, then any other key alphabetically: the header as above; in `dashboard` `format`, `version`, `kind`, `name`, `template`, `filters`, `components`; in `filters` `period`, `accounts`, `categories`; in a component `id`, `type`, `dataset`, `params`, `props`, `frame`, with the keys inside `params` and `props` alphabetical; in a column `name`, `members`, `formula`; in a frame `col`, `row`, `cols`, `rows`; in a reference `kind`, then `path` or `name`; the references by their number.
+- Keys in the order this document shows them, then any other key alphabetically: the header as above; in `dashboard` `format`, `version`, `kind`, `name`, `template`, `filters`, `components`; in `filters` `period`, `accounts`, `categories` (`tags` is never written); in a component `id`, `type`, `dataset`, `params`, `props`, `frame`, with the keys inside `params` and `props` alphabetical; in a column `name`, `members`, `formula`; in a frame `col`, `row`, `cols`, `rows`; in a reference `kind`, then `path` or `name`; the references by their number.
 - Two spaces per level, every non-empty object or list over several lines, `{}` and `[]` when empty, a line break at the end.
 - References are numbered in the order they are first met in this order of keys.
 - So the same dashboard in the same book gives the same file, byte for byte.

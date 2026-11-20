@@ -2,6 +2,8 @@
 
 A free, open-source personal finance app for the desktop, **simpler than KMyMoney and GnuCash**, made for everyday people who have never taken an economics class.
 
+> **Made by AI, openly.** KassenSturz is built by AI agents (automated agentic coding: mainly Claude from Anthropic writes the code, tests and documentation) under human oversight. A human maintainer sets the rules, decides what is merged and released, and tests the app. The code is open and every change is public. German: KassenSturz wird von KI-Agenten gebaut (automatisiertes agentisches Programmieren: vor allem Claude von Anthropic schreibt Code, Tests und Dokumentation) unter menschlicher Aufsicht. Ein Maintainer legt die Regeln fest, entscheidet, was übernommen und veröffentlicht wird, und testet die App. Der Code ist offen und jede Änderung ist öffentlich.
+
 ## Try it
 
 KassenSturz is in testing. If you would like to try it, you need no GitHub account and no programming knowledge:
@@ -9,6 +11,8 @@ KassenSturz is in testing. If you would like to try it, you need no GitHub accou
 1. On Linux, install it from the Snap Store: `sudo snap install kassensturz --beta`. On Windows, install it from the [Microsoft Store](https://apps.microsoft.com/detail/9NM5V48PPRLQ). Otherwise download the test build from the project's [releases page](https://github.com/Vondor/KassenSturz/releases) (the newest entry marked *Pre-release*). All ways to install it: [`docs/INSTALL.md`](docs/INSTALL.md) (German: [`docs/INSTALL.de.md`](docs/INSTALL.de.md)).
 2. Follow the install sheet for your system, with every click: [Windows](docs/testing/INSTALL_WINDOWS.en.md) or [Ubuntu](docs/testing/INSTALL_UBUNTU.en.md) (German: [Windows](docs/testing/INSTALL_WINDOWS.de.md), [Ubuntu](docs/testing/INSTALL_UBUNTU.de.md)).
 3. Use made-up numbers or an example book, never your own data. The [tester guide](docs/testing/TESTER_GUIDE.en.md) explains what a test session is; the handbook explains how to use KassenSturz, in [English](docs/user/en/README.md) and [German](docs/user/de/README.md) (also in the [Wiki](https://github.com/Vondor/KassenSturz/wiki), as a copy). [How safe is KassenSturz?](docs/SECURITY_OVERVIEW.en.md) (German: [Wie sicher ist KassenSturz?](docs/SECURITY_OVERVIEW.de.md)) says in plain words where your data stays, what we attacked and what we fixed.
+
+**News and plans:** see [Discussions](https://github.com/Vondor/KassenSturz/discussions) for announcements and ideas, and the German [Roadmap page](docs/user/de/22-fahrplan.md) (also in the [Wiki](https://github.com/Vondor/KassenSturz/wiki/de-22-fahrplan)) for what comes next.
 
 Code signing: the Microsoft Store version is signed by the Store. The Windows installer and the zip on the releases page are not signed, so Windows shows a SmartScreen warning before they start. SignPath Foundation declined to sign for the project for now (too young, November 2026); we may apply again later. See [the code signing policy](docs/CODE_SIGNING_POLICY.md).
 

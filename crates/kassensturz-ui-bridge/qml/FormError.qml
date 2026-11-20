@@ -909,6 +909,36 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "This plugin describes itself twice, so KassenSturz can't tell which description is true and doesn't add it. Ask the plugin's author.");
         case "plugin.unknown-section":
             return i18nContext.i18nc("@info %1 is a word from the plugin file", "This plugin holds a part this KassenSturz doesn't know (\"%1\"). Update KassenSturz, or ask the plugin's author.", result.name);
+        case "plugin.theme-missing":
+            return i18nContext.i18nc("@info", "This theme plugin holds no colors, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.");
+        case "plugin.theme-twice":
+            return i18nContext.i18nc("@info", "This theme plugin holds its colors twice, so KassenSturz can't tell which are meant and doesn't add it. Ask the plugin's author.");
+        case "plugin.theme-unexpected":
+            return i18nContext.i18nc("@info", "This plugin holds colors for the app but doesn't say it is a theme, so KassenSturz doesn't add it. Ask the plugin's author.");
+        case "plugin.theme-too-big":
+            return i18nContext.i18nc("@info %1 is a number of bytes", "This theme's colors take more than %1 bytes, so KassenSturz doesn't read them. Ask the plugin's author for a fixed version.", result.max_bytes);
+        case "plugin.theme-malformed":
+            return i18nContext.i18nc("@info", "This theme's colors can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.");
+        case "plugin.unsupported-theme-version":
+            return i18nContext.i18nc("@info %1 is a version number", "This theme was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the theme.", result.version);
+        case "plugin.theme-invalid":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This theme has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.", result.key);
+        case "plugin.theme-low-contrast":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "With this theme, some text would be hard to read (\"%1\" doesn't stand out enough from the background), so KassenSturz doesn't add it. Ask the plugin's author for a version with stronger colors.", result.key);
+        case "plugin.density-missing":
+            return i18nContext.i18nc("@info", "This layout plugin holds no layout, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.");
+        case "plugin.density-twice":
+            return i18nContext.i18nc("@info", "This layout plugin holds its layout twice, so KassenSturz can't tell which is meant and doesn't add it. Ask the plugin's author.");
+        case "plugin.density-unexpected":
+            return i18nContext.i18nc("@info", "This plugin holds a layout for the app but doesn't say it is a layout plugin, so KassenSturz doesn't add it. Ask the plugin's author.");
+        case "plugin.density-too-big":
+            return i18nContext.i18nc("@info %1 is a number of bytes", "This layout plugin's layout takes more than %1 bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version.", result.max_bytes);
+        case "plugin.density-malformed":
+            return i18nContext.i18nc("@info", "This layout plugin's layout can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.");
+        case "plugin.unsupported-density-version":
+            return i18nContext.i18nc("@info %1 is a version number", "This layout plugin was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the plugin.", result.version);
+        case "plugin.density-invalid":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This layout plugin has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.", result.key);
         case "plugin-host.ai-off":
             return i18nContext.i18nc("@info", "This kind of plugin is switched off in Settings, so KassenSturz doesn't use it.");
         case "plugin-host.module-invalid":
@@ -929,6 +959,8 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "The plugin gave KassenSturz no room for its input, so it was stopped. Load it again, or ask the plugin's author.");
         case "plugin-host.output-too-big":
             return i18nContext.i18nc("@info %1 is a number of bytes", "The plugin's answer is larger than %1 bytes, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author.", result.max_bytes);
+        case "plugin-host.permission-missing":
+            return i18nContext.i18nc("@info", "This plugin didn't ask for the permission it needs for this, so KassenSturz doesn't run it. Ask the plugin's author for a fixed version.");
         case "plugin-host.output-invalid":
             return i18nContext.i18nc("@info", "The plugin's answer was damaged, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author.");
         case "plugin-host.ran-too-long":
@@ -945,6 +977,10 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info", "KassenSturz couldn't save the plugin. Check that your disk isn't full, then try again. Nothing was changed.");
         case "input.plugin-replace-not-confirmed":
             return i18nContext.i18nc("@info", "A version of this plugin is added already. Choose \"Replace it\" to use the new one instead.");
+        case "input.suggestions-out-of-date":
+            return i18nContext.i18nc("@info", "Some of these transactions changed since the plugin made its suggestions, so nothing was changed. Close this page and import again if you want new suggestions.");
+        case "input.plugin-gone":
+            return i18nContext.i18nc("@info", "This plugin isn't there any more or can't be used now. Look at it in Settings, Plugins, then try again. Nothing was saved.");
         case "input.plugin-not-removed":
             return i18nContext.i18nc("@info", "KassenSturz couldn't remove the plugin. Check that the file isn't open in another program, then try again.");
         default:

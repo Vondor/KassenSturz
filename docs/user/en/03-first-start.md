@@ -12,13 +12,29 @@ You choose your **Language** (your system's is already set) and the **Currency**
 
 ![The choice of how to start](../../testing/screenshots/windows/12-start-choice.png)
 
-Three ways:
+Four ways:
 
+- **Guided setup:** step by step with your own data; every step can be skipped.
 - **My own accounts:** about two minutes.
 - **Try an example book:** a made-up household to look around in.
 - **Bring my data from another program:** a KMyMoney book or a copy saved earlier with KassenSturz.
 
 If you already have a KassenSturz book, use the small link **Open a KassenSturz book I already have…**.
+
+## The "Guided setup" way
+
+The guided setup leads you through the important things on your own household book. Every page has **Skip**, and **End the setup** takes you to the Overview at once. Nothing is done for you: each step opens the normal screen, and you save there what you want.
+
+1. **Which accounts do you have?** The kind and a name. You don't type how much is in them: that comes from your bank or from a file.
+2. **Get your transactions:** connect to your bank, or import a file from it. You see a preview first.
+3. **Is this balance right?** Compare with your banking app. If it differs, type what your bank shows and KassenSturz offers to correct the starting balance.
+4. **Sort your transactions:** choose a category for a name, and every transaction with that name is sorted at once. KassenSturz then offers a Rule that does it by itself in future (page 12).
+5. **Your first chart** with the Statistic Builder (page 14).
+6. **A budget and a planned payment** (pages 13 and 21).
+7. **Shape your start page:** move tiles, change their size, add and remove them (page 4).
+8. **Do you have an AI on this computer?** Only a question. "No, or I don't know" is already chosen, and then the AI features stay off and nothing about AI is shown. "Yes" turns them on and opens the page where you type in the address of your AI (page 18). Versions of KassenSturz that are built without AI don't have this step.
+
+You find every step again later, also the ones you skipped: **Settings → Help: guided setup**. The last page also links to this handbook in the wiki.
 
 ## The "My own accounts" way
 

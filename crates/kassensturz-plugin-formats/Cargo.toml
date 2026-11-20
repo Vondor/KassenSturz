@@ -3,7 +3,7 @@
 
 [package]
 name = "kassensturz-plugin-formats"
-description = "Plugin importers and exporters: the Importer and Exporter traits for plugins the host runs (#791, D-069)."
+description = "Plugin importers, exporters, reports, automations and AI provider translators for plugins the host runs (#791, D-069)."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -11,7 +11,12 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# AI provider plugins (D-754, D-928), only in a build with AI (D-039).
+ai = ["dep:kassensturz-ai", "kassensturz-ai/ai"]
+
 [dependencies]
+kassensturz-ai = { workspace = true, optional = true }
 kassensturz-core.workspace = true
 kassensturz-export.workspace = true
 kassensturz-import.workspace = true

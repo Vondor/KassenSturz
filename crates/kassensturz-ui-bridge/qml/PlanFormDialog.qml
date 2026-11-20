@@ -228,8 +228,17 @@ Kirigami.Dialog {
                 Kirigami.FormData.label: dialog.i18nContext.i18nc("@label:listbox", "Category:")
                 model: [dialog.i18nContext.i18nc("@item:inlistbox the planned payment has no category", "None")]
                     .concat(dialog.categoryChoices.map(choice => choice.path))
+                    .concat([dialog.i18nContext.i18nc("@item:inlistbox the last entry of a category list: makes a new category", "New category …")])
                 onActivated: index => {
                     ActionLog.taken("PlanFormDialog_chooseCategory")
+                    if (index > dialog.categoryChoices.length) {
+                        // The last entry makes a new category (D-910); the
+                        // list goes back to what it showed meanwhile.
+                        const at = dialog.categoryChoices.findIndex(choice => choice.id === dialog.categoryId);
+                        categoryBox.currentIndex = at >= 0 ? at + 1 : 0;
+                        newCategory.start();
+                        return;
+                    }
                     dialog.categoryId = index > 0 ? (dialog.categoryChoices[index - 1]?.id ?? "") : "";
                 }
             }
@@ -326,6 +335,17 @@ Kirigami.Dialog {
             text: dialog.nextDates.length > 0
                 ? dialog.i18nContext.i18nc("@info %1 is a list of dates", "Next: %1", dialog.nextDates.join(", "))
                 : dialog.i18nContext.i18nc("@info", "Next: no date yet. Check how often and the first date.")
+        }
+
+        // "New category …" at the end of the category list (D-910).
+        NewCategoryDialog {
+            id: newCategory
+
+            income: !dialog.outgoing
+            onCreated: categoryId => {
+                dialog.categoryId = categoryId;
+                dialog.reloadCategories();
+            }
         }
     }
 }

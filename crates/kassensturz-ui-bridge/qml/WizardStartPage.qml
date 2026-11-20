@@ -3,8 +3,10 @@
 
 // Page 2 of the setup wizard (M7a.9, docs/SETUP_WIZARD.md): how the user
 // wants to start. Three choices of equal size, the user's own accounts first
-// (Q-396), and a small link for a book they already have. Nothing is written
-// here.
+// (Q-396), and a small link for a book they already have. On top of them the
+// optional guided setup (#1031, D-899, docs/GUIDED_SETUP.md): one more
+// choice, never forced; every other choice stays as it was. Nothing is
+// written here.
 
 import QtQuick
 import QtQuick.Controls as Controls
@@ -16,6 +18,7 @@ import io.github.vondor.kassensturz
 Kirigami.ScrollablePage {
     id: page
 
+    signal guidedClicked()
     signal ownAccountsClicked()
     signal exampleClicked()
     signal fromProgramClicked()
@@ -40,7 +43,7 @@ Kirigami.ScrollablePage {
         Accessible.description: line
         implicitHeight: content.implicitHeight + Kirigami.Units.largeSpacing * 2
         background: Rectangle {
-            radius: Kirigami.Units.cornerRadius
+            radius: Look.radius(Kirigami.Units.cornerRadius)
             color: choice.hovered || choice.visualFocus ? Qt.alpha(Kirigami.Theme.highlightColor, 0.12) : Kirigami.Theme.backgroundColor
             border.color: choice.visualFocus ? Kirigami.Theme.highlightColor : Qt.alpha(Kirigami.Theme.textColor, 0.2)
             border.width: choice.visualFocus ? 2 : 1
@@ -90,6 +93,16 @@ Kirigami.ScrollablePage {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 36
             Layout.preferredWidth: Kirigami.Units.gridUnit * 36
             spacing: Kirigami.Units.largeSpacing
+
+            Choice {
+                iconName: "tools-wizard"
+                heading: page.i18nContext.i18nc("@action:button starts the optional guided setup", "Guided setup")
+                line: page.i18nContext.i18nc("@info", "Step by step with your own data: get your transactions, sort them, a first chart, a budget and your start page. Every step can be skipped.")
+                onClicked: {
+                    ActionLog.taken("WizardStartPage_guided")
+                    page.guidedClicked()
+                }
+            }
 
             Choice {
                 iconName: "view-bank-account"

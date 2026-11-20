@@ -119,6 +119,32 @@ fn cells(wanted: i64, least: u32, most: u32) -> u32 {
     u32::try_from(wanted.clamp(i64::from(least), i64::from(most.max(least)))).unwrap_or(least)
 }
 
+/// One side of a frame after its two edges were moved (`Editor::stretch`):
+/// `(start, length)` is the side, `by` how far its start and its end are
+/// moved, `(least, most)` its smallest and largest length and `last` where
+/// the grid ends. Gives the new start and length. The end is placed first,
+/// so a start that is moved too is measured against where the end now is.
+fn moved_side(
+    (start, length): (u32, u32),
+    (by_start, by_end): (i64, i64),
+    (least, most): (u32, u32),
+    last: u32,
+) -> (u32, u32) {
+    let (start, length) = (i64::from(start), i64::from(length));
+    let (least, most) = (i64::from(least), i64::from(most.max(least)));
+    let furthest = (start + most).min(i64::from(last)).max(start + least);
+    let end = (start + length)
+        .saturating_add(by_end)
+        .clamp(start + least, furthest);
+    let start = start
+        .saturating_add(by_start)
+        .clamp((end - most).max(0), end - least);
+    (
+        u32::try_from(start).unwrap_or(0),
+        u32::try_from(end - start).unwrap_or(1),
+    )
+}
+
 /// Gives the entry at `index` this frame and pushes the others down from it.
 fn place(entries: &mut [Entry], index: usize, frame: Frame) -> Result<(), ReportError> {
     entries[index].frame = Some(frame);
@@ -218,12 +244,14 @@ impl Editor {
         }
         check_list(Dimension::Accounts, &filters.accounts)?;
         check_list(Dimension::Categories, &filters.categories)?;
+        check_list(Dimension::Tags, &filters.tags)?;
         if self.document.filters() == *filters {
             return Ok(false);
         }
         self.document.period.clone_from(&filters.period);
         self.document.accounts.clone_from(&filters.accounts);
         self.document.categories.clone_from(&filters.categories);
+        self.document.tags.clone_from(&filters.tags);
         Ok(true)
     }
 
@@ -386,6 +414,51 @@ impl Editor {
                 ..frame
             };
             place(entries, index, resized)
+        })
+    }
+
+    /// Moves the edges of a component by whole cells, as dragging an edge
+    /// does (#1243, D-905): `left` and `right` move the left and the right
+    /// edge to the right (to the left when negative), `top` and `bottom`
+    /// the upper and the lower edge down. An edge that is not moved stays
+    /// where it is, so dragging the left edge keeps the right one. Each
+    /// edge stops at the grid and where the component would be smaller
+    /// than its type's smallest size or taller than [`MAX_ROWS`]; what the
+    /// component lands on is pushed down.
+    pub fn stretch(
+        &mut self,
+        id: &str,
+        left: i64,
+        top: i64,
+        right: i64,
+        bottom: i64,
+    ) -> Result<bool, ReportError> {
+        self.apply(Edit::Resize, |entries| {
+            let index = index_of(entries, id)?;
+            let frame = frame_at(entries, index)?;
+            let least = grid::smallest_size(&entries[index].item);
+            let (col, cols) = moved_side(
+                (frame.col, frame.cols),
+                (left, right),
+                (least.cols, COLUMNS),
+                COLUMNS,
+            );
+            let (row, rows) = moved_side(
+                (frame.row, frame.rows),
+                (top, bottom),
+                (least.rows, MAX_ROWS),
+                LAST_ROW + MAX_ROWS,
+            );
+            place(
+                entries,
+                index,
+                Frame {
+                    col,
+                    row,
+                    cols,
+                    rows,
+                },
+            )
         })
     }
 

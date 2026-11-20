@@ -78,6 +78,12 @@ pub enum AiError {
     /// The answer isn't what an OpenAI-compatible provider sends: not JSON,
     /// nested too deeply, or without the expected parts (threat T-31).
     BadReply,
+    /// The AI provider plugin chosen as the kind of service couldn't
+    /// translate the request or the answer (D-928). Nothing more was sent.
+    PluginFailed,
+    /// The AI provider plugin chosen as the kind of service was removed or
+    /// can no longer be used (D-928). Nothing was sent.
+    PluginMissing,
 }
 
 impl fmt::Display for AiError {
@@ -117,6 +123,8 @@ impl Report for AiError {
                 .with("status", ErrorParam::Number(i64::from(*status))),
             Self::ReplyTooLarge => ErrorReport::new("ai.reply-too-large"),
             Self::BadReply => ErrorReport::new("ai.bad-reply"),
+            Self::PluginFailed => ErrorReport::new("ai.plugin-failed"),
+            Self::PluginMissing => ErrorReport::new("ai.plugin-missing"),
         }
     }
 }

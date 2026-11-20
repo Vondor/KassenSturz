@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use kassensturz_plugin_api::{MANIFEST_SECTION, PluginError};
+use kassensturz_plugin_api::{MANIFEST_SECTION, PluginError, THEME_SECTION};
 use serde_json::json;
 
 use crate::*;
@@ -20,9 +20,15 @@ fn plugin(wat: &str, points: &[&str], permissions: &[&str]) -> Vec<u8> {
         "permissions": permissions,
     })
     .to_string();
-    let mut content = vec![u8::try_from(MANIFEST_SECTION.len()).unwrap()];
-    content.extend(MANIFEST_SECTION.as_bytes());
-    content.extend(manifest.as_bytes());
+    push_custom(&mut bytes, MANIFEST_SECTION, manifest.as_bytes());
+    bytes
+}
+
+/// Appends a custom section to a module.
+fn push_custom(bytes: &mut Vec<u8>, name: &str, data: &[u8]) {
+    let mut content = vec![u8::try_from(name.len()).unwrap()];
+    content.extend(name.as_bytes());
+    content.extend(data);
     bytes.push(0);
     let mut size = content.len();
     loop {
@@ -35,7 +41,6 @@ fn plugin(wat: &str, points: &[&str], permissions: &[&str]) -> Vec<u8> {
         bytes.push(byte | 0x80);
     }
     bytes.extend(content);
-    bytes
 }
 
 fn importer(wat: &str) -> Vec<u8> {
@@ -344,7 +349,14 @@ fn an_ai_plugin_is_not_loaded_while_ai_is_off() {
 
 #[test]
 fn a_theme_loads_without_code_and_takes_no_calls() {
-    let mut theme = load(&plugin("(module)", &["theme"], &[])).unwrap();
+    let mut file = plugin("(module)", &["theme"], &[]);
+    let colours = json!({
+        "theme_version": 1,
+        "light": {"background": "#ffffff", "text": "#000000", "accent": "#1b5e20"},
+        "dark": {"background": "#000000", "text": "#ffffff", "accent": "#a5d6a7"},
+    });
+    push_custom(&mut file, THEME_SECTION, colours.to_string().as_bytes());
+    let mut theme = load(&file).unwrap();
     assert!(theme.manifest().is_data_only());
     assert_eq!(theme.call("echo", b""), Err(HostError::NoCode));
 }

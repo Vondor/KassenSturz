@@ -11,8 +11,10 @@
 //! is called is the UI's to say (D-034), so an action goes to QML as a key
 //! (`add-transaction`) that `ChangeNames.qml` puts into words.
 
-use kassensturz_core::{AccountKind, Report, Timestamp, TransactionId};
-use kassensturz_store::{Action, Book, Change, ChangeSummary, HistoryRetention, StoreError};
+use kassensturz_core::{AccountId, AccountKind, Money, Report, Timestamp, TransactionId};
+use kassensturz_store::{
+    Action, Book, Change, ChangeId, ChangeSummary, HistoryRetention, StoreError,
+};
 
 use crate::errors::{ErrorText, report_text};
 use crate::format::Locale;
@@ -312,7 +314,7 @@ fn change_text(
 ) -> Result<ChangeText, HistoryError> {
     let summary = if with_summary {
         let summary = book.change_summary(change.id)?;
-        summary_text(book, &summary, locale)?
+        summary_text(book, change.id, &summary, locale)?
     } else {
         None
     };
@@ -356,16 +358,29 @@ fn booking_text(
         Err(StoreError::UnknownTransaction(_)) => return Ok(None),
         Err(error) => return Err(error.into()),
     };
+    let parts: Vec<_> = transaction
+        .splits()
+        .iter()
+        .filter_map(|split| split.account.map(|account| (account, split.amount)))
+        .collect();
+    booking_words(book, transaction.payee(), &parts, locale)
+}
+
+/// A booking named by its payee (or its category's name) and the amount in
+/// its own account, from its `parts`.
+fn booking_words(
+    book: &Book,
+    payee: Option<&str>,
+    parts: &[(AccountId, Money)],
+    locale: &impl Locale,
+) -> Result<Option<BookingText>, HistoryError> {
     let mut own = None;
     let mut other = None;
-    for split in transaction.splits() {
-        let Some(account) = split.account else {
-            continue;
-        };
+    for &(account, amount) in parts {
         let account = book.account(account)?;
         match account.kind {
             AccountKind::Asset | AccountKind::Liability if own.is_none() => {
-                own = Some(split.amount);
+                own = Some(amount);
             }
             AccountKind::Equity => {}
             _ if other.is_none() => other = Some(account.name),
@@ -375,8 +390,7 @@ fn booking_text(
     let Some(amount) = own else {
         return Ok(None);
     };
-    let name = transaction
-        .payee()
+    let name = payee
         .map(kassensturz_store::shown_text)
         .filter(|payee| !payee.trim().is_empty())
         .or(other)
@@ -391,6 +405,7 @@ fn booking_text(
 /// `None` for a change that touched no transaction.
 fn summary_text(
     book: &Book,
+    change: ChangeId,
     summary: &ChangeSummary,
     locale: &impl Locale,
 ) -> Result<Option<SummaryText>, HistoryError> {
@@ -409,7 +424,19 @@ fn summary_text(
         |(first, last)| (locale.short_date(first), locale.short_date(last)),
     );
     let booking = match summary.transactions.as_slice() {
-        [only] => booking_text(book, *only, locale)?,
+        [only] => match booking_text(book, *only, locale)? {
+            Some(booking) => Some(booking),
+            // A removed booking is gone from the book: name it from the
+            // history's copy of it, so the label before Undo names it too
+            // (B-399).
+            None if summary.removed == 1 => match book.booking_before(change, *only)? {
+                Some(before) => {
+                    booking_words(book, before.payee.as_deref(), &before.parts, locale)?
+                }
+                None => None,
+            },
+            None => None,
+        },
         _ => None,
     };
     Ok(Some(SummaryText {
@@ -602,7 +629,26 @@ mod tests {
             (removal.removed, removal.first_date.as_str()),
             (1, "2026-10-09")
         );
-        undo(&mut book, &when, &TestLocale).expect("undo");
+        // The label before Undo names the removed booking, though it is gone
+        // from the book (B-399).
+        let removed_booking = removal.booking.as_ref().expect("the removal is named");
+        assert_eq!(
+            (
+                removed_booking.name.as_str(),
+                removed_booking.amount.as_str()
+            ),
+            ("Corner Grocery", "-20,00 €")
+        );
+        let first_text = undo(&mut book, &when, &TestLocale)
+            .expect("undo")
+            .expect("a change");
+        assert_eq!(
+            first_text.summary.and_then(|summary| summary.booking),
+            Some(BookingText {
+                name: "Corner Grocery".into(),
+                amount: "-20,00 €".into()
+            })
+        );
         let addition = view_of(&book).undo.expect("undo").summary.expect("summary");
         assert_eq!(
             (addition.added, addition.first_date.as_str()),

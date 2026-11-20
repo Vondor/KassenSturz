@@ -14,6 +14,12 @@ base: core24
 adopt-info: kassensturz
 summary: Keep track of your household's money
 description: |
+  Made by AI: This app is built by AI agents (automated agentic coding:
+  mainly Claude from Anthropic writes the code, tests and documentation)
+  under human oversight. A human maintainer sets the rules, decides what is
+  merged and released, and tests the app. The code is open and every change
+  is public.
+
   KassenSturz is a free household book for the desktop. Record your accounts
   and spending, see where your money goes, and trust the numbers, without
   accounting knowledge. Your data stays on your computer.

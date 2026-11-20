@@ -32,6 +32,10 @@ Kirigami.ScrollablePage {
         id: words
     }
 
+    // The dialogs, reachable by the smoke test (children of a page are redirected).
+    readonly property var pauseDialogItem: pauseDialog
+    readonly property var resumeDialogItem: resumeDialog
+
     // What the line under a budget's name says.
     function summary(budget: var): string {
         const plan = page.i18nContext.i18nc("@info %1 is how often a budget repeats, %2 an amount of money", "%1, %2", words.everyFrom(budget.every, budget.salaryDay ?? 0), budget.amount);
@@ -45,6 +49,12 @@ Kirigami.ScrollablePage {
     function stateText(budget: var): string {
         if (budget.state === "upcoming") {
             return page.i18nContext.i18nc("@info %1 is a date", "Starts %1", budget.firstDay);
+        }
+        // A paused budget (#1241): it has a last day and can go on.
+        if (budget.canResume) {
+            return budget.state === "ended"
+                ? page.i18nContext.i18nc("@info %1 is a date", "Paused: it stopped counting on %1", budget.lastDay)
+                : page.i18nContext.i18nc("@info %1 is a date", "Paused: it counts until %1, then stops", budget.lastDay);
         }
         if (budget.state === "ended") {
             return page.i18nContext.i18nc("@info %1 is a date", "Ended %1", budget.lastDay);
@@ -95,6 +105,74 @@ Kirigami.ScrollablePage {
                 onTriggered: {
                     ActionLog.taken("BudgetsPage_keep")
                     removeDialog.close()
+                }
+            }
+        ]
+    }
+
+    // Pausing says what it does before it does it (#1241, D-909).
+    Kirigami.PromptDialog {
+        id: pauseDialog
+
+        property string budgetId: ""
+        property string budgetName: ""
+        property string until: ""
+
+        title: page.i18nContext.i18nc("@title:window", "Pause this budget?")
+        subtitle: page.i18nContext.i18nc("@info %1 is the name of a category, %2 a date", "The budget for %1 counts until %2 and stops after that. Its past results stay. You can resume it later, and Undo takes the pause back.", Plain.plain(budgetName), until)
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button pause a budget", "Pause")
+                icon.name: "media-playback-pause"
+                onTriggered: {
+                    ActionLog.taken("BudgetsPage_pauseBudget")
+                    pauseDialog.close();
+                    error.result = page.budgets.stopBudget(pauseDialog.budgetId);
+                }
+            },
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    ActionLog.taken("BudgetsPage_cancelPause")
+                    pauseDialog.close()
+                }
+            }
+        ]
+    }
+
+    // Resuming says what happens: the same budget goes on, or, once its
+    // last day is past, a new one starts from this period (#1241).
+    Kirigami.PromptDialog {
+        id: resumeDialog
+
+        property string budgetId: ""
+        property string budgetName: ""
+        // Empty when the same budget just goes on.
+        property string from: ""
+
+        title: page.i18nContext.i18nc("@title:window", "Resume this budget?")
+        subtitle: from === ""
+            ? page.i18nContext.i18nc("@info %1 is the name of a category", "The budget for %1 no longer has an end date and counts on after this period, as before. Undo takes it back.", Plain.plain(budgetName))
+            : page.i18nContext.i18nc("@info %1 is the name of a category, %2 a date", "The budget for %1 starts again on %2 with the same categories and amount. The months in between are not counted, and what was left over before is not carried into it. Its old results stay under the paused budget, and Undo takes this back.", Plain.plain(budgetName), from)
+        standardButtons: Kirigami.Dialog.NoButton
+        customFooterActions: [
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button resume a budget", "Resume")
+                icon.name: "media-playback-start"
+                onTriggered: {
+                    ActionLog.taken("BudgetsPage_resumeBudget")
+                    resumeDialog.close();
+                    error.result = page.budgets.resumeBudget(resumeDialog.budgetId);
+                }
+            },
+            Kirigami.Action {
+                text: page.i18nContext.i18nc("@action:button", "Cancel")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    ActionLog.taken("BudgetsPage_cancelResume")
+                    resumeDialog.close()
                 }
             }
         ]
@@ -210,15 +288,35 @@ Kirigami.ScrollablePage {
                         }
 
                         Controls.ToolButton {
-                            icon.name: "media-playback-stop"
+                            icon.name: "media-playback-pause"
                             visible: card.modelData.canStop
-                            text: page.i18nContext.i18nc("@action:button end a budget after the current period", "Stop")
-                            Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Stop the budget for %1", card.modelData.name)
+                            text: page.i18nContext.i18nc("@action:button pause a budget after the current period", "Pause")
+                            Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Pause the budget for %1", card.modelData.name)
                             onClicked: {
-                                ActionLog.taken("BudgetsPage_stop")
-                                error.result = page.budgets.stopBudget(card.modelData.id)
+                                ActionLog.taken("BudgetsPage_pause")
+                                pauseDialog.budgetId = card.modelData.id;
+                                pauseDialog.budgetName = card.modelData.name;
+                                pauseDialog.until = card.modelData.pauseUntil;
+                                pauseDialog.open();
                             }
-                            Controls.ToolTip.text: page.i18nContext.i18nc("@info", "Ends the budget after the current period. Its past results stay.")
+                            Controls.ToolTip.text: page.i18nContext.i18nc("@info", "Stops counting after the current period. Its past results stay, and you can resume it later.")
+                            Controls.ToolTip.visible: hovered
+                            Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
+                        }
+
+                        Controls.ToolButton {
+                            icon.name: "media-playback-start"
+                            visible: card.modelData.canResume
+                            text: page.i18nContext.i18nc("@action:button resume a paused budget", "Resume")
+                            Accessible.name: page.i18nContext.i18nc("@action:button %1 is the name of a category", "Resume the budget for %1", card.modelData.name)
+                            onClicked: {
+                                ActionLog.taken("BudgetsPage_resume")
+                                resumeDialog.budgetId = card.modelData.id;
+                                resumeDialog.budgetName = card.modelData.name;
+                                resumeDialog.from = card.modelData.resumeFrom;
+                                resumeDialog.open();
+                            }
+                            Controls.ToolTip.text: page.i18nContext.i18nc("@info", "Counts again from this period on. Its past results stay.")
                             Controls.ToolTip.visible: hovered
                             Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
                         }

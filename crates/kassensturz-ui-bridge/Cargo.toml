@@ -31,6 +31,7 @@ ai = [
     "kassensturz-ai-chat/ai",
     "dep:kassensturz-ai-tools",
     "kassensturz-ai-tools/ai",
+    "kassensturz-plugin-formats/ai",
 ]
 # The developer mode's debug log (D-173, D-227), started only from a terminal
 # with KASSENSTURZ_DEBUG_LOG=1. Without it the app holds no log code.
@@ -62,6 +63,7 @@ kassensturz-import.workspace = true
 kassensturz-pipeline.workspace = true
 kassensturz-platform.workspace = true
 kassensturz-plugin-api.workspace = true
+kassensturz-plugin-formats.workspace = true
 kassensturz-plugin-host.workspace = true
 kassensturz-report.workspace = true
 kassensturz-store.workspace = true

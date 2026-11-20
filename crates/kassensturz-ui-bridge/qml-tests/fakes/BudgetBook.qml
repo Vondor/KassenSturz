@@ -17,12 +17,15 @@ QtObject {
             {id: "b-food", categories: ["c-food"], name: "Food", ownName: "", categoryNames: "Food", accounts: "", every: "month", salaryDay: 0, currency: "EUR", amount: "400,00 €", amountInput: "400,00", carryOver: true,
              accountIds: [], countsFrom: "2026-10-01",
              history: [{earlier: true, day: "2026-09-30", categoryNames: "Rent", accounts: "Checking"}],
-             state: "running", firstDay: "2026-09-01", lastDay: "", canStop: true,
+             state: "running", firstDay: "2026-09-01", lastDay: "", canStop: true, pauseUntil: "2026-10-31", canResume: false, resumeFrom: "",
              changes: [{day: "2026-10-01", firstDay: "2026-10-01", lastDay: "2026-10-31", current: true},
                        {day: "2026-09-01", firstDay: "2026-09-01", lastDay: "2026-09-30", current: false}]},
             {id: "b-rent", categories: ["c-rent"], name: "Flat", ownName: "Flat", categoryNames: "Rent", accounts: "Checking", every: "salary-month", salaryDay: 25, currency: "EUR", amount: "800,00 €", amountInput: "800,00", carryOver: false,
              accountIds: ["a-checking"], countsFrom: "2027-01-25", history: [],
-             state: "upcoming", firstDay: "2027-01-25", lastDay: "", canStop: false, changes: []}
+             state: "upcoming", firstDay: "2027-01-25", lastDay: "", canStop: false, pauseUntil: "", canResume: false, resumeFrom: "", changes: []},
+            {id: "b-fun", categories: ["c-food"], name: "Fun", ownName: "Fun", categoryNames: "Food", accounts: "", every: "month", salaryDay: 0, currency: "EUR", amount: "50,00 €", amountInput: "50,00", carryOver: false,
+             accountIds: [], countsFrom: "", history: [],
+             state: "ended", firstDay: "2026-06-01", lastDay: "2026-08-31", canStop: false, pauseUntil: "", canResume: true, resumeFrom: "2026-10-01", changes: []}
         ],
         categories: [
             {id: "c-food", name: "Food", path: "Food", depth: 0, currency: "EUR"},
@@ -57,6 +60,11 @@ QtObject {
 
     function stopBudget(id) {
         calls.push("stopBudget:" + id);
+        return {};
+    }
+
+    function resumeBudget(id) {
+        calls.push("resumeBudget:" + id);
         return {};
     }
 

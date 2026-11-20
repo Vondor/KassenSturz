@@ -171,6 +171,7 @@ Kirigami.ScrollablePage {
 
         Controls.Label {
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             font: Kirigami.Theme.smallFont
@@ -183,27 +184,51 @@ Kirigami.ScrollablePage {
             visible: page.adding
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "Category:")
             Layout.fillWidth: true
-            model: page.categoryChoices
+            model: page.categoryChoices.concat([{ id: "", path: page.i18nContext.i18nc("@item:inlistbox the last entry of a category list: makes a new category", "New category …") }])
             textRole: "path"
-            enabled: page.categoryChoices.length > 0
+            // Even with no spending category yet, the last entry makes one.
+            enabled: true
             Accessible.name: page.i18nContext.i18nc("@label:listbox", "Category:")
+            onActivated: index => {
+                ActionLog.taken("BudgetPage_chooseCategory")
+                if (index >= page.categoryChoices.length) {
+                    // The last entry makes a new category (D-910); the list
+                    // goes back to what it showed meanwhile.
+                    categoryBox.currentIndex = Math.max(0, page.categoryChoices.findIndex(choice => choice.id === page.chosenCategory?.id));
+                    newCategory.start();
+                }
+            }
+        }
+
+        NewCategoryDialog {
+            id: newCategory
+
+            income: false
+            onCreated: categoryId => {
+                page.categoryId = categoryId;
+                const at = page.categoryChoices.findIndex(category => category.id === categoryId);
+                categoryBox.currentIndex = at >= 0 ? at : 0;
+            }
         }
 
         Controls.Label {
             visible: page.adding && page.categoryChoices.length === 0
-            text: page.i18nContext.i18nc("@info", "You have no spending categories yet. Add a category for money you spend first.")
+            text: page.i18nContext.i18nc("@info", "You have no spending categories yet. Choose “New category …” in the list above to add one.")
             wrapMode: Text.Wrap
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            Layout.fillWidth: true
         }
 
         Controls.CheckBox {
             id: severalBox
 
+            Layout.fillWidth: true
             visible: page.adding && page.moreChoices.length > 0
             text: page.i18nContext.i18nc("@option:check", "Count more categories with it")
         }
 
         ColumnLayout {
+            Layout.fillWidth: true
             visible: severalBox.visible && severalBox.checked
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Also count:")
             spacing: 0
@@ -212,6 +237,7 @@ Kirigami.ScrollablePage {
                 model: page.moreChoices
 
                 delegate: Controls.CheckBox {
+                    Layout.fillWidth: true
                     required property var modelData
 
                     text: Plain.plain(modelData.path)
@@ -233,17 +259,20 @@ Kirigami.ScrollablePage {
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            Layout.fillWidth: true
         }
 
         Controls.CheckBox {
             id: someAccountsBox
 
+            Layout.fillWidth: true
             visible: page.adding && page.accountChoices.length > 1
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Accounts:")
             text: page.i18nContext.i18nc("@option:check", "Only count money paid from some accounts")
         }
 
         ColumnLayout {
+            Layout.fillWidth: true
             visible: someAccountsBox.visible && someAccountsBox.checked
             spacing: 0
 
@@ -251,6 +280,7 @@ Kirigami.ScrollablePage {
                 model: page.accountChoices
 
                 delegate: Controls.CheckBox {
+                    Layout.fillWidth: true
                     required property var modelData
 
                     text: Plain.plain(modelData.name)
@@ -264,6 +294,7 @@ Kirigami.ScrollablePage {
 
             Controls.Label {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+                Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 font: Kirigami.Theme.smallFont
@@ -278,11 +309,13 @@ Kirigami.ScrollablePage {
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            Layout.fillWidth: true
         }
 
         // What it counted before, or is to count later (D-689), so an old
         // period's other figures never surprise.
         ColumnLayout {
+            Layout.fillWidth: true
             visible: !page.adding && (page.existing?.history ?? []).length > 0
             spacing: 0
 
@@ -293,6 +326,7 @@ Kirigami.ScrollablePage {
                     required property var modelData
 
                     Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+                    Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     textFormat: Text.PlainText
                     font: Kirigami.Theme.smallFont
@@ -312,11 +346,13 @@ Kirigami.ScrollablePage {
         Controls.CheckBox {
             id: countsBox
 
+            Layout.fillWidth: true
             visible: !page.adding && (page.existing?.countsFrom ?? "") !== ""
             text: page.i18nContext.i18nc("@option:check", "Change the categories or accounts")
         }
 
         ColumnLayout {
+            Layout.fillWidth: true
             visible: page.changesCounts
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Categories:")
             spacing: 0
@@ -325,6 +361,7 @@ Kirigami.ScrollablePage {
                 model: page.changesCounts ? page.editChoices : []
 
                 delegate: Controls.CheckBox {
+                    Layout.fillWidth: true
                     required property var modelData
 
                     text: Plain.plain(modelData.path)
@@ -338,6 +375,7 @@ Kirigami.ScrollablePage {
         }
 
         ColumnLayout {
+            Layout.fillWidth: true
             visible: page.changesCounts && page.accountChoices.length > 1
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "Accounts:")
             spacing: 0
@@ -346,6 +384,7 @@ Kirigami.ScrollablePage {
                 model: page.changesCounts ? page.accountChoices : []
 
                 delegate: Controls.CheckBox {
+                    Layout.fillWidth: true
                     required property var modelData
 
                     text: Plain.plain(modelData.name)
@@ -359,6 +398,7 @@ Kirigami.ScrollablePage {
 
             Controls.Label {
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+                Layout.fillWidth: true
                 wrapMode: Text.Wrap
                 textFormat: Text.PlainText
                 font: Kirigami.Theme.smallFont
@@ -369,6 +409,7 @@ Kirigami.ScrollablePage {
         Controls.ComboBox {
             id: everyBox
 
+            Layout.fillWidth: true
             visible: page.adding
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox", "How often:")
             model: words.everyWords.map(word => words.every(word))
@@ -399,6 +440,7 @@ Kirigami.ScrollablePage {
         Controls.ComboBox {
             id: startBox
 
+            Layout.fillWidth: true
             visible: page.adding && page.repeats
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox the first period of a new budget", "Start with:")
             model: page.starts.map(choice => words.period(choice))
@@ -408,6 +450,7 @@ Kirigami.ScrollablePage {
         Controls.Label {
             visible: page.firstPeriod !== ""
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             text: page.i18nContext.i18nc("@info %1 is a stretch of days", "The first period is %1.", page.firstPeriod)
@@ -438,6 +481,7 @@ Kirigami.ScrollablePage {
         }
 
         RowLayout {
+            Layout.fillWidth: true
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:textbox", "Amount:")
 
             Controls.TextField {
@@ -461,6 +505,7 @@ Kirigami.ScrollablePage {
         Controls.ComboBox {
             id: fromBox
 
+            Layout.fillWidth: true
             visible: !page.adding
             Kirigami.FormData.label: page.i18nContext.i18nc("@label:listbox the period a change starts to apply from", "From this period on:")
             model: page.fromChoices.map(choice => page.changes.length > 1 && choice.day === page.changes[page.changes.length - 1].day
@@ -472,6 +517,7 @@ Kirigami.ScrollablePage {
         Controls.Label {
             visible: !page.adding
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             font: Kirigami.Theme.smallFont
@@ -483,14 +529,19 @@ Kirigami.ScrollablePage {
         Controls.CheckBox {
             id: carryBox
 
+            Layout.fillWidth: true
             visible: page.repeats
             text: page.i18nContext.i18nc("@option:check", "Carry over what is left")
             Kirigami.FormData.label: page.i18nContext.i18nc("@label", "At the end of a period:")
         }
 
+        // Every note of this form may be narrower than its longest line: it
+        // fills what the page gives it and wraps, so a narrow window or a
+        // large text size cuts nothing off (B-412, D-904).
         Controls.Label {
             visible: page.repeats
             Layout.maximumWidth: Kirigami.Units.gridUnit * 24
+            Layout.fillWidth: true
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             font: Kirigami.Theme.smallFont

@@ -135,6 +135,8 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
         "",
         "- [Handbuch auf Deutsch](Handbuch)",
         "- [Handbook in English](Handbook)",
+        "- [Roadmap: Was als Nächstes kommt](de-22-fahrplan)",
+        f"- [Discussions: Ankündigungen und Ideen / announcements and ideas](https://github.com/{repo}/discussions)",
         "",
         (
             "> **Dieses Wiki ist eine Kopie** des Handbuchs in "

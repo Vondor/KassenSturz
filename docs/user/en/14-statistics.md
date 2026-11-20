@@ -8,7 +8,7 @@ Open the **Statistic Builder** (**Guide me step by step**). A **New statistic** 
 
 1. **Period:** you can choose **This month**, **Last month**, **The last 12 months**, **This year**, **Last year** and a period of your own, from and to (see below).
 2. **Choose categories:** you say which categories count, one by one or as a group (page 6).
-3. **Look and preview:** the kind of chart, the title, the legend and the name.
+3. **Look and preview:** the kind of chart, the title, the legend (the list that says which colour stands for what) and the name.
 
 **Advanced: formulas and fine tuning** and **Advanced: pick from lists** hold what you usually don't need. Empty fields show pale examples and never show errors straight away. **Show all settings at once** opens everything on one page.
 

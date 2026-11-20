@@ -2243,6 +2243,7 @@ Kirigami.ApplicationWindow {
             plans: plannedPayments
             onAddAccountClicked: root.addAccount()
             onAccountClicked: accountId => root.showRegister(accountId)
+            onCheckClicked: (accountId, bank, date) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: date })
             onGetTransactionsClicked: root.pushPage(bankFetchPage, { initialAccountId: "" })
             Component.onCompleted: bankReady = root.bankUsable()
         }
@@ -2576,6 +2577,20 @@ Kirigami.ApplicationWindow {
         BankSetupPage {
             bank: bankConnection
             onLinked: root.screenChangedBook()
+            onFetchNowClicked: {
+                // Back to where the setup was opened from, then the fetch
+                // page: the user agreed to fetching (D-906).
+                root.pageStack.pop();
+                const back = root.pageStack.currentItem;
+                if (back && back.fetchOnOpen !== undefined) {
+                    // The fetch page opened the setup: it fetches again.
+                    back.refresh();
+                    back.tickToBegin();
+                    back.fetchTicked();
+                    return;
+                }
+                root.pushPage(bankFetchPage, { initialAccountId: "", fetchOnOpen: true });
+            }
             onDone: {
                 root.pageStack.pop();
                 const settings = root.pageStack.currentItem;

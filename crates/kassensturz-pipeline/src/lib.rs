@@ -27,6 +27,9 @@
 //!    other side may still come (D-749).
 //! 6. For each statement with a closing balance, KassenSturz's balance of
 //!    the account on that day against the bank's (D-029).
+//!    A front end that knows where the statements came from then works out
+//!    the starting balance after the account's first import
+//!    ([`derive_start_after_import`], D-903), inside the same user action.
 //! 7. The pairs with a new transaction as one side that fit such a
 //!    remembered move are joined ([`join_recurring_moves`], D-749), as a
 //!    user action of its own right after the import's, so one Undo takes
@@ -68,6 +71,7 @@ mod imported_book;
 mod kmy_reports;
 mod kmy_reports_into;
 mod report;
+mod starting_balance;
 pub mod stop;
 
 use std::collections::HashSet;
@@ -99,6 +103,10 @@ pub use kmy_reports_into::{
 };
 pub use report::{
     BalanceCheck, Duplicate, EntryOutcome, EntryRef, EntryResult, ImportReport, Summary,
+};
+pub use starting_balance::{
+    StartChange, StartError, StartSource, apply_start, derive_start_after_import, parts_by_origin,
+    plan_start, starting_balances_account,
 };
 
 /// What the user decided after a preview.

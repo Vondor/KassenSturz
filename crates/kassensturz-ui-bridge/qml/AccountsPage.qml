@@ -24,9 +24,26 @@ Kirigami.ScrollablePage {
     readonly property var sections: accounts.view.sections ?? []
     readonly property var closedAccounts: accounts.view.closed ?? []
     property bool showClosed: false
+    // The open accounts that no longer hold what the bank said on a day
+    // (D-117): each gets a line that leads to the correction (D-903).
+    readonly property var differing: {
+        const found = [];
+        for (let s = 0; s < sections.length; s++) {
+            const cards = sections[s].accounts;
+            for (let a = 0; a < cards.length; a++) {
+                if ((cards[a].differs ?? null) !== null) {
+                    found.push(cards[a]);
+                }
+            }
+        }
+        return found;
+    }
 
     signal addAccountClicked()
     signal accountClicked(accountId: string)
+    // "Check against my bank" for an account, with what the bank said and
+    // its day filled in, so the comparison and the offer show at once.
+    signal checkClicked(accountId: string, bank: string, date: string)
     // Fetch the new transactions of the accounts from the bank (M4.7).
     signal getTransactionsClicked()
     // Whether bank connections can be used here, so the action is offered.
@@ -34,6 +51,11 @@ Kirigami.ScrollablePage {
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
+    }
+
+    // What the bank or KassenSturz said: a debt reads "you owed".
+    function said(amount: string, owes: bool): string {
+        return owes ? i18nContext.i18nc("@label %1 is an amount of money", "you owed %1", amount) : amount;
     }
 
     // The accounts list only shows the book, which every undo reads again
@@ -175,6 +197,35 @@ Kirigami.ScrollablePage {
                     ActionLog.taken("AccountsPage_addAccount_2")
                     page.addAccountClicked()
                 }
+            }
+        }
+
+        // An account whose balance stopped agreeing with what the bank said,
+        // e.g. because older transactions came in after the balance was
+        // entered (B-411). KassenSturz changes nothing by itself (D-111):
+        // the button shows the correction, and the user confirms it there.
+        Repeater {
+            model: page.differing
+
+            delegate: Kirigami.InlineMessage {
+                id: differs
+
+                required property var modelData
+
+                Layout.fillWidth: true
+                visible: true
+                type: Kirigami.MessageType.Warning
+                text: Plain.plain(page.i18nContext.i18nc("@info %1 is the name of an account, %2 is a date, %3 and %4 say how much money there was or was owed", "%1: on %2 your bank said %3, but KassenSturz has %4 for that day. You can check this and correct the starting balance.", differs.modelData.name, differs.modelData.differs.date, page.said(differs.modelData.differs.balance, differs.modelData.differs.owes), page.said(differs.modelData.differs.held, differs.modelData.differs.heldOwes)))
+                actions: [
+                    Kirigami.Action {
+                        text: page.i18nContext.i18nc("@action:button", "Check and correct…")
+                        icon.name: "view-financial-account-checking"
+                        onTriggered: {
+                            ActionLog.taken("AccountsPage_checkAndCorrect")
+                            page.checkClicked(differs.modelData.id, differs.modelData.differs.balance, differs.modelData.differs.date)
+                        }
+                    }
+                ]
             }
         }
 

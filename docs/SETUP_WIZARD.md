@@ -1,6 +1,6 @@
 # First setup wizard: design
 
-Status: **built** (M7a.9; roadmap row "First setup wizard", D-540). The design was approved with #362 and built in #390, #393, #395 and #407; its decisions are D-543 to D-547. The screenshots below are the design mocks; screenshots of the built pages are in `docs/setup-wizard/built/`.
+Status: **built** (M7a.9; roadmap row "First setup wizard", D-540). The optional guided setup that follows it (#1031) is designed in `docs/GUIDED_SETUP.md`. The design was approved with #362 and built in #390, #393, #395 and #407; its decisions are D-543 to D-547. The screenshots below are the design mocks; screenshots of the built pages are in `docs/setup-wizard/built/`.
 
 The wizard is what a new person sees the first time KassenSturz opens a book that has no account yet. It replaces the M3.4 first-run steps (welcome page, first account, first transaction; D-111, D-116) with a short guided flow that ends on the overview, which is the product (D-342). The mock screenshots in `docs/setup-wizard/` are simple QML mocks with made-up figures, rendered under Xvfb in German, because the first testers are German; they show layout and wording, not final styling.
 

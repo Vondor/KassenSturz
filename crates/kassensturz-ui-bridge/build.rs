@@ -144,6 +144,7 @@ fn main() {
                 "qml/DrawerHandleName.qml",
                 "qml/HeaderHandleNames.qml",
                 "qml/NewDashboardDialog.qml",
+                "qml/NewCategoryDialog.qml",
                 "qml/TemplatePicture.qml",
                 "qml/PartRow.qml",
                 "qml/PartsPage.qml",

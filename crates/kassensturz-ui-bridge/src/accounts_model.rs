@@ -16,8 +16,8 @@ use kassensturz_core::CurrencyCode;
 use kassensturz_store::{Book, StoreError};
 
 use crate::accounts::{
-    self, AccountCard, AccountDetails, AccountsError, AccountsView, BankCheck, CurrencySection,
-    NewAccount, type_from_key,
+    self, AccountCard, AccountDetails, AccountsError, AccountsView, BankCheck, Correction,
+    CurrencySection, NewAccount, type_from_key,
 };
 use crate::errors::ErrorText;
 use crate::format::Locale;
@@ -383,6 +383,22 @@ fn card_object(card: &AccountCard) -> QVariant {
             "exactLater",
             text(card.later.as_ref().map_or("", |later| &later.exact)),
         ),
+        // Exact amounts, since a rounded one could hide the difference; the
+        // balance and the day are what "Check against my bank" reads back.
+        (
+            "differs",
+            card.differs
+                .as_ref()
+                .map_or_else(QVariant::default, |stated| {
+                    map([
+                        ("balance", text(&stated.balance.exact)),
+                        ("owes", QVariant::from(&stated.owes)),
+                        ("date", text(&stated.date)),
+                        ("held", text(&stated.held.exact)),
+                        ("heldOwes", QVariant::from(&stated.held_owes)),
+                    ])
+                }),
+        ),
     ])
 }
 
@@ -443,15 +459,27 @@ fn check_object(check: &BankCheck) -> QVariant {
                 .correction
                 .as_ref()
                 .map_or_else(QVariant::default, |correction| {
-                    map([
-                        ("wouldBe", exact(&correction.would_be)),
-                        ("owes", QVariant::from(&correction.owes)),
-                        ("adds", QVariant::from(&correction.adds)),
-                        ("date", text(&correction.date)),
-                    ])
+                    map(correction_fields(correction))
                 }),
         ),
     ])
+}
+
+/// A change to a starting balance as QML reads it, before and after
+/// (D-903), with every amount exact. `was` and `wasDate` are empty when a
+/// starting balance is added.
+pub(crate) fn correction_fields(correction: &Correction) -> Vec<(&'static str, QVariant)> {
+    let was = correction.was.as_ref();
+    vec![
+        ("wouldBe", text(&correction.would_be.exact)),
+        ("owes", QVariant::from(&correction.owes)),
+        ("adds", QVariant::from(&correction.adds)),
+        ("date", text(&correction.date)),
+        ("was", text(was.map_or("", |was| was.0.exact.as_str()))),
+        ("wasOwes", QVariant::from(&was.is_some_and(|was| was.1))),
+        ("wasDate", text(was.map_or("", |was| was.2.as_str()))),
+        ("moves", QVariant::from(&correction.moves)),
+    ]
 }
 
 #[cfg(test)]
@@ -530,6 +558,7 @@ mod tests {
             keys(&cards[0]),
             [
                 "balance",
+                "differs",
                 "exactBalance",
                 "exactLater",
                 "id",
@@ -539,6 +568,8 @@ mod tests {
                 "type"
             ]
         );
+        // The account holds what the bank said, so QML reads null.
+        assert!(is_null(&cards[0], "differs"));
         // Nothing is dated after today.
         assert_eq!(text_of(euros, "later"), "");
         assert_eq!(text_of(&cards[0], "later"), "");
@@ -696,7 +727,15 @@ mod tests {
                 .all(|explanation| !text_of(explanation, "code").is_empty())
         );
         let correction = object_of(&apart, "correction");
-        assert_eq!(keys(&correction), ["adds", "date", "owes", "wouldBe"]);
+        assert_eq!(
+            keys(&correction),
+            [
+                "adds", "date", "moves", "owes", "was", "wasDate", "wasOwes", "wouldBe"
+            ]
+        );
+        assert_eq!(text_of(&correction, "was"), "1000,00 €");
+        assert_eq!(text_of(&correction, "wasDate"), "2026-10-01");
+        assert!(!flag_of(&correction, "moves") && !flag_of(&correction, "wasOwes"));
         assert_eq!(text_of(&correction, "wouldBe"), "800,00 €");
         assert_eq!(text_of(&correction, "date"), "2026-10-01");
         assert!(!flag_of(&correction, "adds") && !flag_of(&correction, "owes"));

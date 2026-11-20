@@ -58,7 +58,7 @@ pub use backup_copies::{
 pub use book_id::BookId;
 pub use budgets::{check_budget_amount_size, check_budget_days, checked_budget_name};
 pub use error::{Corruption, DatabaseError, StoreError};
-pub use history::{Action, Change, ChangeId, ChangeSummary, HistoryRetention};
+pub use history::{Action, BookingBefore, Change, ChangeId, ChangeSummary, HistoryRetention};
 /// The oldest layout this KassenSturz updates a book from, and the layout
 /// it writes: a reader in another program, such as the AI tools, tells
 /// them apart from the book's own layout (M6-B194).

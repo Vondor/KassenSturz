@@ -99,6 +99,7 @@ QtObject {
     function moveTo(id, col, row) { return note("moveTo:" + id + ":" + col + ":" + row); }
     function nudge(id, cols, rows) { return note("nudge:" + id + ":" + cols + ":" + rows); }
     function resizeTo(id, cols, rows) { return note("resizeTo:" + id + ":" + cols + ":" + rows); }
+    function stretch(id, left, top, right, bottom) { return note("stretch:" + id + ":" + left + ":" + top + ":" + right + ":" + bottom); }
     function grow(id, cols, rows) { return note("grow:" + id + ":" + cols + ":" + rows); }
     function duplicate(id) { note("duplicate:" + id); return ({id: "c9"}); }
     function remove(id) { return note("remove:" + id); }

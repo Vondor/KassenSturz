@@ -63,9 +63,6 @@ Item {
         found._end = Math.max(0, top - gap);
         return found;
     }
-    // How many budgets the book has (the overview's page view); the budget
-    // bars take no room in view mode while there is none (D-357, Q-264).
-    readonly property int budgetCount: pageView.budgets ?? 0
 
     property string selectedId: ""
     // The cells a drag would end on, or null.
@@ -158,15 +155,16 @@ Item {
         return Math.max(0, rows * rowHeight + (rows - 1) * gap);
     }
 
-    // A component that shows nothing and takes no room: the budget bars of
-    // a book with no budget, and the tabs of a book with one dashboard, while
-    // the page is only looked at (D-357, D-529). Arranging the
-    // layout shows them, so they can still be moved and removed. The Update
-    // all accounts widget always shows (D-497, replacing this part of D-446):
-    // without a linked account it says how to connect a bank.
+    // A component that shows nothing and takes no room: the tabs of a book
+    // with one dashboard, while the page is only looked at (D-529). Arranging
+    // the layout shows them, so they can still be moved and removed. The
+    // Update all accounts widget always shows (D-497, replacing this part of
+    // D-446): without a linked account it says how to connect a bank. So do
+    // the budget bars of a book with no budget (B-412, D-904, replacing this
+    // part of D-357 and D-382): they say how to set one, where they used to
+    // vanish when the user pressed Done.
     function isCollapsed(info: var): bool {
-        return !editing && ((info.type === "budget.progress" && budgetCount === 0)
-            || (info.type === "page.tabs" && (view.dashboards ?? []).length < 2));
+        return !editing && info.type === "page.tabs" && (view.dashboards ?? []).length < 2;
     }
 
     // The height of the full-width components that take no room and lie

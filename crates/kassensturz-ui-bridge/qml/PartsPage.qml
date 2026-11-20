@@ -279,6 +279,11 @@ Kirigami.ScrollablePage {
                         model.category = categoryId;
                         page.refresh();
                     }
+                    onNewCategoryMade: categoryId => {
+                        page.reloadChoices();
+                        model.category = categoryId;
+                        page.refresh();
+                    }
                     onAmountEdited: text => {
                         model.amount = text;
                         page.refresh();

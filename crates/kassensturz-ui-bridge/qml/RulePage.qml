@@ -29,7 +29,8 @@ Kirigami.ScrollablePage {
     property var initialForm: ({})
 
     readonly property bool adding: ruleId === ""
-    readonly property var choices: rules.choices()
+    // Read again when "New category …" made a category (D-910).
+    property var choices: rules.choices()
     // How a date and an amount are typed, as examples in the fields.
     property string dateExample: ""
     property string amountExample: ""
@@ -352,13 +353,33 @@ Kirigami.ScrollablePage {
                 Kirigami.FormData.label: page.bookToKind === "transfer"
                     ? page.i18nContext.i18nc("@label:listbox", "Account:")
                     : page.i18nContext.i18nc("@label:listbox", "Category:")
+                id: targetBox
+
+                // A category can be made on the spot, as the last entry
+                // (D-910); an account can't.
                 model: page.targets.map(target => target.name)
+                    .concat(page.bookToKind === "category" ? [page.i18nContext.i18nc("@item:inlistbox the last entry of a category list: makes a new category", "New category …")] : [])
                 currentIndex: Math.max(0, page.targets.findIndex(target => target.id === page.bookTo))
                 onActivated: index => {
                     ActionLog.taken("RulePage_whereTransactionGoes")
+                    if (index >= page.targets.length) {
+                        targetBox.currentIndex = Math.max(0, page.targets.findIndex(target => target.id === page.bookTo));
+                        newCategory.start();
+                        return;
+                    }
                     page.bookTo = page.targets[index].id
                 }
                 Accessible.name: page.i18nContext.i18nc("@label:listbox", "Where the transaction goes")
+            }
+
+            NewCategoryDialog {
+                id: newCategory
+
+                kindFixed: false
+                onCreated: categoryId => {
+                    page.choices = page.rules.choices();
+                    page.bookTo = categoryId;
+                }
             }
 
             Controls.Label {

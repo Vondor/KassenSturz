@@ -126,11 +126,11 @@ flatpak run --env=KASSENSTURZ_DEBUG_LOG=1 io.github.vondor.KassenSturz
 
 **Weg A (Snap Store):**
 
+**Achtung, bevor Sie den Befehl eingeben:** Dabei löscht Snap auch die Daten der App, also Ihr Buch und die Sicherungen in `~/snap/kassensturz`. Snap legt zwar meist eine Sicherung („Snapshot“) an, verlassen Sie sich aber nicht darauf. Für den Test ist das unproblematisch (Beispielbuch). **Schicken Sie das Protokoll deshalb vorher an die Testleitung.** Wollen Sie ein Buch behalten, kopieren Sie es (und die Sicherungen) vorher an einen anderen Ort oder nutzen Sie den Export der App.
+
 ```sh
 sudo snap remove kassensturz
 ```
-
-**Achtung:** Dabei löscht Snap auch die Daten der App, also Ihr Testbuch und die Sicherungen in `~/snap/kassensturz`. Snap legt zwar meist eine Sicherung („Snapshot“) an, verlassen Sie sich aber nicht darauf. Für den Test ist das unproblematisch (Beispielbuch). **Schicken Sie das Protokoll deshalb vorher an die Testleitung.** Wollen Sie ein Buch behalten, kopieren Sie es vorher an einen anderen Ort.
 
 **Weg B (Flatpak):**
 

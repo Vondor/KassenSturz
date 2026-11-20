@@ -213,7 +213,7 @@ mod tests {
         };
         let food = add_category(&mut book, &new, EUR).expect("category");
         // With no budget, there is nothing to draw and the count says so:
-        // the component takes no room on the Overview (D-357).
+        // the component then says how to set one (D-357, D-904).
         let none = ask(&book, "this-month", &[]);
         assert_eq!(keys(&none), ["bars", "count", "filter"]);
         assert!(list_of(&none, "bars").is_empty());

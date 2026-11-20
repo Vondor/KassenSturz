@@ -120,6 +120,9 @@ pub struct Form {
     /// secrets, or the keychain refused it): it counts until KassenSturz
     /// closes, and the screen says so (B-324).
     pub consent_until_close: bool,
+    /// Whether the user chose not to be shown each request for this provider
+    /// before it goes, and the consent for it still holds (D-935, D-936).
+    pub review_off: bool,
     /// The day of a consent the settings file holds for this address that
     /// KassenSturz can't confirm, because no seal matches it: kept only
     /// until KassenSturz closed last time, or not given in KassenSturz
@@ -278,6 +281,10 @@ pub struct Store {
     keys: Option<Arc<Mutex<ProviderKeys>>>,
 }
 
+/// What is added to the settings file's name for its copy made before the
+/// look at a request can be turned off for a provider (D-936).
+pub const SETTINGS_BACKUP_SUFFIX: &str = ".before-request-review-off";
+
 impl Store {
     /// The settings of this user on this computer.
     pub fn user() -> Self {
@@ -377,6 +384,7 @@ impl Store {
             }
             _ => (Consent::NotNeeded, false, None),
         };
+        let review_off = matches!(consent, Consent::Given(_)) && self.review_skipped();
         let usable = parsed.as_ref().ok();
         let place = usable.map(ProviderAddress::place);
         let network = usable.map(ProviderAddress::network);
@@ -398,6 +406,7 @@ impl Store {
             address_error,
             consent,
             consent_until_close,
+            review_off,
             consent_unconfirmed,
         }
     }
@@ -526,6 +535,16 @@ impl Store {
         {
             return Saved::NotWritten;
         }
+        // The skip belongs to one address: another one is asked about again,
+        // also when the old address is typed back later (D-936).
+        if self
+            .config
+            .read()
+            .review_off()
+            .is_some_and(|off| *off != provider.address)
+        {
+            self.clear_review_off();
+        }
         let mut key_error = None;
         if let Some(earlier) = earlier
             && matches!(earlier.key_use, KeyUse::UntilClose | KeyUse::Saved)
@@ -632,6 +651,9 @@ impl Store {
             return (false, None);
         };
         let record = ConsentRecord::give(&provider.address, today);
+        // A new agreement is a new decision: the provider's requests are
+        // shown again until the user chooses otherwise (D-936).
+        self.clear_review_off();
         // The seal first: a consent in the file without it counts for
         // nothing. The seal always holds in memory until KassenSturz
         // closes; a keychain that refuses to save it (B-259) only means
@@ -653,6 +675,8 @@ impl Store {
             // Even if this fails, the emptied file below holds no consent.
             let _ = self.with_seals(|keys| keys.unseal_consent(&provider.address));
         }
+        // Without the agreement the look at each request comes back (D-936).
+        let cleared = self.clear_review_off();
         [
             kassensturz_ai::CONSENT_ADDRESS_KEY,
             kassensturz_ai::CONSENT_STATEMENT_KEY,
@@ -660,6 +684,74 @@ impl Store {
         ]
         .iter()
         .all(|name| self.put(name, ""))
+            && cleared
+    }
+
+    /// Whether the saved provider's requests go without being shown first
+    /// (D-935, D-936): the user chose so for this address, and the consent
+    /// for the same address still holds, with its seal and the current
+    /// statement. Without the key, with another address or without the
+    /// consent every request is shown.
+    pub fn review_skipped(&self) -> bool {
+        let config = self.config.read();
+        let (Some(off), Ok(provider)) = (config.review_off(), config.provider()) else {
+            return false;
+        };
+        *off == provider.address
+            && self
+                .consent_for(&config, &provider.address)
+                .is_some_and(|consent| consent.covers(&provider.address))
+    }
+
+    /// Chooses whether the saved provider's requests are shown first. Turning
+    /// it on is refused (`false`) for a provider on this computer, without a
+    /// consent that holds, and when the settings file can't be copied first:
+    /// the file gets a copy of itself next to it, once, before this key is
+    /// first written (D-936). Turning it off removes the key.
+    pub fn set_review_off(&self, off: bool) -> bool {
+        if !off {
+            return self.clear_review_off();
+        }
+        let config = self.config.read();
+        let Ok(provider) = config.provider() else {
+            return false;
+        };
+        let address = &provider.address;
+        if address.place() != Place::AnotherComputer
+            || !self
+                .consent_for(&config, address)
+                .is_some_and(|consent| consent.covers(address))
+        {
+            return false;
+        }
+        self.back_up_settings()
+            && self.put(kassensturz_ai::REQUEST_REVIEW_OFF_KEY, address.as_str())
+    }
+
+    /// Removes the kept address of the skip; nothing is written when there
+    /// is none, so a file that never had the key stays as it is.
+    fn clear_review_off(&self) -> bool {
+        self.text(kassensturz_ai::REQUEST_REVIEW_OFF_KEY).is_empty()
+            || self.put(kassensturz_ai::REQUEST_REVIEW_OFF_KEY, "")
+    }
+
+    /// Copies the settings file next to itself before a new kind of entry is
+    /// first written to it (AGENTS.md §1: a settings change keeps a way
+    /// back). The copy is made once and never overwritten, so it holds the
+    /// file as it was before. A file that doesn't exist yet needs none;
+    /// where the file is unknown or can't be copied, nothing is written.
+    fn back_up_settings(&self) -> bool {
+        let Some(path) = self.config.path() else {
+            return false;
+        };
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            return false;
+        };
+        let copy = path.with_file_name(format!("{name}{SETTINGS_BACKUP_SUFFIX}"));
+        if !path.exists() || copy.exists() {
+            return true;
+        }
+        std::fs::copy(path, &copy).is_ok()
     }
 
     /// The key for a test or a question: the one typed for it, else the one
@@ -1614,5 +1706,136 @@ mod tests {
             Err(AiError::Off)
         );
         assert_eq!(store.form().capability, None);
+    }
+
+    /// A store with a provider on another computer and the user's agreement
+    /// to it, as the app leaves them (D-936's "current format").
+    fn agreed() -> (TestFolder, std::path::PathBuf, Store, ProviderKeys) {
+        let (folder, file, store) = on();
+        let (_, mut keys) = keys();
+        store.save(
+            &mut keys,
+            "https://api.example.com/v1",
+            "big",
+            KeyUse::None,
+            None,
+        );
+        assert!(store.give_consent(TODAY));
+        (folder, file, store, keys)
+    }
+
+    #[test]
+    fn a_file_without_the_key_asks_every_time_and_turning_it_off_changes_nothing_else() {
+        let (_folder, file, store, _keys) = agreed();
+        // The file as the version before this key left it.
+        let before = std::fs::read_to_string(&file).unwrap();
+        assert!(!before.contains(kassensturz_ai::REQUEST_REVIEW_OFF_KEY));
+        assert!(!store.review_skipped());
+        assert!(!store.form().review_off);
+
+        assert!(store.set_review_off(true));
+        assert!(store.review_skipped());
+        assert!(store.form().review_off);
+
+        // A copy of the file as it was is kept next to it, once, and it
+        // reads as the old format; everything else in the file is as before.
+        let copy = file.with_file_name(format!("kassensturzrc{SETTINGS_BACKUP_SUFFIX}"));
+        assert_eq!(std::fs::read_to_string(&copy).unwrap(), before);
+        assert!(AiConfig::from_text(&before).review_off().is_none());
+        let after = std::fs::read_to_string(&file).unwrap();
+        for line in before.lines() {
+            assert!(after.lines().any(|kept| kept == line), "{line:?} lost");
+        }
+        assert_eq!(
+            after.lines().count(),
+            before.lines().count() + 1,
+            "one new line: {after}"
+        );
+
+        // Choosing again does not copy over the first copy.
+        assert!(store.set_review_off(false));
+        assert!(!store.review_skipped());
+        assert!(store.set_review_off(true));
+        assert_eq!(std::fs::read_to_string(&copy).unwrap(), before);
+    }
+
+    #[test]
+    fn the_skip_ends_with_the_agreement_the_address_or_a_new_statement() {
+        // Taking the agreement back.
+        let (_folder, _file, store, _keys) = agreed();
+        assert!(store.set_review_off(true));
+        assert!(store.withdraw_consent());
+        assert!(!store.review_skipped());
+        assert_eq!(store.text(kassensturz_ai::REQUEST_REVIEW_OFF_KEY), "");
+        // Agreeing again is a new decision: the requests are shown.
+        assert!(store.give_consent(TODAY));
+        assert!(!store.review_skipped());
+
+        // Another address, also when the first is typed back later.
+        let (_folder, _file, store, mut keys) = agreed();
+        assert!(store.set_review_off(true));
+        store.save(
+            &mut keys,
+            "https://other.example.com/v1",
+            "big",
+            KeyUse::None,
+            None,
+        );
+        assert!(!store.review_skipped());
+        store.save(
+            &mut keys,
+            "https://api.example.com/v1",
+            "big",
+            KeyUse::None,
+            None,
+        );
+        assert!(
+            !store.review_skipped(),
+            "the first address asks again after the detour"
+        );
+
+        // A consent of an older statement doesn't count, and with it the
+        // skip doesn't.
+        let (_folder, _file, store, _keys) = agreed();
+        assert!(store.set_review_off(true));
+        assert!(store.put(kassensturz_ai::CONSENT_STATEMENT_KEY, "1"));
+        assert!(!store.review_skipped());
+        assert!(!store.form().review_off);
+
+        // Nothing but the file's own word counts: a key for an address that
+        // is not the provider's does nothing.
+        let (_folder, _file, store, _keys) = agreed();
+        assert!(store.put(
+            kassensturz_ai::REQUEST_REVIEW_OFF_KEY,
+            "https://elsewhere.example.com/v1"
+        ));
+        assert!(!store.review_skipped());
+    }
+
+    #[test]
+    fn the_skip_is_refused_without_an_agreement_or_on_this_computer() {
+        // No agreement.
+        let (_folder, _file, store) = on();
+        let (_, mut keys) = keys();
+        store.save(
+            &mut keys,
+            "https://api.example.com/v1",
+            "big",
+            KeyUse::None,
+            None,
+        );
+        assert!(!store.set_review_off(true));
+        assert_eq!(store.text(kassensturz_ai::REQUEST_REVIEW_OFF_KEY), "");
+
+        // A provider on this computer has nothing to skip.
+        let (_folder, _file, store) = on();
+        store.save(
+            &mut keys,
+            "http://localhost:11434/v1",
+            "m",
+            KeyUse::None,
+            None,
+        );
+        assert!(!store.set_review_off(true));
     }
 }

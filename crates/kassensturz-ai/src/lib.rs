@@ -65,7 +65,7 @@ pub use chat::{Finish, FunctionSpec, Message, ModelInfo, Reply, Role, ToolCall};
 pub use config::{
     ADDRESS_KEY, ALLOW_UNENCRYPTED_KEY, AiConfig, CONSENT_ADDRESS_KEY, CONSENT_DAY_KEY,
     CONSENT_STATEMENT_KEY, ConfigFile, KEY_USE_KEY, KeyUse, MODEL_KEY, ProviderSettings,
-    SLOW_ANSWER_KEY, SlowAnswer, allow_word, allowed,
+    REQUEST_REVIEW_OFF_KEY, SLOW_ANSWER_KEY, SlowAnswer, allow_word, allowed,
 };
 pub use consent::{
     ConsentRecord, STATEMENT, STATEMENT_VERSION, SentData, confirmed, consent_missing,

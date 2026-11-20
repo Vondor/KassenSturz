@@ -142,6 +142,12 @@ events! {
     ConsentGiven = "ai.consent-given",
     /// The user took that agreement back.
     ConsentTakenBack = "ai.consent-taken-back",
+    /// The user chose not to be shown the requests to a provider any more
+    /// before they go (D-935).
+    RequestReviewOff = "ai.request-review-off",
+    /// The user took that choice back, so each request is shown again
+    /// (D-935).
+    RequestReviewOn = "ai.request-review-on",
     /// The agreement counts only until KassenSturz closes: its seal
     /// couldn't be saved; the code says why, `ai.keychain` or
     /// `ai.keepassxc`, and none when secrets are saved nowhere (B-324).

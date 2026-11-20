@@ -196,6 +196,17 @@ pub fn app_folder() -> Option<PathBuf> {
     qt_app_folder()
 }
 
+/// The folder of the bank connection (AqBanking's settings: bank code and
+/// accounts, never the PIN), `aqbanking` below it. In a snap it stays in the
+/// snap's data folder, not in the Documents folder that is often synced
+/// (B-429, T-07); elsewhere it is in the app folder.
+pub fn bank_parent_folder() -> Option<PathBuf> {
+    if snap_own_folder().is_some() {
+        return qt_app_folder();
+    }
+    app_folder()
+}
+
 /// Whether KassenSturz's own folder is outside the folder the system deletes
 /// with the app: in the Microsoft Store's package (D-856, B-382) and in a
 /// snap that may reach the user's home folder (B-429).
@@ -674,6 +685,8 @@ mod tests {
     fn outside_a_snap_the_own_folder_is_not_in_documents() {
         assert!(snap_own_folder().is_none());
         assert!(!own_folder_outside_app_data());
+        // And the bank connection's folder is in it, as always.
+        assert_eq!(bank_parent_folder(), app_folder());
     }
 
     /// On Windows a shown path has backslashes only, however Qt and Rust

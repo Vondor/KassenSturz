@@ -420,7 +420,7 @@ impl qobject::BankConnection {
                 // then waits until the app ends.
                 let _ = thread.queue(move |qobject| deliver(qobject, event));
             });
-            let folder = platform::app_folder();
+            let folder = platform::bank_parent_folder();
             let storage = SecretStorage::from_key(&self.pin_storage.to_string());
             let worker = Worker::start(move || Connection::for_app(folder, storage), notify);
             self.as_mut().rust_mut().worker = Some(worker);

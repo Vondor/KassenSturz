@@ -46,6 +46,14 @@ const KEEP: &str = "KeepBookInPackage";
 /// the user's Documents (B-429).
 const NOT_COPIED: &[&str] = &["debug-log", "bank-log", "mcp-requests"];
 
+/// In a snap the bank connection's folder stays in the snap's data folder
+/// (B-429): Documents is often a sync folder, and the threat model keeps
+/// that folder out of one (T-07). Losing it with the snap only means
+/// setting the bank connection up again. The Store app copies it (D-856).
+fn stays_in_snap_data(name: &str) -> bool {
+    name == "aqbanking" && crate::platform::in_snap_sandbox()
+}
+
 /// What the start's copy did, for the tests.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Copied {
@@ -106,7 +114,7 @@ fn copy_missing(from: &Path, to: &Path, top: bool) -> io::Result<Copied> {
         let kind = entry.file_type()?;
         let target = to.join(&name);
         if kind.is_dir() {
-            if top && NOT_COPIED.contains(&text) {
+            if top && (NOT_COPIED.contains(&text) || stays_in_snap_data(text)) {
                 continue;
             }
             let inner = copy_missing(&entry.path(), &target, false)?;

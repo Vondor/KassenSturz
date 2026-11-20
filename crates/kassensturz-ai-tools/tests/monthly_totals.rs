@@ -219,6 +219,102 @@ fn top_names_the_largest_categories_and_category_id_one_row() {
     );
 }
 
+/// A category of the same name as another that has the bookings, as the
+/// model picked in B-428: "Food › Groceries" is empty, "Groceries" is not.
+fn with_empty_twin(f: &mut Fixture) -> AccountId {
+    let food = account("Food", AccountKind::Expense, "EUR");
+    let mut twin = account("Groceries", AccountKind::Expense, "EUR");
+    twin.parent = Some(food.id);
+    f.book.add_account(&food).expect("an account");
+    f.book.add_account(&twin).expect("an account");
+    twin.id
+}
+
+#[test]
+fn an_empty_category_never_shows_the_months_figures_as_its_own() {
+    let mut f = fixture();
+    let twin = with_empty_twin(&mut f);
+    let result = months(
+        &f,
+        json!({ "from": "2026-01-01", "to": "2026-03-31", "category_id": twin.to_string() }),
+    )
+    .unwrap();
+    assert_eq!(result["category"], "Food › Groceries");
+    assert_eq!(result["category_has_no_bookings_in_period"], true);
+    for month in result["months"].as_array().unwrap() {
+        for currency in month["currencies"].as_array().unwrap() {
+            // Nothing of the month's spending is there to quote.
+            for key in ["money_in", "money_out", "left", "spending", "income"] {
+                assert!(currency.get(key).is_none(), "{key} in {currency}");
+            }
+            assert_eq!(currency["nothing_in_category"], true);
+        }
+    }
+    // The twin that has the bookings says nothing of the kind.
+    let full = months(
+        &f,
+        json!({ "from": "2026-01-01", "to": "2026-03-31", "category_id": f.groceries.to_string() }),
+    )
+    .unwrap();
+    assert!(full.get("category_has_no_bookings_in_period").is_none());
+    let january = &full["months"][0]["currencies"][0];
+    assert!(january.get("money_out").is_none());
+    assert_eq!(january["spending"][0]["total"], "30.00");
+    assert!(january.get("nothing_in_category").is_none());
+}
+
+#[test]
+fn categories_of_the_same_name_say_so() {
+    let mut f = fixture();
+    let twin = with_empty_twin(&mut f);
+    let list = call(&f.book, "list_categories", &json!({}), TODAY)
+        .unwrap()
+        .value;
+    let rows = list["categories"].as_array().unwrap();
+    let row = |id: AccountId| {
+        rows.iter()
+            .find(|row| row["id"] == id.to_string())
+            .expect("a row")
+    };
+    assert_eq!(row(twin)["same_name_as"], json!(["Groceries"]));
+    assert_eq!(
+        row(f.groceries)["same_name_as"],
+        json!(["Food › Groceries"])
+    );
+    // Capitals, umlauts spelt out and a plural ending don't make a name
+    // another (B-428).
+    let mut g = fixture();
+    for (name, parent) in [
+        ("Käse", None),
+        ("Kaese", None),
+        ("Kosten", None),
+        ("Kost", None),
+    ] {
+        let mut category = account(name, AccountKind::Expense, "EUR");
+        category.parent = parent;
+        g.book.add_account(&category).expect("an account");
+    }
+    let list = call(&g.book, "list_categories", &json!({}), TODAY)
+        .unwrap()
+        .value;
+    let same = |name: &str| {
+        list["categories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["name"] == name)
+            .and_then(|row| row.get("same_name_as").cloned())
+    };
+    assert_eq!(same("Käse"), Some(json!(["Kaese"])));
+    assert_eq!(same("Kosten"), Some(json!(["Kost"])));
+    // A name nobody else has says nothing.
+    assert!(
+        rows.iter()
+            .filter(|row| row["name"] == "Salary" || row["name"] == "Food")
+            .all(|row| row.get("same_name_as").is_none())
+    );
+}
+
 #[test]
 fn accounts_limit_each_month_as_they_limit_category_totals() {
     let f = fixture();

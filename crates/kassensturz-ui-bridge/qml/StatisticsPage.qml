@@ -69,6 +69,12 @@ Kirigami.ScrollablePage {
     // Finish or Cancel of a chart from the Overview (M6-B164).
     signal overviewChangeFinished(string id, string json)
     signal overviewChangeCancelled()
+    // Opened from a step of the guided setup (#1031): Finish keeps the
+    // statistic and then leads back to the step, which promises that
+    // (B-426).
+    property bool guided: false
+    // Finish kept a statistic while `guided` (B-426).
+    signal guidedFinished()
     // "Put it on the Overview" after a statistic is kept (M6-B164).
     signal addToOverviewRequested(string component, string period)
     // The unfinished statistic changed; `draft` is empty when there is none.
@@ -216,8 +222,14 @@ Kirigami.ScrollablePage {
             page.overviewChangeFinished(page.overviewComponentId, workbench.view.json);
         } else if (page.openId === "") {
             page.saveAs(name.trim() !== "" ? name : page.defaultName());
+            if (page.guided && error.result.code === undefined) {
+                page.guidedFinished();
+            }
         } else if (page.saveChanges()) {
             page.wizard = false;
+            if (page.guided) {
+                page.guidedFinished();
+            }
         }
     }
 

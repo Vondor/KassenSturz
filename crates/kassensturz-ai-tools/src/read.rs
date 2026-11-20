@@ -713,6 +713,7 @@ pub(crate) fn monthly_totals(
 ) -> Result<Value, ToolError> {
     let Period { from, to } = period;
     let mut months = Vec::new();
+    let mut any_row = false;
     let mut first = from.first_of_month();
     while first <= to {
         if months.len() == MAX_MONTHS {
@@ -754,6 +755,14 @@ pub(crate) fn monthly_totals(
                 let Value::Object(fields) = &mut currency else {
                     continue;
                 };
+                if matches!(rows, MonthlyRows::Category(_)) {
+                    // The month's totals are of everything, not of the
+                    // category asked for. Left in, a model quotes them as
+                    // the category's when it has no row (B-428).
+                    for key in ["money_in", "money_out", "left", "possible_transfers"] {
+                        fields.remove(key);
+                    }
+                }
                 for side in ["income", "spending"] {
                     fields.remove(&format!("{side}_left_out"));
                     match (rows, fields.get_mut(side)) {
@@ -770,6 +779,13 @@ pub(crate) fn monthly_totals(
                             }
                         }
                         _ => {}
+                    }
+                }
+                if matches!(rows, MonthlyRows::Category(_)) {
+                    if fields.contains_key("income") || fields.contains_key("spending") {
+                        any_row = true;
+                    } else {
+                        fields.insert("nothing_in_category".into(), Value::Bool(true));
                     }
                 }
                 currencies.push(currency);
@@ -794,6 +810,14 @@ pub(crate) fn monthly_totals(
     }
     if let MonthlyRows::Category(id) = rows {
         result.insert("category".into(), w.text(&names.name(id)?));
+        if !any_row {
+            // Likely a category of the same name nearby is the one meant
+            // (B-428): say it, so the model looks again.
+            result.insert(
+                "category_has_no_bookings_in_period".into(),
+                Value::Bool(true),
+            );
+        }
     }
     result.insert("months".into(), Value::Array(months));
     Ok(Value::Object(result))
@@ -1596,15 +1620,61 @@ pub(crate) fn list_tags(book: &Book, w: &mut Writer<'_>) -> Result<Value, ToolEr
     Ok(json!({ "tags": rows }))
 }
 
+/// A category's last name as a model may confuse it with another's: without
+/// capitals, with `ä` as `ae` and so on, without anything but letters and
+/// digits, and without a simple plural ending, so "Groceries" and "groceries"
+/// or "Kosten" and "Kost" meet (B-428). Only a hint to look twice, never a
+/// reason to merge or hide a category.
+fn twin_key(name: &str) -> String {
+    let mut key: String = name
+        .to_lowercase()
+        .replace('ä', "ae")
+        .replace('ö', "oe")
+        .replace('ü', "ue")
+        .replace('ß', "ss")
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect();
+    for ending in ["en", "n", "e", "s"] {
+        if key.chars().count() >= 5 && key.ends_with(ending) {
+            key.truncate(key.len() - ending.len());
+            break;
+        }
+    }
+    key
+}
+
 /// `list_categories`: the income and spending categories, as a tree in
 /// the app's order.
 pub(crate) fn list_categories(book: &Book, w: &mut Writer<'_>) -> Result<Value, ToolError> {
     let entries = book.categories()?;
+    // Categories that end in the same name, e.g. "Groceries" and
+    // "Food › Groceries": a model picked the empty one (B-428), so each
+    // says which others it could be mistaken for.
+    let mut by_last_name: HashMap<String, Vec<usize>> = HashMap::new();
+    for (index, entry) in entries.iter().enumerate() {
+        if let Some(last) = entry.path.last() {
+            by_last_name.entry(twin_key(last)).or_default().push(index);
+        }
+    }
     let mut rows = Vec::new();
-    for entry in entries.iter().take(MAX_CATEGORIES) {
+    for (index, entry) in entries.iter().enumerate().take(MAX_CATEGORIES) {
         let mut row = Map::new();
         row.insert("id".into(), Value::String(entry.category.id.to_string()));
         row.insert("name".into(), w.text(&entry.path.join(" › ")));
+        let same: Vec<Value> = entry
+            .path
+            .last()
+            .and_then(|last| by_last_name.get(&twin_key(last)))
+            .into_iter()
+            .flatten()
+            .filter(|&&other| other != index)
+            .take(5)
+            .map(|&other| w.text(&entries[other].path.join(" › ")))
+            .collect();
+        if !same.is_empty() {
+            row.insert("same_name_as".into(), Value::Array(same));
+        }
         let kind = if entry.category.kind == AccountKind::Income {
             "income"
         } else {

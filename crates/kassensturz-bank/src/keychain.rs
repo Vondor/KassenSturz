@@ -43,6 +43,13 @@ impl KeychainPinStore {
     }
 }
 
+/// The name under which the PIN of `login` is saved, as the keychain's
+/// manager or KeePassXC shows it (KeePassXC as the user name), so the user
+/// can find and delete it (B-430).
+pub fn saved_pin_entry(login: &LoginId) -> String {
+    format!("{KIND}/{}", login.as_str())
+}
+
 impl PinStore for KeychainPinStore {
     fn save(&mut self, login: &LoginId, pin: &Pin) -> Result<(), BankError> {
         self.keychain

@@ -1124,6 +1124,8 @@ ColumnLayout {
             ? i18nContext.i18nc("@label %1 is an amount of money, the money in less the money out of the accounts", "Net change in total: %1", view.chart.total)
             : i18nContext.i18nc("@label %1 is an amount of money", "Left over in total: %1", view.chart.total)
         textFormat: Text.PlainText
+        // A long total is never cut at the tile's edge (B-427).
+        wrapMode: Text.Wrap
         font.bold: true
     }
 

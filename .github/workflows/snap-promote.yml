@@ -1,0 +1,91 @@
+# SPDX-FileCopyrightText: 2026 KassenSturz contributors
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: Promote snap to stable
+
+# Moves the snap that is on the Snap Store's `beta` channel to `stable` as
+# well, without building anything again (D-941): the maintainer controls the
+# store from GitHub. It is started by hand (Actions tab -> "Promote snap to
+# stable" -> Run workflow) and runs in the environment `snap-stable`, so it
+# waits for his approval and uses that environment's store login
+# (docs/RELEASING.md, "Promoting a beta to stable").
+#
+# It only promotes the revision that is on `beta` right now. If a version is
+# given and it is not the one on `beta`, it stops and changes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to promote, e.g. 0.261120.31 or v0.261120.31. Empty: whatever is on beta now."
+        required: false
+        default: ""
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: snap-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote the beta snap to stable
+    runs-on: ubuntu-24.04
+    environment: snap-stable
+    steps:
+      - name: Find the snap on beta and promote it
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+          WANTED: ${{ inputs.version }}
+        run: |
+          set -eu
+          summary() { echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
+
+          if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
+            echo "::error::The environment 'snap-stable' has no secret SNAPCRAFT_STORE_CREDENTIALS (docs/RELEASING.md)."
+            summary "Nothing was changed: the store login is missing in the environment snap-stable."
+            exit 1
+          fi
+
+          # The version typed in, without a leading "v". Only the build
+          # number form of D-152 is accepted.
+          wanted=${WANTED#v}
+          if [ -n "$wanted" ] && ! printf '%s' "$wanted" | grep -Eq '^[0-9]+\.[0-9]{6}\.[0-9]+$'; then
+            echo "::error::'$WANTED' is not a version like 0.261120.31."
+            summary "Nothing was changed: '$WANTED' is not a version like 0.261120.31 or v0.261120.31."
+            exit 1
+          fi
+
+          # What the store offers now, from its public API (no login needed).
+          curl -fsS --retry 3 -H 'Snap-Device-Series: 16' \
+            'https://api.snapcraft.io/v2/snaps/info/kassensturz?fields=revision,version' > info.json
+          pick() {
+            jq -r --arg risk "$1" --arg key "$2" \
+              '[."channel-map"[] | select(.channel.track == "latest" and .channel.risk == $risk and .channel.architecture == "amd64")][0][$key] // empty' info.json
+          }
+          beta_rev=$(pick beta revision)
+          beta_ver=$(pick beta version)
+          stable_ver=$(pick stable version)
+
+          if [ -z "$beta_rev" ]; then
+            echo "::error::There is no snap on the beta channel."
+            summary "Nothing was changed: there is no snap on the beta channel."
+            exit 1
+          fi
+          if [ -n "$wanted" ] && [ "$wanted" != "$beta_ver" ]; then
+            echo "::error::Version $wanted is not on beta; beta has $beta_ver (revision $beta_rev)."
+            summary "Nothing was changed: version $wanted is not on the beta channel. Beta has version $beta_ver (revision $beta_rev). Start the workflow again with that version, or leave the field empty."
+            exit 1
+          fi
+          if [ "$stable_ver" = "$beta_ver" ]; then
+            summary "Nothing to do: version $beta_ver is already on stable."
+            exit 0
+          fi
+
+          echo "Promoting revision $beta_rev (version $beta_ver) from beta to stable; stable had ${stable_ver:-nothing}."
+          sudo snap install snapcraft --classic
+          snapcraft release kassensturz "$beta_rev" stable
+
+          summary "Version $beta_ver (revision $beta_rev) is now on the stable channel of the Snap Store, as well as on beta. Nothing was built again; it is the same snap that beta testers have."
+          summary "Before, stable had: ${stable_ver:-no version}. Users with the snap from stable get the update on their next automatic refresh."

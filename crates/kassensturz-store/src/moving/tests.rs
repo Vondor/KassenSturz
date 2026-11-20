@@ -1029,3 +1029,30 @@ fn a_book_without_file_locks_is_not_moved_when_its_lock_file_was_taken_away() {
     assert!(!setup.to().exists());
     assert_eq!(settings.note, None);
 }
+
+/// Moving a book never changes who may read it: one the user shares with a
+/// group stays so, and the backup made before the move is the user's alone
+/// (B-414).
+#[cfg(unix)]
+#[test]
+fn a_moved_book_keeps_its_permissions_and_its_backup_is_the_users_alone() {
+    use std::os::unix::fs::PermissionsExt;
+    let mode = |path: &Path| {
+        fs::metadata(path)
+            .expect("metadata read")
+            .permissions()
+            .mode()
+            & 0o777
+    };
+    let setup = Setup::new();
+    assert_eq!(mode(&setup.from), 0o600, "a new book");
+    fs::set_permissions(&setup.from, fs::Permissions::from_mode(0o640)).expect("shared");
+    let book = setup.open();
+    let mut settings = setup.settings();
+    let moved = book
+        .move_to(&setup.plan(), &setup.computer, &mut settings)
+        .expect("moved");
+    assert_eq!(mode(&moved.to), 0o640, "the moved book");
+    assert_eq!(mode(&moved.backup), 0o600, "the backup before the move");
+    assert_eq!(mode(&setup.computer.backup_folder), 0o700);
+}

@@ -65,7 +65,8 @@ pub(crate) fn back_up(
 ) -> Result<PathBuf, StoreError> {
     // Absolute, so SQLite never takes the copy's name for a URI.
     let folder = std::path::absolute(folder)?;
-    fs::create_dir_all(&folder)?;
+    // KassenSturz's own folder, open to the user alone (B-414).
+    crate::private::create_own_folder(&folder)?;
     let path = write_backup(conn, book, &folder, usize::MAX, id)?;
     if let Some(id) = id {
         prune_own(&folder, &id.tag(), &path, Timestamp::now());
@@ -223,7 +224,10 @@ fn via_private_folder(conn: &Connection, to: &Path) -> Result<(), StoreError> {
         .to_str()
         .ok_or(StoreError::Io(ErrorKind::InvalidFilename))?;
     conn.execute("VACUUM INTO ?1", [staged_name])?;
-    fs::copy(&staged, to)?;
+    // The bytes only: `fs::copy` would also give `to` the staged file's
+    // permissions, wider than the ones `to` was claimed with (B-414).
+    let mut target = OpenOptions::new().write(true).truncate(true).open(to)?;
+    std::io::copy(&mut fs::File::open(&staged)?, &mut target)?;
     Ok(())
 }
 
@@ -249,11 +253,9 @@ pub(crate) fn claim(
             continue;
         }
         let partial = partial_path(&path);
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&partial)
-        {
+        // `VACUUM INTO` and the rename keep the mode, so the backup is
+        // readable only by the user too (B-414).
+        match crate::private::create_new(&partial) {
             Ok(_) => return Ok((path, partial)),
             Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
             Err(error) => return Err(error.into()),
@@ -656,9 +658,16 @@ mod tests {
         conn.execute_batch("CREATE TABLE t(x); INSERT INTO t VALUES (7);")
             .expect("filled");
         let to = folder.join("copy.ksz");
-        fs::write(&to, "").expect("claimed");
+        drop(crate::private::create_new(&to).expect("claimed"));
 
         via_private_folder(&conn, &to).expect("copied");
+        // The claimed file's permissions stay (B-414).
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = fs::metadata(&to).expect("metadata").permissions().mode();
+            assert_eq!(mode & 0o777, crate::private::FILE_MODE);
+        }
 
         let copy = Connection::open(&to).expect("copy opened");
         let value: i64 = copy

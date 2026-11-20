@@ -51,13 +51,16 @@ FormCard.FormCardPage {
         translationDomain: "kassensturz"
     }
 
-    // A folder as the user knows it.
+    // A folder as the user knows it. KassenSturz's own folder is a plain
+    // folder in the Store app and in a snap, so its path is shown next to its
+    // name there, where the user can look for it (B-433).
     function folderText(shown: var): string {
         if (!shown)
             return "";
-        return shown.own
-            ? i18nContext.i18nc("@info the folder KassenSturz keeps its own book in", "KassenSturz's own folder")
-            : (shown.text ?? "");
+        if (!shown.own)
+            return shown.text ?? "";
+        const name = i18nContext.i18nc("@info the folder KassenSturz keeps its own book in", "KassenSturz's own folder");
+        return (place.showOwnFolder ?? false) && (place.ownFolder ?? "") !== "" ? name + " (" + place.ownFolder + ")" : name;
     }
 
     // What a code from BookMove means, and what to do next.
@@ -179,13 +182,16 @@ FormCard.FormCardPage {
         text: page.problem
     }
 
-    // A book in the folder Windows deletes with the Store app (D-856).
+    // A book in the folder the system deletes with the app: the Store app's
+    // (D-856) or the snap's (B-429).
     Kirigami.InlineMessage {
         Layout.fillWidth: true
         Layout.margins: Kirigami.Units.largeSpacing
         type: Kirigami.MessageType.Warning
         visible: page.stage === "choose" && (page.place.inPackage ?? false)
-        text: page.i18nContext.i18nc("@info %1 is a folder", "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice.", Plain.plain(page.place.ownFolder ?? ""))
+        text: (page.place.inSnap ?? false)
+            ? page.i18nContext.i18nc("@info %1 is a folder", "Removing the KassenSturz snap deletes this folder, together with all backups in it. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice.", Plain.plain(page.place.ownFolder ?? ""))
+            : page.i18nContext.i18nc("@info %1 is a folder", "Windows deletes this folder, together with all backups in it, when KassenSturz is uninstalled or reset. Keep your book in KassenSturz's own folder, %1, or in a folder of your choice.", Plain.plain(page.place.ownFolder ?? ""))
     }
 
     // Where the book is now, and the folder chooser.

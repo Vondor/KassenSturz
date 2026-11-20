@@ -225,6 +225,7 @@ QtObject {
     property var reviewAnswers: []
 
     function reviewSend() { reviewAnswers = reviewAnswers.concat(["send"]); }
+    function reviewSendAndStopAsking() { reviewAnswers = reviewAnswers.concat(["send and stop asking"]); }
     function reviewStop() { reviewAnswers = reviewAnswers.concat(["stop"]); }
     function reviewLeaveOut(phrase) { reviewAnswers = reviewAnswers.concat(["leave out " + phrase]); }
 }

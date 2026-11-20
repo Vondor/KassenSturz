@@ -39,6 +39,11 @@ pub const CONSENT_STATEMENT_KEY: &str = "ConsentStatement";
 /// The key of the day the user agreed, as `YYYY-MM-DD`.
 pub const CONSENT_DAY_KEY: &str = "ConsentDay";
 
+/// The key of the address of a provider the user chose not to be asked
+/// about any more before each request goes (D-935, D-936). Optional: a file
+/// without it asks every time.
+pub const REQUEST_REVIEW_OFF_KEY: &str = "RequestReviewOffAddress";
+
 /// The key of what happens when an answer takes long
 /// ([`SlowAnswer::as_word`]).
 pub const SLOW_ANSWER_KEY: &str = "SlowAnswer";
@@ -209,6 +214,7 @@ pub struct AiConfig {
     /// The provider as saved, the model possibly still empty.
     saved: Result<ProviderSettings, AiError>,
     consent: Option<ConsentRecord>,
+    review_off: Option<ProviderAddress>,
     slow_answer: SlowAnswer,
 }
 
@@ -237,10 +243,15 @@ impl AiConfig {
                 statement,
                 day,
             });
+        // Read like the consent's address: a stranger's text never reads as
+        // an address that skips the look at a request (D-936).
+        let review_off =
+            ProviderAddress::parse_with(&value(REQUEST_REVIEW_OFF_KEY), allow_unencrypted).ok();
         Self {
             enabled: ai_switch::enabled_in(text),
             saved,
             consent,
+            review_off,
             slow_answer: SlowAnswer::from_word(&value(SLOW_ANSWER_KEY)),
         }
     }
@@ -274,6 +285,14 @@ impl AiConfig {
     pub fn consent(&self) -> Option<&ConsentRecord> {
         self.consent.as_ref()
     }
+
+    /// The address of the provider the user chose not to see each request
+    /// for before it goes (D-935, D-936), if one is kept. It skips the look
+    /// only where the consent for the same address holds; the caller checks
+    /// that, since the consent counts only with its seal (B-252).
+    pub fn review_off(&self) -> Option<&ProviderAddress> {
+        self.review_off.as_ref()
+    }
 }
 
 /// Where the AI settings are read from: the user's settings file, or a
@@ -284,6 +303,11 @@ pub struct ConfigFile {
 }
 
 impl ConfigFile {
+    /// The path of the settings file, if it is known.
+    pub fn path(&self) -> Option<&std::path::Path> {
+        self.path.as_deref()
+    }
+
     /// The settings file of this user on this computer, where KConfig keeps
     /// it (D-177); on systems where that isn't known yet AI reads as off.
     pub fn user() -> Self {
@@ -384,6 +408,27 @@ mod tests {
             "[AI]\nConsentAddress=https://api.example.com/v1\nConsentStatement=1\n",
         );
         assert_eq!(half_consent.consent(), None);
+    }
+
+    #[test]
+    fn the_look_at_a_request_is_skipped_only_for_the_address_kept() {
+        // Missing, empty or odd: asked every time (D-936).
+        for text in [
+            "",
+            "[AI]\nRequestReviewOffAddress=\n",
+            "[AI]\nRequestReviewOffAddress=not an address\n",
+            "[AI]\nRequestReviewOffAddress=http://192.168.1.2:1234/v1\n",
+        ] {
+            assert_eq!(AiConfig::from_text(text).review_off(), None, "{text:?}");
+        }
+        let kept =
+            AiConfig::from_text("[AI]\nRequestReviewOffAddress=https://api.example.com/v1\n");
+        assert_eq!(
+            kept.review_off().map(ProviderAddress::as_str),
+            Some("https://api.example.com/v1")
+        );
+        // The settings file of the version before this key reads as before.
+        assert_eq!(AiConfig::from_text(FULL).review_off(), None);
     }
 
     #[test]

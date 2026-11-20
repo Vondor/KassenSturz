@@ -328,6 +328,7 @@ A bank connection couldn't be used, or what the bank delivered couldn't be turne
 | `bank.securities-account` | | | This account is linked to a securities account (depot) at your bank. KassenSturz can't get securities accounts yet, so nothing was fetched for it. Unlink it on the Get new transactions page if you don't want it tried again. |
 | `bank.pin-needed` | | | Your bank asks for your PIN. Type it to continue. |
 | `bank.pin-rejected` | | | Your bank says the PIN is wrong. KassenSturz has forgotten the PIN it had, so it won't be sent again. Check it and type it again; after a few wrong PINs a bank blocks the login. |
+| `bank.pin-rejected-still-saved` | `entry` | | Your bank says the PIN is wrong. KassenSturz won't send it again, but it couldn't delete it from your password manager. Delete the KassenSturz entry "{entry}" there yourself (in KeePassXC, the entry with that user name). Check the PIN and type it again; after a few wrong PINs a bank blocks the login. (B-430) |
 | `bank.unreachable` | | | Your bank's server couldn't be reached. Check your internet connection and the bank's address, and try again later. |
 | `bank.refused` | `text?` | | Your bank refused the request. It says: {text}. Try again later; if it keeps happening, ask your bank. |
 | `bank.aborted` | | | The bank's question was closed before it was answered, so nothing was done. Start again when you are ready. |

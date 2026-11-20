@@ -42,6 +42,7 @@ fn examples() -> Vec<BankError> {
         BankError::SecuritiesAccount,
         BankError::PinNeeded,
         BankError::PinRejected,
+        BankError::PinRejectedStillSaved(LoginId::new("login-1")),
         BankError::Unreachable,
         BankError::Refused {
             text: Some("9010: made-up bank message".to_owned()),

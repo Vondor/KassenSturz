@@ -51,7 +51,8 @@ Kirigami.AbstractCard {
         Controls.Label {
             Layout.fillWidth: true
             text: names.measure(card.modelData.measure)
-            elide: Text.ElideRight
+            // A long name wraps and is never cut (B-427).
+            wrapMode: Text.Wrap
             font: Kirigami.Theme.smallFont
             textFormat: Text.PlainText
         }

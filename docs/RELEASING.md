@@ -9,6 +9,8 @@ A release tag is `v` plus the build number of the commit it points to, for examp
 - the tag equals `v<number of its commit>`, so the name of the release tells a tester which build it is;
 - the commit is on `main`, so only merged code that passed CI is released.
 
+**The snap's channel is chosen in the run, not by the tag (D-940, replaces D-939).** Every tag's run has two snap jobs, *Snap Store, beta channel* and *Snap Store, stable and beta channels*, each waiting for your approval in its own environment (`snap-beta`, `snap-stable`). You approve the one you want and reject the other (step 4 below); the tag itself is the same for both.
+
 No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the AppStream `<release>` entry for a pre-release (D-226). The build stamps its own number and date into the newest `<release>` of the AppStream file it installs (`cmake/StampMetainfo.cmake`, M6-B156), so `flatpak info` and software centres show the real number; the file in the repository keeps its last hand-set entry.
 
 ## Steps for the maintainer
@@ -27,8 +29,9 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
    - *Install the bundle as the Ubuntu sheet says* takes that file on a fresh Ubuntu machine and runs what way B of `docs/testing/INSTALL_UBUNTU.de.md` (the Flatpak file) tells a tester: install Flatpak, add the catalog and the KDE runtime for the user, install the file, start it with the developer mode and check the debug log was written, uninstall it. (The update over an older build can't be checked here, since it needs two builds; the automatic update tests cover it, D-835.) Nothing is released if this fails.
    - *Pre-release on GitHub* creates the release `KassenSturz <number> (pre-release)`, marked as a pre-release, with the files attached and a text that lists the merged changes since the previous tag.
    A fourth job, *Attach the experimental macOS download*, adds `KassenSturz-<number>-macos-arm64-experimental.dmg` to the release after it exists, only if the Mac build worked (D-875, `docs/MACOS.md`). A red *macOS app* job in the run does not affect the release; the file is just missing.
-4. **Look at the release.** On the repository's Releases page the new entry is marked *Pre-release* and can be downloaded without a GitHub account, so the install sheets' step 1 ("the newest entry marked Pre-release") is right. Check the file name and the text.
-5. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
+4. **Choose the snap's channel.** Once the GitHub release is out, the run shows "Waiting for review" for both snap jobs. Actions tab → the run → **Review deployments**: tick **snap-beta** for a test build (the snap goes to `beta`) or **snap-stable** for the stable 0.x release (it goes to `stable` and `beta`, D-879), add a comment if you like, and press **Approve and deploy**. Then open **Review deployments** again, tick the other one and press **Reject**. The rejected job shows as failed; that is expected and changes nothing, since the GitHub release is already published. Approve only one: the store refuses the same file twice. A job you leave waiting is cancelled by GitHub after 30 days.
+5. **Look at the release.** On the repository's Releases page the new entry is marked *Pre-release* and can be downloaded without a GitHub account, so the install sheets' step 1 ("the newest entry marked Pre-release") is right. Check the file name and the text.
+6. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
 
 ## Once: the registration number
 
@@ -40,11 +43,41 @@ An official release carries KassenSturz's FinTS product registration number, so 
 
 From then on the *Build the Flatpak bundle* job of a tag's run waits for your approval (Actions tab → the run → Review deployments), builds the number in, and fails if the number is in any file of the built app other than the program itself. Without the secret a release is still built, without bank access, and the run shows a warning.
 
+## Once: the snap environments (D-940)
+
+The two snap jobs need two environments, which only the maintainer sets up, once. For each of `snap-beta` and `snap-stable`:
+
+1. Settings → Environments → **New environment**, name `snap-beta` (then, the second time, `snap-stable`), **Configure environment**.
+2. Under *Deployment protection rules*: tick **Required reviewers** and add yourself (`Vondor`); leave **Prevent self-review** unticked (otherwise you could not approve your own tag); untick **Allow administrators to bypass configured protection rules**; press **Save protection rules**.
+3. Under *Deployment branches and tags*: choose **Selected branches and tags** → **Add deployment branch or tag rule** → Ref type **Tag**, name pattern `v*` → **Add rule**.
+4. Under *Environment secrets*: **Add environment secret**, name `SNAPCRAFT_STORE_CREDENTIALS`, value the output of the login command for that environment, made on your own computer and pasted there and nowhere else:
+   - `snap-beta`: `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -`
+   - `snap-stable`: `snapcraft export-login --snaps kassensturz --channels stable,beta --acls package_access,package_push,package_release -` (the Snap Store terms are accepted, `docs/SNAP.md` section 7). An environment without its secret makes the job upload nothing and only warn.
+
+Both environments were set up on 20 Nov 2026.
+
+The old snap login in the environment `release` has been deleted (20 Nov 2026); if the repository variable `SNAP_CHANNELS` (Settings → Secrets and variables → Actions → Variables) still exists, it is no longer read and can go too.
+
 A tag's build also switches on the setup wizard's *Connect to my bank* choice (Q-562, D-546): the workflow writes the file `wizard-bank` before the build, and `CMakeLists.txt` turns it into the Cargo feature `wizard-bank`. A pull request's run of the workflow and CI's own builds don't write it, so they don't offer it. The file holds nothing secret and is not the registration number.
 
 These settings are the protection, not the workflow file: a tag runs the `release.yml` of the commit it points to (threat T-63). They hold fully only when nobody else, and no agent, acts with the maintainer's own GitHub account.
 
 **If the number ever has to be replaced** (for example because the registration office blocked it): store the new number as the secret and tag a new release. Nothing in the repository changes.
+
+## Promoting a beta to stable (D-941)
+
+A build that has been on `beta` for a while can go to `stable` without a new tag or a new build: the workflow **Promote snap to stable** (`.github/workflows/snap-promote.yml`) moves the very snap that beta testers have.
+
+1. Actions tab → **Promote snap to stable** → **Run workflow**. Keep *Use workflow from* on `main`. In *Version* type the version you want on stable, for example `0.261120.31` or `v0.261120.31`, or leave it empty to take whatever is on `beta` now. Press **Run workflow**.
+2. The run waits for you (environment `snap-stable`): open it → **Review deployments** → tick **snap-stable** → **Approve and deploy**.
+3. It reads what the Snap Store has on `beta` and `stable` and then:
+   - promotes that revision to `stable` with `snapcraft release` and says in the run summary which version is on stable now and what was there before;
+   - stops without changing anything if the version you typed is not the one on `beta` (the summary names the version that is), if `beta` is empty, or if the store login is missing;
+   - does nothing if that version is already on `stable`.
+
+Only the revision on `beta` right now can be promoted. To bring an older one to stable, it has to be on `beta` again first.
+
+**Once, for this workflow:** the environment `snap-stable` only lets `v*` tags in (step 3 of the section above), and this workflow runs from `main`. Settings → Environments → `snap-stable` → *Deployment branches and tags* → **Add deployment branch or tag rule** → Ref type **Branch**, name pattern `main` → **Add rule**. The required review stays, so nothing reaches the store without your approval.
 
 ## If something is wrong
 

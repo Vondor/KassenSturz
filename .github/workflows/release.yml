@@ -73,10 +73,16 @@ jobs:
             exit 1
           fi
           if [ "$REF_TYPE" = tag ]; then
-            if [ "$TAG" != "v$version" ]; then
-              echo "::error::The tag is $TAG, but this commit is build $version. Delete the tag and push v$version (docs/RELEASING.md)."
-              exit 1
-            fi
+            # `v<number>` is the stable release, `v<number>-beta` a beta
+            # (D-939); the suffix only picks the snap's channels below, the
+            # build number stays the same.
+            case "$TAG" in
+              "v$version" | "v$version-beta") ;;
+              *)
+                echo "::error::The tag is $TAG, but this commit is build $version. Delete the tag and push v$version-beta for a beta or v$version for the stable release (docs/RELEASING.md)."
+                exit 1
+                ;;
+            esac
             if ! git merge-base --is-ancestor HEAD origin/main; then
               echo "::error::This commit is not on main. Only merged code is released."
               exit 1
@@ -350,12 +356,11 @@ jobs:
           ls -l assets
           gh release upload "$TAG" assets/*.dmg --clobber
 
-  # Puts the snap in the Snap Store: the beta channel by default (D-765: edge
-  # for main builds is not done). Once the maintainer has accepted Canonical's
-  # terms and set the repository variable SNAP_CHANNELS to `stable,beta`, the
-  # same tag goes to `stable` and `beta` (#1247, D-879: the stable 0.x
-  # release; the variable is his switch, docs/SNAP.md section 8). The tag the
-  # maintainer pushed is his decision to publish (AGENTS.md 3.2). It runs in
+  # Puts the snap in the Snap Store. The tag picks the channels (D-939): a
+  # tag `v<number>-beta` goes to `beta` only, a plain `v<number>` (the stable
+  # 0.x release, D-879) to `stable` and `beta`. Main builds go nowhere (D-845:
+  # no `edge`). The tag the maintainer pushed is his decision to publish
+  # (AGENTS.md 3.2), so there is no second switch. It runs in
   # the environment `release`, so the store login is a secret that only a
   # `v0.*` tag run can read, and it does nothing, with a warning, until the
   # maintainer has registered the name and stored the login (docs/SNAP.md,
@@ -374,20 +379,23 @@ jobs:
       - name: Upload to the Snap Store
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
-          # `beta` (default) or `stable,beta`; nothing else is accepted.
-          SNAP_CHANNELS: ${{ vars.SNAP_CHANNELS || 'beta' }}
+          TAG: ${{ github.ref_name }}
         run: |
           set -eu
           if [ -z "$SNAPCRAFT_STORE_CREDENTIALS" ]; then
             echo "::warning::The environment 'release' has no secret SNAPCRAFT_STORE_CREDENTIALS, so nothing was uploaded to the Snap Store (docs/SNAP.md, section 8)."
             exit 0
           fi
-          case "$SNAP_CHANNELS" in
-            beta|stable,beta) ;;
-            *) echo "::error::SNAP_CHANNELS is '$SNAP_CHANNELS'; it must be 'beta' or 'stable,beta'."; exit 1 ;;
+          # The build job has already checked that the tag is v<number> or
+          # v<number>-beta; anything else never gets here.
+          case "$TAG" in
+            *-beta) channels=beta ;;
+            *) channels=stable,beta ;;
           esac
+          echo "Tag $TAG: uploading to $channels"
           sudo snap install snapcraft --classic
-          snapcraft upload --release="$SNAP_CHANNELS" snap/kassensturz.snap
+          snapcraft upload --release="$channels" snap/kassensturz.snap
+          echo "The snap of $TAG is in the Snap Store's channels: $channels" >> "$GITHUB_STEP_SUMMARY"
 
   # Puts the Windows package (the `...-store.msix` of the release) into the
   # Microsoft Store (#927, D-844), so the maintainer no longer uploads it in

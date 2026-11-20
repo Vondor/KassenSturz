@@ -4,10 +4,12 @@ How a build for testers is made and published (D-551, D-579). Until the maintain
 
 ## The tag
 
-A release tag is `v` plus the build number of the commit it points to, for example `v0.261103.0`. `tools/build-version.sh` prints the number: the commit's date in UTC and the count of that day's merges on `main` (D-226). The release workflow checks both rules and stops with a message that says what to do:
+A release tag is `v` plus the build number of the commit it points to, optionally followed by `-beta`: `v0.261120.31-beta` for a beta, `v0.261120.31` for the stable release. `tools/build-version.sh` prints the number: the commit's date in UTC and the count of that day's merges on `main` (D-226). The release workflow checks both rules and stops with a message that says what to do:
 
-- the tag equals `v<number of its commit>`, so the name of the release tells a tester which build it is;
+- the tag equals `v<number of its commit>` or `v<number of its commit>-beta`, so the name of the release tells a tester which build it is;
 - the commit is on `main`, so only merged code that passed CI is released.
+
+**The tag picks the snap's channels (D-939).** `v<number>-beta` uploads the snap to the Snap Store's `beta` channel only; a plain `v<number>` is the stable 0.x release (D-879) and uploads it to `stable` and `beta`. No other suffix is accepted, and there is no variable to set: the tag you push is the decision. Everything else about the run (the build, the files and the GitHub release, which is marked as a pre-release either way until 1.0) is the same for both. A plain tag therefore reaches every snap user on `stable`, so use `-beta` for every build that is not the stable release, and the store login has to allow `stable` before the first plain tag (`docs/SNAP.md`, section 8, step 4).
 
 No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the AppStream `<release>` entry for a pre-release (D-226). The build stamps its own number and date into the newest `<release>` of the AppStream file it installs (`cmake/StampMetainfo.cmake`, M6-B156), so `flatpak info` and software centres show the real number; the file in the repository keeps its last hand-set entry.
 
@@ -17,7 +19,7 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 2. **Tag it.** The tag is made on your machine and pushed:
 
    ```sh
-   tag="v$(tools/build-version.sh)"
+   tag="v$(tools/build-version.sh)-beta"   # a beta; leave out -beta only for the stable release
    git tag -a "$tag" -m "Pre-release ${tag#v}"
    git push origin "$tag"
    ```

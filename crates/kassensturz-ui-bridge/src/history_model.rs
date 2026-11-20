@@ -370,6 +370,8 @@ fn change_object_in(change: &ChangeText, filed: &HashMap<String, usize>) -> QVar
         ("madeAtSeconds", text(&change.made_at_seconds.to_string())),
         ("undone", QVariant::from(&change.undone)),
         ("fileName", text(&change.file_name)),
+        // Whether it touched a dashboard (B-419).
+        ("dashboard", QVariant::from(&change.dashboard)),
         (
             "summary",
             change
@@ -416,7 +418,7 @@ fn summary_object(summary: &SummaryText) -> QVariant {
 mod tests {
     use super::*;
     use crate::history::BookingText;
-    use crate::variant::read_back::{keys, object_of, text_of, texts_of};
+    use crate::variant::read_back::{flag_of, keys, object_of, text_of, texts_of};
     use kassensturz_core::TransactionId;
 
     #[test]
@@ -460,8 +462,10 @@ mod tests {
             undone: false,
             file_name: String::new(),
             summary: None,
+            dashboard: true,
         };
         let read = change_object_in(&change, &HashMap::new());
+        assert!(flag_of(&read, "dashboard"));
         assert_eq!(text_of(&read, "madeAtSeconds"), "1795643000");
         assert_eq!(text_of(&read, "madeAt"), "19.11.2026 21:40");
         assert_eq!(text_of(&read, "action"), "add-budget");

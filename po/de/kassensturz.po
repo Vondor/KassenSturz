@@ -28348,3 +28348,24 @@ msgstr "Haben Sie eine KI auf diesem Computer?"
 msgctxt "@info"
 msgid "Say whether KassenSturz may use an AI that runs on your own computer"
 msgstr "Sagen, ob KassenSturz eine KI nutzen darf, die auf Ihrem eigenen Computer läuft"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Added %1 transaction"
+msgid_plural "Added %1 transactions"
+msgstr[0] "%1 Buchung hinzugefügt"
+msgstr[1] "%1 Buchungen hinzugefügt"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Changed %1 transaction"
+msgid_plural "Changed %1 transactions"
+msgstr[0] "%1 Buchung geändert"
+msgstr[1] "%1 Buchungen geändert"
+
+#, kde-format
+msgctxt "@info a change you made; %1 is a number of transactions, at least 2"
+msgid "Removed %1 transaction"
+msgid_plural "Removed %1 transactions"
+msgstr[0] "%1 Buchung entfernt"
+msgstr[1] "%1 Buchungen entfernt"

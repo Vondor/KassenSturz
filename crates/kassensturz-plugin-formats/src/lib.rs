@@ -1,7 +1,8 @@
 // SPDX-FileCopyrightText: 2026 KassenSturz contributors
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Plugin importers and exporters (#791 step 4, D-069, D-852): a plugin
+//! Plugin importers and exporters (#791 step 4, D-069, D-852), reports
+//! and automations (step 5, D-926). An importer or exporter is a plugin
 //! with the `importer` or `exporter` extension point, run by the plugin
 //! host, behind the same [`Importer`] and [`Exporter`] traits as the
 //! built-in formats. Front ends hand them to `kassensturz_import::import`
@@ -14,13 +15,22 @@
 //! answers is untrusted: it is read strictly, and anything this crate
 //! can't use is refused as `plugin-host.output-invalid`.
 
+mod automation;
 mod exporter;
 mod importer;
 mod intern;
 mod read;
+mod report;
 
+pub use automation::{AUTOMATION_AFTER_IMPORT, NewTransaction, PluginAutomation, Suggestion};
 pub use exporter::{EXPORTER_INFO, EXPORTER_WRITE, PluginExporter};
 pub use importer::{IMPORTER_INFO, IMPORTER_READ, IMPORTER_RECOGNIZE, PluginImporter};
+pub use report::{
+    Cell, Column, ColumnKind, MAX_CELL_CHARS, MAX_COLUMNS, MAX_NAME_CHARS, MAX_REPORTS, MAX_ROWS,
+    PluginReport, REPORT_INFO, REPORT_RUN, ReportInfo, ReportTable,
+};
 
+#[cfg(test)]
+mod report_tests;
 #[cfg(test)]
 mod tests;

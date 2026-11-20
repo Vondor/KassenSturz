@@ -1865,6 +1865,132 @@ mod tests {
         assert_eq!(rows(&book, checking), 2);
     }
 
+    /// An automation plugin that suggests `category` for `transaction`
+    /// (#791 step 5, D-926).
+    fn sorter(transaction: &str, category: &str) -> Vec<u8> {
+        let answer = format!(
+            r#"{{"suggestions": [{{"transaction": "{transaction}", "category": "{category}"}}]}}"#
+        );
+        crate::test_plugins::file_asking(
+            "org.example.sorter",
+            "Example Sorter",
+            &["automation"],
+            &["read_book", "propose_changes"],
+            &crate::test_plugins::answering(&[("ks_automation_after_import", Some(&answer))]),
+        )
+    }
+
+    #[test]
+    fn a_plugins_suggestion_after_an_import_is_used_only_as_ticked_and_undone_in_one_step() {
+        let mut book = started();
+        let checking = account(
+            &mut book,
+            "Checking account",
+            AccountType::Checking,
+            "1000",
+            "2026-10-01",
+        );
+        // The started book has the usual categories, Food among them.
+        let food = crate::plugin_automations::category_names(&book)
+            .expect("names")
+            .into_iter()
+            .find(|(name, _)| name == "Food")
+            .map(|(_, id)| id)
+            .expect("Food");
+        // The real import's output: a plugin importer's statement.
+        let (_folder, plugins) = plugins("yes");
+        let Ok(FileKind::Statements(format)) = recognize(b"bank text", "umsaetze.bank", plugins)
+        else {
+            panic!("the plugin reads it");
+        };
+        let statements = read_statements(format.importer(), b"bank text").expect("statements");
+        let loaded = Loaded::new(checking, PathBuf::from("umsaetze.bank"), statements);
+        let view = import(&mut book, &loaded, &TestLocale).expect("imported");
+        assert_eq!(view.new.len(), 1);
+        let new = view.new[0];
+
+        let told = crate::plugin_automations::new_transactions(&book, &view.new).expect("told");
+        assert_eq!(told.len(), 1);
+        assert_eq!(told[0].id, new.to_string());
+        assert_eq!(told[0].account, "Checking account");
+        assert_eq!(told[0].payee.as_deref(), Some("Example Bakery"));
+        assert_eq!(told[0].amount.minor_units(), -1234);
+        assert!(told[0].uncategorized);
+
+        // The plugin's answer, through the host, as the page gets it.
+        let folder = TestFolder::new();
+        std::fs::write(folder.join("sorter.wasm"), sorter(&new.to_string(), "Food")).unwrap();
+        let sorters = crate::plugin_automations::automation_plugins_in(folder.path(), false);
+        assert_eq!(sorters.len(), 1);
+        let object =
+            crate::plugin_automations::suggestions_object(&book, &sorters, &view.new, &TestLocale);
+        let found = crate::variant::read_back::elements(&object).expect("a list");
+        assert_eq!(found.len(), 1);
+        assert_eq!(
+            crate::variant::read_back::text_of(&found[0], "plugin"),
+            "Example Sorter"
+        );
+        let items = crate::variant::read_back::list_of(&found[0], "items");
+        assert_eq!(items.len(), 1);
+        let text = |key: &str| crate::variant::read_back::text_of(&items[0], key);
+        assert_eq!(text("transaction"), new.to_string());
+        assert_eq!(text("category"), food.to_string());
+        assert_eq!(text("categoryName"), "Food");
+        assert_eq!(text("payee"), "Example Bakery");
+        assert_eq!(text("date"), "2026-11-05");
+        assert!(text("amount").contains("12,34"), "{}", text("amount"));
+        // Nothing changed by asking.
+        assert!(
+            crate::plugin_automations::new_transactions(&book, &view.new).unwrap()[0].uncategorized
+        );
+
+        // Used as ticked: one change, which one Undo takes back.
+        let used = crate::plugin_automations::use_object(
+            &mut book,
+            &view.new,
+            &[(text("transaction"), text("category"))],
+            &TestLocale,
+        );
+        assert_eq!(crate::variant::read_back::number_of(&used, "count"), 1);
+        let after = book.transaction(new).unwrap();
+        assert!(
+            after
+                .splits()
+                .iter()
+                .any(|split| split.account == Some(food))
+        );
+        assert!(
+            !crate::plugin_automations::new_transactions(&book, &view.new).unwrap()[0]
+                .uncategorized
+        );
+        // Once it has a category, the same suggestion is out of date.
+        let again = crate::plugin_automations::use_object(
+            &mut book,
+            &view.new,
+            &[(text("transaction"), text("category"))],
+            &TestLocale,
+        );
+        assert_eq!(
+            crate::variant::read_back::text_of(&again, "code"),
+            "input.suggestions-out-of-date"
+        );
+        book.undo().unwrap();
+        assert!(
+            crate::plugin_automations::new_transactions(&book, &view.new).unwrap()[0].uncategorized
+        );
+        // A transaction the import didn't add isn't taken.
+        let other = crate::plugin_automations::use_object(
+            &mut book,
+            &[],
+            &[(text("transaction"), text("category"))],
+            &TestLocale,
+        );
+        assert_eq!(
+            crate::variant::read_back::text_of(&other, "code"),
+            "input.suggestions-out-of-date"
+        );
+    }
+
     #[test]
     fn recognizes_formats_by_content_and_csv_files_by_name() {
         let id = |input: &[u8], name: &str| match recognize(input, name, Vec::new()) {

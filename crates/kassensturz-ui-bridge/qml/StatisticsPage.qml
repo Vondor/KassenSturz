@@ -55,6 +55,8 @@ Kirigami.ScrollablePage {
     readonly property var periods: ["this-month", "last-month", "last-12-months", "this-year", "last-year"]
     readonly property var types: ["chart.bar", "chart.pie", "chart.donut", "chart.line", "chart.area", "chart.stacked_bar", "kpi.card", "progress.bar", "table.rows", "chart.candlestick", "chart.flow", "budget.progress", "chart.custom", "table.transactions"]
     property var renamed: ({})
+    // The reports the added plugins offer (D-926).
+    property var pluginReports: []
     // A new view is made in the wizard (D-335); "Show all settings at once"
     // and opening a saved view give the page with every setting.
     property bool wizard: true
@@ -62,6 +64,8 @@ Kirigami.ScrollablePage {
 
     // The user chose a KMyMoney file to add its reports from (M6d.6b).
     signal kmyReportsFileChosen(url file)
+    // A report from a plugin was chosen (#791, D-926).
+    signal pluginReportChosen(var report)
     // Finish or Cancel of a chart from the Overview (M6-B164).
     signal overviewChangeFinished(string id, string json)
     signal overviewChangeCancelled()
@@ -413,7 +417,12 @@ Kirigami.ScrollablePage {
         }
     }
 
+    PluginReports {
+        id: pluginReportSource
+    }
+
     Component.onCompleted: {
+        pluginReports = pluginReportSource.reports();
         saved.refresh();
         startFrom();
         if (page.startJson === "") {
@@ -725,6 +734,55 @@ Kirigami.ScrollablePage {
                             ActionLog.taken("StatisticsPage_delete")
                             page.removeView(row.modelData.id)
                         }
+                    }
+                }
+            }
+
+            // Reports from plugins (#791, D-926): each opens a page where
+            // the plugin works it out. Names come from the plugin and are
+            // shown as plain text.
+            Kirigami.Heading {
+                Layout.fillWidth: true
+                visible: page.pluginReports.length > 0
+                level: 2
+                text: page.i18nContext.i18nc("@title:group", "From plugins")
+            }
+
+            Repeater {
+                model: page.pluginReports
+
+                delegate: Controls.ItemDelegate {
+                    id: reportItem
+
+                    required property var modelData
+
+                    Layout.fillWidth: true
+                    text: Plain.plain(modelData.name)
+                    Accessible.description: description.text
+
+                    contentItem: ColumnLayout {
+                        spacing: 0
+
+                        Controls.Label {
+                            Layout.fillWidth: true
+                            textFormat: Text.PlainText
+                            text: reportItem.modelData.name
+                        }
+
+                        Controls.Label {
+                            id: description
+
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            opacity: 0.7
+                            textFormat: Text.PlainText
+                            text: page.i18nContext.i18nc("@info %1 is a plugin's name", "A report by the plugin \"%1\". It reads the accounts and months you choose.", reportItem.modelData.plugin)
+                        }
+                    }
+
+                    onClicked: {
+                        ActionLog.taken("StatisticsPage_pluginReport")
+                        page.pluginReportChosen(modelData)
                     }
                 }
             }

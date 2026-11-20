@@ -32,6 +32,24 @@ Kirigami.ScrollablePage {
     // joins back takes them back too: they were made after the joins).
     readonly property var planned: view.planned ?? []
     property bool matchesUndone: false
+    // What automation plugins suggest for the new transactions (#791,
+    // D-926), asked once when the page opens: `{ file, plugin, items }` or
+    // `{ file, plugin, error }` each. Nothing changes until the user
+    // chooses to use the ticked ones.
+    property var suggestions: []
+    // The ticked suggestions, by "<transaction>": "<category>".
+    property var ticked: ({})
+    // How many were used, or -1 while none were.
+    property int suggestionsUsed: -1
+    Component.onCompleted: {
+        suggestions = statementImport.pluginSuggestions();
+        const all = {};
+        for (const plugin of suggestions) {
+            for (const item of plugin.items ?? [])
+                all[item.transaction] = item.category;
+        }
+        ticked = all;
+    }
 
     // The user is finished here.
     signal done()
@@ -115,6 +133,100 @@ Kirigami.ScrollablePage {
 
     ColumnLayout {
         spacing: 0
+
+        Repeater {
+            model: page.suggestionsUsed < 0 ? page.suggestions : []
+
+            delegate: ColumnLayout {
+                id: suggested
+
+                required property var modelData
+
+                Layout.fillWidth: true
+                spacing: 0
+
+                FormCard.FormHeader {
+                    title: Plain.plain(suggested.modelData.error
+                        ? page.i18nContext.i18nc("@title:group %1 is a plugin's name", "The plugin \"%1\" couldn't make suggestions", suggested.modelData.plugin)
+                        : page.i18nContext.i18ncp("@title:group %1 is a plugin's name", "The plugin \"%2\" suggests a category for %1 transaction", "The plugin \"%2\" suggests categories for %1 transactions", suggested.modelData.items.length, suggested.modelData.plugin))
+                }
+
+                FormError {
+                    Layout.fillWidth: true
+                    visible: suggested.modelData.error !== undefined
+                    result: suggested.modelData.error ?? ({})
+                }
+
+                FormCard.FormCard {
+                    visible: suggested.modelData.items !== undefined
+
+                    Repeater {
+                        model: suggested.modelData.items ?? []
+
+                        delegate: FormCard.FormCheckDelegate {
+                            required property var modelData
+
+                            text: Plain.plain(page.i18nContext.i18nc("@option:check %1 is who was paid, %2 an amount", "%1 · %2", modelData.payee !== "" ? modelData.payee : page.i18nContext.i18nc("@item a transaction that shows no name", "No name"), modelData.amount))
+                            description: Plain.plain(page.i18nContext.i18nc("@info %1 is a date, %2 a category", "%1 · suggested: %2", modelData.date, modelData.categoryName))
+                            descriptionItem.textFormat: Text.PlainText
+                            checked: page.ticked[modelData.transaction] !== undefined
+                            onToggled: {
+                                ActionLog.taken("ImportDonePage_tickSuggestion")
+                                const all = Object.assign({}, page.ticked);
+                                if (checked)
+                                    all[modelData.transaction] = modelData.category;
+                                else
+                                    delete all[modelData.transaction];
+                                page.ticked = all;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        FormCard.FormSectionText {
+            visible: page.suggestionsUsed < 0 && page.suggestions.some(plugin => plugin.items !== undefined)
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18nc("@info", "Nothing changes until you choose \"Use the ticked suggestions\". You can undo it in one step. Only transactions without a category get a suggestion.")
+        }
+
+        FormCard.FormCard {
+            visible: page.suggestionsUsed < 0 && page.suggestions.some(plugin => plugin.items !== undefined)
+
+            FormCard.FormButtonDelegate {
+                readonly property int count: Object.keys(page.ticked).length
+
+                enabled: count > 0
+                icon.name: "dialog-ok-apply"
+                text: Plain.plain(page.i18nContext.i18ncp("@action:button", "Use the ticked suggestion (%1)", "Use the ticked suggestions (%1)", count))
+                onClicked: {
+                    ActionLog.taken("ImportDonePage_useSuggestions")
+                    const chosen = Object.keys(page.ticked).map(id => ({ transaction: id, category: page.ticked[id] }));
+                    const result = page.statementImport.useSuggestions(chosen);
+                    error.result = result;
+                    if (result.count !== undefined)
+                        page.suggestionsUsed = result.count;
+                }
+            }
+
+            FormCard.FormDelegateSeparator {}
+
+            FormCard.FormButtonDelegate {
+                icon.name: "dialog-cancel"
+                text: page.i18nContext.i18nc("@action:button", "Not now")
+                onClicked: {
+                    ActionLog.taken("ImportDonePage_skipSuggestions")
+                    page.suggestionsUsed = 0
+                }
+            }
+        }
+
+        FormCard.FormSectionText {
+            visible: page.suggestionsUsed > 0
+            textFormat: Text.PlainText
+            text: page.i18nContext.i18ncp("@info", "%1 transaction got its suggested category. Undo takes it back.", "%1 transactions got their suggested categories. Undo takes them back.", page.suggestionsUsed)
+        }
 
         FormCard.FormHeader {
             title: page.i18nContext.i18nc("@title:group", "What was imported")

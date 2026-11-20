@@ -12,6 +12,17 @@ use serde_json::json;
 /// A plugin file of `wat` with a manifest of this ID, name and extension
 /// points, asking for no permission.
 pub(crate) fn file(id: &str, name: &str, points: &[&str], wat: &str) -> Vec<u8> {
+    file_asking(id, name, points, &[], wat)
+}
+
+/// A plugin file like [`file`] that asks for `permissions`.
+pub(crate) fn file_asking(
+    id: &str,
+    name: &str,
+    points: &[&str],
+    permissions: &[&str],
+    wat: &str,
+) -> Vec<u8> {
     let mut bytes = wat::parse_str(wat).unwrap();
     let manifest = json!({
         "manifest_version": 1,
@@ -20,7 +31,7 @@ pub(crate) fn file(id: &str, name: &str, points: &[&str], wat: &str) -> Vec<u8> 
         "version": "1.0.0",
         "api": "1.0",
         "extension_points": points,
-        "permissions": [],
+        "permissions": permissions,
     })
     .to_string();
     push_custom(&mut bytes, MANIFEST_SECTION, manifest.as_bytes());

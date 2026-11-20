@@ -19,6 +19,16 @@ use crate::{PluginExporter, PluginImporter};
 
 /// A plugin file with this manifest ID, extension points and module.
 fn plugin_file(id: &str, points: &[&str], wat: &str) -> Vec<u8> {
+    plugin_file_asking(id, points, &[], wat)
+}
+
+/// A plugin file that also asks for `permissions`.
+pub(crate) fn plugin_file_asking(
+    id: &str,
+    points: &[&str],
+    permissions: &[&str],
+    wat: &str,
+) -> Vec<u8> {
     let mut bytes = wat::parse_str(wat).unwrap();
     let manifest = json!({
         "manifest_version": 1,
@@ -27,7 +37,7 @@ fn plugin_file(id: &str, points: &[&str], wat: &str) -> Vec<u8> {
         "version": "1.0.0",
         "api": "1.0",
         "extension_points": points,
-        "permissions": [],
+        "permissions": permissions,
     })
     .to_string();
     let mut content = vec![u8::try_from(MANIFEST_SECTION.len()).unwrap()];
@@ -51,7 +61,7 @@ fn plugin_file(id: &str, points: &[&str], wat: &str) -> Vec<u8> {
 /// A module whose exports each hand back a fixed answer, or, for an answer
 /// of `None`, the input itself. Answers live from address 64 Ki on; the
 /// host's input is put from address 1 Mi on.
-fn module(calls: &[(&str, Option<&str>)]) -> String {
+pub(crate) fn module(calls: &[(&str, Option<&str>)]) -> String {
     let mut wat = String::from(
         r#"(module
             (memory (export "memory") 32)
@@ -113,11 +123,11 @@ fn importer(read: &str) -> PluginImporter {
     .unwrap()
 }
 
-fn date(text: &str) -> Date {
+pub(crate) fn date(text: &str) -> Date {
     text.parse().unwrap()
 }
 
-fn eur(minor: i64) -> Money {
+pub(crate) fn eur(minor: i64) -> Money {
     Money::from_minor_units(minor, CurrencyCode::new("EUR").unwrap())
 }
 
@@ -298,7 +308,7 @@ fn bad_info_or_another_extension_point_is_refused() {
     ));
 }
 
-fn transactions() -> ExportData {
+pub(crate) fn transactions() -> ExportData {
     let usd = CurrencyCode::new("USD").unwrap();
     ExportData::Transactions(vec![AccountTransactions {
         account: "Checking".to_owned(),

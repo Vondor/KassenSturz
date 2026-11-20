@@ -647,6 +647,7 @@ Why a plugin couldn't be loaded or stopped while it ran (D-850). A refused plugi
 | `plugin-host.input-not-accepted` | | | The plugin gave KassenSturz no room for its input, so it was stopped. Load it again, or ask the plugin's author. |
 | `plugin-host.output-too-big` | `max_bytes` | | The plugin's answer is larger than {max_bytes} bytes, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author. |
 | `plugin-host.output-invalid` | | | The plugin's answer was damaged, so KassenSturz didn't take it. Nothing was changed. Ask the plugin's author. |
+| `plugin-host.permission-missing` | `permission` | `read_book`, `propose_changes` | This plugin didn't ask for the permission it needs for this, so KassenSturz doesn't run it. Ask the plugin's author for a fixed version. |
 | `plugin-host.ran-too-long` | | | The plugin worked too long and was stopped. Nothing was changed. Try a smaller file or a shorter period, or ask the plugin's author. |
 | `plugin-host.trapped` | | | The plugin failed and was stopped. Nothing was changed. Ask the plugin's author. |
 | `plugin-host.stopped` | | | The plugin was stopped earlier. Load it again to use it. |

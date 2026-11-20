@@ -2182,6 +2182,7 @@ Kirigami.ApplicationWindow {
             groupsSource: categoryGroups
             draft: root.statisticDraft
             onKmyReportsFileChosen: file => root.pushPage(kmyReportsImportPage, { file: file })
+            onPluginReportChosen: report => root.pushPage(pluginReportPage, { file: report.file, reportId: report.id, reportName: report.name, pluginName: report.plugin })
             onDraftLeft: left => root.statisticDraft = left
             onAddToOverviewRequested: (component, period) => root.addChartToOverview(component, period)
             onOverviewChangeFinished: (id, json) => {
@@ -2194,6 +2195,13 @@ Kirigami.ApplicationWindow {
 
     // Adding reports from a KMyMoney file to the open book (M6d.6b): the
     // preview first; after "Add reports" the Statistics page lists them.
+    // A report from a plugin (D-926).
+    Component {
+        id: pluginReportPage
+
+        PluginReportPage {}
+    }
+
     Component {
         id: kmyReportsImportPage
 

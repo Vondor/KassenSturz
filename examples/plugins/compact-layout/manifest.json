@@ -1,0 +1,12 @@
+{
+  "manifest_version": 1,
+  "id": "io.github.vondor.kassensturz.example.compact",
+  "name": "Compact",
+  "version": "1.0.0",
+  "api": "1.0",
+  "extension_points": ["ui_density"],
+  "permissions": [],
+  "description": "Fits more on the screen: tighter rows in lists, smaller gaps between the start screen's tiles, and no grey explanations. Warnings always stay.",
+  "author": "KassenSturz contributors",
+  "license": "CC0-1.0"
+}

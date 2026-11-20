@@ -131,6 +131,7 @@ fn main() {
                 "qml/TileStatusWords.qml",
                 "qml/DashboardGrid.qml",
                 "qml/HelpPage.qml",
+                "qml/HintText.qml",
                 "qml/TestingGuidePage.qml",
                 "qml/HistoryPage.qml",
                 "qml/ImportDonePage.qml",
@@ -195,6 +196,8 @@ fn main() {
                 "qml/GuidedTransactionsPage.qml",
                 "qml/GuidedBalancePage.qml",
                 "qml/GuidedHelpPage.qml",
+                "qml/GuidedSortPage.qml",
+                "qml/GuidedTryPage.qml",
             ])
             // Helpers, not screens: `Plain.plain()` (D-143) and the colors of
             // the charts (D-283).
@@ -234,6 +237,7 @@ fn main() {
         "src/folder_choice_model.rs",
         "src/book_move_model.rs",
         "src/grid_editor_model.rs",
+        "src/guided_sort_model.rs",
         "src/history_model.rs",
         "src/install_kind_model.rs",
         "src/kmy_reports_import_model.rs",
@@ -252,6 +256,7 @@ fn main() {
         "src/period_range_model.rs",
         "src/planned_payments_model.rs",
         "src/plugin_reports_model.rs",
+        "src/density_model.rs",
         "src/plugins_model.rs",
         "src/platform.rs",
         "src/properties_model.rs",

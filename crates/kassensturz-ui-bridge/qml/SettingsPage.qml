@@ -198,7 +198,7 @@ FormCard.FormCardPage {
 
         FormCard.FormButtonDelegate {
             text: page.i18nContext.i18nc("@action:button opens a help page", "Help: guided setup")
-            description: page.i18nContext.i18nc("@info", "Every step of the guided setup again: get your transactions, check your balance")
+            description: page.i18nContext.i18nc("@info", "Every step of the guided setup again, also the ones you skipped")
             onClicked: {
                 ActionLog.taken("SettingsPage_helpGuidedSetup")
                 page.guidedHelpClicked()

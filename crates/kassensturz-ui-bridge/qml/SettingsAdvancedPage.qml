@@ -72,7 +72,7 @@ FormCard.FormCardPage {
         return here + "\n" + i18nContext.i18nc("@info %1 is a date and time, %2 a folder", "Moved on %1 from %2", place.movedOn, folder(place.movedFrom));
     }
 
-    FormCard.FormSectionText {
+    HintText {
         textFormat: Text.PlainText
         text: page.i18nContext.i18nc("@info", "Most households never need to change anything here.")
     }

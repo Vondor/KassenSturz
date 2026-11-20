@@ -107,6 +107,31 @@ pub enum PluginError {
         /// Which colour, such as `light.text`.
         key: String,
     },
+    /// A UI density plugin has no density section (D-927).
+    DensityMissing,
+    /// The module has two density sections.
+    DensityTwice,
+    /// The module has a density section but isn't a UI density plugin.
+    DensityUnexpected,
+    /// The density data is bigger than KassenSturz reads.
+    DensityTooBig {
+        /// The most bytes a density plugin's data may have.
+        max_bytes: usize,
+    },
+    /// The density data isn't a JSON object.
+    DensityMalformed,
+    /// The density data is in a format this KassenSturz doesn't know.
+    UnsupportedDensityVersion {
+        /// The version the data says it has.
+        version: i64,
+    },
+    /// A value of the density data breaks a rule of D-927.
+    DensityInvalid {
+        /// What is wrong, by a fixed word.
+        reason: &'static str,
+        /// Which key; data, never part of a message.
+        key: String,
+    },
 }
 
 impl core::fmt::Display for PluginError {
@@ -166,6 +191,19 @@ impl Report for PluginError {
                 .with("key", ErrorParam::Text(key.clone())),
             Self::ThemeLowContrast { key } => ErrorReport::new("plugin.theme-low-contrast")
                 .with("key", ErrorParam::Text(key.clone())),
+            Self::DensityMissing => ErrorReport::new("plugin.density-missing"),
+            Self::DensityTwice => ErrorReport::new("plugin.density-twice"),
+            Self::DensityUnexpected => ErrorReport::new("plugin.density-unexpected"),
+            Self::DensityTooBig { max_bytes } => ErrorReport::new("plugin.density-too-big")
+                .with("max_bytes", ErrorParam::count(*max_bytes)),
+            Self::DensityMalformed => ErrorReport::new("plugin.density-malformed"),
+            Self::UnsupportedDensityVersion { version } => {
+                ErrorReport::new("plugin.unsupported-density-version")
+                    .with("version", ErrorParam::Number(*version))
+            }
+            Self::DensityInvalid { reason, key } => ErrorReport::new("plugin.density-invalid")
+                .with("reason", ErrorParam::Keyword(reason))
+                .with("key", ErrorParam::Text(key.clone())),
         }
     }
 }
@@ -216,7 +254,19 @@ mod tests {
             PluginError::ThemeMalformed,
             PluginError::UnsupportedThemeVersion { version: 2 },
             PluginError::ThemeLowContrast { key: "x".into() },
+            PluginError::DensityMissing,
+            PluginError::DensityTwice,
+            PluginError::DensityUnexpected,
+            PluginError::DensityTooBig { max_bytes: 1 },
+            PluginError::DensityMalformed,
+            PluginError::UnsupportedDensityVersion { version: 2 },
         ];
+        for reason in ["missing", "unknown-key", "wrong-type"] {
+            errors.push(PluginError::DensityInvalid {
+                reason,
+                key: "switches".into(),
+            });
+        }
         for reason in [
             "missing",
             "unknown-key",

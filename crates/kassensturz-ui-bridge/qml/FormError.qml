@@ -925,6 +925,20 @@ Kirigami.InlineMessage {
             return i18nContext.i18nc("@info %1 is a word from the plugin file", "This theme has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.", result.key);
         case "plugin.theme-low-contrast":
             return i18nContext.i18nc("@info %1 is a word from the plugin file", "With this theme, some text would be hard to read (\"%1\" doesn't stand out enough from the background), so KassenSturz doesn't add it. Ask the plugin's author for a version with stronger colors.", result.key);
+        case "plugin.density-missing":
+            return i18nContext.i18nc("@info", "This layout plugin holds no layout, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.");
+        case "plugin.density-twice":
+            return i18nContext.i18nc("@info", "This layout plugin holds its layout twice, so KassenSturz can't tell which is meant and doesn't add it. Ask the plugin's author.");
+        case "plugin.density-unexpected":
+            return i18nContext.i18nc("@info", "This plugin holds a layout for the app but doesn't say it is a layout plugin, so KassenSturz doesn't add it. Ask the plugin's author.");
+        case "plugin.density-too-big":
+            return i18nContext.i18nc("@info %1 is a number of bytes", "This layout plugin's layout takes more than %1 bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version.", result.max_bytes);
+        case "plugin.density-malformed":
+            return i18nContext.i18nc("@info", "This layout plugin's layout can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.");
+        case "plugin.unsupported-density-version":
+            return i18nContext.i18nc("@info %1 is a version number", "This layout plugin was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the plugin.", result.version);
+        case "plugin.density-invalid":
+            return i18nContext.i18nc("@info %1 is a word from the plugin file", "This layout plugin has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version.", result.key);
         case "plugin-host.ai-off":
             return i18nContext.i18nc("@info", "This kind of plugin is switched off in Settings, so KassenSturz doesn't use it.");
         case "plugin-host.module-invalid":

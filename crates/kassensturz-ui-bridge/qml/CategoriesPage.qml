@@ -145,8 +145,9 @@ Kirigami.ScrollablePage {
 
                 Layout.fillWidth: true
                 // Compact lines, every second one shaded, to follow across.
-                topPadding: Kirigami.Units.smallSpacing / 2
-                bottomPadding: Kirigami.Units.smallSpacing / 2
+                // Tighter rows when a layout plugin asks for them (D-927).
+                topPadding: Look.compactLists ? Look.compactRowPadding : Kirigami.Units.smallSpacing / 2
+                bottomPadding: Look.compactLists ? Look.compactRowPadding : Kirigami.Units.smallSpacing / 2
                 leftPadding: Kirigami.Units.smallSpacing
                 // A name could contain anything.
                 text: Plain.plain(modelData.name)

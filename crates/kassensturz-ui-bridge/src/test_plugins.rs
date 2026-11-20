@@ -6,7 +6,7 @@
 
 use std::fmt::Write as _;
 
-use kassensturz_plugin_api::{MANIFEST_SECTION, THEME_SECTION};
+use kassensturz_plugin_api::{DENSITY_SECTION, MANIFEST_SECTION, THEME_SECTION};
 use serde_json::json;
 
 /// A plugin file of `wat` with a manifest of this ID, name and extension
@@ -42,6 +42,14 @@ pub(crate) fn file_asking(
 pub(crate) fn theme_file(id: &str, name: &str, theme: &serde_json::Value) -> Vec<u8> {
     let mut bytes = file(id, name, &["theme"], "(module)");
     push_custom(&mut bytes, THEME_SECTION, theme.to_string().as_bytes());
+    bytes
+}
+
+/// A UI density plugin of this ID and name, with `density` as its density
+/// section.
+pub(crate) fn density_file(id: &str, name: &str, density: &serde_json::Value) -> Vec<u8> {
+    let mut bytes = file(id, name, &["ui_density"], "(module)");
+    push_custom(&mut bytes, DENSITY_SECTION, density.to_string().as_bytes());
     bytes
 }
 

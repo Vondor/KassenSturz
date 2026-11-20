@@ -25791,6 +25791,78 @@ msgctxt "@info %1 is a plugin's name"
 msgid "A report by the plugin \"%1\". It reads the accounts and months you choose."
 msgstr "Raport wtyczki „%1”. Odczytuje wybrane przez ciebie konta i miesiące."
 
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:929
+#, kde-format
+msgctxt "@info"
+msgid "This layout plugin holds no layout, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Ta wtyczka układu nie zawiera układu, więc KassenSturz jej nie dodaje. Poproś autora wtyczki o poprawioną wersję."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:931
+#, kde-format
+msgctxt "@info"
+msgid "This layout plugin holds its layout twice, so KassenSturz can't tell which is meant and doesn't add it. Ask the plugin's author."
+msgstr "Ta wtyczka układu zawiera swój układ dwa razy, więc KassenSturz nie wie, który jest właściwy, i jej nie dodaje. Zapytaj autora wtyczki."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:933
+#, kde-format
+msgctxt "@info"
+msgid "This plugin holds a layout for the app but doesn't say it is a layout plugin, so KassenSturz doesn't add it. Ask the plugin's author."
+msgstr "Ta wtyczka zawiera układ aplikacji, ale nie podaje, że jest wtyczką układu, więc KassenSturz jej nie dodaje. Zapytaj autora wtyczki."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:935
+#, kde-format
+msgctxt "@info %1 is a number of bytes"
+msgid "This layout plugin's layout takes more than %1 bytes, so KassenSturz doesn't read it. Ask the plugin's author for a fixed version."
+msgstr "Układ tej wtyczki zajmuje więcej niż %1 bajtów, więc KassenSturz go nie odczytuje. Poproś autora wtyczki o poprawioną wersję."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:937
+#, kde-format
+msgctxt "@info"
+msgid "This layout plugin's layout can't be read, so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Nie da się odczytać układu tej wtyczki, więc KassenSturz jej nie dodaje. Poproś autora wtyczki o poprawioną wersję."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:939
+#, kde-format
+msgctxt "@info %1 is a version number"
+msgid "This layout plugin was made in a format this KassenSturz doesn't know (version %1). Update KassenSturz, or look for an older version of the plugin."
+msgstr "Tę wtyczkę układu zapisano w formacie, którego ten KassenSturz nie zna (wersja %1). Zaktualizuj KassenSturz albo poszukaj starszej wersji wtyczki."
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:941
+#, kde-format
+msgctxt "@info %1 is a word from the plugin file"
+msgid "This layout plugin has a mistake in \"%1\", so KassenSturz doesn't add it. Ask the plugin's author for a fixed version."
+msgstr "Ta wtyczka układu ma błąd w „%1”, więc KassenSturz jej nie dodaje. Poproś autora wtyczki o poprawioną wersję."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:157
+#, kde-format
+msgctxt "@title:group how much fits on the screen"
+msgid "Layout"
+msgstr "Układ"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:171
+#, kde-format
+msgctxt "@label:listbox how much fits on the screen"
+msgid "Layout"
+msgstr "Układ"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:174
+#, kde-format
+msgctxt "@item:inlistbox the app's layout without a layout plugin"
+msgid "KassenSturz's own"
+msgstr "Własny układ KassenSturz"
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:195
+#, kde-format
+msgctxt "@info"
+msgid "To fit more on the screen, add a layout plugin in Settings › Plugins."
+msgstr "Aby zmieścić więcej na ekranie, dodaj wtyczkę układu w Ustawienia › Wtyczki."
+
+#: crates/kassensturz-ui-bridge/qml/SettingsLookPage.qml:196
+#, kde-format
+msgctxt "@info"
+msgid "A layout plugin can make lists tighter and hide these grey explanations. Warnings and questions before a change always stay."
+msgstr "Wtyczka układu może zagęścić listy i ukryć te szare objaśnienia. Ostrzeżenia i pytania przed zmianą zawsze zostają."
+
 #: crates/kassensturz-ui-bridge/qml/GridItem.qml
 msgctxt ""
 "@info shown on a dashboard tile while it is dragged smaller than it can get"

@@ -122,9 +122,9 @@ fn a_theme_plugin_has_its_colours_exactly_once_and_only_it_has_them() {
         Package::read(&module(&[theme_manifest.clone(), theme(), theme()])),
         Err(PluginError::ThemeTwice)
     );
-    let density = custom(MANIFEST_SECTION, &manifest(&["ui_density"], &[]));
+    let density_manifest = custom(MANIFEST_SECTION, &manifest(&["ui_density"], &[]));
     assert_eq!(
-        Package::read(&module(&[density, theme()])),
+        Package::read(&module(&[density_manifest, density(), theme()])),
         Err(PluginError::ThemeUnexpected)
     );
     let importer = custom(MANIFEST_SECTION, &manifest(&["importer"], &[]));
@@ -137,6 +137,52 @@ fn a_theme_plugin_has_its_colours_exactly_once_and_only_it_has_them() {
     assert_eq!(
         Package::read(&module(&[theme_manifest, broken])),
         Err(PluginError::ThemeMalformed)
+    );
+}
+
+fn density() -> Vec<u8> {
+    custom(
+        DENSITY_SECTION,
+        json!({"density_version": 1, "switches": {"compact_lists": true}})
+            .to_string()
+            .as_bytes(),
+    )
+}
+
+#[test]
+fn a_density_plugin_has_its_switches_exactly_once_and_only_it_has_them() {
+    let density_manifest = custom(MANIFEST_SECTION, &manifest(&["ui_density"], &[]));
+    let package = Package::read(&module(&[density_manifest.clone(), density()])).unwrap();
+    assert!(!package.has_code);
+    assert_eq!(package.theme, None);
+    assert_eq!(
+        package.density,
+        Some(Density {
+            compact_lists: true,
+            ..Density::default()
+        })
+    );
+    assert_eq!(
+        Package::read(&module(std::slice::from_ref(&density_manifest))),
+        Err(PluginError::DensityMissing)
+    );
+    assert_eq!(
+        Package::read(&module(&[density_manifest.clone(), density(), density()])),
+        Err(PluginError::DensityTwice)
+    );
+    assert_eq!(
+        Package::read(&module(&[density_manifest.clone(), density(), code()])),
+        Err(PluginError::DataOnlyHasCode)
+    );
+    let theme_manifest = custom(MANIFEST_SECTION, &manifest(&["theme"], &[]));
+    assert_eq!(
+        Package::read(&module(&[theme_manifest, theme(), density()])),
+        Err(PluginError::DensityUnexpected)
+    );
+    let broken = custom(DENSITY_SECTION, b"[]");
+    assert_eq!(
+        Package::read(&module(&[density_manifest, broken])),
+        Err(PluginError::DensityMalformed)
     );
 }
 

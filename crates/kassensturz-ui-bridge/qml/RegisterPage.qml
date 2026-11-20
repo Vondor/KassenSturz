@@ -549,6 +549,10 @@ Kirigami.ScrollablePage {
         delegate: Controls.ItemDelegate {
             id: delegate
 
+            // Tighter rows when a layout plugin asks for them (D-927).
+            topPadding: Look.compactLists ? Look.compactRowPadding : undefined
+            bottomPadding: Look.compactLists ? Look.compactRowPadding : undefined
+
             required property int index
             required property string transactionId
             required property string date

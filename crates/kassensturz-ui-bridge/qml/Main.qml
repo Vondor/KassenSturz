@@ -558,6 +558,30 @@ Kirigami.ApplicationWindow {
         value: themeSettings.cornerRadius
     }
 
+    // The layout (D-927), which applies at once; its switches reach every
+    // list, tile and explanation through `Look`.
+    DensitySettings {
+        id: densitySettings
+    }
+
+    Binding {
+        target: Look
+        property: "compactLists"
+        value: densitySettings.compactLists
+    }
+
+    Binding {
+        target: Look
+        property: "hideHints"
+        value: densitySettings.hideHints
+    }
+
+    Binding {
+        target: Look
+        property: "compactTiles"
+        value: densitySettings.compactTiles
+    }
+
     // The colors of the charts (M7a.10, D-589): what the user chose in
     // Settings reaches every chart through `ChartPalette`. A screen that
     // wants the palette changed asks with `ChartPalette.editRequested()`.
@@ -2541,6 +2565,7 @@ Kirigami.ApplicationWindow {
             chartPalette: chartPaletteSettings
             language: languageSettings
             theme: themeSettings
+            density: densitySettings
         }
     }
 

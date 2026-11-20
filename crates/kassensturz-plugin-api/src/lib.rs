@@ -7,8 +7,7 @@
 //! code runs: the [`Manifest`] a plugin ships (D-847), the [`ApiVersion`] it
 //! targets, the [`ExtensionPoint`]s it fills and the [`Permission`]s it asks
 //! for (D-848), the plugin file that carries them (D-849), and the data of a
-//! theme (D-925). It reads and
-//! checks a plugin file and refuses anything it does not fully understand; it
+//! theme (D-925) and of a UI density plugin (D-927). It reads and checks a plugin file and refuses anything it does not fully understand; it
 //! runs no plugin. The host that loads and sandboxes the WASM modules is
 //! `kassensturz-plugin-host` (D-850).
 //!
@@ -19,6 +18,7 @@
 //! and it freezes at RC with the book format (D-753). From v1 on, a breaking
 //! change is a human gate (AGENTS.md §3.2).
 
+mod density;
 mod error;
 mod manifest;
 mod package;
@@ -26,6 +26,7 @@ mod permission;
 mod theme;
 mod version;
 
+pub use density::{DENSITY_SECTION, DENSITY_VERSION, Density, MAX_DENSITY_BYTES};
 pub use error::PluginError;
 pub use manifest::{
     MANIFEST_VERSION, MAX_DESCRIPTION_CHARS, MAX_MANIFEST_BYTES, MAX_NAME_CHARS, Manifest,
@@ -39,6 +40,8 @@ pub use theme::{
 };
 pub use version::{API_VERSION, ApiVersion};
 
+#[cfg(test)]
+mod density_tests;
 #[cfg(test)]
 mod package_tests;
 #[cfg(test)]

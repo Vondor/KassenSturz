@@ -36,7 +36,7 @@ Item {
     readonly property var items: view.items ?? []
     readonly property bool editing: view.editing ?? false
     readonly property int columns: view.columns ?? 12
-    readonly property real gap: Kirigami.Units.largeSpacing
+    readonly property real gap: Look.tileGap(Kirigami.Units.largeSpacing)
     readonly property real rowHeight: Kirigami.Units.gridUnit * 4
     readonly property bool narrow: width > 0 && layout.narrow(Math.round(width), Math.round(gap), Kirigami.Units.gridUnit)
     readonly property real cell: Math.max(0, (width - gap * (columns - 1)) / columns)

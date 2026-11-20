@@ -521,7 +521,7 @@ Build threads (conflict map): A plugin host (A1 to A6 in order) · B first-run w
 | **BS2.5** | thread G1 · S. #1239: the PIN dialog says it means the online-banking PIN or password, not the card PIN (D-907) | | standard, medium | todo |
 | **BS2.6** | thread G2 · S. #1238: after a successful connection, ask whether to fetch the transactions now (D-906) | | standard, high | todo |
 | **BS2.7** | thread G3 · M. #1244: "New category …" at the end of every category picker (D-910) | | standard, high | todo |
-| **BS2.8** | thread C1 · M. #1242 B-412: the arrange-mode faults (D-904). Built in #1261: *Set a budget* works while arranging, the empty budget tile stays, a picked tile's buttons hide no text, the budget form wraps, and the legend box says what it does. | | Fable | in review (#1261) |
+| **BS2.8** | thread C1 · M. #1242 B-412: the arrange-mode faults (D-904). Built in #1261: *Set a budget* works while arranging, the empty budget tile stays, a picked tile's buttons hide no text, the budget form wraps, and the legend box says what it does. | | Fable | done (#1261) |
 | **BS2.9** | thread C2 · M. **[format] layout 37**: #1154 tags in the dashboard filter bar (D-893), plus #1241's paused state if its short design needs one (D-917). One migration, with an automatic backup and an update test from every earlier Beta format. Human gate | #1241 design | Fable | todo |
 | **BS2.10** | thread C3 · M. #1241: "Beenden" becomes a "Pausieren"/"Fortsetzen" toggle; the history is kept and resuming starts from today (D-909). A short design first (`Refs #1241`) | BS2.9 | standard, high | todo |
 | **BS2.11** | thread C4 · M. #1243: resize a tile by dragging any edge (D-905) | BS2.10 | standard, high | todo |

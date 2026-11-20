@@ -25350,6 +25350,155 @@ msgctxt "@action:button"
 msgid "Save and test"
 msgstr "Zapisz i sprawdź"
 
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "Is this balance right?"
+msgstr "Czy to saldo się zgadza?"
+
+#, kde-format
+msgctxt "@action:button the balances shown are right"
+msgid "Yes, that's right"
+msgstr "Tak, zgadza się"
+
+#, kde-format
+msgctxt "@action:button closes a step opened from Help"
+msgid "Done"
+msgstr "Gotowe"
+
+#, kde-format
+msgctxt "@info"
+msgid "Compare with your banking app or your statement. KassenSturz is only useful when these figures are the ones your bank shows."
+msgstr "Porównaj z aplikacją swojego banku albo z wyciągiem. KassenSturz przydaje się tylko wtedy, gdy te kwoty są takie same jak w banku."
+
+#, kde-format
+msgctxt "@info %1 is an amount of money"
+msgid "You owe %1"
+msgstr "Masz do spłaty %1"
+
+#, kde-format
+msgctxt "@info %1 is an amount of money, %2 a date"
+msgid "Your bank showed %1 on %2, and that is what KassenSturz has for that day."
+msgstr "Bank pokazał %1 w dniu %2 i tyle samo ma KassenSturz na ten dzień."
+
+#, kde-format
+msgctxt "@info %1 and %3 are amounts of money, %2 is a date"
+msgid "Your bank showed %1 on %2, but KassenSturz has %3 for that day."
+msgstr "Bank pokazał %1 w dniu %2, ale KassenSturz ma na ten dzień %3."
+
+#, kde-format
+msgctxt "@label:textbox"
+msgid "Not right? What does your bank show today?"
+msgstr "Nie zgadza się? Ile pokazuje dziś bank?"
+
+#, kde-format
+msgctxt "@action:button compares the account with what the bank shows"
+msgid "Compare…"
+msgstr "Porównaj…"
+
+#, kde-format
+msgctxt "@info"
+msgid "KassenSturz then shows the difference and offers to correct the account's starting balance. No transaction is changed, and you can take it back with Undo."
+msgstr "KassenSturz pokaże wtedy różnicę i zaproponuje poprawienie salda początkowego konta. Żadna transakcja się nie zmieni, a zmianę można cofnąć przez „Cofnij”."
+
+#, kde-format
+msgctxt "@info"
+msgid "Your book has no account yet, so there is no balance to check."
+msgstr "W księdze nie ma jeszcze konta, więc nie ma salda do sprawdzenia."
+
+#, kde-format
+msgctxt "@info %1 is this step's number, %2 how many steps there are"
+msgid "Step %1 of %2"
+msgstr "Krok %1 z %2"
+
+#, kde-format
+msgctxt "@action:button leaves the guided setup and shows the overview"
+msgid "End the setup"
+msgstr "Zakończ konfigurację"
+
+#, kde-format
+msgctxt "@action:button goes to the next step of the guided setup without doing this one"
+msgid "Skip"
+msgstr "Pomiń"
+
+#, kde-format
+msgctxt "@title"
+msgid "Help: guided setup"
+msgstr "Pomoc: konfiguracja krok po kroku"
+
+#, kde-format
+msgctxt "@info"
+msgid "The guided setup shows the important things step by step, with your own data. You can open every step here whenever you like, also one you skipped."
+msgstr "Konfiguracja krok po kroku pokazuje najważniejsze rzeczy po kolei, na twoich własnych danych. Każdy krok możesz tu otworzyć, kiedy chcesz, także pominięty."
+
+#, kde-format
+msgctxt "@action:button a step of the guided setup"
+msgid "Get your transactions"
+msgstr "Pobierz swoje transakcje"
+
+#, kde-format
+msgctxt "@info"
+msgid "Connect to your bank or import a file from it"
+msgstr "Połącz się z bankiem albo zaimportuj plik z banku"
+
+#, kde-format
+msgctxt "@action:button a step of the guided setup"
+msgid "Is this balance right?"
+msgstr "Czy to saldo się zgadza?"
+
+#, kde-format
+msgctxt "@info"
+msgid "Compare each account with what your bank shows, and correct it if needed"
+msgstr "Porównaj każde konto z tym, co pokazuje bank, i popraw je w razie potrzeby"
+
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "Get your transactions"
+msgstr "Pobierz swoje transakcje"
+
+#, kde-format
+msgctxt "@info"
+msgid "Let KassenSturz read what you paid and received, so you don't have to type it. You see everything as a preview first; it is saved only when you agree. When you are done, come back here and go on."
+msgstr "Pozwól KassenSturz odczytać, co zostało zapłacone i co wpłynęło, żeby nie trzeba było tego wpisywać. Najpierw widzisz wszystko jako podgląd; zapis następuje dopiero po twojej zgodzie. Gdy skończysz, wróć tutaj i przejdź dalej."
+
+#, kde-format
+msgctxt "@info"
+msgid "For banks in Germany. KassenSturz only reads, it never sends money. You need the PIN or password of your online banking (not your card's PIN)."
+msgstr "Dla banków w Niemczech. KassenSturz tylko czyta, nigdy nie wysyła pieniędzy. Potrzebujesz PIN-u lub hasła swojej bankowości internetowej (nie PIN-u karty)."
+
+#, kde-format
+msgctxt "@info"
+msgid "For banks without online access: a file with your transactions that you download in your online banking, for example as CSV, MT940 or CAMT."
+msgstr "Dla banków bez dostępu online: plik z transakcjami, który pobierasz w swojej bankowości internetowej, na przykład jako CSV, MT940 lub CAMT."
+
+#, kde-format
+msgctxt "@action:button opens a help page"
+msgid "Help: guided setup"
+msgstr "Pomoc: konfiguracja krok po kroku"
+
+#, kde-format
+msgctxt "@info"
+msgid "Every step of the guided setup again: get your transactions, check your balance"
+msgstr "Każdy krok konfiguracji jeszcze raz: pobranie transakcji, sprawdzenie salda"
+
+#, kde-format
+msgctxt "@title a step of the guided setup"
+msgid "Which accounts do you have?"
+msgstr "Jakie masz konta?"
+
+#, kde-format
+msgctxt "@info"
+msgid "Name the accounts you want to see in KassenSturz. You don't need to type how much is in them: that comes from your bank or from a file in a moment. Nothing is saved until you click “Continue”."
+msgstr "Podaj konta, które chcesz widzieć w KassenSturz. Nie musisz wpisywać, ile na nich jest: to przyjdzie za chwilę z banku albo z pliku. Nic nie zostanie zapisane, dopóki nie klikniesz „Dalej”."
+
+#, kde-format
+msgctxt "@action:button starts the optional guided setup"
+msgid "Guided setup"
+msgstr "Konfiguracja krok po kroku"
+
+#, kde-format
+msgctxt "@info"
+msgid "Step by step with your own data: get your transactions and check your balance. Every step can be skipped."
+msgstr "Krok po kroku na twoich własnych danych: pobierz transakcje i sprawdź saldo. Każdy krok można pominąć."
 #: crates/kassensturz-ui-bridge/qml/ExportPage.qml:135
 #, kde-format
 msgctxt "@title:window %1 is a plugin's name"

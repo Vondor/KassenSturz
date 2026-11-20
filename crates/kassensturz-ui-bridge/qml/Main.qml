@@ -89,6 +89,11 @@ Kirigami.ApplicationWindow {
     // no stored setting.
     property bool freshBook: false
 
+    // The steps of the guided setup (#1031, docs/GUIDED_SETUP.md), in their
+    // order. How far the user got is not stored anywhere (D-921): the pages
+    // on the stack are all there is.
+    readonly property var guidedSteps: ["transactions", "balance"]
+
     // The app's name, which isn't translated, and in the developer mode a
     // marker that stays as long as it runs (D-227). With only the bank log
     // on, the marker names that mode, as its banner does (D-603, M6-B243).
@@ -975,6 +980,31 @@ Kirigami.ApplicationWindow {
     // Shows a new page made from `component` on top of the current one.
     function pushPage(component: Component, properties: var): Item {
         return pageStack.push(makePage(component, properties));
+    }
+
+    // Shows step `index` of the guided setup (counted from 0) on top of the
+    // current page, or the overview after the last one.
+    function showGuidedStep(index: int) {
+        if (index >= guidedSteps.length) {
+            showScreen("overview");
+            return;
+        }
+        pushPage(guidedStepPage(guidedSteps[index]), { step: index + 1, count: guidedSteps.length });
+    }
+
+    // The page of the guided setup's step `name`.
+    function guidedStepPage(name: string): Component {
+        return name === "balance" ? guidedBalancePage : guidedTransactionsPage;
+    }
+
+    // What a guided page does after its step: the next step, or, opened from
+    // Help (step 0), back to Help.
+    function guidedStepDone(step: int) {
+        if (step === 0) {
+            pageStack.pop();
+        } else {
+            showGuidedStep(step);
+        }
     }
 
     // Shows a new page made from `component` in place of the current one.
@@ -2030,6 +2060,9 @@ Kirigami.ApplicationWindow {
         id: wizardStartPage
 
         WizardStartPage {
+            // The optional guided setup starts with the accounts, without
+            // amounts (D-895, D-899).
+            onGuidedClicked: root.pushPage(wizardAccountsPage, { currency: root.wizardCurrency, guided: true, guidedStep: 1, guidedCount: root.guidedSteps.length })
             onOwnAccountsClicked: root.pushPage(wizardAccountsPage, { currency: root.wizardCurrency })
             onExampleClicked: root.chooseExampleBook()
             onFromProgramClicked: root.chooseFileForNewBook()
@@ -2045,14 +2078,65 @@ Kirigami.ApplicationWindow {
             firstStart: firstStartState
             accounts: accountList
             onExampleClicked: root.chooseExampleBook()
+            // Nothing is written yet, so there is no overview to show: back
+            // to the choices.
+            onGuidedEnded: root.pageStack.pop()
             onFinished: {
+                // Read before the page leaves the stack.
+                const wasGuided = guided;
                 root.bookChanged();
                 root.freshBook = true;
                 root.showScreen("overview");
-                // Page 4 on top of the overview: going back from it is the
-                // overview, never the finished wizard pages.
-                root.pushPage(wizardEntriesPage, {});
+                // The next page on top of the overview: going back from it
+                // is the overview, never the finished wizard pages.
+                if (wasGuided) {
+                    root.showGuidedStep(0);
+                } else {
+                    // Page 4.
+                    root.pushPage(wizardEntriesPage, {});
+                }
             }
+        }
+    }
+
+    // The guided setup's step 1: get the transactions, from the bank or a
+    // file, through the existing pages.
+    Component {
+        id: guidedTransactionsPage
+
+        GuidedTransactionsPage {
+            accounts: accountList
+            // In the first setup the build decides whether the wizard offers
+            // the bank (Q-398); from Help it is offered as in Settings.
+            bankOffered: (step === 0 || firstStartState.bankOffered) && root.bankUsable()
+            onConnectBankClicked: root.pushPage(bankSetupPage, {})
+            onImportClicked: accountId => root.importStatement(accountId)
+            onNextClicked: root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
+    // The guided setup's step 2: is this balance right? The comparison and
+    // the correction are the existing check page's.
+    Component {
+        id: guidedBalancePage
+
+        GuidedBalancePage {
+            accounts: accountList
+            onCompareClicked: (accountId, bank) => root.pushPage(bankCheckPage, { accountId: accountId, initialBank: bank, initialDate: "" })
+            onNextClicked: root.guidedStepDone(step)
+            onSkipClicked: root.guidedStepDone(step)
+            onEndClicked: root.showScreen("overview")
+        }
+    }
+
+    // Help: every step of the guided setup again (D-902).
+    Component {
+        id: guidedHelpPage
+
+        GuidedHelpPage {
+            onStepClicked: name => root.pushPage(root.guidedStepPage(name), { step: 0, count: 0 })
         }
     }
 
@@ -2418,6 +2502,7 @@ Kirigami.ApplicationWindow {
             }[group])
             onAiSettingsClicked: root.pushPage(aiSettingsPage)
             onHelpClicked: root.pushPage(helpPage)
+            onGuidedHelpClicked: root.pushPage(guidedHelpPage)
             onTestingGuideClicked: root.pushPage(testingGuidePage)
         }
     }

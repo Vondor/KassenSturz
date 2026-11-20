@@ -58,14 +58,6 @@ pub trait PinAsker {
     fn pin(&mut self, login: &Login, prompt: PinPrompt) -> PinReply;
 }
 
-/// Asks the user for the PIN of `login` and keeps the one typed in `pins`.
-/// When the place for saved PINs couldn't be reached, the dialog says so
-/// and the user may open it and try again: the place is opened (which may
-/// show the password manager's own unlock window) and read once more,
-/// without contacting the bank; if it still can't be read or holds no PIN,
-/// the user is asked again (M6-B193, D-622). A PIN to save that is typed
-/// while the place is still closed is remembered until the app closes,
-/// as the dialog says. Cancelling is [`BankError::Aborted`].
 /// `error`, or [`BankError::PinRejectedStillSaved`] when the bank called
 /// the PIN of `login` wrong and it couldn't be deleted from the place for
 /// saved PINs, so the error page says where it is (B-430).
@@ -78,6 +70,14 @@ fn still_saved(error: BankError, pins: &PinSession, login: &Login) -> BankError 
     }
 }
 
+/// Asks the user for the PIN of `login` and keeps the one typed in `pins`.
+/// When the place for saved PINs couldn't be reached, the dialog says so
+/// and the user may open it and try again: the place is opened (which may
+/// show the password manager's own unlock window) and read once more,
+/// without contacting the bank; if it still can't be read or holds no PIN,
+/// the user is asked again (M6-B193, D-622). A PIN to save that is typed
+/// while the place is still closed is remembered until the app closes,
+/// as the dialog says. Cancelling is [`BankError::Aborted`].
 fn ask_for_pin(
     pins: &mut PinSession,
     asker: &mut dyn PinAsker,

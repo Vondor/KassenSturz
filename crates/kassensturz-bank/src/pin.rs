@@ -322,6 +322,14 @@ impl PinSession {
     /// until the user types a PIN again (D-140, threat T-05). The keychain's
     /// error, if any, is returned after the PIN is forgotten in memory.
     pub fn rejected(&mut self, login: &LoginId) -> Result<(), BankError> {
+        // The PIN sent was the saved one: read from the store (nothing
+        // remembered) or typed and saved. A PIN typed and not saved is
+        // only in memory, so it is gone once forgotten, even when the
+        // store can't be reached to delete an older one (B-430).
+        let refused_was_saved = self
+            .remembered
+            .get(login)
+            .is_none_or(|(_, mode)| *mode == PinMode::SaveInKeychain);
         self.remembered.remove(login);
         self.rejected.insert(login.clone());
         self.unconfirmed.remove(login);
@@ -330,7 +338,9 @@ impl PinSession {
             // Still saved: never sent again without the user (B-413), who
             // is told where it is (B-430).
             self.distrusted.insert(login.clone());
-            self.still_saved.insert(login.clone());
+            if refused_was_saved {
+                self.still_saved.insert(login.clone());
+            }
         } else {
             self.distrusted.remove(login);
             self.still_saved.remove(login);
@@ -736,6 +746,20 @@ mod tests {
         session.rename(&login(), &other).expect("moved");
         assert!(session.refused_pin_still_saved(&other));
         assert!(!session.refused_pin_still_saved(&login()));
+
+        // A PIN typed and not saved is only in memory: when the bank
+        // refuses it while the store can't be reached, it isn't "still
+        // saved", whatever an older saved PIN does.
+        let mut closed = MemoryPinStore::new();
+        closed.unavailable = true;
+        let mut session = PinSession::new(Box::new(closed));
+        for mode in [PinMode::AskEachTime, PinMode::RememberUntilClose] {
+            session
+                .provide(&login(), pin("4444"), mode)
+                .expect("kept in memory");
+            assert_eq!(session.rejected(&login()), Err(BankError::Keychain));
+            assert!(!session.refused_pin_still_saved(&login()), "{mode:?}");
+        }
 
         // A new PIN saved in its place ends it.
         let mut session = PinSession::new(Box::new(store));

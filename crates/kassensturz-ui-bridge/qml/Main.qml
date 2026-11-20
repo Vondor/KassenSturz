@@ -1052,14 +1052,26 @@ Kirigami.ApplicationWindow {
     // page, so closing it leads back there.
     function guidedTry(what: string) {
         if (what === "chart") {
-            pushPage(statisticsPage, { initialDataset: "spending_by_category" });
+            pushPage(statisticsPage, { initialDataset: "spending_by_category", guided: true });
         } else if (what === "budget") {
             pushPage(budgetPage, { categoryId: "" });
         } else if (what === "plan") {
             overviewPlanForm.create("");
         } else if (what === "arrange") {
-            pushPage(overviewPage);
+            const arranged = pushPage(overviewPage);
             dashboardLayout.edit();
+            // "Done" or "Cancel" of the arranging leads back to the step,
+            // which promises that (B-426).
+            const leave = () => {
+                if (arranged.layoutEditing) {
+                    return;
+                }
+                arranged.layoutEditingChanged.disconnect(leave);
+                if (pageStack.currentItem === arranged) {
+                    pageStack.pop();
+                }
+            };
+            arranged.layoutEditingChanged.connect(leave);
         } else if (what === "wiki") {
             Qt.openUrlExternally("https://github.com/Vondor/KassenSturz/wiki");
         }
@@ -2397,6 +2409,9 @@ Kirigami.ApplicationWindow {
                 root.changeOverviewChart(id, json);
             }
             onOverviewChangeCancelled: root.pageStack.pop()
+            // A statistic made in a step of the guided setup leads back to it
+            // (B-426).
+            onGuidedFinished: root.pageStack.pop()
         }
     }
 

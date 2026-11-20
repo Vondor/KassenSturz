@@ -31,6 +31,8 @@ Kirigami.ApplicationWindow {
     property var overviewPage: null
     property var handedBack: ({})
     property bool overviewCancelled: false
+    // How often a builder of the guided setup said it was finished (B-426).
+    property int guidedBack: 0
     readonly property var store: saved
 
     SavedViews {
@@ -62,6 +64,29 @@ Kirigami.ApplicationWindow {
             onOverviewChangeFinished: (id, json) => window.handedBack = {id: id, json: json}
             onOverviewChangeCancelled: window.overviewCancelled = true
             onDraftLeft: left => window.lastDraft = left
+        }
+    }
+
+    Component {
+        id: guidedBuilder
+
+        StatisticsPage {
+            saved: window.store
+            groupsSource: groups
+            guided: true
+            initialDataset: "spending_by_category"
+            onGuidedFinished: window.guidedBack++
+        }
+    }
+
+    Component {
+        id: plainBuilder
+
+        StatisticsPage {
+            saved: window.store
+            groupsSource: groups
+            initialDataset: "spending_by_category"
+            onGuidedFinished: window.guidedBack++
         }
     }
 
@@ -434,6 +459,18 @@ Kirigami.ApplicationWindow {
                     window.check(ActionLog.mode.actions.includes("StatisticsPage_resetChart"), "Reset chart says it ran");
                     other.undoReset();
                     window.check(other.workbench.view.type === "chart.donut" && other.period === "last-year" && wizard.nameText === "Kept name" && wizard.step === 2, "Undo brings the chart back: " + other.workbench.view.type + " " + other.period + " " + wizard.step);
+                    // A builder opened from a step of the guided setup leads
+                    // back to it after Finish, and only then (B-426).
+                    window.guidedBack = 0;
+                    window.pageStack.pop();
+                    window.overviewPage = window.pageStack.push(guidedBuilder);
+                    window.check(window.overviewPage.guided, "the guided builder is marked guided");
+                    window.overviewPage.finishWizard("Guided chart");
+                    window.check(window.guidedBack === 1, "Finish in a guided builder says so once: " + window.guidedBack);
+                    window.pageStack.pop();
+                    window.overviewPage = window.pageStack.push(plainBuilder);
+                    window.overviewPage.finishWizard("Plain chart");
+                    window.check(window.guidedBack === 1, "Finish in a builder not opened from the setup says nothing");
                     Qt.exit(window.failed ? 1 : 0);
                 }
                 break;

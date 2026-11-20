@@ -4,7 +4,8 @@
 
 // Opens FilterBar.qml, FilterPicker.qml and FilterNotes.qml on stand-ins for
 // DashboardLayout and CategoryGroups (fakes/) and checks the filter bar
-// (M6c.7): its three buttons say what is chosen, a choice reaches the layout
+// (M6c.7): its three buttons say what is chosen (four once the book has a
+// tag, #1154, and none for tags before that), a choice reaches the layout
 // as the call it names, Reset filters appears only for a choice made for now
 // and goes back, a choice the book no longer has is listed so it can be taken
 // out, and the notes under a component give the words for every note the
@@ -93,7 +94,7 @@ Kirigami.ApplicationWindow {
             switch (window.step++) {
             case 0: {
                 const texts = window.buttons().map(button => button.text);
-                window.check(texts.length === 3, "period, accounts and categories, and no reset yet: " + texts);
+                window.check(texts.length === 3, "period, accounts and categories, no tags in a book without one, and no reset yet: " + texts);
                 window.check(texts[0].includes("Period"), "the first button is the period: " + texts[0]);
                 window.check(texts[1].includes("Accounts") && texts[1].includes("all"), "nothing chosen reads all: " + texts[1]);
                 window.check(texts[2].includes("Categories"), "the third is the categories: " + texts[2]);
@@ -158,6 +159,35 @@ Kirigami.ApplicationWindow {
                 notes.accountsInTitle = false;
                 window.check(window.findAll(notes, item => item.text !== undefined && item.visible, []).some(text => text.text.includes("Cash box")), "shown again when the title does not name them");
                 notes.filter = undefined;
+                // The book gets its first tag (#1154).
+                book.view = Object.assign({}, book.view, {tags: [{id: "t-holiday", name: "Holiday"}]});
+                break;
+            }
+            case 6: {
+                const texts = window.buttons().map(button => button.text);
+                window.check(texts.length === 4, "a book with a tag has the tags button too: " + texts);
+                window.check(texts[3].includes("Tags") && texts[3].includes("all"), "the fourth is the tags, none chosen: " + texts[3]);
+                bar.set("tags", "t-holiday");
+                window.check(window.last() === "setFilter:tags:t-holiday", "a tag reaches the layout: " + window.last());
+                break;
+            }
+            case 7: {
+                const texts = window.buttons().map(button => button.text);
+                window.check(texts.length === 5 && texts[3].includes("Tags") && texts[3].includes("1"), "one tag chosen reads so, and it can be reset: " + texts);
+                window.check(dashboard.view.filters.tags.length === 1 && dashboard.view.filters.forNow, "the tag is chosen for now");
+                // A tile that counts whole accounts or budgets says that the
+                // tag does not narrow it.
+                notes.filter = {
+                    own: [], filtered: [], accounts: [], accountsMore: 0, categories: [], categoriesMore: 0, tags: [], tagsMore: 0,
+                    notes: [{kind: "not-applied", dimension: "tags", id: ""}], nothing: false
+                };
+                break;
+            }
+            case 8: {
+                const labels = window.findAll(notes, item => item.text !== undefined && item.visible, []).map(item => item.text);
+                window.check(labels.some(text => text.includes("Not filtered by tag")), "the tag note: " + JSON.stringify(labels));
+                notes.filter = undefined;
+                bar.reset();
                 break;
             }
             default: {

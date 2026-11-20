@@ -59,7 +59,7 @@ pub const HEADING_KEY: &str = "template-heading";
 /// what it shows, for the page's period; what went out, with the period
 /// before; the spending by category over the last 12 months as bars (Q-336).
 const SPENDING_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 4, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 5, "kind": "dashboard",
   "name": "spending",
   "components": [
     {"id": "dashboard-tabs", "type": "page.tabs",
@@ -90,7 +90,7 @@ const SPENDING_TEXT: &str = r#"{
 /// and out of the accounts by month as bars, last 12 months; where the
 /// money came from; the same months as a table.
 const MONEY_IN_OUT_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 4, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 5, "kind": "dashboard",
   "name": "money-in-out",
   "components": [
     {"id": "dashboard-tabs", "type": "page.tabs",
@@ -125,7 +125,7 @@ const MONEY_IN_OUT_TEXT: &str = r#"{
 /// *What you own*: what you have, owe and are worth; what you were worth
 /// over the last 12 months; what each account holds.
 const WORTH_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 4, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 5, "kind": "dashboard",
   "name": "worth",
   "components": [
     {"id": "dashboard-tabs", "type": "page.tabs",
@@ -155,7 +155,7 @@ const WORTH_TEXT: &str = r#"{
 /// *Budgets*: a heading; the bars of every budget, which take no room until
 /// the book has one (D-357); the spending ring for the page's period.
 const BUDGETS_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 4, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 5, "kind": "dashboard",
   "name": "budgets",
   "components": [
     {"id": "dashboard-tabs", "type": "page.tabs",
@@ -178,7 +178,7 @@ const BUDGETS_TEXT: &str = r#"{
 /// the Update all accounts button (M6d.7, D-446, D-471); what each account
 /// holds.
 const ACCOUNTS_TEXT: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 4, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 5, "kind": "dashboard",
   "name": "accounts",
   "components": [
     {"id": "dashboard-tabs", "type": "page.tabs",
@@ -210,6 +210,7 @@ pub fn document(word: &str) -> Result<Document, ReportError> {
             period: None,
             accounts: Vec::new(),
             categories: Vec::new(),
+            tags: Vec::new(),
             entries: Vec::new(),
             template: None,
             default: false,

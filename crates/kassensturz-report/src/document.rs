@@ -26,10 +26,11 @@ pub const FORMAT: &str = "kassensturz-dashboard";
 /// The version this program writes and the newest it reads. Version 2
 /// (D-351) added `filters.accounts`, `filters.categories` and the
 /// components' `params.accounts`; version 3 (D-476) added the period header
-/// and the filter bar as widgets; version 4 (D-530) added the dashboard tabs.
+/// and the filter bar as widgets; version 4 (D-530) added the dashboard tabs;
+/// version 5 (#1154, D-893) added `filters.tags`, with book layout 37.
 /// Older documents are still read; an older dashboard gets the widgets it
 /// lacks on top when it is read (see [`Document::read`]).
-pub const VERSION: u32 = 4;
+pub const VERSION: u32 = 5;
 /// The ID the period header gets in an older dashboard (D-476), unless the
 /// document uses it already.
 pub const PERIOD_HEADER_ID: &str = "period-header";
@@ -109,6 +110,9 @@ pub struct Document {
     /// The filter bar's categories (`filters.categories`, D-351): IDs of
     /// categories or My groups, written as text. Empty narrows nothing.
     pub categories: Vec<String>,
+    /// The filter bar's tags (`filters.tags`, version 5, #1154): IDs of
+    /// tags, written as text. Empty narrows nothing.
+    pub tags: Vec<String>,
     /// The components, in the order of the document.
     pub entries: Vec<Entry>,
     /// The word of the template a dashboard was made from (`template`,
@@ -514,7 +518,7 @@ fn read_ids(value: &Value, dimension: Dimension) -> Result<Vec<String>, ReportEr
     Ok(ids)
 }
 
-/// The document's `filters`: a period, accounts and categories, each
+/// The document's `filters`: a period, accounts, categories and tags, each
 /// optional.
 fn read_filters(value: &Value) -> Result<Filters, ReportError> {
     let filters = value
@@ -522,7 +526,7 @@ fn read_filters(value: &Value) -> Result<Filters, ReportError> {
         .ok_or_else(|| invalid("wrong-type", "filters"))?;
     if let Some(key) = filters
         .keys()
-        .find(|key| !matches!(key.as_str(), "period" | "accounts" | "categories"))
+        .find(|key| !matches!(key.as_str(), "period" | "accounts" | "categories" | "tags"))
     {
         return Err(invalid("unknown-property", &format!("filters.{key}")));
     }
@@ -540,6 +544,7 @@ fn read_filters(value: &Value) -> Result<Filters, ReportError> {
         period,
         accounts: list(Dimension::Accounts)?,
         categories: list(Dimension::Categories)?,
+        tags: list(Dimension::Tags)?,
     })
 }
 
@@ -553,6 +558,7 @@ impl Document {
             period: period.map(str::to_owned),
             accounts: Vec::new(),
             categories: Vec::new(),
+            tags: Vec::new(),
             entries: vec![Entry {
                 id: VIEW_COMPONENT_ID.to_owned(),
                 item: Item::Component(component),
@@ -616,6 +622,7 @@ impl Document {
             period,
             accounts,
             categories,
+            tags,
         } = match object.get("filters") {
             None => Filters::default(),
             Some(filters) => read_filters(filters)?,
@@ -684,6 +691,7 @@ impl Document {
             period,
             accounts,
             categories,
+            tags,
             entries,
             template,
             default,
@@ -703,6 +711,7 @@ impl Document {
             period: self.period.clone(),
             accounts: self.accounts.clone(),
             categories: self.categories.clone(),
+            tags: self.tags.clone(),
         }
     }
 
@@ -773,6 +782,7 @@ impl Document {
         for (key, ids) in [
             ("accounts", &self.accounts),
             ("categories", &self.categories),
+            ("tags", &self.tags),
         ] {
             if !ids.is_empty() {
                 let ids = ids.iter().cloned().map(Value::String).collect();

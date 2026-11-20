@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // The filter bar above the Overview's grid (M6c.7, D-350, D-351): Period,
-// Accounts and Categories, each a button that opens a list. While the page is
+// Accounts, Categories and, once the book has a tag, Tags (#1154, D-893),
+// each a button that opens a list. While the page is
 // only looked at, a choice is for now: it changes what the page shows, is not
 // saved and is not a step in the history; Reset filters goes back to the
 // layout's own. While the layout is arranged, the choices are kept with the
@@ -26,9 +27,11 @@ Flow {
     // from are listed. Without it only the period can be chosen.
     property var choices: null
 
-    readonly property var filters: layout.view.filters ?? ({period: "", accounts: [], categories: [], forNow: false})
+    readonly property var filters: layout.view.filters ?? ({period: "", accounts: [], categories: [], tags: [], forNow: false})
     readonly property bool editing: layout.view.editing ?? false
-    readonly property bool anyChoice: filters.period !== "" || filters.accounts.length > 0 || filters.categories.length > 0
+    // The tags chosen; a layout that knows none has none.
+    readonly property var chosenTags: filters.tags ?? []
+    readonly property bool anyChoice: filters.period !== "" || filters.accounts.length > 0 || filters.categories.length > 0 || chosenTags.length > 0
     readonly property var book: choices?.view ?? ({})
     readonly property var periodWords: ["page", "this-month", "last-month", "last-12-months", "this-year", "last-year"]
 
@@ -109,6 +112,18 @@ Flow {
         chosen: bar.filters.categories
         emptyText: bar.i18nContext.i18nc("@info", "There are no categories to pick yet.")
         onPicked: ids => bar.set("categories", ids)
+    }
+
+    // Only money that carries one of the tags counts, on every tile that
+    // can tell (D-714); a tile that cannot says so. Nobody who uses no tags
+    // sees the button.
+    FilterPicker {
+        visible: (bar.book.tags ?? []).length > 0 || bar.chosenTags.length > 0
+        label: bar.i18nContext.i18nc("@label what a filter narrows: the tags on transactions", "Tags")
+        options: (bar.book.tags ?? []).map(tag => ({id: tag.id, name: tag.name}))
+        chosen: bar.chosenTags
+        emptyText: bar.i18nContext.i18nc("@info", "There are no tags to pick yet. Add one to a transaction, or in Settings › Tags.")
+        onPicked: ids => bar.set("tags", ids)
     }
 
     Controls.Button {

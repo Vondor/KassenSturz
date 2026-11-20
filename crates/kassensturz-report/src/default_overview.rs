@@ -26,7 +26,7 @@ pub const OVERVIEW_NAME: &str = "Overview";
 /// category (US1.9, D-637). A component without a `props.period` takes the
 /// page's period (the month the Overview shows); the line asks for its own.
 pub const DEFAULT_OVERVIEW: &str = r#"{
-  "format": "kassensturz-dashboard", "version": 4, "kind": "dashboard",
+  "format": "kassensturz-dashboard", "version": 5, "kind": "dashboard",
   "name": "Overview",
   "components": [
     {"id": "dashboard-tabs", "type": "page.tabs",

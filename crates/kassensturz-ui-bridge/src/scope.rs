@@ -40,8 +40,11 @@ pub struct Scope {
     /// Whether the categories are the component's own.
     categories_own: bool,
     /// The IDs of the tags only whose parts count (US5.2, D-714); empty for
-    /// every part. Always the component's own: the filter bar has none.
+    /// every part.
     tags: Vec<String>,
+    /// Whether the tags are the component's own, not the filter bar's
+    /// (#1154).
+    tags_own: bool,
     /// The dimensions its dataset takes.
     takes: Takes,
     /// The series with a filter of their own (US1.16, D-646).
@@ -84,6 +87,7 @@ impl Default for Scope {
             categories: Vec::new(),
             categories_own: false,
             tags: Vec::new(),
+            tags_own: true,
             takes: Takes::ALL,
             series: Vec::new(),
             average: String::new(),
@@ -116,6 +120,7 @@ impl Scope {
             categories: ids(&asked.categories),
             categories_own: own(&asked.categories),
             tags: ids(&asked.tags),
+            tags_own: own(&asked.tags),
             takes: asked.takes,
             series: asked
                 .series
@@ -179,6 +184,7 @@ impl Scope {
             "categories": self.categories,
             "categoriesOwn": self.categories_own,
             "tags": self.tags,
+            "tagsOwn": self.tags_own,
             "takes": {
                 "period": self.takes.period,
                 "accounts": self.takes.accounts,
@@ -261,6 +267,9 @@ impl Scope {
             categories: ids("categories"),
             categories_own: flag(&value, "categoriesOwn", false),
             tags: ids("tags"),
+            // A text written before the filter bar had tags names only the
+            // component's own.
+            tags_own: flag(&value, "tagsOwn", true),
             takes: Takes {
                 period: flag(&takes, "period", true),
                 accounts: flag(&takes, "accounts", true),
@@ -352,7 +361,7 @@ impl Scope {
             },
             accounts: chosen(&self.accounts, self.accounts_own),
             categories: chosen(&self.categories, self.categories_own),
-            tags: chosen(&self.tags, true),
+            tags: chosen(&self.tags, self.tags_own),
             takes: self.takes,
             // Each series is applied on its own (`for_series`).
             series: Vec::new(),
@@ -751,6 +760,7 @@ mod tests {
             categories: vec!["c-1".into()],
             categories_own: true,
             tags: vec!["t-1".into()],
+            tags_own: false,
             takes: Takes::NO_ACCOUNTS,
             series: vec![
                 SeriesScope {
@@ -972,6 +982,7 @@ mod tests {
             period: None,
             accounts: bar.iter().map(ToString::to_string).collect(),
             categories: Vec::new(),
+            tags: Vec::new(),
         };
         let asked = Asked::new(&component, None, &bar).expect("asks");
         let request = ChartRequest {
@@ -1142,6 +1153,7 @@ mod tests {
             period: Some("last-year".into()),
             accounts: vec![f.cash.to_string()],
             categories: Vec::new(),
+            tags: Vec::new(),
         };
         let income = document
             .asked("income", &bar)

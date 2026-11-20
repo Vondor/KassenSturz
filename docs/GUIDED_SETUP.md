@@ -1,6 +1,6 @@
 # Guided setup: design
 
-Status: **design** (BS2, #1031; decided by Vondor in D-792, D-895 to D-902, D-911 and D-921 to D-923, and the 8-page sketch he approved on 19 Nov 2026). Made by Claude (Fable 5.2). Nothing here is built yet; the build follows in three pull requests (section 8).
+Status: **design, part 1 of 3 built** (BS2, #1031; decided by Vondor in D-792, D-895 to D-902, D-911 and D-921 to D-923, and the 8-page sketch he approved on 19 Nov 2026). Made by Claude (Fable 5.2). The build follows in three pull requests (section 8); the first is built, and section 10 says where it differs from this design.
 
 The guided setup is an **optional** walk through the important functions, on the person's own data. It extends the first setup wizard (`docs/SETUP_WIZARD.md`, M7a.9), which stays as it is: the guided setup is one more choice on its page 2. The pictures in `docs/setup-wizard/guided/` are simple QML mocks with made-up figures and invented names, in German because the testers are German; they show layout and wording, not final styling.
 
@@ -169,3 +169,18 @@ Asked through the coordinator; the maintainer took the recommended option of eac
 1. **Progress is not stored (D-921, Q-687).** It is kept only while the app runs, so there is no format change; the remaining steps are in Help. The other option was to remember it in the settings file, which would be a settings migration with backup and test (a human gate) for a small gain.
 2. **Test profile (D-922, Q-688).** No guided choice at the start there; the steps are reached through Help on the example book. The other option was to offer the guided setup in the test profile on a new made-up book in the test folder.
 3. **AGENTS.md §8 (D-923, Q-689).** That section names the Settings toggle as the only AI element visible while AI is off, and D-911 adds step 7. The gated third pull request changes the sentence to include the optional last step of the guided setup.
+
+## 10. As built
+
+What the build does differently from the sections above. The pictures in section 2 stay the design mocks.
+
+### Part 1: start choice, frame, steps 1 and 2, Help page
+
+- **Step 1 is two pages.** "Guided setup" first opens the existing accounts page in its guided form (`WizardAccountsPage.qml` with `guided`): kind and name only, no amount, no "More", titled "Which accounts do you have?". Its **Continue** creates the book in one user action, as "Create my household book" does, with every account empty. Then `GuidedTransactionsPage.qml` offers the bank and the file. So the book exists before a choice is made, and **Skip** on the second page simply goes on to step 2: the special case in section 2 ("Skip here has no account to go on with") isn't needed.
+- **End the setup before the book exists** leads back to the start choices, not to the overview: there is no book to show yet. From the second page on it shows the overview.
+- **The bank setup and the import are opened, not embedded.** They are the existing page and dialogs, unchanged, and closing them leads back to the step, where **Continue** goes on. No bank, keychain or import code is touched.
+- **Step 2 shows every open account of the book**, not only those that got transactions, each with its balance today and, where the bank stated one, whether that matches. A figure typed under "Not right?" is handed to the existing "Check against my bank" page (`BankCheckPage.qml`), which shows the difference and offers the correction (`CorrectStartingBalance`); the guided page corrects nothing itself. The button therefore reads **Compare…**, not *Correct*. A line for "the file names no balance" isn't shown: the account then has no stated balance and the page shows only what KassenSturz has.
+- **The step count names the steps that are built**, "Step 1 of 2" for now, and the line under "Guided setup" on the start page lists only those. Both grow with parts 2 and 3. The Help page lists the two built steps.
+- **Frame:** `GuidedBar.qml` (step count, progress, "End the setup") is each step's header, `GuidedFooter.qml` ("Skip" and the main button) its footer. A step opened from Help has no bar and no "Skip", and its main button reads **Done**.
+- **Pictures of the built pages** (German, on stand-in data with made-up figures, so the account kinds read English there): [start page](setup-wizard/guided/built-1-start.png), [step 1, accounts](setup-wizard/guided/built-2-accounts.png), [step 1, transactions](setup-wizard/guided/built-3-transactions.png), [step 2](setup-wizard/guided/built-4-balance.png), [Help page](setup-wizard/guided/built-5-help.png).
+- **Tests:** `qml-tests/GuidedSmoke.qml` builds the start page, both forms of step 1, step 2 and the Help page against stand-ins and checks their buttons and signals.

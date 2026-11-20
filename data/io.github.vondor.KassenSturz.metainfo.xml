@@ -55,12 +55,12 @@ SPDX-License-Identifier: CC0-1.0
       <li>Eine KI zum Haushaltsbuch befragen. Das ist aus, bis Sie es einschalten, und nichts im Buch ändert sich ohne Ihre Bestätigung</li>
     </ul>
     <p>
-      This is an early test version. Try it with made-up numbers: what you enter
-      is saved in your book.
+      Bug-tested and safe to use: many security checks and attack tests are
+      done; the app may still change.
     </p>
     <p xml:lang="de">
-      Dies ist eine frühe Testversion. Probieren Sie sie mit ausgedachten Zahlen
-      aus: Was Sie eingeben, wird in Ihrem Haushaltsbuch gespeichert.
+      Auf Fehler getestet und sicher nutzbar: viele Sicherheitsprüfungen und
+      Angriffstests sind erledigt; die App kann sich noch ändern.
     </p>
   </description>
   <developer id="io.github.vondor">
@@ -92,8 +92,15 @@ SPDX-License-Identifier: CC0-1.0
   <releases>
     <release version="0.261025.0" date="2026-10-25">
       <description>
-        <p>Early test build.</p>
-        <p xml:lang="de">Frühe Testversion.</p>
+        <p>
+          First stable 0.x version. Many bugs from the Beta are fixed, and the
+          app was checked with security and attack tests. It may still change.
+        </p>
+        <p xml:lang="de">
+          Erste stabile 0.x-Version. Viele Fehler aus der Beta sind behoben; die
+          App wurde mit Sicherheits- und Angriffstests geprüft. Sie kann sich
+          noch ändern.
+        </p>
       </description>
     </release>
   </releases>

@@ -96,7 +96,8 @@ user formally with \"Sie\" and \"Ihr\", never with \"du\" or \"dein\".
 as KassenSturz gives it, whatever language you answer in.";
 
 const FIGURES_WITH_FUNCTIONS: &str = "Take every figure from KassenSturz's functions and write \
-it exactly as a function gave it. Never work out a figure yourself: no sums, differences, \
+it exactly as a function gave it, digits unchanged, but the decimal mark follows your answer's \
+language (German 1.234,50), the same way throughout. Never work out a figure yourself: no sums, differences, \
 averages, percentages or roundings. If no function gives a figure the user asks for, say that \
 you can't answer that exactly. When you need data from the book, call the function at once: \
 never ask the user whether you may look, and never end an answer by offering to start. IDs \

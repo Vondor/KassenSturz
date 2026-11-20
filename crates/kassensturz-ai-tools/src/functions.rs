@@ -190,7 +190,8 @@ pub const FUNCTIONS: &[Function] = &[
     Function {
         name: "list_categories",
         description: "Lists the income and spending categories with their IDs, each with the \
-            categories above it in its name, e.g. \"Food › Groceries\".",
+            categories above it in its name, e.g. \"Food › Groceries\". Categories with the same last name list each other in \"same_name_as\": \
+            choose by full name, the one with bookings.",
         parameters: r#"{"type":"object","properties":{},"additionalProperties":false}"#,
     },
     Function {
@@ -297,8 +298,10 @@ pub const FUNCTIONS: &[Function] = &[
             month with nothing in it has no currencies. With \"top\" each month also names its \
             largest categories per side, each with its \"total\" as in category_totals; with \
             \"category_id\" each month has only that category's row (its \"total\" with \
-            everything inside it), for \"how much on Food each month\". Quote the figures as \
-            they are and never add months up yourself.",
+            everything inside it), for \"how much on Food each month\"; no month-wide totals then. \"nothing_in_category\" or \
+            \"category_has_no_bookings_in_period\": nothing booked there, so check \
+            list_categories for a twin. Quote the figures as they are and never add months \
+            up yourself.",
         parameters: r#"{"type":"object","properties":{"from":{"type":"string","format":"date","description":"First day, YYYY-MM-DD."},"to":{"type":"string","format":"date","description":"Last day, YYYY-MM-DD. At most 24 months after from."},"account_ids":{"type":"array","maxItems":20,"items":{"type":"string"},"description":"Only transactions with a part in one of these accounts, IDs from list_accounts. Leave it out for every account."},"account_id":{"type":"string","description":"One account, ID from list_accounts: the same as account_ids with only this ID. Not together with account_ids."},"tag_id":{"type":"string","description":"Only money with this tag, ID from list_tags."},"category_id":{"type":"string","description":"Only this category's row in each month, ID from list_categories."},"top":{"type":"integer","minimum":1,"maximum":5,"description":"Also name the largest categories per side in each month. Not with category_id."}},"required":["from","to"],"additionalProperties":false}"#,
     },
     Function {

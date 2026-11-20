@@ -278,7 +278,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Lists the income and spending categories with their IDs, each with the categories above it in its name, e.g. \"Food › Groceries\".",
+            "description": "Lists the income and spending categories with their IDs, each with the categories above it in its name, e.g. \"Food › Groceries\". Categories with the same last name list each other in \"same_name_as\": choose by full name, the one with bookings.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {},
@@ -413,7 +413,7 @@
               "openWorldHint": false,
               "readOnlyHint": true
             },
-            "description": "Money in, money out and what is left for each calendar month from \"from\" to \"to\" (at most 24 months), per currency, in ONE call: use it for \"each month\", \"month by month\", \"per month\" or the course of a year, instead of calling category_totals once per month. Each month's figures are exactly what category_totals gives for that month alone and are counted the same way: joined Transfers and starting balances count as neither income nor spending, and \"possible_transfers\" says what may be moves between the user's own accounts, which are in the totals. A month cut by \"from\" or \"to\" says \"partial\" with its real first and last day: never compare it with a whole month as if it were one. A month with nothing in it has no currencies. With \"top\" each month also names its largest categories per side, each with its \"total\" as in category_totals; with \"category_id\" each month has only that category's row (its \"total\" with everything inside it), for \"how much on Food each month\". Quote the figures as they are and never add months up yourself.",
+            "description": "Money in, money out and what is left for each calendar month from \"from\" to \"to\" (at most 24 months), per currency, in ONE call: use it for \"each month\", \"month by month\", \"per month\" or the course of a year, instead of calling category_totals once per month. Each month's figures are exactly what category_totals gives for that month alone and are counted the same way: joined Transfers and starting balances count as neither income nor spending, and \"possible_transfers\" says what may be moves between the user's own accounts, which are in the totals. A month cut by \"from\" or \"to\" says \"partial\" with its real first and last day: never compare it with a whole month as if it were one. A month with nothing in it has no currencies. With \"top\" each month also names its largest categories per side, each with its \"total\" as in category_totals; with \"category_id\" each month has only that category's row (its \"total\" with everything inside it), for \"how much on Food each month\"; no month-wide totals then. \"nothing_in_category\" or \"category_has_no_bookings_in_period\": nothing booked there, so check list_categories for a twin. Quote the figures as they are and never add months up yourself.",
             "inputSchema": {
               "additionalProperties": false,
               "properties": {

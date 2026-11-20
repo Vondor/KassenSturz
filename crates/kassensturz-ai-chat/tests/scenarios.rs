@@ -379,7 +379,7 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
         vec![says_counting("A", 14_000), says_counting("B", 8_000)],
     );
     let mut chat = session();
-    // A request of about 8 KB of question plus the prompt and the functions
+    // A request of about 7 KB of question plus the prompt and the functions
     // (with the budget lists of M6c.11, propose_view's datasets of M6c.8
     // and its formulas and own lists of US1.17, and what each dataset takes
     // and the structured descriptions of M6-B200, the paging and IDs of
@@ -388,9 +388,11 @@ fn an_answer_is_marked_when_the_provider_counted_far_fewer_tokens() {
     // chart description help with its example of D-729, monthly_totals of
     // US7.5, the planned payments and forecast of #920, and the daily
     // balance and the lengths of the trends of #1036, and the plans
-    // propose_changes prepares of B-357) for 14,000 tokens is
+    // propose_changes prepares of B-357, and the same-name hints of
+    // list_categories and the category rows of monthly_totals of B-428) for
+    // 14,000 tokens is
     // what an uncut request comes to.
-    let long = "word ".repeat(1_600);
+    let long = "word ".repeat(1_400);
     let answer = chat
         .ask(&book, &provider, None, &long, TODAY, &mut NoHooks)
         .unwrap();

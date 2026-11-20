@@ -43,7 +43,6 @@ mod handler;
 mod settings;
 
 use std::collections::HashSet;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
@@ -147,7 +146,7 @@ impl AqBankingBank {
     ) -> Result<Self, BankError> {
         let availability = availability(probed);
         let session = if availability.is_available() {
-            fs::create_dir_all(folder).map_err(|_| BankError::Folder)?;
+            settings::create_private_folder(folder).map_err(|_| BankError::Folder)?;
             settings::delete_message_logs(folder).map_err(|_| BankError::Folder)?;
             let options = SessionOptions {
                 app_name: APP_NAME.to_owned(),

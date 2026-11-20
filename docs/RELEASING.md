@@ -4,12 +4,12 @@ How a build for testers is made and published (D-551, D-579). Until the maintain
 
 ## The tag
 
-A release tag is `v` plus the build number of the commit it points to, optionally followed by `-beta`: `v0.261120.31-beta` for a beta, `v0.261120.31` for the stable release. `tools/build-version.sh` prints the number: the commit's date in UTC and the count of that day's merges on `main` (D-226). The release workflow checks both rules and stops with a message that says what to do:
+A release tag is `v` plus the build number of the commit it points to, for example `v0.261103.0`. `tools/build-version.sh` prints the number: the commit's date in UTC and the count of that day's merges on `main` (D-226). The release workflow checks both rules and stops with a message that says what to do:
 
-- the tag equals `v<number of its commit>` or `v<number of its commit>-beta`, so the name of the release tells a tester which build it is;
+- the tag equals `v<number of its commit>`, so the name of the release tells a tester which build it is;
 - the commit is on `main`, so only merged code that passed CI is released.
 
-**The tag picks the snap's channels (D-939).** `v<number>-beta` uploads the snap to the Snap Store's `beta` channel only; a plain `v<number>` is the stable 0.x release (D-879) and uploads it to `stable` and `beta`. No other suffix is accepted, and there is no variable to set: the tag you push is the decision. Everything else about the run (the build, the files and the GitHub release, which is marked as a pre-release either way until 1.0) is the same for both. A plain tag therefore reaches every snap user on `stable`, so use `-beta` for every build that is not the stable release, and the store login has to allow `stable` before the first plain tag (`docs/SNAP.md`, section 8, step 4).
+**The snap's channel is chosen in the run, not by the tag (D-940, replaces D-939).** Every tag's run has two snap jobs, *Snap Store, beta channel* and *Snap Store, stable and beta channels*, each waiting for your approval in its own environment (`snap-beta`, `snap-stable`). You approve the one you want and reject the other (step 4 below); the tag itself is the same for both.
 
 No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the AppStream `<release>` entry for a pre-release (D-226). The build stamps its own number and date into the newest `<release>` of the AppStream file it installs (`cmake/StampMetainfo.cmake`, M6-B156), so `flatpak info` and software centres show the real number; the file in the repository keeps its last hand-set entry.
 
@@ -19,7 +19,7 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
 2. **Tag it.** The tag is made on your machine and pushed:
 
    ```sh
-   tag="v$(tools/build-version.sh)-beta"   # a beta; leave out -beta only for the stable release
+   tag="v$(tools/build-version.sh)"
    git tag -a "$tag" -m "Pre-release ${tag#v}"
    git push origin "$tag"
    ```
@@ -29,8 +29,9 @@ No file holds the version: do not edit `Cargo.toml`, `CMakeLists.txt` or the App
    - *Install the bundle as the Ubuntu sheet says* takes that file on a fresh Ubuntu machine and runs what way B of `docs/testing/INSTALL_UBUNTU.de.md` (the Flatpak file) tells a tester: install Flatpak, add the catalog and the KDE runtime for the user, install the file, start it with the developer mode and check the debug log was written, uninstall it. (The update over an older build can't be checked here, since it needs two builds; the automatic update tests cover it, D-835.) Nothing is released if this fails.
    - *Pre-release on GitHub* creates the release `KassenSturz <number> (pre-release)`, marked as a pre-release, with the files attached and a text that lists the merged changes since the previous tag.
    A fourth job, *Attach the experimental macOS download*, adds `KassenSturz-<number>-macos-arm64-experimental.dmg` to the release after it exists, only if the Mac build worked (D-875, `docs/MACOS.md`). A red *macOS app* job in the run does not affect the release; the file is just missing.
-4. **Look at the release.** On the repository's Releases page the new entry is marked *Pre-release* and can be downloaded without a GitHub account, so the install sheets' step 1 ("the newest entry marked Pre-release") is right. Check the file name and the text.
-5. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
+4. **Choose the snap's channel.** Once the GitHub release is out, the run shows "Waiting for review" for both snap jobs. Actions tab → the run → **Review deployments**: tick **snap-beta** for a test build (the snap goes to `beta`) or **snap-stable** for the stable 0.x release (it goes to `stable` and `beta`, D-879), add a comment if you like, and press **Approve and deploy**. Then open **Review deployments** again, tick the other one and press **Reject**. The rejected job shows as failed; that is expected and changes nothing, since the GitHub release is already published. Approve only one: the store refuses the same file twice. A job you leave waiting is cancelled by GitHub after 30 days.
+5. **Look at the release.** On the repository's Releases page the new entry is marked *Pre-release* and can be downloaded without a GitHub account, so the install sheets' step 1 ("the newest entry marked Pre-release") is right. Check the file name and the text.
+6. **Tell the facilitator** the exact file name (the sheets say the facilitator names it before the session).
 
 ## Once: the registration number
 
@@ -41,6 +42,19 @@ An official release carries KassenSturz's FinTS product registration number, so 
 3. **Secret.** In that environment: Add environment secret, name `FINTS_REGISTRATION`, value the 25 characters of the number. Type or paste it there and nowhere else.
 
 From then on the *Build the Flatpak bundle* job of a tag's run waits for your approval (Actions tab → the run → Review deployments), builds the number in, and fails if the number is in any file of the built app other than the program itself. Without the secret a release is still built, without bank access, and the run shows a warning.
+
+## Once: the snap environments (D-940)
+
+The two snap jobs need two environments, which only the maintainer sets up, once. For each of `snap-beta` and `snap-stable`:
+
+1. Settings → Environments → **New environment**, name `snap-beta` (then, the second time, `snap-stable`), **Configure environment**.
+2. Under *Deployment protection rules*: tick **Required reviewers** and add yourself (`Vondor`); leave **Prevent self-review** unticked (otherwise you could not approve your own tag); untick **Allow administrators to bypass configured protection rules**; press **Save protection rules**.
+3. Under *Deployment branches and tags*: choose **Selected branches and tags** → **Add deployment branch or tag rule** → Ref type **Tag**, name pattern `v*` → **Add rule**.
+4. Under *Environment secrets*: **Add environment secret**, name `SNAPCRAFT_STORE_CREDENTIALS`, value the output of the login command for that environment, made on your own computer and pasted there and nowhere else:
+   - `snap-beta`: `snapcraft export-login --snaps kassensturz --channels beta --acls package_access,package_push,package_release -`
+   - `snap-stable`: `snapcraft export-login --snaps kassensturz --channels stable,beta --acls package_access,package_push,package_release -` (only after you have accepted the Snap Store terms, `docs/SNAP.md` section 7). Until it has its secret, an approved `snap-stable` job uploads nothing and only warns.
+
+Afterwards the old snap login in the environment `release` (secret `SNAPCRAFT_STORE_CREDENTIALS`) and the repository variable `SNAP_CHANNELS` (Settings → Secrets and variables → Actions → Variables), if it exists, are no longer used and can be deleted.
 
 A tag's build also switches on the setup wizard's *Connect to my bank* choice (Q-562, D-546): the workflow writes the file `wizard-bank` before the build, and `CMakeLists.txt` turns it into the Cargo feature `wizard-bank`. A pull request's run of the workflow and CI's own builds don't write it, so they don't offer it. The file holds nothing secret and is not the registration number.
 

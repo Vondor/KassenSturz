@@ -114,7 +114,7 @@ Window {
         onTriggered: {
             const boxes = window.find(panel, "ComboBox", []);
             const texts = window.find(panel, "TextField", []).filter(field => field.maximumLength === 200);
-            const flags = window.find(panel, "CheckBox", []).filter(box => box.text === "Show the legend");
+            const flags = window.find(panel, "CheckBox", []).filter(box => box.text === "Explain the colours (legend)");
             // One choice (the group-by), one title, one legend. The dataset box
             // is hidden: this chart can show only one dataset.
             // (The formula field's list of functions is a box of its own.)

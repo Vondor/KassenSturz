@@ -15130,9 +15130,11 @@ msgstr "Zu zeichnende Linien"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:160
 #, kde-format
-msgctxt "@option:check"
-msgid "Show the legend"
-msgstr "Legende anzeigen"
+msgctxt ""
+"@option:check shows or hides the list beside a chart that says which colour "
+"stands for what"
+msgid "Explain the colours (legend)"
+msgstr "Farben erklären (Legende)"
 
 #: crates/kassensturz-ui-bridge/qml/PropertiesPanel.qml:162
 #, kde-format

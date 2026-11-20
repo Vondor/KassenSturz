@@ -624,6 +624,8 @@ pub enum Corruption {
     /// At least one transaction's parts don't add up to zero, so a figure
     /// taken from the book would be wrong (B-291), e.g. because a byte of an
     /// amount changed in the file. It wasn't opened and wasn't changed.
+    /// Also a book whose amounts in one currency add up to more than any
+    /// change keeps them to (B-269, B-416).
     UnbalancedTransaction,
 }
 

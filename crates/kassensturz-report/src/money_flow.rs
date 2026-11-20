@@ -647,32 +647,30 @@ fn build(
         let node = b.node(FlowNodeKind::Reserves, String::new(), -1, gap);
         b.flows.push((node, middle, gap));
     }
+    // Checked like every other sum here: a sum that wraps would give a
+    // wrong figure in a release build (B-416).
+    let sum_of = |parts: &[(usize, usize, i64)], from, to| {
+        parts
+            .iter()
+            .filter(|part| part.0 == from && part.1 == to)
+            .try_fold(0_i64, |sum, part| add(sum, part.2))
+    };
     let flows = b
         .flows
         .iter()
-        .map(|&(from, to, amount)| Flow {
-            from,
-            to,
-            amount: Money::from_minor_units(amount, currency),
-            assumed: Money::from_minor_units(
-                b.assumed
-                    .iter()
-                    .filter(|a| a.0 == from && a.1 == to)
-                    .map(|a| a.2)
-                    .sum::<i64>()
-                    .min(amount),
-                currency,
-            ),
-            returned: Money::from_minor_units(
-                b.returned
-                    .iter()
-                    .filter(|r| r.0 == from && r.1 == to)
-                    .map(|r| r.2)
-                    .sum::<i64>(),
-                currency,
-            ),
+        .map(|&(from, to, amount)| {
+            Ok(Flow {
+                from,
+                to,
+                amount: Money::from_minor_units(amount, currency),
+                assumed: Money::from_minor_units(
+                    sum_of(&b.assumed, from, to)?.min(amount),
+                    currency,
+                ),
+                returned: Money::from_minor_units(sum_of(&b.returned, from, to)?, currency),
+            })
         })
-        .collect();
+        .collect::<Result<_, ReportError>>()?;
     Ok(Some(MoneyFlow {
         currency,
         nodes: b.nodes,

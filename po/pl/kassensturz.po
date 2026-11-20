@@ -25903,8 +25903,8 @@ msgstr "Wznowić ten budżet?"
 
 #: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
 msgctxt "@info %1 is the name of a category"
-msgid "The budget for %1 counts on after this period, as before. Undo takes it back."
-msgstr "Budżet dla %1 liczy dalej po tym okresie, jak dotąd. „Cofnij” to cofa."
+msgid "The budget for %1 no longer has an end date and counts on after this period, as before. Undo takes it back."
+msgstr "Budżet dla %1 nie ma już daty końcowej i liczy dalej po tym okresie, jak dotąd. „Cofnij” to cofa."
 
 #: crates/kassensturz-ui-bridge/qml/BudgetsPage.qml
 msgctxt "@info %1 is the name of a category, %2 a date"

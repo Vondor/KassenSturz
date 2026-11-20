@@ -961,8 +961,6 @@ fn open_reader(path: &Path) -> Result<crate::lockless::ReadOnly, MoveCause> {
     Ok(read)
 }
 
-/// Copies the database `reader` has open into `to`, the empty file claimed
-/// for it, and makes sure the copy is on the disk.
 /// Gives the moved book at `to` the permissions of the book at `from`, e.g.
 /// readable only by the user, or also by a group the user shares it with:
 /// moving a book never changes who may read it.
@@ -976,6 +974,8 @@ fn keep_permissions(from: &Path, to: &Path) -> std::io::Result<()> {
     fs::set_permissions(to, permissions)
 }
 
+/// Copies the database `reader` has open into `to`, the empty file claimed
+/// for it, and makes sure the copy is on the disk.
 fn copy_into(reader: &Connection, to: &Path) -> Result<(), StoreError> {
     // VACUUM INTO writes into an empty file, and reads the book in one read
     // transaction, so the copy is one state of it

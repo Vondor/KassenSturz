@@ -259,6 +259,20 @@ pub mod qobject {
         #[qinvokable]
         fn reset(self: Pin<&mut DashboardLayout>, heading: &QString) -> QVariant;
 
+        /// Moves the edges of a component by whole cells, as dragging an
+        /// edge does (#1243): `left` and `right` move its left and right
+        /// edge to the right, `top` and `bottom` its upper and lower edge
+        /// down; negative numbers the other way. The edges not moved stay.
+        #[qinvokable]
+        fn stretch(
+            self: Pin<&mut DashboardLayout>,
+            id: &QString,
+            left: i32,
+            top: i32,
+            right: i32,
+            bottom: i32,
+        ) -> QVariant;
+
         /// Sets one thing the filter bar narrows by (M6c.7, D-351):
         /// `dimension` is `period` (`value` is a fixed period, a typed range
         /// or empty for the page's own), `accounts` or `categories`
@@ -988,6 +1002,29 @@ impl qobject::DashboardLayout {
         let id = id.to_string();
         self.edited(
             |layout| Ok(layout.editor.nudge(&id, cols.into(), rows.into())?),
+            |_| map([]),
+        )
+    }
+
+    fn stretch(
+        self: Pin<&mut Self>,
+        id: &QString,
+        left: i32,
+        top: i32,
+        right: i32,
+        bottom: i32,
+    ) -> QVariant {
+        let id = id.to_string();
+        self.edited(
+            |layout| {
+                Ok(layout.editor.stretch(
+                    &id,
+                    left.into(),
+                    top.into(),
+                    right.into(),
+                    bottom.into(),
+                )?)
+            },
             |_| map([]),
         )
     }

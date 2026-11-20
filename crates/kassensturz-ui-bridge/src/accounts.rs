@@ -11,11 +11,12 @@
 //! read here too. Accounts are named to QML by their ID as text, since their
 //! place in a list changes when one is added or closed.
 
-use std::collections::HashSet;
-
 use kassensturz_core::{
     Account, AccountId, AccountKind, AccountType, CurrencyCode, Date, Money, Report, Split,
     Transaction, TransactionError, TransactionId,
+};
+use kassensturz_pipeline::{
+    StartChange, StartError, apply_start, plan_start, starting_balances_account,
 };
 use kassensturz_store::{AccountPart, Action, Book, StatedBalance, StoreError};
 
@@ -75,6 +76,11 @@ pub struct AccountCard {
     /// Overview's figure for this month only those up to today, so the
     /// screen says how much of the balance is still to come (D-587).
     pub later: Option<Shown>,
+    /// What the bank said the account holds, when the account no longer
+    /// holds it on that day: the accounts screen then offers to check and
+    /// correct it (D-117, D-903). `None` when both agree, when nothing was
+    /// stated, and in the account's details, which show it themselves.
+    pub differs: Option<Statement>,
 }
 
 /// The open accounts in one currency, with what they come to together.
@@ -187,7 +193,8 @@ pub struct BankCheck {
     pub correction: Option<Correction>,
 }
 
-/// What correcting the starting balance would do, so the user can decide.
+/// What correcting the starting balance would do, so the user can decide:
+/// the change as it would be made, before and after (D-903).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Correction {
     /// What the starting balance becomes; for a debt, what is owed.
@@ -197,8 +204,37 @@ pub struct Correction {
     /// Whether a starting balance is added, since the account has none dated
     /// on or before the day; otherwise the latest one before the day changes.
     pub adds: bool,
-    /// The day the starting balance is dated.
+    /// The day the starting balance is dated afterwards.
     pub date: String,
+    /// What the starting balance is now, with whether that is shown as
+    /// "owed" and its day; `None` if one is added.
+    pub was: Option<(Shown, bool, String)>,
+    /// Whether the starting balance gets another day: the day before the
+    /// account's first transaction (D-903).
+    pub moves: bool,
+}
+
+impl Correction {
+    /// `change` as the user reads it.
+    pub(crate) fn of(
+        change: &StartChange,
+        kind: AccountKind,
+        writer: &AmountWriter<'_, impl Locale>,
+        locale: &impl Locale,
+    ) -> Self {
+        let (would_be, owes) = writer.balance(change.becomes.0, kind);
+        Self {
+            would_be,
+            owes,
+            adds: change.adds(),
+            date: locale.short_date(change.becomes.1),
+            was: change.was.map(|(amount, day)| {
+                let (shown, owes) = writer.balance(amount, kind);
+                (shown, owes, locale.short_date(day))
+            }),
+            moves: change.moves(),
+        }
+    }
 }
 
 /// The starting balances of an account (the parts of transactions against
@@ -208,40 +244,31 @@ type PartsByOrigin = (Vec<AccountPart>, Vec<(AccountPart, String)>);
 
 /// What `account` holds, split into its starting balances and the rest.
 fn parts_by_origin(book: &Book, account: &Account) -> Result<PartsByOrigin, StoreError> {
-    let equity: HashSet<AccountId> = book
-        .all_accounts()?
+    let (starting, entries) = kassensturz_pipeline::parts_by_origin(book, account.id)?;
+    let entries = entries
         .into_iter()
-        .filter(|other| other.kind == AccountKind::Equity)
-        .map(|other| other.id)
-        .collect();
-    let (mut starting, mut entries) = (Vec::new(), Vec::new());
-    for part in book.account_parts(account.id)? {
-        let transaction = book.transaction(part.transaction)?;
-        let is_starting = transaction
-            .splits()
-            .iter()
-            .any(|split| split.account.is_some_and(|other| equity.contains(&other)));
-        let payee = transaction.payee().unwrap_or_default().to_owned();
-        if is_starting {
-            starting.push(part);
-        } else {
-            entries.push((part, payee));
-        }
-    }
+        .map(|part| {
+            let payee = book
+                .transaction(part.transaction)?
+                .payee()
+                .unwrap_or_default()
+                .to_owned();
+            Ok((part, payee))
+        })
+        .collect::<Result<_, StoreError>>()?;
     Ok((starting, entries))
 }
 
-/// The starting balance a correction on `day` changes: the latest one dated
-/// on or before it. `Err(())` if one is dated after the day, since adding or
-/// changing an earlier one would then count twice.
-fn correctable(starting: &[AccountPart], day: Date) -> Result<Option<&AccountPart>, ()> {
-    if starting.iter().any(|part| part.bank_date() > day) {
-        return Err(());
+/// A failure of working out a starting balance, as this screen reports it.
+fn start_error(error: StartError, currency: CurrencyCode) -> AccountsError {
+    match error {
+        StartError::Later => AccountsError::StartingBalanceLater,
+        StartError::Store(StoreError::AmountOverflow) => {
+            AccountsError::Amount(AmountInputError::TooLarge, currency)
+        }
+        StartError::Store(error) => AccountsError::Store(error),
+        StartError::Transaction(error) => AccountsError::Transaction(error),
     }
-    Ok(starting
-        .iter()
-        .filter(|part| part.bank_date() <= day)
-        .max_by_key(|part| (part.bank_date(), part.transaction)))
 }
 
 /// What the book holds about the accounts, for the accounts screen.
@@ -262,6 +289,10 @@ pub fn view(book: &Book, locale: &impl Locale) -> Result<AccountsView, StoreErro
         let later = after(book, account.id, today)?;
         if !later.is_zero() {
             card.later = Some(writer.text(later));
+        }
+        if !account.closed {
+            card.differs = statement_of(book, &account, &writer, locale)?
+                .filter(|statement| !statement.matches);
         }
         if account.closed {
             closed.push(card);
@@ -371,6 +402,30 @@ fn currencies_in_use(book: &Book) -> Result<Vec<CurrencyCode>, StoreError> {
     Ok(used)
 }
 
+/// What the bank said `account` holds, if anyone said, against what
+/// KassenSturz has for that day (D-117).
+fn statement_of(
+    book: &Book,
+    account: &Account,
+    writer: &AmountWriter<'_, impl Locale>,
+    locale: &impl Locale,
+) -> Result<Option<Statement>, StoreError> {
+    let Some(stated) = book.stated_balance(account.id)? else {
+        return Ok(None);
+    };
+    let held = book.balance_on(account.id, stated.on)?;
+    let (balance, owes) = writer.balance(stated.amount, account.kind);
+    let (held_shown, held_owes) = writer.balance(held, account.kind);
+    Ok(Some(Statement {
+        balance,
+        owes,
+        date: locale.short_date(stated.on),
+        held: held_shown,
+        held_owes,
+        matches: held == stated.amount,
+    }))
+}
+
 /// One account in detail.
 pub fn details(
     book: &Book,
@@ -380,22 +435,7 @@ pub fn details(
     let account = find(book, id)?;
     let balance = book.balance(account.id)?;
     let writer = AmountWriter::new(book, account.currency, locale)?;
-    let stated = match book.stated_balance(account.id)? {
-        Some(stated) => {
-            let held = book.balance_on(account.id, stated.on)?;
-            let (balance, owes) = writer.balance(stated.amount, account.kind);
-            let (held_shown, held_owes) = writer.balance(held, account.kind);
-            Some(Statement {
-                balance,
-                owes,
-                date: locale.short_date(stated.on),
-                held: held_shown,
-                held_owes,
-                matches: held == stated.amount,
-            })
-        }
-        None => None,
-    };
+    let stated = statement_of(book, &account, &writer, locale)?;
     Ok(AccountDetails {
         card: card(&account, balance, &writer),
         currency: account.currency.to_string(),
@@ -553,27 +593,12 @@ pub fn check_against_bank(
         let explanations = explain(
             &account, day, difference, &starting, &entries, &writer, locale,
         )?;
-        let correction = match correctable(&starting, day) {
-            Err(()) => None,
-            Ok(target) => {
-                let current = Money::checked_sum(
-                    account.currency,
-                    starting
-                        .iter()
-                        .filter(|part| part.bank_date() <= day)
-                        .map(|part| part.amount),
-                )
-                .map_err(|_| StoreError::AmountOverflow)?;
-                let would_be = current
-                    .checked_add(difference)
-                    .map_err(|_| StoreError::AmountOverflow)?;
-                let (shown, owes) = writer.balance(would_be, account.kind);
-                Some(Correction {
-                    would_be: shown,
-                    owes,
-                    adds: target.is_none(),
-                    date: locale.short_date(target.map_or(day, AccountPart::bank_date)),
-                })
+        // Not offered when a starting balance is dated after the day.
+        let correction = match plan_start(book, account.id, bank, day) {
+            Err(StartError::Later) => None,
+            Err(error) => return Err(start_error(error, account.currency)),
+            Ok(change) => {
+                change.map(|change| Correction::of(&change, account.kind, &writer, locale))
             }
         };
         (explanations, correction)
@@ -596,11 +621,13 @@ pub fn check_against_bank(
 /// Corrects the starting balance so that the account holds on `date` what
 /// the bank says, typed as `bank` (D-111): the user confirmed the offer of
 /// [`check_against_bank`]. The latest starting balance dated on or before
-/// the day changes by the difference; an account without one gets one dated
-/// that day. Every other entry stays as it is, and the account keeps what
-/// the bank said and the day as its stated balance (D-117); all of it is one
-/// change. A starting balance dated after the day is refused, since it would
-/// count twice.
+/// the day changes by the difference; an account without one gets one. A
+/// single starting balance with transactions dated on or before it moves to
+/// the day before the first of them, so the days in between are right too
+/// (D-903, `kassensturz_pipeline::plan_start`). Every other entry stays as
+/// it is, and the account keeps what the bank said and the day as its stated
+/// balance (D-117); all of it is one change. A starting balance dated after
+/// the day is refused, since it would count twice.
 pub fn correct_starting_balance(
     book: &mut Book,
     id: &str,
@@ -620,91 +647,14 @@ pub fn correct_starting_balance(
         _ => bank,
     };
     let held = book.balance_on(account.id, day)?;
-    let difference = bank
-        .checked_sub(held)
-        .map_err(|_| StoreError::AmountOverflow)?;
-    if difference.is_zero() {
+    if held == bank {
         return Ok(());
     }
-    let (starting, _) = parts_by_origin(book, &account)?;
-    let target = correctable(&starting, day).map_err(|()| AccountsError::StartingBalanceLater)?;
-    let too_large = || AccountsError::Amount(AmountInputError::TooLarge, account.currency);
-    let stated = StatedBalance {
-        amount: bank,
-        on: day,
-    };
-    match target {
-        Some(part) => {
-            let transaction = book.transaction(part.transaction)?;
-            let equity = starting_balances_account_of(book, &transaction)?;
-            let mut splits = transaction.splits().to_vec();
-            for split in &mut splits {
-                if split.id == part.split {
-                    split.amount = split
-                        .amount
-                        .checked_add(difference)
-                        .map_err(|_| too_large())?;
-                } else if split.account == Some(equity) {
-                    split.amount = split
-                        .amount
-                        .checked_sub(difference)
-                        .map_err(|_| too_large())?;
-                }
-            }
-            let changed = Transaction::new(
-                transaction.id(),
-                transaction.booking_date(),
-                transaction.payee().map(ToOwned::to_owned),
-                splits,
-            )
-            .map_err(AccountsError::Transaction)?;
-            book.as_one_action(Action::CorrectStartingBalance, |book| {
-                book.update_transaction(&changed)?;
-                book.set_stated_balance(account.id, Some(&stated))
-            })?;
-        }
-        None => {
-            let balancing = difference.checked_neg().map_err(|_| too_large())?;
-            book.as_one_action(
-                Action::CorrectStartingBalance,
-                |book| -> Result<(), AccountsError> {
-                    let equity = starting_balances_account(book, account.currency)?;
-                    let transaction = Transaction::new(
-                        TransactionId::generate(),
-                        day,
-                        None,
-                        vec![
-                            Split::new(account.id, difference),
-                            Split::new(equity, balancing),
-                        ],
-                    )
-                    .map_err(AccountsError::Transaction)?;
-                    book.add_transaction(&transaction)?;
-                    book.set_stated_balance(account.id, Some(&stated))?;
-                    Ok(())
-                },
-            )?;
-        }
+    let error = |error| start_error(error, account.currency);
+    if let Some(change) = plan_start(book, account.id, bank, day).map_err(error)? {
+        apply_start(book, &change).map_err(error)?;
     }
     Ok(())
-}
-
-/// The internal account a starting-balance `transaction` is booked against.
-fn starting_balances_account_of(
-    book: &Book,
-    transaction: &Transaction,
-) -> Result<AccountId, AccountsError> {
-    let equity: HashSet<AccountId> = book
-        .all_accounts()?
-        .into_iter()
-        .filter(|other| other.kind == AccountKind::Equity)
-        .map(|other| other.id)
-        .collect();
-    transaction
-        .splits()
-        .iter()
-        .find_map(|split| split.account.filter(|account| equity.contains(account)))
-        .ok_or(AccountsError::NoSuchEntry)
 }
 
 /// Where a `difference` (the bank's balance minus KassenSturz's) can come
@@ -833,45 +783,6 @@ fn absolute(amount: Money) -> Result<Money, StoreError> {
     }
 }
 
-/// The internal account that starting balances in `currency` are booked
-/// against (`docs/GLOSSARY.md`), made when there is none yet.
-fn starting_balances_account(
-    book: &mut Book,
-    currency: CurrencyCode,
-) -> Result<AccountId, StoreError> {
-    let found = book
-        .all_accounts()?
-        .into_iter()
-        .find(|account| account.kind == AccountKind::Equity && account.currency == currency);
-    if let Some(account) = found {
-        return Ok(account.id);
-    }
-    // Names are never shared, so a second currency's account gets its code.
-    let others = book
-        .all_accounts()?
-        .iter()
-        .any(|account| account.kind == AccountKind::Equity);
-    let id = AccountId::generate();
-    book.add_account(&Account {
-        id,
-        // Never shown (`AccountKind::Equity`).
-        name: if others {
-            format!("Starting balances ({currency})")
-        } else {
-            "Starting balances".into()
-        },
-        kind: AccountKind::Equity,
-        currency,
-        account_type: None,
-        closed: false,
-        parent: None,
-        number: None,
-        notes: None,
-        institution: None,
-    })?;
-    Ok(id)
-}
-
 /// The account (not category) the UI means by `id`.
 fn find(book: &Book, id: &str) -> Result<Account, AccountsError> {
     book.all_accounts()?
@@ -921,6 +832,7 @@ fn card(account: &Account, balance: Money, writer: &AmountWriter<'_, impl Locale
         balance: shown,
         owes,
         later: None,
+        differs: None,
     }
 }
 
@@ -1190,9 +1102,10 @@ mod tests {
             (again.balance.exact.as_str(), again.date.as_str()),
             ("1000,00 €", "2026-10-01")
         );
+        // The starting balance now stands before the older entry (D-903).
         assert_eq!(
             starting_balances(&book, &id),
-            [("2026-10-01".to_owned(), 102_500)]
+            [("2026-09-19".to_owned(), 102_500)]
         );
         // Undo takes the correction back, and the page notices again.
         book.undo().expect("undone");
@@ -1793,6 +1706,115 @@ mod tests {
         );
     }
 
+    /// B-411 (#1237, D-903): a book that is already wrong. The balance was
+    /// entered for a day, and the transactions from before that day came
+    /// in on top of it. The accounts screen names the account, the check
+    /// shows the change before and after, and one confirmation puts the
+    /// starting balance before the first transaction; Undo takes it back.
+    #[test]
+    fn a_book_made_wrong_by_older_entries_is_corrected_in_one_step() {
+        let mut book = book();
+        let id = checking(&mut book, "Checking account", "1.000,00");
+        // Older entries, as the first bank fetch used to add them.
+        pay(&mut book, &id, "2026-09-10", -45_000, "Example Landlord");
+        pay(&mut book, &id, "2026-09-28", 20_000, "Example Employer");
+        let account = find(&book, &id).expect("account").id;
+        assert_eq!(
+            book.balance(account).expect("balance").minor_units(),
+            75_000
+        );
+
+        // The accounts screen says which account differs, with the figures
+        // "Check against my bank" reads back.
+        let shown = view(&book, &TestLocale).expect("accounts");
+        let differs = shown.sections[0].accounts[0]
+            .differs
+            .as_ref()
+            .expect("the account differs");
+        assert_eq!(
+            (
+                differs.balance.exact.as_str(),
+                differs.date.as_str(),
+                differs.held.exact.as_str()
+            ),
+            ("1000,00 €", "2026-10-01", "750,00 €")
+        );
+
+        let check = check_against_bank(
+            &book,
+            &id,
+            &differs.balance.exact,
+            &differs.date,
+            &TestLocale,
+        )
+        .expect("checked");
+        let offer = check.correction.as_ref().expect("a correction offered");
+        let was = offer.was.as_ref().expect("the starting balance now");
+        assert_eq!(
+            (was.0.exact.as_str(), was.1, was.2.as_str()),
+            ("1000,00 €", false, "2026-10-01")
+        );
+        assert_eq!(
+            (
+                offer.would_be.exact.as_str(),
+                offer.date.as_str(),
+                offer.moves,
+                offer.adds
+            ),
+            ("1250,00 €", "2026-09-09", true, false)
+        );
+        // Nothing changed by looking.
+        assert_eq!(
+            book.balance(account).expect("balance").minor_units(),
+            75_000
+        );
+
+        correct_starting_balance(&mut book, &id, "1.000,00", "2026-10-01", &TestLocale)
+            .expect("corrected");
+        assert_eq!(
+            book.balance(account).expect("balance").minor_units(),
+            100_000
+        );
+        assert_eq!(
+            starting_balances(&book, &id),
+            [("2026-09-09".to_owned(), 125_000)]
+        );
+        // The days before are right too, and the register starts with it.
+        let day = |day: &str| day.parse().expect("day");
+        assert_eq!(
+            book.balance_on(account, day("2026-09-10"))
+                .expect("balance")
+                .minor_units(),
+            80_000
+        );
+        let rows = entries(&book, account).expect("entries");
+        assert!(rows[0].starting_balance());
+        assert_eq!(rows[0].date, day("2026-09-09"));
+        let shown = view(&book, &TestLocale).expect("accounts");
+        assert_eq!(shown.sections[0].accounts[0].differs, None);
+        assert!(
+            details(&book, &id, &TestLocale)
+                .expect("details")
+                .stated
+                .expect("stated")
+                .matches
+        );
+
+        assert_eq!(
+            book.history().expect("history")[0].action,
+            Action::CorrectStartingBalance
+        );
+        book.undo().expect("undone");
+        assert_eq!(
+            book.balance(account).expect("balance").minor_units(),
+            75_000
+        );
+        assert_eq!(
+            starting_balances(&book, &id),
+            [("2026-10-01".to_owned(), 100_000)]
+        );
+    }
+
     #[test]
     fn a_correction_adds_a_starting_balance_to_an_account_without_one() {
         let mut book = book();
@@ -1811,7 +1833,8 @@ mod tests {
                 offer.adds,
                 offer.date.as_str()
             ),
-            ("100,00 €", true, "2026-10-05")
+            // The day before the account's first transaction (D-903).
+            ("100,00 €", true, "2026-10-04")
         );
         assert!(starting_balances(&book, &id).is_empty());
 
@@ -1819,7 +1842,7 @@ mod tests {
             .expect("corrected");
         assert_eq!(
             starting_balances(&book, &id),
-            [("2026-10-05".to_owned(), 10_000)]
+            [("2026-10-04".to_owned(), 10_000)]
         );
         assert!(
             check_against_bank(&book, &id, "75,00", "2026-10-05", &TestLocale)
@@ -1838,7 +1861,7 @@ mod tests {
         .rows;
         assert!(
             rows.iter()
-                .any(|row| row.starting_balance && row.date == "2026-10-05")
+                .any(|row| row.starting_balance && row.date == "2026-10-04")
         );
         assert_eq!(
             book.history().expect("history")[0].action,

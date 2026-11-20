@@ -8,7 +8,7 @@
 
 1. **Zeitraum:** Zur Auswahl stehen **Dieser Monat**, **Letzter Monat**, **Die letzten 12 Monate**, **Dieses Jahr**, **Letztes Jahr** und ein eigener Zeitraum von bis (siehe unten).
 2. **Kategorien wählen:** Sie sagen, welche Kategorien zählen, einzeln oder als Gruppe (Seite 6).
-3. **Aussehen und Vorschau:** die Art, der Titel, die Legende und der Name.
+3. **Aussehen und Vorschau:** die Art, der Titel, die Legende (die Liste, die sagt, welche Farbe wofür steht) und der Name.
 
 Unter **Erweitert: Formeln und Feineinstellungen** und **Erweitert: aus Listen wählen** liegt, was Sie meist nicht brauchen. Leere Felder zeigen blasse Beispiele und nie sofort Fehler. **Alle Einstellungen auf einmal zeigen** öffnet alles auf einer Seite.
 

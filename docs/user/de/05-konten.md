@@ -29,7 +29,9 @@ Rechts oben, unter **Über dieses Konto**, können Sie das Konto:
 
 ## Mit der Bank abgleichen
 
-Tippen Sie ein, was Ihre Bank an einem Tag als Kontostand nennt. KassenSturz sagt, ob es stimmt. Wenn nicht, zeigt es den Unterschied auf den Cent genau und nennt mögliche Gründe: eine doppelte oder eine fehlende Buchung, einen falschen Anfangsstand. **Es ändert nichts von allein.** Stimmt Ihr Anfangsstand nicht, bietet es an, ihn zu berichtigen; das tun nur Sie.
+Tippen Sie ein, was Ihre Bank an einem Tag als Kontostand nennt. KassenSturz sagt, ob es stimmt. Wenn nicht, zeigt es den Unterschied auf den Cent genau und nennt mögliche Gründe: eine doppelte oder eine fehlende Buchung, einen falschen Anfangsstand. **Es ändert nichts von allein.** Stimmt Ihr Anfangsstand nicht, bietet es an, ihn zu berichtigen; das tun nur Sie. Vor dem Klick zeigt die Seite, was sich ändern würde: der Anfangsbestand jetzt, der Anfangsbestand danach und der Kontostand an dem Tag, den Sie abgleichen. **Rückgängig** nimmt die Korrektur zurück.
+
+Hat ein Konto nicht mehr, was Ihre Bank für einen Tag gesagt hat, nennt die Seite **Konten** es oben und bietet **Prüfen und korrigieren…** an. Das öffnet diesen Abgleich mit den Zahlen schon eingetragen.
 
 ## Ein Konto schließen
 

@@ -61,6 +61,13 @@ jobs:
       # the nightly run and by hand. Measured on 20 November: 41 merges ran
       # about 220 runner minutes each and waited 10 to 14 minutes per job.
       full: ${{ github.event_name != 'push' }}
+      # Whether main uses the Flatpak the merged pull request built (D-427).
+      reused: ${{ steps.reuse.outputs.reused }}
+    # Reading the merged pull request's run and its artifacts (D-427).
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -116,6 +123,89 @@ jobs:
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "Slow jobs needed: $code"
+
+      # The next steps were four jobs of a few seconds each, and each waited
+      # for a runner of its own, 4 to 8 minutes in the middle case on a busy
+      # day (D-957). Here they share this job's runner.
+
+      # The documentation names the current book layout in one place only, the
+      # status line of docs/BOOK_FORMAT.md; this fails when that line, or any
+      # other doc that claims a current layout, differs from the code's VERSION,
+      # and when the README or a user guide names a layout at all (outside
+      # review, 2026-11-14). Runs for documentation-only changes too.
+      - name: Docs name the code's book layout
+        run: python3 tools/check-doc-facts.py
+      # Hints for whoever reviews a translation (D-778): entries that look like a
+      # joke, vandalism, filler or text never really translated (left in English,
+      # wrong writing system, a key word with the wrong meaning). They never
+      # block: the hints show as warnings on the pull request's changed lines
+      # and as a table in the job summary, and a failure of these two steps
+      # doesn't fail the job. Only entries this pull request changed are read.
+      - name: Translation hints, the script still finds what it should (never blocks, D-778)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: python3 tools/check-translation-sense.py --self-test
+      - name: Translation hints, translations that weren't taken seriously (never blocks, D-778)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: python3 tools/check-translation-sense.py --base "$BASE"
+      # The table of invisible code points that the AI tools hide from a model is
+      # generated (tools/update-invisible-table.py, D-787, B-300). This fails when
+      # the file is out of date for the runner's Unicode version, or, for another
+      # version, when the file lacks a format, private-use or default-ignorable
+      # code point that version knows.
+      - name: Invisible text table is current
+        if: steps.diff.outputs.code == 'true'
+        run: python3 tools/update-invisible-table.py --check
+      # After a merge, the Flatpak that the pull request already built and tested
+      # is used again when it was made from exactly the files now on main and has
+      # main's build number; otherwise the Flatpak job builds it as before (D-427).
+      # Every other run says `reused=false`.
+      - id: reuse
+        name: Flatpak from the pull request (D-427)
+        if: steps.diff.outputs.code == 'true'
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = push ]; then
+            tools/ci-flatpak-reuse.sh reused
+          else
+            echo "reused=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+      # Same name as the Flatpak job's bundle, so whoever installs the build
+      # of a commit on main finds it in the same place.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.reuse.outputs.reused == 'true'
+        with:
+          name: KassenSturz-x86_64.flatpak
+          path: reused/KassenSturz.flatpak
+          if-no-files-found: error
+      # What Settings → About shows for the bundle just published, one line
+      # such as `0.261101.6 (addd5d3), built from a pull request's last
+      # commit (on main: the merge of that commit)`: the build number and the
+      # commit the bundle was built from, which for a reused bundle is the
+      # pull request's last commit, not main's merge commit (D-427, #758). In
+      # the run's summary for people, with main's commit, and as the small
+      # artifact `flatpak-about` for scripts.
+      - name: What About shows
+        if: steps.reuse.outputs.reused == 'true'
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          about=$(cat reused/about.txt)
+          echo "About shows: $about"
+          echo "**About shows:** \`$about\` (reused from the merged pull request; main's commit is \`$(printf %s "$SHA" | cut -c1-7)\`)" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.reuse.outputs.reused == 'true'
+        with:
+          name: flatpak-about
+          path: reused/about.txt
+          if-no-files-found: error
+
 
   reuse:
     name: REUSE (SPDX headers, D-024)
@@ -174,53 +264,6 @@ jobs:
           rustup default 1.98.1
       - run: cargo fmt --all --check
 
-  # Hints for whoever reviews a translation (D-778): entries that look like a
-  # joke, vandalism, filler or text never really translated (left in English,
-  # wrong writing system, a key word with the wrong meaning). It never fails:
-  # the hints show as warnings on the pull request's changed lines and as a
-  # table in the job summary. Only entries this pull request changed are read.
-  translation-sense:
-    name: Translation hints (never blocks, D-778)
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - name: The hint script still finds what it should
-        run: python3 tools/check-translation-sense.py --self-test
-      - name: Look for translations that weren't taken seriously
-        env:
-          BASE: ${{ github.event.pull_request.base.sha }}
-        run: python3 tools/check-translation-sense.py --base "$BASE"
-
-  # The documentation names the current book layout in one place only, the
-  # status line of docs/BOOK_FORMAT.md; this fails when that line, or any
-  # other doc that claims a current layout, differs from the code's VERSION,
-  # and when the README or a user guide names a layout at all (outside
-  # review, 2026-11-14). Seconds, Python only; runs on every pull request,
-  # documentation-only ones included.
-  doc-facts:
-    name: Docs name the code's book layout
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: python3 tools/check-doc-facts.py
-
-  # The table of invisible code points that the AI tools hide from a model is
-  # generated (tools/update-invisible-table.py, D-787, B-300). This fails when
-  # the file is out of date for the runner's Unicode version, or, for another
-  # version, when the file lacks a format, private-use or default-ignorable
-  # code point that version knows. Seconds, Python only.
-  invisible-table:
-    name: Invisible text table is current
-    runs-on: ubuntu-latest
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: python3 tools/update-invisible-table.py --check
-
   # Early warning for the checks that fail most often (CI history of 400 pull
   # request runs, 2026-10-31 to 11-09): the build without AI failed in 14 runs
   # and the KDE job in 10, but both answer only after 8 to 20 minutes, because
@@ -257,8 +300,8 @@ jobs:
   rust:
     name: Rust format, lints and tests (KDE SDK, D-063)
     runs-on: ubuntu-latest
-    needs: [changes, reuse, dco, licenses, fmt, flatpak-reuse]
-    if: needs.changes.outputs.code == 'true' && needs.flatpak-reuse.outputs.reused != 'true'
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.reused != 'true'
     container:
       # The KDE Flatpak runtime and SDK 6.11, pinned (D-025).
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
@@ -881,74 +924,13 @@ jobs:
           arguments: --all-features --config fuzz/deny.toml
           command-arguments: licenses sources
 
-  # After a merge, the Flatpak that the pull request already built and tested
-  # is used again when it was made from exactly the files now on main and has
-  # main's build number; otherwise the next job builds it as before (D-427).
-  # A pull request's own run skips the steps and says `reused=false`.
-  flatpak-reuse:
-    name: Flatpak from the pull request (D-427)
-    runs-on: ubuntu-latest
-    needs: [changes]
-    if: needs.changes.outputs.code == 'true'
-    permissions:
-      contents: read
-      actions: read
-      pull-requests: read
-    outputs:
-      reused: ${{ steps.reuse.outputs.reused }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: github.event_name == 'push'
-        with:
-          fetch-depth: 0
-      - id: reuse
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = push ]; then
-            tools/ci-flatpak-reuse.sh reused
-          else
-            echo "reused=false" >> "$GITHUB_OUTPUT"
-          fi
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-      # Same name as the Flatpak job's bundle, so whoever installs the build
-      # of a commit on main finds it in the same place.
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: steps.reuse.outputs.reused == 'true'
-        with:
-          name: KassenSturz-x86_64.flatpak
-          path: reused/KassenSturz.flatpak
-          if-no-files-found: error
-      # What Settings → About shows for the bundle just published, one line
-      # such as `0.261101.6 (addd5d3), built from a pull request's last
-      # commit (on main: the merge of that commit)`: the build number and the
-      # commit the bundle was built from, which for a reused bundle is the
-      # pull request's last commit, not main's merge commit (D-427, #758). In
-      # the run's summary for people, with main's commit, and as the small
-      # artifact `flatpak-about` for scripts.
-      - name: What About shows
-        if: steps.reuse.outputs.reused == 'true'
-        env:
-          SHA: ${{ github.sha }}
-        run: |
-          about=$(cat reused/about.txt)
-          echo "About shows: $about"
-          echo "**About shows:** \`$about\` (reused from the merged pull request; main's commit is \`$(printf %s "$SHA" | cut -c1-7)\`)" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: steps.reuse.outputs.reused == 'true'
-        with:
-          name: flatpak-about
-          path: reused/about.txt
-          if-no-files-found: error
-
   # Builds the Flatpak offline from the manifest and uploads it, so every build
   # can be installed (D-068).
   flatpak:
     name: Flatpak (D-068)
     runs-on: ubuntu-latest
-    needs: [changes, reuse, dco, licenses, fmt, flatpak-reuse]
-    if: needs.changes.outputs.code == 'true' && needs.flatpak-reuse.outputs.reused != 'true'
+    needs: [changes, reuse, dco, licenses, fmt]
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.reused != 'true'
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
       options: --privileged

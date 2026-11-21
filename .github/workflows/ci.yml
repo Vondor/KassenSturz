@@ -1066,7 +1066,7 @@ jobs:
             "$files/share/applications/io.github.vondor.KassenSturz.desktop"
       # The user's AI tool starts the MCP server with
       # `flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz`
-      # (D-194, docs/user/NOTES.md).
+      # (D-194, docs/user/CONNECT_AN_AI.md).
       - name: The MCP server is in the Flatpak (D-194)
         run: |
           set -eu

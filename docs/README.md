@@ -6,7 +6,7 @@ Start here instead of reading the big files in full (D-960). Each file below has
 
 - **The code is the truth.** Where a document and the code disagree, the code shows what the app does; the document is then the bug, so fix it in your pull request.
 - **Decisions: search, don't read.** [`DECISIONS.md`](DECISIONS.md) is the ledger of every decision (D-nnn) and open question (Q-nnn), about 1 MB. Look up the numbers your task names, for example `grep -n '^| D-753 ' docs/DECISIONS.md`. A later row can revise an earlier one, so also search for the number in later rows (`grep -n 'D-071' docs/DECISIONS.md`) before you rely on it.
-- **Roadmap: read the newest Sprint.** [`ROADMAP.md`](ROADMAP.md) holds the milestone table at the top and one block per Sprint below; the last block is the current work. The older blocks are history.
+- **Roadmap: read the newest Sprint.** [`ROADMAP.md`](ROADMAP.md) holds the milestone table at the top and one block per Sprint below; the last block is the current work. Finished milestones and Sprints are in `history/ROADMAP_DONE.md`.
 - **Design records** tell why a feature was built the way it is. Their first lines say whether it was built; the body below can be older than the code.
 
 ## The rules and the plan
@@ -86,8 +86,6 @@ Start here instead of reading the big files in full (D-960). Each file below has
 | [`user/`](user/) | The handbook, mirrored to the GitHub Wiki by `tools/wiki-sync.py`. |
 | `branding/` | The publisher's logo; not covered by the project's licenses. |
 
-## History (kept for reference, not current)
+## History
 
-- `TESTING_GUIDE_M6D.md`, `TESTING_GUIDE_M6E.md`, `TESTING_GUIDE_M7A.md`: click paths from the Alpha Sprints.
-- `REPORT_DESIGNER_M6B_DELTA.md`: a study of a grid editor's behaviour; its outcome is D-311 and D-312.
-- `proposals/`: the background of two early choices, the date library (D-061) and the number format (D-051).
+- [`history/ROADMAP_DONE.md`](history/ROADMAP_DONE.md): the step tables of the done milestones M1 to M7a and of User Sprints 1 to 7 (D-962). Read it only to find out how an old step was done.

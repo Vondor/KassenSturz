@@ -307,8 +307,39 @@ static QString networkTypeByStatfs(const QString &path)
 }
 #endif
 
+#ifdef Q_OS_WIN
+// Windows: Qt names the file system of the computer a network drive is on
+// (e.g. "NTFS"), so ask Windows itself whether the drive is remote: a UNC
+// path or a mapped drive letter (B-439, #1350). "smbfs" is one of the names
+// the Rust side counts as a network drive.
+static bool isRemoteWindowsPath(const QString &path)
+{
+    const QString native = QDir::toNativeSeparators(path);
+    // The long form of a local path starts with a question mark, a network
+    // one with UNC after it.
+    if (native.startsWith(QLatin1String("\\\\?\\UNC\\"), Qt::CaseInsensitive)) {
+        return true;
+    }
+    if (native.startsWith(QLatin1String("\\\\")) && !native.startsWith(QLatin1String("\\\\?\\"))
+        && !native.startsWith(QLatin1String("\\\\.\\"))) {
+        return true;
+    }
+    const QStorageInfo storage(path);
+    if (!storage.isValid()) {
+        return false;
+    }
+    const QString root = QDir::toNativeSeparators(storage.rootPath());
+    return GetDriveTypeW(reinterpret_cast<LPCWSTR>(root.utf16())) == DRIVE_REMOTE;
+}
+#endif
+
 QString fileSystemType(const QString &path)
 {
+#ifdef Q_OS_WIN
+    if (isRemoteWindowsPath(path)) {
+        return QStringLiteral("smbfs");
+    }
+#endif
 #ifdef Q_OS_LINUX
     const QString network = networkTypeByStatfs(path);
     if (!network.isEmpty()) {

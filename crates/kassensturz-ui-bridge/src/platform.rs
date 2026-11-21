@@ -233,9 +233,6 @@ pub fn sync_roots() -> Vec<PathBuf> {
         .collect()
 }
 
-/// Whether `path` is inside one of the synced folders `roots`.
-pub use kassensturz_core::store_folder::in_sync_folder;
-
 /// The folder of the bank connection (AqBanking's settings: bank code and
 /// accounts, never the PIN), `aqbanking` below it. In a snap it stays in the
 /// snap's data folder, not in the Documents folder that is often synced
@@ -256,9 +253,6 @@ pub fn bank_parent_folder() -> Option<PathBuf> {
     }
     app_folder()
 }
-
-/// The name of the bank connection's folder below its parent.
-pub use kassensturz_core::store_folder::BANK_FOLDER;
 
 /// Whether KassenSturz's own folder is outside the folder the system deletes
 /// with the app: in the Microsoft Store's package (D-856, B-382) and in a

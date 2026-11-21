@@ -26432,3 +26432,9 @@ msgstr "Połączenia z bankiem nie są dostępne w tej wersji KassenSturz dla sy
 msgctxt "@info"
 msgid "The folder on this computer could not be made ready, for example because a backup in OneDrive could not be read. Nothing was changed. Check your internet connection and the free space, then try again."
 msgstr "Nie udało się przygotować folderu na tym komputerze, na przykład dlatego, że nie można było odczytać kopii zapasowej w OneDrive. Nic nie zostało zmienione. Sprawdź połączenie z internetem i wolne miejsce, a potem spróbuj ponownie."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "Your bank connection's settings were copied to the private folder, but the old folder could not be removed, probably because OneDrive was using it. Your bank connection still works. KassenSturz finishes the move at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."
+msgstr "Ustawienia połączenia z bankiem zostały skopiowane do prywatnego folderu, ale nie udało się usunąć starego folderu, prawdopodobnie dlatego, że używał go OneDrive. Połączenie z bankiem nadal działa. KassenSturz dokończy przenoszenie przy następnym uruchomieniu; jeśli ten komunikat nie znika, zamknij na chwilę OneDrive i uruchom KassenSturz ponownie."

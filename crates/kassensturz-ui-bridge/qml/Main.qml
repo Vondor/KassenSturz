@@ -88,6 +88,7 @@ Kirigami.ApplicationWindow {
     // overview shows its first-look message. Kept in memory only, so it needs
     // no stored setting.
     property bool freshBook: false
+    property bool bankMoveTold: false
     property bool snapFolderTold: false
 
     // The steps of the guided setup (#1031, docs/GUIDED_SETUP.md), in their
@@ -144,6 +145,11 @@ Kirigami.ApplicationWindow {
                 // An earlier version's bank folder in Documents (D-967).
                 bankFolder.asked = true;
                 Qt.callLater(bankFolder.ask);
+            }
+            if ((bookMover.place?.bankMoveFailed ?? false) && !root.bankMoveTold) {
+                // B-450: say it, since a Windows app shows no console.
+                root.bankMoveTold = true;
+                showPassiveNotification(i18nContext.i18nc("@info", "Your bank connection's settings were copied to the private folder, but the old folder could not be removed, probably because OneDrive was using it. Your bank connection still works. KassenSturz finishes the move at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."), "long");
             }
             root.tellSettledBills(changeHistory.settleBills());
         }

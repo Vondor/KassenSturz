@@ -28548,3 +28548,9 @@ msgstr "Bankverbindungen sind in dieser Version von KassenSturz für Windows nic
 msgctxt "@info"
 msgid "The folder on this computer could not be made ready, for example because a backup in OneDrive could not be read. Nothing was changed. Check your internet connection and the free space, then try again."
 msgstr "Der Ordner auf diesem Computer konnte nicht vorbereitet werden, zum Beispiel weil eine Sicherung in OneDrive nicht gelesen werden konnte. Es wurde nichts geändert. Prüfen Sie Ihre Internetverbindung und den freien Speicherplatz und versuchen Sie es dann noch einmal."
+
+#: crates/kassensturz-ui-bridge/qml/Main.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "Your bank connection's settings were copied to the private folder, but the old folder could not be removed, probably because OneDrive was using it. Your bank connection still works. KassenSturz finishes the move at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."
+msgstr "Die Einstellungen Ihrer Bankverbindung wurden in den privaten Ordner kopiert, aber der alte Ordner konnte nicht entfernt werden, wahrscheinlich weil OneDrive ihn benutzt hat. Ihre Bankverbindung funktioniert weiter. KassenSturz schließt das Verschieben beim nächsten Start ab; wenn diese Meldung bleibt, beenden Sie OneDrive kurz und starten Sie KassenSturz neu."

@@ -14,7 +14,7 @@
 ## Setting up a bank login
 
 1. **Settings › Bank › Connect a bank…**
-2. Type the **IBAN** of one of your accounts at this bank. KassenSturz finds the bank and asks only for what it needs: usually your **Login name**, where the bank has one a **Customer ID**, and your **PIN**.
+2. Type the **IBAN** of one of your accounts at this bank. The IBAN is the long account number on your bank card and your statements; it starts with two letters, in Germany with DE. KassenSturz finds the bank and asks only for what it needs: usually your **Login name**, where the bank has one a **Customer ID**, and your **PIN**.
 3. Under **Remember the PIN**, choose how long KassenSturz keeps it (below).
 4. If the bank asks for a **TAN** or for your **approval in its app**, KassenSturz shows the bank's question with the bank's buttons in a window of its own. A TAN goes to the bank once and is never saved. If you close the window, you cancel, and nothing half-finished is left behind.
 5. At the end, KassenSturz lists the accounts your bank shows and suggests which account in your book each one fills. You confirm or change each choice.

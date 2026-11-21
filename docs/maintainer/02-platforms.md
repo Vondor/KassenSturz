@@ -1,6 +1,6 @@
 # Why Windows and macOS take extra work
 
-KassenSturz is built for Linux first and then for the others, in this order: KDE Plasma, GNOME, Windows, macOS (AGENTS.md section 5). On Linux a release is one tag and one click. Windows and macOS each add steps that no workflow can take over today. None of this is a bug in KassenSturz; these are the rules of the two platforms, and a maintainer should know them before promising anything to testers.
+KassenSturz is built for Linux first and then for the others, in this order: KDE Plasma, GNOME, Windows, macOS (AGENTS.md section 2, principle 5). On Linux a release is one tag and one click. Windows and macOS each add steps that no workflow can take over today. None of this is a bug in KassenSturz; these are the rules of the two platforms, and a maintainer should know them before promising anything to testers.
 
 The project uses only free signing options (D-048, D-853). Most of what follows comes from that.
 
@@ -22,7 +22,7 @@ Linux is also where the team actually tests: the VM rounds run on Kubuntu, and t
 - **Only one submission at a time.** A submission still in certification blocks the next one. If two releases come close together, the second waits.
 - **The installer and the zip are unsigned.** Signing an installer needs a code signing certificate. The free route, SignPath Foundation, declined the project in Nov 2026 for lack of public visibility; paid certificates are not used (D-048, D-853). So Windows SmartScreen warns on the first start of the installer and the zip. The Store is the signed route; send testers there.
 - **The Store app keeps its book elsewhere.** Windows deletes a Store app's private folders when it is uninstalled, so the Store app keeps the book in `Documents\KassenSturz` (D-856), and its settings backup goes there too (D-945). Testers asking "where is my book?" need this answer.
-- **No bank connections in the Windows app yet.** AqBanking is not part of the Windows build (D-054); statements are imported from files.
+- **No bank connections in the Windows app yet.** AqBanking and Gwenhywfar are not in KDE Craft's cache for the Windows build, so it has no bank connections (D-554); statements are imported from files.
 
 ## macOS
 

@@ -14,7 +14,7 @@ This is the short path from a green commit to a published build. Every step, and
 
 You don't pick the kind with the tag. The tag is the same for both; the kind follows from the snap channel you approve in step 4.
 
-Every tag's release starts as `(beta)`, marked Pre-release. Approving `snap-stable` turns it into `(stable)`, marked Latest; if the edit fails, the run says so and [`docs/RELEASING.md`](../RELEASING.md) has the steps by hand.
+Releases made before 21 Nov 2026 are titled `(pre-release)`; they came before these kinds and are left as they are. Every tag's release starts as `(beta)`, marked Pre-release. Approving `snap-stable` turns it into `(stable)`, marked Latest; if the edit fails, the run says so and [`docs/RELEASING.md`](../RELEASING.md) has the steps by hand.
 
 ## Step by step
 

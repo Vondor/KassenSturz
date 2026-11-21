@@ -22,7 +22,8 @@ concurrency:
 # Beside the quick checks, an early-warning job repeats the lints and tests that
 # fail most often in a few minutes on the plain runner (see early-no-ai). A pull
 # request that changes no code (only documentation, other workflows or the snap
-# and Windows packaging, see the changes job, D-791) skips the formatting and
+# and Windows packaging, see the changes job, D-791), and a merge into main
+# that changes none (D-957), skips the formatting and
 # license checks and the slow jobs: a job skipped by
 # its own `if` counts as passed for branch protection, so the checks it requires
 # still report (a workflow-level `paths-ignore` would leave them pending forever).
@@ -32,8 +33,11 @@ jobs:
   # documentation, the licenses, the GitHub templates, the other workflows and
   # the snap and Windows packaging, which have workflows of their own
   # (snap.yml, windows-app.yml). Some of those files are read by tests or the
-  # build after all; they are listed again as code. Every push to main counts
-  # as code, so main always runs everything.
+  # build after all; they are listed again as code. A push to main is judged
+  # the same way, by the files it changed since the commit main was at before
+  # (D-957): a merge that changed only documentation used to run every slow job
+  # again, 10 of 41 merges on 20 November. When that earlier commit can't be
+  # read, the push counts as code.
   changes:
     name: What changed
     runs-on: ubuntu-latest
@@ -48,6 +52,8 @@ jobs:
           EVENT: ${{ github.event_name }}
           BASE: ${{ github.event.pull_request.base.sha }}
           HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           # Files no job of this workflow reads.
@@ -81,11 +87,14 @@ jobs:
           fi
 
           code=true
+          files=
           if [ "$EVENT" = pull_request ]; then
             files=$(git diff --name-only "$BASE...$HEAD")
-            if [ -n "$files" ] && [ -z "$(is_code <<< "$files" | sed '/^$/d')" ]; then
-              code=false
-            fi
+          elif [ "$EVENT" = push ] && git cat-file -e "${BEFORE:-none}^{commit}" 2>/dev/null; then
+            files=$(git diff --name-only "$BEFORE" "$SHA")
+          fi
+          if [ -n "$files" ] && [ -z "$(is_code <<< "$files" | sed '/^$/d')" ]; then
+            code=false
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "Slow jobs needed: $code"

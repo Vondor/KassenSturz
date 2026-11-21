@@ -25,11 +25,15 @@ Windows keeps everything a packaged app writes to `%LOCALAPPDATA%` inside the pa
 
 So in the Store app (the app finds out with `GetCurrentPackageFamilyName`), KassenSturz's own folder is **`Documents\KassenSturz`**, which Windows leaves alone. Elsewhere it stays as it was.
 
-- **New books, the backups, the bank connection's folder and the plugins** go there.
+**Not in OneDrive by default (D-968, B-438, #1349).** When Documents is inside a OneDrive folder (`%OneDrive%`, `%OneDriveConsumer%`, `%OneDriveCommercial%`), everything in it is uploaded, so a new Store install keeps its own folder in **`%USERPROFILE%\KassenSturz`** instead: on this computer, not synced, and left alone on uninstall (`platform::store_own_folder`). Once that folder is there, it is the own folder. A `Documents\KassenSturz` from an earlier version stays the own folder until the user moves the book: the start offers it once ("Move my book" or "Keep it there"); "Move my book" copies the backups and plugins into the local folder, without replacing a file, and moves the book with the steps of D-731. Older backups stay in OneDrive until the user deletes them.
+
+**The bank connection's folder stays private (D-967, B-437, #1348).** Like the snap (B-429), the Store app keeps `aqbanking` in the package's own folder, never in Documents (T-07); uninstalling only means setting the bank connection up again. A bank folder an earlier version put into `Documents\KassenSturz` is used where it is until the user agrees to move it (a one-time offer); the move runs at the next start: copied to `aqbanking.part`, checked file by file, a folder already in the package kept as `aqbanking.before-move`, switched, and only then the folder in Documents removed.
+
+- **New books, the backups and the plugins** go there; the bank connection's folder no longer does (D-967).
 - **At the first start of an updated Store app**, everything of the earlier folder in the package except the books and the logs is copied into `Documents\KassenSturz` (`store_folder::copy_at_start`), once and without replacing a file. The earlier folder stays as it was.
 - **A book still in the earlier folder** is offered a move once a start: "Move my book" moves it into `Documents\KassenSturz` with the steps of D-731 (a backup first, then copy, check, switch, and the old file removed); "Not now" asks again at the next start; "Keep it there" stops asking for that book. "Where your book is kept" in Settings warns as long as the book is there. A book is never copied, so there are never two working books.
 - **Still inside the package:** the settings file `kassensturzrc` and the debug log. A program started outside the package, such as `kassensturz-mcp.exe` of the installer build, reads the real `%LOCALAPPDATA%\kassensturzrc`, so the AI switch also reads the Store app's copy in `Packages\<family>\LocalCache\Local\`: AI counts as on only when every copy says so, the permissions are what all of them allow, and the book opened last comes from the Store app's copy (B-436, #1347). After uninstalling and installing again, the settings are gone, but the app opens `Documents\KassenSturz\<name>.ksz` again by itself when the book has the usual name, and "Open another book…" finds any other.
-- If Documents is a OneDrive folder, the book and its backups are synced with it like any other file there; a book in a sync folder works with its lock file (D-038).
+- A book the user keeps in a OneDrive folder on purpose works there with its lock file (D-038).
 
 ### The Store identity
 

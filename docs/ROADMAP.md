@@ -56,6 +56,18 @@ Build threads (conflict map): A plugin host (A1 to A6 in order) · B first-run w
 
 Done before Phase 2: the Wiki mirror #1235 (D-880). Closed: #513 (D-916; T1's review covers the outside install check) and #1240 (D-908; the wizard covers it). Slots: #1170 (wasmtime) after Gold; the translations #933 to #948 have no Sprint (`help wanted`).
 
+### User Sprint 9 (US9)
+
+Phase 2 handoff steps from the sorting in D-984 and the AI figure labels in D-983. The identifiers below match the tracked issues and decisions.
+
+| Step | Scope | Status |
+|---|---|---|
+| B-460 (#1387) | Windows long-path support and error message for the MCP executable | done (#1391) |
+| B-443 (#1354) | Exercise the Store-folder logic on Windows, with both-VM verification | done (#1393) |
+| B-445 (#1356) | Remove network access from the Snap MCP app and check the installed package | done (#1390) |
+| B-459 (#1384) | Eliminate the two macOS test races | done (#1392) |
+| D-952 (#1358) | Label figures from the book in AI answers (D-983, D-986) | doing (#1394) |
+
 ## How to pick work
 
 1. If the maintainer or the coordinator named a step, do that step. Otherwise take, in the current Sprint (the last block under "User Sprints"), the lowest step that is still `todo` and whose prerequisites are `done`. Between two Sprints (Nirvana, D-949) there is no step list: the work comes from the coordinator.

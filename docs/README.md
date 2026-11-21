@@ -19,7 +19,6 @@ Start here instead of reading the big files in full (D-960). Each file below has
 | [`GLOSSARY.md`](GLOSSARY.md) | The plain words the app uses for accounting terms (AGENTS.md §6). |
 | [`ERROR_CODES.md`](ERROR_CODES.md) | Every error code the core returns, with the message shown to the user. Each new error needs a row. |
 | [`THIRD_PARTY.md`](THIRD_PARTY.md) | Every dependency with its license, and the license allowlist CI checks (D-026). |
-| [`INDEPENDENT_REVIEW.md`](INDEPENDENT_REVIEW.md) | When a pull request needs a review by an agent that did not write it, and the checklist (D-786). |
 | [`TRANSLATING.md`](TRANSLATING.md) | How a volunteer checks or starts a translation (AGENTS.md §11). |
 
 ## Formats other programs can read

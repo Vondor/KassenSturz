@@ -28536,3 +28536,9 @@ msgstr "Dort lassen"
 msgctxt "@info"
 msgid "Bank connections are not available in this version of KassenSturz for Windows. Import a file from your bank instead."
 msgstr "Bankverbindungen sind in dieser Version von KassenSturz für Windows nicht verfügbar. Importieren Sie stattdessen eine Datei von Ihrer Bank."
+
+#: crates/kassensturz-ui-bridge/qml/BookInSyncFolderDialog.qml:1
+#, kde-format
+msgctxt "@info"
+msgid "The folder on this computer could not be made ready, for example because a backup in OneDrive could not be read. Nothing was changed. Check your internet connection and the free space, then try again."
+msgstr "Der Ordner auf diesem Computer konnte nicht vorbereitet werden, zum Beispiel weil eine Sicherung in OneDrive nicht gelesen werden konnte. Es wurde nichts geändert. Prüfen Sie Ihre Internetverbindung und den freien Speicherplatz und versuchen Sie es dann noch einmal."

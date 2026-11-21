@@ -45,6 +45,8 @@ Kirigami.PromptDialog {
                 dialog.close()
                 if (dialog.bookMove.prepareLocalFolder())
                     dialog.moveChosen()
+                else
+                    applicationWindow().showPassiveNotification(dialog.i18nContext.i18nc("@info", "The folder on this computer could not be made ready, for example because a backup in OneDrive could not be read. Nothing was changed. Check your internet connection and the free space, then try again."), "long")
             }
         },
         Kirigami.Action {

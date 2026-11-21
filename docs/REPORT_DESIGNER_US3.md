@@ -1,5 +1,7 @@
 # Per-bar figures: comparison bars and a formula per bar (US3.1)
 
+> **Status (21 Nov 2026):** Built in US3 (#664, #666). Th
+
 Design of User Sprint 3 item US3.1, written by thread A in Phase 2 before its build (D-687; its row stays apart from D-685's so parallel pull requests don't touch neighbouring lines, D-577). It answers two wishes from US1 Phase 3 with one idea, **each bar can carry its own figure**:
 
 - **#587:** on a spending chart by category, each category's figure next to a comparison (the period before, the same period last year, or the average of 3, 6 or 12 periods before), as two bars per category. It is the same in the app and in `propose_view`.

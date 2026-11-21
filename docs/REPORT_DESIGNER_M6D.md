@@ -1,5 +1,7 @@
 # The report designer, part 4: several dashboards, templates, dashboard files, KMyMoney reports and Update all (M6d)
 
+> **Status (21 Nov 2026):** Built in Sprint M6d. Th
+
 Design of the M6d Sprint, written in step M6d.0. It builds on `docs/REPORT_DESIGNER.md` (the dashboard document and layout 20, D-278, D-279), `docs/REPORT_DESIGNER_M6B.md` (the grid, the document v1, D-289; the editor, D-315; named layouts, D-330) and `docs/REPORT_DESIGNER_M6C.md` (filters and document version 2, D-350, D-351). Decisions D-435 to D-450 (the maintainer's Phase 0 answers are D-431 to D-433; D-448 to D-450 apply his answers to Q-317, Q-318 and Q-320), questions Q-317 to Q-320; threat rows T-51 to T-55; the steps are in `docs/ROADMAP.md` ("M6 steps", rows M6d.\*).
 
 Release stage: **Alpha** (D-274). **No new layout:** everything below fits the `views` table of layout 20 and the existing history actions (`add_view`, `edit_view`, `rename_view`, `move_view`, `remove_view`), combined with `Book::as_one_action` where one user action takes several calls. The dashboard document stays version 2; its one new key is additive (section 3). A second additive key marks the default dashboard (D-448, section 1.3); nothing is added to the book's settings or to this computer's config.

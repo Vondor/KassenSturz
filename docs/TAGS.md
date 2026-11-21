@@ -1,5 +1,7 @@
 # Tags: free labels on transactions and parts (US4.8 design)
 
+> **Status (21 Nov 2026):** Built in US4 (design #732; builds #740, #746 and #747). Th
+
 Design for US4.8 (US3 backlog 2; D-712 to D-714). Today the book holds tags per part (`tags`, `split_tags`, layout 15, D-132). The KMyMoney import fills them and the complete export keeps them, but no screen shows or edits them. This design adds tags on the whole transaction, settles how a sum by tag counts, and sets the scope of the first build. The build is a book layout change (**[format]**, layout 30), so it ships as a migration with an automatic backup and a migration test (AGENTS.md §3.1 rule 8; layout 24 on, `docs/BOOK_FORMAT.md`).
 
 A tag is a free label next to the one category, e.g. "Tax" or "Holiday 2026". It never moves money and never changes a sum or a balance. A transaction can carry several tags, and so can each of its parts (the items of a bill). Putting one transaction into two categories stays impossible, because it would count the money twice.

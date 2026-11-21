@@ -1,5 +1,7 @@
 # Budget history: changing what a budget counts (US3.2 design)
 
+> **Status (21 Nov 2026):** Built in US3 (layout 29, D-690). Th
+
 Design for US3.2 (#607, US1.10a; D-689). Today a budget's categories and accounts are fixed once it is made (D-639); the only way to change them is to stop the budget and make a new one. This design lets the user change them **from the current period on**, while every earlier period keeps showing what it showed before (D-345, principle 1, the mission's "conservative with the data"). The build step follows after this design is merged; it is a book layout change (**[format]**), so it ships with an automatic backup and a migration test (AGENTS.md §3.1 rule 8).
 
 ## 1. What changes for the user

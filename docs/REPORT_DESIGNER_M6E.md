@@ -1,5 +1,7 @@
 # The report designer, part 5: custom charts from a Vega-Lite subset (M6e)
 
+> **Status (21 Nov 2026):** Built in Sprint M6e. Th
+
 Design of the M6e Sprint, written in step M6e.0. It is a **delta** to `docs/REPORT_DESIGNER.md` section 5 (the subset, D-280, and the limits, D-281). Those two are not reopened here. This file adds what the build steps need: the chart model's Rust shape, the fields a spec can name, where a custom chart lives in the dashboard document, how a pasted spec and an opened file reach the parser, the error codes and the steps. Decisions D-502 to D-509. The maintainer's answers applied here: Q-353 = B, so all seven datasets of the catalog can be named, with the choices a spec cannot carry made in the properties panel (section 2); and Q-352 = A: in M6e a spec comes only from the user, pasted or opened from a file, and the AI does not write specs. The AI keeps the listed `propose_view` choices (D-282), so the AI surface and the permission grid stay as they are. Q-357 = A: the formula separator setting stays in the backlog, and M6e is custom charts only. D-510 records that formulas follow LibreOffice Calc's behaviour, which is outside this design. The steps are in `docs/ROADMAP.md` ("M6 steps", rows M6e.\*).
 
 Release stage: **Alpha, last part** (D-274). **No new layout and no new document version:** a custom chart is one more component type in the existing `views` documents (section 3). M6e.M, the last step of Phase 2, then merges the development migrations into one starting layout (D-045).

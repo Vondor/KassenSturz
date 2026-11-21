@@ -25,6 +25,7 @@ kassensturz/
 │   ├── kassensturz-pipeline/       # the import pipeline: statements into an account, with the duplicate check, Transfer suggestions, Rules and the balance check (D-030, D-092); gathering a book's transactions or the whole book for export, filling a new book from a complete export (D-099, D-100), and filling one from another program's book, such as KMyMoney's (D-101)
 │   ├── kassensturz-bank/           # read-only bank connections: the Bank trait, IBAN → bank setup, PIN session, fetched data → Statement, fake bank for tests — see D-053, D-060, D-145, D-146
 │   ├── kassensturz-aqbanking-sys/  # raw AqBanking/Gwenhywfar declarations (bindgen, committed, loaded at runtime) — see D-060; gwengui/ holds the C++ library for Gwenhywfar's Qt dialogs (Q-035)
+│   ├── kassensturz-aqbanking-stub/ # a stand-in for AqBanking in builds and tests that have no AqBanking
 │   ├── kassensturz-plugin-api/     # the plugin API v1: manifest, API version, extension points, permissions (#791, D-753, D-847, D-848)
 │   ├── kassensturz-plugin-formats/ # plugin importers and exporters behind the Importer and Exporter traits; JSON in and out (#791, D-852)
 │   ├── kassensturz-plugin-host/    # loads plugin files and runs their WASM in wasmi with memory, table and fuel limits and no imports (D-007, D-753, D-850)
@@ -35,17 +36,15 @@ kassensturz/
 │   ├── kassensturz-ai-chat/        # the chat: the loop of the read functions with a provider, the number check, the tool-call log, the fake model (D-190)
 │   ├── kassensturz-ai-tools/       # the fixed list of read functions the AI may call, the overview, the number check, change sets (D-170); shared by chat and MCP
 │   ├── kassensturz-mcp/            # local MCP server for the user's own AI tools: the read functions of kassensturz-ai-tools over stdio, read-only unless its write tools are on (D-194 to D-197, D-216 to D-219)
-│   ├── kassensturz-receipts/       # post-1.0: OCR + transaction-matching for photographed/scanned receipts
-│   ├── kassensturz-mobile-bridge/  # post-1.0: Rust↔Kotlin FFI exposing core+receipts to the native Android app — see D-019, Q-018
-│   ├── kassensturz-sync/           # post-1.0: shared-host ↔ thin-client access for multi-user (Member-scoped) — see D-022, Q-021/Q-022
 │   ├── kassensturz-cli/            # CLI front end for testing the core and the store: English only, errors as codes, not installed (D-085)
 │   └── kassensturz-ui-bridge/      # the desktop app: cxx-qt bindings exposing the core to QML
 │       ├── qml/                    # Kirigami UI, one file per screen: overview, register, reports, settings, plugins
 │       └── cpp/                    # small C++ helpers: the window icon (D-165), Qt's locale data for formatting (D-065), KConfig for the app's settings (D-112), what Qt knows about the computer
 ├── data/                           # desktop file, AppStream metadata and the app icon (icons/, D-165)
 ├── po/                             # translations, one folder per language (D-034)
-├── plugins/examples/               # one example plugin per extension point (D-753; not built yet)
-├── packaging/                      # flatpak/ (manifest and its offline crate list), windows/, macos/
+├── examples/plugins/              # one example plugin per extension point and the plugin guide's example (D-753, `docs/WRITING_PLUGINS.md`)
+├── fuzz/                           # fuzz targets for the file readers (D-787, `docs/FUZZING.md`)
+├── packaging/                      # flatpak/ (manifest and its offline crate list), snap/, windows/, macos/
 ├── tools/                          # sdk.sh: runs commands in the build environment (D-063); update-currency-table.py (D-077)
 ├── docs/
 └── .github/

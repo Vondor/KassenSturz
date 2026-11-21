@@ -186,5 +186,5 @@ For the agents of M5.1 to M5.13 and everyone after them:
 ## Not covered yet
 
 - **AI after M5**: charts the AI proposes (M6), the AI's own memory (D-023, after 1.0), cloud adapters other than the OpenAI-compatible one (D-035) and an HTTP connection for the MCP server (D-050) each need their own rows when they come.
-- **Windows and macOS** keychains and packages (M7).
-- **Plugins** (after 1.0, D-071).
+- **Windows and macOS** keychains and packages: the Windows app is in the Microsoft Store since 18 Nov 2026 and the Mac download is experimental (D-875), but neither has rows of its own yet.
+- Plugins are covered by T-70 since the plugin host was built in the Beta (D-753).

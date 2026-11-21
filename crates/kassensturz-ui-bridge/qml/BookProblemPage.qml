@@ -157,6 +157,11 @@ Kirigami.Page {
             if (code.startsWith("store.corrupt")) {
                 return i18nContext.i18nc("@info", "The book is damaged, so KassenSturz didn't open it. Your backups are in KassenSturz's backup folder; open the newest one instead.");
             }
+            // B-444: on Windows a path of about 260 characters or more can't be
+            // opened unless Windows' long path setting is on. The book is fine.
+            if (Qt.platform.os === "windows" && (problem.folder || "").length + (problem.file || "").length >= 250) {
+                return i18nContext.i18nc("@info", "The book's folder path is very long, and Windows may not open files that deep. Your book is not damaged. Move the book to a folder with a shorter path, for example one directly in your Documents folder, and open it from there.");
+            }
             return i18nContext.i18nc("@info", "Something went wrong reading the book. Try again. If it keeps happening, open a backup from KassenSturz's backup folder.");
         }
     }

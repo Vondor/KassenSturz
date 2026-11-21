@@ -5096,6 +5096,12 @@ msgid ""
 "KassenSturz's backup folder; open the newest one instead."
 msgstr "Ta księga zawiera części, których księga KassenSturz nie ma, albo brakuje jej niektórych własnych. Prawdopodobnie zmienił ją inny program. KassenSturz jej nie otworzył, więc nic w niej nie zostało uruchomione, a księga nie została zmieniona. Twoje kopie zapasowe są w folderze kopii zapasowych KassenSturz; otwórz zamiast niej najnowszą."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:160
+#, kde-format
+msgctxt "@info"
+msgid "The book's folder path is very long, and Windows may not open files that deep. Your book is not damaged. Move the book to a folder with a shorter path, for example one directly in your Documents folder, and open it from there."
+msgstr "Ścieżka do folderu księgi jest bardzo długa, a Windows może nie otwierać plików tak głęboko. Twoja księga nie jest uszkodzona. Przenieś księgę do folderu z krótszą ścieżką, na przykład bezpośrednio do folderu Dokumenty, i otwórz ją stamtąd."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:110
 #, kde-format
 msgctxt "@info"

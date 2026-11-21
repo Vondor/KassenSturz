@@ -28504,8 +28504,8 @@ msgstr "Ihr Buch auf diesem Computer behalten"
 #: crates/kassensturz-ui-bridge/qml/BookInSyncFolderDialog.qml:1
 #, kde-format
 msgctxt "@info %1 is a folder"
-msgid "Your book and its backups are in a OneDrive folder, so they are uploaded to the cloud. KassenSturz can move your book to %1, which stays on this computer, and keeps its new backups there. Before moving, it keeps a copy of your book as it is now with the other backups. Older backups stay in OneDrive until you delete them there."
-msgstr "Ihr Buch und seine Sicherungen liegen in einem OneDrive-Ordner und werden deshalb in die Cloud hochgeladen. KassenSturz kann Ihr Buch nach %1 verschieben, das auf diesem Computer bleibt, und legt neue Sicherungen dort ab. Vor dem Verschieben bewahrt es eine Kopie Ihres Buchs, wie es jetzt ist, bei den anderen Sicherungen auf. Ältere Sicherungen bleiben in OneDrive, bis Sie sie dort löschen."
+msgid "Your book and its backups are in a OneDrive folder, so they are uploaded to the cloud. KassenSturz can move your book to %1, which stays on this computer, and keeps its new backups there. Before moving, it keeps a copy of your book as it is now with the other backups. Older backups stay in OneDrive until you delete them there. This folder is not uploaded anywhere, so from time to time make a backup copy of your book, for example to a USB stick."
+msgstr "Ihr Buch und seine Sicherungen liegen in einem OneDrive-Ordner und werden deshalb in die Cloud hochgeladen. KassenSturz kann Ihr Buch nach %1 verschieben, das auf diesem Computer bleibt, und legt neue Sicherungen dort ab. Vor dem Verschieben bewahrt es eine Kopie Ihres Buchs, wie es jetzt ist, bei den anderen Sicherungen auf. Ältere Sicherungen bleiben in OneDrive, bis Sie sie dort löschen. Dieser Ordner wird nirgendwohin hochgeladen. Machen Sie deshalb ab und zu eine Sicherungskopie Ihres Buchs, zum Beispiel auf einen USB-Stick."
 
 #: crates/kassensturz-ui-bridge/qml/BankFolderDialog.qml:1
 #, kde-format
@@ -28516,8 +28516,8 @@ msgstr "Ihre Bankverbindung privat halten"
 #: crates/kassensturz-ui-bridge/qml/BankFolderDialog.qml:1
 #, kde-format
 msgctxt "@info"
-msgid "The settings of your bank connection (which bank, your accounts and your login name, never your PIN) are in your Documents folder, which is often uploaded to a cloud such as OneDrive. KassenSturz can move them to a private folder on this computer the next time it starts. That folder is removed when you uninstall KassenSturz; you would then set up the bank connection again. Your book is not affected."
-msgstr "Die Einstellungen Ihrer Bankverbindung (welche Bank, Ihre Konten und Ihr Anmeldename, nie Ihre PIN) liegen in Ihrem Ordner Dokumente, der oft in eine Cloud wie OneDrive hochgeladen wird. KassenSturz kann sie beim nächsten Start in einen privaten Ordner auf diesem Computer verschieben. Dieser Ordner wird entfernt, wenn Sie KassenSturz deinstallieren; dann richten Sie die Bankverbindung neu ein. Ihr Buch ist davon nicht betroffen."
+msgid "The settings of your bank connection (which bank, your accounts and your login name, never your PIN) are in your Documents folder, which is often uploaded to a cloud such as OneDrive. KassenSturz can move them to a private folder on this computer the next time it starts. That folder is removed when you uninstall KassenSturz; you would then set up the bank connection again. Your book is not affected. The cloud service may keep the old copy in its recycle bin and version history for a while; delete it there if you want it gone."
+msgstr "Die Einstellungen Ihrer Bankverbindung (welche Bank, Ihre Konten und Ihr Anmeldename, nie Ihre PIN) liegen in Ihrem Ordner Dokumente, der oft in eine Cloud wie OneDrive hochgeladen wird. KassenSturz kann sie beim nächsten Start in einen privaten Ordner auf diesem Computer verschieben. Dieser Ordner wird entfernt, wenn Sie KassenSturz deinstallieren; dann richten Sie die Bankverbindung neu ein. Ihr Buch ist davon nicht betroffen. Der Cloud-Dienst bewahrt die alte Kopie eventuell noch eine Weile in seinem Papierkorb und im Versionsverlauf auf; löschen Sie sie dort, wenn Sie sie nicht mehr haben möchten."
 
 #: crates/kassensturz-ui-bridge/qml/BankFolderDialog.qml:1
 #, kde-format
@@ -28530,3 +28530,9 @@ msgstr "Beim nächsten Start verschieben"
 msgctxt "@action:button keep the bank settings in their folder"
 msgid "Keep it there"
 msgstr "Dort lassen"
+
+#: crates/kassensturz-ui-bridge/qml/FormError.qml:781
+#, kde-format
+msgctxt "@info"
+msgid "Bank connections are not available in this version of KassenSturz for Windows. Import a file from your bank instead."
+msgstr "Bankverbindungen sind in dieser Version von KassenSturz für Windows nicht verfügbar. Importieren Sie stattdessen eine Datei von Ihrer Bank."

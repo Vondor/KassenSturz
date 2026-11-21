@@ -37,34 +37,35 @@ SPDX-License-Identifier: CC0-1.0
       ganz ohne Buchhaltungswissen. Die Daten bleiben auf dem eigenen Computer.
     </p>
     <p>What you can do:</p>
+    <p xml:lang="de">Das können Sie tun:</p>
     <ul>
       <li>Keep your accounts and see how much is in each of them</li>
+      <li xml:lang="de">Ihre Konten führen und sehen, wie viel auf jedem liegt</li>
       <li>Record what comes in and goes out, sorted into categories</li>
+      <li xml:lang="de">Einnahmen und Ausgaben erfassen und in Kategorien ordnen</li>
       <li>See where your money goes</li>
+      <li xml:lang="de">Sehen, wohin das Geld geht</li>
       <li>Fetch your transactions from your bank. KassenSturz only reads; it never sends money</li>
+      <li xml:lang="de">Umsätze von der Bank abrufen. KassenSturz liest nur und überweist nie Geld</li>
       <li>Start from a KMyMoney book, or save a copy of your data as a backup or for a spreadsheet</li>
+      <li xml:lang="de">Mit einem KMyMoney-Buch beginnen oder eine Kopie der Daten als Sicherung oder für eine Tabellenkalkulation speichern</li>
       <li>Ask an AI about your book. This is off until you turn it on, and nothing changes in your book until you confirm it</li>
-    </ul>
-    <p xml:lang="de">Das können Sie tun:</p>
-    <ul xml:lang="de">
-      <li>Ihre Konten führen und sehen, wie viel auf jedem liegt</li>
-      <li>Einnahmen und Ausgaben erfassen und in Kategorien ordnen</li>
-      <li>Sehen, wohin das Geld geht</li>
-      <li>Umsätze von der Bank abrufen. KassenSturz liest nur und überweist nie Geld</li>
-      <li>Mit einem KMyMoney-Buch beginnen oder eine Kopie der Daten als Sicherung oder für eine Tabellenkalkulation speichern</li>
-      <li>Eine KI zum Haushaltsbuch befragen. Das ist aus, bis Sie es einschalten, und nichts im Buch ändert sich ohne Ihre Bestätigung</li>
+      <li xml:lang="de">Eine KI zum Haushaltsbuch befragen. Das ist aus, bis Sie es einschalten, und nichts im Buch ändert sich ohne Ihre Bestätigung</li>
     </ul>
     <p>
-      Bug-tested and safe to use: many security checks and attack tests are
-      done; the app may still change.
+      Stable 0.x release: made for everyday use with a copy of your own book.
+      Many security checks and attack tests are done. The app is still
+      growing, so keep a backup copy of your book.
     </p>
     <p xml:lang="de">
-      Auf Fehler getestet und sicher nutzbar: viele Sicherheitsprüfungen und
-      Angriffstests sind erledigt; die App kann sich noch ändern.
+      Stabile 0.x-Version: für den Alltag gedacht, am besten mit einer Kopie
+      Ihres eigenen Buchs. Viele Sicherheitsprüfungen und Angriffstests sind
+      erledigt. Die App wächst noch, bewahren Sie deshalb eine Sicherungskopie
+      Ihres Buchs auf.
     </p>
   </description>
   <developer id="io.github.vondor">
-    <name>KassenSturz contributors</name>
+    <name>SerpentSoftware</name>
   </developer>
   <icon type="stock">io.github.vondor.KassenSturz</icon>
   <categories>

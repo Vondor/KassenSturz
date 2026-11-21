@@ -32,7 +32,7 @@ Kirigami.PromptDialog {
     }
 
     title: i18nContext.i18nc("@title:window", "Keep your book on this computer")
-    subtitle: i18nContext.i18nc("@info %1 is a folder", "Your book and its backups are in a OneDrive folder, so they are uploaded to the cloud. KassenSturz can move your book to %1, which stays on this computer, and keeps its new backups there. Before moving, it keeps a copy of your book as it is now with the other backups. Older backups stay in OneDrive until you delete them there.", Plain.plain(dialog.bookMove.place?.localFolder ?? ""))
+    subtitle: i18nContext.i18nc("@info %1 is a folder", "Your book and its backups are in a OneDrive folder, so they are uploaded to the cloud. KassenSturz can move your book to %1, which stays on this computer, and keeps its new backups there. Before moving, it keeps a copy of your book as it is now with the other backups. Older backups stay in OneDrive until you delete them there. This folder is not uploaded anywhere, so from time to time make a backup copy of your book, for example to a USB stick.", Plain.plain(dialog.bookMove.place?.localFolder ?? ""))
     standardButtons: Kirigami.Dialog.NoButton
     closePolicy: Kirigami.Dialog.NoAutoClose
     showCloseButton: false

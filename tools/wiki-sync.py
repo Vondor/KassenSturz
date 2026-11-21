@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
 # SPDX-FileCopyrightText: 2026 KassenSturz contributors
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Turns the user handbook in docs/user/de and docs/user/en into GitHub Wiki pages.
+"""Turns the handbook (docs/user/de, docs/user/en) and the maintainer pages into Wiki pages.
 
 The handbook lives in the repository so that every change is reviewed in a
 pull request and matches the build a person has (#654). The GitHub Wiki is
 only a copy of it, made by .github/workflows/wiki.yml after a merge to main
-(D-880). This script writes that copy into an empty folder:
+(D-880). The maintainer pages in docs/maintainer (releasing, platform limits)
+are copied the same way, as a third section. This script writes that copy
+into an empty folder:
 
-- every page gets a short name with its language in front (`de-05-konten`,
-  `en-05-accounts`); the two index pages become `Handbuch` and `Handbook`,
+- every page gets a short name with its section in front (`de-05-konten`,
+  `en-05-accounts`, `maintainer-releasing`); the index pages become
+  `Handbuch`, `Handbook` and `Maintainer`,
 - links between handbook pages point to the Wiki pages, other links into
   the repository point to the file on main, and images are loaded from main,
 - every page starts with a notice that the page is a copy, that edits in the
@@ -31,6 +34,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LANGUAGES = {
     "de": {
+        "folder": "docs/user/de",
         "index": "Handbuch",
         "title": "Handbuch (Deutsch)",
         "notice": (
@@ -43,6 +47,7 @@ LANGUAGES = {
         ),
     },
     "en": {
+        "folder": "docs/user/en",
         "index": "Handbook",
         "title": "Handbook (English)",
         "notice": (
@@ -51,6 +56,20 @@ LANGUAGES = {
             "Wiki are overwritten the next time it is updated. To improve the "
             "page, please change the file in the repository and open a pull "
             "request; [CONTRIBUTING.md]({contributing}) explains how."
+        ),
+    },
+    # Not a language: the pages for the person who publishes KassenSturz,
+    # in English only. The key is the prefix of their page names.
+    "maintainer": {
+        "folder": "docs/maintainer",
+        "index": "Maintainer",
+        "title": "For maintainers",
+        "notice": (
+            "> **This page is a copy.** It is made automatically from "
+            "[`{path}`]({source}) in the repository. Edits made here in the "
+            "Wiki are overwritten the next time it is updated. To change it, "
+            "change the file in the repository with a pull request "
+            "([CONTRIBUTING.md]({contributing}))."
         ),
     },
 }
@@ -70,7 +89,7 @@ def collect_pages() -> dict[str, tuple[str, str]]:
     """Maps each handbook file (repository path) to its language and Wiki page name."""
     pages = {}
     for lang in LANGUAGES:
-        for path in sorted((ROOT / "docs" / "user" / lang).glob("*.md")):
+        for path in sorted((ROOT / LANGUAGES[lang]["folder"]).glob("*.md")):
             pages[path.relative_to(ROOT).as_posix()] = (lang, page_name(lang, path))
     return pages
 
@@ -136,18 +155,21 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
         "- [Handbuch auf Deutsch](Handbuch)",
         "- [Handbook in English](Handbook)",
         "- [Roadmap: Was als Nächstes kommt](de-22-fahrplan)",
+        "- [For maintainers: releasing and platform limits](Maintainer)",
         f"- [Discussions: Ankündigungen und Ideen / announcements and ideas](https://github.com/{repo}/discussions)",
         "",
         (
             "> **Dieses Wiki ist eine Kopie** des Handbuchs in "
-            f"[`docs/user`]({blob}/docs/user) im Repository. Änderungen hier "
+            f"[`docs/user`]({blob}/docs/user) und der Seiten in "
+            f"[`docs/maintainer`]({blob}/docs/maintainer) im Repository. Änderungen hier "
             "werden überschrieben; bitte ändern Sie die Dateien dort, mit einem "
             f"Pull Request ([CONTRIBUTING.md]({contributing}))."
         ),
         ">",
         (
             "> **This wiki is a copy** of the handbook in "
-            f"[`docs/user`]({blob}/docs/user) in the repository. Edits made here "
+            f"[`docs/user`]({blob}/docs/user) and the pages in "
+            f"[`docs/maintainer`]({blob}/docs/maintainer) in the repository. Edits made here "
             "are overwritten; please change the files there with a pull request "
             f"([CONTRIBUTING.md]({contributing}))."
         ),
@@ -163,7 +185,8 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
     (out / "_Sidebar.md").write_text("\n".join(lines), encoding="utf-8")
 
     footer = (
-        f"Kopie von / copy of [`docs/user`]({blob}/docs/user). Bitte im "
+        f"Kopie von / copy of [`docs/user`]({blob}/docs/user), "
+        f"[`docs/maintainer`]({blob}/docs/maintainer). Bitte im "
         "Repository ändern, nicht hier. / Please change it in the repository, "
         "not here.\n"
     )

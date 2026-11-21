@@ -14,7 +14,7 @@ This is the short path from a green commit to a published build. Every step, and
 
 You don't pick the kind with the tag. The tag is the same for both; the kind follows from the snap channel you approve in step 4.
 
-> **While pull request #1330 is open:** the release workflow still creates every release as `KassenSturz <number> (pre-release)`. For a stable release, edit it by hand on the Releases page after step 4: change the title to `(stable)`, untick *Set as a pre-release*, tick *Set as the latest release* and save. Once #1330 is merged, the workflow does this by itself when `snap-stable` is approved, and this note goes.
+Every tag's release starts as `(beta)`, marked Pre-release. Approving `snap-stable` turns it into `(stable)`, marked Latest; if the edit fails, the run says so and [`docs/RELEASING.md`](../RELEASING.md) has the steps by hand.
 
 ## Step by step
 
@@ -37,12 +37,12 @@ You don't pick the kind with the tag. The tag is the same for both; the kind fol
 3. **Approve the build.** Actions tab → the **Release** run → **Review deployments** → tick **release** → **Approve and deploy**. This lets the build read the FinTS registration number, which lives only in that environment. The run then builds the Flatpak, the Windows files and the snap, installs the Flatpak on a fresh Ubuntu machine, and publishes the GitHub release with all files and a list of the merged changes. The experimental macOS `.dmg` is added a little later if the Mac build worked; if it didn't, the release is still fine.
 
 4. **Choose the snap channel (D-940).** The run now waits on two jobs. **Review deployments** again:
-   - **snap-stable** for a stable release: the snap goes to `stable` and `beta`, and the store page is updated from `packaging/snap/snapcraft.yaml` (D-947).
-   - **snap-beta** for a beta: the snap goes to `beta` only.
+   - **snap-stable** for a stable release: the snap goes to `stable` and `beta`, the store page is updated from `packaging/snap/snapcraft.yaml` (D-947), and the GitHub release becomes `(stable)`, marked Latest.
+   - **snap-beta** for a beta: the snap goes to `beta` only, and the release stays `(beta)`.
 
    Approve one, then open **Review deployments** once more and **Reject** the other. The rejected job shows red; that is expected and changes nothing. Never approve both: the store refuses the same file twice.
 
-5. **Look at the release** on the Releases page: the title says `(stable)` or `(beta)` (see the note above), the files are there, the text reads right.
+5. **Look at the release** on the Releases page: the title says `(stable)` and *Latest* or `(beta)` and *Pre-release*, the files are there, the text reads right.
 
 6. **Microsoft Store, by hand.** See the next section. This is the one step no workflow does for you today.
 
@@ -55,7 +55,7 @@ A beta that has proven itself can become the stable release without a new tag or
 1. Actions tab → **Promote snap to stable** → **Run workflow** (from `main`). Type the version, for example `0.261120.31`, or leave it empty to take whatever is on `beta` now.
 2. **Review deployments** → **snap-stable** → **Approve and deploy**.
 
-The workflow moves the revision that is on `beta` to `stable`, updates the store page, and says in its summary what was on stable before. It stops and changes nothing if the version you typed isn't the one on `beta`. Only the build on `beta` right now can be promoted. With #1330 merged it also turns that build's GitHub release into the stable one.
+The workflow moves the revision that is on `beta` to `stable`, updates the store page, and says in its summary what was on stable before. It stops and changes nothing if the version you typed isn't the one on `beta`. Only the build on `beta` right now can be promoted. It also turns that build's GitHub release into the stable one, the same way as step 4.
 
 ## The Snap Store page (D-947)
 

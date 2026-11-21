@@ -213,9 +213,42 @@ fn hex(digit: u8) -> Result<u8, ()> {
         .ok_or(())
 }
 
+/// What to do next when the book at `book` can't be read, said plainly
+/// (B-460). On Windows a path of about 260 characters can't be opened unless
+/// the system's long path setting is on, and the book is fine; the generic
+/// "check the path" would send the user hunting for a fault that isn't there.
+/// `windows` is a parameter so the choice is tested on every system.
+pub(crate) fn unreadable_next_step(book: &Path, newer_layout: bool, windows: bool) -> &'static str {
+    if newer_layout {
+        "Update KassenSturz, then restart this AI tool."
+    } else if windows && book.to_string_lossy().chars().count() >= LONG_PATH {
+        "The path is very long, and Windows may not open files that deep. \
+         The book is not damaged. Move it to a folder with a shorter path, \
+         then point this AI tool at it."
+    } else {
+        "Check the path, or open the book in KassenSturz once."
+    }
+}
+
+/// From this many characters a path is "very long" (the app's own limit for
+/// its message, `BookProblemPage.qml`).
+const LONG_PATH: usize = 250;
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_very_long_windows_path_is_said_plainly_and_others_are_not() {
+        let long = PathBuf::from(format!("C:\\{}\\book.ksz", "a".repeat(260)));
+        let short = PathBuf::from("C:\\Books\\book.ksz");
+        assert!(unreadable_next_step(&long, false, true).contains("not damaged"));
+        assert!(unreadable_next_step(&short, false, true).starts_with("Check the path"));
+        // Other systems have no such limit.
+        assert!(unreadable_next_step(&long, false, false).starts_with("Check the path"));
+        // A newer layout is the more useful hint, even on a long path.
+        assert!(unreadable_next_step(&long, true, true).starts_with("Update"));
+    }
 
     fn read(text: &str) -> Result<Option<PathBuf>, ()> {
         last_book_in(text, Some("/home/ada"), Some("/run/user/1000"))

@@ -100,16 +100,16 @@ fn main() -> ExitCode {
         }
         Err(error) => {
             // A newer KassenSturz updated the book, so this one is out of
-            // date (M6-B194); otherwise the path is wrong or the app
-            // updates it.
-            let next = if matches!(
-                error,
-                kassensturz_store::StoreError::UnsupportedLayout { .. }
-            ) {
-                "Update KassenSturz, then restart this AI tool."
-            } else {
-                "Check the path, or open the book in KassenSturz once."
-            };
+            // date (M6-B194); a very long path on Windows is no fault of the
+            // book (B-460); otherwise the path is wrong or the app updates it.
+            let next = book_path::unreadable_next_step(
+                &book,
+                matches!(
+                    error,
+                    kassensturz_store::StoreError::UnsupportedLayout { .. }
+                ),
+                cfg!(windows),
+            );
             eprintln!(
                 "error: the book {} can't be read ({}). {next}",
                 book.display(),

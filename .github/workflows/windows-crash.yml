@@ -60,8 +60,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-windows-crash-1.98.1-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-windows-crash-1.98.1-
+          key: cargo-windows-crash-v2-1.98.1-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-windows-crash-v2-1.98.1-
       # Killed mid-save, stale lock, paths with spaces and umlauts, UTF-16.
       - name: Crash, lock and path tests
         run: cargo test -p kassensturz-cli --test crash --locked -- --test-threads=1
@@ -84,6 +84,10 @@ jobs:
         run: cargo test -p kassensturz-ai-tools --lib --locked requests
         env:
           CARGO_INCREMENTAL: "0"
+      - name: Leave the workspace's own build out of the cache (D-957)
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        shell: bash
+        run: tools/ci-prune-cargo-cache.sh target build/cmake/cargo
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -92,4 +96,4 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-windows-crash-1.98.1-${{ hashFiles('Cargo.lock') }}
+          key: cargo-windows-crash-v2-1.98.1-${{ hashFiles('Cargo.lock') }}

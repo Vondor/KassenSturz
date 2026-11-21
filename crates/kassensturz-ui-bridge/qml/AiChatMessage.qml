@@ -118,6 +118,43 @@ ColumnLayout {
                 text: visible ? Plain.plain(item.i18nContext.i18nc("@info %1 is a list of numbers", "Don't rely on these numbers in the answer: they don't come from your book, so the AI may have made them up: %1", item.message.unverified.join(", "))) : ""
             }
 
+            // What each figure that came from KassenSturz's own functions is
+            // in the book (D-952): the account, category, payee or budget
+            // and the days it covers. The figures are the answer's own and
+            // unchanged; this only names them. Plain text, the names come
+            // from the book (T-34).
+            ColumnLayout {
+                id: figureLabels
+
+                readonly property var figures: item.message.kind === "answer" ? (item.message.labelled ?? []) : []
+
+                Layout.fillWidth: true
+                spacing: 0
+                visible: figures.length > 0
+
+                Controls.Label {
+                    Layout.fillWidth: true
+                    font.pointSize: Kirigami.Theme.smallFont.pointSize
+                    font.bold: true
+                    textFormat: Text.PlainText
+                    text: item.i18nContext.i18nc("@label heads the list saying what each figure in the answer is in the user's book", "What the figures in this answer are in your book")
+                }
+
+                Repeater {
+                    model: figureLabels.figures
+
+                    Controls.Label {
+                        required property var modelData
+
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        font: Kirigami.Theme.smallFont
+                        textFormat: Text.PlainText
+                        text: item.figureLine(modelData)
+                    }
+                }
+            }
+
             Kirigami.InlineMessage {
                 Layout.fillWidth: true
                 type: Kirigami.MessageType.Information
@@ -321,6 +358,49 @@ ColumnLayout {
         font: Kirigami.Theme.smallFont
         textFormat: Text.PlainText
         text: item.message.kind === "page" ? item.pageNote(item.message.page, item.message.hasId === true) : ""
+    }
+
+    // One line of the list that says what a figure is (D-952): the number as
+    // the answer wrote it, then what it is in the book. A number that can be
+    // two things says so.
+    function figureLine(figure): string {
+        const what = figure.labels.map(label => item.figureWhat(label));
+        if (what.length === 1)
+            return item.i18nContext.i18nc("@info %1 is a number, %2 says what the figure is in the book", "%1: %2", figure.number, what[0]);
+        return item.i18nContext.i18nc("@info %1 is a number, %2 lists what the figure could be in the book, separated by semicolons", "%1 is one of these: %2", figure.number, what.join("; "));
+    }
+
+    // What one label says a figure is.
+    function figureWhat(label): string {
+        const ctx = item.i18nContext;
+        switch (label.kind) {
+        case "account-balance":
+            return ctx.i18nc("@info %1 is an account name, %2 a date", "balance of the account %1 on %2", label.name, label.from);
+        case "account-after-today":
+            return ctx.i18nc("@info %1 is an account name", "what the entries of the account %1 dated after today add", label.name);
+        case "accounts-together":
+            return ctx.i18nc("@info %1 is a date", "all your accounts in this currency added up on %1", label.from);
+        case "money-in":
+            return ctx.i18nc("@info %1 and %2 are dates", "all money that came in from %1 to %2", label.from, label.to);
+        case "money-out":
+            return ctx.i18nc("@info %1 and %2 are dates", "all money that went out from %1 to %2", label.from, label.to);
+        case "money-left":
+            return ctx.i18nc("@info %1 and %2 are dates", "money in minus money out from %1 to %2", label.from, label.to);
+        case "category-total":
+            return ctx.i18nc("@info %1 is a category name, %2 and %3 are dates", "the category %1, with everything inside it, from %2 to %3", label.name, label.from, label.to);
+        case "payee-total":
+            return label.name === ""
+                ? ctx.i18nc("@info %1 and %2 are dates", "entries with no other party from %1 to %2", label.from, label.to)
+                : ctx.i18nc("@info %1 is the name of the other party, %2 and %3 are dates", "the other party %1 from %2 to %3", label.name, label.from, label.to);
+        case "budget-available":
+            return ctx.i18nc("@info %1 is a budget name, %2 and %3 are dates", "what the budget %1 has available from %2 to %3", label.name, label.from, label.to);
+        case "budget-spent":
+            return ctx.i18nc("@info %1 is a budget name, %2 and %3 are dates", "what the budget %1 has spent from %2 to %3", label.name, label.from, label.to);
+        case "budget-left":
+            return ctx.i18nc("@info %1 is a budget name, %2 and %3 are dates", "what the budget %1 has left from %2 to %3", label.name, label.from, label.to);
+        default:
+            return "";
+        }
     }
 
     // What to tell the user the AI opened.

@@ -20,6 +20,7 @@ use kassensturz_store::{Book, StoreError};
 use serde_json::{Map, Value, json};
 
 use crate::error::ToolError;
+use crate::figures::LabelKind;
 use crate::writer::Writer;
 
 /// The most accounts `list_accounts` lists.
@@ -183,9 +184,27 @@ pub(crate) fn list_accounts(
             row.insert("closed".into(), Value::Bool(true));
         }
         row.insert("currency".into(), Value::from(account.currency.as_str()));
-        row.insert("balance".into(), w.amount(balance)?);
+        row.insert(
+            "balance".into(),
+            w.amount_of(
+                balance,
+                LabelKind::AccountBalance,
+                &account.name,
+                &today.to_string(),
+                &today.to_string(),
+            )?,
+        );
         if !later.is_empty() {
-            row.insert("after_today".into(), w.amount(after_today)?);
+            row.insert(
+                "after_today".into(),
+                w.amount_of(
+                    after_today,
+                    LabelKind::AccountAfterToday,
+                    &account.name,
+                    "",
+                    "",
+                )?,
+            );
         }
         rows.push(Value::Object(row));
         let (sum, sum_later) = together
@@ -198,7 +217,16 @@ pub(crate) fn list_accounts(
     for (currency, (sum, later)) in together {
         let mut total = Map::new();
         total.insert("currency".into(), Value::from(currency));
-        total.insert("together".into(), w.amount(sum)?);
+        total.insert(
+            "together".into(),
+            w.amount_of(
+                sum,
+                LabelKind::AccountsTogether,
+                "",
+                &today.to_string(),
+                &today.to_string(),
+            )?,
+        );
         if later != Money::zero(later.currency()) {
             total.insert("after_today".into(), w.amount(later)?);
         }
@@ -238,7 +266,13 @@ pub(crate) fn account_balance(
         "account": w.text(&account.name),
         "date": date.to_string(),
         "currency": account.currency.as_str(),
-        "balance": w.amount(balance)?,
+        "balance": w.amount_of(
+            balance,
+            LabelKind::AccountBalance,
+            &account.name,
+            &date.to_string(),
+            &date.to_string(),
+        )?,
     }))
 }
 
@@ -601,16 +635,28 @@ pub(crate) fn category_totals(
 
         let mut entry = Map::new();
         entry.insert("currency".into(), Value::from(currency.as_str()));
-        entry.insert("money_in".into(), w.amount(money_in)?);
-        entry.insert("money_out".into(), w.amount(money_out)?);
-        entry.insert("left".into(), w.amount(left)?);
+        let (shown_from, shown_to) = (from.to_string(), to.to_string());
+        entry.insert(
+            "money_in".into(),
+            w.amount_of(money_in, LabelKind::MoneyIn, "", &shown_from, &shown_to)?,
+        );
+        entry.insert(
+            "money_out".into(),
+            w.amount_of(money_out, LabelKind::MoneyOut, "", &shown_from, &shown_to)?,
+        );
+        entry.insert(
+            "left".into(),
+            w.amount_of(left, LabelKind::MoneyLeft, "", &shown_from, &shown_to)?,
+        );
         for (key, side) in [("income", &income), ("spending", &spending)] {
             let mut rows = Vec::new();
             for &(id, total, below) in side.iter().take(limit) {
                 let mut row = Map::new();
+                let mut category_name = String::new();
                 match id {
                     Some(id) => {
-                        row.insert("category".into(), w.text(&names.name(id)?));
+                        category_name = names.name(id)?;
+                        row.insert("category".into(), w.text(&category_name));
                         row.insert("category_id".into(), Value::String(id.to_string()));
                         // So a model sees which rows sit inside another
                         // and never adds a parent's figure to its
@@ -631,14 +677,32 @@ pub(crate) fn category_totals(
                 // total next to them.
                 match below {
                     Some(with_children) => {
-                        row.insert("total".into(), w.amount(with_children)?);
+                        row.insert(
+                            "total".into(),
+                            w.amount_of(
+                                with_children,
+                                LabelKind::CategoryTotal,
+                                &category_name,
+                                &shown_from,
+                                &shown_to,
+                            )?,
+                        );
                         row.insert(
                             "own_bookings_only".into(),
                             w.own_bookings(total, with_children)?,
                         );
                     }
                     None => {
-                        row.insert("total".into(), w.amount(total)?);
+                        row.insert(
+                            "total".into(),
+                            w.amount_of(
+                                total,
+                                LabelKind::CategoryTotal,
+                                &category_name,
+                                &shown_from,
+                                &shown_to,
+                            )?,
+                        );
                     }
                 }
                 rows.push(Value::Object(row));
@@ -956,7 +1020,16 @@ pub(crate) fn payee_totals(
                         row.insert("no_payee".into(), Value::Bool(true));
                     }
                 }
-                row.insert("amount".into(), w.amount(*total)?);
+                row.insert(
+                    "amount".into(),
+                    w.amount_of(
+                        *total,
+                        LabelKind::PayeeTotal,
+                        payee.as_deref().unwrap_or(""),
+                        &from.to_string(),
+                        &to.to_string(),
+                    )?,
+                );
                 row.insert("transactions".into(), w.count(*count));
                 rows.push(Value::Object(row));
             }
@@ -2065,9 +2138,38 @@ pub(crate) fn list_budgets(
             let mut current = Map::new();
             current.insert("from".into(), Value::String(shown.first_day.to_string()));
             current.insert("to".into(), Value::String(shown.last_day.to_string()));
-            current.insert("available".into(), w.amount(shown.available)?);
-            current.insert("spent".into(), w.amount(shown.spent)?);
-            current.insert("left".into(), w.amount(shown.left)?);
+            let (shown_from, shown_to) = (shown.first_day.to_string(), shown.last_day.to_string());
+            let budget_name = budget.name.as_deref().unwrap_or("");
+            current.insert(
+                "available".into(),
+                w.amount_of(
+                    shown.available,
+                    LabelKind::BudgetAvailable,
+                    budget_name,
+                    &shown_from,
+                    &shown_to,
+                )?,
+            );
+            current.insert(
+                "spent".into(),
+                w.amount_of(
+                    shown.spent,
+                    LabelKind::BudgetSpent,
+                    budget_name,
+                    &shown_from,
+                    &shown_to,
+                )?,
+            );
+            current.insert(
+                "left".into(),
+                w.amount_of(
+                    shown.left,
+                    LabelKind::BudgetLeft,
+                    budget_name,
+                    &shown_from,
+                    &shown_to,
+                )?,
+            );
             // A budget that starts later has its first period, with
             // nothing spent and all of it left (D-710).
             if shown.starts_later {

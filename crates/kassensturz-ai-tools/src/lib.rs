@@ -96,7 +96,9 @@ pub use debug_log::{MAX_LOG_ENTRIES, READ_DEBUG_LOG, read_debug_log};
 #[cfg(feature = "ai")]
 pub use error::{AI_PERMISSIONS, READY_MADE_TILE_HINT, Setting, ToolError};
 #[cfg(feature = "ai")]
-pub use figures::{Figures, Unverified, check_numbers};
+pub use figures::{
+    FigureLabel, Figures, LabelKind, Labelled, Unverified, check_numbers, label_numbers,
+};
 #[cfg(feature = "ai")]
 pub use functions::{
     FUNCTIONS, Function, Output, call, call_allowed, overview, overview_allowed, readable_functions,

@@ -464,6 +464,30 @@ pub(crate) mod engine {
         matches!(set.changes(), [ProposedChange::NewView(_)])
     }
 
+    /// What the figures of an answer that came from code are in the book
+    /// (D-952), as QML reads them: a list of `number` (the text the answer
+    /// wrote) with its `labels`, each `kind` (a fixed code), `name`, `from`
+    /// and `to` (ISO dates, empty for none). The names come from the book:
+    /// plain text only (T-34).
+    fn labelled_object(labelled: &[kassensturz_ai_tools::Labelled]) -> QVariant {
+        list(labelled.iter().map(|figure| {
+            map([
+                ("number", text(&figure.text)),
+                (
+                    "labels",
+                    list(figure.labels.iter().map(|label| {
+                        map([
+                            ("kind", text(label.kind.code())),
+                            ("name", text(&label.name)),
+                            ("from", text(&label.from)),
+                            ("to", text(&label.to)),
+                        ])
+                    })),
+                ),
+            ])
+        }))
+    }
+
     /// The model's answer as QML reads it: its text (untrusted, shown as
     /// plain text and labelled as AI, T-34), the numbers no function
     /// produced (D-188, T-26), the sets that wait for the user, the charts
@@ -486,6 +510,7 @@ pub(crate) mod engine {
                 list(answer.unverified.iter().map(|number| text(&number.text))),
             ),
             ("finish", text(finish)),
+            ("labelled", labelled_object(&answer.labelled)),
             ("overview", QVariant::from(&(answer.mode == Mode::Overview))),
             ("contextCut", QVariant::from(&answer.context_cut)),
             ("sets", sets_object(sets)),
@@ -1893,6 +1918,53 @@ mod tests {
     }
 
     #[test]
+    fn an_answer_reads_back_with_what_its_figures_are() {
+        use kassensturz_ai_tools::{FigureLabel, Figures, LabelKind, label_numbers};
+        use kassensturz_core::{CurrencyCode, Money};
+        let text = "Everyday Checking holds 1234.50.";
+        let money = Money::from_minor_units(123_450, CurrencyCode::new("EUR").unwrap());
+        let mut figures = Figures::new();
+        figures.add_money(money, 2);
+        figures.label_money(
+            money,
+            2,
+            FigureLabel {
+                kind: LabelKind::AccountBalance,
+                name: "Everyday Checking".into(),
+                from: "2026-11-21".into(),
+                to: "2026-11-21".into(),
+            },
+        );
+        let answer = Answer {
+            text: text.into(),
+            unverified: Vec::new(),
+            labelled: label_numbers(text, &figures),
+            finish: Finish::Done,
+            mode: Mode::Functions,
+            context_cut: false,
+            changes: Vec::new(),
+            title_numbers: Vec::new(),
+            chart_failed: None,
+            no_change: false,
+            notes: Vec::new(),
+            issue: None,
+            page: None,
+            note: None,
+        };
+        let object = finished_object(&answer, &[], &[]);
+        let labelled = list_of(&object, "labelled");
+        assert_eq!(labelled.len(), 1);
+        assert_eq!(keys(&labelled[0]), ["labels", "number"]);
+        assert_eq!(text_of(&labelled[0], "number"), "1234.50");
+        let labels = list_of(&labelled[0], "labels");
+        assert_eq!(labels.len(), 1);
+        assert_eq!(keys(&labels[0]), ["from", "kind", "name", "to"]);
+        assert_eq!(text_of(&labels[0], "kind"), "account-balance");
+        assert_eq!(text_of(&labels[0], "name"), "Everyday Checking");
+        assert_eq!(text_of(&labels[0], "from"), "2026-11-21");
+    }
+
+    #[test]
     fn an_answer_reads_back_with_its_unverified_numbers_and_sets() {
         use kassensturz_ai_tools::{Figures, check_numbers};
         let text = "Your balance is 4711.08 and rent 1234.50.";
@@ -1904,6 +1976,7 @@ mod tests {
             finish: Finish::Length,
             mode: Mode::Overview,
             context_cut: true,
+            labelled: Vec::new(),
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,
@@ -1920,6 +1993,7 @@ mod tests {
                 "charts",
                 "contextCut",
                 "finish",
+                "labelled",
                 "overview",
                 "sets",
                 "text",
@@ -1937,6 +2011,8 @@ mod tests {
             Some("4711.08".to_owned()),
             "a number is text"
         );
+        // No figure of this answer has a label.
+        assert!(list_of(&object, "labelled").is_empty());
         let sets = list_of(&object, "sets");
         assert_eq!(sets.len(), 2);
         assert_eq!(keys(&sets[0]), ["count", "id"]);
@@ -1955,6 +2031,7 @@ mod tests {
             finish: Finish::Done,
             mode: Mode::Functions,
             context_cut: false,
+            labelled: Vec::new(),
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,
@@ -2050,6 +2127,7 @@ mod tests {
             finish: Finish::Done,
             mode: Mode::Functions,
             context_cut: false,
+            labelled: Vec::new(),
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,
@@ -2067,6 +2145,7 @@ mod tests {
                 "contextCut",
                 "finish",
                 "issue",
+                "labelled",
                 "overview",
                 "sets",
                 "text",
@@ -2093,6 +2172,7 @@ mod tests {
             finish: Finish::Done,
             mode: Mode::Functions,
             context_cut: false,
+            labelled: Vec::new(),
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,
@@ -2109,6 +2189,7 @@ mod tests {
                 "charts",
                 "contextCut",
                 "finish",
+                "labelled",
                 "overview",
                 "page",
                 "sets",
@@ -2137,6 +2218,7 @@ mod tests {
             finish: Finish::Done,
             mode: Mode::Functions,
             context_cut: false,
+            labelled: Vec::new(),
             changes: Vec::new(),
             title_numbers: Vec::new(),
             chart_failed: None,

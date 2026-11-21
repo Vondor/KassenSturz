@@ -23,6 +23,7 @@ XPStyle on
 !define uninstkey "Software\Microsoft\Windows\CurrentVersion\Uninstall\KassenSturz"
 !define appkey "Software\KassenSturz"
 !define program "bin\kassensturz.exe"
+!define mcpProgram "bin\kassensturz-mcp.exe"
 
 Name "@{productname}"
 Caption "@{productname} @{version}"
@@ -54,6 +55,8 @@ SetDateSave on
 
 LangString stillRunning ${LANG_ENGLISH} "KassenSturz is still open. Close it, then click Retry. Your books stay as they are."
 LangString stillRunning ${LANG_GERMAN} "KassenSturz ist noch geöffnet. Schließen Sie es und klicken Sie dann auf Wiederholen. Ihre Haushaltsbücher bleiben, wie sie sind."
+LangString mcpRunning ${LANG_ENGLISH} "An AI tool is still using KassenSturz's connection program (kassensturz-mcp). Close that AI tool, then click Retry. Nothing has been removed and your books stay as they are."
+LangString mcpRunning ${LANG_GERMAN} "Ein KI-Werkzeug nutzt noch das Verbindungsprogramm von KassenSturz (kassensturz-mcp). Schließen Sie dieses KI-Werkzeug und klicken Sie dann auf Wiederholen. Es wurde nichts entfernt, und Ihre Haushaltsbücher bleiben, wie sie sind."
 LangString unpackFailed ${LANG_ENGLISH} "KassenSturz's files could not be unpacked. Check that the drive has space (about 600 MB), then run this installer again."
 LangString unpackFailed ${LANG_GERMAN} "Die Dateien von KassenSturz konnten nicht entpackt werden. Prüfen Sie, ob auf dem Laufwerk Platz ist (etwa 600 MB), und starten Sie diese Installation noch einmal."
 
@@ -69,6 +72,19 @@ LangString unpackFailed ${LANG_GERMAN} "Die Dateien von KassenSturz konnten nich
             FileOpen $0 "$INSTDIR\${program}" a
             ${If} ${Errors}
                 MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$(stillRunning)" IDRETRY retry
+                Abort
+            ${EndIf}
+            FileClose $0
+        ${EndIf}
+        ; An AI tool outside KassenSturz may keep the MCP server running for
+        ; hours; its file can't be replaced either, and the old version must
+        ; not be removed before that is known (B-441, #1352).
+        retryMcp:
+        ${If} ${FileExists} "$INSTDIR\${mcpProgram}"
+            ClearErrors
+            FileOpen $0 "$INSTDIR\${mcpProgram}" a
+            ${If} ${Errors}
+                MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$(mcpRunning)" IDRETRY retryMcp
                 Abort
             ${EndIf}
             FileClose $0

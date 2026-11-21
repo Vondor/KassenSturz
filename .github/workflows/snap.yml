@@ -166,7 +166,7 @@ jobs:
           esac
           # AI is off in a fresh install, so a start that works says so and
           # exits with status 2; a missing library would fail differently.
-          out=$(snap run kassensturz.mcp < /dev/null 2>&1); status=$?
+          status=0; out=$(snap run kassensturz.mcp < /dev/null 2>&1) || status=$?
           echo "status: $status"; echo "$out" | tail -n 5
           test "$status" = 2
           echo "$out" | grep -q "AI features are switched off"

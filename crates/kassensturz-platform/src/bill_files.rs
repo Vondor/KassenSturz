@@ -661,7 +661,14 @@ fn new_id() -> String {
     let nanos = std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |since| since.as_nanos());
-    format!("{nanos:x}-{:x}", COUNT.fetch_add(1, Ordering::Relaxed))
+    // The process ID too: a runner with one process per test starts them
+    // in the same clock tick with the counter at 0 (macOS reads the clock
+    // in microseconds), and two ids were the same (B-459).
+    format!(
+        "{nanos:x}-{:x}-{:x}",
+        std::process::id(),
+        COUNT.fetch_add(1, Ordering::Relaxed)
+    )
 }
 
 #[cfg(test)]

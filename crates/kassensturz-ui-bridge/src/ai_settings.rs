@@ -11,6 +11,7 @@
 //! screen, handed over once and never read back to it (D-169, threat T-25).
 //! This module is compiled only in a build with AI (D-039).
 
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use kassensturz_ai::{
@@ -279,6 +280,10 @@ pub struct Store {
     /// Where the consent seals live (B-252): `None` for the provider keys
     /// of this run ([`with_keys`]), else keys of the store's own (tests).
     keys: Option<Arc<Mutex<ProviderKeys>>>,
+    /// Where the copy of the settings file goes before the look at a
+    /// request is first turned off (D-936): `None` for next to the file,
+    /// else this folder (B-435, see [`backup_folder`]).
+    backup_folder: Option<PathBuf>,
     /// A key whose writes fail, so a test can reach the paths of a settings
     /// file that can't be written.
     #[cfg(test)]
@@ -289,6 +294,20 @@ pub struct Store {
 /// look at a request can be turned off for a provider (D-936).
 pub const SETTINGS_BACKUP_SUFFIX: &str = ".before-request-review-off";
 
+/// Where the Store app puts the copy of D-936: KassenSturz's own folder,
+/// `Documents\KassenSturz`, where its other backups are too (D-856).
+/// Windows keeps a file that a packaged app creates in `%LOCALAPPDATA%` in
+/// the package's `LocalCache`, so a copy made "next to" a settings file that
+/// was there before the Store app landed somewhere else, where nobody finds
+/// it, and an uninstall deletes it (B-435). `None` everywhere else and in
+/// the test profile: there the copy goes next to the file.
+fn backup_folder() -> Option<PathBuf> {
+    if crate::test_profile::data_folder().is_some() || !crate::platform::in_app_package() {
+        return None;
+    }
+    crate::platform::app_folder()
+}
+
 impl Store {
     /// The settings of this user on this computer.
     pub fn user() -> Self {
@@ -296,6 +315,7 @@ impl Store {
             settings: Settings::user(),
             config: ConfigFile::user(),
             keys: None,
+            backup_folder: backup_folder(),
             #[cfg(test)]
             refused_key: Mutex::new(String::new()),
         }
@@ -308,6 +328,7 @@ impl Store {
             settings: Settings::at(path),
             config: ConfigFile::at(path),
             keys: Some(Arc::new(Mutex::new(ProviderKeys::new(None)))),
+            backup_folder: None,
             refused_key: Mutex::new(String::new()),
         }
     }
@@ -752,9 +773,11 @@ impl Store {
 
     /// Copies the settings file next to itself before a new kind of entry is
     /// first written to it (AGENTS.md §1: a settings change keeps a way
-    /// back). The copy is made once and never overwritten, so it holds the
-    /// file as it was before. A file that doesn't exist yet needs none;
-    /// where the file is unknown or can't be copied, nothing is written.
+    /// back); in the Store app into KassenSturz's own folder instead
+    /// (B-435). The copy is made once and never overwritten, so it holds the
+    /// file as it was before; one already next to the file counts too. A
+    /// file that doesn't exist yet needs none; where the file is unknown or
+    /// can't be copied, nothing is written.
     fn back_up_settings(&self) -> bool {
         let Some(path) = self.config.path() else {
             return false;
@@ -762,11 +785,19 @@ impl Store {
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             return false;
         };
-        let copy = path.with_file_name(format!("{name}{SETTINGS_BACKUP_SUFFIX}"));
-        if !path.exists() || copy.exists() {
+        let copy_name = format!("{name}{SETTINGS_BACKUP_SUFFIX}");
+        let beside = path.with_file_name(&copy_name);
+        if !path.exists() || beside.exists() {
             return true;
         }
-        std::fs::copy(path, &copy).is_ok()
+        let Some(folder) = &self.backup_folder else {
+            return std::fs::copy(path, &beside).is_ok();
+        };
+        let copy = folder.join(&copy_name);
+        if copy.exists() {
+            return true;
+        }
+        std::fs::create_dir_all(folder).is_ok() && std::fs::copy(path, &copy).is_ok()
     }
 
     /// The key for a test or a question: the one typed for it, else the one
@@ -1772,6 +1803,59 @@ mod tests {
         assert!(!store.review_skipped());
         assert!(store.set_review_off(true));
         assert_eq!(std::fs::read_to_string(&copy).unwrap(), before);
+    }
+
+    #[test]
+    fn the_store_app_keeps_the_copy_in_its_own_folder() {
+        // B-435: in the Store app the copy goes to KassenSturz's own folder,
+        // which needn't exist yet, and not next to the settings file.
+        let (folder, file, mut store, _keys) = agreed();
+        let before = std::fs::read_to_string(&file).unwrap();
+        let own = folder.path().join("Documents").join("KassenSturz");
+        store.backup_folder = Some(own.clone());
+        assert!(store.set_review_off(true));
+        let copy = own.join(format!("kassensturzrc{SETTINGS_BACKUP_SUFFIX}"));
+        assert_eq!(std::fs::read_to_string(&copy).unwrap(), before);
+        assert!(
+            !file
+                .with_file_name(format!("kassensturzrc{SETTINGS_BACKUP_SUFFIX}"))
+                .exists()
+        );
+
+        // Never overwritten.
+        assert!(store.set_review_off(false));
+        assert!(store.set_review_off(true));
+        assert_eq!(std::fs::read_to_string(&copy).unwrap(), before);
+    }
+
+    #[test]
+    fn a_copy_already_next_to_the_file_counts_in_the_store_app() {
+        // A copy made next to the file by the version before B-435 holds the
+        // file as it was first; no second copy of a later state is made.
+        let (folder, file, mut store, _keys) = agreed();
+        assert!(store.set_review_off(true));
+        assert!(store.set_review_off(false));
+        assert!(
+            file.with_file_name(format!("kassensturzrc{SETTINGS_BACKUP_SUFFIX}"))
+                .exists()
+        );
+        let own = folder.path().join("own");
+        store.backup_folder = Some(own.clone());
+        assert!(store.set_review_off(true));
+        assert!(!own.exists());
+    }
+
+    #[test]
+    fn no_copy_no_write_in_the_store_app() {
+        // The own folder can't be made (a file stands in its place): the key
+        // is not written.
+        let (folder, _file, mut store, _keys) = agreed();
+        let blocked = folder.path().join("blocked");
+        std::fs::write(&blocked, "").unwrap();
+        store.backup_folder = Some(blocked.join("KassenSturz"));
+        assert!(!store.set_review_off(true));
+        assert!(!store.review_skipped());
+        assert_eq!(store.text(kassensturz_ai::REQUEST_REVIEW_OFF_KEY), "");
     }
 
     #[test]

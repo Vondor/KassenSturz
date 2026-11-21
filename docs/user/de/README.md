@@ -46,8 +46,6 @@ Dieses Handbuch gibt es auch [auf Englisch](../en/README.md).
 
 22. [Was als Nächstes kommt](22-fahrplan.md)
 
-Das ältere, kürzere [Benutzerhandbuch](../USER_GUIDE.de.md) wird von diesem Handbuch abgelöst und bleibt nur als Kurzfassung stehen.
-
 **Erweitern**
 
 23. [Plugins](23-plugins.md)

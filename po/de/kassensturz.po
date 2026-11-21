@@ -28546,5 +28546,5 @@ msgstr "Der Ordner auf diesem Computer konnte nicht vorbereitet werden, zum Beis
 #: crates/kassensturz-ui-bridge/qml/Main.qml:1
 #, kde-format
 msgctxt "@info"
-msgid "Your bank connection's settings could not be moved to the private folder, probably because OneDrive was using the old folder. They are still where they were and still work. KassenSturz tries again at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."
-msgstr "Die Einstellungen Ihrer Bankverbindung konnten nicht in den privaten Ordner verschoben werden, wahrscheinlich weil OneDrive den alten Ordner benutzt hat. Sie liegen noch dort, wo sie waren, und funktionieren weiter. KassenSturz versucht es beim nächsten Start erneut; wenn diese Meldung bleibt, beenden Sie OneDrive kurz und starten Sie KassenSturz neu."
+msgid "Your bank connection's settings were copied to the private folder, but the old folder could not be removed, probably because OneDrive was using it. Your bank connection still works. KassenSturz finishes the move at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."
+msgstr "Die Einstellungen Ihrer Bankverbindung wurden in den privaten Ordner kopiert, aber der alte Ordner konnte nicht entfernt werden, wahrscheinlich weil OneDrive ihn benutzt hat. Ihre Bankverbindung funktioniert weiter. KassenSturz schließt das Verschieben beim nächsten Start ab; wenn diese Meldung bleibt, beenden Sie OneDrive kurz und starten Sie KassenSturz neu."

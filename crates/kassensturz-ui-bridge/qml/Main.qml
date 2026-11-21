@@ -142,7 +142,7 @@ Kirigami.ApplicationWindow {
             if ((bookMover.place?.bankMoveFailed ?? false) && !root.bankMoveTold) {
                 // B-450: say it, since a Windows app shows no console.
                 root.bankMoveTold = true;
-                showPassiveNotification(i18nContext.i18nc("@info", "Your bank connection's settings could not be moved to the private folder, probably because OneDrive was using the old folder. They are still where they were and still work. KassenSturz tries again at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."), "long");
+                showPassiveNotification(i18nContext.i18nc("@info", "Your bank connection's settings were copied to the private folder, but the old folder could not be removed, probably because OneDrive was using it. Your bank connection still works. KassenSturz finishes the move at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."), "long");
             }
             root.tellSettledBills(changeHistory.settleBills());
         }

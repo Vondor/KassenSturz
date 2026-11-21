@@ -13,7 +13,7 @@
 
 ## Der Verlauf
 
-Unter **Einstellungen** zeigt **Verlauf anzeigen** die letzten 100 Änderungen mit Tag und Uhrzeit. KassenSturz hebt den Verlauf 30 Tage auf, wenn Sie nichts anderes wählen. Wie lange, stellen Sie in den Einstellungen ein.
+Unter **Einstellungen › Sicherungen und Rückgängig** zeigt **Verlauf anzeigen** die letzten 100 Änderungen mit Tag und Uhrzeit. KassenSturz hebt den Verlauf 30 Tage auf, wenn Sie nichts anderes wählen. Wie lange, stellen Sie gleich dort ein.
 
 ## Verlauf bereinigen
 
@@ -21,6 +21,6 @@ Unter **Einstellungen** zeigt **Verlauf anzeigen** die letzten 100 Änderungen m
 
 ## Sicherungen
 
-Vor dem Anpassen eines Buches an eine neue Version legt KassenSturz selbst eine **Sicherung** des ganzen Buches an (**Einstellungen › Sicherungen**) und behält die letzten zehn.
+Vor dem Anpassen eines Buches an eine neue Version legt KassenSturz selbst eine **Sicherung** des ganzen Buches an (**Einstellungen › Sicherungen und Rückgängig**) und behält die letzten zehn.
 
 **Wenn etwas anders aussieht:** Nach einer Meldung wie „Rückgängig kann die Buchung nur zurückbringen, bis Sie dieses Buch schließen“ ist in Ihren Einstellungen kein Verlauf vorgesehen. Dort stellen Sie ihn ein.

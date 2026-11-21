@@ -13,7 +13,7 @@
 
 ## The history
 
-In **Settings**, **Show history** shows the last 100 changes with day and time. KassenSturz keeps the history for 30 days unless you choose otherwise. You set how long in Settings.
+In **Settings › Backups and undo**, **Show history** shows the last 100 changes with day and time. KassenSturz keeps the history for 30 days unless you choose otherwise. You set how long right there.
 
 ## Cleaning up the history
 
@@ -21,6 +21,6 @@ In **Settings**, **Show history** shows the last 100 changes with day and time. 
 
 ## Backups
 
-Before it adapts a book to a new version, KassenSturz makes a **backup** of the whole book by itself (**Settings › Backups**) and keeps the last ten.
+Before it adapts a book to a new version, KassenSturz makes a **backup** of the whole book by itself (**Settings › Backups and undo**) and keeps the last ten.
 
 **If something looks different:** after a message such as "Undo can only bring the transaction back until you close this book", your Settings keep no history. You can switch it on there.

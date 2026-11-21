@@ -1,36 +1,33 @@
 # 22. Was als Nächstes kommt
 
-*Eine Übersicht in einfachen Worten: was KassenSturz schon kann, woran wir gerade arbeiten und was erst nach Version 1.0 geplant ist. Das ist ein Plan, kein Versprechen: Reihenfolge und Inhalt können sich ändern, wenn Tester etwas Wichtigeres finden.*
+*Eine Übersicht in einfachen Worten: was KassenSturz schon kann, was bis Version 1.0 noch kommt und was erst danach geplant ist. Das ist ein Plan, kein Versprechen: Reihenfolge und Inhalt können sich ändern, wenn Tester etwas Wichtigeres finden.*
 
 ## Wo wir stehen
 
-KassenSturz ist in der **Beta**. Das heißt: Alle geplanten Funktionen für Version 1.0 sind da oder in Arbeit, und uns ist kein Fehler bekannt, bei dem Daten verloren gehen. Eingeladene Tester probieren die App mit ausgedachten Büchern aus, und ihre Funde bestimmen, was als Nächstes gebaut wird.
+Seit dem 21. November 2026 gibt es eine **stabile Ausgabe** von KassenSturz. Sie ist für den Alltag mit Ihrem eigenen Haushaltsbuch gedacht. Daneben gibt es **Beta-Ausgaben**: Sie sind neuer, können mehr Fehler haben und sind zum Ausprobieren da (Seite 2).
 
-Es gilt: **Geprüft und sicher zu benutzen: Viele Sicherheitsprüfungen und Angriffstests sind gemacht; die App kann sich aber noch ändern.**
+KassenSturz als Ganzes ist weiter in der **Beta**-Phase, bis Version 1.0 erklärt wird; so lange beginnt jede Versionsnummer mit `0.`. Uns ist kein Fehler bekannt, bei dem Daten verloren gehen. Tester probieren die App weiter mit ausgedachten Büchern aus, und ihre Funde bestimmen, was als Nächstes gebaut wird.
+
+Vor der stabilen Ausgabe wurde der Code, der mit Geld, Passwörtern, Bankverbindungen und dem Aufbau der Dateien zu tun hat, noch einmal gründlich geprüft. Seitdem ändert sich das Dateiformat des Buchs nicht mehr, außer mit einer automatischen Sicherung und einer sauberen Übernahme der alten Bücher.
 
 ## Schon da
 
 - Konten, Kategorien, Buchungen, Umbuchungen, Rückgängig und Verlauf
-- Kontoauszüge einlesen und direkte Bankverbindung, nur zum Lesen
+- Kontoauszüge einlesen; unter Linux auch die direkte Bankverbindung, nur zum Lesen
 - Regeln, die Buchungen von selbst sortieren
-- Budgets, geplante Zahlungen und Statistiken mit Dashboards
+- Budgets, geplante Zahlungen (auch zum Pausieren) und Statistiken mit Dashboards
+- Schlagwörter, auch als Filter auf den Dashboards
+- Eine geführte Einrichtung für neue Bücher; sie ist freiwillig, und jeder Schritt lässt sich überspringen
+- Plugins: eigene Erweiterungen für Importer, Exporter, Berichte, Automatisierungen, Designs und KI-Anbieter. Jedes Plugin zeigt vorher, was es darf.
 - KI-Hilfe, die aus ist, bis Sie sie einschalten
 
 Wie das alles funktioniert, steht in den anderen Seiten dieses [Handbuchs](README.md).
 
-## Woran wir gerade arbeiten
+## Bis Version 1.0
 
-Der aktuelle Abschnitt ist der letzte der Beta. Er soll alles erledigen, was vor Version 1.0 noch fehlt:
-
-- **Ein Willkommens-Assistent** für neue Bücher: Bank oder Datei einlesen, den Kontostand bestätigen, die ersten Buchungen sortieren. Er ist freiwillig, jeder Schritt lässt sich überspringen.
-- **Bank und Kategorien einfacher:** Der PIN-Dialog sagt klarer, welche PIN gemeint ist. Nach einer erfolgreichen Verbindung fragt die App, ob sie die Buchungen gleich holen soll. In jeder Kategorieauswahl gibt es **Neue Kategorie …**.
-- **Dashboards:** Kacheln lassen sich an jedem Rand in der Größe ändern, Tags gibt es in der Filterleiste, und geplante Zahlungen lassen sich **pausieren** und später **fortsetzen**, ohne den Verlauf zu verlieren.
-- **Plugins:** Eigene Erweiterungen für Importer, Exporter, Berichte, Automatisierungen, Designs und KI-Anbieter. Jedes Plugin zeigt vorher, was es darf.
-- **Kleinere Korrekturen** aus den letzten Testrunden, zum Beispiel für Rechnungsordner unter Windows und die Beschriftung von „Rückgängig“.
-
-## Danach: Version 1.0
-
-Vor der ersten stabilen Version prüfen wir noch einmal gründlich den Code, der mit Geld, Passwörtern, Bankverbindungen und dem Aufbau der Dateien zu tun hat. Auch die Texte und Bilder für die Stores werden fertig. Ab dem stabilen Stand ändert sich das Dateiformat des Buchs nicht mehr, außer mit einer automatischen Sicherung und einer sauberen Übernahme der alten Bücher.
+- Fehler beheben, die Tester und Nutzer finden
+- Die Bankverbindung für Windows ist vorgesehen, hat aber noch keinen Termin; bis dahin lesen Sie dort Dateien ein
+- Eine signierte Mac-Version, sobald das Signieren finanziert ist; bis dahin gibt es einen experimentellen Download
 
 Version 1.0 erklärt allein der Entwickler.
 

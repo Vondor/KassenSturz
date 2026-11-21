@@ -46,7 +46,13 @@ Dieses Handbuch gibt es auch [auf Englisch](../en/README.md).
 
 22. [Was als Nächstes kommt](22-fahrplan.md)
 
-Das ältere, kürzere [Benutzerhandbuch](../USER_GUIDE.de.md) wird von diesem Handbuch abgelöst und bleibt nur als Kurzfassung stehen.
+**Erweitern**
+
+23. [Plugins](23-plugins.md)
+
+**Freiwillig**
+
+- [Eine KI mit KassenSturz benutzen](ki.md), Schritt für Schritt, für alle, die noch nie eine eingerichtet haben
 
 In einfachen Worten, auf einer Seite: [Warum Ihre Daten sicher sind](warum-ihre-daten-sicher-sind.md).
 

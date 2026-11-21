@@ -5,7 +5,7 @@ SPDX-License-Identifier: CC-BY-SA-4.0
 
 # KassenSturz installieren
 
-*English: [INSTALL.md](INSTALL.md).* KassenSturz ist in der Beta. Probieren Sie es mit erfundenen Zahlen oder einem Beispielbuch aus, nie mit Ihren eigenen Daten. Schritt-für-Schritt-Blätter für Testsitzungen liegen in [`testing/`](testing/README.md).
+*English: [INSTALL.md](INSTALL.md).* Die stabile Ausgabe ist für den Alltag mit Ihrem eigenen Haushaltsbuch gedacht; legen Sie von Zeit zu Zeit eine eigene Kopie an. Beta-Ausgaben sind zum Ausprobieren da: Nehmen Sie dort ein Beispielbuch oder eine Kopie Ihres Buchs (D-954). Schritt-für-Schritt-Blätter für Testsitzungen liegen in [`testing/`](testing/README.md).
 
 ## Linux
 

@@ -16,7 +16,7 @@
 | **Kategorie** | Wofür Geld ausgegeben wurde oder woher es kam (Seite 6). |
 | **Kontostand** | Wie viel jetzt auf einem Konto ist. Bei einer Schuld steht „Sie schulden …“. |
 | **Mit der Bank abgleichen** | Tippen, was Ihre Bank als Stand nennt; KassenSturz sagt, ob es dasselbe hat, und ändert nie von allein etwas (Seite 5). |
-| **Muster (fortgeschritten)** | Eine genauere Art, in einer Regel Text zu finden. Nie nötig. |
+| **Ein Muster verwenden (fortgeschritten)** | Eine genauere Art, in einer Regel Text zu finden. Nie nötig. |
 | **Noch nicht zugeordnet** | Eine Buchung ohne Kategorie. Zählt in keiner Kategoriesumme. |
 | **Regel** | Ein Auftrag, Buchungen von selbst zu sortieren (Seite 12). |
 | **Rückgängig / Wiederholen** | Die letzte Änderung zurücknehmen oder noch einmal ausführen (Seite 9). |

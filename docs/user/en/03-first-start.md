@@ -6,7 +6,7 @@ At the very first start, the assistant opens. You can go back at every step. If 
 
 ## Step 1: Welcome
 
-You choose your **Language** (your system's is already set) and the **Currency** you use. Usually you only confirm with **Next**. If you change the language, KassenSturz restarts once in that language; nothing is lost.
+You choose your **Language** (your system's is already set; English, German and Polish are there) and the **Currency** you use. Usually you only confirm with **Next**. If you change the language, KassenSturz restarts once in that language; nothing is lost.
 
 ## Step 2: How would you like to start?
 
@@ -32,7 +32,7 @@ The guided setup leads you through the important things on your own household bo
 5. **Your first chart** with the Statistic Builder (page 14).
 6. **A budget and a planned payment** (pages 13 and 21).
 7. **Shape your start page:** move tiles, change their size, add and remove them (page 4).
-8. **Do you have an AI on this computer?** Only a question. "No, or I don't know" is already chosen, and then the AI features stay off and nothing about AI is shown. "Yes" turns them on and opens the page where you type in the address of your AI (page 18). Versions of KassenSturz that are built without AI don't have this step.
+8. **Do you have an AI on this computer?** Only a question. "No, or I don't know" is already chosen, and then the AI features stay off and nothing about AI is shown. "Yes" turns them on and opens the page where you type in the address of your AI ([Using an AI with KassenSturz](ai.md) goes through it step by step). Versions of KassenSturz that are built without AI don't have this step.
 
 You find every step again later, also the ones you skipped: **Settings → Help: guided setup**. The last page also links to this handbook in the wiki.
 
@@ -56,7 +56,7 @@ You can choose:
 - *Space Colony*: five years in a colony on Mars.
 - *USSR Government Agent*: a made-up agent in the 1980s with several currencies.
 
-You get **your own copy**; the example that comes with the app stays unchanged. You can change and delete as much as you like in it. Later you open an example book again with **Settings › Open another book…**.
+You get **your own copy**; the example that comes with the app stays unchanged. You can change and delete as much as you like in it. Later you open an example book again with **Settings › My book › Open another book…**.
 
 ## The "Bring my data from another program" way
 
@@ -64,7 +64,7 @@ KassenSturz reads books from **KMyMoney** (`.kmy` files or SQLite) and a copy sa
 
 ## Where is my household book?
 
-KassenSturz makes it by itself in its own folder and opens it again at every start; you don't have to choose a file. In **Settings** you open another book (**Open another book…**) or start a new one (**Start a new book…**), for example to practise.
+KassenSturz makes it by itself in its own folder and opens it again at every start; you don't have to choose a file. The version from the Microsoft Store and the one from the Snap Store use the folder `KassenSturz` in your Documents folder; **Settings › Advanced › Where your book is kept** shows the exact place on your computer. In **Settings › My book** you open another book (**Open another book…**) or start a new one (**Start a new book…**), for example to practise.
 
 A book is open in only **one** place at a time. If it is on a network drive, KassenSturz warns you. If it says "This book is open on …", close it there and choose **Try again**.
 

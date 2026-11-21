@@ -33,6 +33,6 @@
 - **Your book is not encrypted.** It holds no PIN, but it holds your transactions. Whoever gets a copy of the file can read it. So protect your computer with a password, and think of backups and folders that sync with the Internet too.
 - Keep your system up to date. KassenSturz can't protect you against malware on your computer.
 - Nobody from KassenSturz will ever ask you for your PIN or a TAN.
-- KassenSturz is still being tested (Beta). To try it out, one of the example books is best.
+- Use the stable release for your own household book, and keep a copy of your own from time to time. Beta builds are for trying things out; use an example book or a copy there.
 
 More details, including what we attacked ourselves and what we fixed, are on the page [How safe is KassenSturz?](../../SECURITY_OVERVIEW.en.md)

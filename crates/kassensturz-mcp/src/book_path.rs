@@ -103,9 +103,8 @@ fn last_book() -> Result<PathBuf, String> {
          --book <file>."
             .to_owned()
     };
-    let text = ai_switch::settings_file()
-        .and_then(|file| std::fs::read_to_string(file).ok())
-        .ok_or_else(none)?;
+    // The Store app's copy of the settings where there is one (B-436).
+    let text = ai_switch::newest_settings_text().ok_or_else(none)?;
     let (home, runtime) = folders_of_the_app(
         std::env::var("HOME").ok(),
         std::env::var("XDG_RUNTIME_DIR").ok(),

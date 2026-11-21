@@ -1,6 +1,8 @@
 # Planned payments and the forecast
 
-**Status:** design for US7 (#795 and #725, one design because the forecast reads the schedules), decisions D-769 (planned payments) and D-770 (forecast) in `docs/DECISIONS.md`, both **Proposed**: the defaults in [9](#9-defaults-the-maintainer-may-change) stand unless the maintainer changes them. Nothing is built yet. This pull request says `Refs #795` and `Refs #725`; the build pull requests close them (Q-538). It applies D-029 (it moves "scheduled and recurring transactions" from "after 1.0" into the 1.0 set, as the US7 prompt says), D-030, D-031, D-053, D-065, D-083, D-087, D-749 and AGENTS.md §3.1 rules 1, 8 and 9.
+> **Status (21 Nov 2026):** Built in US7 (design #912, build 1 in #923, then the Plans page and its tiles); D-769 and D-770 are Decided. Th
+
+**Design:** written for US7 (#795 and #725, one design because the forecast reads the schedules), decisions D-769 (planned payments) and D-770 (forecast) in `docs/DECISIONS.md`, proposed at the time; the defaults in [9](#9-defaults-the-maintainer-may-change) stood unless the maintainer changed them. The design pull request said `Refs #795` and `Refs #725`; the build pull requests close them (Q-538). It applies D-029 (it moves "scheduled and recurring transactions" from "after 1.0" into the 1.0 set, as the US7 prompt says), D-030, D-031, D-053, D-065, D-083, D-087, D-749 and AGENTS.md §3.1 rules 1, 8 and 9.
 
 All names, amounts and banks below are invented.
 

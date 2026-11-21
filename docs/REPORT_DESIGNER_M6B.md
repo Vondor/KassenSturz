@@ -1,5 +1,7 @@
 # The report designer, part 2: grid editor, groups and formulas (M6b)
 
+> **Status (21 Nov 2026):** Built in Sprint M6b. Th
+
 Written in M6b.0 (Sprint M6b, Phase 0). It holds what the M6b steps build on: the grid rules and the editor's undo, the dashboard document v1, category groups and the hide list, the formula language, editing AI-prepared changes (#191) and the capability check in "Test connection". It continues `docs/REPORT_DESIGNER.md` (M6.0), whose rules still hold: numbers come from Rust as text (D-065), aggregation is exact and stays in `kassensturz-report` (D-277), documents are untrusted input with fixed limits (D-281). Decisions are D-286 to D-294 in `docs/DECISIONS.md`; they are **Proposed** until the maintainer approves them. Release stage: **Alpha** (no migrations; the book format may change; the dashboard document keeps its version field).
 
 The maintainer's answers this design builds on, word for word where he wrote them:

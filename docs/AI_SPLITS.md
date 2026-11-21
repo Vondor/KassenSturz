@@ -1,5 +1,7 @@
 # The AI splits a transaction and attaches its bill (US5.1, US5.12, US5.13 design)
 
+> **Status (21 Nov 2026):** Built in US5 (design #764; builds #776, #777 and #778). Th
+
 Design for #717 (D-737 to D-739). Today an AI can sort a transaction into one category (`categorize`) and change its fields (`edit_transactions`, D-257), but it cannot break a transaction into Parts, it sees a split only as a list of category names, and it has no way to tie a bill to the transaction it paid for. This design adds those three things for the AI the user chose, behind permission cells that start off (D-252), with every change on a check card the user confirms (AGENTS.md §8).
 
 All examples are invented: the shop "Papierladen Nord", the invoice numbers and the amounts.

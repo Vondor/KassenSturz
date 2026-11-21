@@ -1,5 +1,7 @@
 # The report designer, part 3: budgets, financial figures, shared filters and the AI chart builder (M6c)
 
+> **Status (21 Nov 2026):** Built in Sprint M6c. Th
+
 Design of the M6c Sprint (D-284), written in step M6c.0. It builds on `docs/REPORT_DESIGNER.md` (the reporting layer, D-277; the AI and the designer, D-282) and `docs/REPORT_DESIGNER_M6B.md` (the grid, groups, formulas, the period box of D-333). Decisions D-344 to D-359, questions Q-264 to Q-268; threat rows T-46 to T-50; the steps are in `docs/ROADMAP.md` ("M6c steps").
 
 Release stage: **Alpha** (D-274). Layout 22 is a development layout: no migration of older books is written, and the development migrations are merged into one starting layout at the end of Alpha (D-045).

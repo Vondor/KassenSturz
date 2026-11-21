@@ -340,6 +340,14 @@ pub fn snap_own_folder() -> Option<PathBuf> {
         .clone()
 }
 
+/// Whether this is a snap whose books stay in the snap's own data folder
+/// because `Documents/KassenSturz` could not be used (B-442, #1353), for
+/// example a Documents folder that is a link to another disk. `snap remove`
+/// deletes that data folder, so the user is told once.
+pub fn snap_keeps_books_in_data_folder() -> bool {
+    !crate::test_profile::on() && in_snap_sandbox() && snap_own_folder().is_none()
+}
+
 /// The user's Documents folder inside `home`: what `user_dirs` (the text of
 /// `~/.config/user-dirs.dirs`) says, if that is a folder inside `home`;
 /// otherwise the first of `Documents` and `Dokumente` that `exists`, or

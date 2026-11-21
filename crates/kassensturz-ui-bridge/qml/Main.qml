@@ -88,6 +88,7 @@ Kirigami.ApplicationWindow {
     // overview shows its first-look message. Kept in memory only, so it needs
     // no stored setting.
     property bool freshBook: false
+    property bool snapFolderTold: false
 
     // The steps of the guided setup (#1031, docs/GUIDED_SETUP.md), in their
     // order. How far the user got is not stored anywhere (D-921): the pages
@@ -124,6 +125,12 @@ Kirigami.ApplicationWindow {
         onOpened: {
             bookMover.refresh();
             root.showBook();
+            if ((bookMover.place?.snapDataFolder ?? false) && !root.snapFolderTold) {
+                // B-442: the snap could not use Documents, so its books are in
+                // the snap's own folder, which removing the snap deletes.
+                root.snapFolderTold = true;
+                showPassiveNotification(i18nContext.i18nc("@info", "KassenSturz could not use your Documents folder, so your books are kept in the program's own folder. Removing KassenSturz (snap remove) deletes that folder with them. Make a backup copy of your book to a safe place, or move your book to another folder."), "long");
+            }
             // A book the Store app kept where Windows deletes it with the
             // app: offered a move once a start (D-856).
             if ((bookMover.place?.offerMove ?? false) && !bookInPackage.asked) {

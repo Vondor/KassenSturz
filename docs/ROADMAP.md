@@ -66,7 +66,7 @@ Phase 2 handoff steps from the sorting in D-984 and the AI figure labels in D-98
 | B-443 (#1354) | Exercise the Store-folder logic on Windows, with both-VM verification | done (#1393) |
 | B-445 (#1356) | Remove network access from the Snap MCP app and check the installed package | done (#1390) |
 | B-459 (#1384) | Eliminate the two macOS test races | done (#1392) |
-| D-952 (#1358) | Label figures from the book in AI answers (D-983, D-986) | doing (#1394) |
+| D-952 (#1358) | Label figures from the book in AI answers (D-983, D-986) | done (#1394) |
 
 ## How to pick work
 

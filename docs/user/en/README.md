@@ -42,6 +42,10 @@ There is also a [German version of this handbook](../de/README.md).
 
 21. [Planned payments](21-planned-payments.md)
 
+**Extending KassenSturz**
+
+23. [Plugins](23-plugins.md)
+
 **Optional**
 
 - [Using an AI with KassenSturz](ai.md), step by step, for people who have never set one up

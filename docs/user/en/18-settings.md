@@ -26,7 +26,7 @@ Which book is open and where its file is, **Tags**, and the buttons **Open anoth
 
 ## Plugins
 
-A plugin is a small file that adds something to KassenSturz, for example another kind of bank file or other colors. Here you add a plugin file you downloaded and see what it may do before you allow it. KassenSturz works completely without plugins.
+A plugin is a small file that adds something to KassenSturz, for example another kind of bank file or other colors. Here you add a plugin file you downloaded and see what it may do before you allow it. KassenSturz works completely without plugins (page 23).
 
 ## Advanced
 

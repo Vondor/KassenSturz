@@ -26,7 +26,7 @@ Welches Buch offen ist und wo seine Datei liegt, **Schlagwörter** und die Knöp
 
 ## Plugins
 
-Ein Plugin ist eine kleine Datei, die KassenSturz um etwas erweitert, zum Beispiel um eine weitere Art von Bankdatei oder um andere Farben. Hier fügen Sie eine heruntergeladene Plugin-Datei hinzu und sehen, was sie darf, bevor Sie es erlauben. KassenSturz funktioniert vollständig ohne Plugins.
+Ein Plugin ist eine kleine Datei, die KassenSturz um etwas erweitert, zum Beispiel um eine weitere Art von Bankdatei oder um andere Farben. Hier fügen Sie eine heruntergeladene Plugin-Datei hinzu und sehen, was sie darf, bevor Sie es erlauben. KassenSturz funktioniert vollständig ohne Plugins (Seite 23).
 
 ## Erweitert
 

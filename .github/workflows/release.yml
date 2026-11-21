@@ -414,6 +414,21 @@ jobs:
           sudo snap install snapcraft --classic
           snapcraft upload --release="$CHANNELS" snap/kassensturz.snap
           echo "The snap of $TAG is in the Snap Store's channels: $CHANNELS" >> "$GITHUB_STEP_SUMMARY"
+      # The store page follows snapcraft.yaml (D-947): summary, title,
+      # description, license and icon of this snap replace what was edited on
+      # the web. Category, links and screenshots stay as they are there. A
+      # failure here only warns: the snap is already released.
+      - name: Update the store page from snapcraft.yaml
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          set -u
+          [ -n "$SNAPCRAFT_STORE_CREDENTIALS" ] || exit 0
+          if snapcraft upload-metadata --force snap/kassensturz.snap; then
+            echo "The Snap Store page now shows the texts and icon of this release's snapcraft.yaml." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::The Snap Store page was not updated. The most likely cause is a store login without the package_metadata permission (docs/RELEASING.md, \"Updating the Snap Store page\"). The snap itself is released."
+          fi
 
   # Puts the Windows package (the `...-store.msix` of the release) into the
   # Microsoft Store (#927, D-844), so the maintainer no longer uploads it in

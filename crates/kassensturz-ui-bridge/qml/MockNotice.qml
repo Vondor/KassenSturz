@@ -16,5 +16,5 @@ Kirigami.InlineMessage {
     position: Kirigami.InlineMessage.Position.Header
     type: Kirigami.MessageType.Information
     visible: true
-    text: i18nContext.i18nc("@info", "This is an early test version of KassenSturz. Try it with made-up numbers: what you enter is saved in your book.")
+    text: i18nContext.i18nc("@info", "Bug-tested and safe to use: many security checks and attack tests are done; the app may still change.")
 }

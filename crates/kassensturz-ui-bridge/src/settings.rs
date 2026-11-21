@@ -257,6 +257,21 @@ fn is_account_id(text: &str) -> bool {
             .all(|letter| letter.is_ascii_hexdigit() || letter == '-')
 }
 
+impl kassensturz_core::store_folder::Entries for Settings {
+    fn text(&self, group: &str, key: &str) -> String {
+        Self::text(self, group, key)
+    }
+    fn set_text(&self, group: &str, key: &str, value: &str) -> bool {
+        Self::set_text(self, group, key, value)
+    }
+    fn path(&self, group: &str, key: &str) -> Option<PathBuf> {
+        Self::path(self, group, key)
+    }
+    fn set_path(&self, group: &str, key: &str, path: &Path) -> bool {
+        Self::set_path(self, group, key, path)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

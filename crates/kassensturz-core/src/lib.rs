@@ -36,6 +36,7 @@ mod recurring_move;
 mod rounding;
 mod rules;
 mod schedule;
+pub mod store_folder;
 pub mod test_profile;
 mod transaction;
 mod transfer;

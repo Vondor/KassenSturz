@@ -168,16 +168,7 @@ pub fn use_test_locations() {
 /// `C:/Users/…/Documents\KassenSturz` came out mixed. Elsewhere the path
 /// is shown as it is.
 pub fn shown_path(path: &Path) -> String {
-    native_separators(&path.to_string_lossy(), cfg!(windows))
-}
-
-/// `text` with every `/` as `\` when `windows`, else as it is.
-fn native_separators(text: &str, windows: bool) -> String {
-    if windows {
-        text.replace('/', "\\")
-    } else {
-        text.to_owned()
-    }
+    kassensturz_core::store_folder::native_separators(&path.to_string_lossy(), cfg!(windows))
 }
 
 pub fn app_folder() -> Option<PathBuf> {
@@ -206,7 +197,7 @@ pub fn app_folder() -> Option<PathBuf> {
 fn store_own_folder() -> Option<PathBuf> {
     let documents = store_documents_folder();
     let local = local_own_folder();
-    let chosen = choose_store_folder(
+    let chosen = kassensturz_core::store_folder::choose_store_folder(
         documents.as_deref(),
         local.as_deref(),
         &sync_roots(),
@@ -242,42 +233,6 @@ pub fn sync_roots() -> Vec<PathBuf> {
         .collect()
 }
 
-/// Whether `path` is inside one of the synced folders `roots`. Windows
-/// compares names without regard to capitals, and either slash separates.
-pub fn in_sync_folder(path: &Path, roots: &[PathBuf]) -> bool {
-    let words = |path: &Path| -> Vec<String> {
-        path.to_string_lossy()
-            .split(['/', '\\'])
-            .filter(|part| !part.is_empty())
-            .map(str::to_lowercase)
-            .collect()
-    };
-    let inside = words(path);
-    roots.iter().any(|root| {
-        let root = words(root);
-        !root.is_empty() && inside.starts_with(&root)
-    })
-}
-
-/// [`store_own_folder`]'s choice from `documents` (`Documents\KassenSturz`)
-/// and `local` (`%USERPROFILE%\KassenSturz`), with the synced folders
-/// `roots` and `is_dir` telling which folders are there.
-fn choose_store_folder(
-    documents: Option<&Path>,
-    local: Option<&Path>,
-    roots: &[PathBuf],
-    is_dir: impl Fn(&Path) -> bool,
-) -> Option<PathBuf> {
-    if let Some(local) = local.filter(|local| is_dir(local)) {
-        return Some(local.to_path_buf());
-    }
-    match documents {
-        Some(documents) if is_dir(documents) => Some(documents.to_path_buf()),
-        Some(documents) if !in_sync_folder(documents, roots) => Some(documents.to_path_buf()),
-        _ => local.or(documents).map(Path::to_path_buf),
-    }
-}
-
 /// The folder of the bank connection (AqBanking's settings: bank code and
 /// accounts, never the PIN), `aqbanking` below it. In a snap it stays in the
 /// snap's data folder, not in the Documents folder that is often synced
@@ -291,23 +246,13 @@ pub fn bank_parent_folder() -> Option<PathBuf> {
         return qt_app_folder();
     }
     if in_app_package() && crate::test_profile::data_folder().is_none() {
-        return store_bank_parent(store_documents_folder(), qt_app_folder());
+        return kassensturz_core::store_folder::store_bank_parent(
+            store_documents_folder(),
+            qt_app_folder(),
+        );
     }
     app_folder()
 }
-
-/// The bank connection's folder in the Store app: the package's own folder
-/// `private`, unless `Documents\KassenSturz` (`own`) already holds an
-/// `aqbanking` folder from a build before B-437 (D-967).
-fn store_bank_parent(own: Option<PathBuf>, private: Option<PathBuf>) -> Option<PathBuf> {
-    match own {
-        Some(own) if own.join(BANK_FOLDER).is_dir() => Some(own),
-        _ => private,
-    }
-}
-
-/// The name of the bank connection's folder below its parent.
-pub const BANK_FOLDER: &str = "aqbanking";
 
 /// Whether KassenSturz's own folder is outside the folder the system deletes
 /// with the app: in the Microsoft Store's package (D-856, B-382) and in a
@@ -801,120 +746,6 @@ mod tests {
         assert_eq!(bank_parent_folder(), app_folder());
     }
 
-    /// B-438 (#1349): the Store app keeps its book out of a synced
-    /// Documents folder by default; an own folder that is there stays.
-    #[test]
-    fn the_store_apps_own_folder_stays_out_of_onedrive() {
-        let roots = [PathBuf::from(r"C:\Users\Sam\OneDrive")];
-        let synced = Path::new(r"C:\Users\Sam\OneDrive\Documents\KassenSturz");
-        let plain = Path::new(r"C:\Users\Sam\Documents\KassenSturz");
-        let local = Path::new(r"C:\Users\Sam\KassenSturz");
-        let none = |_: &Path| false;
-        // A new install.
-        assert_eq!(
-            choose_store_folder(Some(synced), Some(local), &roots, none),
-            Some(local.to_path_buf())
-        );
-        assert_eq!(
-            choose_store_folder(Some(plain), Some(local), &roots, none),
-            Some(plain.to_path_buf())
-        );
-        // An earlier build's folder in OneDrive stays until the book moves.
-        assert_eq!(
-            choose_store_folder(Some(synced), Some(local), &roots, |path| path == synced),
-            Some(synced.to_path_buf())
-        );
-        // Once the local folder is there, it wins.
-        let both = |_: &Path| true;
-        assert_eq!(
-            choose_store_folder(Some(synced), Some(local), &roots, both),
-            Some(local.to_path_buf())
-        );
-        // Without a user folder, Documents as before.
-        assert_eq!(
-            choose_store_folder(Some(synced), None, &roots, none),
-            Some(synced.to_path_buf())
-        );
-        assert_eq!(
-            choose_store_folder(None, Some(local), &roots, none),
-            Some(local.to_path_buf())
-        );
-    }
-
-    #[test]
-    fn a_onedrive_folder_is_found_whatever_the_capitals_and_slashes() {
-        let roots = [
-            PathBuf::from(r"C:\Users\Sam\OneDrive"),
-            PathBuf::from(r"C:\Users\Sam\OneDrive - Example Org"),
-        ];
-        assert!(in_sync_folder(
-            Path::new(r"c:\users\sam\onedrive\Dokumente\a.ksz"),
-            &roots
-        ));
-        assert!(in_sync_folder(
-            Path::new("C:/Users/Sam/OneDrive - Example Org/Documents"),
-            &roots
-        ));
-        assert!(!in_sync_folder(
-            Path::new(r"C:\Users\Sam\OneDriveOld\a.ksz"),
-            &roots
-        ));
-        assert!(!in_sync_folder(
-            Path::new(r"C:\Users\Sam\Documents\a.ksz"),
-            &roots
-        ));
-        assert!(!in_sync_folder(Path::new(r"C:\Users\Sam\Documents"), &[]));
-        assert!(!in_sync_folder(Path::new(r"C:\a"), &[PathBuf::new()]));
-    }
-
-    /// B-437 (#1348): in the Store app a new bank connection goes into the
-    /// package's own folder, never into the often synced Documents; one an
-    /// earlier build put there is used where it is.
-    #[test]
-    fn the_store_apps_bank_connection_stays_out_of_documents() {
-        let root = std::env::temp_dir().join(format!("ks-b437-{}", std::process::id()));
-        let own = root.join("Documents").join("KassenSturz");
-        let private = root.join("LocalCache").join("KassenSturz");
-        std::fs::create_dir_all(&own).unwrap();
-        assert_eq!(
-            store_bank_parent(Some(own.clone()), Some(private.clone())),
-            Some(private.clone())
-        );
-        assert_eq!(
-            store_bank_parent(None, Some(private.clone())),
-            Some(private.clone())
-        );
-        // A file of that name is no bank connection.
-        std::fs::write(own.join(BANK_FOLDER), "").unwrap();
-        assert_eq!(
-            store_bank_parent(Some(own.clone()), Some(private.clone())),
-            Some(private.clone())
-        );
-        std::fs::remove_file(own.join(BANK_FOLDER)).unwrap();
-        std::fs::create_dir(own.join(BANK_FOLDER)).unwrap();
-        assert_eq!(
-            store_bank_parent(Some(own.clone()), Some(private)),
-            Some(own)
-        );
-        std::fs::remove_dir_all(root).unwrap();
-    }
-
-    /// On Windows a shown path has backslashes only, however Qt and Rust
-    /// put it together (B-405, D-873); elsewhere it stays as it is.
-    #[test]
-    fn a_windows_path_is_shown_with_backslashes_only() {
-        let mixed = "C:/Users/Tester/Documents\\KassenSturz";
-        assert_eq!(
-            native_separators(mixed, true),
-            "C:\\Users\\Tester\\Documents\\KassenSturz"
-        );
-        assert_eq!(
-            native_separators("/home/tester/Books", false),
-            "/home/tester/Books"
-        );
-        let joined = Path::new("C:/Users/Tester/Documents").join("KassenSturz");
-        assert!(!shown_path(&joined).contains('/') || !cfg!(windows));
-    }
     use crate::test_folder::TestFolder;
 
     #[test]

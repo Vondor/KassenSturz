@@ -8,7 +8,8 @@ name: Promote snap to stable
 # store from GitHub. It is started by hand (Actions tab -> "Promote snap to
 # stable" -> Run workflow) and runs in the environment `snap-stable`, so it
 # waits for his approval and uses that environment's store login
-# (docs/RELEASING.md, "Promoting a beta to stable").
+# (docs/RELEASING.md, "Promoting a beta to stable"). Afterwards it
+# updates the store page from that version's snapcraft.yaml (D-947).
 #
 # It only promotes the revision that is on `beta` right now. If a version is
 # given and it is not the one on `beta`, it stops and changes nothing.
@@ -22,7 +23,9 @@ on:
         default: ""
         type: string
 
-permissions: {}
+permissions:
+  # Only to download the release's snap file for the store page.
+  contents: read
 
 concurrency:
   group: snap-promote
@@ -38,6 +41,8 @@ jobs:
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
           WANTED: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -eu
           summary() { echo "$1" >> "$GITHUB_STEP_SUMMARY"; }
@@ -89,3 +94,14 @@ jobs:
 
           summary "Version $beta_ver (revision $beta_rev) is now on the stable channel of the Snap Store, as well as on beta. Nothing was built again; it is the same snap that beta testers have."
           summary "Before, stable had: ${stable_ver:-no version}. Users with the snap from stable get the update on their next automatic refresh."
+
+          # The store page follows snapcraft.yaml (D-947), from the snap file
+          # of this version's GitHub release. Only warns on failure: the
+          # promotion above has already happened.
+          if gh release download "v$beta_ver" --pattern kassensturz.snap --dir page \
+            && snapcraft upload-metadata --force page/kassensturz.snap; then
+            summary "The store page now shows the texts and icon of version $beta_ver's snapcraft.yaml."
+          else
+            echo "::warning::The Snap Store page was not updated (docs/RELEASING.md, \"Updating the Snap Store page\"). The promotion itself worked."
+            summary "The store page was not updated; see the warning above. The promotion itself worked."
+          fi

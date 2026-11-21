@@ -93,7 +93,7 @@ Die Adressen gängiger Anbieter stehen in der [längeren Anleitung](../CONNECT_A
 
 ## Weg 3: Ihr eigenes KI-Werkzeug liest Ihr Buch
 
-Wenn Sie schon ein KI-Programm auf Ihrem Computer benutzen, das „MCP“ beherrscht (ein Weg, auf dem KI-Programme andere Programme nach Informationen fragen), kann es KassenSturz nach dem fragen, was es braucht. Dafür sind ein paar Zeilen in den Einstellungen dieses Programms nötig; sie stehen in der [längeren Anleitung](../CONNECT_AN_AI.md) (Englisch). Zunächst darf es nichts; Sie erlauben das Lesen und, wenn Sie möchten, das Vorbereiten von Änderungen unter **Was die KI darf**. Jede vorbereitete Änderung wartet weiter auf Ihren Klick in KassenSturz.
+Wenn Sie schon ein KI-Programm auf Ihrem Computer benutzen, das „MCP“ beherrscht (ein Weg, auf dem KI-Programme andere Programme nach Informationen fragen), kann es KassenSturz nach dem fragen, was es braucht. Dafür sind ein paar Zeilen in den Einstellungen dieses Programms nötig; der Befehl lautet `kassensturz.mcp` bei der Snap-Store-Version, `kassensturz-mcp` bei der Microsoft-Store-Version und `flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz` beim Flatpak. Die Zeilen für jede Version stehen in der [längeren Anleitung](../CONNECT_AN_AI.md) (Englisch). Zunächst darf es nichts; Sie erlauben das Lesen und, wenn Sie möchten, das Vorbereiten von Änderungen unter **Was die KI darf**. Jede vorbereitete Änderung wartet weiter auf Ihren Klick in KassenSturz.
 
 ## Wieder ausschalten
 

@@ -71,7 +71,7 @@ if(WIN32)
     add_custom_command(
         OUTPUT "${windows_resource}"
         COMMAND ${CMAKE_RC_COMPILER} /nologo /fo "${windows_resource}" kassensturz.rc
-        DEPENDS packaging/windows/kassensturz.rc packaging/windows/kassensturz.ico
+        DEPENDS packaging/windows/kassensturz.rc packaging/windows/kassensturz.ico packaging/windows/kassensturz.manifest
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows"
         COMMENT "Compiling the Windows icon resource"
         VERBATIM

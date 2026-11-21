@@ -5784,6 +5784,12 @@ msgstr ""
 "ausgeführt und das Buch wurde nicht verändert. Ihre Sicherungen liegen im "
 "Sicherungsordner von KassenSturz; öffnen Sie stattdessen die neueste."
 
+#: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:160
+#, kde-format
+msgctxt "@info"
+msgid "The book's folder path is very long, and Windows may not open files that deep. Your book is not damaged. Move the book to a folder with a shorter path, for example one directly in your Documents folder, and open it from there."
+msgstr "Der Pfad zum Ordner des Buchs ist sehr lang, und Windows öffnet Dateien in so tiefen Ordnern unter Umständen nicht. Ihr Haushaltsbuch ist nicht beschädigt. Verschieben Sie das Buch in einen Ordner mit einem kürzeren Pfad, zum Beispiel direkt in Ihren Ordner Dokumente, und öffnen Sie es von dort."
+
 #: crates/kassensturz-ui-bridge/qml/BookProblemPage.qml:110
 #, kde-format
 msgctxt "@info"

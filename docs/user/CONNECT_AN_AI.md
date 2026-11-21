@@ -73,18 +73,42 @@ The message says what happened and what to do. When the settings can fix it, it 
 This works with Claude Desktop or Claude Code on a Claude subscription, with no API key, and with other tools that speak the Model Context Protocol (MCP). KassenSturz comes with a small program, `kassensturz-mcp`, which the AI tool starts by itself. It talks to the tool only through a direct pipe: no network port is opened.
 
 1. In KassenSturz, switch on **AI features** in Settings.
-2. Tell your AI tool how to start the program:
-   - **Claude Desktop:** open **Settings → Developer → Edit Config**. This opens `claude_desktop_config.json`. Add this under `"mcpServers"` and restart Claude Desktop:
+2. Tell your AI tool how to start the program. The command depends on how you installed KassenSturz; use the one section below that fits. In every case the program takes no arguments except the Flatpak's, and the AI tool starts it by itself.
+
+   **Snap Store (Linux)**
+
+   - The command is `kassensturz.mcp`, with no arguments.
+   - Claude Desktop: open **Settings → Developer → Edit Config** and add this under `"mcpServers"`, then restart Claude Desktop:
+     ```json
+     "kassensturz": {
+       "command": "kassensturz.mcp"
+     }
+     ```
+   - Claude Code: run `claude mcp add kassensturz -- kassensturz.mcp`
+   - The Snap needs access to the folder of your book. It has it for your home folder and, once you connect it, for removable drives. Connect or disconnect them on KassenSturz's permissions page in KDE Discover, or with `snap connections kassensturz`.
+
+   **Microsoft Store (Windows)**
+
+   - The command is `kassensturz-mcp`, with no arguments. Windows finds it by itself, and it stays the same after updates.
+   - Claude Desktop: use `"command": "kassensturz-mcp"` and no `"args"`, as in the Snap example above.
+   - Claude Code: run `claude mcp add kassensturz -- kassensturz-mcp`
+   - This works from the Store version that adds this command; before that, connecting your own AI tool is not supported there.
+
+   **Flatpak (Linux)**
+
+   - The command is `flatpak`, with the arguments `run`, `--command=kassensturz-mcp` and `io.github.vondor.KassenSturz`.
+   - Claude Desktop: add this under `"mcpServers"` and restart it:
      ```json
      "kassensturz": {
        "command": "flatpak",
        "args": ["run", "--command=kassensturz-mcp", "io.github.vondor.KassenSturz"]
      }
      ```
-   - **Claude Code:** run `claude mcp add kassensturz -- flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz`
-   - **KassenSturz from the Snap Store:** the command is `kassensturz.mcp`, with no arguments. In Claude Desktop use `"command": "kassensturz.mcp"` and no `"args"`; in Claude Code run `claude mcp add kassensturz -- kassensturz.mcp`. The Snap needs access to the folder of your book: it has it for your home folder and for removable drives unless you switched that off.
-   - **KassenSturz from your distribution instead of the Flatpak:** the command is `kassensturz-mcp`, with no arguments.
-   - **KassenSturz from the Microsoft Store:** the command is `kassensturz-mcp`, with no arguments (Windows finds it by itself; it stays the same after updates). In Claude Desktop use `"command": "kassensturz-mcp"` and no `"args"`; in Claude Code run `claude mcp add kassensturz -- kassensturz-mcp`. This works from the Store version that adds this command; before that, connecting your own AI tool is not supported there.
+   - Claude Code: run `claude mcp add kassensturz -- flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz`
+
+   **From your distribution, or built from source (Linux)**
+
+   - The command is `kassensturz-mcp`, with no arguments. Use it as in the Snap examples above, with `kassensturz-mcp` in place of `kassensturz.mcp`.
 3. Ask your AI tool about your accounts. It can read accounts, categories, balances, totals per category, transactions and Rules. It never sees PINs, bank logins or account numbers.
 
 It reads the book KassenSturz opened last. KassenSturz may stay open, and when you open another book there, the AI reads that one from its next answer on.

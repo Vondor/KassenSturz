@@ -93,7 +93,7 @@ The addresses for common providers are in the [longer guide](../CONNECT_AN_AI.md
 
 ## Way 3: your own AI tool reads your book
 
-If you already use an AI program on your computer that can use "MCP" (a way for AI programs to ask other programs for information), it can ask KassenSturz for what it needs. This takes a few lines in that program's settings; the [longer guide](../CONNECT_AN_AI.md) has them. At first it may do nothing; you allow reading, and if you like preparing changes, in **What the AI may do**. Every change it prepares still waits for your click in KassenSturz.
+If you already use an AI program on your computer that can use "MCP" (a way for AI programs to ask other programs for information), it can ask KassenSturz for what it needs. This takes a few lines in that program's settings. The command is `kassensturz.mcp` for the Snap Store version, `kassensturz-mcp` for the Microsoft Store version, and `flatpak run --command=kassensturz-mcp io.github.vondor.KassenSturz` for the Flatpak; the [longer guide](../CONNECT_AN_AI.md) has the lines for each. At first it may do nothing; you allow reading, and if you like preparing changes, in **What the AI may do**. Every change it prepares still waits for your click in KassenSturz.
 
 ## Switching it off again
 

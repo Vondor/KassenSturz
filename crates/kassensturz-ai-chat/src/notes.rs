@@ -31,6 +31,10 @@ pub enum AnswerNote {
     /// KassenSturz never asks the user to open one, and one the AI wrote
     /// can carry the user's figures to whoever runs it.
     WebAddressLeftOut,
+    /// The question named a category, and the answer quotes a total of all
+    /// categories together but no figure of a single category (B-434): a
+    /// model gave all spending of the month as one category's.
+    AllCategoriesTotal,
 }
 
 impl AnswerNote {
@@ -42,6 +46,7 @@ impl AnswerNote {
             Self::NotChecked => "not-checked",
             Self::CannotPay => "cannot-pay",
             Self::WebAddressLeftOut => "web-address-left-out",
+            Self::AllCategoriesTotal => "all-categories-total",
         }
     }
 }

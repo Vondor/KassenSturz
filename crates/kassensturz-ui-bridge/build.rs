@@ -86,6 +86,8 @@ fn main() {
                 "qml/GrantedFoldersPage.qml",
                 "qml/BookMoveInterruptedDialog.qml",
                 "qml/BookInPackageDialog.qml",
+                "qml/BookInSyncFolderDialog.qml",
+                "qml/BankFolderDialog.qml",
                 "qml/BookProblemPage.qml",
                 "qml/BudgetBars.qml",
                 "qml/AlarmList.qml",

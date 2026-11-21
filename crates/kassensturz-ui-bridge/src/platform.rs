@@ -186,9 +186,7 @@ pub fn app_folder() -> Option<PathBuf> {
         return Some(folder.join(APP_ID));
     }
     if in_app_package() {
-        let documents = ffi::documents_folder().to_string();
-        return (!documents.is_empty())
-            .then(|| PathBuf::from(documents).join(crate::store_folder::FOLDER_NAME));
+        return store_own_folder();
     }
     if let Some(folder) = snap_own_folder() {
         return Some(folder);
@@ -196,16 +194,120 @@ pub fn app_folder() -> Option<PathBuf> {
     qt_app_folder()
 }
 
+/// KassenSturz's own folder in the Microsoft Store's package (D-856,
+/// D-968): `Documents\KassenSturz`, unless Documents is inside a OneDrive
+/// folder, where everything in it is uploaded. Then it is `KassenSturz` in
+/// the user's own folder (`%USERPROFILE%`), which stays on this computer
+/// and which Windows leaves alone when the app is uninstalled (B-438,
+/// #1349). A `Documents\KassenSturz` from an earlier build stays the own
+/// folder until the user moves the book out of it (the start's offer), so
+/// its backups and plugins are where the app looks; once the local folder
+/// is there, it is the own folder.
+fn store_own_folder() -> Option<PathBuf> {
+    let documents = store_documents_folder();
+    let local = local_own_folder();
+    let chosen = choose_store_folder(
+        documents.as_deref(),
+        local.as_deref(),
+        &sync_roots(),
+        Path::is_dir,
+    )?;
+    if Some(&chosen) == local.as_ref() && !chosen.is_dir() {
+        // Made at once, so the choice stays the same at the next start.
+        let _ = std::fs::create_dir_all(&chosen);
+    }
+    Some(chosen)
+}
+
+/// `Documents\KassenSturz`, the Store app's own folder since D-856; `None`
+/// when Qt names no Documents folder.
+pub fn store_documents_folder() -> Option<PathBuf> {
+    let documents = ffi::documents_folder().to_string();
+    (!documents.is_empty()).then(|| PathBuf::from(documents).join(crate::store_folder::FOLDER_NAME))
+}
+
+/// `KassenSturz` in the user's own folder on Windows (`%USERPROFILE%`),
+/// the Store app's own folder when Documents is synced (D-968). `None`
+/// where Windows names no such folder.
+pub fn local_own_folder() -> Option<PathBuf> {
+    absolute_env("USERPROFILE").map(|home| home.join(crate::store_folder::FOLDER_NAME))
+}
+
+/// The OneDrive folders Windows names for this user: the personal one and
+/// the work or school one. Everything inside them is uploaded.
+pub fn sync_roots() -> Vec<PathBuf> {
+    ["OneDrive", "OneDriveConsumer", "OneDriveCommercial"]
+        .into_iter()
+        .filter_map(absolute_env)
+        .collect()
+}
+
+/// Whether `path` is inside one of the synced folders `roots`. Windows
+/// compares names without regard to capitals, and either slash separates.
+pub fn in_sync_folder(path: &Path, roots: &[PathBuf]) -> bool {
+    let words = |path: &Path| -> Vec<String> {
+        path.to_string_lossy()
+            .split(['/', '\\'])
+            .filter(|part| !part.is_empty())
+            .map(str::to_lowercase)
+            .collect()
+    };
+    let inside = words(path);
+    roots.iter().any(|root| {
+        let root = words(root);
+        !root.is_empty() && inside.starts_with(&root)
+    })
+}
+
+/// [`store_own_folder`]'s choice from `documents` (`Documents\KassenSturz`)
+/// and `local` (`%USERPROFILE%\KassenSturz`), with the synced folders
+/// `roots` and `is_dir` telling which folders are there.
+fn choose_store_folder(
+    documents: Option<&Path>,
+    local: Option<&Path>,
+    roots: &[PathBuf],
+    is_dir: impl Fn(&Path) -> bool,
+) -> Option<PathBuf> {
+    if let Some(local) = local.filter(|local| is_dir(local)) {
+        return Some(local.to_path_buf());
+    }
+    match documents {
+        Some(documents) if is_dir(documents) => Some(documents.to_path_buf()),
+        Some(documents) if !in_sync_folder(documents, roots) => Some(documents.to_path_buf()),
+        _ => local.or(documents).map(Path::to_path_buf),
+    }
+}
+
 /// The folder of the bank connection (AqBanking's settings: bank code and
 /// accounts, never the PIN), `aqbanking` below it. In a snap it stays in the
 /// snap's data folder, not in the Documents folder that is often synced
-/// (B-429, T-07); elsewhere it is in the app folder.
+/// (B-429, T-07). In the Microsoft Store's package it stays in the
+/// package's own folder for the same reason (B-437, #1348), unless an
+/// earlier build already put a bank connection into `Documents\KassenSturz`:
+/// that one is used where it is, never moved without the user (D-274).
+/// Elsewhere it is in the app folder.
 pub fn bank_parent_folder() -> Option<PathBuf> {
     if snap_own_folder().is_some() {
         return qt_app_folder();
     }
+    if in_app_package() && crate::test_profile::data_folder().is_none() {
+        return store_bank_parent(store_documents_folder(), qt_app_folder());
+    }
     app_folder()
 }
+
+/// The bank connection's folder in the Store app: the package's own folder
+/// `private`, unless `Documents\KassenSturz` (`own`) already holds an
+/// `aqbanking` folder from a build before B-437 (D-967).
+fn store_bank_parent(own: Option<PathBuf>, private: Option<PathBuf>) -> Option<PathBuf> {
+    match own {
+        Some(own) if own.join(BANK_FOLDER).is_dir() => Some(own),
+        _ => private,
+    }
+}
+
+/// The name of the bank connection's folder below its parent.
+pub const BANK_FOLDER: &str = "aqbanking";
 
 /// Whether KassenSturz's own folder is outside the folder the system deletes
 /// with the app: in the Microsoft Store's package (D-856, B-382) and in a
@@ -689,6 +791,104 @@ mod tests {
         assert!(!own_folder_outside_app_data());
         // And the bank connection's folder is in it, as always.
         assert_eq!(bank_parent_folder(), app_folder());
+    }
+
+    /// B-438 (#1349): the Store app keeps its book out of a synced
+    /// Documents folder by default; an own folder that is there stays.
+    #[test]
+    fn the_store_apps_own_folder_stays_out_of_onedrive() {
+        let roots = [PathBuf::from(r"C:\Users\Sam\OneDrive")];
+        let synced = Path::new(r"C:\Users\Sam\OneDrive\Documents\KassenSturz");
+        let plain = Path::new(r"C:\Users\Sam\Documents\KassenSturz");
+        let local = Path::new(r"C:\Users\Sam\KassenSturz");
+        let none = |_: &Path| false;
+        // A new install.
+        assert_eq!(
+            choose_store_folder(Some(synced), Some(local), &roots, none),
+            Some(local.to_path_buf())
+        );
+        assert_eq!(
+            choose_store_folder(Some(plain), Some(local), &roots, none),
+            Some(plain.to_path_buf())
+        );
+        // An earlier build's folder in OneDrive stays until the book moves.
+        assert_eq!(
+            choose_store_folder(Some(synced), Some(local), &roots, |path| path == synced),
+            Some(synced.to_path_buf())
+        );
+        // Once the local folder is there, it wins.
+        let both = |_: &Path| true;
+        assert_eq!(
+            choose_store_folder(Some(synced), Some(local), &roots, both),
+            Some(local.to_path_buf())
+        );
+        // Without a user folder, Documents as before.
+        assert_eq!(
+            choose_store_folder(Some(synced), None, &roots, none),
+            Some(synced.to_path_buf())
+        );
+        assert_eq!(
+            choose_store_folder(None, Some(local), &roots, none),
+            Some(local.to_path_buf())
+        );
+    }
+
+    #[test]
+    fn a_onedrive_folder_is_found_whatever_the_capitals_and_slashes() {
+        let roots = [
+            PathBuf::from(r"C:\Users\Sam\OneDrive"),
+            PathBuf::from(r"C:\Users\Sam\OneDrive - Example Org"),
+        ];
+        assert!(in_sync_folder(
+            Path::new(r"c:\users\sam\onedrive\Dokumente\a.ksz"),
+            &roots
+        ));
+        assert!(in_sync_folder(
+            Path::new("C:/Users/Sam/OneDrive - Example Org/Documents"),
+            &roots
+        ));
+        assert!(!in_sync_folder(
+            Path::new(r"C:\Users\Sam\OneDriveOld\a.ksz"),
+            &roots
+        ));
+        assert!(!in_sync_folder(
+            Path::new(r"C:\Users\Sam\Documents\a.ksz"),
+            &roots
+        ));
+        assert!(!in_sync_folder(Path::new(r"C:\Users\Sam\Documents"), &[]));
+        assert!(!in_sync_folder(Path::new(r"C:\a"), &[PathBuf::new()]));
+    }
+
+    /// B-437 (#1348): in the Store app a new bank connection goes into the
+    /// package's own folder, never into the often synced Documents; one an
+    /// earlier build put there is used where it is.
+    #[test]
+    fn the_store_apps_bank_connection_stays_out_of_documents() {
+        let root = std::env::temp_dir().join(format!("ks-b437-{}", std::process::id()));
+        let own = root.join("Documents").join("KassenSturz");
+        let private = root.join("LocalCache").join("KassenSturz");
+        std::fs::create_dir_all(&own).unwrap();
+        assert_eq!(
+            store_bank_parent(Some(own.clone()), Some(private.clone())),
+            Some(private.clone())
+        );
+        assert_eq!(
+            store_bank_parent(None, Some(private.clone())),
+            Some(private.clone())
+        );
+        // A file of that name is no bank connection.
+        std::fs::write(own.join(BANK_FOLDER), "").unwrap();
+        assert_eq!(
+            store_bank_parent(Some(own.clone()), Some(private.clone())),
+            Some(private.clone())
+        );
+        std::fs::remove_file(own.join(BANK_FOLDER)).unwrap();
+        std::fs::create_dir(own.join(BANK_FOLDER)).unwrap();
+        assert_eq!(
+            store_bank_parent(Some(own.clone()), Some(private)),
+            Some(own)
+        );
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     /// On Windows a shown path has backslashes only, however Qt and Rust

@@ -6,7 +6,7 @@ At the very first start, the assistant opens. You can go back at every step. If 
 
 ## Step 1: Welcome
 
-You choose your **Language** (your system's is already set) and the **Currency** you use. Usually you only confirm with **Next**. If you change the language, KassenSturz restarts once in that language; nothing is lost.
+You choose your **Language** (your system's is already set; English, German and Polish are there) and the **Currency** you use. Usually you only confirm with **Next**. If you change the language, KassenSturz restarts once in that language; nothing is lost.
 
 ## Step 2: How would you like to start?
 
@@ -56,7 +56,7 @@ You can choose:
 - *Space Colony*: five years in a colony on Mars.
 - *USSR Government Agent*: a made-up agent in the 1980s with several currencies.
 
-You get **your own copy**; the example that comes with the app stays unchanged. You can change and delete as much as you like in it. Later you open an example book again with **Settings › Open another book…**.
+You get **your own copy**; the example that comes with the app stays unchanged. You can change and delete as much as you like in it. Later you open an example book again with **Settings › My book › Open another book…**.
 
 ## The "Bring my data from another program" way
 
@@ -64,7 +64,7 @@ KassenSturz reads books from **KMyMoney** (`.kmy` files or SQLite) and a copy sa
 
 ## Where is my household book?
 
-KassenSturz makes it by itself in its own folder and opens it again at every start; you don't have to choose a file. In **Settings** you open another book (**Open another book…**) or start a new one (**Start a new book…**), for example to practise.
+KassenSturz makes it by itself in its own folder and opens it again at every start; you don't have to choose a file. In **Settings › My book** you open another book (**Open another book…**) or start a new one (**Start a new book…**), for example to practise.
 
 A book is open in only **one** place at a time. If it is on a network drive, KassenSturz warns you. If it says "This book is open on …", close it there and choose **Try again**.
 

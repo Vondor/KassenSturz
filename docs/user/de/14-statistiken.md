@@ -63,6 +63,6 @@ Ein Diagramm von Geld rein und raus kann als **Balken** nebeneinander gezeichnet
 
 ## Farben
 
-Alle Diagramme teilen eine Palette: **Einstellungen › Diagrammfarben**. **Palette bearbeiten …** (im letzten Schritt des Baukastens und in den Eigenschaften eines Diagramms) führt dorthin. KassenSturz warnt, wenn eine Farbe vor dem Hintergrund schwer zu erkennen ist.
+Alle Diagramme teilen eine Palette: **Einstellungen › Aussehen und Sprache › Diagrammfarben**. **Palette bearbeiten …** (im letzten Schritt des Baukastens und in den Eigenschaften eines Diagramms) führt dorthin. KassenSturz warnt, wenn eine Farbe vor dem Hintergrund schwer zu erkennen ist.
 
 **Wenn etwas anders aussieht:** „Für diesen Zeitraum gibt es noch nichts anzuzeigen“ heißt, dass in den gewählten Tagen keine passenden Buchungen liegen. Wählen Sie einen anderen Zeitraum oder tragen Sie Buchungen ein.

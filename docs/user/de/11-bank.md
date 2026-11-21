@@ -2,18 +2,18 @@
 
 *KassenSturz kann bei vielen deutschen Banken neue Buchungen selbst abrufen. Diese Seite zeigt, wie Sie einen Bankzugang einrichten und neue Buchungen holen. KassenSturz liest nur; es kann nie Geld senden.*
 
-> **Stand der Testversion:** Die Bankverbindung wird noch geprüft. Je nach Version fehlt sie im Einrichtungsassistenten; unter **Einstellungen › Bankverbindungen** steht sie immer. Wer lieber auf Nummer sicher geht, liest Dateien ein (Seite 10).
+> **Wo es geht:** Die Bankverbindung gibt es in den Linux-Versionen (aus dem Snap Store und als Flatpak). Die Windows-Version und der experimentelle Mac-Download haben sie noch nicht; dort lesen Sie Dateien ein (Seite 10).
 
 ## Was geht und was nicht
 
 - KassenSturz ruft den Kontostand und die gebuchten Umsätze von Girokonten, Sparkonten und Kreditkarten ab. Depots listet es als „noch nicht unterstützt“.
 - Es nutzt **FinTS**, den Standard der deutschen Banken. Für Konten im Ausland lesen Sie Dateien ein.
 - Es gibt **keine** Funktion, die Überweisungen, Daueraufträge oder Lastschriften auslöst.
-- Die Verbindung läuft über **AqBanking**, ein freies Programm. Das Flatpak und die Windows-Version bringen es mit.
+- Die Verbindung läuft über **AqBanking**, ein freies Programm. Der Snap und das Flatpak bringen es mit.
 
 ## Einen Bankzugang einrichten
 
-1. **Einstellungen › Bankverbindungen › Eine Bank verbinden…**
+1. **Einstellungen › Bank › Eine Bank verbinden…**
 2. Tippen Sie die **IBAN** eines Ihrer Konten bei dieser Bank. KassenSturz findet die Bank und fragt nur, was sie braucht: meist Ihren **Anmeldenamen**, wo es das gibt eine **Kundenkennung**, und Ihre **PIN**.
 3. Wählen Sie bei **PIN merken**, wie lange KassenSturz sie behält (unten).
 4. Fragt die Bank nach einer **TAN** oder nach Ihrer **Freigabe in der App**, zeigt KassenSturz die Frage der Bank mit deren Knöpfen in einem eigenen Fenster. Eine TAN geht einmal an die Bank und wird nie gespeichert. Schließen Sie das Fenster, brechen Sie ab, und nichts Halbfertiges bleibt zurück.
@@ -31,7 +31,7 @@ Unter **PIN merken** haben Sie drei Möglichkeiten:
 - **bis Sie KassenSturz schließen**,
 - **im Passwortspeicher Ihres Computers** (KWallet, „Passwörter und Schlüssel“ oder die Anmeldeinformationsverwaltung von Windows).
 
-Unter **Einstellungen › Passwortspeicher** legen Sie fest, wo gemerkte PINs liegen; die Voreinstellung (Systemspeicher) ist für fast alle richtig. KassenSturz schreibt eine PIN **nirgends sonst** hin, nicht ins Buch und in keine Datei. Sagt Ihre Bank, die PIN sei falsch, **vergisst** KassenSturz sie sofort und fragt einmal nach; nach einer zweiten falschen PIN hört es auf, damit Ihr Zugang nicht gesperrt wird. Mit **PIN vergessen** und **Bankzugang und gespeicherte PIN entfernen…** räumen Sie später auf. Ihre Konten und Buchungen bleiben dabei erhalten.
+Unter **Einstellungen › Erweitert › Passwortspeicher** legen Sie fest, wo gemerkte PINs liegen; die Voreinstellung (**Passwortspeicher des Systems**) ist für fast alle richtig. In der Version aus dem Snap Store muss das Speichern im Passwortspeicher einmal erlaubt werden; der Befehl steht auf [der Installationsseite des Projekts](../../INSTALL.de.md). KassenSturz schreibt eine PIN **nirgends sonst** hin, nicht ins Buch und in keine Datei. Sagt Ihre Bank, die PIN sei falsch, **vergisst** KassenSturz sie sofort und fragt einmal nach; nach einer zweiten falschen PIN hört es auf, damit Ihr Zugang nicht gesperrt wird. Mit **PIN vergessen** und **Bankzugang und gespeicherte PIN entfernen…** räumen Sie später auf. Ihre Konten und Buchungen bleiben dabei erhalten.
 
 ## Neue Buchungen abrufen
 
@@ -44,7 +44,7 @@ Eine Abfrage beginnt fünf Tage vor der letzten, weil Banken manchmal einen Tag 
 
 ## Die Erinnerung
 
-Ist ein verknüpftes Konto länger nicht abgerufen worden, warnt die Übersicht mit dem Kontonamen, dem Tag und der Zahl der Tage. Banken zeigen nur ihre jüngsten Umsätze, ein langes Warten kann Lücken lassen. Unter **Einstellungen › Erinnerung an neue Buchungen** wählen Sie 30, 60 (Voreinstellung), 90 oder 180 Tage oder „Nie erinnern“. KassenSturz meldet sich nie von selbst bei Ihrer Bank.
+Ist ein verknüpftes Konto länger nicht abgerufen worden, warnt die Übersicht mit dem Kontonamen, dem Tag und der Zahl der Tage. Banken zeigen nur ihre jüngsten Umsätze, ein langes Warten kann Lücken lassen. Unter **Einstellungen › Bank › Erinnerung an neue Buchungen** wählen Sie 30, 60 (Voreinstellung), 90 oder 180 Tage oder „Nie erinnern“. KassenSturz meldet sich nie von selbst bei Ihrer Bank.
 
 ## Was gespeichert wird
 

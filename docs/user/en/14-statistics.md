@@ -63,6 +63,6 @@ A chart of money in and out can be drawn as **Bars** side by side. In its **Prop
 
 ## Colours
 
-All charts share one palette: **Settings › Chart colors**. **Edit palette…** (in the builder's last step and in a chart's Properties) takes you there. KassenSturz warns you when a colour is hard to see against the background.
+All charts share one palette: **Settings › Look and language › Chart colors**. **Edit palette…** (in the builder's last step and in a chart's Properties) takes you there. KassenSturz warns you when a colour is hard to see against the background.
 
 **If something looks different:** "There is nothing to show for this period yet" means there are no matching transactions on the chosen days. Choose another period or enter transactions.

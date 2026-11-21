@@ -14,18 +14,18 @@
 | "None of your budgets covers these days." | Choose a period in which a budget runs (page 13). |
 | "The amount … has more decimal places" | KassenSturz never rounds by itself. Leave out the extra places. |
 | Your bank says the PIN is wrong | KassenSturz forgets it at once and asks once more. Check it on your bank's own login before you try again (page 11). |
-| A note that the bank connection is missing | The Flatpak and the Windows version bring it with them; for other packages, the message says what to install. Reading in files always works (page 10). |
+| A note that the bank connection is missing | The snap and the Flatpak bring it with them. The Windows version and the Mac download don't have it yet. For other packages, the message says what to install. Reading in files always works (page 10). |
 
 ## A book doesn't open
 
-- If the book is from an **older development version**, it may not open in a newer one. Open it in the old version and save the whole book (page 17), or start a new one.
-- KassenSturz changes a book only after it has made a backup (**Settings › Backups**).
+- If the book is from a **test version from before the Beta** (before 17 Nov 2026), today's versions don't open it. Open it in that old version and save the whole book (page 17), then start a book from that file; or start a new one.
+- KassenSturz changes a book only after it has made a backup (**Settings › Backups and undo**).
 - If the book is on a **network drive**, KassenSturz warns you; a book is best kept on your own computer.
 
 ## Reporting a problem
 
 Write down **what you wanted to do, what you expected and what happened**, with the version number from **About**. Put **no real account data** into screenshots you pass on; use an example book and made-up figures.
 
-A log (only during the test period): start KassenSturz once in **developer mode**, as described in the install sheet (page 2). The log holds no amounts, names or passwords.
+A log helps us find the cause: start KassenSturz once in **developer mode**, as described in the [install sheets for test sessions](../../testing/README.md). The log holds no amounts, names or passwords.
 
 KassenSturz is a tool for keeping your household book. It gives **no tax, legal or investment advice**.

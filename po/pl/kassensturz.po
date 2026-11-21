@@ -2153,6 +2153,18 @@ msgctxt "@info"
 msgid "AI features are switched off. Turn them on in Settings."
 msgstr "Funkcje AI są wyłączone. Włącz je w ustawieniach."
 
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:63
+#, kde-format
+msgctxt "@info"
+msgid ""
+"AI is switched off in the Microsoft Store version of KassenSturz on this "
+"computer, so it is off here too. Nothing was read or sent. To use AI, switch "
+"it on in the Store version, or remove that version."
+msgstr ""
+"AI jest wyłączone w wersji KassenSturz z Microsoft Store na tym komputerze, "
+"więc tutaj też jest wyłączone. Nic nie zostało odczytane ani wysłane. Aby "
+"używać AI, włącz je w wersji ze Sklepu albo usuń tę wersję."
+
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:52
 #, kde-format
 msgctxt "@info"

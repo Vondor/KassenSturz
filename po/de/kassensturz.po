@@ -14123,12 +14123,11 @@ msgstr "Bankdateien (*.xml *.sta *.ofx *.csv *.txt)"
 #, kde-format
 msgctxt "@info"
 msgid ""
-"This is an early test version of KassenSturz. Try it with made-up numbers: "
-"what you enter is saved in your book."
+"Bug-tested and safe to use: many security checks and attack tests are done; "
+"the app may still change."
 msgstr ""
-"Dies ist eine frühe Testversion von KassenSturz. Probieren Sie sie mit "
-"ausgedachten Zahlen aus: Was Sie eingeben, wird in Ihrem Haushaltsbuch "
-"gespeichert."
+"Auf Fehler getestet und sicher nutzbar: viele Sicherheitsprüfungen und "
+"Angriffstests sind erledigt; die App kann sich noch ändern."
 
 #: crates/kassensturz-ui-bridge/qml/NewAccountPage.qml:39
 #, kde-format

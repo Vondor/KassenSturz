@@ -26,6 +26,8 @@
 
 Schreiben Sie auf, **was Sie tun wollten, was Sie erwartet haben und was passiert ist**, mit der Versionsnummer aus **Über KassenSturz**. Tragen Sie in Bildschirmfotos, die Sie weitergeben, **keine echten Kontodaten** ein; benutzen Sie ein Beispielbuch und erfundene Zahlen.
 
+Schicken Sie es über das [Formular für Fehlermeldungen](https://github.com/Vondor/KassenSturz/issues/new/choose) (wählen Sie **Fehler melden (Deutsch)**). Das Formular liegt bei GitHub, der Webseite, auf der KassenSturz entsteht; zum Schreiben brauchen Sie dort ein GitHub-Konto, das kostenlos ist. Was Sie dort schreiben, ist öffentlich. Wünsche und Ideen gehören in die [Discussions](https://github.com/Vondor/KassenSturz/discussions). Tester in einer Testsitzung schicken ihren Bericht nur an die Testleitung.
+
 Ein Protokoll hilft uns, die Ursache zu finden: Starten Sie KassenSturz einmal im **Entwicklermodus**, wie in den [Installationsblättern für Testsitzungen](../../testing/README.md) beschrieben. Das Protokoll enthält keine Beträge, Namen oder Passwörter.
 
 KassenSturz ist ein Werkzeug zum Führen Ihres Haushaltsbuchs. Es gibt **keine Steuer-, Rechts- oder Anlageberatung**.

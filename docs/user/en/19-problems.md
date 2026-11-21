@@ -26,6 +26,8 @@
 
 Write down **what you wanted to do, what you expected and what happened**, with the version number from **About**. Put **no real account data** into screenshots you pass on; use an example book and made-up figures.
 
+Send it through the [bug report form](https://github.com/Vondor/KassenSturz/issues/new/choose) (choose **Bug report**). The form is on GitHub, the website where KassenSturz is made; to write there you need a GitHub account, which is free. What you write there is public. Wishes and ideas go to the [Discussions](https://github.com/Vondor/KassenSturz/discussions). Testers in a test session send their report only to the facilitator.
+
 A log helps us find the cause: start KassenSturz once in **developer mode**, as described in the [install sheets for test sessions](../../testing/README.md). The log holds no amounts, names or passwords.
 
 KassenSturz is a tool for keeping your household book. It gives **no tax, legal or investment advice**.

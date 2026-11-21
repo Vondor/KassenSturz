@@ -34,7 +34,7 @@ Ein Plugin ist eine kleine Datei, die KassenSturz um etwas erweitert, zum Beispi
 
 ## KI-Funktionen
 
-Unter **KI-Funktionen** steht ein einziger Schalter. Er ist **aus**, und solange er aus ist, läuft nichts davon, und es erscheint nichts davon in KassenSturz. Die einzige Ausnahme ist eine einzelne Frage am Ende der geführten Einrichtung (Seite 3), die den Schalter aus lässt, solange Sie nicht mit Ja antworten. Dieses Handbuch beschreibt KassenSturz ohne KI; alles hier klappt ohne sie.
+Unter **KI-Funktionen** steht ein einziger Schalter. Er ist **aus**, und solange er aus ist, läuft nichts davon, und es erscheint nichts davon in KassenSturz. Die einzige Ausnahme ist eine einzelne Frage am Ende der geführten Einrichtung (Seite 3), die den Schalter aus lässt, solange Sie nicht mit Ja antworten. Die nummerierten Seiten dieses Handbuchs beschreiben KassenSturz ohne KI; alles dort klappt ohne sie. Wenn Sie es ausprobieren möchten, erklärt [Eine KI mit KassenSturz benutzen](ki.md) jeden Schritt.
 
 ## Über KassenSturz
 

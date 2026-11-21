@@ -133,10 +133,25 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
     home = [
         "# KassenSturz",
         "",
+        "**Deutsch**",
+        "",
+        "- [Installieren und aktualisieren](de-02-installieren)",
         "- [Handbuch auf Deutsch](Handbuch)",
-        "- [Handbook in English](Handbook)",
+        "- [Ein Problem melden](de-19-probleme)",
+        "- [Eine KI benutzen (freiwillig)](de-ki)",
         "- [Roadmap: Was als Nächstes kommt](de-22-fahrplan)",
+        "",
+        "**English**",
+        "",
+        "- [Install and update](en-02-install)",
+        "- [Handbook in English](Handbook)",
+        "- [Report a problem](en-19-problems)",
+        "- [Using an AI (optional)](en-ai)",
+        "",
+        "**Für alle / for everyone**",
+        "",
         f"- [Discussions: Ankündigungen und Ideen / announcements and ideas](https://github.com/{repo}/discussions)",
+        f"- [Für Tester / for testers]({blob}/docs/testing/README.md)",
         "",
         (
             "> **Dieses Wiki ist eine Kopie** des Handbuchs in "
@@ -153,6 +168,13 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
         ),
         "",
     ]
+    # The start page names handbook pages directly; a renamed page must not
+    # leave a dead link there.
+    names = {name for _, name in pages.values()}
+    for line in home:
+        for _, _, target in LINK.findall(line):
+            if "/" not in target and target not in names:
+                errors.append(f"Home: link to a missing Wiki page: {target}")
     (out / "Home.md").write_text("\n".join(home), encoding="utf-8")
 
     lines = ["**[Home](Home)**", ""]

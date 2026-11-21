@@ -8,7 +8,7 @@
 
 ## Linux: aus dem Snap Store (empfohlen)
 
-Öffnen Sie ein Terminal und tippen Sie:
+Öffnen Sie ein Terminal, also ein Fenster, in das Sie Befehle tippen (unter Ubuntu und Kubuntu: Strg+Alt+T drücken). Tippen Sie diese Zeile und drücken Sie die Eingabetaste; sie fragt einmal nach Ihrem Passwort, und beim Tippen des Passworts erscheint nichts:
 
 ```sh
 sudo snap install kassensturz

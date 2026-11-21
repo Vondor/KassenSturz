@@ -14,7 +14,7 @@
 ## Einen Bankzugang einrichten
 
 1. **Einstellungen › Bank › Eine Bank verbinden…**
-2. Tippen Sie die **IBAN** eines Ihrer Konten bei dieser Bank. KassenSturz findet die Bank und fragt nur, was sie braucht: meist Ihren **Anmeldenamen**, wo es das gibt eine **Kundenkennung**, und Ihre **PIN**.
+2. Tippen Sie die **IBAN** eines Ihrer Konten bei dieser Bank. KassenSturz findet die Bank und fragt nur, was sie braucht: meist Ihren **Anmeldenamen**, wo es das gibt eine **Kunden-ID**, und Ihre **PIN**.
 3. Wählen Sie bei **PIN merken**, wie lange KassenSturz sie behält (unten).
 4. Fragt die Bank nach einer **TAN** oder nach Ihrer **Freigabe in der App**, zeigt KassenSturz die Frage der Bank mit deren Knöpfen in einem eigenen Fenster. Eine TAN geht einmal an die Bank und wird nie gespeichert. Schließen Sie das Fenster, brechen Sie ab, und nichts Halbfertiges bleibt zurück.
 5. Zum Schluss listet KassenSturz die Konten, die Ihre Bank zeigt, und schlägt vor, welches Konto in Ihrem Buch jeweils gefüllt wird. Sie bestätigen oder ändern jede Wahl.
@@ -27,9 +27,9 @@ Eine TAN, die die Bank als Bild zeigt (Flickercode, photoTAN, QR-Code), kann Kas
 
 Unter **PIN merken** haben Sie drei Möglichkeiten:
 
-- **jedes Mal tippen** (Voreinstellung),
-- **bis Sie KassenSturz schließen**,
-- **im Passwortspeicher Ihres Computers** (KWallet, „Passwörter und Schlüssel“ oder die Anmeldeinformationsverwaltung von Windows).
+- **Nein, jedes Mal fragen** (Voreinstellung),
+- **Bis ich KassenSturz schließe**,
+- **Im Passwortspeicher speichern**: im Passwortspeicher Ihres Computers (KWallet, „Passwörter und Schlüssel“ oder die Anmeldeinformationsverwaltung von Windows).
 
 Unter **Einstellungen › Erweitert › Passwortspeicher** legen Sie fest, wo gemerkte PINs liegen; die Voreinstellung (**Passwortspeicher des Systems**) ist für fast alle richtig. In der Version aus dem Snap Store muss das Speichern im Passwortspeicher einmal erlaubt werden; der Befehl steht auf [der Installationsseite des Projekts](../../INSTALL.de.md). KassenSturz schreibt eine PIN **nirgends sonst** hin, nicht ins Buch und in keine Datei. Sagt Ihre Bank, die PIN sei falsch, **vergisst** KassenSturz sie sofort und fragt einmal nach; nach einer zweiten falschen PIN hört es auf, damit Ihr Zugang nicht gesperrt wird. Mit **PIN vergessen** und **Bankzugang und gespeicherte PIN entfernen…** räumen Sie später auf. Ihre Konten und Buchungen bleiben dabei erhalten.
 

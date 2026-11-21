@@ -24,6 +24,16 @@ Klicken Sie eine Buchung an, um sie zu ändern. **Löschen** nimmt sie aus der L
 
 ![Eine Buchung nach der Korrektur](../../testing/screenshots/windows/20-card3-corrected.png)
 
+## Schlagwörter
+
+Ein **Schlagwort** ist ein freies Etikett neben der Kategorie, zum Beispiel „Urlaub“ oder „Steuer“. Eine Buchung hat eine Kategorie, kann aber mehrere Schlagwörter tragen. Ein Schlagwort bewegt nie Geld und ändert nie eine Summe oder einen Kontostand.
+
+- Im Formular der Buchung steht das Feld **Schlagwörter** unter der Notiz. Tippen Sie, um ein Schlagwort zu finden oder ein neues anzulegen, und drücken Sie die Eingabetaste. Klicken Sie ein Schlagwort im Feld an, um es wieder wegzunehmen.
+- In der Liste eines Kontos zeigt jede Buchung ihre Schlagwörter, und Sie können die Liste nach einem Schlagwort filtern.
+- Auf einem Dashboard bietet die Filterleiste **Schlagwörter** an, sobald Ihr Buch eines hat (Seite 4).
+- Eine Regel kann Schlagwörter von selbst hinzufügen (Seite 12). Ein Schlagwort, das Sie selbst von einer Buchung wegnehmen, kommt nicht zurück.
+- **Einstellungen › Mein Buch › Schlagwörter** listet alle Ihre Schlagwörter. Dort benennen Sie eines um, führen zwei zusammen oder entfernen eines; KassenSturz sagt vorher, wie viele Buchungen das betrifft, und **Rückgängig** nimmt es zurück.
+
 ## Eine Buchung aufteilen
 
 Eine Rechnung im Supermarkt kann aus Lebensmitteln und Haushaltswaren bestehen.

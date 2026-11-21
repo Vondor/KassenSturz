@@ -34,7 +34,7 @@ A plugin is a small file that adds something to KassenSturz, for example another
 
 ## AI features
 
-Under **AI features** there is one single switch. It is **off**, and as long as it is off, none of it runs and none of it appears in KassenSturz. The one exception is a single question at the end of the guided setup (page 3), which leaves the switch off unless you answer yes. This handbook describes KassenSturz without AI; everything here works without it.
+Under **AI features** there is one single switch. It is **off**, and as long as it is off, none of it runs and none of it appears in KassenSturz. The one exception is a single question at the end of the guided setup (page 3), which leaves the switch off unless you answer yes. The numbered pages of this handbook describe KassenSturz without AI; everything there works without it. If you would like to try it, [Using an AI with KassenSturz](ai.md) explains every step.
 
 ## About
 

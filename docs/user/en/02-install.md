@@ -8,7 +8,7 @@ Open **https://apps.microsoft.com/detail/9NM5V48PPRLQ** and click **Get** (or **
 
 ## Linux: from the Snap Store (recommended)
 
-Open a terminal and type:
+Open a terminal, a window in which you type commands (on Ubuntu and Kubuntu: press Ctrl+Alt+T). Type this line and press Enter; it asks for your password once, and nothing shows while you type it:
 
 ```sh
 sudo snap install kassensturz

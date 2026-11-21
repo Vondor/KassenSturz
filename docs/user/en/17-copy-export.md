@@ -24,6 +24,19 @@ At the first start (**Bring my data from another program**, page 3) or with **Se
 
 Before it adapts a book to a new version, KassenSturz makes a backup by itself (**Settings › Backups and undo**) and keeps the last ten. A copy of your own from time to time is still wise.
 
+**A second place for copies:** with **Settings › Backups and undo › Also keep copies in another folder…** you choose a folder, for example on a USB stick or another drive. KassenSturz then also keeps a copy there once a day when you open the book.
+
+## Getting a backup back
+
+If your book has gone wrong and **Undo** doesn't reach far enough, go back to a backup:
+
+1. **Settings › Backups and undo › Restore from backup…**
+2. Pick the copy to go back to. Each one shows when it was saved and where it is kept.
+3. KassenSturz asks **Restore this backup?** and says what happens: your book goes back to how it was at that time, and changes made after it won't be in it.
+4. **Restore it** does it. **Keep my book as it is** changes nothing.
+
+Before it restores anything, KassenSturz saves your book as it is now. So the book from before is the newest backup afterwards, and you can go back to it the same way.
+
 ## Passing on dashboards
 
 **Save this dashboard to a file** writes a dashboard into a small file (`.json`); **Add a dashboard from a file** reads it into another book. The file holds **no money**: no amounts, transactions, balances or account numbers, only the names of the accounts and categories the dashboard points to (page 4).

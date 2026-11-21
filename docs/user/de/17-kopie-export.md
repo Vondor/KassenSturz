@@ -24,6 +24,19 @@ Beim ersten Start (**Meine Daten aus einem anderen Programm holen**, Seite 3) od
 
 Vor dem Anpassen eines Buches an eine neue Version legt KassenSturz selbst eine Sicherung an (**Einstellungen › Sicherungen und Rückgängig**) und behält die letzten zehn. Eine eigene Kopie von Zeit zu Zeit bleibt trotzdem klug.
 
+**Ein zweiter Ort für Kopien:** Mit **Einstellungen › Sicherungen und Rückgängig › Kopien auch in einem anderen Ordner ablegen …** wählen Sie einen Ordner, zum Beispiel auf einem USB-Stick oder einem anderen Laufwerk. KassenSturz legt dann auch dort einmal am Tag eine Kopie ab, wenn Sie das Buch öffnen.
+
+## Eine Sicherung zurückholen
+
+Ist in Ihrem Buch etwas schiefgegangen und **Rückgängig** reicht nicht weit genug zurück, gehen Sie auf eine Sicherung zurück:
+
+1. **Einstellungen › Sicherungen und Rückgängig › Aus einer Sicherung wiederherstellen …**
+2. Wählen Sie die Kopie, auf die Sie zurückgehen möchten. Jede zeigt, wann sie gespeichert wurde und wo sie liegt.
+3. KassenSturz fragt **Diese Sicherung wiederherstellen?** und sagt, was passiert: Ihr Buch ist danach wieder so wie zu diesem Zeitpunkt, und spätere Änderungen sind nicht darin.
+4. **Wiederherstellen** führt es aus. **Mein Haushaltsbuch so lassen** ändert nichts.
+
+Bevor KassenSturz etwas wiederherstellt, speichert es Ihr Buch, wie es jetzt ist. Das Buch von vorher ist danach also die neueste Sicherung, und Sie können auf demselben Weg dorthin zurück.
+
 ## Dashboards weitergeben
 
 **Dieses Dashboard in einer Datei speichern** schreibt ein Dashboard in eine kleine Datei (`.json`); **Dashboard aus einer Datei hinzufügen** liest sie in ein anderes Buch. Die Datei enthält **kein Geld**: keine Beträge, Buchungen, Kontostände oder Kontonummern, nur die Namen der Konten und Kategorien, auf die das Dashboard zeigt (Seite 4).

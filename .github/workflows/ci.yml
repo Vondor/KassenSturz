@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The full run on main once a night, and by hand (D-957): a merge runs only
+  # part of the jobs (see the changes job), so this is where main's own
+  # commit meets every platform, where the Kubuntu and Fedora jobs run the
+  # Rust tests, and where the caches that only a full run fills are saved.
+  schedule:
+    - cron: "43 1 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -43,6 +50,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.diff.outputs.code }}
+      # A merge into main runs less than a pull request (D-957). The pull
+      # request has already run every job on the merge result, and the next
+      # pull request's run tests main again with its own change on top, so a
+      # merge only has to catch two pull requests that pass alone and break
+      # together: it runs the KDE job, the one with every crate and the app,
+      # and builds the Flatpak. When main's files are exactly what the pull
+      # request tested (the test of D-427), it runs neither. The jobs for the
+      # other platforms and the build without AI run for pull requests, in
+      # the nightly run and by hand. Measured on 20 November: 41 merges ran
+      # about 220 runner minutes each and waited 10 to 14 minutes per job.
+      full: ${{ github.event_name != 'push' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -218,7 +236,7 @@ jobs:
     name: Early warning, lints and tests without AI (no Qt)
     runs-on: ubuntu-latest
     needs: [changes]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust
@@ -239,8 +257,8 @@ jobs:
   rust:
     name: Rust format, lints and tests (KDE SDK, D-063)
     runs-on: ubuntu-latest
-    needs: [changes, reuse, dco, licenses, fmt]
-    if: needs.changes.outputs.code == 'true'
+    needs: [changes, reuse, dco, licenses, fmt, flatpak-reuse]
+    if: needs.changes.outputs.code == 'true' && needs.flatpak-reuse.outputs.reused != 'true'
     container:
       # The KDE Flatpak runtime and SDK 6.11, pinned (D-025).
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
@@ -306,10 +324,11 @@ jobs:
       - name: Translations are valid, complete and current (D-126)
         run: tools/sdk.sh tools/check-translations.sh
       # Saved even when a check failed, so the next push doesn't start cold.
-      # Only main saves (D-427): a pull request's copies probably help push
-      # main's out of GitHub's 10 GB limit, and main then starts cold.
+      # Only main saves (D-427), after a merge or in the nightly run: a pull
+      # request's copies probably help push main's out of GitHub's 10 GB
+      # limit, and main then starts cold.
       - name: Save Cargo's cache
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -328,7 +347,7 @@ jobs:
     name: Build without AI (D-039)
     runs-on: ubuntu-latest
     needs: [changes, reuse, dco, licenses, fmt]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true'
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11@sha256:b0a8a2acb9e420dd0e3e083ff552bea5a817e17e41532f1d2287ff49ef9aae0e
       options: --privileged
@@ -378,7 +397,7 @@ jobs:
         run: tools/sdk.sh tools/check-no-ai.sh
       # Saved even when a check failed, so the next push doesn't start cold.
       - name: Save Cargo's cache
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -396,7 +415,7 @@ jobs:
     name: Windows lints and tests (D-090)
     runs-on: windows-latest
     needs: [changes, reuse, dco, licenses, fmt]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust
@@ -425,7 +444,7 @@ jobs:
         env:
           CARGO_INCREMENTAL: "0"
       - name: Save Cargo's cache
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -443,7 +462,7 @@ jobs:
     name: macOS lints and tests (D-090)
     runs-on: macos-latest
     needs: [changes, reuse, dco, licenses, fmt]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install Rust
@@ -465,7 +484,7 @@ jobs:
     name: Kubuntu 26.10 with distribution packages (D-094)
     runs-on: ubuntu-latest
     needs: [changes, reuse, dco, licenses, fmt]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true'
     container:
       image: ubuntu:26.10@sha256:93e29beff5257b2cdf1c024d831f6d2997e53655a653ff76a811fc9e6564a719
       # The runner's own copies of Android, .NET and its tool cache, which no
@@ -585,11 +604,11 @@ jobs:
       - name: Every action handler names its action in the debug log
         run: tools/check-action-log.sh
       # The KDE job runs the same Rust tests, and its second test step runs the
-      # store's tests with the system's SQLite (D-061); here they run on main
-      # only, like Fedora's, since this job adds Kubuntu's libraries, which the
+      # store's tests with the system's SQLite (D-061); here they run in the
+      # nightly run only (D-957), like Fedora's, since this job adds Kubuntu's libraries, which the
       # build, the install and the checks around this step already try (D-558).
       - name: Tests, with the system's SQLite
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: cargo test --workspace --no-default-features --features ai --locked
         env:
           QMAKE: /usr/bin/qmake6
@@ -608,7 +627,7 @@ jobs:
       - name: The installed app ends cleanly on SIGTERM and SIGHUP
         run: tools/check-sigterm.sh build/stage/usr/bin/kassensturz
       - name: Save Cargo's cache
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -627,7 +646,7 @@ jobs:
     name: Fedora 44 with distribution packages (D-097)
     runs-on: ubuntu-latest
     needs: [changes, reuse, dco, licenses, fmt]
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && needs.changes.outputs.full == 'true'
     container:
       image: fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
       # The runner's own copies of Android, .NET and its tool cache, which no
@@ -732,10 +751,10 @@ jobs:
             build/stage/usr/bin/kassensturz-mcp < /dev/null || status=$?
           test "$status" -eq 2
       # The KDE job runs the same Rust tests on every pull request; here they
-      # run on main only, since this job adds Fedora's libraries, which the
+      # run in the nightly run only (D-957), since this job adds Fedora's libraries, which the
       # build, the install and the start above already try (D-220, D-558).
       - name: Tests, with the system's SQLite
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: cargo test --workspace --no-default-features --features ai --locked
         env:
           QMAKE: /usr/bin/qmake6
@@ -750,7 +769,7 @@ jobs:
           timeout 10 build/stage/usr/bin/kassensturz || status=$?
           test "$status" -eq 124
       - name: Save Cargo's cache
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
@@ -930,7 +949,7 @@ jobs:
           if-no-files-found: error
       # Saved even when a later check fails, so the next push doesn't start cold.
       - name: Save the builder's cache
-        if: ${{ !cancelled() && github.event_name == 'push' && steps.builder-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.builder-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .flatpak-builder

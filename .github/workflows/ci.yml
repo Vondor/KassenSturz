@@ -302,11 +302,32 @@ jobs:
             target
           key: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-
+      # The tests run with cargo-nextest (D-957): cargo runs the test programs
+      # one after another, nextest runs every test as a process of its own,
+      # as many at once as the runner has cores. Measured on 4 cores without
+      # the app crate: 4 min 25 s instead of 15 min 44 s, the same 3051 tests.
+      # Built from its pinned crates.io release with the project's Rust, in
+      # about 3.5 minutes, and kept in a small cache of its own.
+      - name: Restore cargo-nextest
+        id: nextest-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .sdk-cache/cargo/bin/cargo-nextest
+          key: cargo-nextest-0.9.152-kde-sdk-${{ steps.rustc.outputs.version }}
       # The runner creates the workspace as its own user, and bubblewrap drops
       # all capabilities in the Flatpak sandbox, so root in there can only
       # write where it owns the files, e.g. Cargo's target directory.
       - name: Give the checkout to the container's user
         run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+      - name: Install cargo-nextest
+        if: steps.nextest-cache.outputs.cache-hit != 'true'
+        run: tools/sdk.sh cargo install cargo-nextest --version 0.9.152 --locked
+      - name: Save cargo-nextest
+        if: ${{ github.event_name != 'pull_request' && steps.nextest-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .sdk-cache/cargo/bin/cargo-nextest
+          key: cargo-nextest-0.9.152-kde-sdk-${{ steps.rustc.outputs.version }}
       - name: Formatting
         run: tools/sdk.sh cargo fmt --all --check
       - name: Lints
@@ -318,9 +339,12 @@ jobs:
         run: |
           tools/sdk.sh sh -c 'dir=$(find /usr -path "*org/kde/quickcharts/qmldir" -print -quit); test -n "$dir" && echo "$dir" && cat "$(dirname "$dir")/kde-qmlmodule.version"'
       - name: Tests
-        run: tools/sdk.sh cargo test --workspace --locked
+        run: tools/sdk.sh cargo nextest run --workspace --locked
+      # nextest doesn't run the examples in documentation comments.
+      - name: Tests in documentation comments
+        run: tools/sdk.sh cargo test --workspace --doc --locked
       - name: Tests with the system's SQLite instead of the bundled one (D-061)
-        run: tools/sdk.sh cargo test --package kassensturz-store --no-default-features --locked
+        run: tools/sdk.sh cargo nextest run --package kassensturz-store --no-default-features --locked
       - name: Translations are valid, complete and current (D-126)
         run: tools/sdk.sh tools/check-translations.sh
       # Saved even when a check failed, so the next push doesn't start cold.
@@ -387,12 +411,28 @@ jobs:
             target
           key: cargo-kde-sdk-no-ai-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-kde-sdk-no-ai-${{ steps.rustc.outputs.version }}-
+      # cargo-nextest, as in the KDE job (D-957).
+      - name: Restore cargo-nextest
+        id: nextest-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .sdk-cache/cargo/bin/cargo-nextest
+          key: cargo-nextest-0.9.152-kde-sdk-${{ steps.rustc.outputs.version }}
       - name: Give the checkout to the container's user
         run: chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE"
+      - name: Install cargo-nextest
+        if: steps.nextest-cache.outputs.cache-hit != 'true'
+        run: tools/sdk.sh cargo install cargo-nextest --version 0.9.152 --locked
+      - name: Save cargo-nextest
+        if: ${{ github.event_name != 'pull_request' && steps.nextest-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .sdk-cache/cargo/bin/cargo-nextest
+          key: cargo-nextest-0.9.152-kde-sdk-${{ steps.rustc.outputs.version }}
       - name: Lints, build without AI (D-039)
         run: tools/sdk.sh cargo clippy --workspace --all-targets --no-default-features --features bundled-sqlite --locked -- -D warnings
       - name: Tests, build without AI (D-039)
-        run: tools/sdk.sh cargo test --workspace --no-default-features --features bundled-sqlite --locked
+        run: tools/sdk.sh cargo nextest run --workspace --no-default-features --features bundled-sqlite --locked
       - name: The build without AI holds no AI crate (D-039)
         run: tools/sdk.sh tools/check-no-ai.sh
       # Saved even when a check failed, so the next push doesn't start cold.
@@ -435,12 +475,28 @@ jobs:
             target
           key: cargo-windows-1.98.1-${{ hashFiles('Cargo.lock') }}
           restore-keys: cargo-windows-1.98.1-
+      # cargo-nextest, as in the KDE job (D-957).
+      - name: Restore cargo-nextest
+        id: nextest-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-nextest.exe
+          key: cargo-nextest-0.9.152-windows-1.98.1
+      - name: Install cargo-nextest
+        if: steps.nextest-cache.outputs.cache-hit != 'true'
+        run: cargo install cargo-nextest --version 0.9.152 --locked
+      - name: Save cargo-nextest
+        if: ${{ github.event_name != 'pull_request' && steps.nextest-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-nextest.exe
+          key: cargo-nextest-0.9.152-windows-1.98.1
       - name: Lints
         run: cargo clippy --workspace --exclude kassensturz-ui-bridge --all-targets --locked -- -D warnings
         env:
           CARGO_INCREMENTAL: "0"
       - name: Tests
-        run: cargo test --workspace --exclude kassensturz-ui-bridge --locked
+        run: cargo nextest run --workspace --exclude kassensturz-ui-bridge --locked
         env:
           CARGO_INCREMENTAL: "0"
       - name: Save Cargo's cache
@@ -469,10 +525,26 @@ jobs:
         run: |
           rustup toolchain install 1.98.1 --profile minimal --component clippy
           rustup default 1.98.1
+      # cargo-nextest, as in the KDE job (D-957).
+      - name: Restore cargo-nextest
+        id: nextest-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-nextest
+          key: cargo-nextest-0.9.152-macos-1.98.1
+      - name: Install cargo-nextest
+        if: steps.nextest-cache.outputs.cache-hit != 'true'
+        run: cargo install cargo-nextest --version 0.9.152 --locked
+      - name: Save cargo-nextest
+        if: ${{ github.event_name != 'pull_request' && steps.nextest-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cargo/bin/cargo-nextest
+          key: cargo-nextest-0.9.152-macos-1.98.1
       - name: Lints
         run: cargo clippy --workspace --exclude kassensturz-ui-bridge --all-targets --locked -- -D warnings
       - name: Tests
-        run: cargo test --workspace --exclude kassensturz-ui-bridge --locked
+        run: cargo nextest run --workspace --exclude kassensturz-ui-bridge --locked
 
   # The app built the way a Debian-style package is: Kubuntu's own Qt, KDE
   # Frameworks and SQLite from the distribution's archive, installed into a
@@ -607,9 +679,14 @@ jobs:
       # store's tests with the system's SQLite (D-061); here they run in the
       # nightly run only (D-957), like Fedora's, since this job adds Kubuntu's libraries, which the
       # build, the install and the checks around this step already try (D-558).
+      # cargo-nextest, as in the KDE job (D-957); built each time, since
+      # these tests run once a night.
+      - name: Install cargo-nextest
+        if: github.event_name != 'pull_request'
+        run: cargo install cargo-nextest --version 0.9.152 --locked
       - name: Tests, with the system's SQLite
         if: github.event_name != 'pull_request'
-        run: cargo test --workspace --no-default-features --features ai --locked
+        run: cargo nextest run --workspace --no-default-features --features ai --locked
         env:
           QMAKE: /usr/bin/qmake6
           # The distribution's AqBanking is installed, so the loading test
@@ -753,9 +830,14 @@ jobs:
       # The KDE job runs the same Rust tests on every pull request; here they
       # run in the nightly run only (D-957), since this job adds Fedora's libraries, which the
       # build, the install and the start above already try (D-220, D-558).
+      # cargo-nextest, as in the KDE job (D-957); built each time, since
+      # these tests run once a night.
+      - name: Install cargo-nextest
+        if: github.event_name != 'pull_request'
+        run: cargo install cargo-nextest --version 0.9.152 --locked
       - name: Tests, with the system's SQLite
         if: github.event_name != 'pull_request'
-        run: cargo test --workspace --no-default-features --features ai --locked
+        run: cargo nextest run --workspace --no-default-features --features ai --locked
         env:
           QMAKE: /usr/bin/qmake6
           # The distribution's AqBanking is installed, so the loading test

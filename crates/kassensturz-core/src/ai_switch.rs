@@ -676,25 +676,36 @@ pub fn notes_in(text: &str) -> String {
         .to_owned()
 }
 
+/// The newest settings text (the Store app's copy where there is one, B-448),
+/// but only when AI is on in every file that counts (B-436). Folders and
+/// notes are read from it, so a folder changed in the Store app is the one
+/// the MCP server and the chat use, not the older one of the real
+/// `%LOCALAPPDATA%` file.
+fn newest_enabled_text() -> Option<String> {
+    newest_enabled_text_of(&settings_files())
+}
+
+/// [`newest_enabled_text`] over `files`, the newest last.
+fn newest_enabled_text_of(files: &[PathBuf]) -> Option<String> {
+    let texts = texts_of(files)?;
+    all_enabled(&texts).then(|| texts.into_iter().next_back())?
+}
+
 /// The user's notes in this user's settings, empty when there are none or
 /// AI is off.
 pub fn notes() -> String {
-    settings_file()
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .map_or_else(String::new, |text| notes_in(&text))
+    newest_enabled_text().map_or_else(String::new, |text| notes_in(&text))
 }
 
 /// The bill folder in this user's settings, if one is chosen and AI is on.
 pub fn bill_folder() -> Option<PathBuf> {
-    settings_file()
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .and_then(|text| bill_folder_in(&text))
+    newest_enabled_text().and_then(|text| bill_folder_in(&text))
 }
 
 /// The receipt inbox and its archive in this user's settings (US7, #333):
 /// `None` unless AI is on and both are chosen.
 pub fn inbox_folders() -> Option<(PathBuf, PathBuf)> {
-    let text = settings_file().and_then(|path| std::fs::read_to_string(path).ok())?;
+    let text = newest_enabled_text()?;
     Some((inbox_folder_in(&text)?, archive_folder_in(&text)?))
 }
 
@@ -880,6 +891,19 @@ pub fn newest_settings_text() -> Option<String> {
 /// file that counts (B-436).
 pub fn enabled() -> bool {
     settings_texts().is_some_and(|texts| all_enabled(&texts))
+}
+
+/// Whether this program's own settings file switches AI on while another
+/// copy of KassenSturz on this computer (the Store app's, B-436) switches
+/// it off, so that AI counts as off here (B-449). The chat says so
+/// instead of silently reading nothing.
+pub fn off_in_other_copy() -> bool {
+    settings_file().is_some_and(|own| off_in_other_copy_of(&own, &settings_files()))
+}
+
+/// [`off_in_other_copy`] with `own` and all the `files` that count.
+fn off_in_other_copy_of(own: &Path, files: &[PathBuf]) -> bool {
+    enabled_at(own) && !texts_of(files).is_some_and(|texts| all_enabled(&texts))
 }
 
 /// Whether AI and the MCP write tools are both switched on in this user's
@@ -1116,6 +1140,56 @@ mod tests {
             settings_file_for("macos", &env(&[("HOME", "/Users/sam")])),
             None
         );
+    }
+
+    /// B-448 (#1363): the folders come from the newest file, the Store
+    /// app's copy, and only while AI is on in every file.
+    #[test]
+    fn folders_come_from_the_newest_file_and_only_while_every_file_is_on() {
+        let dir = std::env::temp_dir().join(format!("ks-b448-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let root = if cfg!(windows) { "C:" } else { "" };
+        let (real, copy) = (dir.join("real"), dir.join("copy"));
+        std::fs::write(
+            &real,
+            format!("[AI]\nEnabled=true\nBillFolder={root}/old/Bills\n"),
+        )
+        .unwrap();
+        std::fs::write(
+            &copy,
+            format!("[AI]\nEnabled=true\nBillFolder={root}/new/Bills\n"),
+        )
+        .unwrap();
+        let files = [real.clone(), copy.clone()];
+        let text = newest_enabled_text_of(&files).unwrap();
+        assert_eq!(
+            bill_folder_in(&text),
+            Some(PathBuf::from(format!("{root}/new/Bills")))
+        );
+        std::fs::write(
+            &copy,
+            format!("[AI]\nEnabled=false\nBillFolder={root}/new/Bills\n"),
+        )
+        .unwrap();
+        assert_eq!(newest_enabled_text_of(&files), None);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// B-449 (#1364): on in this file, off in another one that counts.
+    #[test]
+    fn on_here_and_off_in_the_other_copy_is_told_apart_from_off_here() {
+        let dir = std::env::temp_dir().join(format!("ks-b449-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (own, copy) = (dir.join("own"), dir.join("copy"));
+        std::fs::write(&own, "[AI]\nEnabled=true\n").unwrap();
+        std::fs::write(&copy, "[AI]\nEnabled=false\n").unwrap();
+        let files = [own.clone(), copy.clone()];
+        assert!(off_in_other_copy_of(&own, &files));
+        std::fs::write(&copy, "[AI]\nEnabled=true\n").unwrap();
+        assert!(!off_in_other_copy_of(&own, &files));
+        std::fs::write(&own, "[AI]\nEnabled=false\n").unwrap();
+        assert!(!off_in_other_copy_of(&own, &files));
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 
     /// B-436 (#1347): the Store app writes its settings into the package's

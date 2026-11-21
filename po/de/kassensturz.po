@@ -2300,6 +2300,19 @@ msgstr ""
 "Die KI-Funktionen sind ausgeschaltet. Schalten Sie sie in den Einstellungen "
 "ein."
 
+#: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:63
+#, kde-format
+msgctxt "@info"
+msgid ""
+"AI is switched off in the Microsoft Store version of KassenSturz on this "
+"computer, so it is off here too. Nothing was read or sent. To use AI, switch "
+"it on in the Store version, or remove that version."
+msgstr ""
+"Die KI ist in der Microsoft-Store-Version von KassenSturz auf diesem "
+"Computer ausgeschaltet, deshalb ist sie auch hier aus. Es wurde nichts "
+"gelesen oder gesendet. Um die KI zu nutzen, schalten Sie sie in der Store-"
+"Version ein oder entfernen Sie diese Version."
+
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:52
 #, kde-format
 msgctxt "@info"

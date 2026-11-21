@@ -17,6 +17,9 @@ use kassensturz_core::{ErrorParam, ErrorReport, Report};
 pub enum AiError {
     /// AI is switched off on this computer (D-013, D-177). Nothing was sent.
     Off,
+    /// AI is on in this copy but off in the Microsoft Store version on the
+    /// same computer, which counts too (B-436, B-449).
+    OffInOtherCopy,
     /// No provider is set up: the address or the model is missing.
     NoProvider,
     /// The provider's address isn't a web address KassenSturz can use: not
@@ -101,6 +104,7 @@ impl Report for AiError {
     fn report(&self) -> ErrorReport {
         match self {
             Self::Off => ErrorReport::new("ai.off"),
+            Self::OffInOtherCopy => ErrorReport::new("ai.off-other-copy"),
             Self::NoProvider => ErrorReport::new("ai.no-provider"),
             Self::BadAddress => ErrorReport::new("ai.bad-address"),
             Self::PlainHttp => ErrorReport::new("ai.plain-http"),

@@ -12,6 +12,7 @@ use super::*;
 fn examples() -> Vec<AiError> {
     vec![
         AiError::Off,
+        AiError::OffInOtherCopy,
         AiError::NoProvider,
         AiError::BadAddress,
         AiError::PlainHttp,

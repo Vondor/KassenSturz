@@ -520,6 +520,16 @@ impl Permissions {
         self.allows(Permission::SortTransactions) && !self.locked(Field::Category)
     }
 
+    /// What `self` and `other` allow together: a cell only where both give
+    /// it, a field locked where either locks it (B-436).
+    #[must_use]
+    pub fn narrowest(self, other: Self) -> Self {
+        Self {
+            cells: self.cells & other.cells,
+            locks: self.locks | other.locks,
+        }
+    }
+
     /// Whether nothing may be read or prepared.
     pub fn is_none(self) -> bool {
         self.cells == 0
@@ -721,7 +731,7 @@ pub fn enabled_at(path: &Path) -> bool {
 /// elsewhere, which counts as off until the macOS packaging says where its
 /// settings go.
 pub fn settings_file() -> Option<PathBuf> {
-    settings_file_for(std::env::consts::OS, |name| {
+    settings_file_for(std::env::consts::OS, &|name| {
         std::env::var_os(name).filter(|value| !value.is_empty())
     })
 }
@@ -735,7 +745,7 @@ pub fn settings_file() -> Option<PathBuf> {
 /// too (Q-399). Without it, `%LOCALAPPDATA%` is where KConfig writes.
 fn settings_file_for(
     os: &str,
-    var: impl Fn(&str) -> Option<std::ffi::OsString>,
+    var: &impl Fn(&str) -> Option<std::ffi::OsString>,
 ) -> Option<PathBuf> {
     let folder = match os {
         "linux" => var("XDG_CONFIG_HOME")
@@ -749,25 +759,140 @@ fn settings_file_for(
     Some(folder.join(FILE))
 }
 
-/// Whether AI is switched on in this user's settings.
+/// The Microsoft Store package's name (`Identity Name` in
+/// `packaging/windows/msix/AppxManifest.xml`). Its family name is this, an
+/// underscore and the publisher's hash.
+const STORE_PACKAGE_NAME: &str = "47425SerpentSoftware.KassenSturz-TheHouseholdBudge";
+
+/// Every settings file whose word counts for the AI switch (B-436, #1347):
+/// [`settings_file`], and on Windows also the Store app's own copy of it.
+///
+/// Windows keeps what the Store (MSIX) app writes to `%LOCALAPPDATA%` in
+/// the package's `Packages\<family>\LocalCache\Local` (D-945). A program
+/// started outside the package, such as `kassensturz-mcp.exe` of the
+/// installer build or the package's own one started by its path, reads the
+/// real `%LOCALAPPDATA%\kassensturzrc` instead. That file can be an older
+/// state, for example AI still on from the installer build, while the
+/// user switched AI off in the Store app. So the Store app's copy is read
+/// too, and AI counts as on only when every one of these files says so.
+/// The Store app's copy comes last: it is the newer view where it exists.
+pub fn settings_files() -> Vec<PathBuf> {
+    settings_files_for(
+        std::env::consts::OS,
+        |name| std::env::var_os(name).filter(|value| !value.is_empty()),
+        |folder| {
+            std::fs::read_dir(folder)
+                .map(|entries| {
+                    entries
+                        .filter_map(Result::ok)
+                        .filter_map(|entry| entry.file_name().into_string().ok())
+                        .collect()
+                })
+                .unwrap_or_default()
+        },
+    )
+}
+
+/// [`settings_files`] on the system `os`, with the environment read through
+/// `var` and the names in a folder listed by `names`.
+fn settings_files_for(
+    os: &str,
+    var: impl Fn(&str) -> Option<std::ffi::OsString>,
+    names: impl Fn(&Path) -> Vec<String>,
+) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = settings_file_for(os, &var).into_iter().collect();
+    // The test profile keeps its own file (Q-399): no package copy counts there.
+    if os == "windows"
+        && var("XDG_CONFIG_HOME").is_none()
+        && let Some(local) = var("LOCALAPPDATA").map(PathBuf::from)
+    {
+        let packages = local.join("Packages");
+        let prefix = format!("{STORE_PACKAGE_NAME}_");
+        let mut families: Vec<String> = names(&packages)
+            .into_iter()
+            .filter(|name| name.starts_with(&prefix))
+            .collect();
+        families.sort();
+        files.extend(families.into_iter().map(|family| {
+            packages
+                .join(family)
+                .join("LocalCache")
+                .join("Local")
+                .join(FILE)
+        }));
+    }
+    files
+}
+
+/// The text of every settings file in [`settings_files`] that is there.
+/// `None` when none is, or when one is there but can't be read: AI is off
+/// then.
+fn settings_texts() -> Option<Vec<String>> {
+    texts_of(&settings_files())
+}
+
+/// The text of each of `files` that is there; `None` when none is or one
+/// that is there can't be read.
+fn texts_of(files: &[PathBuf]) -> Option<Vec<String>> {
+    let mut texts = Vec::new();
+    for file in files {
+        match std::fs::read_to_string(file) {
+            Ok(text) => texts.push(text),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return None,
+        }
+    }
+    (!texts.is_empty()).then_some(texts)
+}
+
+/// Whether every one of `texts` switches AI on, and there is one.
+fn all_enabled(texts: &[String]) -> bool {
+    !texts.is_empty() && texts.iter().all(|text| enabled_in(text))
+}
+
+/// Whether every one of `texts` switches AI and the write tools on.
+fn all_write_tools(texts: &[String]) -> bool {
+    !texts.is_empty() && texts.iter().all(|text| write_tools_in(text))
+}
+
+/// What all of `texts` allow together: a cell only where every one gives
+/// it, a field locked where any one locks it. None without a text.
+fn permissions_of(texts: &[String]) -> Permissions {
+    let mut each = texts.iter().map(|text| permissions_in(text));
+    let Some(first) = each.next() else {
+        return Permissions::NONE;
+    };
+    each.fold(first, Permissions::narrowest)
+}
+
+/// The text of the settings file that reflects the user's latest changes:
+/// the last one of [`settings_files`] that can be read, which is the Store
+/// app's copy where there is one. For values that aren't a switch, such as
+/// the book opened last.
+pub fn newest_settings_text() -> Option<String> {
+    settings_files()
+        .iter()
+        .rev()
+        .find_map(|file| std::fs::read_to_string(file).ok())
+}
+
+/// Whether AI is switched on in this user's settings: in every settings
+/// file that counts (B-436).
 pub fn enabled() -> bool {
-    settings_file().is_some_and(|path| enabled_at(&path))
+    settings_texts().is_some_and(|texts| all_enabled(&texts))
 }
 
 /// Whether AI and the MCP write tools are both switched on in this user's
-/// settings. A file that can't be read is off.
+/// settings, in every file that counts. A file that can't be read is off.
 pub fn write_tools_enabled() -> bool {
-    settings_file()
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .is_some_and(|text| write_tools_in(&text))
+    settings_texts().is_some_and(|texts| all_write_tools(&texts))
 }
 
-/// The permissions in this user's settings. None where the settings file
-/// can't be read, as with the AI switch.
+/// The permissions in this user's settings, the narrowest of every file
+/// that counts. None where a settings file can't be read, as with the AI
+/// switch.
 pub fn permissions() -> Permissions {
-    settings_file()
-        .and_then(|path| std::fs::read_to_string(path).ok())
-        .map_or(Permissions::NONE, |text| permissions_in(&text))
+    settings_texts().map_or(Permissions::NONE, |texts| permissions_of(&texts))
 }
 
 #[cfg(test)]
@@ -958,20 +1083,20 @@ mod tests {
             }
         };
         assert_eq!(
-            settings_file_for("linux", env(&[("HOME", "/home/sam")])),
+            settings_file_for("linux", &env(&[("HOME", "/home/sam")])),
             Some(Path::new("/home/sam/.config").join(FILE))
         );
         assert_eq!(
             settings_file_for(
                 "linux",
-                env(&[("HOME", "/home/sam"), ("XDG_CONFIG_HOME", "/elsewhere")])
+                &env(&[("HOME", "/home/sam"), ("XDG_CONFIG_HOME", "/elsewhere")])
             ),
             Some(Path::new("/elsewhere").join(FILE))
         );
         assert_eq!(
             settings_file_for(
                 "windows",
-                env(&[("LOCALAPPDATA", r"C:\Users\Sam\AppData\Local")])
+                &env(&[("LOCALAPPDATA", r"C:\Users\Sam\AppData\Local")])
             ),
             Some(Path::new(r"C:\Users\Sam\AppData\Local").join(FILE))
         );
@@ -979,18 +1104,117 @@ mod tests {
         assert_eq!(
             settings_file_for(
                 "windows",
-                env(&[
+                &env(&[
                     ("LOCALAPPDATA", r"C:\Users\Sam\AppData\Local"),
                     ("XDG_CONFIG_HOME", r"C:\Test\config")
                 ])
             ),
             Some(Path::new(r"C:\Test\config").join(FILE))
         );
-        assert_eq!(settings_file_for("windows", env(&[])), None);
+        assert_eq!(settings_file_for("windows", &env(&[])), None);
         assert_eq!(
-            settings_file_for("macos", env(&[("HOME", "/Users/sam")])),
+            settings_file_for("macos", &env(&[("HOME", "/Users/sam")])),
             None
         );
+    }
+
+    /// B-436 (#1347): the Store app writes its settings into the package's
+    /// copy, while a program outside the package reads the real file.
+    #[test]
+    fn on_windows_the_store_apps_copy_counts_too() {
+        let env = |name: &str| (name == "LOCALAPPDATA").then(|| r"C:\L".into());
+        let family = format!("{STORE_PACKAGE_NAME}_6gxp6ch7ybyne");
+        let names = |folder: &Path| {
+            assert_eq!(folder, Path::new(r"C:\L").join("Packages"));
+            vec![
+                "Other.App_abc".to_owned(),
+                family.clone(),
+                format!("{STORE_PACKAGE_NAME}Longer_x"),
+            ]
+        };
+        let copy = Path::new(r"C:\L")
+            .join("Packages")
+            .join(&family)
+            .join("LocalCache")
+            .join("Local")
+            .join(FILE);
+        assert_eq!(
+            settings_files_for("windows", env, names),
+            vec![Path::new(r"C:\L").join(FILE), copy]
+        );
+        // The test profile keeps to its own file.
+        let test_profile = |name: &str| match name {
+            "LOCALAPPDATA" => Some(r"C:\L".into()),
+            "XDG_CONFIG_HOME" => Some(r"C:\T".into()),
+            _ => None,
+        };
+        assert_eq!(
+            settings_files_for("windows", test_profile, |_| vec![family.clone()]),
+            vec![Path::new(r"C:\T").join(FILE)]
+        );
+        // Linux never looks for a package.
+        let linux = |name: &str| (name == "HOME").then(|| "/home/sam".into());
+        assert_eq!(
+            settings_files_for("linux", linux, |_| panic!("no listing on Linux")),
+            vec![Path::new("/home/sam/.config").join(FILE)]
+        );
+    }
+
+    #[test]
+    fn off_in_any_settings_file_is_off() {
+        let on = "[AI]\nEnabled=true\nMcpWriteTools=true\n".to_owned();
+        let off = "[AI]\nEnabled=false\n".to_owned();
+        assert!(all_enabled(std::slice::from_ref(&on)));
+        assert!(all_enabled(&[on.clone(), on.clone()]));
+        // AI on from the installer build, switched off in the Store app.
+        assert!(!all_enabled(&[on.clone(), off.clone()]));
+        assert!(!all_enabled(&[off.clone(), on.clone()]));
+        assert!(!all_enabled(&[]));
+        assert!(all_write_tools(std::slice::from_ref(&on)));
+        assert!(!all_write_tools(&[on.clone(), off.clone()]));
+        assert!(!all_write_tools(&[]));
+    }
+
+    #[test]
+    fn the_permissions_of_two_files_are_what_both_allow() {
+        let wide = Permissions::all().with_lock(Field::ALL[0], false);
+        let narrow = Permissions::NONE
+            .with(Permission::ALL[0], true)
+            .with(Permission::ALL[1], true);
+        let both = wide.narrowest(narrow);
+        assert_eq!(both, narrow.narrowest(wide));
+        for permission in Permission::ALL {
+            assert_eq!(
+                both.allows(permission),
+                wide.allows(permission) && narrow.allows(permission)
+            );
+        }
+        // A lock in either file holds.
+        assert_eq!(both.locked(Field::ALL[0]), narrow.locked(Field::ALL[0]));
+        assert_eq!(permissions_of(&[]), Permissions::NONE);
+    }
+
+    #[test]
+    fn a_file_that_is_there_but_cant_be_read_is_off() {
+        let folder = std::env::temp_dir().join(format!("ks-b436-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        let on = folder.join("on");
+        std::fs::write(&on, "[AI]\nEnabled=true\n").unwrap();
+        let missing = folder.join("missing");
+        assert_eq!(
+            texts_of(&[on.clone(), missing.clone()]).map(|texts| all_enabled(&texts)),
+            Some(true)
+        );
+        assert_eq!(texts_of(std::slice::from_ref(&missing)), None);
+        // A folder where the file should be can't be read as text.
+        assert_eq!(texts_of(&[on, folder.clone()]), None);
+        std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn the_store_package_name_is_the_manifests() {
+        let manifest = include_str!("../../../packaging/windows/msix/AppxManifest.xml");
+        assert!(manifest.contains(&format!("Name=\"{STORE_PACKAGE_NAME}\"")));
     }
 
     #[test]

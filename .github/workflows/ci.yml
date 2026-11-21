@@ -87,9 +87,10 @@ jobs:
           # error codes (kassensturz-store, -mcp, -ai-chat, -ui-bridge), the
           # threat model (kassensturz-ai-tools), the regression index
           # (kassensturz-store), the export format (kassensturz-export), this
-          # workflow and the Windows icon resource (CMakeLists.txt). The issue
+          # workflow, the Windows icon resource (CMakeLists.txt) and the Store
+          # manifest (the AI switch's package name, B-436). The issue
           # forms (read by kassensturz-ai-tools) are not on the list at all.
-          read_by_code='^(docs/(ERROR_CODES|THREAT_MODEL|REGRESSION_TESTS|EXPORT_FORMAT)\.md|\.github/workflows/ci\.yml|packaging/windows/kassensturz\.(rc|ico))$'
+          read_by_code='^(docs/(ERROR_CODES|THREAT_MODEL|REGRESSION_TESTS|EXPORT_FORMAT)\.md|\.github/workflows/ci\.yml|packaging/windows/kassensturz\.(rc|ico)|packaging/windows/msix/AppxManifest\.xml)$'
           # Prints the lines of its input that are code.
           is_code() {
             local input

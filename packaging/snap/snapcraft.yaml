@@ -14,21 +14,21 @@ base: core24
 adopt-info: kassensturz
 summary: Keep track of your household's money
 description: |
-  Made by AI: This app is built by AI agents (automated agentic coding:
-  mainly Claude from Anthropic writes the code, tests and documentation)
-  under human oversight. A human maintainer sets the rules, decides what is
-  merged and released, and tests the app. The code is open and every change
-  is public.
+  Made with AI (more about that at the end).
 
-  KassenSturz is a free household book for the desktop. Record your accounts
-  and spending, see where your money goes, and trust the numbers, without
-  accounting knowledge. Your data stays on your computer.
+  Do you want to know where your money goes? Do you hate all the banking stuff? If you said yes to both, this is your app. Honestly.
 
-  Saving your banking PIN in your desktop's keychain needs one extra step
-  after installing: run
-  `sudo snap connect kassensturz:password-manager-service`. Chip-card logins
-  need `sudo snap connect kassensturz:pcscd`. Without them the app works, and
-  asks for the PIN each time.
+  There are plenty of finance apps out there. KassenSturz is for people who just want to know what happens to their money, and then not have to bother with it at all.
+
+  Create a chart? Check. Formulas like in LibreOffice Calc? Check. Write your own chart in code? Check. Don't want to think about how the app works and let a local AI help you? Check. The AI stays off until you turn it on, and nothing in your book changes until you confirm it.
+
+  KassenSturz is explicitly not a tool for professional bookkeeping or taxes. It shows you what your money does in your life, in whatever way you need, with no subscriptions and without selling your soul for your data. Your data stays on your computer. Everything you want to see can be shown on the Overview, the first screen you see.
+
+  ______
+
+  About the AI: if that's a deal-breaker for you, no hard feelings. But please don't picture me typing "Claude, make me an app" one evening. I can't code in Rust, but I work in IT. Literally hundreds of hours of agentic coding went into KassenSturz: after my regular job, I sat down with my AI agents and kept going late into the night. This isn't AI slop. I thought hard about what would actually help me, what I could learn for my own work, and what I could give back to the open-source community that I couldn't before. KassenSturz is the result, and it's honest work.
+
+  The code is open, and every change is public.
 license: GPL-3.0-or-later
 website: https://github.com/Vondor/KassenSturz
 source-code: https://github.com/Vondor/KassenSturz

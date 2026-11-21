@@ -55,7 +55,7 @@ KASSENSTURZ_DEBUG_LOG=1 kassensturz
 
    **https://github.com/Vondor/KassenSturz/releases**
 
-2. Die oberste Karte ist die neueste Beta-Version. Oben steht **Pre-release**. Das ist richtig so. Ein GitHub-Konto brauchen Sie nicht.
+2. Die oberste Karte ist die neueste Beta-Version. Oben steht **Pre-release** (oder **Latest**, wenn sie zugleich die stabile Ausgabe ist). Das ist richtig so. Ein GitHub-Konto brauchen Sie nicht.
 3. Scrollen Sie zu **Assets** (Dateien) und laden Sie die Datei herunter, die auf **.flatpak** endet. Sie heißt zum Beispiel `KassenSturz-0.261117.8-x86_64.flatpak`; die Zahl in der Mitte ist die Versionsnummer, und die Testleitung hat Ihnen die richtige vorher gesagt. **Nicht** *Source code (zip)*, nicht die Windows-Dateien und nicht `kassensturz.snap`.
 4. Die Datei liegt danach im Ordner **Downloads**.
 

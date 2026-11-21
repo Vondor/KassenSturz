@@ -24,8 +24,9 @@ on:
         type: string
 
 permissions:
-  # Only to download the release's snap file for the store page.
-  contents: read
+  # To download the release's snap file for the store page, and to mark that
+  # GitHub release as the stable one (D-948).
+  contents: write
 
 concurrency:
   group: snap-promote
@@ -94,6 +95,16 @@ jobs:
 
           summary "Version $beta_ver (revision $beta_rev) is now on the stable channel of the Snap Store, as well as on beta. Nothing was built again; it is the same snap that beta testers have."
           summary "Before, stable had: ${stable_ver:-no version}. Users with the snap from stable get the update on their next automatic refresh."
+
+          # The kind of release follows the channel (D-948): this version's
+          # GitHub release becomes "(stable)", not a pre-release, Latest.
+          # Only warns on failure, like the store page below.
+          if gh release edit "v$beta_ver" --title "KassenSturz $beta_ver (stable)" --prerelease=false --latest; then
+            summary "The GitHub release v$beta_ver is now the stable release, marked Latest."
+          else
+            echo "::warning::The GitHub release v$beta_ver was not marked as stable; edit it by hand (docs/RELEASING.md, \"Release kinds\"). The promotion itself worked."
+            summary "The GitHub release v$beta_ver was not marked as stable; see the warning above."
+          fi
 
           # The store page follows snapcraft.yaml (D-947), from the snap file
           # of this version's GitHub release. Only warns on failure: the

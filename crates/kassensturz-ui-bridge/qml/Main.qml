@@ -88,6 +88,7 @@ Kirigami.ApplicationWindow {
     // overview shows its first-look message. Kept in memory only, so it needs
     // no stored setting.
     property bool freshBook: false
+    property bool bankMoveTold: false
 
     // The steps of the guided setup (#1031, docs/GUIDED_SETUP.md), in their
     // order. How far the user got is not stored anywhere (D-921): the pages
@@ -137,6 +138,11 @@ Kirigami.ApplicationWindow {
                 // An earlier version's bank folder in Documents (D-967).
                 bankFolder.asked = true;
                 Qt.callLater(bankFolder.ask);
+            }
+            if ((bookMover.place?.bankMoveFailed ?? false) && !root.bankMoveTold) {
+                // B-450: say it, since a Windows app shows no console.
+                root.bankMoveTold = true;
+                showPassiveNotification(i18nContext.i18nc("@info", "Your bank connection's settings could not be moved to the private folder, probably because OneDrive was using the old folder. They are still where they were and still work. KassenSturz tries again at the next start; if this keeps showing, close OneDrive for a moment and restart KassenSturz."), "long");
             }
             root.tellSettledBills(changeHistory.settleBills());
         }

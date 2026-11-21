@@ -47,6 +47,8 @@ const BANK_ANSWERED: &str = "BankFolderAnswered";
 /// `true` while the user's agreed move of the bank connection's folder
 /// waits for the next start, `done` after it.
 const MOVE_BANK: &str = "MoveBankFolder";
+/// Set while the last try to move the bank folder failed (B-450).
+const BANK_MOVE_FAILED: &str = "MoveBankFolderFailed";
 
 /// The folders in the earlier folder that are not copied: the logs are
 /// kept by `kassensturz_core` in the data folder as before, and a copy of
@@ -119,9 +121,12 @@ fn move_bank_folder_at_start(settings: &Settings) {
     match move_bank_folder(&documents, &private) {
         Ok(()) => {
             let _ = settings.set_text(GROUP, MOVE_BANK, "done");
+            let _ = settings.set_text(GROUP, BANK_MOVE_FAILED, "false");
         }
         Err(error) => {
             eprintln!("kassensturz: couldn't move the bank connection's folder: {error}");
+            // The window tells the user (a GUI app has no console).
+            let _ = settings.set_text(GROUP, BANK_MOVE_FAILED, "true");
         }
     }
 }
@@ -285,6 +290,12 @@ pub fn offer_bank_move(settings: &Settings, documents: &Path) -> bool {
         && settings.text(GROUP, BANK_ANSWERED) != "true"
 }
 
+/// Whether the last try to move the bank connection's folder failed and
+/// the earlier folder in `Documents` is still in use.
+pub fn bank_move_failed(settings: &Settings) -> bool {
+    settings.text(GROUP, BANK_MOVE_FAILED) == "true"
+}
+
 /// Notes the user's answer to the bank folder offer: `move` at the next
 /// start, or keep it where it is.
 pub fn answer_bank_move(settings: &Settings, move_it: bool) -> bool {
@@ -305,6 +316,14 @@ pub fn move_bank_folder(from_parent: &Path, to_parent: &Path) -> io::Result<()> 
         return Ok(());
     }
     fs::create_dir_all(to_parent)?;
+    let target = to_parent.join(name);
+    // A move that stopped after the switch (the sync client held the old
+    // folder): the new folder is the same, so only the old one is still to
+    // be taken out of use. Nothing is copied again and no copy piles up
+    // (B-450, #1365).
+    if target.is_dir() && same_files(&from, &target).unwrap_or(false) {
+        return retire(&from, from_parent, name);
+    }
     let part = to_parent.join(format!("{name}.part"));
     if part.exists() {
         // An unfinished copy of an earlier start; it was never used.
@@ -321,7 +340,6 @@ pub fn move_bank_folder(from_parent: &Path, to_parent: &Path) -> io::Result<()> 
         let _ = fs::remove_dir_all(&part);
         return Err(error);
     }
-    let target = to_parent.join(name);
     if target.exists() {
         fs::rename(
             &target,
@@ -329,13 +347,16 @@ pub fn move_bank_folder(from_parent: &Path, to_parent: &Path) -> io::Result<()> 
         )?;
     }
     fs::rename(&part, &target)?;
+    retire(&from, from_parent, name)
+}
+
+/// Takes the earlier bank folder `from` out of use (renamed) and removes
+/// it. A failing rename is an error, so the move is tried again; a failing
+/// removal is an error too, because the leftover keeps syncing.
+fn retire(from: &Path, from_parent: &Path, name: &str) -> io::Result<()> {
     let retired = free_name(from_parent, &format!("{name}.moved"));
-    fs::rename(&from, &retired)?;
-    if let Err(error) = fs::remove_dir_all(&retired) {
-        // Out of use already; only its removal failed.
-        eprintln!("kassensturz: couldn't remove the moved bank folder: {error}");
-    }
-    Ok(())
+    fs::rename(from, &retired)?;
+    fs::remove_dir_all(&retired)
 }
 
 /// `base` in `folder`, or `base 2`, `base 3` and so on: the first name
@@ -507,6 +528,33 @@ mod tests {
         // Nothing to do the second time.
         move_bank_folder(&documents, &private).expect("nothing to move");
         assert_eq!(read(&private.join("aqbanking/settings.conf")), "bank now");
+    }
+
+    /// B-450: a move that stopped after the switch is finished at the next
+    /// start without a new copy of the folder piling up.
+    #[test]
+    fn a_half_done_bank_move_is_finished_without_piling_up() {
+        let folder = TestFolder::new();
+        let documents = folder.join("Documents/KassenSturz");
+        let private = folder.join("package/io.github.vondor.KassenSturz");
+        write(&documents.join("aqbanking/settings.conf"), "bank now");
+        // The state after a failed last rename: the switch is done.
+        write(&private.join("aqbanking/settings.conf"), "bank now");
+        move_bank_folder(&documents, &private).expect("finished");
+        assert!(!documents.join("aqbanking").exists());
+        assert!(!documents.join("aqbanking.moved").exists());
+        assert_eq!(read(&private.join("aqbanking/settings.conf")), "bank now");
+        let piled = fs::read_dir(&private)
+            .expect("listed")
+            .filter(|e| {
+                e.as_ref()
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("before-move")
+            })
+            .count();
+        assert_eq!(piled, 0);
     }
 
     #[test]

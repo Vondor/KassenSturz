@@ -380,6 +380,10 @@ fn place_object(settings: &Settings) -> QVariant {
         ("offerSyncMove", QVariant::from(&offer_sync)),
         ("offerBankMove", QVariant::from(&offer_bank)),
         (
+            "bankMoveFailed",
+            QVariant::from(&(store && store_folder::bank_move_failed(settings))),
+        ),
+        (
             "localFolder",
             text(
                 &local
@@ -643,6 +647,7 @@ mod tests {
         assert_eq!(
             keys(&object),
             [
+                "bankMoveFailed",
                 "folder",
                 "inPackage",
                 "inSnap",
@@ -669,6 +674,7 @@ mod tests {
         // Nor a move out of OneDrive or of the bank folder (D-968, D-967).
         assert!(!flag_of(&object, "offerSyncMove"));
         assert!(!flag_of(&object, "offerBankMove"));
+        assert!(!flag_of(&object, "bankMoveFailed"));
         assert_eq!(text_of(&object, "localFolder"), "");
         // Outside both builds the own folder's path isn't shown (D-730).
         assert!(!flag_of(&object, "showOwnFolder"));

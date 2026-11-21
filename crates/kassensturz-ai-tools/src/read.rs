@@ -808,6 +808,11 @@ pub(crate) fn monthly_totals(
     if let Some(tag) = only.tag {
         result.insert("tag".into(), w.text(&tag_name(book, tag)?));
     }
+    if !matches!(rows, MonthlyRows::Category(_)) {
+        // Said in so many words: a model asked about one category quoted
+        // the month's money out of everything as that category's (B-434).
+        result.insert("all_categories".into(), Value::Bool(true));
+    }
     if let MonthlyRows::Category(id) = rows {
         result.insert("category".into(), w.text(&names.name(id)?));
         if !any_row {

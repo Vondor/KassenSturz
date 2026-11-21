@@ -2479,11 +2479,11 @@ msgctxt "@info"
 msgid ""
 "The model's context, its working memory, is too small for this question. In "
 "the program that runs the model, load it again with a larger context length "
-"(16384 or more; 65536 is better), or ask about less at a time."
+"(32768 or more; 65536 is better), or ask about less at a time."
 msgstr ""
 "Der Kontext des Modells, also sein Arbeitsgedächtnis, ist für diese Frage zu "
 "klein. Laden Sie das Modell in dem Programm, das es ausführt, mit einer "
-"größeren Kontextlänge neu (16384 oder mehr, besser 65536), oder fragen Sie "
+"größeren Kontextlänge neu (32768 oder mehr, besser 65536), oder fragen Sie "
 "weniger auf einmal."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:88
@@ -3430,11 +3430,11 @@ msgctxt "@info %1 is a number of tokens"
 msgid ""
 "The provider says this model reads only %1 tokens at once, which is too "
 "little for the chat. In the program that runs the model, load it again with "
-"a context length of 16384 or more (65536 is better)."
+"a context length of 32768 or more (65536 is better)."
 msgstr ""
 "Der Anbieter gibt an, dass dieses Modell nur %1 Token auf einmal liest. Das "
 "ist für den Chat zu wenig. Laden Sie das Modell im Programm, das es "
-"ausführt, mit einer Kontextlänge von 16384 oder mehr neu (65536 ist besser)."
+"ausführt, mit einer Kontextlänge von 32768 oder mehr neu (65536 ist besser)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:441
 #, kde-format
@@ -3449,12 +3449,12 @@ msgctxt "@info"
 msgid ""
 "How much this model can read at once is not known: the provider's list does "
 "not say. If the chat says its working memory is too small, load the model "
-"with a context length of 16384 or more (65536 is better)."
+"with a context length of 32768 or more (65536 is better)."
 msgstr ""
 "Wie viel dieses Modell auf einmal lesen kann, ist nicht bekannt: Die Liste "
 "des Anbieters sagt es nicht. Wenn der Chat meldet, dass sein "
 "Arbeitsgedächtnis zu klein ist, laden Sie das Modell mit einer Kontextlänge "
-"von 16384 oder mehr (besser 65536)."
+"von 32768 oder mehr (besser 65536)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:483
 #, kde-format
@@ -14123,12 +14123,11 @@ msgstr "Bankdateien (*.xml *.sta *.ofx *.csv *.txt)"
 #, kde-format
 msgctxt "@info"
 msgid ""
-"This is an early test version of KassenSturz. Try it with made-up numbers: "
-"what you enter is saved in your book."
+"Bug-tested and safe to use: many security checks and attack tests are done; "
+"the app may still change."
 msgstr ""
-"Dies ist eine frühe Testversion von KassenSturz. Probieren Sie sie mit "
-"ausgedachten Zahlen aus: Was Sie eingeben, wird in Ihrem Haushaltsbuch "
-"gespeichert."
+"Auf Fehler getestet und sicher nutzbar: viele Sicherheitsprüfungen und "
+"Angriffstests sind erledigt; die App kann sich noch ändern."
 
 #: crates/kassensturz-ui-bridge/qml/NewAccountPage.qml:39
 #, kde-format
@@ -23095,6 +23094,18 @@ msgstr ""
 "Die KI hat eine Webadresse geschrieben, die KassenSturz weggelassen hat "
 "([…]): KassenSturz fordert Sie nie auf, eine zu öffnen, und eine solche "
 "Adresse kann Ihre Zahlen an andere schicken."
+
+#, kde-format
+msgctxt "@info said by KassenSturz under an AI answer"
+msgid ""
+"Check this answer: its figure is the total of all categories together, not "
+"of the category you asked about. Ask again and name the category, or look "
+"under Categories."
+msgstr ""
+"Prüfen Sie diese Antwort: Ihre Zahl ist die Summe aller Kategorien "
+"zusammen, nicht die der Kategorie, nach der Sie gefragt haben. Fragen Sie "
+"noch einmal und nennen Sie die Kategorie, oder sehen Sie unter Kategorien "
+"nach."
 
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:73
 #, kde-format

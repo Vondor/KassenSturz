@@ -2288,8 +2288,8 @@ msgctxt "@info"
 msgid ""
 "The model's context, its working memory, is too small for this question. In "
 "the program that runs the model, load it again with a larger context length "
-"(16384 or more; 65536 is better), or ask about less at a time."
-msgstr "Kontekst modelu, czyli jego pamięć robocza, jest za mały na to pytanie. W programie, który uruchamia model, załaduj go ponownie z większą długością kontekstu (16384 lub więcej; lepiej 65536) albo pytaj o mniej naraz."
+"(32768 or more; 65536 is better), or ask about less at a time."
+msgstr "Kontekst modelu, czyli jego pamięć robocza, jest za mały na to pytanie. W programie, który uruchamia model, załaduj go ponownie z większą długością kontekstu (32768 lub więcej; lepiej 65536) albo pytaj o mniej naraz."
 
 #: crates/kassensturz-ui-bridge/qml/AiErrorMessage.qml:88
 #, kde-format
@@ -3073,8 +3073,8 @@ msgctxt "@info %1 is a number of tokens"
 msgid ""
 "The provider says this model reads only %1 tokens at once, which is too "
 "little for the chat. In the program that runs the model, load it again with "
-"a context length of 16384 or more (65536 is better)."
-msgstr "Dostawca podaje, że ten model czyta naraz tylko %1 tokenów, co jest za mało dla czatu. W programie, który uruchamia model, załaduj go ponownie z długością kontekstu 16384 lub więcej (lepiej 65536)."
+"a context length of 32768 or more (65536 is better)."
+msgstr "Dostawca podaje, że ten model czyta naraz tylko %1 tokenów, co jest za mało dla czatu. W programie, który uruchamia model, załaduj go ponownie z długością kontekstu 32768 lub więcej (lepiej 65536)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:441
 #, kde-format
@@ -3088,8 +3088,8 @@ msgctxt "@info"
 msgid ""
 "How much this model can read at once is not known: the provider's list does "
 "not say. If the chat says its working memory is too small, load the model "
-"with a context length of 16384 or more (65536 is better)."
-msgstr "Nie wiadomo, ile ten model potrafi przeczytać naraz: lista dostawcy tego nie podaje. Jeśli czat powie, że jego pamięć robocza jest za mała, załaduj model z długością kontekstu 16384 lub więcej (lepiej 65536)."
+"with a context length of 32768 or more (65536 is better)."
+msgstr "Nie wiadomo, ile ten model potrafi przeczytać naraz: lista dostawcy tego nie podaje. Jeśli czat powie, że jego pamięć robocza jest za mała, załaduj model z długością kontekstu 32768 lub więcej (lepiej 65536)."
 
 #: crates/kassensturz-ui-bridge/qml/AiSettingsPage.qml:483
 #, kde-format
@@ -12541,9 +12541,9 @@ msgstr "Pliki bankowe (*.xml *.sta *.ofx *.csv *.txt)"
 #, kde-format
 msgctxt "@info"
 msgid ""
-"This is an early test version of KassenSturz. Try it with made-up numbers: "
-"what you enter is saved in your book."
-msgstr "To jest wczesna wersja testowa KassenSturz. Wypróbuj ją na wymyślonych liczbach: to, co wpiszesz, zostanie zapisane w Twojej księdze."
+"Bug-tested and safe to use: many security checks and attack tests are done; "
+"the app may still change."
+msgstr "Przetestowana pod kątem błędów i bezpieczna w użyciu: wykonano wiele kontroli bezpieczeństwa i testów ataków; aplikacja może się jeszcze zmieniać."
 
 #: crates/kassensturz-ui-bridge/qml/NewAccountPage.qml:39
 #, kde-format
@@ -20915,6 +20915,14 @@ msgid ""
 "never asks you to open one, and such an address can send your figures to "
 "someone else."
 msgstr "AI napisało adres internetowy, który KassenSturz pominął ([…]): KassenSturz nigdy nie prosi Cię o otwarcie takiego adresu, a taki adres może wysłać Twoje liczby komuś innemu."
+
+#, kde-format
+msgctxt "@info said by KassenSturz under an AI answer"
+msgid ""
+"Check this answer: its figure is the total of all categories together, not "
+"of the category you asked about. Ask again and name the category, or look "
+"under Categories."
+msgstr "Sprawdź tę odpowiedź: podana kwota to suma wszystkich kategorii razem, a nie kategorii, o którą pytasz. Zapytaj ponownie i podaj nazwę kategorii albo zajrzyj do sekcji Kategorie."
 
 #: crates/kassensturz-ui-bridge/qml/AccountsPage.qml:73
 #, kde-format

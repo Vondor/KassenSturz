@@ -384,6 +384,16 @@ pub struct ChatSession {
     notes: Option<String>,
     /// The note line the model suggested for the question under way.
     note: Option<NoteSuggestion>,
+    /// Whether the question under way names a category of the book
+    /// (B-434).
+    category_question: bool,
+    /// The month-wide totals of all categories together that results of
+    /// the question under way gave: money in, money out and what is left
+    /// (B-434).
+    whole_totals: Figures,
+    /// The figures of single categories that results of the question under
+    /// way gave (B-434).
+    category_figures: Figures,
 }
 
 impl ChatSession {
@@ -416,6 +426,9 @@ impl ChatSession {
             permissions: None,
             notes: None,
             note: None,
+            category_question: false,
+            whole_totals: Figures::new(),
+            category_figures: Figures::new(),
         }
     }
 
@@ -584,6 +597,9 @@ impl ChatSession {
         self.view_refusals = 0;
         self.chart_failed = None;
         self.last_change_refused = false;
+        self.category_question = names_a_category(book, question);
+        self.whole_totals = Figures::new();
+        self.category_figures = Figures::new();
         // The whole question's time limit, when the provider has one
         // (M6-B172, D-595).
         let deadline = provider
@@ -804,6 +820,15 @@ impl ChatSession {
                 if web_addresses > 0 {
                     notes.push(notes::AnswerNote::WebAddressLeftOut);
                 }
+                if self.category_question
+                    && quotes_only_whole_totals(
+                        &reply.text,
+                        &self.whole_totals,
+                        &self.category_figures,
+                    )
+                {
+                    notes.push(notes::AnswerNote::AllCategoriesTotal);
+                }
                 return Ok(Answer {
                     notes,
                     text: reply.text,
@@ -950,6 +975,7 @@ impl ChatSession {
         let (result, error) = match outcome {
             Ok(output) => {
                 self.figures.extend(&output.figures);
+                self.note_totals(call, &output);
                 notes::collect_names(&output.value, &mut self.names_by_id);
                 (prompt::data_json(&output.value), None)
             }
@@ -1062,6 +1088,25 @@ impl ChatSession {
         kassensturz_ai_tools::call_allowed(book, name, arguments, today, self.permissions())
     }
 
+    /// Keeps apart the totals of all categories together and the figures of
+    /// single categories that a result gave (B-434): a model asked about
+    /// one category quoted all spending of the month as that category's.
+    fn note_totals(&mut self, call: &ToolCall, output: &kassensturz_ai_tools::Output) {
+        let for_one_category = serde_json::from_str::<Value>(&call.arguments)
+            .is_ok_and(|arguments| arguments.get("category_id").is_some_and(|id| !id.is_null()));
+        if for_one_category {
+            self.category_figures.extend(&output.figures);
+            return;
+        }
+        if TOTALS_FUNCTIONS.contains(&call.name.as_str()) {
+            collect_totals(
+                &output.value,
+                &mut self.whole_totals,
+                &mut self.category_figures,
+            );
+        }
+    }
+
     /// What KassenSturz adds to an issue draft: the build, the screen, and
     /// the error codes of this conversation and, while AI may read it, of
     /// the debug log.
@@ -1168,6 +1213,97 @@ pub fn sample_request(
         ],
         function_specs(false, permissions),
     )
+}
+
+/// The functions whose results hold month-wide totals of all categories
+/// together next to the rows of single categories (B-434).
+const TOTALS_FUNCTIONS: &[&str] = &["category_totals", "monthly_totals"];
+
+/// The keys of a totals result that hold a total of all categories.
+const WHOLE_TOTAL_KEYS: &[&str] = &["money_in", "money_out", "left"];
+
+/// The keys of a category's row that hold its figures.
+const CATEGORY_ROW_KEYS: &[&str] = &["total", "own_bookings_only"];
+
+/// Adds the month-wide totals in `value` to `whole` and the figures of the
+/// category rows (under "income" and "spending") to `category`. A total of
+/// zero is left out: it says nothing about a category and would match a
+/// "0" anywhere in an answer.
+fn collect_totals(value: &Value, whole: &mut Figures, category: &mut Figures) {
+    match value {
+        Value::Object(fields) => {
+            for (key, field) in fields {
+                match field {
+                    Value::String(amount) if WHOLE_TOTAL_KEYS.contains(&key.as_str()) => {
+                        if amount.bytes().any(|b| (b'1'..=b'9').contains(&b)) {
+                            whole.add_text(amount);
+                        }
+                    }
+                    Value::Array(rows) if key == "income" || key == "spending" => {
+                        for row in rows {
+                            let Value::Object(row) = row else { continue };
+                            for key in CATEGORY_ROW_KEYS {
+                                if let Some(Value::String(amount)) = row.get(*key) {
+                                    category.add_text(amount);
+                                }
+                            }
+                        }
+                    }
+                    _ => collect_totals(field, whole, category),
+                }
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                collect_totals(item, whole, category);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Whether `answer` quotes a total of all categories together (`whole`)
+/// and no figure of a single category (`category`), as a model did that
+/// was asked about one category and gave all spending of the month as its
+/// figure (B-434). An answer that names both, such as "1,304.27 in all, of
+/// which 195.08 on groceries", passes.
+fn quotes_only_whole_totals(answer: &str, whole: &Figures, category: &Figures) -> bool {
+    if whole.is_empty() {
+        return false;
+    }
+    let all = check_numbers(answer, &Figures::new()).len();
+    let in_whole = all - check_numbers(answer, whole).len();
+    let in_category = all - check_numbers(answer, category).len();
+    in_whole > 0 && in_category == 0
+}
+
+/// Whether `question` names a category of `book`: a part of a category's
+/// path, at least three characters long, as a whole word, in any case
+/// (B-434). "Lebensmittel" names "Essen › Lebensmittel".
+fn names_a_category(book: &Book, question: &str) -> bool {
+    let Ok(categories) = book.categories() else {
+        return false;
+    };
+    let question = question.to_lowercase();
+    categories.iter().any(|entry| {
+        entry
+            .path
+            .iter()
+            .any(|part| names_word(&question, &part.trim().to_lowercase()))
+    })
+}
+
+/// Whether `word` stands in `text` as a whole word: no letter or digit
+/// right before or after it.
+fn names_word(text: &str, word: &str) -> bool {
+    if word.chars().count() < 3 {
+        return false;
+    }
+    text.match_indices(word).any(|(start, found)| {
+        let before = text[..start].chars().next_back();
+        let after = text[start + found.len()..].chars().next();
+        !before.is_some_and(char::is_alphanumeric) && !after.is_some_and(char::is_alphanumeric)
+    })
 }
 
 /// The read functions, the one that prepares changes (only the lists the

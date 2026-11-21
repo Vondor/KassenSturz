@@ -675,12 +675,15 @@ Kirigami.ScrollablePage {
 
             // `fillWidth` is needed: with only a maximum, the box took the
             // width of one character, and the request ran down the page one
-            // letter per line over what lay below it (B-431).
+            // letter per line over what lay below it (B-431). No fixed
+            // height either: a text area doesn't clip, so a request taller
+            // than a fixed height was drawn over the banners and the "What
+            // is sent" section below it. Its own height is the whole
+            // request, so the page pushes them down and scrolls instead.
             Controls.TextArea {
                 objectName: "testRequestBox"
                 Layout.fillWidth: true
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 28
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 10
                 visible: testRequestToggle.visible && testRequestToggle.checked
                 readOnly: true
                 wrapMode: Text.WrapAnywhere
@@ -803,7 +806,7 @@ Kirigami.ScrollablePage {
             Layout.fillWidth: true
             type: Kirigami.MessageType.Warning
             visible: page.abilities.contextSmall === true
-            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a number of tokens", "The provider says this model reads only %1 tokens at once, which is too little for the chat. In the program that runs the model, load it again with a context length of 16384 or more (65536 is better).", page.abilities.contextTokens)) : ""
+            text: visible ? Plain.plain(page.i18nContext.i18nc("@info %1 is a number of tokens", "The provider says this model reads only %1 tokens at once, which is too little for the chat. In the program that runs the model, load it again with a context length of 32768 or more (65536 is better).", page.abilities.contextTokens)) : ""
         }
 
         Controls.Label {
@@ -819,7 +822,7 @@ Kirigami.ScrollablePage {
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
             visible: page.abilities.functions !== undefined && page.abilities.functions !== "no-model" && page.abilities.contextTokens === ""
-            text: page.i18nContext.i18nc("@info", "How much this model can read at once is not known: the provider's list does not say. If the chat says its working memory is too small, load the model with a context length of 16384 or more (65536 is better).")
+            text: page.i18nContext.i18nc("@info", "How much this model can read at once is not known: the provider's list does not say. If the chat says its working memory is too small, load the model with a context length of 32768 or more (65536 is better).")
         }
 
         // The consent: what is sent, and whether the user agreed.

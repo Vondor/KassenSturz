@@ -16,7 +16,7 @@
 
 ## Way B: installer file (only if way A fails)
 
-- **B1.** Open https://github.com/Vondor/KassenSturz/releases (no account needed); the top entry is the newest Beta, marked *Pre-release*.
+- **B1.** Open https://github.com/Vondor/KassenSturz/releases (no account needed); the top entry is the newest Beta, marked *Pre-release* (or *Latest* when it is also the stable release).
 - **B2.** Under **Assets** take the file ending in **-windows-x64-setup.exe**, for example `KassenSturz-0.261117.8-windows-x64-setup.exe`. Not the `.msix` (for the Store), not the `.zip` unless told, not *Source code*, not `.flatpak`, not `kassensturz.snap`.
 - **B3. Warnings** (the installer is not signed; normal for a Beta if the file comes from that page): in the browser **…**, **Keep**, **Keep anyway**; at SmartScreen "Windows protected your PC" click **More info** (not "Don't run"), then **Run anyway**. The Store route (A) has no such warning.
 - **B4. Install:** open the file, **Weiter**, **Installieren**, **Fertig stellen**. It installs into your own folder `%LOCALAPPDATA%\Programs\KassenSturz`, so no administrator rights; if Windows asks anyway, cancel and note it in the log.

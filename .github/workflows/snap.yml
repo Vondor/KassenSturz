@@ -153,6 +153,23 @@ jobs:
         run: |
           set -eu
           snap run --shell kassensturz.kassensturz -c 'ls $SNAP/usr/lib | grep -E "gwenhywfar|aqbanking|chipcard|pcsclite"'
+      # The MCP server talks to AI tools over stdio only (D-050), so its app
+      # must not hold the network plugs (B-445), and it must still start
+      # without the extension's libraries and paths.
+      - name: The MCP app has no network and still starts
+        run: |
+          set -u
+          plugs=$(python3 -c "import yaml; print(' '.join(yaml.safe_load(open('/snap/kassensturz/current/meta/snap.yaml'))['apps']['mcp'].get('plugs', [])))")
+          echo "plugs of kassensturz.mcp: $plugs"
+          case " $plugs " in
+            *" network "*|*" network-bind "*) echo "::error::kassensturz.mcp holds a network plug."; exit 1 ;;
+          esac
+          # AI is off in a fresh install, so a start that works says so and
+          # exits with status 2; a missing library would fail differently.
+          out=$(snap run kassensturz.mcp < /dev/null 2>&1); status=$?
+          echo "status: $status"; echo "$out" | tail -n 5
+          test "$status" = 2
+          echo "$out" | grep -q "AI features are switched off"
       - name: Remove it again
         run: sudo snap remove kassensturz
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

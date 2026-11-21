@@ -74,10 +74,17 @@ apps:
   mcp:
     command: usr/bin/kassensturz-mcp
     command-chain: [usr/bin/kassensturz-snap-launch]
-    extensions: [kde-neon-6]
+    # No `extensions:` on purpose (B-445): an extension adds its plugs to
+    # the app and snapcraft cannot take one away, and kde-neon-6 adds
+    # `network`. This program is plain Rust with its own SQLite, needs no
+    # Qt or KDE library, and talks to the AI tool over stdio only (D-050),
+    # so it gets only the plugs below (docs/SNAP.md, 4).
     # The same file access as the app, so a book in the home folder or on a
-    # drive is readable (Q-570); both can be switched off.
+    # drive is readable (Q-570); both can be switched off. `desktop` is
+    # kept for the document portal's mount, where a book chosen through the
+    # portal lives (B-275); it gives no network.
     plugs:
+      - desktop
       - home
       - removable-media
     environment:

@@ -298,7 +298,9 @@ pub const FUNCTIONS: &[Function] = &[
             month with nothing in it has no currencies. With \"top\" each month also names its \
             largest categories per side, each with its \"total\" as in category_totals; with \
             \"category_id\" each month has only that category's row (its \"total\" with \
-            everything inside it), for \"how much on Food each month\"; no month-wide totals then. \"nothing_in_category\" or \
+            everything inside it), for \"how much on Food each month\"; no month-wide totals then. \
+            Without category_id the month-wide totals are of all categories together \
+            (\"all_categories\": true): never give them as one category's figure. \"nothing_in_category\" or \
             \"category_has_no_bookings_in_period\": nothing booked there, so check \
             list_categories for a twin. Quote the figures as they are and never add months \
             up yourself.",

@@ -68,7 +68,7 @@ Nehmen Sie diesen Weg nur, wenn der Store bei Ihnen nicht geht (zum Beispiel wei
 
    **https://github.com/Vondor/KassenSturz/releases**
 
-3. Sie sehen eine Liste von Versionen. Die oberste ist die neueste Beta-Version. Oben auf der Karte steht **Pre-release**. Das ist richtig so.
+3. Sie sehen eine Liste von Versionen. Die oberste ist die neueste Beta-Version. Oben auf der Karte steht **Pre-release** (oder **Latest**, wenn sie zugleich die stabile Ausgabe ist). Das ist richtig so.
 4. Ein GitHub-Konto brauchen Sie **nicht**. Wenn die Seite danach fragt, schließen Sie die Frage.
 
 *(Bildschirmfoto folgt: Download-Seite mit der obersten Version.)*

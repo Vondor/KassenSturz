@@ -1,6 +1,6 @@
 # KassenSturz as a snap
 
-**Status:** in the Snap Store's `beta` channel since release `v0.261117.8` (revision 1, uploaded by `release.yml`, #892, D-765). The snap ran on a real desktop in the US7 test rounds (Kubuntu VM). Publishing stays the maintainer's step (AGENTS.md §3.2): only his release tag uploads. How users install it: [`INSTALL.md`](INSTALL.md). All names here are invented or the project's own.
+**Status:** in the Snap Store's `beta` channel since release `v0.261117.8` (revision 1, uploaded by `release.yml`, #892, D-765), and in `stable` since `v0.261120.39` (revision 3, 21 Nov 2026). The snap ran on a real desktop in the US7 test rounds (Kubuntu VM). Publishing stays the maintainer's step (AGENTS.md §3.2): only his release tag uploads. How users install it: [`INSTALL.md`](INSTALL.md). All names here are invented or the project's own.
 
 ## 1. What a user gets
 
@@ -73,7 +73,7 @@ Data outside home (e.g. `/srv/data/Nextcloud/`): choose the folder in the file c
 
 ## 6. Channels
 
-The channel is chosen in the release run (D-940, replaces D-939 and the variable `SNAP_CHANNELS` of #1247): every `v0.*` tag's run has the jobs *Snap Store, beta channel* (environment `snap-beta`, uploads to `beta`) and *Snap Store, stable and beta channels* (environment `snap-stable`, uploads to `stable` and `beta`, the stable 0.x release, D-879; Gold is still the maintainer's call alone). Both wait for the maintainer's approval; he approves one and rejects the other (`docs/RELEASING.md`). A snap already on `beta` can also be moved to `stable` later without a new build, by the workflow *Promote snap to stable* (D-941, `docs/RELEASING.md`). Both stable paths, and the manual workflow *Update Snap Store page*, also make the store page follow `snapcraft.yaml` again (D-947, `docs/RELEASING.md`). A main build is **not** uploaded to `edge`, because that would publish without the maintainer's tag (§3.2); test rounds install the main build's CI artifact instead. The maintainer kept it that way (D-845, Q-632): no `edge` uploads.
+The channel is chosen in the release run (D-940, replaces D-939 and the variable `SNAP_CHANNELS` of #1247): every `v0.*` tag's run has the jobs *Snap Store, beta channel* (environment `snap-beta`, uploads to `beta`) and *Snap Store, stable and beta channels* (environment `snap-stable`, uploads to `stable` and `beta`, the stable 0.x release, D-879; Gold is still the maintainer's call alone). Both wait for the maintainer's approval; he approves one and rejects the other (`docs/RELEASING.md`). A snap already on `beta` can also be moved to `stable` later without a new build, by the workflow *Promote snap to stable* (D-941, `docs/RELEASING.md`). Both stable paths, and the manual workflow *Update Snap Store page*, also make the store page follow `snapcraft.yaml` again (D-947, `docs/RELEASING.md`). Both stable paths also make that version's GitHub release the stable one, `(stable)` and *Latest*; a release whose snap went only to `beta` stays `(beta)` and *Pre-release* (D-948). A main build is **not** uploaded to `edge`, because that would publish without the maintainer's tag (§3.2); test rounds install the main build's CI artifact instead. The maintainer kept it that way (D-845, Q-632): no `edge` uploads.
 
 ## 7. Canonical's terms
 

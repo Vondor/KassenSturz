@@ -262,6 +262,8 @@ ColumnLayout {
                 return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "KassenSturz can't pay bills or send money, whatever the answer says. Do that in your bank's own app or website.");
             case "web-address-left-out":
                 return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer; […] is shown where the web address was", "The AI wrote a web address, which KassenSturz left out ([…]): KassenSturz never asks you to open one, and such an address can send your figures to someone else.");
+            case "all-categories-total":
+                return item.i18nContext.i18nc("@info said by KassenSturz under an AI answer", "Check this answer: its figure is the total of all categories together, not of the category you asked about. Ask again and name the category, or look under Categories.");
             default:
                 return "";
             }

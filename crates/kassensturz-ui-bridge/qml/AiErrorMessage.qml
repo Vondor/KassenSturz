@@ -50,7 +50,7 @@ ColumnLayout {
     // a request that was too large, or a provider that asks to wait.
     readonly property bool settingsHelp: result.code !== undefined
         && String(result.code).startsWith("ai.")
-        && ["ai.off", "ai.settings-changed", "ai.request-too-large", "ai.rate-limited"].indexOf(result.code) < 0
+        && ["ai.off", "ai.off-other-copy", "ai.settings-changed", "ai.request-too-large", "ai.rate-limited"].indexOf(result.code) < 0
 
     readonly property KI18nContext i18nContext: KI18nContext {
         translationDomain: "kassensturz"
@@ -60,6 +60,8 @@ ColumnLayout {
         switch (result.code) {
         case "ai.off":
             return i18nContext.i18nc("@info", "AI features are switched off. Turn them on in Settings.");
+        case "ai.off-other-copy":
+            return i18nContext.i18nc("@info", "AI is switched off in the Microsoft Store version of KassenSturz on this computer, so it is off here too. Nothing was read or sent. To use AI, switch it on in the Store version, or remove that version.");
         case "ai.no-provider":
             return i18nContext.i18nc("@info", "Type the provider's address and the model's name first.");
         case "ai.bad-address":

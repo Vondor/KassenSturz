@@ -1113,6 +1113,11 @@ pub(crate) mod engine {
         if !store.config().read().enabled() {
             return error(&ErrorText::plain("ai.off"));
         }
+        // AI is on here but off in the other copy on this computer, which
+        // counts: say so, not nothing (B-449).
+        if kassensturz_core::ai_switch::off_in_other_copy() {
+            return error(&ErrorText::plain("ai.off-other-copy"));
+        }
         let Some(path) = session::path() else {
             return error(&ErrorText::plain("ai-chat.book-unreadable"));
         };

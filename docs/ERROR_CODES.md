@@ -371,6 +371,7 @@ A request to the AI provider the user set up couldn't be sent, or its answer cou
 | Code | Parameters | Keywords | What happened, and what the user can do |
 |---|---|---|---|
 | `ai.off` | | | AI features are switched off, so nothing was sent. Turn them on in Settings → AI features. |
+| `ai.off-other-copy` | | | AI is on in this copy of KassenSturz but off in the Microsoft Store version on the same computer, which counts too (B-436), so nothing was read or sent. Switch AI on in the Store version, or remove that version (B-449). |
 | `ai.no-provider` | | | No AI provider is set up yet: its address or the model is missing. Enter both in Settings → AI features. |
 | `ai.bad-address` | | | This address can't be used for an AI provider. It starts with `http://` or `https://`, has the server's name, and has no login name, password, `?` or `#` part, e.g. `http://localhost:11434/v1`. |
 | `ai.plain-http` | | | KassenSturz won't use this address yet: it is on another computer and starts with `http://`, so what is sent to it travels unencrypted, and anyone on the same network could read it, the questions and the provider's key included. Use the provider's `https://` address. If the provider offers only `http://` and runs in a network you trust, the user can allow unencrypted connections: on the AI settings page the message has a button "Allow unencrypted connections" that ticks the box of that name, which shows its warning, and the user then saves (D-746, D-860). An address typed without a scheme gets `http://` in front first. |

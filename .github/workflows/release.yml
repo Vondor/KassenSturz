@@ -247,10 +247,88 @@ jobs:
   # is proven by hand on a Windows 11 virtual machine (D-542).
   windows:
     name: Windows app
-    if: github.ref_type == 'tag'
+    needs: [windows-reuse]
+    if: github.ref_type == 'tag' && needs.windows-reuse.outputs.reused != 'true'
     uses: ./.github/workflows/windows-app.yml
     with:
       release: true
+
+  # A tag sits on a commit of main, and main's own "Windows app" run has
+  # usually built that very commit already: the same files, the same build
+  # number (tools/build-version.sh reads only the commit), no secret and no
+  # setting that differs for a tag, and its run started the app from the zip
+  # and installed and removed the installer. Building it a second time took
+  # about 33 minutes and was the longest part of a release (D-957). So this
+  # job looks for that run and hands its three packages to the release; the
+  # job above builds only when there is none, for example when the tagged
+  # merge changed documentation only, main's build failed or is still
+  # running, or its files are gone. When anything is unclear the answer is
+  # `false` and the build runs as before. The Flatpak and the snap are still
+  # built here, because a tag gives them the registration number and the
+  # wizard's bank offer.
+  #
+  # A pull request that changes this file runs the search too, against the
+  # newest commit of main that has such a run, so the path is proven before a
+  # tag depends on it; nothing uses what it finds.
+  windows-reuse:
+    name: Windows packages from main's build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      reused: ${{ steps.find.outputs.reused }}
+    steps:
+      - name: Find main's build of this commit
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          REF_TYPE: ${{ github.ref_type }}
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          no() {
+            echo "Not reused: $1"
+            echo "Windows packages: built in this run ($1)" >> "$GITHUB_STEP_SUMMARY"
+            echo "reused=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          if [ "$REF_TYPE" = tag ]; then
+            query="head_sha=$SHA&"
+            want="kassensturz-windows-${TAG#v}"
+          else
+            query=""
+            want=""
+          fi
+          run=$(gh api "repos/$REPO/actions/workflows/windows-app.yml/runs?${query}branch=main&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0].id // empty') || no "the list of main's runs could not be read"
+          [ -n "$run" ] || no "main has no finished Windows build of this commit"
+          name=$(gh api "repos/$REPO/actions/runs/$run/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.expired | not) | select(.name | startswith("kassensturz-windows-")) | .name][0] // empty') \
+            || no "the files of main's run $run could not be listed"
+          [ -n "$name" ] || no "main's run $run has no Windows packages any more"
+          if [ -n "$want" ] && [ "$name" != "$want" ]; then
+            no "main's run $run built $name, the tag needs $want"
+          fi
+          gh run download "$run" --repo "$REPO" --name "$name" --dir windows || no "the packages of main's run $run could not be downloaded"
+          version=${name#kassensturz-windows-}
+          for file in "KassenSturz-$version-windows-x64.zip" "KassenSturz-$version-windows-x64-setup.exe" "KassenSturz-$version-windows-x64-store.msix"; do
+            [ -s "windows/$file" ] || no "main's run $run has no $file"
+          done
+          ls -l windows
+          echo "Windows packages: taken from main's run $run ($name), not built again" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "reused=true" >> "$GITHUB_OUTPUT"
+      # The release job attaches every artifact named release-asset-*.
+      - name: Hand the packages to the release
+        if: github.ref_type == 'tag' && steps.find.outputs.reused == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-asset-windows
+          path: windows/*
+          if-no-files-found: error
 
   # The experimental, unsigned macOS download (D-875). It starts at once, next
   # to the others, but nothing waits for it: the release below does not need
@@ -276,8 +354,15 @@ jobs:
   # pre-release; the job snap-stable turns it into the stable one (D-948).
   release:
     name: Beta release on GitHub
-    needs: [build, install-check, windows, snap]
-    if: github.ref_type == 'tag'
+    needs: [build, install-check, windows-reuse, windows, snap]
+    # The Windows job is skipped when main's packages are used (D-957), and a
+    # skipped job would skip this one too without the explicit results.
+    if: >-
+      !cancelled() && github.ref_type == 'tag' &&
+      needs.build.result == 'success' && needs.install-check.result == 'success' &&
+      needs.snap.result == 'success' && needs.windows-reuse.result == 'success' &&
+      (needs.windows.result == 'success' ||
+      (needs.windows.result == 'skipped' && needs.windows-reuse.outputs.reused == 'true'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -369,7 +454,9 @@ jobs:
   snap-beta:
     name: Snap Store, beta channel
     needs: [release]
-    if: github.ref_type == 'tag'
+    # Explicit, because a skipped Windows build further up (D-957) would
+    # otherwise skip this job too.
+    if: ${{ !cancelled() && github.ref_type == 'tag' && needs.release.result == 'success' }}
     runs-on: ubuntu-24.04
     environment: snap-beta
     steps:
@@ -395,7 +482,9 @@ jobs:
   snap-stable:
     name: Snap Store, stable and beta channels
     needs: [release]
-    if: github.ref_type == 'tag'
+    # Explicit, because a skipped Windows build further up (D-957) would
+    # otherwise skip this job too.
+    if: ${{ !cancelled() && github.ref_type == 'tag' && needs.release.result == 'success' }}
     runs-on: ubuntu-24.04
     environment: snap-stable
     permissions:

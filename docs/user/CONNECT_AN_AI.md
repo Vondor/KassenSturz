@@ -101,4 +101,4 @@ The answers go to your AI tool, and from there to whatever model that tool uses.
 
 **Fixed notes for the AI** are folded away at the bottom of the AI settings, under **Advanced: fixed notes for the AI**. They are for things that apply to every question, such as "Answer briefly" or "Salary comes on the 28th", and go with every question you ask in the chat. Ask the questions themselves in the chat, not there.
 
-See also [Notes for the user guide](NOTES.md) for details of each step.
+For a slower walk through every step, written for people who have never set up an AI, see [Using an AI with KassenSturz](en/ai.md) (German: [Eine KI mit KassenSturz benutzen](de/ki.md)).

@@ -42,6 +42,10 @@ There is also a [German version of this handbook](../de/README.md).
 
 21. [Planned payments](21-planned-payments.md)
 
+**Looking ahead**
+
+22. [What comes next](22-roadmap.md)
+
 **Extending KassenSturz**
 
 23. [Plugins](23-plugins.md)

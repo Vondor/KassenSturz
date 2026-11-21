@@ -30,6 +30,17 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 LANGUAGES = {
+    "en": {
+        "index": "Handbook",
+        "title": "Handbook (English)",
+        "notice": (
+            "> **This page is a copy.** It is made automatically from "
+            "[`{path}`]({source}) in the repository. Edits made here in the "
+            "Wiki are overwritten the next time it is updated. To improve the "
+            "page, please change the file in the repository and open a pull "
+            "request; [CONTRIBUTING.md]({contributing}) explains how."
+        ),
+    },
     "de": {
         "index": "Handbuch",
         "title": "Handbuch (Deutsch)",
@@ -40,17 +51,6 @@ LANGUAGES = {
             "verbessern, ändern Sie bitte die Datei im Repository und öffnen "
             "Sie einen Pull Request; wie das geht, steht in "
             "[CONTRIBUTING.md]({contributing})."
-        ),
-    },
-    "en": {
-        "index": "Handbook",
-        "title": "Handbook (English)",
-        "notice": (
-            "> **This page is a copy.** It is made automatically from "
-            "[`{path}`]({source}) in the repository. Edits made here in the "
-            "Wiki are overwritten the next time it is updated. To improve the "
-            "page, please change the file in the repository and open a pull "
-            "request; [CONTRIBUTING.md]({contributing}) explains how."
         ),
     },
 }
@@ -133,6 +133,14 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
     home = [
         "# KassenSturz",
         "",
+        "**English**",
+        "",
+        "- [Install and update](en-02-install)",
+        "- [Handbook in English](Handbook)",
+        "- [Report a problem](en-19-problems)",
+        "- [Using an AI (optional)](en-ai)",
+        "- [Roadmap: what comes next](en-22-roadmap)",
+        "",
         "**Deutsch**",
         "",
         "- [Installieren und aktualisieren](de-02-installieren)",
@@ -141,30 +149,23 @@ def build(out: Path, repo: str, branch: str) -> list[str]:
         "- [Eine KI benutzen (freiwillig)](de-ki)",
         "- [Roadmap: Was als Nächstes kommt](de-22-fahrplan)",
         "",
-        "**English**",
+        "**For everyone / für alle**",
         "",
-        "- [Install and update](en-02-install)",
-        "- [Handbook in English](Handbook)",
-        "- [Report a problem](en-19-problems)",
-        "- [Using an AI (optional)](en-ai)",
+        f"- [Discussions: announcements and ideas / Ankündigungen und Ideen](https://github.com/{repo}/discussions)",
+        f"- [For testers / für Tester]({blob}/docs/testing/README.md)",
         "",
-        "**Für alle / for everyone**",
-        "",
-        f"- [Discussions: Ankündigungen und Ideen / announcements and ideas](https://github.com/{repo}/discussions)",
-        f"- [Für Tester / for testers]({blob}/docs/testing/README.md)",
-        "",
-        (
-            "> **Dieses Wiki ist eine Kopie** des Handbuchs in "
-            f"[`docs/user`]({blob}/docs/user) im Repository. Änderungen hier "
-            "werden überschrieben; bitte ändern Sie die Dateien dort, mit einem "
-            f"Pull Request ([CONTRIBUTING.md]({contributing}))."
-        ),
-        ">",
         (
             "> **This wiki is a copy** of the handbook in "
             f"[`docs/user`]({blob}/docs/user) in the repository. Edits made here "
             "are overwritten; please change the files there with a pull request "
             f"([CONTRIBUTING.md]({contributing}))."
+        ),
+        ">",
+        (
+            "> **Dieses Wiki ist eine Kopie** des Handbuchs in "
+            f"[`docs/user`]({blob}/docs/user) im Repository. Änderungen hier "
+            "werden überschrieben; bitte ändern Sie die Dateien dort, mit einem "
+            f"Pull Request ([CONTRIBUTING.md]({contributing}))."
         ),
         "",
     ]

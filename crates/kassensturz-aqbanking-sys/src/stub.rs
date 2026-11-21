@@ -38,9 +38,48 @@ pub fn set_scenario(name: &str) {
 }
 
 /// Builds the stub library once and returns its path.
+///
+/// Under a runner that starts one process per test (cargo-nextest, D-957)
+/// many processes call this at the same moment. Cargo takes the file it
+/// names, removes it and links it again on every build, even a build with
+/// nothing to do, so a process that loaded it while another one's build
+/// ran found no file (the macOS flake B-459). So the builds run one at a
+/// time under a lock, and the library that is loaded is a copy beside
+/// cargo's file that is only ever replaced by an atomic rename.
 pub fn library() -> &'static Path {
     static PATH: OnceLock<PathBuf> = OnceLock::new();
-    PATH.get_or_init(build)
+    PATH.get_or_init(|| {
+        let lock = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(false)
+            .write(true)
+            .open(std::env::temp_dir().join("kassensturz-aqbanking-stub-build.lock"))
+            .expect("the build lock can be opened");
+        lock.lock().expect("the build lock can be taken");
+        let built = build();
+        let stable = stable_copy(&built);
+        drop(lock);
+        stable
+    })
+}
+
+/// The copy of `built` that nothing rewrites: it stays as it is while its
+/// bytes match, and a changed build replaces it by an atomic rename. The
+/// caller holds the build lock.
+fn stable_copy(built: &Path) -> PathBuf {
+    let name = built.file_name().expect("the library has a file name");
+    let mut copy_name = std::ffi::OsString::from("ks-stable-");
+    copy_name.push(name);
+    let copy = built.with_file_name(copy_name);
+    let bytes = std::fs::read(built).expect("the built stub library can be read");
+    if std::fs::read(&copy).ok().as_deref() != Some(bytes.as_slice()) {
+        let mut temp_name = copy.as_os_str().to_owned();
+        temp_name.push(format!(".{}.tmp", std::process::id()));
+        let temp = PathBuf::from(temp_name);
+        std::fs::write(&temp, &bytes).expect("the stub library's copy can be written");
+        std::fs::rename(&temp, &copy).expect("the stub library's copy can be put in place");
+    }
+    copy
 }
 
 fn build() -> PathBuf {

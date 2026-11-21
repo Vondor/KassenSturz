@@ -5,3 +5,6 @@
 // installer's shortcuts show the first icon resource of the .exe, and Qt
 // takes the one named IDI_ICON1 for the window's title bar and the taskbar.
 IDI_ICON1 ICON "kassensturz.ico"
+
+// The manifest (B-444): 1 is the id Windows looks for, 24 is RT_MANIFEST.
+1 24 "kassensturz.manifest"

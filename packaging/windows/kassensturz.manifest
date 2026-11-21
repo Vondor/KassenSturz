@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+SPDX-FileCopyrightText: 2026 KassenSturz contributors
+SPDX-License-Identifier: CC0-1.0
+
+The application manifest of kassensturz.exe (B-444, D-979): the program says
+it can use paths longer than 260 characters. Windows honours this only where
+its "LongPathsEnabled" setting is on; the book dialog explains the limit.
+-->
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">true</longPathAware>
+    </windowsSettings>
+  </application>
+</assembly>

@@ -73,7 +73,9 @@ static EXAMPLES: &[Example] = &[
         bytes: include_bytes!(
             "../../kassensturz-import/tests/books/examples/suburban-family-v15.sqlite"
         ),
-        export: None,
+        export: Some(include_bytes!(
+            "../../kassensturz-import/tests/books/examples/suburban-family.json"
+        )),
     },
     Example {
         id: "suburban-family-en",
@@ -82,7 +84,9 @@ static EXAMPLES: &[Example] = &[
         bytes: include_bytes!(
             "../../kassensturz-import/tests/books/examples/suburban-family-en-v15.sqlite"
         ),
-        export: None,
+        export: Some(include_bytes!(
+            "../../kassensturz-import/tests/books/examples/suburban-family-en.json"
+        )),
     },
     Example {
         id: "flower-utopia",
@@ -184,7 +188,14 @@ impl Dating {
         let Ok(first) = Date::new(year, month, 1) else {
             return date;
         };
-        Date::new(year, month, date.day().min(first.days_in_month())).unwrap_or(date)
+        // The last day of a month stays the last day of one, so a budget
+        // that ends with a month still does (D-946).
+        let day = if date.day() == date.days_in_month() {
+            first.days_in_month()
+        } else {
+            date.day().min(first.days_in_month())
+        };
+        Date::new(year, month, day).unwrap_or(date)
     }
 
     /// The KMyMoney book with its dates moved and nothing after today.
@@ -492,29 +503,34 @@ mod tests {
         }
     }
 
-    /// M6-B138: Flower Utopia comes with its budgets and its saved
-    /// dashboards, which only its complete export holds.
+    /// M6-B138, D-946: Flower Utopia and the Suburban Family books come
+    /// with their budgets and their saved dashboards, which only their
+    /// complete export holds.
     #[test]
-    fn flower_utopia_comes_with_its_budgets_and_dashboards() {
-        let folder = TestFolder::new();
-        let books = Books::in_folder(folder.path(), "Desk");
-        let (open, created) =
-            create(&books, "flower-utopia", "Example", &TestLocale).expect("made");
-        assert!(created.transactions > 30);
-        assert!(open.book.budgets().expect("budgets").len() >= 5);
+    fn the_exported_books_come_with_their_budgets_and_dashboards() {
+        for (id, least) in [
+            ("flower-utopia", 5),
+            ("suburban-family", 3),
+            ("suburban-family-en", 3),
+        ] {
+            let folder = TestFolder::new();
+            let books = Books::in_folder(folder.path(), "Desk");
+            let (open, created) = create(&books, id, "Example", &TestLocale).expect("made");
+            assert!(created.transactions > 30, "{id}");
+            assert!(open.book.budgets().expect("budgets").len() >= least, "{id}");
+        }
         // The other books are plain KMyMoney books: no budgets.
-        drop(open);
         let folder = TestFolder::new();
         let books = Books::in_folder(folder.path(), "Desk");
-        let (plain, _) = create(&books, "suburban-family", "Example", &TestLocale).expect("made");
+        let (plain, _) = create(&books, "udssr-agent", "Example", &TestLocale).expect("made");
         assert!(plain.book.budgets().expect("budgets").is_empty());
     }
 
-    /// #829, D-788: every example book opens on its own Overview, with its
-    /// other three dashboards as tabs, every one of them readable, and the
+    /// #829, D-788, D-946: every example book opens on its own Overview,
+    /// with *Sonstiges* (*More*) as the second tab, both readable, and the
     /// tiles that name an account or a category name one of the book's.
     #[test]
-    fn every_example_book_comes_with_its_four_dashboards() {
+    fn every_example_book_comes_with_its_two_dashboards() {
         use kassensturz_report::Document;
 
         for example in all() {
@@ -522,7 +538,7 @@ mod tests {
             let books = Books::in_folder(folder.path(), "Desk");
             let (open, _) = create(&books, example.id, "Example", &TestLocale).expect("made");
             let listed = crate::dashboards::list(&open.book, "Overview").expect("listed");
-            assert_eq!(listed.len(), 4, "{}", example.id);
+            assert_eq!(listed.len(), 2, "{}", example.id);
             assert!(listed[0].is_default, "{}", example.id);
             assert!(
                 listed[0].id.is_some(),
@@ -597,6 +613,16 @@ mod tests {
         assert_eq!(
             earlier.moved(Date::constant(2026, 11, 3)),
             Date::constant(2025, 10, 3)
+        );
+        // D-946: a month's last day stays its month's last day, so a
+        // budget that ends with a month still does.
+        assert_eq!(
+            later.moved(Date::constant(2026, 11, 30)),
+            Date::constant(2026, 12, 31)
+        );
+        assert_eq!(
+            earlier.moved(Date::constant(2026, 11, 30)),
+            Date::constant(2025, 10, 31)
         );
         let none = Dating::on(Date::constant(2026, 11, 3));
         assert_eq!(none.months, 0);

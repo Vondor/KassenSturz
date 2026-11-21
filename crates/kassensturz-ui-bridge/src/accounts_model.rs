@@ -743,7 +743,8 @@ mod tests {
 
     /// The example book Suburban Family with its CAMT file imported, as the
     /// importer, the pipeline and the store make them (AGENTS.md §9.4). On
-    /// 3 Nov 2026 four of the imported entries (4 to 6 Nov, 394,45 €) are
+    /// 3 Nov 2026 four of the imported entries (4 to 6 Nov, 268,52 €) and
+    /// the rest of the running month on the other accounts (D-946) are
     /// still to come: the accounts screen counts them and says so, and the
     /// Overview's figure for today is the total without them (M6-B144,
     /// D-587).
@@ -801,8 +802,8 @@ mod tests {
             .accounts(false)
             .expect("accounts")
             .into_iter()
-            .find(|account| account.name == "Girokonto")
-            .expect("Girokonto");
+            .find(|account| account.name == "Girokonto Jonas")
+            .expect("Girokonto Jonas");
         let input = std::fs::read(examples.join("statements/suburban-family.camt053.xml"))
             .expect("the statement is in the repository");
         let Imported::Statements(statements) =
@@ -821,17 +822,21 @@ mod tests {
 
         let view = view_object(&accounts::view(&book, &OnTheThird).expect("view"));
         let euros = &list_of(&view, "sections")[0];
-        // The statement's lines after the 3rd, and the card and cash
-        // spending later in the book's running month (D-584; the app leaves
+        // The statement's lines after the 3rd, and the rest of the book's
+        // running month on the other accounts (D-584, D-946; the app leaves
         // those out when it makes the book, this test reads the file).
-        assert_eq!(text_of(euros, "together"), "116169,50 €");
-        assert_eq!(text_of(euros, "later"), "-484,50 €");
-        assert_eq!(text_of(euros, "exactLater"), "-484,50 €");
+        assert_eq!(text_of(euros, "together"), "102974,71 €");
+        assert_eq!(text_of(euros, "later"), "-4742,23 €");
+        assert_eq!(text_of(euros, "exactLater"), "-4742,23 €");
         for card in list_of(euros, "accounts") {
             let later = match text_of(&card, "name").as_str() {
-                "Girokonto" => "394,45 €",
-                "Bargeld" => "-95,80 €",
-                "Kreditkarte" => "-783,15 €",
+                "Girokonto" => "-1976,27 €",
+                "Girokonto Jonas" => "-268,52 €",
+                "Haushaltskonto" => "-2693,11 €",
+                "Sparkonto" => "1543,80 €",
+                "Tagesgeld" => "217,40 €",
+                "Bargeld" => "61,35 €",
+                "Kreditkarte" => "-1626,88 €",
                 _ => "",
             };
             assert_eq!(text_of(&card, "later"), later, "{}", text_of(&card, "name"));
@@ -846,7 +851,7 @@ mod tests {
             .expect("balances")
             .results[0]
             .worth;
-        assert_eq!(worth.net_worth.minor_units(), 11_616_950 + 48_450);
+        assert_eq!(worth.net_worth.minor_units(), 10_297_471 + 474_223);
         // At the end of the month it is the accounts screen's total.
         let november = Period::this_month(today).expect("a month");
         let source = Source::read_with_balances(&book, november).expect("read");
@@ -854,6 +859,6 @@ mod tests {
             .expect("balances")
             .results[0]
             .worth;
-        assert_eq!(worth.net_worth.minor_units(), 11_616_950);
+        assert_eq!(worth.net_worth.minor_units(), 10_297_471);
     }
 }

@@ -63,7 +63,7 @@ const EXAMPLES: [Example; 5] = [
         slug: "suburban-family",
         title: "Suburban Family (Familie Sommerfeld)",
         file: "examples/suburban-family-v15.sqlite",
-        account: "Girokonto",
+        account: "Girokonto Jonas",
         food: "Essen",
         currency: "EUR",
         english: false,
@@ -72,7 +72,7 @@ const EXAMPLES: [Example; 5] = [
         slug: "suburban-family-en",
         title: "Suburban Family (English, the Summerfield Family)",
         file: "examples/suburban-family-en-v15.sqlite",
-        account: "Checking account",
+        account: "Jonas's checking account",
         food: "Food",
         currency: "EUR",
         english: true,
@@ -574,21 +574,92 @@ fn every_example_has_food_in_last_month_and_a_transfer() {
     }
 }
 
-// ------------------------------------------------------ Flower Utopia export
+// ------------------------------------------- the examples' complete exports
 
-const BUDGETS: [(&str, i64); 5] = [
-    ("Essen und Trinken", 8_000),
-    ("Saatgut und Pflanzen", 6_000),
-    ("Wasser", 4_000),
-    ("Erde und Dünger", 5_000),
-    ("Geräte und Werkzeug", 3_500),
+/// A monthly budget of an example book: its category, its amount in minor
+/// units, and its first and last month counted from the reference month
+/// (negative: before it); no last month means it runs on.
+struct BudgetPlan {
+    category: &'static str,
+    minor: i64,
+    from: i32,
+    until: Option<i32>,
+}
+
+const fn monthly(category: &'static str, minor: i64, from: i32, until: Option<i32>) -> BudgetPlan {
+    BudgetPlan {
+        category,
+        minor,
+        from,
+        until,
+    }
+}
+
+/// Flower Utopia: five budgets from the book's first month on.
+const FLOWER_BUDGETS: [BudgetPlan; 5] = [
+    monthly("Essen und Trinken", 8_000, -24, None),
+    monthly("Saatgut und Pflanzen", 6_000, -24, None),
+    monthly("Wasser", 4_000, -24, None),
+    monthly("Erde und Dünger", 5_000, -24, None),
+    monthly("Geräte und Werkzeug", 3_500, -24, None),
 ];
 
-fn flower_utopia_with_budgets() -> Book {
+/// Suburban Family (D-946): the household's groceries, close to used up by
+/// the third week of the month, the kitchen's 36 rates (the 14th is due in
+/// the reference month, see `tools/example-books/generate.py`) and the
+/// e-bike's 24 rates from the month after the reference month.
+const SUBURBAN_BUDGETS: [BudgetPlan; 3] = [
+    monthly("Lebensmittel", 110_000, -24, None),
+    monthly("Ratenkauf Küche", 18_900, -13, Some(22)),
+    monthly("Ratenkauf E-Bike", 8_500, 1, Some(24)),
+];
+
+/// The same in the English book's words.
+const SUBURBAN_BUDGETS_EN: [BudgetPlan; 3] = [
+    monthly("Groceries", 110_000, -24, None),
+    monthly("Kitchen on instalments", 18_900, -13, Some(22)),
+    monthly("E-bike on instalments", 8_500, 1, Some(24)),
+];
+
+/// The examples that come as a complete export, which holds what a
+/// KMyMoney file cannot (budgets and saved dashboards): slug, file, budgets.
+const EXPORTED: [(&str, &str, &[BudgetPlan]); 3] = [
+    (
+        "flower-utopia",
+        "examples/flower-utopia.json",
+        &FLOWER_BUDGETS,
+    ),
+    (
+        "suburban-family",
+        "examples/suburban-family.json",
+        &SUBURBAN_BUDGETS,
+    ),
+    (
+        "suburban-family-en",
+        "examples/suburban-family-en.json",
+        &SUBURBAN_BUDGETS_EN,
+    ),
+];
+
+/// The first day of the month `months` after the reference month.
+fn month_start(months: i32) -> Date {
+    let (year, month) = reference();
+    let number = i32::from(year) * 12 + i32::from(month) - 1 + months;
+    Date::new(
+        i16::try_from(number.div_euclid(12)).expect("a year"),
+        i8::try_from(number.rem_euclid(12) + 1).expect("a month"),
+        1,
+    )
+    .expect("a day")
+}
+
+/// The example `slug` with its budgets and its dashboards (#829, D-788),
+/// which the plain KMyMoney books get when the app fills them.
+fn with_budgets(slug: &str, budgets: &[BudgetPlan]) -> Book {
     let example = EXAMPLES
         .iter()
-        .find(|example| example.slug == "flower-utopia")
-        .expect("Flower Utopia");
+        .find(|example| example.slug == slug)
+        .expect("an example");
     let mut book = the_book(example);
     let categories: HashMap<String, _> = book
         .categories()
@@ -596,25 +667,24 @@ fn flower_utopia_with_budgets() -> Book {
         .into_iter()
         .map(|entry| (entry.category.name.clone(), entry.category.id))
         .collect();
-    let (year, month) = reference();
-    // The first month of the book: 24 months before the reference month.
-    let first = Date::constant(year - 2, month, 1);
-    for (name, minor) in BUDGETS {
-        let category = categories[name];
+    for plan in budgets {
+        let category = categories[plan.category];
         let currency = book.account(category).expect("the category").currency;
+        let last = plan.until.map(|until| {
+            let next = month_start(until + 1);
+            next.yesterday().expect("a day before")
+        });
         book.add_budget(
             &[category],
             &[],
             BudgetEvery::Month,
-            first,
-            None,
-            Money::from_minor_units(minor, currency),
+            month_start(plan.from),
+            last,
+            Money::from_minor_units(plan.minor, currency),
             false,
         )
-        .unwrap_or_else(|error| panic!("{name}: {error:?}"));
+        .unwrap_or_else(|error| panic!("{slug} {}: {error:?}", plan.category));
     }
-    // Its dashboards (#829, D-788), which the KMyMoney books get when the
-    // app fills them and Flower Utopia keeps in its export.
     let accounts = book.all_accounts().expect("accounts");
     for text in example_dashboards(example.slug) {
         let document = resolve_names(&text, &accounts).expect("every name is in the book");
@@ -658,65 +728,87 @@ fn is_id(bytes: &[u8]) -> bool {
     })
 }
 
-/// Flower Utopia as a complete export: the book plus its budgets and its
-/// saved dashboards, which a KMyMoney file cannot hold. This is the file the
-/// chooser opens for it.
+/// Flower Utopia and the two Suburban Family books as complete exports:
+/// the book plus its budgets and its saved dashboards, which a KMyMoney file
+/// cannot hold. These are the files the chooser opens for them.
 #[test]
-fn flower_utopia_export_is_the_committed_file() {
-    let book = flower_utopia_with_budgets();
-    check_file(
-        &books().join("examples/flower-utopia.json"),
-        &exported(&book),
-    );
+fn the_exports_are_the_committed_files() {
+    for (slug, file, budgets) in EXPORTED {
+        let book = with_budgets(slug, budgets);
+        check_file(&books().join(file), &exported(&book));
+    }
 }
 
 /// The saved dashboards read, the Overview first and marked as the one the
-/// book opens at, and the budgets have figures for last month.
+/// book opens at, *Sonstiges* (*More*) after it, and the budgets that run
+/// last month have figures for it.
 #[test]
-fn flower_utopia_budgets_have_figures_for_last_month() {
+fn the_exported_budgets_have_figures_for_last_month() {
     use kassensturz_report::{BudgetGrouping, Document, budget_utilization};
 
-    let text = fs::read_to_string(books().join("examples/flower-utopia.json")).expect("the export");
-    let data = read_book(text.as_bytes()).expect("a complete export");
-    let mut book = Book::create_in_memory().expect("a book in memory");
-    fill_book(&mut book, &data).expect("filled");
-    let views = book.views(None).expect("views");
-    assert_eq!(views.len(), 4);
-    let document = Document::read(&views[0].document).expect("a valid dashboard");
-    assert_eq!(document.name, "Übersicht");
-    assert!(document.default);
-    for view in &views[1..] {
-        assert!(!Document::read(&view.document).expect("valid").default);
-    }
+    for (slug, file, budgets) in EXPORTED {
+        let text = fs::read_to_string(books().join(file)).expect("the export");
+        let data = read_book(text.as_bytes()).expect("a complete export");
+        let mut book = Book::create_in_memory().expect("a book in memory");
+        fill_book(&mut book, &data).expect("filled");
+        assert_eq!(
+            book.budgets().expect("budgets").len(),
+            budgets.len(),
+            "{slug}"
+        );
+        let views = book.views(None).expect("views");
+        assert_eq!(views.len(), 2, "{slug}");
+        let document = Document::read(&views[0].document).expect("a valid dashboard");
+        let english = slug.ends_with("-en");
+        assert_eq!(
+            document.name,
+            if english { "Overview" } else { "Übersicht" }
+        );
+        assert!(document.default);
+        let others = Document::read(&views[1].document).expect("valid");
+        assert!(!others.default);
+        assert_eq!(others.name, if english { "More" } else { "Sonstiges" });
 
-    let (year, month) = reference();
-    let today = Date::constant(year, month, 1);
-    let period = Period::last_month(today).expect("last month");
-    let source = Source::read_with_budgets(&book, period, today).expect("read");
-    let rows = budget_utilization(
-        &source,
-        period,
-        today,
-        BudgetGrouping::Period,
-        &Filter::default(),
-        None,
-    )
-    .expect("figures");
-    assert_eq!(rows.len(), BUDGETS.len());
-    let spent = rows
-        .iter()
-        .filter(|row| row.periods[0].spent.minor_units() > 0)
-        .count();
-    assert!(spent >= 3, "{spent} budgets with spending last month");
+        let (year, month) = reference();
+        let today = Date::constant(year, month, 1);
+        let period = Period::last_month(today).expect("last month");
+        let source = Source::read_with_budgets(&book, period, today).expect("read");
+        let rows = budget_utilization(
+            &source,
+            period,
+            today,
+            BudgetGrouping::Period,
+            &Filter::default(),
+            None,
+        )
+        .expect("figures");
+        let running = budgets
+            .iter()
+            .filter(|plan| plan.from <= -1 && plan.until.is_none_or(|until| until >= -1))
+            .count();
+        let spent = rows
+            .iter()
+            .filter(|row| {
+                row.periods
+                    .first()
+                    .is_some_and(|figures| figures.spent.minor_units() > 0)
+            })
+            .count();
+        assert!(
+            spent >= running.min(3),
+            "{slug}: {spent} budgets with spending last month"
+        );
+    }
 }
 
-/// #829, D-788: each KMyMoney example, filled with its dashboards as the
-/// app fills it, has four readable dashboards in its own language, the
-/// Overview first and marked; every account and category they name is the
-/// book's; the warning finds its account, and the food goal counts the
-/// food category's spending.
+/// #829, D-788, D-946: each KMyMoney example, filled with its dashboards as
+/// the app fills it, has two readable dashboards in its own language, the
+/// Overview first and marked, then *Sonstiges* (*More*); every account and
+/// category they name is the book's; the warning finds its account, the
+/// food goal counts the food category's spending and *Left of the salary*
+/// has a figure.
 #[test]
-fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
+fn every_example_comes_with_two_dashboards_that_name_its_own_accounts() {
     use kassensturz_core::ViewKind;
     use kassensturz_report::{
         AlarmState, Document, Formula, FormulaValue, Item, Setting, evaluate_alarms, templates,
@@ -733,7 +825,7 @@ fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
         };
         let mut book = Book::create_in_memory().expect("a book in memory");
         let dashboards = example_dashboards(example.slug);
-        assert_eq!(dashboards.len(), 4, "{}", example.slug);
+        assert_eq!(dashboards.len(), 2, "{}", example.slug);
         fill_book_from_with_dashboards(
             &mut book,
             &imported,
@@ -744,7 +836,7 @@ fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
         )
         .expect("filled");
         let views = book.views(Some(ViewKind::Dashboard)).expect("views");
-        assert_eq!(views.len(), 4, "{}: none left out", example.slug);
+        assert_eq!(views.len(), 2, "{}: none left out", example.slug);
         let ids: Vec<String> = book
             .all_accounts()
             .expect("accounts")
@@ -759,7 +851,7 @@ fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
         let currency = code(example.currency);
         let period = Period::last_month(today).expect("last month");
         let source = Source::read_with_budgets(&book, period, today).expect("read");
-        let (mut alarms, mut goals) = (0, 0);
+        let (mut alarms, mut goals, mut rests) = (0, 0, 0);
         for (index, view) in views.iter().enumerate() {
             let document = Document::read(&view.document)
                 .unwrap_or_else(|error| panic!("{}: {error:?}", example.slug));
@@ -793,7 +885,6 @@ fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
                 if let Some(Setting::Text(text)) = component.get("formula")
                     && !text.is_empty()
                 {
-                    goals += 1;
                     let result = Formula::parse(text)
                         .expect("a formula")
                         .evaluate(&source, period, &Filter::default(), currency)
@@ -802,6 +893,13 @@ fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
                         panic!("{}: an amount", example.slug);
                     };
                     assert_ne!(amount.minor_units(), 0, "{}", example.slug);
+                    // The Overview's *Left of the salary* counts more than
+                    // the food goal; the goal counts the food category.
+                    if entry.id == "rest-of-salary" {
+                        rests += 1;
+                        continue;
+                    }
+                    goals += 1;
                     assert!(
                         result
                             .counted
@@ -814,6 +912,6 @@ fn every_example_comes_with_four_dashboards_that_name_its_own_accounts() {
                 }
             }
         }
-        assert_eq!((alarms, goals), (1, 1), "{}", example.slug);
+        assert_eq!((alarms, goals, rests), (1, 1, 1), "{}", example.slug);
     }
 }

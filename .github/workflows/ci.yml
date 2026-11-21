@@ -343,8 +343,8 @@ jobs:
             .sdk-cache/cargo/registry
             .sdk-cache/cargo/git
             target
-          key: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-
+          key: cargo-kde-sdk-v2-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-kde-sdk-v2-${{ steps.rustc.outputs.version }}-
       # The tests run with cargo-nextest (D-957): cargo runs the test programs
       # one after another, nextest runs every test as a process of its own,
       # as many at once as the runner has cores. Measured on 4 cores without
@@ -394,6 +394,10 @@ jobs:
       # Only main saves (D-427), after a merge or in the nightly run: a pull
       # request's copies probably help push main's out of GitHub's 10 GB
       # limit, and main then starts cold.
+      - name: Leave the workspace's own build out of the cache (D-957)
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        shell: bash
+        run: tools/ci-prune-cargo-cache.sh target build/cmake/cargo
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -402,7 +406,7 @@ jobs:
             .sdk-cache/cargo/registry
             .sdk-cache/cargo/git
             target
-          key: cargo-kde-sdk-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          key: cargo-kde-sdk-v2-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
 
   # The build without AI (D-039): lints and tests of every crate with the AI
   # feature off, and a check that no AI crate is in what it builds. It is a job
@@ -452,8 +456,8 @@ jobs:
             .sdk-cache/cargo/registry
             .sdk-cache/cargo/git
             target
-          key: cargo-kde-sdk-no-ai-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-kde-sdk-no-ai-${{ steps.rustc.outputs.version }}-
+          key: cargo-kde-sdk-no-ai-v2-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-kde-sdk-no-ai-v2-${{ steps.rustc.outputs.version }}-
       # cargo-nextest, as in the KDE job (D-957).
       - name: Restore cargo-nextest
         id: nextest-cache
@@ -479,6 +483,10 @@ jobs:
       - name: The build without AI holds no AI crate (D-039)
         run: tools/sdk.sh tools/check-no-ai.sh
       # Saved even when a check failed, so the next push doesn't start cold.
+      - name: Leave the workspace's own build out of the cache (D-957)
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        shell: bash
+        run: tools/ci-prune-cargo-cache.sh target build/cmake/cargo
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -487,7 +495,7 @@ jobs:
             .sdk-cache/cargo/registry
             .sdk-cache/cargo/git
             target
-          key: cargo-kde-sdk-no-ai-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          key: cargo-kde-sdk-no-ai-v2-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
 
   # Windows is the next platform after KDE Plasma and GNOME (D-006). Qt and
   # KDE Frameworks aren't set up on this runner yet, so it covers everything
@@ -516,8 +524,8 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-windows-1.98.1-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-windows-1.98.1-
+          key: cargo-windows-v2-1.98.1-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-windows-v2-1.98.1-
       # cargo-nextest, as in the KDE job (D-957).
       - name: Restore cargo-nextest
         id: nextest-cache
@@ -542,6 +550,10 @@ jobs:
         run: cargo nextest run --workspace --exclude kassensturz-ui-bridge --locked
         env:
           CARGO_INCREMENTAL: "0"
+      - name: Leave the workspace's own build out of the cache (D-957)
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        shell: bash
+        run: tools/ci-prune-cargo-cache.sh target build/cmake/cargo
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -550,7 +562,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: cargo-windows-1.98.1-${{ hashFiles('Cargo.lock') }}
+          key: cargo-windows-v2-1.98.1-${{ hashFiles('Cargo.lock') }}
 
   # macOS is the last platform in D-006's order and has no official packages
   # until its signing is funded (D-048), but a macOS-only problem is cheaper to
@@ -666,8 +678,8 @@ jobs:
             .cargo-home/git
             build/cmake/cargo
             target
-          key: cargo-kubuntu-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-kubuntu-${{ steps.rustc.outputs.version }}-
+          key: cargo-kubuntu-v2-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-kubuntu-v2-${{ steps.rustc.outputs.version }}-
       # Kubuntu 26.10 has Qt 6.11.2 and KDE Frameworks 6.29.0, the minimums in
       # CMakeLists.txt (D-094). It uses the system's SQLite (D-061).
       - name: Configure
@@ -746,6 +758,10 @@ jobs:
       # book's lock file doesn't stay behind (B-276).
       - name: The installed app ends cleanly on SIGTERM and SIGHUP
         run: tools/check-sigterm.sh build/stage/usr/bin/kassensturz
+      - name: Leave the workspace's own build out of the cache (D-957)
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        shell: bash
+        run: tools/ci-prune-cargo-cache.sh target build/cmake/cargo
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -755,7 +771,7 @@ jobs:
             .cargo-home/git
             build/cmake/cargo
             target
-          key: cargo-kubuntu-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          key: cargo-kubuntu-v2-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
 
   # The same build with Fedora's packages, groundwork for an RPM (D-097).
   # Fedora 44 is the current stable release; Fedora 45 is not out yet. Qt, KDE
@@ -831,8 +847,8 @@ jobs:
             .cargo-home/git
             build/cmake/cargo
             target
-          key: cargo-fedora-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: cargo-fedora-${{ steps.rustc.outputs.version }}-
+          key: cargo-fedora-v2-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: cargo-fedora-v2-${{ steps.rustc.outputs.version }}-
       # Fedora 44 has Qt 6.11 and KDE Frameworks 6.29 or newer, the minimums in
       # CMakeLists.txt (D-094). It uses the system's SQLite (D-061).
       - name: Configure
@@ -893,6 +909,10 @@ jobs:
           status=0
           timeout 10 build/stage/usr/bin/kassensturz || status=$?
           test "$status" -eq 124
+      - name: Leave the workspace's own build out of the cache (D-957)
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
+        shell: bash
+        run: tools/ci-prune-cargo-cache.sh target build/cmake/cargo
       - name: Save Cargo's cache
         if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.cargo-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -902,7 +922,7 @@ jobs:
             .cargo-home/git
             build/cmake/cargo
             target
-          key: cargo-fedora-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
+          key: cargo-fedora-v2-${{ steps.rustc.outputs.version }}-${{ hashFiles('Cargo.lock') }}
 
   licenses:
     name: Dependency licenses and sources (D-026)
